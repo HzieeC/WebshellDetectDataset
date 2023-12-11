@@ -1,0 +1,23 @@
+
+<%@ page contentType="text/html;charset=UTF-8"%>
+<%@ page language="java" import="com.bizoss.trade.ti_relanguage.*" pageEncoding="UTF-8"%>
+
+<%
+	String resume_id = "";
+	if(request.getParameter("resume_id")!=null){
+		resume_id = request.getParameter("resume_id");
+	}
+	String lang_type = "";
+	if(request.getParameter("lang_type")!=null){
+		lang_type = request.getParameter("lang_type");
+	}
+	Ti_relanguageInfo info = new Ti_relanguageInfo();
+	Boolean exist = info.checkRepeat(resume_id,lang_type);
+
+	if(exist == true){
+		out.print(1);
+	}else{
+		out.print(0);
+	}
+%>
+

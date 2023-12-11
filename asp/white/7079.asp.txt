@@ -1,0 +1,947 @@
+<!--#include file="inc/conndb.asa"-->
+<!--#include file="inc/function.asp"-->
+<%
+function invert(Content) 
+	if not isnull(Content) then
+		Content = Replace(Content, "&nbsp;&nbsp;","  ")
+		Content = Replace(Content, "&gt;",">")
+		Content = Replace(Content, "&lt;","<")
+		Content = Replace(Content, "\\","\")
+		Content = Replace(Content, "&quot;",CHR(34))
+		Content = Replace(Content, "&#39;",CHR(39))
+		Content = Replace(Content, "",CHR(13))
+		Content = Replace(Content, "</P><P> ",CHR(10) & CHR(10))
+		Content = Replace(Content, "<BR>",CHR(10))
+		invert = Content
+	end if
+end Function
+function htmlencode(Content)
+	if not isnull(Content) then
+		Content = Replace(Content, "  ","&nbsp;&nbsp;")
+		Content = Replace(Content, ">", "&gt;")
+		Content = Replace(Content, "<", "&lt;")
+		Content = Replace(Content, "\", "\\")
+		Content = Replace(Content, CHR(34), "&quot;")
+		Content = Replace(Content, CHR(39), "&#39;")
+		Content = Replace(Content, CHR(13), "")
+		Content = Replace(Content, CHR(10) & CHR(10), "</P><P> ")
+		Content = Replace(Content, CHR(10), "<BR>")
+		htmlencode = Content
+	end if
+end function
+
+Call checkuser()
+fa=request("fa")
+comurl=request("comurl")
+if comurl="" Then comurl=request.serverVariables("Http_REFERER")
+%>
+
+<%
+
+Page_WebTitle="站内短信中心"&TieBa_Name
+now_where="站内短信中心"
+
+navright="<a href=""usersms.asp?action=new"">写新邮件</a> | <a href=""usersms.asp"">收件箱</a> | <a href=""usersms.asp?action=outbox"">发件箱</a> | <a href=""usersms.asp?action=issend"">已经发邮件</a> | <a href=""usersms.asp?action=recycle"">垃圾箱</a>"
+%>
+<!--#include file="inc/header.htm"-->
+<script language="javascript">
+<!--
+function DoTitle(addTitle) { 
+var revisedTitle; 
+var currentTitle = document.messager.touser.value; 
+revisedTitle = currentTitle+addTitle; 
+document.messager.touser.value=revisedTitle; 
+document.messager.touser.focus(); 
+return; }
+
+function CheckAll(form)  {
+  for (var i=0;i<form.elements.length;i++)    {
+    var e = form.elements[i];
+    if (e.name != 'chkall')       e.checked = form.chkall.checked; 
+   }
+  }
+//-->
+      </script>
+<style type="text/css">
+<!--
+.style1 {color: #FF0000}
+.style2 {color: #0000FF}
+.boxmail {
+	background-color: #CCCCFF;
+}
+-->
+</style>
+<BR><%
+	dim msg
+	if founderr=false then
+	select case request("action")
+	case "inbox"
+		call inbox()
+	case "outbox"
+		call outbox()
+	case "issend"
+		call issend()
+	case "recycle"
+		call recycle()
+	case "new"
+		call sendmsg()
+	case "read"
+		call read()
+	case "outread"
+		call read()
+	case "delete"
+		call delete()
+	case "send"
+		call savemsg()
+	case "newmsg"
+		call newmsg()
+	case "fw"
+		call fw()
+	case "edit"
+		call edit()
+	case "savedit"
+		call savedit()
+	case "删除选定收件"
+		call delinbox()
+	case "清空收件箱"
+		call AllDelinbox()
+	case "删除选定发件"
+		call delfa()
+	case "清空发件箱"
+		call AllDelfa()
+	case "删除选定信件"
+		call delissend()
+	case "清空已发送信息"
+		call AllDelissend()
+	case "删除指定信息"
+		call delrecycle()
+	case "清空废件箱"
+		call AllDelrecycle()
+	case else
+		call inbox()
+	end select
+	if founderr then call other()
+end If
+%><BR>
+<!--#include file="inc/bottom.htm"-->
+
+<%'收件箱
+sub inbox()
+%>      <form action="usersms.asp" method=post name=inbox>
+        <table border="0" width="779" cellspacing="1" cellpadding="3" style="border-collapse: collapse" align=center  class="zd_table">
+          <tr  class="zd_td">
+            <td width=50 height="22" align=center valign=middle nowrap><b>收件箱</b></td>
+            <td width=100 align=center valign=middle><b>发件人</b></td>
+            <td width=300 align=center valign=middle ><b>主 题</b></td>
+            <td width=150 align=center valign=middle><b>日期</b></td>
+            <td width=50 align=center valign=middle><b>大小</b></td>
+            <td width=30 align=center valign=middle><b>操作</b></td>
+          </tr>
+          <%	
+set rs=server.createobject("adodb.recordset")
+	sql="select * from message where (incept='"&Dreamsun_name&"' and issend=1 and delR=0) order by flag,sendtime desc"
+rs.open sql,conn,1,1
+	ns= Rs.RecordCount
+	nn=0
+	if rs.eof and rs.bof then
+%>
+          <tr  class="zd_td">
+            <td align=center valign=middle colspan=6>您的收件箱中没有任何内容。</td>
+          </tr>
+          <%else%>
+          <% If ns>30 Then %>
+          <tr  class="zd_td">
+            <td align=center valign=middle colspan=6>您的收件箱中有<%=ns%>封信件,但系统只能显示最新的30封,请及时删除部分已读或过期信件。</td>
+          </tr>
+          <% End If %>
+          <%do while not rs.eof
+if rs("flag")=0 then
+img="<img src='images/m_news.gif' border='0'>"
+else
+img="<img src='images/m_olds.gif' border='0'>"
+end if
+url="usersms.asp?action=read&"%>
+          <tr  class="zd_td">
+            <td align=center valign=middle><%=img%></td>
+            <td align=center valign=middle><%if rs("flag")=0 then%>
+                <b>
+                <%end if%>
+                <a href="user.asp?Action=infoshow&username=<%=rs("sender")%>" title="查看详细信息"><%=rs("sender")%></a></b></td>
+            <td align=left><a href="<%=url%>id=<%=rs("id")%>&sender=<%=rs("sender")%>">
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=rs("title")%></b></a> </td>
+            <td>
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=rs("sendtime")%></b></td>
+            <td>
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=len(rs("content"))%>Byte</b></td>
+            <td width=30 align=center valign=middle><input name=id type=checkbox class="boxmy" value=<%=rs("id")%>>
+            </td>
+          </tr>
+          <%nn=nn+1
+if nn>29 then exit do
+	rs.movenext
+	loop
+	end if
+	rs.close
+	set rs=nothing
+%>
+          <tr  class="zd_td">
+            <td colspan=6 align=right valign=middle nowrap class="zd_td">请及时删除已读信息&nbsp;
+                <input name=chkall type=checkbox class="boxmail" onclick="CheckAll(this.form)" value=on>
+        选中所有显示记录&nbsp;
+        <input type=submit name=action onclick="{if(confirm('确定删除选定的纪录吗?')){this.document.inbox.submit();return true;}return false;}" value="删除选定收件">
+&nbsp;
+        <input type=submit name=action onclick="{if(confirm('确定清除收件箱所有的纪录吗?')){this.document.inbox.submit();return true;}return false;}" value="清空收件箱"></td>
+          </tr>
+        </table>
+      </form>
+      <%
+end sub
+'收件逻辑删除，置于废件箱，入口字段delR，可用于批量及单个删除
+sub delinbox()
+delid=checkstr(request("id"))
+if delid="" or isnull(delid) then
+             response.write "<script>alert('请选择相关参数！');history.go(-1);</Script>"
+            response.end 
+else
+	conn.execute("update message set delR=1 where incept='"&trim(Dreamsun_name)&"' and id in ("&delid&")")
+	
+	stitle="删除短信"
+			 response.redirect request.serverVariables("Http_REFERER")
+end if
+end sub
+sub AllDelinbox()
+	conn.execute("update message set delR=1 where incept='"&trim(Dreamsun_name)&"' and delR=0")
+		stitle="删除短信"
+         response.redirect request.serverVariables("Http_REFERER")
+end sub
+
+'发件箱
+sub outbox()
+%>
+      <form action="usersms.asp" method=post name=inbox>
+        <table border="0" width="779" cellspacing="1" cellpadding="3" style="border-collapse: collapse" align=center  class="zd_table">
+          <tr>
+            <td width=50 height="22" align=center valign=middle nowrap class="zd_td"><b>发件箱</b></td>
+            <td width=100 align=center valign=middle class="zd_td"><b>收件人</b></td>
+            <td width=300 align=center valign=middle class="zd_td"><b>主 题</b></td>
+            <td width=150 align=center valign=middle class="zd_td"><b>日期</b></td>
+            <td width=50 align=center valign=middle class="zd_td"><b>大小</b></td>
+            <td width=30 align=center valign=middle class="zd_td"><b>操作</b></td>
+          </tr>
+          <%
+	set rs=server.createobject("adodb.recordset")
+	sql="select * from message where sender='"&trim(Dreamsun_name)&"' and issend=0 and delS=0 order by sendtime desc"
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+%>
+          <tr bgcolor="#FFFFFF">
+            <td align=center valign=middle colspan=6>您的发件箱中没有任何内容。</td>
+          </tr>
+          <%else%>
+          <%do while not rs.eof%>
+          <tr bgcolor=#FFFFFF>
+            <td align=center valign=middle> <img src="images/m_news.gif" width="21" height="14"> </td>
+            <td align=center valign=middle><%if rs("flag")=0 then%>
+                <b>
+                <%end if%>
+                <%=rs("incept")%></b></td>
+            <td align=left><a href="usersms.asp?action=edit&id=<%=rs("id")%>">
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=rs("title")%></b></a> </td>
+            <td>
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=rs("sendtime")%></b></td>
+            <td>
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=len(rs("content"))%>Byte</b></td>
+            <td width=30 align=center valign=middle><input name=id type=checkbox class="boxmy" value=<%=rs("id")%>></td>
+          </tr>
+          <%
+	rs.movenext
+	loop
+	end if
+	rs.close
+	set rs=nothing
+%>
+          <tr>
+            <td colspan=6 align=right valign=middle class="zd_td">请及时删除已读信息&nbsp;
+                <input name=chkall type=checkbox class="boxmail" onclick="CheckAll(this.form)" value=on>
+        选中所有显示记录&nbsp;
+        <input type=submit name=action onclick="{if(confirm('确定删除选定的纪录吗?')){this.document.inbox.submit();return true;}return false;}" value="删除选定发件">
+&nbsp;
+        <input type=submit name=action onclick="{if(confirm('确定清除发件箱所有的纪录吗?')){this.document.inbox.submit();return true;}return false;}" value="清空发件箱"></td>
+          </tr>
+        </table>
+      </form>
+      <%
+end sub
+'发件逻辑删除，置于废件箱，入口字段delS，可用于批量及单个删除
+sub deloutbox()
+delid=checkstr(request("id"))
+if delid="" or isnull(delid) then
+response.write "<script>alert('请选择相关参数！');history.go(-1);</Script>"
+response.end 
+else
+	conn.execute("update message set delS=1 where sender='"&trim(Dreamsun_name)&"' and issend=0 and id in ("&delid&")")
+			stitle="删除短信"
+	response.redirect request.serverVariables("Http_REFERER")
+end if
+end sub
+sub AllDeloutbox()
+	conn.execute("update message set delS=1 where sender='"&trim(Dreamsun_name)&"' and delS=0 and issend=0")
+			stitle="删除短信"
+	response.redirect request.serverVariables("Http_REFERER")
+end sub
+
+'已发送信息
+sub other()
+	response.write "<script>alert('您执行了无效操作！');history.go(-1);</Script>"
+    response.end 
+end sub
+sub issend()
+%>
+      <form action="usersms.asp" method=post name=inbox>
+        <table border="0" width="779" cellspacing="1" cellpadding="3" style="border-collapse: collapse" align=center  class="zd_table">
+          <tr>
+            <td width=60 height="22" align=center valign=middle nowrap class="zd_td"><b>已发邮件</b></td>
+            <td width=100 align=center valign=middle class="zd_td"><b>收件人</b></td>
+            <td width=300 align=center valign=middle class="zd_td"><b>主 题</b></td>
+            <td width=150 align=center valign=middle class="zd_td"><b>日期</b></td>
+            <td width=50 align=center valign=middle class="zd_td"><b>大小</b></td>
+            <td width=30 align=center valign=middle class="zd_td"><b>操作</b></td>
+          </tr>
+          <%
+	set rs=server.createobject("adodb.recordset")
+	sql="select * from message where sender='"&trim(Dreamsun_name)&"' and issend=1 and delS=0 order by flag,sendtime desc"
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+%>
+          <tr bgcolor="#FFFFFF">
+            <td align=center valign=middle colspan=6>您的已发送信息中没有任何内容。</td>
+          </tr>
+          <%else%>
+          <%do while not rs.eof%>
+          <tr bgcolor=#FFFFFF>
+            <td align=center valign=middle><%if rs("flag")=0 then%>
+                <img src="images/m_news.gif" alt="该邮件接收方还未阅读">
+                <%else%>
+                <img src="images/m_olds.gif" alt="该邮件接收方已经阅读">
+                <%end if%></td>
+            <td align=center valign=middle><%if rs("flag")=0 then%>
+                <b>
+                <%end if%>
+                <%=rs("incept")%></b></td>
+            <td align=left><a href="usersms.asp?action=outread&id=<%=rs("id")%>">
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=rs("title")%></b></a> </td>
+            <td>
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=rs("sendtime")%></b></td>
+            <td>
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=len(rs("content"))%>Byte</b></td>
+            <td width=30 align=center valign=middle><input name=id type=checkbox class="boxmy" value=<%=rs("id")%>></td>
+          </tr>
+          <%
+	rs.movenext
+	loop
+	end if
+	rs.close
+	set rs=nothing
+%>
+          <tr bgcolor="#FFFFFF">
+            <td colspan=6 align=right valign=middle class="zd_td">请及时删除已读信息&nbsp;
+                <input name=chkall type=checkbox class="boxmail" onclick="CheckAll(this.form)" value=on>
+        选中所有显示记录&nbsp;
+        <input type=submit name=action onclick="{if(confirm('确定删除选定的纪录吗?')){this.document.inbox.submit();return true;}return false;}" value="删除选定信件">
+&nbsp;
+        <input type=submit name=action onclick="{if(confirm('确定清除已发送信息所有的纪录吗?')){this.document.inbox.submit();return true;}return false;}" value="清空已发送信息"></td>
+          </tr>
+        </table>
+      </form>
+      <%
+end sub
+'已发送逻辑删除，置于废件箱，入口字段delS，可用于批量及单个删除
+'delS：0未操作，1发送者删除，2发送者从废件箱删除
+sub delissend()
+delid=checkstr(request("id"))
+if delid="" or isnull(delid) then
+response.write "<script>alert('请选择相关参数！');history.go(-1);</Script>"
+response.end 
+else
+	conn.execute("update message set delS=1 where sender='"&trim(Dreamsun_name)&"' and issend=1 and id in ("&delid&")")
+			stitle="删除短信"
+	response.redirect request.serverVariables("Http_REFERER")
+end if
+end sub
+sub AllDelissend()
+	conn.execute("update message set delS=1 where sender='"&trim(Dreamsun_name)&"' and delS=0 and issend=1")
+			stitle="删除短信"
+	response.redirect request.serverVariables("Http_REFERER")
+end sub
+'废件箱
+sub recycle()
+%>
+      <form action="usersms.asp" method=post name=inbox>
+        <table border="0" width="779" cellspacing="1" cellpadding="3" style="border-collapse: collapse" align=center class="zd_table">
+          <tr>
+            <td width=50 height="22" align=center valign=middle nowrap class="zd_td"><b>废件箱</b></td>
+            <td width=100 align=center valign=middle class="zd_td"><b>名字</b></td>
+            <td width=300 align=center valign=middle class="zd_td"><b>主 题</b></td>
+            <td width=150 align=center valign=middle class="zd_td"><b>日期</b></td>
+            <td width=50 align=center valign=middle class="zd_td"><b>大小</b></td>
+            <td width=30 align=center valign=middle class="zd_td"><b>操作</b></td>
+          </tr>
+          <%
+	set rs=server.createobject("adodb.recordset")
+	sql="select * from message where ((sender='"&trim(Dreamsun_name)&"' and delS=1) or (incept='"&trim(Dreamsun_name)&"' and delR=1)) order by sendtime desc"
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+%>
+          <tr bgcolor="#FFFFFF">
+            <td align=center valign=middle colspan=6>您的废件箱中没有任何内容。</td>
+          </tr>
+          <%else%>
+          <%do while not rs.eof%>
+          <tr bgcolor=#FFFFFF>
+            <td align=center valign=middle><font face="宋体" color="#333333">
+              <%if rs("flag")=0 then%>
+              <img src="images/m_news.gif">
+              <%else%>
+              <img src="images/m_olds.gif">
+              <%end if%>
+            </font></td>
+            <td align=center valign=middle><%if rs("flag")=0 then%>
+                <b>
+                <%end if%>
+                <%=rs("incept")%></b></td>
+            <td align=left><a href="usersms.asp?action=read&id=<%=rs("id")%>">
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=rs("title")%></b></a> </td>
+            <td>
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=rs("sendtime")%></b></td>
+            <td>
+              <%if rs("flag")=0 then%>
+              <b>
+              <%end if%>
+              <%=len(rs("content"))%>Byte</b></td>
+            <td width=30 align=center valign=middle><input name=id type=checkbox class="boxmy" value=<%=rs("id")%>></td>
+          </tr>
+          <%
+	rs.movenext
+	loop
+	end if
+	rs.close
+	set rs=nothing
+%>
+          <tr>
+            <td colspan=6 align=right valign=middle class="zd_td">请及时删除已读信息&nbsp;
+                <input name=chkall type=checkbox class="boxmail" onclick="CheckAll(this.form)" value=on>
+        选中所有显示记录&nbsp;
+        <input type=submit name=action onclick="{if(confirm('确定删除选定的纪录吗?')){this.document.inbox.submit();return true;}return false;}" value="删除指定信息">
+&nbsp;
+        <input type=submit name=action onclick="{if(confirm('确定清除废件箱所有的纪录吗?')){this.document.inbox.submit();return true;}return false;}" value="清空废件箱"></td>
+          </tr>
+        </table>
+      </form>
+      <%
+end sub
+'用户能完全删除收到信息和逻辑删除所发送信息，逻辑删除所发送信息设置入口字段delS参数为2
+sub delrecycle()
+delid=checkstr(request("id"))
+'response.write delid
+if delid="" or isnull(delid) then
+response.write "<script>alert('请选择相关参数！');history.go(-1);</Script>"
+response.end 
+exit sub
+else
+	conn.execute("delete from message where incept='"&Dreamsun_name&"' and delR=1 and id in ("&delid&")")
+	conn.execute("update message set delS=2 where sender='"&trim(Dreamsun_name)&"' and delS=1 and id in ("&delid&")")
+		stitle="删除短信"
+	response.redirect request.serverVariables("Http_REFERER")
+end if
+end sub
+sub AllDelrecycle()
+	conn.execute("delete from message where incept='"&Dreamsun_name&"' and delR=1")	
+	conn.execute("update message set delS=2 where sender='"&trim(Dreamsun_name)&"' and delS=1")
+		stitle="删除短信"
+	response.redirect request.serverVariables("Http_REFERER")
+	end sub
+sub delfa()
+delid=checkstr(request("id"))
+'response.write delid
+if delid="" or isnull(delid) then
+response.write "<script>alert('请选择相关参数！');history.go(-1);</Script>"
+response.end 
+exit sub
+else
+	conn.execute("delete from message where sender='"&Dreamsun_name&"' and isSend=0 and id in ("&delid&")")
+		stitle="删除短信"
+	response.redirect request.serverVariables("Http_REFERER")
+end if
+end sub
+sub AllDelfa()
+	conn.execute("delete from message where sender='"&Dreamsun_name&"' and isSend=0")
+		stitle="删除短信"
+	response.redirect request.serverVariables("Http_REFERER")
+	end sub
+
+sub delete()
+delid=checkstr(request("id"))
+if not isNumeric(request("id")) or delid="" or isnull(delid) then
+response.write "<script>alert('请选择相关参数！');history.go(-1);</Script>"
+response.end 
+call error(errmsg)
+else
+	conn.execute("update message set delR=1 where incept='"&trim(Dreamsun_name)&"' and id="&delid)
+	conn.execute("update message set delS=1 where sender='"&trim(Dreamsun_name)&"' and id="&delid)
+		stitle="删除短信"
+response.write "<p align=center><br><br><br><br><br><font color=red>恭喜您!该站内邮件已经成功转移到废件箱!<br><br><br></font>"
+response.write "<meta http-equiv=""refresh"" content=""2;url=usersms.asp?action=recycle"">"
+	
+end if
+end sub
+
+'发送信息
+sub sendmsg()
+if request("id")<>"" and isNumeric(request("id")) then
+set rs=server.createobject("adodb.recordset")
+sql="select sendtime,title,content from message where incept='"&Dreamsun_name&"' and id="&cint(request("id"))
+rs.open sql,conn,1,1
+if not(rs.eof and rs.bof) then
+sendtime=rs("sendtime")
+title="RE " & rs("title")
+content=rs("content")
+end if
+rs.close
+set rs=nothing
+end if
+%>
+      <form action="usersms.asp" method=post name=messager>
+        <table border="0" width="779" cellspacing="1" cellpadding="3" style="border-collapse: collapse" align=center  class="zd_table">
+          <tr>
+            <td height="22" colspan=2 align=center class="zd_td">
+              <input type=hidden name="action" value="send">
+              <b>发送站内邮件</b>--请完整输入下列信息</td>
+          </tr>
+          <tr bgcolor="#FFFFFF">
+            <td valign=middle width=70>
+              <div align="right"><b>收件人：</b></div></td>
+            <td valign=middle>
+              <input type=text name="touser" value="<% If fa="" Then %><%=request("touser")%><% Else %><% =fa %><% End If %>" size=30>
+              <input name="comurl" type="hidden" id="comurl" value="<% =comurl %>">
+        (收件人的会员账户,如:admin|aaa|ddd)支持群发，请用|分割，最后不加|←<a href="javascript:" onClick="document.messager.touser.value+='|'">点此插入|符号</a></td>
+          </tr>
+          <tr bgcolor="#FFFFFF">
+            <td valign=top>
+              <div align="right"><b>标题：</b></div></td>
+            <td valign=middle>
+              <input type=text name="title" size=50 maxlength=80 value="<%=title%>">
+      &nbsp;请限定50字内 </td>
+          </tr>
+          <tr bgcolor="#FFFFFF">
+            <td valign=top><div align="right"><b>内容：</b><br>
+            </div></td>
+            <td valign=middle>
+              <textarea cols=65 rows=12 name="content" title=""><%if request("id")<>"" then%>
+============= 在 <%=sendtime%> 您来信中写道： ============
+<%=invert(content)%>
+========================================================<%end if%>
+      </textarea>
+            </td>
+          </tr>
+          <tr>
+            <td colspan=2 align=center valign=middle class="zd_td">
+              <input type=Submit value="发送" name=Submit>
+&nbsp;
+        <input type=Submit value="保存" name=Submit>
+&nbsp;
+        <input type="reset" name="Clear" value="清除"></td>
+          </tr>
+        </table>
+      </form>
+      <%
+end sub
+'转发信息
+sub fw()
+if request("id")<>"" and isNumeric(request("id")) then
+set rs=server.createobject("adodb.recordset")
+sql="select title,content,sender from message where (incept='"&Dreamsun_name&"' or sender='"&Dreamsun_name&"') and id="&request("id")
+rs.open sql,conn,1,1
+if rs.eof and rs.bof then
+response.write "<script>alert('请选择相关参数！');history.go(-1);</Script>"
+response.end 
+exit sub
+else
+title=rs("title")
+content=rs("content")
+sender=rs("sender")
+end if
+rs.close
+set rs=nothing
+end if
+%>
+      <form action="usersms.asp" method=post name=messager>
+        <table border="0" width="779" cellspacing="1" cellpadding="3" style="border-collapse: collapse" align=center>
+          <tr>
+            <td height="22" colspan=2 align=center class="zd_td">
+              <input type=hidden name="action" value="send">
+              <b>发送站内邮件</b>--请完整输入下列信息
+              <input name="comurl" type="hidden" id="comurl" value="<% =comurl %>"></td>
+          </tr>
+          <tr bgcolor="#FFFFFF">
+            <td width=70 valign=middle>
+              <div align="right"><b>收件人：</b></div></td>
+            <td valign=middle>
+              <input type=text name="touser" value="<%=request("touser")%>" size=50>
+      &nbsp;(填写收件人的会员账户,如:admin) </td>
+          </tr>
+          <tr bgcolor="#FFFFFF">
+            <td valign=top>
+              <div align="right"><b>标题：</b></div></td>
+            <td valign=middle>
+              <input type=text name="title" size=50 maxlength=80 value="Fw：<%=title%>">
+      &nbsp;请限定50字内 </td>
+          </tr>
+          <tr bgcolor="#FFFFFF">
+            <td valign=top><div align="right"><b>内容：</b><br>
+            </div></td>
+            <td valign=middle>
+              <textarea cols=70 rows=8 name="content" title="">========== 下面是转发信息 =========
+原发件人：<%=sender%><%=chr(13)&chr(13)%>
+<%=invert(content)%>
+===================================</textarea>
+            </td>
+          </tr>
+          <tr>
+            <td colspan=2 align=center valign=middle class="zd_td">
+              <input type=Submit value="发送" name=Submit>
+&nbsp;
+        <input type=Submit value="保存" name=Submit>
+&nbsp;
+        <input type="reset" name="Clear" value="清除"></td>
+          </tr>
+        </table>
+      </form>
+      <%
+end sub
+'更改信息
+sub edit()
+if request("id")<>"" or isNumeric(request("id")) then
+	set rs=server.createobject("adodb.recordset")
+sql="select id,incept,title,content from message where sender='"&Dreamsun_name&"' and issend=0 and id="&request("id")
+rs.open sql,conn,1,1
+if not(rs.eof and rs.bof) then
+incept=rs("incept")
+title=rs("title")
+content=rs("content")
+id=rs("id")
+else
+response.write "<script>alert('没有找到您要编辑的信息！');history.go(-1);</Script>"
+response.end 
+exit sub
+end if
+rs.close
+set rs=nothing
+else
+response.write "<script>alert('请选择相关参数！');history.go(-1);</Script>"
+response.end 
+exit sub
+end if
+%>
+      <form action="usersms.asp" method=post name=messager>
+        <table border="0" width="779" cellspacing="1" cellpadding="3" style="border-collapse: collapse" align=center  class="zd_table">
+          <tr>
+            <td height="22" colspan=2 align=center class="zd_td">
+              <input type=hidden name="action" value="savedit">
+              <input type=hidden name="id" value="<%=id%>">
+              <b>发送站内邮件</b>--请完整输入下列信息</td>
+          </tr>
+          <tr bgcolor="#FFFFFF">
+            <td width=70 valign=middle>
+              <div align="right"><b>收件人：</b></div></td>
+            <td valign=middle>
+              <input type=text name="touser" value="<%=incept%>" size=70>
+        (填写收件人的会员账户,如:admin) </td>
+          </tr>
+          <tr bgcolor="#FFFFFF">
+            <td valign=top>
+              <div align="right"><b>标题：</b></div></td>
+            <td valign=middle>
+              <input type=text name="title" size=70 maxlength=80 value="<%=title%>">
+      &nbsp;请限定50字内 </td>
+          </tr>
+          <tr bgcolor="#FFFFFF">
+            <td valign=top><div align="right"><b>内容：</b><br>
+            </div></td>
+            <td valign=middle>
+              <textarea cols=70 rows=8 name="content" title=""><%=invert(content)%></textarea>
+            </td>
+          </tr>
+          <tr>
+            <td colspan=2 align=center valign=middle class="zd_td">
+              <input type=Submit value="发送" name=Submit>
+&nbsp;
+        <input type=Submit value="保存" name=Submit>
+&nbsp;
+        <input type="reset" name="Clear" value="清除"></td>
+          </tr>
+        </table>
+      </form>
+      <%
+end sub
+'读取信息
+sub read()
+if request("id")="" or not isNumeric(request("id")) then
+response.write "<script>alert('请选择相关参数！');history.go(-1);</Script>"
+response.end 
+exit sub
+end if
+	set rs=server.createobject("adodb.recordset")
+	if request("action")="read" then
+   	sql="update message set flag=1 where ID="&cint(request("id"))
+	conn.execute(sql)
+	end if
+	sql="select * from message where (incept='"&Dreamsun_name&"' or sender='"&Dreamsun_name&"') and id="&cint(request("id"))
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+		response.write "<script>alert('你是不是跑到别人的信箱啦、或者该信息已经收件人删除！');history.go(-1);</Script>"
+            response.end 
+	end if
+	if not founderr then
+%>
+      <br>
+      <table border="0" width="779" cellspacing="1" cellpadding="3" style="border-collapse: collapse" align=center  class="zd_table">
+        <tr>
+          <td height="36" class="zd_td"><table width="96%"  border="0" align="center" cellpadding="0" cellspacing="0">
+              <tr class="zd_td">
+                <td class="zd_td"><b>欢迎使用站内邮件接收，<%=Dreamsun_name%></b></td>
+                <td class="zd_td"><div align="right"><a href="usersms.asp?action=new&touser=<%=request("sender")%>&id=<%=request("id")%>&comurl=<%=request.serverVariables("Http_REFERER")%>">回复</a>&nbsp;&nbsp;&nbsp; <a href="usersms.asp?action=fw&id=<%=request("id")%>&comurl=<%=request.serverVariables("Http_REFERER")%>">转发</a>&nbsp; &nbsp;&nbsp;<a href="<%=request.serverVariables("Http_REFERER")%>">返回</a>&nbsp;</div></td>
+              </tr>
+          </table></td>
+        </tr>
+        <tr>
+          <td bgcolor="#FFFFFF">
+            <%if request("action")="outread" then%>
+      在<b><%=rs("sendtime")%></b>，您发送此邮件给<b><%=rs("incept")%></b>！
+      <%else%>
+      在<b><%=rs("sendtime")%></b>，<b><%=rs("sender")%></b>给您发送的邮件！
+      <%end if%></td>
+        </tr>
+        <tr>
+          <td align=left valign=top bgcolor="#FFFFFF">> <b>邮件标题：<%=rs("title")%></b>
+              <hr size=1>
+              <%=rs("content")%> </td>
+        </tr>
+      </table>
+      <%end if%>
+      <%
+rs.close
+set rs=nothing
+end sub
+
+sub savemsg()
+if request.cookies("emailadd")<>"" then
+	if DateDiff("s",request.cookies("emailadd"),Now())<10 then
+		response.write "<script>alert('您刚发过站内邮件，请过10秒钟以后再发！');history.go(-2);</Script>"
+		response.end
+	end if
+end if
+if request("touser")="" then
+	response.write "<script>alert('请填写发送对象！');history.go(-1);</Script>"
+	response.end 
+	exit sub
+else
+	incept=trim(request("touser"))
+end if
+if request("title")="" then
+	response.write "<script>alert('标题必须填写!!!！');history.go(-1);</Script>"
+	response.end 
+	exit sub
+else
+	title=request("title")
+end if
+if request("content")="" then
+	response.write "<script>alert('内容必须填写！');history.go(-1);</Script>"
+	response.end 
+	exit sub
+else
+	content=htmlencode(request.form("content"))
+	content=replace(content,"""","“")
+	content=replace(content,"'","‘")
+	if Len(replace(content,"<br>",""))>1500 then
+		Response.Write(backMsg("很抱歉，短信长度超过了最大字数",""))
+		exit sub
+	elseif Instr(content,"title=")>0 or Instr(content,"script")>0 or Instr(content,"onClick")>0  or Instr(content,"onload")>0 then
+		Response.Write (backMsg("很抱歉，您输入了不能被接受的字符",""))
+		exit sub
+	end if
+end If
+
+addtime=now()
+'判断
+if not founderr Then
+shuchu=""
+
+If incept<>"" Then
+	if request("Submit")="发送" then
+		subtype="已发送信息"
+		subtypeid=1
+		array_incept=split(incept,"|")
+		If Ubound(array_incept)>10 Then Response.Write(backMsg("很抱歉，为了系统资源，最多支持10位用户！",""))
+		For sjr=0 To Ubound(array_incept)
+		incept=array_incept(sjr)
+			set rs=server.createobject("adodb.recordset")
+			sql="select username from "&UserTable&" where username='"&incept&"'"
+			rs.open sql,conn,1,1
+			if rs.eof and rs.bof then
+				shuchu=shuchu&",<U>"&incept&"不存在！</U>"
+			Else
+			'fasong
+			sql="insert into message (incept,sender,title,content,sendtime,flag,issend,delS,delR) values ('"&incept&"','"&Dreamsun_name&"','"&title&"','"&content&"','"&addtime&"',0,"&subtypeid&",0,0)"
+			conn.execute(sql)
+			shuchu=shuchu&","&incept
+			'fasongjieshu	
+			end if
+			rs.close
+			set rs=nothing
+		Next'发送循环结束
+	Else
+		subtype="发件箱"'0
+		subtypeid=0
+		sql="insert into message (incept,sender,title,content,sendtime,flag,issend,delS,delR) values ('"&incept&"','"&Dreamsun_name&"','"&title&"','"&content&"','"&addtime&"',0,"&subtypeid&",0,0)"
+		conn.execute(sql)
+		shuchu=incept
+	End If 
+End If 
+End If 
+		response.cookies("emailadd")=now()
+		if not founderr then
+if request("Submit")="发送" Then
+comurl="usersms.asp"
+response.write "<p align=center><br><br><br><br><br><font color=red>恭喜您!您给"&shuchu&"的邮件发送成功!<br><br><br><a href="&comurl&">2秒钟后返回</a></font>"
+else
+response.write "<p align=center><br><br><br><br><br><font color=red>您给"&shuchu&"的邮件已保存到发件箱!<br><br><br><a href="&comurl&">2秒钟后返回</a></font>"
+end if
+response.write "<meta http-equiv=""refresh"" content=""2;url="&comurl&""">"
+		end if
+end Sub
+
+sub savedit()
+	if request("id")="" or not isNumeric(request("id")) then
+		response.write "<script>alert('请选择相关参数！');history.go(-1);</Script>"
+		response.end 
+		exit sub
+	end If
+	if request("Submit")="发送" then
+		Call savemsg()
+		sql="delete from [message] where id="&request("id")
+		subtype="发件箱"
+		conn.execute(sql)
+	Else
+		if request("touser")="" then
+			response.write "<script>alert('请填写发送对象！');history.go(-1);</Script>"
+			response.end 
+			exit sub
+		else
+			incept=trim(request("touser"))
+		end if
+		if request("title")="" then
+			response.write "<script>alert('标题必须填写!!!！');history.go(-1);</Script>"
+			response.end 
+			exit sub
+		else
+			title=request("title")
+		end If
+		if request("content")="" then
+			response.write "<script>alert('内容必须填写！');history.go(-1);</Script>"
+			response.end 
+			exit sub
+		else
+			content=htmlencode(request.form("content"))
+			content=replace(content,"""","“")
+			content=replace(content,"'","‘")
+			if Len(replace(content,"<br>",""))>1500 then
+				Response.Write(backMsg("很抱歉，短信长度超过了最大字数",""))
+				exit sub
+			elseif Instr(content,"title=")>0 or Instr(content,"script")>0 or Instr(content,"onClick")>0  or Instr(content,"onload")>0 then
+				Response.Write (backMsg("很抱歉，您输入了不能被接受的字符",""))
+				exit sub
+			end if
+		end If
+		addtime=now()
+		sql="update message set incept='"&incept&"',sender='"&Dreamsun_name&"',title='"&title&"',content='"&content&"',sendtime='"&addtime&"',flag=0,issend=0 where id="&request("id")
+		subtype="发件箱"
+		'response.write sql
+		'response.End 
+		conn.execute(sql)
+	end If
+
+	if not founderr then
+	stitle="发送短信"
+		if request("Submit")="发送" then
+			'response.write "<p align=center><br><br><br><br><br><font color=red>恭喜您!发送成功!<br><br><br><a href=usersms.asp?action=outbox>返回发件箱</a></font>"
+			response.write "<meta http-equiv=""refresh"" content=""2;url=usersms.asp"">"
+		else
+			response.write "<p align=center><br><br><br><br><br><font color=red>您的信件已保存到发件箱!<br><br><br><a href="&request.serverVariables("Http_REFERER")&">返回查看</a></font>"
+			response.write "<meta http-equiv=""refresh"" content=""2;url="&request.serverVariables("Http_REFERER")&""">"
+		end if
+	end if
+
+
+
+
+
+
+
+	
+
+
+end sub
+
+sub newmsg()
+%>
+      <br>
+      <table border="0" width="779" cellspacing="1" cellpadding="3" style="border-collapse: collapse" align=center  class="zd_table">
+        <tr align="center">
+          <td width="100%" height="22" class="zd_td">站内邮件通知</td>
+        </tr>
+        <tr>
+          <td width="100%" bgcolor=#FFFFFF align=center><br>
+              <a href=usersms.asp?action=inbox><img src="images/m_news.gif" width="21" height="14" border=0>有新的站内邮件</a><br>
+              <br>
+              <a href=usersms.asp?action=inbox>按此查看</a><br>
+              <br>
+          </td>
+        </tr>
+      </table>
+      <%
+end Sub
+
+%>

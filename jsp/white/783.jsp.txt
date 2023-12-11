@@ -1,0 +1,101 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<div class="Header" id="headCon">
+<div class="Header1">
+	<span style="float:left;padding-left:20px;color:#ffdd00">
+			<a href="?siteLanguage=en_US">English</a> | <a id="defaultLocale" href="?siteLanguage=local">Local</a>&nbsp;&nbsp;<a id="more" href="#">more..</a>
+				&nbsp;&nbsp;
+				<!-- Night service: <a id="nightserviceStatus" href="#"></a> -->
+	</span>
+ <input type="hidden" value="${contextPath}" id="contextPath"/>
+ <input type="hidden" value="${empty_path_variable}"  id="emptyPathVariable"/>
+ <input type="hidden" value="${contextPath}<ifa:constant fieldName='CHECK_OLD_PASSWORD' namespace='cim' />" id="checkOldPassWord"/>
+ <input type="hidden" value="${contextPath}<ifa:constant fieldName='CHECK_PASSWORD_REPEAT_URL' namespace='cim' />" id="checkPWRepeat"/>
+ <input type="hidden" value="${contextPath}<ifa:constant fieldName='CHECK_PASSWORD_STANDARD' namespace='cim' />.json" id="checkPswUrl"/>
+<input type="hidden" value="${contextPath}<ifa:constant fieldName='UPDATE_OWNER_PASSWORD_HISTORY' namespace='cim' />" id="updatePassword"/>
+<input type="hidden" value="${contextPath}<ifa:constant fieldName='LEFT_MENU_SHOW_URL' namespace='cim' />.json" id="menuShowUrl"/>
+<input type="hidden" value="${contextPath}<ifa:constant fieldName='LEFT_MENU_SHOW_BYREMARK_URL' namespace='cim' />" id="menuShowByRemarkUrl"/>  
+<input type="hidden" value="${contextPath}<ifa:constant fieldName='NIGHT_SERVICE_UPDATE_URL' namespace='cim' />" id="nightServiceUpdateUrl"/> 
+<input type="hidden" value="${contextPath}<ifa:constant fieldName='DEFAULT_DISTRICT_URL' namespace='cim' />" id="defaultDistrictUrl"/> 
+<input type="hidden" value="${contextPath }<ifa:constant fieldName='BACK_LOGIN_URL' namespace='cim' />" id="loginUrl" >
+<input type="hidden" value="${contextPath }<ifa:constant fieldName='DEFAULT_DISTRICT_CONDTION_URL' namespace='cim' />" id="districtCondtion" >
+<input type="hidden" value="<tiles:insertAttribute name="topMenuId"/>" id="topMenuId"/>
+<input type="hidden" value="<tiles:insertAttribute name="menuId"/>" id="leftMenuId"/>       
+		<span style="float:right;padding-right:30px;color:#ffdd00"">
+		    <a href="${contextPath}/changeloglatest.jsp" target="_blank" ><fmt:message key='header.newFuncList' /></a>&nbsp;
+<%-- 			<a href="http://10.204.130.45:8090/display/cim2help/Home" target="_blank" ><fmt:message key='header.help' /></a>&nbsp;
+			<a href="http://10.204.130.50:8080/secure/CreateIssue!default.jspa" target="_blank" ><fmt:message key='header.report' /></a> --%>&nbsp;&nbsp;
+			<font color="red"><fmt:message key="Page.current.environment"/></font>&nbsp;&nbsp;
+			<a href="${contextPath}/j_spring_security_logout"><fmt:message key='Entity.System.loginOut' ></fmt:message></a>
+			| <a href="#" id="editPassword"><fmt:message key='System.ModifyPassword' ></fmt:message></a>&nbsp;
+			<a href="#" id ="editDefaultDistrict"><fmt:message key="Page.defaultDistrict"></fmt:message></a>&nbsp;&nbsp;
+			<span style="color:#fff"><fmt:message key='header.userName' /><security:authentication property="principal.Username"/>&nbsp;
+			<fmt:message key='header.roleName' /><security:authentication property="principal.roleNames"  /></span>
+		</span> 
+	</div>
+<div class="logo">
+   <div class="topmenu" id="topmenu"></div>
+</div>
+<div style="clear:both;"></div>
+<div style="width:100%;background-color:#ffdd00; height:4px;"></div>
+ <form   id="updatePasswordForm" style="display: none;">
+	<table class="yTable margintop" >
+
+		<tr>
+		  <th  style="width: 65px;"><fmt:message key='System.Password.Old' ></fmt:message> </th>
+          <td><input  id="oldPassword"  name="oldPassword" type="password"  class="inputbox" style="width: 135px;"/></td>
+		</tr>
+		<tr>
+		  <th  style="width: 65px;"><fmt:message key='System.Password.New' ></fmt:message></th>
+          <td><input id="password" name="password" type="password"  class="inputbox" style="width: 135px;"/></td>
+		</tr>
+		<tr>
+		  <th  style="width: 65px;"><fmt:message key='System.Password.Confirm' ></fmt:message> </th>
+          <td><input id="rePassword" name="rePassword" type="password"  class="inputbox" style="width: 135px;"/></td>
+		</tr>
+	</table>
+	</form>
+
+</div>
+
+<div>
+	<form id="editDefaultDistrictForm" style="display:none">
+		<table class="yTable margintop">
+			<tr>
+				<th  style="width: 65px;"><fmt:message key='Page.districCondtion' ></fmt:message> </th>
+          		<td>
+          			<input type="text" id="condtion" style="width:100%">
+          		</td>
+			</tr>
+			<tr>
+				<th  style="width: 65px;"><fmt:message key='Page.choseDistrict' ></fmt:message> </th>
+          		<td>
+          			<select  style="width:100%" id="defaultDistrict">
+          				<option value="-1"><fmt:message key="Title.peopleProfile.choose"/></option>
+          		 	</select>
+          		</td>
+			</tr>
+		</table>
+	
+	</form>
+</div>
+
+<div>
+	<form id="siteLanguageForm" style="display:none">
+		<table class="yTable margintop">
+			<tr>
+			<th style="width:65px">Language</th>
+			<td>
+			<select id="siteLanguage" style="width:110%"></select>
+    		<td>
+			</tr>
+		</table>
+	
+	</form>
+</div>
+<script type="text/javascript">
+seajs.use("${scriptBasePath}/cimjs/common/header.js");
+
+</script>

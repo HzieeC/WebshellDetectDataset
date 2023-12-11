@@ -1,0 +1,17 @@
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn"%>
+<%@ taglib uri="http://www.springframework.org/tags" prefix="spring"%>
+<%@ taglib uri="http://www.springframework.org/tags/form" prefix="form"%>
+<%@ taglib uri="http://www.springframework.org/security/tags" prefix="security"%>
+<%@ taglib uri="http://tiles.apache.org/tags-tiles" prefix="tiles"%>
+
+<%
+	response.setHeader("Cache-Control","no-cache,no-strore");
+	response.setHeader("Pragma","no-cache");
+	response.setDateHeader("Expires",-1); 
+%>
+<c:if test="${not empty localName}">
+<fmt:setLocale value="${localName}"/>
+<fmt:setBundle basename="MessageResources"/>
+</c:if>

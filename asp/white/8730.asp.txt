@@ -1,0 +1,447 @@
+<!--#include file="Class_Main.asp" -->
+<!--#include file="../Web_Session.asp" -->
+<!--#include file="Class_UpLoad.asp" -->
+<%
+Server.ScriptTimeout = 30000
+Dim IconFilePath,aimobj,notDelFolderList,root,curPath,fso,curFolder,curfiles,curFolders,pathParts,parentPath,fullPath,lm
+response.Charset = "GB2312"
+IconFilePath = "../images/iconFiles/" '目录后加"/"
+aimobj = trim(request.QueryString("aimobj"))
+notDelFolderList = "UserPic|UserVideo|PeoPic|Pic|UserDoc|Video|Content|Ad|Link" '在这里添加位于根目下不能删除的文件夹,用"|"分隔
+set fso = Server.CreateObject("Scripting.FileSystemObject")
+root = "../../Upfiles/" '用于设置文件管理的根目录,后面不加"/"
+
+REM 本函数用于返回指定文件类型
+Function FileType(FileName)
+	If isNull(FileName) or FileName = "" Then
+		FileType = "unknow"
+		Exit Function
+	Else
+		FileType = LCase(Right(FileName,Len(FileName)-InStrRev(FileName,".")))
+	End If
+End Function
+
+REM 用于显示对应文件类型的图标
+Function FileIcon(FileType)
+	Select Case LCase(FileType)
+		Case "jpg","jpeg","gif"
+			FileIcon = "fileIcon-webImg.gif"
+		Case "rar"
+			FileIcon = "fileIcon-rar.gif"
+		Case "png"
+			FileIcon = "fileIcon-png.gif"
+		Case "htm","html"
+			FileIcon = "fileIcon-htm.gif"
+		Case "asp","jsp","cgi","php","aspx","css"
+			FileIcon = "fileIcon-webApp.gif"
+		Case "swf"
+			FileIcon = "fileIcon-swf.gif"
+		Case "txt"
+			FileIcon = "fileIcon-txt.gif"
+		Case "pdf"
+			FileIcon = "fileIcon-pdf.gif"
+		Case "rar","cab","zip","jar"
+			FileIcon = "fileIcon-rar.gif"
+		Case "wma","wmv","asf"
+			FileIcon = "fileIcon-wmp.gif"
+		Case "mp3","mp2"
+			FileIcon = "fileIcon-mp3.gif"
+		Case "rmvb","rm","ram"
+			FileIcon = "fileIcon-rm.gif"
+		Case "midi","mid","wav"
+			FileIcon = "fileIcon-mid.gif"
+		Case "doc","rtf"
+			FileIcon = "fileIcon-doc.gif"
+		Case "xls","csv"
+			FileIcon = "fileIcon-xls.gif"
+		Case "exe","com","bat"
+			FileIcon = "fileIcon-exe.gif"
+		Case "mdb"
+			FileIcon = "fileIcon-mdb.gif"
+		Case "sys","ini"
+				FileIcon = "fileIcon-sys.gif"
+		Case "ppt"
+			FileIcon = "fileIcon-doc.gif"
+		Case "psd"
+			FileIcon = "fileIcon-psd.gif"
+		Case Else
+			FileIcon = "fileIcon-unknow.gif"
+	End Select
+	FileIcon = IconFilePath&FileIcon
+End Function
+
+REM 以下用于检测根目录是否存在
+if fso.FolderExists(server.MapPath(root)) = False then 	fso.CreateFolder(server.MapPath(root))
+
+REM 用于获取当前目录
+curPath = request.QueryString("path")
+fullPath = root&curPath
+
+dim act
+act = request.QueryString("act")
+act = lcase(trim(act))
+REM 删除文件夹
+if act = "delfolder" then
+	Dim notDelFolder,delobj,delAble,ub,fno,sf
+	delobj = trim(request.QueryString("delobj"))
+	notDelFolder = split(notDelFolderList,"|")
+	delAble = True
+	ub = uBound(notDelFolder)
+	For fno = 0 to ub
+		if notDelFolder(fno) = delobj then
+			delAble = False
+			Exit For
+		end if
+	Next
+	if delAble then
+		delFolder = Server.MapPath(root&curPath&delobj)
+		if fso.FolderExists(delFolder) then
+			set sf = fso.getFolder(delFolder)
+			if sf.size > 0 then
+				Response.Write("<script language='javascript'>alert('文件夹不为空,不能删除!');</script>")
+			else
+				fso.deleteFolder(delFolder)
+			end if
+			set sf = nothing
+		end if
+	Else
+		Response.Write("<script language='javascript'>alert('不能删除系统文件夹!');</script>")
+	end if
+end if
+REM 删除文件
+if act = "delfile" then
+	delFile = Server.MapPath(root&curPath&trim(request.QueryString("delobj")))
+	if fso.fileExists(delFile) then fso.deleteFile(delFile)
+end if
+REM 更改文件名
+if act = "renfile" then
+	sfile = Server.MapPath(root&curPath&"/"&trim(request.QueryString("obj")))
+	afile = Server.MapPath(root&curPath&"/"&trim(request.QueryString("newName")))
+	if fso.fileExists(sfile) and not fso.fileExists(afile) then
+		fso.copyFile sfile,afile
+		fso.deleteFile (sfile)
+	end if
+end if
+REM 建立新文件夹
+if act = "createfolder" then
+	newFolderName = trim(request.form("newFolderName"))
+	newFolderName = replace(newFolderName,"\","")
+	newFolderName = replace(newFolderName,"/","")
+	newFolderName = replace(newFolderName,"*","")
+	newFolderName = replace(newFolderName,"?","")
+	if newFolderName <> "" then
+		folderName = Server.MapPath(root&curPath&newFolderName)
+		if fso.folderExists(folderName) = False then
+			fso.createFolder(folderName)
+		else
+			response.Write("<script language='javascript'>alert('你要创建的文件夹已经存在!');</script>")
+		end if
+	else
+		response.Write("<script language='javascript'>alert('请输入新建文件夹的名称!');</script>")
+	end if
+end if
+REM 上传文件
+if act = "upload" then
+	Dim upload,upNewFile
+	set upload = new UpLoadClass
+	upload.maxSize = 52428800
+	upload.FileType = "jpg/gif/rar/flv/doc"
+	upload.SavePath = fullPath
+	upload.AutoSave = 0 
+	upload.open()
+	upNewFile =	upload.form("file")
+	set upload = nothing
+end if
+
+
+REM =============================================================================
+REM 如果传递的目录不存在则返回根目录
+if fso.FolderExists(Server.MapPath(fullPath)) = False then curPath = root
+set curFolder = fso.GetFolder(Server.MapPath(fullPath))
+set curFolders = curFolder.SubFolders
+set curFiles = curFolder.Files
+
+REM 设置上一级目录
+If curPath = "" Then
+	parentPath = ""
+Else
+	parentPath = Left(curPath,Len(curPath)-Len(curFolder.name)-1)
+End If
+
+%>
+<script language="javascript">
+//返回指定文件名的文件类型
+function returnFiletype(filename){
+	var filetype = "";
+	filename = filename.toString();
+	if(filename == ""){
+		filetype = "unknow";
+		return filetype;
+	}else{
+		var pos = filename.lastIndexOf(".");
+		if(pos < 0) filetype = "unknow";
+		else filetype = filename.substr(pos+1);
+		return filetype.toLowerCase();
+	}
+}
+//用于重设图像的大小
+function reSizeImg(obj){
+	var aimW = 190;
+	var aimH = 165;
+	var objW = parseInt(obj.clientWidth);
+	var objH = parseInt(obj.clientHeight);
+	if (objW > aimW || objH > aimH){
+		var aimP = aimW / aimH;
+		var objP = objW / objH;
+		var p2 = 1;
+		if(objP > aimP){
+			p2 = aimW / objW;
+			aimH = parseInt(objH * p2);
+			obj.style.width = aimW;
+			obj.style.height = aimH;
+		}else if(objP < aimP){
+			p2 = aimH / objH;
+			aimW = parseInt(objW * p2);
+			obj.style.width = aimW;
+			obj.style.height = aimH;
+		}else{
+			obj.style.width = aimW;
+			obj.style.height = aimH;
+		}
+	}
+	document.all["divFiletype"].innerHTML = document.all["divFiletype"].innerHTML + " - "+ objW +"*"+ objH +"px";
+}
+//用于显示文件信息
+function showFileInfo(filename,ft){
+	var filetype = returnFiletype(filename);
+	var filepath = "<%= fullPath %>" + filename;
+	var divobj = document.all["divFileInfo"];
+	var divobjMain = document.all["divMain"];
+	var divobjFiletype = document.all["divFiletype"];
+	var divobjFilename = document.all["divFilename"];
+	var divobjMainBody = "";
+	switch(filetype){
+		case "gif":
+		case "jpg":
+		case "jpeg":
+		case "png":
+			divobjMainBody = "<img src=\""+ filepath +"\" onLoad=\"javascript:reSizeImg(this);\" border=\"0\" onDblClick=\"javascript:setFile('"+ filename +"');workOK();\"><br><font color=red>单击<a href=\""+filepath+"\" target=\"_blank\">查看原图</a>,双击图片<a href=\"#\" onClick=\"javascript:setFile('"+ filename +"');workOK();\">完成设置</a>.</font>";
+			break;
+		case "swf":
+			divobjMainBody = "<object classid=\"clsid:D27CDB6E-AE6D-11cf-96B8-444553540000\" codebase=\"http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0\" width=\"190\" height=\"190\"><param name=\"movie\" value=\""+ filepath +"\"><param name=\"quality\" value=\"high\"><embed src=\""+ filepath +"\" quality=\"high\" pluginspage=\"http://www.macromedia.com/go/getflashplayer\" type=\"application/x-shockwave-flash\" width=\"190\" height=\"190\"></embed></object>";
+			break;
+		case "mid":
+		case "midi":
+		case "wav":
+		case "mp3":
+		case "wma":
+		case "asf":
+		case "wmv":
+		case "avi":
+		case "mpg":
+		case "mpeg":
+			divobjMainBody = "<embed id=\"MediaPlayer\" name=\"MediaPlayer\" src=\""+ filepath +"\" autostart=1 loop=1 width=200 height=200 EnableTracker=1 ShowControls=1 ShowGotoBar=0 ShowPositionControls=0 ShowStatusBar=0></embed>";
+			break;
+		case "htm":
+		case "html":
+			divobjMainBody = "<iframe width=190 height=190 scrolling=auto src=\""+filepath+"\" frameborder=0>显示htm文件</iframe>";
+			break;
+		case "rm":
+		case "ram":
+		case "rmvb":
+			divobjMainBody = "<OBJECT classid=clsid:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA class=OBJECT id=RAOCX width=190 height=190><PARAM NAME=SRC VALUE=\""+ filepath +"\"><PARAM NAME=CONSOLE VALUE=Clip1><PARAM NAME=CONTROLS VALUE=imagewindow><PARAM NAME=AUTOSTART VALUE=true><embed src=\""+ filepath +"\" type=audio/x-pn-realaudio-plugin width=124 height=95 controls=All console=cons></embed></OBJECT>";
+			break;
+		default:
+			divobjMainBody = "<strong><font color=red>不能预览该文件</font></strong>";
+			break;
+	}
+	divobjMain.innerHTML = divobjMainBody;
+	divobjFiletype.innerText = ft;
+	divobjFilename.innerText = filename;
+	divobj.style.display = "";
+}
+//自动滑动显示文件信息区域
+function slideDiv(){
+	var divobj = document.all["divFileInfo"];
+	divobj.style.width = "200px";
+	divobj.style.height = "250px";
+	var x = parseInt(document.body.scrollTop) + 2;
+	var y = parseInt(document.body.clientWidth) - parseInt(divobj.style.width) - 2;
+	divobj.style.top = x;
+	divobj.style.left = y;
+	setTimeout("slideDiv()",100);
+}
+//设置文件路径
+function setFile(txt){
+	var obj = form2.fileUrl;
+	var file = "<%= fullPath %>"+txt;
+	obj.value = file;
+}
+//完成设置打开窗口指定字段值设置
+function workOK(){
+	var aimObj = "<%= trim(request.QueryString("aimobj")) %>";
+	var filestr = form2.fileUrl.value;
+	if(filestr != ""){
+		window.returnValue = filestr;
+		window.close();
+	}else{
+		alert("请输入文件地址!");
+		form2.fileUrl.focus();
+	}
+}
+function showDiv(id){
+	var divArr = new Array();
+	divArr[0] = "upLoadArea";
+	divArr[1] = "newFolderArea";
+	var len = divArr.length;
+	var i,obj;
+	
+	for(i=0;i<len;i++){
+		obj = document.all[divArr[i]];
+		if(divArr[i]==id){
+			obj.style.display = "";
+		}else{
+			obj.style.display = "none";
+		}
+	}
+}
+function window.onload(){
+	this.focus();
+	slideDiv();
+	window.moveTo(0,0);
+	window.resizeTo(parseInt(screen.availWidth),parseInt(screen.availHeight));
+	<%
+	if act = "upload" then
+		response.Write("setFile('"+ lm + upNewFile +"');")
+	end if
+	%>
+}
+function closeShowDiv(){
+		divMain.innerHTML = "";
+		divFileInfo.style.display = "none";
+}
+</script>
+<html>
+<head>
+<base target="_self">
+<title>文件管理器</title>
+<style type="text/css">
+<!--
+table {
+	font-size: 9pt;
+}
+-->
+</style>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link href="../CSS/css_offices.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+<div id="divFileInfo" style="position:absolute; left:300; top:200; width:200px; height:250px; z-index:6; overflow:visible; border:1px solid #336699; display:none; background-color:#FFFFFF;">
+  <table width="200" border="0" align="center" cellpadding="2" cellspacing="0" style="table-layout:fixed; ">
+    <tr>
+      <td width="200" height="20" align="right" bgcolor="#FFCC00">&nbsp;<a href="#" onClick="javascript:closeShowDiv();return false;" title="双击文档空白处关闭该预览窗口"><font color="DarkBlue"><strong>关闭</strong></font></a>&nbsp;&nbsp;</td>
+    </tr>
+    <tr>
+      <td width="200" height="200" align="center"><span id="divMain">&nbsp;</span></td>
+    </tr>
+    <tr bgcolor="#334455">
+      <td height="1"></td>
+    </tr>
+    <tr>
+      <td>&nbsp;<font color="#000099"><strong>类&nbsp;&nbsp;&nbsp;&nbsp;型</strong></font>:<span id="divFiletype">&nbsp;</span></td>
+    </tr>
+    <tr bgcolor="#334455">
+      <td height="1"></td>
+    </tr>
+    <tr>
+      <td width="180" >&nbsp;<font color="#000099"><strong>文件名</strong></font>:<span id="divFilename">&nbsp;</span></td>
+    </tr>
+  </table>
+</div>
+<table width="100%" height="25" border="0" align="center" cellpadding="0" cellspacing="0">
+  <form name="form2" id="form2" action="" method="post">
+  <tr style="color:#FFFFFF; background-color:#68B02D;">
+    <td width="100" align="center">输入文件URL</td>
+    <td><input name="fileUrl" type="text" class="input1" id="fileUrl" size="50">
+    <input name="btnOk" type="button" class="button2" id="btnOk"  onClick="javascript:workOK();" value="插入文件">
+    <input name="Submit" type="button" class="button2" onClick="javascript:window.close();opener.focus();" value="取消操作"></td>
+  </tr>
+</form>
+</table>
+<table width="100%"  border="0" cellspacing="1" cellpadding="3" align="center" bgcolor="#EEEEEE">
+  <tr bgcolor=#FFFFFF>
+    <td colspan="4">
+<%
+response.Write("<span style=""font-family:Verdana, Arial, Helvetica, sans-serif;"">当前路径：<span style=""color:#FF0000;font-weight:bold;"">/"&curPath&"</span>&nbsp;&nbsp;文件数：<span style=""color:#FF0000;font-weight:bold;"">"&curFiles.count&"</span>&nbsp;&nbsp;文件夹：<span style=""color:#FF0000;font-weight:bold;"">"&curFolders.count&"</span>&nbsp;&nbsp;大小：<span style=""color:#FF0000;font-weight:bold;"">"& FormatNumber(curFolder.size/1024,2,-1,-2,-1) &" Kb</span></span>")
+%>
+    <table width="690"  border="0" align="center" cellpadding="0" cellspacing="0">
+      <tr>
+        <td width="475">&nbsp;</td>
+        <td width="207" align="center">&nbsp;&nbsp; <a href="#" onClick="javascript:showDiv('upLoadArea'); return false;">上传文件</a> | <a href="#" onClick="javascript:showDiv('newFolderArea'); return false;">新文件夹</a> <% if fullPath <> root then response.Write(" | <a href='Class_Files.asp'>根目录</a>") %></td>
+        <td width="8">&nbsp;</td>
+      </tr>
+    </table></td>
+  </tr>
+  <tr bgcolor="#FFFFFF" id="newFolderArea" style="display:none; ">
+    <td height="30" colspan="4">
+      <table width="100%" border="0" cellspacing="0" cellpadding="0">
+<form action="Class_Files.asp?act=createfolder&path=<%= curPath %>" method="post" name="newFolder" id="newFolder">
+        <tr>
+          <td align="center">新建文件夹
+            <input name="newFolderName" type="text" class="input1" id="newFolderName" maxlength="20">
+            <input name="Submit" type="submit" class="button2" value=" 确定创建 ">
+            <input name="Submit" type="button" class="button2"  onClick="javascript:newFolder.reset();newFolderArea.style.display='none';" value=" 取 消 "></td>
+          </tr>
+</form>
+	</table>
+</td>
+  </tr>
+  <tr bgcolor="#FFFFFF" id="upLoadArea" style="display:none; ">
+  	<td height="30" colspan="4">
+	<table width="100%"  border="0" cellspacing="0" cellpadding="0">
+<form name="upfile" id="upfile" action="Class_Files.asp?act=upload&lm=<%=lm%>&path=<%= curPath %>" method="post" enctype="multipart/form-data">
+      <tr>
+        <td align="center"><input name="file" type="file" class="input1" size="30">
+          <input name="btnUpload" type="submit" class="button2" id="btnUpload" value=" 上 传 ">
+          <input name="btnCancel" type="button" class="button2" id="btnCancel" onClick="javascript:upfile.reset();upLoadArea.style.display='none';" value=" 取 消 ">
+          如果上传文件比较大,建议使用FTP软件上传.</td>
+        </tr>
+</form>
+    </table>
+	</td>
+  </tr>
+  <tr align="center" bgcolor="#666666" style="color:#FFFFFF; ">
+    <td width="50%" bgcolor="#68B02D">文件名</td>
+    <td width="24%" bgcolor="#68B02D">建立时间</td>
+    <td width="16%" bgcolor="#68B02D">大小</td>
+    <td width="10%" bgcolor="#68B02D">删除</td>
+  </tr>
+  <tr bgcolor=#EEEEEE>
+<%
+if fullpath <> root then %>
+    <td colspan="4" bgcolor="#EEEEEE">
+	<img src='<%= IconFilePath %>fileIcon-dir.gif' align='absmiddle'>&nbsp;<a href="Class_Files.asp?path=<%= parentPath %>">..</a>	</td>
+  </tr>
+<%
+end if
+
+For Each sf In curFolders
+	response.Write("<tr align=center bgcolor=#EEEEEE onMouseOver=""javascript:this.style.backgroundColor='#CCCCCC';"" onMouseOut=""javascript:this.style.backgroundColor='';""><td width=45% align=left><img src='"& IconFilePath &"fileIcon-dir.gif' align='absmiddle'>&nbsp;<a href=""Class_Files.asp?path="& curPath&sf.name&"/"">"&sf.name&"</td><td width=20% >"&FormatDateTime(sf.DateCreated,0)&"</td><td width=15% >"&FormatNumber(sf.size/1024,2,-1,-2,-1)&" Kb</td><td width=20% ><a href='Class_Files.asp?act=delfolder&path="& curPath &"&delobj="& sf.name &"' onclick=""return(confirm('确定删除该文件夹吗?'))"">删除</a></td></tr>")
+Next
+
+For Each sf In curFiles
+	response.Write("<tr align=center bgcolor=#FFFFFF  onMouseOver="&chr(34)&"javascript:this.style.backgroundColor='#EEEEFF';"&chr(34)&" onMouseOut="&chr(34)&"javascript:this.style.backgroundColor='';"&chr(34)&"><td width=45% align=left><img src='"&FileIcon(FileType(sf.name))&"' align='absmiddle'>&nbsp;<a href='#' onClick="&chr(34)&"javascript:setFile('"& sf.name &"');"&chr(34)&">"&sf.name&"</a>&nbsp;&nbsp;<img src='"&IconFilePath&"fileIcon-preview.gif' align=absmiddle> "&"<a href=#fileInfo onClick="& chr(34) &"javascript:showFileInfo('"& sf.name &"','"& sf.type &"');"& chr(34) &">预览</a></td><td width=20% >"&FormatDateTime(sf.DateCreated,0)&"</td><td width=15% >"&FormatNumber(sf.size/1024,2,-1,-2,-1)&" Kb</td><td width=20% ><a href=""Class_Files.asp?act=delfile&path="& curPath &"&delobj="& sf.name &""" onclick=""return(confirm('确定删除该文件吗?'))"">删除</a></td></tr>")
+Next
+%>
+</table>
+<table width="100%" border="0" align="center" cellpadding="3" cellspacing="0">
+  <tr>
+    <td>&nbsp;&nbsp;双击文档空白处关闭文件预览窗口.</td>
+  </tr>
+</table>
+</body>
+</html>
+<%
+set fso = nothing
+%>

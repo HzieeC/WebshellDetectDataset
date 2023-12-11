@@ -1,0 +1,299 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>商品展示</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+
+<script type="text/javascript" src="${ctx }/scripts/js/jquery-1.3.2.min.js"></script>
+<script  type="text/javascript" src="${ctx }/scripts/js/new_zzjs.js"></script>
+<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jqPager/jquery.pager.js"></script><!-- 分页 -->
+<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/front/common/common_pager.js"></script><!-- 分页 -->
+<script language="Javascript" type="text/javascript" src="${ctx}/scripts/front/purchase.js"></script>
+<link href="${ctx }/styles/css/dh.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/spfl.css" rel="stylesheet" type="text/css" />
+<link rel="stylesheet" type="text/css" href="${ctx}/styles/jqPager/Pager.css" /><!-- 分页 --> 
+</head>
+<body>
+
+  	<input id="count" name="count" value="${pageInfo.count}" type="hidden" /><!-- 记录总数 -->
+	<input id="pageSize" name="pageSize" value="${pageInfo.pageSize}" type="hidden" /><!-- 每页显示记录数 -->
+	<input id="pageCount" name="pageCount" value="${pageInfo.pageCount}" type="hidden" /><!-- 总页数 -->
+	<input id="pageIndex" name="pageIndex" value="${pageInfo.pageIndex}" type="hidden" /><!-- 当前页数 -->
+	<input id="apptype" name="apptype" value="spfl" type="hidden" />
+	<input id="goodTypeId" name="goodTypeId" value="${goodTypeId }" type="hidden" />
+	<input id="price1" name="price1" value="${price1 }" type="hidden" />
+	<input id="price2" name="price2" value="${price2 }" type="hidden" />
+	
+<div class="kuang_da">
+   <%@ include file="/WEB-INF/page/front/head.jsp" %>
+  <!--tab结束-->
+  <div class="fenleida">
+    <div class="szwz">您所在的位置：<a href="${ctx }/index.do">首页</a> > <a href="#"><strong>商品展示</strong></a></div>
+    <div class="fenlei_fl0">
+        <div id="spfl">
+    <div id="spfl1"><div class="spf_l"></div>
+    <div class="spf_z">所有产品分类</div>
+    <div class="spf_r"></div></div>
+    <div id="spfl2">  
+<div id="sidebar_zzjs_net">
+    
+    
+    <c:forEach items="${goodTypeList}" var="g">
+	    <c:if test="${g.level == 1}">
+		    <div class="sidelist">
+				<span>
+					<h3>
+						<a class="MenuBarItemSubmenu" href="${ctx}/spfl.do?good.goodtypeIdVal=${g.id }">${g.name }</a>
+					</h3>
+				</span>
+				<div class="i-list">
+					<c:forEach items="${goodTypeList}" var="gg" >   
+						<c:if test="${g.id == gg.parentId}">
+							<c:set var="num" value="${num+1}"/>
+						    <dl>
+							    <dt  style="width:500px;">
+								    <a href="${ctx }/spfl.do?good.typeIdNo2=${gg.id }">${gg.name }</a>
+								</dt>
+							    <dd>
+									<ul>
+										<c:forEach items="${goodTypeList}" var="ggg">
+											<c:if test="${gg.id == ggg.parentId}">
+												<li>
+													<a href="${ctx }/spfl.do?good.typeIdNo3=${ggg.id }">${ggg.name }</a>
+												</li>
+											</c:if>
+										</c:forEach>
+									</ul>
+							    </dd>
+						    </dl>
+					    </c:if>
+					</c:forEach>
+				</div>
+			</div>
+		</c:if>
+	</c:forEach>
+		   
+</div>
+</div>       
+  </div>
+      <div class="spfl_ylda">
+        <div class="spfl_yl_bt">
+          <div class="spfl_yl_bt_l"></div>
+          <div class="spfl_yl_bt_z">给您推荐</div>
+          <div class="spfl_yl_bt_r"></div>
+        </div>
+   <c:forEach items="${goodList3}" var="gl2" begin="0" end="10">
+          <div class="spfl_yl_wz" style="border:none;">
+          <div class="spfl_yl_img"><a href="${ctx }/spxq.do?good.id=${gl2.id}"><img src="${ctx }${gl2.pic }" width="70" height="70" /></a></div>
+          <div class="spfl_yl_js">
+          	<a href="${ctx }/spxq.do?good.id=${gl2.id}">
+          		<c:if test="${fn:length(gl2.name ) >35}">${fn:substring(gl2.name ,0,35) }......</c:if>
+	            <c:if test="${fn:length(gl2.name ) <35}">${gl2.name  }</c:if>
+          	</a><br/>
+            <span class="STYLE2">￥${gl2.weight }</span></div>
+        </div>
+       </c:forEach>  
+      </div>
+      
+    </div>
+    <div class="spfl_yc">
+      <div class="spfl_yc_bt">商品展示</div>
+      <div class="spfl_sx">
+        <div class="spfl_sx_xq">
+          <div class="spfl_sx_xq_zl"><a href="#">品牌：</a></div>
+          <div class="spfl_sx_xq_xq">
+            <ul>
+              <c:forEach items="${brandList}" var="good">
+              	  <li><a href="${ctx }/spfl.do?good.shape=${good.shape }">${good.shape }</a></li>
+              </c:forEach>
+            </ul>
+          </div>
+        </div>
+        <div class="spfl_sx_xq">
+          <div class="spfl_sx_xq_zl"><a href="#">类别：</a></div>
+          <div class="spfl_sx_xq_xq">
+            <ul>
+               <c:forEach items="${goodTypeList2}" var="gtList" begin="0" end="25">
+      			<li><a href="${ctx }/spfl.do?good.goodtypeIdVal=${gtList.id }">${gtList.name }</a></li>    
+      			</c:forEach>
+            </ul>
+          </div>
+        </div>
+        <div class="spfl_sx_xq">
+          <div class="spfl_sx_xq_zl"><a href="#">价格：</a></div>
+          <div class="spfl_sx_xq_xq">
+            <ul>
+              <li><a href="${ctx }/spfl.do?good.price1=0&good.price2=100">0-100</a></li>
+              <li><a href="${ctx }/spfl.do?good.price1=100&good.price2=299">100-299</a></li>
+              <li><a href="${ctx }/spfl.do?good.price1=300&good.price2=799">300-799</a></li>
+              <li><a href="${ctx }/spfl.do?good.price1=800&good.price2=2499">800-2499</a></li>
+              <li><a href="${ctx }/spfl.do?good.price1=2500&good.price2=4499">2500-4499</a></li>
+              <li><a href="${ctx }/spfl.do?good.price1=4500&good.price2=6499">4500-6499</a></li>
+              <li><a href="${ctx }/spfl.do?good.price1=6500&good.price2=84499">6500-8499</a></li>
+              <li><a href="${ctx }/spfl.do?&good.price3=85000">85000</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="spfl_sx_xq">
+          <div class="spfl_sx_xq_zl"><a href="#">排序：</a></div>
+          <div class="spfl_sx_xq_xq">
+            <ul>
+               <li><a href="javascript:void(0)" onclick="shopGoodSumbit('spfl','EndSaleTime');"> 默认</a> </li>
+     		<li> <a href="javascript:void(0)" onclick="shopGoodSumbit('spfl','PeopleNumber');">热门↑</a></li>
+     		<li><a href="javascript:void(0)" onclick="shopGoodSumbit('spfl','BeginSaleTime');">最新↑</a></li> 
+      		 <li><a href="javascript:void(0)" onclick="shopGoodSumbit('spfl','DescPrice');"> 价格↑</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="spfl_spda">
+       
+        <!-- 第一排 -->
+        <div class="tabmenu_kuan2">
+        
+        <c:forEach items="${goodList}" var="g" begin="0" end="3">
+          <div class="kuan_w_fl">        
+            <div class="kuan_tp_fl" onmouseout="this.className='kuan_tp_fl'" onmouseover="this.className='kuan_tp_fl2'"><a href="${ctx }/spxq.do?good.id=${g.id }"><img src="${ctx }${g.pic }" width="160" height="155px"/></a></div>
+               
+                <div class="kuan_wz_fl">
+                  <div>
+	                  <a href="${ctx }/spxq.do?good.id=${g.id }">
+	                  	<c:if test="${fn:length(g.name ) >15}">${fn:substring(g.name ,0,15) }......</c:if>
+              	 		<c:if test="${fn:length(g.name ) <15}">${g.name  }</c:if>
+	                  </a>
+                  </div>
+                  <div style="font-size:14px; font-weight:bold; color:#FF0000;">￥${g.weight }</div>
+                  <div style="line-height:24px;">
+                    <p style="line-height:24px; font-weight:bold;">订购数：</p>
+                    <p style="padding-top:2px;">
+                      <input style="text-align:center; width:30px;" type="text" value="1" id="changeNumber${g.id }" />
+                    </p>
+                    <p>
+                      <input onclick="addGoodToOrderPage('${g.id }')" style="font-size:12px; text-align:center; padding:0px; line-height:18px; margin:0px;  height:24px; width:50px;" name="" type="button" value="购买" />
+                    </p>
+                  </div>
+            </div>         
+              </div>
+              </c:forEach>
+              </div>
+                       <div align="center">
+               <c:if test="${pageInfo.count == 0}">
+		<tr><td height="50" align="center" class="huisexiahuaxian"><span style="color:red;font-size:14px;">搜索不到相关商品</span></td></tr>
+		  	</c:if>
+		  	</div>
+              <!-- 第二排 -->
+              <div class="tabmenu_kuan2">
+                  <c:forEach items="${goodList}" var="g" begin="4" end="7">
+          <div class="kuan_w_fl">        
+            <div class="kuan_tp_fl" onmouseout="this.className='kuan_tp_fl'" onmouseover="this.className='kuan_tp_fl2'"><a href="${ctx }/spxq.do?good.id=${g.id }"><img src="${ctx }${g.pic }"  width="160" height="155px"/></a></div>
+               
+                <div class="kuan_wz_fl">
+                  <div>
+	                  <a href="${ctx }/spxq.do?good.id=${g.id }">
+	                  	<c:if test="${fn:length(g.name ) >15}">${fn:substring(g.name ,0,15) }......</c:if>
+              	 		<c:if test="${fn:length(g.name ) <15}">${g.name  }</c:if>
+	                  </a>
+                  </div>
+                  <div style="font-size:14px; font-weight:bold; color:#FF0000;">￥${g.weight }</div>
+                  <div style="line-height:24px;">
+                    <p style="line-height:24px; font-weight:bold;">订购数：</p>
+                    <p style="padding-top:2px;">
+                      <input style="text-align:center; width:30px;" type="text" value="1" id="changeNumber${g.id }" />
+                    </p>
+                    <p>
+                      <input onclick="addGoodToOrderPage('${g.id }')" style="font-size:12px; text-align:center; padding:0px; line-height:18px; margin:0px;  height:24px; width:50px;" name="" type="button" value="购买" />
+                    </p>
+                  </div>
+            </div>         
+              </div>
+              </c:forEach>
+          
+              </div>
+              
+               <!-- 第三排 -->
+             <div class="tabmenu_kuan2">
+                  <c:forEach items="${goodList}" var="g" begin="8" end="11">
+          <div class="kuan_w_fl">        
+            <div class="kuan_tp_fl" onmouseout="this.className='kuan_tp_fl'" onmouseover="this.className='kuan_tp_fl2'"><a href="${ctx }/spxq.do?good.id=${g.id }"><img src="${ctx }${g.pic }"  width="160" height="155px"/></a></div>
+               
+                <div class="kuan_wz_fl">
+                  <div>
+	                  <a href="${ctx }/spxq.do?good.id=${g.id }">
+	                  	<c:if test="${fn:length(g.name ) >15}">${fn:substring(g.name ,0,15) }......</c:if>
+              	 		<c:if test="${fn:length(g.name ) <15}">${g.name  }</c:if>
+	                  </a>
+                  </div>
+                  <div style="font-size:14px; font-weight:bold; color:#FF0000;">￥${g.weight }</div>
+                  <div style="line-height:24px;">
+                    <p style="line-height:24px; font-weight:bold;">订购数：</p>
+                    <p style="padding-top:2px;">
+                      <input style="text-align:center; width:30px;" type="text" value="1" id="changeNumber${g.id }" />
+                    </p>
+                    <p>
+                      <input onclick="addGoodToOrderPage('${g.id }')" style="font-size:12px; text-align:center; padding:0px; line-height:18px; margin:0px;  height:24px; width:50px;" name="" type="button" value="购买" />
+                    </p>
+                  </div>
+            </div>         
+              </div>
+              </c:forEach>
+          
+              </div>
+              
+              
+               <!-- 第四排 -->
+              <div class="tabmenu_kuan2">
+                  <c:forEach items="${goodList}" var="g" begin="12" end="15">
+          <div class="kuan_w_fl">        
+            <div class="kuan_tp_fl" onmouseout="this.className='kuan_tp_fl'" onmouseover="this.className='kuan_tp_fl2'"><a href="${ctx }/spxq.do?good.id=${g.id }"><img src="${ctx }${g.pic }"  width="160" height="155px"/></a></div>
+               
+                <div class="kuan_wz_fl">
+                  <div>
+	                  <a href="${ctx }/spxq.do?good.id=${g.id }">
+	                  	<c:if test="${fn:length(g.name ) >15}">${fn:substring(g.name ,0,15) }......</c:if>
+              	 		<c:if test="${fn:length(g.name ) <15}">${g.name  }</c:if>
+	                  </a>
+                  </div>
+                  <div style="font-size:14px; font-weight:bold; color:#FF0000;">￥${g.weight }</div>
+                  <div style="line-height:24px;">
+                    <p style="line-height:24px; font-weight:bold;">订购数：</p>
+                    <p style="padding-top:2px;">
+                      <input style="text-align:center; width:30px;" type="text" value="1" id="changeNumber${g.id }" />
+                    </p>
+                    <p>
+                      <input onclick="addGoodToOrderPage('${g.id }')" style="font-size:12px; text-align:center; padding:0px; line-height:18px; margin:0px;  height:24px; width:50px;" name="" type="button" value="购买" />
+                    </p>
+                  </div>
+            </div>         
+              </div>
+              </c:forEach>
+          
+              </div>
+              
+        </div>
+      <div class="liebiaoda">
+                    <!--正文结束-->
+ <div align="right">
+
+	      	 <!--分页组件-->
+	      	<c:if test="${pageInfo.count > 0}">
+				<div id="pagerBot" style="margin-right: 0px;"></div>
+	  		</c:if>
+		</div>
+		
+		
+		
+      </div>
+    </div>
+  </div>
+  <!--正文结束-->
+   <%@ include file="/WEB-INF/page/front/footer.jsp" %>
+</div>
+
+</body>
+</html>

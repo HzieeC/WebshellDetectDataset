@@ -1,0 +1,17 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.trade.ti_membercurrency.Ti_membercurrencyInfo" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	String session_user_id = "",session_user_type = "";
+	if(session.getAttribute("session_user_id")!=null){
+		session_user_id = session.getAttribute("session_user_id").toString();
+	}
+	String case_levelname = "";
+	if(request.getParameter("case_levelname")!=null){
+		case_levelname = request.getParameter("case_levelname");
+	}
+	Ti_membercurrencyInfo person = new Ti_membercurrencyInfo();
+	int exist = person.checkName(case_levelname);
+	out.print(exist);
+%>

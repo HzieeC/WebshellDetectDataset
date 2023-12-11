@@ -1,0 +1,196 @@
+<%
+'中文
+Class Cls_Page
+	Public i
+	Public Alias
+	Public Title
+	Public Intro
+	Public Content
+	Public html
+	Private Sub Class_Initialize()
+		Alias=""
+		Title=""
+		Content=""
+		Intro=""
+	End Sub
+	
+	Public Property Get Directory
+		Directory=Replace(Pages_Directory,"\","/")
+		If((Not(Directory=""))And(Right(Directory,1)<>"/"))Then
+			Directory=Directory & "/"
+		End If
+		If(Pages_Directory_Anonymous)Then
+			Directory=Directory&Alias&"/"
+		End If
+	End Property
+
+	Public Property Get FileName
+		FileName=Alias
+		If(Pages_Directory_Anonymous)Then
+			FileName="default"
+		End If
+		FileName=FileName&"."&Pages_Static_Type
+	End Property
+
+	Public Property Get UrlPath
+		UrlPath=Directory&FileName
+		If(Pages_Directory_Anonymous)Then
+			UrlPath=Directory
+		End If
+	End Property
+
+	Public Property Get Url
+		Url=ZC_BLOG_HOST&UrlPath
+	End Property
+
+	Public Function GetSingleNodeText(ByVal P,ByVal N,ByRef V,ByVal D)
+'		Dim reval:reval=False
+		Dim O
+		Set O=P.selectSingleNode(N)
+		If(O Is Nothing)Then
+			If(Not(isNull(D)))Then
+				V=D
+'				reval=True
+			End If
+		Else
+			V=O.text
+'			reval=True
+		End If
+'		SingleNodeText=reval
+	End Function
+	
+	Public Function SetSingleNode(ByRef P,ByVal N,ByVal V,ByVal C)
+		Dim reval:reval=False
+		If(P.selectSingleNode(N) Is Nothing)Then
+			Dim temp
+			Set temp=xmlDoc.createElement(N)
+			P.appendChild(temp)
+			reval=True
+		End If
+		If(Not(isNull(V)))Then
+			Dim temp2
+			If(C)Then
+				Set temp2=xmlDoc.createNode("cdatasection", "", "")
+			Else
+				Set temp2=xmlDoc.createNode("text", "", "")
+			End If
+			temp2.NodeValue=V
+			P.selectSingleNode(N).text=Empty
+			P.selectSingleNode(N).appendChild(temp2)
+			reval=True
+		End If
+		SingleNodeText=reval
+	End Function
+	
+	
+	Public Function LoadInfo()
+		Dim reval:reval=False
+		Set xmlPage=xmlPageList.Item(i)
+		If(Not(xmlPage Is Nothing))Then
+			Call GetSingleNodeText(xmlPage,"Alias",Alias,Null)
+			Call GetSingleNodeText(xmlPage,"Title",Title,Null)
+			Call GetSingleNodeText(xmlPage,"Content",Content,Null)
+			Call GetSingleNodeText(xmlPage,"Intro",Intro,Null)
+			reval=True
+		End If
+		LoadInfo=reval
+	End Function
+
+	
+	Public Function Post()
+		Dim reval:reval=False
+		Alias=TransferHTML(Alias,"[filename]")
+		Alias=FilterSQL(Alias)
+		Title=FilterSQL(Title)
+		Intro=FilterSQL(Intro)
+		Content=FilterSQL(Content)
+		Title=TransferHTML(Title,"[japan-html]")
+		Intro=TransferHTML(Intro,"[japan-html]")
+		Content=TransferHTML(Content,"[japan-html]")
+		
+		If(xmlPageList.Item(i) Is Nothing)Then
+			Set xmlPage=xmlDoc.createElement("Page")
+		Else
+			Set xmlPage=xmlPageList.Item(i)
+		End If
+		Call SetSingleNode(xmlPage,"Alias",Alias,False)
+		Call SetSingleNode(xmlPage,"Title",Title,False)
+		Call SetSingleNode(xmlPage,"Intro",Intro,False)
+		Call SetSingleNode(xmlPage,"Content",Content,True)
+		If(xmlPageList.Item(i) Is Nothing)Then
+			xmlPageRoot.appendChild(xmlPage)
+		End If
+		xmlDoc.Save(Server.MapPath("#database.xml"))
+		reval=True
+		Post=reval
+	End Function
+		
+	Public Function Del()
+		Dim reval:reval=False
+		Set xmlPage=xmlPageList.Item(i)
+		If(Not(xmlPage Is Nothing))Then
+			xmlPage.parentNode.RemoveChild(xmlPage)
+			xmlDoc.Save(Server.MapPath("#database.xml"))
+		reval=True
+		End If
+		Del=reval
+	End Function
+	Public Function DelFile()
+'		On Error Resume Next
+		Dim tempDirectory
+		tempDirectory=Replace(BlogPath & Directory,"/","\")
+		Dim fso,TxtFile
+		Set fso = CreateObject("Scripting.FileSystemObject")
+		If(fso.FileExists(tempDirectory & FileName))Then
+			Set TxtFile = fso.GetFile(tempDirectory & FileName)
+			TxtFile.Delete
+		End If
+		If((Pages_Directory_Anonymous)And(fso.FolderExists(tempDirectory)))Then
+			tempDirectory=Left(tempDirectory,Len(tempDirectory)-1)
+			Dim f
+			Set f=fso.GetFolder(tempDirectory)
+			Dim fCount:fCount=f.Files.count+f.SubFolders.count
+			Set f=Nothing
+			If(fCount>0)Then
+			Else
+				fso.DeleteFolder(tempDirectory)
+			End If
+		End If
+		Set fso=Nothing
+		DelFile=True
+		Err.Clear
+	End Function
+	
+	Public Function Save()
+		Dim objStream
+		html=TransferHTML(html,"[no-asp]")
+		If Pages_Static_Type="asp" Then
+			html="<"&"%@ CODEPAGE=65001 %"&">" & html
+		End If
+		If(Pages_Directory_Anonymous)Then
+			Call CreatDirectoryByCustomDirectory(Directory)
+		End If
+		Call SaveToFile(BlogPath&Directory&FileName,html,"utf-8",False)
+		Save=True
+	End Function
+	
+	Public Function Build()
+		Title=TransferHTML(Title,"[html-japan][html-format]")
+		Content=Replace(Pages_Content,"<#article/content#>",Content)
+		Content=Replace(Content,"<#article/title#>",Title)
+		Content=UBBCode(Content,"[face][link][autolink][font][code][image][typeset][media][flash][key]")
+		Content=TransferHTML(Content,"[html-japan][vbCrlf][upload]")
+		Dim objArticle
+		Set objArticle=New TArticle
+		objArticle.template="SINGLE"
+		objArticle.Title=Title
+		objArticle.SetVar "template:article-single",Content
+		objArticle.Build
+		html=objArticle.html
+		Build=True
+	End Function
+	
+	
+End Class
+
+%>

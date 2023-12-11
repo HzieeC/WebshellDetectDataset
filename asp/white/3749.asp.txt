@@ -1,0 +1,21 @@
+<!--#include file="inc/config.asp"-->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+response.Charset="gbk"
+
+if commentStart= 0 then response.write("对不起，评论暂时关闭"):response.end
+dim itype:itype=request("type")
+if isNumeric(itype) then
+	itype=Clng(itype)
+else
+	itype=1
+end if
+%>
+<iframe width="100%" height="1" frameborder="0" scrolling="no" src="/<%=sitepath%>comment/index.html?id=<%=request("id")%>&type=<%=itype%>&title=" marginheight="0" marginwidth="0" name="comment" style="height: 791px;"></iframe>

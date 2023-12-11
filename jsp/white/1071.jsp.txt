@@ -1,0 +1,281 @@
+<%@ page language="java" import="java.util.*,com.bizoss.frame.util.*,java.util.Map.Entry" pageEncoding="UTF-8"%> 
+<html>
+  <head>
+    
+    <title>Create All</title>
+    <script type='text/javascript' src='/dwr/engine.js'></script>
+	<script type='text/javascript' src='/dwr/util.js'></script>
+	<script type='text/javascript' src='/dwr/interface/MenuInfo.js'></script>
+		
+    <script type="text/javascript" src="/js/jquery.js"></script>
+	<script type="text/javascript">
+	
+		function setControl(obj){
+			if(obj.checked){
+				obj.value = '1';
+			}else{
+				obj.value = '0';
+			}
+		}
+		
+		function getTableField(table_name){
+			$.ajax({
+			   type: 'POST',
+			   url: 'getTableField.jsp',
+			   data: 'table_name='+table_name,
+			   success: function(msg){
+			    document.getElementById('tableFiledDiv').innerHTML = msg;
+			   }
+			});
+			
+			$.ajax({
+			   type: 'POST',
+			   url: 'getTableKey.jsp',
+			   data: 'table_name='+table_name,
+			   success: function(msg){
+			    document.getElementById('tableKeyDiv').innerHTML = msg;
+			   }
+			});
+			
+		}
+		
+		function setUpMenuId(val){
+			MenuInfo.getDownMenu(val,'000000000000000','1',function(data){
+				 DWRUtil.removeAllOptions("up_menu_id");
+				 DWRUtil.addOptions("up_menu_id",{'':'请选择'});
+				 DWRUtil.addOptions("up_menu_id",data);
+			});
+		}
+		
+		function setMenuclass(val){
+			if(val!=''){
+				document.getElementById('menu_class').value = '2';
+			}else{
+				document.getElementById('menu_class').value = '1';
+			}
+		}
+
+		function checkSub(){
+
+			
+			if(document.getElementById('table_name').value==''){
+				alert('请选择表名！');
+				document.getElementById('table_name').focus();
+				return false;
+			}
+			if(document.getElementById('menu_name').value==''){
+				alert('请输入菜单名！');
+				document.getElementById('menu_name').focus();
+				return false;
+			}
+			if(document.getElementById('subsys_code').value==''){
+				alert('请选择子系统代码！');
+				document.getElementById('subsys_code').focus();
+				return false;
+			}
+			if(document.getElementById('module_dir').value==''){
+				alert('请输入文件夹地址！');
+				document.getElementById('module_dir').focus();
+				return false;
+			}
+			if(document.getElementById('trade_name').value==''){
+				alert('请输入业务名称！');
+				document.getElementById('trade_name').focus();
+				return false;
+			}
+			if(document.getElementById('author').value==''){
+				alert('请输入程序员姓名！');
+				document.getElementById('author').focus();
+				return false;
+			}
+			
+			
+
+			var fieldsize = document.getElementById('fieldsize').value;
+
+			var fielddisattr = '';
+			for(var i=0;i<fieldsize;i++){
+				fielddisattr += getObj('filedname'+i).value+'|';
+				if(getObj('display'+i).checked){
+					fielddisattr += '0|';
+				}else{
+					fielddisattr += '1|';
+				}
+				fielddisattr += getObj('filedCnName'+i).value+'|';
+				if(getObj('validate'+i).checked){
+					fielddisattr += '0|';
+				}else{
+					fielddisattr += '1|';
+				}
+				fielddisattr += getObj('validatename'+i).value+'|';
+				if(getObj('search'+i).checked){
+					fielddisattr += '0|';
+				}else{
+					fielddisattr += '1|';
+				}
+				fielddisattr += getObj('fsize'+i).value+'|';
+				fielddisattr += getObj('fmaxlength'+i).value+'|';
+				fielddisattr += ',';
+			}
+			document.getElementById('fielddisattr').value = fielddisattr;
+
+			//alert(fielddisattr);
+
+			document.addForm.submit();
+		}
+
+		function getObj(val){
+			return document.getElementById(val);
+		}
+
+	</script>
+  </head>
+  
+  <body>
+  
+  <% 
+  	DatebaseMgr dbMgr = new DatebaseMgr();
+  	List list = dbMgr.getAllTables();
+  	
+  %>
+  
+    <form action="/doTradeReg.do" method="post" name="addForm">
+    
+    <input type="hidden" name="bpm_id" value="inst" />
+    <input type="hidden" name="fielddisattr" id="fielddisattr" value="" />
+    
+    	<table width="100%" align="left">
+    	
+    		<tr>
+	    		<td colspan="2">
+	    			请选择数据库表<font color="red">*</font>
+	    			<select name="table_name" id="table_name" onchange="getTableField(this.value)">
+	    			<option value="">请选择数据库表</option>
+	    			 <%
+	    			 	if(list!=null && list.size()>0){
+	    			 		Map dbMap = new Hashtable();
+	    			 		for(int i=0;i<list.size();i++){
+	    			 			dbMap = (Hashtable)list.get(i);
+	    			 			String table_name = "";
+	    			 			Set<Entry<String, String>> set = dbMap.entrySet();
+								for (Entry<String, String> entry : set) {
+									table_name = entry.getValue();
+								}
+	    			 %>
+	    				<option value="<%=table_name %>"><%=table_name %></option>
+	    			 <%
+	    			 			
+	    			 		}
+	    			 	}
+	    			 %>
+	    			 </select>
+	    			 <hr/>
+	    		</td>
+    		</tr>
+    	
+    	
+    		<tr>
+	    		<td colspan="2">
+	    			菜单表信息(menuinfo)<input type="checkbox" name="createMenu" value="1" onclick="setControl(this)" checked />
+	    			&nbsp;
+	    			模型表信息(moduleinfo)<input type="checkbox" name="createModule" value="1" onclick="setControl(this)" checked />
+	    			&nbsp;
+	    			流程表信息(bpmdefinition)<input type="checkbox" name="createBpm" value="1" onclick="setControl(this)" checked />
+	    			&nbsp;
+	    			流程控制表信息(tradetype)<input type="checkbox" name="createTrade" value="1" onclick="setControl(this)" checked />
+	    			&nbsp;
+	    			创建JAVA类文件<input type="checkbox" name="createClass" value="1" onclick="setControl(this)" checked />
+	    			&nbsp;
+	    			创建JSP文件<input type="checkbox" name="createJsp" value="1" onclick="setControl(this)" checked/>
+	    			<hr/>
+	    		</td>
+    		</tr>
+    		
+    		
+    		
+    		<tr>
+	    		<td width="15%" align="right">菜单名称<font color="red">*</font></td>
+	    		<td><input type="text" name="menu_name" id="menu_name" value="" /></td>
+    		</tr>
+    		<tr>
+	    		<td align="right">子系统代码<font color="red">*</font></td>
+	    		<td>
+	    			<select name="subsys_code" id="subsys_code" onchange="setUpMenuId(this.value)">
+	    				<option value="">请选择子系统代码</option>
+	    				<option value="SYS">运营商后台</option>
+	    				<option value="B2B">企业后台</option>
+	    				<option value="MEM">个人后台</option>
+	    			</select>
+	    		</td>
+    		</tr>
+    		<tr>
+	    		<td align="right">上级菜单</td>
+	    		<td>
+	    			<select name="up_menu_id" id="up_menu_id" onchange="setMenuclass(this.value)">
+	    				<option value="">请选择</option>
+	    			</select>
+	    			<input type="hidden" name="menu_class" id="menu_class" value="1" />
+	    		</td>
+    		</tr>
+    		
+    		<tr>
+	    		<td align="right">备注：</td>
+	    		<td><input type="text" name="remark" id="remark" value="" /></td>
+    		</tr>
+    		
+    		<tr>
+	    		<td colspan="2">
+	    			<hr/>
+	    		</td>
+    		</tr>
+    		
+    		<tr>
+	    		<td width="10%" align="right">文件夹地址<font color="red">*</font></td>
+	    		<td><input type="text" name="module_dir" id="module_dir" value="" /></td>
+    		</tr>
+    		
+    		<tr>
+	    		<td width="10%" align="right">菜单关联文件：</td>
+	    		<td>
+	    			<input type="radio" name="module_file" value="index.jsp" checked />index.jsp
+	    			<input type="radio" name="module_file" value="addInfo.jsp"/>addInfo.jsp
+	    			<input type="radio" name="module_file" value="updateInfo.jsp"/>updateInfo.jsp
+	    		</td>
+    		</tr>
+    		
+    		<tr>
+	    		<td colspan="2">
+	    		<hr/>
+	    		</td>
+    		</tr>
+    		<tr>
+	    		<td width="10%" align="right">业务名称<font color="red">*</font></td>
+	    		<td><input type="text" name="trade_name" id="trade_name" value="" /></td>
+    		</tr>
+    		<tr>
+	    		<td width="10%" align="right">程序员姓名<font color="red">*</font></td>
+	    		<td><input type="text" name="author" id="author" value="" /></td>
+    		</tr>
+    		
+    		<tr>
+	    		<td colspan="2">
+	    		<hr/>
+	    		</td>
+    		</tr>
+    		<tr>
+	    		<td width="10%" align="right">请选择字段属性<font color="red">*</font></td>
+	    		<td><div id="tableFiledDiv"></div></td>
+    		</tr>
+    		<tr>
+	    		<td width="10%" align="right">请选择该表唯一标识<font color="red">*</font></td>
+	    		<td><div id="tableKeyDiv"></div></td>
+    		</tr>
+    		<tr>
+	    		<td colspan="2" align="center">
+	    			<input type="button" name="sub" onclick="checkSub()" value="提交" />
+	    		</td>
+    		</tr>
+    	</table>
+    </form>
+  </body>
+</html>

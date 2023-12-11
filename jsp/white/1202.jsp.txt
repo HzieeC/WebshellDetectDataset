@@ -1,0 +1,53 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page import="com.bizoss.trade.util.*"%>
+<%@ page import="com.bizoss.frame.util.*"%>
+<html>
+	<head>
+		<title>导出excel</title>
+	</head>
+	<body>						
+		<%
+			CreateExcel c_xls = new CreateExcel();
+	
+			String type = "";
+			if(request.getParameter("type")!=null && !request.getParameter("type").equals(""))
+			{
+				 type = request.getParameter("type");
+				
+			}
+			
+			Calendar calendar = Calendar.getInstance();     
+    
+      int year= calendar.get(Calendar.YEAR);  
+			
+			Config cg = new Config();
+			String path = cg.getString("rootpath");
+
+			try{
+ 
+			  
+			  if(type.equals("sp"))
+			  {
+				    c_xls.CreateOrderXlsByMM(path + "/program/admin/groupordercounter/"+year+"_addordernum.xls","");
+				    
+				    out.print("<a href='/program/admin/groupordercounter/"+year+"_addordernum.xls' target='_blank'><img src='/program/admin/images/xls.gif' border='0' title='下载' />"+year+"年订单总量统计</a>"); 
+		    }
+ 
+		    
+		    if(type.equals("co"))
+			  {
+				    c_xls.CreateOrderXlsByState(path + "/program/admin/groupordercounter/"+year+"_orderstatenum.xls","");
+
+				    
+				    out.print("<a href='/program/admin/groupordercounter/"+year+"_orderstatenum.xls' target='_blank'><img src='/program/admin/images/xls.gif' border='0' title='下载' />"+year+"年订单状态统计</a>"); 
+		    }
+			
+			}catch(Exception e){
+				out.println("<font color=red>导出失败!</font>");
+			}
+		%>
+		
+	</body>
+</html>

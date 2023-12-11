@@ -1,0 +1,78 @@
+<!-- #include file="../inc/conn.asp"-->
+<!--#include file="../inc/Md5.asp"-->
+<%
+EmailCode=Trim(Request("EmailCode"))
+username=Request("UserMail")
+Action=Request("Action")
+
+if len(Action)=0 then
+ Call AlertUrl("非法网址！","Login.asp")
+end if
+
+if Action="check" then
+
+if IsValidEmail(username)=false then
+ Call AlertUrl("错误用户名！","Index.asp")
+end if
+
+If len(EmailCode)<5 Then
+ Call AlertUrl("错误验证码！","Index.asp")
+end if
+
+Set Rs=Server.CreateObject("Adodb.RecordSet")
+Sql="Select * From User Where EmailCode='" &EmailCode& "' and username='" &username& "'"
+Rs.Open Sql,Conn,1,1
+
+If Rs.Eof And Rs.Bof Then 
+ Call AlertBack("较验码不存在或者已经使用!")
+else
+ 'Conn.ExeCute(Update User Set EmailCode='-',check='1' Where username='" &username& "')
+ Sql="Update User Set EmailCode='-',check='1' Where username='" &username& "'"
+ Conn.ExeCute Sql
+ Call AlertUrl("验证成功！","Index.asp")
+Session("type")=""
+Session("check")="1"
+End If
+
+End if
+
+if Action="remail" then
+set rs=conn.execute("Select * from user Where username='"&username&"'")
+if Not rs.eof then
+username=rs("username")
+nickname=rs("nickname")
+EmailCode=rs("EmailCode")
+rs.close
+set rs=nothing
+Else
+ Call AlertUrl("该帐号尚未注册，自己新注册吧！","Index.asp")
+'Response.Write "<font color=""blue"">"&username&"尚未注册，自己新注册吧</font>"
+End if
+if len(EmailCode)<10 then
+Randomize
+Rannum=Int(90000000*rnd)+10000000
+EmailCode=username&Rannum&year(now)&month(now)&day(now)&hour(now)&minute(now)&second(now)
+EmailCode=Md5(EmailCode)
+ Sql="Update User Set EmailCode='"&EmailCode&"' Where username='" &username& "'"
+ Conn.ExeCute Sql
+end if
+title=nickname&"你好,注册用户确认邮件"
+repassurl=""&siteurl&"user/user_check.asp?Action=check&UserMail="&username&"&EmailCode="&EmailCode&""
+EmailBody1="<p>你好"&nickname&",这是来自"&sitetitle&"用于确认用户真实性的邮件</p>"
+EmailBody2="<p>打开下面链接确认你的用户,注意,如果你没有在我站注册用户请不要点击:</p>"
+EmailBody3="<p><a href="""&repassurl&""" target=""_blank"">"&repassurl&"</a></p>"
+EmailBody4="<p>"&sitename&" 发送于 "&FormatDateTime(Now(),0)&"</p>"
+EmailBody=EmailBody1+EmailBody2+EmailBody3+EmailBody4
+if len(EmailCode)>10 then
+Set jmail = Server.CreateObject("JMAIL.Message")
+call sendmail(username,title,EmailBody)
+jmail.Close()
+Set jmail=Nothing
+ Call AlertUrl("已发送，请查收！（如果没有收到请查看邮件垃圾箱）","Index.asp")
+'Response.Write "<font color=""red"">已发送，请查收！</font>"
+else
+ Call AlertUrl("验证码无效，请在登录页做找回密码操作！","Index.asp")
+'Response.Write "<font color=""red"">未发送，请重新操作！</font>"
+end if
+end if
+%>

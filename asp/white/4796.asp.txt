@@ -1,0 +1,178 @@
+<!--#include file="../conn2.asp" --> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"> 
+<% 
+nowfilename=replace(replace(replace(now,":","")," ",""),"/","")
+Response.Buffer = True 
+Response.ContentType = "application/vnd.ms-excel" 
+Response.AddHeader "content-disposition", "inline; filename = "&nowfilename&".xls"
+%> 
+<html> 
+<head> 
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312"> 
+<title>Untitled Document</title> 
+</head> 
+<body>
+<%
+'取得当前页码
+currentpage=request("page")
+'response.write currentpage
+'response.end
+if currentpage<1 or currentpage="" then
+  currentpage="1"
+end if
+
+'取得搜索关键字  
+nowstartdate=request("startdate") 
+if nowstartdate="" then
+  nowstartdate=date()-day(date()-1)
+end if
+nowenddate=request("enddate") 
+if nowenddate="" then
+  nowenddate=date()
+end if
+nowku=request("ku")
+nowkeyword=request("keyword")
+
+	if request.Cookies("shiwei_id")="1" or fla88="1" then
+	  sql="select * from ku order by id"
+	  set rs_ku=conn.execute(sql)
+	else
+	  sql="select * from ku where instr(login,',"&request.Cookies("shiwei_id")&",')>0 order by id"
+	  set rs_ku=conn.execute(sql)
+	  if rs_ku.eof then
+	    nowku="0"
+	  elseif request("ku")="" then
+	    nowku=rs_ku("id")
+	  end if	  
+	end if 
+
+  sql="select * from buy where type=0 and zu and isok"
+  if request.Cookies("shiwei_id")<>1 and lookbuysell="yes" and fla89="0" then
+    sql=sql&" and id_login="&request.Cookies("shiwei_id")
+  end if
+  if nowstartdate<>"" then
+    sql=sql&" and selldate-#"&nowstartdate&"#>=0"
+  end if  
+  if nowenddate<>"" then
+    sql=sql&" and selldate-#"&nowenddate&"#<=0"
+  end if
+  if nowku<>"" then
+	sql=sql&" and bianhao in (select bianhao from buy where type=0 and id_ku="&nowku&" and zu=false)"
+  end if   
+  if nowkeyword<>"" then
+    sql=sql&" and (bianhao = '"&nowkeyword&"' or id_gys in (select id from gys where company like '%"&nowkeyword&"%') or id_login in (select id from login where username like '%"&nowkeyword&"%') or bianhao in (select bianhao from buy where type=0 and (title like '%"&nowkeyword&"%' or huohao like '%"&nowkeyword&"%')))"
+  end if
+
+  if request("order1")<>"" then
+    sql=sql&" order by bianhao "&request("order1")
+  elseif request("order2")<>"" then
+    sql=sql&" order by huohao "&request("order2")
+  elseif request("order3")<>"" then
+    sql=sql&" order by title "&request("order3") 
+  elseif request("order4")<>"" then
+    sql=sql&" order by selldate "&request("order4") 
+  elseif request("order5")<>"" then
+    sql=sql&" order by id_login "&request("order5") 
+  elseif request("order6")<>"" then
+    sql=sql&" order by id_gys "&request("order6")
+  elseif request("order7")<>"" then
+    sql=sql&" order by shulian "&request("order7")
+  elseif request("order8")<>"" then
+    sql=sql&" order by price2 "&request("order8")
+  elseif request("order9")<>"" then
+    sql=sql&" order by price2 "&request("order9")
+  elseif request("order10")<>"" then
+    sql=sql&" order by id_gys "&request("order10")		        
+  else
+    sql=sql&" order by selldate desc"  
+  end if
+
+set count_buy = server.createobject("ADODB.RecordSet")	
+count_buy.open sql,conn,1,3
+nowprice2=0
+do while count_buy.eof=false
+	  sql3="select sum(price2*shulian) from buy where bianhao='"&count_buy("bianhao")&"' and zu=false"
+	  if nowku<>"" then
+	    sql3=sql3&" and id_ku="&nowku
+	  end if
+	  if nowkeyword<>"" then
+        sql3=sql3&" and (bianhao = '"&nowkeyword&"' or id_gys in (select id from gys where company like '%"&nowkeyword&"%') or id_login in (select id from login where username like '%"&nowkeyword&"%') or title like '%"&nowkeyword&"%' or huohao like '%"&nowkeyword&"%')"
+  	  end if
+	  set rs_sum=conn.execute(sql3)  
+  nowprice2=nowprice2+rs_sum(0)	
+  count_buy.movenext
+loop
+set rs_buy = Server.CreateObject("ADODB.Recordset")
+rs_buy.open sql,conn,1,1
+%>
+<table width="100%" border="1" align="center" cellpadding="2" cellspacing="0">
+<tr>
+  <th>序号</th>
+  <th>编号</th>
+  <th>入库时间</th>
+  <th>经办人</th>
+  <th>供应商</th>
+  <th>数量</th>
+  <%if request.Cookies("shiwei_id")="1" or fla87="1" then%>
+  <th>金额</th>
+  <%end if%>
+</tr>
+<%
+i=0
+do while rs_buy.eof=false
+i=i+1
+%>
+<tr class="TD2">
+<td align="center"><%=i%></td>
+<td align="center"><%=rs_buy("bianhao")&""%></td>
+<td align="center"><%=rs_buy("selldate")%></td>
+<td align="center">
+	  <%
+	  sql="select * from login where id="&rs_buy("id_login")
+	  set rs_login=conn.execute(sql)
+	  %>
+	  <%if rs_login.eof then%><%=rs_buy("login")%><%else%><%=rs_login("username")%> (<%=rs_login("bianhao")%>)<%end if%>
+</td>
+<td align="center">
+	<%
+	  sql="select * from gys where id="&rs_buy("id_gys")
+	  set rs_gys=conn.execute(sql)
+	  %>
+	  <%if rs_gys.eof then%><%=rs_buy("gys")%><%else%><%=rs_gys("company")%><%end if%>	
+</td>
+<td align="center">
+	  <%
+	  sql="select sum(shulian) from buy where bianhao='"&rs_buy("bianhao")&"' and zu=false"
+	  if nowku<>"" then
+	    sql=sql&" and id_ku="&nowku
+	  end if
+	  if nowkeyword<>"" then
+        sql=sql&" and (bianhao = '"&nowkeyword&"' or id_gys in (select id from gys where company like '%"&nowkeyword&"%') or id_login in (select id from login where username like '%"&nowkeyword&"%') or title like '%"&nowkeyword&"%' or huohao like '%"&nowkeyword&"%')"
+  	  end if
+	  set rs_sum=conn.execute(sql)
+	  %>
+	  <%=formatnumber(rs_sum(0),2)%>
+</td>
+<%if request.Cookies("shiwei_id")="1" or fla87="1" then%>
+<td align="center">
+	  <%
+	  sql="select sum(price2*shulian) from buy where bianhao='"&rs_buy("bianhao")&"' and zu=false"
+	  if nowku<>"" then
+	    sql=sql&" and id_ku="&nowku
+	  end if
+	  if nowkeyword<>"" then
+        sql=sql&" and (bianhao = '"&nowkeyword&"' or id_gys in (select id from gys where company like '%"&nowkeyword&"%') or id_login in (select id from login where username like '%"&nowkeyword&"%') or title like '%"&nowkeyword&"%' or huohao like '%"&nowkeyword&"%')"
+  	  end if
+	  set rs_sum=conn.execute(sql)
+	  %>
+	  <%=formatnumber(rs_sum(0),2)%>
+</td>
+<%end if%>
+</tr>
+<%
+rs_buy.movenext
+loop
+%>
+</table>
+</body>
+</html>

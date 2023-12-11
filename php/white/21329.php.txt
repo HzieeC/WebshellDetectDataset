@@ -1,0 +1,18 @@
+<?php
+
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
+    'handle_all_throwables' => true,
+    'php_errors' => ['log' => true],
+    'annotations' => false,
+    'serializer' => [
+        'enable_attributes' => true,
+        'mapping' => [
+            'paths' => [
+                '%kernel.project_dir%/Fixtures/TestBundle/Resources/config/serializer_mapping/files',
+                '%kernel.project_dir%/Fixtures/TestBundle/Resources/config/serializer_mapping/serialization.yml',
+                '%kernel.project_dir%/Fixtures/TestBundle/Resources/config/serializer_mapping/serialization.yaml',
+            ],
+        ],
+    ],
+]);

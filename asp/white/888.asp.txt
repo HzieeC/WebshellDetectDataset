@@ -1,0 +1,119 @@
+<!--#include file="EditBox.inc1.asp" -->
+<HTML>
+<TITLE>MSN Editor</TITLE>
+<META HTTP-EQUIV="Content-Type" Content="text/html; Charset=gb2312">
+<HEAD>
+	<!--
+	// Copyright (C) 2000, Microsoft, Corp. All rights reserved.
+	// File: rte.htm
+	// Author: Scott Isaacs
+	// Contents: RTE Component
+	-->
+	<SCRIPT SRC="jsinc/rte_res.js"></SCRIPT>
+	<SCRIPT SRC="jsinc/rte.js"></SCRIPT>		
+	<STYLE>
+		body {margin:0pt;border:none;padding:0pt}
+		#tbDBSelect {display:none;text-align:left;width: 100;margin-right: 1pt;margin-bottom: 0pt;margin-top: 0pt;padding: 0pt;font: 8pt arial,geneva}
+		#DBSelect, #idMode, .userButton {font:8pt arial}
+		#DBSelect {width:100}
+		#idMode {margin-top:0pt}
+		.tbButton {text-align:left;margin:0pt 1pt 0pt 0pt;padding:0pt}
+		#EditBox {position: relative}
+		#idEditRegion {margin:0px;padding:0px}
+	</STYLE>
+	<STYLE ID=skin DISABLED>
+		#idEditRegion {margin: 0px 8px 0px 8px;padding:0px}
+		#tbUpRight, #tbUpLeft {width:13px}	
+		#idMode {margin-left:11px;padding:0pt}
+		#idMode LABEL {color: navy;text-decoration: underline}
+		#tbTopBar {height:13px}
+		#tbUpLeft {background:url('image/up_left.gif'); }
+		#tbUpMiddle {background:url('image/up_mid.gif'); }
+		#tbUpRight {background:url('image/up_right.gif'); }
+		#tbMidLeft {background:url('image/mid_left.gif'); }
+		#tbButtons, #tbContents {background: #FFFFE5;vertical-align: top}
+		#tbContents {padding:0px 5px}
+		#tbMidRight {background:url('image/mid_right.gif'); }
+		#tbBottomBar {height:6px}
+		#tbLowLeft {background:url('image/low_left.gif'); }
+		#tbLowMiddle {background:url('image/low_mid.gif'); }
+		#tbLowRight {background:url('image/low_right.gif'); }		
+	</STYLE>
+	<STYLE ID=appendSkin>
+	</STYLE>
+	<STYLE ID=defPopupSkin>
+		#popup BODY {margin:0px;padding: 0pt;border-top:none}
+		#popup .colorTable {height:91px}
+		#popup #header {width:100%}
+		#popup #close {cursor:default;font:bold 8pt system;width:16px;text-align: center}
+		#popup #content {padding:0pt}
+		#popup TABLE {vertical-align:top}
+		#popup .tabBody {border:1px black solid;border-top: none}
+		#popup .tabItem, #popup .tabSpace {border-bottom:1px black solid;border-left:1px black solid}
+		#popup .tabItem {border-top:1px black solid;font:10pt arial,geneva,sans-serif;}
+		#popup .currentColor {width:20px;height:20px; margin: 0pt;margin-right:15pt;border:1px black solid}
+		#popup .tabItem DIV {margin:3px;padding:0px;cursor: hand}
+		#popup .tabItem DIV.disabled {color: gray;cursor: default}
+		#popup .selected {font-weight:bold}
+		#popup .emoticon {cursor:hand}
+		#customFont {font: bold 10pt arial, geneva, sans-serif}
+	</STYLE>
+	<STYLE ID=popupSkin>
+		#popup BODY {border: 3px #006699 solid; background: #F1F1F1}
+		#popup #header {background: #006699; color: white}
+		#popup #caption {text-align: left;font: bold 12pt arial , geneva, sans-serif}
+		#popup .ColorTable, #popup #idList TD#current {border: 1px black solid}
+		#popup #idList TD{cursor: hand;border: 1px #F1F1F1 solid}
+		#popup #close {border: 1px #99CCFF solid;cursor:hand;color: #99CCFF;font-weight: bold;margin-right: 6px;padding:0px 4px 2px}
+		#popup #tableProps .tablePropsTitle {color:#006699;text-align:left;margin:0pt;border-bottom: 1px black solid;margin-bottom:5pt}
+		#tableButtons, #tableProps {padding:5px}
+		#popup #tableContents {height:175px}
+		#popup #tableProps .tablePropsTitle, #popup #tableProps, #popup #tableProps TABLE {font:bold 9pt Arial, Geneva, Sans-serif}
+		#popup #tableOptions  {font:9pt Arial, Geneva, Sans-serif;padding:15pt 5pt}
+		#popup #puDivider {background:black;width:1px}
+		#popup #content {margin: 0pt;padding:5pt 3pt 8pt 3pt}
+		#popup #ColorPopup {width: 250px}
+		#popup .ColorTable TR {height:6px}
+		#popup .ColorTable TD {width:6px;cursor:hand}
+		#popup .block p, #popup .block h1, #popup .block h2, #popup .block h3, #popup .block h4, #popup .block h5, #popup .block h6, #popup .block pre {margin:0pt;padding:0pt}
+	</STYLE>
+</HEAD>
+	<SCRIPT>
+	    var L_DEFAULTHTML_TEXT
+	    L_DEFAULTHTML_TEXT="<DIV><%=content%></DIV>";
+		window.onload	= _initEditor;
+		function _drawIE4Focus() {
+			if (isIE4)
+				document.write("<INPUT TYPE=textbox STYLE=\"width:0;height:0;left:0;position:absolute\"  VALUE=\"Ray\">Ray");
+
+		}
+
+	</SCRIPT>
+											
+<BODY bgcolor=#FFFFE5 oncontextmenu="return false" TABINDEX  ="-1" SCROLL ="no" ONSELECTSTART ="return false" ONDRAGSTART="return false" ONSCROLL="return false">
+	<DIV ID="idEditor" STYLE="VISIBILITY: hidden">
+		<TABLE ID=idToolbar WIDTH="100%" CELLSPACING=0 CELLPADDING=0 ONCLICK="_CPopup_Hide()">
+			<TR ID=tbTopBar><TD ID=tbUpLeft></TD><TD COLSPAN=2 ID=tbUpMiddle></TD><TD ID=tbUpRight></TD></TR>
+			<TR><TD ID=tbMidLeft></TD>
+				<TD ID=tbContents><SCRIPT>_drawToolbar()</SCRIPT></TD>
+				<TD ID=tbButtons ALIGN=right></TD><TD ID=tbMidRight></TD>
+			</TR>
+			<TR ID=tbbottomBar><TD ID=tbLowLeft></TD><TD COLSPAN=2 ID=tbLowMiddle></TD><TD ID=tbLowRight></TD></TR>
+		</TABLE>
+		<IFRAME NAME="idPopup" STYLE="HEIGHT: 200px; LEFT: 25px; MARGIN-TOP: 8px; POSITION: absolute; VISIBILITY: hidden; WIDTH: 200px; Z-INDEX: -1"></IFRAME>
+		<DIV ID="idEditRegion">
+		<IFRAME TABINDEX=1 ID="EditBox" NAME="idEditbox"  WIDTH="100%" HEIGHT="100%" ONFOCUS="_CPopup_Hide();_fireFocus()"></IFRAME>
+		</DIV>
+		<SCRIPT language=javascript>
+		_drawIE4Focus();
+		</SCRIPT>
+		<DIV ID="tbmode"><SCRIPT>_drawModeSelect();</SCRIPT></DIV>
+	</DIV>
+	<form name=newsPro>
+	  <input type=hidden name=editImageNum id=editImageNum value="<%=editImageNum%>">
+	  <input type=hidden name=editRemNum id="editRemNum" value="">
+	  <input type=hidden name=editFirstImageName id=editFirstImageName value="">
+      <input type=hidden name=editlanguage id=editlanguage value="<%=language%>"> 
+	</form>
+</BODY>	
+</HTML>

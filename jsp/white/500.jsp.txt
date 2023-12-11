@@ -1,0 +1,357 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<meta http-equiv="Content-Language" content="zh-cn" />
+<meta name="robots" content="all" />
+<meta name="Description" content="淘烘焙商城，烘焙团，正品，低价，贴心服务，购物无忧" />
+<meta name="Keywords" content="淘烘焙商城,烘焙团，购物,网上购物" />
+<title>商品详情</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+
+
+<!--[if IE]>
+<style type="text/css"> 
+.mybuggyelement { zoom: 1;}
+</style>
+<![endif]-->
+<script language="JavaScript" src="${ctx }/scripts/js/global.js" type="text/javascript"></script>
+<!--放大镜效果   <script language="JavaScript" src="${ctx }/scripts/js/bp.js" type="text/javascript"></script>-->
+
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="Javascript" type="text/javascript" src="${ctx}/scripts/front/purchase.js"></script>
+<!-- 	<script type="text/javascript" src="${ctx }/scripts/front/common/zoom.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/front/common/zoom.lib.js"></script> -->
+	<script language="Javascript" type="text/javascript" src="${ctx}/scripts/front/common/common.js"></script>
+<!--放大镜效果-->
+
+	<script src="${ctx}/scripts/front/common/base.js" type=text/javascript></script>
+	<script src="${ctx}/scripts/front/common/lib.js" type=text/javascript></script>
+	<script src="${ctx}/scripts/front/common/zico.js" type=text/javascript></script>
+	<link href="${ctx}/styles/css/picMangnifier.css" type="text/css" rel="stylesheet"/>
+	
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/spsp.css" rel="stylesheet" type="text/css" />
+
+
+<script type="text/javascript">
+<!--
+function MM_swapImgRestore() { //v3.0
+  var i,x,a=document.MM_sr; for(i=0;a&&i<a.length&&(x=a[i])&&x.oSrc;i++) x.src=x.oSrc;
+}
+function MM_preloadImages() { //v3.0
+  var d=document; if(d.images){ if(!d.MM_p) d.MM_p=new Array();
+    var i,j=d.MM_p.length,a=MM_preloadImages.arguments; for(i=0; i<a.length; i++)
+    if (a[i].indexOf("#")!=0){ d.MM_p[j]=new Image; d.MM_p[j++].src=a[i];}}
+}
+
+function MM_findObj(n, d) { //v4.01
+  var p,i,x;  if(!d) d=document; if((p=n.indexOf("?"))>0&&parent.frames.length) {
+    d=parent.frames[n.substring(p+1)].document; n=n.substring(0,p);}
+  if(!(x=d[n])&&d.all) x=d.all[n]; for (i=0;!x&&i<d.forms.length;i++) x=d.forms[i][n];
+  for(i=0;!x&&d.layers&&i<d.layers.length;i++) x=MM_findObj(n,d.layers[i].document);
+  if(!x && d.getElementById) x=d.getElementById(n); return x;
+}
+
+function MM_swapImage() { //v3.0
+  var i,j=0,x,a=MM_swapImage.arguments; document.MM_sr=new Array; for(i=0;i<(a.length-2);i+=3)
+   if ((x=MM_findObj(a[i]))!=null){document.MM_sr[j++]=x; if(!x.oSrc) x.oSrc=x.src; x.src=a[i+2];}
+}
+//-->
+</script>
+</head>
+<body>
+          <s:hidden name="good.id" id="goodId"/>
+	      <s:hidden name="good.name" id="goodName"/>
+	      <s:hidden name="good.code" id="goodCode"/>
+	      <s:hidden name="good.price" id="price"/>
+	      <s:hidden name="good.priceMarket" id="priceMarket"/>
+<div class="kuang_da">
+     <%@ include file="/WEB-INF/page/front/head.jsp" %>
+  <div class="szwz">您所在的位置：<a href="${ctx }/index.do">首页</a> &gt; <a href="#"><strong>商品展示</strong></a></div>
+  <div class="kkda">
+    <div class="sjsy_zy_da">
+      <div class="sjsy_zy_bt">所有商品分类</div>
+      
+     <!-- 
+     	 <c:forEach items="${goodTypeList}" var="g" begin="0" end="4"> 
+	      <div class="xcym_xl">
+		      <div class="xcym_bt"><a class="lj_10" href="${ctx }/spfl.do?good.goodTypeId=${g.id }">${g.name }</a></div>   
+		      <div class="xcym_db">
+			      <c:forEach items="${g.children}" var="gg" begin="0" end="6">
+				      <a href="${ctx }/spfl.do?good.goodTypeId=${gg.id }">
+					      <c:if test="${fn:length(gg.name) <=5}">${gg.name }</c:if>
+					      <c:if test="${fn:length(gg.name) > 5}">${fn:substring(gg.name,0,5) }</c:if>         
+				      </a><br/>
+			      </c:forEach>
+		      </div>
+		      <div class="xcym_db">
+			      <c:forEach items="${g.children}" var="gg" begin="7" end="13">
+				      <a href="${ctx }/spfl.do?good.goodTypeId=${gg.id }">
+					      <c:if test="${fn:length(gg.name) <=5}">${gg.name }3</c:if>
+					      <c:if test="${fn:length(gg.name) > 5}">${fn:substring(gg.name,0,5) }</c:if>         
+				      </a><br/>
+			      </c:forEach>
+		      </div>
+	      </div>
+      </c:forEach>
+      -->
+     
+     
+     <c:forEach items="${goodTypeList}" var="g"> 
+     	 <c:if test="${g.level == '2'}">
+		     <div class="xcym_xl">
+		        <div class="xcym_bt"><a class="lj_10" href="${ctx }/spfl.do?good.typeIdNo2=${g.id }">${g.name }</a></div>
+		        <c:forEach items="${goodTypeList}" var="gg">
+		        	<c:if test="${g.id == gg.parentId}">
+				        <div class="xcym_db_1">
+					        <c:if test="${fn:length(gg.name) <=5}"><a href="${ctx }/spfl.do?good.typeIdNo3=${gg.id }">${gg.name }</a></c:if>
+							<c:if test="${fn:length(gg.name) > 5}"><a href="${ctx }/spfl.do?good.typeIdNo3=${gg.id }">${fn:substring(gg.name,0,5) }</a></c:if>      
+						</div>
+					</c:if>
+			    </c:forEach>
+		      </div>
+	      </c:if>
+      </c:forEach>
+     <br /><br /><br />
+      <div class="sjsy_zy_bt">商品销售排行榜</div>
+      <c:forEach items="${goodList}" var="good" begin="10" end="15">
+	      <div class="sjsy_dp_sp">
+	        <div class="sj_100"><a href="${ctx }/spxq.do?good.id=${good.id }"><img src="${ctx }/${good.pic }" width="170px" height="170px"/></a></div>
+	        <div class="spyl_wz">
+	        <a href="${ctx }/spxq.do?good.id=${good.id }">
+	        	<c:if test="${fn:length(good.name ) >35}">${fn:substring(good.name ,0,35) }......</c:if>
+	            <c:if test="${fn:length(good.name ) <35}">${good.name  }</c:if>
+	        </a><br />
+	          <span class="STYLE2"><span class="STYLE9"><strong>￥${good.weight }</strong></span></span></div>
+	      </div>
+	  </c:forEach>
+    
+    </div>
+    <div class="sp_zxym_yc">
+      <div class="sp_bt">
+        <div class="sp_yb">${good.name }</div>
+        <div class="sp_jb" style="display:none;"> <A href="javascript:void(0);" onclick="addGoodToFavorite();">收藏此商品</A></div>
+      </div>
+      <div class="sp_xq">
+        <!--放大镜效果-->
+        <div class="zhuyao">
+	      <div class="pic-l" id="preview">
+	          <div class="jqzoom" id="spec-n1">
+	                <img src="${ctx}${good.pic }" jqimg="${ctx}${good.pic }" width="380" height="350" />
+	          </div>
+	          <div id="spec-n5">
+	           <!--  <div class="control" id="spec-left"><img src="${ctx }/image/fr_28.gif" /></div> -->
+	            <div id="spec-list">
+	                <ul class="list-h">
+						<li><img id="pic0" src="${ctx }${good.pic1 }" width="40" height="40" border="0"/></li>
+						<li><img id="pic1" src="${ctx }${good.pic2 }" width="40" height="40" border="0"/></li>
+						<li><img id="pic2" src="${ctx }${good.pic3 }" width="40" height="40" border="0"/></li>
+						<li><img id="pic3" src="${ctx }${good.pic4 }" width="40" height="40" border="0"/></li>
+						<li><img id="pic4" src="${ctx }${good.pic5 }" width="40" height="40" border="0"/></li>
+	                </ul>
+	            </div>
+	            <!-- <div class="control" id="spec-right"><img src="${ctx }/image/fr_31.gif" /></div>	 -->	
+	         </div>
+	      </div>
+	      <div class="pro-txt"></div>
+	      
+	<div class="sp_zy">
+          <div class="sp_fs">
+          优惠价：<span class="cx" id="weightPrice">￥${good.weight }</span><br/>
+          市场价：<span class="scx" id="">￥<c:if test="${good.price != null}">${good.price }</c:if><c:if test="${good.price == null}">0.00</c:if></span><br/>
+          编号：<span>${good.code }</span><br/>   
+           
+            <!-- 售出：<span class="STYLE2">224</span>件<br/> -->
+          </div>
+          <div class="sp_fx">
+            <input type="hidden" id="wareId" value="${ware.id }"/>
+            <input type="hidden" id="selectSpecificationVal" />
+          
+          	<input type="hidden" id="selectSpecificationValOne" />
+            <input type="hidden" id="selectSpecificationValTwo" />
+          
+            <c:forEach items="${list1}" var="goodSpecification" varStatus="i">
+            	<c:if test="${goodSpecification.showType == '0'}">
+            	<input type="hidden" id="goodSpecificationOne${i.index}" />
+		            <div class="choosebox">
+		                <h2>${goodSpecification.name }：</h2>
+						<ul>
+							<c:forEach items="${list}" var="SpecificationVal" varStatus="j">
+								<c:if test="${SpecificationVal.goodSpecificationId == goodSpecification.id}">
+									<li>
+										<a href="javascript:void(0);" class="size_radioToggle" onclick="selectSpecification('${SpecificationVal.value }','','${SpecificationVal.wareId }','${SpecificationVal.id }')" ><span class="value">${SpecificationVal.value }</span></a>
+									</li>
+								</c:if>
+							</c:forEach>
+						</ul>
+				    </div>
+			    </c:if>
+		    </c:forEach>
+		    
+		    <c:forEach items="${list1}" var="goodSpecification" varStatus="i">
+	            <c:if test="${goodSpecification.showType == '1'}">
+	            <input type="hidden" id="goodSpecificationTwo${i.index}" />
+				    <div class="choose_color">
+			            <h2>${goodSpecification.name }：</h2>
+						<ul> 
+							<c:forEach items="${list}" var="SpecificationVal" varStatus="j">
+								<c:if test="${SpecificationVal.goodSpecificationId == goodSpecification.id}">
+									<li>
+										<a href="javascript:void(0);" class="size_radioToggle" title="${SpecificationVal.value }" onclick="selectSpecification('','${SpecificationVal.value }','${SpecificationVal.wareId }','${SpecificationVal.id }')" ><img src="${ctx }${SpecificationVal.pic }" /></a>
+									</li>
+								</c:if>
+							</c:forEach>
+						</ul>
+					</div>
+				</c:if>
+			</c:forEach>
+		    
+<script type="text/javascript">
+$(function(){   
+	$('.choosebox li a').click(function(){
+		var thisToggle = $(this).is('.size_radioToggle') ? $(this) : $(this).prev();
+		var checkBox = thisToggle.prev();
+		checkBox.trigger('click');
+		$('.size_radioToggle').removeClass('current');
+		thisToggle.addClass('current');
+		return false;
+	});
+	$('.choose_color li a').click(function(){
+		var thisToggle = $(this).is('.size_radioToggle') ? $(this) : $(this).prev();
+		var checkBox = thisToggle.prev();
+		checkBox.trigger('click');
+		$('.size_radioToggle').removeClass('hover');
+		thisToggle.addClass('hover');
+		return false;
+	});			
+});
+
+</script>
+            
+            <div class="gm_fl">
+              <div class="gm_da_1">数量：</div>
+              <div class="gm_da_x"><input id="changeNumber" type="text" style="width: 4em;" value="1"  onchange="changeNumber();" /></div>
+              <div class="gm_da_y" id="goodStock">件<span class="STYLE10">（库存<fmt:formatNumber pattern="0" value="${good.stock}"/> 件）</span></div>
+            	<input type="hidden" value="${good.stock}" id="stock" />
+            </div>
+            <!-- 
+            <div class="gm_gm">
+              <div class="gm_1"><a href="javascript:void(0);" onclick="addGoodToOrder();" id="cart" onmouseout="MM_swapImgRestore()" onmouseover="MM_swapImage('Image12','','${ctx }/image/gm_off.gif',1)"><img src="${ctx }/image/gm_on.gif" name="Image12" width="135" height="50" border="0" id="Image12" /></a></div>
+              <div class="gm_2"><a href="javascript:void(0);" onclick="addGoodToCart();">加入购物车</a></div>
+            </div>
+             -->
+            <div id="J_juValid" class="tb-action tb-clearfix ">
+				<div class="tb-btn-buy">
+					<a class="J_ClickCatcher J_LinkBuy" title="点击此按钮，到下一步确认购买信息。" onclick="addGoodToCart();">
+					加入购物车
+					<b class="J_ClickCatcher J_LinkBuy"></b>
+					</a>
+				</div>
+			</div>
+          </div>
+        </div>      
+	      
+	      
+	      
+	    </div>
+        
+        
+        <!-- 
+        	<div class="sp_zs">
+          <div  class="imglist_right" id="mpd" style="height:100%;"><img src="${ctx }${good.pic }" name="mp" width="350" height="350" border="0" id="mp" style="CURSOR: pointer;" onmousemove="javascript:slidebp();" onmouseout="javascript:closebp();" />
+            <div class="sp_zx"  id="spec-list">
+              <div class="sp_xx"  style="border:0px;"><img src="${ctx }${good.pic1 }" width="40" height="40"/></div>
+              <div class="sp_xx" style="border:0px;"><img src="${ctx }${good.pic2 }" width="40" height="40" /></div>
+              <div class="sp_xx" style="border:0px;"><img src="${ctx }${good.pic3 }" width="40" height="40" /></div>
+              <div class="sp_xx" style="border:0px;"><img src="${ctx }${good.pic4 }" width="40" height="40" /></div>
+              <div class="sp_xx" style="border:0px;"><img src="${ctx }${good.pic5 }" width="40" height="40" /></div>
+            </div>
+          </div>
+        </div>
+        <div id="bpd" style="BORDER: #cccccc 1px solid; DISPLAY: none; OVERFLOW: hidden; WIDTH: 280px;POSITION: absolute; HEIGHT: 280px">
+          <div id="bpd2" style="POSITION: absolute">
+            <iframe style="Z-INDEX: -1; LEFT: 2px; WIDTH: 1000px; POSITION: absolute; TOP: 5px; HEIGHT: 1000px" src="javascript:false" frameborder="0" ></iframe>
+            <img src="${ctx }${good.pic }" name="bp" width="750" height="750" id="bp" /> </div>
+        </div>
+        <script language="JavaScript" type="text/javascript">gid = 37;mp_pos = getAbsPoint(object("mpd"));locateZoom();</script>
+        	
+         -->
+        
+        
+  <script type=text/javascript>
+	$(function(){			
+	   $(".jqzoom").jqueryzoom({
+			xzoom:400,
+			yzoom:400,
+			offset:10,
+			position:"right",
+			preload:1,
+			lens:1
+		});
+		$("#spec-list").jdMarquee({
+			deriction:"left",
+			width:380,
+			height:56,
+			step:2,
+			speed:4,
+			delay:10,
+			control:true,
+			_front:"#spec-right",
+			_back:"#spec-left"
+		});
+		$("#spec-list img").bind("mouseover",function(){
+			var src=$(this).attr("src");
+			$("#spec-n1 img").eq(0).attr({
+				src:src.replace("\/n5\/","\/n1\/"),
+				jqimg:src.replace("\/n5\/","\/n0\/")
+			});
+			$(this).css({
+				"border":"2px solid #ff6600",
+				"padding":"1px"
+			});
+		}).bind("mouseout",function(){
+			$(this).css({
+				"border":"1px solid #ccc",
+				"padding":"2px"
+			});
+		});				
+	})
+	
+	</script>
+
+        <!--放大镜效果结束-->
+        
+        <!--放大镜右侧-->
+        <!-- <div id="vpd" style="BORDER-RIGHT: #444444 1px solid; BORDER-TOP: #444444 1px solid; DISPLAY: none; OVERFLOW: hidden; BORDER-LEFT: #444444 1px solid; WIDTH: 90px; BORDER-BOTTOM: #444444 1px solid; POSITION: absolute; HEIGHT: 90px">
+          <div id="vpd2" style="POSITION: absolute"><img src="${ctx }${good.pic }" name="vp" width="350" height="350" id="vp" style="CURSOR: pointer" onmousemove="javascript:slidebp();" onmouseout="javascript:closebp();" /> </div>
+        </div> -->
+   
+          <!--放大镜右侧结束-->
+     
+      </div>
+      <div class="sp_bt_2">
+        <div id="header">
+          <!-- 
+          	<ul>
+            <li style="border: 1px solid #999999;"><a href="#">商品详情</a></li>
+          </ul>
+          -->
+           <div class="zxyc_dh"><div class="zxyc_zz">商品详情</div></div>
+        </div>
+        <div class="spxq_xd">${good.remark }</div>
+        
+       
+        
+        
+      </div>
+    </div>
+  </div>
+  <div style="width:100%; height:40px; float:left;"></div>
+     <%@ include file="/WEB-INF/page/front/footer.jsp" %>
+</div>
+</body>
+</html>

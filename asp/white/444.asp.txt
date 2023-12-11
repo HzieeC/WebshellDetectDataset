@@ -1,0 +1,126 @@
+<!-- #include file="../access.asp" -->
+<!-- #include file="../html_clear.asp" -->
+<%'容错处理
+function album_content_to_html(a_id,a_name,a_memo,a_music)
+On Error Resume Next
+%>
+
+<!--common use start-->
+<%
+'首页基本信息内容读取替换
+set rs=server.createobject("adodb.recordset")
+sql="select web_name,web_keywords,web_slogan,web_copyright,web_theme,web_themeID from web_settings"
+rs.open(sql),cn,1,1
+if not rs.eof and not rs.bof then
+web_name=rs("web_name")
+web_url=rs("web_keywords")
+web_slogan=rs("web_slogan")
+web_copyright=rs("web_copyright")
+web_theme=rs("web_theme")
+web_themeID=rs("web_themeID")
+end if
+rs.close
+set rs=nothing
+%>
+<!--common use end-->
+<% '文件夹获取
+
+'相册展示页文件夹获取
+set rs_1=server.createobject("adodb.recordset")
+sql="select FolderName from web_Models_type where [id]=5"
+rs_1.open(sql),cn,1,1
+if not rs_1.eof then
+Gallery_FolderName=rs_1("FolderName")
+end if
+rs_1.close
+set rs_1=nothing
+
+%>
+<% '读取模板内容
+
+'模板类型获取
+set rs_1=server.createobject("adodb.recordset")
+sql="select FileName,FolderName from web_Models_type where [id]=5"
+rs_1.open(sql),cn,1,1
+if not rs_1.eof then
+Model_FileName=rs_1("FileName")
+Model_FolderName=rs_1("FolderName")
+end if
+rs_1.close
+set rs_1=nothing
+
+Set fso=Server.CreateObject("Scripting.FileSystemObject") 
+Set htmlwrite=fso.OpenTextFile(Server.MapPath("/templates/"&web_theme&"/"&Model_FileName)) 
+replace_code=htmlwrite.ReadAll() 
+htmlwrite.close 
+%>
+<%
+'js相册图片
+set rs=server.createobject("adodb.recordset")
+sql="select [name],[image],[time] from web_ad  where view_yes=1 and [position]="&a_id&" order by [order]"
+rs.open(sql),cn,1,1
+if not rs.eof then
+do while not rs.eof 
+
+web_slidealbum=web_slidealbum&"<div class='ImageBlock'><a href='/photos/"&rs("image")&"'  rel='sexylightbox[group1]' title='"&rs("name")&"'><img src='/photos/"&rs("image")&"' alt='"&rs("name")&"'/></a><p>"&Left(rs("name"),16)&"</p></div>"
+
+rs.movenext
+loop
+end if
+rs.close
+set rs=nothing
+ 
+replace_code=replace(replace_code,"$web_slidealbum$",web_slidealbum)
+
+set rs=server.createobject("adodb.recordset")
+sql="select [backmusic] from web_ad_position  where view_yes=1 and [id]="&a_id&" "
+rs.open(sql),cn,1,1
+if not rs.eof then
+BackMusic=rs("backmusic")
+end if
+rs.close
+set rs=nothing
+replace_code=replace(replace_code,"$BackMusic$",BackMusic)
+
+
+%>
+
+<%'替换内容
+replace_code=replace(replace_code,"$web_name$",web_name)
+replace_code=replace(replace_code,"$web_keywords$",web_keywords)
+replace_code=replace(replace_code,"$web_slogan$",web_slogan)
+replace_code=replace(replace_code,"$web_copyright$",web_copyright)
+replace_code=replace(replace_code,"$album_name$",a_name)
+replace_code=replace(replace_code,"$web_theme$",web_theme)
+replace_code=replace(replace_code,"$Search_FolderName$",Search_FolderName)
+
+%>
+
+<% '判断文件夹是否存在，否则创建
+Set Fso=Server.CreateObject("Scripting.FileSystemObject") 
+If Fso.FolderExists(Server.MapPath("/"&Model_FolderName))=false Then
+NewFolderDir="/"&Model_FolderName
+call CreateFolderB(NewFolderDir)
+end if
+%>
+<% '判断分类文件夹是否存在，否则创建
+Set Fso=Server.CreateObject("Scripting.FileSystemObject") 
+If Fso.FolderExists(Server.MapPath("/"&Model_FolderName&"/"&a_id))=false Then
+NewFolderDir="/"&Model_FolderName&"/"&a_id
+call CreateFolderB(NewFolderDir)
+end if
+%>
+
+<%if Model_FolderName<>"" then
+filepath="/"&Model_FolderName&"/"&a_id&"/index.html"
+else
+filepath="/"&a_id&"/index.html"
+end if
+Set fso=Server.CreateObject("Scripting.FileSystemObject")
+Set f=fso.CreateTextFile(Server.MapPath(filepath),true)
+f.WriteLine replace_code
+f.close
+%>
+
+
+<%end function%>

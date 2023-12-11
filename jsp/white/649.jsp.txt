@@ -1,0 +1,73 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>教员列表</title>
+</head>
+<body>
+
+	<table border="1" width="800">
+		<tr>
+			<td width="150">教员编号</td>
+			<td width="150">姓名</td>
+			<td width="150">年龄</td>
+			<td width="50">操作</td>
+		</tr>
+
+		<c:forEach var="t" items="${teachers}" varStatus="stauts">
+			<tr>
+				<td>${t.id}</td>
+				<td><a href="toEditTeacher.do?id=${t.id}">${t.teacherName}</a>
+				</td>
+				<td>${t.age}</td>
+				<td><input type="button" value="删除" onclick="doDel(${t.id});">
+				</td>
+			</tr>
+		</c:forEach>
+	</table>
+
+	<div style="margin-top:10px;margin-left:100px;">
+		<input type="button" onclick="javascript:toAdd();" value="添加">
+	</div>
+
+	<script type="text/javascript">
+	
+	    //添加
+		function toAdd(){
+		  window.location.href="toAddTeacher.htm";
+		}
+		
+		//删除
+		function doDel(id){
+		  if(window.confirm("确定删除此教师?")){
+           window.location.href="deleteTeacher.htm?id="+id;
+		  }
+		}
+	
+	</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

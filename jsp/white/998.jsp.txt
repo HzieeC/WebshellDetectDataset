@@ -1,0 +1,169 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="java.util.Vector,java.util.Date" %>
+<%@ page import="javaBean.BeanAritcle" %>
+<%@ page import="pagination.PaginationAritcle"%>
+<%@ page import="java.text.SimpleDateFormat"%>
+<%
+	String url = request.getContextPath();
+%>
+<%
+		String timestr="";
+		Date date = new Date();
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+		timestr=sdf.format(date);
+%>
+<script>
+	function CKSel(){
+		if(document.selform.act.options[0].selected){
+			alert("请选择操作选项!");
+			return;
+		}else{
+			if(confirm('您确定执行该操作吗?')){
+				selform.submit();
+			}else{
+				return;
+			}
+		}
+	}
+</script>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<table border=0 align=center cellpadding=3 cellspacing=1 class=TableBorder>	<tr>	  <th colspan="2">文章中心管理选项</th>	</tr>	<tr>
+
+<form method="Post" name=myform action="<%=url%>/servletsplcl" onSubmit='return JugeQuery(this);'>
+<input type=hidden name=ChannelID value='1'>	  
+<input type=hidden name="aritlceId" value="12344344343413">
+<input type=hidden name="act" value='查询'>	  
+<td class=TableRow1>搜索：	  
+
+<input name="keyword" type=text size=20>	  条件：	
+
+<select name="queryopt">	
+<option value="title" selected>文章标题</option>		
+<option value="input">录 入 者</option>		
+<option value="wu">不限条件</option>	  </select> 
+<input type="submit" name="Submit" value='开始搜索' class=Button></td></form></tr></table>
+
+<table  border=0 align=center cellpadding=3 cellspacing=1 class=TableBorder>	<tr>	  <th width='5%' nowrap>选择</th>	  <th width='37%'>文章标题</th><th width='13%'>操作选项</th>	  	  <th width='10%' nowrap>审核</th>	  <th width='10%' nowrap>录 入 者</th>	  <th width='25%' nowrap>整理日期</th>	</tr><form name=selform method=post action="<%=url%>/servletsplcl"><input type=hidden name=ChannelID value='1'><input type=hidden name=action value=''><tr>
+<%
+	String pageCurrent = request.getParameter("pageCurrent");
+	if (pageCurrent == null) {
+		pageCurrent = "0";
+	}
+	PaginationAritcle pa=new PaginationAritcle();
+	String sqlstr="select count(*) from aritcle where AritcleIssue=1";
+	pa.setSum(sqlstr);//查询出总共有多少条
+	pa.setPageSize(15);//设置每页显示多少条	
+	pa.setPageCount();
+	pa.setPageCurrent(Integer.parseInt(pageCurrent));//设置当前页
+
+	int CurrentPage=pa.getPageCurrent();
+	int count=pa.getPageCount();
+
+	String sql="select top "+pa.getPageSize()+" * from aritcle where AritcleIssue=1 and aritcleid not in(select top "+pa.getPageSize()*pa.getPageCurrent()+" aritcleid from aritcle)";
+	pa.setVe(sql);//设置集合的值
+	Vector ve=null;
+	String act=(String)request.getSession().getAttribute("act");
+	if(act.equals("caozuo")){
+		ve=(Vector)request.getAttribute("ve");
+	}else{
+		ve=pa.getVe();
+	}
+	
+	BeanAritcle bean=null;
+	String subTitle="";//用于接受截取下来的文章标题
+	for(int i=0;i<ve.size();i++){
+		bean=(BeanAritcle)ve.get(i);
+		out.println("<tr>");
+		out.println("<td align=center class=TableRow2><input type='checkbox' name='aritlceId' value='"+bean.getAritcleId()+"'></td>");
+		if(bean.getUpdateTime().substring(0,10).equals(timestr)){//判断如果是当天发布的，就把字体变成红色
+			if(bean.getTitle().length()>=22){//如果文章标题大于22位的话
+				subTitle=bean.getTitle().substring(0,22);//对标题进行截取
+				out.println("<td align=center class=TableRow2><font color='red'>"+subTitle+"</font></td>");
+			}else{
+				out.println("<td align=center class=TableRow2><font color='red'>"+bean.getTitle()+"</font></td>");
+			}
+		}else{
+			if(bean.getTitle().length()>=22){//如果文章标题大于22位的话
+				subTitle=bean.getTitle().substring(0,22);//对标题进行截取
+				out.println("<td align=center class=TableRow2>"+subTitle+"</td>");
+			}else{
+				out.println("<td align=center class=TableRow2>"+bean.getTitle()+"</td>");
+			}
+		}
+		out.println("<td align=center class=TableRow2><a href='"+url+"/selectAritcles?action=update&id="+bean.getAritcleId()+"'>修改</a>&nbsp;|&nbsp;<a href='"+url+"/selectAritcles?action=delete&id="+bean.getAritcleId()+"'>删除</a></td>");
+		if(bean.getAritcleIssue()>0){
+			out.println("<td align=center class=TableRow2>通过</td>");
+		}else{
+			out.println("<td align=center class=TableRow2>审核</td>");
+		}
+		out.println("<td align=center class=TableRow2>"+bean.getAuthor()+"</td>");
+		out.println("<td align=center class=TableRow2>"+bean.getUpdateTime()+"</td>");
+		out.println("</tr>");
+	}
+%>
+<tr>
+<td align='center' class='TableRow2' colspan="6" >
+<%
+	if(pa.getPageCurrent()==0&&pa.getSum()>pa.getPageSize()){%>
+	首页
+	<a href="<%=url%>/admin/admin_AricleManage.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	上一页
+	<a href="<%=url%>/admin/admin_AricleManage.jsp?pageCurrent=<%=count-1%>">尾页</a>
+	<%=CurrentPage+1%>/<%=count%>
+		
+	<%}else if(pa.getPageCurrent()==(pa.getPageCount()-1)&&pa.getSum()>pa.getPageSize()){%>
+		<a href="<%=url%>/admin/admin_AricleManage.jsp?pageCurrent=0">首页</a>
+		下一页
+		<a href="<%=url%>/admin/admin_AricleManage.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+		尾页
+		<%=CurrentPage+1%>/<%=count%>
+	<%}else if(pa.getSum()<=pa.getPageSize()){%>
+		首页 下一页 上一页 尾页
+	<%}else{%>
+	<a href="<%=url%>/admin/admin_AricleManage.jsp?pageCurrent=0">首页</a>
+	<a href="<%=url%>/admin/admin_AricleManage.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	
+	<a href="<%=url%>/admin/admin_AricleManage.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+	
+	<a href="<%=url%>/admin/admin_AricleManage.jsp?pageCurrent=<%=count-1%>">尾页</a>
+	<%=CurrentPage+1%>/<%=count%>
+	<% }  %>
+</td>
+</tr>
+	<tr>
+	  <td colspan="6" class="TableRow1">
+	  <input class="Button" type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class="Button" type="button" name="chksel" value="反选" onClick="ContraSel(this.form)">
+	  管理选项：
+	  <select name="act">
+		<option value="0">请选择操作选项</option>
+		<option value="批量推荐">批量推荐</option>
+		<option value="取消推荐">取消推荐</option>
+		<option value="更新时间">更新时间</option>
+		<option value="生成HTML">生成HTML</option>
+		<option value="批量删除">批量删除</option>
+		<option value="批量移动">批量移动</option>
+	  </select>
+	  <input class="Button" type="button" name="Submit2" value="执行操作" onclick="CKSel();">
+</td>
+	</tr>
+	</form>
+</table>
+
+
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

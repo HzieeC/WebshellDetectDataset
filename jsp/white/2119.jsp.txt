@@ -1,0 +1,219 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@ page import="global.security.SessionUtils"%>
+<%@page import="global.Constants"%>
+<%@page import="util.ServletHelp"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 工具栏
+		    var toolbar = new Ext.Toolbar({
+		    	renderTo: 'editUserToolBarDiv',
+		    	items: [
+				    new Ext.Button({
+					    id: 'editUser-save-button',
+						text: '保存',
+						iconCls: 'tick'
+					}),
+					new Ext.Button({
+					    id: 'editUser-cancel-button',
+						text: '取消',
+						iconCls: 'cancel'
+					})
+				]
+			});
+
+	     	// 性别数据源
+	        var sexStore = new Ext.data.ArrayStore({  
+	            fields : ['sex', 'sexName'],  
+	            data : <%=ServletHelp.getArrayFromMap(Constants.SEX_MAP, null)%>,
+	            sortInfo: {field: "sex", direction: "ASC"}
+	        });
+
+	     	// 风格数据源
+	        var themeStore = new Ext.data.SimpleStore({  
+	            fields : ['theme', 'themeName'],  
+	            data : Anynote.THEME_DATA  
+	        });
+
+		 	// 编辑用户Form
+			var editUserFormPanel = new Ext.FormPanel({
+				renderTo: 'editUserFormDiv',
+		        labelWidth: 50,
+		        border: false,
+		        bodyStyle: 'background-color:transparent;',
+		        url: '<%=baseUrl %>/userAction.do?method=save',
+		        items: [{
+		            layout:'form',
+		            border: false,
+		            bodyStyle: 'padding:5px;background-color:transparent;',
+		            items:[{// 账号
+			                xtype:'textfield',
+			                id: 'userId',
+			                name: 'userId',
+			                fieldLabel: '账号',
+			                readOnly: true,
+			                anchor:'95%',
+			                allowBlank:false,
+			                maxLength: 20
+			           },{// 姓名
+			               xtype:'textfield',
+			               id:'userName',
+			               name:'userName',
+			               fieldLabel:'姓名',
+			               anchor:'95%',
+			               allowBlank:false,
+			               maxLength: 20
+			           },{// 性别
+			                xtype:'combo',
+			                hiddenName: 'sex',
+			                fieldLabel: '性别',
+			                store: sexStore,
+			                mode : 'local',
+			                triggerAction: "all",
+			                valueField: 'sex',
+			                displayField: 'sexName',
+			                editable: false,
+		                    anchor:'95%'
+		                },{// 生日
+			                xtype:'datefield',
+			                id: 'birthdayStr',
+			                name: 'birthdayStr',
+			                fieldLabel: '生日',
+			                format: 'Y-m-d',
+		                    anchor:'95%'
+		                },{// 邮箱
+			               xtype:'textfield',
+			               id:'email',
+			               name:'email',
+			               fieldLabel:'邮箱',
+			               anchor:'95%',
+			               allowBlank:false,
+			               vtype:'email',
+			               maxLength: 50
+			           },{// 电话
+			               xtype:'textfield',
+			               id:'phone',
+			               name:'phone',
+			               fieldLabel:'电话',
+			               anchor:'95%',
+			               maxLength: 20
+			           },{// 风格
+				           id: 'themeCombo',
+		           		   xtype:'combo',
+			               hiddenName: 'theme',
+			               fieldLabel: '风格',
+			               store: themeStore,
+			               mode : 'local',
+			               triggerAction: "all",
+			               valueField: 'theme',
+			               displayField: 'themeName',
+			               editable: false,
+			               anchor:'95%',
+			               listeners: {
+			        	   		collapse: function() {
+			        	   			Anynote.changeTheme(this.value);
+			               		}
+			           	   }
+			           },{
+			               xtype: 'radiogroup',
+			               fieldLabel: '主页',
+			               itemCls: 'x-check-group-alt',
+			               columns: 3,
+			               items: [
+								{boxLabel: '任务', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_1_URL%>", checked: true},
+								{boxLabel: '笔记', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_2_URL%>"},
+								{boxLabel: '相册', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_3_URL%>"},
+								{boxLabel: '账目', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_4_URL%>"},
+								{boxLabel: '订阅', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_5_URL%>"},
+								{boxLabel: '文档', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_7_URL%>"},
+								{boxLabel: '用户', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_6_URL%>", id:'userRadio'}
+			               ]
+			           },{
+			               xtype: 'checkboxgroup',
+			               fieldLabel: '模块',
+			               itemCls: 'x-check-group-alt',
+			               columns: 3,
+			               items: [
+			                   {boxLabel: '任务', name: 'showTodo'},
+			                   {boxLabel: '笔记', name: 'showNote'},
+			                   {boxLabel: '相册', name: 'showPicture'},
+			                   {boxLabel: '账目', name: 'showAccount'},
+			                   {boxLabel: '订阅', name: 'showFeed'},
+			                   {boxLabel: '文档', name: 'showDocument'},
+			                   {boxLabel: '系统', name: 'showSystem'}
+			               ]
+			           },{// id
+			               xtype:'hidden',
+			               name: 'id'
+			           },{// 操作类型
+				           id:'buttonType',
+			               xtype:'hidden',
+			               name: 'type',
+			               value: 'cancel'
+			           }]
+		        }]
+		    });
+
+		    // 发送请求-form初期化
+			Anynote.ajaxRequest({
+				baseUrl: '<%=baseUrl %>',
+				baseParams: {userId:'<%=SessionUtils.getCurrentUserId()%>'},
+				action: '/userAction.do?method=getUser',
+				callback: function(jsonResult){
+					editUserFormPanel.getForm().setValues(jsonResult);
+					if("<%=SessionUtils.getUserRole()%>"!="<%=Constants.ROLE_CODE_1%>"){// 隐藏设置选项
+						editUserFormPanel.getForm().findField("showSystem").hide();
+						Ext.getCmp("userRadio").hide();
+					}
+					// 设置配置信息
+					if(jsonResult.userMeta){
+						var basicForm = editUserFormPanel.getForm();
+						for(i=0;i<jsonResult.userMeta.length;i++){
+							record = jsonResult.userMeta[i];
+							if(basicForm.findField(record.metaKey)){
+								basicForm.findField(record.metaKey).setValue(record.metaValue);
+							}
+						}
+					}
+				}
+			});
+
+		    // 保存按钮
+		    $("#editUser-save-button").click(function(){
+			    var form = editUserFormPanel.getForm();
+			    if(form.isValid()){
+			    	// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: form.getValues(),
+						action: '/userAction.do?method=save',
+						callback: function(jsonResult){
+							location.href="<%=baseUrl %>/websrc/page/index.jsp";
+							editUserWindow.close();
+						},
+						showWaiting: true,
+						failureMsg: '保存失败.'
+					});
+				}
+			});
+
+		 	// 取消按钮
+		    $("#editUser-cancel-button").click(function(){
+		    	Ext.getCmp("buttonType").setValue("cancel");
+		    	editUserWindow.close();
+			});
+		});
+	</script>
+</head>
+<body>
+<div id="editUserDiv" style="width:100%;height:100%;">
+	<div id="editUserToolBarDiv"></div>
+	<div id="editUserFormDiv""></div>
+</div>
+</body>
+</html>

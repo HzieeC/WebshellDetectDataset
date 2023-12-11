@@ -1,0 +1,789 @@
+<%
+Const EnabledUbbSession=False
+Dim ubb
+Set ubb = New NewAsp_UbbCode
+
+Class NewAsp_UbbCode
+	Private re,xml,isxhtml,MaxLoopcount
+	Private m_strBasePath,SettingArray,m_strPicPath
+	Private ContentKeyword,m_strTitle,IsPagination
+	Private m_strImgzoom,m_intResize,m_intCurrentID
+	Public maxpagesize
+
+	Private sub Class_Initialize()
+		On Error Resume Next
+		'UBB代码勘套循环的最多次数，避免死循环加入此变量
+		MaxLoopcount =100
+		set re = New RegExp
+		re.IgnoreCase = True
+		re.Global = True
+		set xml = NewAsp.CreateXmlDoc("Msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		SettingArray = Array(0,0,0,1,1,1,1,1,1,1,0,550,0,0,1,1,1)
+		'-- 图片路径
+		m_strPicPath = NewAsp.InstallDir & "images/pic/"
+		m_strBasePath = NewAsp.InstallDir
+		m_strTitle = ""
+		IsPagination = False
+		maxpagesize = 0
+		m_intCurrentID = 0
+	End sub
+
+	Private sub Class_Terminate()
+		set re = Nothing
+		set xml = Nothing
+		set ubb = Nothing
+	End sub
+
+	Public Property Let BasePath( basePathValue )
+		m_strBasePath = basePathValue
+	End Property
+
+	Public Property Let PicPath( PicPathValue )
+		m_strPicPath = PicPathValue& "images/pic/"
+	End Property
+
+	Public Property Let setUbbcode( setValue )
+		SettingArray = SplitArray(setValue, "|",4)
+	End Property
+
+	Public Property Let Keyword( KeywordValue )
+		ContentKeyword = KeywordValue
+	End Property
+
+	Public Property Let Title( TitleValue )
+		m_strTitle = TitleValue
+	End Property
+
+	Public Property Let Pagination( PaginationValue )
+		IsPagination = CBool(PaginationValue)
+	End Property
+
+	Public Property Let CurrentID( CurrIDValue )
+		m_intCurrentID = Clng(CurrIDValue)
+	End Property
+
+	Function xmlencode(ByVal str)
+		Dim i
+		str = Replace(str,"&","&amp;")
+		For i = 0 to 31
+			str = Replace(str,Chr(i),"&amp;#"&i&";")
+		Next
+		For i = 95 to 96
+			str = Replace(str,Chr(i),"&amp;#"&i&";")
+		Next
+		xmlencode = str
+	End Function
+
+	Function xmldecode(ByVal str)
+		Dim i
+		str = Replace(str,"&amp;","&")
+		For i = 0 to 31
+			str = Replace(str,"&#"&i&";",Chr(i))
+		Next
+		For i = 95 to 96
+			str = Replace(str,"&#"&i&";",Chr(i))
+		Next
+		xmldecode = str
+	End Function
+
+	Public Function UBBCode(ByVal strContent)
+		On Error Resume Next
+		m_intResize = Newasp.ChkNumeric(SettingArray(11))
+		If m_intResize < 10 Then
+			m_strImgzoom = "return imgresize(this);"
+		Else
+			m_strImgzoom = "return imgzoom(this," & m_intResize & ");"
+		End If
+		If m_intCurrentID>0 And EnabledUbbSession Then
+			If Session("NowContentID")<>m_intCurrentID Then
+				Session("NowContentID")=m_intCurrentID
+			Else
+				If Session("NowContents")<>Empty Then
+					UBBCode=Session("NowContents")
+					Exit Function
+				Else
+					Session("NowContentID")=m_intCurrentID
+				End If
+			End If
+		End If
+
+		're.Pattern="([\f\n\r\t\v])"
+		'strContent=re.Replace(strContent,"")
+		re.Pattern="(<p>&nbsp;<\/p>)"
+		strContent=re.Replace(strContent, "")
+		re.Pattern="(\[InstallDir_ChannelDir\])"
+		strContent=re.Replace(strContent, m_strBasePath)
+		re.Pattern="(<s+cript[^>]*?>([\w\W]*?)<\/s+cript>)"
+		strContent=re.Replace(strContent, "")
+		re.Pattern="(<iframe[^>]*?>([\w\W]*?)<\/iframe>)"
+		strContent=re.Replace(strContent, "")
+		re.Pattern="(on(load|click|dbclick|mouseover|mouseout|mousedown|mouseup|mousewheel|keydown|submit|change|focus)=""[^""]+"")"
+		strContent=re.Replace(strContent, "")
+		re.Pattern="(on(load|click|dbclick|mouseover|mouseout|mousedown|mouseup|mousewheel|keydown|submit|change|focus)='[^""]+')"
+		strContent=re.Replace(strContent,"")
+
+		strContent=xmldecode(strContent)
+		If xml.loadxml("<div>" & xmlencode(strContent) &"</div>") Then
+			isxhtml=True
+		Else
+			isxhtml=false
+		End If
+
+		'-- 是否禁用URL标签
+		If SettingArray(1) = "0" And SettingArray(0) = "0" Then
+			If InStr(Lcase(strContent),"[/url]")>0 Then
+				strContent=ProcessUbbCode_S1(strContent,"url","<a href=""$1"" target=""_blank"">$1</a>")
+				strContent=ProcessUbbCode_UF(strContent,"url","<a href=""$1"" target=""_blank"">$2</a>","0")
+			End If
+		Else
+			If InStr(Lcase(strContent),"[/url]")>0 Then
+				strContent=ProcessUbbCode_S1(strContent,"url","$1")
+				strContent=ProcessUbbCode_UF(strContent,"url","$2","0")
+			End If
+		End If
+		'-- 是否禁用IMG标签
+		If SettingArray(2) = "0" And SettingArray(0) = "0" Then
+			If InStr(Lcase(strContent),"[/img]")>0 Then
+				re.Pattern="(\[img\])(.[^\[]*)(\[\/img\])"
+				strContent=re.Replace(strContent,"<img src=""$2"" />")
+			End If
+		Else
+			If InStr(Lcase(strContent),"[/img]")>0 Then
+				re.Pattern="(\[img\])(.[^\[]*)(\[\/img\])"
+				strContent=re.Replace(strContent,"$2")
+			End If
+		End If
+
+		strContent=checkimg(bbimg(strContent))
+
+		If SettingArray(5) = "0" And SettingArray(0) = "0" Then
+			If InStr(Lcase(strContent),"[/email]")>0 Then
+				strContent=ProcessUbbCode_S1(strContent,"email","<a href=""mailto:$1"">$1</a>")
+				strContent=ProcessUbbCode_UF(strContent,"email","<a href=""mailto:$1"" target=""_blank"">$2</a>","0")
+			End If
+		Else
+			If InStr(Lcase(strContent),"[/email]")>0 Then
+				strContent=ProcessUbbCode_S1(strContent,"email","$1")
+				strContent=ProcessUbbCode_UF(strContent,"email","$2","0")
+			End If
+		End If
+
+		'--是否禁用DOWN标签
+		If SettingArray(7) = "0" And SettingArray(0) = "0" Then
+			If InStr(Lcase(strContent),"[/down]")>0 Then
+				strContent=ProcessUbbCode_S1(strContent,"down","<a href=""$1"" target=""_blank""><img src=""" & m_strPicPath & "download.gif"" alt="""" border=""0"" style=""margin:0px 2px -4px 0px""/>点击下载此文件</a>")
+				strContent=ProcessUbbCode_UF(strContent,"down","<a href=""$1"" target=""_blank""><img src=""" & m_strPicPath & "download.gif"" alt="""" border=""0"" style=""margin:0px 2px -4px 0px""/>$2</a>","0")
+			End If
+		Else
+			If InStr(Lcase(strContent),"[/down]")>0 Then
+				strContent=ProcessUbbCode_S1(strContent,"down","$1")
+				strContent=ProcessUbbCode_UF(strContent,"down","$2","0")
+			End If
+		End If
+		If SettingArray(8) = "0" And SettingArray(0) = "0" Then
+			If InStr(Lcase(strContent),"[/ed2k]")>0 Then
+				strContent=ProcessUbbCode_S1(strContent,"ed2k","<a href=""$1"" target=""_blank""><img src=""" & m_strPicPath & "ed2k.gif"" alt="""" border=""0"" style=""margin:0px 2px -4px 0px""/>$1</a>")
+				strContent=ProcessUbbCode_UF(strContent,"ed2k","<a href=""$1"" target=""_blank""><img src=""" & m_strPicPath & "ed2k.gif"" alt="""" border=""0"" style=""margin:0px 2px -4px 0px""/>$2</a>","0")
+			End If
+		Else
+			If InStr(Lcase(strContent),"[/ed2k]")>0 Then
+				strContent=ProcessUbbCode_S1(strContent,"ed2k","$1")
+				strContent=ProcessUbbCode_UF(strContent,"ed2k","$2","0")
+			End If
+		End If
+
+		If  SettingArray(0) = "0" Then
+			If InStr(Lcase(strContent),"[/code]")>0 Then strContent=ProcessUbbCode_S1(strContent,"code","<div class=""UBBContainer""><div class=""UBBTitle""><img src=""" & m_strPicPath & "code.gif"" style=""margin:0px 2px -3px 0px"" alt=""以下内容为程序代码""/> 以下内容为程序代码</div><div class=""UBBContent"">$1</div></div>")
+			If InStr(Lcase(strContent),"[/quote]")>0 Then strContent=ProcessUbbCode_S1(strContent,"quote","<div class=""UBBContainer""><div class=""UBBTitle""><img src=""" & m_strPicPath & "quote.gif"" style=""margin:0px 2px -3px 0px"" alt=""引用内容""/> 引用内容</div><div class=""UBBContent"">$1</div></div>")
+			If InStr(Lcase(strContent),"[/quote]")>0 Then strContent=ProcessUbbCode_UF(strContent,"quote","<div class=""UBBContainer""><div class=""UBBTitle""><img src=""" & m_strPicPath & "quote.gif"" style=""margin:0px 2px -3px 0px"" alt=""引用来自 $1""/> 引用来自 $1</div><div class=""UBBContent"">$2</div></div>","0")
+			If InStr(Lcase(strContent),"[/color]")>0 Then strContent=ProcessUbbCode_UF(strContent,"color","<font color=""$1"">$2</font>","1")
+			If InStr(Lcase(strContent),"[/center]")>0 Then strContent=ProcessUbbCode_S1(strContent,"center","<div align=""center"">$1</div>")
+			If InStr(Lcase(strContent),"[/fly]")>0 Then strContent=ProcessUbbCode_S1(strContent,"fly","<marquee width=""90%"" behavior=""alternate"" scrollamount=""3"">$1</marquee>")
+			If InStr(Lcase(strContent),"[/move]")>0 Then strContent=ProcessUbbCode_S1(strContent,"move","<marquee scrollamount=""3"">$1</marquee>")
+			If InStr(Lcase(strContent),"[/shadow]")>0 Then strContent=ProcessUbbCode_iS1(strContent,"shadow","<div style=""width:$1px;filter:shadow(color=$2, strength=$3)"">$4</div>")
+			If InStr(Lcase(strContent),"[/glow]")>0 Then strContent=ProcessUbbCode_iS1(strContent,"glow","<div style=""width:$1px;filter:glow(color=$2, strength=$3)"">$4</div>")
+			If InStr(Lcase(strContent),"[/size]")>0 Then strContent=ProcessUbbCode_UF(strContent,"size","<font size=""$1"">$2</font>","1")
+			If InStr(Lcase(strContent),"[/i]")>0 Then strContent=ProcessUbbCode_S1(strContent,"i","<i>$1</i>")
+			If InStr(Lcase(strContent),"[/b]")>0 Then strContent=ProcessUbbCode_S1(strContent,"b","<b>$1</b>")
+			If InStr(Lcase(strContent),"[/u]")>0 Then strContent=ProcessUbbCode_S1(strContent,"u","<u>$1</u>")
+			'strContent=ProcessUbbCode_Align(strContent)
+			If InStr(Lcase(strContent),"[/align]")>0 Then
+				re.Pattern="\[align=(\w{4,6})\]([^\r]*?)\[\/align\]"
+				strContent=re.Replace(strContent,"<div align=""$1"">$2</div>")
+			End If
+			If InStr(Lcase(strContent),"[/list]")>0 Then
+				re.Pattern="\[(list)\]"
+				strContent=re.Replace(strContent,"<ul>")
+				re.Pattern="\[list=(.[^\]]*)\]"
+				strContent=re.Replace(strContent,"<ul style=""list-style-type:$1"">")
+				re.Pattern="\[\*\](.[^\[]*)(\n|)"
+				strContent=re.Replace(strContent,"<li>$1</li>")
+				re.Pattern="\[(\/list)\]"
+				strContent=re.Replace(strContent,"</ul>")
+			End If
+		End If
+
+		If  SettingArray(6) = "0" Then
+			If InStr(Lcase(strContent),"[/html]")>0 Then strContent=ProcessUbbCode_C(strContent,"html")
+		End If
+		If SettingArray(3) = "0" And SettingArray(0) = "0" Then
+			If InStr(Lcase(strContent),"[/flash]")>0 Then
+				re.Pattern = "(\[flash\])(.[^\[]*)(\[\/flash\])"
+				strContent = re.Replace(strContent, "<object codebase=""http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=7,0,0,0"" classid=""clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"" width=""400"" height=""300""><param name=""movie"" value=""$2"" /><param name=""quality"" value=""high"" /><param name=""AllowScriptAccess"" value=""never"" /><embed src=""$2"" quality=""high"" pluginspage=""http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash"" type=""application/x-shockwave-flash"" width=""400"" height=""300""></embed></object>")
+				re.Pattern = "(\[flash=*([0-9]*),*([0-9]*)\])(.[^\[]*)(\[\/flash\])"
+				strContent = re.Replace(strContent, "<object codebase=""http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=7,0,0,0"" classid=""clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"" width=""$2"" height=""$3""><param name=""movie"" value=""$4"" /><param name=""quality"" value=""high"" /><param name=""AllowScriptAccess"" value=""never"" /><embed src=""$4"" quality=""high"" pluginspage=""http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash"" type=""application/x-shockwave-flash"" width=""$2"" height=""$3""></embed></object>")
+			End If
+		ElseIf SettingArray(0) = "1" Then
+			If InStr(Lcase(strContent),"[/flash]")>0 Then
+				re.Pattern = "(\[flash\])(.[^\[]*)(\[\/flash\])"
+				strContent = re.Replace(strContent, "$2")
+				re.Pattern = "(\[flash=*([0-9]*),*([0-9]*)\])(.[^\[]*)(\[\/flash\])"
+				strContent = re.Replace(strContent, "$4")
+			End If
+		End If
+		'--增加CC视频联盟代码
+		If NewAsp.ChkNumeric(SettingArray(13)) = 0  Then
+			If InStr(Lcase(strContent),"[/cc]")>0 Then
+				Dim strBokecc
+				strBokecc = "<object classid=""clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"" codebase=""http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0"" width=""438"" height=""387"">"& vbCrLf
+				strBokecc = strBokecc & "<param name=""movie"" value=""http://union.bokecc.com/$2""/>"& vbCrLf
+				strBokecc = strBokecc & "<param name=""allowScriptAccess"" value=""always"" />"& vbCrLf
+				strBokecc = strBokecc & "<param name=""allowFullScreen"" value=""true""/>"& vbCrLf
+				strBokecc = strBokecc & "<param name=""quality"" value=""high""/>"& vbCrLf
+				strBokecc = strBokecc & "<embed src=""http://union.bokecc.com/$2"" quality=""high"" pluginspage=""http://www.macromedia.com/go/getflashplayer"" type=""application/x-shockwave-flash"" width=""438"" height=""387"" allowScriptAccess=""always"" allowFullscreen=""true""></embed>"& vbCrLf
+				strBokecc = strBokecc & "</object>"& vbCrLf
+				re.Pattern = "(\[cc\])(.[^\[]*)(\[\/cc\])"
+				strContent = re.Replace(strContent, strBokecc)
+				strBokecc = "<object classid=""clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"" codebase=""http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0"" width=""$2"" height=""$3"">"& vbCrLf
+				strBokecc = strBokecc & "<param name=""movie"" value=""http://union.bokecc.com/$4""/>"& vbCrLf
+				strBokecc = strBokecc & "<param name=""allowScriptAccess"" value=""always"" />"& vbCrLf
+				strBokecc = strBokecc & "<param name=""allowFullScreen"" value=""true""/>"& vbCrLf
+				strBokecc = strBokecc & "<param name=""quality"" value=""high""/>"& vbCrLf
+				strBokecc = strBokecc & "<embed src=""http://union.bokecc.com/$4"" quality=""high"" pluginspage=""http://www.macromedia.com/go/getflashplayer"" type=""application/x-shockwave-flash"" width=""$2"" height=""$3"" allowScriptAccess=""always"" allowFullscreen=""true""></embed>"& vbCrLf
+				strBokecc = strBokecc & "</object>"& vbCrLf
+				re.Pattern = "(\[cc=*([0-9]*),*([0-9]*)\])(.[^\[]*)(\[\/cc\])"
+				strContent = re.Replace(strContent, strBokecc)
+			End If
+		End If
+		If SettingArray(4) = "0" And SettingArray(0) = "0" Then
+			'-----------多媒体标签----------------
+			If InStr(Lcase(strContent),"[/dir]")>0 Then
+				re.Pattern = "\[DIR=*([0-9]*),*([0-9]*)\](.[^\[]*)\[\/DIR]"
+				strContent = re.Replace(strContent, "<embed src=""$3"" pluginspage=""http://www.macromedia.com/shockwave/download/"" width=""$1"" height=""$2""></embed>")
+			End If
+			If InStr(Lcase(strContent),"[/qt]")>0 Then
+				re.Pattern = "\[QT=*([0-9]*),*([0-9]*)\](.[^\[]*)\[\/QT]"
+				strContent = re.Replace(strContent, "<embed src=""$3"" width=""$1"" height=""$2"" autoplay=""true"" loop=""false"" controller=""true"" playeveryframe=""false"" cache=""false"" scale=""TOFIT"" bgcolor=""#000000"" kioskmode=""false"" targetcache=""false"" pluginspage=""http://www.apple.com/quicktime/""></embed>")
+			End If
+			If InStr(Lcase(strContent),"[/mp]")>0 Then
+				re.Pattern = "\[MP=*([0-9]*),*([0-9]*)\](.[^\[]*)\[\/MP]"
+				strContent = re.Replace(strContent, "<embed type=""application/x-oleobject"" codebase=""http://activex.microsoft.com/activex/controls/mplayer/en/nsmp2inf.cab#Version=5,1,52,701"" flename=""mp"" src=""$3""  width=""$1"" height=""$2""></embed>")
+			End If
+
+			If InStr(Lcase(strContent),"[/rm]")>0 Then
+				re.Pattern = "(\[rm\])(.[^\[]*)(\[\/rm\])"
+				strContent = re.Replace(strContent, "<object classid=""clsid:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA"" class=""OBJECT"" id=""RAOCX"" width=""400"" height=""400""><param name=""src"" value=""$2""/><param name=""console"" value=""Clip1""/><param name=""controls"" value=""imagewindow""/><param name=""autostart"" value=""true""/></object><br/><object classid=""CLSID:CFCDAA03-8BE4-11CF-B84B-0020AFBBCCFA"" height=""32"" id=""video2"" width=""400""><param name=src value=""$2""/><param name=""autostart"" value=""-1""/><param name=""controls"" value=""controlpanel""/><param name=""console"" value=""Clip1""/></object>")
+				re.Pattern = "\[rm=*([0-9]*),*([0-9]*)\](.[^\[]*)\[\/rm]"
+				strContent = re.Replace(strContent, "<object classid=""clsid:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA"" class=""OBJECT"" id=""RAOCX"" width=""$1"" height=""$2""><param name=""src"" value=""$3""/><param name=""console"" value=""Clip1""/><param name=""controls"" value=""imagewindow""/><param name=""autostart"" value=""true""/></object><br/><object classid=""CLSID:CFCDAA03-8BE4-11CF-B84B-0020AFBBCCFA"" height=""32"" id=""video2"" width=""$1""><param name=src value=""$3""/><param name=""autostart"" value=""-1""/><param name=""controls"" value=""controlpanel""/><param name=""console"" value=""Clip1""/></object>")
+			End If
+
+			If InStr(Lcase(strContent),"[/wmv]")>0 Then
+				re.Pattern = "(\[wmv\])(.[^\[]*)(\[\/wmv\])"
+				strContent = re.Replace(strContent, "<object classid=""clsid:22D6F312-B0F6-11D0-94AB-0080C74C7E95"" codebase=""http://activex.microsoft.com/activex/controls/mplayer/en/nsmp2inf.cab#Version=6,0,02,902"" type=""application/x-oleobject"" standby=""Loading..."" width=""400"" height=""300"">"&_
+				"<param name=""FileName"" VALUE=""$2"" /><param name=""ShowStatusBar"" value=""-1"" /><param name=""AutoStart"" value=""true"" /><embed type=""application/x-mplayer2"" pluginspage=""http://www.microsoft.com/Windows/MediaPlayer/"" src=""$2"" autostart=""true"" width=""400"" height=""300"" /></object>")
+				re.Pattern = "\[wmv=*([0-9]*),*([0-9]*)\](.[^\[]*)\[\/wmv]"
+				strContent = re.Replace(strContent, "<object classid=""clsid:22D6F312-B0F6-11D0-94AB-0080C74C7E95"" codebase=""http://activex.microsoft.com/activex/controls/mplayer/en/nsmp2inf.cab#Version=6,0,02,902"" type=""application/x-oleobject"" standby=""Loading..."" width=""$1"" height=""$2"">"&_
+				"<param name=""FileName"" VALUE=""$3"" /><param name=""ShowStatusBar"" value=""-1"" /><param name=""AutoStart"" value=""true"" /><embed type=""application/x-mplayer2"" pluginspage=""http://www.microsoft.com/Windows/MediaPlayer/"" src=""$3"" autostart=""true"" width=""$1"" height=""$2"" /></object>")
+			End If
+
+			If InStr(Lcase(strContent),"[/wma]")>0 Then
+				re.Pattern = "(\[wma\])(.[^\[]*)(\[\/wma\])"
+				strContent = re.Replace(strContent, "<object classid=""CLSID:22d6f312-b0f6-11d0-94ab-0080c74c7e95"" id=""MediaPlayer"" width=""450"" height=""70""><param name=""howStatusBar"" value=""-1""/><param name=""AutoStart"" value=""False""/><param name=""Filename"" value=""$2""/></object>")
+				re.Pattern = "\[wma=*([0-9]*),*([0-9]*)\](.[^\[]*)\[\/wma]"
+				strContent = re.Replace(strContent, "<object classid=""CLSID:22d6f312-b0f6-11d0-94ab-0080c74c7e95"" id=""MediaPlayer"" width=""$1"" height=""$2""><param name=""howStatusBar"" value=""-1""/><param name=""AutoStart"" value=""False""/><param name=""Filename"" value=""$3""/></object>")
+			End If
+
+			If InStr(Lcase(strContent),"[/ra]")>0 Then
+				re.Pattern = "(\[ra\])(.[^\[]*)(\[\/ra\])"
+				strContent = re.Replace(strContent, "<object classid=""clsid:CFCDAA03-8BE4-11CF-B84B-0020AFBBCCFA"" id=""RAOCX"" width=""450"" height=""60""><param name=""_ExtentX"" value=""6694""/><param name=""_ExtentY"" value=""1588""/><param name=""AUTOSTART"" value=""true""/><param name=""SHUFFLE"" value=""0""/><param name=""PREFETCH"" value=""0""/>"&_
+				"<param name=""NOLABELS"" value=""0""/><param name=""SRC"" value=""$2""/><param name=""CONTROLS"" value=""StatusBar,ControlPanel""/><param name=""LOOP"" value=""0""/><param name=""NUMLOOP"" value=""0""/><param name=""CENTER"" value=""0""/><param name=""MAINTAINASPECT"" value=""0""/><param name=""BACKGROUNDCOLOR"" value=""#000000""/><embed src=""$2"" width=""450"" autostart=""true"" height=""60""></embed></object>")
+				re.Pattern = "\[ra=*([0-9]*),*([0-9]*)\](.[^\[]*)\[\/ra]"
+				strContent = re.Replace(strContent, "<object classid=""clsid:CFCDAA03-8BE4-11CF-B84B-0020AFBBCCFA"" id=""RAOCX"" width=""$1"" height=""$2""><param name=""_ExtentX"" value=""6694""/><param name=""_ExtentY"" value=""1588""/><param name=""AUTOSTART"" value=""true""/><param name=""SHUFFLE"" value=""0""/><param name=""PREFETCH"" value=""0""/>"&_
+				"<param name=""NOLABELS"" value=""0""/><param name=""SRC"" value=""$3""/><param name=""CONTROLS"" value=""StatusBar,ControlPanel""/><param name=""LOOP"" value=""0""/><param name=""NUMLOOP"" value=""0""/><param name=""CENTER"" value=""0""/><param name=""MAINTAINASPECT"" value=""0""/><param name=""BACKGROUNDCOLOR"" value=""#000000""/><embed src=""$3"" width=""$1"" autostart=""true"" height=""$2""></embed></object>")
+			End If
+
+			If InStr(Lcase(strContent),"[/mid]")>0 Then
+				re.Pattern="(\[mid\])(.[^\]]*)\[\/mid\]"
+				strContent= re.Replace(strContent,"<embed src=""$2"" height=""45"" width=""314"" autostart=""0""></embed>")
+			End If
+		ElseIf SettingArray(4) = "2" And SettingArray(0) = "0" Then
+			strContent=ProcessUbbCode_MP(strContent)
+			If InStr(Lcase(strContent),"[/mid]")>0 Then
+				re.Pattern="(\[mid\])(.[^\]]*)\[\/mid\]"
+				strContent= re.Replace(strContent,"<embed src=""$2"" height=""45"" width=""314"" autostart=""0""></embed>")
+			End If
+		End If
+		If SettingArray(9) = "1" Then
+			'自动识别网址
+			re.Pattern="(^|[^<>='""])((http|https|ftp|rtsp|mms|ed2k):(\/\/|\\\\)(([\w\/\\\+\-~`@:%\/\|])+\.)+([\w\/\\\.\=\?\+\-~`@\':!%#\/\|]|(&amp;))+)"
+			strContent=re.Replace(strContent,"$1<a target=""_blank"" href=""$2"">$2</a>")
+
+			'自动识别www等开头的网址
+			're.Pattern="(^|[^\/\\\w\=])((www|bbs)\.(\w)+\.([\w\/\\\.\=\?\+\-~`@\'!%#]|(&amp;))+)"
+			'strContent=re.Replace(strContent,"$1<a target=""_blank"" href=""http://$2"">$2</a>")
+		End If
+		If SettingArray(10) = "0" Then
+			strContent=ProcessUbbCode_Key(strContent)
+		End If
+		re.Pattern="(<div style=""page-break-after: always""[^>]*?>([\w\W]*?)<\/div>)"
+		strContent=re.Replace(strContent, "[page_break]")
+		re.Pattern="((\[NextPage\])|(\[Page_Break\]))"
+		strContent=re.Replace(strContent,"[page_break]")
+		re.Pattern="(<br[^>]*?>)"
+		strContent=re.Replace(strContent, "<br/>")
+		strContent = xmldecode(strContent)
+
+		maxpagesize = Newasp.ChkNumeric(SettingArray(12))
+		If IsPagination And maxpagesize > 99 Then
+			strContent = InsertPageBreak(strContent)
+		End If
+		IsPagination = False
+		If m_intCurrentID>0 And EnabledUbbSession Then
+			Session("NowContents")=strContent
+		End If
+		UBBCode = strContent
+	End Function
+
+	Private Function checkXHTML()
+		checkXHTML=xmldecode(Mid(xml.documentElement.xml,6,Len (xml.documentElement.xml)-11))
+	End Function
+	Function checkimg(textstr)
+		Dim node,srctext,newnode
+		If xml.loadxml("<div>" & xmlencode(textstr) &"</div>")Then
+			For Each Node in xml.documentElement.getElementsByTagName("img")
+				'-- 是否开启滚轮改变图片大小的功能，如果不需要可以屏蔽
+				'-- Node.attributes.setNamedItem(xml.createNode(2,"onmousewheel","")).text="return bbimg(this);"
+				Node.attributes.setNamedItem(xml.createNode(2,"border","")).text=0
+				If m_intResize = 9 Then
+					Node.attributes.removeNamedItem("onload")
+					Node.attributes.removeNamedItem("onclick")
+					Node.attributes.removeNamedItem("style")
+				Else
+					Node.attributes.setNamedItem(xml.createNode(2,"onload","")).text=m_strImgzoom
+					Node.attributes.setNamedItem(xml.createNode(2,"style","")).text="cursor:pointer;"
+					Node.attributes.setNamedItem(xml.createNode(2,"onclick","")).text="javascript:window.open(this.src);"
+				End If
+				'--删除相关节点
+				If m_strTitle <> "" Then
+					Node.attributes.setNamedItem(xml.createNode(2,"alt","")).text=m_strTitle
+				End If
+				Node.attributes.removeNamedItem("title")
+				Node.attributes.removeNamedItem("twffan")
+				Node.attributes.removeNamedItem("onerror")
+				If Not Node.parentNode is Nothing Then
+					If Node.parentNode.nodename = "a" Then
+						Node.attributes.removeNamedItem("onclick")
+						Node.attributes.setNamedItem(xml.createNode(2,"target","")).text="_blank"
+					End If
+				End If
+			Next
+			checkimg=xmldecode(Mid(xml.documentElement.xml,6,Len (xml.documentElement.xml)-11))
+		Else
+			checkimg=textstr
+		End If
+	End Function
+	Private Function bbimg(strText)
+		Dim s
+		s=strText
+		re.Pattern="<img(\w*) style\s*=""*([^>|""]*)""([^>]*)>"
+		s=re.Replace(s,"<img$1$3>")
+		re.Pattern="<img(.[^>]*)>"
+		s=re.Replace(s, "<img$1/>")
+		re.Pattern="(\/\/>)"
+		s=re.Replace(s, "/>")
+		re.Pattern="<img(.[^>]*)([/| ])>"
+		s=re.Replace(s,"<img$1/>")
+		If m_intResize <> 9 Then
+			re.Pattern="<img(.[^>]*)/>"
+			s=re.Replace(s,"<img$1 onload="""&m_strImgzoom&""" onclick=""javascript:window.open(this.src);"" style=""cursor:pointer;""/>")
+		End If
+		bbimg=s
+	End Function
+
+	Private Function ProcessUbbCode_MP(strContent)
+		re.Pattern="\[(flash|wma|wmv|rm|ra|qt)(=\d*?|)(,\d*?|)\]([^<>]*?)\[\/(flash|wma|wmv|rm|ra|qt)\]"
+		Set strMatchs=re.Execute(strContent)
+		Dim strMatch,strMatchs
+		Dim strType,strWidth,strHeight,strSRC,TitleText,rndID
+		For Each strMatch in strMatchs
+			RAndomize
+			strType=strMatch.SubMatches(0)
+			If strType="flash" Then
+				TitleText="<img src=""" & m_strPicPath & "flash.gif"" alt="""" style=""margin:0px 2px -3px 0px"" border=""0""/>Flash动画"
+			ElseIf strType="wma" Then
+				TitleText="<img src=""" & m_strPicPath & "music.gif"" alt="""" style=""margin:0px 2px -3px 0px"" border=""0""/>播放音频文件"
+			ElseIf strType="wmv" Then
+				TitleText="<img src=""" & m_strPicPath & "mediaplayer.gif"" alt="""" style=""margin:0px 2px -3px 0px"" border=""0""/>播放视频文件"
+			ElseIf strType="rm" Then
+				TitleText="<img src=""" & m_strPicPath & "realplayer.gif"" alt="""" style=""margin:0px 2px -3px 0px"" border=""0""/>播放real视频流文件"
+			ElseIf strType="ra" Then
+				TitleText="<img src=""" & m_strPicPath & "realplayer.gif"" alt="""" style=""margin:0px 2px -3px 0px"" border=""0""/>播放real音频流文件"
+			ElseIf strType="qt" Then
+				TitleText="<img src=""" & m_strPicPath & "mediaplayer.gif"" alt="""" style=""margin:0px 2px -3px 0px"" border=""0""/>播放mov视频文件"
+			End If
+			strWidth=strMatch.SubMatches(1)
+			strHeight=strMatch.SubMatches(2)
+			If (len(strWidth)=0) Then
+				strWidth="400"
+			Else
+				strWidth=right(strWidth,(len(strWidth)-1))
+			End If
+			If (len(strHeight)=0) Then
+				strHeight="300"
+			Else
+				strHeight=right(strHeight,(len(strHeight)-1))
+			End If
+			strSRC=strMatch.SubMatches(3)
+			rndID="temp"&Int(100000 * Rnd)
+			strContent= Replace(strContent,strMatch.Value,"<div class=""UBBContainer""><div class=""UBBTitle"">"&TitleText&"</div><div class=""UBBContent""><a id="""+rndID+"_href"" href=""javascript:MediaShow('"+strType+"','"+rndID+"','"+strSRC+"','"+strWidth+"','"+strHeight+"','"+m_strPicPath+"')""><img name="""+rndID+"_img"" src=""" & m_strPicPath & "mm_snd.gif"" style=""margin:0px 3px -2px 0px"" border=""0"" alt=""""/><span id="""+rndID+"_text"">在线播放</span></a><div id="""+rndID+"""></div></div></div>")
+		Next
+		Set strMatchs=nothing
+		ProcessUbbCode_MP = strContent
+	End Function
+
+	Private Function ProcessUbbCode_S1(strText,uCodeC,tCode)
+		Dim s
+		s=strText
+		re.Pattern="\["&uCodeC&"\][\s\n]*\[\/"&uCodeC&"\]"
+		s=re.Replace(s,"")
+		re.Pattern="\[\/"&uCodeC&"\]"
+		s=re.Replace(s, Chr(1)&"/"&uCodeC&"]")
+		re.Pattern="\["&uCodeC&"\]([^\x01]*)\x01\/"&uCodeC&"\]"
+		s=re.Replace(s,tCode)
+		re.Pattern="\x01\/"&uCodeC&"\]"
+		s=re.Replace(s,"[/"&uCodeC&"]")
+		If isxhtml Then
+			If xml.loadxml("<div>" & xmlencode(s) &"</div>") Then
+				ProcessUbbCode_S1=s
+			Else
+				ProcessUbbCode_S1=strText
+			End If
+		Else
+			ProcessUbbCode_S1=s
+		End If
+	End Function
+
+	Private Function ProcessUbbCode_UF(strText,uCodeC,tCode,Flag)
+		Dim s
+		Dim LoopCount
+		LoopCount=0
+		s=strText
+		re.Pattern="\["&uCodeC&"=([^\]]*)\][\s\n ]*\[\/"&uCodeC&"\]"
+		s=re.Replace(s,"")
+		re.Pattern="\[\/"&uCodeC&"\]"
+		s=re.Replace(s, chr(1)&"/"&uCodeC&"]")
+		re.Pattern="\["&uCodeC&"=([^\]]*)\]([^\x01]*)\x01\/"&uCodeC&"\]"
+		If Flag="1" Then
+			Do While Re.Test(s)
+				s=re.Replace(s,tCode)
+				LoopCount=LoopCount+1
+				If LoopCount>MaxLoopCount Then Exit Do
+			Loop
+		ElseIf Flag="0" Then
+			s=re.Replace(s,tCode)
+		Else
+			re.Pattern="\["&uCodeC&"=(["&Flag&"]*)\]([^\x01]*)\x01\/"&uCodeC&"\]"
+			Do While Re.Test(s)
+				s=re.Replace(s,tCode)
+				LoopCount=LoopCount+1
+				If LoopCount>MaxLoopCount Then Exit Do
+			Loop
+		End If
+		re.Pattern="\x01\/"&uCodeC&"\]"
+		s=re.Replace(s,"[/"&uCodeC&"]")
+		If isxhtml Then
+			If xml.loadxml("<div>" & xmlencode(s) &"</div>") Then
+				ProcessUbbCode_UF=s
+			Else
+				ProcessUbbCode_UF=strText
+			End If
+		Else
+			ProcessUbbCode_UF=s
+		End If
+	End Function
+
+	Private Function ProcessUbbCode_iS1(strText,uCodeC,tCode)
+		Dim s
+		s=strText
+		re.Pattern="\["&uCodeC&"=[^\]]*\][\s\n]\[\/"&uCodeC&"\]"
+		s=re.Replace(s,"")
+		re.Pattern="\[\/"&uCodeC&"\]"
+		s=re.Replace(s, chr(1)&"/"&uCodeC&"]")
+		re.Pattern="\["&uCodeC&"=([0-9]+),(#?[\w]+),([0-9]+)\]([^\x01]*)\x01\/"&uCodeC&"\]"
+		s=re.Replace(s,tCode)
+		re.Pattern="\x01\/"&uCodeC&"\]"
+		s=re.Replace(s, "[/"&uCodeC&"]")
+		If isxhtml Then
+			If xml.loadxml("<div>" & xmlencode(s) &"</div>") Then
+				ProcessUbbCode_iS1=s
+			Else
+				ProcessUbbCode_iS1=strText
+			End If
+		Else
+			ProcessUbbCode_iS1=s
+		End If
+	End Function
+
+	Private Function ProcessUbbCode_Align(strText)
+		Dim s
+		s=strText
+		're.Pattern="\[align=(center|left|right)\][\s\n]*\[\/align\]"
+		's=re.Replace(s,"")
+		re.Pattern="\[\/align\]"
+		s=re.Replace(s,chr(1)&"/align]")
+		re.Pattern="\[align=(center|left|right)\]([^\x01]*)\x01\/align\]"
+		s=re.Replace(s,"<div align=""$1"">$2</div>")
+		re.Pattern="\x01\/align\]"
+		s=re.Replace(s,"[/align]")
+		If isxhtml Then
+			If xml.loadxml("<div>" & xmlencode(s) &"</div>") Then
+				ProcessUbbCode_Align=s
+			Else
+				ProcessUbbCode_Align=strText
+			End If
+		Else
+			ProcessUbbCode_Align=s
+		End If
+	End Function
+
+	Private Function ProcessUbbCode_C(strText,uCodeC)
+		Dim s,matches,match,CodeStr,rndID
+		s=strText
+		s=Replace(s,"$","&#36;")
+		s=Replace(s,"|","&#124;")
+		re.Pattern="\["&uCodeC&"\][\s\n]*\[\/"&uCodeC&"\]"
+		s=re.Replace(s,"")
+		re.Pattern="\[\/"&uCodeC&"\]"
+		s=re.Replace(s,Chr(1)&"/"&uCodeC&"]")
+		re.Pattern="\["&uCodeC&"\]([^\x01]*)\x01\/"&uCodeC&"\]"
+		Set matches = re.Execute(s)
+		re.Global=False
+		For Each match In matches
+			RAndomize
+			rndID="CodeText"&Int(100000 * Rnd)
+			CodeStr=match.SubMatches(0)
+			CodeStr = Replace(CodeStr,"&nbsp;",Chr(32),1,-1,1)
+			CodeStr = Replace(CodeStr,"<p>","",1,-1,1)
+			CodeStr = Replace(CodeStr,"</p>","&#13;&#10;",1,-1,1)
+			CodeStr = Replace(CodeStr,"[br]","&#13;&#10;",1,-1,1)
+			CodeStr = Replace(CodeStr,"<br/>","&#13;&#10;",1,-1,1)
+			CodeStr = Replace(CodeStr,"<br />","&#13;&#10;",1,-1,1)
+			CodeStr = Replace(CodeStr,vbNewLine,"&#13;&#10;",1,-1,1)
+			CodeStr = "<div class=""UBBContainer""><div class=""UBBTitle""><img src=""" & m_strPicPath & "html.gif"" style=""margin:0px 2px -3px 0px""> 以下是程序代码</div><div class=""UBBContent""><textarea rows=""8"" id="""&rndID&""" class=""UBBText"">"&CodeStr& "</textarea><br/><input onclick=""runEx('"&rndID&"')""  type=""button"" value=""运行代码""/> <input onclick=""doCopy('"&rndID&"')""  type=""button"" value=""复制代码""/> <input onclick=""saveCode('"&rndID&"')""  type=""button"" value=""另存代码""/><br/> [Ctrl+A 全部选择 提示：你可先修改部分代码，再按运行]</div></div>"
+			s = re.Replace(s,CodeStr)
+		Next
+		re.Global=true
+		Set matches=Nothing
+		re.Pattern="\x01\/"&uCodeC&"\]"
+		s=re.Replace(s,"[/"&uCodeC&"]")
+		s=Replace(s,"&#36;","$")
+		s=Replace(s,"&#124;","|")
+		ProcessUbbCode_C=s
+	End Function
+
+	Public Function SplitArray(expression,delimiter,start)
+		Dim TempArray()
+		Dim m_arrTemp,i,n
+		If Len(expression) = 0 Then
+			SplitArray = Array(0,0,0,1,1,1,1,1,1,1,0,550,0,0,1,1,1)
+			Exit Function
+		End If
+		m_arrTemp = Split(expression, delimiter)
+		If start < 1 Then
+			SplitArray = m_arrTemp
+			Exit Function
+		End If
+		n = 0
+		For i = start To UBound(m_arrTemp)
+			ReDim Preserve TempArray(n)
+			TempArray(n) = m_arrTemp(i)
+			n = n + 1
+		Next
+		SplitArray = TempArray
+	End Function
+
+	Private Function ProcessUbbCode_Key(strText)
+		Dim s,i,sContentKeyword,ArrayKeyword,strKeyword
+		s=strText
+		If Trim(ContentKeyword) <> "" Then
+			sContentKeyword = Split(ContentKeyword, "@@@")
+			If UBound(sContentKeyword) > 1 Then
+				For i = 0 To UBound(sContentKeyword) - 1
+					ArrayKeyword = Split(sContentKeyword(i), "$$$")
+					If ArrayKeyword(0) <> "" Then
+						strKeyword = ArrayKeyword(0)
+						If Left(strKeyword,1) = "|" Then strKeyword = Replace(strKeyword, "|", vbNullString,1,1)
+						If Right(strKeyword,1) = "|" Then strKeyword = Left(strKeyword,Len(strKeyword)-1)
+						re.Pattern = "(^|[^\/\\\w\=])(" & Replace(strKeyword, "$", "\$") & ")"
+						s=re.Replace(s, "$1<a target=""_blank"" href=""" & ArrayKeyword(1) & """ class=""UBBWordLink"">$2</a>")
+					End If
+				Next
+			End If
+		End If
+		ProcessUbbCode_Key=s
+	End Function
+
+	Public Function ProcessUbbCode_Answer()
+
+	End Function
+
+	Public Function SplitLines(byVal Content,byVal ContentNums)
+		Dim ts,i,l
+		ContentNums=int(ContentNums)
+		If IsNull(Content) Then Exit Function
+		i=1
+		ts = 0
+		For i=1 to Len(Content)
+		  l=Lcase(Mid(Content,i,5))
+			If l="<br/>" Then
+				ts=ts+1
+			End If
+		  l=Lcase(Mid(Content,i,4))
+			If l="<br>" Then
+				ts=ts+1
+			End If
+		  l=Lcase(Mid(Content,i,3))
+			If l="<p>" Then
+				ts=ts+1
+			End If
+		If ts>ContentNums Then Exit For
+		Next
+		If ts>ContentNums Then
+			Content=Left(Content,i-1)
+		End If
+		SplitLines=Content
+	End Function
+
+	Private Function InsertPageBreak(strText)
+		Dim strPagebreak,s,ss
+		Dim i,IsPage,iCount,strTemp,Temp_String,Temp_Array
+		Dim l,Pcount,iCursize
+		strPagebreak="[page_break]"
+		s=strText
+		If maxPagesize<100 Then InsertPageBreak=s:Exit Function
+		s=Replace(s, strPagebreak, "")
+		l=strLength(s)
+		If l<maxPagesize+380 Then InsertPageBreak=s:Exit Function
+		IsPage=False
+		If s<>"" And maxPagesize<>0 And InStr(1,s,strPagebreak)=0 then
+			Temp_String=""
+			Dim iPosCur,iPosLast
+			iPosCur=1:iPosLast=1
+			If InStr(s, ">")>0 Then
+				While iPosCur>0
+					iPosCur=InStr(iPosLast, s, ">")
+					If iPosCur>0 Then
+						iCursize=strNoHtmlLength(Mid(s,iPosLast,iPosCur-iPosLast))
+						iCount=iCount+iCursize
+						If iCount=>maxPagesize Then
+							strTemp=Left(s,iPosCur)
+							If CheckPagination(strTemp,"table|a|b>|i>|strong|div|span|ul|ol|dl|pre|object") then
+								Temp_String=Temp_String & Trim(CStr(iPosCur)) & ","
+								iCount=0
+								IsPage=True
+							End If
+						End If
+						iPosLast=iPosCur+1
+					Else
+						iPosCur=0
+					End If
+				Wend
+			End If
+
+			If IsPage=True Then
+				If Len(Temp_String)>1 Then Temp_String=Left(Temp_String,Len(Temp_String)-1)
+				Temp_Array=Split(Temp_String,",")
+				For i = UBound(Temp_Array) To LBound(Temp_Array) Step -1
+					ss = Mid(s,Temp_Array(i)+1)
+					If Len(ss) > 380 Then
+						s=Left(s,Temp_Array(i)) & strPagebreak & ss
+					Else
+						s=Left(s,Temp_Array(i)) & ss
+					End If
+				Next
+			End If
+		End If
+		InsertPageBreak=s
+	End Function
+
+	Private Function CheckPagination(strTemp,strFind)
+		Dim i,n,m_ingBeginNum,m_intEndNum
+		Dim m_strBegin,m_strEnd,FindArray
+		strTemp=LCase(strTemp)
+		strFind=LCase(strFind)
+		If strTemp<>"" and strFind<>"" then
+			FindArray=split(strFind,"|")
+			For i = 0 to Ubound(FindArray)
+				m_strBegin="<"&FindArray(i)
+				m_strEnd  ="</"&FindArray(i)
+				n=0
+				do while instr(n+1,strTemp,m_strBegin)<>0
+					n=instr(n+1,strTemp,m_strBegin)
+					m_ingBeginNum=m_ingBeginNum+1
+				Loop
+				n=0
+				do while instr(n+1,strTemp,m_strEnd)<>0
+					n=instr(n+1,strTemp,m_strEnd)
+					m_intEndNum=m_intEndNum+1
+				Loop
+				If m_intEndNum=m_ingBeginNum then
+					CheckPagination=True
+				Else
+					CheckPagination=False
+					Exit Function
+				End If
+			Next
+		Else
+			CheckPagination=False
+		End If
+	End Function
+
+	Public Function CheckSpecialChar(ByVal strText)
+		Dim strMatchs, strMatch
+		re.Pattern="[^A-Za-z0-9-\u4E00-\u9FA5]"
+		Set strMatchs=re.Execute(strText)
+		For Each strMatch in strMatchs
+			strText=re.Replace(strText, "")
+		Next
+		CheckSpecialChar=strText
+	End Function
+
+	Public Function strLength(ByVal str)
+		On Error Resume Next
+		If Len(str)=0 Then
+			strLength = 0
+			Exit Function
+		End If
+		re.Pattern="[^\x00-\xff]"
+		str=re.Replace(str,"aa")
+		strLength=Len(str)
+		If Err.Number<>0 Then Err.Clear
+	End Function
+
+	Public Function strNoHtmlLength(ByVal str)
+		On Error Resume Next
+		If Len(str)=0 Then
+			strNoHtmlLength = 0
+			Exit Function
+		End If
+		re.Pattern="<(.[^>]*)>"
+		str=re.Replace(str, "")
+		re.Pattern="[^\x00-\xff]"
+		str=re.Replace(str,"aa")
+		strNoHtmlLength=Len(str)
+		If Err.Number<>0 Then Err.Clear
+	End Function
+
+End Class
+
+%>

@@ -1,0 +1,125 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<html>
+  <head>
+    <title>ti_custcomment Manager</title>
+	<link href="/program/company/index/css/style.css" rel="stylesheet" type="text/css">
+</head>
+<%
+	String cust_id="";
+	if( session.getAttribute("session_cust_id") != null )
+	{
+	 cust_id = session.getAttribute("session_cust_id").toString();
+	}
+
+
+%>
+<body>
+	<h1>Add ti_custcomment</h1>
+	
+	<!--
+
+	  -->
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtabadd">
+		
+		<tr>
+			<td class="labletd" width="10%">
+				info_id:
+			</td>
+			<td><input name="info_id" id="info_id" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				goods_id:
+			</td>
+			<td><input name="goods_id" id="goods_id" value="<%=cust_id%>" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				com_type:
+			</td>
+			<td><input name="com_type" id="com_type" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				content:
+			</td>
+			<td><input name="content" id="content" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				in_date:
+			</td>
+			<td><input name="in_date" id="in_date" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				user_id:
+			</td>
+			<td><input name="user_id" id="user_id" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				info_level:
+			</td>
+			<td><input name="info_level" id="info_level" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				up_num:
+			</td>
+			<td><input name="up_num" id="up_num" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				down_num:
+			</td>
+			<td><input name="down_num" id="down_num" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				reply_content:
+			</td>
+			<td><input name="reply_content" id="reply_content" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				reply_date:
+			</td>
+			<td><input name="reply_date" id="reply_date" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				reply_user_id:
+			</td>
+			<td><input name="reply_user_id" id="reply_user_id" type="text" /></td>
+		</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="0674" />
+				<input type="submit" class="buttoncss" name="tradeSub" value="提交" />&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onClick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

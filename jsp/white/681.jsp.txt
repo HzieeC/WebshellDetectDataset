@@ -1,0 +1,1 @@
+<div id="task-taskmanage-main" style="width:100%; height:100%"></div>

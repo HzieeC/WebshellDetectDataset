@@ -1,0 +1,110 @@
+<!--#include file="../inc/template.inc"-->
+<%
+Dim listArry,i,ii,m,n
+Dim depth,iChannelID
+Sub Main()
+	Set TPL_XmlDom=NewAsp.CreateXmlDoc("msxml2.FreeThreadedDOMDocument" & MsxmlVersion)
+	If Not TPL_XmlDom.load(NewAsp.TemplatePath&"config.xml") Then
+		Response.Write "载入模板配置文件出错!"&NewAsp.TemplatePath&"config.xml"
+		Response.End
+	End If
+	Dim strHTML
+	strHTML = NewAsp.LoadTemplate("sitemap")
+	strHTML = Replace(strHTML, "{$pagetitle}",  "站点地图")
+	strHTML = Replace(strHTML, "{$channelid}", 0)
+	strHTML = Replace(strHTML, "{$classid}", 0)
+	TPL_Scan strHTML
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+		Case "showlist","classlist"
+			ParselistNode		sTokenName
+	Case Else
+	End Select
+End Sub
+
+Sub showMaplist()
+	Dim Rs,SQL
+	SQL="SELECT C.classid,C.ChannelID,C.ClassName,C.Readme,C.rootid,C.depth,C.Child,C.TurnLink,C.TurnLinkUrl,C.HtmlFileDir,B.ChannelDir,B.BindDomain,B.DomainName,B.IsCreateHtml,B.HtmlExtName,B.SortDestination FROM [NC_Classify] C inner join [NC_Channel] B On C.ChannelID=B.ChannelID WHERE B.StopChannel=0 ORDER BY C.ChannelID ASC,C.rootid ASC,C.orders ASC"
+	Set Rs=NewAsp.Execute(SQL)
+	If Not Rs.EOF Then
+		listArry=Rs.GetRows(-1)
+	End If
+	Rs.Close:Set Rs = Nothing
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	Select Case sTokenName
+		Case "showlist","classlist"
+			Call showMaplist()
+			If IsArray(listArry) Then
+				For i=0 To UBound(listArry,2)
+					ii=ii+1
+					If (i Mod 2) = 0 Then m=1 Else m=2
+					depth=CLng(listArry(5,i))
+					TPL_Scan sTemplate
+				Next
+			End If
+		Case "depth=0"				:	If depth=0 Then TPL_Scan sTemplate
+		Case "depth!=0","depth=1"	:	If depth>0 Then TPL_Scan sTemplate
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Select Case sToken
+		Case "moremenu"
+	End Select
+	If Err Then Err.Clear
+End Sub
+
+Sub ParselistNode(sToken)
+	Dim strLinks,strRssLink
+	Dim iBindDomain,iCreateHtml,iDomainName,iChannelDir,iChannelPath
+	iBindDomain=CLng(listArry(11,i))
+	iCreateHtml=CLng(listArry(13,i))
+	iDomainName=listArry(12,i)&""
+	iChannelDir=listArry(10,i)&""
+	If iBindDomain=1 Then
+		iChannelDir=""
+		iChannelPath=iDomainName&"/"
+		If iCreateHtml=0 Then iDomainName=iDomainName&"/"
+	Else
+		iChannelPath=NewAsp.InstallDir&iChannelDir
+		If iCreateHtml=0 Then
+			iDomainName=NewAsp.InstallDir&iChannelDir
+		Else
+			iDomainName=""
+		End If
+	End If
+	strRssLink=iChannelPath&"rssfeed.asp?classid="&listArry(0,i)
+	If CLng(listArry(7,i))=1 Then
+		strLinks=listArry(8,i)&""
+	Else
+		If iCreateHtml=0 Then
+			If IsURLRewrite Then
+				strLinks=CheckURLRewrite(iChannelPath,"list_1_"&listArry(0,i)&listArry(14,i))
+			Else
+				strLinks=iChannelPath&"list.asp?classid="&listArry(0,i)
+			End If
+		Else
+			strLinks=iDomainName&NewAsp.HtmlDestination(listArry(15,i), iChannelDir, "",listArry(9,i),listArry(0,i),0,1,"")
+		End If
+	End If
+	Select Case sToken
+		Case "i"			:	TPL_Echo i
+		Case "n"			:	TPL_Echo n
+		Case "m"			:	TPL_Echo m
+		Case "link"			:	TPL_Echo strLinks
+		Case "rsslink"		:	TPL_Echo strRssLink
+		Case "path"			:	TPL_Echo iChannelPath
+		Case "classname"	:	TPL_Echo listArry(2,i)
+		Case "readme"		:	TPL_Echo listArry(3,i)
+		Case "classtitle"	:	TPL_Echo "<a href="""&strLinks&""">"&listArry(2,i)&"</a>"
+		Case "classid"		:	TPL_Echo listArry(0,i)
+	End Select
+End Sub
+%>

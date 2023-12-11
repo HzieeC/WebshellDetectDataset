@@ -1,0 +1,263 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ taglib uri="MianFeiZhe" prefix="mfz" %>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<meta content="常用论坛系统、内容管理系统、博客系统、整站系统模板制作及相关教程，承接风格制作，QQ：907267666" name="description">
+<meta content="dedecms风格、Discuz!风格、phpcms风格、SupeSite/X-Space风格、php168风格、phpwind风格、模板制作教程、优秀模板下载" name="keywords">
+<meta name="author" content="qhdzqx">
+<link rel="stylesheet" href="css/index.css" type="text/css" />
+<title>{dede:global name='cfg_webname'/}</title>
+	<style>
+		.ad{
+			background-color:red;
+			color:yellow;
+			width:14px;
+			text-align:center;
+			text-decoration:none;
+		}
+	</style>
+	<script>
+		var min=1;
+		var max=4;
+		var timer=null;
+		function show(op){
+			if(!isNaN(op)){
+				min=op;
+				clearTimeout(timer);
+			}
+			for(var i=1;i<=max;i++){
+				if(min==i){
+					document.getElementById("div"+min).style.display="block";
+				}else{
+					document.getElementById("div"+i).style.display="none";
+				}
+			}
+			min++;
+			if(min>max){
+				min=1;
+			}
+			timer=setTimeout("show()",2000);
+		}
+
+		var req;
+		var username;
+		function validate() {
+			username = document.getElementById("userName");
+			var userpwd=document.getElementById("userPwd");
+			var url = "servletslogin?name=" + escape(username.value)+"&pwd="+escape(userpwd.value);
+			if(window.XMLHttpRequest) {//判断浏览器类型
+				req = new XMLHttpRequest();
+			} else if (window.ActiveXObject) {
+				req = new ActiveXObject("Microsoft.XMLHTTP");
+			}
+			req.open("GET", url, true);
+			req.onreadystatechange = callback;
+			req.send(null);
+		}
+
+		function callback() {
+			if(req.readyState == 4) {
+				if(req.status == 200) {
+					var msg = req.responseXML.getElementsByTagName("msg")[0];
+									setMsg(msg.childNodes[0].nodeValue);
+				}
+			}
+		}
+
+		
+		function setMsg(msg) {
+			mdiv = document.getElementById("login");
+			if(msg == "pass") {
+				mdiv.outerHTML = "<div class='body1left'><p align='center'>&nbsp;&nbsp;</p><p align='center'>欢迎你登陆!"+username.value+"<br><br><a href=/web/user/index.jsp target='_blank'>进入管理中心</a></p></div>";
+			}
+		}
+
+	</script>
+</head>
+
+<body>
+<div class="top0">
+    <div class="logo0">
+        <a href="http://cms.51fengge.cn"><img src="images/logo.jpg" alt="网站logo，点击返回首页" /></a>
+    </div>
+    <div class="banner0">
+        <img src="images/banner.gif" alt="网站banner" />
+    </div>    
+<p align="left">&nbsp;&nbsp;</p>
+    <div class="bbstop">
+        <img src="images/ico1.gif" alt="设为首页" />&nbsp;<a href="#" onClick="this.style.behavior='url(#default#homepage)';this.setHomePage('http://www.mianfeizhe.com');">设为首页</a>
+        <br><img src="images/ico2.gif" alt="加入收藏免费者" />&nbsp;<a href="javascript:window.external.AddFavorite('http://www.mianfeizhe.com','免费者')">加入收藏</a>
+	<br><img src="images/ico2.gif" alt="免费者" />&nbsp;<a href="http://www.mianfeizhe.com" target="_blank">免费者</a>
+        <br><img src="images/ico2.gif" alt="官方网页" />&nbsp;<a href="http://www.mianfeizhe.com" target="_blank">官方网站</a>
+    </div> 
+
+</div>
+<div class="navtop">
+    <ul>
+        <a href="http://www.mianfeizhe.com"><li>免费者</li></a>
+		<mfz:top startTag="<li>" endTag="</li>"></mfz:top>
+    </ul>
+</div>
+<div class="navbottom">
+<form action="{dede:field name='phpurl'/}/search.php" name="formsearch">
+    站内搜索：&nbsp;<input name="keyword" id="keyword" class="text" type="text" />
+    &nbsp;<select name="select" id="searchtype">
+        <option value="titlekeyword" selected>智能模糊搜索</option>
+        <option value="title">仅搜索标题</option>
+    </select>
+    &nbsp;<input class="select" type="image" src="images/select.gif" />
+    &nbsp;&nbsp;&nbsp;&nbsp;热门关键字：&nbsp;免费&nbsp;&nbsp;JAVA&nbsp;&nbsp;JSP
+</form>
+</div>
+<div class="body1">
+    <div class="body1left" id="login">
+        <h4>会员登陆</h4>      
+        <form name='form1' id="_loginform" method='POST' action='servletslogin?action=index'>
+        <p>用户名：<input name="userName" id="userName" class="text" type="text" /></p>
+        <p>密&nbsp;&nbsp;码：<input name="userPwd" id="userPwd" class="text" type="password" /></p>
+        
+        <p><input type="button" value="登陆" onclick="validate();"/>&nbsp;&nbsp;&nbsp;<a href="reg.jsp" target="_blank">注册</a></p>
+		<p>&nbsp;&nbsp;</p>
+        </form>
+    </div>
+    <div class="body1center"> 
+  	<div style="position:absolute;top:166px;left:300px;">
+			<img id="div1" src="image/ad-01.jpg" style="display:none">
+			<img id="div2" src="image/ad-02.jpg" style="display:none">
+			<img id="div3" src="image/ad-03.jpg" style="display:none">
+			<img id="div4" src="image/ad-04.jpg" style="display:block">
+		</div>
+		<div style="position:absolute;top:500;left:440">
+			<a href="javascript:show(1)" class="ad">1</a>
+			
+			<a href="javascript:show(2)" class="ad">2</a>
+			<a href="javascript:show(3)" class="ad">3</a>
+			<a href="javascript:show(4)" class="ad">4</a>
+		</div>
+    </div>
+    <div class="body1right">
+        <h5><img src="images/ico3.gif" alt="icon" />&nbsp;站内公告</h5>
+	<ul>
+           <mfz:ad top="7" length="20" startTag="<li>" endTag="</li>"></mfz:ad>
+                              
+        </ul>
+    </div>
+</div>
+<div class="body2">
+    <div class="body2left">
+        <h4><img src="images/ico5.gif" alt="icon"  />&nbsp;最新会员</h4>
+      <div class="yinying"></div>
+        <ul>          
+			<mfz:vip top="7" type="userlistandtime" startTag="<li>" endTag="</li>"></mfz:vip>
+      </ul>
+    </div>
+<div class="body2center">
+        <h6><img src="images/ico4.gif" alt="icon"  />&nbsp;最新文档</h6>
+        <div class="yinying"></div>
+        <ul>
+          <mfz:newAritcle top="7" length="20" startTag="<li>" endTag="</li>"></mfz:newAritcle>                       
+        </ul>
+    </div>
+    <div class="body2right">
+        <h6><img src="images/ico4.gif" alt="icon"  />&nbsp;<mfz:className length="20" id="46"></mfz:className></h6>
+        <div class="yinying"></div>
+         <ul>
+		<mfz:classAritcle top="7" length="20" id="46" startTag="<li>" endTag="</li>"></mfz:classAritcle>
+                  
+      </ul>
+    </div>
+</div>
+<div class="body3">
+    <div class="body3left">
+        <h4><img src="images/ico5.gif" alt="icon" />&nbsp;头条新闻</h4>
+        <div class="yinying"></div>			
+        <span class="img175">
+		<mfz:img type="img" amount="1" imgHeigth="127" imgWidth="176" startTag="<a href=#>" endTag="</a>"></mfz:img>
+		</span>
+      <p id="biaoti"><mfz:bigNews type="title" titleLen="10" startTag="<xmp>" endTag="</xmp>"></mfz:bigNews></p>
+        <p><mfz:bigNews type="content" contentLen="20"></mfz:bigNews></p>
+      <div class="yinying"></div>
+    </div> 
+     <div class="body3right">
+        <h6><img src="images/ico4.gif" alt="icon"  />&nbsp;图片列表</h6>
+        <div class="yinying"></div>
+        <ul>
+            
+			<mfz:img type="img" imgHeigth="110" imgWidth="125" startTag="<li><span class='img125'><a href=#>" endTag="</a></span></li>"></mfz:img>
+       
+        </ul>
+    </div>   
+</div>
+<div class="body4">
+    <div class="body4left">
+        <h4><img src="images/ico5.gif" alt="icon"  />&nbsp;网站调查</h4>
+        <div class="yinying"></div>
+        <form name='voteform' method='post' action='{dede:field name='phpurl'/}/vote.php' target='_blank'>
+			<input type='hidden' name='dopost' value='send'>
+			<input type='hidden' name='aid' value='1'>
+			<input type='hidden' name='ismore' value='0'>
+			<p>你是从哪儿得知本站的？</p>			
+			<p><input name="voteitem" type="radio" value="1" />朋友介绍</p>
+			<p><input name="voteitem" type="radio" value="2" />门户网站的搜索引擎</p>
+			<p><input name="voteitem" type="radio" value="3" />Google或百度搜索 </p>
+			<p><input name="voteitem" type="radio" value="4" />别的网站上的链接 </p>
+			<p><input name="voteitem" type="radio" value="5" />其它途径 </p>
+			<p><input type="image" src="images/toupiao.gif" value="投票" class="toupiao" /><a href="{dede:field name='phpurl'/}/vote.php?dopost=view&aid=1">查看结果</a></p>
+        </form>
+    </div>
+    <div class="body4center">
+        <h6><img src="images/ico4.gif" alt="icon"  />&nbsp;<mfz:className length="20" id="46"></mfz:className></h6>
+      <div class="yinying"></div>            
+        <div class="tuwen">
+		<!--栏目推荐图片-->
+            <mfz:img type="class" id="46" imgHeigth="70" imgWidth="100" startTag="<span class='img100'>" endTag="</span>"></mfz:img>
+		<!--栏目第一篇最新文章-->
+          <p id="biaoti"><mfz:classAritcle type="title"  top="1" length="20" id="22"></mfz:classAritcle>
+		  <!--栏目最新第一篇文章导读-->
+           <mfz:classAritcle type="content" startTag="<xmp>" endTag="</xmp>"  top="1" length="20" id="46"></mfz:classAritcle></p>
+        </div>
+      <ul>
+	  <!--栏目列表-->
+		<mfz:classAritcle type="title" top="4" length="20" id="46" startTag="<li>" endTag="</li>"></mfz:classAritcle>
+      </ul>
+    </div>
+<div class="body4right">
+        <h6><img src="images/ico4.gif" alt="icon"  />&nbsp;推荐文档</h6>
+    <div class="yinying"></div>                 
+<div class="tuwen">
+            <span class="img100">图片代码</span>
+      <p id="biaoti">图片标题</p>
+            <p>详细内容...</p>
+        </div>
+    <ul>
+		<mfz:commend type="listandtime" top="5" length="20" startTag="<li>" endTag="</li>"></mfz:commend>
+	</ul>
+    </div>
+</div>
+
+<div class="lianjie">
+    <h5><span class="right"><a href="{dede:field name='phpurl'/}/flink.php"><img src="images/more2.gif" alt="more" /></a></span>
+    <img src="images/ico3.gif" alt="ico" />&nbsp;友情链接</h5>
+    <div class="link">
+	<mfz:link amount="0" startTag="[" endTag="]"></mfz:link>
+  </div>
+</div>
+<div class="foottop"><a href="http://www.mianfeize.com">返回首页</a>
+ | <a href="/heightsearch.php">高级搜索</a>
+ | <a href="/flink-add.php">加入链接</a>
+ | <a href="/sitemap.html">网站地图</a>
+ | <a href="/rssmap.html">RSS订阅</a></div>
+<div class="footbottom">
+<div>
+<p align="center">
+power by <a href="http://www.mianfeizhe.com">MianFeiZhe.Com</a> Copyright 2008-2010
+<br> 备案号:湘ICP备85020080号
+</p>
+</div>
+</div>
+</body>
+</html>
+
+ 

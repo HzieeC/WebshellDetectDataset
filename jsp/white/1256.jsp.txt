@@ -1,0 +1,213 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@page import="com.bizoss.trade.ts_category.*" %>
+<%@page import="com.bizoss.trade.ti_brand.Ti_brandInfo" %>
+<%@page import="com.bizoss.trade.ti_channel.Ti_channelInfo" %>
+<%@page import="com.bizoss.trade.ti_news.Ti_newsInfo" %>
+<%@page import="com.bizoss.trade.ti_admin.Ti_adminInfo" %>
+<%@page import="com.bizoss.trade.ti_zhuanti.Ti_zhuantiInfo" %>
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page" /> 
+<%
+
+String zhuanti_id = bean. GenTradeId ();
+String user_id="";	
+	if( session.getAttribute("session_user_id") != null )
+	{
+		user_id = session.getAttribute("session_user_id").toString();
+	}
+	String cust_id = "";	
+	if( session.getAttribute("session_cust_id") != null ){
+		cust_id = session.getAttribute("session_cust_id").toString();
+	}
+    Ti_brandInfo    ti_brandInfo = new  Ti_brandInfo();
+	Ti_channelInfo  ti_channelInfo = new  Ti_channelInfo();
+	Ti_newsInfo     ti_newsInfo = new  Ti_newsInfo();
+    Ti_adminInfo    ti_adminInfo = new  Ti_adminInfo();
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+                                       
+   String select = ts_categoryInfo.getSelCatByTLevel("3", "1");
+   String s_cat_all = ts_categoryInfo.getSelCatByTLevel("2","1");
+   String s_brand_all = ti_brandInfo.getBrandSelectAll("");
+   String s_news_all = ti_newsInfo.getNewsSelectAll("");
+  // String s_cust_all = ti_newsInfo.getCustSelectAll("");
+   String s_channel_all = ti_channelInfo.getChannelSelectAll("");
+   String tem_path="";
+	if(request.getParameter("tem_path") !=null)
+		tem_path=request.getParameter("tem_path") ;
+   
+%>
+<html>
+  <head>
+    <title>新增专题</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+		<script type="text/javascript" src="/js/thickbox.js"></script>
+	    <script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_categoryInfo.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_goodsInfo.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_newsInfo.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_channelInfo.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_adminInfo.js'></script>
+		<script type="text/javascript" src="zhuanti.js"></script>
+	
+		<script src="/js/jquery.js" type="text/javascript"></script>
+		
+       <script>
+	 			 jQuery.noConflict();
+	 	 </script>
+		</head>
+
+<body>
+	<h1>新增专题</h1>
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	<input name="zhuanti_id" id="zhuanti_id" type="hidden" value="<%=zhuanti_id%>" />
+	<input name="user_id" id="user_id" type="hidden" value="<%=user_id%>" />
+	<input name="cust_id" id="cust_id" type="hidden" value="<%=cust_id%>" />
+	<input name="goods_cat_group" id="goods_cat_group" type="hidden" value="" />
+	<input name="ch_id_group" id="ch_id_group" type="hidden" value="" />
+	<input name="news_id_group" id="news_id_group" type="hidden" value="" />
+	<input name="cust_id_group" id="cust_id_group" type="hidden" value="" />
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		<tr>
+			<td align="right" width="10%">
+				专题标题<font color="red">*</font>
+			</td>
+			<td><input name="title" id="title" type="text" size="60" maxlength="200"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				专题分类<font color="red">*</font>
+			</td>
+				<td colspan="3">
+					<table class="listtab1" align="left" cellspacing="0" cellpadding="0" border="0">
+						<tr><td>
+					  <select name="sort1" id="sort1"  style="width:130px" onChange="setSecondClass(this.value);" >
+          			<option value="">请选择</option>
+          			<%=select%>
+            </select>
+          </td><td>
+					  <select name="sort2" id="sort2" style="width:130px;display:none" onChange="setTherdClass(this.value);">
+								<option value="">请选择</option>
+						</select>
+					</td><td>
+						<select name="sort3" id="sort3" style="width:130px;display:none" >
+								<option value="">请选择</option>
+						</select>
+					</td>
+					</tr></table>
+			    				 
+									<input type="hidden" name="flag_code" id="flag_code" value="1"/>					 
+									<input type="hidden" name="class_flag" id="class_flag" value="0"/>
+									<input name="cat_id_group" id="cat_id_group" type="hidden" value="" />	
+									
+			</td>
+		</tr>		
+		
+
+		<tr>
+			<td align="right" width="10%">
+				资讯图片:
+			</td>
+			<td colspan="3">
+				<jsp:include page="/program/inc/uploadImgInc.jsp">
+					<jsp:param name="attach_root_id" value="<%=zhuanti_id%>" />
+				</jsp:include>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="10%">
+				首页模板路径:
+			</td>
+			<td><input name="tem_path" id="tem_path" type="text" size="50" maxlength="100" value="<%=tem_path %>" readonly="readonly" />
+			 <input type="button" onClick="choiceFile('','')" value="浏 览" class="buttab"/>	</td>
+		</tr>
+		
+		
+		<tr>
+			<td align="right" width="10%">
+				关键字:
+			</td>
+			<td><input name="keyword" id="keyword" type="text" maxLength="100" size="60" /></td>
+		</tr>
+		 <tr>
+			<td align="right" width="15%">关联商品:</td>
+			<td colspan="3">
+        <select name="cat_id" id="cat_id">
+        	<option value="">所有分类</option>
+         	<%=s_cat_all%>									  
+        </select>
+			  <select name="brand_id" id="brand_id" >
+				 	<option value="">所有品牌</option>
+				 	<%=s_brand_all%>	
+				</select>
+				<input type="text" name="goods_keyword" id="goods_keyword" />
+				<input type="button" class="button_s_css" value="搜 索"  onclick="showLinkGoods()" />
+        <div id="goods_table"></div>
+			</td>
+		</tr>
+		
+		  <tr>
+			<td align="right" width="15%">关联资讯:</td>
+			<td colspan="3">
+				<input type="text" name="news_keyword" id="news_keyword" />
+				<input type="button" class="button_s_css" value="搜 索"  onclick="showassociation('news','关联资讯','1')" />
+            <div id="news_table"></div>
+			</td>
+		</tr>
+		
+	<!-- 
+		<tr>
+			<td align="right" width="15%">关联客户:</td>
+			<td colspan="3">       
+			<input type="text" name="cust_keyword" id="cust_keyword" />
+			<input type="button" class="button_s_css" value="搜 索"  onclick="showassociation('cust','关联客户','2')" />
+        <div id="cust_table"></div>
+			</td>
+		</tr>
+	 -->
+		<tr>
+			<td align="right" width="15%">关联栏目:</td>
+			<td colspan="3">
+			<input type="text" name="ch_keyword" id="ch_keyword" />
+			<input type="button" class="button_s_css" value="搜 索"  onclick="showassociation('ch','关联栏目','3')" />
+            <div id="ch_table"></div>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				专题描述<font color="red">*</font>
+			</td>
+			<td colspan="3">
+			<input type="hidden" name="zhuan_desc" id="zhuan_desc" />
+			<textarea name="content" id="content"></textarea>
+			<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+			<script type="text/javascript">
+				CKEDITOR.replace('content');
+			</script></td>
+		</tr>		
+<tr>
+			<td align="right" width="10%">
+				备注:
+			</td>
+			<td>
+			<input name="remark" id="remark" type="text" size="60" maxLength="100"/>
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="6045"/>
+				<input type="button" class="buttoncss" name="tradeSub" value="提交"  onclick="subForm()"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

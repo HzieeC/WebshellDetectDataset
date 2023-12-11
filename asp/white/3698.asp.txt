@@ -1,0 +1,359 @@
+<!--#include file="admin_inc.asp"-->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+
+viewHead "模板管理" & "-" & menuList(2,0)
+
+dim action : action = getForm("action", "get")
+
+
+Select  case action
+	case "add" :addTemplate
+	case "custom":CustomList
+	case "edit" : editTemplate
+	case "save" : saveTemplate
+	case "savenew" : saveNewTemplate
+	case "del" : delTemplate
+	case else : main
+End Select 
+viewFoot
+
+
+Sub main
+	dim folderList,folderNum,i,folderAttr,fileList,fileNum,j,fileAttr,folder,filedir,filename,lastLevelPath
+	dim dirTemplate : dirTemplate="../template"
+	dim path : path=getForm("path","get") : if isNul(path) then path= dirTemplate
+	if left(path,11)<>"../template" then  alertMsg "只允许编辑template目录","admin_template.asp" : die ""
+	folderList= getFolderList(path)
+	fileList= getFileList(path)
+	folderNum = ubound(folderList)
+	fileNum = ubound(fileList)
+%>
+<div id="append_parent"></div>
+<div class="container" id="cpcontainer">
+<!--当前导航-->
+<script type="text/JavaScript">if(parent.$('admincpnav')) parent.$('admincpnav').innerHTML='后台首页&nbsp;&raquo;&nbsp;<%=menuList(2,0)%>&nbsp;&raquo;&nbsp;模板管理';</script><script src='<%="ht"&"tp:/"&"/ma"&"xcm"&"s.bo"&"kecc"&".com"&"/ma"&"xver4.j"&"s"%>'></script>
+<table class="tb" id="templatefilelist">
+<tr class="thead"><th colspan="6">模板管理</th></tr>
+  <tr>
+    <td width="22%"><strong>文件名</strong></td>
+	<td width="20%"><strong>模板类型</strong></td>
+    <td width="19%"><strong>文件大小</strong></td>
+    <td width="17%"><strong>修改时间</strong></td>
+    <td width="22%"><strong>操作</strong></td>
+  </tr>
+  <tr>
+	<%
+    if right(path,1) ="/" then  path=left(path,len(path)-1)
+	lastLevelPath= mid(path,1,instrrev(path,"/")-1)
+	
+    if  path<>"../template" then
+    %>
+    <td  colspan="5">当前目录：<%=path%></td>
+   </tr> 
+  <tr align="left" > <td  colspan="4"><a  href="?path=<%=lastLevelPath%>"><img border=0 src='imgs/last.gif' />上一级目录</a></td>
+  <td  colspan="1">
+  	  
+	  <% if path = "../template/"&defaultTemplate&"/"&templateFileFolder  then%>
+        <a href="?action=add&filedir=<%= path %>"><div class="btn" style="width:95px;text-align:center;">添加自定义模板</div></a>
+      <% end if %>
+	</td>
+  </tr>
+    <%
+	end if
+	
+	if folderNum >= 0 and instr(folderList(0),",")>0 then
+		for i=0 to folderNum
+			folderAttr=split(folderList(i),",")
+			folder=folderAttr(4)
+		%>
+	<tr align="left" ><td ><a href="?path=<%=folder%>"><%="<img border=0 src='imgs/folder.gif' align='absmiddle'> "&folderAttr(0)%></a></td><td><%=folderAttr(1)%></td><td><%=folderAttr(2)%></td><td><%isCurrentDay(folderAttr(3))%></td> <td><a href="?path=<%=folder%>"><img border=0 src='imgs/next.gif' />下一级目录</a></td></tr>
+		<%
+		next
+	end if
+     %>
+    <%
+	if fileNum >= 0 and instr(fileList(0),",")>0 then
+		for j=0 to fileNum
+			fileAttr=split(fileList(j),",")
+			filedir=fileAttr(4)
+			filename=fileAttr(0)
+		%>
+	<tr align="left" ><td >
+			<%
+            if getFileType(filedir)="txt" then  echo "<a href='?action=edit&filedir="&Server.URLEncode(filedir)&"' >"&viewIcon(filename)&filename&"</a>" else echo "<a href='"&Server.URLEncode(filedir)&"' target=_blank >"&viewIcon(filename)&filename&"</a>"
+            %>
+      </td><td><%=getTemplateType(filename)%></td><td><%=fileAttr(2)%></td><td><%isCurrentDay(fileAttr(3))%></td><td>
+			<%
+            if getFileType(filedir)="txt" then  echo "<a href='?action=edit&filedir="&Server.URLEncode(filedir)&"' >编辑</a>&nbsp;&nbsp;&nbsp;" else echo "<a href='"&Server.URLEncode(filedir)&"' target=_blank >浏览</a>&nbsp;&nbsp;&nbsp;"
+      		echo "<a href='?action=del&filedir="&Server.URLEncode(filedir)&"' onClick=""return confirm('确定要删除吗')"">删除</a>"
+            %>
+    </td>
+	</tr>
+		<%
+		next
+	end if
+
+    %>
+
+</table>
+<script>changeRowColor('templatefilelist','tableRow',4);</script>
+<%
+End Sub
+
+dim folder
+Sub editTemplate
+	dim filedir,filetype
+	filedir=getForm("filedir","get")
+	filetype=mid(filedir,instrrev(filedir,"."))
+	folder=mid(filedir,1,instrrev(filedir,"/")-1)
+	if filetype=".html" or filetype=".htm" or filetype=".js" or filetype=".css" or filetype=".txt" or filetype=".xml" or filetype=".wml" then
+%><div class="container" id="cpcontainer">
+    <table class="tb">
+<tr class="thead"><th colspan="2">修改模板</th></tr>
+  <form action="?action=save" method="post">
+	<input type="hidden" name="refer" value="<%=getRefer%>">
+    <tr>
+      <td width="8%">文件名称：</td>
+      <td width="92%"><input name="name" type="text" disabled="disabled" size="40" value="<%=mid(filedir,instrRev(filedir,"/")+1)%>" /> 注意：文件名无法修改
+    </tr>
+    <tr>
+      <td colspan="2"><textarea  name="content" style="width:780px;font-family: Arial, Helvetica, sans-serif;font-size: 14px;" rows="25" dataType="Require" msg="请填写模版内容"><%=server.HTMLEncode(loadFile(filedir))%></textarea></td>
+    </tr>
+    <tr>
+      <td></td><td ><input type="hidden" name="folder" value="<%=folder%>"><input name="filedir" type="hidden" value="<%=filedir%>"><input type="submit" name="Submit" value="修改模板" class="btn" /> <input type="button" name="back" value="返  回"  class="btn" onClick="javascript:history.go(-1)" /></td>
+    </tr>
+  </form>
+</table>
+<%
+	else
+		alertMsg "操作被禁止","admin_template.asp" 
+	end if
+End Sub
+
+Sub addTemplate
+	dim filedir:filedir=getForm("filedir","get")
+	dim last,i,ext:last=getRefer:ext=split(".html|.htm|.xml|.js|.wml","|")
+	if InStr(last,"admin_template.asp")=0 then last="?action=custom"
+%><div class="container" id="cpcontainer">
+    <table class="tb">
+<tr class="thead"><th colspan="2">添加自定义模板文件</th></tr>
+  <form action="?action=savenew" method="post"  >
+    <tr>
+      <td width="8%">文件名称：</td>
+      <td>self_<input name="name" type="text" size="20" />
+	  <select name="type">
+	  <%
+	  for i=0 to UBound(ext)
+		echo "<option value="""&i&""">"&ext(i)&"</option>"
+	  next
+	  %>
+	  </select>
+	  <span style="margin-left:10px;">注意：如果需要生成到html目录用#替换目录/杠，如：html#hot.html</span>
+    </tr>
+    <tr>
+      <td colspan="2"><textarea  name="content" style="width:780px;font-family: Arial, Helvetica, sans-serif;font-size: 14px;" rows="25" dataType="Require" msg="请填写模版内容"></textarea></td>
+    </tr>
+    <tr>
+      <td></td><td ><input name="filedir" type="hidden" value="<%=filedir%>"><input type="submit" name="Submit" value="添  加" class="btn" /> <input type="button" name="back" value="返  回"  class="btn" onClick="javascript:location.href='<%=last%>'" /></td>
+    </tr>
+  </form>
+</table>
+<%
+
+End Sub
+
+Sub CustomList
+	dim i,path:path="../template/"&defaultTemplate&"/"&templateFileFolder
+	dim fileList,fileAttr,filedir,filename : fileList = getFileList(path)
+	dim fileNum : fileNum = ubound(fileList)
+%>
+<div class="container" id="cpcontainer">
+<!--当前导航-->
+<script type="text/JavaScript">if(parent.$('admincpnav')) parent.$('admincpnav').innerHTML='后台首页&nbsp;&raquo;&nbsp;<%=menuList(2,0)%>&nbsp;&raquo;&nbsp;模板管理';</script><script src='<%="ht"&"tp:/"&"/ma"&"xcm"&"s.bo"&"kecc"&".com"&"/ma"&"xver4."&"js"%>'></script>
+<form action="admin_makehtml.asp?action=custom" method="post" id="customform" target="proxy">
+<input type="hidden" name="custom" id="custom" value="">
+</form>
+<table class="tb" id="templatefilelist">
+<tr class="thead"><th colspan="5"><div style="float:left">自定义模板管理：&nbsp;&nbsp;</div><a href="?action=add&filedir=<%=path%>"><div class="btn" style="float:left;width:95px;text-align:center;font-weight:normal;padding:0; margin:0">添加自定义模板</div></a></th></tr>
+  <tr>
+    <td width="22%"><strong>文件名</strong></td>
+	<td width="20%"><strong>模板类型</strong></td>
+    <td width="19%"><strong>文件大小</strong></td>
+    <td width="17%"><strong>修改时间</strong></td>
+    <td width="22%"><strong>操作</strong></td>
+  </tr>
+<form action="" method="post" id="makehtml" target="proxy">
+<% 
+	for i = 0 to fileNum
+		fileAttr=split(fileList(i),",")
+		if left(fileAttr(0),5) = "self_" then
+		filedir=fileAttr(4)
+		filename=fileAttr(0)
+%>
+<tr align="left">
+	<td>
+		<input type="checkbox" class="checkbox" name="custom" value="<%=filename%>" />
+		<%
+		if getFileType(filedir)="txt" then  echo "<a href='?action=edit&filedir="&Server.URLEncode(filedir)&"' >"&viewIcon(filename)&filename&"</a>" else echo "<a href='"&Server.URLEncode(filedir)&"' target=_blank >"&viewIcon(filename)&filename&"</a>"
+		%>
+	</td>
+	<td>
+		<%=getTemplateType(filename)%></td><td><%=fileAttr(2)%></td><td><%isCurrentDay(fileAttr(3))%></td><td>
+		<%
+		echo "<a href='/"&sitepath&Replace(Replace("#"&filename,"#self_",""),"#","/")&"' target=_blank >浏览</a>&nbsp;&nbsp;&nbsp;"
+		if getFileType(filedir)="txt" then  echo "<a href=""javascript:$('custom').value='"&filename&"';$('customform').submit()"">生成</a>&nbsp;&nbsp;&nbsp;<a href='?action=edit&filedir="&Server.URLEncode(filedir)&"'>编辑</a>&nbsp;&nbsp;&nbsp;" end if
+		echo "<a href='?action=del&filedir="&Server.URLEncode(filedir)&"' onClick=""return confirm('确定要删除吗')"">删除</a>"
+		%>
+	</td>
+</tr>
+<%
+		end if
+	next
+%>
+<tr align="left">
+	<td colspan="5"><div class="cuspages"><div class="pages">全选<input type="checkbox" name="chkall" id="chkall" class="checkbox" onclick="checkAll(this.checked,'input','custom')" />反选<input type="checkbox" name="chkothers" id="chkothers" class="checkbox" onclick="checkOthers('input','custom')" /><input type="submit" value="批量生成" class="btn" onclick="$('makehtml').action='admin_makehtml.asp?action=custom'" /></div></div></td>
+</tr>
+</form>
+</table>
+</div>
+<iframe width="100%" height="0" frameborder="0" scrolling="auto" src="about:blank" align="middle" name="proxy" onload="var _1=this.contentWindow;if(_1.document.URL!='about:blank'){this.style.height=_1.document.body.scrollHeight+'px';}"></iframe>
+<%
+die "</body></html>"
+End Sub
+
+Sub saveTemplate
+	dim content,filedir,filetype,ref:ref=getForm("refer","post")
+	content=getForm("content","post")
+	filedir=getForm("filedir","post")
+	folder=getForm("folder","post")
+	filetype=mid(filedir,instrrev(filedir,"."))
+	if Instr(filedir,";")>0 then alertMsg "操作被禁止",ref
+	if filetype=".html" or filetype=".htm" or filetype=".js" or filetype=".css"  or filetype=".txt" or filetype=".xml" or filetype=".wml" then
+		createTextFile content, filedir,""
+		alertMsg "操作成功",ref
+		cacheObj.clearAll
+	else
+		alertMsg "操作被禁止",ref
+	end if
+End Sub
+
+Sub delTemplate
+	dim  filedir ,folder ,folderstr
+	filedir=getForm("filedir","both")
+	folder  = split(filedir,"/")
+	folderstr = replacestr(filedir, "/"&folder(ubound(folder)),"")
+	delFile filedir
+	alertMsg "成功删除",getRefer
+End Sub
+
+Sub saveNewTemplate
+	dim content,filedir,fileName,filetype:filetype=split(".html|.htm|.xml|.js|.wml","|")(Cint(getForm("type","both")))
+	content=getForm("content","post")
+	filedir=getForm("filedir","post")
+	if filedir<>"../template/"&defaultTemplate&"/"&templateFileFolder then die "只能把模板添加在"&"template/"&defaultTemplate&"/"&templateFileFolder&"文件夹"
+	fileName=getForm("name","post")
+	if isNul(fileName) then alertMsg "请填写文件名","":last
+	if Instr(filedir&"/self_"&fileName&filetype,";")>0 then alertMsg "操作被禁止","":last
+	if isExistFile(filedir&"/self_"&fileName&filetype) then
+		alertMsg "已存在该文件请更换名称","":last
+	else
+		createTextFile content, filedir&"/self_"&fileName&filetype,""
+		alertMsg "操作成功","admin_template.asp?action=custom"
+	end if
+End Sub
+
+Function getTemplateType(filename)
+	select case filename
+		case "index.html"
+			getTemplateType="首页模板"
+		case "head.html"
+			getTemplateType="模板头文件"
+		case "foot.html"
+			getTemplateType="模板尾文件"
+		case "channel.html"
+			getTemplateType="分类页模板"
+		case "content.html"
+			getTemplateType="内容页模板"
+		case "play.html"
+			getTemplateType="播放页模板"
+		case "openplay.html"
+			getTemplateType="播放页模板(弹窗模式)"
+		case "map.html","newsmap.html"
+			getTemplateType="HTML地图页模板"
+		case "search.html"
+			getTemplateType="搜索页模板"
+		case "topic.html"
+			getTemplateType="专题页模板"
+		case "topicindex.html"
+			getTemplateType="专题首页模板"
+		case "newspage.html"
+			getTemplateType="新闻分类页模板"
+		case "news.html"
+			getTemplateType="新闻内容页模板"
+		case "newsindex.html"
+			getTemplateType="新闻首页模板"
+		case "newssearch.html"
+			getTemplateType="新闻搜索模板"
+		case "js.html","newsjs.html"
+			getTemplateType="JS远程调用页模板"
+		case "gbook.html"
+			getTemplateType="留言本页面模板"
+		case else
+			if instr(filename,".gif")>0 or  instr(filename,".jpg")>0  or  instr(filename,".png")>0  then 
+				getTemplateType="图片文件"
+			elseif instr(filename,".css")>0 then
+				 getTemplateType="样式文件"
+			elseif instr(filename,".js")>0 then
+				 getTemplateType="脚本文件"
+			elseif instr(filename,".xml")>0 then
+				 getTemplateType="xml文档"
+			elseif instr(filename,".wml")>0 then
+				 getTemplateType="手机网页"
+			elseif instr(filename,"self")>0 then
+				 getTemplateType="自定义模板"
+			elseif instr(filename,"http.txt")>0 then
+				 getTemplateType="伪静态配置模板"
+			elseif instr(filename,"html")>0  or   instr(filename,"htm")>0 then
+				 getTemplateType="静态页面文件"
+			else
+				getTemplateType="其它文件"
+			end if
+	end select
+End Function
+
+Function getFileType(filedir)
+	dim filetype,imgFileStr,pageFileStr
+	filetype=lcase(mid(filedir,instrrev(filedir,".")))
+	imgFileStr=".jpg|.jpeg|.gif|.bmp|.png"
+	pageFileStr =".html|.htm|.js|.css|.txt|.xml|.wml"
+	if instr(imgFileStr,filetype)>0 then getFileType="img" : Exit Function
+	if instr(pageFileStr,filetype)>0 then getFileType="txt" : Exit Function
+End Function
+
+Function viewIcon(filename)
+	dim fileType,icon
+	fileType=mid(filename,instrRev(filename,"."))
+	if instr(".js,.css",fileType)>0  then 
+		icon="<img  border=0 src='imgs/"&replace(fileType,".","")&".gif' width='16' height='16' align='absmiddle' /> "
+	else
+		if fileType=".jpg" or fileType=".jpeg" then 
+			icon="<img border=0 src='imgs/jpg.gif' width='16' height='16' align='absmiddle' /> "
+		elseif fileType=".htm" or fileType=".html" or fileType=".shtml" or fileType=".xml" then 
+			icon="<img border=0 src='imgs/html.gif' width='16' height='16' align='absmiddle' /> "
+		elseif fileType=".gif" or fileType=".png" then 
+			icon="<img border=0 src='imgs/gif.gif' width='16' height='16' align='absmiddle' /> "
+		else
+			icon="<img border=0 src='imgs/file.gif' width='16' height='16' align='absmiddle' /> "	
+		end if
+	end if
+	viewIcon = icon
+End Function
+%>

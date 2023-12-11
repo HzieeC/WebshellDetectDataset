@@ -1,0 +1,15 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.frame.util.*" %>
+
+<%
+	 request.setCharacterEncoding("UTF-8");
+	 HtmlCrawler htmlCrawler = new HtmlCrawler();
+	 boolean result = htmlCrawler.generator();
+	
+	if(result){
+		out.println("更新成功。");
+	}else{
+		out.println("更新失败。");
+	}
+%>

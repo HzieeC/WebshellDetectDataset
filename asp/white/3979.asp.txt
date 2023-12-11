@@ -1,0 +1,94 @@
+<!--#include file="const.asp"-->
+<!--#include file="../inc/md5.asp"-->
+<%
+Dim HtmlContent,LinkID,Action
+Dim m_strLinkName,m_strLinkUrl
+
+LinkID=NewAsp.ChkNumeric(Request("id"))
+If NewAsp.CheckStr(LCase(Request("action"))) = "del" Then
+	Call delLink()
+Else
+	Call Main()
+	Call TPL_Flush()
+End If
+NewAsp.PageEnd()
+
+Sub Main()
+	Dim Rs
+	Set Rs = Newasp.Execute("SELECT LinkID,LinkName,LinkUrl FROM NC_Link WHERE LinkID="& LinkID)
+	If Rs.BOF And Rs.EOF Then
+		Set Rs = Nothing
+		Call AlertScript("友情提示!\n\n错误的系统参数!",0):Exit Sub
+	Else
+		LinkID=Rs("LinkID")
+		m_strLinkName=NewAsp.HTMLEncode(Rs("LinkName"))
+		m_strLinkUrl=Replace(Replace(Rs("LinkUrl"), "<", ""), ">", "")
+	End If
+	HtmlContent = NewAsp.LoadTemplate("link\dellink")
+	HtmlContent = Replace(HtmlContent, "{$pagetitle}",  TPL_Config(7))
+	HtmlContent = Replace(HtmlContent, "{$classid}", 0)
+	HtmlContent = Replace(HtmlContent, "{$linkid}", LinkID)
+	HtmlContent = Replace(HtmlContent,"{$linkname}", m_strLinkName)
+	HtmlContent = Replace(HtmlContent,"{$linkurl}", m_strLinkUrl)
+	TPL_Scan HtmlContent
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Select Case sToken
+		Case "id"			:	TPL_Echo LinkID
+		Case "linkname"		:	TPL_Echo m_strLinkName
+		Case "linkurl"		:	TPL_Echo m_strLinkUrl
+	End Select
+	If Err Then Err.Clear
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	'***
+End Sub
+
+Sub delLink()
+	Dim Rs
+	If NewAsp.ChkNumeric(TPL_Config(13))>0 Then
+		Call AlertScript("友情提示!\n\n"&TPL_Config(14)&"",0):Exit Sub
+	End If
+	If Trim(Request.Form("password")) = "" Then
+		Call AlertScript("友情提示!\n\n密码不能为空。",0):Exit Sub
+	End If
+	If Not NewAsp.CodeIsTrue() Then
+		Call AlertScript("友情提示!\n\n验证码校验失败，请返回刷新验证码再试。",0):Exit Sub
+	End If
+	Set Rs = NewAsp.Execute("SELECT password FROM NC_Link WHERE LinkID="& LinkID)
+	If Rs.BOF And Rs.EOF Then
+		Set Rs = Nothing
+		Call AlertScript("友情提示!\n\n错误的系统参数。",0):Exit Sub
+	Else
+		If Not IsNull(Trim(Rs("password"))) And Trim(Rs("password")) <> "" Then
+			If Rs("password") <> md5(Request.Form("password"),16) Then
+				Set Rs = Nothing
+				Call AlertScript("友情提示!\n\n管理密码错误!",0):Exit Sub
+			End If
+		Else
+			Set Rs = Nothing
+			Call AlertScript("友情提示!\n\n管理密码无效!",0):Exit Sub
+		End If
+	End If
+	Set Rs = Nothing
+	
+	NewAsp.Execute("DELETE FROM NC_Link WHERE LinkID="& LinkID)
+	Response.Write "<script language=""JavaScript"">"
+	Response.Write "alert('友情提示!\n\n"&TPL_Config(15)&"');"
+	Response.Write "try{top.location.replace('index.asp');"
+	Response.Write "}catch(e){}"
+	Response.Write "</script>"
+End Sub
+
+%>

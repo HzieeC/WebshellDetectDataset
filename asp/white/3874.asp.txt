@@ -1,0 +1,332 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../inc/setup.asp"-->
+<!--#include file="../inc/const.asp"-->
+<!--#include file="../inc/check.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_userorder.asp
+' 更新日期：2008-09-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="100" align="left">充值定单管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_index.asp">管理首页</a>
+			 - <a href="admin_userorder.asp">所有定单列表</a>
+			 - <a href="?showmode=0">未处理定单</a>
+			 - <a href="?showmode=1">已处理定单</a>
+			 - <a href="admin_account.asp">交易明细查询</a>
+			 - <a href="admin_confirm.asp">交费确认</a>
+			 - <a href="admin_paymode.asp">付款方式</a>
+			 - <a href="admin_list.asp">用户列表</a>
+		</td>
+	</tr>
+</table>
+<%
+Dim maxperpage,totalrec,Pcount,pagelinks,showmode,pagenow,count
+Dim Action,listArry,SQLQuery
+
+If Not ChkAdmin("UserOrder") Then
+	Call Transfer_error()
+End If
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+Case "add"
+	Call addUserMoney()
+Case "view"
+	Call viewOrder()
+Case "del"
+	Call delOrder()
+Case "delfinish"
+	Call delFinishOrder()
+Case Else
+	Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+	Dim i,iCount,lCount
+	iCount=2:lCount=2
+	maxperpage = 30 '###每页显示数
+	count=NewAsp.ChkNumeric(Request("count"))
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+%>
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th nowrap="nowrap">定 单 号</th>
+	<th nowrap="nowrap">用 户 名</th>
+	<th nowrap="nowrap">支付金额</th>
+	<th nowrap="nowrap">支付标题</th>
+	<th nowrap="nowrap">提交日期</th>
+	<th nowrap="nowrap">付款方式</th>
+	<th nowrap="nowrap">状态</th>
+	<th nowrap="nowrap">操作</th>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="8" align="left" id="showNextPage">&nbsp;</td>
+</tr>
+<%
+	Call showMoneylist()
+	If IsArray(listArry) Then
+		For i=0 To Ubound(listArry,2)
+			If Not Response.IsClientConnected Then Response.End
+			If (i mod 2) = 0 Then iCount=2:lCount=1 Else iCount=1:lCount=2
+%>
+<tr align="center">
+	<td class="tablerow<%=iCount%> hovered" nowrap="nowrap"><a href="?action=view&id=<%=listArry(0,i)%>" title="查看定单信息"><font color="red"><%=listArry(4,i)%></font></a></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap="nowrap"><a href="admin_user.asp?action=edit&userid=<%=listArry(1,i)%>" title="查看会员信息"><%=listArry(2,i)%></a></td>
+	<td class="tablerow<%=iCount%> hovered"><%=FormatCurrency(listArry(5,i),2,-1)%>  元</td>
+	<td class="tablerow<%=iCount%> hovered" nowrap="nowrap"><%=NewAsp.HTMLEncodes(listArry(3,i))%></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap="nowrap"><%=showDateTime(listArry(6,i),"yyyy-MM-dd hh:mm:ss")%></td>
+	<td class="tablerow<%=iCount%> hovered"><%=NewAsp.HTMLEncodes(listArry(7,i))%></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap="nowrap"><%
+			If CLng(listArry(8,i))>0 Then
+				Response.Write "<font color=""blue"">已处理</font>"
+			Else
+				Response.Write "<a href=""?action=add&id="&listArry(0,i)&""" title=""点击处理此定单"" onClick=""return confirm('确定要处理此定单吗？')""><font color=""red"">未处理</font></a>"
+			End If
+	%></td>
+	<td class="tablerow<%=iCount%> hovered"><a href="?action=del&id=<%=listArry(0,i)%>" onClick="return confirm('确定要删除此定单吗？')">删 除</a></td>
+</tr>
+<%
+		Next
+		listArry=Null
+	End If
+%>
+<tr>
+	<td class="tablerow<%=lCount%>" colspan="8" id="NextPageText"><var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+<tr>
+	<td class="tablerow<%=iCount%>" colspan="8"><form method="Post" name="queryform" action="admin_userorder.asp">
+		<b>定单查询：</b><input name="word" type="text" size="50" class="alingmid" value="<%=Server.HTMLEncode(Request("word")&"")%>">
+		<b>条件：</b><select size="1" name="searchfield" class="alingmid">
+		<option value="1">定 单 号</option>
+		<option value="2">用 户 名</option>
+		<option value="3" selected>不限条件</option>
+		</select>
+		<input type="submit" name="query_button" value="开始查询" class="button alingmid">
+		<input type="checkbox" id="searchmode" name="searchmode" value="1" class="alingmid" /><label for="searchmode">精确查找</label>
+	</form></td>
+</tr>
+</table>
+<script type="text/javascript">
+document.getElementById("showNextPage").innerHTML = document.getElementById("NextPageText").innerHTML;
+</script>
+<%
+End Sub
+
+Sub showMoneylist()
+	Dim Rs,SQL,Keyword,searchfield,searchmode
+	Keyword=NewAsp.CheckStr(Request("word"))
+	If Len(Keyword)>1 Then
+		searchfield=NewAsp.ChkNumeric(Request("searchfield"))
+		searchmode=NewAsp.ChkNumeric(Request("searchmode"))
+		Select Case searchfield
+			Case 1
+				If IsSqlDataBase=1 Then
+					SQLQuery="WHERE OrderForm like '%"&keyword&"%'"
+				Else
+					SQLQuery="WHERE InStr(1,LCase(OrderForm),LCase('"&keyword&"'),0)>0"
+				End If
+				If searchmode=1 Then SQLQuery="WHERE OrderForm='"&keyword&"'"
+			Case 2
+				If IsSqlDataBase=1 Then
+					SQLQuery="WHERE username like '%"&keyword&"%'"
+				Else
+					SQLQuery="WHERE InStr(1,LCase(username),LCase('"&keyword&"'),0)>0"
+				End If
+				If searchmode=1 Then SQLQuery="WHERE username='"&keyword&"'"
+			Case Else
+				If IsSqlDataBase=1 Then
+					SQLQuery="WHERE (OrderForm like '%"&keyword&"%' Or username like '%"&keyword&"%')"
+				Else
+					SQLQuery="WHERE (InStr(1,LCase(OrderForm),LCase('"&keyword&"'),0)>0 Or InStr(1,LCase(username),LCase('"&keyword&"'),0)>0)"
+				End If
+				If searchmode=1 Then SQLQuery="WHERE OrderForm='"&keyword&"'"
+		End Select
+	Else
+		If Trim(Request("showmode"))<>"" Then
+			If NewAsp.ChkNumeric(Request("showmode"))=0 Then
+				SQLQuery="WHERE finished=0"
+			Else
+				SQLQuery="WHERE finished=1"
+			End If
+		Else
+			SQLQuery=""
+		End If
+	End If
+	If count=0 Then
+		totalrec=NewAsp.Execute("SELECT COUNT(*) FROM [NC_AddMoney] "&SQLQuery&"")(0)
+	Else
+		totalrec=count
+	End If
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	pagelinks="?showmode="&Request("showmode")&"&word="&Request("word")&"&searchfield="&Request("searchfield")&"&count="&totalrec&"&"
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT id,userid,username,title,OrderForm,addmoney,addtime,paytype,finished,deletion FROM [NC_AddMoney] "&SQLQuery&" ORDER BY id DESC"
+	Rs.Open SQL,Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		listArry=Rs.GetRows(maxperpage)
+	Else
+		listArry=Null
+	End If
+	Rs.close()
+	Set Rs=Nothing
+End Sub
+
+Sub delFinishOrder()
+	NewAsp.Execute("DELETE FROM NC_AddMoney WHERE finished>0")
+	Response.Redirect Request.ServerVariables("HTTP_REFERER")
+End Sub
+
+Sub delOrder()
+	If Not IsNumeric(Request("id")) Then
+		Founderr = True
+		ErrMsg = ErrMsg + "<li>请正确输入ID！</li>"
+		Exit Sub
+	End If
+	NewAsp.Execute("DELETE FROM NC_AddMoney WHERE id="& CLng(Request("id")))
+	Response.Redirect Request.ServerVariables("HTTP_REFERER")
+End Sub
+
+Sub addUserMoney()
+	Dim Rs
+	If Not IsNumeric(Request("id")) Then
+		Founderr = True
+		ErrMsg = ErrMsg + "<li>请正确输入ID！</li>"
+		Exit Sub
+	End If
+	Set Rs = NewAsp.Execute("SELECT * FROM NC_AddMoney WHERE finished=0 And id="& CLng(Request("id")))
+	If Rs.BOF And Rs.EOF Then
+		Founderr = True
+		ErrMsg = ErrMsg + "<li>错误的系统参数，或者此定单已经处理！</li>"
+		Set Rs = Nothing
+		Exit Sub
+	Else
+		NewAsp.Execute ("UPDATE NC_User SET usermoney=usermoney+"& CCur(Rs("addmoney")) &" WHERE username='"& Rs("username") &"' And userid="& CLng(Rs("userid")))
+		NewAsp.Execute ("UPDATE NC_AddMoney SET finished=1 WHERE id="& CLng(Request("id")))
+		Dim sqlAccount,rsAccount
+		Set rsAccount=NewAsp.CreateAXObject("ADODB.Recordset")
+		sqlAccount = "SELECT * FROM NC_Account WHERE (AccountID is null)"
+		rsAccount.Open sqlAccount,Conn,1,3
+		rsAccount.addnew
+			rsAccount("payer").Value = Rs("username").Value
+			rsAccount("payee").Value = NewAsp.Mainsetting(1)
+			rsAccount("product").Value = Rs("title").Value
+			rsAccount("Amount").Value = 1
+			rsAccount("unit").Value = "次"
+			rsAccount("price").Value = Rs("addmoney").Value
+			rsAccount("TotalPrices").Value = Rs("addmoney").Value
+			rsAccount("DateAndTime").Value = Now()
+			rsAccount("Accountype").Value = 0
+			rsAccount("Explain").Value = Rs("readme").Value
+			rsAccount("Reclaim").Value = 0
+		rsAccount.update
+		rsAccount.Close:Set rsAccount = Nothing
+		Succeed("<li>定单处理完成。</li><li>您已成功为用户：<b>" & Rs("username") & "</b> 充值金额" & FormatCurrency(Rs("addmoney"),2,-1) & " 元</li>")
+	End If
+	Set Rs = Nothing
+End Sub
+
+Sub saveaccount()
+	Dim sqlAccount,rsAccount
+	Set rsAccount=NewAsp.CreateAXObject("ADODB.Recordset")
+	sqlAccount = "SELECT * FROM NC_Account WHERE (AccountID is null)"
+	rsAccount.Open sqlAccount,Conn,1,3
+	rsAccount.addnew
+		rsAccount("payer").Value = Request.Form("payer")
+		rsAccount("payee").Value = Request.Form("payee")
+		rsAccount("product").Value = Request.Form("product")
+		rsAccount("Amount").Value = Request.Form("Amount")
+		rsAccount("unit").Value = Request.Form("unit")
+		rsAccount("price").Value = Request.Form("price")
+		rsAccount("TotalPrices").Value = Request.Form("TotalPrices")
+		rsAccount("DateAndTime").Value = Now()
+		rsAccount("Accountype").Value = 0
+		rsAccount("Explain").Value = Request.Form("Explain")
+		rsAccount("Reclaim").Value = 0
+	rsAccount.update
+	rsAccount.Close:Set rsAccount = Nothing
+End Sub
+
+Sub viewOrder()
+	Dim Rs
+	Set Rs = NewAsp.Execute("SELECT * FROM NC_AddMoney WHERE id="& CLng(Request("id")))
+	If Rs.BOF And Rs.EOF Then
+		Founderr = True
+		ErrMsg = ErrMsg + "<li>错误的系统参数！</li>"
+		Set Rs = Nothing
+		Exit Sub
+	End If
+%>
+<form action="?action=add" method="post" name="addform">
+<input type="hidden" name="id" value="<%=Rs("id")%>">
+<table class="tableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="2">查看定单信息</th>
+	</tr>
+	<tr>
+		<td class="tablerow1" align="right" width="25%"><b>会员名称：</b></td>
+		<td class="tablerow1" width="75%"><a title="查看会员信息" href="admin_user.asp?action=edit&amp;userid=<%=Rs("userid")%>"><font color="#0000ff"><%=Rs("username")%></font></a></td>
+	</tr>
+	<tr>
+		<td class="tablerow2" align="right"><b>充值定单号：</b></td>
+		<td class="tablerow2"><font color="#ff0000"><%=NewAsp.HTMLEncodes(Rs("OrderForm"))%></font></td>
+	</tr>
+	<tr>
+		<td class="tablerow1" align="right"><b>充值的金额：</b></td>
+		<td class="tablerow1"><font color="#ff0000"><%=FormatCurrency(Rs("addmoney"),2,-1)%></font> 元</td>
+	</tr>
+	<tr>
+		<td class="tablerow2" align="right"><b>充值类型：</b></td>
+		<td class="tablerow2"><%=NewAsp.HTMLEncodes(Rs("title"))%></td>
+	</tr>
+	<tr>
+		<td class="tablerow1" align="right"><b>支付方式：</b></td>
+		<td class="tablerow1"><%=NewAsp.HTMLEncodes(Rs("paytype"))%></td>
+	</tr>
+	<tr>
+		<td class="tablerow2" align="right"><b>提交日期：</b></td>
+		<td class="tablerow2"><%=Rs("addtime")%></td>
+	</tr>
+	<tr>
+		<td class="tablerow1" align="right"><b>处理状态：</b></td>
+		<td class="tablerow1"><%
+		If Rs("finished") > 0 Then
+			Response.Write "<font color=""blue"">已处理</font>"
+		Else
+			Response.Write "<font color=""red"">未处理</font>"
+		End If
+		%></td>
+	</tr>
+	<tr>
+		<td class="tablerow2" align="right"><b>其它说明：</b></td>
+		<td class="tablerow2">&nbsp;&nbsp;<%=NewAsp.HTMLEncodes(Rs("readme"))%></td>
+	</tr>
+	<tr align="center">
+		<td class="tablerow1" colspan="2"><input class="button" type="submit" name="submit_button" value=" 处理定单 " />&nbsp;&nbsp; <input class="button" type="button" onclick="javascript:history.go(-1)" name="go_button" value="返回上一页" /></td>
+	</tr>
+</table>
+</form>
+<%
+	Set Rs = Nothing
+End Sub
+%>

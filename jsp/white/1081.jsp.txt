@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%
+	String _user_id = "";	
+	if( session.getAttribute("session_user_id") != null ){
+		_user_id = session.getAttribute("session_user_id").toString();
+	}
+	String menu_id = "";
+	if (request.getParameter("menu_id") != null){
+		menu_id = request.getParameter("menu_id");
+	}
+	
+	String webtitle = "";
+%>
+<html>
+<head>
+	<title>会员中心</title>
+	<meta http-equiv="x-ua-compatible" content="ie=7" />
+	<link href="/program/member/index/css/ht.css" rel="stylesheet" type="text/css" />
+	<link type="text/css" rel="stylesheet" href="/templets/html/8diansc/css/main_right.css">
+	<script src="/program/member/index/js/SetTab.js" type="text/javascript"></script>
+</head>
+<body>
+<!--正文开始-->
+
+<div class="f-right">
+<%
+  if( !_user_id.equals( "" ) || _user_id != "" ){
+%>
+	<%@ include file="orderdetail.jsp"%>
+<%
+ }else{
+%>
+<script type="text/javascript">
+		window.open("/signin.html");
+	</script>
+<%
+  }
+%>	
+</div>
+<!--正文结束-->
+<div class="clear"></div>
+
+
+
+
+<!--底部结束-->
+
+</body>
+</html>

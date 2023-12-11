@@ -1,0 +1,87 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.trade.ts_module.*" %>	
+<%
+ request.setCharacterEncoding("UTF-8");
+ 
+ Ts_moduleInfo moinfo = new Ts_moduleInfo();
+ 
+ String select = moinfo.getModeulSelect();
+%>
+<html>
+  <head>
+   	<title>更新详细页</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="channelindex.js" charset="UTF-8"></script> 
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>更新详细页</h1>
+			</td>
+			<td>
+				<!--a href="addInfo.jsp"><img src="/program/admin/index/images/post.png" /></a-->
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	
+	<!--<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>关于文件地址</h4>
+		  <span>1、“文件地址”相对于项目根目录路劲+输入框所输地址，“/”代表直接放在项目更目录下。</span><br/>
+		  <span>2、“文件默认名称”指生成后Html文件名。</span>
+		  </td>
+        </tr>
+      </table>-->
+      <br/>
+	
+	<table width="100%" cellpadding="2" cellspacing="2" border="0" class="dl_su">
+		<tr>
+			<td align="left" width="20%"  style="border:0px solid red">
+				请选择信息类型<font color="red">*</font>				
+			</td>
+			<td  align="left">
+			
+				<select name="ch_id" id="ch_id"  style="width:140px" >
+				   <option value="">请选择...</option>
+				   <%=select%>
+				</select>	
+			</td>
+ 		
+		</tr>
+
+		<tr>
+			<td align="left" width="20%"  style="border:0px solid red">
+				输入更新数量，强制更新全部页面:
+			</td>
+			<td  align="left">
+				从<input type="text" size="5" maxlength="10" name="start" id="start" value="0" onkeydown="if(isNaN(this.value)){this.value='0';}"/>
+				到
+				<input type="text" size="5" maxlength="10" name="row" id="row" value="0"/> 两个数值都为0的情况下，为增量更新（更新修改过和新增的页面）
+ 			</td>
+		</tr>
+
+
+		<tr>
+			<td align="left" colspan="2">
+				<input type="button" name="delInfo" onclick="updateContent()" value="更新" class="buttab"/> 
+				
+				<div id="backMessage"></div>
+				
+			</td>
+		</tr>
+	</table>
+
+	  </form>
+</body>
+
+</html>

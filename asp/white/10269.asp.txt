@@ -1,0 +1,126 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<%link="person_resume.asp"%>
+<!--#include file="checkpmember.asp" -->
+<!--#include file="flagandexpend.asp" -->
+<%if request("rid")<>"" then
+rid=clng(trim(request("rid")))
+end if
+Action=trim(Request("Action"))
+Select Case Action
+	Case "Activate"
+		Call Activate()
+	Case "Refresh"
+		Call Refresh()
+	Case "Del"
+		Call Del()
+End Select
+Sub Activate()
+conn.execute("update job_p_resume set resume_cnstatus=0 where resume_pmember='"&pmember_login&"'")
+conn.execute("update job_p_resume set resume_cnstatus=1 where resume_id="&rid&" and resume_pmember='"&pmember_login&"'")
+Call Person_Newresume()
+End Sub
+Sub Refresh()
+conn.execute("update job_p_resume set resume_announcedate="&FR_HR_Now&" where resume_id="&rid&" and resume_pmember='"&pmember_login&"'")
+Call Person_Newresume()
+End Sub
+Sub Person_Newresume()
+'生成静态页面
+if CreateHTML=1 then
+	'查是否有简历是激活和完善的
+	set rsp=Server.CreateObject("ADODB.RecordSet")
+	sqlp="Select resume_id from JOB_P_resume where resume_cnstatus=1 and resume_openness=0 and resume_pmember='"&request.Cookies(FRHRCMS)("user_login")&"'"
+	rsp.open sqlp,conn,1,1
+	if not rsp.eof then
+		resume_id=rsp("resume_id")
+		Call PersonResumeContentHtml(resume_id)
+	end if
+	rsp.close
+	set rsp=nothing
+end if
+End Sub
+Sub Del()
+'删除生成的静态页面
+if CreateHTML=1 then
+	Call PersonResumeContentDelHtml(rid)
+end if
+conn.execute("delete from job_p_education where education_resumeid="&rid&" and education_pmember='"&pmember_login&"'")
+conn.execute("delete from job_p_training where train_resumeid="&rid&" and train_pmember='"&pmember_login&"'")
+conn.execute("delete from job_p_lang where lang_resumeid="&rid&" and lang_pmember='"&pmember_login&"'")
+conn.execute("delete from job_p_work where work_resumeid="&rid&" and work_pmember='"&pmember_login&"'")
+conn.execute("delete from job_p_resume where resume_id="&rid&" and resume_pmember='"&pmember_login&"'")
+End Sub
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>简历列表--<%=SiteTitle%></title>
+<link href="../member/css.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div class="memmenul">
+<div class="leftmenutit"><span>简历列表</span></div>
+<table width="98%" border="0" cellspacing="0" cellpadding="0" class="mtable" align="center">
+  <tr>
+    <td>专家提醒：简历更要保“鲜”！点击列表中的 <span class="tdcolor">"刷新"</span> 链接刷新你的简历，会让企业更优先找到你！</td>
+  </tr>
+<%
+set rs=server.createobject("ADODB.Recordset")
+sql="select * from job_p_resume where resume_pmember='"&pmember_login&"' order by resume_announcedate desc"
+rs.open sql,conn,1,1
+if not rs.eof then
+%>
+  <tr>
+    <td><table width="100%" border="0" align="center" cellpadding="0" cellspacing="0" class="mtable" style="border:1px #ABCEE2 solid;">
+    <tr>
+      <td align="center" valign="middle"><b>简历名称</b></td>
+      <td align="center" valign="middle"><b>简历状态</b></td>
+      <td align="center" valign="middle"><b>浏览次数</b></td>
+      <td align="center" valign="middle"><strong>浏览记录</strong></td>
+      <td align="center" valign="middle"><b>简历</b></td>
+	  <td align="center" valign="middle"><b>操作</b></td>
+    </tr>
+<%do while not rs.eof%>
+    <tr>
+      <td align="left" valign="middle">&nbsp; <%=rs("resume_title")%></td>
+      <td align="center" valign="middle"><%if rs("resume_cnstatus")=1 then response.write "<IMG height=20 alt='简历已激活' src='../images/sign_01.gif' width=19 border=0><font class=tit>已激活</font>" else response.write "<IMG height=20 alt='简历未激活' src='../images/sign_03.gif' width=19 border=0><font color='#ff0000'><b>未激活</b></font>" end if%></td>
+      <td align="center" valign="middle">
+	  <%
+	   	sqlmm="select count(resume_id) from JOB_P_resumehistory where resume_id="&rs("resume_id")&""
+	  	set rsmm=Server.CreateObject("ADODB.RecordSet")
+		rsmm.open sqlmm,conn,1,1
+		if rsmm.eof then
+			countnum=0
+		else
+			countnum=rsmm(0)
+		end if
+	  %>
+	  <%=countnum%>
+	  次</td>
+      <td align="center" valign="middle"><a href="person_rbrower.asp?pid=<%=rs("resume_id")%>" title="查看浏览详细记录">查看</a></td>
+      <td align="center" valign="middle"><%if rs("resume_personinfo")<>1 or rs("resume_education")<>1 or rs("resume_train")<>1 or rs("resume_work")<>1 or rs("resume_careerwill")<>1 then%><strong><font color="#FF0000">不完整</font></STRONG><input type="button" class="inputs" style="cursor:hand" onClick="javascript:window.location='person_baseinfo.asp?rid=<%=rs("resume_id")%>'" value="完善此简历"><%else%>完整<%end if%></td>
+	  <td align="center"><a href="vip.asp">激活</a>&nbsp;&nbsp;<a href="cnpreview.asp?rid=<%=rs("resume_id")%>" target=_blank>预览</a>&nbsp;&nbsp;<a href="vip.asp">修改</a>&nbsp;&nbsp;<a href="person_resume.asp?Action=Refresh&rid=<%=rs("resume_id")%>">刷新</a>&nbsp;&nbsp;<a href="#" onClick="if (confirm('确定要删除吗？')) window.location='vip.asp'">删除</a></td>
+    </tr>
+<%
+rs.movenext
+loop
+else
+Response.Write("尚未创建简历！")
+end if
+rs.close
+set rs=nothing
+%>
+</table></td>
+  </tr>
+  <tr>
+    <td class="tdcolor">注：您可以创建 <strong><%if Group_Plimits(6)=0 then%>无限<%else%><%=Group_Plimits(6)%><%end if%></strong> 份简历，用于申请不同的职位。只有处于“<strong>激活</strong>”状态的简历才可以被招聘单位查询。</td>
+  </tr>
+  <tr>
+    <td><input name="babb" type="button" id="babb" class="inputs" onClick="javascript:window.location='person_baseinfo.asp'" value="创建一份中文简历" /></td>
+  </tr>
+</table>
+</div>
+<%conn.close:set conn=nothing%>

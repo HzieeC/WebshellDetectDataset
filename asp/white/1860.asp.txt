@@ -1,0 +1,379 @@
+<!--#include file="conn.asp"-->
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/dv_clsother.asp"-->
+<!--#include file="inc/dv_Template.inc"-->
+<!--#include file="Dv_plus/IndivGroup/Dv_IndivGroup_Config.asp"-->
+<%
+'显示头部
+Dvbbs.LoadTemplates("dispbbs")
+Dvbbs.LoadTemplates("")
+Dvbbs.Stats = "每日签到"
+Dvbbs.Nav
+Dvbbs.Head_Var 0,0,"每日签到","sign.asp"
+Dvbbs.Name = "Medal"
+
+'Dvbbs.Head_var 1,"","",""
+
+'若是版主签到就把这个打开 使用 sign.asp?boardid=1访问
+'Dim IsThisBoardMaster 确定当前用户是否本版版主，防止下面的操作影响到 Dvbbs.BoardMaster导致出错
+'IsThisBoardMaster = Dvbbs.BoardMaster
+'If Not IsThisBoardMaster Then
+'	Response.Write "<script>alert('次功能只供版主使用');location='index.asp'</script>"
+'	Response.End
+'End If
+
+'验证用户是否登录
+'If Dvbbs.MemberName = "" Then
+If Dvbbs.UserID <= 0 Then
+	Response.Write "<script>alert('你尚未登录');location='index.asp'</script>"
+	Response.End
+End If
+
+Dim sign_dbfile  : sign_dbfile = getdbpath(db)&"sign.mdb"  'sign.mdb的路径
+	' 更新金币 UserMoney 
+	' 更新点券 UserTicket
+	' 更新经验 UserEP
+	' 更新魅力 UserCP
+	' 更新金钱 UserWealth
+	' 更新威望 UserPower
+Dim addtype      : addtype = "UserWealth"   '增加积分
+Dim addtypename  : addtypename = "金钱"
+Dim maxrows      : maxrows=100  '显示前maxrows名用户
+Dim defaultmoney : defaultmoney = 1 '签到最少能获得的金币数
+Dim maxpercent   : maxpercent =888 '中奖几率最小为 1/maxpercent
+'获得1金币的几率为  1金币=>500/maxpercent
+Dim moneydb      : moneydb="1=>500,"& _
+				                   "2=>200,"& _
+				                   "10=>100,"& _
+				                   "20=>50,"& _
+				                   "50=>20,"& _
+				                   "100=>10,"& _
+				                   "200=>5,"& _
+				                   "500=>2,"& _
+				                   "1000=>1,"
+Dim fullmoney    : fullmoney =30 '满勤奖金币数
+Dim grade(10)
+Dim IP           : IP =	Dvbbs.UserTrueIP '签到用户的ip
+Dim isdisplayip  : isdisplayip=true      '是否显示签到用户的ip
+Dim money        : money=defaultmoney '增加的金币数
+Dim addfullmoney :addfullmoney =0 '增加的满勤金币
+Dim logtime      : logtime = getnow()
+Dim sql,rs,r
+Dim conn_sign    'signdb的链接 不可以改为conn  因为 conn 是dv使用的专有变量
+Dim today        : today=gettoday() '今日0点
+Dim i            : i=0
+Dim dbpath                       '实际路径
+Dim issigned    : issigned=false '是否已经签到过
+Dim insertid    : insertid=0     '最新一条记录id
+Dim islastday   : islastday=false'是否是月末
+Dim signnum     : signnum=0      '今日签到人数
+
+set conn_sign=server.createobject("adodb.connection")
+dbpath=server.MapPath(sign_dbfile)
+conn_sign.open "driver={microsoft access driver (*.mdb)};dbq=" & dbpath
+
+'判断该用户今天是否已经签到
+sql="select count(id) as c from sign_log where userid="& Dvbbs.UserID & " and logtime >= '" & today & "'"
+set rs=server.createobject("adodb.recordset") 
+rs.open sql,conn_sign,1,3 
+conn_sign.execute sql
+If rs("c") > 0 Then
+	'Response.Write "<script>alert('你已经签到');window.history.go(-1)</script>":Response.End
+	Response.Write "<script>alert('你已经签到,一天只能签到一次-_-');</script>"
+	issigned=true
+End If
+
+'issigned=false
+If NOT issigned Then
+	
+	'计算增加金币
+	randomize
+	r=int(maxpercent*rnd)
+	moneydb=split(moneydb,",")
+	Dim t,percent:percent=0
+	For i=0 to ubound(moneydb)
+		t=split(moneydb(i),"=>")
+		If ubound(t) = 1 Then
+			percent=percent+int(t(1))
+			If r < percent Then
+				money=t(0)
+				exit for
+			End If
+		End If
+	next
+	
+	
+	Dim lastday: lastday=getlastday()
+	'判断全勤
+	If Day(date()) = lastday Then '最后一天
+		Dim firstday:firstday=getfirstday()
+		islastday=true
+		sql="select count(id) as c from sign_log where userid="& Dvbbs.UserID & " and logtime >= '" & firstday & "'"
+		set rs=server.createobject("adodb.recordset") 
+		rs.open sql,conn_sign,1,3 
+		conn_sign.execute sql
+		If rs("c") >= lastday-1 Then
+			addfullmoney=fullmoney
+		End If
+	End If
+	'签到log
+	sql="insert into sign_log (userid,username,ip,addmoneys,fullmoneys,logtime) values ('"& Dvbbs.UserID &"','"& Dvbbs.MemberName & "','" & IP & "','" & money & "','" & addfullmoney & "','" & logtime & "')"
+	set rs = conn_sign.execute(sql) 
+
+
+	sql="SELECT @@IDENTITY" 
+	set rs = conn_sign.execute(sql) 
+  insertid=rs(0) 
+	rs.close
+	set rs = nothing 
+    
+	If Err.number <> 0 Then
+		response.write "签到失败：" & err.description 
+		response.End
+	End If
+	
+	response.write "<script>alert('签到成功^_^');</script>"
+	
+	sql="update [Dv_user] set "&addtype&"="&addtype&"+"& (money+addfullmoney) &" where UserID=" & Dvbbs.UserID
+	DvBBS.Execute(sql)
+End If
+
+
+'获取今日签到人数
+sql="select count(id) as c from sign_log where logtime >= '" & today & "'"
+set rs=server.createobject("adodb.recordset") 
+rs.open sql,conn_sign,1,3 
+conn_sign.execute sql
+signnum=rs("c")
+
+'显示今日签到列表 安金币数排序
+	If islastday Then
+    sql="select top "& maxrows &" * from sign_log where logtime >= '" & today & "' order by fullmoneys desc,addmoneys desc,logtime desc"
+  Else
+  	sql="select top "& maxrows &" * from sign_log where logtime >= '" & today & "' order by addmoneys desc,logtime desc"
+  End If
+	
+	set rs=server.createobject("adodb.recordset") 
+	rs.open sql,conn_sign,1,3 
+	conn_sign.execute sql
+	
+	'显示本月获得全勤奖 按金币数排序
+	Dim stime:stime=getlastmonthfirstday()
+	Dim tt:tt="上月"
+	Dim isshowqq:isshowqq=false
+	Dim tb1:tb1=100
+	If islastday Then
+		tt="本月"
+		stime=firstday()
+	End If
+	sql="select userid,username,fullmoneys from sign_log where logtime >= '" & stime & "' and fullmoneys <> 0 order by fullmoneys desc,logtime desc"
+	Dim rs2				
+	set rs2=server.createobject("adodb.recordset") 
+	rs2.open sql,conn_sign,1,3 
+	conn_sign.execute sql
+	If rs2.recordcount > 0  Then
+		isshowqq=true
+		tb1=70
+	End If
+	
+function gettoday()
+		Dim m : m=month(date())
+		If m < 10 Then
+			m="0"&m
+		End If
+		Dim d : d=day(date())
+		If d < 10 Then
+			d="0"&d
+		End If
+		gettoday =year(date())&"-"& m &"-"& d &" 00:00:00"
+end function
+function getnow()
+		Dim m : m=month(date())
+		If m < 10 Then
+			m="0"&m
+		End If
+		Dim d : d=day(date())
+		If d < 10 Then
+			d="0"&d
+		End If
+		Dim H : H=hour(time())
+		If H < 10 Then
+			H="0"&H
+		End If
+		Dim i : i=minute(time())
+		If i < 10 Then
+			i="0"& i
+		End If
+		Dim s : s=second(time())
+		If s < 10 Then
+			s="0"& s
+		End If
+		getnow =year(date())&"-"& m &"-"& d &" "&H&":"&i&":"&s&""
+end function
+function getlastday()
+		Dim ThisDate,NextDate
+		ThisDate = Date() 
+		NextDate = DateAdd("m", 1, ThisDate) 
+		getlastday=Day(DateAdd("d", -1, Year(NextDate) & "-" & Month(NextDate) & "-1"))
+end function
+function getfirstday()
+		Dim m : m=month(date())
+		If m < 10 Then
+			m="0"&m
+		End If
+		getfirstday =year(date())&"-"& m &"-01 00:00:00"
+end function
+function getlastmonthfirstday()
+		Dim m : m=Month(DateAdd("m", -1, day(date())))
+		If m < 10 Then
+			m="0"&m
+		End If
+		getlastmonthfirstday =year(DateAdd("m", -1, day(date())))&"-"& m &"-01 00:00:00"
+end function
+function getdbpath(strPath)
+	Dim breakpos:breakpos=0
+	breakpos=instrrev(strPath,"/")
+	If breakpos <= 0 Then
+		breakpos=instrrev(strPath,"\")
+	End If
+	getdbpath=mid(strPath,1,breakpos)
+end function
+%>
+<style>
+	.tableborder td { padding:2px 1px; line-height:12px; }
+</style>
+
+
+	<div class="mainbox">	
+	<div id="Tab">
+		<div class="Menubox">
+		<ul>
+			
+		   
+		   
+		   <li>每日签到</li>
+		   
+		</ul>
+		</div>		
+		<div class="Contentbox">  
+			
+			
+				<div>
+					
+<p><img src="/images/number/n1.gif"><font color=#535C63>&nbsp;&nbsp;每个用户每日只能签到一次;</font><br></p>
+<p><img src="/images/number/n2.gif"><font color=#535C63>&nbsp;&nbsp;每日签到用户均有机会获得1~1000<%=addtypename%>,最低能得到1<%=addtypename%>;</font><br></p>
+<p><img src="/images/number/n3.gif"><font color=#535C63>&nbsp;&nbsp;若有客户一个月内每天都签到，获得满勤奖:<%=fullmoney%><%=addtypename%>,每个月最后一日统计;</font><br></p>
+<p><img src="/images/number/n4.gif"><font color=#535C63>&nbsp;&nbsp;本列表只显示前100名得奖最高的。</font><br></p>
+				</div>
+			
+			
+			
+		</div>
+	</div>
+</div>
+	<br />
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+	<tr>
+		<td width="100%" align="right" class="TextBoxFocus">
+			今日共有<%=signnum%>个用户签到
+	</td>
+</table>
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+	<tr width="100%">
+		<td width="<%=tb1%>%" valign="top" style="padding:0;margin:0">
+				<table border=1 width="100%" class="tableborder" cellspacing="0" cellpadding="0" style="padding:0;margin:0;width:100%">
+      			<tr class="thh">
+      				<td>用户id</td>	
+      				<td>用户名</td>
+      				<%
+      					If isdisplayip Then
+      						Response.Write "<td>登录ip</td>" & vbCrLf
+      					End If
+      				%>
+      				<td><%=addtypename%></td>
+      				<%
+      					If islastday Then
+      						Response.Write "<td>全勤奖</td>" & vbCrLf
+      					End If
+      				%>
+      				<td>时间</td>
+      			</tr>
+      			<%
+      				 Dim jj:jj=0
+      				 Dim bgclass:bgclass="class='tableborder2'"
+      			   do while not rs.eof
+      			   	If insertid = 0 Then
+      			   		jj=jj+1
+      			   		If (jj mod  2) = 0 Then
+      			   			bgclass="class='tableborder2'"
+      			   		Else
+      			   			bgclass="class='tablebody2'"
+      			   		End If
+	      			   	If rs("userid") = Dvbbs.UserID Then
+	      						Response.Write vbCrLf &"      			<tr  class='tablebody3'>" & vbCrLf
+	      					Else 
+	      						Response.Write vbCrLf &"      			<tr "& bgclass &">" & vbCrLf
+	      					End If
+	      				Else
+	      					If rs("id") = insertid Then
+	      						Response.Write vbCrLf &"      			<tr  class='tablebody3'>" & vbCrLf
+	      					Else 
+	      						Response.Write vbCrLf &"      			<tr "& bgclass &">" & vbCrLf
+	      					End If
+	      				End If
+								Response.Write "      				<td>"&rs("userid")&"</td>"& vbCrLf
+								Response.Write "      				<td>"&rs("username")&"</td>"& vbCrLf
+								If isdisplayip Then
+									Response.Write "      				<td>"&rs("ip")&"</td>"& vbCrLf
+								End If
+								Response.Write "      				<td><font color=red>+"&rs("addmoneys")&"</font></td>"& vbCrLf
+      					If islastday Then
+      						Response.Write "      				<td><font color=red>+"&rs("fullmoneys")&"</font></td>"& vbCrLf
+      					End If
+								Response.Write "      				<td>"&rs("logtime")&"</td>"& vbCrLf 
+								Response.Write "</tr>"& vbCrLf
+      					rs.movenext 
+							loop
+							rs.close
+							set rs = nothing 
+      				%>
+      	</table>
+       </td>
+			<%	If isshowqq Then %><td width="30%" valign="top">
+      			<table border=1 width="100%" class="tableborder" cellspacing="0" cellpadding="0" style="padding:0;margin:0">
+      			<tr class="thh">
+      				<td>用户名</td>			
+      				<td><%=tt%>全勤奖</td>
+      			</tr>
+      			<%
+      				do while not rs2.eof
+      					If rs2("userid") = Dvbbs.UserID Then
+	      						Response.Write vbCrLf &"      			<tr  class='tablebody3'>" & vbCrLf
+	      				Else 
+	      						Response.Write vbCrLf &"      			<tr "& bgclass &">" & vbCrLf
+	      				End If
+	      				Response.Write "      				<td>"&rs2("username")&"</td>"& vbCrLf
+	      				Response.Write "      				<td><font color=red>+"&rs2("fullmoneys")&"</font></td>"& vbCrLf
+	      				Response.Write "</tr>"& vbCrLf
+	      			rs2.movenext 
+							loop
+							rs2.close
+							set rs2 = nothing 
+      			%>
+ 				    </table>
+          </td><%
+		    End If
+		    %></tr>
+ </table>
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+	<tr align="right">
+		<td><img  style="CURSOR:pointer;" class="cursor11" src="images/fanhui.gif" width="60" height="22" onclick="location='index.asp'"/></td>
+	</tr>
+</table>
+<%
+
+conn_sign.close 
+set conn_sign = nothing 
+Dvbbs.Footer()
+Dvbbs.PageEnd()
+%>

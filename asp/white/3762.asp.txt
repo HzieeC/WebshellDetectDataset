@@ -1,0 +1,566 @@
+<!--#include file="conn.asp"-->
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/template.inc"-->
+<!--#include file="inc/cls_keyword.asp"-->
+<%
+Dim maxperpage,totalrec,Pcount,pagenow
+Dim m_intOrder,m_strOrder,SQLQuery,SQLField,FirstSQLQuery
+Dim classid,Topiclist,m_strLinks,HtmlFileDir,m_strTitle
+Dim XMLDom,dataNode,i,n,m,im,j,ii
+Dim ChannelID,m_strKeyword,Keyword,searchmode,module
+Dim MaxSearchlist,DefaultMode,strMinLen,strMaxLen,searchTimeout
+Dim WordArry(),re,Action
+Dim HtmlContent
+
+Call Main()
+Call TPL_Flush()
+NewAsp.PageEnd()
+
+Sub Main()
+	Set TPL_XmlDom=NewAsp.CreateXmlDoc("msxml2.FreeThreadedDOMDocument" & MsxmlVersion)
+	If Not TPL_XmlDom.load(NewAsp.TemplatePath&"config.xml") Then
+		Response.Write "ÔØÈëÄ£°åÅäÖÃÎÄ¼þ³ö´í!"&NewAsp.TemplatePath&"config.xml"
+		Response.End
+	End If
+	If CLng(NewAsp.MainSetting(41))=0 Then Call OutMsgBox(TPL_Config(17))
+	If CLng(NewAsp.MainSetting(41))=2 And NewAsp.memberid=0 Then  Call OutMsgBox(TPL_Config(18))
+	searchmode=NewAsp.ChkNumeric(Request("s"))
+	ChannelID=NewAsp.ChkNumeric(Request("ChannelID"))
+	classid=NewAsp.ChkNumeric(Request("classid"))
+	module=NewAsp.ChkNumeric(Request("m"))
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+	totalrec=0
+	DefaultMode=NewAsp.ChkNumeric(TPL_Config(4))
+	If searchmode=0 Then searchmode=DefaultMode
+	m_intOrder=NewAsp.ChkNumeric(TPL_Config(2))
+	maxperpage=NewAsp.ChkNumeric(TPL_Config(5))
+	If maxperpage<1 Then maxperpage=20
+	MaxSearchlist=NewAsp.ChkNumeric(TPL_Config(6))
+	If MaxSearchlist<1 Then MaxSearchlist=50
+	FirstSQLQuery=""
+	If ChannelID>0 Then FirstSQLQuery="And A.ChannelID="&ChannelID
+	If classid>0 Then FirstSQLQuery=FirstSQLQuery&" And A.classid="&classid
+	If module=0 Then module=NewAsp.ChkNumeric(TPL_Config(3))
+	If module=0 Then module=2
+	m_strKeyword=Trim(Request("word"))
+	If Len(m_strKeyword)=0 Then m_strKeyword=Trim(Request("keyword"))
+	strMinLen=NewAsp.ChkNumeric(TPL_Config(9))
+	strMaxLen=NewAsp.ChkNumeric(TPL_Config(10))
+	If Len(m_strKeyword)<1 Or Len(m_strKeyword)<strMinLen Then Call OutMsgBox(TPL_Config(16))
+	Keyword=Left(m_strKeyword,strMaxLen)
+	Action=module
+	searchTimeout=NewAsp.ChkNumeric(TPL_Config(12))
+	If searchTimeout>0 Then
+		If IsEmpty(Session("QueryLimited")) Then
+			Session("QueryLimited") = keyword & "|" & Action & "|" & Now()
+		Else
+			Dim QueryLimited
+			QueryLimited = Split(Session("QueryLimited"), "|")
+			If UBound(QueryLimited) = 2 Then
+				If CStr(Trim(QueryLimited(0))) = CStr(keyword) And CStr(Trim(QueryLimited(1))) = CStr(Action) Then
+					Session("QueryLimited") = keyword & "|" & Action & "|" & Now()
+				Else
+					If DateDiff("s", CDate(QueryLimited(2)), Now()) < searchTimeout Then
+						Dim strLimited
+						strLimited = Replace(TPL_Config(13), "{$timelimited}", searchTimeout)
+						Call OutMsgBox(Replace(strLimited, vbCrLf, ""))
+						Exit Sub
+					Else
+						Session("QueryLimited") = keyword & "|" & Action & "|" & Now()
+					End If
+				End If
+			Else
+				Session("QueryLimited") = keyword & "|" & Action & "|" & Now()
+			End If
+		End If
+	End If
+	Set re=new RegExp
+	re.IgnoreCase = True
+	re.Global = True
+	
+	If Not IsObject(Conn) Then ConnectionDatabase
+	If ChannelID>0 Then NewAsp.ChannelID=ChannelID Else NewAsp.ChannelID=module
+	HtmlContent = NewAsp.LoadTemplate("search")
+	HtmlContent = Replace(HtmlContent, "{$pagetitle}",  "ËÑË÷£º"&Server.HTMLEncode(m_strKeyword))
+	HtmlContent = Replace(HtmlContent, "{$title}",  Server.HTMLEncode(m_strKeyword))
+	HtmlContent = Replace(HtmlContent, "{$classid}", classid)
+	Call showTopiclist()
+	TPL_Scan HtmlContent
+	Set re=Nothing
+	Topiclist=Null
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+		Case "topiclist"
+			ParseTopiclistNode		sTokenName
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Select Case sToken
+		Case "totalrec"		:	TPL_Echo totalrec
+		Case "keyword"		:	TPL_Echo Server.HTMLEncode(m_strKeyword&"")
+		Case "title"		:	TPL_Echo Server.HTMLEncode(m_strKeyword&"")
+		Case "pagenow"		:	TPL_Echo pagenow
+		Case "pagecount"	:	TPL_Echo Pcount
+	End Select
+	If Err Then Err.Clear
+End Sub
+
+Sub showTopiclist()
+	Select Case module
+		Case 1	:	Call showNewslist()
+		Case 2	:	Call showDownlist()
+		Case 5	:	Call showFlashlist()
+	End Select
+	If searchmode=0 Then
+		If classid=0 Then
+			m_strLinks="search.asp?word="&Server.HTMLEncode(m_strKeyword)&"&m="&module&"&ChannelID="&ChannelID&"&"
+		Else
+			m_strLinks="search.asp?word="&Server.HTMLEncode(m_strKeyword)&"&m="&module&"&ChannelID="&ChannelID&"&classid="&classid&"&"
+		End If
+	Else
+		If classid=0 Then
+			m_strLinks="search.asp?word="&Server.HTMLEncode(m_strKeyword)&"&m="&module&"&ChannelID="&ChannelID&"&s="&searchmode&"&"
+		Else
+			m_strLinks="search.asp?word="&Server.HTMLEncode(m_strKeyword)&"&m="&module&"&ChannelID="&ChannelID&"&s="&searchmode&"&classid="&classid&"&"
+		End If
+	End If
+End Sub
+
+Sub showNewslist()
+	Dim Rs,SQL,i
+	Dim Keywordlist,iCount
+	iCount=0
+
+	SQLField = "A.ArticleID,A.ChannelID,A.classid,A.title,A.subtitle,A.[content],A.OuterLinks,A.Author,A.ComeFrom,A.BriefTopic,A.star,A.WriteTime,A.AllHits,A.ImageUrl,A.username,A.HtmlFileDate,A.Taglist,C.ClassName,C.HtmlFileDir"
+	If Len(Keyword)>1 Then
+		Keyword=Replace(Keyword, vbCrLf, "")
+		If searchmode=1 Then
+			Keywordlist=cmWords.ParseKeyword(Keyword)
+			For i = 0 To UBound(Keywordlist)
+				If Len(Keywordlist(i)) > 1 Then
+					ReDim Preserve WordArry(iCount)
+					WordArry(iCount)=Keywordlist(i)
+					If iCount=0 Then
+						If IsSqlDataBase=1 Then
+							SQLQuery="A.title+ISNULL(A.subtitle,' ') like '%"&Keywordlist(i)&"%'"
+						Else
+							SQLQuery="InStr(1,LCase(A.title+IIF(ISNULL(A.subtitle),' ',A.subtitle)),LCase('"&Keywordlist(i)&"'),0)>0"
+						End If
+					Else
+						If IsSqlDataBase=1 Then
+							SQLQuery=SQLQuery & " Or A.title+ISNULL(A.subtitle,' ') like '%"&Keywordlist(i)&"%'"
+						Else
+							SQLQuery=SQLQuery & " Or InStr(1,LCase(A.title+IIF(ISNULL(A.subtitle),' ',A.subtitle)),LCase('"&Keywordlist(i)&"'),0)>0"
+						End If
+					End If
+					iCount=iCount+1
+				End If
+			Next
+			If iCount=0 Then SQLQuery="":ReDim Preserve WordArry(0):WordArry(0)=""
+		Else
+			If cmWords.CheckKeyword(Keyword) Then
+				If IsSqlDataBase=1 Then
+					SQLQuery = "A.title+ISNULL(A.subtitle,' ') like '%"&Keyword&"%'"
+				Else
+					SQLQuery = "InStr(1,LCase(A.title+IIF(ISNULL(A.subtitle),' ',A.subtitle)),LCase('"&Keyword&"'),0)>0"
+				End If
+				ReDim Preserve WordArry(0):WordArry(0)=Keyword
+			End If
+		End If
+	Else
+		Exit Sub
+	End If
+	If Len(SQLQuery) >10 Then SQLQuery=FirstSQLQuery&" And ("&SQLQuery&")" Else Exit Sub
+	Select Case m_intOrder
+		Case 1		:	m_strOrder="A.ArticleID"
+		Case 2		:	m_strOrder="A.Allhits"
+		Case 3		:	m_strOrder="A.title"
+		Case 4		:	m_strOrder="A.filesize"
+		Case Else	:	m_strOrder="A.WriteTime"
+	End Select
+	
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT TOP "&MaxSearchlist&" "& SQLField &",B.ChannelName,B.ChannelDir,B.BindDomain,B.DomainName,B.IsCreateHtml,B.HtmlExtName,B.SortDestination,B.InfoDestination FROM ([NC_Article] A INNER JOIN [NC_Classify] C on A.classid=C.classid) INNER JOIN [NC_Channel] B ON A.ChannelID=B.ChannelID WHERE A.isAccept=1 "&SQLQuery&" ORDER BY "&m_strOrder&" DESC"
+	Rs.Open SQL,Conn,1,1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum+1
+	If Not Rs.EOF Then
+		totalrec=Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If pagenow>Pcount Then pagenow=1
+		Rs.MoveFirst
+		If pagenow >1 Then
+			Rs.Move (pagenow-1) * maxperpage
+		End If
+		Topiclist=Rs.GetRows(maxperpage)
+	Else
+		totalrec=0
+		Topiclist=Null
+	End If
+	Rs.close():Set Rs=Nothing
+End Sub
+
+Sub showDownlist()
+	Dim Rs,SQL,i
+	Dim Keywordlist,iCount,SQLIsNullField
+	iCount=0
+	If IsSqlDataBase=1 Then
+		SQLIsNullField="RTRIM(A.SoftName)+' '+RTRIM(ISNULL(A.SoftVer,'')) as title"
+	Else
+		SQLIsNullField="RTRIM(A.SoftName)+' '+RTRIM(IIF(ISNULL(A.SoftVer),'',A.SoftVer)) as title"
+	End If
+	SQLField = "A.softid,A.ChannelID,A.classid,"&SQLIsNullField&",A.subtitle,A.[content],A.OuterLinks,A.Languages,A.SoftType,A.SoftSize,A.star,A.SoftTime,A.AllHits,A.SoftImage,A.username,A.HtmlFileDate,A.Taglist,C.ClassName,C.HtmlFileDir"
+	If Len(Keyword)>1 Then
+		Keyword=Replace(Keyword, vbCrLf, "")
+		If searchmode=1 Then
+			Keywordlist=cmWords.ParseKeyword(Keyword)
+			For i = 0 To UBound(Keywordlist)
+				If Len(Keywordlist(i)) > 1 Then
+					ReDim Preserve WordArry(iCount)
+					WordArry(iCount)=Keywordlist(i)
+					If iCount=0 Then
+						If IsSqlDataBase=1 Then
+							SQLQuery="A.SoftName+A.SoftVer+ISNULL(A.subtitle,' ') like '%"&Keywordlist(i)&"%'"
+						Else
+							SQLQuery="InStr(1,LCase(A.SoftName+A.SoftVer+IIF(ISNULL(A.subtitle),' ',A.subtitle)),LCase('"&Keywordlist(i)&"'),0)>0"
+						End If
+					Else
+						If IsSqlDataBase=1 Then
+							SQLQuery=SQLQuery & " Or A.SoftName+A.SoftVer+ISNULL(A.subtitle,' ') like '%"&Keywordlist(i)&"%'"
+						Else
+							SQLQuery=SQLQuery & " Or InStr(1,LCase(A.SoftName+A.SoftVer+IIF(ISNULL(A.subtitle),' ',A.subtitle)),LCase('"&Keywordlist(i)&"'),0)>0"
+						End If
+					End If
+					iCount=iCount+1
+				End If
+			Next
+			If iCount=0 Then SQLQuery="":ReDim Preserve WordArry(0):WordArry(0)=""
+		Else
+			If cmWords.CheckKeyword(Keyword) Then
+				If IsSqlDataBase=1 Then
+					SQLQuery = "A.SoftName+' '+A.SoftVer+ISNULL(A.subtitle,' ') like '%"&Keyword&"%'"
+				Else
+					SQLQuery = "InStr(1,LCase(A.SoftName+' '+A.SoftVer+IIF(ISNULL(A.subtitle),' ',A.subtitle)),LCase('"&Keyword&"'),0)>0"
+				End If
+				ReDim Preserve WordArry(0):WordArry(0)=Keyword
+			End If
+		End If
+	Else
+		Exit Sub
+	End If
+	If Len(SQLQuery) >10 Then SQLQuery=FirstSQLQuery&" And ("&SQLQuery&")" Else Exit Sub
+	Select Case m_intOrder
+		Case 1		:	m_strOrder="A.softid"
+		Case 2		:	m_strOrder="A.Allhits"
+		Case 3		:	m_strOrder="A.SoftName"
+		Case 4		:	m_strOrder="A.SoftSize"
+		Case Else	:	m_strOrder="A.SoftTime"
+	End Select
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT TOP "&MaxSearchlist&" "& SQLField &",B.ChannelName,B.ChannelDir,B.BindDomain,B.DomainName,B.IsCreateHtml,B.HtmlExtName,B.SortDestination,B.InfoDestination FROM ([NC_SoftList] A INNER JOIN [NC_Classify] C on A.classid=C.classid) INNER JOIN [NC_Channel] B ON A.ChannelID=B.ChannelID WHERE A.isAccept=1 "&SQLQuery&" ORDER BY "&m_strOrder&" DESC"
+	Rs.Open SQL,Conn,1,1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum+1
+	If Not Rs.EOF Then
+		totalrec=Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If pagenow>Pcount Then pagenow=1
+		Rs.MoveFirst
+		If pagenow >1 Then
+			Rs.Move (pagenow-1) * maxperpage
+		End If
+		Topiclist=Rs.GetRows(maxperpage)
+	Else
+		totalrec=0
+		Topiclist=Null
+	End If
+	Rs.close():Set Rs=Nothing
+End Sub
+
+Sub showFlashlist()
+	Dim Rs,SQL,i
+	Dim Keywordlist,iCount
+	iCount=0
+	SQLField = "A.flashid,A.ChannelID,A.classid,A.title,A.subtitle,A.Introduce,A.OuterLinks,A.Author,A.ComeFrom,A.[filesize],A.star,A.addTime,A.AllHits,A.miniature,A.username,A.HtmlFileDate,A.Taglist,C.ClassName,C.HtmlFileDir"
+	If Len(Keyword)>1 Then
+		Keyword=Replace(Keyword, vbCrLf, "")
+		If searchmode=1 Then
+			Keywordlist=cmWords.ParseKeyword(Keyword)
+			For i = 0 To UBound(Keywordlist)
+				If Len(Keywordlist(i)) > 1 Then
+					ReDim Preserve WordArry(iCount)
+					WordArry(iCount)=Keywordlist(i)
+					If iCount=0 Then
+						If IsSqlDataBase=1 Then
+							SQLQuery="A.title+ISNULL(A.subtitle,' ') like '%"&Keywordlist(i)&"%'"
+						Else
+							SQLQuery="InStr(1,LCase(A.title+IIF(ISNULL(A.subtitle),' ',A.subtitle)),LCase('"&Keywordlist(i)&"'),0)>0"
+						End If
+					Else
+						If IsSqlDataBase=1 Then
+							SQLQuery=SQLQuery & " Or A.title+ISNULL(A.subtitle,' ') like '%"&Keywordlist(i)&"%'"
+						Else
+							SQLQuery=SQLQuery & " Or InStr(1,LCase(A.title+IIF(ISNULL(A.subtitle),' ',A.subtitle)),LCase('"&Keywordlist(i)&"'),0)>0"
+						End If
+					End If
+					iCount=iCount+1
+				End If
+			Next
+			If iCount=0 Then SQLQuery="":ReDim Preserve WordArry(0):WordArry(0)=""
+		Else
+			If cmWords.CheckKeyword(Keyword) Then
+				If IsSqlDataBase=1 Then
+					SQLQuery = "A.title+ISNULL(A.subtitle,' ') like '%"&Keyword&"%'"
+				Else
+					SQLQuery = "InStr(1,LCase(A.title+IIF(ISNULL(A.subtitle),' ',A.subtitle)),LCase('"&Keyword&"'),0)>0"
+				End If
+				ReDim Preserve WordArry(0):WordArry(0)=Keyword
+			End If
+		End If
+	Else
+		Exit Sub
+	End If
+	If Len(SQLQuery) >10 Then SQLQuery=FirstSQLQuery&" And ("&SQLQuery&")" Else Exit Sub
+	Select Case m_intOrder
+		Case 1		:	m_strOrder="A.flashid"
+		Case 2		:	m_strOrder="A.Allhits"
+		Case 3		:	m_strOrder="A.title"
+		Case 4		:	m_strOrder="A.filesize"
+		Case Else	:	m_strOrder="A.addtime"
+	End Select
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT TOP "&MaxSearchlist&" "& SQLField &",B.ChannelName,B.ChannelDir,B.BindDomain,B.DomainName,B.IsCreateHtml,B.HtmlExtName,B.SortDestination,B.InfoDestination FROM ([NC_FlashList] A INNER JOIN [NC_Classify] C on A.classid=C.classid) INNER JOIN [NC_Channel] B ON A.ChannelID=B.ChannelID WHERE A.isAccept=1 "&SQLQuery&" ORDER BY "&m_strOrder&" DESC"
+	Rs.Open SQL,Conn,1,1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum+1
+	If Not Rs.EOF Then
+		totalrec=Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If pagenow>Pcount Then pagenow=1
+		Rs.MoveFirst
+		If pagenow >1 Then
+			Rs.Move (pagenow-1) * maxperpage
+		End If
+		Topiclist=Rs.GetRows(maxperpage)
+	Else
+		totalrec=0
+		Topiclist=Null
+	End If
+	Rs.close():Set Rs=Nothing
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	Select Case sTokenName
+		Case "pagenow=1"	:	If pagenow=1 Then TPL_Scan sTemplate
+		Case "pagenow=0"	:	If pagenow>1 Then TPL_Scan sTemplate
+		Case "module=1"		:	If module=1 Then TPL_Scan sTemplate
+		Case "module=2"		:	If module=2 Then TPL_Scan sTemplate
+		Case "module=5"		:	If module=5 Then TPL_Scan sTemplate
+		Case "topiclist"
+			'Call showTopiclist()
+			If IsArray(Topiclist) Then
+				j=totalrec-((pagenow - 1)*maxperpage)
+				ii=maxperpage*pagenow-maxperpage
+				For i=0 To UBound(Topiclist,2)
+					ii=ii+1:n=n+1:If (n Mod 2) = 0 Then im=2 Else im=1
+					If (i Mod 2) = 0 Then m=1 Else m=2
+					TPL_Scan sTemplate
+					j=j-1
+				Next
+			Else
+				Dim tmpString
+				tmpString=TPL_Config(14)
+				tmpString=Replace(tmpString, "{$keyword}", Server.HTMLEncode(m_strKeyword))
+				TPL_Echo tmpString
+			End If
+	End Select
+End Sub
+
+Function XmlDatalistNode(iXMLDom,sTokenAttrib)
+	Select Case sTokenAttrib
+		Case "showpage"		: Set XmlDatalistNode=showPageNode(iXMLDom)
+		Case Else
+			Set XmlDatalistNode=showPageNode(iXMLDom)
+	End Select
+End Function
+
+Sub ParseTopiclistNode(sToken)
+	Dim strTitle,strLen,strContent,strLinks,strLink2,strChannDir,strImagesLink
+	Dim strDomainName
+	strTitle=NewAsp.CheckTitle(Topiclist(3,i))
+	If CLng(Topiclist(21,i))=0 Then
+		strDomainName=NewAsp.InstallDir&Topiclist(20,i)
+	Else
+		strDomainName=Topiclist(22,i)&"/"
+	End If
+	If CLng(Topiclist(23,i))=0 Then
+		If IsURLRewrite Then
+			strLinks=CheckURLRewrite(strDomainName,Topiclist(0,i)&Topiclist(24,i))
+			strLink2=CheckURLRewrite(strDomainName,"list_1_"&Topiclist(2,i)&Topiclist(24,i))
+		Else
+			strLinks=strDomainName&"show.asp?id="&Topiclist(0,i)
+			strLink2=strDomainName&"list.asp?classid="&Topiclist(2,i)
+		End If
+	Else
+		If CLng(Topiclist(21,i))=0 Then
+			strChannDir=Topiclist(20,i)
+			strLinks=NewAsp.HtmlDestination(Topiclist(26,i), strChannDir, Topiclist(15,i),Topiclist(18,i),Topiclist(2,i),Topiclist(0,i),1,"")
+			strLink2=NewAsp.HtmlDestination(Topiclist(25,i), strChannDir, Topiclist(15,i),Topiclist(18,i),Topiclist(2,i),Topiclist(0,i),1,"")
+		Else
+			strLinks=Topiclist(22,i)&NewAsp.HtmlDestination(Topiclist(26,i), strChannDir, Topiclist(15,i),Topiclist(18,i),Topiclist(2,i),Topiclist(0,i),1,"")
+			strLink2=Topiclist(22,i)&NewAsp.HtmlDestination(Topiclist(25,i), strChannDir, Topiclist(15,i),Topiclist(18,i),Topiclist(2,i),Topiclist(0,i),1,"")
+		End If
+	End If
+	If Len(Topiclist(6,i)&"")>3 Then strLinks=Topiclist(6,i)
+	Select Case sToken
+		Case "i"			:	TPL_Echo i
+		Case "i+"			:	TPL_Echo ii
+		Case "i-"			:	TPL_Echo j
+		Case "n"			:	TPL_Echo n
+		Case "m"			:	TPL_Echo m
+		Case "link"			:	TPL_Echo strLinks
+		Case "link2"		:	TPL_Echo strLink2
+		Case "id"			:	TPL_Echo Topiclist(0,i)
+		Case "channelid"	:	TPL_Echo Topiclist(1,i)
+		Case "classid"		:	TPL_Echo Topiclist(2,i)
+		Case "topic"		:	TPL_Echo HighlightWord(strTitle)
+		Case "title"		:	TPL_Echo "<a href="""&strLinks&""">"&HighlightWord(strTitle)&"</a>"
+		Case "subtitle"		:	TPL_Echo HighlightWord(NewAsp.CheckTitle(Topiclist(4,i)))
+		Case "text"
+			strLen = NewAsp.ChkNumeric(TPL_Config(11))
+			TPL_Echo HighlightWord(NewAsp.CutString(Topiclist(5,i),strLen))
+		Case "content"
+			strLen = NewAsp.ChkNumeric(TPL_Config(11))
+			strContent = NewAsp.CutString(Topiclist(5,i), strLen)
+			If strLen>1 And Len(strContent)>0 Then
+				TPL_Echo HighlightWord(strContent)
+			Else
+				TPL_Echo Replace(Topiclist(5,i), "[InstallDir_ChannelDir]", strDomainName)
+			End If
+		Case "string"		:	TPL_Echo NewAsp.CheckTitle(Topiclist(6,i))
+		Case "string1"		:	TPL_Echo NewAsp.CheckTitle(Topiclist(7,i))
+		Case "string2"		:	TPL_Echo NewAsp.CheckTitle(Topiclist(8,i))
+		Case "filesize"		:	TPL_Echo Topiclist(9,i)
+		Case "size"
+			If module=1 Then
+				TPL_Echo NewAsp.BytesToString(NewAsp.strLength(Topiclist(5,i)))
+			Else
+				TPL_Echo NewAsp.BytesToString(CLng(Topiclist(9,i))*1024)
+			End If
+		Case "star"			:	TPL_Echo Topiclist(10,i)
+		Case "date"			:	TPL_Echo NewAsp.DateToString(Topiclist(11,i),TPL_Config(8))
+		Case "datetime"		:	TPL_Echo NewAsp.FormatToDate(Topiclist(11,i),TPL_Config(8))
+		Case "allhits","hits":	TPL_Echo Topiclist(12,i)
+		Case "img","images"
+			Dim arrImageSize
+			arrImageSize = Split(TPL_Config(7)&"|", "|")
+			strImagesLink = NewAsp.GetImagePath(Topiclist(13,i)&"",strDomainName)
+			TPL_Echo "<a target=""_blank"" href="""&strLinks&""">"&NewAsp.GetFlashAndPic(strImagesLink, arrImageSize(0), arrImageSize(1))&"</a>"
+		Case "image"
+			strImagesLink = NewAsp.GetImagePath(Topiclist(13,i)&"",strDomainName)
+			TPL_Echo strImagesLink
+		Case "classname"	:	TPL_Echo Topiclist(17,i)
+		Case "classtitle"	:	TPL_Echo "<a href="""&strLink2&""">"&Topiclist(17,i)&"</a>"
+		Case "channelname"	:	TPL_Echo Topiclist(19,i)
+	End Select
+End Sub
+
+Function showPageNode(iXMLDom)
+	Dim datalist,Node,i,n,m,max,stype,s
+	iXMLDom.documentElement.setAttribute "pagenow",pagenow
+	iXMLDom.documentElement.setAttribute "pagesize",maxperpage
+	iXMLDom.documentElement.setAttribute "pagecount",Pcount
+	iXMLDom.documentElement.setAttribute "totalrec",totalrec
+	iXMLDom.documentElement.setAttribute "topcount",0
+	iXMLDom.documentElement.setAttribute "link",m_strLinks
+	iXMLDom.documentElement.setAttribute "titles","ËÑË÷"
+
+	max		= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("max"))
+	stype	= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("type"))
+	If max=0 Then max=10
+	m = max-2
+
+	If Pcount > m And pagenow > (m\2) Then
+		If Pcount-pagenow <= (m\2) Then
+			n = Pcount-(m+1)
+		Else
+			n = pagenow-(m\2)
+		End If
+	Else
+		n = 2
+	End If
+
+	If n<2 Then n=2
+
+	iXMLDom.documentElement.setAttribute "n",n
+	iXMLDom.documentElement.setAttribute "m",max\2
+	If IsNull(iXMLDom.documentElement.getAttribute("max")) Then iXMLDom.documentElement.setAttribute "max",max
+	If IsNull(iXMLDom.documentElement.getAttribute("channelid")) Then iXMLDom.documentElement.setAttribute "channelid",ChannelID
+	If IsNull(iXMLDom.documentElement.getAttribute("action")) Then iXMLDom.documentElement.setAttribute "action","0"
+	'If IsURLRewrite Then
+	'	iXMLDom.documentElement.setAttribute "action","1"
+	'End If
+
+	Set datalist=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+	datalist.appendChild(datalist.createElement("datalist"))
+
+	If Pcount >= max Then
+		For i = n To n + m
+			Set Node=datalist.createNode(1,"row","")
+			Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+			Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=1
+			datalist.documentElement.appendChild(Node)
+			Set Node=Nothing
+			If i => Pcount Then Exit For
+		Next
+	Else
+		For i = 2 To max
+			If i > Pcount Then
+				Set Node=datalist.createNode(1,"row","")
+				Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+				Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=0
+				datalist.documentElement.appendChild(Node)
+				Set Node=Nothing
+			Else
+				Set Node=datalist.createNode(1,"row","")
+				Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+				Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=1
+				datalist.documentElement.appendChild(Node)
+				Set Node=Nothing
+			End If
+		Next
+	End If
+	iXMLDom.documentElement.setAttribute "i",i
+
+	Set showPageNode=datalist
+	Set datalist=Nothing
+End Function
+
+Function HighlightWord(str)
+	'Dim i
+	'For i=0 To UBound(WordArry)
+	'	If WordArry(i)<>"" Then str=Replace(str, WordArry(i), "<font color=""red"">"& WordArry(i) &"</font>")
+	'Next
+	Dim strText
+	strText=Join(WordArry, vbCrLf)
+	strText=Replace(Replace(strText, "\", "\\"), "|", "\|")
+	strText=Replace(Replace(strText, "[", "\["), "]", "\]")
+	strText=Replace(Replace(strText, "{", "\{"), "}", "\}")
+	strText=Replace(Replace(strText, "(", "\("), ")", "\)")
+	strText=Replace(Replace(strText, "?", "\?"), "^", "\^")
+	strText=Replace(Replace(strText, "*", "\*"), "+", "\+")
+	'strText=Replace(Replace(strText, ".", "\."), ",", "\,")
+	strText=Replace(Replace(strText, "$", "\$"), vbCrLf, "|")
+	re.Pattern="("&strText&")"
+	str=re.Replace(str,"<font color=""red"">$1</font>")
+	HighlightWord=str
+End Function
+%>

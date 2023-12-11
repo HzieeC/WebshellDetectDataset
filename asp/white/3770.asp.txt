@@ -1,0 +1,182 @@
+<%
+Dim Tag
+Set Tag = new Tags_Cls
+Tag.ChannelID=ChannelID
+
+Class Tags_Cls
+	Public ChannelID,Modules,classid,Taghits,IsBest,IsTop
+	Private strTagList,arrTagList,strTagString,arrTagString
+	Private Sub Class_Initialize()
+		ChannelID=0:Modules=0:classid=0
+		Taghits=1:IsBest=0:IsTop=0
+	End Sub
+
+	Private Sub Class_Terminate()
+		If IsObject(Tag) Then Set Tag=Nothing
+	End Sub
+
+	Public Property Let tagList(ByVal strValue)
+		strTagList = checkTagList(strValue)
+	End Property
+	Public Property Get tagList()
+		tagList = strTagList
+	End Property
+
+	Public Property Let TagString(ByVal strValue)
+		strTagString = CheckTagString(strValue)
+	End Property
+	Public Property Get TagString()
+		TagString = strTagString
+	End Property
+
+	Public Sub AddNewTags()
+		Dim tempTags,tagItem,tmpTagslist
+		tmpTagslist=""
+		If Len(strTagString)>1 Then
+			tempTags = Split(strTagString," ")
+			For Each tagItem In tempTags
+				If Len(Trim(tagItem))>1 Then
+					tmpTagslist = tmpTagslist & "{" & Insert(Trim(tagItem)) & "}"
+				End If
+			Next
+		End If
+		strTagList=tmpTagslist
+	End Sub
+
+	Public Sub UpdateTags()
+		Dim tempTaglist,tagItem
+		If Len(strTagList)>0 Then
+			tempTaglist = Split(strTagList,",")
+			For Each tagItem in tempTaglist
+				If IsNumeric(tagItem) Then
+					Remove tagItem
+				End If
+            Next
+		End If
+		Call AddNewTags()
+	End Sub
+
+	Public Function getTagString(strTag)
+		Dim Rs,SQL,i,tmpTags,iPosBegin
+		If IsNull(strTag) Then Exit Function
+		iPosBegin=InStr(strTag, "|")
+		If iPosBegin=0 Then
+			strTag = checkTagList(strTag)
+			tmpTags=""
+		Else
+			tmpTags=Mid(strTag,iPosBegin+1,Len(strTag))
+			strTag=""
+		End If
+		If Len(strTag)>0 Then
+			Set Rs = NewAsp.Execute("SELECT TagID,Tagname FROM NC_Tags WHERE ChannelID="&ChannelID&" And TagID in("&strTag&")")
+			If Not Rs.EOF Then
+				SQL=Rs.GetRows(-1)
+			Else
+				SQL=Null
+			End If
+			Set Rs=Nothing
+			If IsArray(SQL) Then
+				For i=0 To Ubound(SQL,2)
+					If i=0 Then
+						tmpTags=SQL(1,i)
+					Else
+						tmpTags=tmpTags&" "&SQL(1,i)
+					End If
+				Next
+				SQL=Null
+			End If
+		End If
+		strTagString=tmpTags
+		getTagString=tmpTags
+	End Function
+
+	Public Function getTagQuery(strTag)
+		getTagQuery=""
+		If IsNull(strTag) Then Exit Function
+		If InStr(strTag, "|")>0 Then strTag=Mid(strTag,1,InStr(strTag, "|")-1)
+		getTagQuery=strTag
+	End Function
+
+	Public Function Insert(tagName)
+		If checkTag(tagName) Then
+			NewAsp.Execute("UPDATE NC_Tags SET classid="&classid&",Tagcount=Tagcount+1,Taghits="&Taghits&",IsBest="&IsBest&",IsTop="&IsTop&" WHERE Tagname='"&tagName&"'")
+			Insert = NewAsp.Execute("SELECT TOP 1 TagID FROM NC_Tags WHERE ChannelID="&ChannelID&" And Tagname='"&tagName&"'")(0)
+		Else
+			NewAsp.Execute("Insert into NC_Tags (ChannelID,Modules,classid,Tagname,Tagcount,Taghits,IsBest,IsTop) values ("&ChannelID&","&Modules&","&classid&",'"&tagName&"',1,"&Taghits&","&IsBest&","&IsTop&")")
+			Insert = NewAsp.Execute("SELECT TOP 1 TagID FROM NC_Tags WHERE ChannelID="&ChannelID&" ORDER BY TagID DESC")(0)
+		End If
+	End Function
+
+	Public Function Remove(TagID)
+		If checkTagID(TagID) Then
+			NewAsp.Execute("UPDATE NC_Tags SET Tagcount=Tagcount-1 WHERE TagID="&Clng(TagID))
+		End If
+	End Function
+
+	Private Function checkTag(tagName)
+		tagName=Replace(tagName, "'", "''")
+		checkTag=CBool(NewAsp.Execute("SELECT COUNT(*) FROM NC_Tags WHERE ChannelID="&ChannelID&" And Tagname='"&tagName&"'")(0))
+	End Function
+
+	Private Function checkTagID(TagID)
+		checkTagID=CBool(NewAsp.Execute("SELECT COUNT(*) FROM NC_Tags WHERE ChannelID="&ChannelID&" And TagID="&CLng(TagID))(0))
+	End Function
+
+	Public Function getTagID(tagName)
+		tagName=Replace(tagName, "'", "''")
+		getTagID=NewAsp.Execute("SELECT TagID FROM NC_Tags WHERE ChannelID="&ChannelID&" And Tagname='"&tagName&"'")(0)
+	End Function
+
+	Public Function checkTagString(str)
+		Dim strTags,arrTags,tagItem,tmpTags,i
+		CheckTagString=""
+		If IsNull(str) Then Exit Function
+		strTags=Replace(Trim(str), Chr(0), "")
+		strTags=Replace(strTags, Chr(34), "")
+		strTags=Replace(strTags,  vbCrLf, "")
+		strTags=Replace(strTags, "'", "")
+		strTags=Replace(strTags, "¡¡", "")
+		strTags=Replace(strTags, " ", ",")
+		strTags=Replace(strTags, "|", ",")
+		If ""=strTags Then Exit Function
+		i=0:tmpTags=""
+		arrTags=Split(strTags, ",")
+		For Each tagItem In arrTags
+			If Len(tagItem)>1 Then
+				If i=0 Then
+					tmpTags=tagItem
+				Else
+					tmpTags=tmpTags&" "&tagItem
+				End If
+				i=i+1
+			End If
+		Next
+		CheckTagString=tmpTags
+	End Function
+
+	Public Function checkTagList(str)
+		Dim strTags,tmpTags,arrTags,tagItem,i
+		checkTagList=""
+		If IsNull(str) Then Exit Function
+		strTags=Replace(Trim(str), Chr(0), "")
+		strTags=Replace(strTags, "}{", ",")
+		strTags=Replace(strTags, "}", "")
+		strTags=Replace(strTags, "{", "")
+		If ""=strTags Then Exit Function
+		i=0:tmpTags=""
+		arrTags=Split(strTags, ",")
+		For Each tagItem In arrTags
+			If IsNumeric(tagItem) Then
+				If i=0 Then
+					tmpTags=tagItem
+				Else
+					tmpTags=tmpTags&","&tagItem
+				End If
+				i=i+1
+			End If
+		Next
+		checkTagList=tmpTags
+	End Function
+
+End Class
+%>

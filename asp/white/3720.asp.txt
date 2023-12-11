@@ -1,0 +1,72 @@
+<!--#include file="admin_inc.asp"-->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+viewHead "自定义快捷菜单" & "-" & menuList(3,0)
+
+dim action : action = getForm("action", "get")
+
+Select  case action
+	case "modify" : modifyMenu
+	case else : main
+End Select 
+viewFoot
+
+Sub main
+	dim menuStr : menuStr=replaceStr(mid(getSelfMenu(clng(rCookie("m_level"))),2),"|",vbcrlf)
+%>
+<div id="append_parent"></div>
+<div class="container" id="cpcontainer">
+<!--当前导航-->
+<script type="text/JavaScript">if(parent.$('admincpnav')) parent.$('admincpnav').innerHTML='后台首页&nbsp;&raquo;&nbsp;<%=menuList(3,0)%>&nbsp;&raquo;&nbsp;自定义快捷菜单 ';</script>
+ <table class="tb">
+<tr class="thead"><th colspan="2">自定义快捷菜单</th></tr>
+<tr><td width="25%">1.格式：菜单名称,菜单链接地址</td>
+<td width="75%">2.每个快捷菜单各占一行</td>
+</tr>
+  <form action="?action=modify" method="post"  >
+   
+    <tr>
+      <td colspan="2"><textarea  name="menustr" style="width:100%;font-family: Arial, Helvetica, sans-serif;font-size: 14px;" rows="20" dataType="Require" msg="请填写内容"><%=menuStr%></textarea></td>
+    </tr>
+    <tr>
+      <td> <input type="submit" name="Submit" value="修  改" class="btn" /> <input type="button" value="返   回"  class="btn" onClick="javascript:history.go(-1)" /></td><td ></td>
+    </tr>
+  </form>
+</table>
+<%
+End Sub
+
+Sub modifyMenu
+	dim menustr,xmlstr,menuNode,menuNodeArray,singleNodeArray,menuNodeStr,path:path=selfMenuXml
+	menustr=trimOuterStr(getForm("menustr","post"),vbcrlf) : menustr=replaceStr(menustr,vbcrlf,"|")
+	menuNodeArray=split(menustr,"|")
+	for each menuNode in menuNodeArray
+		menuNodeStr=menuNodeStr&"<menu>"&vbcrlf
+		if not isNul(menuNode) then 
+			singleNodeArray=split(replaceStr(menuNode,"，",","),",")
+			menuNodeStr=menuNodeStr&"<name><![CDATA["&singleNodeArray(0)&"]]></name>"&vbcrlf&_
+									"<link><![CDATA["&singleNodeArray(1)&"]]></link>"&vbcrlf
+		else
+			menuNodeStr=menuNodeStr&"<name></name>"&vbcrlf&_
+									"<link></link>"&vbcrlf
+		end if
+		menuNodeStr=menuNodeStr&"</menu>"&vbcrlf
+	next
+	xmlstr="<?xml version=""1.0"" encoding=""gbk""?>"&vbcrlf&_
+			"<maxcms2>"&vbcrlf&_
+					"<menulist>"&vbcrlf&_
+						menuNodeStr&_
+					"</menulist>"&vbcrlf&_
+			"</maxcms2>"&vbcrlf
+	if clng(rCookie("m_level"))=1 then path=customMenuXml
+	createTextFile  xmlstr,path,""
+	echo "<script>alert('修改成功');top.location.href='index.asp';</script>"
+End Sub
+%>

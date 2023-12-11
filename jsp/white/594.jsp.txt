@@ -1,0 +1,20 @@
+<%@page language="java" contentType="text/html; charset=utf-8" pageEncoding="UTF-8"%>
+<%@page import="org.apache.commons.lang.StringUtils"%>
+<%@page import="org.codehaus.jackson.map.ObjectMapper"%>
+<%@page import="java.util.Map"%>
+<%@page import="java.util.HashMap"%>
+<%@include file="common.jsp"%>
+<%!
+	private static final String DEST_CHARACTER = "一";
+%>
+<%
+	String character = request.getParameter("character");
+	Map<String, Boolean> jsonMap = new HashMap<String, Boolean>();
+	if (StringUtils.equals(character, DEST_CHARACTER)) {
+		jsonMap.put("isUTF8", true);
+	} else {
+		jsonMap.put("isUTF8", false);
+	}
+	ObjectMapper mapper = new ObjectMapper();
+	mapper.writeValue(response.getWriter(), jsonMap);
+%>

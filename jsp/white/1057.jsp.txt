@@ -1,0 +1,37 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="javaBean.BeanVote,java.util.ArrayList,connections.DaoVote"%>
+<html>
+	<head>
+		<title>
+			投票结果
+		</title>
+	</head>
+	<body>
+		<p align="center">
+			<%
+				String []vote=request.getParameterValues("voteitem");
+				String sqlid="";
+				DaoVote dao=new DaoVote();
+				for(int i=0;i<vote.length;i++){
+					sqlid+=vote[i]+"="+vote[i]+"+"+1+",";
+				}
+				String sqlvote="update vote set "+sqlid;
+				String sqlv=sqlvote.substring(0,sqlvote.length()-1);
+				int i=dao.PLCL(sqlv);
+				BeanVote bean=null;
+				if(i>0){
+					int id=Integer.parseInt(request.getParameter("voteid"));
+					String sql="select * from vote where id="+id;
+					ArrayList alist=dao.allVote(sql);
+					bean=(BeanVote)alist.get(0);
+			%>
+			投票主题:<%=bean.getTitle()%><br>
+			<%=bean.getOption_1()%>:<%=bean.getBallot_1()%>票<br>
+			<%=bean.getOption_2()%>:<%=bean.getBallot_2()%>票<br>
+			<%=bean.getOption_3()%>:<%=bean.getBallot_3()%>票<br>
+			<%=bean.getOption_4()%>:<%=bean.getBallot_4()%>票<br>
+			<%=bean.getOption_5()%>:<%=bean.getBallot_5()%>票<br>
+			<%}%>
+		</p>
+	</body>
+</html>

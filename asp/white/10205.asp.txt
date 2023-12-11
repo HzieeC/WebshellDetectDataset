@@ -1,0 +1,249 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%> 
+<%Session.CodePage=936%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../../inc/md5.asp"-->
+<!--#include file="../../smsapi/smsapi.asp"-->
+<!--#include file="../checkvalid.asp" -->
+<%If Not FRAdminLevel(707) Then Call ErrorMsg()
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1
+Dim Action
+Dim page,i
+Dim totalPut
+const MaxPerpage=20
+r=Trim(request("r"))
+strFileName="Admin_Sms.asp?r="&r&""
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+smsact=request.QueryString("smsact")
+if smsact="Smssave" then
+vcpuser=Request.Form("username")
+if Request.Form("pass")="888888" then
+	if session("vcppassword")="" then
+		vcppassword=Request.Form("pass")
+	else
+		vcppassword=session("vcppassword")
+	end if
+else
+vcppassword=Request.Form("pass")
+end if
+if Request.Form("apikey")="888888" then
+	if session("vcpapikey")="" then
+		vcpapikey=Request.Form("pass")
+	else
+		vcpapikey=session("vcpapikey")
+	end if
+else
+vcpapikey=Request.Form("apikey")
+end if
+vcpapitype=Request.Form("SmsApiType")
+
+Set fs = CreateObject("Scripting.FileSystemObject")
+filename = Server.MapPath("../../smsapi/config.asp")
+fs.DeleteFile(filename) 
+set filenew = fs.Createtextfile(filename,true, False)
+filenew.Writeline "<%"
+filenew.Writeline "On Error Resume Next"
+if vcpapitype="XMLHTTP" then
+filenew.Writeline "session(""vcpserver"")=""http://sms.finereason.com/gateway/"""
+else
+filenew.Writeline "session(""vcpserver"")=""sms.finereason.com"""
+end if
+filenew.Writeline "session(""vcpuser"")="""+vcpuser+""""  
+filenew.Writeline "session(""vcppassword"")=""" & vcppassword & """"
+filenew.Writeline "session(""vcpapikey"")=""" & vcpapikey & """"
+filenew.Writeline "Const SmsApiType = """ & vcpapitype & """    'XMLHTTP异步传输 Socket组件传输"
+filenew.Writeline "%"+">" 
+filenew.Writeline  
+filenew.close
+Set filenew = Nothing
+Set filename = Nothing
+Set fs = Nothing
+response.Redirect("Admin_Sms.asp")
+end if
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<LINK href="../css/style.css" rel="stylesheet" type="text/css"> 
+<title>手机短信发送管理</title>
+<script language="javascript" src="../Inc/Admin.js"></script>
+<script>
+var checkflag="false";
+function check(field){
+if(checkflag=="false"){
+for(i=0;i<field.length;i++){
+field[i].checked=true;}
+checkflag="true";
+return "解除全选"; }
+else {
+for(i=0;i<field.length;i++) {
+field[i].checked=false;}
+checkflag="false";
+return "选择全部";}}
+</script>
+<style type="text/css">
+<!--
+.style11 {color: #0066CC;
+	font-weight: bold;
+}
+-->
+</style>
+<body>
+<%
+Set newclient=New SMS
+respxml=newclient.infoSMSAccount()
+account=respxml
+%>
+<table width="98%" border="0" cellspacing="1" cellpadding="2" align="center" class="tableBorder">
+  <tr>
+    <th height="25" class="tableHeaderText">手机短信发送管理</th>
+  </tr>
+  <tr height=25>
+  <form action="?smsact=Smssave" method="post">
+      <td><b>　接口配置：</b>帐号:
+        <input type="text" id="username" name="username" size="12" value="<%=session("vcpuser")%>">  
+        密码:
+        <input type="password" id = "pass" name="pass" size="12" value="888888">  
+        MD5私钥:
+        <input type="password" id = "apikey" name="apikey" size="12" value="888888">  
+        接口:
+        <select name="SmsApiType">
+          <option value="XMLHTTP" <%if SmsApiType="XMLHTTP" then Response.Write("selected")%>>XMLHTTP <%if IsObjInstalled("Microsoft.XMLHTTP") then%>√<%else%>×<%end if%></option>
+		  <option value="Socket" <%if SmsApiType="Socket" then Response.Write("selected")%>>Socket <%if IsObjInstalled("Socket.TCP") then%>√<%else%>×<%end if%></option>
+        </select>
+        余额:<font color="#FF0000"><b><%=account%></b></font>条 
+      <input type="submit" value="修改配置" class="inputs"> [<a href="http://sms.finereason.com/login.asp" target="_blank" style="color:#F00">申请账号</a>]</td>
+    </form>
+  </tr>
+  <tr height=25>
+    <td><b>　管理选项：</b><a href="Admin_SendSms.asp">群发短信</a> | <a href="Admin_Sms.asp?r=1">发送成功记录</a> | <a href="Admin_Sms.asp?r=0">发送失败记录</a> | <a href="Admin_Sms.asp">全部记录</a> | [<a href="javascript:location.reload()">刷新页面</a>]</td>
+  </tr>
+</table><br>
+<%
+action=request.QueryString("action")
+if action="del" then
+	Call Del()
+else
+	Call main()
+end if
+if FoundErr=True then
+	call Show_Err()
+end if
+%>
+<%Sub main()
+'Set cmdTemp = Server.CreateObject("ADODB.Command")
+'set rs = server.CreateObject ("adodb.recordset")
+'sql="execute smslist"
+'cmdTemp.CommandText = sql
+'cmdTemp.CommandType = 1
+'Set cmdTemp.ActiveConnection = conn   
+'rs.Open cmdTemp,,1,1
+'set cmdTemp=nothing
+set rs=server.createobject("adodb.recordset")
+if r="1" then
+sql="select top 1000 * from JOB_Sms where S_issuccess=1 order by S_id desc"
+elseif r="0" then
+sql="select top 1000 * from JOB_Sms where S_issuccess=0 order by S_id desc"
+else
+sql="select top 1000 * from JOB_Sms order by S_id desc"
+end if
+rs.open sql,conn,1,1
+if rs.eof and rs.bof then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>暂无手机短信发送记录，请添加后再进行管理！</li>"
+	exit sub
+else
+	totalPut=rs.recordcount
+	if (page-1)*MaxPerpage>totalput then
+		if (totalPut mod MaxPerpage)=0 then
+			page= totalPut \ MaxPerpage
+		else
+			page= totalPut \ MaxPerpage + 1
+		end if
+	end if
+	if page=1 then
+		Call MainInfo()
+	else
+		if (page-1)*MaxPerpage<totalPut then
+			rs.move  (page-1)*MaxPerpage
+			dim bookmark
+			bookmark=rs.bookmark
+			Call MainInfo()
+		else
+			page=1
+			Call MainInfo()
+		end if
+	end if
+end if
+rs.close
+set rs=nothing
+end sub	
+%>
+<%Sub MainInfo()%>
+  <table wnewsidth="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder mt6">
+  <Form name="search" method="POST" action="Admin_Sms.asp?action=del">
+    <tr>
+      <th height=25 colspan="8">手机短信发送列表</th>
+</tr>
+    <tr height=25>
+      <td width="30" align="center" wnewsidth="446"><b>编号</b></td>
+      <td width="80" align="center" wnewsidth="446"><strong>发送人帐号</strong></td>
+      <td width="80" align="center" wnewsidth="446"><strong>接收人帐号</strong></td>
+      <td width="60" align="center" wnewsidth="446"><strong>目标手机</strong></td>
+      <td width="60" align="center" wnewsidth="446"><strong>是否成功</strong></td>
+      <td width="100" align="center" wnewsidth="263"><b>发送时间</b></td>
+      <td align="center" wnewsidth="113"><b>发送内容</b></td>
+      <td width="30" align="center" wnewsidth="57">删除</td>
+    </tr>
+<%
+i=0
+do while not rs.eof
+i=i+1
+%>
+    <tr>
+      <td align="center"><%=i%></td>
+      <td align="center"><%=rs("S_memberlogin")%></td>
+      <td align="center"><%=rs("S_tomemberlogin")%></td>
+      <td align="center"><%=rs("S_tomobile")%></td>
+      <td align="center"><%if rs("S_issuccess")="1" then%><font color="#009900">发送成功</font><%else%><font color="#FF0000">发送失败</font>
+      <%end if%></td>
+      <td align="center"><%=rs("S_sendtime")%></td>
+      <td align="left"><%=rs("S_content")%></td>
+      <td align="center"><input name='selAnnounce' type='checkbox' class="checkbox" value='<%=cstr(rs("S_ID"))%>' /></td>
+    </tr>
+      <%if i>=MaxPerPage then exit do
+		rs.movenext
+		loop%>
+    <tr>
+      <td colspan="8" align="right"><input name="button" type=button class="inputs" onClick="this.value=check(this.form)" value=" 全部选定 "> <input name="submit2" type='submit' class="inputs" value='删除'></td>
+    </tr>
+    <tr>
+      <td align="center" colspan="8"><%If totalput>0 Then
+	Call Showpage(strFileName,totalput,MaxPerPage,false,true,"条发送记录")
+End If%></td>
+    </tr>
+</form>
+</table>
+<%end sub%>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>
+<%Conn.Close:Set Conn=Nothing%>
+<%
+Sub Del()
+	sid=request.Form("selAnnounce")
+	conn.execute("delete from JOB_Sms where S_id in("&sid&")")
+	response.Redirect("Admin_Sms.asp")
+End sub
+%>

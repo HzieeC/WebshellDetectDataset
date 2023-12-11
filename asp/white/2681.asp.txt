@@ -1,0 +1,519 @@
+<!--#include file="userfunc.asp"-->
+<%
+sub addtocart() 
+
+ProductList = Session("ProductList")
+Products = Split(Request("Pid"), ",")
+For I=0 To UBound(Products)
+   PutToShopBag Products(I), ProductList
+Next
+Session("ProductList") = ProductList
+
+if request("payment")="去收银台" or request("payment")="去收银台" then
+
+response.redirect "shoporders.asp?action=1"
+
+
+end if
+
+If Request("cmdShow") = "Yes" Then
+   ProductList = ""
+   Products = Split(Request("PId"), ", ")
+   For I=0 To UBound(Products)
+      PutToShopBag Products(I), ProductList
+   Next
+   Session("ProductList") = ProductList
+End If
+If Len(Session("ProductList")) = 0 Then
+Response.write "<table  height=30 width=100%  bgcolor=#80B5FF><tr><td align=center><font color=#FFffff><b>我的购物车</b></font></td></tr></table>"
+Response.write "<table  height=30 width=100%  bgcolor=#ffffff><tr><td align=center>购物车为空，<a href=index.asp><b>继续购物</b></a>&nbsp;</td></tr></table>"
+Response.end
+end if
+%>
+<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center"  bgcolor="<% = bgclr1%>" >
+<tr> 
+    <td height=30  bgcolor=#80B5FF><font color=#FFffff><b>我的购物车</b></font></td>
+ </tr>
+<tr> 
+    <td><br><font color="#0000ff"><b>以下是您购物车中的商品信息，请核对正确无误后下单，非注册用户请牢记你的订单号以便日后查询！<br>  </b></font></td>
+ </tr>
+<%
+Set rsshop=Server.CreateObject("ADODB.RecordSet") 
+strsql="select ID,proName,Score,price0,Price1,price2,price3,amount,VipPrice,Stock from sdx_Product where ID in ("&Session("ProductList")&") order by ID"
+rsshop.open strsql,conn,1,1
+%>
+<tr> <td>
+<form action="shopcart.asp" method="POST" name="check">
+      <table border="0" cellspacing="1" cellpadding="4" align="center" width="100%" bgcolor="#cccccc">
+           <tr bgcolor="#f1f1f1" height="25" align="center"> 
+             <td width="80">选中/清除</td>
+             <td width="300">商 品 名 称</td>
+             <td width="40">数量</td>
+	     <td width="40">积分</td>
+	     <td width="60">市场价</td>
+	     <td width="40">邮费</td>
+             <td width="60">您的价格</td>
+	      <td width="70">总 计</td>
+              <td width="70"><FONT color=#000000>修改数量</font></td>
+             
+          </tr>
+<%
+Sum = 0
+SumS = 0
+Quatity = 1
+Do While Not rsshop.EOF
+     Quatity = CInt( Request.Form( "Q_" & rsshop("ID")) )
+     If Quatity <= 0 Then 
+        Quatity = CInt( Session(rsshop("ID")) )
+        If Quatity <= 0 Then Quatity = 1
+     End If
+Session(rsshop("ID")) = Quatity
+
+IF rsshop("Stock") <= Quatity Then
+Quatity = 1
+Session(rsshop("ID")) = 1
+response.write "<script language=javascript>alert('对不起，"&rsshop("Name")&"暂时库存不足，请过段时间再来购买该商品！');window.close();</script>" 
+Conn.Close
+Set Conn = Nothing
+response.End()
+End IF
+
+If rsshop("amount") = 0 or LngUserID=0 or Lnggrpid = 4 Then 
+ if rsshop("price1")<1 then 
+myprice=0&rsshop("price1")
+ else 
+myprice=rsshop("price1")
+ end if
+
+ Elseif Lnggrpid = 5  then 
+             
+ if rsshop("price2")<1 then 
+myprice=0&rsshop("price2")
+ else 
+myprice=rsshop("price2")
+ end if 
+
+ Else 
+
+ if Round(trim(rsshop("price3")*LngDiscount),2)<1 then 
+myprice=0&Round(trim(rsshop("price3")*LngDiscount),2)
+else 
+myprice=Round(trim(rsshop("price3")*LngDiscount),2)
+end if
+
+end if
+
+Dim YourPrice,strprice2,strvipprice,ProScore,strprice3,YourPricex
+strprice1   =   myprice
+strprice2   =   myprice
+strprice3   =   myprice
+strvipprice =   rsshop("VipPrice")
+ProScore    =   rsshop("Score")
+YourPrice1  =   strprice1 
+YourPrice2  =   strprice2 
+YourPrice3  =   Round(strprice3-LngDiscount,2)
+if  LngUserID=0 or Lnggrpid = 4 or rsshop("amount") = 0 Then
+YourPricex  =   YourPrice1
+Elseif Lnggrpid = 5  then
+YourPricex =    YourPrice2
+else
+YourPricex =    YourPrice3
+end if
+Sum = Sum + (YourPricex + strvipprice)*Quatity
+Sum=Round(Sum,2) 
+SumS = SumS + ProScore*Quatity
+%> 
+      <tr bgcolor="#FFFFFF" height="25"align="center"> 
+            <td><input class=shopinput2 type="CheckBox" name="pid" value="<%=rsshop("ID")%>" Checked></td>
+			 
+            <td align="left">&nbsp;<a href="pro_show.asp?ID=<%=rsshop("ID")%>" target="_blank"><%=rsshop("proName")%></a></td>
+            <td><input class=shopinput1 type="Text" name="<%="Q_" & rsshop("ID")%>" value="<%=Quatity%>" onchange='javascript:this.form.submit();name="cmdShow"' size="3" ></td>
+	    <td><%=ProScore %>分</td>
+	    <td><%=rsshop("price0") %>元</td>
+             <td><%=strvipprice %>元</td>
+              <td><%=YourPricex %>元</td>
+	     <td><%=Round((YourPricex + strvipprice)*Quatity,2) %>元</td>
+               <td><input class=shopinput2   type=button   value="修改数量"  onclick="location.href='shopcart.asp'"></td>
+             
+          </tr>
+          <%
+     rsshop.MoveNext
+     Loop
+
+rsshop.close
+set rsshop=nothing
+
+%> 
+<tr bgcolor="#FFFFFF">
+     <td  colspan="10" STYLE="PADDING-LEFT: 60px;"> 
+  您现在是：<font color="#FF6600"><%= strTitle %></font>&nbsp;
+
+  折后总计：<font color="#FF6600"><%=FormatNumber(Round(Sum,2)) %></font>&nbsp;元,
+		
+  获得积分：<font color="#FF6600"><%=SumS %></font>&nbsp;分
+  
+    </td>
+ </tr>
+<tr bgcolor="#FFFFFF"> 
+ <td colspan="11" align="center" valign="middle" >             
+                <input class=shopinput2 type="submit" name="order" value="更新清除不选商品"> &nbsp;
+                <input class=shopinput2 type="submit" name="payment" value="去收银台"> &nbsp;
+                <input class=shopinput2 type="button" value="继续购物" language=javascript onClick="javascript:window.close()" name="button">&nbsp;
+                <input class=shopinput2 type="hidden" name="shopShow" value="Yes">&nbsp;
+               <input class=shopinput2 type="submit" name="qingkong" value="清空购物车"  > 
+                </td>
+
+          </tr>
+
+          <tr bgcolor="#FFFFFF">
+     <td  colspan="10" STYLE="PADDING-LEFT: 60px;PADDING-top: 20px;PADDING-bottom: 20px"> 
+   · 如果您想继续购物，请点选继续购物<br>
+   · 如果您想更新已在购物车内的产品，请先修改，然后点选修改数量<br>
+   · 如果您想全部取消已订购在购物车中的产品，请点选清空购物车<br>
+   · 如果您满意您所购买的产品，请点选去收银台<br>   
+   · 以上是您购物车中的商品信息，请核对正确无误后下单，如果你使用非注册用户下单请牢记你的订单号以便日后查询！
+    </td>
+ </tr>
+      </table>
+	          </form>
+ </td>
+</tr>
+      </table>
+
+<%
+end sub
+sub addtofav()
+if request.cookies("sundxshop")("username")="" then
+response.Write "<script language='javascript'>alert('请先登陆！');location.href='user_login.asp' ;</script>"
+response.End
+end if
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select sdx_orders.actionid,sdx_orders.id,sdx_product.proname,sdx_product.price0,sdx_product.price1,sdx_product.price2,sdx_product.price3,sdx_product.discount,sdx_product.amount from sdx_product inner join sdx_orders on sdx_product.id=sdx_orders.id where sdx_orders.username='"& strUserName&"' and sdx_orders.state=6",conn,1,1 
+%>
+<table width=100% border=0 align=center cellpadding=0 cellspacing=0 bgcolor=#f1f1f1>
+<tr> 
+    <td height=30 align=center bgcolor=#80B5FF><font color=#ffffff><b>我的收藏夹</b></font></td>
+ </tr
+</table>
+<table width=100% border=0 align=center cellpadding=0 cellspacing=1 bgcolor=#f1f1f1>
+<form name='form1' method='post' action=shopcol.asp>
+
+<tr bgcolor=#ffffff height=20 align=center>
+<td width=7%><font color=#000000>选 择</font></td>
+<td width=45%><font color=#000000>商品名称</font></td>
+<td width=14%><font color=#000000>市场价</font></td>
+
+ <td width=12%><font color=#000000>您的价格</font></td>
+<td width=9%><font color=#000000>删 除</font></td></tr>
+<%  do while not rs.eof 
+
+		If rs("amount") = 0 or LngUserID=0 or Lnggrpid = 4 Then 
+ if rs("price1")<1 then 
+myprice=0&rs("price1")
+ else 
+myprice=rs("price1")
+ end if
+
+ Elseif Lnggrpid = 5  then 
+             
+ if rs("price2")<1 then 
+myprice=0&rs("price2")
+ else 
+myprice=rs("price2")
+ end if 
+
+ Else 
+
+ if Round(trim(rs("price3")*LngDiscount),2)<1 then 
+myprice=0&Round(trim(rs("price3")*LngDiscount),2)
+else 
+myprice=Round(trim(rs("price3")*LngDiscount),2)
+end if
+
+end if
+
+
+ %>
+<tr bgcolor=#ffffff align=center>
+<td><input name=id type=checkbox checked value=<% = rs("id") %>></td>
+<td STYLE='PADDING-LEFT: 5px' align=left><a href=pro_show.asp?id=<% = rs("id") %> target=_blank><% = rs("proname") %></a></td>
+<td><% = rs("price0") %>元</td>
+<td><font color=#FF0000><% = myprice %>元</font></td>
+
+<td>
+<%
+if action<>"addtofav" then
+response.Write "<a href=addfav.asp?action=del&actionid="&rs("actionid")&">"
+else
+response.Write "<a href=addfav.asp?action=del&actionid="&rs("actionid")&"&ll=22>" 
+end if
+
+response.Write "<img src=images/trash.gif width=15 height=17 border=0></a></td></tr>"
+rs.movenext
+loop
+rs.close
+set rs=nothing
+response.write "<tr><td height=36 colspan=6 bgcolor=#FFFFFF><div align=center><input class=shopinput1 type=submit name=Submit  value=去下订单 >&nbsp;&nbsp;&nbsp;&nbsp;"
+if action<>"addtofav" then
+response.write "<input class=shopinput1 type=button name=Submit2 value=继续采购 onclick=javascript:window.close()>"
+end if
+%>
+</div></td></tr>
+
+          <tr bgcolor="#FFFFFF">
+     <td  colspan="10" STYLE="PADDING-LEFT: 60px;PADDING-top: 20px;PADDING-bottom: 20px"> 
+   · 如果您想继续购物，请点选继续购物<br>
+   · 如果您想更新已在购物车内的产品，请先修改，然后点选修改数量<br>
+   · 如果您想全部取消已订购在购物车中的产品，请点选清空购物车<br>
+   · 如果您满意您所购买的产品，请点选去收银台<br>   
+   · 以上是您购物车中的商品信息，请核对正确无误后下单，如果你使用非注册用户下单请牢记你的订单号以便日后查询！
+    </td>
+ </tr>
+
+
+</form></table>
+	  
+
+
+<%
+
+end sub
+
+sub deposit()
+dim strscore,strvipscore,strdeposit
+if request.cookies("sundxshop")("username")="" then
+response.Write "<script language='javascript'>alert('请先登陆！');location.href='user_login.asp' ;</script>"
+response.End
+end if
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select score,deposit from Dv_user where username='"&strUserName&"' ",conn,1,1
+strscore = rs("score")
+strdeposit = rs("deposit")
+rs.close
+
+%>
+<table width=100% border=0 align=center cellpadding=0 cellspacing=1>
+
+  <tr> 
+   <td align="center" bgcolor="#80B5FF"  height="25" colspan=2><font color="#FFFFFF"><b>预存款和积分</b></font></td>
+  </tr>
+
+    <tr bgcolor=#FFFFFF>
+    <td height=40 STYLE='PADDING-LEFT: 10px'>
+      您目前的预存款有： <font color=#FF6600><% = strdeposit %></font> 元
+   </td>
+  </tr>
+  <tr bgcolor=#FFFFFF>
+    <td height=40 STYLE='PADDING-LEFT: 10px'>
+      您目前的积分为： <font color=#FF6600>
+      <% = strscore %>
+      </font> 分。 
+   </td>
+  </tr>
+   <tr bgcolor=#FFFFFF>
+      
+  <% If scoretodeposits < 1 then scoretodeposits = 0&scoretodeposits %>
+    <td height=40 STYLE='PADDING-LEFT: 10px'>&nbsp;一积分可以转换&nbsp;<font color="#FF6600"><% = scoretodeposits %></font>&nbsp;元预存款</td>
+  </tr>
+  <tr bgcolor=#FFFFFF> 
+    <td height=40>
+     <form name="uptovip" method="post" action="vipuser.asp?action=chgscore">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+          <tr> 
+            <td STYLE='PADDING-LEFT: 10px'>
+            我要把&nbsp;<input name="strchg" type="text" size="10" maxlength="5" value="0" onKeyPress	= "return regInput(this,	/^\d*\.?\d{0,2}$/,		String.fromCharCode(event.keyCode))" 
+onpaste		= "return regInput(this,	/^\d*\.?\d{0,2}$/,		window.clipboardData.getData('Text'))"
+ondrop		= "return regInput(this,	/^\d*\.?\d{0,2}$/,		event.dataTransfer.getData('Text'))">
+              <input type="submit" name="Submit" value="积分转换成预存款"></td>
+          </tr>
+        </table>
+      </form></td>
+  </tr>
+ 
+
+</table>
+
+<%
+
+set rs = nothing
+end sub
+
+sub profile()
+if request.cookies("sundxshop")("username")="" then
+response.Write "<script language='javascript'>alert('请先登陆！');location.href='user_login.asp' ;</script>"
+response.End
+end if
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select book from Dv_user where username='"&strUserName&"' ",conn,1,1
+%>
+<table width=100% border=0 align=center cellpadding=0 cellspacing=0 bgcolor=#ffffff>
+
+<tr><td align=center class=table-xia  width=80%  height=25>
+<div align="center">会员通知</div>
+
+</td></tr>
+<tr><td align=center class=table-xia   height=50   >
+<div align="center"><% = rs("book") %></div>
+
+</td></tr>
+</table>
+<%
+end sub
+
+sub customerinfo()
+if request.cookies("sundxshop")("username")="" then
+response.Write "<script language='javascript'>alert('请先登陆！');location.href='user_login.asp' ;</script>"
+response.End
+end if
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select Dv_user.useremail,Dv_user.vip,Dv_user.useridentify,Dv_user.UserQuesion,Dv_user.userrealname,Dv_user.grdid,sdx_usergrade.grdname from Dv_user Inner Join sdx_usergrade On Dv_user.grdid = sdx_usergrade.grdid where username='"&strUserName&"' ",conn,1,1
+%>
+<table width=100% border=0 align=center cellpadding=0 cellspacing=0 bgcolor=#ffffff>
+<form name=userinfo method=post action=saveprofile.asp?action=customerinfo>
+<tr><td align=center class=table-xia>尊敬的用户，我们向您承诺：你的信息将被严格保密。</td></tr>
+<tr><td height=25 class=table-xia STYLE='PADDING-LEFT: 30px'>用 户 名： <font color=#FF6600><% = strUserName %></font></td></tr>
+<tr><td height=25 class=table-xia STYLE='PADDING-LEFT: 30px'>会员级别： [<b><font color=#FF6600><% = trim(rs("grdname")) %></font></b>]</td></tr>
+<tr><td height=25 class=table-xia STYLE='PADDING-LEFT: 30px'>E-Mail　：  <input name=useremail type=text id=useremail2 value=<% =trim(rs("useremail")) %>></td></tr>
+<tr><td height=25 class=table-xia STYLE='PADDING-LEFT: 30px'>真实姓名： <input name=userrealname type=text id=userrealname value=<% = trim(rs("userrealname"))%>></td></tr>
+<tr><td height=25 class=table-xia STYLE='PADDING-LEFT: 30px'>密码提问： <input name=UserQuesion type=text id=UserQuesion value=<% = trim(rs("UserQuesion"))%>></td></tr>
+<tr><td height=25 class=table-xia STYLE='PADDING-LEFT: 30px'>问题答案： <input name=UserAnswer type=text id=UserAnswer></td></tr>
+<tr><td height=25 class=table-xia STYLE='PADDING-LEFT: 30px'><input type=submit name=Submit2 value=提交保存 onclick='return checkuserinfo();'></td></tr>
+</form></table>
+
+<%
+rs.close
+set rs=nothing
+end sub
+
+sub changepass()
+if request.cookies("sundxshop")("username")="" then
+response.Write "<script language='javascript'>alert('请先登陆！');location.href='user_login.asp' ;</script>"
+response.End
+end if %>
+<table width=100% border=0 align=center cellpadding=1 cellspacing=0 >
+
+<tr bgcolor=#80B5FF>
+      <td align=center height="25" colspan=2><font color="#FFFFFF"><b>修改密码</b></font></td></tr>
+</table>
+<table width=100% border=0 align=center cellpadding=1 cellspacing=0 >
+<form name=userpass method=post action=saveprofile.asp?action=changepass>
+<tr bgcolor=#FFFFFF height="30">
+      <td width=40% align="right">用 户 名：</td>
+<td width=60%><font color=#FF6600><% = strUserName %></font></td>
+</tr>
+<tr bgcolor=#FFFFFF height="30">
+      <td align="right">原 密 码：</td>
+<td><input name=UserPassword type=Password id=UserPassword></td>
+</tr>
+<tr bgcolor=#FFFFFF height="30">
+      <td align="right">新 密 码：</td>
+<td><input name=UserPassword1 type=Password id=UserPassword1></td>
+</tr>
+<tr bgcolor=#FFFFFF height="30">
+<td align="right">确认密码：</td>
+<td><input name=UserPassword2 type=Password id=UserPassword2></td>
+</tr>
+<tr height="30">
+<td colspan=2 bgcolor=#FFFFFF align="center"><input type=submit name=Submit value='修  改' onclick='return checkrepass();'></td></tr>
+</form></table>
+<%
+end sub
+sub repass()
+dim shop
+shop=SafeRequest("shop",1)
+select case shop
+'//输入用户名
+case ""
+response.Write "<table width=100% border=0 align=center cellpadding=1 cellspacing=0>"
+response.Write "<tr><td height=30 bgcolor=#80B5FF><div align=center><font color=#FFFFFF><b>取回密码</b></font></div></td></tr>"
+response.Write "<form name=shop0 method=post action=user_manage.asp?action=repass&shop=1>"
+response.Write "<tr><td height=50 bgcolor=#ffffff><div align=center>请输入您的用户名： <input name=username type=text id=username size=16></div></td></tr>"
+response.Write "<tr><td height=32 bgcolor=#ffffff><div align=center><input type=submit name=Submit value=确&nbsp;定 onclick='return check0();'></div></td></tr>"
+response.Write "</form></table>"
+'//输入问题答案
+case "1"
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select UserQuesion,UserAnswer from Dv_user where username='"&sqlCheckstr(request.form("username"))&"' and  UserAnswer<>"" and UserQuesion<>"" ",conn,1,1
+if rs.eof and rs.bof then
+response.write "<center><br>查无此用户或该用户没有社密码问题，请返回！</center>"
+else
+response.Write "<table width=100% border=0 align=center cellpadding=1 cellspacing=1 bgcolor=#FFFFFF>"
+response.Write "<tr><td height=30 bgcolor=#80B5FF><div align=center><font color=#FFFFFF><b>取回密码</b></font></div></td></tr>"
+response.Write "<form name=shop1 method=post action=user_manage.asp?action=repass&shop=2>"
+response.Write "<tr><td height=50 bgcolor=#ffffff STYLE='PADDING-LEFT: 20px'>您的密码提问：</td><td width=79% height=28 bgcolor=#ffffff STYLE='PADDING-LEFT: 20px'><font color=red>"&trim(rs("UserQuesion"))&"</font><input type=hidden name=username1 value="&sqlCheckstr(request.form("username"))&" ID=Hidden></td></tr>"
+response.Write "<tr><td  height=50 bgcolor=#ffffff STYLE='PADDING-LEFT: 20px'>您的密码答案：</td><td height=28 bgcolor=#ffffff STYLE='PADDING-LEFT: 20px'><input name=UserAnswer type=text id=UserAnswer></td></tr>"
+response.Write "<tr bgcolor=#ffffff><td height=32 colspan=2 STYLE='PADDING-LEFT: 50px'><input type=submit name=Submit2 value=确&nbsp;定 onclick='return check1();'></td></tr>"
+response.Write "</form></table>"
+end if
+rs.close
+set rs=nothing
+'//输入新密码
+case "2"
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select UserAnswer from Dv_user where username='"&sqlCheckstr(request.form("username1"))&"' ",conn,1,1
+'//判断答案是否正确
+if trim(rs("UserAnswer"))<>md5(sqlCheckstr(request.form("UserAnswer"))) then
+response.write "<script language=javascript>alert('对不起，您输入的问题答案不正确');location.href='index.asp' ;</script>"
+response.end
+else
+response.Write "<br><table width=96% border=0 align=center cellpadding=1 cellspacing=1 bgcolor=#FFFFFF>"
+response.Write "<form name=shop2 method=post action=user_saveprofile.asp?action=repass>"
+response.Write "<tr><td width=20% bgcolor=#EFF5FE STYLE='PADDING-LEFT: 20px'>请输入新密码：</td><td width=80% height=28 bgcolor=#EFF5FE STYLE='PADDING-LEFT: 20px'><input name=UserPassword1 type=Password id=UserPassword1><input type=hidden name=username2 value="&sqlCheckstr(request.form("username1"))&"></td></tr>"
+response.Write "<tr><td bgcolor=#EFF5FE STYLE='PADDING-LEFT: 20px'>输入确认密码：</td><td height=28 bgcolor=#EFF5FE STYLE='PADDING-LEFT: 20px'><input name=UserPassword2 type=Password id=UserPassword2></td></tr>"
+response.Write "<tr><td height=32 colspan=2 bgcolor=#EFF5FE STYLE='PADDING-LEFT: 50px'><input type=submit name=Submit3 value=确定 onclick='return check2();'></td></tr>"
+response.Write "</form></table>"
+end if
+rs.close
+set rs=nothing
+end select
+end sub
+
+sub statinfo()
+if request.cookies("sundxshop")("username")="" then
+response.Write "<script language='javascript'>alert('请先登陆！');location.href='user_login.asp' ;</script>"
+response.End
+end if
+
+dim joindtm,myorder,successed,successedsum,lastorder
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select adddate from Dv_user where username='"&strUserName&"'",conn,1,1
+joindtm=rs("adddate")
+rs.close
+rs.open "select distinct(goods),actiondate from sdx_orders where username='"&strUserName&"' and state<6 ",conn,1,1
+if rs.eof and rs.bof then
+response.write ""
+else
+rs.movelast
+lastorder=rs("actiondate")
+myorder=rs.recordcount
+end if
+rs.close
+rs.open "select sum(paid) as paid from sdx_orders where username='"&strUserName&"' and state<6 and state>3",conn,1,1 
+if rs("paid")>0 then
+successedsum=rs("paid")
+else
+successedsum=0
+end if
+rs.close
+rs.open "select distinct(goods) from sdx_orders where username='"&strUserName&"' and state<6 and state>3",conn,1,1
+successed=rs.recordcount
+set rs=nothing %>
+
+<table width=100% border=0 align=center cellpadding=1 cellspacing=0 bgcolor=#FFFFFF>
+<tr> 
+   <td align="center" bgcolor="#80B5FF"  height="25" colspan=2><font color="#FFFFFF"><b>统计信息</b></font></td>
+</tr>
+<tr bgcolor=#FFFFFF>
+<td height=20 colspan=2 align="center"><br>以下是您在本站的一些历史记录的统计信息</td>
+</tr>
+<tr><td height="5"></td></tr>
+<tr height=14  bgcolor=#FFFFFF>
+<td align=right>注册日期：</td><td width=56%>&nbsp;<% =joindtm %></td></tr>
+<tr height=14  bgcolor=#FFFFFF><td align=right>上次下单：</td><td>&nbsp;<% =lastorder %></td></tr>
+<tr height=14  bgcolor=#FFFFFF><td align=right>下单次数：</td><td>&nbsp;<% = myorder %>次</td></tr>
+<tr height=14  bgcolor=#FFFFFF><td align=right>成交次数：</td><td>&nbsp;<% =successed %>次</td></tr>
+<tr height=14  bgcolor=#FFFFFF><td align=right>成交金额：</td><td>&nbsp;<% =successedsum %>元</td></tr>
+</table>
+  <%
+end sub
+%> 

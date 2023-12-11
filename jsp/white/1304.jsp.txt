@@ -1,0 +1,114 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@ page import="com.bizoss.trade.ts_category.*" %>
+<%
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo(); 
+	String select = ts_categoryInfo.getSelCatByTLevel("2", "1");
+
+	String flag_code  = "0";
+ 
+	String flag_name = "发布";
+   
+	if(request.getParameter("flag_code")!=null && request.getParameter("flag_code").equals("1")){
+		flag_code = request.getParameter("flag_code");
+		flag_name  ="修改";
+   
+	}
+	String product_id = "";
+ 
+	if(request.getParameter("product_id")!=null){
+		product_id = request.getParameter("product_id");
+	}
+
+    
+    
+ 
+%>	
+<html>
+  <head>
+    <title><%=flag_name%>产品信息</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="js_classfy.js"></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_categoryInfo.js'></script> 
+	
+</head>
+
+<body>
+	<h1><%=flag_name%>产品信息</h1>
+	
+
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>提示信息</h4>
+		  <span>请选择完整的类目，然后提交。</span><br/>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="1" cellspacing="1" border="0" class="listtab">
+		<tr>
+			<td align="right" width="20%">
+				  产品所属类目<font color="red">*</font>			
+			</td>
+			<td width="80%">
+			  <table width="50%" border="0" cellspacing="0" cellpadding="0">
+				<tr>
+				  <td width="30%" align="left">
+						<select name="sort1" id="sort1" size="15" style="width:170px" onChange="setSecondClass(this.value);" onclick="setTypeName1(this)">
+						   <%=select%>
+						</select>
+					</td>
+					<td width="30%" align="left">
+						<select name="sort2" id="sort2"  size="15" style="width:170px;display:none" onChange="setTherdClass(this.value);" onclick="setTypeName2(this)">
+							<option value="">请选择...</option>
+						</select>
+					</td>
+					<td width="40%" align="left">
+						<select name="sort3" id="sort3"  size="15" style="width:170px;display:none" onclick="setTypeName3(this)" >
+							<option value="">请选择...</option>
+						</select>
+					</td>
+				   </tr>
+
+				</table>
+			 </td>
+		</tr>
+		<tr>
+			<td colspan="2" style="background:#FFDBAB;">
+ 
+             <span class="STYLE2"> 您当前选择的是：</span>
+				<label id="name1" style="color:#FF7300;"></label>
+				<label id="name2" style="color:#FF7300;"></label>
+				<label id="name3" style="color:#FF7300;"></label> 
+			</td>
+		</tr>
+	</table>
+	
+	  	<input type="hidden" name="class_id1" id="class_id1" value="">
+		<input type="hidden" name="class_id2" id="class_id2" value="">
+		<input type="hidden" name="class_id3" id="class_id3" value="">	
+		<input type="hidden" name="flag_code" id="flag_code" value="<%=flag_code%>"/> 
+ 
+		<input type="hidden" name="class_flag" id="class_flag" value="0"/> 
+		<input type="hidden" name="class_attr" id="class_attr" value=""/>
+ 
+		<input type="hidden" name="product_id" id="product_id" value="<%=product_id%>">
+
+    	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input class="button_css" type="button" name="tradeRut" value="下一步，填写详细信息" onClick="submitValue()" />
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

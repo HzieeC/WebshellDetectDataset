@@ -1,0 +1,165 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ts_module.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Ts_module ts_module = new Ts_module();
+	//String s_title = "";
+	//if(request.getParameter("s_title")!=null && !request.getParameter("s_title").equals("")){
+	//	s_title = request.getParameter("s_title");
+	//	news.setTitle(s_title);
+	//}
+	Ts_moduleInfo ts_moduleInfo = new Ts_moduleInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ts_moduleInfo.getListByPage(ts_module,Integer.parseInt(iStart),limit);
+	int counter = ts_moduleInfo.getCountByObj(ts_module);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?iStart=",Integer.parseInt(iStart),limit);
+%>
+<html>
+  <head>
+    
+    <title>模型管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+		<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>模型管理</h1>
+			</td>
+			<td>
+				<a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a>
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	
+	<!--table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				<input name="xxx" type="text" /><input name="searchInfo" type="button" value="Search"/>	
+			</td>
+		</tr>
+	</table-->
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			
+		  	<th>模型名称</th>
+		  	
+		  	<th>模型编码</th>
+		  	
+		  	<th>详细页模板</th>
+		  	
+		  	<th>详细页生成地址</th>
+		  	
+		  	<th>数据库表名</th>
+		  	
+		  	<th>编号</th>
+		  
+		  	<th>是否支持订阅</th>
+		  	
+			<th width="10%">修改</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String module_id="",module_no="",module_name="",module_code="",article_temp="",article_save="",db_name="",is_sub="";
+	  			  	if(map.get("module_id")!=null) module_id = map.get("module_id").toString();
+				  	if(map.get("module_name")!=null) module_name = map.get("module_name").toString();
+				  	if(map.get("module_code")!=null) module_code = map.get("module_code").toString();
+				  	if(map.get("article_temp")!=null) article_temp = map.get("article_temp").toString();
+				  	if(map.get("article_save")!=null) article_save = map.get("article_save").toString();
+				  	if(map.get("db_name")!=null) db_name = map.get("db_name").toString();
+				  	if(map.get("is_sub")!=null) is_sub = map.get("is_sub").toString();
+				  	if(map.get("module_no")!=null) module_no = map.get("module_no").toString();
+					if(is_sub.equals("1")) is_sub = "支持";
+					if(is_sub.equals("2")) is_sub = "不支持";
+
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=module_id %>" /></td>
+			
+		  	<td><%=module_name%></td>
+		  	
+		  	<td><%=module_code%></td>
+		  	
+		  	<td><%=article_temp%></td>
+		  	
+		  	<td><%=article_save%></td>
+		  	
+		  	<td><%=db_name%></td>
+		  	<td><input type="text" size="3" maxlength="3" id="<%=module_id %>" value="<%=module_no%>"/> </td>
+		  	<td><%=is_sub%></td>
+		  	
+			<td width="10%"><a href="updateInfo.jsp?module_id=<%=module_id %>"><img src="/program/admin/images/edit.gif" title="修改" /></a></td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=module_id%>','6522');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+				<input type="button" name="sortN" onClick="sortNews(this)" value="排序" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	   <input type="hidden" name="sort" id="sort" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="6522" />
+	  </form>
+</body>
+
+</html>

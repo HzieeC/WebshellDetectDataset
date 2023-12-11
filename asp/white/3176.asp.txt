@@ -1,0 +1,86 @@
+<!--#include file="../../inc/MainClass.asp"-->
+<%
+server.scripttimeout=1800
+sitePic=sitePic&"/"&Year(now())&"-"&Month(now())
+
+Sub downPic(pg,dt)
+	dim i,rsObj,sql,page,fileName,filePath,picUrl,downType,isDownOk:isDownOk=false
+	downType=dt
+	select case downType
+		case "all"
+			sql="select m_id,m_name,m_pic from {pre}data  where m_pic like 'http://%'  order by m_addtime desc"
+		case else
+			sql="select m_id,m_name,m_pic from {pre}data  where m_pic like '%bokecc.com%' or m_pic like '%cmsplugin.net%'  order by m_addtime desc"
+	end select
+	set rsObj=conn.db(sql,"records1")
+	if rsObj.recordcount=0 then alertMsg "恭喜，所有CC资源库图片已经成功下载到本地","admin_video.asp":die ""
+	rsObj.pagesize=30
+	page=pg
+	if isNul(page) then page=1 else page=clng(page)
+	if page>rsObj.pagecount then page=rsObj.pagecount
+	if page=1 then session("m_pic_page") = rsObj.pagecount
+	rsObj.absolutepage=page
+	echo "<font color=red>共"&session("m_pic_page")&"页,正在开始下载第"&page&"页数据的的图片</font><br>"
+	for i=1 to rsObj.pagesize
+		picUrl=rsObj("m_pic")
+		fileName=mid(picUrl,instrrev(picUrl,"/")+1)
+		if instr(" "&fileName,"?")>0 then:fileName=mid(fileName,1,instr(fileName,"?")-1):end if
+		filePath = "/"&sitePath&"pic/"&sitePic&"/"&fileName
+		if not isExistFile(filePath) then
+			isDownOk=downSinglePic(picUrl,rsObj("m_id"),rsObj("m_name"),filePath,"down")
+		else
+			echo "数据<font color=red>"&rsObj("m_name")&"</font>的图片已经存在 <a target=_blank href="&filePath&">预览图片</a><br>"
+			isDownOk=true
+		end if
+		if isDownOk then 
+			updatePicUrl rsObj("m_id"),replaceStr("pic/"&sitePic&"/"&fileName,"../","")
+			if waterMark=1 and isInstallObj(JPEG_OBJ_NAME) then  writeFontWaterPrint filePath,waterMarkLocation
+		else
+			updatePicUrl rsObj("m_id"),""
+		end if
+		rsObj.movenext
+		if rsObj.eof  then exit for
+	next
+
+	rsObj.close : set rsObj=nothing
+	echo "<br>暂停5秒后继续下载<script language=""javascript"">setTimeout(""gatherNextPagePic();"",5000);function gatherNextPagePic(){location.href='?action=downpic&downtype="&downType&"&page="&(page+1)&"';}</script>"
+End Sub
+
+Sub updatePicUrl(id,pic)
+	conn.db "update {pre}data set m_pic='"&pic&"' where m_id="&id,"execute"
+End Sub
+
+Function downSinglePic(picUrl,vid,vname,filePath,infotype)
+	dim streamLen,spanstr,filename,fileext
+	if infotype="" then spanstr="" else spanstr="<br/>"
+	on error resume next
+	if isNul(picUrl) or instr(picUrl,"http://")=0 then echo "数据<font color=red>"&vname&"</font>的图片路径错误1,请检查是否有效  "&spanstr : downSinglePic=false :Exit Function
+	fileext=getFileFormat(filePath):filename=mid(picUrl,instrrev(picUrl,"/")+1)
+	if InStr(picUrl,".ykimg.com/")>0 then:fileext=".gif":filePath=filePath&fileext:end if
+	if fileext<>"" AND InStr("|.jpg|.gif|.png|.bmp|.jpeg|",LCase(fileext))>0 then
+		if not InStr(picUrl,".ykimg.com/")>0 then
+			if isNul(filename) or instr(filename,"www.")>0  or instr(filename,".")=0 then echo "数据<font color=red>"&vname&"</font>的图片路径错误2,请检查是否有效  "&spanstr : downSinglePic=false :Exit Function
+		end if
+		dim imgStream : imgStream=getRemoteContent(picUrl,"body")
+		dim createStreamFileFlag:createStreamFileFlag=createStreamFile(imgStream,filePath)
+		if err or createStreamFileFlag=false then 
+			if isNul(vid) then
+				echo "数据<font color=red>"&vname&"</font>的图片下载发生错误3,请检查是否有效  "&spanstr:err.clear : downSinglePic=false
+			else	
+				echo "数据<font color=red>"&vname&"</font>的图片下载发生错误4,id为<font color=red>"&vid&"</font>,请检查是否有效  "&spanstr: err.clear : downSinglePic=false
+			end if  
+		else 
+			streamLen=lenB(imgStream)
+			if streamLen<1024*2 then
+				echo "数据<font color=red>"&vname&"</font>的图片下载发生错误5,请检查是否有效  "&spanstr:err.clear:downSinglePic=false
+			else
+				echo "数据<font color=red>"&vname&"</font>的图片下载成功,大小为<font color=red>"&formatnumber(streamLen/1024,2)&"</font>KB <a target=_blank href="&filePath&">预览图片</a>  "&spanstr:downSinglePic=true
+			end if
+		end if
+	else
+			echo "数据<font color=red>"&vname&"</font>的图片下载发生错误6,图片格式不对  "&spanstr:err.clear:downSinglePic=false
+	end if
+End Function
+
+downPic 1,"all"
+%>

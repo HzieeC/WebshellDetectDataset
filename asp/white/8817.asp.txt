@@ -1,0 +1,451 @@
+<!--#include file="../Inc/conn.asp"-->
+<!--#include file="Admin_check.asp"-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>网站后台管理</title>
+<LINK href="images/Admin_css.css" type=text/css rel=stylesheet>
+<script src="js/admin.js"></script>
+</head>
+
+<body>
+<%
+select case request("action")
+    case "SpaceSize"
+		Call chkAdmin(17)
+	    SpaceSize()
+	case "CompressData"
+		Call chkAdmin(14)
+		if IsSqlDataBase = 1 then
+			SQLUserReadme()
+		else
+			CompressData()
+		end if
+	case "BackupData"
+		Call chkAdmin(15)
+	    if request("act")="Backup" then
+			if IsSqlDataBase = 1 then
+				SQLUserReadme()
+			else
+				call updata()
+			end if
+		else
+			if IsSqlDataBase = 1 then
+				SQLUserReadme()
+			else
+				call BackupData()
+			end if
+		end if
+	case "RestoreData"
+		Call chkAdmin(16)
+		if IsSqlDataBase = 1 then
+			SQLUserReadme()
+		else
+			if request("act")="Restore" then
+				dim Dbpath,backpath,fso
+				Dbpath=request.form("Dbpath")
+				backpath=request.form("backpath")
+				if dbpath="" then
+				Call Alert("请输入您要恢复的数据库路径及名称!","-1")	
+				else
+				Dbpath=server.mappath(Dbpath)
+				end if
+				backpath=server.mappath(backpath)
+			
+				Set Fso=Server.CreateObject("Scripting.FileSystemObject")
+				if fso.fileexists(dbpath) then  					
+					fso.copyfile Dbpath,Backpath
+					Call Alert("成功恢复数据!","Admin_data.asp?action=SpaceSize")	
+				else
+					Call Alert("备份目录下并无您的备份文件!","-1")	
+				end if
+			else
+				call RestoreData()
+			end if
+		End if
+end select
+%>
+<%
+'====================压缩数据库 =========================
+sub CompressData()
+%>
+<table border="0"  cellspacing="1" cellpadding="3" height="1" class="admintable1">
+<form action="Admin_data.asp?action=CompressData" method="post">
+<tr>
+<td class="admintitle">压缩数据库</td>
+</tr><tr>
+<td height=30 bgcolor="#FFFFFF" class="td"><b>注意：</b>输入数据库所在相对路径,并且输入数据库名称（正在使用中数据库可能会压缩失败，请选择备份数据库进行压缩操作） </td>
+</tr>
+<tr>
+<td height="30" bgcolor="#FFFFFF" class="td">压缩数据库：<input name="dbpath" type="text" value="../Data/<%=DataName%>" size="50">
+&nbsp;
+<input type="submit" class="bnt" value="开始压缩"></td>
+</tr>
+<tr>
+<td height="30" bgcolor="#FFFFFF" class="td"><input name="boolIs97" type="checkbox" class="noborder" value="True">如果使用 Access 97 数据库请选择
+(默认为 Access 2000 数据库)<br></td>
+</tr>
+<tr>
+  <td height="30" bgcolor="#FFFFFF" class="td">注：请尽量用ftp下载回数据库后压缩，以免出错！如果你非要使用此功能，请备份后再压缩！<strong>数据库出错本程序作者概不负责!</strong></td>
+</tr>
+</form>
+</table>
+<%
+dim dbpath,boolIs97
+dbpath = request("dbpath")
+boolIs97 = request("boolIs97")
+
+If dbpath <> "" Then
+dbpath = server.mappath(dbpath)
+	response.write(CompactDB(dbpath,boolIs97))
+End If
+
+end sub
+
+'=====================压缩参数=========================
+Function CompactDB(dbPath, boolIs97)
+	Dim fso, Engine, strDBPath,JET_3X
+	strDBPath = left(dbPath,instrrev(DBPath,"\"))
+	Set fso = Server.CreateObject("Scripting.FileSystemObject")
+	
+	If fso.FileExists(dbPath) Then
+		fso.CopyFile dbpath,strDBPath & "temp.mdb"
+		Set Engine = CreateObject("JRO.JetEngine")
+	
+		If boolIs97 = "True" Then
+			Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb", _
+			"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp1.mdb;" _
+			& "Jet OLEDB:Engine Type=" & JET_3X
+		Else
+			Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb", _
+			"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp1.mdb"
+		End If
+	
+		fso.CopyFile strDBPath & "temp1.mdb",dbpath
+		fso.DeleteFile(strDBPath & "temp.mdb")
+		fso.DeleteFile(strDBPath & "temp1.mdb")
+		Set fso = nothing
+		Set Engine = nothing
+		
+		Call Alert("压缩成功!","Admin_data.asp?action=SpaceSize")
+	Else
+		Call Alert("数据库名称或路径不正确. 请重试!","-1")
+	End If
+End Function
+%>
+<%
+'====================备份数据库=========================
+sub BackupData()
+%>
+	<table border="0"  cellspacing="1" cellpadding="3" class="admintable1">
+	  <tr>
+		  <td colspan="2" class="admintitle" >备份网站系统数据( 需要FSO支持，FSO相关帮助请看微软网站 )</td>
+	  	</tr>
+  				<form method="post" action="Admin_data.asp?action=BackupData&act=Backup">
+  				<tr>
+  				  <td width="19%" height="30" align="center" bgcolor="#FFFFFF" class="td">当前数据库路径(相对)：</td>
+				  <td width="81%" bgcolor="#FFFFFF" class="td"><input name=DBpath type=text id="DBpath" value="../Data/<%=DataName%>" size="40"  Readonly="true"/></td>
+  				</tr>
+  				<tr>
+  				  <td height="30" align="center" bgcolor="#FFFFFF" class="td">备份数据库目录(相对)：</td>
+				  <td bgcolor="#FFFFFF" class="td"><input name=bkfolder type=text value="../Databackup/" size="40" Readonly="true"/>
+&nbsp;如目录不存在，程序将自动创建</td>
+  				</tr>
+  				<tr>
+  				  <td height="30" align="center" bgcolor="#FFFFFF" class="td">备份数据库名称(名称)：</td>
+				  <td bgcolor="#FFFFFF" class="td"><input name=bkDBname type=text value="<%=year(Now)&month(Now)&day(Now)&"_"&hour(Now)&Minute(Now)&Second(Now)%>.mdb" size="40"  Readonly="true"/>
+&nbsp;如备份目录有该文件，将覆盖，如没有，将自动创建</td>
+  				</tr>
+  				<tr>
+  				  <td height="30" bgcolor="#FFFFFF" class="td">&nbsp;</td>
+				  <td bgcolor="#FFFFFF" class="td"><input type=submit class="bnt" value="确定" /></td>
+  				</tr>
+  				<tr>
+  				  <td height="30" bgcolor="#FFFFFF" class="td">&nbsp;</td>
+				  <td bgcolor="#FFFFFF" class="td">注意：所有路径都是相对与程序空间根目录的相对路径 </td>
+  				</tr>	
+  				</form>
+  </table>
+<%
+end sub
+
+sub updata()
+	dim Dbpath,bkfolder,bkdbname,fso
+	Dbpath="../Data/"&DataName&""
+	Dbpath=server.mappath(Dbpath)
+	bkfolder=request.form("bkfolder")
+	bkdbname=request.form("bkdbname")
+	Set Fso=Server.CreateObject("Scripting.FileSystemObject")
+	if fso.fileexists(dbpath) then
+		If CheckDir(bkfolder) = True Then
+		fso.copyfile dbpath,bkfolder& "\"& bkdbname
+		else
+		MakeNewsDir bkfolder
+		fso.copyfile dbpath,bkfolder& "\"& bkdbname
+		end if		
+		Call Alert ("备份数据库成功!","Admin_data.asp?action=SpaceSize")
+	Else
+		Call Alert ("数据库路径错误","-1")
+	End if
+end sub
+'------------------检查某一目录是否存在-------------------
+Function CheckDir(FolderPath)
+    dim fso1
+	folderpath=Server.MapPath(".")&"\"&folderpath
+    Set fso1 = Server.CreateObject("Scripting.FileSystemObject")
+    If fso1.FolderExists(FolderPath) then
+       '存在
+       CheckDir = True
+    Else
+       '不存在
+       CheckDir = False
+    End if
+    Set fso1 = nothing
+End Function
+'-------------根据指定名称生成目录-----------------------
+Function MakeNewsDir(foldername)
+	dim f,fso1
+    Set fso1 = Server.CreateObject("Scripting.FileSystemObject")
+        Set f = fso1.CreateFolder(foldername)
+        MakeNewsDir = True
+    Set fso1 = nothing
+End Function
+%>
+<%
+'====================恢复数据库=========================
+sub RestoreData()
+%>
+<table border="0"  cellspacing="1" cellpadding="3" class="admintable1">
+	<tr>
+		<td colspan="2" class="admintitle">恢复网站系统数据( 需要FSO支持，FSO相关帮助请看微软网站 )</td>
+    </tr>
+<form method="post" action="Admin_data.asp?action=RestoreData&act=Restore">
+<tr>
+  <td width="19%" height="30" align="center" bgcolor="#FFFFFF" class="td">备份数据库路径(相对)：</td>
+  <td width="81%" bgcolor="#FFFFFF" class="td"><select name="DBpath" id="DBpath">
+  <%
+  Dim bflist
+  bflist=FileList("../Databackup","mdb")
+  If bflist<>"" then
+  bflist1=split(left(bflist,len(bflist)-1),"|")
+  For i=0 to Ubound(bflist1)
+  %>
+    <option value="../DataBackup/<%=bflist1(i)%>"><%=bflist1(i)%></option><%
+	Next
+	Else
+	%><option value="">很遗憾！没有备份数据库</option><%
+	End if
+	%>
+  </select>
+  </td>
+</tr>
+<tr>
+  <td height="30" align="center" bgcolor="#FFFFFF" class="td">目标数据库路径(相对)：</td>
+  <td bgcolor="#FFFFFF" class="td"><input type=text size=40 name=backpath value="../Data/<%=DataName%>"  Readonly="true"/></td>
+</tr>
+<tr>
+  <td height="30" bgcolor="#FFFFFF" class="td">&nbsp;</td>
+  <td bgcolor="#FFFFFF" class="td"><input type=submit class="bnt" value="恢复数据" /></td>
+</tr>
+<tr>
+  <td height="30" bgcolor="#FFFFFF" class="td">&nbsp;</td>
+  <td bgcolor="#FFFFFF" class="td">请谨慎操作！出现问题概不负责！</td>
+</tr>	
+</form>
+</table>
+<%
+end sub
+sub SpaceSize()
+%>
+<table height="1" border="0" cellpadding="3"  cellspacing="1" bgcolor="#F2F9E8" class="admintable1">
+  <tr>
+    <td colspan="2" class="admintitle">程序占用空间情况 </td>
+  </tr>
+  <tr>
+    <td width="19%" height="30" align="center" bgcolor="#FFFFFF">系统占用空间总计：</td>
+    <td width="81%" bgcolor="#FFFFFF"><img src="images/bar1.gif" width=400 height=9 />&nbsp;
+    <%allsize()%></td>
+  </tr>
+  <tr>
+    <td height="30" align="center" bgcolor="#FFFFFF">法规数据占用空间：</td>
+    <td bgcolor="#FFFFFF"><img src="images/bar1.gif" width=<%=drawbar("Data")%> height=9 />&nbsp;<%othersize("Data")%></td>
+  </tr>
+  <tr>
+    <td height="30" align="center" bgcolor="#FFFFFF">备份数据占用空间：</td>
+    <td bgcolor="#FFFFFF"><img src="images/bar1.gif" width=<%=drawbar("Databackup")%> height=9 />&nbsp;<%othersize("Databackup")%></td>
+  </tr>
+  <tr>
+    <td height="30" align="center" bgcolor="#FFFFFF">系统图片占用空间：</td>
+    <td bgcolor="#FFFFFF"><img src="images/bar1.gif" width=<%=drawbar("Images")%> height=9 />&nbsp;<%othersize("Images")%></td>
+  </tr>
+  <tr>
+    <td height="30" align="center" bgcolor="#FFFFFF">上传图片占用空间：</td>
+    <td bgcolor="#FFFFFF"><img src="images/bar1.gif" width=<%=drawbar(""&SiteUp&"")%> height=9 />&nbsp;<%othersize(SiteUp)%></td>
+  </tr>
+  <tr>
+    <td height="30" align="center" bgcolor="#FFFFFF">　|-用户上传头像：</td>
+    <td bgcolor="#FFFFFF"><img src="images/bar1.gif" width=<%=drawbar(""&SiteUp&"/UserFace")%> height=9 />&nbsp;<%othersize(""&SiteUp&"/UserFace")%></td>
+  </tr>
+</table>
+<%end sub%>
+<%
+sub othersize(names)
+	dim fso,path,ml,mlsize,dx,d,size
+	set fso=Server.CreateObject("Scripting.FileSystemObject")
+	path=server.mappath("..\Images")
+	ml=left(path,(instrrev(path,"\")-1))&"\"&names
+	
+	On Error Resume Next
+	set d=fso.getfolder(ml) 
+	If Err Then
+		err.Clear
+		Response.Write "<font color=red>提示：没有“"&names&"”目录</font>"					
+		'Response.End()
+	End If
+	mlsize=d.size
+	size=mlsize
+	dx=size & "&nbsp;Byte" 
+	if size>1024 then
+	   size=(Size/1024)
+	   dx=formatnumber(size,2) & "&nbsp;KB"
+	end if
+	if size>1024 then
+	   size=(size/1024)
+	   dx=formatnumber(size,2) & "&nbsp;MB"		
+	end if
+	if size>1024 then
+	   size=(size/1024)
+	   dx=formatnumber(size,2) & "&nbsp;GB"	   
+	end if   
+	response.write dx
+end sub
+
+sub allsize()
+	dim fso,path,ml,mlsize,dx,d,size
+	set fso=Server.CreateObject("Scripting.FileSystemObject")
+	path=server.mappath("../index.asp")
+	ml=left(path,(instrrev(path,"\")-1))
+	set d=fso.getfolder(ml) 
+	mlsize=d.size
+	size=mlsize
+	dx=size & "&nbsp;Byte" 
+	if size>1024 then
+	   size=(Size/1024)
+	   dx=size & "&nbsp;KB"
+	end if
+	if size>1024 then
+	   size=(size/1024)
+	   dx=formatnumber(size,2) & "&nbsp;MB"		
+	end if
+	if size>1024 then
+	   size=(size/1024)
+	   dx=formatnumber(size,2) & "&nbsp;GB"	   
+	end if   
+	response.write dx
+end sub
+
+Function Drawbar(drvpath)
+	dim fso,drvpathroot,d,size,totalsize,barsize
+	set fso=Server.CreateObject("Scripting.FileSystemObject")
+	drvpathroot=server.mappath("../Images")
+	drvpathroot=left(drvpathroot,(instrrev(drvpathroot,"\")-1))
+	set d=fso.getfolder(drvpathroot)
+	totalsize=d.size
+	
+	On Error Resume Next
+	drvpath=server.mappath("../"&drvpath)
+	If Err Then
+		err.Clear
+		Response.Write "没有名为“"&drvpath&"”的目录，您可以修改文件以正确显示该目录的使用量。"			
+		Response.End()
+	End If
+	set d=fso.getfolder(drvpath)
+	size=d.size
+	
+	barsize=cint((size/totalsize)*400)
+	Drawbar=barsize
+End Function 
+
+Function FileList(FolderUrl,FileExName)
+Set fso=Server.CreateObject("Scripting.FileSystemObject")
+On Error Resume Next
+Set folder=fso.GetFolder(Server.MapPath(Trim(FolderUrl)))
+Set file=folder.Files
+FileList=""
+For Each FileName in file
+If Trim(FileExName)<>"" Then
+	If InStr(Trim(FileExName),Trim(Mid(FileName.Name,InStr(FileName.Name,".")+1,len(FileName.Name))))>0 Then
+    	FileList=FileList&""&FileName.Name&"|"
+	End If
+Else
+    FileList=FileList&"<a href='#'>"&FileName.Name&"</a><br>"
+End If
+Next
+Set file=Nothing
+Set folder=Nothing
+Set fso=Nothing
+End Function
+
+Sub SQLUserReadme()
+'此部分摘自动网论坛
+%>
+        <table border="0"  cellspacing="1" cellpadding="3" class="admintable1">
+          <tr>
+              <td colspan="2" class="admintitle" >SQL数据库数据处理说明</td>
+          </tr>
+          <tr>
+            <td bgcolor="#FFFFFF" style="font-size:14px;line-height:180%">
+            <div style="font:bold 14px Microsoft Yahei,sans-serif;color:#f00;">如果你只是用的虚拟主机，请<u>咨询空间商如何备份及恢复SQl数据库。</u><br>
+            如果你用的独立服务器或者VPS，请参考以下内容：<br></div>
+            <blockquote> <B>一、备份数据库</B> <BR>
+                    <BR>
+        1、打开SQL企业管理器，在控制台根目录中依次点开Microsoft SQL Server<BR>
+        2、SQL Server组-->双击打开你的服务器-->双击打开数据库目录<BR>
+        3、选择你的数据库名称（如网站数据库website）-->然后点上面菜单中的工具-->选择备份数据库<BR>
+        4、备份选项选择完全备份，目的中的备份到如果原来有路径和名称则选中名称点删除，然后点添加，如果原来没有路径和名称则直接选择添加，接着指定路径和文件名，指定后点确定返回备份窗口，接着点确定进行备份 <BR>
+        <BR>
+        <B>二、还原数据库</B><BR>
+        <BR>
+        1、打开SQL企业管理器，在控制台根目录中依次点开Microsoft SQL Server<BR>
+        2、SQL Server组-->双击打开你的服务器-->点图标栏的新建数据库图标，新建数据库的名字自行取<BR>
+        3、点击新建好的数据库名称（如网站数据库website）-->然后点上面菜单中的工具-->选择恢复数据库<BR>
+        4、在弹出来的窗口中的还原选项中选择从设备-->点选择设备-->点添加-->然后选择你的备份文件名-->添加后点确定返回，这时候设备栏应该出现您刚才选择的数据库备份文件名，备份号默认为1（如果您对同一个文件做过多次备份，可以点击备份号旁边的查看内容，在复选框中选择最新的一次备份后点确定）-->然后点击上方常规旁边的选项按钮<BR>
+        5、在出现的窗口中选择在现有数据库上强制还原，以及在恢复完成状态中选择使数据库可以继续运行但无法还原其它事务日志的选项。在窗口的中间部位的将数据库文件还原为这里要按照你SQL的安装进行设置（也可以指定自己的目录），逻辑文件名不需要改动，移至物理文件名要根据你所恢复的机器情况做改动，如您的SQL数据库装在D:\Program Files\Microsoft SQL Server\MSSQL\Data，那么就按照您恢复机器的目录进行相关改动改动，并且最后的文件名最好改成您当前的数据库名（如原来是web_data.mdf，现在的数据库是website，就改成website_data.mdf），日志和数据文件都要按照这样的方式做相关的改动（日志的文件名是*_log.ldf结尾的），这里的恢复目录您可以自由设置，前提是该目录必须存在（如您可以指定d:\sqldata\web_data.mdf或者d:\sqldata\web_log.ldf），否则恢复将报错<BR>
+        6、修改完成后，点击下面的确定进行恢复，这时会出现一个进度条，提示恢复的进度，恢复完成后系统会自动提示成功，如中间提示报错，请记录下相关的错误内容并询问对SQL操作比较熟悉的人员，一般的错误无非是目录错误或者文件名重复或者文件名错误或者空间不够或者数据库正在使用中的错误，数据库正在使用的错误您可以尝试关闭所有关于SQL窗口然后重新打开进行恢复操作，如果还提示正在使用的错误可以将SQL服务停止然后重起看看，至于上述其它的错误一般都能按照错误内容做相应改动后即可恢复<BR>
+        <BR>
+        <B>三、收缩数据库</B><BR>
+        <BR>
+        一般情况下，SQL数据库的收缩并不能很大程度上减小数据库大小，其主要作用是收缩日志大小，应当定期进行此操作以免数据库日志过大<BR>
+        1、设置数据库模式为简单模式：打开SQL企业管理器，在控制台根目录中依次点开Microsoft SQL Server-->SQL Server组-->双击打开你的服务器-->双击打开数据库目录-->选择你的数据库名称（如网站数据库website）-->然后点击右键选择属性-->选择选项-->在故障还原的模式中选择“简单”，然后按确定保存<BR>
+        2、在当前数据库上点右键，看所有任务中的收缩数据库，一般里面的默认设置不用调整，直接点确定<BR>
+        3、<font color=blue>收缩数据库完成后，建议将您的数据库属性重新设置为标准模式，操作方法同第一点，因为日志在一些异常情况下往往是恢复数据库的重要依据</font> <BR>
+        <BR>
+        <B>四、设定每日自动备份数据库</B><BR>
+        <BR>
+        <font color=red>强烈建议有条件的用户进行此操作！</font><BR>
+        1、打开企业管理器，在控制台根目录中依次点开Microsoft SQL Server-->SQL Server组-->双击打开你的服务器<BR>
+        2、然后点上面菜单中的工具-->选择数据库维护计划器<BR>
+        3、下一步选择要进行自动备份的数据-->下一步更新数据优化信息，这里一般不用做选择-->下一步检查数据完整性，也一般不选择<BR>
+        4、下一步指定数据库维护计划，默认的是1周备份一次，点击更改选择每天备份后点确定<BR>
+        5、下一步指定备份的磁盘目录，选择指定目录，如您可以在D盘新建一个目录如：d:\databak，然后在这里选择使用此目录，如果您的数据库比较多最好选择为每个数据库建立子目录，然后选择删除早于多少天前的备份，一般设定4－7天，这看您的具体备份要求，备份文件扩展名一般都是bak就用默认的<BR>
+        6、下一步指定事务日志备份计划，看您的需要做选择-->下一步要生成的报表，一般不做选择-->下一步维护计划历史记录，最好用默认的选项-->下一步完成<BR>
+        7、完成后系统很可能会提示Sql Server Agent服务未启动，先点确定完成计划设定，然后找到桌面最右边状态栏中的SQL绿色图标，双击点开，在服务中选择Sql Server Agent，然后点击运行箭头，选上下方的当启动OS时自动启动服务<BR>
+        8、这个时候数据库计划已经成功的运行了，他将按照您上面的设置进行自动备份 <BR>
+        <BR>
+        修改计划：<BR>
+        1、打开企业管理器，在控制台根目录中依次点开Microsoft SQL Server-->SQL Server组-->双击打开你的服务器-->管理-->数据库维护计划-->打开后可看到你设定的计划，可以进行修改或者删除操作 <BR>
+        <BR>
+        <B>五、数据的转移（新建数据库或转移服务器）</B><BR>
+        <BR>
+        一般情况下，最好使用备份和还原操作来进行转移数据，在特殊情况下，可以用导入导出的方式进行转移，这里介绍的就是导入导出方式，导入导出方式转移数据一个作用就是可以在收缩数据库无效的情况下用来减小（收缩）数据库的大小，本操作默认为您对SQL的操作有一定的了解，如果对其中的部分操作不理解，可以咨询领智相关人员或者查询网上资料<BR>
+        1、将原数据库的所有表、存储过程导出成一个SQL文件，导出的时候注意在选项中选择编写索引脚本和编写主键、外键、默认值和检查约束脚本选项<BR>
+        2、新建数据库，对新建数据库执行第一步中所建立的SQL文件<BR>
+        3、用SQL的导入导出方式，对新数据库导入原数据库中的所有表内容<BR>
+            </blockquote></td>
+          </tr>
+        </table>
+<%
+end sub
+%><!--#include file="Admin_copy.asp"-->
+</body>
+</html>

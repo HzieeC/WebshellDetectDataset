@@ -1,0 +1,30 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.updateHtml.updateHtml.*" %>
+
+<%
+	UpdateArticleHtml uah = new UpdateArticleHtml();
+
+
+	String info_id="",pub_date="",num="";
+	if(request.getParameter("info_id")!=null)
+	{
+		info_id  = request.getParameter("info_id");
+	}
+	if(request.getParameter("num")!=null)
+	{
+		num  = request.getParameter("num");
+	}
+	if(request.getParameter("pub_date")!=null)
+	{
+		pub_date  = request.getParameter("pub_date");
+	}
+
+	try{
+		uah.updateArticleByGoodsId("o4c141S60ghHCS3",info_id,"0","1");
+		out.println("成功");
+	}catch(Exception e){
+		e.printStackTrace();
+		out.println("失败");
+	}
+%>

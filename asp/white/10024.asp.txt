@@ -1,0 +1,15 @@
+<TABLE  width="992" border=0 align="center" cellPadding=0 cellSpacing=0 height="60" bgcolor="#2173E3">
+    <!--DWLayoutTable--> 
+
+    <TR>
+      <TD height="58" align="left" valign="top"> 
+
+
+		
+          
+      <p>&nbsp;</p></TD>
+    <TD valign="top" align="center"> <p><span style="color:#FFFFFF;" ><%=Copyright%></span></p> </TD>
+    </TR>    
+    
+  <tr><td colspan="2"></TBODY>
+</TABLE>

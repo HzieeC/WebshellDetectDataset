@@ -1,0 +1,372 @@
+<!--#include file="inc/const.asp"-->
+<%
+response.CacheControl = "no-cache"
+response.AddHeader "Pragma", "no-cache"
+response.Expires = 0
+dim Virmsg,isapirewrite
+call Checkinstall()
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD Xhtml 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=GBK" />
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<title>欢迎安装 5u网站管理系统 v<%=sysversion%> <%=ucase(response.charset)%> 版</title>
+<style type="text/css">
+<!--
+body{ margin: 10px; padding: 0px; }
+input { padding: 5px 3px 3px 3px; font-size: 14px; color: #333; }
+.funcselect {font-size: 13px; color: #333;width:84px;}
+.title { font-size:24px; font-weight: bold; height: auto; color:#FF9900 }
+.list { font-size: 14px; height:25px; }
+.intro { font-size: 12px; color: #999; width: 150px; }
+#ok{ font-size: 14px; line-height: 100%; font-weight: normal; color: #000000; background-color: #FDFDFD; margin: 1px; padding: 20px; border: 1px solid #B6B6B6; }
+#ok a{ font-weight: normal; text-decoration: underline; color: #0000FF; }
+#ok a:hover{ color: #FF0000; text-decoration: none; }
+-->
+</style>
+<script language="javascript">
+function s(o){document.getElementById(o).style.display="block";}
+function h(o){document.getElementById(o).style.display="none";}
+function v(o,n){document.getElementById(o).value=n;}
+function btnaccess(){s('iaccess');h('isql1');h('isql2');h('isql3');h('isql4');h('isql5');v('accesspath','#db<%=Left(UCase(MD5(Now(),16)),4)%>.Mdb');v('server','');v('port','');v('name','');v('user','');v('pass','');}
+function btnmssql(){h('iaccess');s('isql1');s('isql2');s('isql3');s('isql4');s('isql5');v('accesspath','');v('server','(local)');v('port','');v('name','');v('user','');v('pass','');}
+function btnmysql(){h('iaccess');s('isql1');s('isql2');s('isql3');s('isql4');s('isql5');v('accesspath','');v('server','localhost');v('port','');v('name','');v('user','');v('pass','');}
+</script>
+</head>
+<body><br/>
+<%
+dim oSetupdir, oSetupurl
+oSetupdir = LCase(request.ServerVariables("SCRIPT_NAME"))
+oSetupdir = Left(oSetupdir, Len(oSetupdir) - 11)
+oSetupurl = "http://" & LCase(request.ServerVariables("HTTP_HOST"))
+if Right(oSetupurl, 1) = "/" then oSetupurl = Left(oSetupurl, Len(oSetupurl) - 1)
+if request("Act") = "Setup" then
+dim adminname,adminpass,adminpath,DelInstall,SiteType,TemDir,Setupdir,Setupurl
+adminname=Replace(Trim(request("adminname")), "'", "")
+adminpass=Replace(Trim(request("adminpass")), "'", "")
+adminpath=request("adminpath")
+DataBaseType = request.form("type")
+DataBasePrefix = request.form("prefix")
+DataBaseAccessPath = request.form("accesspath")
+DataBaseServer = request.form("server")
+DataBasePort = request.form("port")
+DataBaseName = request.form("name")
+DataBaseUser = request.form("user")
+DataBasePass = request.form("pass")
+DelInstall = request.form("delinstall")
+Setupdir = request.Form("installdir")
+Setupurl = request.Form("siteurl")
+SiteType = request.Form("siteType")
+Select Case SiteType
+	Case 1
+	TemDir = "template/company"
+	case 2
+	TemDir = "template/portal"
+End Select
+if len(adminpath)=0 then adminpath="admin"
+Select Case DataBaseType
+Case "access",""
+	if len(DataBaseAccessPath) = 0 then response.write "未填写 ACCESS 数据库文件名" :response.end
+	call createaccess(DataBaseAccessPath)
+	DataBaseAccessPath= Setupdir & "inc/db/" & DataBaseAccessPath
+Case "mssql","mysql"
+	if len(DataBaseServer) = 0 then response.write "未填写数据库服务器" :response.end
+	if len(DataBaseName) =0 then response.write "未填写数据库名" : response.end
+	if len(DataBaseUser) = 0 then response.write "未填写数据库用户" :response.end
+Case else
+	response.write "未选择数据库类型" : response.end
+end Select
+dim SQL,i
+SQL = split(getfile("inc/install/" & databasetype & ".sql"),VBCRLF)
+for i=0 to ubound(sql)
+	if len(sql(i)) > 6 then
+		call db(sql(i),0)
+	end if
+next
+
+If SiteType=1 Then
+	Dim defaultsql,j
+	defaultsql = split(getfile("inc/install/default.sql"),VBCRLF)
+	For j=0 to Ubound(defaultsql)
+		If len(defaultsql(j)) > 6 then
+			call db(defaultsql(j),0)
+		End If
+	Next
+End If
+
+if adminpath="admin" or left(lcase(adminpath),6)<>"admin_" then adminpath="admin_" & left(md5(timer,16),3)
+
+fso.copyfolder server.mappath("admin"),server.mappath(adminpath)
+
+'# 初始化
+dim InsertConfig:InsertConfig = "Insert Into [{pre}Config] ([Title],[Name],[Value],[Values],[Data],[Form],[Description],[Order],[ConfigType]) Values (###)"
+db "Insert Into [{pre}Admin] ([Username],[Password],[Levels],[Uploadfileexts],[Uploadfilesize],[ManageChannel]) Values ('" & adminname & "','" & md5(adminpass,32) & "','setting,channel,sitelink,label,upload,create,diypage,admin,tags','gif/jpg/png/bmp/jpeg/mp3/wma/rm/rmvb/ra/asf/avi/wmv/swf/rar/exe/zip/doc/xls','1024','0')",0
+db "Insert Into [{pre}Plus] (Name) Values('Digg')",0
+db "Insert Into [{pre}Plus] (Name) Values('Search')",0
+db "Insert Into [{pre}Plus] (Name) Values('Comment')",0
+db "Insert Into [{pre}Label] ([Name],[Info],[Code]) Values ('version','当前版本','" & sysversion & "')",0
+db "Insert Into [{pre}Label] ([Name],[Info],[Code]) Values ('topad','顶部广告','<a href=http://www.5u.hk target=_blank><img width=730 height=70 alt=5u虚拟主机 src=""images/banner.jpg"" border=0></a>')",0
+db "Insert Into [{pre}Label] ([Name],[Info],[Code]) Values ('logo','顶部LOGO','<a href=http://www.5u.hk target=_blank><img width=145 height=66 alt=5u虚拟主机 src=""images/top_logo.jpg"" border=0></a>')",0
+db "Insert Into [{pre}Label] ([Name],[Info],[Code]) Values ('middlead','中间广告','<a href=http://www.5u.hk target=_blank><img width=940 height=60 alt=5u虚拟主机 src=""images/tlgg.jpg"" border=0></a>')",0
+db "Insert Into [{pre}Label] ([Name],[Info],[Code]) Values ('leftad','左侧广告位','<a href=http://host.5u.hk target=_blank><img width=190 height=210 alt=5u虚拟主机 src=""images/Channel_list_gg.jpg""  border=0></a>')",0
+db "Insert Into [{pre}Label] ([Name],[Info],[Code]) Values ('rightad','文章右侧广告位','<a href=http://www.5u.hk target=_blank><img width=300 height=300 alt=5u虚拟主机 src=""images/article_advertising.jpg""  border=0></a>')",0
+db "Insert Into [{pre}Label] ([Name],[Info],[Code]) Values ('contact','联系方式','联系方式：400-023-0051')",0
+db "Insert Into [{pre}Label] ([Name],[Info],[Code]) Values ('friendlink','友情链接','<li><a href=http://www.5u.hk/ title=5u网络 target=_blank>5u网络</a></li><li><a href=http://host.5u.hk/ title=5u主机 target=_blank>5u主机</a></li><li><a href=http://host.5u.hk/ title=5u论坛 target=_blank>5u论坛</a></li>')",0
+db "Insert Into [{pre}Label] ([Name],[Info],[Code]) Values ('copyright','版权说明','Copyright 2006-2012 Powered By <a href=""http://www.5u.hk/"" target=""_blank"">5uCMS</a> <a href=""http://www.miibeian.gov.cn/"" target=""_blank"">浙ICP备XXXXXXXX号</a><br /><span>5u网站管理系统 简约不简单 小站首选</span>')",0
+db Replace(InsertConfig, "###", "'前台语言包','Language','zh-cn','zh-cn=>简体中文|||en=>English','text','select','网站前台语言包,zh-cn(简体中文),en(英文),语言包存放在/inc/language/目录下面',0,1"),0
+db Replace(InsertConfig, "###", "'网站名称','WebName','" & Replace(Replace(request.Form("webname"), "'", ""), vbCrLf, "") & "','','text','input','在模板里使用{sys:webname}调用',1,1"),0
+db Replace(InsertConfig, "###", "'系统安装','installdir','" & Setupdir & "','','text','input','/表示根目录,系统放在子目录下需要修改',2,1"),0
+db Replace(InsertConfig, "###", "'模板路径','Templatedir','" &TemDir& "','','text','input','当前所使用的模板,这里填写template目录下的文件夹名称即可',3,1"),0
+db Replace(InsertConfig, "###", "'首页链接名称','Indexname','首页','','text','input','在模板里使用{sys:indexname}调用',4,1"),0
+db Replace(InsertConfig, "###", "'首页链接地址','Indexview','" & Setupdir & "','','text','input','在模板里使用{sys:indexview}调用',5,1"),0
+db Replace(InsertConfig, "###", "'首页模板文件','Indextemplate','index.html','','text','templatefile,index','网站首页模板路径,此模板应该在 templatedir 指定文件名下面',6,1"),0
+db Replace(InsertConfig, "###", "'首页存放地址','Indexpath','" & Setupdir & "','','text','input','网站首页文件存放地址,只能指定为路径,如/,不能指定文件名',7,1"),0
+db Replace(InsertConfig, "###", "'站内链接前缀','Httpurl','" & Setupurl & "','','text','input','如果不使用请留空,如果使用则以http://开头,不要以/结尾,如http://www.5u.hk',8,1"),0
+db Replace(InsertConfig, "###", "'缺省文件扩展','defaultext','html','','text','input','未指定生成文件扩展名时将使用这里所设置的扩展名',9,1"),0
+db Replace(InsertConfig, "###", "'站内路径间隔','SitePathSplit',' > ','','text','input','站内路径间隔符,{tag:sitepath}链接之间的分隔符',10,1"),0
+db Replace(InsertConfig, "###", "'图片水印LOGO','Picwatermarkimg','" & Setupdir & "inc/images/watermark.gif','','text','input','简单图片水印功能,留空则不进行水印,图片路径必需是绝对路径',11,2"),0
+db Replace(InsertConfig, "###", "'水印不透明度','Picwatermarkalpha','0.5','','int','input','水印不透明度,值的范围为0.1-1',12,2"),0
+db Replace(InsertConfig, "###", "'水印LOGO位置','Picwatermarktype','0','0=>关闭水印|||1=>左上角|||2=>右上角|||3=>左下角|||4=>右下角|||5=>居中','int','select','水印LOGO在图片中的位置',13,2"),0
+db Replace(InsertConfig, "###", "'网站浏览模式','createhtml','" & request.form("view") & "','0=>ASP|||1=>Html|||2=>Rewrite|||3=>Asp & Html','int','select','请选择网站浏览模式',14,1"),0
+db Replace(InsertConfig, "###", "'自动分页大小','MaxpageNum','2000','0=>不自动分页|||500=>500 个字符|||1000=>1000个字符|||1500=>1500个字符|||2000=>2000个字符|||2500=>2500个字符|||3000=>3000个字符|||4000=>4000个字符|||5000=>5000个字符','int','select','如果设为0则不自动分页',15,1"),0
+db Replace(InsertConfig, "###", "'标题转成拼音','Autopinyin','1','0=>禁用|||1=>启用','int','select','添加文章时把标签转换成对应的拼音',16,1"),0
+db Replace(InsertConfig, "###", "'常见单词转换','getEnglishState','1','0=>禁用|||1=>启用','int','select','针对常见单词的转换,比如将""测试""自动转换成""test""',17,1"),0
+db Replace(InsertConfig, "###", "'保存远程图片','Remotepic','1','0=>禁用|||1=>启用','int','select','保存远程图片需要一定的时间',18,2"),0
+db Replace(InsertConfig, "###", "'形象图获取','Indexpicmode','1','0=>手动|||1=>自动','int','select','如果是自动的话将把文章内第一张图片(本地)设置为形象图',19,2"),0
+db Replace(InsertConfig, "###", "'上下文模式','Prenextmode','1','0=>全局|||1=>栏目','int','select','内容页上下篇文章的调用模式,推荐使用栏目',20,1"),0
+db Replace(InsertConfig, "###", "'文件重命名','ChangDiyname','1','0=>禁止|||1=>允许','int','select','是否允许修改文件名,经常改动文件名将会影响SEO效果',21,3"),0
+db Replace(InsertConfig, "###", "'文章描述','DescriptionUpdate','1','0=>手动|||1=>自动','int','select','选择文章描述自动更新功能',22,3"),0
+db Replace(InsertConfig, "###", "'目录优化','Seodir','" & request("seo") & "','0=>正常模式|||1=>特殊模式','int','select','没什么特别嗜好请选择""正常""模式',24,3"),0
+db Replace(InsertConfig, "###", "'模板缓存','Templatecache','0','0=>关闭|||1=>开启','int','select','如果你开启了模板缓存,在修改模板后请先更新下缓存',25,1"),0
+db Replace(InsertConfig, "###", "'缓存标识','CacheFlag','" & UCase(Left(MD5(Now(),16),6)) & "','','text','input','同一空间安装二套本系统时请保证这个值不重复',51,1"),0
+db Replace(InsertConfig, "###", "'缓存时间','CacheTime','60','','int','input','全局缓存时间间隔,单位秒',52,1"),0
+db Replace(InsertConfig, "###", "'Rewrite网页扩展名','RewriteExt','.html','','text','input','Rewrite网页扩展名,如果你不会改Rewrite规则,这里就不要动了,默认为.html',53,3"),0
+db Replace(InsertConfig, "###", "'Rewrite栏目页前缀','RewriteChannel','channel','','text','input','Rewrite网页扩展名,如果你不会改Rewrite规则,这里就不要动了,默认为Channel',54,3"),0
+db Replace(InsertConfig, "###", "'Rewrite内容页前缀','RewriteContent','','','text','input','Rewrite内容页前缀,如果你不会改Rewrite规则,这里就不要动了,默认为空',55,3"),0
+db Replace(InsertConfig, "###", "'CC 联盟数字id','CCUnionid','0','','int','input','如果你还没有到CC视频联盟注册过,<a href=http://union.bokecc.com/ target=_blank>请先注册</a>',70,1"),0
+db Replace(InsertConfig, "###", "'标题附加字','seotitle','5u网络,5u建站,网络推广,网站建设','','text','input','用于SEO的关键字,显示在标题后面',85,3"),0
+db Replace(InsertConfig, "###", "'首页关键字','IndexKeywords','5u网络,5u网络文章管理系统,ASP,ACCESS,MYSQL,Rewrite','','text','textarea','多个作者用英文状态下的,分隔',90,3"),0
+db Replace(InsertConfig, "###", "'首页描述','IndexDescription','5u网络文章管理系统基于ASP+ACCESS/MSSQL 技术开发,免费,开源,程序小巧,功能强大,可用于博客,企业站,信息综合类的建设,使用本系统请保留官方 www.5u.hk 的链接','','text','textarea','多个来源用英文状态下的,分隔',91,3"),0
+db Replace(InsertConfig, "###", "'文章作者','Author','Admin','','text','textarea','多个作者用英文状态下的,分隔',99,1"),0
+db Replace(InsertConfig, "###", "'文章来源','Source','本站|"&oSetupurl&"','','text','textarea','多个来源用英文状态下的,分隔',100,1"),0
+call Saveconfig()
+call clscache()
+Conn.Close
+Set Conn = Nothing
+dim Connfile
+Connfile = "<!--#include File=""Config.Asp""-->"
+Connfile = Connfile & vbCrLf & "<" & "%" & vbCrLf
+Connfile = Connfile & vbCrLf & "dim Conn" & vbCrLf
+Connfile = Connfile & vbCrLf & "dim DataBaseType,DataBasePrefix,DataBaseAccessPath,DataBaseName,DataBaseUser,DataBasePass,DataBasePort,DataBaseServer" & vbCrLf
+Connfile = Connfile & vbCrLf & "' 数据库类型: 值分别为 access ; mssql ; mysql" & vbCrLf
+Connfile = Connfile & vbCrLf & "DataBaseType = """ & DataBaseType & """" & vbCrLf
+Connfile = Connfile & vbCrLf & "' ACCESS/MSSQL/MYSQL: 数据库表前缀" & vbCrLf
+Connfile = Connfile & vbCrLf & "DataBasePrefix = """ & DataBasePrefix & """" & vbCrLf
+Connfile = Connfile & vbCrLf & "' ACCESS: 数据库绝对路径" & vbCrLf
+Connfile = Connfile & vbCrLf & "DataBaseAccessPath = """ & DataBaseAccessPath & """" & vbCrLf
+Connfile = Connfile & vbCrLf & "' MSSQL/MYSQL: 数据库服务器" & vbCrLf
+Connfile = Connfile & vbCrLf & "DataBaseServer = """ & DataBaseServer & """" & vbCrLf
+Connfile = Connfile & vbCrLf & "' MSSQL/MYSQL: 数据库端口" & vbCrLf
+Connfile = Connfile & vbCrLf & "DataBasePort = """ & DataBasePort & """" & vbCrLf
+Connfile = Connfile & vbCrLf & "' MSSQL/MYSQL: 数据库名称" & vbCrLf
+Connfile = Connfile & vbCrLf & "DataBaseName = """ & DataBaseName & """" & vbCrLf
+Connfile = Connfile & vbCrLf & "' MSSQL/MYSQL: 数据库帐号" & vbCrLf
+Connfile = Connfile & vbCrLf & "DataBaseUser = """ & DataBaseUser & """" & vbCrLf
+Connfile = Connfile & vbCrLf & "' MSSQL/MYSQL: 数据库密码" & vbCrLf
+Connfile = Connfile & vbCrLf & "DataBasePass = """ & DataBasePass & """" & vbCrLf
+Connfile = Connfile & vbCrLf & "%" & ">" & vbCrLf
+call CreateFile(Connfile, "inc/Conn.Asp")
+call CreateFile("Powered By Www.5u.hk Copyright 2007-2012", "inc/lock/install.lock")
+%>
+<table width="100" border="0" align="center" cellpadding="3" cellspacing="0" bgcolor="#F0F0F0">
+<tr>
+<td>
+	<table width="750" border="0" align="center" cellpadding="5" cellspacing="1" bgcolor="#FFFFFF">
+	<tr>
+	<td width="" bgcolor="#EFEFEF" class="title"><table width="100%" border="0" cellspacing="0" cellpadding="0">
+	  <tr>
+		<td width="26%"><img src="inc/images/logo.jpg" /></td>
+		<td width="74%" class="title">安装完成</td>
+	  </tr>
+	</table></td>
+	</tr>
+	<tr>
+	<td align="center" bgcolor="#FFFFFF" class="list">
+		<div id="ok">初始帐号: <%=AdminName%><br />初始密码: <%=AdminPass%><br /><br />后台管理地址: <%=adminpath%><br /><br /><a href="<%=adminpath%>/Login.Asp?n=<%=AdminName%>&p=<%=AdminPass%>">点击这里开始新的建站之旅！</a></div>
+	</td>
+	</tr>
+	</table>
+</td>
+</tr>
+</table>
+<%
+on error resume next : err.clear
+If DelInstall=1 Then
+fso.deletefolder server.mappath("admin")
+fso.deletefolder server.mappath("inc/install")
+End If
+if err then response.write "<br/><br/><font color=red>请手动删除 admin和inc/install目录</font>"
+
+if request.form("view") = 2 and isapirewrite then
+		response.write "<br /><br />您的空间支持 Rewrite 组件，请将5u安装包 docs 目录下的 httpd.ini 上传到你的空间根目录，如果已存在 httpd.ini 请将5u Rewrite 规则添加到现有的 httpd.ini 里！"
+end if
+response.write "</div>"
+else
+%><%=Virmsg%>
+<table width="100" border="0" align="center" cellpadding="3" cellspacing="0" bgcolor="#F0F0F0">
+<tr>
+<td><table width="100" border="0" cellpadding="0" cellspacing="1" bgcolor="#ADADAD">
+<tr id="mlice">
+<td><table width="750" border="0" align="center" cellpadding="5" cellspacing="0">
+<tr>
+<td width="181" align="center" bgcolor="#EFEFEF" class="title"><img src="inc/images/logo.jpg" /></td>
+<td width="549" align="center" bgcolor="#EFEFEF" class="title">5u网站管理系统使用许可协议</td>
+</tr>
+<tr>
+<td colspan="3" height="1" align="right" bgcolor="#E0E0E0"></td>
+</tr>
+<tr>
+<td colspan="2" bgcolor="#FFFFFF"><iframe src="inc/install/license.html" name="license" width="100%" marginwidth="0" height="450" marginheight="0" scrolling="yes" frameborder="0" id="license"></iframe></td>
+</tr>
+<tr>
+<td colspan="3" height="1" align="right" bgcolor="#E0E0E0"></td>
+</tr>
+<tr>
+<td colspan="2" align="center" bgcolor="#FFFFFF" class="list" style="height:55px;"><input name="按钮" type="button" onclick="s('msetup');h('mlice');" value="我同意" />
+&nbsp;&nbsp;<input type="button" value="不同意" onclick="window.close();"></td>
+</tr>
+</table></td>
+</tr>
+<tr id="msetup" style="display:none;">
+<td><table width="750" border="0" align="center" cellpadding="5" cellspacing="1" bgcolor="#FFFFFF">
+<form action="install.Asp?Act=Setup" method="post" name="frm" id="frm">
+<tr>
+<td colspan="2" bgcolor="#EFEFEF" class="title"><table width="200%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td width="26%"><img src="inc/images/logo.jpg" /></td>
+    <td width="74%" class="title">系统安装</td>
+  </tr>
+</table></td>
+</tr>
+<tr>
+<td colspan="2" height="1" align="right" bgcolor="#E0E0E0"></td>
+</tr>
+<tr>
+<td width="150" align="right" bgcolor="#f7f7f7" class="list">功能设定:</td>
+<td bgcolor="#FFFFFF" class="list"><select name="view" class="funcselect" id="view"><option value="0">动态浏览</option><option value="1" selected="selected">整站静态</option><%if isapirewrite then%><option value="2">模拟静态</option><%end if%><option value="3">栏目动态</option></select> <select name="seo" class="funcselect" id="seo"><option value="0" selected="selected">普通模式</option><option value="1">特殊模式</option></select> <span class="intro">根据你的实际情况选择</span></td>
+</tr>
+<tr>
+<td width="150" align="right" bgcolor="#f7f7f7" class="list">网站名称:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="webname" type="text" id="webname" value="5u网络" style="width:250px;" /></td>
+</tr>
+<tr>
+<td align="right" bgcolor="#f7f7f7" class="list">登录帐号:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="adminname" type="text" id="adminname" value="admin" style="width:250px;" /> <span class="intro">后台登录帐号</span></td>
+</tr>
+<tr>
+<td align="right" bgcolor="#f7f7f7" class="list">登录密码:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="adminpass" type="text" id="adminpass" value="admin" style="width:250px;" /> <span class="intro">后台登录帐号的密码</span></td>
+</tr>
+<tr>
+<td align="right" bgcolor="#f7f7f7" class="list">安装路径:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="installdir" type="text" id="installdir" value="<%=oSetupdir%>" style="width:250px;" /> <span class="intro">子目录需修改(无法获取时需修改)</span></td>
+</tr>
+<tr>
+<td align="right" bgcolor="#f7f7f7" class="list">网站地址:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="siteurl" type="text" id="siteurl" value="<%=oSetupurl%>" style="width:250px;" /> <span class="intro">有端口需加上(无法获取时修改)</span></td>
+</tr>
+<tr>
+<td align="right" bgcolor="#f7f7f7" class="list">后台目录名:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="adminpath" type="text" id="adminpath" value="admin_<%=left(md5(timer,16),3)%>" style="width:250px;" /> <span class="intro">更改后台目录名可提高安全性,以 <font color=red>admin_</font> 开头</span></td>
+</tr>
+<tr>
+<td align="right" bgcolor="#f7f7f7" class="list">数据库类型:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="type" type="radio" onclick="btnaccess();" value="access" id="accessradio" /> ACCESS <input name="type" type="radio" onclick="btnmssql();" value="mssql" /> MSSQL <input name="type" type="radio" disabled="disabled" onclick="btnmysql();" value="mysql" /> MYSQL</td>
+</tr>
+<tr id="iaccess" style="display:none">
+<td align="right" bgcolor="#f7f7f7" class="list">数据库名称:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="accesspath" type="text" id="accesspath" style="width:250px;" /> <span class="intro"> 请填写数据库文件名(不要填路径)</span></td>
+</tr>
+<tr id="isql1" style="display:none">
+<td align="right" bgcolor="#f7f7f7" class="list">数据库服务器:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="server" type="text" id="server" style="width:250px;" /> <span class="intro">数据库服务器地址</span></td>
+</tr>
+<tr id="isql2" style="display:none">
+<td align="right" bgcolor="#f7f7f7" class="list">数据库服务器端口:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="port" type="text" id="port" style="width:250px;" /> <span class="intro">默认为空,如有特殊情况请设置</span></td>
+</tr>
+<tr id="isql3" style="display:none">
+<td align="right" bgcolor="#f7f7f7" class="list">数据库名:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="name" type="text" id="name" style="width:250px;" /> <span class="intro">数据库名称,请先创建该数据库</span></td>
+</tr>
+<tr id="isql4" style="display:none">
+<td align="right" bgcolor="#f7f7f7" class="list">数据库用户名:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="user" type="text" id="user" style="width:250px;" /> <span class="intro"> 数据库链接账号</span></td>
+</tr>
+<tr id="isql5" style="display:none">
+<td align="right" bgcolor="#f7f7f7" class="list">数据库密码:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="pass" type="text" id="pass" style="width:250px;" /> <span class="intro">数据库链接密码</span></td>
+</tr>
+<tr>
+<td align="right" bgcolor="#f7f7f7" class="list">表名前缀:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="prefix" type="text" id="prefix" value="5U_" style="width:250px;" /> <span class="intro">安装多个时请注意不要覆盖</span></td>
+</tr>
+<tr>
+<td align="right" bgcolor="#f7f7f7" class="list"><strong>网站类型:</strong></td>
+<td bgcolor="#FFFFFF" class="list"><input name="siteType" type="radio" id="siteType" checked="checked" value="1" /> <span class="intro" style="color:#FF0000">企业网站</span><input name="siteType" type="radio" id="siteType" value="2" /> <span class="intro" style="color:#FF0000">门户网站</span></td>
+</tr>
+<tr>
+<td align="right" bgcolor="#f7f7f7" class="list">完成删除安装文件:</td>
+<td bgcolor="#FFFFFF" class="list"><input name="delinstall" type="checkbox" value="1" id="checkbox" /> <span class="intro">安装完成后自动删除相关文件</span></td>
+</tr>
+<tr>
+<td colspan="2" height="1" align="right" bgcolor="#E0E0E0"></td>
+</tr>
+<tr>
+<td colspan="2" align="center" bgcolor="#FFFFFF" class="list" style="height:55px;"><input type="submit" name="Submit2" value="开始安装" /></td>
+</tr>
+</form>
+</table></td>
+</tr>
+</table></td>
+</tr>
+</table>
+<script>
+btnaccess();
+document.getElementById('accessradio').checked=true;
+</script>
+<%
+end if
+Function Checkinstall()
+	if not IsObjinstalled("Adodb.Stream") then response.write "<font color=red>无法创建Adodb.Stream 对象，影响：无法创建文件！</font><br />"
+	if not IsObjinstalled("Scripting.FileSystemObject") then response.write "<font color=red>无法创建 Scripting.FileSystemObject 对象，影响：无法创建文件夹！</font><br />"
+	if not IsObjinstalled("Microsoft.XMLHTTP") then response.write "<font color=red>无法创建 Microsoft.XMLHTTP 对象，影响：自动保存远程图片将失败！</font><br />"
+	dim Fso
+	Set Fso = Server.CreateObject("scripting.FileSystemObject")
+
+	If Fso.FolderExists(Server.MapPath("admin")) = False Then response.Write "admin文件夹不存，无法进行安装":response.End()
+	If Fso.FolderExists(Server.MapPath("inc/install")) = False Then response.Write "inc/install文件夹不存，无法进行安装":response.End()
+	if Fso.FileExists(Server.MapPath("inc/lock/install.lock")) then response.write "请先删除 inc/lock/install.lock 再进行安装" : response.end
+	Set Fso = Nothing
+	dim appl_md_path,path_info,path_translated
+	appl_md_path = lcase(replace(request.servervariables("appl_md_path"),"\","/"))
+	path_info = lcase(replace(request.servervariables("path_info"),"\","/"))
+	path_translated = lcase(replace(request.servervariables("path_translated"),"\","/"))
+	if right(appl_md_path,4) <> "root" and right(path_translated,len(path_info)) <> path_info then
+		virmsg = "<center><font color=red>注意：当前的安装环境为虚拟目录，安装在虚拟目录下本系统将无法正式使用！</font></center>"
+	end if
+	if len(request.ServerVariables("HTTP_X_REwrite_url"))>0 then isapirewrite = true else isapirewrite = false
+end function
+function Createaccess(dbname)
+	call DeleteFile("inc/db/" & dbname)
+	call CreateFile("","inc/db/")
+	on error resume next
+	dim dbX : Set dbX = Server.CreateObject("ADOX.CataLog")
+	dbX.Create "Provider=Microsoft.Jet.OLEdb.4.0;Data Source=" & Server.MapPath("inc/db/" & dbname)
+	If err then response.write "Can't create access database file!<br><br>" & err.description : response.end
+	Set dbX = nothing
+end function
+%>
+</body>
+</html>

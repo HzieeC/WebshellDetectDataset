@@ -1,0 +1,261 @@
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<%If Not FRAdminLevel(602) Then Call ErrorMsg()
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+Dim Action,sUploadDirs
+Dim page,i
+Dim totalPut
+const MaxPerpage=20
+picture_type=trim(request("picture_type"))
+strFileName="Admin_MemberFiles.asp?picture_type="&picture_type
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+Sub Del()
+company_id=request("member")
+picture_url=request("pic_url")
+Set fso = CreateObject("Scripting.FileSystemObject")
+	if fso.FileExists(server.MapPath(picture_url)) Then    '判断文件夹是否存在
+	fso.DeleteFile(server.MapPath(picture_url))
+	end if
+	if picture_type=1 or picture_type=2 then
+	conn.execute("update JOB_Member set Member_logo='error.gif' where Member_id="&company_id)
+	else
+	conn.execute("update JOB_picture set picture_filename='error.gif' where picture_id="&company_id)
+	end if
+	response.redirect "Admin_MemberFiles.asp?picture_type="&picture_type&""
+End Sub
+%>
+<html>
+<head>
+<title>会员上传管理</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<LINK href=../css/style.css rel=stylesheet type="text/css">
+<link rel="stylesheet" href="../css/xstyle.css" type="text/css" media="screen" />
+<style type="text/css">
+<!--
+.style11 {color: #0066CC;
+	font-weight: bold;
+}
+#labcontent .altCheckboxOn {
+	display: inline;
+	padding: 20px 2px; /* NS 6 problem */
+	padding-left: 70px;
+	color: #000;
+	line-height: 60px;
+	font-family: "Courier New", Courier, mono;
+	font-size: 1.2em;
+	font-weight: bold;
+	background-image: url(alt_checkbox_on.gif);
+	background-repeat: no-repeat;
+	background-position: 0% 50%;
+	border: 0px;
+}
+-->
+</style>
+<script type="text/javascript" src="../inc/js.js"></script>
+</head>
+<body onLoad="initLightbox()">
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="0"  class="tableBorder">
+   <tr> 
+	   <th  height=25 class="tableHeaderText">会员上传管理</th>
+   </tr>
+   <tr>
+   <td height="24"> 　管理选项:<a href="?picture_type=1">企业LOGO</a> | <a href="?picture_type=2">个人照片</a> | <a href="?picture_type=3">个人证书</a><!-- | <a href="?ac=all">清理无效数据</a>--></td>
+   </tr>
+</table> 
+<%
+Action=trim(Request("Action"))
+if picture_type="" then picture_type=1
+Select Case Action
+	Case "Del"
+		Call Del()
+	Case Else
+		Call main()
+End Select
+
+if FoundErr=True then
+	call Show_Err()
+end if
+
+Conn.Close
+Set Conn=Nothing
+%>
+<%Sub main()%>
+<table width="99%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder mt6">
+<tr> 
+	<th height=25 colspan="4" class="tableHeaderText">
+	<%if picture_type<>"" then
+	Select Case picture_type
+		Case 1
+		Response.Write("企业LOGO列表")
+		sUploadDirs=InstallDir&FR_UPFILES_DIR&"/Company/"
+		Case 2
+		Response.Write("个人照片列表")
+		sUploadDirs=InstallDir&FR_UPFILES_DIR&"/Person/"
+		Case 3
+		Response.Write("个人证书列表")
+		sUploadDirs=InstallDir&FR_UPFILES_DIR&"/Person/"
+	End Select
+	end if%></th>
+</tr>
+</table>
+	<%Set rs= Server.CreateObject(FR_HR_RS)
+	If picture_type=1 Then
+	sql="select * from JOB_Member where Member_typeid=2 and Member_logo is not null order by Member_id desc"
+	elseif picture_type=2 then
+	sql="select * from JOB_Member where Member_typeid=1 and Member_logo is not null order by Member_id desc"
+	elseif picture_type=3 then
+	sql="select * from JOB_picture where picture_type=21 order by picture_announcedate desc"
+	end if
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>暂无任何公告，请添加后再进行管理！</li>"
+		exit sub
+	else
+		totalPut=rs.recordcount
+		if (page-1)*MaxPerpage>totalput then
+			if (totalPut mod MaxPerpage)=0 then
+				page= totalPut \ MaxPerpage
+			else
+				page= totalPut \ MaxPerpage + 1
+			end if
+		end if
+		if page=1 then
+			Call MainInfo()
+		else
+			if (page-1)*MaxPerpage<totalPut then
+				rs.move  (page-1)*MaxPerpage
+				dim bookmark
+				bookmark=rs.bookmark
+				Call MainInfo()
+			else
+				page=1
+				Call MainInfo()
+			end if
+		end if
+	end if
+	rs.close
+	set rs=nothing
+%>
+<%End Sub%>
+<%Sub MainInfo()%>
+<table border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+<form name="form2" action="Admin_MemberFiles.asp?picture_type=<%=picture_type%>&Action=Del" method="post">
+<tr>
+<%i=0
+do while not rs.eof
+if picture_type=1 or picture_type=2 then
+picture_url=rs("Member_logo")
+picture_name=rs("Member_name")
+picture_id=rs("Member_id")
+elseif picture_type=3 then
+picture_url=rs("picture_filename")
+picture_name=rs("picture_member")
+picture_id=rs("picture_id")
+else
+picture_url=rs("picture_filename")
+picture_name=rs("picture_name")
+picture_id=rs("picture_id")
+end if
+if picture_type=1 then
+widths=160
+heights=60
+elseif picture_type=2 or picture_type=5 or picture_type=6 or picture_type=8 then
+widths=100
+heights=120
+else
+widths=160
+heights=120
+end if
+%>
+<td>
+  <table width="100%" border="0" cellpadding="0" cellspacing="1" bgcolor="#C4D8ED">
+    <tr>
+      <td align="center"><a href="<%=sUploadDirs&picture_url%>" rel="lightbox[plants]" title="<%=picture_name%>"><%
+	  Set fso = CreateObject("Scripting.FileSystemObject")
+	  if fso.FileExists(server.MapPath(sUploadDirs&picture_url&"")) Then    '判断文件夹是否存在
+	  %>
+	  	<img src="<%=sUploadDirs&picture_url%>" width="<%=widths%>px" height="<%=heights%>px" border="0">
+	  <%
+	  else
+	  %>
+	  	<img src="<%=sUploadDirs%>error.gif" width="<%=widths%>px" height="<%=heights%>px" border="0">
+	  <%
+	  end if  
+	  %></a></td>
+    </tr>
+    <tr>
+      <td align="center"><%=picture_name%>
+	  <%
+	  Set fso = CreateObject("Scripting.FileSystemObject")
+	  if fso.FileExists(server.MapPath(sUploadDirs&picture_url&"")) Then    '判断文件夹是否存在
+	  if picture_url<>"error.gif" then%>
+		<input name="member" type="radio" value="<%=picture_id%>" class="checkbox" onClick="pic_url.value='<%=sUploadDirs&picture_url%>'">
+	  <%end if
+	  end if %>
+	  </td>
+    </tr>
+  </table>
+ </td>
+<%i=i+1
+if i mod 4=0 then Response.Write("</tr><tr>")
+if i>=MaxPerPage then exit do
+rs.movenext
+loop%>
+</tr>
+<tr>
+    <td colspan="4" align="right">
+	  <input type="hidden" name="pic_url" value="">&nbsp;&nbsp;
+	  <input name="button" type="button" class="inputs" onClick="confirmX(5);" value="删  除">    </td>
+  </tr>
+<tr align="center">
+		    <td colspan="4"><%If totalput>0 Then
+	Call Showpage(strFileName,totalput,MaxPerPage,false,true,"张图片")
+End If%></td>
+	      </tr>
+</form>
+</table>
+<%End Sub%>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>
+<script language="javascript">
+function confirmX(num)
+{
+	var ids = document.getElementsByName("member");
+	var check=false;
+	if (ids != null) {
+		
+		for (i=0; i<ids.length; i++) 
+		{
+			var obj = ids(i);
+			if (obj.checked==true)
+			{
+				check=true;
+				
+			}
+		}
+		if(check==false){alert("请选择操作对象！");return false;}
+	}
+	if(num==5)
+	{
+		if(confirm("警告:您确定要删除此信息吗！\n是否继续操作？"))	
+		{
+			document.form2.submit();		
+		}
+	}
+	return false;	
+}
+</script>

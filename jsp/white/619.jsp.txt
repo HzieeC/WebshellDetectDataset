@@ -1,0 +1,282 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<link href="${contextPath}/static/template/js/idialog.css"
+		rel="stylesheet" id="lhgdialoglink">
+		<title>MyExam在线考试系统</title>
+		<link rel="stylesheet" href="${contextPath}/static/template/js/css.css"
+			type="text/css">
+			<script src="${contextPath}/static/template/js/jquery.js"></script>
+			<script src="${contextPath}/static/template/js/Kesion.Common.js"></script>
+			<script src="${contextPath}/static/template/js/lhgdialog.js"
+				language="JavaScript"></script>
+			<script src="${contextPath}/static/template/js/exam.js" language="JavaScript"></script>
+			<script>
+
+  function ExamSubmit(){
+    getAnswer();
+    var num = getTotalTMS();
+    var leavenum = getNoFinishTMS();
+    var tipstr = '';
+    if (leavenum>0){
+     tipstr='共 '+num+' 道题，还有 '+leavenum+' 道题没有做完,确定交卷吗？';
+    }else{
+     tipstr='所有题已答完了，确定交卷吗？';
+ }
+
+  KesionJS.Confirm(tipstr, "jQuery('#myform').submit();", null);
+
+  }
+</script>
+</head>
+
+<body style="color:#666" youdao="bind">
+<input id="contextPath" type="hidden" value="${contextPath}"/>
+	<div
+		style="left: 0px; top: 0px; visibility: hidden; position: absolute;"
+		class="">
+		<table class="ui_border">
+			<tbody>
+				<tr>
+					<td class="ui_lt"></td>
+					<td class="ui_t"></td>
+					<td class="ui_rt"></td>
+				</tr>
+				<tr>
+					<td class="ui_l"></td>
+					<td class="ui_c"><div class="ui_inner">
+							<table class="ui_dialog">
+								<tbody>
+									<tr>
+										<td colspan="2"><div class="ui_title_bar">
+												<div class="ui_title" unselectable="on"
+													style="cursor: move;"></div>
+												<div class="ui_title_buttons">
+													<a class="ui_min" href="javascript:void(0);" title="最小化"
+														style="display: inline-block;"><b class="ui_min_b"></b>
+													</a><a class="ui_max" href="javascript:void(0);" title="最大化"
+														style="display: inline-block;"><b class="ui_max_b"></b>
+													</a><a class="ui_res" href="javascript:void(0);" title="还原"><b
+														class="ui_res_b"></b><b class="ui_res_t"></b>
+													</a><a class="ui_close" href="javascript:void(0);"
+														title="关闭(esc键)" style="display: inline-block;">×</a>
+												</div>
+											</div>
+										</td>
+									</tr>
+									<tr>
+										<td class="ui_icon" style="display: none;"></td>
+										<td class="ui_main" style="width: auto; height: auto;"><div
+												class="ui_content" style="padding: 10px;"></div>
+										</td>
+									</tr>
+									<tr>
+										<td colspan="2"><div class="ui_buttons"
+												style="display: none;"></div>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</td>
+					<td class="ui_r"></td>
+				</tr>
+				<tr>
+					<td class="ui_lb"></td>
+					<td class="ui_b"></td>
+					<td class="ui_rb" style="cursor: se-resize;"></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<div class="head">
+		<div class="idx">
+			<img src="${contextPath}/static/template/js/examlogo.gif"
+				align="left">
+				
+		</div>
+	</div>
+	<form name="myform" method="post"
+		
+		id="myform">
+		<div>
+			<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE"
+				value="/wEPDwUKLTE4NzkxNzAyNmRkPOHKDe8kzE8Qec2cPx3EEUvy11k=">
+		</div>
+
+		<input type="hidden" name="pid" id="pid" value="64"> 
+		<input
+			type="hidden" name="id" value="67">
+			
+				<div style="display: none;" id="MaskLayer">
+					<b>试题加载中......</b>
+				</div>
+				<div class="examtitle">${examInfo.name} </div>
+				<div class="examtime">
+					考试时间：<font color="red !important" style="font-weight:bold">${examInfo.totalTime}</font>&nbsp;&nbsp; 考生：${user.name }&nbsp;&nbsp;&nbsp; 总分 ：<font>${ paperInfo.point}</font>
+					分 &nbsp;&nbsp;&nbsp;
+				</div>
+
+<div id="PanExam">
+
+					<script>
+		var isTjDa=0;
+		 jQuery(document).ready(function(){
+		   
+		    loadRndPage(null,64,0,0);
+		   
+		  })
+	   </script>
+					<div class="idx" style="margin-top:20px">
+						<input name="btn" id="64" type="button"
+							onclick="loadRndPage(this,64,0,0)" class="topInputOver"
+							value="单选题"><input name="ans64" id="ans64" typeid="64"
+							class="hidans" type="hidden" value="">
+							<input name="num64"
+								id="num64" class="hidnum" type="hidden" value="5">
+					</div>
+				</div>
+				<div id="content" class="idx" style="margin-bottom:60px">
+					<div class="dtclass">
+						第 一 大题 单选题&nbsp;<span>(每小题 1 分)</span>
+					</div>
+					<c:forEach var="question" items="${questionInfos}" varStatus="step">
+					<div class="blank10 clear"></div>
+					<div class="sjlist">
+						<div class="stborder" onmouseover="this.className='stborderover'" onmouseout="this.className='stborder'">
+
+							<div class="xttitleclass">
+								<strong>第<span class="xihao">${step.index+1}</span> 题：</strong> ${question.content} <br>
+							</div>
+							<div class="xtcontentclass">
+							<c:forEach var="option" items="${question.options}" varStatus="step">
+								${ option.tag}.${ option.content}</br>
+											</c:forEach>
+							</div>
+							<div class="blank10 clear"></div>
+							<div id="t2044" class="ta">
+								<table width="100%" cellspacing="0" cellpadding="0">
+									<tbody>
+										<tr>
+											<td class="hdtitle">您的答案：</td>
+											<td nowrap=""><label class="dx_button"><input
+													type="radio" value="A" tmid="2044" name="a1">A
+											</label><label class="dx_button"><input type="radio"
+													value="B" tmid="2044" name="a1">B
+											</label><label class="dx_button"><input type="radio"
+													value="C" tmid="2044" name="a1">C
+											</label><label class="dx_button"><input type="radio"
+													value="D" tmid="2044" name="a1">D
+											</label>
+											</td>
+											<td width="150" align="center"><span class="ta"
+												id="t2044">标记：<a href="javascript:;"
+													onclick="javascript:tag(2044);"><img border="0"
+														src="${contextPath}/static/template/js/yw.gif"
+														title="答案不确定标记一下！" align="absmiddle">
+												</a>
+											</span>
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+							<div id="aaa1" class="sttj">
+								<label class="ctb"><input onclick="addctb(this,0);"
+									type="checkbox" value="2044">收藏本题目
+								</label>
+							</div>
+						</div>
+					</div>
+					</c:forEach>
+					
+					
+
+					
+
+				</div> <input type="hidden" name="timeout" id="timeout" value="1分钟60秒">
+					<input type="hidden" name="HasUseTime" id="HasUseTime" value="1:60">
+						<input type="hidden" name="action" value="dosave">
+
+
+
+
+
+
+
+
+							<div id="PanTime">
+
+
+								<script>
+    var KSSJ=120;
+    </script>
+								<script
+									src="${contextPath}/static/template/js/timeout.js"></script>
+
+
+
+								<div id="times" class="footbar">
+									<div style="float:left; margin-left:5px;vertical-align:middle;"
+										id="zyjs">
+										<table width="320">
+											<tbody>
+												<tr>
+													<td width="145"><img
+														src="${contextPath}/static/template/js/icon_look.png"
+														align="absmiddle"><strong>答题剩余时间：</strong>
+													</td>
+													<td align="left" id="Time1">
+													</td>
+												</tr>
+											</tbody>
+										</table>
+									</div>
+									<div class="clear0"></div>
+									<input class="tjdabtn" onclick="ExamSubmit()" type="button"
+										value=" " name="Submit"> <input class="savebtn"
+										onclick="SaveAnswer(1,67)" type="button" value=" "
+										name="submit1"> 
+								</div>
+							</div>
+	</form>
+
+
+	<div id="ydNoteExtensionClipper"
+		style="position: fixed; right: 10px; top: 10px; padding-bottom: 10px; font-style: normal; font-variant: normal; font-weight: normal; font-size: 12px; line-height: 100%; font-family: arial, sans-serif; color: rgb(51, 51, 51); width: 540px; z-index: 999999; height: 244px; display: none;">
+		<div
+			style="padding: 5px; background-color: rgba(92, 184, 229, 0.498039) !important; border-top-left-radius: 5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; box-shadow: rgb(92, 184, 229) 0px 0px 2px; -webkit-box-shadow: rgb(92, 184, 229) 0px 0px 2px; width: 532px; background-position: initial initial; background-repeat: initial initial;"
+			id="ydNoteExtensionClipper-New" class="ydnwc-dialog">
+			<div id="ydNoteExtensionClipper_view"
+				style="border: 1px solid rgb(92, 184, 229); background-color: rgb(255, 255, 255); width: 530px; height: 244px; background-position: initial initial; background-repeat: initial initial;"></div>
+			<div
+				style="position: absolute; height: 258px; background-color: rgb(255, 255, 255); top: 0px; left: 50%; display: none; background-position: initial initial; background-repeat: initial initial;"
+				id="ydNoteExtensionClipper_loadview">
+				<div id="_YNoteLoaddingTips" name="_YNoteLoaddingTips"
+					style="position:absolute;z-index:999999;top:50%;left:50%;width:180px;margin:-12px 0 0 -91px;font-weight:bold;text-align:center;line-height:22px;border:1px solid #fff999;background-color:rgba(255,249,153,.9)!important;background:#fff999;border-radius:5px;-khtml-border-radius:5px;-webkit-border-radius:5px;-moz-border-radius:5px;">正在加载中，请稍候…</div>
+			</div>
+		</div>
+		<div style="display: none;">
+			<form id="_YNoteContentForm" name="_YNoteContentForm"
+				
+				target="2ContentFrame&amp;PcClient" enctype="multipart/form-data"
+				method="post">
+				<input type="text" name="tl" id="_YNoteContentFormtitle" value=""><input
+					type="text" name="p" id="_YNoteContentFormpath" value=""><textarea
+							name="bs" id="_YNoteContentFormcontent"></textarea><input
+						type="text" name="src" id="_YNoteContentFormsource" value=""><input
+							type="text" name="type" id="_YNoteContentFormtype" value=""><input
+								type="text" name="userid" id="_YNoteContentFormuserid" value=""><input
+									type="text" name="len" id="_YNoteContentFormlen" value=""><input
+										type="text" name="cs" id="_YNoteContentFormcharset" value=""><input
+											type="text" name="e" id="_YNoteContentFormsign" value="">
+			</form>
+		</div>
+	</div>
+</body>
+</html>

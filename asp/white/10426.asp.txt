@@ -1,0 +1,1175 @@
+<%@ Language=VBScript %>
+<!--#include file="cominc/conndb.asa"-->
+<!--#include file="cominc/function.asp"-->
+<!--#include file="cominc/md5.asp"-->
+<!--#include file="cominc/template.asp"-->
+
+<%
+PageShowSize = 10            '每页显示多少个页
+MyPageSize   = 15        '每页显示多少条
+
+if Dreamsun_name="" Then response.redirect "UserMng.asp?comurl="&server.urlencode(GetUrl)
+If Dreamsun_name<>SiteAdmin Then response.write backmsg("对不起，你不是管理员，请不要越权管理","")
+
+If Not IsNumeric(Request("Curpage")) Or IsEmpty(Request("Curpage")) Or Request("Curpage") <=0 Then
+MyPage=1
+Else
+MyPage=Int(Abs(Request("Curpage")))
+End if
+shopid=CheckNum(Request.QueryString("shopid"))
+bigtypeid=0
+comurl=Cstr(Request.ServerVariables("HTTP_REFERER"))
+
+webTitle="后台管理 - "&SiteName
+indexStr=" class=selected"
+
+'输出头部
+response.write echo_header()
+%>
+<div id="container">
+<div id="main">
+	<div id="mainTop">
+		<div id="maindh">
+			<div id="maindh_l"></div>
+			<div id="maindh_m"><a href="comindex.asp"><%=SiteName%>首页</a>&nbsp;&raquo;&nbsp;高级管理</div>
+			<div id="maindh_r"></div>
+		</div>
+	</div>
+	<div id="mainBody">
+		<div id="mainBodyLeft">
+			<div id="allpic" class="sidebar">
+			  <div class="title bt2">
+				<ul>
+				  <li class="current"><span>管理导航</span></li>
+				</ul>
+			  </div>
+			  <div class="txt2"> 
+			  <div id="comadmenu"><ul>
+              <li>
+              <A HREF="comadmin.asp?Action=shoplist">商家店铺管理</A></li>
+              <li><A HREF="comadmin.asp?Action=myphoto">商家图片管理</A></li>
+              <li>
+			  <A HREF="comadmin.asp?Action=myinfo">商家资讯管理</A></li>
+              <li>
+              <A HREF="comadmin.asp?Action=myinfo&cz=edit">发布商家资讯</A></li>
+              <li>
+			  <A HREF="comadmin.asp?Action=areaedit">商家地区管理</A></li>
+              <li>
+              <A HREF="comadmin.asp?Action=typeedit">商家分类管理</A></li></ul></div>
+			  <div class="clear"></div>
+			  </div>
+			</div>
+		</div>
+		<div id="mainBodyRight">
+					<!--  -->
+					<%
+					Dim Action,cz
+						Action=CheckStr(Request.QueryString("Action"))
+						cz=CheckStr(Request.QueryString("cz"))
+						Select Case Action
+							Case "shoplist"
+								Call shoplist()
+							Case "shopedit"
+								Call shopedit()
+							Case "myreview"
+								Call myreview()
+							Case "myphoto"
+								Call myphoto()
+							Case "myinfo"
+								Call myinfo()
+							Case "typeedit"
+								Call typeedit()
+							Case "areaedit"
+								Call areaedit()
+
+							Case "shopdel"
+								Call shopdel()
+							Case Else 
+								Call siteinfo()
+						End Select
+					%>
+		<!--  -->
+		</div>
+	</div>
+</div>
+</div>
+<script language="JavaScript">
+function delete_confirm(e) {
+ if (event.srcElement.outerText=="删除")
+  event.returnValue=confirm("您确认执行删除操作么？");
+ }
+ document.onclick=delete_confirm;
+</script>
+<%
+'输出尾部信息
+response.write echo_bottom()
+
+
+Sub shopdel()
+	If shopid<>0 Then 
+		conn.execute("update "&shopTable&" set shop_ischeck=-1 where shop_id="&shopid&"")
+		response.write backmsg("恭喜，新闻资讯删除成功！",comurl)
+	Else
+		response.write backmsg("缺少参数，请返回确认！！","")
+	End If 
+End Sub 
+Sub shoplist()
+%>
+			<div id="finershop">
+				<div class="title bt2">
+					<ul><li class="current"><span>店铺编辑</span></li><li style="width:500px;"><FORM action="comadmin.asp?Action=shoplist" method=post>商铺搜索：
+			<INPUT size="40" name="keys" type="text" value="">&nbsp; 
+			<INPUT name="submit"  type="submit" value="搜索" class="btn"></font></FORM></li></ul>
+				</div>
+				<div id="con_shop_1" class="txt">
+					<dl>
+<%
+keys=CheckStr(Request("keys"))
+If keys<>"" Then
+	sql="select shop_addtime,shop_name,shop_subname,shop_id,shop_photo,isFoucs from "&shopTable&" where shop_ischeck>-1 and (shop_name like '%"&trim(keys)&"%' or shop_content like '%"&trim(keys)&"%' or shop_addr like '%"&trim(keys)&"%') order by isFoucs desc,shop_ischeck asc,shop_addtime desc,shop_id desc"
+	keysStr="&keys="&trim(keys)
+Else
+	sql="select shop_addtime,shop_name,shop_subname,shop_id,shop_photo,isFoucs from "&shopTable&" where shop_ischeck>-1 order by isFoucs desc,shop_ischeck asc, shop_addtime desc,shop_id desc"
+	keysStr=""
+End If 
+set adoRS=server.createobject("adodb.recordset")
+adoRS.open sql,conn,1,1
+SQLQueryNums=SQLQueryNums+1
+	If adoRS.eof And adoRS.bof Then
+		response.write "<CENTER>我还没有添加过店铺，现在添加一个试试看</CENTER>"
+	Else
+		adoRS.PageSize     = MyPageSize
+		MaxPages         = adoRS.PageCount
+		adoRS.absolutepage = MyPage
+		Totalcount            = adoRS.RecordCount
+		for i=1 to adoRS.PageSize
+			If not adoRS.eof Then
+				shop_photo=adoRS("shop_photo")
+				If shop_photo="" Or IsNull(shop_photo) Then shop_photo="images/noimg.gif"
+
+				
+				if adoRS("isFoucs")=1 Then
+					addinfo="<font color=red>★</font>"
+				Else
+					addinfo=""
+				End If 
+
+				
+				IsHot=IsHot&"<dd> <a href=""shop.asp?shopid="&adoRS("shop_id")&""" target=""_blank""><img src="""&shop_photo&""" alt="""&adoRS("shop_name")&""" width=""100"" height=""75"" /></a><p><a href=""shop.asp?shopid="&adoRS("shop_id")&""" target=""_blank"" title="""&adoRS("shop_name")&""">"&TitleLeft(adoRS("shop_name")&adoRS("shop_subname"),12)&"</a><BR><A HREF=""comadmin.asp?Action=shopedit&shopid="&adoRS("shop_id")&""">编辑</A> &nbsp;&nbsp;<A HREF=""comadmin.asp?Action=shopdel&shopid="&adoRS("shop_id")&""">删除</A> "&addinfo&"</p></dd>"
+				adoRS.MoveNext
+			end if
+		Next
+		multipage=viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=shoplist"&keysStr,"当前总数:","comadmin.asp")
+%>
+<%response.write IsHot%>
+<%	End If 
+adoRS.close
+Set adoRS=Nothing
+%>
+					</dl>
+					<div class="clear"></div>
+                    <br />
+			</div>
+				</div>
+                
+                <div id="finershop">
+                <div class="pages"><div class="plist"><%=multipage%></div></div>
+					</div>
+<%
+End Sub
+Sub myreview()
+%>
+			<div id="list">
+				<div class="title bt2">
+					<ul><li class="current"><span>点评管理</span></li></ul>
+				</div>
+				<div class="txt">
+					<%
+If cz="editsave" Then 
+	r_id=checkNum(request.form("r_id"))
+	r_content=Trim(request.form("r_content"))
+	r_content=server.htmlencode(r_content)
+	If r_id<>0 Then 
+		conn.execute("update "&reviewTable&" set r_content='"&r_content&"' where r_id="&r_id&"")
+		response.write backmsg("恭喜，点评内容编辑成功！",comurl)
+	Else
+		response.write backmsg("缺少参数，请返回确认！！","")
+	End If 
+ElseIf cz="del" Then 
+	id=CheckNum(Request.QueryString("id"))
+
+	'得到店铺信息
+	rss=conn.execute("Select r_shopid from ["&reviewTable&"] where r_id="&id&"")
+	r_shopid=rss(0)
+
+	'删除
+	conn.execute "delete from "&reviewTable&" where r_id=" & id
+	'如果存在店铺信息，要对店铺信息进行更新，特别是对平均价格之类的进行运算
+	If r_shopid>0 then 
+		Set rs= Server.CreateObject("ADODB.Recordset")
+			sql="select sum(r_sort1) as sort1,sum(r_sort2) as sort2,sum(r_sort3) as sort3,sum(r_sort4) as sort4,sum(r_avrprice) as avrprice,count(*) as total from "&reviewTable&" where r_shopid="&r_shopid
+			rs.open sql,conn,1,1
+			sort1=rs("sort1")
+			sort2=rs("sort2")
+			sort3=rs("sort3")
+			sort4=rs("sort4")
+			total=rs("total")
+			avrprice=rs("avrprice")
+			rs.close
+		Set rs=Nothing
+		If total>0 Then 
+			avr_sort1=Round(sort1/total)
+			avr_sort2=Round(sort2/total)
+			avr_sort3=Round(sort3/total)
+			avr_sort4=Round(sort4/total)
+			avr_avrprice=Round(avrprice/total)
+			shop_sort=Round((avr_sort1 + avr_sort2 + avr_sort3 + avr_sort4)/4,1)
+			sql="update ["&shopTable&"] set shop_sort='"&shop_sort&"',shop_sort1="&avr_sort1&",shop_sort2="&avr_sort2&",shop_sort3="&avr_sort2&",shop_sort4="&avr_sort2&",shop_average="&avr_avrprice&",shop_review="&total&" where shop_id="&r_shopid&""
+			conn.execute(sql)
+		End If
+	End If 
+	response.write backmsg("恭喜，点评删除成功！"&shuoming,comurl)
+ElseIf cz="edit" Then
+	id=CheckNum(Request.QueryString("id"))
+	If id=0 Then 
+		shuoming="添加"
+		news_addtime="可不填"
+		news_ischeck=1
+		news_addname=Dreamsun_name
+		news_type=0
+	Else
+		shuoming="管理"
+		Set rs1 = Server.CreateObject("ADODB.Recordset") 
+		rs1.Open "Select * From "&reviewTable&" where r_id="&id, conn,1,3 
+			r_addname = rs1("r_addname")
+			r_addtime=rs1("r_addtime") 
+			r_addip = rs1("r_addip")
+			r_sort1 = rs1("r_sort1")
+			r_sort2 = rs1("r_sort2")
+			r_sort3 = rs1("r_sort3")
+			r_sort4 = rs1("r_sort4")
+			r_avrprice = rs1("r_avrprice")
+			r_content = rs1("r_content")
+			r_shopid = rs1("r_shopid")
+		rs1.close
+		set rs1=Nothing
+	End If 
+%>
+<CENTER><H4><%=shuoming%>管理商铺点评</H4></CENTER>
+<form name="myform" class="democss" action="comadmin.asp?Action=myreview&cz=editsave" OnSubmit="return checkreview(this)" method=POST>
+  <dl>
+	<dt>点评店铺id:</dt>
+    <dd><input type="text" class="t_input" value="<%=r_shopid%>" size=6 readonly/> 发布者：<input type="text" class="t_input" value="<%=r_addname%>" size=14 readonly/> 发布IP：<input type="text" class="t_input" value="<%=r_addip%>" size=16 readonly/>
+	时间：<input type="text" class="t_input" value="<%=r_addtime%>" size=20 readonly/>
+	</dd>
+	<dt>评分:</dt>
+    <dd>
+1：<input type="text" class="t_input" value="<%=r_sort1%>" size=6 readonly/> 
+2：<input type="text" class="t_input" value="<%=r_sort2%>" size=6 readonly/>
+3：<input type="text" class="t_input" value="<%=r_sort3%>" size=6 readonly/>
+4：<input type="text" class="t_input" value="<%=r_sort4%>" size=6 readonly/>
+avrprice：<input type="text" class="t_input" value="<%=r_avrprice%>" size=6 readonly/>
+	</dd>
+	<dt>内容:</dt>
+    <dd><textarea rows="8" cols="70" name="r_content" id="r_content"><%=r_content%></textarea></dd>
+  </dl><input type="hidden" id="r_id" name="r_id" value="<%=id%>"/>
+<div align=center>
+<BR><input type="submit" value="提交修改" class="submit"/>
+    <input type="reset" value="清除重来" class="submit"/>
+  </div>
+</form>
+<%
+Else
+	set adoRS=server.createobject("adodb.recordset")
+	sql="select r.*,s.shop_addtime,s.shop_name,s.shop_subname,s.shop_id,s.shop_photo from "&reviewTable&" as r,"&shopTable&" as s where r.r_shopid=s.shop_id order by r.r_addtime desc,r_id desc"
+	adoRS.open sql,conn,1,1
+	SQLQueryNums=SQLQueryNums+1
+		If adoRS.eof And adoRS.bof Then
+			response.write "<CENTER>我还没有点评过店铺，现在添加一个试试看</CENTER>"
+		Else
+			response.write"		<UL class=""newslist t14160"">"
+			adoRS.PageSize     = MyPageSize
+			MaxPages         = adoRS.PageCount
+			adoRS.absolutepage = MyPage
+			Totalcount            = adoRS.RecordCount
+			for i=1 to adoRS.PageSize
+				If not adoRS.eof Then
+					shop_photo=adoRS("shop_photo")
+					If shop_photo="" Or IsNull(shop_photo) Then shop_photo="images/noimg.gif"
+					IsHot=IsHot&"<li><span><A HREF=""comadmin.asp?Action=myreview&cz=edit&id="&adoRS("r_id")&""">编辑</A> &nbsp;<A HREF=""comadmin.asp?Action=myreview&cz=del&id="&adoRS("r_id")&""">删除</A></span>【"&adoRS("r_addname")&"】【<a href=""shop.asp?shopid="&adoRS("shop_id")&""" target=""_blank"" title="""&adoRS("shop_name")&""">点评"&adoRS("shop_name")&adoRS("shop_subname")&"</a>】"&adoRS("r_addtime")&"</li>"
+					adoRS.MoveNext
+				end if
+			Next
+			multipage=viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=myreview","当前总数:","comadmin.asp")
+			response.write IsHot&"</UL>"
+		End If 
+	adoRS.close
+	Set adoRS=Nothing
+End If 
+%>
+          
+
+					<div class="clear"></div><div class="pages"><div class="plist"><%=multipage%></div></div>
+				</div>
+			</div>
+<%
+End Sub 
+Sub myphoto()
+	id=CheckNum(Request.QueryString("id"))
+	If cz="del" Then '图片的删除操作，此处用真正删除。
+		rs=conn.execute("select photo_url,photo_shop_id from "&photoTable&" where photo_id=" & id &" ")
+		photo_url=rs(0)
+		shopid=rs(1)
+
+		'统计店铺的图片信息
+		rss=conn.execute("Select Count(*) from ["&photoTable&"] where photo_shop_id="&shopid&"")
+		getmm=rss(0)
+		if isnull(getmm) then getmm=0
+		
+		'更新商家图片信息
+		Set rs= Server.CreateObject("ADODB.Recordset")
+			sql="select shop_photo,shop_photonum from "&shopTable&" where shop_id="&shopid&""
+			rs.open sql,conn,3,2
+			shop_photo=rs("shop_photo")
+			If shop_photo=photo_url Then 
+				rs("shop_photo")=""
+				shuoming="该店铺暂时没有主图，请添加！"
+			End If
+			rs("shop_photonum")=getmm
+			rs.update
+			rs.close
+		Set rs=Nothing
+		FSO_Del_File(photo_url)
+		conn.execute "delete from "&photoTable&" where photo_id=" & id
+		response.write backmsg("恭喜，图片删除成功！"&shuoming,comurl)
+	End If 
+%>
+			<div id="finershop">
+			  <div class="title bt2">
+				  <ul>
+					<li class="current"><span>我的图片</span></li>
+				  </ul>
+			  </div>
+			<div id="con_shop_1" class="txt">
+				<dl>
+<%
+set adoRS=server.createobject("adodb.recordset")
+sql="select p.*,s.shop_name,s.shop_subname,s.shop_id from "&photoTable&" as p,"&shopTable&" as s where p.photo_shop_id=s.shop_id order by p.photo_addtime desc,p.photo_id desc"
+adoRS.open sql,conn,1,1
+SQLQueryNums=SQLQueryNums+1
+	If adoRS.eof And adoRS.bof Then
+		response.write "<CENTER>我还没有上传过图片，现在添加一个试试看</CENTER>"
+	Else
+		adoRS.PageSize     = MyPageSize
+		MaxPages         = adoRS.PageCount
+		adoRS.absolutepage = MyPage
+		Totalcount            = adoRS.RecordCount
+		for i=1 to adoRS.PageSize
+			If not adoRS.eof Then
+				shop_photo=adoRS("photo_url")
+				IsHot=IsHot&"<dd> <a href=""page.asp?cz=showpic&pid="&adoRS("photo_id")&""" target=""_blank""><img src="""&shop_photo&""" alt="""&adoRS("shop_name")&""" width=""100"" height=""75"" /></a><p><a href=""page.asp?cz=showpic&pid="&adoRS("photo_id")&""" target=""_blank"" title="""&adoRS("shop_name")&"""> "&titleLeft(adoRS("shop_name"),20)&"  </a><BR><a href=""comadmin.asp?Action=myphoto&cz=del&id="&adoRS("photo_id")&""" title="""&adoRS("shop_name")&""">删除</a></p></dd>"
+				adoRS.MoveNext
+			end if
+		Next
+		multipage=viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=myphoto","当前总数:","comadmin.asp")
+%>
+<%response.write IsHot%>
+<%	End If 
+adoRS.close
+Set adoRS=Nothing
+%>
+          </dl>
+          <div class="clear"></div><div class="pages"><div class="plist"><%=multipage%></div></div>
+        </div>
+		</div>
+<%
+End Sub
+Sub shopedit()
+If cz="editsave" Then 
+	shop_id=Trim(request.form("shop_id"))
+	shop_name=Trim(request.form("shop_name"))
+	shop_subname=Trim(request.form("shop_subname"))
+	shop_own=Trim(request.form("shop_own"))
+	shop_ischeck=Trim(request.form("shop_ischeck"))
+	isFoucs=CheckNum(request.form("isFoucs"))
+	delinfo=CheckNum(request.form("delinfo"))
+	If isFoucs="" Then isFoucs=0
+	If delinfo="" Then delinfo=0
+
+
+	shop_addr=Trim(request.form("shop_addr"))
+	areaid=Int(Trim(request.form("areaid")))
+	typeid=Int(Trim(request.form("typeid")))
+	shop_telephone=Trim(request.form("shop_telephone"))
+	shop_telephone2=Trim(request.form("shop_telephone2"))
+	shop_mobile=Trim(request.form("shop_mobile"))
+	shop_url=Trim(request.form("shop_url"))
+	shop_photo=Trim(request.form("shop_photo"))
+	shop_content=Trim(request.form("shop_content"))
+	shop_content=server.htmlencode(shop_content)
+
+	If typeid=0 Or shop_name="" Or shop_content="" Or areaid=0 Then Response.Write backMsg("信息填写不完善","")
+	Set rs= Server.CreateObject("ADODB.Recordset")
+		sql="select * from "&shopTable&" where shop_id="&shop_id&""
+		rs.open sql,conn,3,2
+		rs("shop_name")=shop_name
+		rs("shop_subname")=shop_subname
+		rs("shop_own")=shop_own
+		rs("shop_ischeck")=shop_ischeck
+		rs("shop_addr")=shop_addr
+		rs("shop_area")=areaid
+		rs("shop_type")=typeid
+		rs("shop_telphone")=shop_telephone
+		rs("shop_telphone2")=shop_telephone2
+		rs("shop_mobile")=shop_mobile
+		rs("shop_url")=shop_url
+		rs("isFoucs")=isFoucs
+		rs("shop_photo")=shop_photo
+		rs("shop_content")=shop_content
+		If delinfo=1 Then rs("shop_addinfo")=""
+		rs.update
+		rs.close
+	Set rs=Nothing
+	response.write backmsg("恭喜！修改店铺成功！",comurl)
+End If 
+%>
+			<div id="list">
+			  <div class="title bt2">
+				  <ul>
+					<li class="current"><span>店铺编辑</span></li>
+				  </ul>
+			  </div>
+			<div class="txt">
+<%
+Set rs1 = Server.CreateObject("ADODB.Recordset") 
+rs1.Open "Select * From "&shopTable&" where shop_id="&shopid&"", conn,1,3
+SQLQueryNums=SQLQueryNums+1
+If rs1.bof And rs1.eof Then
+	Call backmsg("参数错误，请检查","")
+Else
+	shop_name=rs1("shop_name") 
+	shop_subname = rs1("shop_subname")
+	shop_type = rs1("shop_type")
+	shop_area = rs1("shop_area")
+	shop_addr = rs1("shop_addr")
+	shop_map = rs1("shop_map")
+	shop_url = rs1("shop_url")
+	shop_video = rs1("shop_video")
+	shop_telphone = rs1("shop_telphone")
+	shop_telphone2 = rs1("shop_telphone2")
+	shop_mobile = rs1("shop_mobile")
+	shop_content = rs1("shop_content")
+	shop_addname = rs1("shop_addname")
+	shop_id = rs1("shop_id")
+	shop_photo = rs1("shop_photo")
+	shop_own = rs1("shop_own")
+	shop_ischeck = rs1("shop_ischeck")
+	shop_addinfo = rs1("shop_addinfo")
+	isFoucs = rs1("isFoucs")
+
+
+End If 
+rs1.close
+set rs1=nothing
+%>
+<CENTER><H4>管理编辑商铺</H4></CENTER><form name="myform" class="democss" action="comadmin.asp?Action=shopedit&cz=editsave" OnSubmit="return checkaddshop(this)" method=POST>
+  <dl>
+	<dt>商铺名称:</dt>
+    <dd><input type="text" id="shop_name" name="shop_name" class="t_input" value="<%=shop_name%>" size=40/> *例如：小肥羊</dd>
+	<dt>分 店 名:</dt>
+    <dd><input type="text" id="shop_subname" name="shop_subname" value="<%=shop_subname%>" class="t_input" size=20/> 所属分类
+<select name="typeid">
+<%
+	If Not IsArray(Arr_Category) Then GetTypeCache()
+	If Not IsArray(Arr_Category) Then Call backmsg("版块分类信息有错误，请检查","")
+	if ubound(Arr_Category,1)=0 then Response.Write("还没有版块分类")
+	For i=0 To Ubound(Arr_Category,2)
+		nowtype=""
+		If Int(Arr_Category(2,i))=GetBigTypeid(shop_type) Then
+		selected=""
+		If shop_type=Arr_Category(0,i) Then selected=" selected"
+		%><option value="<%=Arr_Category(0,i)%>"<%=selected%>><%=Arr_Category(1,i)%></option>
+		<%
+		End If
+	Next
+%></select>
+	</dd>
+    <dt>商铺地址:</dt>
+    <dd><input type="text" id="shop_addr" name="shop_addr" value="<%=shop_addr%>" class="t_input" size=40/> &nbsp;所属区域:<select name="areaid">
+<%
+	If Not IsArray(Arr_Area) Then GetAreaCache()
+	If Not IsArray(Arr_Area) Then Call backmsg("地区分类信息有错误，请检查","")
+	if ubound(Arr_Area,1)=0 then Response.Write("还没有地区分类")
+	For i=0 To Ubound(Arr_Area,2)
+	selected=""
+	If shop_area=Arr_Area(0,i) Then selected=" selected"
+		%>
+		<option value="<%=Arr_Area(0,i)%>"<%=selected%>><%=Arr_Area(1,i)%></option>
+		<%
+	Next
+%>  
+</select>
+<%
+If shop_area="" Then 
+	showming="提交"
+Else
+	showming="修改"
+End If 
+%>
+&nbsp;<A HREF="shop_map.asp?action=mapmark&shopid=<%=shop_id%>" target=blank><%=showming%>地图标注</A></dd>
+    <dt>联系电话:</dt>
+    <dd><input type="text" id="shop_telephone" name="shop_telephone"  class="t_input" value="<%=shop_telphone%>" size=20/>&nbsp;&nbsp; 备用电话:<input type="text" id="shop_telephone2" name="shop_telephone2" class="t_input" value="<%=shop_telphone2%>" size=20/></dd>
+    <dt>移动联系:</dt>
+    <dd><input type="text" id="shop_mobile" name="shop_mobile"  class="t_input" value="<%=shop_mobile%>" size=20/>&nbsp;&nbsp; 互联网址:<input type="text" id="shop_url" name="shop_url" class="t_input" value="<%=shop_url%>" size=20/></dd>
+    <dt>店铺所属:</dt>
+    <dd><input type="text" id="shop_own" name="shop_own"  class="t_input" value="<%=shop_own%>" size=20/>&nbsp;&nbsp; 店铺权限：	<select name="shop_ischeck">
+		<option value="0" <%If shop_ischeck=0 Then response.write "selected"%>>未 审 核</option>
+		<option value="1" <%If shop_ischeck=1 Then response.write "selected"%>>通过审核</option>
+		<option value="2" <%If shop_ischeck=2 Then response.write "selected"%>>店长推荐</option>
+		<option value="9" <%If shop_ischeck=9 Then response.write "selected"%>>VIP 店铺</option>
+	</select></dd>
+	<dt>店铺图片:</dt>
+    <dd><select name="shop_photo" onChange="document.getElementById('showimages').src = this.value">
+	<option value="">不需要图片</option>
+<%
+set adoRS=server.createobject("adodb.recordset")
+sql="select * from "&photoTable&" where photo_shop_id="&shop_id&" order by photo_addtime desc,photo_id desc"
+adoRS.open sql,conn,1,1
+SQLQueryNums=SQLQueryNums+1
+	If adoRS.eof And adoRS.bof Then
+		response.write "暂没有该类信息"
+	Else
+		do while not adoRS.eof
+		selected=""
+		If adoRS("photo_url")=shop_photo Then selected=" selected"
+	%>		<option value="<%=adoRS("photo_url")%>"<%=selected%>><%=adoRS("photo_name")%></option>
+	<%
+		adoRS.movenext
+		loop
+	End If 
+adoRS.close
+Set adoRS=Nothing
+If shop_photo="" Then shop_photo="images/noimg.gif"
+%></select> 更多图片<A HREF="page.asp?cz=uploadpic&shopid=<%=shop_id%>" target=_blank class="red">请上传</A></dd>
+    <dt>商铺介绍:</dt>
+    <dd><textarea rows="8" cols="50" name="shop_content"><%=shop_content%></textarea>&nbsp;<img src="<%=shop_photo%>" name=showimages id="showimages" width=130 height=110></dd>
+<%If shop_addinfo<>"" And  Not IsNull(shop_addinfo) Then %>
+<%=shop_addinfo%><HR><HR>删除附属信息？<input type="checkbox" name="delinfo" value="1">
+<%End If %>
+关注：<input type="checkbox" name="isFoucs" value="1" <%If isFoucs=1 Then response.write "checked"%>>
+  </dl>
+  <div align=center><BR><input type="hidden" value="<%=shop_id%>" name="shop_id"/>
+    <input type="submit" value="提交修改" class="submit"/>
+    <input type="reset" value="清除重来" class="submit"/>
+  </div>
+</form>
+          <div class="clear"></div>
+        </div>
+		</div>
+<%
+End Sub
+Sub myinfo()
+%>
+			<div id="list">
+			  <div class="title bt2">
+				  <ul>
+					<li class="current"><span>店铺资讯</span></li>
+				  </ul>
+			  </div>
+			<div class="txt">
+<%
+If cz="editsave" Then 
+	news_id=CheckNum(Request.Form("news_id"))
+	news_title=CStr(Request.Form("news_title"))
+	news_content=Request.Form("news_content")
+	news_type=Request.Form("news_type")
+	news_ischeck=Request.Form("news_ischeck")
+	news_addtime=Request.Form("news_addtime")
+	news_isgood=Request.Form("news_isgood")
+	If news_title="" Or Len(news_title)>100 Then response.write backmsg("名称太短或者太长","")
+	If news_content="" Then response.write backmsg("要有正文！","")
+	Set rs = Server.CreateObject("ADODB.Recordset")
+	'判断是修改还是添加
+	If news_id=0 Then'如果是添加
+		acts="添加"
+		sql = "SELECT * FROM "&newsTable&" where (news_id is null)" 
+		rs.OPEN sql,Conn,1,3
+		SQLQueryNums=SQLQueryNums+1
+		rs.addnew
+		rs("news_addtime")=Now()
+		rs("news_addname")=Dreamsun_name
+	Else
+		acts="修改"
+		sql = "SELECT * FROM "&newsTable&" where news_id="&news_id
+		rs.OPEN sql,Conn,1,3
+		rs("news_addtime")=news_addtime
+	End If 
+	rs("news_ischeck")=news_ischeck
+	rs("news_type")=news_type
+	rs("news_isgood")=news_isgood
+	rs("news_title")=news_title
+	rs("news_content")=news_content
+	rs.update
+	rs.close
+	set rs=Nothing
+	response.write backmsg("恭喜，新闻资讯"&acts&"成功！","comadmin.asp?Action=myinfo")
+ElseIf cz="del" Then 
+	news_id=CheckNum(Request.QueryString("id"))
+	If news_id<>0 Then 
+		conn.execute("update "&newsTable&" set news_ischeck=-1 where news_id="&news_id&"")
+		response.write backmsg("恭喜，新闻资讯删除成功！","comadmin.asp?Action=myinfo")
+	Else
+		response.write backmsg("缺少参数，请返回确认！！","")
+	End If 
+ElseIf cz="list" Or cz="" Then 
+%>
+<ul class="newslist t14160">
+<%
+set adoRS=server.createobject("adodb.recordset")
+sql="select news_addtime,news_title,news_id,news_type,news_ischeck from "&newsTable&" where news_ischeck>-1 order by news_addtime desc,news_id desc"
+SQLQueryNums=SQLQueryNums+1
+adoRS.open sql,conn,1,1
+	If adoRS.eof And adoRS.bof Then
+		response.write "<CENTER>暂时没有资讯，请添加</CENTER>"
+	Else
+		adoRS.PageSize     = MyPageSize
+		MaxPages         = adoRS.PageCount
+		adoRS.absolutepage = MyPage
+		Totalcount            = adoRS.RecordCount
+		for i=1 to adoRS.PageSize
+			If not adoRS.eof Then 
+			%><li><span><A HREF="comadmin.asp?Action=myinfo&cz=edit&id=<%=adoRS("news_id")%>">编辑</A> &nbsp;<A HREF="comadmin.asp?Action=myinfo&cz=del&id=<%=adoRS("news_id")%>">删除</A></span>[<%=shownewstype(adoRS("news_type"))%>]<A HREF="news_read.asp?id=<%=adoRS("news_id")%>" target=_blank><%=adoRS("news_title")%></A><%If adoRS("news_ischeck")=0 Then response.write" <font class=red>尚未审核</font>"%></li>
+			<%adoRS.MoveNext
+			end if
+		Next
+		multipage=viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=myinfo","当前总数:","comadmin.asp")
+		%>
+</ul><div class="clear"></div>
+<div class="pages"><div class="plist"><%=multipage%></div></div>
+<%	End If 
+adoRS.close
+Set adoRS=Nothing
+
+ElseIf cz="edit" Then
+	id=CheckNum(Request.QueryString("id"))
+	If id=0 Then 
+		shuoming="添加"
+		news_addtime="可不填"
+		news_ischeck=1
+		news_addname=Dreamsun_name
+		news_type=0
+	Else
+		shuoming="管理"
+		Set rs1 = Server.CreateObject("ADODB.Recordset") 
+		rs1.Open "Select * From "&newsTable&" where news_id="&id, conn,1,3
+		SQLQueryNums=SQLQueryNums+1
+			news_ischeck = rs1("news_ischeck")
+			news_title=rs1("news_title") 
+			news_addtime = rs1("news_addtime")
+			news_addname = rs1("news_addname")
+			news_content = rs1("news_content")
+			news_ck = rs1("news_ck")
+			news_type = rs1("news_type")
+			news_isgood = rs1("news_isgood")
+		rs1.close
+		set rs1=Nothing
+	End If 
+%>
+<CENTER><H4><%=shuoming%>我的商铺资讯</H4></CENTER>
+<form name="myform" class="democss" action="comadmin.asp?Action=myinfo&cz=editsave" OnSubmit="return checkaddinfo(this)" method=POST>
+  <dl>
+	<dt>新闻标题:</dt>
+    <dd><input type="text" id="news_title" name="news_title" class="t_input" value="<%=news_title%>" size=60/>发布者：<%=news_addname%></dd>
+	<dt>信息分类:</dt>
+    <dd><select name="news_type">
+                <option value="0"<%If news_type=0 Then response.write " selected"%>>通知公告</option>
+                <option value="1"<%If news_type=1 Then response.write " selected"%>>新闻信息</option>
+                <option value="2"<%If news_type=2 Then response.write " selected"%>>其他资料</option>
+            </select>
+	当前状态：<select name="news_ischeck">
+		<option value="1" <%If news_ischeck=1 Then response.write "selected"%>>通过审核</option>
+		<option value="0" <%If news_ischeck=0 Then response.write "selected"%>>未 审 核</option>
+	</select>
+	发布时间：<input type="text" id="news_addtime" name="news_addtime" class="t_input" value="<%=news_addtime%>" size=20/>
+	权重：<select name="news_isgood">
+		<option value="0" <%If news_isgood=0 Then response.write "selected"%>>普通</option>
+		<option value="1" <%If news_isgood=1 Then response.write "selected"%>>推荐</option>
+	</select>
+	</dd>
+  </dl><input type="hidden" id="news_id" name="news_id" value="<%=id%>"/>
+<div align=center>
+<textarea name="news_content" id="news_content" style="display:none"><%=news_content%></textarea>	<iframe id="FCK_Frame" src="cominc/editor/fckeditor.html?InstanceName=news_content&amp;Toolbar=Default" width="620" height="300" frameborder="no" scrolling="no"></iframe>
+<BR> <BR><input type="hidden" value="<%=shop_id%>" name="shop_id"/>
+    <input type="submit" value="提交修改" class="submit"/>
+    <input type="reset" value="清除重来" class="submit"/>
+  </div>
+</form>
+<%
+End If 
+%>		  
+		  <div class="clear"></div>
+        </div>
+		</div>
+<%
+End Sub
+Sub siteinfo()
+%>
+			<div id="list">
+				<div class="title bt2">
+					<ul><li class="current"><span>站点参数设置</span></li></ul>
+				</div>
+				<div id="con_shop_1" class="txt">
+					目前版本的站点参数设置暂时需要通过ftp修改cominc/conndb.asp来实现。具体实现以下功能：<BR><BR>
+
+
+站点名称<BR>
+站点地址<BR>
+站点关键字<BR>
+站点说明描述<BR>
+版权信息<BR>
+备案号码<BR>
+地图城市基准点<BR>
+风格模板<BR>
+系统管理员<BR>
+脏话过滤<BR>
+在上传图片的时候，是否同时更新商家图片<BR>
+
+
+
+
+
+					<div class="clear"></div>
+				</div>
+			</div>
+<%
+End Sub
+
+
+Sub typeedit()
+'=============================
+'分类 保存（修改和添加）
+'=============================
+If cz="save" Then 
+	type_id=Request.Form("type_id")
+	type_name=Request.Form("type_name")
+	type_About=Request.Form("type_about")
+	type_sort=Request.Form("type_sort")
+	type_father=checkNum(Request.Form("type_father"))
+	If type_id="0" Then type_id=""
+	If type_name="" Or Len(type_name)>100 Then response.write backmsg("分类名称太短或者太长","")
+	If Len(type_About)>1000 Then response.write backmsg("分类说明太短或者太长","")
+	If type_father="" Then response.write backmsg("父分类参数错误","")
+	If type_father=0 And type_sort="" Then response.write backmsg("父分类必须要写点评项目","")
+
+	Set rs = Server.CreateObject("ADODB.Recordset")
+	'判断是修改还是添加
+	If type_id="" Then'如果是添加
+			'这里首先要读取最大排序数字，为的是给新添加的排序字段有数据输入。
+			Set Rs77=Conn.Execute("SELECT Max(type_order) FROM "& typeTable &"")
+				If Rs77.EOF Or Rs77.BOF Then 
+					type_order=1
+				Else
+					type_order=Rs77(0)+1
+				End If
+			If IsNull(type_order) Then type_order=1
+			'读取排序号结束。
+	acts="添加"
+	sql = "SELECT * FROM "&typeTable&" where (type_id is null)" 
+	rs.OPEN sql,Conn,1,3
+	rs.addnew
+	rs("type_order")=type_order
+	Else
+	acts="修改"
+	sql = "SELECT * FROM "&typeTable&" where type_id="&type_id 
+	rs.OPEN sql,Conn,1,3
+	End If 
+	rs("type_name")=type_name
+	rs("type_About")=type_About
+	rs("type_sort")=type_sort
+	rs("type_father")=type_father
+	rs.update
+	rs.close
+	set rs=Nothing
+	GetTypeCache()
+	response.write backmsg("恭喜，分类"&acts&"成功！","comadmin.asp?Action=typeedit")
+
+'=============================
+'菜单排序的升序功能
+'=============================
+ElseIf cz="up" Then 
+	type_order=checkStr(Request.QueryString("type_order"))
+	Dim OldOrders,NewOrders
+	Set Rs=Server.CreateObject("ADODB.RecordSet")
+	Sql="SELECT TOP 2 type_order from "&typeTable&" WHERE type_order>="&type_order&" ORDER BY type_order"
+	Rs.Open SQL,Conn,1,3
+	If Not (Rs.EOF Or Rs.BOF) Then
+		OldOrders=rs("type_order")
+		Rs.MoveNext
+		If Not (Rs.EOF Or  Rs.BOF) Then
+			NewOrders=Rs("type_order")
+			Rs("type_order")=OldOrders
+			Rs.Update
+			Rs.MovePrevious
+			Rs("type_order")=NewOrders
+			Rs.Update
+		End If
+	End If
+	Rs.Close
+	Set Rs=Nothing
+	GetTypeCache()
+	response.write backmsg("","comadmin.asp?Action=typeedit")
+
+'=============================
+'菜单排序的降序功能
+'=============================
+ElseIf cz="down" Then 
+	type_order=checkStr(Request.QueryString("type_order"))
+	Set Rs=Server.CreateObject("ADODB.RecordSet")
+	Sql="SELECT TOP 2 type_order from "&typeTable&" WHERE type_order<="&type_order&" ORDER BY type_order desc"
+	Rs.Open SQL,Conn,1,3
+	If Not (Rs.EOF Or Rs.BOF) Then
+		OldOrders=rs("type_order")
+		Rs.MoveNext
+		If Not (Rs.EOF Or  Rs.BOF) Then
+			NewOrders=Rs("type_order")
+			Rs("type_order")=OldOrders
+			Rs.Update
+			Rs.MovePrevious
+			Rs("type_order")=NewOrders
+			Rs.Update
+		End If
+	End If
+	Rs.Close
+	Set Rs=Nothing
+	GetTypeCache()
+	response.write backmsg("","comadmin.asp?Action=typeedit")
+
+'=============================
+'分类删除
+'=============================
+ElseIf cz="del" Then 
+	typeid=checkNum(Request.QueryString("typeid"))
+	getnum=conn.execute("select count(type_id) from "&typeTable&" where type_father="&typeid&"")
+	If IsNull(getnum(0)) Or getnum(0)=0 Then 
+		conn.execute "delete from "&typeTable&" where type_id="&typeid
+		conn.execute "delete from "&shopTable&" where shop_type="&typeid
+	Else
+		response.write backmsg("该分类还有子分类"&getnum(0)&"，不能删除","")
+	End If
+	GetTypeCache()
+	response.write backmsg("恭喜，分类删除成功！","comadmin.asp?Action=typeedit")
+End If 
+%>
+		<div id="list">
+			<div class="title bt2">
+				<ul>
+					<li class="current"><span>分类管理</span></li>
+				</ul>
+			  </div>
+			<div  class="txt">
+				<!--  -->
+				
+<table width="650" border="0" cellspacing="1" cellpadding="3" align="center" class="zd_table">
+<tr class="zd_td">
+    <td width="26" height="18">ID</td>
+    <td width="172" height="18">名称(点击进入修改)</td>
+    <td width="100" height="18">分版主</td>
+	<td width="32" height="18">排序</td>
+    <td width="84" height="18">操作</td>
+</tr>
+<%set rs2=server.CreateObject("adodb.recordset")
+sql2="select * from "&typeTable&" where type_father=0 order by type_order desc,type_id desc"
+rs2.open sql2,conn,1,1
+SQLQueryNums=SQLQueryNums+1
+do while not rs2.eof
+%>
+  <tr class="zd_td">
+    <td height="18"><%=rs2("type_id")%></td>
+    <td><a href="comadmin.asp?Action=typeedit&typeid=<%=rs2("type_id")%>#bottom"><%=rs2("type_name")%></a></td>
+	<td><%=trim(rs2("type_sort"))%></td>
+	<td><a href="comadmin.asp?Action=typeedit&cz=up&type_order=<%=rs2("type_order")%>">↑</a> <a href="comadmin.asp?Action=typeedit&cz=down&type_order=<%=rs2("type_order")%>">↓</a></td>
+    <td><a href="comadmin.asp?Action=typeedit&cz=del&typeid=<%=rs2("type_id")%>">删除</a></td>
+  </tr>
+<%set rs=server.CreateObject("adodb.recordset")
+sql="select * from "&typeTable&" where type_father="&rs2("type_id")&" order by type_order desc,type_id desc"
+rs.open sql,conn,1,1
+SQLQueryNums=SQLQueryNums+1
+do while not rs.eof
+%>
+  <tr class="zd_td">
+    <td height="18"></td>
+    <td>&nbsp;&nbsp; <a href="comadmin.asp?Action=typeedit&typeid=<%=rs("type_id")%>#bottom"><%=rs("type_name")%></a></td>
+	<td></td>
+	<td><a href="comadmin.asp?Action=typeedit&cz=up&type_order=<%=rs("type_order")%>">↑</a> <a href="comadmin.asp?Action=typeedit&cz=down&type_order=<%=rs("type_order")%>">↓</a></td>
+    <td><a href="comadmin.asp?Action=typeedit&cz=del&typeid=<%=rs("type_id")%>">删除</a></td>
+  </tr>
+  <%rs.movenext
+	Loop
+	rs.close
+set rs=Nothing
+%>
+  <%rs2.movenext
+	Loop
+	rs2.close
+set rs2=Nothing
+%>
+</table>
+
+<!-- 下面是对分类进行修改或者添加的功能 --><BR>
+<%
+typeid=checkNum(Request.QueryString("typeid"))
+If typeid<>0 Then 
+	set rs=server.CreateObject("adodb.recordset")
+	sql="select * from "&typeTable&" where type_id="&typeid
+		rs.open sql,conn,1,3
+			SQLQueryNums=SQLQueryNums+1
+			type_name=rs("type_name")
+			type_sort=rs("type_sort")
+			type_about=rs("type_about")
+			type_father=rs("type_father")
+		rs.close
+	set rs=Nothing
+	setcz="修改分类信息"
+	type_act="修改提交"
+Else
+	setcz="添加分类信息"
+	type_order="100"
+	type_act="添加提交"
+	type_father=0
+End If 
+%>
+<a name="bottom"></a>
+<table width="650" border="0" cellspacing="1" cellpadding="5" align="center" class="zd_table">
+  <tr class="zd_td">
+    <td height="5"  align="center"><B><%=setcz%></B></td>
+  </tr>
+  <form name="form12" method="post" action="comadmin.asp?Action=typeedit&cz=save">
+  <tr class="zd_td">
+      <td>
+	  分类名称：<input type="text" name="type_name" size="21" maxlength="30" value="<%=type_name%>">所属分类：<select name='type_father'><%
+	  	response.write "<option value=""0"">根分类</option>"
+	  	For i=0 To Ubound(Arr_Category,2)
+			If Int(Arr_Category(2,i))=0 Then
+				If Int(Arr_Category(0,i))=Int(type_father) Then
+					nn=" selected"
+				Else
+					nn=""
+				End If
+			response.write "<option value="""&Arr_Category(0,i)&""""&nn&">"&Arr_Category(1,i)&"</option>"
+			End If 
+		Next
+	  %></select>
+	  </td>
+	</tr>
+  <tr class="zd_td">
+      <td>
+	  点评项目：<input type="text" name="type_sort" size="16" maxlength="100" value="<%=type_sort%>"> 针对大分类，共四项，用|分割，如:质量|口味|服务|环境。←<a href="javascript:" onClick="document.form12.type_sort.value+='|'">插入|符</a></td>
+	</tr>
+  <tr class="zd_td">
+      <td>
+      分类说明：<textarea rows="5" name="type_about" cols="50" class="an"><%=type_about%></textarea>*120字以内（支持Html）
+      <input type="hidden" name="type_id" value="<%=typeid%>">
+	  </td>
+    </tr>
+  <tr class="zd_td">
+      <td align=center>
+      <input type="submit" name="Submit3" value="<%=type_act%>" class="an">
+	  </td>
+    </tr>
+  </form>
+</table>
+
+				<!--  -->
+				<div class="clear"></div>
+			</div>
+		</div>
+<%
+End Sub
+Sub areaedit()
+'=============================
+'分类 保存（修改和添加）
+'=============================
+If cz="save" Then 
+	area_id=Request.Form("area_id")
+	area_name=Request.Form("area_name")
+	area_About=Request.Form("area_about")
+	If area_id="0" Then area_id=""
+	If area_name="" Or Len(area_name)>100 Then response.write backmsg("分类名称太短或者太长","")
+	If Len(type_About)>1000 Then response.write backmsg("分类说明太短或者太长","")
+
+	Set rs = Server.CreateObject("ADODB.Recordset")
+	'判断是修改还是添加
+	If area_id="" Then'如果是添加
+			'这里首先要读取最大排序数字，为的是给新添加的排序字段有数据输入。
+			Set Rs77=Conn.Execute("SELECT Max(area_order) FROM "& areaTable &"")
+				If Rs77.EOF Or Rs77.BOF Then 
+					area_order=1
+				Else
+					area_order=Rs77(0)+1
+				End If
+			If IsNull(area_order) Then area_order=1
+			'读取排序号结束。
+	acts="添加"
+	sql = "SELECT * FROM "&areaTable&" where (area_id is null)" 
+	rs.OPEN sql,Conn,1,3
+	rs.addnew
+	rs("area_order")=area_order
+	Else
+	acts="修改"
+	sql = "SELECT * FROM "&areaTable&" where area_id="&area_id 
+	rs.OPEN sql,Conn,1,3
+	End If 
+	rs("area_name")=area_name
+	rs("area_About")=area_About
+	rs.update
+	rs.close
+	set rs=Nothing
+	GetAreaCache()
+	response.write backmsg("恭喜，区域"&acts&"成功！","comadmin.asp?Action=areaedit")
+
+'=============================
+'菜单排序的升序功能
+'=============================
+ElseIf cz="up" Then 
+	area_order=checkStr(Request.QueryString("area_order"))
+	Dim OldOrders,NewOrders
+	Set Rs=Server.CreateObject("ADODB.RecordSet")
+	Sql="SELECT TOP 2 area_order from "&areaTable&" WHERE area_order>="&area_order&" ORDER BY area_order"
+	Rs.Open SQL,Conn,1,3
+	If Not (Rs.EOF Or Rs.BOF) Then
+		OldOrders=rs("area_order")
+		Rs.MoveNext
+		If Not (Rs.EOF Or  Rs.BOF) Then
+			NewOrders=Rs("area_order")
+			Rs("area_order")=OldOrders
+			Rs.Update
+			Rs.MovePrevious
+			Rs("area_order")=NewOrders
+			Rs.Update
+		End If
+	End If
+	Rs.Close
+	Set Rs=Nothing
+	GetAreaCache()
+	response.write backmsg("","comadmin.asp?Action=areaedit")
+
+'=============================
+'菜单排序的降序功能
+'=============================
+ElseIf cz="down" Then 
+	area_order=checkStr(Request.QueryString("area_order"))
+	Set Rs=Server.CreateObject("ADODB.RecordSet")
+	Sql="SELECT TOP 2 area_order from "&areaTable&" WHERE area_order<="&area_order&" ORDER BY area_order desc"
+	Rs.Open SQL,Conn,1,3
+	If Not (Rs.EOF Or Rs.BOF) Then
+		OldOrders=rs("area_order")
+		Rs.MoveNext
+		If Not (Rs.EOF Or  Rs.BOF) Then
+			NewOrders=Rs("area_order")
+			Rs("area_order")=OldOrders
+			Rs.Update
+			Rs.MovePrevious
+			Rs("area_order")=NewOrders
+			Rs.Update
+		End If
+	End If
+	Rs.Close
+	Set Rs=Nothing
+	GetAreaCache()
+	response.write backmsg("","comadmin.asp?Action=areaedit")
+
+'=============================
+'分类删除
+'=============================
+ElseIf cz="del" Then 
+	areaid=checkNum(Request.QueryString("areaid"))
+	conn.execute "delete from "&areaTable&" where area_id="&areaid
+	GetAreaCache()
+	response.write backmsg("恭喜，区域删除成功！","comadmin.asp?Action=areaedit")
+End If 
+%>
+		<div id="list">
+			<div class="title bt2">
+				<ul>
+					<li class="current"><span>区域管理</span></li>
+				</ul>
+			  </div>
+			<div  class="txt"><!--  -->
+
+<table width="650" border="0" cellspacing="1" cellpadding="3" align="center" class="zd_table">
+<tr class="zd_td">
+    <td width="26" height="18">ID</td>
+    <td width="172" height="18">名称(点击进入修改)</td>
+    <td width="100" height="18">说明</td>
+	<td width="32" height="18">排序</td>
+    <td width="84" height="18">操作</td>
+</tr>
+<%set rs2=server.CreateObject("adodb.recordset")
+sql2="select * from "&areaTable&" order by area_order desc,area_id desc"
+rs2.open sql2,conn,1,1
+SQLQueryNums=SQLQueryNums+1
+do while not rs2.eof
+%>
+  <tr class="zd_td">
+    <td height="18"><%=rs2("area_id")%></td>
+    <td><a href="comadmin.asp?Action=areaedit&areaid=<%=rs2("area_id")%>#bottom"><%=rs2("area_name")%></a></td>
+	<td><%=trim(rs2("area_about"))%></td>
+	<td><a href="comadmin.asp?Action=areaedit&cz=up&area_order=<%=rs2("area_order")%>">↑</a> <a href="comadmin.asp?Action=areaedit&cz=down&area_order=<%=rs2("area_order")%>">↓</a></td>
+    <td><a href="comadmin.asp?Action=areaedit&cz=del&areaid=<%=rs2("area_id")%>">删除</a></td>
+  </tr>
+  <%rs2.movenext
+	Loop
+	rs2.close
+set rs2=Nothing
+%>
+</table>
+
+<!-- 下面是对分类进行修改或者添加的功能 --><BR>
+<%
+areaid=checkNum(Request.QueryString("areaid"))
+If areaid<>0 Then 
+	set rs=server.CreateObject("adodb.recordset")
+	sql="select * from "&areaTable&" where area_id="&areaid
+		rs.open sql,conn,1,3
+			SQLQueryNums=SQLQueryNums+1
+			area_name=rs("area_name")
+			area_about=rs("area_about")
+		rs.close
+	set rs=Nothing
+	setcz="修改分类信息"
+	area_act="修改提交"
+Else
+	setcz="添加分类信息"
+	area_act="添加提交"
+End If 
+%>
+<a name="bottom"></a>
+<table width="650" border="0" cellspacing="1" cellpadding="5" align="center" class="zd_table">
+  <tr class="zd_td">
+    <td height="5"  align="center"><B><%=setcz%></B></td>
+  </tr>
+  <form name="form12" method="post" action="comadmin.asp?Action=areaedit&cz=save">
+  <tr class="zd_td">
+      <td>
+	  区域名称：<input type="text" name="area_name" size="21" maxlength="30" value="<%=area_name%>"></td>
+	</tr>
+  <tr class="zd_td">
+      <td>
+      区域说明：<textarea rows="5" name="area_about" cols="50" class="an"><%=area_about%></textarea>*120字以内（支持Html）
+      <input type="hidden" name="area_id" value="<%=areaid%>">
+	  </td>
+    </tr>
+  <tr class="zd_td">
+      <td align=center>
+      <input type="submit" name="Submit3" value="<%=area_act%>" class="an">
+	  </td>
+    </tr>
+  </form>
+</table>
+				<!--  -->
+				<div class="clear"></div>
+			</div>
+	</div>
+<%
+End Sub 
+%>

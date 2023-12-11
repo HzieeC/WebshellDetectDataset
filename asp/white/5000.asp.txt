@@ -1,0 +1,176 @@
+<%
+dim conn
+dim connstr
+dim db 
+
+db=dbpath&"data/data.asp"
+Set conn = Server.CreateObject("ADODB.Connection") 
+connstr="Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(db) 
+conn.Open connstr 
+
+Function RemoveHTML(strText)
+if strtext="" then strtext=" "
+if isnull(strtext) then strtext=""
+strtext=replace(strtext,vbcrlf,"")
+strtext=replace(strtext,chr(-24159),"")
+    Dim RegEx
+    Set RegEx = New RegExp
+    RegEx.Pattern = "<[^>]*>"
+    RegEx.Global = True
+    RemoveHTMl = RegEx.Replace(strText, "")
+End Function
+
+
+function str_replace(st)
+if len(st)>0 then
+st=replace(st,"%","")
+st=replace(st,"'","")
+st=replace(st,"""","")
+str_replace=st
+else
+str_replace=""
+end if
+end function
+
+
+function getstate(s,i)
+
+if s=0 then getstate="<a href=alipay/pay.asp?order_id="&i&" target=_blank>订单已提交，马上付款</a>"
+if s=1 then getstate="已付款，等待发货"
+if s=2 then getstate="已发货"
+if s=3 then getstate="收货已确认"
+if s=4 then getstate="交易完成"
+if s=5 then getstate="故障处理"
+if s=6 then getstate="无效"
+
+end function
+
+function getnewsnextpage(i)
+
+sql="select top 1 id,title,nid,view from news_list where id>"&i&" and view>0 order by id asc"
+
+set rso=createobject("adodb.recordset")
+rso.open sql,conn,1,1
+if not rso.eof then
+msg1="下一条：<a href=article.asp?id="&rso("id")&">"&trim(rso("title"))&"</a>"
+else
+msg1="下一条：没有了"
+end if
+rso.close
+
+sql="select top 1 id,nid,title,view from news_list where id<"&i&" and view>0 order by id desc"
+rso.open sql,conn,1,1
+if not rso.eof then
+msg2="上一条：<a href=article.asp?id="&rso("id")&">"&trim(rso("title"))&"</a>"
+else
+msg2="上一条：没有了"
+end if
+rso.close
+
+set rso=nothing
+
+getnewsnextpage=msg2&"　"&msg1
+
+end function
+
+sub showmsg(st)
+%>
+<script>alert('<%=st%>');history.back();</script>
+<%
+response.end
+end sub
+
+
+sub link()
+set fso=createobject("scripting.filesystemobject")
+if fso.FileExists(server.mappath("link.txt"))=true then 
+set op=fso.opentextfile(server.mappath("link.txt"),1)
+if not op.atendofstream then allstr=op.readall
+op.close
+end if
+if instr(allstr,"|")<>0 then
+urllist=split(allstr,vbcrlf)
+%>
+<SPAN class=pg-prev>友情链接</span>
+<%
+for i=0 to ubound(urllist)
+if len(urllist(i))>1 then
+if ubound(split(urllist(i),"|"))>=2 then
+response.write "<a href=http://"&split(urllist(i),"|")(0)&" target=_blank title='"&split(urllist(i),"|")(1)&"'><SPAN STYLE=""color:"&split(urllist(i),"|")(2)&""">"&split(urllist(i),"|")(1)&"</SPAN></a> "
+else
+response.write "<a href=http://"&split(urllist(i),"|")(0)&" target=_blank title='"&split(urllist(i),"|")(1)&"'>"&split(urllist(i),"|")(1)&"</a> "
+end if
+end if
+next
+
+end if
+end sub
+
+function getprice(i,n,x)
+
+set rss=createobject("adodb.recordset")
+rss.open "select * from item_list where nid='"&i&"'",conn,1,1
+if not rss.eof then
+if x=0 then response.write "<form action=order.asp?action=change name=formchange method=post>"
+%>
+<tr align=center><input type=hidden name=id value="<%=i%>">
+<td align=left><a href=show.asp?id=<%=rss("id")%> target=_blank><img src=<%=rss("images_s")%> width=100 alt="<%=rss("title")%>"><br><%=rss("config")%></a></td>
+<td bgcolor=ededed>
+<%
+getprice=int(rss("price")*rss("discount"))*n
+if x=0 then
+%>
+<select name=num onchange="selectnum(this.value)">
+<%
+for c=1 to 50
+%>
+<option value=<%=c%> <%if int(c)=int(n) then response.write " selected"%>><%=c%></option>
+<%
+next
+%>
+</select>
+<%
+else
+%>
+<%=n%>
+<%end if%>
+</td><td><%=int(rss("price")*rss("discount"))%></td><td bgcolor=ededed><%=int(rss("price")*rss("discount"))*n%></td><td>
+<%
+if x=0 then
+%>
+<input type=button onclick="if(!confirm('是否确定从购物车中清除此产品?')) return false;location.href='?action=change&num=0&id=<%=i%>'" value="删除" >
+<%
+end if
+%>
+</td>
+</tr>
+<%
+if x=0 then response.write "</form>"
+else
+getprice=0
+%>
+<tr align=center>
+<td align=left><%=i%></td>
+<td bgcolor=ededed>-</td><td>-</td><td bgcolor=ededed>-</td><td>-</td></tr>
+
+<%
+end if
+rss.close
+set rss=nothing
+end function
+
+
+function getcla(id)
+if not isnumeric(id) then id=0
+if id=0 then getcla="阳澄湖大闸蟹礼券(电子券)"
+if id=1 then getcla="阳澄湖大闸蟹礼券"
+if id=2 then getcla="阳澄湖大闸蟹礼盒装"
+end function
+function getcla2(id)
+if not isnumeric(id) then id=0
+if id=0 then getcla2="电子券"
+if id=1 then getcla2="礼券"
+if id=2 then getcla2="礼盒装"
+end function
+%>
+

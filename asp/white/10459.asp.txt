@@ -1,0 +1,305 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="65001"%>
+<%
+''' SDCMS
+''' ==================================================================
+''' 版权所有 http://www.sdcms.cn
+''' ------------------------------------------------------------------
+''' 这不是一个自由软件！您只能在不用于商业目的的前提下对程序代码进行修改和使用；
+''' 未经授权不允许对程序代码以任何形式任何目的的再发布。
+''' ==================================================================
+''' 编写: IT平民
+''' 修改：IT平民 in 2012.09
+
+	option explicit
+	session.codepage=65001
+	response.charset="utf-8"
+	
+	sub echo(byval t0)
+		response.write t0
+	end sub
+	
+	sub flushs()
+		response.flush()
+	end sub
+	
+	sub alert(byval t0)
+		echo "<script>alert("""&t0&""");location.href='javascript:history.go(-1)'</script>"
+		response.end()
+	end sub
+	
+	function getrnd(byval t0)
+		randomize
+		dim n1,n2,n3
+		do while len(getrnd)<t0 '随机字符位数 
+			n1=cstr(chrw((57-48)*rnd+48)) '0~9 
+			n2=cstr(chrw((90-65)*rnd+65)) 'a~z 
+			n3=cstr(chrw((122-97)*rnd+97)) 'a~z 
+			getrnd=getrnd&n1&n2&n3 
+		loop
+	end function
+	
+	function isinstall(byval t0)
+		err.clear
+		on error resume next
+		isinstall=false
+		dim obj
+		set obj=server.createobject(t0)
+			if err.number=0 then isinstall=true
+		set obj=nothing
+		err.clear()
+	end function
+	
+	function loadfile(byval t0)
+		err.clear
+		on error resume next
+		dim t1,stm
+		set stm=server.createobject("adodb.stream")
+		with stm
+			.type=2'以本模式读取
+			.mode=3 
+			.charset="utf-8"
+			.open
+			.loadfromfile server.mappath(t0)
+			t1=.readtext
+			.close
+		end with
+		if err then
+			loadfile="<p class=""red"">读取文件失败，具体原因为:"&err.description&"</p>"
+			err.clear
+		else
+			loadfile=t1
+		end if
+		set stm=nothing
+	end function
+	
+	sub newfile(byval t0,byval t1,byval t2,byval t3)
+		err.clear
+		on error resume next
+		dim stm
+		set stm=server.createobject("adodb.stream")
+		with stm
+			.type=2'以本模式读取
+			.mode=3
+			.charset=t3
+			.open
+			.writetext t2
+			.savetofile server.mappath(t0&t1),2
+			.close
+		end with
+		if err then
+			echo "<p class=""red"">保存文件失败，具体原因为:"&err.description&"</p>"
+			err.clear
+		end if
+		set stm=nothing
+	end sub
+	
+	function get_sys_dir()
+		dim t0
+		t0=lcase(left(request.servervariables("script_name"),instrrev(request.servervariables("script_name"),"/")-1))
+		get_sys_dir=replace(t0,"/install","")&"/"
+	end function
+	
+	sub load_config_xml(byval t0)
+		if t0.execute("select count(1) from sd_config")(0)>0 then
+			echo "<p>程序配置数据写入成功</p>"
+			flushs
+			exit sub
+		end if
+		'读取程序配置
+		dim xml,item,i,setname,setkey,setvalue
+		set xml=server.createobject("microsoft.xmldom")
+		xml.async=false
+		xml.load(server.mappath("xml/config.xml"))
+		set item=xml.getElementsByTagName("item")
+		for i=0 to (item.length-1)
+			 set setname=item.item(i).getElementsByTagName("setname")
+			 set setkey=item.item(i).getElementsByTagName("setkey")
+			 set setvalue=item.item(i).getElementsByTagName("setvalue")
+			 t0.execute("insert into sd_config(setname,setkey,setvalue) values('"&setname.item(0).Text&"','"&setkey.item(0).Text&"','"&setvalue.item(0).Text&"')")
+		next
+		set xml=nothing
+		set item=nothing
+		echo "<p>程序配置数据写入成功</p>"
+		flushs
+	end sub
+
+	sub load_menu_xml(byval t0)
+		'读取管理菜单
+		if t0.execute("select count(1) from sd_admin_menu")(0)>0 then
+			echo "<p>程序管理数据写入成功</p>"
+			flushs
+			exit sub
+		end if
+		dim xml,item,i,title,url,followid,menuid,ordnum,islock
+		set xml=server.createobject("microsoft.xmldom")
+		xml.async=false
+		xml.load(server.mappath("xml/menu.xml"))
+		set item=xml.getElementsByTagName("item")
+		for i=0 to (item.length-1)
+			 set title=item.item(i).getElementsByTagName("title")
+			 set url=item.item(i).getElementsByTagName("url")
+			 set followid=item.item(i).getElementsByTagName("followid")
+			 set menuid=item.item(i).getElementsByTagName("menuid") 
+			 set ordnum=item.item(i).getElementsByTagName("ordnum") 
+			 set islock=item.item(i).getElementsByTagName("islock") 
+			 t0.execute("insert into sd_admin_menu(title,url,followid,menuid,ordnum,islock) values('"&title.item(0).Text&"','"&url.item(0).Text&"',"&followid.item(0).Text&","&menuid.item(0).Text&","&ordnum.item(0).Text&","&islock.item(0).Text&")")
+		next
+		set xml=nothing
+		set item=nothing
+		echo "<p>程序管理数据写入成功</p>"
+		flushs
+	end sub
+	
+	sub load_model_xml(byval t0)
+		'读取模型
+		if t0.execute("select count(1) from sd_model")(0)>0 then
+			echo "<p>模型数据写入成功</p>"
+			flushs
+			exit sub
+		end if
+		dim xml,item,i
+		dim modelname,tablename,modeldesc,adminurl,islock,default_temp,list_temp,show_temp
+		dim admin_add_temp,admin_edit_temp,admin_publish_temp,pre_publish_temp,pre_publish_url
+		set xml=server.createobject("microsoft.xmldom")
+		xml.async=false
+		xml.load(server.mappath("xml/model.xml"))
+		set item=xml.getElementsByTagName("item")
+		for i=0 to (item.length-1)
+			 set modelname=item.item(i).getElementsByTagName("modelname")
+			 set tablename=item.item(i).getElementsByTagName("tablename")
+			 set modeldesc=item.item(i).getElementsByTagName("modeldesc")
+			 set adminurl=item.item(i).getElementsByTagName("adminurl")
+			 set islock=item.item(i).getElementsByTagName("islock")
+			 set default_temp=item.item(i).getElementsByTagName("default_temp")
+			 set list_temp=item.item(i).getElementsByTagName("list_temp")
+			 set show_temp=item.item(i).getElementsByTagName("show_temp")
+			 set admin_add_temp=item.item(i).getElementsByTagName("admin_add_temp")
+			 set admin_edit_temp=item.item(i).getElementsByTagName("admin_edit_temp")
+			 set admin_publish_temp=item.item(i).getElementsByTagName("admin_publish_temp")
+			 set pre_publish_temp=item.item(i).getElementsByTagName("pre_publish_temp")
+			 set pre_publish_url=item.item(i).getElementsByTagName("pre_publish_url")
+			
+			 t0.execute("insert into sd_model(modelname,tablename,modeldesc,adminurl,islock,default_temp,list_temp,show_temp,admin_add_temp,admin_edit_temp,admin_publish_temp,pre_publish_temp,pre_publish_url) values('"&modelname.item(0).Text&"','"&tablename.item(0).Text&"','"&modeldesc.item(0).Text&"','"&adminurl.item(0).Text&"',"&islock.item(0).Text&",'"&default_temp.item(0).Text&"','"&list_temp.item(0).Text&"','"&show_temp.item(0).Text&"','"&admin_add_temp.item(0).Text&"','"&admin_edit_temp.item(0).Text&"','"&admin_publish_temp.item(0).Text&"','"&pre_publish_temp.item(0).Text&"','"&pre_publish_url.item(0).Text&"')")
+		next
+		set xml=nothing
+		set item=nothing
+		echo "<p>模型数据写入成功</p>"
+		flushs
+	end sub
+	
+	sub load_group_xml(byval t0)
+		'读取模型
+		if t0.execute("select count(1) from sd_user_group")(0)>0 then
+			echo "<p>会员组数据写入成功</p>"
+			flushs
+			exit sub
+		end if
+		dim xml,item,i
+		dim groupname,rate,point,allowupgrade,allowlogin,allowpost,allowpostverify,allowattachment,allowpostnum,isdefault
+		set xml=server.createobject("microsoft.xmldom")
+		xml.async=false
+		xml.load(server.mappath("xml/group.xml"))
+		set item=xml.getElementsByTagName("item")
+		for i=0 to (item.length-1)
+			 set groupname=item.item(i).getElementsByTagName("groupname")
+			 set rate=item.item(i).getElementsByTagName("rate")
+			 set point=item.item(i).getElementsByTagName("point")
+			 set allowupgrade=item.item(i).getElementsByTagName("allowupgrade")
+			 set allowlogin=item.item(i).getElementsByTagName("allowlogin")
+			 set allowpost=item.item(i).getElementsByTagName("allowpost")
+			 set allowpostverify=item.item(i).getElementsByTagName("allowpostverify")
+			 set allowattachment=item.item(i).getElementsByTagName("allowattachment")
+			 set allowpostnum=item.item(i).getElementsByTagName("allowpostnum")
+			 set isdefault=item.item(i).getElementsByTagName("isdefault")
+			
+			 t0.execute("insert into sd_user_group(groupname,rate,point,allowupgrade,allowlogin,allowpost,allowpostverify,allowattachment,allowpostnum,isdefault) values('"&groupname.item(0).Text&"',"&rate.item(0).Text&","&point.item(0).Text&","&allowupgrade.item(0).Text&","&allowlogin.item(0).Text&","&allowpost.item(0).Text&","&allowpostverify.item(0).Text&","&allowattachment.item(0).Text&","&allowpostnum.item(0).Text&","&isdefault.item(0).Text&")")
+		next
+		set xml=nothing
+		set item=nothing
+		echo "<p>会员组数据写入成功</p>"
+		flushs
+	end sub
+	
+	sub load_admin(byval t0,byval t1,byval t2)
+		if t0.execute("select count(1) from sd_admin")(0)=0 then
+			t0.execute("insert into sd_admin(adminname,adminpass,groupid,logintimes,islock) values('"&t1&"','"&md5(t2)&"',0,0,1)")
+		end if
+		echo "<p>管理员配置数据写入成功</p>"
+		flushs
+	end sub
+	
+	sub load_setting(byval t0,byval t1,byval t2)
+		t0.execute("update sd_config set setvalue='"&t1&"' where setkey='webname'")
+		t0.execute("update sd_config set setvalue='"&t2&"' where setkey='webmode'")
+	end sub
+	
+	function check_competence(byval t0)
+		check_competence=true
+		t0=server.MapPath(t0)
+		on error resume next
+		dim fso,objfolder,objsubfolders
+		set fso=server.createobject("scripting.filesystemobject")
+		set objfolder=fso.getfolder(t0) 
+		set objsubfolders=objfolder.subfolders 
+		dim subfcount:subfcount=objsubfolders.count 
+		if err.number<>0 then 
+			subfcount=-1
+			err.clear()
+		end if
+		if subfcount=-1 then 
+			check_competence=false
+			exit function
+		else
+			fso.createtextfile(t0&"\sdcms.asp") 
+			if err then
+				err.clear()
+				check_competence=false
+				exit function
+			else
+				dim stm
+				set stm=server.createobject("adodb.stream")
+				with stm
+					.type=2
+					.mode=3
+					.charset="utf-8"
+					.open
+					.writetext "测试"
+					.savetofile t0&"\test.asp",2
+					.close
+				end with
+				if err then
+					err.clear()
+					check_competence=false
+					exit function
+				end if
+				set stm=nothing
+				fso.deletefile(t0&"\sdcms.asp") 
+				if err.number<>0 then 
+					err.clear()
+					check_competence=false
+					exit function
+				end if
+				fso.deletefile(t0&"\test.asp") 
+				if err.number<>0 then 
+					err.clear()
+					check_competence=false
+					exit function
+				end if
+			end if
+		end if
+		set objfolder=nothing
+		set objsubfolders=nothing
+		set fso=nothing
+	end function
+	
+	function checkinstall()
+		checkinstall=false
+		dim fso
+		set fso=server.createobject("scripting.filesystemobject")
+		if fso.fileexists(server.mappath("install.lock")) then
+			checkinstall=true
+			exit function
+		end if
+		set fso=nothing
+	end function
+%>

@@ -1,0 +1,306 @@
+<!--#include file = "Startup.asp"-->
+<!-- #include file="Function.asp" -->
+<%
+
+' ======================
+' 功能：图片列表
+' ======================
+call adminer()
+Call Header()
+Call ComeUrl()
+
+%>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<SCRIPT language=javascript>
+function unselectall()
+{
+    if(document.myform.chkAll.checked){
+	document.myform.chkAll.checked = document.myform.chkAll.checked&0;
+    } 	
+}
+
+function CheckAll(form)
+  {
+  for (var i=0;i<form.elements.length;i++)
+    {
+    var e = form.elements[i];
+    if (e.Name != "chkAll"&&e.disabled==false)
+       e.checked = form.chkAll.checked;
+    }
+  }
+  
+function ConfirmDel()
+{
+	if(document.myform.Action.value=="Del")
+	{
+		if(confirm("确定要删除选中的图片吗？本操作将把选中的图片移到回收站中。必要时您可从回收站中恢复！"))
+		    return true;
+		else
+			return false;
+	}
+	else if(document.myform.Action.value=="ConfirmDel")
+	{
+	if(confirm("确定要彻底删除选中的图片吗？一旦删除将不能恢复！"))
+			return true;
+		else
+			return false;
+	}	
+}
+
+</SCRIPT>
+
+<%
+Dim z_sql,z_rs
+dim w
+dim strFileName,FileName,strParentPath,strParentPathw()
+dim keyword,strField
+dim ClassID
+dim ManageType
+
+dim PurviewChecked
+dim strAdmin,arrAdmin
+dim tClass,ClassName,RootID,ParentID,Depth,ParentPath,Child,ChildID,tID,tChild,ClassMaster
+dim SkinID,LayoutID,BrowsePurview,AddPurview
+
+ManageType=trim(request("ManageType"))
+FileName="Picture_Manage2.asp"
+ClassID=Trim(request("ClassID"))
+strField=Trim(request("Field"))
+keyword=trim(request("keyword"))
+If ClassID="" Then
+	ClassID=0
+End If
+If ClassID <>0 Then
+	sSql="Select ClassID,ClassName,ParentPath,Child From PictureClass Where ClassID="&ClassID
+	oRs.Open sSql,oConn,1,1
+	If Not oRs.Eof Then
+		if oRs("ClassID")>0 then
+			if oRs("Child")>0 then
+				ChildID=""
+				set tClass=oConn.execute("select ClassID from PictureClass where ParentID=" & oRs("ClassID") & " or ParentPath like '" & oRs("ParentPath") & "," & oRs("ClassID") & ",%'")
+				do while not tClass.eof
+					if ChildID="" then
+						ChildID=tClass(0)
+					else
+						ChildID=ChildID & "," & tClass(0)
+					end if
+					tClass.movenext
+				loop
+			else
+				ChildID=ClassID
+			end if
+		end if
+	End If
+	oRs.Close
+End If
+If ManageType="ClassForm" Then
+	sSql="Select P_ID,P_PictureName,P_PictureSize,P_PictureReso,P_PictureClassID,P_PictureAddTime,P_PictureBrowseCount,p_editor,pai,D_Content From PictureData Where P_PictureClassID in ("&ChildID&") and p_recycle=false ORDER BY p_id DESC"
+	FileName=FileName&"?ManageType=ClassForm&ClassID="&ClassID&"&"
+	Session("FileName")=FileName
+Else
+	sSql="Select P_ID,P_PictureName,P_PictureSize,P_PictureReso,P_PictureClassID,P_PictureAddTime,P_PictureBrowseCount,p_editor,pai,D_Content From PictureData Where p_recycle=false ORDER BY p_id DESC"
+	FileName="Picture_Manage2.asp?"
+	Session("FileName")=FileName
+End If
+oRs.Open sSql,oConn,1,1
+
+%>
+<%
+const MaxPerPage=15   '单独页最大记录数 const 用来申明常量
+dim totalPut   '总记录
+dim CurrentPage  '当前页次
+dim TotalPages   '总页数
+dim i
+
+
+
+'!-- 分页功能代码块,可独立使用
+if not ors.eof then
+  ors.MoveFirst  '注意放到前面来,否则到任何页总是在第一个记录上
+  end if
+  ors.pagesize=MaxPerPage  '设置每页最多显示多少条记录
+  If trim(Request("Page"))<>"" then  '如果请求的页次不为空
+	CurrentPage= CLng(request("Page"))   'clng是转换成长整型数据类型,并赋值到当前页次上
+	If CurrentPage> ors.PageCount then  '如果当前页次大于总页数,则将最大页次赋值到当前页次上
+		CurrentPage = ors.PageCount 
+	End If 
+Else 
+	CurrentPage= 1 '一切条件不成立,将当前页设为第一页
+End If 
+
+ totalPut=ors.recordcount '将总记录赋值于TOTALPUT
+	if CurrentPage<>1 then '如果当前页数不等于第一页
+		if (currentPage-1)*MaxPerPage<totalPut then  '如果当前页减一乘以每页最大的记录数小于总记录的话
+			ors.move(currentPage-1)*MaxPerPage  '相对当前记录数向后移动
+			dim bookmark  '定义书签变量
+			bookmark=ors.bookmark '将当前记录的标签赋于变量BOOKMARK上
+		end if 
+	end if
+
+	dim n,k
+	if (totalPut mod MaxPerPage)=0 then  '总记录数与每页最大记录数求余的结果为零时,则N返回整数页次,否则再加一.
+		n= totalPut \ MaxPerPage
+	else  
+		n= totalPut \ MaxPerPage + 1  
+	end if
+%>
+
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td>您现在的位置： <a href="Picture_Manage2.asp">案例管理</a> >>
+	<%
+	If ClassID<>0 Then
+		
+	Dim zClassID,zClassName,zParentPath,ParentPath1
+	Set z_rs=Server.CreateObject("ADODB.Recordset")
+	z_sql="Select ClassID,ClassName,ParentPath From PictureClass Where ClassID="&ClassID
+	z_rs.Open z_sql,oConn,1,1
+	If Not z_rs.Eof Then
+		zClassID=z_rs("ClassID")
+		zParentPath=z_rs("ParentPath")
+		zClassName=z_rs("ClassName")
+	End If
+	z_rs.Close
+	If zParentPath<>0 Then
+		zParentPath=Replace(zParentPath,"0,","")
+		Set z_rs=Server.CreateObject("ADODB.Recordset")
+		z_sql="Select ClassID,ClassName,ParentPath From PictureClass Where ClassID in ("&zParentPath&")"
+		z_rs.Open z_sql,oConn,1,1
+		Do While Not z_rs.Eof
+			Response.Write "<a href='Picture_Manage2.asp?ManageType=ClassForm&ClassID="&z_rs("ClassID")&"'>"&z_rs("ClassName")&"</a>&nbsp;&gt;&gt;&nbsp;"
+			z_rs.MoveNext
+		Loop
+		z_rs.Close
+	End If
+	Response.Write "<a href='Picture_Manage2.asp?ManageType=ClassForm&ClassID="&zClassID&"'>"&zClassName&"</a>"
+	End If
+	%>
+    </td>
+    <td><div align="right">
+      <select name='JumpClass' id="JumpClass" onchange="if(this.options[this.selectedIndex].value!=''){location='Picture_Manage2.asp?ManageType=ClassForm&ClassID='+this.options[this.selectedIndex].value;}">
+          <option value='' selected>跳转栏目至…</option>
+	      <%call PictureClass_Option(2,0)%>
+	    </select>
+    </div></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="images/zw000.gif" width="1" height="8"></td>
+  </tr>
+</table>
+<table width="100%"  border="0" cellpadding="3" cellspacing="1" bgcolor="#DEDFDE">
+<form name="myform" method="Post" action="Picture_Del2.asp" onsubmit="return ConfirmDel();">
+<input name="FileName" type="hidden" value="<%=FileName%>">
+  <tr bgcolor="#F7F7F7">
+    <td width="45"><div align="center"><STRONG>选中</STRONG></div></td>
+    <td width="406" bgcolor="#F7F7F7"><div align="center"><STRONG>案例名称</STRONG></div></td>
+    <td width="496"><div align="center"><strong>案例分类</strong></div></td>
+    <td width="193"><div align="center"><STRONG>排序</STRONG></div></td>
+    <td width="144" bgcolor="#F7F7F7"><div align="center"><strong>添加时间</strong></div></td>
+    <td width="45" bgcolor="#F7F7F7"><div align="center"><strong>修改</strong></div></td>
+    <td width="44" bgcolor="#F7F7F7"><div align="center"><strong>删除</strong></div></td>
+    </tr>
+
+<%
+If oRs.Eof Then
+Response.Write "<tr><td bgcolor='#ffffff' colspan='7'><div align='center'>暂无图片信息！！</div></td></tr></table><br><br>"
+
+Else
+Do While Not oRs.Eof and i<maxperpage
+%> 
+  
+  <tr bgcolor="#FFFFFF" onmouseout="this.style.backgroundColor=''" onmouseover="this.style.backgroundColor='#F7F8F8'">
+    <td width="45"><div align="center">
+        <input name='PictureID' type='checkbox' onClick="unselectall()" id="PictureID" value="<%=oRs("p_id")%>">
+    </div></td>
+    <td><a href="Picture_Modify2.asp?Pictureid=<%=oRs("p_id")%>" title="图片 ID：<%=oRs("p_id")&vbcrlf%>图片名称：<%=oRs("P_PictureName")&vbcrlf%>添加时间：<%=oRs("P_PictureAddTime")&vbcrlf%>图片添加：<%=oRs("p_editor")&vbcrlf%>点 击 数：<%=oRs("P_PictureBrowseCount")%>"><%=gotTopic(oRs("P_PictureName"),50)%></a></td>
+    <td><div align="center">
+	<%
+	sp_jianjie=ors("D_Content")
+if sp_jianjie<>"" then
+ll=len(sp_jianjie)
+sp_jianjie=left(sp_jianjie,(ll-1))
+end if
+xuans=split(sp_jianjie,",") 
+for xs=0 to ubound(xuans)
+sp_jianjie22=int(xuans(xs))
+	Set z_rs=Server.CreateObject("ADODB.Recordset")
+	z_sql="Select * From PictureClass Where ClassID="&int(sp_jianjie22)
+	z_rs.Open z_sql,oConn,1,1
+	If Not z_rs.Eof Then
+	Response.Write z_rs("ClassName")&"&nbsp;|&nbsp;"
+	Else
+	Response.Write "无此栏目分类"
+	End If
+	z_rs.Close
+next
+	%>
+	</div></td>
+    <td><div align="center"><%=oRs("pai")%></div></td>
+    <td width="144"><div align="center"><%=oRs("P_PictureAddTime")%></div></td>
+    <td width="45"><div align="center">[<a href="Picture_Modify2.asp?Pictureid=<%=oRs("p_id")%>">修改</a>]</div></td>
+    <td width="44"><div align="center">[<a href="Picture_Del2.asp?PictureID=<%=oRs("p_id")%>&Action=Del" onclick="return ConfirmDel();">删除</a>]</div></td>
+    </tr>
+  
+<%
+oRs.MoveNext
+i=i+1
+Loop
+
+%>  
+  <tr bgcolor="#FFFFFF">
+    <td colspan="7"><table width="100%"  border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td width="40"><div align="center">
+      <input name="chkAll" type="checkbox" id="chkAll" onclick=CheckAll(this.form) value="checkbox">
+    </div></td>
+    <td>选中本页显示的所有图片</td>
+    <td><div align="right"><input name="Action" type="hidden" id="Action2" value="Del"><input type="Submit" id="submit" value="　放到回收站　" title='放到回收站' onClick="document.myform.Action.value='Del'" class='input_submit'>
+    &nbsp;<%If session("userclass")=1 Then%>
+		<input type="submit" name="Submit1" value="　彻底删除　" onClick="document.myform.Action.value='ConfirmDel'" class="input_submit">
+		&nbsp;&nbsp;<%End If%>
+		</div></td>
+  </tr>
+</table>
+</td>
+    </tr>
+</form>
+</table>
+<table width="100%"  border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td height="30"><div align="center">
+        <%
+	Response.Write "共 <font color='#FF0000'>"&totalPut&"</font> 张图片　" 
+          k=currentPage
+		if k<>1 then
+			response.write "[<b>"+"<a href='"&FileName&"page=1'>首页</a></b>] "
+			response.write "[<b>"+"<a href='"&FileName&"page="&cstr(k-1)&"'>上一页</a></b>] "
+		else
+			Response.Write "[首页] [上一页]"
+		end if
+		if k<>n then
+			response.write "[<b>"+"<a href='"&FileName&"page="&cstr(k+1)&"'>下一页</a></b>] "
+			response.write "[<b>"+"<a href='"&FileName&"page="&cstr(n)&"'>尾页</a></b>] "
+		else
+			Response.Write "[下一页] [尾页]"
+		end if	
+		Response.Write "　页次：<font color='#ff0000'>"&currentpage&"</font>/"&n&"页　15张图片/页"
+		%>
+　转到：
+<select name="select" onchange="javascript:window.location='<%=FileName%>page='+this.options[this.selectedIndex].value;">
+<option>跳转页</option>
+<%
+Dim z
+For z=1 To n%>
+  <option value="<%=z%>">第<%=z%>页</option>
+<%
+Next
+%> 
+</select>
+        </div></td>
+  </tr></table>
+<%
+End If
+oRs.Close
+%>  
+
+ 

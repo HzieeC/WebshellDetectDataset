@@ -1,0 +1,166 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<html>
+<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=7">
+	    <sf:ResourceGroup type="css">
+			<sf:Resource path="/css/css.css"></sf:Resource>
+			<sf:Resource path="/styles/cim/jquery-ui-1.8.14.custom.css"></sf:Resource>
+			<sf:Resource path="/styles/cim/validation.css"></sf:Resource>
+			<sf:Resource path="/styles/cim/autoComplete.css"></sf:Resource>
+		</sf:ResourceGroup>
+		<script type="text/javascript">
+          //layout.js等多个自定义js中会使用到此变量
+        var   imagesBasePath = '${imagesBasePath}';
+        contextPath = '${contextPath}';
+          </script>
+     <sf:ResourceGroup type="js">
+ 	    <sf:Resource path="/js/jquery/jquery.js"/>
+		<sf:Resource path="/js/jquery/jquery.cookie.js"/>
+		<sf:Resource path="/js/jquery/jquery.ui.core.js"/>
+		<sf:Resource path="/js/jquery/jquery.ui.widget.js"/>
+		<sf:Resource path="/js/jquery/jquery.ui.mouse.js"/>
+		<sf:Resource path="/js/jquery/jquery.ui.dialog.js"/>
+		<sf:Resource path="/js/jquery/jquery.ui.draggable.js"/>
+		<sf:Resource path="/js/jquery/jquery.ui.position.js"/>
+		<sf:Resource path="/js/jquery/jquery.ui.datepicker.js"/>
+		<sf:Resource path="/js/jquery/jquery.ui.datetimepicker.js"/>
+		<sf:Resource path="/js/jquery/jquery.bgiframe-2.1.1.js"/>
+		<sf:Resource path="/js/jquery/jquery.base64.js"/>
+		<sf:Resource path="/js/jquery/jquery.cookie.js"/>
+		<sf:Resource path="/js/jquery/uritemplate.js"/>
+		<sf:Resource path="/js/jquery/jquery.validate.js"/>
+		<sf:Resource path="/js/jquery/jquery.validate.ext.js"/>
+		<sf:Resource path="/js/jquery/jquery.ebiz.js"/>
+		<sf:Resource path="/js/jquery/jquery.templates.js"/>
+		<sf:Resource path="/js/jquery/jquery.grid.js"/>
+		<sf:Resource path="/js/jquery/autoComplete.js"/>
+		<sf:Resource path="/js/common-util.js"/>
+		<sf:Resource path="/js/jquery/jquery.formValidator.js"/>
+		<sf:Resource path="/js/jquery/jquery.formValidatorRegex.js"/>
+		<sf:Resource path="/js/jquery/passwordStrength.js"/>
+		<sf:Resource path="/i18n.js" />
+	 	<sf:Resource path="/sysConfig.js" />
+	 	<sf:Resource path="/resources/base/sea.js" />
+	 	<sf:Resource path="/resources/base/config.js" />
+    </sf:ResourceGroup><!--
+    <script src="${contextPath}/i18n.js"></script>
+-->
+<link href="${contextPath}/css/css.css" rel="stylesheet" type="text/css" media="all">
+<script src="${contextPath}/js/plugins/base/sea.js"></script> 
+<script src="${contextPath}/js/plugins/base/config.js"></script> 
+<title>Hertz-CDS</title>
+</head>
+<body>
+<div class="Container">
+<tiles:insertAttribute name="header"/>
+  <div class="Tbody" id="tbodyCon">
+    <div class="mainBar">
+      <div class="mainCon">
+      <!-- iframeCon -->
+        <div class="iframeCon">
+          <div class="RpadBar">
+            <div id="RightHeight">
+            <tiles:insertAttribute name="rightContent"/>
+              </div>
+          </div>
+        </div>
+         <!-- iframeCon -->
+        <!-- 箭头开始 -->
+        <div class="arrowBtn" id="arrowBtnCon">
+          <div class="btn"><img id="switchImage" src="${contextPath}/images/btn_arrow01.gif" style="cursor:pointer;" onclick="switchHandler(this)" /></div>
+        </div>
+        <!-- 箭头结束 -->
+         </div>
+    </div>
+     <!-- 菜单开始 -->
+      <tiles:insertAttribute name="leftmenu"/>
+     <!-- 菜单结束 -->
+      </div>
+      <tiles:insertAttribute name="foot"/>
+</div>
+      <input type="hidden"  id="reservationTimerReminder" value="${contextPath}<ifa:constant namespace='cim' fieldName='RESERVATION_TIMER_REMINDER'/>.json"/>
+      <input type="hidden" id="dispatcherTimerReminder" value="${dispatcherTimerReminder}" />
+      <input type="hidden" id="timerCycle" value="${timerCycle}" />
+      <div id="dispatcherTips" style="display: none;"></div>
+<script type="text/javascript" src="${contextPath}/js/layout.js"></script>
+<script type="text/javascript">
+seajs.contextPath = '${contextPath}';
+seajs.restEmpty = '${empty_path_variable}';
+/*var flag=$("#dispatcherTimerReminder").val().trim();
+if(flag=="true"){
+	timerReminder($("#timerCycle").val().trim());
+}else if(flag==""){
+	queryAuth();
+}
+//验证登陆用户是否有权限
+function queryAuth(){
+	$.ajax({
+		type:"get",
+		url:$("#reservationTimerReminder").val().trim(),
+		success:function(response){
+		var status=response.dispatcherTimerReminder;
+		if(status){
+			timerReminder(response.cycle);
+			$("#timerCycle").val(response.cycle);
+		}
+		$("#dispatcherTimerReminder").val(status);
+		}});
+	}
+*/
+/*
+ * 查询是否存在48H将要过期车辆.
+ * 有权限的访问入口  倒时器
+ */
+function timerReminder(cooldown){
+	//生命周期，单位秒
+	var count=cooldown;
+	var hidden=cooldown-8;
+	countdown=setInterval(function(){
+		if(count==hidden){
+			$("#dispatcherTips").dialog("close");
+		}
+		if(count==0){
+			var status=queryResult();
+			if(status){
+				count=cooldown;
+			}else{
+				clearInterval(countdown);
+			}
+			}
+		count--;
+		},1000);
+ }
+/*
+ * 查询是否存在48H将要过期车辆.无权限则退出
+ */
+function queryResult(){
+	var logIn=false;
+	$.ajax({
+		type:"post",
+		async:false,
+		url:$("#reservationTimerReminder").val().trim(),
+		success:function(response){
+		if(response.auth){
+		var resNoList=response.resNoList;
+		var total=response.total;
+		if(total!=0){
+		var messageTips="<fmt:message key='System.record.waiting.process' ><fmt:param value='"+total+"' /></fmt:message>";
+		$("#dispatcherTips").html(messageTips);
+		$.msg.alert('<fmt:message key="Page.Dialog.title" />',$("#dispatcherTips"));
+		}
+		logIn=true;
+		}
+		},
+		error:function(){
+			logIn=false;
+		}});
+	return logIn;
+}
+
+</script>
+</body>
+</html>

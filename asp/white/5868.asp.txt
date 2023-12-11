@@ -1,0 +1,93 @@
+<!--#include file="../conn.asp"-->
+<!-- #include file="../admin/check_master.asp" -->
+<!--#include file="../admin/check_admin_qs.asp" -->
+<!--#include file="../admin/dhfun.asp" -->
+<!--#include file="../inc/publicfun.asp" -->
+<%
+   dim sql
+   dim rs
+   id=request("id")
+   titlepage = Request.QueryString("page")
+   searchcontent=trim(request("searchcontent"))'搜索内容
+   searchkind=request("searchkind")'搜索类别
+   searchmethod=request("searchmethod")'搜索方式
+   BoardID_1=request("BoardID_1")'主论坛
+   BoardID_2=request("BoardID_2")'分论坛
+   str="select id,name,BoardID_1,BoardID_2,rep,deleted,htmfilename from "&ft&"bbstitle Where id="&id+0
+   set rs=server.createobject("adodb.recordset")
+   rs.open str,conn,1,1
+
+   id=rs("id")
+   ptuser=rs("name")
+   BoardID_1=rs("BoardID_1")
+   BoardID_2=rs("BoardID_2")
+   rep=rs("rep")
+   deleted=rs("deleted")
+   htmfilename=rs("htmfilename")
+   call FTBBS_HTML_MB(ft)
+   pagenum=Application("FTBBSMB")(6,0)
+   htm_ext=Application("FTBBSMB")(32,0)
+   postget=Application("FTBBSMB")(48,0)
+   k=rep/pagenum
+   if int(k)=k and int(k)<>0 then
+      page=k
+   else
+      page=int(k)+1
+   end if
+
+   if htmfilename="" or isnull(htmfilename) then
+      response.write ""
+   else
+     htmarray=split(htmfilename,"/")
+     For i=1 to page
+	     if i=1 then
+		    FiLePaTh = "../"& htmfilename
+		 else
+		    fnarr=split(htmarray(1),".")
+            FiLePaTh = "../"& htmarray(0)&"/"&fnarr(0)&"_"&i&htm_ext
+		 end if
+		 call DelFile(FiLePaTh,fso)
+	 Next 
+   end if
+   rsd=conn.execute("select count(id) as kkk from "&ft&"bbsmenu where pid="&id+0)
+   renum=rsd("kkk")
+   sql="delete from "&ft&"bbstitle where id="&id+0
+   conn.execute sql
+   sql="delete from "&ft&"bbsmenu where pid="&id+0
+   conn.execute sql
+   sql="update "&ft&"BBS_Cate set BBS_Cate_Topic=BBS_Cate_Topic-1 where BBS_Cate_ID='"&BoardID_1&"'"
+   conn.execute sql
+   sql="update "&ft&"BBS_Cate set BBS_Cate_Topic=BBS_Cate_Topic-1 where BBS_Cate_ID='"&BoardID_2&"'"
+   conn.execute sql
+   sql="update "&ft&"BBS_Cate set BBS_Cate_Reply=BBS_Cate_Reply-"&renum&" where BBS_Cate_ID='"&BoardID_1&"'"
+   conn.execute sql
+   sql="update "&ft&"BBS_Cate set BBS_Cate_Reply=BBS_Cate_Reply-"&renum&" where BBS_Cate_ID='"&BoardID_2&"'"
+   conn.execute sql
+   if deleted=0 then
+   sql="update "&ft&"clubuser set jingyuan=jingyuan-"&postget&",postnum=postnum-1 where postnum>0 and clubuser_name='"&ptuser&"'"
+   else
+   sql="update "&ft&"clubuser set postnum=postnum-1 where postnum>0 and clubuser_name='"&ptuser&"'"
+   end if
+   conn.execute sql
+   
+   sql0="select * from "&ft&"ftbbs_upload where upload_htm='"&htmfilename&"'"
+   set rs0=server.createobject("adodb.recordset")
+   rs0.open sql0,conn,1,1
+   if not rs0.eof then
+      oldpicFile = "../"&rs0("upload_pic")
+	  call DelFile(oldpicFile,fso)
+      sql="delete from "&ft&"ftbbs_upload where upload_htm='"&htmfilename&"'"
+      conn.execute sql   
+   end if
+   default_listbbsad ft,fso
+   conn.close
+   set conn=nothing
+   
+   if request("bbs_img")<>"" then
+   '以下是删除图片文件
+   mypicFile = "../"&htmarray(0)&"/" &request("bbs_img")
+   call DelFile(mypicFile,fso)  
+   end if
+   return_url="title_manage.asp?page="&titlepage&"&searchmethod="&searchmethod&"&searchkind="&searchkind&"&searchcontent="&searchcontent&"&BoardID_1="&BoardID_1&"&BoardID_2="&BoardID_2
+   response.redirect return_url
+%>

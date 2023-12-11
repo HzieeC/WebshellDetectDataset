@@ -1,0 +1,36 @@
+	<%@ page contentType="text/html;charset=UTF-8" %>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<script type="text/javascript" src="${ctx }/scripts/js/jquery-1.3.2.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jqPager/jquery.pager.js"></script><!-- 分页 -->
+    <script language="JavaScript" type="text/javascript" src="${ctx}/scripts/front/common/common_pager.js"></script><!-- 分页 -->
+	<script type="text/javascript" src="${ctx}/scripts/front/yhzx.js"></script>
+	
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/hyzx.css" rel="stylesheet" type="text/css" />
+
+<!-- 	修改收货地址 -->
+
+   <div class="gdttda">
+       <div class="hyzx_bt">
+	       <div class="zxyc_dh">
+		       <div class="zxyc_zz">修改收货地址</div>
+		       <div class="sr3_t_right right"></div>
+	       </div>
+       </div>
+        <div id="addressInfor">  
+		   	   <form action="" name="saveAddressInfor" id="saveAddressInfor" method="post">
+		   	       <div style="margin-left:100px;margin-top:100px;">
+		   	       	   <input type="hidden" id="recipientId" value="${loginCustomer.operatorId }"/>
+		   	       	   <input type="hidden" id="recipientId" name="receivedAddress.id" value="${receivedAddress.id }"/>
+			   	   	   <p>邮编：<input type="text" size="30" name="receivedAddress.zipCode" id="zipCode" value="${receivedAddress.zipCode }"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;联系人：<input type="text" id="linkman" size="30" name="receivedAddress.linkman" value="${receivedAddress.linkman }"/></p>
+			   	   	   <p>手机：<input type="text" size="30" name="receivedAddress.mobile" id="mobile" value="${receivedAddress.mobile }"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;电&nbsp;&nbsp;&nbsp;&nbsp;话：<input type="text" id="telephone" size="30" name="receivedAddress.telephone" value="${receivedAddress.telephone }"/></p>
+			   	   	   <p>地址：<textarea name="receivedAddress.address" id="address" cols="60" rows="3">${receivedAddress.address }</textarea></p>
+			   	   	   <P style="float:right;margin-right:200px;"><input type="button" value="保存" onclick="submitAddressForm()"/></P>
+		   	       </div>
+		   	   </form>
+		   </div> <!-- sendInfor结束 -->  
+   </div>

@@ -1,0 +1,181 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_custcomment.*,com.bizoss.trade.ti_personal.*,com.bizoss.trade.ti_admin.*" %>
+<%@page import="java.util.*" %>
+<html>
+  <head>
+    
+    <title>查看留言信息</title>
+	<link href="/program/company/index/css/style.css" rel="stylesheet" type="text/css">	
+	<script type="text/javascript" src="/program/company/custcomment/js_cust.js"></script>
+</head>
+<body>
+
+  <% 
+  
+  
+  		String s_user_id = "";	
+	if( session.getAttribute("session_user_id") != null ){
+		s_user_id = session.getAttribute("session_user_id").toString();
+	}
+		
+		Ti_personalInfo ti_personalInfo = new Ti_personalInfo();
+ 
+ 	  Ti_adminInfo ti_adminInfo = new Ti_adminInfo();
+  	
+  	String info_id="",user_name="",cust_name="",reply_user_name="";
+  	if(request.getParameter("info_id")!=null) info_id = request.getParameter("info_id");
+  	Ti_custcommentInfo ti_custcommentInfo = new Ti_custcommentInfo();
+  	List list = ti_custcommentInfo.getListByPk(info_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String goods_id="",com_type="",content="",in_date="",user_id="",info_level="",up_num="",down_num="",reply_content="",reply_date="",reply_user_id="";
+  	if(map.get("goods_id")!=null) goods_id = map.get("goods_id").toString();
+  	if(map.get("cust_name")!=null) cust_name = map.get("cust_name").toString();
+	if(map.get("com_type")!=null) com_type = map.get("com_type").toString();
+  	if(map.get("content")!=null) content = map.get("content").toString();
+  	if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+	if(in_date.length()>19) in_date = in_date.substring(0,19);
+  	if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+  	 
+  	if(map.get("info_level")!=null) info_level = map.get("info_level").toString();
+  	if(map.get("up_num")!=null) up_num = map.get("up_num").toString();
+  	if(map.get("down_num")!=null) down_num = map.get("down_num").toString();
+  	if(map.get("reply_content")!=null) reply_content = map.get("reply_content").toString();
+  	
+  	if(map.get("reply_date")!=null) reply_date = map.get("reply_date").toString();
+	if(reply_date.length()>19) reply_date = reply_date.substring(0,19);
+  	if(map.get("reply_user_id")!=null) reply_user_id = map.get("reply_user_id").toString();
+	if(map.get("reply_user_name")!=null) reply_user_name = map.get("reply_user_name").toString();
+	if(reply_user_name.equals("")) reply_user_name = "未找到操作人";
+
+  %>
+	
+	<h1>查看留言信息</h1>
+
+	<form action="/doTradeReg.do" method="post" name="addForm">
+			<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4> 温馨提示！  </h4>
+		  <span>再次回复留言将会覆盖上次回复的留言！ </span><br/>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+		
+		
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtabadd">
+
+		
+			<tr>
+			<td  colspan="6">
+			   &nbsp;&nbsp;<img src="/program/company/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">留言信息</span>			</td>
+    </tr>
+				
+								
+
+		<tr>
+			<td class="labletd">
+					会员名称:
+			</td>
+			<td colspan="6"><%=cust_name %></td>
+		</tr>
+			
+		<tr>
+			<td class="labletd" width="10%">
+				留言内容:
+			</td>
+			<td colspan="6"><%=content %></td>
+		</tr>
+		
+		<tr>
+			<td class="labletd" width="10%">
+				留言时间:
+			</td>
+			<td colspan="6"><%=in_date %></td>
+		</tr>
+		
+		<% if(!reply_content.trim().equals("")){%>
+		<tr>
+			<td  colspan="6">
+			   &nbsp;&nbsp;<img src="/program/company/images/infotip.gif" border="0">
+			   &nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">已回复留言信息</span></td>
+    </tr>
+    
+			<tr>
+			<td class="labletd" width="10%">
+						回复内容:
+			</td>
+			<td colspan="6"><%=reply_content %></td>
+		</tr>
+		
+			<tr>
+			<td class="labletd">
+					回复人:
+			</td>
+			<td ><%=reply_user_name%>
+			<td class="labletd" width="10%">
+				回复时间:
+			</td>
+			<td colspan="3">	<%=reply_date %></td>
+		</tr>
+		
+		<%}%>
+	
+			<tr>
+			<td  colspan="6">
+			   &nbsp;&nbsp;<img src="/program/company/images/infotip.gif" border="0">
+			   &nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">回复留言信息</span></td>
+   	 </tr>	
+			
+		<tr>
+			<td class="labletd" width="10%">
+						回复留言:
+			</td>
+			<td colspan="6"><textarea name="reply_content" id="reply_content" cols="50" rows="5" ></textarea></td>
+		</tr>
+	
+
+	</table>
+	
+	<input name="in_date" id="in_date" value="<%=in_date %>" type="hidden" />
+	<input name="content" id="content" value="<%=content %>" type="hidden" />
+	<input name="user_id" id="user_id" value="<%=user_id %>" type="hidden" />
+	<input name="goods_id" id="goods_id" value="<%=goods_id %>" type="hidden" />
+	<input name="com_type" id="com_type" value="2" type="hidden" />
+	<input name="info_level" id="info_level" value="<%=info_level %>" type="hidden" />
+	<input name="up_num" id="up_num" value="<%=up_num %>" type="hidden" />
+	<input name="down_num" id="down_num" value="<%=down_num %>" type="hidden" />
+	<input name="reply_user_id" id="reply_user_id" value="<%=s_user_id %>" type="hidden" />
+
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="0389" />
+	  			<input type="hidden" name="info_id" value="<%=info_id %>" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onClick="return subForm();" />&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onClick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	
+	
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+	
+	</form>
+</body>
+
+</html>

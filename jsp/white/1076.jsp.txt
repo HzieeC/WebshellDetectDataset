@@ -1,0 +1,91 @@
+﻿
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ page import="com.jsalipay.services.*"%>
+<%@ page import="com.bizoss.trade.ti_payment.*"%>
+
+<%@ page import="java.util.*"%>
+<%@page import="com.bizoss.updateHtml.parseXml.Config"%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>支付宝即时到帐接口</title>
+	</head>
+	<body>
+	<%    	
+		//充值会员标志
+		  String out_trade_no = request.getParameter("out_trade_no");
+		  out_trade_no +="_"+new Date().getTime();
+		    //订单名称，显示在支付宝收银台里的“商品名称”里，显示在支付宝的交易管理的“商品名称”的列表里。
+	      String subject =request.getParameter("subject");
+		  String body=request.getParameter("body");
+		//订单总金额，显示在支付宝收银台里的“应付总额”里
+		  String total_fee =request.getParameter("price");
+	
+		//total_fee="0.01";
+		
+		//默认支付方式，取值见“即时到帐接口”技术文档中的请求参数列表
+		String paymethod = "bankPay";
+		//默认网银代号，代号列表见“即时到帐接口”技术文档“附录”→“银行列表”
+		String defaultbank = "ICBCB2C";
+		
+		//扩展功能参数——防钓鱼//
+
+		//防钓鱼时间戳
+		String anti_phishing_key  = "";
+		//获取客户端的IP地址，建议：编写获取客户端IP地址的程序
+		String exter_invoke_ip= "";
+		
+		//自定义参数，可存放任何内容（除=、&等特殊字符外），不会显示在页面上
+		String extra_common_param = "";
+		//默认买家支付宝账号
+		String buyer_email = "";
+		//商品展示地址，要用http:// 格式的完整路径，不允许加?id=123这类自定义参数
+		 Config cfg = new Config();
+		String show_url = cfg.getString("weburl");
+		String notify_url = cfg.getString("weburl") +"/program/online_alipay/notify_url.jsp";
+		String return_url = cfg.getString("weburl") +"/program/online_alipay/return_url.jsp";
+		//扩展功能参数——分润(若要使用，请按照注释要求的格式赋值)//
+		
+		//提成类型，该值为固定值：10，不需要修改
+		String royalty_type = "";
+		//提成信息集
+		String royalty_parameters ="";
+		
+		//////////////////////////////////////////////////////////////////////////////////
+		String cust_id ="100000000000000";
+		Map params=new Hashtable();
+		params.put("cust_id",cust_id);
+		params.put("pay_code","alipay");
+		Map alipayMap = new Ti_paymentInfo().getCustAlipayInfo(params);
+		String partner="",key="",seller_email="";
+		if(alipayMap!=null){
+			partner = alipayMap.get("pay_account").toString();
+			key = alipayMap.get("passwd").toString();
+			seller_email = alipayMap.get("pay_email").toString();
+		}
+
+		//把请求参数打包成数组
+		Map<String, String> sParaTemp = new Hashtable<String, String>();
+        sParaTemp.put("payment_type", "1");
+        sParaTemp.put("out_trade_no", out_trade_no);
+        sParaTemp.put("subject", subject);
+        sParaTemp.put("body", body);
+        sParaTemp.put("total_fee", total_fee);
+        sParaTemp.put("show_url", show_url);
+        sParaTemp.put("paymethod", paymethod);
+        sParaTemp.put("defaultbank", defaultbank);
+        sParaTemp.put("anti_phishing_key", anti_phishing_key);
+        sParaTemp.put("exter_invoke_ip", exter_invoke_ip);
+        sParaTemp.put("extra_common_param", extra_common_param);
+        sParaTemp.put("buyer_email", buyer_email);
+        sParaTemp.put("royalty_type", royalty_type);
+        sParaTemp.put("royalty_parameters", royalty_parameters);
+		
+		//构造函数，生成请求URL
+		String sHtmlText = AlipayService.create_direct_pay_by_user(partner,seller_email,return_url,notify_url,sParaTemp);
+		out.println(sHtmlText);
+	%>
+	</body>
+</html>

@@ -1,0 +1,55 @@
+	<%@ page contentType="text/html;charset=UTF-8" %>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<script type="text/javascript" src="${ctx }/scripts/js/jquery-1.3.2.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jqPager/jquery.pager.js"></script><!-- 分页 -->
+    <script language="JavaScript" type="text/javascript" src="${ctx}/scripts/front/common/common_pager.js"></script><!-- 分页 -->
+	<script type="text/javascript" src="${ctx}/scripts/front/yhzx.js"></script>
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/hyzx.css" rel="stylesheet" type="text/css" />
+
+<!-- 	修改收货地址 -->
+
+   <div class="gdttda">
+         <div class="hyzx_bt">
+	       <div class="zxyc_dh">
+		       <div class="zxyc_zz">修改密码</div>
+		       <div class="sr3_t_right right"></div>
+	       </div>
+	       <div style="margin-top:20px;margin-left:200px;float:left;">
+	           <form action="" name="pwdForm" id="pwdForm" method="post"/>
+	           	   <input type="hidden" id="id" name="customer.id" value="${customer.id }"/>
+		       	   <table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">						
+						<tr>
+							<td class='gridtitle'>旧密码：</td>
+							<td class='gridbody'>
+								<input type="password" name="customer.pwd" id="oldPwd" value="${customer.pwd }" size="30"/><font color="red">*</font>
+							</td>
+						</tr>
+						<tr><td colspan="2">&nbsp;</td></tr>
+						<tr>
+							<td class='gridtitle'>新密码：</td>
+							<td class='gridbody'>
+								<input type="password" name="customer.newPwd" id="newPwd" size="30"/><font color="red">*</font>
+							</td>
+						</tr>
+						<tr><td colspan="2">&nbsp;</td></tr>
+						<tr>
+							<td class='gridtitle'>确认密码：</td>
+							<td class='gridbody'>
+								<input type="password" name="rePwd" id="rePwd" size="30"/><font color="red">*</font>
+							</td>
+						</tr>
+						<tr><td colspan="2">&nbsp;</td></tr>
+						<tr><td colspan="2" align="center"><input type="button" onclick="javascript:submitPwdSaveForm();" value="提交"/></td></tr>
+					</table>
+				</form>
+	       </div>
+	       
+	       
+       </div>
+       
+   </div>

@@ -1,0 +1,29 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<html >
+<head>
+	<title>会员中心</title>
+	<meta http-equiv="x-ua-compatible" content="ie=7" />
+	   <link  href="/templets/html/css/top.css"  rel="stylesheet" />
+</head>
+
+	<frameset cols="*" rows="136, *" id="frame_main"  border="0">
+	<%
+		if(session.getAttribute("session_user_type").equals("25")){
+		%>
+			<frame src="/templets/html/teambuy/teamtop1.jsp" noresize="noresize" name="top" marginheight="0" scrolling="no" frameborder="0">
+		<%
+		}else{
+		%>
+	    <frame src="top.jsp" noresize="noresize" name="top" marginheight="0" scrolling="no" frameborder="0">  
+	    <% } %>
+	    <frameset cols="200, *">
+	    	<frame src="left.jsp" name="left" noresize="noresize"  marginheight="0" scrolling="auto" frameborder="0">
+	    	<frame src="/program/member/yaoqing/index.jsp?menu_id=1kHp4k4DF04T8C4" name="main" >
+	    </frameset>
+	</frameset>
+	<noframes><body > 
+	</body>
+	</noframes>
+
+</html>

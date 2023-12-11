@@ -1,0 +1,211 @@
+<!--#include file="MainClass.asp"-->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+dim action : action = getForm("action", "get")
+response.Charset="gbk"
+
+Select  case action
+	case "newslist" : viewNewsList
+	case "newscontent" : viewNewsContent
+	case "digg","tread","score" : scoreVideo(action)
+	case "videoscore","newsscore" : getscore(action)
+	case "diggnews","treadnews","scorenews" : scoreNews(action)
+	case "diggnum" : scoreNum()
+	case "reporterr" : reportErr
+	case "autocheck" : autoCheckWrong
+	case "hit" : updateHit
+	case "hitnews" : updateNewsHit
+	case "typeoption" : viewTypeoption
+	case else : main
+End Select
+terminateAllObjects
+
+Sub main
+End Sub
+
+Sub getscore(ac)
+	dim id,ary,ret : id=getForm("id","get")
+	if isNul(id) then die "err"
+	if ac="newsscore" then
+		ary=conn.db("SELECT m_digg,m_tread,m_score FROM {pre}news WHERE m_id="&id,"array")
+	else
+		ary=conn.db("SELECT m_digg,m_tread,m_score FROM {pre}data WHERE m_id="&id,"array")
+	end if
+	if isArray(ary) then
+		if UBound(ary,2)>-1 then
+			die "["&ary(0,0)&","&ary(1,0)&","&ary(2,0)&"]"
+		end if
+	end if
+	die "err"
+End Sub
+
+Sub updateNewsHit
+	dim id,hit : id=getForm("id","get")
+	if isNul(id) then die "err"
+	if not isNum(id) then echoSaveStr "safe" else id=clng(id)
+	conn.db "update {pre}news set m_hit=m_hit+1,m_dayhit=m_dayhit+1 where m_id="&id,"execute"
+	hit=conn.db("select m_hit from {pre}news where m_id="&id,"execute")(0)
+	if err then die "err" else die hit
+End Sub 
+
+Sub updateHit
+	dim id,hit : id=getForm("id","get")
+	on error resume next
+	if isNul(id) then die "err"
+	if not isNum(id) then echoSaveStr "safe" else id=clng(id)
+	conn.db "update {pre}data set m_hit=m_hit+1,m_dayhit=m_dayhit+1 where m_id="&id,"execute"
+	hit=conn.db("select m_hit from {pre}data where m_id="&id,"execute")(0)
+	if err then die "err" else die hit
+End Sub
+
+Sub reportErr
+	dim sql,id,m_author,m_content,rsObj,backurl :backurl=request.ServerVariables("HTTP_REFERER"): id=getSubStrByFromAndEnd(backurl,"?id=","","start") : m_author=preventSqlin(getForm("m_errauthor","post"),"filter") : m_content=preventSqlin(getForm("m_errcontent","post"),"filter")
+	if isNul(id) then  alertMsg "参数错误","":last:die ""
+	if isNul(m_author) then  alertMsg "请填写报错者","":last:die ""
+	if isnul(m_content)  then alertMsg "请填写报错内容","":last:die ""
+	if not isNum(id) then echoSaveStr "safe" else id=clng(id)
+	on error resume next
+	set rsObj=conn.db("select top 1 m_author,m_type,m_videoid,m_content,m_ip,m_addtime from {pre}info where m_videoid="&id,"records3") : rsObj.addnew
+	rsObj("m_author")=m_author : rsObj("m_type")="reporterror" : rsObj("m_videoid")=id : rsObj("m_content")=m_content : rsObj("m_ip")=preventSqlin(getIp,"filter") : rsObj("m_addtime")=now() : rsObj.update
+	rsObj.close : set rsObj=nothing
+	if err then echo "发生错误" else echo "报错成功,多谢支持!"	
+	echo "<script>setTimeout(""window.close()"",2000)</script>"
+End Sub
+
+Sub scoreVideo(operType)
+	dim sql,id,digg,tread,returnValue,score: id=getForm("id","get"):score=getForm("score","get")
+	if rCookie("maxcms2_score"&id)="ok" then die "havescore"
+	if isNul(id) then die "err"
+	if not isNum(id) then echoSaveStr "safe" else id=clng(id)
+	on error resume next
+	if operType="score" then
+		if not isNum(score) then echoSaveStr "safe" else score=clng(score)
+		if score=0 then scoreVideo("tread"):exit sub
+		sql="update {pre}data set m_digg=m_digg+1,m_score=m_score+"&score&" where m_id="&id
+		returnValue=""
+	elseif operType="digg" then 
+		digg=conn.db("select m_digg from {pre}data where m_id="&id,"execute")(0)
+		if err then digg=0 : err.clear()
+		sql="update {pre}data set m_digg=m_digg+1,m_score=m_score+1 where m_id="&id
+		returnValue=digg+1
+	elseif operType="tread" then
+		tread=conn.db("select m_tread from {pre}data where m_id="&id,"execute")(0)
+		if err then tread=0 : err.clear()
+		sql="update {pre}data set m_tread=m_tread+1 where m_id="&id
+		returnValue=tread+1
+	else
+		die "err"
+	end if
+	conn.db sql,"execute"
+	wCookieInTime "maxcms2_score"&id,"ok","h",12
+	if err then die "err":err.clear() else die returnValue
+End Sub
+
+Sub scoreNews(operType)
+	dim sql,id,digg,returnValue,score: id=getForm("id","get"):score=getForm("score","get")
+	if rCookie("maxcms2_scorenews"&id)="ok" then die "havescore"
+	if isNul(id) then die "err"
+	if not isNum(id) then echoSaveStr "safe" else id=clng(id)
+	on error resume next
+	dim tread
+	if operType="scorenews" then
+		if not isNum(score) then echoSaveStr "safe" else score=clng(score)
+		sql="update {pre}news set m_digg=m_digg+1"&ifthen(score>0,",m_score=m_score+"&score,"")&" where m_id="&id
+		returnValue=""
+	elseif operType="diggnews" then 
+		digg=conn.db("select m_digg from {pre}news where m_id="&id,"execute")(0)
+		if err then digg=0 : err.clear()
+		sql="update {pre}news set m_digg=m_digg+1,m_score=m_score+1 where m_id="&id
+		returnValue=digg+1
+	elseif operType="treadnews" then
+		tread=conn.db("select m_tread from {pre}news where m_id="&id,"execute")(0)
+		if err then tread=0 : err.clear()
+		sql="update {pre}news set m_tread=m_tread+1 where m_id="&id
+		returnValue=tread+1
+	else
+		die "err"
+	end if
+	conn.db sql,"execute"
+	wCookieInTime "maxcms2_scorenews"&id,"ok","h",12
+	if err then die "err":err.clear() else die returnValue
+End Sub
+
+Sub viewNewsList
+	dim newsArray,newsStr,i
+	on error resume next
+	conn.fetchCount=6
+	newsArray=conn.db("select top 6 m_id,m_title,m_color from {pre}info where m_type='news' order by m_id desc","array")
+	conn.fetchCount=0
+	if  isArray(newsArray) then 
+		for i=0 to ubound(newsArray,2)
+			newsStr=newsStr&"<li><a style='cursor:pointer;' onclick='viewNewsContent("&newsArray(0,i)&")'><font color='"&newsArray(2,i)&"'>"&getStrByLen(newsArray(1,i),30)&"</font></a></li>"
+		next
+	else
+		echo "no"
+	end if
+	if err  then die "err" else die newsStr
+End Sub
+
+Sub viewNewsContent
+	dim newsStr,newsArray,id : id=getForm("id","get")
+	if isNul(id) then die "err"
+	if not isNum(id) then echoSaveStr "safe" else id=clng(id)
+	on error resume next
+	set newsArray=conn.db("select top 1 m_author,m_title,m_content,m_addtime from {pre}info where m_id="&id,"execute")
+	newsStr=""&getStrByLen(newsArray(1),45)&"__maxcms2__"&decodeHtml(newsArray(2))&""
+	set newsArray=nothing
+	if err  then die "err" else die newsStr
+End Sub
+
+Function checkIsWrong(id,from)
+	dim returnstr
+	checkIsWrong = false
+	select case from
+		case "youku"
+			returnstr = getRemoteContent("http"&":/"&"/v"&".yo"&"uku"&"."&"com"&"/"&"pl"&"ayer"&"/"&"get"&"Pl"&"ayLi"&"st/Vi"&"d"&"eoI"&"DS"&"/"&id, "t"&"e"&"xt")
+			if instr(returnstr,"""e"&"rr"&"or"":") > 0 or  instr(returnstr,"""d"&"at"&"a"":["&"]") > 0  then checkIsWrong = true : exit function
+		case "iask"
+			returnstr = getRemoteContent("http"&":/"&"/v"&".i"&"a"&"sk.c"&"o"&"m/v"&"_pl"&"ay."&"php?"&"vi"&"d="&id, "te"&"x"&"t")
+			if instr(returnstr,"<r"&"es"&"ul"&"t>e"&"r"&"ror</"&"re"&"sul"&"t>") > 0  then checkIsWrong = true : exit function
+		case "tudou"
+			returnstr = getRemoteContent("h"&"ttp:"&"//v"&"2.t"&"u"&"do"&"u."&"co"&"m/v"&"2/c"&"dn?i"&"d="&id, "te"&"xt")
+			if instr(returnstr,"<"&"e er"&"rn"&"o='") > 0  then checkIsWrong = true : exit function
+	end select
+End Function
+
+Sub autoCheckWrong
+	if isAutoCheck=0 then exit sub
+	dim id,from,vid,rsObj,errinfo : vid=getForm("vid","get") : id=preventSqlin(getForm("id","get"),"filter") : from=preventSqlin(getForm("from","get"),"filter") : errinfo=preventSqlin(getForm("err","get"),"filter")
+	if  isNul(vid) or isNul(id) then die "err"
+	if not isNum(vid)  then echoSaveStr "safe" else vid=clng(vid)
+	on error resume next
+	if  checkIsWrong(id,from) then
+	    set rsObj=conn.db("select m_author,m_type,m_videoid,m_content from {pre}info where m_author='auto' and m_type='reporterror' and m_videoid="&vid,"records3")
+		if rsObj.eof then
+			rsObj.addnew
+			rsObj("m_author")="auto"
+			rsObj("m_type")="reporterror"
+			rsObj("m_videoid")=vid
+			rsObj("m_content")=errinfo
+		else
+			if instr(rsobj("m_content"),errinfo)<1 then rsObj("m_content")=rsObj("m_content")&chr(13)&chr(10)&errinfo
+		end if
+	end if
+	rsObj.update
+	rsObj.close : set rsObj=nothing
+	if err then die "err" else die "ok"	
+End Sub
+
+Sub viewTypeoption
+	echo "document.write("""
+	makeTypeOption(0),"&nbsp;|&nbsp;&nbsp;"
+	echo """);"
+End Sub
+%>

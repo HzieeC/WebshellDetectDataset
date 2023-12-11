@@ -1,0 +1,381 @@
+<!--#include file="../../Conn.asp" -->
+<!--#include file="../../Comm/Site_Class.asp" -->
+<%
+PagePath = "../../"
+
+Set Qsite = New Site_Class
+
+Qsite.SiteConfig_Master()
+%>
+<!--#include file="../Check_Login.asp" -->
+<%
+Qsite.Check_AdminFlag(arrAdminFlag(0 , 2))
+
+If Request.Form <> "" Then
+	If Request.Form("PositionId") = 0 Then
+		SaveNewPosition()
+	Else
+		SaveEditPosition()
+	End If
+End If
+
+If Request.QueryString("action") = "del" Then
+	DelPosition Qsite.chgStr(Trim(Request.QueryString("PositionKey"))) , Qsite.chgStr(Trim(Request.QueryString("PositionId")))
+ElseIf Request.QueryString("action") = "up" Then
+	UpPx Qsite.chgStr(Trim(Request.QueryString("PositionKey"))) , Qsite.chgStr(Trim(Request.QueryString("PositionId")))
+ElseIf Request.QueryString("action") = "down" Then
+	DownPx Qsite.chgStr(Trim(Request.QueryString("PositionKey"))) , Qsite.chgStr(Trim(Request.QueryString("PositionId")))
+End If
+
+Sub Position_To_Js()
+	Dim bRs,sRs
+	Dim strPosition
+	Dim Fso,MyFile
+	
+	Set bRs = server.createobject("ADODB.Recordset")
+	Set sRs = server.createobject("ADODB.Recordset")
+	
+	strPosition = ""
+	strPosition = strPosition & "var arrPosition_b = new Array();" & vbCrlf
+	strPosition = strPosition & "var arrPosition_s = new Array();" & vbCrlf & vbCrlf
+
+	strPosition = strPosition & "var i = 0;" & vbCrlf
+	strPosition = strPosition & "var j = 0;" & vbCrlf & vbCrlf
+	
+	bRs.Open "select * from PositionTbl where PositionKey = 0 order by Px asc" , Conn , 1 , 1
+	Do While Not bRs.Eof
+		strPosition = strPosition & "arrPosition_b[i] = """& bRs("PositionName") &""";" & vbCrlf
+		strPosition = strPosition & "arrPosition_s[i] = new Array();" & vbCrlf & vbCrlf
+		
+		sRs.Open "select * from PositionTbl where PositionKey = "& bRs("PositionId") &" order by Px asc" , Conn , 1 , 1
+		strPosition = strPosition & "	j = 0;" & vbCrlf
+		Do While Not sRs.Eof
+			strPosition = strPosition & "	arrPosition_s[i][j++] = new Array("""& sRs("PositionName") &""" , """& sRs("PositionName") &""");" & vbCrlf
+		sRs.MoveNext
+		Loop
+		sRs.Close
+		
+	strPosition = strPosition & vbCrlf &  "i++;" & vbCrlf
+	bRs.MoveNext
+	Loop
+	bRs.Close
+	
+	Set Fso = CreateObject("Scripting.FileSystemObject")
+	Set MyFile = Fso.CreateTextFile(Server.Mappath("../../Comm/Job_All.js") , True)
+	MyFile.WriteLine strPosition
+	MyFile.Close
+	Set MyFile = Nothing
+	Set Fso  = Nothing
+	
+End Sub
+
+Sub SaveNewPosition()
+	
+	Dim PositionName,PositionKey,Px
+	PositionName = Qsite.chgStr(Trim(Request.Form("PositionName")))
+	PositionKey = Qsite.chgStr(Trim(Request.Form("PositionKey")))
+	Px = Qsite.chgStr(Trim(Request.Form("Px")))
+	
+	If PositionName = "" Or IsNull(PositionName) Then
+		Qsite.ShowMsg "请输入分类名称" , ""
+	End If
+	If PositionKey = "" Or IsNull(PositionKey) Or Not IsNumeric(PositionKey) Then PositionKey = 0
+	If Px = "" Or IsNull(Px) Or Not IsNumeric(Px) Then Px = 1
+	
+	Set Rs = Conn.Execute("select PositionName from PositionTbl where PositionKey = "& PositionKey &" and PositionName = '"& PositionName &"'")
+	If Not Rs.Eof Then
+		Qsite.ShowMsg "分类已经存在，请返回重新输入" , ""
+	End If
+	Set Rs = Nothing
+	
+	Conn.Execute("update PositionTbl set Px = Px + 1 where PositionKey = "& PositionKey &" and Px >= "& Px)
+	
+	Conn.Execute("insert into PositionTbl (PositionName , PositionKey , Px) values ('"& PositionName &"' , "& PositionKey &" , "& Px &")")
+	
+	Position_To_Js()
+	
+	Qsite.ShowMsg "分类添加成功" , "Admin_Position.asp?PositionKey="& PositionKey
+End Sub
+
+Sub SaveEditPosition()
+	Dim PositionId,PositionName,PositionKey,Px
+	Dim OldPx
+	PositionId = Qsite.chgStr(Trim(Request.Form("PositionId")))
+	PositionName = Qsite.chgStr(Trim(Request.Form("PositionName")))
+	PositionKey = Qsite.chgStr(Trim(Request.Form("PositionKey")))
+	Px = Qsite.chgStr(Trim(Request.Form("Px")))
+	
+	If PositionId = "" Or IsNull(PositionId) Or Not IsNumeric(PositionId) Then PositionId = 0
+	
+	If PositionName = "" Or IsNull(PositionName) Then
+		Qsite.ShowMsg "请输入分类名称" , ""
+	End If
+	If PositionKey = "" Or IsNull(PositionKey) Or Not IsNumeric(PositionKey) Then PositionKey = 0
+	If Px = "" Or IsNull(Px) Or Not IsNumeric(Px) Then Px = 1
+	
+	Set Rs = Conn.Execute("select PositionKey from PositionTbl where PositionKey = "& PositionKey &" and PositionName = '"& PositionName &"' and PositionId <> "& PositionId)
+	If Not Rs.Eof Then
+		Qsite.ShowMsg "分类已经存在，请返回重新输入" , ""
+	End If
+	Set Rs = Nothing
+	
+	Set Rs = Conn.Execute("select Px from PositionTbl where PositionId = "& PositionId)
+	If Rs.Eof Then
+		OldPx = Px
+	Else
+		OldPx = Rs("Px")
+	End If
+	
+	If Cint(Px) > Cint(OldPx) Then
+		Conn.Execute("update PositionTbl set Px = Px - 1 where PositionKey = "& PositionKey &" and Px > "& OldPx &" and Px <= "& Px)
+	ElseIf Cint(Px) < Cint(OldPx) Then
+		Conn.Execute("update PositionTbl set Px = Px + 1 where PositionKey = "& PositionKey &" and Px >= "& Px &" and Px < "& OldPx)
+	End If
+	
+	Conn.Execute("update PositionTbl set PositionName = '"& PositionName &"' , Px = "& Px &" where PositionId = "& PositionId)
+	
+	Position_To_Js()
+	
+	Qsite.ShowMsg "分类修改成功" , "Admin_Position.asp?PositionKey="& PositionKey
+End Sub
+
+Sub DelPosition(PositionKey , PositionId)
+	Dim OldPx,Rs
+	
+	If PositionId = "" Or IsNull(PositionId) Or Not IsNumeric(PositionId) Then PositionId = 0
+	
+	Set Rs = Conn.Execute("select Px from PositionTbl where PositionId = "& PositionId)
+	If Rs.Eof Then
+		OldPx = 9999
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	Conn.Execute("delete from PositionTbl where PositionKey = "& PositionId)
+	
+	Conn.Execute("delete from PositionTbl where PositionId = "& PositionId)
+	
+	Conn.Execute("update PositionTbl set Px = Px - 1 where PositionKey = "& PositionKey &" and Px > "& OldPx)
+	
+	Position_To_Js()
+	
+	Qsite.ShowMsg "分类删除成功" , "Admin_Position.asp?PositionKey="& PositionKey
+End Sub
+
+Sub UpPx(PositionKey , PositionId)
+	Dim OldPx
+	
+	If PositionId = "" Or IsNull(PositionId) Or Not IsNumeric(PositionId) Then PositionId = 0
+	If PositionKey = "" Or IsNull(PositionKey) Or Not IsNumeric(PositionKey) Then PositionKey = 0
+	
+	Set Rs = Conn.Execute("select Px from PositionTbl where PositionId = "& PositionId)
+	If Rs.Eof Then
+		OldPx = 1
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	If Cint(OldPx) > 1 Then
+		Conn.Execute("update PositionTbl set Px = Px + 1 where PositionKey = "& PositionKey &" and Px = "& OldPx - 1)
+		Conn.Execute("update PositionTbl set Px = Px - 1 where PositionId = "& PositionId)
+	End If
+	
+	Position_To_Js()
+	
+	Response.Redirect("Admin_Position.asp?PositionKey="& PositionKey)
+	Response.End()
+End Sub
+
+Sub DownPx(PositionKey , PositionId)
+	Dim maxPx,OldPx
+	
+	If PositionId = "" Or IsNull(PositionId) Or Not IsNumeric(PositionId) Then PositionId = 0
+	If PositionKey = "" Or IsNull(PositionKey) Or Not IsNumeric(PositionKey) Then PositionKey = 0
+	
+	Set Rs = Conn.Execute("select Px from PositionTbl where PositionId = "& PositionId)
+	If Rs.Eof Then
+		OldPx = 9999
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	Set Rs = Conn.Execute("select top 1 Px from PositionTbl where PositionKey = "& PositionKey &" order by Px desc")
+	If Rs.Eof Then
+		maxPx = 9999
+	Else
+		maxPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	If Cint(OldPx) < Cint(maxPx) Then
+		Conn.Execute("update PositionTbl set Px = Px - 1 where PositionKey = "& PositionKey &" and Px = "& OldPx + 1)
+		Conn.Execute("update PositionTbl set Px = Px + 1 where PositionId = "& PositionId)
+	End If
+	
+	Position_To_Js()
+	
+	Response.Redirect("Admin_Position.asp?PositionKey="& PositionKey)
+	Response.End()
+End Sub
+
+Dim PositionId,PositionName,PositionKey,Px,contPx
+Dim strTitle,strSubmit
+Dim strTypeName,strTypeKey
+
+Set Rs = server.createobject("ADODB.Recordset")
+
+PositionKey = Qsite.chgStr(Trim(Request.QueryString("PositionKey")))
+
+If PositionKey = "" Or IsNull(PositionKey) Or Not IsNumeric(PositionKey) Then PositionKey = 0
+
+Sql = "select * from PositionTbl where PositionKey = "& PositionKey &" order by Px asc"
+
+Rs.Open "select top 1 * from PositionTbl where PositionKey = "& PositionKey &" order by Px desc" , Conn ,1 , 1
+If Rs.Eof Then
+	contPx = 1
+Else
+	contPx = Rs("Px") + 1
+End If
+Rs.Close
+
+Rs.Open "select * from PositionTbl where PositionId = "& PositionKey , Conn , 1 , 1
+If Rs.Eof Then
+	strTypeName = ""
+	strTypeKey = 0
+Else
+	strTypeName = "[" & Rs("PositionName") & "]"
+	strTypeKey = Rs("PositionKey")
+End If
+Rs.Close
+%>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>职能职位管理</title>
+<link href="../skins/css/main.css" rel="stylesheet" type="text/css">
+<script language="javascript">
+function PosDel(PositionKey , PositionId)
+{
+	var question = confirm("你确定要删除此条记录吗？");
+	if (question !="0")
+	{
+		location.href = "Admin_Position.asp?action=del&PositionKey=" + PositionKey + "&PositionId=" + PositionId;
+	}
+}
+</script>
+</head>
+
+<body>
+<%
+PositionId = Qsite.chgStr(Trim(Request.QueryString("PositionId")))
+
+If PositionId = "" Or IsNull(PositionId) Or Not IsNumeric(PositionId) Then PositionId = 0
+
+If PositionId = 0 Then
+	PositionName = ""
+	Px = contPx
+	strTitle = "添加分类"
+	strSubmit = "添加"
+Else
+	Rs.Open "select * from PositionTbl where PositionId = "& PositionId , Conn , 1 , 1
+	If Rs.Eof Then
+		PositionId = 0
+		PositionName = ""
+		Px = contPx
+		strTitle = "添加分类"
+		strSubmit = "添加"
+	Else
+		PositionName = Rs("PositionName")
+		Px = Rs("Px")
+		strTitle = "修改分类"
+		strSubmit = "修改"
+	End If
+End If
+%>
+<form name="PosForm" method="post" action="Admin_Position.asp" style="margin:0">
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" class="td_title"><%=strTitle%></td>
+		</tr>
+		<tr>
+			<td height="23" class="td_content">分类名称：
+				<input name="PositionName" type="text" class="input_1" id="PositionName" size="50" value="<%=PositionName%>">
+排序
+<input name="Px" type="text" class="input_1" id="Px" size="20" value="<%=Px%>">			
+	<input name="Submit" type="submit" class="input_1" value="<%=strSubmit%>">
+	<%
+	If PositionId <> 0 Then
+	%>
+	<input name="Submit" type="button" class="input_1" value="返回" onClick="javascript:history.back();">
+	<%
+	End If
+	%>
+	<input name="PositionKey" type="hidden" id="PositionKey" value="<%=PositionKey%>">
+	<input name="PositionId" type="hidden" id="PositionId" value="<%=PositionId%>"></td>
+		</tr>
+	</table>
+	<br>
+</form>
+<%
+If PositionId = 0 Then
+%>
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" colspan="2" class="td_title"><%=strTypeName%>分类列表</td>
+		</tr>
+<%
+Rs.Open Sql , Conn , 1 , 1
+If Rs.Eof Then
+%>
+		<tr>
+			<td height="23" colspan="2" class="td_content">暂无分类信息 [<a href="Admin_Position.asp?PositionKey=<%=strTypeKey%>">返回</a>]</td>
+		</tr>
+<%
+Else
+%>
+		<tr>
+<%
+	i = 0
+	Do While Not Rs.Eof
+%>
+			<td width="50%" height="23" class="td_content"><%=Rs("PositionName")%> &nbsp;&nbsp;&nbsp;[<a href="Admin_Position.asp?action=up&PositionKey=<%=PositionKey%>&PositionId=<%=Rs("PositionId")%>">前移</a> | <a href="Admin_Position.asp?action=down&PositionKey=<%=PositionKey%>&PositionId=<%=Rs("PositionId")%>">后移</a> | <a href="Admin_Position.asp?PositionKey=<%=PositionKey%>&PositionId=<%=Rs("PositionId")%>">修改</a> | <a href="#" onClick="PosDel('<%=PositionKey%>' , '<%=Rs("PositionId")%>');return false;">删除</a> 
+			<%
+			If PositionKey = 0 Then
+			%>
+			| <a href="Admin_Position.asp?PositionKey=<%=Rs("PositionId")%>">查看</a> 
+			<%
+			Else
+			%>
+			| <a href="Admin_Position.asp?PositionKey=0">返回</a> 
+			<%
+			End If
+			%>
+			]</td>
+			<%
+	Rs.MoveNext
+	i = i + 1
+	If i Mod 2 = 0 And Not Rs.Eof Then
+		Response.Write("</tr></tr>")
+	End If
+	If i Mod 2 > 0 And Rs.Eof Then
+		Response.Write("<td width=""50%"" class=""td_content"">&nbsp;</td>")
+	End If
+	Loop
+%>
+			
+		</tr>
+<%
+End If
+Rs.Close
+
+Set Rs = Nothing
+%>
+</table>
+<%
+End If
+%>
+</body>
+</html>

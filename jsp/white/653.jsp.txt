@@ -1,0 +1,15 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+ <div class="sideBar" id="sideBarCon"> 
+      <div id="leftMenuCon" style="overflow: auto;">
+        <div class="box">
+         <h2>二级折叠菜单</h2>
+               <ul class="menu" id="leftMenu">
+         <!-- 工单库 -->
+             </ul>
+          <!-- 车管中心 -->
+          </div>
+         </div>
+      </div>

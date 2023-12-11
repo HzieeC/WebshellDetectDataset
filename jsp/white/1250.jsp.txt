@@ -1,0 +1,22 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.updateHtml.updateHtml.*" %>
+
+<%
+	UpdateArticleHtml uah = new UpdateArticleHtml();
+
+
+	String info_id="",pub_date="",num="";
+	if(request.getParameter("info_id")!=null)
+	{
+		info_id  = request.getParameter("info_id");
+	}
+
+	try{
+		uah.updateArticleByGoodsId("gS10pU7R18hj8S4",info_id,"0","1");
+		out.println("成功");
+	}catch(Exception e){
+		e.printStackTrace();
+		out.println("失败");
+	}
+%>

@@ -1,0 +1,488 @@
+<!--#include file="../../ACT.Function.asp"-->
+<!--#include file="../../../ACT_inc/cls_pageview.asp"-->
+<!--#include file="f.asp"-->
+ <head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>自定义插件系统-By ACTCMS</title>
+<link href="../../Images/style.css" rel="stylesheet" type="text/css">
+ <script type='text/javascript' src='../../../ACT_INC/js/time/WdatePicker.js'></script>
+ <script type='text/javascript' src='../../../ACT_INC/js/jquery.js'></script>
+ 
+
+
+ </head>
+<body>
+ 
+<table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+  <tr>
+    <td  class="bg_tr"><strong>您现在的位置：系统中心 &gt;&gt; 插件管理 &gt;&gt;<a href="?">自定义插件系统  </td>
+  </tr>
+  <tr>
+    <td >
+	<strong><a href="?Action=add">插件</a>选项：</strong><strong><a href="?Action=add">新建插件</a></strong>
+ 	┆<strong><a href="?">查看插件</a></strong>
+	</td>
+    </tr>
+</table>
+<% 
+	If Not ACTCMS.ACTCMS_QXYZ(0,"plus","") Then   Call Actcms.Alert("对不起，你没有操作权限！","") 
+dim Action,ID,ShowErr,titles,CID,files
+	Action = Request("Action")
+ 	ID=ChkNumeric(request("ID"))
+	Select Case Action
+			case "add"
+				call add()
+			Case "edit" 
+				Call edit()
+			Case "addsave"
+				Call addsave()
+			Case "editsave"
+				Call editsave()
+			Case "del"
+				Call del()
+			Case Else
+				Call Main()
+	End Select
+	
+	Sub Del()
+		Conn.Execute ("Delete from diyplus_act Where ID=" & ChkNumeric(Request.QueryString("ID")))		
+		Conn.Execute ("Delete from plusget_act Where cid=" & ChkNumeric(Request.QueryString("ID")))		
+		Set conn=nothing
+		Call Actcms.ActErr("删除成功","Sys_Act/plus/Index.asp","")
+ 		Response.End
+    End Sub
+	Sub addsave()
+	Dim Rs,content,title,i,dd,rs1,cid
+		files=actcms.getfilepath(delAsp(request("filepath")),3)
+		titles=delAsp(actcms.s("titles"))
+ 		Set Rs=Server.CreateObject("Adodb.RecordSet")
+		Rs.Open "Select * from diyplus_act",Conn,1,3
+
+		If left(files,1)="/" Then 
+			files="fycms101aae08dd2ea51b0c370a1241e9793d"&files
+			If actcms.actsys="/" Then 
+ 				files=rep(files,"fycms101aae08dd2ea51b0c370a1241e9793d/","")
+			Else 
+
+				files=rep(files,"fycms101aae08dd2ea51b0c370a1241e9793d"&actcms.actsys,"")
+
+			End If 
+		End if
+		Rs.addnew
+		Rs("title")= titles
+ 		Rs("templatepath")=delAsp(request("templatepath"))
+ 		Rs("filepath")=files
+		Rs("rewrite")=ChkNumeric(request("rewrite"))
+		Rs("isLock")=ChkNumeric(request("isLock"))
+		Rs("ismake")=ChkNumeric(request("ismake"))
+ 		Rs("rewriteurl")=Trim(request("rewriteurl"))
+ 		Rs("addtime")=now()
+		Rs.update
+		Rs.Close
+		Set rs=ACTCMS.actexe("Select top 1 id  from diyplus_act  order by id desc")
+		If Not rs.eof Then ID = rs("ID")
+		
+		If ChkNumeric(request("ismake"))=1 Then  Call makelabel
+ 		Set Rs=Nothing
+		Call Actcms.ActErr("操作成功","Sys_Act/plus/Index.asp","")
+ 		Response.End
+	End Sub	
+
+
+	Sub editsave()
+	Dim DiyPath,Rs,content,title,sql,rewrite,isLock,templatepath,i
+		titles=actcms.s("titles")
+		files=actcms.getfilepath(delAsp(request("filepath")),3)
+		SQL = "Select * From diyplus_act Where ID="&ID 
+		Set Rs=Server.CreateObject("Adodb.RecordSet")
+		If left(files,1)="/" Then 
+			files="fycms101aae08dd2ea51b0c370a1241e9793d"&files
+			If actcms.actsys="/" Then 
+ 				files=rep(files,"fycms101aae08dd2ea51b0c370a1241e9793d/","")
+			Else 
+
+				files=rep(files,"fycms101aae08dd2ea51b0c370a1241e9793d"&actcms.actsys,"")
+
+			End If 
+		End if
+ 
+		Rs.Open SQL,Conn,1,3
+		If Not rs.eof Then 
+			Rs("title")= delAsp(actcms.s("titles"))
+			Rs("templatepath")=delAsp(request("templatepath"))
+			Rs("filepath")=files
+			Rs("rewriteurl")=delAsp(Trim(request("rewriteurl")))
+			
+			Rs("rewrite")=ChkNumeric(request("rewrite"))
+			Rs("isLock")=ChkNumeric(request("isLock"))
+			Rs("ismake")=ChkNumeric(request("ismake"))
+			Rs.update:Rs.Close
+			If ChkNumeric(request("ismake"))=1 Then  Call makelabel
+		End If 
+		Call Actcms.ActErr("修改成功","Sys_Act/plus/Index.asp","")
+ 		Response.End
+	End Sub	
+
+	sub Main()
+	Dim ShowErr
+	ConnectionDatabase
+	Dim strLocalUrl
+	strLocalUrl = request.ServerVariables("SCRIPT_NAME")
+	Dim intPageNow
+	intPageNow = request.QueryString("page")
+	Dim intPageSize, strPageInfo
+	intPageSize = 20
+ 	Dim arrRecordInfo, i
+	Dim sql, sqlCount,Sqls,ChannelID
+	sql = "SELECT [ID],[title],[rewrite],[isLock],[filepath]" & _
+		" FROM [diyplus_act] " & _
+		"ORDER BY [ID] DESC"
+	sqlCount = "SELECT Count([ID])" & _
+			" FROM [diyplus_act]   "
+		Dim clsRecordInfo
+		Set clsRecordInfo = New Cls_PageView
+			clsRecordInfo.intRecordCount = 2816
+			clsRecordInfo.strSqlCount = sqlCount
+			clsRecordInfo.strSql = sql
+			clsRecordInfo.intPageSize = intPageSize
+			clsRecordInfo.intPageNow = intPageNow
+			clsRecordInfo.strPageUrl = strLocalUrl
+			clsRecordInfo.strPageVar = "page"
+
+		clsRecordInfo.objConn = Conn		
+		arrRecordInfo = clsRecordInfo.arrRecordInfo
+		strPageInfo = clsRecordInfo.strPageInfo
+		Set clsRecordInfo = nothing
+	 %>
+  <table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+    <tr>
+      <td width="26" align="center" class="bg_tr">ID</td>
+      <td width="524" align="center" class="bg_tr">插件名称</td>
+       <td width="102" align="center" class="bg_tr">参数</td>
+       <td width="102" align="center" class="bg_tr">状态</td>
+       <td width="102" align="center" class="bg_tr">地址</td>
+      <td width="15%" colspan="2" align="center" class="bg_tr">常规管理操作</td>
+    </tr>
+	 <%
+		Dim bgColor
+		If IsArray(arrRecordInfo) Then
+			For i = 0 to UBound(arrRecordInfo, 2)
+	%>
+    <tr onMouseOver=overColor(this) onMouseOut=outColor(this)>
+      <td align="center"  ><%= arrRecordInfo(0,i) %></td>
+      <td align="center"  ><%= arrRecordInfo(1,i) %></td>
+      <td align="center"  > <a href="list.asp?cid=<%= arrRecordInfo(0,i) %>"><%=actcms.actexe("select count(id) from plusget_act where cid="&arrRecordInfo(0,i))(0)%>(查看)</a></td>
+   
+      <td align="center"  >   <% if  arrRecordInfo(3,i)="0" then 
+	  	echo "<font color=green>正常</font>"
+	  else
+	  	echo "<font color=red>锁定</font>"
+ 	  end if   %></td>
+	    <td  align="center" >
+      
+      <a  target="_blank" href="<%= rep(actcms.actsys&arrRecordInfo(4,i),"//","/") %>"><%= rep(actcms.actsys&arrRecordInfo(4,i),"//","/") %>&nbsp;</td>
+      <td  align="center" >
+      
+      <a  target="_blank" href="<%= rep(actcms.actsys&arrRecordInfo(4,i),"//","/") %>">预览&nbsp;</a>┆
+      <a href="?Action=edit&ID=<%= arrRecordInfo(0,i) %>">编辑&nbsp;</a>┆
+	 <a href="?Action=del&ID=<%= arrRecordInfo(0,i) %> " onClick="return confirm('确认删除吗?此操作不可恢复!')">删除</a></td>
+    </tr>
+	
+ 
+	<% 
+	Next
+	End If
+	%>
+  
+    <tr >
+      <td height="25" colspan="9" align="center" ><%= strPageInfo%></td>
+    </tr>
+   
+   
+   </table>
+
+<p>
+  <script language="javascript">
+ //CSS背景控制
+function overColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg1"
+		Obj.bgColor="";
+	}
+	
+}
+function outColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg";
+		Obj.bgColor="";
+	}
+}
+</script>
+  <% end sub
+  sub add()
+ 
+   %>
+  
+<table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+<form name="form1" method="post" action="Index.asp?Action=addsave">  <tr>
+       <th class="bg_tr" colspan=2 height=25>修改插件项目</th>
+ </tr>
+ 
+     
+        <tr>
+       <td width="170" height="25" align="right"><strong>插件名称</strong><b>：</b></td>
+       <td width="1023"><input name="titles" type="text" class="Ainput" size="40" value=""> 标签调用方法 {info:title}</td>
+     </tr>
+     <tr>
+       <td height="25" align="right"><strong>模版</strong><b>：</b></td>
+       <td>   
+	    <input name="templatepath" type="text" class="ainput" id="templatepath"  value="" size="40">
+          <input class="ACT_btn" type="button"  onClick="OpenWindowAndSetValue('../../include/print/SelectPic.asp?CurrPath=/templets/default',500,320,window,document.form1.templatepath);" value="选择模板..."> </td>
+	</td>
+     </tr>
+
+
+     <tr>
+       <td width="170" height="25" align="right"><strong>插件访问路径</strong><b>：</b></td>
+       <td width="1023"><input name="filepath" type="text" class="Ainput" size="40" value=""><font color=red>如果需要更自由化的插件内容.可以直接修改这个文件</font></td>
+     </tr>
+
+
+    <tr>
+       <td height="25" align="right"><strong>伪静态</strong><b>：</b></td>
+       <td> <label for="rewrite1"><input type="radio"  onClick="rewrites(1)" name="rewrite"  id="rewrite1" value="1"   Checked>否</label>
+    &nbsp;&nbsp;
+    <label for="rewrite2"><input type="radio" name="rewrite"   onClick="rewrites(2)" id="rewrite2"  value="2"   >是</label></td>
+     </tr>
+   
+     
+
+  <tr  id="rewrite1"	style="DISPLAY: none">
+      <td height="25" align="right"><strong>伪静态规则：</strong></td>
+      <td height="25"><input  class="Ainput"  size=30 name="rewriteurl" type="text" id="rewriteurl" value=""  />
+	   </td>
+    </tr>
+
+
+
+     <tr>
+       <td height="25" align="right"><strong>是否锁定</strong><b>：</b></td>
+       <td> <label for="isLock1"><input type="radio" name="isLock"  id="isLock1" value="0"   Checked>否</label>
+    &nbsp;&nbsp;
+    <label for="isLock2"><input type="radio" name="isLock"  id="isLock2"  value="1"   >是</label></td>
+     </tr>
+   
+     
+      <tr>
+       <td height="25" align="right"><strong>生成插件</strong><b>：</b></td>
+       <td> <label for="ismake1"><input type="radio" name="ismake"  id="ismake1" value="0"   Checked>否</label>
+    &nbsp;&nbsp;
+    <label for="ismake2"><input type="radio" name="ismake"  id="ismake2"  value="1"   >是</label>
+	
+	
+	&nbsp<font color=red>注意.生成插件会覆盖这个文件,请确保这个文件没有被修改过</font></td>
+     </tr>
+     
+     
+    
+     
+     <tr>
+       <td height="25" align="center" colspan="2"><input type=button onclick=CheckForm() class="ACT_btn"  name=Submit1 value="  保存  " />
+&nbsp;&nbsp;&nbsp;&nbsp;
+<input name="Submit2" type="reset" class="ACT_btn" value="  重置  "></td>
+    </tr>
+</form></table>  
+
+<%   end sub 
+  
+  
+  
+	sub edit()
+	Dim Rs,title,frmAction,rewrite,isLock,rewriteurl
+	
+  		Set Rs=Conn.Execute("Select * from diyplus_act Where ID=" & ID)
+			if Rs.Bof And Rs.EOF then
+				 echo "不存在！"
+				Exit Sub
+			End IF	
+  	  Dim rs2,strs,strurl,i,sql,strs3
+ 	Set rs2=actcms.actexe("Select id,entitle From plusget_act Where cID="&ID)
+
+
+
+ 	  If Not  rs2.eof Then 
+	  sql=rs2.getrows(-1)
+ 	  for i=0 to ubound(sql,2)
+ 				strs=strs&sql(1,i)&"-{"&sql(1,i)&"}/"
+				If ubound(sql,2)=i Then 
+					strurl=strurl&sql(1,i)&"=$"&i+2
+				Else 
+					strurl=strurl&sql(1,i)&"=$"&i+2&"&"
+				End If 
+  	  Next
+	  strs=ACTCMS.GetEn(ACTCMS.PinYin(delhtml(rs("title"))))&"/"&strs
+	Else 
+		strurl="请添加参数"
+		strs=actcms.actsys&ACTCMS.GetEn(ACTCMS.PinYin(delhtml(rs("title"))))
+	End If 
+
+
+ 
+
+   %>  
+<table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+<form name="form1" method="post" action="Index.asp?Action=editsave&ID=<%=ID  %>">  <tr>
+       <th class="bg_tr" colspan=2 height=25>修改插件</th>
+     </tr>
+     <tr>
+       <td width="170" height="25" align="right"><strong>插件名称</strong><b>：</b></td>
+       <td width="1023"><input name="titles" type="text" class="Ainput" size="40" value="<%= rs("title") %>"> 标签调用方法 {info:title}</td>
+     </tr>
+     <tr>
+       <td height="25" align="right"><strong>模版</strong><b>：</b></td>
+       <td>   
+	    <input name="templatepath" type="text" class="ainput" id="templatepath"  value="<%= rs("templatepath") %>" size="40">
+          <input class="ACT_btn" type="button"  onClick="OpenWindowAndSetValue('../../include/print/SelectPic.asp?CurrPath=<%=actcms.actsys%><%=actcms.SysThemePath&"/"&actcms.NowTheme%>',500,320,window,document.form1.templatepath);" value="选择模板..."> </td>
+	</td>
+     </tr>
+
+
+     <tr>
+       <td width="170" height="25" align="right"><strong>插件访问路径</strong><b>：</b></td>
+       <td width="1023"><input name="filepath" type="text" class="Ainput" size="40" value="<%= rs("filepath") %>"><font color=red>如果需要更自由化的插件内容.可以直接修改这个文件</font></td>
+     </tr>
+
+
+    <tr>
+       <td height="25" align="right"><strong>伪静态</strong><b>：</b></td>
+       <td> <label for="rewrite1"><input type="radio"  onClick="rewrites(1)" name="rewrite"  id="rewrite1" value="1"   <% if rs("rewrite")="1" then echo "Checked" %>>否</label>
+    &nbsp;&nbsp;
+    <label for="rewrite2"><input type="radio" name="rewrite"   onClick="rewrites(2)" id="rewrite2"  value="2"   <% if rs("rewrite")="2" then echo "Checked" %>>是</label></td>
+     </tr>
+   
+     
+
+  <tr  id="rewrite1"	<%If rs("rewrite")<>"2" Then echo "style=""DISPLAY: none"""%>>
+      <td height="25" align="right"><strong>伪静态规则：</strong></td>
+      <td height="25"><input  class="Ainput"  size=80 name="rewriteurl" type="text" id="rewriteurl" value="<%= rs("rewriteurl") %>"  />
+	  <input class='button' name="testbutton"    type='button' value='查看规则' onclick='ajaxcheck();'>
+	  <br /> 参考伪静态规则  <%=strs%>  <br /> <br />
+	  httpd.ini参考 <span id="f"></span>
+	   </td>
+    </tr>
+
+
+<script language="javascript">
+		function ajaxcheck()
+	{
+
+
+ if (document.form1.filepath.value=='')
+		{ alert("请输入插件路径!");   
+		  document.form1.filepath.focus();    
+		   return false;
+		} 
+
+$.ajax({ 
+
+url: "ajaxcheck.asp?A=c&cid="+<%=id%>+"&titles="+document.form1.titles.value+"&rewriteurl="+document.form1.rewriteurl.value+"&filepath="+document.form1.filepath.value+"&m="+Math.random(), 
+
+  success: function (data, textStatus) { 
+ var DigArr=data.split('|');
+		switch (DigArr[0])
+		{
+			 case "0":
+				 alert(DigArr[1]);
+				 break;
+ 			 default:
+			 	document.getElementById("f").innerHTML = DigArr;
+		}
+}, 
+
+ 
+}); 
+
+
+    
+     
+	 }
+		</script>
+     <tr>
+       <td height="25" align="right"><strong>是否锁定</strong><b>：</b></td>
+       <td> <label for="isLock1"><input type="radio" name="isLock"  id="isLock1" value="0"   <% if rs("isLock")="0" then echo "Checked" %>>否</label>
+    &nbsp;&nbsp;
+    <label for="isLock2"><input type="radio" name="isLock"  id="isLock2"  value="1"   <% if rs("isLock")="1" then echo "Checked" %>>是</label></td>
+     </tr>
+   
+     
+      <tr>
+       <td height="25" align="right"><strong>生成插件</strong><b>：</b></td>
+       <td> <label for="ismake1"><input type="radio" name="ismake"  id="ismake1" value="0"   <% if rs("ismake")="0" then echo "Checked" %>>否</label>
+    &nbsp;&nbsp;
+    <label for="ismake2"><input type="radio" name="ismake"  id="ismake2"  value="1"   <% if rs("ismake")="1" then echo "Checked" %>>是</label>
+	
+	
+	&nbsp<font color=red>注意.生成插件会覆盖这个文件,请确保这个文件没有被修改过</font></td>
+     </tr>
+   
+     
+ 
+    
+     <tr>
+       <td height="25" align="center" colspan="2"><input type=button onclick=CheckForm() class="ACT_btn"  name=Submit1 value="  保存  " />
+&nbsp;&nbsp;&nbsp;&nbsp;
+<input name="Submit2" type="reset" class="ACT_btn" value="  重置  "></td>
+     </tr>
+</form></table> 
+  
+ 
+
+<script type="text/javascript">
+<!--
+	function rewrites(n){
+	if (n == 1){
+		rewrite1.style.display='none';
+ 	}
+	else{
+		rewrite1.style.display='';
+ 	}
+} 
+//-->
+</script>
+
+	<%end sub
+CloseConn %>
+
+<script language="javascript">
+ 	function OpenWindowAndSetValue(Url,Width,Height,WindowObj,SetObj)
+{ 
+	var ReturnStr=showModalDialog(Url,WindowObj,'dialogWidth:'+Width+'pt;dialogHeight:'+Height+'pt;status:yes;help:no;scroll:yes;');
+	if (ReturnStr!='') SetObj.value=ReturnStr;
+	return ReturnStr;
+}	
+
+function CheckForm()
+{ var form=document.form1;
+	 if (form.title.value=='')
+		{ alert("请输入插件名称!");   
+		  form.title.focus();    
+		   return false;
+		} 
+	 
+		form.Submit1.value="正在提交数据,请稍等...";
+		form.Submit1.disabled=true;
+		form.Submit2.disabled=true;		
+	    form.submit();
+        return true;
+	}</script> 
+ <script language="javascript">rewrites(<%=rs("rewrite")%>);</script>
+
+</body>
+</html>
+

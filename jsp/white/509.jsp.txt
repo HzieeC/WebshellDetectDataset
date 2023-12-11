@@ -1,0 +1,60 @@
+<%@ page contentType="text/html;charset=UTF-8"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+
+	<title>易宝支付</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	<link href="${ctx}/styles/css/tt.css" rel="stylesheet" type="text/css" />
+	<link href="${ctx}/styles/css/dd_ok.css" rel="stylesheet" type="text/css" />
+	
+<script type="text/javascript" src="${ctx }/scripts/jquery.js"></script>
+		<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/jquery.form.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/front/dd_ok.js"></script>
+
+<style type="text/css">
+<!--
+.STYLE10 {
+	font-size: 14px;
+	font-weight: bold;
+}
+.STYLE32 {color: #0000FF; font-size: 14px;}
+-->
+</style>
+</head>
+
+<body>
+	
+	
+	<div id="dabiaoge">
+	<%@ include file="/WEB-INF/page/front/head.jsp"%>
+		<form action="toYbzfPays.action" method="post" name="paymentform" id="paymentform">
+		
+			<input type="hidden" name="p2_Order" id="p2_Order" value="${order.code }"/>
+			<input type="hidden" name="p3_Amt" id="p3_Amt" value="0.01" />
+			<input type="hidden" name="p5_Pid" id="p5_Pid" value="product" />
+			<input type="hidden" name="p6_Pcat" id="p6_Pcat" value="producttype" />
+			<input type="hidden" name="p7_Pdesc" id="p7_Pdesc" value="productdesc" />
+			<input type="hidden" name="p8_Url" id="p8_Url" value="http://www.taohongbei.com:8081/taobake/chinabank/callback.jsp"/>
+				<div style="display:none;">
+					是否需要送货地址:<select name="p9_SAF" id="p9_SAF">
+								<option value="0">不需要</option>
+								<option value="1">需要</option>
+							  </select>
+				</div>
+			<input type="hidden" name="pa_MP" id="pa_MP" value="userId or other" />
+			<input type="hidden" name="pd_FrpId" id="pd_FrpId" />
+	
+	<div style=" width:1000px; height:auto; float:left; font-size: 16px; font-weight: bold; padding-top: 60px;  padding-bottom: 60px; padding-left:300px;">
+		<span><span style="color:blue;">商家名称：</span>${shop.name }</span><br/><br/>
+		<span><span style="color:blue;">您的订单编号：</span>${order.code }</span><br/><br/>
+		<span><span style="color:blue;">您的订单金额：</span><span style="color: #FF0000;">${order.orderMoney }</span></span><br/><br/>
+		<span style="color: blue;">确认无误后请点击支付按钮</span><br/><br/>
+		<span style=" padding-left:100px;"><input type="submit" value=" 确认支付 "/></span><br/><br/>
+	</div>
+	</form>
+	<%@ include file="/WEB-INF/page/front/footer.jsp"%>
+	</div>
+</body>
+</html>

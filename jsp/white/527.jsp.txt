@@ -1,0 +1,78 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+
+<html>
+<head>
+	<title>Distribution way management</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/baseInfo/delivery/edit_delivery.js"></script>
+</head>
+
+<body>
+<table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    <tr>
+    	<td class="gdcn-table-D">
+			<div class="tab-pane" id="tabPane1" style="margin: 10px;">
+		    	<form id="saveForm" method="post" action="">
+		    	    <s:hidden name="delivery.id" id="id" />
+		    		<s:hidden name="delivery.creatorId" />
+		    		<s:hidden name="delivery.creatorName" />
+		    		<s:hidden name="delivery.createTime" />
+		    		<s:hidden name="delivery.modifierId" />
+		    		<s:hidden name="delivery.modifierName" />
+		    		<s:hidden name="delivery.modifyTime" />
+		    		<s:hidden name="delivery.state" />
+		    		
+ 					<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">	
+				    	<tr>
+							<td class='gridtitle'><s:text name="editdelivery.No"/></td>
+							<td class='gridbody'>
+								<input name="delivery.code" id="code" onchange="codeCheck()" value="${delivery.code}"
+								<c:if test="${delivery.id != null}">disabled="disabled"</c:if>/><c:if test="${delivery.id == null}"><font color="red">*</font></c:if>
+							</td>
+						</tr>
+						<tr>
+							<td class='gridtitle'><s:text name="editdelivery.Delivery"/></td>
+							<td class='gridbody'>
+								<s:textfield name="delivery.name" id="name" /><font color="red">*</font>
+							</td>
+						</tr>
+				    	<tr>
+							<td class='gridtitle'><s:text name="editdelivery.Distributioncosts"/></td>
+							<td class='gridbody'>
+								<s:textfield name="delivery.deliveryFee" id="deliveryFee" /><font color="red">*</font>
+							</td>
+						</tr>				
+						<tr>
+							<td class='gridtitle'><s:text name="Remark"/></td>
+							<td class='gridbody'>
+								<s:textarea name="delivery.remark" id="remark" cols="45" rows="6"></s:textarea>
+							</td>
+						</tr>
+					</table>
+				</form>
+			</div>
+		</td>
+	</tr>
+</table>
+<!-- 语言设置-->
+<input type="hidden" id="Savedsuccessfully" value="<s:text name="Savedsuccessfully"/>"/>	
+<input type="hidden" id="Savefailed" value="<s:text name="Savefailed"/>"/>	
+<input type="hidden" id="PleaseinputdistributionwayNumbers" value="<s:text name="editdelivery.PleaseinputdistributionwayNumbers"/>"/>	
+<input type="hidden" id="Distributionmodenumbercanonlyenterletters" value="<s:text name="editdelivery.Distributionmodenumbercanonlyenterletters"/>"/>	
+<input type="hidden" id="Pleaseinputthenameofdistributionmode" value="<s:text name="editdelivery.Pleaseinputthenameofdistributionmode"/>"/>	
+<input type="hidden" id="Pleaseinputdistributioncosts" value="<s:text name="editdelivery.Pleaseinputdistributioncosts"/>"/>	
+<input type="hidden" id="Inforeffectivepricemustbe" value="<s:text name="editdelivery.Inforeffectivepricemustbe"/>"/>	
+<input type="hidden" id="TheNumbersalreadyexists" value="<s:text name="editdelivery.TheNumbersalreadyexists"/>"/>	
+<input type="hidden" id="CheckNumberswhetherthereisfailure" value="<s:text name="editdelivery.CheckNumberswhetherthereisfailure"/>"/>	
+</body>
+
+</html>
+

@@ -1,0 +1,248 @@
+<!--#Include File="../Inc/Const.Asp"-->
+<!--#Include File="Inc/Class_Diypage.Asp"-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=GB2312" />
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<title>自定义页面管理</title>
+<link href="Images/Style.Css" rel="stylesheet" type="text/css" />
+<script type="text/javascript" src="images/ajax.js"></script>
+</head>
+<body>
+<%
+
+Dim U
+Set U = New Cls_Diypage
+
+Dim Rs,Sql,Style
+Dim ID
+    ID = Request("ID")
+Dim Key
+    Key = Request("Key")
+Dim Page
+    Page = Request("Page")
+Dim Orders
+    Orders = Request("Orders")
+Dim DFieldKey
+    DFieldKey = Request("DFieldKey")
+Dim DFieldOrders
+    DFieldOrders = Request("DFieldOrders")
+If len(ID) > 0 And Not IsNumeric(ID) Then : Response.Write "编号只能是数字!" : Conn.Close : Set Conn = Nothing : Set U = Nothing : Response.End '// 检测ID
+If Len(Page) = 0 Or Not IsNumeric(ID) Then Page = 1
+If Page < 1 Then Page = 1
+If LCase(Orders) <> "asc" Then Orders = "Desc"
+If Len(DFieldKey) = 0 Then DFieldKey = "Dir"
+If Len(DFieldOrders) = 0 Then DFieldOrders = "ID"
+If Instr("[id],[dir]" , "[" & Lcase(DFieldKey) & "]") = 0 Then Key = ""
+If Instr("[id],[dir]" , "[" & Lcase(DFieldOrders) & "]") = 0 Then DFieldOrders = "ID"
+Page = Int(Page) : Key = Replace(Key,"'","")
+Dim JumpUrl
+    JumpUrl = "&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders
+
+Select Case Request("Act")
+Case "Guide"
+	If Len(ID) = 0 Then
+		Call U.Initialize()
+		Call Main_Guide(0)
+	Else
+		U.vID = ID
+		Call U.SetValue()
+		Call Main_Guide(1)
+	End If
+Case "Rebuild"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Rebuild() Then
+			Alert U.LastError,"Admin_Diypage.Asp?Page=" & Page & JumpUrl
+		Else
+			Alert "","Admin_Diypage.Asp?Page=" & Page & JumpUrl
+		End If
+	Else
+		Call Main()
+	End If
+Case "Refresh"
+	dim es
+	set es=db("select id from [{pre}diypage]",1)
+	do while not es.eof
+			u.vid=es(0)
+			u.rebuild
+			es.movenext
+	loop : es.close
+	conn.close
+	response.redirect "admin_diypage.asp"
+Case "UpDate"
+	If U.GetValue() Then
+		If Len(ID) = 0 Then
+			If Not U.Create() Then
+				Alert U.LastError,"Admin_Diypage.Asp?Page=" & Page & JumpUrl
+			Else
+				Alert "","Admin_Diypage.Asp?Page=" & Page & JumpUrl
+			End If
+		Else
+			U.vID = ID
+			If Not U.Modify() Then
+				Alert U.LastError,"Admin_Diypage.Asp?Page=" & Page & JumpUrl
+			Else
+				Alert "","Admin_Diypage.Asp?Page=" & Page & JumpUrl
+			End If
+		End If
+	Else
+		Alert U.LastError,"Admin_Diypage.Asp?Page=" & Page & JumpUrl
+	End If
+Case "Delete"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Delete() Then
+			Alert U.LastError,"Admin_Diypage.Asp?Page=" & Page & JumpUrl
+		Else
+			Alert "","Admin_Diypage.Asp?Page=" & Page & JumpUrl
+		End If
+	Else
+		Call Main()
+	End If
+Case "Change"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Change() Then
+			Alert U.LastError,""
+		End If
+	End If
+	Call Main()
+Case Else
+	Call Main()
+End Select
+Set U = Nothing
+If IsObject(Conn) Then Conn.Close : Set Conn = Nothing
+
+Sub Main()
+	Sql = "Select [ID],[Dir] From [{pre}Diypage]"
+	If Len(Key) > 0 Then
+		If Instr(",ID,","," & DFieldKey & ",") > 0 Then
+			If Len(Key) > 0 And IsNumeric(Key) Then
+				Sql = Sql & " Where [" & DFieldKey & "]=" & Key & ""
+			End If
+		Else
+			Sql = Sql & " Where [" & DFieldKey & "] Like '%" & Key & "%'"
+		End If
+	End If
+	Sql = Sql & " Order By [" & DFieldOrders & "] " & Orders & ""
+	Set Rs = DB(Sql,2)
+	%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+		<td colspan=3><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<form name=frmSearch method=post action=Admin_Diypage.Asp>
+					<tr>
+						<td class=css_main><a href=Admin_Diypage.Asp?Page=<%=Page%><%=JumpUrl%>>自定义页面管理</a> <a href=Admin_Diypage.Asp?Act=Guide&Page=<%=Page%><%=JumpUrl%>>添加自定义页面</a> <a href=Admin_Diypage.Asp?Act=Refresh>刷新所有页面</a></td>
+						<td class=css_search><select name=DFieldKey id=DFieldKey>
+								<option value="ID" <%If Lcase(DFieldKey) = "id" Then Response.Write "selected='selecte'" %>>编号</option>
+								<option value="Dir" <%If Lcase(DFieldKey) = "dir" Then Response.Write "selected='selected'" %>>完整路径</option>
+							</select>
+							<input name=Key type=text id=Key size=10 value="<%=Key%>">
+							<input type=submit name=Submit value=搜>
+						</td>
+					</tr>
+				</form>
+			</table></td>
+	</tr>
+	<tr>
+		<td class='css_top'>编号</td>
+		<td class='css_top'>完整路径</td>
+		<td class='css_top'>管理</td>
+	</tr>
+	<%
+	  If Rs.Eof Then
+	  %>
+	<tr class=css_norecord>
+		<td colspan=3>没有任何记录！</td>
+	</tr>
+	<%
+	  Else
+	  Dim i
+	  Rs.PageSize = 15
+	  Rs.AbsolutePage = Page
+	  For i = 1 To Rs.PageSize
+	  If Rs.Eof Then Exit For
+	  %>
+	<tr>
+		<td class='css_list'><%=Rs("ID")%></td>
+		<td class='css_list'><a href='<%=Rs("Dir")%>' target="_blank"><%=Rs("Dir")%></a></td>
+		<td class='css_list'><input name=modify type=button onclick="location.href='Admin_Diypage.Asp?Act=Rebuild&ID=<%=Rs("ID")%>&Page=<%=Page%><%=JumpUrl%>';" value=刷新>
+			<input name=modify type=button onclick="location.href='Admin_Diypage.Asp?Act=Guide&ID=<%=Rs("ID")%>&Page=<%=Page%><%=JumpUrl%>';" value=修改>
+			<input name=delete type=button onclick="if(confirm('您确定要删除这条记录吗?')){location.href='Admin_Diypage.Asp?Act=Delete&ID=<%=Rs("ID")%>&Page=<%=Page%><%=JumpUrl%>';}" value=删除>
+		</td>
+	</tr>
+	<%
+	  Rs.MoveNext
+	  Next
+	  End If
+	  %>
+	<tr class=css_page_list>
+		<td colspan=3><%=PageList(Rs.PageCount,Page,Rs.RecordCount,15,"Admin_Diypage.Asp?Page={p}&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders)%></td>
+	</tr>
+</table>
+<%
+	Rs.Close
+End Sub
+
+Sub Main_Guide(T)
+	%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+		<td colspan=2><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<tr>
+					<td class=css_main><a href=Admin_Diypage.Asp?Page=<%=Page%><%=JumpUrl%>>自定义页面管理</a></td>
+				</tr>
+			</table></td>
+	</tr>
+	<form name='frm' method='post' action='Admin_Diypage.Asp?Act=UpDate&ID=<%=ID%>&Page=<%=Page%><%=JumpUrl%>'>
+		<tr>
+			<td class=css_col11>完整路径：
+				<div id='hDir' style="color:#ccc;letter-spacing: 0px;font-size:13px;">文件路径及文件名(不要超过200个字符),以/开头,如 /about/contact/</div></td>
+			<td class=css_col21><input name="oDir" type="text" class="css_input" id="oDir" onfocus="hDir.style.color='red';" onblur="hDir.style.color='#ccc';" value="<%=U.vDir%>" size="40" <%If T = 1 Then Response.Write "readonly='true'"%>>
+				<input name="checkbox" type="checkbox" id="checkbox" onclick="if(this.checked){s('_tpl');s('_tit');s('_key');s('_des');$('oTpl').value='<%=U.vTpl%>';}else{h('_tpl');h('_tit');h('_key');h('_des');$('oTpl').value='';}" value="" <%if len(u.vtpl)>0 then response.write "checked='checked'"%> />
+				使用模板
+				</td>
+		</tr>
+		<tr id="_tpl">
+			<td class=css_col12>自定义页面模板：
+				<div id='hTpl' style="color:#ccc;letter-spacing: 0px;font-size:13px;">如果选择了模板将出现高级内容</div></td>
+			<td class=css_col22><select name="oTpl" id="oTpl" onfocus="hTpl.style.color='red';" onblur="hTpl.style.color='#ccc';" class='css_select'>
+					<%=selecttemplatefile(U.vTpl,"common")%>
+				</select>
+			</td>
+		</tr>
+		<tr id="_tit">
+			<td class=css_col11>页面标题：
+				<div id='hTitle' style="color:#ccc;letter-spacing: 0px;font-size:13px;">页面标题,不要超过200字,不可填写HTML代码</div></td>
+			<td class=css_col21><input name="oTitle" type="text" class="css_input" id="oTitle" onfocus="hTitle.style.color='red';" onblur="hTitle.style.color='#ccc';" value="<%=U.vTitle%>" size="40" ></td>
+		</tr>
+		<tr id="_key">
+			<td class=css_col12>页面关键字：
+				<div id='hKeywords' style="color:#ccc;letter-spacing: 0px;font-size:13px;">多个关键字用英文状态下的逗号分隔,不要超过200字,不可填写HTML代码</div></td>
+			<td class=css_col22><textarea name="oKeywords" cols="60" rows="3" class="css_input" id="oKeywords" onfocus="hKeywords.style.color='red';" onblur="hKeywords.style.color='#ccc';"><%=U.vKeywords%></textarea>
+			</td>
+		</tr>
+		<tr id="_des">
+			<td class=css_col11>页面描述：
+				<div id='hDescription' style="color:#ccc;letter-spacing: 0px;font-size:13px;">不要超过250个字符,不可填写HTML代码</div></td>
+			<td class=css_col21><textarea name="oDescription" cols="60" rows="3" class="css_input" id="oDescription" onfocus="hDescription.style.color='red';" onblur="hDescription.style.color='#ccc';"><%=U.vDescription%></textarea></td>
+		</tr>
+		<tr>
+			<td class=css_col12>代码内容：
+				<div id='hHtml' style="color:#ccc;letter-spacing: 0px;font-size:13px;">支持HTML,注意代码编码,可以使用标签&nbsp;</div></td>
+			<td class=css_col22><%=CreateEditor("oHtml",U.vHtml,"FCKEditor",Array("100%","450","Default"))%>
+			
+			</td>
+		</tr>
+		<tr class=css_page_list>
+			<td colspan=2><input type='submit' name='Submit' value='保存'></td>
+		</tr>
+	</form>
+</table>
+<%
+End Sub
+%>
+</body>
+</html>

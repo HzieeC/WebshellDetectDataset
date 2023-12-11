@@ -1,0 +1,38 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<script language = JavaScript>
+function ChannelSetting(n){
+	if (n == 1){
+		ChannelSetting1.style.display='none';
+		ChannelSetting2.style.display='';
+	}
+	else{
+		ChannelSetting1.style.display='';
+		ChannelSetting2.style.display='none';
+	}
+}
+</script>
+
+<table border="0" align="center" cellspacing="1" cellpadding="3" class="TableBorder">	<tr align="center">		<th>频道ID</th>		<th>频道名称</th>		<th>频道类型</th>		<th>频道状态</th>		<th>是否HTML</th>		<th>名称状态</th>		<th>连接目标</th>		<th>管理选项</th>	</tr>
+
+<tr align="center">		<td class="TableRow1">1</td>		<td class="TableRow2"><a href=?action=edit&ChannelID=1 title=修改此频道设置>文章中心</a>		</td>		<td class="TableRow1" align="center"><font color=blue>系统频道<font></td><td class="TableRow2" align="center"><a href=?action=StopChannel&ChannelID=1&EditID=1 title="切换到：关闭此频道">打开</a>		</td>		<td class="TableRow1" align="center"><a href=?action=createhtml&ChannelID=1&EditID=1 title="切换到：生成HTML">否</a>		</td>				<td class="TableRow2" align="center"><a href=?action=ishidden&ChannelID=1&EditID=1 title="切换到：隐藏频道名称">显示</a>		</td>		<td class="TableRow1" align="center"><a href=?action=linktarget&ChannelID=1&EditID=1 title="切换到：新窗口打开">本窗口打开</a>		</td>		<td class="TableRow2" align="center"><A HREF=?action=edit&ChannelID=1>编 辑</A> | <a href="../article/RemoveCache.Asp?action=remove&p=7a57a5a743894a0e" target="RemoveCache"><font color="green">更新频道缓存</font></a>		</td>	</tr>	
+<tr><td class="TableRow1" colspan="9" align="center">其他频道正在开发中</td></tr>
+
+
+<tr>		<td colspan="8" class="TableRow1"><b>说明：</b> <br>①、点击相应的状态名可以进行相关快捷切换操作；</td>	</tr></table><iframe style="border:0px;width:0px;height:0px;" src="" name="RemoveCache" id="RemoveCache"></iframe><br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

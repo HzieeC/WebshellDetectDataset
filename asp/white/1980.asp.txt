@@ -1,0 +1,221 @@
+<!--#include file="Conn.asp"-->
+<!-- #include file="inc/const.asp" -->
+<!-- #include file="inc/md5.asp" -->
+<!-- #include file="inc/myadmin.asp" -->
+<%
+Rem ===============================================================
+Rem 开启使用允许IP登陆功能 Chk_IPLogin : 0- 关闭，1=开启
+Const Chk_IPLogin = 1
+Rem ===============================================================
+Rem ===============================================================
+Rem CHECK_CODE 设置为1 开通登录验证码，设置为0关闭登录验证码，以方便视障人士如盲人等朋友使用。
+Const CHECK_CODE=1
+Rem ===============================================================
+Dim Rs,sql,i
+Dvbbs.LoadTemplates("Admin")
+template.ChildFolder="Admin"
+'Set Rs=Dvbbs.Execute("Select H_Content From Dv_Help Where H_ID=1")
+'Response.Write Rs(0)
+'template.value = Rs(0)
+'Response.End
+Dvbbs.Stats="论坛管理登录"
+
+Admin_Login()
+Dvbbs.PageEnd()
+Sub Admin_Login()
+	'Response.Write Dvbbs.CacheData(33,0)
+	Dvbbs.Head()
+
+	If (Dvbbs.GroupSetting(70)="1" and Dvbbs.UserGroupID>1 and Dvbbs.UserID>0) or Dvbbs.Master or Dvbbs.UserID=0  Then
+		Dvbbs.Master = True
+	Else
+		Dvbbs.Master = False
+	End If
+	If Not Dvbbs.Master Then Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>您不是系统管理员！"
+
+	If Dvbbs.Master And Session("flag")<>"" Then Response.Redirect Dvbbs.CacheData(33,0) & "index.asp"
+	If Request.form("reaction")="chklogin" Then
+		ChkLogin()
+	Else
+		Admin_Login_Main()
+	End If
+End Sub
+
+Sub Admin_Login_Main()
+	Dim version
+	If IsSqlDataBase = 1 Then version="SQL 版"&fversion Else version="ACCESS 版"&fversion
+	'Response.Write Replace(template.html(1),"{$path}",Dvbbs.CacheData(33,0) & "images/")
+	Response.Write Replace(template.html(1),"{$path}","")
+%>
+<style type="text/css">
+body { background:#fff; background-image : url("skins/images/body_bg.gif");background-repeat: repeat-x ;  }
+td { font-size:12px;}
+input { border:1px solid #999; }
+.button { color: #135294; border:1px solid #666; height:21px; line-height:18px; background:url("images/button_bg.gif")}
+div#nifty{margin: 0 10%;background: #ABD4EF;width: 420px;word-break:break-all; margin-top:60px;}
+b.rtop, b.rbottom{display:block;background: #FFF}
+b.rtop b, b.rbottom b{display:block;height: 1px;overflow: hidden; background: #ABD4EF}
+b.r1{margin: 0 5px}
+b.r2{margin: 0 3px}
+b.r3{margin: 0 2px}
+b.rtop b.r4, b.rbottom b.r4{margin: 0 1px;height: 2px}
+</style>
+<center>
+<div id="nifty">
+<b class="rtop"><b class="r1"></b><b class="r2"></b><b class="r3"></b><b class="r4"></b></b>
+<div style="width:403px; height:26px; line-height:26px; background:none; font-size:12px; text-align:left;"><%=dvbbs.Forum_info(0)%> -- 管理登录</div>
+<div style="width:403px; height:46px; background:#166CA3;"><img src="images/login.gif" alt="" /></div>
+<div style="width:401px !important; width:403px; height:auto; background:#fff; border-left:1px solid #649EB2; border-right:1px solid #649EB2; ">
+<table width="100%" border="0" cellspacing="3" cellpadding="0">
+<form action="admin_login.asp" method="post">
+<input name="reaction" type="hidden" value="chklogin" />
+	<%If Dvbbs.UserID=0 Or (Dvbbs.UserGroupID>1 And Dvbbs.GroupSetting(70)="0") Then%>
+	<tr>
+		<td align="right" width="35%"><b>前台用户名：</b></td>
+		<td align="left"><input name="adduser" type="text" tabindex="2"/></td>
+	</tr>
+	<tr>
+		<td align="right" width="35%"><b>前台密码：</b></td>
+		<td align="left"><input name="password2" type="password" tabindex="3"/></td>
+	</tr>
+	<%End If%>
+	<tr>
+		<td align="right"><b>用户名：</b></td>
+		<td align="left"><input name="username" type="text" tabindex="4"/></td>
+	</tr>
+	<tr>
+		<td align="right"><b>密　码：</b></td>
+		<td align="left"><input name="password" type="password" tabindex="5"/></td>
+	</tr>
+	<%If CHECK_CODE=1 Then%>
+	<tr>	
+		<td align="right"><b>附加码：</b></td>
+		<td align="left"><%=Dvbbs.GetCode%></td>
+	</tr>
+	<%End If%>
+	<tr>
+	<td align="right"></td>
+	<td align="left"><input  class="button" type="submit" name="submit" value="登 录"/></td>
+	</tr>	
+  </form>
+</table>
+</div>
+<div style="width:401px !important; width:403px; height:20px; background:#F7F7E7; border:1px solid #649EB2; border-top:1px solid #ddd; margin-bottom:5px; font-size:12px; line-height:20px; "> 温州鞋城美化版V3.0 </div>
+<b class="rbottom"><b class="r4"></b><b class="r3"></b><b class="r2"></b><b class="r1"></b>
+</div>
+</body>
+</html>
+<%
+
+End Sub
+
+Sub ChkLogin()
+	Dim ip
+	Dim UserName
+	Dim PassWord
+	UserName=Replace(Request("username"),"'","")
+	PassWord=md5(request("password"),16)
+	If CHECK_CODE=1 Then
+		If Dvbbs.forum_setting(120)=1 Then 'modifty by reoaiq at 091022
+			If Request("codestryuyin")="" Then
+				Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>请返回输入确认码。<b>返回后请刷新登录页面后重新输入正确的信息。</b>"
+				Exit Sub
+			Elseif Session("getcode")="9999" then
+				Session("getcode")=""
+			Elseif Session("getcode")="" then
+				Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>请不要重复提交，如需重新登录请返回登录页面。<b>返回后请刷新登录页面后重新输入正确的信息。</b>"
+				Exit Sub
+			ElseIf LCase(Cstr(Trim(Session("getcode"))))<>Lcase(Cstr(Trim(Request("codestryuyin")))) Then
+				Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>您输入的确认码和系统产生的不一致，请重新输入。<b>返回后请刷新登录页面后重新输入正确的信息。</b>"
+				Exit Sub
+			End If
+			Session("getcode")=""
+		Else 
+			If Request("codestr")="" Then
+				Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>请返回输入确认码。<b>返回后请刷新登录页面后重新输入正确的信息。</b>"
+				Exit Sub
+			Elseif Session("getcode")="9999" then
+				Session("getcode")=""
+			Elseif Session("getcode")="" then
+				Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>请不要重复提交，如需重新登录请返回登录页面。<b>返回后请刷新登录页面后重新输入正确的信息。</b>"
+				Exit Sub
+			ElseIf LCase(Cstr(Trim(Session("getcode"))))<>Lcase(Cstr(Trim(Request("codestr")))) Then
+				Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>您输入的确认码和系统产生的不一致，请重新输入。<b>返回后请刷新登录页面后重新输入正确的信息。</b>"
+				Exit Sub
+			End If
+			Session("getcode")=""
+		End If 
+	End If
+	if UserName="" Or PassWord="" Then
+		Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>请输入您的用户名或密码。<b>返回后请刷新登录页面后重新输入正确的信息。</b>"
+		Exit Sub
+	End If
+	ip=Dvbbs.UserTrueIP
+	Dim MemberName
+	If Dvbbs.MemberName=""  Or Request("adduser") <>"" Then 
+		MemberName=Dvbbs.Checkstr(Request("adduser"))
+	Else
+		MemberName=Dvbbs.MemberName
+	End If
+	Set Rs=Dvbbs.Execute("Select a.*,u.userpassword,u.usergroupid From "&admintable&"  a Inner Join Dv_user u On a.adduser=u.userName Where a.UserName='"&username&"' And AddUser='"&MemberName&"'")
+	If Rs.Eof And Rs.Bof Then
+		Rs.Close
+		Set Rs=Nothing
+		Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>您输入的用户名和密码不正确或者您不是系统管理员。请<a href=admin_login.asp>重新输入</a>您的密码。<b>返回后请刷新登录页面后重新输入正确的信息。</b>"
+		Exit Sub
+	Else
+		If Rs("AcceptIP")<>"" And Chk_IPLogin=1 Then
+			If ChkLoginIP(Rs("AcceptIP"),ip)=False Then
+				Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>你不是合法的后台管理员。请<a href=admin_login.asp>重新输入</a>您的密码。"
+				Exit Sub
+			End If
+		End If
+		If Trim(Rs("password"))<>PassWord then
+			Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>您输入的用户名和密码不正确或者您不是系统管理员。请<a href=admin_login.asp>重新输入</a>您的密码。<b>返回后请刷新登录页面后重新输入正确的信息。</b>"
+			Exit Sub
+		Else
+			If Dvbbs.MemberName=""  Or Request("adduser") <>"" Then 
+				If Trim(Rs("userpassword"))<>md5(Request("password2"),16) Then
+					Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>您输入的用户名和密码不正确或者您不是系统管理员。请<a href=admin_login.asp>重新输入</a>您的密码。<b>返回后请刷新登录页面后重新输入正确的信息。</b>"		
+					Exit Sub
+				End If
+			End If
+			Dim Rs1	'在此验证GroupSetting(70)，轻飘飘
+			Set Rs1=Dvbbs.Execute("Select GroupSetting From Dv_UserGroups Where UserGroupID="&Rs("usergroupid"))
+			If Rs1.Eof Or Rs1.Bof Then
+				Rs.Close
+				Set Rs=Nothing
+				Set Rs1=Nothing
+				Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>您输入的用户名和密码不正确或者您不是系统管理员。请<a href=admin_login.asp>重新输入</a>您的密码。<b>返回后请刷新登录页面后重新输入正确的信息。</b>"
+			Else
+				If Split(Rs1(0),",")(70)="1" Then
+					Dvbbs.Execute("Update "&admintable&" Set LastLogin="&SqlNowString&",LastLoginIP='"&ip&"' Where UserName='"&UserName&"'")
+					Session("flag")=Rs("flag")
+					Session.Timeout=45
+					Session("MemberName")=MemberName
+					Response.Redirect Dvbbs.CacheData(33,0) & "index.asp"
+				Else
+					Response.Redirect "showerr.asp?action=OtherErr&ErrCodes=<li>您没有登陆后台管理的权限！"
+				End If
+			End If		
+			Rs.Close
+			Set Rs=Nothing
+			Set Rs1=Nothing
+		End If
+	End If
+End Sub
+
+Function ChkLoginIP(AcceptIP,ChkIp)
+	Dim i,LoginIP,TempIP
+	ChkLoginIP = False
+	If Instr("|"&AcceptIP&"|","|"&ChkIp&"|") Then ChkLoginIP = True : Exit Function
+	LoginIP = Split(ChkIp,".")
+	TempIP = LoginIP(0)&"."&LoginIP(1)&"."&LoginIP(2)&".*"
+	If Instr("|"&AcceptIP&"|","|"&TempIP&"|") Then ChkLoginIP = True : Exit Function
+	TempIP = LoginIP(0)&"."&LoginIP(1)&".*.*"
+	If Instr("|"&AcceptIP&"|","|"&TempIP&"|") Then ChkLoginIP = True : Exit Function
+	TempIP = LoginIP(0)&".*.*.*"
+	If Instr("|"&AcceptIP&"|","|"&TempIP&"|") Then ChkLoginIP = True : Exit Function
+End Function
+
+%>

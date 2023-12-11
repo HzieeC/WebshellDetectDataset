@@ -1,0 +1,514 @@
+<!-- #include file="conn.asp" -->
+<!-- #include file="bbsuser.asp" -->
+<!-- #include file="inc/htmlencode2.asp"-->
+<!-- #include file="inc/ubbcode.asp"-->
+<!-- #include file="touxianfun.asp" -->
+<%
+dim str,sql,url,upfiletype,upfilesize,getcodeoff,htm_ext,ip,pid,remenu,Sql_arrest,zhiye,bbs_img,jingyuan,touxian
+dim P_display,TitleID,retitle,postuser,user_id,rep,postnum,BoardID_1,BoardID_2,menu,indate,bbs_img_text
+name_cookie=getcookie("name")
+call FTBBS_HTML_MB(ft)
+url=Application("FTBBSMB")(10,0)
+upfiletype=Application("FTBBSMB")(12,0)
+upfilesize=Application("FTBBSMB")(13,0)
+getcodeoff=Application("FTBBSMB")(30,0)
+htm_ext=Application("FTBBSMB")(32,0)
+shoff=Application("FTBBSMB")(38,0)
+
+repostbegintime=Application("FTBBSMB")(44,0)
+repostendtime=Application("FTBBSMB")(45,0)
+repostget=Application("FTBBSMB")(49,0)
+topostget=Application("FTBBSMB")(50,0)
+hhmm=FormatDateTime(now, 4)
+if hhmm>repostbegintime and hhmm<repostendtime and shoff=0 and repostbegintime<>"0" and repostendtime<>"0" then
+ deletedvalue=1
+else
+ deletedvalue=shoff
+end if
+ 
+if getcookie("payuser")=3 then
+   response.write "<SCRIPT language=JavaScript>alert('你的用户名被管理员封锁,请联系管理员！');history.go(-1);</script>"        
+   response.end
+end if
+
+if session(FTBBS&"RePostTime")="" then
+   session(FTBBS&"RePostTime")=now()
+else
+   if datediff("s",session(FTBBS&"RePostTime"),now())<=Application("FTBBSMB")(19,0) then
+	  response.write "<SCRIPT language=JavaScript>alert('连续回帖间隔时间不能少于"&Application("FTBBSMB")(19,0)&"秒！');history.go(-1);</script>"        
+      response.end
+   else
+      session(FTBBS&"RePostTime")=now()
+   end if
+end if
+'+++++++++++++++++++++++++++++++++++++
+ip=request.servervariables("remote_addr")
+pid=clng(request.form("id"))
+'remenu=Checkstr(trim(request.form("remenu")))
+remenu=trim(request.form("remenu"))
+remenu = Checkstr(remenu)
+remenu = RegExReplace(remenu,ft,"f"&ft&"t")
+ 
+Sql_arrest="select * from "&ft&"BBS_arrest where kind='IP' order by id asc"
+set rs_arrest=server.createobject("adodb.recordset")
+rs_arrest.open sql_arrest,conn,1,1
+do while not rs_arrest.eof
+	if rs_arrest("content")=ip then
+		response.write "<SCRIPT language=JavaScript>alert('对不起，你无权发表话题！');"
+   	    response.write "history.go(-1);"
+   		response.write "</script>"        
+        response.end
+	end if
+rs_arrest.movenext
+loop
+rs_arrest.close
+
+'阻止关键字
+Sql_arrest="select * from "&ft&"BBS_arrest where kind='Keyword' order by id asc"
+rs_arrest.open sql_arrest,conn,1,1
+do while not rs_arrest.eof
+	if instr(remenu,rs_arrest("content"))<>0 then
+		remenu=replace(remenu,rs_arrest("content"),"*****")		
+	end if
+rs_arrest.movenext
+loop
+rs_arrest.close
+set rs_arrest=nothing
+
+'++++++++++++++++引用+++++++++++++++++++
+if InStr(remenu,"[ftquote]")>0 then
+	wz = InStr(remenu,"[/ftquote]") - (InStr(remenu,"[ftquote]")+9)		'id位数
+	plkey = Mid(remenu,InStr(remenu,"[ftquote]")+9,wz)				'求出引用ID关键字	
+	keyLY2=Mid(remenu,InStr(remenu,"[ftquote]"),9+10+InStr(remenu,"[/ftquote]") - (InStr(remenu,"[ftquote]")+9))		'求出欲替换的字符串				  	
+	set rs1=server.createobject("adodb.recordset")
+	rs1.open "select top 1 * from "&ft&"bbstitle where ID="& plkey,conn,1,1
+	if not rs1.eof then
+	keyxx="<font color=#568AC2>引用回复: "& rs1("user_id")&"</font>" '" ["& left(rs1("ip"),InStrRev(rs1("ip"),".")) &"*" &"] :</font>"
+	keyLY="<table width=99% border=0 align=center cellpadding=4 style=""border: 1px dotted #FFCC66;""><tr><td bgcolor=#ffffee>"& keyxx &"<br>"& rs1("menu") &"</td></tr></table>"  '取出欲引用内容即替换后内容
+	end if
+	rs1.close
+	set rs1=nothing
+	remenu=Replace(remenu,keyLY2,keyLY)
+end if
+if InStr(remenu,"[quote]")>0 then
+	wz = InStr(remenu,"[/quote]") - (InStr(remenu,"[quote]")+7)		'id位数
+	plkey = Mid(remenu,InStr(remenu,"[quote]")+7,wz)				'求出引用ID关键字	
+	keyLY2=Mid(remenu,InStr(remenu,"[quote]"),7+8+InStr(remenu,"[/quote]") - (InStr(remenu,"[quote]")+7))		'求出欲替换的字符串				  	
+	set rs1=server.createobject("adodb.recordset")
+	rs1.open "select top 1 * from "&ft&"bbsmenu where id="& plkey,conn,1,1
+	if not rs1.eof then
+	keyxx="<font color=#568AC2>引用回复: "& rs1("user_id")&"</font>" '" ["& left(rs1("ip"),InStrRev(rs1("ip"),".")) &"*" &"] :</font>"
+	keyLY="<table width=99% border=0 align=center cellpadding=4 style=""border: 1px dotted #FFCC66;""><tr><td bgcolor=#ffffee>"& keyxx &"<br>"& rs1("remenu") &"</td></tr></table>"  '取出欲引用内容即替换后内容
+	end if
+	rs1.close
+	set rs1=nothing
+	remenu=Replace(remenu,keyLY2,keyLY)
+end if
+'+++++++++++++++++++++++++++++++++++++++ 
+ rebbs_img_text = trim(request.form("bbs_img_text"))
+ img_url = trim(request.form("img_url"))
+ img_url_text = trim(request.form("img_url_text"))
+ 'pollYN = request.form("poll")
+ 
+ if name_cookie="" then
+	rename=bbsuser
+ else
+	rename=name_cookie
+ end if
+ 
+sqk="select * from "&ft&"bbstitle where id="&pid&""
+set rers=server.createobject("adodb.recordset")
+rers.open sqk,conn,3,1
+htmfilename=rers("htmfilename")
+If getcodeoff=1 Then
+   If Not codepass Then
+      call ftbbs_msg("验证码错误，请重新输入!",htmfilename)
+  end if
+End If
+P_display=rers("P_display")
+TitleID=rers("id")
+retitle=rers("title")
+postuser=rers("name")
+user_id=rers("user_id")
+rep=rers("rep")
+postnum=rers("postnum")
+
+BoardID_1=rers("BoardID_1")
+BoardID_2=rers("BoardID_2")
+menu=rers("menu")
+
+indate=rers("dateh")
+zhiye=rers("zhiye")
+bbs_img_display=rers("bbs_img_display")
+bbs_img=rers("bbs_img")
+bbs_img_text=rers("bbs_img_text")
+
+if rers("img_url_display")=1 then
+   img_url=rers("img_url")
+else
+   img_url=""
+end if
+fd=rers("flag")'活动贴标识
+dbreinfo=rers("reinfo")
+rers.close
+set rers=nothing
+nlstr=request("remenu")
+if clearnulllen(nlstr)<3 or remenu="" then
+   call ftbbs_msg("你输入的内容太少，最少为3个字!",htmfilename)
+end if 
+if P_display="0" then
+   call ftbbs_msg("该主题贴被禁止回贴!",htmfilename)
+end if
+ fldarray=split(htmfilename,"/",-1,1)
+ infolder=fldarray(0)
+ filename=fldarray(1)
+
+remenu = htmlencode2(remenu)
+remenu = fthtmlcode(remenu)
+remenu = ubbcode(remenu)
+remenu = RegExReplace(remenu,"\b(script)\b"," $1 ")
+remenu = RegExReplace(remenu,"\b(iframe)\b"," $1 ")
+'==========================================================
+call FTBBS_BZ_NAME(BoardID_1,ft)
+BBS_Cate_Name1=Application("BBS_Cate_Name1")
+BBS_Cate_QS1=Application("BBS_Cate_QS1")
+call FTBBS_BZ_NAME2(BoardID_1,BoardID_2,ft)
+BBS_Cate_Name2=Application("BBS_Cate_Name2")
+BBS_Cate_Manager_Name=Application("BBS_Cate_Manager_Name")
+BBS_Cate_QS2=Application("BBS_Cate_QS2")
+if (getcookie("bz")<>1 and getcookie("bbsadmin")<>1) and (BBS_Cate_QS1=5 or BBS_Cate_QS2=5) then
+   call ftbbs_msg("你权限太低不能回贴!",htmfilename)
+end if
+'+++++++++++++++新版新加取出主题贴用户资料
+ str="update "&ft&"clubuser set jingyuan=jingyuan+"&topostget&" where clubuser_name='"&postuser&"' and clubuser_name<>'"&name_cookie&"'"
+ conn.execute str
+ str="select * from "&ft&"clubuser where clubuser_name='"&postuser&"'"
+ set rs=server.createobject("adodb.recordset")
+ rs.open str,conn,3,1
+
+if not rs.eof then
+   clubuser_id=rs("clubuser_id")
+   jingyuan=rs("jingyuan")
+   tili=rs("tili")
+   clubuser_money=rs("clubuser_money")
+   img=rs("userimg")
+   clubuser_reg_date=formatdatetime(rs("clubuser_reg_date"),2)
+   if rs("signname")<>"" then
+   signname=ftbbsubbcode(rs("signname"))
+   else
+   signname="<a href=../moduserinfo.asp?postuser="&postuser&"><FONT color=#568ac2>个人签名档还未设置，请点击这里进行设置</font></a>"
+   end if   
+   bz=rs("bbsmanager")
+   procity=rs("clubuser_province")&rs("clubuser_city")
+   clubuser_zip=rs("clubuser_zip")
+   if clubuser_zip<>"" then
+      if instr(clubuser_zip,",")>0 then
+         xzarr=split(clubuser_zip,",")
+         for i=0 to UBound(xzarr)
+		 ar=xzarr(i)
+		 br=split(ar,"|")
+		 xzimg=br(0)
+		 xzms=br(1)
+         xzstr=xzstr&"<img src=../images/"&xzimg&" width=20 height=35 alt="&xzms&"> "
+         next
+	  else
+		 xzarr=split(clubuser_zip,"|")
+		 xzimg=xzarr(0)
+		 xzms=xzarr(1)
+	     xzstr=xzstr&"<img src=../images/"&xzimg&" width=20 height=35 alt="&xzms&">"
+      end if
+   else
+      xzstr=""
+   end if
+else
+   jingyuan=0
+   tili=100
+   img="cache5.gif"
+   signname="<a href=../moduserinfo.asp?postuser="&postuser&"><FONT color=#568ac2>个人签名档还未设置，请点击这里进行设置</font></a>"
+   bz=0
+   procity="福建厦门"			     
+end if
+rs.close
+set rs=nothing
+ '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+touxian=touxianvalue(jingyuan,ft)
+jibie=jibievalue(jingyuan,ft)				  
+'+++++++++++++++++++++
+'加入跟贴
+ set bbs=server.createobject("adodb.recordset")
+ sql="select * from "&ft&"bbsmenu where (id is null)"
+ bbs.open sql,conn,1,3
+ bbs.addnew
+ bbs("pid")=pid
+ bbs("BoardID_1")=BoardID_1
+ bbs("BoardID_2")=BoardID_2
+ bbs("user_id")=rename
+ bbs("rename")=rename
+ bbs("remail")=remail
+ bbs("remenu")=remenu
+ bbs("retel")=retel
+ bbs("reip")=ip
+ reindate=Ftbbs_Time
+ bbs("dateh")=reindate
+ bbs("kind")=0
+ bbs("usertype")=usertype'用户类型 0:注册用户 1:过客
+
+ bbs("img_url")=img_url
+ bbs("img_url_text")=img_url_text
+ bbs("img_url_display")=0
+ bbs("deleted")=deletedvalue
+ bbs.update
+ bbs.close
+ set bbs=nothing
+ datetime=reindate
+'******主题回复+1,redate=getdate()************
+reinfo=dbreinfo&"|"&reindate&","&rename&"|"
+'新加
+if request.form("bbs_img_display")<>"" then
+   bbs_img_display=request.form("bbs_img_display")
+   bbs_img=request.form("bbs_img")
+end if
+'if session("bbs_img_display")<>"" then
+   'bbs_img_display=session("bbs_img_display")
+   'bbs_img=session("bbs_img")
+'end if
+if bbs_img_display<>"" then
+strsql="update "&ft&"bbstitle set bbs_img_display="&bbs_img_display&",bbs_img='"&bbs_img&"',rep=rep+1,postnum=postnum+1,redate='"&reindate&"',reinfo='"&reinfo&"' where id="&pid
+else
+strsql="update "&ft&"bbstitle set rep=rep+1,postnum=postnum+1,redate='"&reindate&"',reinfo='"&reinfo&"' where id="&pid
+end if
+conn.execute(strsql)
+strsql="update "&ft&"BBS_Cate set BBS_Cate_Reply=BBS_Cate_Reply+1 where BBS_Cate_ID='"&BoardID_1&"'"
+conn.execute(strsql)
+
+if BoardID_2<>"" then'二级类别
+   strsql="update "&ft&"BBS_Cate set BBS_Cate_Reply=BBS_Cate_Reply+1 where BBS_Cate_ID='"&BoardID_2&"'"
+   conn.execute(strsql)
+end if
+
+'session("bbs_img_display")=""
+'session("bbs_img")=""
+'++++++++++++++++++++++++++++++++++++++++
+rsql="update "&ft&"clubuser set jingyuan=jingyuan+"&repostget&" where clubuser_name='"&name_cookie&"'"
+conn.execute(rsql)
+'++++++++++++++++++++++++++++++++++++++++
+pagenum=Application("FTBBSMB")(6,0)
+k=(rep+1)/pagenum
+dim page
+if int(k)=k and int(k)<>0 then
+   page=k
+else
+   page=int(k)+1
+end if
+
+floorpage=(page-1)*pagenum  '1.新增
+if page=1 then
+   tourl=htmfilename
+   if fd=1 then
+      postmb=Application("FTBBSMB")(4,0)
+   else
+      postmb=Application("FTBBSMB")(1,0)
+   end if
+else
+   postmb=Application("FTBBSMB")(37,0) '2.新增
+   tourl=replace(htmfilename,htm_ext,"")&"_"&page&htm_ext
+end if
+repostmb=Application("FTBBSMB")(2,0)
+repostformmb=Application("FTBBSMB")(3,0)
+ 
+ 	 if Application("FTBBSMB")(8,0)=1 then
+	 home="default_list.asp"
+	 mainbbscate="main.asp"
+	 bbsfbht="fbht.asp"
+	 bbspoll="bbspoll.asp"
+	 end if
+'++++++++++++++++++取出主题贴与回复表单的内容++++++++++++++++++++++++++++
+     postmb=replace(replace(postmb,"$PostID$",TitleID),"$pagenav$",page)
+	 postmb=replace(postmb,"$page$",page)
+	 
+     postmb=replace(postmb,"$home$",home)
+	 postmb=replace(postmb,"$main$",mainbbscate)
+	 postmb=replace(postmb,"$fbht$",bbsfbht)
+	 postmb=replace(postmb,"$bbspoll$",bbspoll)
+	 
+	 postmb=replace(postmb,"$TitleID$",TitleID)
+	 postmb=replace(postmb,"$title$",retitle)
+	 postmb=replace(postmb,"$BoardID_1$",BoardID_1)
+	 postmb=replace(postmb,"$BoardID_2$",BoardID_2)
+	 postmb=replace(postmb,"$BBS_Cate_Name1$",BBS_Cate_Name1)
+	 postmb=replace(postmb,"$BBS_Cate_Name2$",BBS_Cate_Name2)
+	 postmb=replace(postmb,"$BBS_Cate_Manager_Name$",BBS_Cate_Manager_Name)
+	 postmb=replace(postmb,"$user_id$",user_id)
+	 postmb=replace(postmb,"$userid$",clubuser_id)
+	 postmb=replace(postmb,"$clubuser_money$",clubuser_money)
+	 postmb=replace(postmb,"$touxian$",touxian)
+	 postmb=replace(postmb,"$jibie$",jibie)
+	 postmb=replace(postmb,"$tili$",tili)
+	 postmb=replace(postmb,"$jingyuan$",jingyuan)
+	 postmb=replace(postmb,"$procity$",procity)
+	 postmb=replace(postmb,"$clubuser_reg_date$",clubuser_reg_date)
+	 postmb=replace(postmb,"$clubuser_zip$",xzstr)
+	 postmb=replace(postmb,"$name$",postuser)
+	 if fd=3 or fd=4 or fd=5 then
+	 'postmb=replace(postmb,"$menu$","<iframe onload=""this.height=ft.document.body.scrollHeight"" name=""ft"" ID=""ft"" width=""100%"" src=""../ftbbsdtnl.asp?titleid="&TitleID&""" frameborder=""0"" border=""0"" marginwidth=""0"" marginheight=""0"" scrolling=""no""></iframe>")
+	 postmb=replace(postmb,"$menu$","<span id=""loadnl"" name=""loadnl""><img src=""../images/load.gif"" /></span>")
+	 else
+	 postmb=replace(postmb,"$menu$",menu)
+	 end if
+	 if BBS_Cate_QS2="" then BBS_Cate_QS2=0
+	 postmb=replace(postmb,"{qs}",BBS_Cate_QS2)
+	 postmb=replace(postmb,"$htmfilename$",htmfilename)
+	 postmb=replace(postmb,"$url$",url)
+	 postmb=replace(postmb,"$zhiye$",zhiye)
+	 postmb=replace(postmb,"$signname$",signname)
+	 postmb=replace(postmb,"$img$",img)
+	 postmb=replace(postmb,"$date$",indate)
+	 'postmb=replace(postmb,"$YN$",YN)
+	 if fd=2 then
+	 postmb=replace(postmb,"$upfile$","<SCRIPT src=../bmform.asp?titleid="&TitleID&"></SCRIPT>")
+	 else
+	 postmb=replace(postmb,"$upfile$","")
+	 end if
+	 postmb=replace(postmb,"$img_url$",img_url)
+	 repostformmb=replace(replace(repostformmb,"$PostID$",TitleID),"$pagenav$",page)
+	 if fd=0 or fd=1 or fd=2 or page<>1 then
+	 repostformmb=replace(repostformmb,"<script type=""text/javascript"" src=""../ftbbsdtnl.asp?titleid=$TitleID$""></script>","")
+	 end if
+	 repostformmb=replace(repostformmb,"$TitleID$",TitleID)
+	 repostformmb=replace(repostformmb,"$title$",retitle)
+	 repostformmb=replace(repostformmb,"$upfiletype$",upfiletype)
+	 repostformmb=replace(repostformmb,"$BoardID_1$",BoardID_1)
+	 repostformmb=replace(repostformmb,"$BoardID_2$",BoardID_2)
+	 repostformmb=replace(repostformmb,"$name$",postuser)
+	 'repostformmb=replace(repostformmb,"$htmfilename$",htmfilename)
+	 repostformmb=replace(repostformmb,"$filename$",htmfilename)
+strsql="select * from "&ft&"bbsmenu where pid="&pid&" and deleted=0 order by id asc"
+set cus1=server.createobject("adodb.recordset")
+cus1.open strsql,conn,3,1
+If not(cus1.bof and cus1.eof) then
+   cus1.pagesize=pagenum
+   dbPageNum=cus1.PageCount
+   If page>dbPageNum Then page=dbPageNum End If
+   if page=0 then page=1 end if
+   cus1.AbsolutePage=page
+   i=1
+
+ While not cus1.eof and i<=pagenum
+'++++++++++++++++++取出回复贴子的用户信息++++++++++++++++++++++
+ str="select * from "&ft&"clubuser where clubuser_name='"&cus1("rename")&"'"
+ set rs=server.createobject("adodb.recordset")
+ rs.open str,conn,3,1
+
+if not rs.eof then
+   clubuser_id=rs("clubuser_id")
+   jingyuan=rs("jingyuan")
+   tili=rs("tili")
+   clubuser_money=rs("clubuser_money")
+   img=rs("userimg")
+   clubuser_reg_date=formatdatetime(rs("clubuser_reg_date"),2)
+   if rs("signname")<>"" then
+   signname=ftbbsubbcode(rs("signname"))
+   else
+   signname="<a href=../moduserinfo.asp?postuser="&cus1("rename")&"><FONT color=#568ac2>个人签名档还未设置，请点击这里进行设置</font></a>"
+   end if
+   bz=rs("bbsmanager")
+   procity=rs("clubuser_province")&rs("clubuser_city")
+   clubuser_zip=rs("clubuser_zip")
+   rexz=""
+   if clubuser_zip<>"" then
+      if instr(clubuser_zip,",")>0 then
+         rexzarr=split(clubuser_zip,",")
+         for k=0 to UBound(rexzarr)
+		 ar=rexzarr(k)
+		 br=split(ar,"|")
+		 xzimg=br(0)
+		 xzms=br(1)
+         rexz=rexz&"<img src=../images/"&xzimg&" width=20 height=35 alt="&xzms&"> "
+         next
+	  else
+		 xzarr=split(clubuser_zip,"|")
+		 xzimg=xzarr(0)
+		 xzms=xzarr(1)
+	     rexz=rexz&"<img src=../images/"&xzimg&" width=20 height=35 alt="&xzms&">"
+      end if
+   else
+      rexz=""
+   end if
+else
+   jingyuan=0
+   tili=100
+   img="cache5.gif"
+   signname="<a href=../moduserinfo.asp?postuser="&cus1("rename")&"><FONT color=#568ac2>个人签名档还未设置，请点击这里进行设置</font></a>"
+   bz=0
+   procity="福建厦门"			     
+end if
+rs.close
+set rs=nothing
+
+     reid=cus1("id")
+     reuser=cus1("user_id")
+	 reuser_id=cus1("rename")
+     rebbs_img=cus1("bbs_img")
+     remenu=cus1("remenu")
+	 datetime=cus1("dateh")
+	 bbs_img_text=cus1("bbs_img_text")
+	 postnum=postnum+1
+
+     if cus1("img_url_display")=1 then
+        reimg_url=cus1("img_url")
+	 else
+	    reimg_url=""
+     end if
+	 	 
+     touxian=touxianvalue(jingyuan,ft)
+     jibie=jibievalue(jingyuan,ft)
+	 	 
+	 remb=replace(repostmb,"$title$",retitle)
+	 remb=replace(remb,"$img$",img)
+	 remb=replace(remb,"$reuser$",reuser)
+	 remb=replace(remb,"$touxian$",touxian)
+	 remb=replace(remb,"$jibie$",jibie)
+	 remb=replace(remb,"$tili$",tili)
+	 remb=replace(remb,"$jingyuan$",jingyuan)
+	 remb=replace(remb,"$procity$",procity)
+	 remb=replace(remb,"$reg_date$",clubuser_reg_date)
+	 remb=replace(remb,"$clubuser_zip$",rexz)
+	 remb=replace(remb,"$TitleID$",TitleID)
+	 remb=replace(remb,"$Titleid$",TitleID)
+	 remb=replace(remb,"$htmfilename$",htmfilename)
+	 remb=replace(remb,"$reuser_id$",reuser_id)
+	 remb=replace(remb,"$userid$",clubuser_id)
+	 remb=replace(remb,"$clubuser_money$",clubuser_money)
+	 remb=replace(remb,"$remenu$",remenu)
+	 remb=replace(remb,"$signname$",signname)
+	 remb=replace(remb,"$reid$",reid)
+	 'remb=replace(remb,"$YN$",REYN)
+	 remb=replace(remb,"$postnummb$",postnum)
+	 remb=replace(remb,"$page$",page)
+	 if i=1 then
+	 remb=replace(remb,"$floorpage$",floorpage) '3.新增(第一条记录写入变量初始值)
+	 else
+	 remb=replace(remb,"var addnumx=$floorpage$;","")
+	 end if
+	 remb=replace(remb,"$name$",reuser_id)
+	 remb=replace(remb,"$datetime$",datetime)
+	 remb=replace(remb,"$img_url$",reimg_url)
+	 remb=replace(remb,"$reupfile$","")
+     i=i+1
+     cus1.movenext
+	 HtmlNLB=HtmlNLB+remb
+ Wend
+end if
+
+cus1.close
+conn.close
+set conn=nothing
+
+ALLHtmlNL=postmb&HtmlNLB&repostformmb
+if deletedvalue=0 then
+mktohtm tourl,ALLHtmlNL,fso
+end if
+Randomize
+Random=Int((1000 - 100 + 1) * Rnd + 100) '用来取消缓存
+response.redirect tourl&"?"&Random
+%>

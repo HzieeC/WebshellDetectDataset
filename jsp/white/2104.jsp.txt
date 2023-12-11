@@ -1,0 +1,162 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 工具栏
+		    var toolbar = new Ext.Toolbar({
+		    	renderTo: 'addNoteToolBarDiv',
+		    	items: [
+				    new Ext.Button({
+					    id: 'save-button',
+						text: '保存',
+						iconCls: 'tick'
+					})
+				]
+			});
+
+		 	// 笔记分类数据源
+		    var addNoteCategoryStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/noteCategoryAction.do?method=query',
+		        root: 'datas',
+		        fields: ['categoryId', 'categoryName'],
+		        autoLoad: true
+		    });
+
+		 	// 编辑笔记Form
+			var addNoteFormPanel = new Ext.FormPanel({
+				id: 'addNoteFormPanel',
+				renderTo: 'addNoteFormDiv',
+		        labelWidth: 40,
+		        border: false,
+		        bodyStyle: 'background-color:transparent;padding:5px;',
+		        url: '<%=baseUrl %>/noteAction.do?method=save',
+		        items: [{
+		            layout:'column',
+		            border: false,
+		            bodyStyle: 'background-color:transparent;',
+		            items:[{// 分类ID
+		        		columnWidth: .8,
+						layout: 'form',
+						border: false,
+						bodyStyle: 'background-color:transparent;',
+		        		items: [{// 分类ID
+        		                xtype:'combo',
+        		                hiddenName: 'categoryId',
+        		                fieldLabel: '分类',
+        		                store: addNoteCategoryStore,
+        		                mode : 'local',
+        		                triggerAction: "all",
+        		                emptyText: '请选择...',
+        		                valueField: 'categoryId',
+        		                displayField: 'categoryName',
+        		                anchor:'100%',
+        		                allowBlank:false
+							}]
+		        	},{// 分类ID
+		        		columnWidth: .2,
+						layout: 'form',
+						border: false,
+						cls: 'x-form-item',
+						bodyStyle: 'background-color:transparent;',
+		        		items: [{// 笔记标题
+								xtype:'label',
+		        				html: '&nbsp;&nbsp;<a href="javascript:addNoteCategory();">添加</a>',
+		        				style: 'font-size:12px;',
+		        				cls: 'x-form-item-label'
+		        			}]
+		        	}]
+		        	},{// 笔记标题
+		                        xtype:'textfield',
+		                        name: 'title',
+		                        fieldLabel: '标题',
+		                        anchor:'100%',
+		                        allowBlank:false,
+		                        maxLength: 50
+		        	},{// 笔记内容
+		                       xtype: 'AnynoteHtmleditor',
+		                       name:'content',
+		                       fieldLabel:'内容',
+		                       height: 375,
+		                       anchor:'100%',
+		                       hideLabel: true,
+		                       allowBlank: false,
+							   // 从相册添加图片的处理页面地址
+		                       addAlbumImageUrl: '<%=baseUrl %>/websrc/page/note/addAlbumImage.jsp?page=addNote'
+		        	},{// 笔记ID
+		                       xtype:'hidden',
+		                       name: 'noteId',
+		                       value: ''
+		        	},{// 操作类型
+		                       xtype:'hidden',
+		                       name: 'type',
+		                       value: 'CREATE'
+		        	}
+		        ]
+		    });
+
+		    // 保存按钮
+		    $("#save-button").click(function(){
+			    var form = addNoteFormPanel.getForm();
+			    if(form.isValid()){
+			    	// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: form.getValues(),
+						action: '/noteAction.do?method=save',
+						callback: function(jsonResult){
+							if(Ext.getCmp("noteListPanel")){
+								Ext.getCmp("noteListDataView").getStore().reload();
+							}
+							addNoteWindow.close();
+						},
+						showWaiting: true,
+						failureMsg: '保存失败.'
+					});
+				}
+			});
+		});
+
+		/**
+		* 添加分类
+		*/
+		function addNoteCategory(){
+			Ext.Msg.prompt('添加分类', '分类名称', function(btn, text){
+				if('ok'==btn && text!=''){
+					if(text.length>20){
+						Ext.Msg.alert('提示', '分类名称的最大长度不能超过20个字符.');
+						return;
+					}
+			    	var categoryIdObj = Ext.getCmp('addNoteFormPanel').getForm().findField('categoryId');
+					// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: {categoryId:"", categoryName:text},
+						action: '/noteCategoryAction.do?method=save',
+						callback: function(jsonResult){
+							categoryIdObj.getStore().reload({
+								callback:function(){
+									categoryIdObj.focus();
+									categoryIdObj.setRawValue(text);
+								}
+							});
+						},
+						showWaiting: true,
+						failureMsg: '添加失败.'
+					});
+				}
+			});
+		}
+	</script>
+</head>
+<body>
+<div id="addNoteDiv" style="width:100%;height:100%;">
+	<div id="addNoteToolBarDiv"></div>
+	<div id="addNoteFormDiv"></div>
+</div>
+</body>
+</html>

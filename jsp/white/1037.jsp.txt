@@ -1,0 +1,114 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<script language=JavaScript>
+var _maxCount = '64000';
+function doSubmit(){
+	if (document.myform.topic.value==''){
+		alert('短信标题不能为空！');
+		document.myform.topic.focus();
+		return false;
+	}
+	MessageLength = document.myform.content.value.length;
+	if(MessageLength < 2){
+		alert('短信内容不能小于2个字符！');
+		document.myform.content.focus();
+		return false;
+	}
+	if(MessageLength > _maxCount){
+		alert('短信的内容不能超过'+_maxCount+'个字符！');
+		return false;
+	}
+}
+</script>
+<table cellspacing="1" align="center" cellpadding="3" border="0" class="tableborder">	<tr>		<th colspan="2"> >>用户短信管理<< </th>	</tr>	<tr>		<td class=TableRow1 colspan=2>共有用户短信：<b><font color=red>0</font></b> 条 &nbsp;&nbsp;今日用户短信：<b><font color=red>0</font></b> 条 &nbsp;&nbsp;<a href="?action=del" onclick="return confirm('您确定要删除所有用户短信吗?')" class=showmeun>删除所有用户短信</a></td>	</tr>	<form name="form1" method="post" action="admin_message.asp?action=del">	<tr>		<td class=TableRow2 colspan=2>&nbsp;&nbsp;<b>批量删除某用户的短信：</b><input type="text" name="username" size="30"> &nbsp;<input type=submit value=" 提 交 " class=button onclick="return confirm('您确定要删除此用户短信吗?')"></td>	</tr>	</form>	<form name="form2" method="post" action="admin_message.asp?action=delall">	<tr>		<td class=TableRow2 colspan=2><b>批量删除指定日期内短信：</b>		<select name=delDate size=1>			<option value=7>一个星期前</option>			<option value=30>一个月前</option>			<option value=60>两个月前</option>			<option value=180>半年前</option>			<option value="all">所有短信</option>		</select>		&nbsp;<input type=checkbox name=isread value='yes'>包括未读信息		&nbsp;<input type=submit name=Submit value=" 提 交 " class=button onclick="return confirm('您确定要删除此短信吗?')"></td>	</tr>	</form>	<tr>		<th colspan=2> >>短信群发<< </th>	</tr>	<form name="myform" method="post" action="admin_message.asp?action=save" onsubmit="return doSubmit()">	<tr>		<td class=TableRow1 align=right><b>短信标题:</b></td>		<td class=TableRow1><input type=text name=topic maxlength=70 size=70 value=''></td>	</tr>	<tr>		<td class=TableRow2 align=right><b>收件人:</b></td>		<td class=TableRow2>		<select name=UserGroup size='1'>	<option value="999">管理员</option>
+	<option value="0" selected>所有用户</option>
+	<option value="1">普通会员</option>
+	<option value="2">高级会员</option>
+	<option value="3">VIP 会员</option>
+		</select></td>	</tr>	<tr>		<td class=TableRow1 align=right><b>短信内容:</b></td>		<td class=TableRow1><script type="text/javascript">
+var strBestPath		='../editor/ubbeditor/';
+var InstanceName	='content';
+var EditMethod		='expert';
+</script><script type="text/javascript" src="../editor/ubbeditor/UBBCode.js"></script><script type="text/javascript" src="../editor/ubbeditor/UBBCode_help.js"></script><div id="Tbody" style="width:550px;">
+<div id="editorbody">
+<div id="editorHead">
+<div class="editorTools">
+<div class="Toolsbar">
+<ul class="ToolsUL">
+<li><a class="Toolsbutton" id="A_bold" title="粗体" href="javascript:UBB_bold();void(0)"><img alt="粗体" border="0" src="../editor/ubbeditor/Icons/bold.gif"></a></li>
+<li><a class="Toolsbutton" id="A_italic" title="斜体" href="javascript:UBB_italic();void(0)"><img alt="斜体" border="0" src="../editor/ubbeditor/Icons/italic.gif"></a></li>
+<li><a class="Toolsbutton" id="A_underline" title="下划线" href="javascript:UBB_underline();void(0)"><img alt="下划线" border="0" src="../editor/ubbeditor/Icons/underline.gif"></a></li>
+<li><a class="Toolsbutton" id="A_justifyleft" title="居左" href="javascript:UBB_justifyleft();void(0)"><img alt="居左" border="0" src="../editor/ubbeditor/Icons/justifyleft.gif"></a></li>
+<li><a class="Toolsbutton" id="A_justifycenter" title="居中" href="javascript:UBB_justifycenter();void(0)"><img alt="居中" border="0" src="../editor/ubbeditor/Icons/justifycenter.gif"></a></li>
+<li><a class="Toolsbutton" id="A_justifyright" title="居右" href="javascript:UBB_justifyright();void(0)"><img alt="居右" border="0" src="../editor/ubbeditor/Icons/justifyright.gif"></a></li>
+<li><a class="Toolsbutton" id="A_link" title="超链接" href="javascript:UBB_link();void(0)"><img alt="超链接" border="0" src="../editor/ubbeditor/Icons/link.gif"></a></li>
+</ul>
+</div>
+<div class="Toolsbar">
+<ul class="ToolsUL">
+<li><select onchange="UBB_CFontSize(this)" name="UBBfonts"><option value="" selected>字体大小</option>
+<option value="8">8</option>
+<option value="9">9</option>
+<option value="10">10</option>
+<option value="11">11</option>
+<option value="12">12</option>
+<option value="13">13</option>
+<option value="14">14</option>
+<option value="15">15</option>
+<option value="16">16</option>
+<option value="18">18</option>
+<option value="20">20</option>
+<option value="24">24</option>
+<option value="36">36</option>
+<option value="48">48</option></select></li>
+<li><select onchange="UBB_CFontColor(this)" name="UBBfonts"><option value="" selected>字体颜色</option>
+<option style="BACKGROUND: white" value="White">White</option>
+<option style="BACKGROUND: black" value="Black">Black</option>
+<option style="BACKGROUND: red" value="Red">Red</option>
+<option style="BACKGROUND: yellow" value="Yellow">Yellow</option>
+<option style="BACKGROUND: pink" value="Pink">Pink</option>
+<option style="BACKGROUND: green" value="Green">Green</option>
+<option style="BACKGROUND: orange" value="Orange">Orange</option>
+<option style="BACKGROUND: purple" value="Purple">Purple</option>
+<option style="BACKGROUND: blue" value="Blue">Blue</option>
+<option style="BACKGROUND: beige" value="Beige">Beige</option>
+<option style="BACKGROUND: brown" value="Brown">Brown</option>
+<option style="BACKGROUND: teal" value="Teal">Teal</option>
+<option style="BACKGROUND: navy" value="Navy">Navy</option>
+<option style="BACKGROUND: maroon" value="Maroon">Maroon</option>
+<option style="BACKGROUND: limegreen" value="LimeGreen">LimeGreen</option>
+<option style="BACKGROUND: fuchsia" value="Fuchsia">Fuchsia</option>
+<option style="BACKGROUND: gray" value="Gray">Gray</option>
+<option style="BACKGROUND: slateblue" value="SlateBlue">SlateBlue</option>
+<option style="BACKGROUND: turquoise" value="Turquoise">Turquoise</option>
+<option style="BACKGROUND: goldenrod" value="Goldenrod">Goldenrod</option></select></li>
+</ul>
+</div>
+<div class="Toolsbar">
+<ul class="ToolsUL">
+<li>模式<label for="UBBmethod1"><input id="UBBmethod1" onclick="EditMethod='normal'" type="radio" name="UBBmethod" value="on">常规</label><label for="UBBmethod2"><input id="UBBmethod2" onclick="EditMethod='expert'" type="radio" checked name="UBBmethod" value="on">专家</label></li>
+</ul>
+</div>
+<div style="CLEAR: both; DISPLAY: block; OVERFLOW: hidden; HEIGHT: 1px"></div>
+</div>
+</div>
+<div class="editorContent"><textarea id="content" class="editTextarea" style="height: 220px;" accesskey="R" rows="10" cols="60" name="content"></textarea></div>
+</div><script language="javascript">initUBB('content')</script></div>
+		</td>
+	</tr>	<tr align=center>		<td class=TableRow2 colspan=2><input type="submit" name="Submit1" value=" 发送短信 " class="button"/></td>	</tr><form></table><br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

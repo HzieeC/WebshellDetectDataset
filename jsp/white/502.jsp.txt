@@ -1,0 +1,245 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>修改确认订单</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+
+
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/queren.css" rel="stylesheet" type="text/css" />
+
+
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/front/common/common.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/front/orderinfo.js"></script>
+
+<style type="text/css">
+<!--
+.STYLE11 {
+	color: #FF7000
+}
+.STYLE12 {
+	color: #999999
+}
+.STYLE14 {
+	font-size: 36px;
+	font-weight: bold;
+	color: #FF0000;
+}
+.STYLE15 {
+	font-size: 14px;
+	font-weight: bold;
+}
+.STYLE17 {
+	font-size: 16px;
+	font-weight: bold;
+}
+.STYLE30 {
+	color: #333333
+}
+.STYLE31 {
+	color: #0000FF
+}
+-->
+</style>
+</head>
+<body>
+<div class="kuang_da">
+  <div class="dsin_btda">
+    <div class="logo"><a href="${ctx }/index.do"><img src="${ctx}/image/logo.gif" /></a></div>
+  </div>
+  <!--头部结束-->
+  <!--核写订单表单-->
+<form  method="post" id="saveForm">
+  <div class="gwtda"><img src="${ctx}/image/ztt_2.png" /></div>
+  <div class="querenda">
+    <div class="queren_xxdz">
+      <div class="queren_bt">详细地址：</div>
+      <div class="queren_xx">
+       <!-- 
+       	   <div class="qrxx_zd">
+	          <div class="qrxx_z">街道地址：<span class="STYLE11">*</span></div>
+	          <div >
+	             <input type="hidden" id="loginManId" value="${loginCustomer.id}" />
+	             <input type="hidden" id="loginManName" value="${loginCustomer.name}" />
+	             <input id="deliveryAddress" class="qrxx_0_3" name="orders.deliveryAddress" type="text" onclick="selectAddress()"/>
+	          </div>
+	        </div>
+        -->
+        <div class="queren_zj1">
+          <div class="qrxx_z">街道地址：<span class="STYLE11">*</span></div>
+          <div >
+            	<input type="hidden" id="loginManId" value="${loginCustomer.id}" />
+	            <input type="hidden" id="loginManName" value="${loginCustomer.name}" />
+	            <input id="deliveryAddress" class="qrxx_0_3" name="orders.deliveryAddress" type="text" onclick="selectAddress()"/>
+          </div>
+        </div>
+        <div class="queren_zj1">
+          <div class="qrxx_z">收货人姓名：<span class="STYLE11">*</span></div>
+          <div >
+            <input id="linkman" class="qrxx_3" name="orders.customerName" type="text" />
+          </div>
+        </div>
+        <div class="queren_zj1">
+          <div class="qrxx_z">电话：<span class="STYLE11">*</span></div>
+          <div >
+            <input id="deliveryTelphone" class="qrxx_3" name="orders.deliveryTelphone" type="text" />
+          </div>
+        </div>
+        <div class="queren_zj1">
+          <div class="qrxx_z">手机：<span class="STYLE11">*</span></div>
+          <div>
+            <input id="deliveryMobile" class="qrxx_3" name="orders.deliveryMobile" type="text" />
+          </div>
+        </div>
+        <div class="queren_zj1">
+          <div class="qrxx_z">邮政编码：<span class="STYLE11">*</span></div>
+          <div>
+           <input name="orders.postCode" id="postCode" class="qrxx_3" type="text" maxlength="6" />
+          </div>
+        </div>
+        
+          <div class="queren_zj1">
+          <div class="qrxx_z">支付方式：<span class="STYLE11">*</span></div>
+          <div>
+              <s:select list="paymentList"  listValue="name" listKey="id" name="orders.paymentId" id="paymentId"
+            headerKey="" headerValue=" --- 请选择支付方式 --- " value="orders.paymentId" ></s:select>
+          </div>
+        </div>
+        
+             <div class="queren_zj1">
+          <div class="qrxx_z">配送方式：<span class="STYLE11">*</span></div>
+          <div>
+                 <s:select list="deliveryList"  listValue="name" listKey="id" name="orders.deliveryId" id="deliveryId"
+            headerKey="" headerValue=" --- 请选择配送方式 --- " value="orders.deliveryId" onchange="selectDeliveryFee(this)"></s:select>
+            	<c:forEach items="${deliveryList}" var="delivery">
+		          <input type="hidden" id="${delivery.id}" value="${delivery.deliveryFee}"/>
+		         </c:forEach>
+		                <span  id="deliveryCostDiv" style="font-size: 14px;"></span>
+          <input type="hidden" id="deliveryCost" name="saleOrder.deliveryCost" readonly="true" />
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    <!-- <div class="queren_xxdz">
+      <div class="queren_bt">在线支付：</div>
+      <div class="qrzz_da">
+        <div class="qrzz_bt">支持以下在线支付：</div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_1.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_2.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_3.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_4.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_5.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_6.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_7.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_8.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_9.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_10.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_11.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_12.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_13.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_14.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_15.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_16.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_17.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_18.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_19.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/z_20.gif" /></a></div>
+        <div class="qrzz_bt1">支持以下支付平台：</div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/y_1.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/y_2.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/y_3.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/y_4.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/y_5.gif" /></a></div>
+        <div class="qrzz_tb"><a href="#"><img src="${ctx}/image/y_6.gif" /></a></div>
+      </div>
+    </div> -->
+    <div class="queren_xxdz">
+      <div class="queren_bt">商品详情：</div>
+      <div class="gwt_da">
+        <div class="gwt_bt">
+          <div class="gwt_bt_z"></div>
+          <div class="gwt_bt_1">商品详情</div>
+          <div class="gwt_bt_2">商品积分</div>
+          <div class="gwt_bt_2">价格</div>
+          <div class="gwt_bt_2">商品数量</div>
+          <div class="gwt_bt_2">优惠</div>
+          <div class="gwt_bt_2">小计</div>
+        </div>
+        
+        <c:forEach items="${sessionScope.shoppingCar.goodsInCarList}" var="goodsIncar" varStatus="i">
+        
+            
+            <c:set var="money" value="${money + goodsIncar.totalMoney}" />
+			<c:set var="totalMoney" value="${totalMoney + goodsIncar.totalMoney}"/>
+			<c:set var="credits" value="${credits + goodsIncar.credits*goodsIncar.count}"/>
+			
+			<input type="hidden" name="id${i.index}" id="id${i.index}" value="${goodsIncar.id}" />
+			
+													<!-- 商品Id 数量 金额 价格 积分 优惠金额-->
+				<input type="hidden" id="wareId${i.index}" name="wareIdArr" value="${goodsIncar.id}"></input>
+				<input type="hidden" id="count${i.index}" name="orderNumberArr" value="${goodsIncar.count}"></input>
+			    <input type="hidden" id="money${i.index}" name="moneyArr" value="${goodsIncar.totalMoney}"></input>
+				<input type="hidden" id="price${i.index}" name="goodPriceArr" value="${goodsIncar.price}"></input>
+	      		<input type="hidden" id="credits${i.index}" name="creditsArr" value="${goodsIncar.credits}"></input>
+		        <input type="hidden" id="preferential${i.index}" name="preferentialArr" value="${goodsIncar.preferential}"></input>
+		        <input type="hidden" id="specificationVal${i.index}" name="specificationValArr" value="${goodsIncar.specificationVal}"></input>
+        <div class="yc_da">
+          <div class="gwt_nr_z"></div>
+          <div class="gwt_nr_1">
+            <div class="yc_img"><a href="${ctx }/spxq.do?good.id=${goodsIncar.id }"><img src="${ctx}${goodsIncar.pic }" width="54" height="57"/></a></div>
+            <div class="nr_wz"><a class="lj_2" href="${ctx }/spxq.do?good.id=${goodsIncar.id }">${goodsIncar.name }<br />
+              尺寸：6寸</a></div>
+          </div>
+          <div class="gwt_nr_2" id="allCredit${i.index}"><c:if test="${not empty goodsIncar.credits }">${goodsIncar.credits }</c:if>
+      <c:if test="${empty goodsIncar.credits }">0</c:if></div>
+          <div class="gwt_nr_2"><span class="STYLE17" id="price${i.index}${i.index}">￥${goodsIncar.price }</span></div>
+          <div class="gwt_nr_2">
+            <div class="nr_dwy">  <a href="javascript:;" onclick="changeNumJian('${i.index }','${shoppingCarSize }');"><img src="${ctx}/image/bag_close.gif" /></a> </div>
+            <div class="nr_dz" id="count${i.index}${i.index}"><fmt:formatNumber value="${goodsIncar.count }" pattern="0"/></div><!-- <input disabled="disabled" style="width: 2em;" id="count${i.index}${i.index}" type="text" value=""/> -->
+            <div class="nr_dwz"> <a href="javascript:;" onclick="changeNumJia('${i.index }','${shoppingCarSize }');"><img  src="${ctx}/image/bag_open.gif" width="9" height="9" /></a> </div>
+          </div>
+          <div class="gwt_nr_2">${goodsIncar.preferential }</div>
+          <div class="gwt_nr_2"><span class="STYLE17" id="money${i.index}${i.index}">￥<fmt:formatNumber value="${goodsIncar.totalMoney }" pattern="0.00"/></span></div>
+        </div>
+        </c:forEach>
+        
+        
+        
+      </div>
+      <div class="qrhj_da">
+        <div class="qrhj_zb">
+          <div class="qrhj_ly">给卖家留言：</div>
+          <div style="float:right;">
+            <textarea name="orders.remark" class="qrhj_my"></textarea>
+          </div>
+        </div>
+
+        
+   
+        
+      </div>
+      <div style="display: none;" id="money"><fmt:formatNumber value="${totalMoney }" pattern="0.00"/></div>
+      <div class="qrhj_tj"><span class="STYLE15">店铺合计（含运费）：</span><span class="STYLE14" id="totalMoney">￥<fmt:formatNumber value="${totalMoney }" pattern="0.00"/></span></div>
+      <div class="qrhj_tj"><span class="STYLE15">实付款：</span><span class="STYLE14" id="totalMoney1">￥<fmt:formatNumber value="${totalMoney }" pattern="0.00"/></span>&nbsp;</div>
+      <input type="hidden" id="orderMoney" name="orders.orderMoney" value="${totalMoney}"/>
+      
+      <div class="qrhj_js">
+
+        <div class="fhgw_img">
+	        <input type="submit"  style="border:0;background:url(${ctx}/image/k_tj.gif) no-repeat top center; width:164px; height:35px;" value=""/>
+	    </div>
+	          	<div style="float:right;"><a href="${ctx }/gouwc.do"><span>返回购物车</span></a></div>
+      </div>
+    </div>
+  </div>
+  </form>
+ <%@ include file="/WEB-INF/page/front/footer.jsp" %>
+</div>
+</body>
+</html>

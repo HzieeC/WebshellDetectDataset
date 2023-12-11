@@ -1,0 +1,198 @@
+<%
+If OT_ISOTCMS<>True Then
+	response.write("非法访问")
+	response.End()
+End If
+
+
+'生成缩略图
+'jmtPath：图片存放路径；jmtImgName：源图片名；
+'jmtW：缩略图宽度；jmtH：缩略图高度；（如宽高只有任一个有值，另一个根据比例值）
+Function Jpeg_CreateThumb(jmtPath,jmtImgName,jmtW,jmtH,jmtPrefix)
+	On Error Resume Next
+	Dim Jpeg
+	Set Jpeg = Server.CreateObject("Persits.Jpeg")
+	
+	Jpeg.Open Server.MapPath(jmtPath & jmtImgName)	'打开目的图片
+
+	' 设置缩略图大小（这里比例设定为50%）
+'			Jpeg.Width = Jpeg.OriginalWidth / 2
+'			Jpeg.Height = Jpeg.OriginalHeight / 2
+			If jmtW=0 And jmtH=0 Then
+		If imgWidth>=imgHeight Then
+	Jpeg.Width = 100
+	Jpeg.Height = Jpeg.OriginalHeight * 100 / Jpeg.OriginalWidth
+		Else
+	Jpeg.Width = Jpeg.OriginalWidth * 100 / Jpeg.OriginalHeight
+	Jpeg.Height = 100
+		End If
+
+			ElseIf jmtW=0 Then
+	Jpeg.Width = Jpeg.OriginalWidth * jmtH / Jpeg.OriginalHeight
+	Jpeg.Height = jmtH
+			
+			ElseIf jmtH=0 Then
+	Jpeg.Width = jmtW
+	Jpeg.Height = Jpeg.OriginalHeight * jmtW / Jpeg.OriginalWidth
+			
+			Else
+	Jpeg.Width = jmtW
+	Jpeg.Height = jmtH
+			
+			End If
+
+	' 保存缩略图到指定文件夹下
+	Jpeg.Save Server.MapPath(jmtPath & jmtPrefix & jmtImgName)
+	Set Jpeg = Nothing
+End Function
+
+
+
+'文字水印
+'jwPath：图片存放路径；jwImgName：源图片名；
+'jwPos：文字水印摆放位置(默认右下角)；jwPadding：间距(默认为3xp)；
+'jwFontContent：文字水印内容；jwFontSize：文字水印字号(默认12xp)；jwFontColor：文字水印颜色(默认红色)
+Function Jpeg_WatermarkFont(jwPath,jwImgName,jwPos,jwPadding,jwFontContent,jwFontSize,jwFontColor)
+	If jwPadding=0 Then jwPadding=3
+	If jwFontSize=0 Then jwFontSize=12
+	If jwFontColor="" Then jwFontColor="FF0000" Else jwFontColor=Replace(jwFontColor,"#","")
+
+	jwFontLen = Jpeg_StrLen(jwFontContent)*jwFontSize/2
+	On Error Resume Next
+	Dim Jpeg
+	Set Jpeg = Server.CreateObject("Persits.Jpeg")
+	Jpeg.Open Server.MapPath(jwPath & jwImgName)	' 打开目标图片
+
+	If jwFontLen+jwPadding>Jpeg.Width Then Exit Function
+	
+	Select Case jwPos
+		Case "leftTop"
+			posX=0 + jwPadding
+			posY=0 + jwPadding
+		Case "leftMiddle"
+			posX=0
+			posY=Jpeg.Height / 2 + jwPadding - jwFontSize / 2
+		Case "leftBottom"
+			posX=0
+			posY=Jpeg.Height - jwPadding - jwFontSize
+		Case "centerTop"
+			posX=Jpeg.Width / 2 - jwFontLen / 2
+			posY=0 + jwPadding
+		Case "centerMiddle"
+			posX=Jpeg.Width / 2 - jwFontLen / 2
+			posY=Jpeg.Height / 2 - jwFontSize / 2
+		Case "centerBottom"
+			posX=Jpeg.Width / 2 - jwFontLen / 2
+			posY=Jpeg.Height - jwPadding - jwFontSize
+		Case "rightTop"
+			posX=Jpeg.Width - jwPadding - jwFontLen
+			posY=0 - jwPadding
+		Case "rightMiddle"
+			posX=Jpeg.Width - jwPadding - jwFontLen
+			posY=Jpeg.Height / 2 - jwFontSize / 2
+		Case "rightBottom"
+			posX=Jpeg.Width - jwPadding - jwFontLen
+			posY=Jpeg.Height - jwPadding - jwFontSize
+		Case Else
+			posX=Jpeg.Width - jwPadding - jwFontLen
+			posY=Jpeg.Height - jwPadding - jwFontSize
+	End Select
+
+	' 添加文字水印
+	Jpeg.Canvas.Font.Color = eval("&H"& jwFontColor)	' 黑色
+	Jpeg.Canvas.Font.Family = "宋体"	'水印文字的字体名称
+	Jpeg.Canvas.Font.Size = jwFontSize	'水印文字的字号
+	Jpeg.Canvas.Font.Bold = False		'水印文字是否为粗体
+	Jpeg.Canvas.Font.Quality = 3		'水印文字的清晰度，从0～4，变换不是很大，建议用2或3
+	'Jpeg.Canvas.Font.ShadowColor = &H000000	'水印文字的阴影色彩
+	'Jpeg.Canvas.Font.ShadowXoffset = 1		'水印文字阴影向右偏移的像素值，输入负值则向左偏移
+	'Jpeg.Canvas.Font.ShadowYoffset = 1		'水印文字阴影向下偏移的像素值，输入负值则向右偏移
+	'Jpeg.Canvas.Pen.Color  = &H000000		'增加水印后图片的边框色彩
+	'Jpeg.Canvas.Pen.Width  = 1			'增加水印后图片的边框宽度
+	'Jpeg.Canvas.Brush.Solid = False	'边框内是否填充颜色，你可以试试看值为True时的效果
+	Jpeg.Canvas.Print posX, posY, jwFontContent
+
+	Jpeg.Save Server.MapPath(jwPath & jwImgName)	' 保存文件"watermark_"&
+	Set Jpeg = Nothing
+End Function
+
+
+
+'图片水印
+'jwPath：图片存放路径；jwImgName：源图片名；jwWaterImgPath：水印图片路径
+'jwPos：文字水印摆放位置(默认右下角)；jwPadding：间距(默认为3xp)；
+Function Jpeg_WatermarkImg(jwPath,jwImgName,jwWaterImgPath,jwPos,jwPadding)
+	On Error Resume Next
+	Dim Jpeg,logoJpeg
+	Set logoJpeg = Server.CreateObject("Persits.Jpeg")
+	logoJpeg.Open Server.MapPath(jwWaterImgPath)	' 打开水印图片
+	logoW = logoJpeg.OriginalWidth
+	logoH = logoJpeg.OriginalHeight
+
+	Set Jpeg = Server.CreateObject("Persits.Jpeg")
+	Jpeg.Open Server.MapPath(jwPath & jwImgName)	' 打开目标图片
+	imgW = Jpeg.OriginalWidth
+	imgH = Jpeg.OriginalHeight
+		If logoW>imgW Or logoH>imgH Or logoW=0 Or logoH=0 Then
+			Exit Function
+		End If
+
+	Select Case jwPos
+		Case "leftTop"
+			posX=0 + jwPadding
+			posY=0 + jwPadding
+		Case "leftMiddle"
+			posX=0
+			posY=Jpeg.Height / 2 + jwPadding - logoH / 2
+		Case "leftBottom"
+			posX=0
+			posY=Jpeg.Height - jwPadding - logoH
+		Case "centerTop"
+			posX=Jpeg.Width / 2 - logoW / 2
+			posY=0 + jwPadding
+		Case "centerMiddle"
+			posX=Jpeg.Width / 2 - logoW / 2
+			posY=Jpeg.Height / 2 - logoH / 2
+		Case "centerBottom"
+			posX=Jpeg.Width / 2 - logoW / 2
+			posY=Jpeg.Height - jwPadding - logoH
+		Case "rightTop"
+			posX=Jpeg.Width - jwPadding - logoW
+			posY=0 - jwPadding
+		Case "rightMiddle"
+			posX=Jpeg.Width - jwPadding - logoW
+			posY=Jpeg.Height / 2 - logoH / 2
+		Case "rightBottom"
+			posX=Jpeg.Width - jwPadding - logoW
+			posY=Jpeg.Height - jwPadding - logoH
+		Case Else
+			posX=Jpeg.Width - jwPadding - logoW
+			posY=Jpeg.Height - jwPadding - logoH
+	End Select
+
+    Jpeg.Canvas.Pen.Color  = &H000000  ' 边框的颜色
+    Jpeg.Canvas.Pen.Width  = 0    ' 边框的粗细
+    Jpeg.Canvas.Brush.Solid = False   ' 图片边框内是否填充颜色
+    Jpeg.DrawImage posX, posY, logoJpeg, 0.5, &HFFFFFF    ' 加入图片的位置坐标（添加水印图片），参数顺序为：水平坐标，垂直坐标，水印图片地址，水银透明度，抽取颜色（&H表示16进制）
+'    Jpeg.Canvas.Bar 0, 0, Jpeg.Width, Jpeg.Height ' 图片边框线的位置坐标和大小
+    Jpeg.Save Server.MapPath(jwPath & jwImgName)  ' 生成文件"watermark_"&
+	Set Jpeg = Nothing
+End Function
+
+
+
+
+Function Jpeg_StrLen(str)
+	jStrLen=Len(str)
+	jStrNum=0
+	For stri=1 To jStrLen
+		If Asc(Mid(str,stri,1))>127 Or Asc(Mid(str,stri,1))<0 Then
+			jStrNum = jStrNum + 2
+		Else
+			jStrNum = jStrNum + 1
+		End If
+	Next
+	Jpeg_StrLen=jStrNum
+End Function
+
+%>

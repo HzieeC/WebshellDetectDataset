@@ -1,0 +1,720 @@
+<%
+Function GroupPermission(GroupSetting)
+	Dim reGroupSetting,Rs,UserHtml,UserHtmlA,UserHtmlB
+	If GroupSetting="" Then
+		Set Rs = Dvbbs.Execute("Select GroupSetting From Dv_UserGroups Where UserGroupID=4")
+		reGroupSetting = Split(Rs(0),",")
+	Else
+		reGroupSetting = Split(GroupSetting,",")
+	End If
+	If reGroupSetting(58)="0" Then reGroupSetting(58)="§"
+	UserHtml = Split(reGroupSetting(58),"§")
+	If Ubound(UserHtml)=1 Then
+		UserHtmlA=UserHtml(0)
+		UserHtmlB=UserHtml(1)
+	Else
+		UserHtmlA=""
+		UserHtmlB=""
+	End If
+%>
+
+<tr> 
+<th colspan="4"><a name="setting2"></a>＝＝浏览相关选项</th>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(58)"></td>
+<td class=tablebody1>用户名在帖子内容中显示标记<BR>HTML语法，左右标记代码将加于用户名前后两头</td>
+<td class=tablebody1>左标记 <input name="GroupSetting(58)A" type=text size=30 value="<%=Server.HtmlEncode(UserHtmlA)%>"> <br>右标记 <input name="GroupSetting(58)B" type=text size=30 value="<%=Server.HtmlEncode(UserHtmlB)%>"></td>
+<td class=tablebody1><input type="hidden" id="g1" value="<b>用户名在帖子内容中显示标记</b><br><li>HTML语法，左右标记代码将加于用户名前后两头<br><li>如您设置了前后分别为《b》和《/b》，则在帖子内容中该组用户或者相关等级用户名显示为<B>粗体</B>">
+<a href=# onclick="helpscript(g1);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(57)"></td>
+<td class=tablebody1>允许用户自选风格</td>
+<td class=tablebody1>是<input name="GroupSetting(57)" type=radio class="radio" value="1" <%if reGroupSetting(57)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(57)" type=radio class="radio" value="0" <%if reGroupSetting(57)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g2" value="<b>允许用户自选风格</b><br><li>如果关闭了本选项，论坛中用户将不能自己选择浏览显示的风格（包括用户在个人信息中设定的风格）">
+<a href=# onclick="helpscript(g2);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(0)"></td>
+<td class=tablebody1>可以浏览论坛</td>
+<td class=tablebody1>是<input name="GroupSetting(0)" type=radio class="radio" value="1" <%if reGroupSetting(0)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(0)" type=radio class="radio" value="0" <%if reGroupSetting(0)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g3" value="<b>用户名在帖子内容中显示标记</b><br><li>关闭此选项，相关组或等级用户将不能浏览论坛<br><li>使用技巧：您可以设定某个用户组不能使用本设置，而当其身份变化后的用户组可使用本设置，如设置客人不能使用本设置，这样将迫使他登录">
+<a href=# onclick="helpscript(g3);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(1)"></td>
+<td class=tablebody1>可以查看会员信息（包括其他会员的资料和会员列表）
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(1)" type=radio class="radio" value="1" <%if reGroupSetting(1)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(1)" type=radio class="radio" value="0" <%if reGroupSetting(1)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g4" value="<b>可以查看会员信息</b><br><li>关闭此选项，相关组或等级用户将不能浏览论坛用户资料，包括会员资料和会员列表资料<br><li>使用技巧：您可以设定某个用户组不能使用本设置，而当其身份变化后的用户组可使用本设置，如设置客人不能使用本设置，这样将迫使他登录">
+<a href=# onclick="helpscript(g4);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(2)"></td>
+<td  class=tablebody1>可以查看其他人发布的主题
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(2)" type=radio class="radio" value="1" <%if reGroupSetting(2)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(2)" type=radio class="radio" value="0" <%if reGroupSetting(2)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g5" value="<b>可以查看其他人发布的主题</b><br><li>关闭此选项，相关组或等级用户将不能浏览论坛中其他人发布的帖子<br><li>使用技巧：您可以设定某个用户组不能使用本设置，而当其身份变化后的用户组可使用本设置，如设置客人不能使用本设置，这样将迫使他登录">
+<a href=# onclick="helpscript(g5);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(41)"></td>
+<td  class=tablebody1>可以浏览精华帖子
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(41)" type=radio class="radio" value="1" <%if reGroupSetting(41)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(41)" type=radio class="radio" value="0" <%if reGroupSetting(41)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g6" value="<b>可以浏览精华帖子</b><br><li>关闭此选项，相关组或等级用户将不能浏览论坛中的精华帖子<br><li>使用技巧：您可以设定某个用户组不能使用本设置，而当其身份变化后的用户组可使用本设置，如设置客人不能使用本设置，这样将迫使他登录">
+<a href=# onclick="helpscript(g6);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr> 
+<th colspan="4"><a name="setting3"></a>＝＝发帖权限</th>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(3)"></td>
+<td  class=tablebody1>可以发布新主题</td>
+<td  class=tablebody1>是<input name="GroupSetting(3)" type=radio class="radio" value="1" <%if reGroupSetting(3)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(3)" type=radio class="radio" value="0" <%if reGroupSetting(3)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g9" value="<b>可以发布新主题</b><br><li>打开此选项，相关组或等级用户将可以可以发布新主题。鉴于国家规定，论坛默认的未登录用户组将即使设置此选项也不能发贴">
+<a href=# onclick="helpscript(g9);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(64)"></td>
+<td class=tablebody1>在审核模式下可直接发贴而不需经过审核</td>
+<td class=tablebody1>是<input name="GroupSetting(64)" type=radio class="radio" value="1" <%if reGroupSetting(64)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(64)" type=radio class="radio" value="0" <%if reGroupSetting(64)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g10" value="<b>在审核模式下可直接发贴而不需经过审核</b><br><li>打开此选项，相关组或等级用户将可以可以发布新主题或回复而不经审核<br><li>当论坛版面设置为审核状态时该选项有效">
+<a href=# onclick="helpscript(g10);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(62)"></td>
+<td class=tablebody1>一天最多发贴数目
+</td>
+<td  class=tablebody1><input name="GroupSetting(62)" type=text size=4 value="<%=reGroupSetting(62)%>"></td>
+<td class=tablebody1><input type="hidden" id="g11" value="<b>一天最多发贴数目</b><br><li>填写0为不作限制，出于对付灌水或者使用软件发贴的用户，请在此设置合理的数字<br><li>使用技巧：您可以给不同用户组设置不同的数字">
+<a href=# onclick="helpscript(g11);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(4)"></td>
+<td  class=tablebody1>可以回复自己的主题
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(4)" type=radio class="radio" value="1" <%if reGroupSetting(4)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(4)" type=radio class="radio" value="0" <%if reGroupSetting(4)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g12" value="<b>可以回复自己的主题</b><br><li>打开此选项，相关用户组或等级用户可以回复自己发布的主题">
+<a href=# onclick="helpscript(g12);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(5)"></td>
+<td  class=tablebody1>可以回复其他人的主题
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(5)" type=radio class="radio" value="1" <%if reGroupSetting(5)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(5)" type=radio class="radio" value="0" <%if reGroupSetting(5)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g13" value="<b>可以回复其他人的主题</b><br><li>打开此选项，相关用户组或等级用户可以回复其他人的主题">
+<a href=# onclick="helpscript(g13);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(8)"></td>
+<td  class=tablebody1>可以发布新投票</td>
+<td  class=tablebody1>是<input name="GroupSetting(8)" type=radio class="radio" value="1" <%if reGroupSetting(8)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(8)" type=radio class="radio" value="0" <%if reGroupSetting(8)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g21" value="<b>可以发布新投票</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以发布新投票">
+<a href=# onclick="helpscript(g21);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(9)"></td>
+<td  class=tablebody1>可以参与投票</td>
+<td  class=tablebody1>是<input name="GroupSetting(9)" type=radio class="radio" value="1" <%if reGroupSetting(9)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(9)" type=radio class="radio" value="0" <%if reGroupSetting(9)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g22" value="<b>可以发布新投票</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以参与投票">
+<a href=# onclick="helpscript(g22);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(68)"></td>
+<td  class=tablebody1>投票可以使用HTML语法</td>
+<td  class=tablebody1>是<input name="GroupSetting(68)" type=radio class="radio" value="1" <%if reGroupSetting(68)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(68)" type=radio class="radio" value="0" <%if reGroupSetting(68)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g_u_HTML" value="<b>投票可以使用HTML语法</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以在投票中使用HTML语法">
+<a href=# onclick="helpscript(g_u_HTML);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(17)"></td>
+<td  class=tablebody1>可以发布小字报</td>
+<td  class=tablebody1>是<input name="GroupSetting(17)" type=radio class="radio" value="1"  <%if reGroupSetting(17)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(17)" type=radio class="radio" value="0" <%if reGroupSetting(17)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g23" value="<b>可以发布小字报</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以发布小字报">
+<a href=# onclick="helpscript(g23);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(46)"></td>
+<td  class=tablebody1>发布小字报所需金钱</td>
+<td  class=tablebody1><input name="GroupSetting(46)" type=text value="<%=reGroupSetting(46)%>" size=4></td>
+<td class=tablebody1><input type="hidden" id="g24" value="<b>发布小字报所需金钱</b><br><li>在这里您可以根据需要设置不同用户组或等级用户发布小字报所需金钱">
+<a href=# onclick="helpscript(g24);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(51)"></td>
+<td  class=tablebody1>可以发布特殊标题帖子（如标题加红、UBB语法等）</td>
+<td  class=tablebody1>是<input name="GroupSetting(51)" type=radio class="radio" value="1"  <%if reGroupSetting(51)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(51)" type=radio class="radio" value="0" <%if reGroupSetting(51)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g25" value="<b>可以发布特殊标题帖子</b><br><li>在这里您可以根据需要设置不同用户组或等级用户可以发布特殊标题帖子，如标题加颜色、HTML语法、UBB语法等，您可针对个别用户组可使用此特殊功能">
+<a href=# onclick="helpscript(g25);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(59)"></td>
+<td  class=tablebody1>可以发布赠送金币贴，获赠金币贴，论坛交易帖</td>
+<td  class=tablebody1>是<input name="GroupSetting(59)" type=radio class="radio" value="1"  <%if reGroupSetting(59)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(59)" type=radio class="radio" value="0" <%if reGroupSetting(59)="0" then%>checked<%end if%>></td>
+<td class=tablebody1>　</td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(67)"></td>
+<td  class=tablebody1>发表模式选择</td>
+<td  class=tablebody1>
+<select name="GroupSetting(67)" >
+<option value="0"  <%if reGroupSetting(67)="0" then%>selected<%end if%>>关闭HTML编辑
+<option value="1"  <%if reGroupSetting(67)="1" then%>selected<%end if%>>允许HTML编辑
+<option value="2"  <%if reGroupSetting(67)="2" then%>selected<%end if%>>简单模式编辑
+<option value="3"  <%if reGroupSetting(67)="3" then%>selected<%end if%>>全功能编辑
+</select>
+</td>
+<td class=tablebody1><input type="hidden" id="g0" value="<b>发表模式选择</b><br><li>发表模式包括：Design编辑模式,Ubb简单模式，HTML可编辑模式；<li>关闭HTML编辑：当版块允许发表高级模式下，用户只保留Design编辑模式和Ubb简单模式；<li>允许HTML编辑：当版块允许发表高级模式下，用户拥有Design编辑模式和HTML可编辑模式；<li>简单模式编辑：当版块允许发表高级模式下，用户只保留Ubb简单模式；<li>全功能编辑：当版块在发表简单模式下，拥有所有发表模式；<li>为避免用户滥用HTML的各种语法，建议只对部分用户关闭HTML编辑；">
+<a href=# onclick="helpscript(g0);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(65)"></td>
+<td  class=tablebody1>可以发表论坛专题</td>
+<td  class=tablebody1>是<input name="GroupSetting(65)" type=radio class="radio" value="1"  <%if reGroupSetting(65)="1" then%>checked<%end if%>>&nbsp;必选<input name="GroupSetting(65)" type=radio class="radio" value="2"  <%if reGroupSetting(65)="2" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(65)" type=radio class="radio" value="0" <%if reGroupSetting(65)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><a href=# class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(52)"></td>
+<td  class=tablebody1>新注册用户多少分钟后才能发言</td>
+<td  class=tablebody1><input name="GroupSetting(52)" type=text value="<%=reGroupSetting(52)%>" size=4> 分钟</td>
+<td class=tablebody1><input type="hidden" id="g26" value="<b>新注册用户多少分钟后才能发言</b><br><li>在这里您可以根据需要设置不同用户组或等级用户新注册需要多少分钟后才能发言，建议合理设置此选项，以避免一些恶意用户乱注册散发非法帖子或广告帖子">
+<a href=# onclick="helpscript(g26);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr> 
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(69)"></td>
+<td class=tablebody1>是否允许使用魔法表情</td>
+<td class=tablebody1>
+<input type=radio class="radio" name="GroupSetting(69)" value=1 <%if reGroupSetting(69)="1" then%>checked<%end if%>>是&nbsp;
+<input type=radio class="radio" name="GroupSetting(69)" value=0 <%if reGroupSetting(69)="0" then%>checked<%end if%>>否&nbsp;
+</td>
+<td class=tablebody1>　</td>
+</tr>
+<tr> 
+<th colspan="4"><a name="setting4"></a>＝＝<b>帖子/主题编辑权限</b></th>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(10)"></td>
+<td  class=tablebody1>可以编辑自己的帖子
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(10)" type=radio class="radio" value="1" <%if reGroupSetting(10)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(10)" type=radio class="radio" value="0" <%if reGroupSetting(10)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g27" value="<b>可以编辑自己的帖子</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以编辑自己的帖子">
+<a href=# onclick="helpscript(g27);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(11)"></td>
+<td  class=tablebody1>可以删除自己的帖子
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(11)" type=radio class="radio" value="1" <%if reGroupSetting(11)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(11)" type=radio class="radio" value="0" <%if reGroupSetting(11)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g28" value="<b>可以删除自己的帖子</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以删除自己的帖子，请根据自己的需要合理设置此选项">
+<a href=# onclick="helpscript(g28);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(12)"></td>
+<td  class=tablebody1>可以移动自己的帖子到其他论坛
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(12)" type=radio class="radio" value="1" <%if reGroupSetting(12)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(12)" type=radio class="radio" value="0" <%if reGroupSetting(12)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g29" value="<b>可以移动自己的帖子到其他论坛</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以移动自己的帖子到其他论坛，请根据自己的需要合理设置此选项">
+<a href=# onclick="helpscript(g29);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(13)"></td>
+<td  class=tablebody1>可以打开/关闭自己发布的主题
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(13)" type=radio class="radio" value="1" <%if reGroupSetting(13)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(13)" type=radio class="radio" value="0" <%if reGroupSetting(13)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g30" value="<b>可以打开/关闭自己发布的主题</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以打开/关闭自己发布的主题，请根据自己的需要合理设置此选项">
+<a href=# onclick="helpscript(g30);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr> 
+<th colspan="4"><a name="setting5"></a>＝＝上传权限设置</th>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(7)"></td>
+<td  class=tablebody1>可以上传附件
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(7)" type=radio class="radio" value="1" <%if reGroupSetting(7)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(7)" type=radio class="radio" value="0" <%if reGroupSetting(7)="0" then%>checked<%end if%>>
+&nbsp;发帖可以上传<input name="GroupSetting(7)" type=radio class="radio" value="2" <%if reGroupSetting(7)="2" then%>checked<%end if%>>&nbsp;回复可以上传<input name="GroupSetting(7)" type=radio class="radio" value="3" <%if reGroupSetting(7)="3" then%>checked<%end if%>>
+</td>
+<td class=tablebody1><input type="hidden" id="g16" value="<b>可以上传附件</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以上传附件，选择是则发贴和回贴都可以上传，否则不行。您也可以可以根据需要分别设置发贴或回帖是否可以上传">
+<a href=# onclick="helpscript(g16);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(66)"></td>
+<td  class=tablebody1>一次批量上传数量（设置为0，即不允许使用此功能；建议不要超过5个）
+</td>
+<td  class=tablebody1><input name="GroupSetting(66)" type=text size=4 value="<%=reGroupSetting(66)%>"></td>
+<td class=tablebody1><input type="hidden" id="GroupSetting66" value="<b>一次批量上传数量</b><br><li>设置为0，即不允许使用此功能;<li>建议不要超过5个，因为上传操作将消耗大量服务器资源">
+<a href=# onclick="helpscript(GroupSetting66);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(40)"></td>
+<td  class=tablebody1>一次最多上传文件个数
+</td>
+<td  class=tablebody1><input name="GroupSetting(40)" type=text size=4 value="<%=reGroupSetting(40)%>"></td>
+<td class=tablebody1><input type="hidden" id="g17" value="<b>一次最多上传文件个数</b><br><li>在这里您可以根据需要设置不同用户组或等级用户一次最多上传文件个数，建议不要设置过大，因为上传操作将消耗大量服务器资源">
+<a href=# onclick="helpscript(g17);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(50)"></td>
+<td  class=tablebody1>一天最多上传文件个数
+</td>
+<td  class=tablebody1><input name="GroupSetting(50)" type=text size=4 value="<%=reGroupSetting(50)%>"></td>
+<td class=tablebody1><input type="hidden" id="g18" value="<b>一天最多上传文件个数</b><br><li>在这里您可以根据需要设置不同用户组或等级用户一天最多上传文件个数，建议不要设置过大，因为上传操作将消耗大量服务器资源">
+<a href=# onclick="helpscript(g18);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(44)"></td>
+<td  class=tablebody1>上传文件大小限制
+</td>
+<td  class=tablebody1><input name="GroupSetting(44)" type=text size=4 value="<%=reGroupSetting(44)%>"> KB</td>
+<td class=tablebody1><input type="hidden" id="g19" value="<b>上传文件大小限制</b><br><li>在这里您可以根据需要设置不同用户组或等级用户上传文件大小，建议不要设置过大，因为上传操作将消耗大量服务器资源">
+<a href=# onclick="helpscript(g19);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(61)"></td>
+<td  class=tablebody1>可以下载附件</td>
+<td  class=tablebody1>是<input name="GroupSetting(61)" type=radio class="radio" value="1" <%if reGroupSetting(61)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(61)" type=radio class="radio" value="0" <%if reGroupSetting(61)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g20" value="<b>可以下载附件</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以下载附件，比如可以设置未登录用户不许下载">
+<a href=# onclick="helpscript(g20);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr> 
+<th colspan="4"><a name="setting6"></a>＝＝管理权限</th>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(18)"></td>
+<td  class=tablebody1>可以删除其它人帖子
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(18)" type=radio class="radio" value="1" <%if reGroupSetting(18)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(18)" type=radio class="radio" value="0"  <%if reGroupSetting(18)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g38" value="<b>可以删除其它人帖子</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以删除其它人帖子，请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g38);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(19)"></td>
+<td  class=tablebody1>可以移动其它人帖子
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(19)" type=radio class="radio" value="1" <%if reGroupSetting(19)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(19)" type=radio class="radio" value="0"  <%if reGroupSetting(19)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g39" value="<b>可以移动其它人帖子</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以移动其它人帖子，请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g39);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(20)"></td>
+<td  class=tablebody1>可以打开/关闭其它人帖子
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(20)" type=radio class="radio" value="1" <%if reGroupSetting(20)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(20)" type=radio class="radio" value="0"  <%if reGroupSetting(20)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g40" value="<b>可以打开/关闭其它人帖子</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以打开/关闭其它人帖子，请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g40);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(21)"></td>
+<td  class=tablebody1>可以固顶/解除固顶帖子
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(21)" type=radio class="radio" value="1" <%if reGroupSetting(21)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(21)" type=radio class="radio" value="0"  <%if reGroupSetting(21)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g41" value="<b>可以固顶/解除固顶帖子</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以固顶/解除固顶帖子，请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g41);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(54)"></td>
+<td  class=tablebody1>可以进行帖子区域固顶操作
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(54)" type=radio class="radio" value="1" <%if reGroupSetting(54)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(54)" type=radio class="radio" value="0"  <%if reGroupSetting(54)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g42" value="<b>可以进行帖子区域固顶操作</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以进行帖子区域固顶操作，请根据自己的需要合理设置此选项，建议对超级版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g42);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(38)"></td>
+<td  class=tablebody1>可以进行帖子总固顶操作
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(38)" type=radio class="radio" value="1"  <%if reGroupSetting(38)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(38)" type=radio class="radio" value="0" <%if reGroupSetting(38)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g43" value="<b>可以进行帖子总固顶操作</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以进行帖子总固顶操作，请根据自己的需要合理设置此选项，建议对超级版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g43);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(22)"></td>
+<td  class=tablebody1>可以对用户评分
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(22)" type=radio class="radio" value="1" <%if reGroupSetting(22)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(22)" type=radio class="radio" value="0"  <%if reGroupSetting(22)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g44" value="<b>可以奖励/惩罚发贴用户</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以奖励/惩罚发贴用户，请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g44);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(43)"></td>
+<td  class=tablebody1>可以对独立用户进行奖励/惩罚
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(43)" type=radio class="radio" value="1" <%if reGroupSetting(43)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(43)" type=radio class="radio" value="0"  <%if reGroupSetting(43)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g45" value="<b>可以奖励/惩罚用户</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以奖励/惩罚用户，请根据自己的需要合理设置此选项，建议对超级版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g45);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(23)"></td>
+<td  class=tablebody1>可以编辑其它人帖子
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(23)" type=radio class="radio" value="1" <%if reGroupSetting(23)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(23)" type=radio class="radio" value="0" <%if reGroupSetting(23)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g46" value="<b>可以编辑其它人帖子</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以编辑其它人帖子，请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g46);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(24)"></td>
+<td  class=tablebody1>可以加入/解除精华帖子
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(24)" type=radio class="radio" value="1" <%if reGroupSetting(24)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(24)" type=radio class="radio" value="0"  <%if reGroupSetting(24)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g47" value="<b>可以加入/解除精华帖子</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以加入/解除精华帖子，请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g47);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(25)"></td>
+<td  class=tablebody1>可以发布公告
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(25)" type=radio class="radio" value="1" <%if reGroupSetting(25)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(25)" type=radio class="radio" value="0"  <%if reGroupSetting(25)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g48" value="<b>可以发布公告</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以发布公告，请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g48);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(26)"></td>
+<td  class=tablebody1>可以管理公告
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(26)" type=radio class="radio" value="1" <%if reGroupSetting(26)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(26)" type=radio class="radio" value="0"  <%if reGroupSetting(26)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g49" value="<b>可以管理公告</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以管理公告，请根据自己的需要合理设置此选项，建议对超级版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g49);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(27)"></td>
+<td  class=tablebody1>可以管理小字报
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(27)" type=radio class="radio" value="1" <%if reGroupSetting(27)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(27)" type=radio class="radio" value="0"  <%if reGroupSetting(27)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g50" value="<b>可以管理小字报</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以管理小字报，请根据自己的需要合理设置此选项，建议对超级版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g50);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(28)"></td>
+<td  class=tablebody1>可以锁定/屏蔽/解除锁定用户
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(28)" type=radio class="radio" value="1" <%if reGroupSetting(28)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(28)" type=radio class="radio" value="0"  <%if reGroupSetting(28)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g51" value="<b>可以锁定/屏蔽/解除锁定用户</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以锁定/屏蔽/解除锁定用户，请根据自己的需要合理设置此选项，建议对超级版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g51);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(29)"></td>
+<td  class=tablebody1>可以删除用户1－10天内所发帖子
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(29)" type=radio class="radio" value="1" <%if reGroupSetting(29)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(29)" type=radio class="radio" value="0"  <%if reGroupSetting(29)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g52" value="<b>可以删除用户1－10天内所发帖子</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以删除用户1－10天内所发帖子，请根据自己的需要合理设置此选项，建议对超级版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g52);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(30)"></td>
+<td  class=tablebody1>可以查看来访IP及来源
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(30)" type=radio class="radio" value="1" <%if reGroupSetting(30)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(30)" type=radio class="radio" value="0"  <%if reGroupSetting(30)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g53" value="<b>可以查看来访IP及来源</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以查看来访IP及来源，请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g53);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(31)"></td>
+<td  class=tablebody1>可以限定IP来访
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(31)" type=radio class="radio" value="1" <%if reGroupSetting(31)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(31)" type=radio class="radio" value="0"  <%if reGroupSetting(31)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g54" value="<b>可以限定IP来访</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以限定IP来访，请根据自己的需要合理设置此选项，建议对超级版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g54);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(42)"></td>
+<td  class=tablebody1>可以管理用户权限
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(42)" type=radio class="radio" value="1" <%if reGroupSetting(42)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(42)" type=radio class="radio" value="0"  <%if reGroupSetting(42)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g55" value="<b>可以管理用户权限</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以管理用户权限，请根据自己的需要合理设置此选项，建议对超级版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g55);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(45)"></td>
+<td  class=tablebody1>可以批量删除帖子（前台）
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(45)" type=radio class="radio" value="1" <%if reGroupSetting(45)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(45)" type=radio class="radio" value="0"  <%if reGroupSetting(45)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g56" value="<b>可以批量删除帖子（前台）</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以批量删除帖子（前台），请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g56);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(36)"></td>
+<td  class=tablebody1>是否有审核帖子的权限
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(36)" type=radio class="radio" value="1" <%if reGroupSetting(36)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(36)" type=radio class="radio" value="0" <%if reGroupSetting(36)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g57" value="<b>是否有审核帖子的权限</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否有审核帖子的权限，请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限">
+<a href=# onclick="helpscript(g57);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(37)"></td>
+<td  class=tablebody1>是否有进入隐含论坛的权限
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(37)" type=radio class="radio" value="1"  <%if reGroupSetting(37)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(37)" type=radio class="radio" value="0" <%if reGroupSetting(37)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g58" value="<b>是否有进入隐含论坛的权限</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否有进入隐含论坛的权限，请根据自己的需要合理设置此选项">
+<a href=# onclick="helpscript(g58);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(48)"></td>
+<td  class=tablebody1>有论坛文件管理权限
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(48)" type=radio class="radio" value="1" <%if reGroupSetting(48)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(48)" type=radio class="radio" value="0" <%if reGroupSetting(48)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g59" value="<b>有论坛文件管理权限</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否有论坛文件管理权限，请根据自己的需要合理设置此选项，建议对版主及其以上用户组设置此权限，相关管理操作在论坛展区">
+<a href=# onclick="helpscript(g59);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr> 
+<th colspan="4"><a name="setting7"></a>＝＝短信权限</th>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(32)"></td>
+<td  class=tablebody1>可以发送短信
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(32)" type=radio class="radio" value="1"  <%if reGroupSetting(32)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(32)" type=radio class="radio" value="0" <%if reGroupSetting(32)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g60" value="<b>可以发送短信</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否有可以发送短信的权限，请根据自己的需要合理设置此选项">
+<a href=# onclick="helpscript(g60);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(33)"></td>
+<td  class=tablebody1>最多发送用户
+</td>
+<td  class=tablebody1><input name="GroupSetting(33)" size=5 type=text value="<%=reGroupSetting(33)%>"></td>
+<td class=tablebody1><input type="hidden" id="g61" value="<b>最多发送用户</b><br><li>在这里您可以根据需要设置不同用户组或等级用户最多发送用户，请根据自己的需要合理设置此选项，建议不要设置过大以免消耗论坛资源。">
+<a href=# onclick="helpscript(g61);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(34)"></td>
+<td  class=tablebody1>短信内容大小限制
+</td>
+<td  class=tablebody1><input name="GroupSetting(34)" size=5 type=text value="<%=reGroupSetting(34)%>"> byte</td>
+<td class=tablebody1><input type="hidden" id="g62" value="<b>短信内容大小限制</b><br><li>在这里您可以根据需要设置不同用户组或等级用户短信内容大小限制，请根据自己的需要合理设置此选项，建议不要设置过大以免消耗论坛资源.">
+<a href=# onclick="helpscript(g62);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(35)"></td>
+<td  class=tablebody1>信箱大小限制
+</td>
+<td  class=tablebody1><input name="GroupSetting(35)" size=5 type=text value="<%=reGroupSetting(35)%>"> 条记录</td>
+<td class=tablebody1><input type="hidden" id="g63" value="<b>信箱大小限制</b><br><li>在这里您可以根据需要设置不同用户组或等级用户信箱大小限制，请根据自己的需要合理设置此选项，建议不要设置过大以免消耗论坛资源">
+<a href=# onclick="helpscript(g63);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(53)"></td>
+<td  class=tablebody1>新注册用户多少分钟后才能发短信</td>
+<td  class=tablebody1><input name="GroupSetting(53)" type=text value="<%=reGroupSetting(53)%>" size=4> 分钟</td>
+<td class=tablebody1><input type="hidden" id="g64" value="<b>新注册用户多少分钟后才能发短信</b><br><li>在这里您可以根据需要设置不同用户组或等级新注册用户多少分钟后才能发短信，出于防止恶意群发或使用软件群发短信的目的，建议合理设置此选项">
+<a href=# onclick="helpscript(g64);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(63)"></td>
+<td  class=tablebody1>一天最多发短信数目</td>
+<td  class=tablebody1><input name="GroupSetting(63)" type=text value="<%=reGroupSetting(63)%>" size=4></td>
+<td class=tablebody1><input type="hidden" id="g65" value="<b>一天最多发短信数目</b><br><li>在这里您可以根据需要设置不同用户组或等级用户一天最多发短信数目，出于防止恶意群发或使用软件群发短信的目的，建议合理设置此选项">
+<a href=# onclick="helpscript(g65);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr> 
+<th colspan="4"><a name="setting8"></a>＝＝其他权限</th>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(14)"></td>
+<td  class=tablebody1>可以搜索论坛
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(14)" type=radio class="radio" value="1" <%if reGroupSetting(14)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(14)" type=radio class="radio" value="0" <%if reGroupSetting(14)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g31" value="<b>可以搜索论坛</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以搜索论坛，请根据自己的需要合理设置此选项，建议对未登录用户关闭此选项">
+<a href=# onclick="helpscript(g31);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(73)"></td>
+<td  class=tablebody1>可以申请个性圈子
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(73)" type=radio class="radio" value="1" <%if reGroupSetting(73)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(73)" type=radio class="radio" value="0" <%if reGroupSetting(73)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g73" value="<b>可以申请个性圈子</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以申请个性圈子，请根据自己的需要合理设置此选项，未登录用户此选项设置无效">
+<a href=# onclick="helpscript(g73);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(74)"></td>
+<td  class=tablebody1>个性圈子成员上限
+</td>
+<td  class=tablebody1><input name="GroupSetting(74)" type="text" value="<%=reGroupSetting(74)%>" size="4"> 个</td>
+<td class=tablebody1><input type="hidden" id="g74" value="<b>个性圈子成员上限</b><br><li>在这里您可以根据需要设置不同用户组或等级用户申请的个性圈子最多能加入的成员数">
+<a href=# onclick="helpscript(g73);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(15)"></td>
+<td  class=tablebody1>可以使用‘发送本页给好友’功能
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(15)" type=radio class="radio" value="1" <%if reGroupSetting(15)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(15)" type=radio class="radio" value="0" <%if reGroupSetting(15)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g32" value="<b>可以使用'发送本页给好友'功能</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以使用'发送本页给好友'功能，请根据自己的需要合理设置此选项，建议对未登录用户关闭此选项">
+<a href=# onclick="helpscript(g32);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(16)"></td>
+<td  class=tablebody1>可以修改个人资料
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(16)" type=radio class="radio" value="1" <%if reGroupSetting(16)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(16)" type=radio class="radio" value="0" <%if reGroupSetting(16)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g33" value="<b>可以修改个人资料</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以修改个人资料">
+<a href=# onclick="helpscript(g33);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(39)"></td>
+<td  class=tablebody1>可以浏览论坛事件
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(39)" type=radio class="radio" value="1"  <%if reGroupSetting(39)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(39)" type=radio class="radio" value="0" <%if reGroupSetting(39)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g34" value="<b>可以浏览论坛事件</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可以浏览论坛事件，请根据自己的需要合理设置此选项，建议对未登录用户关闭此选项">
+<a href=# onclick="helpscript(g34);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(49)"></td>
+<td  class=tablebody1>可浏览论坛展区的权限
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(49)" type=radio class="radio" value="1"  <%if reGroupSetting(49)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(49)" type=radio class="radio" value="0" <%if reGroupSetting(49)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g35" value="<b>可浏览论坛展区的权限</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否可浏览论坛展区的权限，请根据自己的需要合理设置此选项，建议对未登录用户关闭此选项">
+<a href=# onclick="helpscript(g35);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(55)"></td>
+<td  class=tablebody1>是否可以使用签名
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(55)" type=radio class="radio" value="1"  <%if reGroupSetting(55)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(55)" type=radio class="radio" value="0" <%if reGroupSetting(55)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g36" value="<b>是否可以使用签名</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否是否可以使用签名，请根据自己的需要合理设置此选项">
+<a href=# onclick="helpscript(g36);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(56)"></td>
+<td  class=tablebody1>签名的最大长度</td>
+<td  class=tablebody1><input name="GroupSetting(56)" type=text value="<%=reGroupSetting(56)%>" size=4> 字节</td>
+<td class=tablebody1><input type="hidden" id="g37" value="<b>签名的最大长度</b><br><li>在这里您可以根据需要设置不同用户组或等级用户签名的最大长度，请根据自己的需要合理设置此选项，为了避免影响帖子内容浏览，不建议对此项设置过大字节数">
+<a href=# onclick="helpscript(g37);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(72)"></td>
+<td  class=tablebody1>是否直接显示在线多媒体播放标签
+</td>
+<td  class=tablebody1>是<input name="GroupSetting(72)" type=radio class="radio" value="1"  <%if reGroupSetting(72)="1" then%>checked<%end if%>>&nbsp;否<input name="GroupSetting(72)" type=radio class="radio" value="0" <%if reGroupSetting(72)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="mt" value="<b>否直接显示在线多媒体播放标签</b><br><li>在这里您可以根据需要设置不同用户组或等级用户是否是否可以直接显示播放多媒体标签。">
+<a href=# onclick="helpscript(mt);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<%
+If InStr(Dvbbs.Scriptname,"admin_lockuser")=0 And Dvbbs.BoardID = 0 Then
+%>
+<tr> 
+<th colspan="4"><a name="setting9"></a>＝＝重要权限设置</th>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(70)"></td>
+<td  class=tablebody1>是否允许进入后台<BR>通常此设置仅对管理员组开通，最好不要开通其他用户组此权限，如果想让某个用户进入后台可在用户自定义权限中设置（设置后还需要在管理员管理中添加后才正式生效）</td>
+<td  class=tablebody1>开启<input name="GroupSetting(70)" type=radio class="radio" value="1"  <%if reGroupSetting(70)="1" then%>checked<%end if%>>&nbsp;关闭<input name="GroupSetting(70)" type=radio class="radio" value="0" <%if reGroupSetting(70)="0" then%>checked<%end if%>></td>
+<td class=tablebody1><input type="hidden" id="g70" value="<b>是否允许进入后台</b><br><li>通常此设置仅对管理员组开通，最好不要开通其他用户组此权限，如果想让某个用户进入后台可在用户自定义权限中设置（设置后还需要在管理员管理中添加后才正式生效）">
+<a href=# onclick="helpscript(g70);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<%
+Else
+	Response.Write "<input name=""GroupSetting(70)"" type=hidden value="""&reGroupSetting(70)&""">"
+End If
+
+If Ubound(reGroupSetting)<90 Then
+	Redim reGroupSetting(90)
+End If
+Dim VipMoneySetting
+If Instr(reGroupSetting(71),"§") and Ubound(Split(reGroupSetting(71),"§"))=3 Then
+	VipMoneySetting = Split(reGroupSetting(71),"§")
+Else
+	ReDim VipMoneySetting(3)
+	VipMoneySetting(0)=0
+	VipMoneySetting(1)=0
+	VipMoneySetting(2)=0
+	VipMoneySetting(3)=0
+End If
+%>
+<tr> 
+<th colspan="4"><a name="setting9"></a>＝＝用户收费设置</th>
+</tr>
+<tr>
+<td class=tablebody1><input type="checkbox" class="checkbox" name="CheckGroupSetting(71)"></td>
+<td class=tablebody1>升级到该组所需金币数<br>
+如用户需要升级到该用户组，用户只要付相应的金币和点券就能得到该组的使用时限（以天为单位）。每项设置不能为空
+</td>
+<td class=tablebody1>
+<input type="text" name="GroupSetting(71)A" Value="<%=VipMoneySetting(0)%>" Size="4">金币数，
+<input type="text" name="GroupSetting(71)B" Value="<%=VipMoneySetting(1)%>" Size="4">点券数，
+<input type="text" name="GroupSetting(71)C" Value="<%=VipMoneySetting(2)%>" Size="4">天有效时限，
+<input type="text" name="GroupSetting(71)D" Value="<%=VipMoneySetting(3)%>" Size="4">付费最低天数
+</td>
+<td class=tablebody1><input type="hidden" id="g71" value="本设置只对VIP组有效。VIP用户组可以在论坛用户组管理里添加。">
+<a href=# onclick="helpscript(g71);return false;" class="helplink"><img src="<%=MyDbPath%>images/help.gif" border=0 title="点击查阅管理帮助！"></a></td>
+</tr>
+<tr> 
+<td class=tablebody1>　</td>
+<td  class=tablebody1 colspan=3><input type="submit" name="submit" value="提 交" class="button"></td>
+</tr>
+<%
+End Function
+
+Function GetGroupPermission()
+	'已用到90个定义
+	Dim i,TempSetting
+	For i = 0 To 90
+		If Trim(Request.Form("GroupSetting("&i&")"))="" Then
+			TempSetting = 0
+		Else
+			TempSetting = Replace(Trim(Request.Form("GroupSetting("&i&")")),",","")
+		End If
+		If i = 0 Then
+			GetGroupPermission = TempSetting
+		ElseIf i = 58 Then
+			GetGroupPermission = GetGroupPermission & "," & Replace(Replace(Trim(Request.Form("GroupSetting("&i&")A")),",",""),"|||","") & "§" & Replace(Replace(Trim(Request.Form("GroupSetting("&i&")B")),",",""),"|||","")
+		ElseIf i = 71 Then
+			GetGroupPermission = GetGroupPermission & "," & Replace(Replace(Trim(Request.Form("GroupSetting("&i&")A")),",",""),"|||","") & "§" & Replace(Replace(Trim(Request.Form("GroupSetting("&i&")B")),",",""),"|||","") & "§" & Replace(Replace(Trim(Request.Form("GroupSetting("&i&")C")),",",""),"|||","") & "§" & Replace(Replace(Trim(Request.Form("GroupSetting("&i&")D")),",",""),"|||","")
+		Else
+			GetGroupPermission = GetGroupPermission & "," & TempSetting
+		End If
+	Next
+	GetGroupPermission = Replace(GetGroupPermission,"'","''")
+End Function
+
+Function SysGroupname(ParentGID)
+	Dim Groupname
+	Select Case ParentGID
+	Case 1
+		Groupname = "系统用户组 >> "
+	Case 2
+		Groupname = "特殊用户组 >> "
+	Case 3
+		Groupname = "注册用户组(等级) >> "
+	Case 4
+		Groupname = "多属性用户组 >> "
+	Case 5
+		Groupname = "VIP用户组 >> "
+	Case 0
+		Groupname = "系统默认权限编辑 >> "
+	End Select
+	SysGroupname = Groupname
+End Function
+
+Sub Select_Group(SelGroupID)
+Dim Rs,Sql,i
+SelGroupID = ","&SelGroupID&","
+Sql = "Select UserGroupID,Title,UserTitle,ParentGid,IsSetting From Dv_UserGroups where ParentGid>0  Order by ParentGid,UserGroupID"
+Set Rs = Dvbbs.Execute(SQL)
+If Not Rs.eof Then
+	SQL=Rs.GetRows(-1)
+	Rs.close:Set Rs = Nothing
+Else
+	Exit Sub
+End If
+%>
+<div id="Select_Group" style="POSITION:absolute;Z-INDEX: 99;display:none;">
+<table width="400" border=0><tr><td class=tablebody1>
+<select name="SelGroupid" id="SelGroupid" size="28" style="width:100%" multiple>
+<%
+For i=0 To Ubound(SQL,2)
+%>
+<option value="<%=SQL(0,i)%>" <%If Instr(SelGroupID,","&SQL(0,i)&",") Then Response.Write "Selected"%>> <%=SysGroupname(SQL(3,i))%> -- <%=SQL(1,i)%>--<%=SQL(2,i)%></option>
+<%
+Next
+%>
+</select>
+</td></tr>
+<tr><td class=tablebody1>
+<input type="button" value="确定" class="button" onclick="getGroup('Select_Group')"> 请按 CTRL 键多选!
+</td></tr>
+</table>
+</div>
+<%
+End Sub
+%>

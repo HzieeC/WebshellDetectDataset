@@ -1,0 +1,110 @@
+<!--#include file="Inc.Asp"-->
+<%
+'# ET 采集插件
+
+On Error Resume Next
+
+DIm vCID : vCID = GetPost("cid")
+Dim vTitle : vTitle = GetPost("title")
+Dim vContent : vContent = GetPost("content")
+Dim vAuthor : vAuthor = GetPost("author")
+Dim vSource : vSource = GetPost("source")
+Dim vDisplay : vDisplay = GetPost("display")
+Dim vKeywords : vKeywords = GetPost("keywords")
+Dim vRemotePic : vRemotePic = GetPost("remotepic")
+Dim vCreatehtml : vCreatehtml = GetPost("createhtml")
+
+If Len(vTitle) = 0 Then Response.Write "[err]Title Null[/err]" : Response.End
+If Len(vContent) = 0 Then Response.Write "[err]Content Null[/err]" : Response.End
+If len(vAuthor) = 0 Then vAuthor = ""
+If len(vSource) = 0 Then vSource = ""
+If Len(vKeywords) > 0 Then vKeywords = Replace(vKeywords,"|",",") : vKeywords = Replace(vKeywords," ",",")
+If Not IsNumeric(vDisplay) Or Len(vDisplay) <> 1 Then vDisplay = 0 Else vDisplay = Int(vDisplay)
+If Not IsNumeric(vRemotePic) Or Len(vRemotePic) <> 1 Then vRemotePic = 0 Else vRemotePic = Int(vRemotePic)
+If Not IsNumeric(vCreatehtml) Or Len(vCreatehtml) <> 1 Then vCreatehtml = 0 Else vCreatehtml = Int(vCreatehtml)
+
+If Not IsNumeric(vCID) Or Len(vCID) = 0 Then Response.Write Plus.Lang("ciderr") : Response.End
+
+Call Chkuser()
+
+Dim Rs
+Set Rs = DB("Select [ID],[ChildID] From [{pre}Channel] Where [ID]=" & vCID,1)
+If Rs.Eof Then
+	Rs.Close : Set Rs = Nothing
+	Conn.Close : Set Conn = Nothing
+	Response.Write Plus.Lang("nocid") : Response.End
+Else
+	If Len(Rs(1)) > 0 Then
+		Rs.Close : Set Rs = Nothing
+		Conn.Close : Set Conn = Nothing
+		Response.Write Plus.Lang("fatherid") : Response.End
+	End If
+End If
+Rs.Close
+
+Dim AID,vDiyname,vDescription
+If Autopinyin = 1 Then vDiyname = Left(Pinyin(vTitle),200) '# 转换为拼音
+If vRemotePic = 1 Then vContent = ReplaceRemoteUrl(vContent) '# 保存远程图片
+vDescription = Left(GetDescription(vContent),250) '# 分析描述
+
+If Len(vDiyname) > 0 Then '# 判断文件是否重名
+	Set Rs = DB("Select [ID] From [{pre}Content] Where [Diyname]='" & vDiyname & "'",1)
+	If Not Rs.Eof Then vDiyname = vDiyname & "_" & Mid(MD5(Now(),16),5,8)
+	Rs.Close
+End If
+
+vContent = AutoSplitPages(vContent,"#p##e#",MaxPageNum) ' 自动分页
+
+Dim vIndexpic : vIndexpic = ""
+If Indexpicmode = 1 Then vIndexpic = GetFirstPic(vContent)
+
+Set Rs = DB("Select * From [{pre}Content]",3)
+Rs.AddNew
+Rs("Cid") = vCID
+Rs("Title") = vTitle
+Rs("Author") = vAuthor
+Rs("Source") = vSource
+Rs("Keywords") = vKeywords
+Rs("Description") = vDescription
+Rs("Diyname") = vDiyname
+Rs("Display") = vDisplay
+Rs("Style") = ""
+Rs("Order") = 0
+Rs("Views") = 0
+Rs("Commend") = 0
+Rs("Jumpurl") = ""
+Rs("Comments") = 0
+Rs("Indexpic") = vIndexpic
+Rs("IsComment") = 1
+Rs("Createtime") = Now()
+Rs("Modifytime") = Now()
+Rs.Update : Rs.Close
+
+Aid = DB("Select Top 1 [ID] From [{pre}Content] Order By [ID] Desc",1)(0) '# 获取新添加的文章ID编号
+Set Rs = DB("Select [Aid],[Cid],[Content] From [" & GetChannel(vCID,"Table") & "]",3) '# 添加内容
+Rs.AddNew : Rs("Aid") = Aid : Rs("Cid") = vCID : Rs("Content") = vContent : Rs.Update : Rs.Close
+Call UpDateUploadFile(vContent ,Aid ,vCID) '# 更新图片数据
+
+If vCreatehtml = 1 And Createhtml = 1 Then
+	Call DB("Update [{pre}Channel] Set [NeedCreate]=1 Where [ID]=" & vCID ,0) '# 需要重建
+	Call CreateContent(Aid,0) '# 创建文件
+	If Prenextmode = 1 Then
+		Set Rs = DB("Select Top 1 [ID] From [{pre}Content] Where [ID]<" & AID & " And [Cid]=" & vCID & " Order By [ID] Desc",1)
+	Else
+		Set Rs = DB("Select Top 1 [ID] From [{pre}Content] Where [ID]<" & AID & " Order By [ID] Desc",1)
+	End If
+	If Not Rs.Eof Then Call CreateContent(Rs(0),0)
+	Rs.Close
+End If
+
+Set Rs = Nothing
+Conn.Close : Set Conn = Nothing
+If Err Then
+	Response.Write "[err]Error: " & Err.Description & "[/err]"
+Else
+	Response.Write 1
+End If
+
+
+
+%>

@@ -1,0 +1,101 @@
+<%@ page language="java" import="java.util.*" pageEncoding="gb2312"%>
+  <%
+  	String qid=request.getParameter("qid");
+	String casepre_id=request.getParameter("casepre_id");
+  %>
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<SCRIPT type="text/javascript" src="http://www.9ask.cn/souask/js/dialog.js"></script>
+<SCRIPT type="text/javascript" src="http://www.9ask.cn/souask/js/qfornew.js"></script>
+<SCRIPT type="text/javascript" src="http://www.9ask.cn/souask/js/shoucang.js"></script>
+<SCRIPT type="text/javascript" src="http://www.9ask.cn/souask/js/jquery.js"></script>
+<SCRIPT type="text/javascript" src="http://www.9ask.cn/souask/js/q.js"></script>
+<SCRIPT type="text/javascript">
+function check_loginform(f){
+	if(f.name.value==""||f.name.value.length<=0){alert("请输入用户名");f.name.focus();return false;}
+	if(f.pwd.value==""||f.pwd.value.length<=0){alert("请输入密码");f.pwd.focus();return false;}
+}
+</script>
+<form name="frmlogin" target="_hideframe" action='http://www.9ask.cn/souask/login.asp' method='post' onSubmit='return check_loginform(this);'>	  
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr> 
+	<td >
+		用户名:<input class="input2" type="text" size="20" name="name" id="loginname" style="width:150px;">
+		密　码:<input class="input2" type="password" size="20" name="pwd" id="pwd" style="width:150px;">
+		<input type="submit" name="login" id="login" value="登录" class="buttoncss" >
+		<input type="hidden" name="furl" value="http://www.9ask.cn/souask/answer.asp">
+		<input type="hidden" name="js" value="">
+		<input type="hidden" name="CookieDate" value="3">
+	</td>
+</tr>
+
+</table>
+</form>		
+<form name="hd" id="hd" method="post"  action="http://www.9ask.cn/souask/answer.asp"  onsubmit="return check_replyform(this);"  class="answer_form">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+		 <tr>
+			<td align="right" width="10%">
+				&nbsp;
+			</td>
+			<td >
+	            	<textarea name="co" id="co" cols="70" rows="8" class="bj"></textarea>
+	            	<input type="hidden" name="qid" value="<%=qid %>" />
+	            	<input type="hidden" name="ok" value="提交回答" />
+	            	<label id="tishi"  name="tishi" style=" text-align:center; display:none;">您的回答正在提交中......</label>
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" align="center">
+				<input type="button" id="qanswer" class="buttoncss" name="qanswer" value="提交回复" onclick="tijiao()"/>
+				 <input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+
+	</table>
+   	</form>
+<script type="text/javascript">
+function tijiao(){
+	var co=document.hd.co.value;
+	var qid=document.hd.qid.value;
+	var ok=document.hd.ok.value;
+  
+  /**
+  	jQuery.ajax( {
+           type : "POST",
+           url : "http://www.9ask.cn/souask/answer.asp",
+           data : "co="+co+"&qid="+qid+"&ok="+ok,
+           success : function() {
+           }
+    	});
+  */
+    co=encodeURI(encodeURI(co));
+	jQuery.ajax( {
+           type : "POST",
+           url : "addLogService.jsp",
+           data : "content="+co+"&casepre_id=<%=casepre_id%>",
+           success : function(msg) {
+           	alert(msg);
+           }
+    	});
+   document.hd.target="_blank";
+   document.hd.submit();
+   // document.frmlogin.submit();
+  
+ /**
+ 	  var loginname=document.frmlogin.name.value;
+	var pwd=document.frmlogin.pwd.value;
+	var login=document.frmlogin.login.value;
+	var furl=document.frmlogin.furl.value;
+	var CookieDate=document.frmlogin.CookieDate.value;
+    if(loginname!=""&&pwd!=""){
+		jQuery.ajax( {
+           type : "POST",
+           url : "http://www.9ask.cn/souask/login.asp",
+           data : "name="+loginname+"&pwd="+pwd+"&js=&login="+login+"&furl="+furl+"&CookieDate="+CookieDate,
+           success : function() {
+           }
+    	});
+	}
+ */
+}
+</script>
+ 

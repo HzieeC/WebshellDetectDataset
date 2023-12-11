@@ -1,0 +1,359 @@
+<!--#include file="../../inc/MainClass.asp"-->
+<!--#include file="../../inc/pinyin.asp"-->
+<%
+server.scripttimeout=3600
+Const ISDEBUG = false
+dim gatherPicSet:gatherPicSet=0'是否采集图片到本地,0为不采集,1为采集
+Dim action,pg,resSite,picAfterGather,var_url:pg=1:resSite=Clng(getForm("ressite","both")):sitePic=sitePic&"/"&Year(now())&"-"&Month(now())
+Dim Parems(50)
+
+Parems(6)	= "http://www.hacow.me/xml/maxresxml.asp"
+Parems(2)	= "http://c.sfdy.net:88/caiji/api/max.asp"
+Parems(4)	= "http://www.bdzyz.com/xml/caiji.asp"
+
+if resSite>-1 AND resSite<UBound(Parems) then
+	var_url=Parems(resSite):gatherDay
+else
+	die "参数不正确"
+end if
+
+Sub gatherPicToServer(Byval picurl,Byval vname)
+	dim filename,filePath,isDownOk:isDownOk=false
+	filename=mid(picUrl,instrrev(picUrl,"/")+1)
+	filePath = "../../pic/"&sitePic&"/"&fileName
+	if not isExistFile(filePath) then 
+		isDownOk=downSinglePic(picurl,"",vname,filePath,"")
+	else
+		echo "数据<font color=red>"&vname&"</font>的图片已经存在 <a target=_blank href="&filePath&">预览图片</a>"
+		isDownOk=true
+	end if
+	if isDownOk then 
+		picAfterGather=replaceStr(filePath,"../","")
+		if waterMark=1 and isInstallObj(JPEG_OBJ_NAME) then  writeFontWaterPrint filePath,waterMarkLocation
+	else
+		 picAfterGather=""
+	end if
+End Sub
+
+Function gatherPicHandle(Byval str,Byval vname)
+	if isExistStr(str,"cmsplugin.net") or  isExistStr(str,"bokecc.com") then  gatherPicSet=1 else gatherPicSet=0
+	if gatherPicSet=1 then gatherPicToServer str,vname:gatherPicHandle=picAfterGather else gatherPicHandle=str
+End Function
+
+Function getReferedId(str)
+	getReferedId = ""
+	if instr(str,"土豆高清")>0 then getReferedId = "hd_tudou": exit function
+	if instr(str,"新浪高清")>0 then getReferedId = "hd_iask": exit function
+	if instr(str,"搜狐高清")>0 then getReferedId = "hd_sohu": exit function
+	if instr(str,"天线高清")>0 then getReferedId = "hd_openv": exit function
+	if instr(str,"56高清")>0 then getReferedId = "hd_56": exit function
+	if instr(str,"56")>0 then getReferedId = "56": exit function
+	if instr(str,"优酷")>0 then getReferedId = "youku": exit function
+	if instr(str,"土豆")>0 then getReferedId = "tudou": exit function
+	if instr(str,"搜狐")>0 then getReferedId = "sohu": exit function
+	if instr(str,"新浪")>0 then getReferedId = "iask": exit function
+	if instr(str,"六间房")>0 then getReferedId = "6rooms": exit function
+	if instr(str,"qq")>0 then getReferedId = "qq": exit function
+	if instr(str,"youtube")>0 then getReferedId = "youtube": exit function
+	if instr(str,"17173")>0 then getReferedId = "17173": exit function
+	if instr(str,"ku6视频")>0 then getReferedId = "ku6": exit function
+	if instr(str,"FLV")>0 then getReferedId = "flv": exit function
+	if instr(str,"SWF")>0 then getReferedId = "swf": exit function
+	if instr(str,"real")>0 then getReferedId = "real": exit function
+	if instr(str,"media")>0 then getReferedId = "media": exit function
+	if instr(str,"qvod")>0 then getReferedId = "qvod": exit function
+	if instr(str,"ppstream")>0 then getReferedId = "pps": exit function
+	if instr(str,"迅播高清")>0 then getReferedId = "gvod": exit function
+	if instr(str,"远古高清")>0 then getReferedId = "wp2008": exit function
+	if instr(str,"ppvod高清")>0 then getReferedId = "ppvod": exit function
+	if instr(str,"闪播Pvod")>0 then getReferedId = "pvod": exit function
+	if instr(str,"播客CC")>0 then getReferedId = "cc": exit function
+	if instr(str,"皮皮影音")>0 then getReferedId = "pipi": exit function
+	if instr(str,"激动")>0 then getReferedId = "joy": exit function
+End Function
+
+Function repairStr(ByVal vstr,ByVal sfrom)
+	dim regExpObj : set regExpObj= new RegExp : regExpObj.ignoreCase = true : regExpObj.Global = true : regExpObj.Pattern = "[\s\S]+?\$[\s\S]+?\$[\s\S]+?"
+	dim i,j,f: j=1
+	vstr = split(vstr,"#"):f=getReferedId(sfrom)
+	for i = 0  to ubound(vstr)
+		if not(isnul(vstr(i))) then
+			if regExpObj.Test(vstr(i)) = false then 
+				regExpObj.Pattern = "[\s\S]+?\$[\s\S]+?"
+				if regExpObj.Test(vstr(i)) = true then 
+					vstr(i) = trim(vstr(i))&"$"&f
+				else
+					vstr(i) = "第"&j&"集$"&trim(vstr(i))&"$"&f
+				end if 
+				regExpObj.Pattern = "[\s\S]+?\$[\s\S]+?\$[\s\S]+?"
+			else 
+				vstr(i) = trim(vstr(i))
+			end if
+			j=j+1
+		end if 
+	next
+	repairStr = sfrom&"$$"&Join(vstr,"#")
+	set regExpObj =nothing
+End Function
+
+Sub intoDatabase(url,gtype)
+	dim xmlobj,xml,alertContent,vtype,vNodes,i,m_playdata,pagecount,j,l,childNodes:pagecount=0
+	set xmlobj = mainClassobj.createObject("MainClass.Xml")
+	echo "<div style='font-size:13px'><font color=red>资源库视频采集开始：</font>"&url&"<br>"
+	xml=bytesToStr(getRemoteContent(url,"body"),"utf-8")
+	If left(xml, 5) <> "<?xml" then die err_xml else xmlobj.xmlDomObj.loadXML FilterChar(xml)
+	if xmlobj.isExistNode("rss/list/message") then
+		alertContent=xmlobj.getNodeValue("rss/list/message","")
+		if not isNul(alertContent)  then  alertMsg alertContent,"" : last
+	end if
+	if gtype="type" or gtype="day" then pagecount=xmlobj.getAttributes("rss/list","pagecount",0)
+	if not isNum(pagecount) then pagecount=1 else pagecount=Clng(pagecount)
+	set vNodes=xmlobj.getNodes("rss/list/video")
+	dim f,vid,title,libid,actor,pic,des,states,localId,sql,publishyear,publisharea,vrsObj,vrsObj2,m_note,m_enname,m_lang,director,m_sql,m_where,m_i,titleArray
+	on error resume next
+	for i=0 to vNodes.length-1
+		m_where=""
+		Set childNodes=vNodes(i).childNodes(13).childNodes:vid=""
+		l=childNodes.length
+		for j=0 to l-1
+			if vid="" then
+				vid=repairStr(childNodes(j).text,childNodes(j).getAttributeNode("flag").nodevalue)
+			else
+				vid= vid & "$$$" & repairStr(childNodes(j).text,childNodes(j).getAttributeNode("flag").nodevalue)
+			end if
+		next
+		Set childNodes=nothing:vid=filterQuote(vid)
+		libid=resSite & "_" & Clng(vNodes(i).childNodes(2).text)
+		title=replace(filterQuote(vNodes(i).childNodes(3).text)," ","")
+		vtype=vNodes(i).childNodes(4).text
+		if computeStrLen(title)>115 then title=getStrByLen(title,115)
+		pic=filterQuote(vNodes(i).childNodes(5).text)
+		des=filterQuote(vNodes(i).childNodes(14).text)
+		m_lang=filterQuote(vNodes(i).childNodes(6).text)
+		if computeStrLen(m_lang)>30 then m_lang=getStrByLen(m_lang,30)
+		publisharea=filterQuote(vNodes(i).childNodes(7).text)
+		if computeStrLen(publisharea)>30 then publisharea=getStrByLen(publisharea,30)
+		publishyear=vNodes(i).childNodes(8).text
+		states=vNodes(i).childNodes(9).text
+		m_note=filterQuote(vNodes(i).childNodes(10).text)
+		actor=replaceStr(trim(filterQuote(vNodes(i).childNodes(11).text))," ",",")
+		if computeStrLen(actor)>250 then actor=getStrByLen(actor,250)
+		director=replaceStr(filterQuote(vNodes(i).childNodes(12).text)," ",",")
+		if computeStrLen(director)>40 then director=getStrByLen(director,40)
+		if not isNum(publishyear) then publishyear=0
+		if not isNum(states) then states=0
+		localId=getBindedLocalId(libid)
+		if not isNul(title) then
+			title=replace(replace(title,"[","【"),"]","】")
+			if isNum(localId) then
+				titleArray=split(title,"/")
+				if UBound(titleArray)>-1 then title=titleArray(0)
+				for m_i=0 to ubound(titleArray)
+					if not isNul(titleArray(m_i)) then m_where=m_where&" or '/'+m_name+'/' like '%/"&titleArray(m_i)&"/%' "
+				next
+				m_where=trimOuterStr(m_where," or")
+				m_sql="select top 1 m_id,m_playdata from {pre}data where "&m_where
+				set vrsObj=conn.db(m_sql,"execute")
+				if vrsObj.eof then
+					m_enname=MoviePinYin(title):sql="insert into {pre}data(m_name,m_type,m_state,m_pic,m_actor,m_des,m_playdata,m_isunion,m_publishyear,m_publisharea,m_note,m_letter,m_enname,m_director,m_lang) values('"&title&"',"&localId&","&states&",'"&pic&"','"&actor&"','"&des&"','"&vid&"',1,"&publishyear&",'"&publisharea&"','"&m_note&"','"&Left(m_enname,1)&"','"&m_enname&"','"&director&"','"&m_lang&"')"
+				else
+					select case gatherSet
+						case 0,1,2,3
+							m_playdata = gatherIntoLibTransfer(vrsObj("m_playdata"),vid,gatherSet)
+							sql="update {pre}data set m_state="&states&ifthen(isSpecial(vtype),",m_note='"&m_note&"'","")&",m_lang='"&m_lang&"',m_playdata='"&m_playdata&"',m_isunion=1,m_addtime='"&now()&"' where m_id="&vrsObj("m_id")
+						case 4
+							m_enname=MoviePinYin(title):sql="insert into {pre}data(m_name,m_type,m_state,m_pic,m_actor,m_des,m_playdata,m_isunion,m_publishyear,m_publisharea,m_note,m_letter,m_enname,m_director,m_lang) values('"&title&"',"&localId&","&states&",'"&pic&"','"&actor&"','"&des&"','"&vid&"',1,"&publishyear&",'"&publisharea&"','"&m_note&"','"&Left(m_enname,1)&"','"&m_enname&"','"&director&"','"&m_lang&"')"
+						case 5
+							sql="update {pre}data set m_actor='"&actor&"',m_director='"&director&"',m_lang='"&m_lang&"',m_pic='"&pic&"',m_des='"&des&"',m_publishyear="&publishyear&ifthen(isSpecial(vtype),",m_note='"&m_note&"'","")&",m_publisharea='"&publisharea&"',m_addtime='"&now()&"' where m_id="&vrsObj("m_id")
+					end select
+				end if
+				vrsObj.close : set vrsObj=nothing
+				conn.db sql,"execute"
+				'echo "OK<br>"
+			else
+				libid=000000
+				titleArray=split(title,"/")
+				if UBound(titleArray)>-1 then title=titleArray(0)
+				for m_i=0 to ubound(titleArray)
+					if not isNul(titleArray(m_i)) then m_where=m_where&" or '/'+m_name+'/' like '%/"&titleArray(m_i)&"/%' "
+				next
+				m_where=trimOuterStr(m_where," or")
+				m_sql="select top 1 m_id,m_playdata from {pre}temp where "&m_where
+				set vrsObj2=conn.db(m_sql,"execute")
+				if vrsObj2.eof then
+					'pic=gatherPicHandle(pic,title)
+					sql="insert into {pre}temp(m_name,m_type,m_state,m_pic,m_actor,m_des,m_playdata,m_publishyear,m_publisharea,m_director,m_lang) values('"&title&"',"&libid&","&states&",'"&pic&"','"&actor&"','"&des&"','"&vid&"',"&publishyear&",'"&publisharea&"','"&director&"','"&m_lang&"')"
+				else
+					select case gatherSet
+						case 0,1,2,3
+							m_playdata = gatherIntoLibTransfer(vrsObj2("m_playdata"),vid,gatherSet)
+							sql="update {pre}temp  set m_name='"&title&"',m_state="&states&",m_lang='"&m_lang&"',m_playdata='"&m_playdata&"',m_addtime='"&now()&"' where m_id="&vrsObj2("m_id")
+						case 4
+							'pic=gatherPicHandle(pic,title)
+							sql="insert into {pre}temp(m_name,m_type,m_state,m_pic,m_actor,m_des,m_playdata,m_publishyear,m_publisharea,m_director,m_lang) values('"&title&"',"&libid&","&states&",'"&pic&"','"&actor&"','"&des&"','"&vid&"',"&publishyear&",'"&publisharea&"','"&director&"','"&m_lang&"')"
+						case 5
+							'pic=gatherPicHandle(pic,title)
+							sql="update {pre}temp set m_pic='"&pic&"',m_actor='"&actor&"',m_director='"&director&"',m_lang='"&m_lang&"',m_des='"&des&"',m_publishyear="&publishyear&",m_publisharea='"&publisharea&"',m_addtime='"&now()&"' where m_id="&vrsObj2("m_id")
+					end select
+				end if
+				vrsObj2.close : set vrsObj2=nothing
+				conn.db sql,"execute"
+			end if
+		end if
+		echo "数据<font color=red>"&title&"</font>已经采集成功<br>"
+	Next
+	set xmlobj = nothing
+	if pg>=pagecount then
+		echo "<font color=red>恭喜，全部搞定</font><br>"
+	else
+		pg=pg+1:gatherDay
+	end if
+End Sub
+
+Function filterQuote(Byval str)
+	filterQuote=replaceStr(str,"'","")
+End Function
+
+Function unescapseCode(str)
+	if not isNul(str) then unescapseCode=unescape(str) else unescapseCode=""
+End Function
+
+dim gbTypeArray
+Function getBindedLibIds()
+	dim libIds,i,arrayLen
+	if not isarray(gbTypeArray) then
+		gbTypeArray=conn.db("select m_id,m_unionid from {pre}type where m_type=0 AND len(m_unionid)>0","array")
+	end if
+	if isArray(gbTypeArray) then
+		arrayLen=ubound(gbTypeArray,2)
+		for i=0 to arrayLen
+			if i<arrayLen then libIds=libIds&gbTypeArray(1,i)&"," else libIds=libIds&gbTypeArray(1,i)
+		next
+	end if
+	getBindedLibIds=libIds
+End Function
+
+Function getBindedLocalId(libId)
+	dim arrayLen,i,j,unionArray,arrayLen2
+	if not isarray(gbTypeArray) then
+		gbTypeArray=conn.db("select m_id,m_unionid from {pre}type where m_type=0 AND len(m_unionid)>0","array")
+	end if
+	if not isArray(gbTypeArray) then getBindedLocalId="" : Exit Function
+	arrayLen=ubound(gbTypeArray,2)
+	for i=0 to arrayLen
+		unionArray=split(gbTypeArray(1,i),",") : arrayLen2=ubound(unionArray)
+		for j=0 to arrayLen2
+			if trim(unionArray(j))=trim(libId) then getBindedLocalId=gbTypeArray(0,i) : Exit Function
+		next
+	next
+	getBindedLocalId=""
+End Function
+
+Sub gatherDay
+	dim weburl:weburl=var_url&"?ac=videolist&h=24&pg="&pg
+	intoDatabase weburl,"day"
+End Sub
+
+Function downSinglePic(picUrl,vid,vname,filePath,infotype)
+	dim streamLen,spanstr,filename,fileext
+	if infotype="" then spanstr="" else spanstr="<br/>"
+	on error resume next
+	if isNul(picUrl) or instr(picUrl,"http://")=0 then echo "数据<font color=red>"&vname&"</font>的图片路径错误1,请检查是否有效  "&spanstr : downSinglePic=false :Exit Function
+	fileext=getFileFormat(filePath):filename=mid(picUrl,instrrev(picUrl,"/")+1)
+	if InStr(picUrl,".ykimg.com/")>0 then:fileext=".gif":filePath=filePath&fileext:end if
+	if fileext<>"" AND InStr("|.jpg|.gif|.png|.bmp|.jpeg|",LCase(fileext))>0 then
+		if not InStr(picUrl,".ykimg.com/")>0 then
+			if isNul(filename) or instr(filename,"www.")>0  or instr(filename,".")=0 then echo "数据<font color=red>"&vname&"</font>的图片路径错误2,请检查是否有效  "&spanstr : downSinglePic=false :Exit Function
+		end if
+		dim imgStream : imgStream=getRemoteContent(picUrl,"body")
+		dim createStreamFileFlag:createStreamFileFlag=createStreamFile(imgStream,filePath)
+		if err or createStreamFileFlag=false then 
+			if isNul(vid) then
+				echo "数据<font color=red>"&vname&"</font>的图片下载发生错误3,请检查是否有效  "&spanstr:err.clear : downSinglePic=false
+			else	
+				echo "数据<font color=red>"&vname&"</font>的图片下载发生错误4,id为<font color=red>"&vid&"</font>,请检查是否有效  "&spanstr: err.clear : downSinglePic=false
+			end if  
+		else 
+			streamLen=lenB(imgStream)
+			if streamLen<1024*2 then
+				echo "数据<font color=red>"&vname&"</font>的图片下载发生错误5,请检查是否有效  "&spanstr:err.clear:downSinglePic=false
+			else
+				echo "数据<font color=red>"&vname&"</font>的图片下载成功,大小为<font color=red>"&formatnumber(streamLen/1024,2)&"</font>KB <a target=_blank href="&filePath&">预览图片</a>  "&spanstr:downSinglePic=true
+			end if
+		end if
+	else
+			echo "数据<font color=red>"&vname&"</font>的图片下载发生错误6,图片格式不对  "&spanstr:err.clear:downSinglePic=false
+	end if
+End Function
+
+
+Function gatherIntoLibTransfer(Byval data,Byval str,Byval typeset)
+	dim transtr,str1,str2,str1Array,str2Array,m,n,j,k,x:str1=data:str2=str
+	if  not isNul(str1) and not isNul(str2) then
+		select case typeset
+			case 0'智能覆盖
+				str1Array=split(str1,"$$$"):str2Array=split(str2,"$$$"):m=ubound(str1Array):n=ubound(str2Array)
+				for k=0 to n
+					x=findIsExistFrom(str1Array,split(str2Array(k),"$$")(0))
+					if isNum(x) then 
+						str1Array(x)=str2Array(k)
+					else
+						transtr=transtr&str2Array(k)&"$$$"
+					end if				
+				next
+				for j=0 to m
+					transtr=transtr&str1Array(j)&"$$$"
+				next
+				transtr = trimOuterStr(transtr,"$$$")
+			case 1'追加为第一个来源
+				transtr=str&"$$$"&data
+			case 2'追加为最后一个来源
+				transtr=data&"$$$"&str
+			case 3'完全覆盖
+				transtr=str
+		end select
+	elseif  not isNul(str1) and   isNul(str2) then 
+		transtr=str1
+	elseif    isNul(str1) and  not isNul(str2) then 
+		transtr=str2
+	end if
+	gatherIntoLibTransfer=transtr
+End Function
+
+Function findIsExistFrom(array1,from)
+	dim i,m:m=ubound(array1):findIsExistFrom=""
+	for i=0 to m
+		if trim(split(array1(i),"$$")(0))=trim(from) then
+			findIsExistFrom=i:Exit Function		
+		end if
+	next
+End Function
+
+Function FilterChar(ByVal Text)
+	dim i
+	for i=1 to &H1F
+		if i<>10 AND i<>13 then Text=Replace(Text,Chr(i),"")
+	next
+	FilterChar=Text
+End Function
+
+Function ifthen(ByVal Bo,ByVal v1,ByVal v2)
+	if Bo=true then
+		ifthen=v1
+	else
+		ifthen=v2
+	end if
+End Function
+Function isSpecial(ByVal sType)
+	isSpecial=false
+	if Instr(sType,"剧")>2 then
+		isSpecial=true
+	elseif Instr(sType,"动漫")>0 then
+		isSpecial=true
+	elseif Instr(sType,"动画")>0 then
+		isSpecial=true
+	elseif Instr(sType,"综艺")>0 then
+		isSpecial=true
+	end if
+End Function
+%>

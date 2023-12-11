@@ -1,0 +1,195 @@
+<%
+Class Cls_Plus
+	Public ErrorCode
+	Public PlusName
+	Public XMLPath
+	Public XMLDocument
+	public TPL ' 模板
+	
+	' 初始化
+	Private Sub Class_Initialize()
+		ErrorCode = -1
+	End Sub
+	
+	' 注销对象
+	Private Sub Class_Terminate()
+		If IsObject(XMLDocument) Then Set XMLDocument = Nothing
+	End Sub
+	
+	' 打开插件配置文件
+	' ErrorCode = 0 表示打开配置文件
+	Public Function Open(PlusNameCode)
+		PlusName = PlusNameCode
+		Dim XmlDom
+		XmlDom = GetXMLDOM()
+		If XmlDom = False Then ErrorCode = -18239123: Exit Function
+		XMLPath = Server.Mappath(Installdir & "Plus/" & PlusName & "/Setting.Xml")
+		Set XMLDocument = Server.CreateObject(XmlDom)
+		XMLDocument.Async = False
+		XMLDocument.Load (XMLPath) ' 插件路径
+		ErrorCode = XMLDocument.parseerror.ErrorCode
+	End Function
+	
+	' 检测状态,前面
+	public function state()
+		if config("state") = 0 then response.write lang("state") : response.end
+	end function
+
+	' 检查用户用户权限
+	Public Function CheckUser()
+		If Len(getLogin("admin", "username")) = 0 Then
+			CheckUser = False
+		Else
+			If InStr(LCase(getLogin("admin", "levels")), "setting") > 0 Then
+				CheckUser = True
+			Else
+				If InStr("," & LCase(getLogin("admin", "manageplus")) & ",", "," & LCase(PlusName) & ",") > 0 Then
+					CheckUser = True
+				Else
+					CheckUser = False
+				End If
+			End If
+		End If
+		If Not CheckUser Then
+			Response.Write "无效的越权操作!"
+			Response.End
+		End If
+	End Function
+
+	' 载入模板[支持父模板]
+	public function newtpl(tplfile)
+		set tpl = new cls_template ' 创建模板对像
+		tpl.load installdir & templatedir & "/common.html"
+		dim reg,tplcomm,tplplus
+		tplcomm = tpl.content
+		if len(tplcomm) = 0 then tplcomm = "{tag:inside}"
+		tplplus = getfile(tplfile)
+		set reg = new regexp
+		reg.ignorecase = true
+		reg.global = true
+		reg.pattern = "{tag:inside}"
+		tplcomm = reg.replace(tplcomm, tplplus) ' 载入内置模板
+		reg.pattern = "{tag:sitepath}"
+		tplcomm = reg.replace(tplcomm, getsitepathbytitle(config("title"))) ' 站内路径
+		reg.pattern = "{field:title}"
+		tplcomm = reg.replace(tplcomm, config("title")) ' 替换标题
+		reg.pattern = "{field:keywords}"
+		tplcomm = reg.replace(tplcomm, config("keywords")) ' 替换关键字
+		reg.pattern = "{field:description}"
+		tplcomm = reg.replace(tplcomm, config("description")) ' 替换描述
+		reg.pattern = "{(main|plus|config|value|var|val|lang|skin|tpl)\.(.+?)}" ' 替换基本参数
+		dim match,matchs
+		set matchs = reg.execute(tplcomm)
+		for each match in matchs
+			select case lcase(match.submatches(0))
+			case "main","plus" ' M Plus
+				tplcomm = replace(tplcomm,match.value,main(match.submatches(1)))
+			case "config","value","var","val" ' M Config
+				tplcomm = replace(tplcomm,match.value,config(match.submatches(1)))
+			case "lang" ' M Lang
+				tplcomm = replace(tplcomm,match.value,lang(match.submatches(1)))
+			case "skin","tpl" ' M Skin
+				tplcomm = replace(tplcomm,match.value,skin(match.submatches(1)))
+			case else
+				tplcomm = replace(tplcomm,match.value,"")
+			end select
+		next
+		
+		tpl.content = tplcomm ' 设置模板代码
+		tpl.parser ' 加载模板后解析所有标签
+	end function
+	
+	' 替换标签
+	function settpl(tag,val)
+		if isobject(tpl) then tpl.content = replace(tpl.content,tag,val)
+	end function
+	
+	' 得到处理后的模板内容
+	function gettpl()
+		if isobject(tpl) then gettpl = rewriterule(tpl.content)
+	end function
+	
+	' 获取基本信息
+	Public Function Main(Attr)
+		Attr = LCase("plus/main/" & Attr)
+		Main = SelectXmlNodeText(Attr)
+	End Function
+	
+	' 获取语言
+	Public Function Lang(Attr)
+		Attr = LCase("plus/language/" & Language & "/" & Attr)
+		Lang = SelectXmlNodeText(Attr)
+	End Function
+	
+	' 获取风格
+	Public Function Skin(Attr)
+		Attr = LCase("plus/Skin/" & Attr)
+		Skin = SelectXmlNodeText(Attr)
+	End Function
+	
+	' 获取配置信息
+	Public Function Config(Attr)
+		Dim Attr1, Attr2, i, j, x
+		Dim XmlItem, SubAttr, ElementName
+		Attr = LCase(Replace(Attr, "\", "/")): Attr1 = Attr: Attr2 = "value"
+		If InStr(Attr, "/") > 0 Then Attr1 = Split(Attr, "/")(0): Attr2 = Split(Attr, "/")(1)
+		Set XmlItem = XMLDocument.getElementsByTagName(LCase("plus/config/key"))
+		For j = 0 To XmlItem.Length - 1
+			Set SubAttr = XMLDocument.getElementsByTagName(LCase("plus/config/key")).Item(j).Attributes
+			For i = 0 To SubAttr.Length - 1
+				If LCase(SubAttr(i).Name) = "name" Then
+					If LCase(SubAttr(i).Value) = LCase(Attr1) Then
+						For x = 0 To SubAttr.Length - 1
+							If LCase(SubAttr(x).Name) = LCase(Attr2) Then
+								Config = SubAttr(x).Value
+								If Len(Config) > 0 And IsNumeric(Config) And Instr(Config,",")=0 Then Config = Int(Config)
+								Exit Function
+							End If
+						Next
+					End If
+				End If
+			Next
+		Next
+	End Function
+	
+	' 获取配置参数个数
+	Public Function ConfigLength()
+		Dim XmlItem
+		Set XmlItem = XMLDocument.getElementsByTagName(LCase("plus/config/key"))
+		ConfigLength = XmlItem.Length
+	End Function
+
+	' 获取配置信息
+	Public Function ConfigItem(x, Attr)
+		Dim i, j
+		Dim XmlItem, SubAttr, ElementName
+		Set XmlItem = XMLDocument.getElementsByTagName(LCase("plus/config/key"))
+		For j = 0 To XmlItem.Length - 1
+			If x = j Then
+				Set SubAttr = XMLDocument.getElementsByTagName(LCase("plus/config/key")).Item(j).Attributes
+				For i = 0 To SubAttr.Length - 1
+					If LCase(SubAttr(i).Name) = LCase(Attr) Then ConfigItem = SubAttr(i).Value: Exit Function
+				Next
+			End If
+		Next
+	End Function
+	
+	' 保存配置
+	Public Function ConfigSave(x, val)
+		Dim SubAttr, i
+		Set SubAttr = XMLDocument.getElementsByTagName(LCase("plus/config/key")).Item(x).Attributes
+		For i = 0 To SubAttr.Length - 1
+			If LCase(SubAttr(i).Name) = LCase("value") Then SubAttr(i).Value = val: Exit For
+		Next
+		XMLDocument.Save XMLPath
+	End Function
+
+	' 获得当个 ElementName 元素
+	Public Function SelectXmlNodeText(ElementName)
+		Dim XmlItem
+		Set XmlItem = XMLDocument.getElementsByTagName(ElementName)
+		If XmlItem.Length <> 0 Then SelectXmlNodeText = XmlItem.Item(0).Text Else SelectXmlNodeText = ""
+		If Len(SelectXmlNodeText) > 0 And IsNumeric(SelectXmlNodeText) Then SelectXmlNodeText = Int(SelectXmlNodeText)
+	End Function
+End Class
+%>

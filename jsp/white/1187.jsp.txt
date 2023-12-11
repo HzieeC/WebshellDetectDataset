@@ -1,0 +1,128 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_caseoperation.*" %>
+<%@page import="java.util.*" %>
+<%@ page import="com.bizoss.trade.tb_commpara.*"%>
+<%@page import="com.bizoss.trade.ti_lawyer.Ti_LawyerInfo"%>
+<%@page import="com.bizoss.trade.ti_admin.Ti_adminInfo"%> 
+<html>
+  <head>
+    
+    <title>修改律师案源管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+
+  <% 
+  	String case_id="";
+  	if(request.getParameter("case_id")!=null) case_id = request.getParameter("case_id");
+  	Ti_caseoperationInfo ti_caseoperationInfo = new Ti_caseoperationInfo();
+  	List list = ti_caseoperationInfo.getListByPk(case_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String commission_fees="",lawyer_id="",cur_state="",service_id="",operator_id="",operator_time="",does_signing="";
+  	if(map.get("commission_fees")!=null) commission_fees = map.get("commission_fees").toString();
+  	if(map.get("cur_state")!=null) cur_state = map.get("cur_state").toString();
+  	if(map.get("lawyer_id")!=null) lawyer_id = map.get("lawyer_id").toString();
+  	if(map.get("service_id")!=null) service_id = map.get("service_id").toString();
+  	if(map.get("operator_id")!=null) operator_id = map.get("operator_id").toString();
+  	if(map.get("operator_time")!=null) operator_time = map.get("operator_time").toString();
+  	if(map.get("does_signing")!=null) does_signing = map.get("does_signing").toString();
+
+  %>
+	
+	<h1>修改律师案源管理</h1>	
+	<%
+		String user_id="";
+		if(session.getAttribute("session_user_id")!=null){
+	     user_id =session.getAttribute("session_user_id").toString();
+	}
+		Ti_LawyerInfo lawyerInfo=new Ti_LawyerInfo();
+		String lawyerStr=lawyerInfo.getSelectLawyer(lawyer_id);
+		Ti_adminInfo adminInfo=new Ti_adminInfo();
+		String serviceStr=adminInfo.getSelectService(service_id);
+		Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+ 		String s_cur_state = tb_commparaInfo.getSelectItem("113",cur_state);   
+		
+	 %>
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		
+		<tr>
+			<td align="right" width="10%">
+				选择律师<font color="red">*</font>
+			</td>
+			<td>
+				<select name="lawyer_id" id="lawyer_id">
+					<option value="">请选择
+					<%=lawyerStr %>
+				</select>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				提成费<font color="red">*</font>
+			</td>
+			<td><input name="commission_fees" id="commission_fees" size="7" value="<%=commission_fees%>" type="text" onkeyup="if(isNaN(this.value))this.value=''"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				当前状态<font color="red">*</font>
+			</td>
+			<td>
+				<select name="cur_state" id="cur_state">
+					<option value="">请选择
+					<%=s_cur_state %>
+				</select>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				客服员工号<font color="red">*</font>
+			</td>
+			<td>
+				<select name="service_id" id="service_id">
+					<option value="">请选择
+					<%=serviceStr %>
+				</select>
+			</td>
+		</tr>
+	
+		
+		<tr>
+			<td align="right" width="10%">
+				是否签单<font color="red">*</font>
+			</td>
+			<td>
+			<input name="does_signing" id="does_signing1" value ="1" type="radio" <%if(does_signing.equals("1"))out.print("checked"); %>/>是
+			<input name="does_signing" id="does_signing2" value="0" type="radio" <%if(does_signing.equals("0"))out.print("checked"); %>/>否
+			</td>
+		</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" id="bpm_id" value="0217" />
+	  			<input type="hidden" name="case_id" value="<%=case_id %>" />
+	  			<input type="hidden" name="case_state" id="case_state" value="<%=cur_state %>" />
+	  			<input name="operator_id" id="operator_id" type="hidden" value="<%=user_id %>"/>
+	  			<input type="button" class="buttoncss" name="tradeSub" value="解除" onclick="deleteOneInfo('7359');"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="checkSub();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='/program/admin/lawyerCase/index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

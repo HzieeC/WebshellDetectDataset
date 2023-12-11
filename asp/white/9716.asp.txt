@@ -1,0 +1,349 @@
+<!--#include file="../ACT.Function.asp"-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>1</title>
+<link href="../Images/style.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<%	If Not ACTCMS.ChkAdmin() Then  Call Actcms.Alert("对不起，您没有操作权限！","")
+
+	Dim Action,Title, Message, Numc,ShowErr,rs2,sql2
+	Action=Trim(Request("Action"))
+	Select Case Action
+		Case "SaveMsg"
+			Call SaveMsg()
+		Case "Del"
+			Call Del()
+		Case "Delall"
+			Call Delall()
+		Case "DelChk"
+			Call DelChk()
+		Case Else
+			Call Main()
+	
+	End Select
+	Sub SaveMsg()
+		Server.ScriptTimeout=99999
+		Dim UserType
+		UserType = Trim(Request.Form("UserType"))
+		Title	 = Trim(Request.Form("title"))
+		Message  = RSQL(Request.Form("message"))
+		If Title="" or Message="" Then
+ 			Call Actcms.ActErr("请填写消息的标题和内容","","")
+ 			Response.End
+			Exit Sub
+		End If
+		Select Case UserType
+		Case "1" : SaveMsg_1()	'按指定用户
+		Case "2" : SaveMsg_2()	'按指定用户组
+		Case "3" : SaveMsg_3()	'按所有用户
+		Case Else
+			Call Actcms.ActErr("请输入收信的用户","","")
+ 			Response.End
+		End Select
+ 		Call Actcms.ActErr("操作成功！本次发送<b>"&Numc+1&"</b>个用户.请继续别的操作","User/Message_Admin.asp","")
+ 	End Sub
+	
+	
+	Sub SaveMsg_1()'按指定用户
+		Dim ToUserName,Rs,Sql,i
+		ToUserName = Trim(Request.Form("UserName"))
+		If ToUserName = "" Then
+			Call Actcms.ActErr("请填写目标用户名，注意区分大小写","","1")
+ 			Response.End
+			Exit Sub
+		End If
+		ToUserName = Replace(ToUserName,"'","")
+		ToUserName = Split(ToUserName,",")
+		Numc= Ubound(ToUserName)
+		For i=0 To Numc
+			SQL = "Select UserName From User_ACT Where UserName = '"&ToUserName(i)&"'"
+			Set Rs = Conn.Execute(SQL)
+			If Not Rs.eof Then
+			Conn.Execute("insert into Message_ACT (incept,sender,title,content,sendtime,flag,issend,DelR,DelS) values('"&ToUserName(i)&"','"&Session("AdminName")&"','"&Title&"','"&Message&"',"&NowString&",0,1,0,0)")
+			End If
+		Next
+		Rs.Close : Set Rs = Nothing
+	End Sub
+	
+	Sub SaveMsg_2()
+		Dim GroupID,i
+		Dim SearchStr,TempValue,DayStr
+		GroupID = Replace(Request.Form("GroupID"),chr(32),"")
+		If GroupID="" Then
+			Call Actcms.ActErr("请正确选取相应的用户组","","1")
+ 			Exit Sub
+			Response.End
+		Else
+			GroupID = RSQL(GroupID)
+		End If
+		DayStr = "'d'"
+		If Instr(GroupID,",")>0 Then
+			SearchStr = "GroupID in ("&GroupID&")"
+		Else
+			SearchStr = "GroupID = "&RSQL(GroupID)
+		End If
+		If SearchStr="" Then
+			ShowErr = "<li>请填写发送的条件选项。</li>"
+		End If
+		If ShowErr<>"" Then Call Actcms.ActErr(ShowErr,"","1") : Exit Sub
+		Dim Rs,Sql
+		Sql = "Select UserID From User_ACT Where "& SearchStr & " Order By UserID Desc"
+	
+		Set Rs = Conn.Execute(Sql)
+				Set rs2 = Server.CreateObject("Adodb.RecordSet")
+		If Not Rs.eof Then
+			SQL = Rs.GetRows(-1)
+			Numc= Ubound(SQL,2)
+			For i=0 To Numc
+ 				sql2 = "Select  * from Message_Act where 1=1"
+				rs2.Open sql2, Conn, 1, 3
+				rs2.AddNew
+				rs2("Userid") = SQL(0,i)
+				rs2("title") = title
+				rs2("content") = message
+				rs2("SendTime") = Now()
+				rs2("flag") =1
+				rs2("U") =0
+				rs2.Update
+				rs2.Close
+				
+			Next
+		End If
+		Rs.Close : Set Rs = Nothing
+	End Sub
+	
+	
+	Sub SaveMsg_3()'所有用户发送
+		Dim Rs,Sql,i
+				Set rs2 = Server.CreateObject("Adodb.RecordSet")
+		Sql = "Select UserID From User_ACT Order By UserID Desc"
+		Set Rs = Conn.Execute(Sql)
+		If Not Rs.eof Then
+			SQL = Rs.GetRows(-1)
+			Numc= Ubound(SQL,2)
+			For i=0 To Numc
+				
+				sql2 = "Select  * from Message_Act where 1=1"
+				rs2.Open sql2, Conn, 1, 3
+				rs2.AddNew
+				rs2("Userid") = SQL(0,i)
+				rs2("title") = title
+				rs2("content") = message
+				rs2("SendTime") = Now()
+				rs2("flag") =1
+				rs2("U") =0
+				rs2.Update
+				rs2.Close
+				
+				
+ 			Next
+		End If
+		Rs.Close : Set Rs = Nothing
+
+	End Sub
+	Sub Del()
+	dim sql
+	response.end
+		if request("username")="" then
+			echo("<script>alert('请输入要批量删除的用户名!');history.back();</script>")
+			Exit Sub
+		end if
+		sql="delete from Message_ACT where sender='"&request("username")&"'"
+		Conn.Execute(sql)
+		Call Actcms.ActErr("操作成功","User/Message_Admin.asp","")
+ 		Response.End
+	End Sub
+	
+	
+	
+	Sub Delall()
+		dim selflag,sql
+		if request("isread")="yes" then
+		selflag=""
+		else
+		selflag=" and flag=1"
+		end if
+			select case request("delDate")
+			case "all"
+			sql="delete from Message_ACT where id>0 "&selflag
+			case 7
+			sql="delete from Message_ACT where datediff('d',sendtime,Now())>7 "&selflag
+			case 30
+			sql="delete from Message_ACT where datediff('d',sendtime,Now())>30 "&selflag
+			case 60
+			sql="delete from Message_ACT where datediff('d',sendtime,Now())>60 "&selflag
+			case 180
+			sql="delete from Message_ACT where datediff('d',sendtime,Now())>180 "&selflag
+			end select
+			Conn.Execute(sql)
+			Call Actcms.ActErr("操作成功","User/Message_Admin.asp","")
+ 			Response.End
+	End Sub
+	
+	
+	Sub DelChk()
+		if request.form("keyword")="" then
+			Call Actcms.ActErr("请输入关键字","","")
+ 			Exit sub
+		end if
+		if request.form("selaction")=1 then
+				conn.Execute("delete from Message_ACT where title like '%"&replace(request.form("keyword"),"'","")&"%'")
+		elseif request.form("selaction")=2 then
+			
+				conn.Execute("delete from Message_ACT where content like '%"&replace(request.form("keyword"),"'","")&"%'")
+		else
+			Call Actcms.ActErr("未指定相关参数","User/Message_Admin.asp","1")
+ 		end if
+			Call Actcms.ActErr("操作成功","User/Message_Admin.asp","")
+ 	End Sub
+	
+	Sub Main()	 %>
+<table width="98%" border="0" align="center" cellpadding="3" cellspacing="1"  class="table">
+ <form name="Msgform" method="post" action="?Action=SaveMsg">
+ <tr>
+    <td height="25" colspan="2" align="center" class="bg_tr">发送短消息</td>
+  </tr>
+  <tr>
+    <td width="20%" align="right" class="td_bg"><strong>用户类别：</strong></td>
+    <td width="80%" class="td_bg"><label for="UserType1">
+	<input onClick="UType(this.value)" type="radio" value="1" checked="checked" name="UserType" id="UserType1" />
+      用户名单</label><label for="UserType2">
+        <input onClick="UType(this.value)" type="radio" value="2" name="UserType" id="UserType2"  />
+        用户组</label><label for="UserType3">
+        <input onClick="UType(this.value)" type="radio"  value="3" name="UserType" id="UserType3"  />
+    所有用户</label> </td>
+  </tr>
+  <tr id="ToUserName">
+    <td align="right" class="td_bg" ><strong>用 户 名：</strong></td>
+    <td class="td_bg"><input  class="ainput"  size="45" name="username" type="text"  />
+      <br>
+      请输入用户名：(多个用户名请以英文逗号“,”分隔,注意区分大小写)</td>
+  </tr>
+  <tr id="ToGroupID" style="display:none;">
+    <td align="right" class="td_bg" ><strong>用 户 组：</strong></td>
+    <td class="td_bg"><%= ACTCMS.GetGroup_CheckBox("GroupID",0,5) %>
+	&nbsp;<label for="ChkAll"><input name="ChkAll" type="checkbox" id="ChkAll" onClick="CheckAll(this.form)" value="checkbox">全选</label></td>
+  </tr>
+  <tr>
+    <td width="20%" align="right" class="td_bg"><strong>消息标题：</strong></td>
+    <td width="80%" class="td_bg"><input name="title" type="text" class="ainput" id="title" value="" size="45" /></td>
+  </tr>
+  <tr>
+    <td width="20%" align="right" class="td_bg"><strong>消息内容：</strong></td>
+    <td width="80%" class="td_bg"><textarea name="Message" cols="50" rows="8"></textarea></td>
+  </tr>
+  <tr>
+    <td class="td_bg">&nbsp;</td>
+    <td class="td_bg"><input name="UserSearch" type="hidden" id="UserSearch" value="7" />
+        <input name="Submit" type="button" value=" 发送消息 " Class="ACT_BTN" onClick="CheckForm()" />
+		&nbsp;&nbsp; <input type="reset" name="Submit2" Class="ACT_BTN" value=" 重新填写 "></td>
+  </tr>
+</form></table>
+<script language="javascript">
+function UType(n){
+			if (n==1){
+				document.getElementById("ToUserName").style.display = "";
+				document.getElementById("ToGroupID").style.display = "none";
+			}
+			else if(n==2){
+				document.getElementById("ToUserName").style.display = "none";
+				document.getElementById("ToGroupID").style.display = "";
+			}
+			else{
+				document.getElementById("ToUserName").style.display = "none";
+				document.getElementById("ToGroupID").style.display = "none";
+			}
+		}
+function CheckAll(form)
+		  {  
+		 for (var i=0;i<form.elements.length;i++)  
+			{  
+			   var e = Msgform.elements[i];  
+			   if (e.name != 'ChkAll'&&e.type=="checkbox")  
+			   e.checked = Msgform.ChkAll.checked;  
+		   }  
+	  }
+	  
+function CheckForm()
+{ var form=document.Msgform;
+   if (form.title.value=='')
+    { alert("请输入消息标题!");   
+	  form.title.focus();    
+	   return false;
+    }
+		form.Submit.value="正在提交数据,请稍等...";
+		form.Submit.disabled=true;	
+		form.Submit2.disabled=true;	
+	    form.submit();
+        return true;
+}
+
+</script>	  
+	
+<table width="98%" border="0" align=center cellpadding="3" cellspacing="1" class="table">
+		  <tr align="center" class="title"> 
+			<td height="25" colspan="2" class="bg_tr">短消息管理(批量删除)</td>
+		  </tr>
+		  <form action="?action=Del" method=post>
+		 <td colspan="2" class=td_bg>删除指定用户短消息：<input  class="ainput"  type="text" name="username" size=30>
+		 <input type="submit" name="Submit" Class="ACT_BTN" value="提 交">	</td> </form>
+		  <form action="?action=Delall" method=post>
+			<tr> 
+			  <td colspan="2" class=td_bg> 批量删除用户指定日期内短消息（默认为删除已读信息）：<br>
+				<select name="delDate" size=1>
+				  <option value=7>一个星期前</option>
+				  <option value=30>一个月前</option>
+				  <option value=60>两个月前</option>
+				  <option value=180>半年前</option>
+				  <option value="all">所有信息</option>
+				</select>
+				&nbsp; 
+				<input type="checkbox" name="isread" value="yes">
+				包括未读信息 
+			  <input type="submit" name="Submit" Class="ACT_BTN" value="提 交">			  </td>
+			</tr>
+		  </form>
+		  <form action="?action=DelChk" method=post>
+			<tr> 
+			  <td colspan="2"  class=td_bg> 批量删除含有某关键字短信（注意：本操作将删除所有已读和未读信息）：<br>
+				关键字： 
+				<input  class="ainput"  type="text" name="keyword" size=30>
+				&nbsp;在 
+				<select name="selaction" size=1>
+				  <option value=1>标题中</option>
+				  <option value=2>内容中</option>
+				</select>
+				&nbsp; 
+				<input type="submit" Class="ACT_BTN" name="Submit" value="提 交">
+			  </td>
+			</tr>
+		  </form>
+</table><%
+End Sub
+ 	Public Function GetGroup_CheckBox(OptionName,SelectArr,RowNum)
+	   Dim n:n=0
+	   Dim RSObj:Set RSObj=Server.CreateObject("Adodb.Recordset")
+	   IF RowNum<=0 Then RowNum=3
+	   RSObj.Open "Select GroupID,GroupName From Group_ACT",Conn,1,1
+	   GetGroup_CheckBox="<table width=""100%"" align=""center"" border=""0"">"
+	   Do While Not RSObj.Eof
+	        GetGroup_CheckBox=GetGroup_CheckBox & "<TR>"
+	     For N=1 To RowNum
+		    GetGroup_CheckBox=GetGroup_CheckBox & "<TD WIDTH=""" & CInt(100 / CInt(RowNum)) & "%"">"
+			If Instr(SelectArr,RSObj(0))<>0 Then
+			 GetGroup_CheckBox=GetGroup_CheckBox & "<label for="& RSObj(0) &"><input id="&RSObj(0)&" type=""checkbox"" checked name=""" & OptionName & """ value=""" & RSObj(0) & """>" & RSObj(1) & "</label>&nbsp;&nbsp;&nbsp;&nbsp;"
+			Else
+			 GetGroup_CheckBox=GetGroup_CheckBox & "<label for="& RSObj(0) &"><input id="&RSObj(0)&" type=""checkbox"" name=""" & OptionName & """ value=""" & RSObj(0) & """>" & RSObj(1) & "</label>&nbsp;&nbsp;&nbsp;&nbsp;"
+			End IF
+		 GetGroup_CheckBox=GetGroup_CheckBox & "</TD>"
+		 		RSObj.MoveNext
+				If RSObj.Eof Then Exit For
+		Next
+		GetGroup_CheckBox=GetGroup_CheckBox & "</TR>"
+		If RSObj.Eof Then Exit Do
+	   Loop
+	   GetGroup_CheckBox=GetGroup_CheckBox & "</TABLE>"
+	   RSObj.Close:Set RSObj=Nothing
+	End Function %>

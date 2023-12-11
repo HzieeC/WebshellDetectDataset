@@ -1,0 +1,77 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.FileIO" %>
+<%@page import="com.bizoss.frame.util.Config" %>
+	<%
+	request.setCharacterEncoding("UTF-8");
+	   Config configFile = new Config();
+	   configFile.init();
+	   String rootpath = configFile.getString("rootpath");
+	   String content = "" ,templateDir =rootpath+"/data/html/register.html";
+	   FileIO fileio = new FileIO();		
+	   content = fileio.LoadFile(templateDir);
+	   String edit="",contents="";
+	   if(request.getParameter("edit") != null){
+	   	 edit = request.getParameter("edit");
+	   }
+	   
+	   if(request.getParameter("contents") != null){
+	   	 contents = request.getParameter("contents");
+	   	 //contents = new String(contents.getBytes("iso-8859-1"),"GBK");
+	   }
+	   
+	   if(edit.equals("true")){
+	   		fileio.SaveToFile(contents,templateDir);
+	   		out.print("<script>alert('编辑注册条款成功！');window.location.href='registerEdit.jsp'</script>");
+	   }		   
+	%>
+<html>		
+  <head>
+    
+  <title>注册条款编辑</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="register.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>注册条款编辑</h1>
+			</td>
+		</tr>
+	</table>
+	<br>
+	<form id="certForm" name="certForm" method="post" action="registerEdit.jsp?edit=true" target="_self" onsubmit="return check();">
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+	<tr>
+		<td>
+			
+			
+			<textarea name="contents" id="content" ><%=content%></textarea>
+	
+					<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+										
+											<script type="text/javascript">
+												CKEDITOR.replace('content');
+											</script>			
+									
+									
+
+		</td>
+	</tr>
+</table>
+	<br>
+<table width="100%" cellpadding="0" cellspacing="0" border="0">	
+	<tr>
+		<td align="center">	
+			<input type="submit" name="submit1" class="buttoncss" value="提交信息" class="submitButton"/>
+		</td>
+	</tr>
+</table>
+	</form>
+</body>
+
+</html>

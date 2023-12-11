@@ -1,0 +1,345 @@
+<!--#Include File="CONN.ASP"-->
+<!--#Include File="inc/Const.asp"-->
+<!--#Include File="inc/md5.asp"-->
+<!--#Include File="Dv_Plus_Invite_ClsMain.asp"-->
+<%
+If Dvbbs.UserID=0 Then
+	Dvbbs.AddErrCode(6)
+	Dvbbs.ShowErr()
+End If
+Dim DI_Stats,DI_Script_Name,DI_obj,DI_action,DI_save,DI_count,i
+DI_Stats = "申请邀请码"
+DI_Script_Name = Request.ServerVariables("Script_Name")
+Dvbbs.LoadTemplates("")
+Dvbbs.Stats = DI_Stats
+Dvbbs.Nav
+Dvbbs.Head_Var 0,0,DI_Stats,DI_Script_Name
+Set DI_obj = New Cls_DI
+DI_obj.Load_Setup()
+	If DI_obj.DI_IsOPen=0 Then '判断邀请码插件开关
+		Response.Redirect "showerr.asp?ErrCodes=本功能未开通！&action=OtherErr"
+		Response.End
+	End If
+DI_obj.Del_FailDate() '第二次更新撤掉此功能。不删除，修改为过期即标识为已使用
+DI_obj.CheckUserLimit(Dvbbs.UserID)
+DI_obj.Load_UserInfo(Dvbbs.UserID)
+
+DI_action = Dvbbs.CheckStr(Request("action"))
+DI_save = Dvbbs.CheckNumeric(Request("DI_save"))
+DI_count = Dvbbs.CheckNumeric(Request("DI_count"))
+Select Case DI_action
+	Case "add" : add()
+	Case Else
+		Call showList()
+End Select
+
+Sub add()
+	If DI_obj.DI_IsCreate = 0 Then
+		Response.Redirect "showerr.asp?ErrCodes=<li>邀请码：管理员设置了注册用户不能申请邀请码！&action=OtherErr"
+		Response.End
+	End If
+	If Not DI_obj.DI_CheckUserLimit Then
+		Response.Redirect "showerr.asp?ErrCodes=<li>未能符合条件，不能申请邀请码。&action=OtherErr"
+		Response.End
+	End If
+
+	If DI_save = 1 Then
+		If DI_count <= 0 Then
+			Response.Redirect "showerr.asp?ErrCodes=<li>生成验证码数量不能小于0！&action=OtherErr"
+			Response.End
+		End If
+		'开启消耗积分
+		If DI_obj.DI_IsExpend = 0 Or DI_obj.DI_UserExpend1="0|0|0|0|0" Then
+			Call main(DI_count,DI_obj.DI_FailDate)
+		Else
+			'判断用户是否有足够积分
+			If  CLng(DI_count) <= CLng(DI_obj.GetCodeCount()) Then
+				Call main(DI_count,DI_obj.DI_FailDate)
+			Else
+				Response.Redirect "showerr.asp?ErrCodes=<li>您目前最多只能申请 "&DI_obj.GetCodeCount()&" 个邀请码！&action=OtherErr"
+				Response.End
+			End If
+		End If
+	Else
+		Call showForm()
+	End If
+End Sub
+Dvbbs.Footer()
+Dvbbs.PageEnd()
+
+Sub main(DI_count,DI_fail)
+	Dim failDate,i
+	failDate = Now()
+	failDate = failDate + DI_fail
+	For i=1 To DI_count
+		If IsSqlDataBase = 1 Then
+			Dvbbs.Execute("INSERT INTO [Dv_Plus_Invite] (DI_Code,DI_FailDate,DI_CreateUserName,DI_UserExpend) VALUES ('"& DI_obj.getRanNumber() &"','"& failDate &"','"& Dvbbs.MemberName &"','"& DI_obj.DI_UserExpend1 &"')")
+		Else
+			Dvbbs.Execute("INSERT INTO [Dv_Plus_Invite] (DI_Code,DI_FailDate,DI_CreateUserName,DI_UserExpend) VALUES ('"& DI_obj.getRanNumber() &"',#"& failDate &"#,'"& Dvbbs.MemberName &"','"& DI_obj.DI_UserExpend1 &"')")
+		End If
+	Next
+%>
+<table class="tableborder1" cellspacing="1">
+	<tr><th><%=DI_Stats%></th></tr>
+	<tr><td class="tablebody1"><li>申请邀请码成功。您可以选择以下操作：</li></td></tr>
+	<tr>
+		<td class="tablebody1">
+			<input type="button" value="申请邀请码" onclick="window.location='Dv_Plus_Invite_Apply.asp?action=add'"/>&nbsp;&nbsp;
+			<input type="button" value="查看邀请码" onclick="window.location='Dv_Plus_Invite_Apply.asp'"/>
+		</td>
+	</tr>
+</table>
+<%
+	Call DI_obj.DI_NoadSql("Dv_Plus_Invite_Apply.asp","申请邀请码(个/天数："& DI_count &"/"& DI_fail &"，失效时间："& failDate &")")
+	'消耗积分
+	If DI_obj.DI_IsExpend = 1 Then
+		Dvbbs.Execute("Update [Dv_User] Set "&_
+			"UserWealth=UserWealth-"& DI_obj.DI_UserExpend(0)*DI_count &","&_
+			"UserEP=UserEP-"& DI_obj.DI_UserExpend(1)*DI_count &","&_
+			"UserCP=UserCP-"& DI_obj.DI_UserExpend(2)*DI_count &","&_
+			"UserMoney=UserMoney-"& DI_obj.DI_UserExpend(3)*DI_count &","&_
+			"UserTicket=UserTicket-"& DI_obj.DI_UserExpend(4)*DI_count &""&_
+			" Where UserName='"& Dvbbs.MemberName &"'")
+		Call DI_obj.DI_NoadSql("Dv_Plus_Invite_Apply.asp","消耗用户积分成功：金钱"&DI_obj.DI_UserExpend(0)*DI_count&"、经验"&DI_obj.DI_UserExpend(1)*DI_count&"、魅力"&DI_obj.DI_UserExpend(2)*DI_count&"、金币"&DI_obj.DI_UserExpend(3)*DI_count&"、点卷"&DI_obj.DI_UserExpend(4)*DI_count&"")
+	End If
+End Sub
+
+Sub showForm()
+%>
+<form method="post" action="<%=DI_Script_Name%>?action=add">
+<input type="hidden" name="DI_save" value="1"/>
+<table class="tableborder1" cellspacing="1">
+	<tr><th><%=DI_Stats%></th></tr>
+	<tr>
+		<td class="tablebody1">
+			<li>
+			<%If DI_obj.DI_IsExpend = 1 Then%>
+				一个邀请码需要：金钱<font color="red"><%=DI_obj.DI_UserExpend(0)%></font>、经验<font color="red"><%=DI_obj.DI_UserExpend(1)%></font>、魅力<font color="red"><%=DI_obj.DI_UserExpend(2)%></font>、金币<font color="red"><%=DI_obj.DI_UserExpend(3)%></font>、点卷<font color="red"><%=DI_obj.DI_UserExpend(4)%></font>
+			<%Else%>
+				管理员设置：申请邀请不消耗积分
+			<%End If%>
+			</li>
+			<li>
+			您当前的状态是：金钱<font color="red"><%=DI_obj.DI_UserWealth%></font>、经验<font color="red"><%=DI_obj.DI_UserEP%></font>、魅力<font color="red"><%=DI_obj.DI_UserCP%></font>、金币<font color="red"><%=DI_obj.DI_UserMoney%></font>、点卷<font color="red"><%=DI_obj.DI_UserTicket%></font>
+			</li>
+			<li>
+			<%If DI_obj.DI_IsGain = 0 Or DI_obj.DI_UserGain1="0|0|0|0|0" Then%>
+				管理员设置：邀请码被使用后不赠送积分
+			<%Else%>
+				一个邀请码被使用后获赠：金钱<font color="red"><%=DI_obj.DI_UserGain(0)%></font>、经验<font color="red"><%=DI_obj.DI_UserGain(1)%></font>、魅力<font color="red"><%=DI_obj.DI_UserGain(2)%></font>、金币<font color="red"><%=DI_obj.DI_UserGain(3)%></font>、点卷<font color="red"><%=DI_obj.DI_UserGain(4)%></font>
+			<%End If%>
+			</li>
+			<li>
+				请填写申请邀请码的数量：<input type="text" name="DI_count" value=""/>&nbsp;&nbsp;
+				<%If DI_obj.DI_IsExpend = 0 Or DI_obj.DI_UserExpend1="0|0|0|0|0" Then%>
+					管理员设置：申请邀请不消耗积分
+				<%Else%>
+					目前您还可以申请 <font color="red"><%=DI_obj.GetCodeCount()%></font> 个邀请码
+				<%End If%>
+			</li>
+			<li>管理员设置：申请的邀请码有效期为 <font color="Red"><%=DI_obj.DI_FailDate%></font> 天</li>
+		</td>
+	</tr>
+	<tr>
+		<td class="tablebody1">
+			<input type="submit" value="点击申请"/>&nbsp;&nbsp;
+			<input type="button" value="查看邀请码" onclick="window.location='Dv_Plus_Invite_Apply.asp'"/>
+		</td>
+	</tr>
+</table>
+</form>
+<%
+End Sub
+
+'邀请码列表
+Sub showList()
+Dim Sql,Rs,i
+
+%>
+<table class="tableborder1" cellspacing="1">
+	<tr><th><%=DI_Stats%></th></tr>
+	<tr>
+		<td class="tablebody1">
+			<li>
+				<font color="red">温馨提示：IE下鼠标点击邀请码，即可复制该邀请码链接地址，发送给用户注册即可。</font>
+			</li>
+			<li>
+				一个邀请码需要：金钱<font color="red"><%=DI_obj.DI_UserExpend(0)%></font>、经验<font color="red"><%=DI_obj.DI_UserExpend(1)%></font>、魅力<font color="red"><%=DI_obj.DI_UserExpend(2)%></font>、金币<font color="red"><%=DI_obj.DI_UserExpend(3)%></font>、点卷<font color="red"><%=DI_obj.DI_UserExpend(4)%></font>，必先符合条件：文章不少于<font color="red"><%=DI_obj.DI_UserLimit(0)%></font>篇、登录次数不少于<font color="red"><%=DI_obj.DI_UserLimit(1)%></font>次、注册天数不少于<font color="red"><%=DI_obj.DI_UserLimit(2)%></font>天
+			</li>
+			<li>
+				您当前的状态是：金钱<font color="red"><%=DI_obj.DI_UserWealth%></font>、经验<font color="red"><%=DI_obj.DI_UserEP%></font>、魅力<font color="red"><%=DI_obj.DI_UserCP%></font>、金币<font color="red"><%=DI_obj.DI_UserMoney%></font>、点卷<font color="red"><%=DI_obj.DI_UserTicket%></font>，目前条件：文章<font color="red"><%=DI_obj.DI_UserPost%></font>篇、登录次数<font color="red"><%=DI_obj.DI_UserLogins%></font>次、注册天数<font color="red"><%=DI_obj.DI_JoinDate%></font>天
+			</li>
+			<!---->
+			<%
+			Dim DI_CodeNumCount,DI_CodeIsUseCount,DI_UserExpend2,DI_UserGain2
+			Dim DI_UserExpend2_0,DI_UserExpend2_1,DI_UserExpend2_2,DI_UserExpend2_3,DI_UserExpend2_4
+			Dim DI_UserGain2_0,DI_UserGain2_1,DI_UserGain2_2,DI_UserGain2_3,DI_UserGain2_4
+			DI_CodeNumCount = 0
+			DI_CodeIsUseCount = 0
+			Rem DI_IsFail,DI_UserExpend,DI_UserGain
+			Rem 0=状态,   1=消耗积分,   2=获赠积分
+			Set Rs = Dvbbs.Execute("Select DI_IsFail,DI_UserExpend,DI_UserGain From [Dv_Plus_Invite] Where DI_CreateUserName='"&Dvbbs.MemberName&"'")
+			If Not Rs.Eof Then
+				Sql = Rs.GetRows(-1)
+				DI_CodeNumCount = UBound(Sql,2)+1 '总数
+				If IsArray(Sql) Then
+					For i=0 To UBound(Sql,2)
+						'消耗积分
+						DI_UserExpend2 = Split(Sql(1,i),"|")
+						DI_UserExpend2_0 = CLng(DI_UserExpend2_0) + CLng(DI_UserExpend2(0))
+						DI_UserExpend2_1 = CLng(DI_UserExpend2_1) + CLng(DI_UserExpend2(1))
+						DI_UserExpend2_2 = CLng(DI_UserExpend2_2) + CLng(DI_UserExpend2(2))
+						DI_UserExpend2_3 = CLng(DI_UserExpend2_3) + CLng(DI_UserExpend2(3))
+						DI_UserExpend2_4 = CLng(DI_UserExpend2_4) + CLng(DI_UserExpend2(4))
+						'获赠积分
+						DI_UserGain2 = Split(Sql(2,i),"|")
+						DI_UserGain2_0 = CLng(DI_UserGain2_0) + CLng(DI_UserGain2(0))
+						DI_UserGain2_1 = CLng(DI_UserGain2_1) + CLng(DI_UserGain2(1))
+						DI_UserGain2_2 = CLng(DI_UserGain2_2) + CLng(DI_UserGain2(2))
+						DI_UserGain2_3 = CLng(DI_UserGain2_3) + CLng(DI_UserGain2(3))
+						DI_UserGain2_4 = CLng(DI_UserGain2_4) + CLng(DI_UserGain2(4))
+						If Sql(0,i)="2" Then _
+							DI_CodeIsUseCount = DI_CodeIsUseCount + 1 '已使用个数
+					Next
+				End If
+			Else
+				DI_CodeNumCount = 0
+				DI_CodeIsUseCount = 0
+				DI_UserExpend2_0 = 0
+				DI_UserExpend2_1 = 0
+				DI_UserExpend2_2 = 0
+				DI_UserExpend2_3 = 0
+				DI_UserExpend2_4 = 0
+				DI_UserGain2_0 = 0
+				DI_UserGain2_1 = 0
+				DI_UserGain2_2 = 0
+				DI_UserGain2_3 = 0
+				DI_UserGain2_4 = 0
+			End If
+			Rs.Close:Set Rs = Nothing
+			%>
+			<li>邀请码总数：<font color="blue" title="已使用个数"><%=DI_CodeIsUseCount%></font> / <b title="总数"><%=DI_CodeNumCount%></b></li>
+			<li>总消耗积分：金钱<font color="red"><%=DI_UserExpend2_0%></font>、经验<font color="red"><%=DI_UserExpend2_1%></font>、魅力<font color="red"><%=DI_UserExpend2_2%></font>、金币<font color="red"><%=DI_UserExpend2_3%></font>、点卷<font color="red"><%=DI_UserExpend2_4%></font></li>
+			<li>总获赠积分：金钱<font color="red"><%=DI_UserGain2_0%></font>、经验<font color="red"><%=DI_UserGain2_1%></font>、魅力<font color="red"><%=DI_UserGain2_2%></font>、金币<font color="red"><%=DI_UserGain2_3%></font>、点卷<font color="red"><%=DI_UserGain2_4%></font></li>
+			<!---->
+		</td>
+	</tr>
+	<tr>
+		<td>
+		<%
+		Dim Page,MaxRows,Endpage,CountNum,PageSearch,SqlString
+		Response.Write "<script language=""JavaScript"" src=""inc/Pagination.js""></script>" & VbCrLf
+		PageSearch = ""
+		Endpage = 0
+			'搜索返回结果数控制
+			If Dvbbs.Forum_Setting(12)<>"0" Then
+				If IsNumeric(Dvbbs.Forum_Setting(12)) Then
+				If Clng(Dvbbs.Forum_Setting(12)) Mod Cint(Dvbbs.Forum_Setting(11))=0 Then
+					MaxRows = Clng(Dvbbs.Forum_Setting(12)) \ Cint(Dvbbs.Forum_Setting(11))
+				Else
+					MaxRows = Clng(Dvbbs.Forum_Setting(12)) \ Cint(Dvbbs.Forum_Setting(11))+1
+				End If
+				Else
+					MaxRows = 50
+				End If
+			Else
+				MaxRows = 50
+			End If
+		CountNum = 0
+		Page = Request("Page")
+		If IsNumeric(Page) = 0 or Page="" Then Page=1
+		Page = Clng(Page)
+
+		Rem DI_ID, DI_Code,  DI_CreateDate, DI_TempDate, DI_FailDate, DI_CreateUserName, DI_IsFail, DI_RegUserName,DI_RegTime
+		Rem 0=id,  1=邀请码, 2=创建时间,    3=临时时间,  4=失效时间,  5=创建者,          6=是否失效,7=注册人,      8=注册时间
+		Sql = "Select DI_ID,DI_Code,DI_CreateDate,DI_TempDate,DI_FailDate,DI_CreateUserName,DI_IsFail,DI_RegUserName,DI_RegTime From [Dv_Plus_Invite] Where DI_CreateUsername='"& Dvbbs.MemberName &"' Order By DI_IsFail Desc"
+		If Not IsObject(Conn) Then ConnectionDatabase
+		Set Rs = Server.CreateObject("Adodb.RecordSet")
+	'	Set Rs = Dvbbs.iCreateObject("Adodb.RecordSet") ' Dvbbs 8.0 Sp1 以上可使用这一行
+		Rs.Open Sql,Conn,1,1
+		If Not (Rs.Eof And Rs.Bof) Then
+			CountNum = Rs.RecordCount
+			If CountNum Mod MaxRows=0 Then
+				Endpage = CountNum \ MaxRows
+			Else
+				Endpage = CountNum \ MaxRows+1
+			End If
+			Rs.MoveFirst
+			If Page > Endpage Then Page = Endpage
+			If Page < 1 Then Page = 1
+			If Page >1 Then
+				Rs.Move (Page-1) * MaxRows
+			End if
+			Sql=Rs.GetRows(MaxRows)
+			Rs.Close:Set Rs = Nothing
+
+			If IsArray(Sql) Then
+				%>
+				<table class="tableborder1" cellspacing="1" style="width:100%;">
+				<tr>
+					<th style="text-align:center;">邀请码</th>
+					<th style="text-align:center;" width="10%">创建日期</th>
+					<th style="text-align:center;" width="10%">失效日期</th>
+					<th style="text-align:center;" width="5%">状态</th>
+					<th style="text-align:center;" width="10%">注册人/时间</th>
+				</tr>
+				<%
+				For i=0 To UBound(Sql,2)
+					%>
+					<tr>
+						<td class="tablebody1" style="text-align:center;">
+							<input type="hidden" id="DI_Code<%=Sql(0,i)%>" value="<%=DI_obj.GetCodeUrl(Sql(1,i))%>"/>
+							<div onclick="oCopy(document.getElementById('DI_Code<%=Sql(0,i)%>'))" title="点击复制" style="CURSOR:hand"><%=DI_obj.GetCodeUrl(Sql(1,i))%></div>
+						</td>
+						<td class="tablebody1" style="text-align:center;">
+							<%=Sql(2,i)%>
+						</td>
+						<td class="tablebody1" style="text-align:center;">
+							<%=Sql(4,i)%>
+						</td>
+						<td class="tablebody1" style="text-align:center;">
+							<%If Sql(6,i)="1" Then%><font color="red">使用中</font><%ElseIf Sql(6,i)="0" Then%>未使用<%ElseIf Sql(6,i)="2" Then%><font color="blue">已使用</font><%ElseIf Sql(6,i)="3" Then%><font color="green">已过期</font><%Else%><font color="gray">未知</font><%End If%>
+						</td>
+						<td class="tablebody1" style="text-align:right;">
+							<a href="dispuser.asp?name=<%=Sql(7,i)%>" target="_blank"><%=Sql(7,i)%></a><br/><%=Sql(8,i)%>
+						</td>
+					</tr>
+					<%
+				Next
+				%>
+				</table>
+				<%
+			End If
+		Else
+			Response.Write "<li>还没申请邀请码！</li>"
+			Rs.Close:Set Rs = Nothing
+		End If
+%>
+		</td>
+	</tr>
+	<tr>
+		<td class="tablebody1">
+			<input type="button" value="申请邀请码"<%If DI_obj.DI_IsCreate = 0 Then%> disabled<%ElseIf Not DI_obj.DI_CheckUserLimit Then%> disabled<%End If%> onclick="window.location='Dv_Plus_Invite_Apply.asp?action=add'"/><%If DI_obj.DI_IsCreate = 0 Then%>&nbsp;<font color="red">管理员设置了注册用户不能申请邀请码!</font><%ElseIf Not DI_obj.DI_CheckUserLimit Then%>&nbsp;<font color="red">未能符合条件，不能申请邀请码。</font><%End If%>
+		</td>
+	</tr>
+	<%
+	'If CountNum > MaxRows Then
+		Response.Write "<tr><td class=""tablebody1"">" & VbCrLf
+		Response.Write "<SCRIPT>PageList("&Page&",3,"&MaxRows&","&CountNum&","""&PageSearch&""",0);</SCRIPT>" & VbCrLf
+		Response.Write "</td></tr>"
+	'End If
+	%>
+</table>
+<%
+End Sub
+%>
+<script language="JavaScript" type="text/javascript">
+<!--
+function oCopy(obj){
+	obj.select(); 
+	js=obj.createTextRange(); 
+	js.execCommand("Copy");
+	alert(obj.value + "\n\n复制成功 ^_^");
+}
+//-->
+</script>

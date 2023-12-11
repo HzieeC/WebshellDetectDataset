@@ -1,0 +1,189 @@
+﻿<% @LANGUAGE="VBSCRIPT" CODEPAGE="65001" %>
+<% Response.ContentType="text/vnd.wap.wml;charset=UTF-8" %>
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE wml PUBLIC "-//WAPFORUM//DTD WML 1.1//EN" "http://www.wapforum.org/DTD/wml_1.1.xml"> 
+<!--#include FILE="ltinc/upload.inc"-->
+<!--#include file="conn.asp"-->
+<!--#include file="cnscu_sb.asp"-->
+<!--#include FILE="ltinc/char.asp"-->
+<wml>
+<head>
+<meta http-equiv="Cache-Control" content="max-age=0"/>
+<meta http-equiv="Cache-Control" content="no-cache"/>
+</head>
+
+<%
+sb=request.querystring("sb")
+iduse=Session("useid")
+itid=request("itid")
+nais=request("nais")
+sq1="select * from cnscu_upset where id=1"
+Set Rs1 = Server.CreateObject("Adodb.Recordset")
+rs1.open sq1,conn,1,2
+rstitle=c2u(rs1("title"))
+rsformPath=rs1("formPath")
+rsnamekind=rs1("namekind")
+rsfilesize=rs1("filesize")
+rsallowedfile=rs1("allowedfile")
+rsforceup=rs1("forceup")
+rs1.close
+Set rs1=Nothing
+If Right(rsformPath,1)<>"\" Then rsformPath=rsformPath&"\"
+%>
+<%
+dim upload,file,formName,formPath,iCount
+Dim sjs,fname,i,l,newfilelist,uploaddir,filename,ii
+''--------------------------
+Server.ScriptTimeOut=999999
+set upload=new upload_5xsoft 
+''---------------------------获得变量值
+fullpath=Server.Mappath("\")&"\"
+addip=request.serverVariables("remote_host")
+title=upload.form("title")
+nais=upload.form("nais")
+explain=upload.form("explain")
+addid=session("id")
+''--------------------------保存路径
+formPath=rsformPath
+fullpath=fullpath&rsformPath
+On Error Resume Next 
+Set fso = CreateObject("Scripting.FileSystemObject")
+Set fldr = fso.GetFolder(fullpath)
+If err<>0 Then response.Redirect"err.asp?id=6&nais="&nais&"&sb="&sb&""
+''--------------------------
+iCount=0
+for each formName in upload.objFile ''列出所有上传了的文件
+set file=upload.file(formName) ''生成一个文件对象
+size=file.filesize
+''-------------------------限制文件大小
+If size>rsfilesize*1024 Then response.Redirect"err.asp?id=3&nais="&nais&"&sb="&sb&""
+If  size=0  Then response.Redirect"err.asp?id=5&nais="&nais&"&sb="&sb&""
+''-------------------------获得文件类型
+filetype=file.filename
+i=InStrRev(filetype,".")
+l=Len(filetype)
+If i>0 Then
+  filetype=Right(filetype,l-i+1)
+End If
+''-------------------------限制文件类型
+filetype=LCase(filetype)
+filetype=Replace(filetype,".","")
+filetype=CStr(filetype)
+If  InStr(rsallowedfile,filetype)=0  Then response.Redirect"err.asp?id=2&nais="&nais&"&sb="&sb&""
+''----------------取得新文件名
+If rsnamekind=1 Then
+fname=file.filename
+Else
+RANDOMIZE
+sjs=INT((99-00+1)*RND+00)
+fname=year(date)&month(date)&day(date)&hour(time())&minute(time())&second(time())&sjs
+fname=fname&"."&filetype
+End if
+''-------------------------检验文件是否存在
+If rsforceup="F" then
+sq1="select * from data where filesize='"&size&"'"
+Set Rs1 = Server.CreateObject("Adodb.Recordset")
+rs1.open sq1,conn,1,2
+If Not rs1.bof Or Not rs1.eof Then response.Redirect"errs.asp?itid="&itid&"&nais="&nais&"&id=4&size="&size&"&sb="&sb&""
+Else
+sq1="select * from data where filesize='"&size&"'"
+Set Rs1 = Server.CreateObject("Adodb.Recordset")
+rs1.open sq1,conn,1,2
+End If
+''--------------------------
+if file.filesize>0 then         ''如果 FileSize > 0 说明有文件数据
+file.SaveAs fullpath&fname ''保存文件
+iCount=iCount+1
+msg="文件上传成功！"
+End  If
+datadir=formPath&fname
+addtime=date()
+rs1.addnew
+rs1("dataname")=fname
+rs1("title")=title
+rs1("explain")=explain
+rs1("datadir")=datadir
+rs1("addtime")=addtime
+rs1("filesize")=size
+rs1("addid")=addid
+rs1.update
+rs1.close
+set file=nothing
+next
+set upload=nothing  '删除此对象
+%>
+<card  title="上传成功"><p>
+<%
+size=CStr(size)
+sq2="select * from data where filesize='"&size&"' order by id desc"
+Set Rs2 = Server.CreateObject("Adodb.Recordset")
+rs2.open sq2,conn,1,2
+id=rs2("id")
+title=rs2("title")
+explain=rs2("explain")
+size=rs2("filesize")
+addtime=rs2("addtime")
+
+%>
+<%
+filetype=rs2("dataname")
+i=InStrRev(filetype,".")
+l=Len(filetype)
+If i>0 Then
+  filetype=Right(filetype,l-i)
+End If%>
+格式:<%=filetype%><br/>
+<%size=Round(rs2("filesize")/1024,2)
+If Left(size,1)="." Then size="0"&size%>
+大小:<%=size%>KB
+<br/>文件上传成功,<br/>
+<%
+response.write "<select name='idp'><option onpick=''>选择大类</option>"
+set rse=server.createobject("ADODB.Recordset")
+aql="select id,nxn,lx,did from cnscu_wap_lr where cstr(lx)='12' order by id asc"
+rse.open aql,conn,1,2
+j=1
+do while not rse.eof
+ dim namx
+namx=rse("nxn")
+if len(namx)>8 then namx=left(namx,8)
+Response.write "<option value='" & rse("id") & "'>" & ubb(namx) & "</option>"
+j=j+1
+rse.movenext
+loop
+rse.close
+set rse=nothing
+Response.write "</select><br/>"%>
+软件名称:<br/>
+<input name='nam<%=minute(now)%><%=second(now)%>' title='软件名称'/><br/>
+文件地址:<br/>
+<input name='url<%=minute(now)%><%=second(now)%>' title='文件地址' value='/down/<%=rs2("dataname")%>'/><br/>
+文件说明:<br/>
+<input name='txt<%=minute(now)%><%=second(now)%>' title='文件说明' value='格式:<%=filetype%>\\大小:<%=size%>KB'/><br/>
+内容后面:<select name='brr' value='1'>
+<option value='1'>自动换行</option>
+<option value='0'>不换行</option>
+</select><br/>
+公开方式:<select name='yc' value='0'>
+<option value='0'>正常显示</option>
+<option value='1'>隐藏显示</option>
+</select><br/>
+<anchor>[确定提交]<go href='lmcl.asp?sb=<%=sb%>&amp;fs=<%=fs%>' method='post' accept-charset='utf-8'>
+<postfield name='nam' value='$(nam<%=minute(now)%><%=second(now)%>)'/>
+<postfield name='idi' value='1'/>
+<postfield name='txt' value='$(txt<%=minute(now)%><%=second(now)%>)'/>
+<postfield name='url' value='$(url<%=minute(now)%><%=second(now)%>)'/>
+<postfield name='dy' value='$(dy<%=minute(now)%><%=second(now)%>)'/>
+<postfield name='yc' value='$(yc)'/>
+<postfield name='brr' value='$(brr)'/>
+<postfield name='mm' value='$(mm)'/>
+<postfield name='lx' value='11'/>
+<postfield name='did' value='$(idp)'/>
+</go></anchor><br/>
+<a href='cnscu.asp?itid=<%=itid %>&amp;sb=<%=sb%>'>继续上传文件</a><br/>
+<a href="admin_index.asp?sb=<%=sb%>">返回管理首页</a>
+</p>
+</card>
+</wml>
+<%rs2.close
+Set rs2=nothing%>

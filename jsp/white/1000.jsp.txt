@@ -1,0 +1,82 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=gb2312" />
+<title>MianFeiZhe内容管理系统 - 管理中心 - 顶部菜单</title>
+<link rel="stylesheet" href="images/css/admin_top_1.css" type="text/css" media="all" />
+<style type="text/css">
+div#switch {font-family: 宋体;font-size : 14px;}
+div#switch a:,#switch a:hover{font-size : 14px;text-decoration : none;}
+div#switch {padding : 2px 0 0 1px;width:80px; height:18px;line-height : 20px;}
+</style>
+<script language="javascript">
+<!--
+var displayBar=true;
+function switchBar(obj){
+	if (displayBar)
+	{
+		parent.frame.cols="0,*";
+		displayBar=false;
+		obj.title="打开左边管理菜单";
+	}
+	else{
+		parent.frame.cols="180,*";
+		displayBar=true;
+		obj.title="关闭左边管理菜单";
+	}
+}
+
+function fullmenu(url){
+	if (url==null) {url = "admin_left.jsp";}
+	parent.leftFrame.location = url;
+}
+
+//-->
+</script>
+
+</head>
+<body leftmargin="0" topmargin="0">
+<table cellSpacing="0" cellPadding="0" align="center" width="100%" border="0" id="table1">
+	<tr>
+		<td class="topBorder" height="28"><table cellSpacing="0" cellPadding="0" width="100%" border="0">
+	<tr>
+		<td align="left"><img src="images/admin_logo.gif" onclick="switchBar(this)" width="150" height="32" border=0 alt="关闭左边管理菜单" style="cursor:hand"></td>
+		<td width="40%">&nbsp;&nbsp;MianFeiZhe后台控制面板&nbsp;&nbsp; 
+		&nbsp;&nbsp;<a href="javascript:window.showModalDialog('about.jsp','ResWin','dialogWidth:388px;dialogHeight:282px;help:no;scroll:no;status:no');">关于MianFeiZhe<a>
+		&nbsp;&nbsp;</td>
+		<td width="10%" noWrap align="center"><div id="switch"><a href="admin_cookies.jsp?skin=1" target="_top"><font color="blue">■</font></a><a href="admin_cookies.jsp?skin=2" target="_top"><font color="green">■</font></a><a href="admin_cookies.jsp?skin=3" target="_top"><font color="red">■</font></a><a href="admin_cookies.jsp?skin=4" target="_top"><font color="silver">■</font></a><a href="admin_cookies.jsp?skin=5" target="_top"><font color="purple">■</font></a></div></td>
+		<td width="10%" noWrap align="right">官方公告：</td>
+		<td width="35%">最新MianFeiZhe V1.0 SQL版发布</td>
+		<td width="5%" align="right"><A href=../ target="_blank"><img src="images/i_home.gif" title="返回首页" border=0></A>&nbsp;</TD>
+	</tr>
+		</table></td> </tr>
+	<tr><td bgColor="#FFFFFF" height="1"></td></tr>
+</table>
+<table width="100%" height="30" border="0" cellpadding="0" cellspacing="0" id="table2">
+  <tr>
+    <td><table class="subTB" border="0" cellpadding="0" cellspacing="0">
+              <tr align="center">
+                <td class="topbar" onclick="return fullmenu();"><a target="main" href="admin_main.jsp">管理首页</a></td>
+                <td><font color="#FFFFFF">|</font></td>
+                <td class="topbar" onclick="return fullmenu();"><a target="main" href="admin_config.jsp">站点设置</a></td>
+                <td><font color="#FFFFFF">|</font></td>
+                <td class="topbar" onclick="return fullmenu('admin_left.jsp?action=menu&m=1');"><a target="main" href="../addAritcle">文章频道</a></td>
+                <td><font color="#FFFFFF">|</font></td>
+                <td class="topbar" onclick="return fullmenu('admin_left.jsp?action=menu&m=2');"><a target="main">下载频道</a></td>
+                <td><font color="#FFFFFF">|</font></td>
+                <td class="topbar" onclick="return fullmenu('admin_left.jsp?action=menu&m=5');"><a target="main">动画频道</a></td>
+                <td><font color="#FFFFFF">|</font></td>
+                <td class="topbar" onclick="return fullmenu('admin_left.jsp?action=menu&m=0');"><a target="main" href="admin_user.jsp">会员管理</a></td>
+                <td><font color="#FFFFFF">|</font></td>
+                <td class="topbar"><a target="main" href="admin_template.jsp">模板管理</a></td>
+                <td><font color="#FFFFFF">|</font></td>
+                <td class="topbar"><a target="main" href="admin_password.jsp">修改密码</a></td>
+                <td><font color="#FFFFFF">|</font></td>
+                <td class="topbar"><a target="main" href="http://www.mianfeizhe.com/">帮助中心</a></td>
+              </tr>
+    </table></td>
+  </tr>
+</table>
+</body>
+</html>

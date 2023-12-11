@@ -1,0 +1,72 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@ page import="com.bizoss.trade.ti_membercurrency.*" %>
+<html>
+<%
+	String memberscurrency_id="";
+	String case_levelname="";
+	String deductions="";
+	String user_id = "";
+   if(session.getAttribute("session_user_id")!=null){
+	     user_id  =session.getAttribute("session_user_id").toString();
+	     
+	     if(request.getParameter("memberscurrency_id")!=null)memberscurrency_id=request.getParameter("memberscurrency_id");
+	     Ti_membercurrencyInfo ti_membercurrencyInfo = new Ti_membercurrencyInfo();
+	     List membercurrencyInfo_list=ti_membercurrencyInfo.getListByPk(memberscurrency_id);
+	     Hashtable membercurrencyInfo_map = new Hashtable();
+	     if(membercurrencyInfo_list!=null && membercurrencyInfo_list.size()>0) membercurrencyInfo_map=(Hashtable)membercurrencyInfo_list.get(0);
+	  
+	     if(membercurrencyInfo_map.get("case_levelname")!=null){
+	     case_levelname=membercurrencyInfo_map.get("case_levelname").toString();
+	     }	    
+	     if(membercurrencyInfo_map.get("deductions")!=null){
+	     deductions=membercurrencyInfo_map.get("deductions").toString();
+	     }
+	}
+ %>
+
+<html>
+
+  <head>
+    <title>修改案源级别策略</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="ti_membercurrency.js"></script>
+</head>
+
+<body>
+	<h1>修改案源级别策略</h1>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">		
+		<tr>
+			<td align="right" width="10%">
+				案源级别名称<font color="red">*</font>
+			</td>
+			<td>
+			<input type="text" name="case_levelname" id="case_levelname" value="<%=case_levelname%>">
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				扣除金额<font color="red">*</font>
+			</td>
+			<td>
+			<input type="text" name="deductions" id="deductions" value="<%=deductions %>" >
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="6575" />
+				<input type="hidden" name="memberscurrency_id" value="<%=memberscurrency_id%>" />
+				<input type="submit" class="buttoncss" name="tradeSub" value="提交"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

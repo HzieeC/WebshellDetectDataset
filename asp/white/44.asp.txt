@@ -1,0 +1,114 @@
+<%
+Dim Cai_Inc_Message
+'**************************************************
+'函数名：InsertData
+'作  用：智能检查采集入库
+'参  数：Dim class_id,server_id,data_name,data_actor,data_director,data_erea,data_picurl,data_intro,data_inputer,data_reurl,url_intro,data_year,data_picurl_type,data_sql_type
+'data_picurl_type判定是否保存图片(0/1)/data_sql_type(0/1)判定检查来源方式
+'**************************************************
+Sub InsertData()
+    If data_name="" Then Exit Sub
+	If url_intro="" Then Exit Sub
+    Set rs = Server.CreateObject("adodb.recordset")
+	If data_sql_type=1 Then
+	    sql = " Select * from adnim_data where data_reurl='"&data_reurl&"' "
+	Else
+	    sql = " Select * from adnim_data where data_inputer='"&data_inputer&"' "
+	End If
+	rs.Open sql, Conn, 1, 3
+	If Not(rs.bof or rs.eof) Then
+	   '有来源.编辑影片与地址
+	    Call Edit_Data_Url()
+	Else
+		'无来源.智能判断,是否存在同名电影
+		rs.close:set rs=nothing
+		Set rs = Server.CreateObject("adodb.recordset")
+		sql = " Select * from adnim_data where data_name='"&data_name&"' "
+		rs.Open sql, Conn, 1, 3
+		If Not(rs.bof or rs.eof) Then
+			'无来源有同名,编辑影片与地址
+			Call Edit_Data_Url()
+		Else
+			'无来源无同名,新加影片与地址
+			Call Add_Data_Url()
+		End If
+	End If
+	rs.Close
+	Set rs=Nothing
+End Sub
+
+Sub Edit_Data_Url()
+    '强制更新分类名称与影片名字
+	rs("class_id")=class_id
+	rs("data_name")=data_name
+	rs("data_inputer")=data_inputer
+	rs("data_reurl")=data_reurl
+	rs.update
+	Set rs_u=Server.CreateObject("adodb.recordset")
+	sql = " Select url_id,data_id,server_id,url_intro from adnim_url where data_id="&rs("data_id")&" and server_id="&server_id&" "
+	rs_u.Open sql, Conn, 1, 3
+	If Not(rs_u.bof or rs_u.eof) Then'智能判断是否更新地址
+		If rs_u("url_intro")<>url_intro Then
+		    rs_u("url_intro")=url_intro	
+			rs_u.update
+			'并修改影片录入时间
+			rs("data_lastdate")=now()
+			rs.update
+			Cai_Inc_Message="成功修改播放地址！<br>"
+		Else
+		    Cai_Inc_Message="播放地址未发生任何改变, 不做更新处理!<br>"	
+		End If	  
+	Else'新加地址+更新服务器ID与时间
+		rs_u.AddNew
+		rs_u("url_id")=Adn_MaxId("url")
+		rs_u("data_id")=rs("data_id")'影片ID
+		rs_u("server_id")=server_id'服务器组ID
+		rs_u("url_intro")=url_intro'影片地址
+		rs_u.update
+		'修改服务器组信息与影片录入时间
+		If Instr(rs("server_id"),server_id)<1 Then
+			If rs("server_id")="|" Then 
+				rs("server_id")=server_id&"|"
+			Else
+				rs("server_id")=rs("server_id")&server_id&"|"
+			End If
+		End If
+		rs("data_lastdate")=now()
+		rs.update
+		Cai_Inc_Message="新加播放地址入库成功!<br>"
+	End If
+	rs_u.Close
+	Set rs_u=Nothing	
+End Sub
+
+Sub Add_Data_Url()
+	Dim maxid_data
+	rs.AddNew
+	rs("data_id")=Adn_MaxId("data")
+	rs("class_id")=class_id
+	rs("server_id")=server_id&"|"
+	rs("data_name")=data_name
+	rs("data_actor")=data_actor
+	rs("data_director")=data_director
+	rs("data_erea")=data_erea
+	If data_picurl_type=1 Then
+		rs("data_picurl")=GetPicurl(data_picurl,"../../"&AdminId(28))
+	Else
+	    rs("data_picurl")=data_picurl
+	End If	
+	rs("data_intro")=data_intro
+	rs("data_lastdate")=Now()
+	rs("data_hits")=Adn_Clng(AdminId(31))
+	rs("data_elite")=0
+	rs("data_status")=1
+	rs("data_inputer")=data_inputer
+	rs("data_year")=data_year
+	rs("data_language")=data_language
+	rs("data_continu")=Adn_CLng(data_continu)
+	rs("data_reurl")=data_reurl
+	rs.update
+	maxid_data=rs("data_id")
+	Conn.Execute("Insert into adnim_url (url_id,data_id,server_id,url_intro) values("&Adn_MaxId("url")&","&maxid_data&","&server_id&",'"&url_intro&"')")
+	Cai_Inc_Message="新加播放地址入库成功!<br>"	
+End Sub
+%>

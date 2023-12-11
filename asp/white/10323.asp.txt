@@ -1,0 +1,318 @@
+<%Response.Charset = "GB2312"%>
+<!--#include file="conn/conn.asp"-->
+<!--#include file="inc/Commoncode.asp"-->
+<!--#include file="inc/CommonFunction.asp"-->
+<!--#include file="inc/sendmail.asp"-->
+<!--#include file="inc/md5.asp"-->
+<!--#include file="API/API_Config.asp"-->
+<!--#include file="API/API_Function.asp"-->
+<!--#include file="smsapi/smsapi.asp"-->
+<%Call SQLin()
+Action=trim(Request("Action"))
+Select Case Action
+	Case "checkregmsg"
+		Call checkregmsg()
+	Case "Regdisposal"
+		Call Regdisposal()
+End Select
+Call CloseConn
+Sub checkregmsg()
+email=Replace(request.querystring("email"),"'","")
+login=Replace(request.querystring("login"),"'","")
+set rs=server.createobject("adodb.recordset")
+if email<>"" then
+	sql="select * from JOB_Member where Member_email='"&email&"'"
+	rs.open sql,conn,1,1
+	if not rs.eof then
+	response.write "<font color='#FF0000'>此Email已被占用,重新输入！</font>"
+	Response.end()
+	else
+	response.write "<font color='#009900'>恭喜您！Email可以使用！</font>"
+	Response.end()
+	end if
+end if
+if login<>"" then
+RegDisabled=split(UserName_RegDisabled,"|")
+for i=0 to Ubound(RegDisabled)
+	if login=RegDisabled(i) then
+	response.write "<font color='#FF0000'>此用户名已被禁用,重新输入！</font>"
+	Response.end()
+	end if
+next
+	sql="select * from JOB_Member where Member_login='"&login&"'"
+	rs.open sql,conn,1,1
+	if not rs.eof then
+	response.write "<font color='#FF0000'>此用户名已被占用,重新输入！</font>"
+	Response.end()
+	else
+	response.write "<font color='#009900'>恭喜您！用户名可以使用！</font>"
+	Response.end()
+	end if
+end if
+rs.close
+set rs=nothing
+End Sub
+Sub Regdisposal()
+if ChkPost=False then
+Response.Write ("<script language=JavaScript>{alert('请勿非法提交数据！');window.close();}</script>")
+Response.End
+end if
+dim login,member_email,member_sendemail
+email=Replace(Trim(Request.Form("email")),"'","")
+member_email=email
+login=Replace(Trim(Request.Form("login")),"'","")
+if Trim(Request.Form("pwd"))="" then
+response.write ("<script language=JavaScript>{alert('两次输入密码不一致！');location.href = 'javascript:history.back()';}</script>")
+Response.end()
+end if
+pwd=md5(Replace(Trim(Request.Form("pwd")),"'",""),32)
+ueserpwd=Replace(Trim(Request.Form("pwd")),"'","")
+sendemail=Request.Form("sendemail")
+member_sendemail=sendemail
+mobile=Replace(Trim(Request.Form("mobile")),"'","")
+if mobile<>"" then
+	if len(mobile)<>11 then
+		response.write ("<script language=JavaScript>{alert('手机号码只能为11位的数字！');location.href = 'javascript:history.back()';}</script>")
+		Response.end()
+	end if
+	if not Isnumeric(mobile) then
+		response.write ("<script language=JavaScript>{alert('手机号码只能为11位的数字！');location.href = 'javascript:history.back()';}</script>")
+		Response.end()
+	end if
+end if
+trueIP=Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+If trueIP="" Then trueIP=Request.ServerVariables("REMOTE_ADDR")
+if sendemail="" then
+sendemail=0
+end if
+'判断是否审核
+if AdminRegCheckReg=1 then
+	flag=0
+else
+	flag=1
+end if
+RegDisabled=split(UserName_RegDisabled,"|")
+for i=0 to Ubound(RegDisabled)
+	if login=RegDisabled(i) then
+	response.write ("<script language=JavaScript>{alert('此用户名已被禁用,重新输入！');location.href = 'javascript:history.back()';}</script>")
+	Response.end()
+	end if
+next
+set rs=server.createobject("adodb.recordset")
+sql="select * from JOB_Member where Member_login='"&login&"' or Member_email='"&email&"'"
+rs.open sql,conn,1,3
+if not rs.eof  then
+	response.write ("<script language=JavaScript>{alert('用户名或邮箱存在！');location.href = 'javascript:history.back()';}</script>")
+	Response.End()
+else
+	'添加对整合接口的支持
+	If API_Enable Then
+		'重置错误状态和信息
+		FoundErr = False
+		ErrMsg = ""
+		set sMyXmlHTTP=server.createobject("MSXML2.ServerXMLHTTP")
+		sMyXmlHTTP.setTimeouts API_Timeout, API_Timeout, API_Timeout * 6, API_Timeout * 6
+		Dim intIndex
+		For intIndex = 0 To UBound(ArrUrls)
+		sMyXmlHTTP.open "POST",ArrUrls(intIndex),false
+		sMyXmlHTTP.setRequestHeader "Content-Type", "text/xml; charset=gb2312"
+		sMyXmlHTTP.Send "<root><appid>0596bc</appid><action>reguser</action><syskey>"&MD5(login & API_SysKey, 16)&"</syskey><username>"&login&"</username><password>"&ueserpwd&"</password><email>"&email&"</email><question>默认问题</question><answer>默认答案</answer><userip>"&trueIP&"</userip><jointime>"&Now()&"</jointime><userstatus>0</userstatus></root>"
+			If sMyXmlHTTP.readyState = 4 And sMyXmlHTTP.Status = 200 Then
+				'Response.Write BytesToBstr(sMyXmlHTTP.ResponseBody, "gb2312")
+				Dim objRecXml
+				Set objRecXml = Server.CreateObject("Microsoft.XMLDOM")
+				objRecXml.Async = False
+				objRecXml.Load (sMyXmlHTTP.ResponseXML)
+				If Err Then
+					FoundErr = True
+					ErrMsg = "用户服务目前不可用。[APIError-HTTP1-" & intIndex & "]"
+					Err.Clear
+				ElseIf objRecXml.parseError.errorCode <> 0 Then
+					FoundErr = True
+					ErrMsg = "用户服务目前不可用。[APIError-XmlParse-" & intIndex & "]"
+					Err.Clear
+				'Else
+					'If objRecXml.documentElement.selectSingleNode("//status").Text <> "0" Then
+						'FoundErr = True
+						'ErrMsg = objRecXml.documentElement.selectSingleNode("//message").Text & " [APIError-API-" & intIndex & "]"
+					'End If
+				End If
+			ElseIf sMyXmlHTTP.readyState = 4 And sMyXmlHTTP.Status <> 200 Then
+				FoundErr = True
+				ErrMsg = BytesToBstr(sMyXmlHTTP.ResponseBody, "gb2312")
+			End If
+			If FoundErr Then
+				If intIndex > 0 Then
+					RollbackUser intIndex
+				End If
+				Exit For
+			End If
+		Next
+	End If
+	If FoundErr = True Then
+		response.write ("<script language=JavaScript>{alert('"&ErrMsg&"');location.href = 'javascript:history.back()';}</script>")
+		Response.End()
+		Exit Sub
+	Else		
+		rs.addnew
+		rs("Member_login")=login
+		rs("Member_pwd")=pwd
+		rs("Member_email")=email
+		rs("Member_mobile")=mobile
+		rs("Member_sendemail")=sendemail
+		rs("Member_Auditing")=flag
+		rs("Member_regdate")=Now()
+		rs("Member_typeid")=0
+		rs("Member_groupid")=0
+		rs("Member_loginnum")=0
+		rs("Member_balance")=0
+		rs("Member_integral")=0
+		rs("Member_LoginIP")=trueIP
+		rs("Member_logindate")=now()
+		rs("Member_template")=0
+		rs.update
+		if sendemail=1 then
+			if emailsendregflag=1 then
+				EmailRegOfRegCheck=replace(EmailRegOfRegCheck,"{$uesername}",login)
+				EmailRegOfRegCheck=replace(EmailRegOfRegCheck,"{$ueserpwd}",ueserpwd)
+				'Call SendMail(email,"感谢您注册成为"&sitename&"通行证会员！",EmailRegOfRegCheck)
+			end if
+		end if
+		'整合手机短信
+		if mobile<>"" and Smssend=1 then
+			Set newclient=New SMS
+			respxml=newclient.sendSMS(""&mobile&"","欢迎注册为"&sitename&"会员，您的用户名是"&login&"，密码是"&ueserpwd&"，请您牢记此密码！","")
+			code=newclient.getCode()
+			Set newclient=Nothing
+			if code<>"000" then
+			conn.execute("Insert into JOB_Sms(S_memberlogin,S_tomemberlogin,S_tomobile,S_issuccess,S_sendtime,S_content) values('webmaster','"&login&"','"&mobile&"',0,"&FR_HR_Now&",'欢迎注册为"&sitename&"会员，您的用户名是"&login&"，密码是"&ueserpwd&"，请您牢记此密码！')")
+			else
+			conn.execute("Insert into JOB_Sms(S_memberlogin,S_tomemberlogin,S_tomobile,S_issuccess,S_sendtime,S_content) values('webmaster','"&login&"','"&mobile&"',1,"&FR_HR_Now&",'欢迎注册为"&sitename&"会员，您的用户名是"&login&"，密码是"&ueserpwd&"，请您牢记此密码！')")
+			end if
+		end if
+		'手机短信整合结束
+		if AdminRegCheckReg=1 then
+			Response.Cookies(FRHRCMS)("user_login")=""
+			Response.Cookies(FRHRCMS)("user_pass")=""
+			Response.Write("<script>alert(""您注册的资料已经提交，请等待管理员审核！"");window.location='index.asp';</script>")
+			Response.End()
+		else
+			Response.Cookies(FRHRCMS)("user_login")=login
+			Response.Cookies(FRHRCMS)("user_pass")=pwd
+			'注册后同步登录
+			If API_Enable Then
+				Dim iIndex, tempAPIScripts
+				For iIndex = 0 To UBound(ArrUrls)
+					tempAPIScripts = tempAPIScripts & "<script type=""text/javascript"" language=""JavaScript"" src=""" & ArrUrls(iIndex) & "?syskey=" & MD5(login & API_SysKey, 16) & "&username=" & login & "&password="& MD5(ueserpwd, 16) &"&savecookie=1""></script>"
+				Next
+				Response.Write tempAPIScripts
+			End If
+		end if
+	end if
+end if
+rs.close
+set rs=nothing
+
+
+'获取注册会员类型
+If Trim(Request("Member_type"))<>"" and IsNumeric(Trim(Request("Member_type"))) Then
+Member_type=cint(Trim(Request("Member_type")))
+else
+Member_type=1
+end if
+'默认会员基本帐号
+set mrs=Server.CreateObject("ADODB.RecordSet")
+msql="select * from JOB_Group where Group_membertype="&Member_type&" and Group_IsDefault=1"
+mrs.open msql,conn,1,1
+Group_id=mrs("Group_id")
+Group_Pdianshu=mrs("Group_Pdianshu")
+Group_Pdianshus=split(Group_Pdianshu,",")
+Group_Pintegral=mrs("Group_Pintegral")
+Group_Pintegrals=split(Group_Pintegral,",")
+Group_Climit=mrs("Group_Climit")
+Group_Climits=split(Group_Climit,",")
+Group_Cdianshu=mrs("Group_Cdianshu")
+Group_Cdianshus=split(Group_Cdianshu,",")
+Group_Cintegral=mrs("Group_Cintegral")
+Group_Cintegrals=split(Group_Cintegral,",")
+Group_term=mrs("Group_term")
+Group_unit=mrs("Group_unit")
+mrs.close
+set mrs=nothing
+Member_startdate=date()
+Select Case Group_unit
+	case "日"
+	Member_enddate=DateAdd("d",Group_term,Member_startdate)
+	case "月"
+	Member_enddate=DateAdd("m",Group_term,Member_startdate)
+	case "季"
+	Member_enddate=DateAdd("q",Group_term,Member_startdate)
+	case "年"
+	Member_enddate=DateAdd("yyyy",Group_term,Member_startdate)
+end select
+Select Case Member_type
+	Case 1
+	if AdminPerCheckReg=1 then:flag=0:else:flag=1:end if
+	conn.Execute("Update JOB_member set Member_typeid=1,Member_flag="&flag&",Member_groupid="&Group_id&",Member_consumenums="&Group_Pdianshus(5)&",Member_integral="&Group_Pintegrals(5)&",Member_startdate='"&Member_startdate&"',Member_enddate='"&Member_enddate&"' where Member_login = '"&login&"'")
+	Set rs1=Server.CreateObject("ADODB.RecordSet")
+		sql="select * from JOB_P_resume where resume_pmember='"&login&"'"
+		rs1.open sql,conn,1,3
+		if rs1.eof then
+		rs1.addnew
+		rs1("resume_title")="简历一"
+		rs1("resume_usergroup")=0
+		rs1("resume_openness")=0
+		rs1("resume_chinese")=1
+		rs1("resume_cnstatus")=0
+		rs1("resume_visitnum")=0
+		rs1("resume_personinfo")=0
+		rs1("resume_education")=0
+		rs1("resume_train")=0
+		rs1("resume_lang")=0
+		rs1("resume_work")=0
+		rs1("resume_careerwill")=0
+		rs1("resume_email")=member_email
+		rs1("resume_pmember")=login
+		rs1("resume_announcedate")=now()
+		if AdminResCheckReg=1 then
+			rs1("resume_flag")=0
+		else
+			rs1("resume_flag")=1
+		end if
+		rs1.update
+		end if
+		rs1.close
+		Set rs1=Nothing
+	'获得默认简历ID
+	Set rs1=conn.Execute("select resume_id from JOB_P_resume where resume_pmember='"&login&"'")
+	rid=rs1("resume_id")
+	rs1.close
+	Set rs1=Nothing
+	'发送会员申请邮件
+	if member_sendemail=1 then
+		if emailsendperflag=1 then
+			EmailPerOfRegCheck=replace(EmailPerOfRegCheck,"{$uesername}",login)
+			EmailPerOfRegCheck=replace(EmailPerOfRegCheck,"{$userpwd}",ueserpwd)
+			Call sendmail(member_email,"感谢您申请成为智能招聘网个人会员！",EmailPerOfRegCheck)
+		end if
+	end if
+	Response.Cookies(FRHRCMS)("user_type")="pmember"
+	Response.Write("<script>window.location='member/index.asp?rid="&rid&"';</script>")
+	Response.End()
+	Case 2
+	if AdminComCheckReg=1 then:flag=0:else:flag=1:end if
+	conn.Execute("Update JOB_member set Member_typeid=2,Member_flag="&flag&",Member_groupid="&Group_id&",Member_hirenum="&Group_Climits(1)&",Member_expertnum="&Group_Climits(3)&",Member_interviewnum="&Group_Climits(5)&",Member_recyclenum="&Group_Climits(7)&",Member_contactnum="&Group_Climits(9)&",Member_smsnum="&Group_Climits(13)&",Member_consumenums="&Group_Cdianshus(6)&",Member_integral="&Group_Cintegrals(5)&",Member_startdate='"&Member_startdate&"',Member_enddate='"&Member_enddate&"' where Member_login = '"&login&"'")
+	'发送会员申请邮件
+	if member_sendemail=1 then
+		if emailsendcomflag=1 then
+			EmailComOfRegCheck=replace(EmailComOfRegCheck,"{$uesername}",login)
+			EmailComOfRegCheck=replace(EmailComOfRegCheck,"{$userpwd}",ueserpwd)
+			Call sendmail(member_email,"感谢您申请成为智能招聘网企业会员！",EmailComOfRegCheck)
+		end if
+	end if
+	Response.Cookies(FRHRCMS)("user_type")="cmember"
+	Response.Write("<script>window.location='member/index.asp';</script>")
+	Response.End()
+End Select
+End Sub
+%>

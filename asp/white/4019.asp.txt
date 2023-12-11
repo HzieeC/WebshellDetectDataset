@@ -1,0 +1,451 @@
+<!--#include file="inc/const.asp"-->
+<!--#include file="../inc/chkinput.asp"-->
+<!--#include file="../inc/md5.asp"-->
+<!--#include file="../inc/cls_email.asp"-->
+<!--#include file="inc/head.inc"-->
+<%
+Call InnerLocation("找回密码")
+Dim useremail,SendMailDone
+Dim topic,mailbody,sendmsg
+Dim answer,repassword,username,password
+Dim Rs,SQL,Action
+Dim IsBadness : IsBadness=False
+SendMailDone=False
+If Not IsObject(Conn) Then ConnectionDatabase
+
+Action = LCase(Request("action"))
+If CLng(NewAsp.MainSetting(26))=-1 Or CLng(NewAsp.MainSetting(26))=999 Then
+	Response.Write "<script>alert('本站禁止使用密码找回功能，如要找回密码请联系管理员！');history.go(-1)</script>"
+	Response.End
+End If
+Select Case Trim(Action)
+	Case "step1"
+		Call step1()
+	Case "step2"
+		Call step2()
+	Case "step3"
+		Call step3()
+	Case Else
+		Call main()
+End Select
+If Founderr = True Then
+	Response.Write "<script>alert('" & Errmsg & "');history.go(-1)</script>"
+End If
+
+Sub step1()
+	If NewAsp.checkpost = False Then
+		Errmsg = "您提交的数据不合法，请不要从外部提交发言。"
+		Founderr = True
+		Exit Sub
+	End If
+	If Trim(Request("username")) = "" Then
+		Founderr = True
+		Errmsg = "请输入您的用户名。"
+		Exit Sub
+	Else
+		UserName = NewAsp.CheckBadstr(Request("username"))
+	End If
+	If NewAsp.IsValidStr(UserName) = False Then
+		Founderr = True
+		Errmsg = "用户名中含有非法字符！"
+		Exit Sub
+	End If
+	If CLng(NewAsp.MainSetting(25))=1 Then
+		If Not NewAsp.CodeIsTrue() Then
+			Errmsg = "验证码校验失败，请返回刷新验证码再试。"
+			Founderr = True
+			Exit Sub
+		End If
+	End If
+	Set Rs = NewAsp.Execute("SELECT * FROM [NC_User] WHERE username='" & UserName & "'")
+	If Rs.EOF And Rs.bof Then
+		Founderr = True
+		Errmsg = "您输入的用户名并不存在，请重新输入。或者由于该系统不支持邮件发送，只能通过联系站长获得密码。"
+		Exit Sub
+	Else
+		If Rs("UserGrade") = 999 Then
+			Founderr = True
+			Errmsg = "找回密码失败，请和管理员联系取回密码。"
+			Set Rs = Nothing
+			Exit Sub
+		End If
+		If Rs("Badness")>CLng(NewAsp.MainSetting(26)) And CLng(NewAsp.MainSetting(26))>0 Then
+			Founderr = True
+			Errmsg = "取回密码超过"&NewAsp.MainSetting(26)&"次的限制，请和管理员联系取回密码。"
+			Set Rs = Nothing
+			Exit Sub
+		End If
+		If Rs(13) = "" Or IsNull(Rs(13)) Then
+			Founderr = True
+			Errmsg = "该用户没有填写密码问题及答案，只有填写的用户方能继续。"
+			Exit Sub
+		Else
+%>
+<form action="sendpass.asp?action=step2" method="post">
+<table width="600" class="UserTableBorder2" cellspacing="1" cellpadding="4" align="center">
+	<tr>
+		<th valign="middle" align="center" colspan="2" height="25">取回密码（第二步：回答问题）</th>
+	</tr>
+	<tr>
+		<td class="Usertablerow2" valign="middle"><b>问题：</b></td>
+		<td class="Usertablerow2" valign="middle">**********</td>
+	</tr>
+	<tr>
+		<td class="Usertablerow1" valign="middle"><b>答案：</b></td>
+		<td class="Usertablerow1" valign="middle"><input class="inputbody" name="answer" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="Usertablerow2" colspan="2"><b>说明：</b>请填写您正确的问题答案。</td>
+	</tr>
+	<%If CLng(NewAsp.MainSetting(25))=1 Then%>
+	<tr>
+		<td class="Usertablerow1" valign="middle">验 证 码</td>
+		<td class="Usertablerow1" valign="middle"><input name="checkcode" type="text" class="logininput" id="checkcode" size="5" maxlength="4" onfocus="get_checkcode();this.onfocus=null;" onkeyup="ajaxcheckcode('check_code','checkcode');" />
+				<span id="img_checkcode"><label style="cursor:pointer;" onclick="get_checkcode();">点击获取验证码</label></span><span id="isok_checkcode"></span> <font color="#ff0000">*</font></td>
+	</tr>
+	<%End If%>
+	<tr>
+		<td class="Usertablerow2" valign="middle" align="center" colspan="2"><input class="button" type="submit" name="submit_button" value=" 下一步 " /></td>
+	</tr>
+</table>
+<input type="hidden" name="username" value="<%=UserName%>"/>
+</form>
+<%
+		End If
+	End If
+	Rs.Close
+	Set Rs = Nothing
+End Sub
+
+Sub step2()
+	If Trim(Request("username")) = "" Then
+		Founderr = True
+		Errmsg = "请输入您的用户名。"
+		Exit Sub
+	Else
+		UserName = NewAsp.CheckBadstr(Request("username"))
+	End If
+	If NewAsp.IsValidStr(UserName) = False Then
+		Founderr = True
+		Errmsg = "用户名中含有非法字符！"
+		Exit Sub
+	End If
+	If NewAsp.checkpost = False Then
+		Errmsg = "您提交的数据不合法，请不要从外部提交发言。"
+		Founderr = True
+		Exit Sub
+	End If
+	If Trim(Request("answer")) = "" Then
+		Founderr = True
+		Errmsg = "请输入您的问题答案。"
+		Exit Sub
+	Else
+		Answer = md5(Trim(Request("answer")),16)
+	End If
+	If CLng(NewAsp.MainSetting(25))=1 Then
+		If Not NewAsp.CodeIsTrue() Then
+			Errmsg = "验证码校验失败，请返回刷新验证码再试。"
+			Founderr = True
+			Exit Sub
+		End If
+	End If
+	Set Rs = NewAsp.Execute("SELECT userid,answer,Badness FROM NC_User WHERE username='" & UserName & "'")
+	If Rs.EOF And Rs.BOF Then
+		Founderr = True
+		Errmsg = "您输入的用户名不正确，请重新输入。"
+		Set Rs = Nothing
+		Exit Sub
+	Else
+		If Rs("Badness")>CLng(NewAsp.MainSetting(26)) And CLng(NewAsp.MainSetting(26))>0 Then
+			Founderr = True
+			Errmsg = "取回密码超过"&NewAsp.MainSetting(26)&"次的限制，请和管理员联系取回密码。"
+			Set Rs = Nothing
+			Exit Sub
+		End If
+		If Rs("answer")<>Answer Then
+			Founderr = True
+			Errmsg = "您输入的问题答案不正确，请重新输入。"
+			IsBadness=True
+		End If
+	End If
+	Set Rs = Nothing
+	If IsBadness=True Then
+		NewAsp.Execute ("UPDATE NC_User SET Badness=Badness+1 WHERE username='" & UserName & "'")
+	End If
+	If Founderr = True Then Exit Sub
+	Set Rs = NewAsp.Execute("SELECT * FROM NC_User WHERE username='" & UserName & "' And answer='" & Answer & "'")
+	If Rs.EOF And Rs.BOF Then
+		Founderr = True
+		Errmsg = "您输入的问题答案不正确，请重新输入。"
+		Set Rs = Nothing
+		Exit Sub
+	Else
+		If Rs("UserGrade") = 999 Then
+			Founderr = True
+			Errmsg = "找回密码失败，请和管理员联系取回密码。"
+			Set Rs = Nothing
+			Exit Sub
+		End If
+%>
+<form action="sendpass.asp?action=step3" method="post">
+<table width="600" class="UserTableBorder2" cellspacing="1" cellpadding="3" align="center">
+	<tr>
+		<th valign="middle" colspan="2" height="25">取回密码（第三步：修改密码）</th>
+	</tr>
+	<tr>
+		<td class="Usertablerow2" valign="middle"><b>问题：</b></td>
+		<td class="Usertablerow2" valign="middle"><%=Rs("question")%></td>
+	</tr>
+	<tr>
+		<td class="Usertablerow1" valign="middle"><b>答案：</b></td>
+		<td class="Usertablerow1" valign="middle"><%=Server.HTMLEncode(Request("answer")&"")%></td>
+	</tr>
+	<tr>
+		<td class="Usertablerow2" valign="middle"><b>新密码：</b></td>
+		<td class="Usertablerow2" valign="middle"><input class="inputbody" type="password" name="password" /></td>
+	</tr>
+	<tr>
+		<td class="Usertablerow1" valign="middle"><b>确认新密码：</b></td>
+		<td class="Usertablerow1" valign="middle"><input class="inputbody" type="password" name="repassword" /></td>
+	</tr>
+	<tr>
+		<td class="Usertablerow2" colspan="2"><b>说明：</b> <%
+		If CLng(NewAsp.MainSetting(10)) = 0 Then
+			Response.Write " 系统将会自动发一封邮件到您注册时填写的邮箱，在打开邮件中的密码激活地址后，您的新密码将正式启用。"
+		Else
+			Response.Write " 请填写您的新密码，并记住您所填写信息。"
+		End If
+		%></td>
+	</tr>
+	<%If CLng(NewAsp.MainSetting(25))=1 Then%>
+	<tr>
+		<td class="Usertablerow1" valign="middle">验 证 码</td>
+		<td class="Usertablerow1" valign="middle"><input name="checkcode" type="text" class="logininput" id="checkcode" size="5" maxlength="4" onfocus="get_checkcode();this.onfocus=null;" onkeyup="ajaxcheckcode('check_code','checkcode');" />
+				<span id="img_checkcode"><label style="cursor:pointer;" onclick="get_checkcode();">点击获取验证码</label></span><span id="isok_checkcode"></span> <font color="#ff0000">*</font></td>
+	</tr>
+	<%End If%>
+	<tr>
+		<td class="Usertablerow2" valign="middle" align="center" colspan="2"><input class="button" type="submit" name="submit_button" value="下一步" /></td>
+	</tr>
+</table>
+<input type="hidden" name="answer" value="<%=Server.HTMLEncode(Request("answer")&"")%>" /><input type="hidden" name="username" value="<%=UserName%>" />
+</form>
+<%
+	End If
+	Rs.Close
+	Set Rs = Nothing
+End Sub
+
+Sub step3()
+	If NewAsp.checkpost = False Then
+		Errmsg = Errmsg + "您提交的数据不合法，请不要从外部提交发言。"
+		Founderr = True
+		Exit Sub
+	End If
+	If Trim(Request("username")) = "" Then
+		Founderr = True
+		Errmsg = Errmsg + "请输入您的用户名。"
+		Exit Sub
+	Else
+		UserName = NewAsp.CheckBadstr(Request("username"))
+	End If
+	If NewAsp.IsValidStr(UserName) = False Then
+		Founderr = True
+		Errmsg = "用户名中含有非法字符！"
+		Exit Sub
+	End If
+	If NewAsp.IsValidStr(Request("answer")) = False Then
+		ErrMsg = "密码问题答案中含有非法字符！"
+		Founderr = True
+		Exit Sub
+	End If
+	If Trim(Request("answer")) = "" Then
+		Founderr = True
+		Errmsg = "请输入您的问题答案。"
+		Exit Sub
+	Else
+		Answer = md5(Request("answer"),16)
+	End If
+	If Trim(Request("password")) = "" Or Len(Request("password")) > 30 Or Len(Request("password")) < 5 Then
+		Founderr = True
+		Errmsg = "请输入您的新密码(长度不能大于30小于5)。"
+		Exit Sub
+	ElseIf Trim(Request("repassword")) = "" Then
+		Founderr = True
+		Errmsg = "请再次输入您的新密码。"
+		Exit Sub
+	ElseIf Trim(Request("password")) <> Trim(Request("repassword")) Then
+		Founderr = True
+		Errmsg = "您输入的新密码和确认不一样，请确认您填写的信息。"
+		Exit Sub
+	Else
+		PassWord = md5(Request("password"),16)
+	End If
+	If CLng(NewAsp.MainSetting(25))=1 Then
+		If Not NewAsp.CodeIsTrue() Then
+			Errmsg = "验证码校验失败，请返回刷新验证码再试。"
+			Founderr = True
+			Exit Sub
+		End If
+	End If
+	Set Rs = NewAsp.Execute("SELECT userid,answer,Badness FROM NC_User WHERE username='" & UserName & "'")
+	If Rs.EOF And Rs.BOF Then
+		Founderr = True
+		Errmsg = "您输入的用户名不正确，请重新输入。"
+		Set Rs = Nothing
+		Exit Sub
+	Else
+		If Rs("Badness")>CLng(NewAsp.MainSetting(26)) And CLng(NewAsp.MainSetting(26))>0 Then
+			Founderr = True
+			Errmsg = "取回密码超过"&NewAsp.MainSetting(26)&"次的限制，请和管理员联系取回密码。"
+			Set Rs = Nothing
+			Exit Sub
+		End If
+		If Rs("answer")<>Answer Then
+			Founderr = True
+			Errmsg = "您输入的问题答案不正确，请重新输入。"
+			IsBadness=True
+		End If
+	End If
+	Set Rs = Nothing
+	If IsBadness=True Then
+		NewAsp.Execute ("UPDATE NC_User SET Badness=Badness+1 WHERE username='" & UserName & "'")
+	End If
+	If Founderr = True Then Exit Sub
+
+	Set Rs = NewAsp.CreateAXObject("adodb.recordset")
+	SQL = "SELECT * FROM [NC_user] WHERE username='" & UserName & "' And answer='" & NewAsp.CheckStr(Answer) & "'"
+	Rs.Open SQL, Conn, 1, 3
+	If Rs.EOF And Rs.bof Then
+		Founderr = True
+		Errmsg = "您输入的问题答案不正确，请重新输入。"
+		Exit Sub
+	Else
+		If Rs("UserGrade") = 999 Then
+			Founderr = True
+			Errmsg = Errmsg + "找回密码失败，请和管理员联系取回密码。"
+			Set Rs = Nothing
+			Exit Sub
+		End If
+		If CLng(NewAsp.MainSetting(10)) > 0 Then
+			RePassword = Request.Form("password")
+			Answer = Request.Form("answer")
+			PassWord = Rs("password")
+			UsereMail = Rs("usermail")
+			Call sendusermail
+			If SendMailDone = True Then
+				SendMsg = "系统已经发送一封邮件到您注册时填写的邮箱，在打开邮件中的密码激活地址后，您的新密码将正式启用。"
+			Else
+				Rs("password") = md5(RePassword,16)
+				Rs.Update
+				SendMsg = "由于系统错误，给您发送的密码资料未成功。您已经修改密码成功，请使用新密码登陆系统。"
+			End If
+		Else
+			Rs("password") = PassWord
+			Rs.Update
+		End If
+%>
+<form action="login.asp" method="get">
+<table width="600" class="UserTableBorder2" cellspacing="1" cellpadding="3" align="center">
+	<tr>
+		<th valign="middle" colspan="2">取回密码（第四步：修改成功）</th>
+	</tr>
+	<tr>
+		<td class="Usertablerow2" valign="middle"><b>问题：</b></td>
+		<td class="Usertablerow2" valign="middle"><%=Server.HTMLEncode(Rs("question")&"")%></td>
+	</tr>
+	<tr>
+		<td class="Usertablerow1" valign="middle"><b>答案：</b></td>
+		<td class="Usertablerow1" valign="middle"><%=Server.HTMLEncode(Request("answer")&"")%></td>
+	</tr>
+	<tr>
+		<td class="Usertablerow2" valign="middle"><b>新密码：</b></td>
+		<td class="Usertablerow2" valign="middle"><%=Server.HTMLEncode(Request("password")&"")%></td>
+	</tr>
+	<tr>
+		<td class="Usertablerow1" colspan="2"><b>说明：</b><%
+		If CLng(NewAsp.MainSetting(10)) > 0 Then
+			Response.Write SendMsg
+		Else
+			Response.Write " 请记住您的新密码并使用新密码<a href=""login.asp"">登陆</a>。"
+		End If
+		%></td>
+	</tr>
+	<tr>
+		<td class="Usertablerow2" valign="middle" align="center" colspan="2"><input class="button" type="submit" name="submit_button" value="返 回" /></td>
+	</tr>
+</table>
+</form>
+<%
+	End If
+	Rs.Close
+	Set Rs = Nothing
+End Sub
+
+Sub main()
+%>
+<form action="sendpass.asp?action=step1" method="post">
+<table width="600" class="UserTableBorder2" cellspacing="1" cellpadding="6" align="center">
+	<tr>
+		<th valign="middle" colspan="2">取回密码（第一步：用户名）</th>
+	</tr>
+	<tr>
+		<td class="Usertablerow2" valign="middle">请输入您的用户名</td>
+		<td class="Usertablerow2" valign="middle"><input class="inputbody" name="username" type="text" /></td>
+	</tr>
+	<%If CLng(NewAsp.MainSetting(25))=1 Then%>
+	<tr>
+		<td class="Usertablerow1" valign="middle">验 证 码</td>
+		<td class="Usertablerow1" valign="middle"><input name="checkcode" type="text" class="logininput" id="checkcode" size="5" maxlength="4" onfocus="get_checkcode();this.onfocus=null;" onkeyup="ajaxcheckcode('check_code','checkcode');" />
+				<span id="img_checkcode"><label style="cursor:pointer;" onclick="get_checkcode();">点击获取验证码</label></span><span id="isok_checkcode"></span> <font color="#ff0000">*</font></td>
+	</tr>
+	<%End If%>
+	<tr>
+		<td class="Usertablerow2" colspan="2"><b>说明：</b>本操作只能修改您的密码，不能对原密码进行修改，请确认您已经填写了密码问题及答案。</td>
+	</tr>
+	<tr>
+		<td class="Usertablerow1" valign="middle" align="center" colspan="2"><input class="button" type="submit" name="submit_button" value=" 下一步 " /></td>
+	</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub sendusermail()
+	On Error Resume Next
+	Topic = "您在" & NewAsp.MainSetting(1) & "的密码信息"
+	MailBody = MailBody & "<style>A:visited { TEXT-DECORATION: none }"
+	MailBody = MailBody & "A:active  { TEXT-DECORATION: none }"
+	MailBody = MailBody & "A:hover   { TEXT-DECORATION: underline overline }"
+	MailBody = MailBody & "A:link    { text-decoration: none;}"
+	MailBody = MailBody & "A:visited { text-decoration: none;}"
+	MailBody = MailBody & "A:active  { TEXT-DECORATION: none;}"
+	MailBody = MailBody & "A:hover   { TEXT-DECORATION: underline overline}"
+	MailBody = MailBody & "BODY   { FONT-FAMILY: 宋体; FONT-SIZE: 9pt;}"
+	MailBody = MailBody & "TD    { FONT-FAMILY: 宋体; FONT-SIZE: 9pt }</style>"
+	MailBody = MailBody & "<TABLE border=0 width='95%' align=center><TBODY><TR>"
+	MailBody = MailBody & "<TD valign=middle align=top>"
+	MailBody = MailBody & "" & NewAsp.CheckStr(UserName) & "，您好：<br><br>"
+	MailBody = MailBody & "欢迎您使用本系统的密码遗忘功能，<b>假如您不希望更改您的密码，请不要点击下面的激活连接</b>。<br>"
+	MailBody = MailBody & "<a href=http://" & Request.servervariables("server_name") & Replace(Request.servervariables("script_name"), "sendpass.asp", "") & "activepass.asp?username=" & NewAsp.CheckStr(UserName) & "&pass=" & PassWord & "&repass=" & RePassword & "&answer=" & Answer & ">http://" & Request.servervariables("server_name") & Replace(Request.servervariables("script_name"), "sendpass.asp", "") & "activepass.asp?username=" & NewAsp.CheckStr(UserName) & "&pass=" & PassWord & "&repass=" & RePassword & "&answer=" & Answer & "</a>"
+	MailBody = MailBody & "<br><br>"
+	MailBody = MailBody & "<center><font color=red>再次感谢您使用本系统，让我们一起来建设这个网上家园！</font>"
+	MailBody = MailBody & "</TD></TR></TBODY></TABLE><br><hr width=95% size=1>"
+	If CLng(NewAsp.MainSetting(10))>0 Then
+		If cmEmail.ErrCode = 0 Then
+			cmEmail.SendMail UsereMail,topic,MailBody
+			If cmEmail.Count>0 Then
+				SendMailDone = True
+				SendMsg = "系统已经发送一封邮件到您注册时填写的邮箱，在打开邮件中的密码激活地址后，您的新密码将正式启用。"
+			Else
+				SendMsg = "由于系统错误，给您发送的密码资料未成功。请点击右边的连接将您的密码激活：<a href=http://" & Request.servervariables("server_name") & Replace(Request.servervariables("script_name"), "sendpass.asp", "") & "activepass.asp?username=" & NewAsp.CheckStr(UserName) & "&pass=" & PassWord & "&repass=" & RePassword & "><B>激活密码</B></a>"
+			End If
+		Else
+			SendMsg = "由于系统错误，给您发送的密码资料未成功。请点击右边的连接将您的密码激活：<a href=http://" & Request.servervariables("server_name") & Replace(Request.servervariables("script_name"), "sendpass.asp", "") & "activepass.asp?username=" & NewAsp.CheckStr(UserName) & "&pass=" & PassWord & "&repass=" & RePassword & "><B>激活密码</B></a>"
+		End If
+	Else
+		SendMsg = "由于系统错误，给您发送的密码资料未成功。请点击右边的连接将您的密码激活：<a href=http://" & Request.servervariables("server_name") & Replace(Request.servervariables("script_name"), "sendpass.asp", "") & "activepass.asp?username=" & NewAsp.CheckStr(UserName) & "&pass=" & PassWord & "&repass=" & RePassword & "><B>激活密码</B></a>"
+	End If
+End Sub
+%>
+<!--#include file="inc/foot.inc"-->

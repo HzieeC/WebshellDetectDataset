@@ -1,0 +1,256 @@
+<!--#include file="../act_inc/ACT.User.asp"-->
+ <!--#include file="../ACT_INC/cls_pageview.asp"-->
+<% 
+	 dim  UserHS
+    	Set UserHS = New ACT_User
+	IF Cbool(UserHS.UserLoginChecked)=false then
+	  echo "<script>top.location.href ='login.asp' ;</script>"
+	  Response.end
+	End If	
+ 
+  %><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>会员中心</title>
+<script language="JavaScript" src="main.js"></script>
+ <link href="images/css.css" rel="stylesheet" type="text/css" />
+ </head>
+<body style="background-color:#fff">
+<div id="head">
+  <div id="logo"><a href="index.asp" alt=""><img src="images/logo_member.gif" alt="actcms"></a></div><div id="banner"></div>
+</div>
+<div id="membermenu">
+<!--#include file="menu.asp"-->
+
+</div>
+  <% 	
+  if request("Action")="Save" then call SaveCard()
+  
+     Sub SaveCard()
+  		 DiM CardNum:CardNum=Rsql(actcms.s("CardNum"))
+		 Dim CardPass:CardPass=Rsql(actcms.s("CardPass"))
+		 If CardNum="" Or CardPass="" Then 
+		   Call ACTCMS.Alert("请输入的充值卡号及密码！","")
+		   exit sub
+		 end if
+		 Dim RS:Set RS=Server.CreateObject("adodb.recordset")
+		 rs.open "select top 1 * from Card_ACT where cardnum='" & CardNum & "'",conn,1,1
+		 if rs.bof and rs.eof then
+		  rs.close:set rs=nothing
+		  Call ACTCMS.Alert("对不起，您输入的充值卡号不正确！","")
+		  exit sub
+		 end if
+		 
+		 if rs("isused")=1 then
+		  rs.close:set rs=nothing
+		  Call ACTCMS.Alert("对不起，您输入的充值卡已被使用！","")
+		  exit sub
+		 end if
+		 
+		 if datediff("d",rs("enddate"),now())>0 then
+		  rs.close:set rs=nothing
+		  Call ACTCMS.Alert("对不起，您输入的充值卡已过期！","")
+		  exit sub
+		 end if
+		 
+		 if rs("allgroupid")<>"" then
+		    If ACTCMS.FoundInArr(rs("allgroupid"),UserHS.GroupID,",")=false Then
+			  rs.close:set rs=nothing
+			  Call ACTCMS.Alert("对不起，您所在的用户组没有使用本充值卡的权限,请联系本站管理员！","")
+			  exit sub
+			End If
+		 end if
+		 
+		  Dim ValidNum:ValidNum=rs("ValidNum")
+		  Dim ValidUnit:ValidUnit=rs("ValidUnit")
+		  Dim UserCardID:UserCardID=rs("id")
+		  Dim GroupID:GroupID=rs("grGroupID")
+		  rs.close
+		  rs.open "select top 1 * from User_act Where UserID=" & UserHS.UserID & "",conn,1,2
+		  if not rs.eof then
+		    if rs("ChargeType")=3 and ValidUnit<>3 then
+				  rs.close:set rs=nothing
+				  Call ACTCMS.Alert("由于你的账户永不过期，如需充值资金，请购买资金卡！","")
+				  exit sub
+			end if
+			dim ValidDays,tmpdays
+		    select case ValidUnit
+			  case 1 '点数
+ 			   Call ACTCMS.PointInOrOut(0,0,rs("UserID"),1,ValidNum,"System","通过充值卡获得的点数",0)
+			  case 2 '天数
+			    ValidDays=rs("Edays")
+				tmpDays=ValidDays-DateDiff("D",rs("BeginDate"),now())
+				if tmpDays>0 then
+					rs("Edays")=rs("Edays")+ValidNum
+				else
+					rs("BeginDate")=now
+					rs("Edays")=ValidNum
+				end if
+				Call ACTCMS.EdaysInOrOut(rs("UserID"),1,ValidNum,"System","通过充值卡[" & CardNum & "]获得的有效天数")
+			  case 3 '金币
+			    Call ACTCMS.MoneyInOrOut(rs("UserID"),RS("RealName"),ValidNum,4,1,now,0,"System","通过充值卡[" & CardNum & "]获得的资金",0,0)
+			  case 4 '积分
+			    Call actcms.scoreInOrOut(rs("UserID"),1,ValidNum,"System","通过充值卡[" & CardNum & "]获得的积分!",0,0)
+			end select
+			if GroupID<>0 then rs("GroupID")=GroupID
+ 			rs.update
+		  end if
+ 		  Conn.Execute("Update Card_ACT Set Isused=1,issale=1,UserID=" & UserHS.UserID & ",UseDate=" & NowString & " where cardnum='" & cardnum & "'")
+		 
+		 if GroupID<>0 then
+		 echo "<script>alert('恭喜您，充值成功并升级为"""& ACTCMS.ACT_G(GroupID,7) &"""!');location.href='?';</script>"
+		 else
+		 echo "<script>alert('恭喜您，充值成功!');location.href='?';</script>"
+		 end if
+		 RS.Close:Set RS=Nothing
+	   End Sub
+ %>
+<div id="main">
+<div id="left">
+  <div id="treemenu">
+    <h5>信息管理</h5>
+    <ul>
+        <li><a href="logmoney.asp">资金明细</a></li>
+		<li><a href="logpoint.asp">点券明细</a></li>
+		<li><a href="logedays.asp">有效期明细</a></li>
+ 		<li><a href="card.asp">充值卡充值 </a></li>
+		<li><a href="exchange.asp?Action=Point">兑换<%=actcms.ActCMS_Sys(24)%></a></li>
+		<li><a href="exchange.asp?Action=Edays">兑换有效期</a></li>
+		<li><a href="exchange.asp?Action=Money"><%=actcms.ActCMS_Sys(24)%>兑换账户资金</a></li>
+     </ul>
+  </div>
+  <ol>
+    <li class="local"><a href="<%= AcTCMS.Domain%>">返回网站首页</a></li>
+    <li class="exit"><a href="Checklogin.asp?Action=LoginOut">退出登录</a></li>
+  </ol>
+</div>
+  <div id="right">
+
+<p id="position"><strong>当前位置：</strong><a href="index.asp">会员中心</a> 充 值 卡 充 值  </p>
+<div class="clear"></div>
+<div class="clear"></div>
+
+<table cellpadding="0" cellspacing="1" class="table_list">
+<tr>
+  <td bgcolor="#F7FCFF"><a href="card.asp">充值卡充值 </a>
+				<a href="exchange.asp?Action=Point">兑换<%=actcms.ActCMS_Sys(24)%></a>
+				<a href="exchange.asp?Action=Edays">兑换有效期</a>
+                <a href="exchange.asp?Action=Money"><%=actcms.ActCMS_Sys(24)%>兑换账户资金</a>
+				 </td>
+</tr>
+</table>
+<FORM action="?" method="post" name="actcmsform">
+<table cellpadding="0" cellspacing="1" class="table_list">
+
+  <caption>充 值 卡 充 值</caption>
+<tr >
+<td width="188">用户名</td>
+<td width="1042"><%=UserHS.UserName%></td>
+</tr>
+
+   
+<tr  >
+<td width="188">计费方式</td>
+<td><%if UserHS.ChargeType=1 Then 
+		  echo "扣点数</font>计费用户"
+		  ElseIf UserHS.ChargeType=2 Then
+		   echo "有效期</font>计费用户,到期时间：" & cdate(UserHS.BeginDate)+UserHS.Edays 
+		  ElseIf UserHS.ChargeType=3 Then
+		   echo "无限期</font>计费用户"
+		  End If
+		  %>&nbsp;</td>
+</tr>
+
+<tr>
+<td width="188">资金余额</th>
+<td><input type='hidden' value='<%=UserHS.Money%>' name='Premoney'><%=UserHS.Money%> 元</td>
+</tr>
+
+<tr>
+<td width="188">可用<%=actcms.ActCMS_Sys(24)%>：</td>
+<td><%=UserHS.Point%>&nbsp;<%=actcms.ActCMS_Sys(25)%></td>
+</tr>
+<tr>
+<td width="188">剩余天数</td>
+<td> <%if UserHS.ChargeType=3 Then%>
+			  无限期
+			  <%else%>
+			  <%=UserHS.GetEdays%>&nbsp;天
+			  <%end if%></td>
+</tr>
+  
+  
+  
+<tr>
+<td width="188">充值卡卡号</td>
+<td> 
+<input name="CardNum" id="CardNum" type="text"  size="25" maxlength="50">
+ </td>
+</tr>  
+  
+  
+  
+  
+<tr>
+<td width="188">充值卡密码</td>
+<td> 
+<input name="CardPass" id="CardPass" type="text"  size="25" maxlength="50">
+</td>
+</tr>  
+    
+  
+  
+  
+   <tr>
+    <td colspan="4" align="center">
+<Input id=Action type=hidden value="Save" name="Action"> 
+				 
+                <input type=button onclick=CheckForm() class="button_style"  name=Submit1 value="    确定充值    " />
+                
+                
+      &nbsp;&nbsp;<input type="reset" name="button2" id="button2" class="button_style"  value="重 置" />
+      
+       &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;
+      </td>
+    </tr>
+  </table>
+ 
+		   </form>	 
+			 
+		 
+			 
+	 
+ 
+   <script language="JavaScript" type="text/javascript">
+function CheckForm()
+{ var form=document.actcmsform;
+  
+	 if (form.CardNum.value=='')
+    { alert("请输入充值卡卡号!!");   
+	  form.CardNum.focus();    
+	   return false;
+    }
+
+ if (form.CardPass.value=='')
+    { alert("请输入充值卡密码!!!");   
+	  form.CardPass.focus();    
+	   return false;
+    }
+ 		form.Submit1.value="正在提交数据,请稍等...";
+		form.Submit1.disabled=true;	
+ 	    form.submit();
+        return true;
+	}
+
+ 
+ 
+  </script>
+ <span id="toggle_pannel" style="display:none;"></span>
+<div class="clear"></div>
+</div>
+  </div> 
+<!--#include file="foot.asp"-->
+ 
+</body>
+</html>

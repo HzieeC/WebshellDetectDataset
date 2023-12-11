@@ -1,0 +1,365 @@
+<%@ Language=VBScript %>
+<!--#include file="inc/conndb.asa"-->
+<!--#include file="inc/function.asp"-->
+<%
+server_v1=Cstr(Request.ServerVariables("HTTP_REFERER"))
+server_v2=Cstr(Request.ServerVariables("SERVER_NAME"))
+if instr(server_v1,server_v2)=0 then
+response.write "<br><br><center><table border=1 cellpadding=20 bordercolor=black bgcolor=#EEEEEE width=450>"
+response.write "<tr><td style='font:9pt Verdana'>"
+response.write server_v1&" - 提示您，我们不接受来自站点外部提交的数据."&server_v2
+response.write "</td></tr></table></center>"
+response.end
+end if
+comurl=server_v1
+cz=CheckStr(Request.QueryString("cz"))
+id=CheckNum(Request.QueryString("id"))
+tn=CheckStr(Request.QueryString("tn"))
+
+'----------------读取数据-------------------
+ycid=request.form("ycid")
+boardid=Trim(request.form("boardid"))
+title=Trim(request.form("title"))
+content=rtrim(request.form("content"))
+username=Dreamsun_name
+ip=Trim(reip())
+recount=request.form("recount")
+titlecolor=request.form("titlecolor")
+titleBold =Request.Form("titleBold")
+picurl =Request.Form("picurl")
+isRe = Request.Form("isRe") ' 是否允许回复该帖  Add For V 1.5
+If fee="" Then fee=0
+
+
+'----------------数据编码-------------------
+content=server.htmlencode(content)
+title=server.htmlencode(title)
+If cz<>"" Then 
+	Select Case cz
+		Case "Del"
+			shuchu = delTopic(id)
+			Call backmsg(shuchu,list_page_name)
+		Case "ReDel"
+			shuchu = delReBBS(id)
+			Call backmsg(shuchu,comurl)
+		Case "istop"
+			shuchu=istopSet(id)
+			Call backmsg(shuchu,comurl)
+		Case "isgood"
+			shuchu=isgoodSet(id)
+			Call backmsg(shuchu,comurl)
+		Case "addsave"
+			Call addsave()
+		Case "editsave"
+			id=ycid
+			Call editsave()
+		Case "ueditsave"
+			call checkuser()
+			Call ueditsave()
+		Case "TieCheck"
+			shuchu = CheckTopic(id)
+			Call backmsg("",comurl)
+		Case "TieNoCheck"
+			shuchu = NoCheckTopic(id)
+			Call backmsg("",comurl)
+		Case "ReCheck"
+			shuchu = CheckRe(id)
+			Call backmsg("",comurl)
+		Case "ReNoCheck"
+			shuchu = NoCheckRe(id)
+			Call backmsg("",comurl)
+		Case "nextOld"
+			Call nextoldset()
+		Case "nextNew"
+			Call nextnewset()
+	End Select
+End If 
+
+'*************************************
+' 发表帖子、回复
+'*************************************
+Sub addsave()
+	'强制赋值：shenhe=0
+	shenhe=0
+	If ISdate(Session("posttime")) Then
+		If DateDiff("s",Session("posttime"),Now) < Sys_PostTime And AdminLevel(Dreamsun_name)<1 Then
+			Call backmsg("对不起，您灌水速度太快...请稍后再灌","")
+		End If
+	End If
+	ip1=split(ip,".")
+	ip2= ip1(0)&"."&ip1(1)&"."&ip1(2)&".*"
+	if username="" Then
+		username=ip2
+		'游客发帖子如果直接通过，那么shenhe=1
+		If Sys_GuestIsCheck=1 Then
+			shenhe=1
+		Else
+			shenhe=0
+		End If
+		zd_code=trim(request.form("zd_code"))
+		If zd_code="" Or IsNull(zd_code) Then Call backmsg("验证码不可为空！","")
+		If (ycid="" and cstr(Session("GetCode_yc"))<>cstr(zd_code)) Or _
+		(ycid<>"" And cstr(Session("GetCode_re"))<>cstr(zd_code)) then
+			Call backmsg("请输入正确的验证码！","")
+		end if
+	Else
+		username=Dreamsun_name
+		'如果普通用户发帖子直接通过，那么shenhe=1
+		If Sys_IsCheck=1 Then
+			shenhe=1
+		Else
+			shenhe=0
+			'如果这个人是管理员或者版主（不一定是这个版块的版主），就不用审核了。
+			If AdminLevel(Dreamsun_name)>0 Then	shenhe=1
+		End If
+	End If 
+	'Edit At 2007-11-11 CHANG,ZIDONE
+	Dim addInfo,addErr
+	addErr = 0
+	addInfo = ""
+	If ycid="" And BoardId = "" Then 
+		addErr = addErr + 1
+		addInfo = addInfo & "- 请选择贴吧名\n"
+		If Len(title)>100 Then 
+			addErr = addErr + 1
+			addInfo = addInfo & "- 标题不能超过100个字符\n"
+		End If
+		If Len(title)<4 Then 
+			addErr = addErr + 1
+			addInfo = addInfo & "- 标题不能少于四个字节\n"
+		End If
+	End If
+	If Len(content)>20000 Then 
+		addErr = addErr + 1
+		addInfo = addInfo & "- 内容不能超过20000个字符\n"
+	End If
+	If Len(content)<10 Then 
+		addErr = addErr + 1
+		addInfo = addInfo & "- 内容不能少于10个字节\n"
+	End If
+	If addErr>0 Then
+		addInfo = "追梦阳光提醒: 请注意以下"&CStr(addErr)&"个提示:\n\n" & addInfo
+		Response.Write backmsg(addInfo,"")
+	End If
+	'------------判断脏话---------------
+	'Add For V1.5 检查是否广告帖
+	If AdminLevel(Dreamsun_name)<1 Then 
+		If IsAdTopic(content) = True Or IsAdTopic(title) = True Then Response.Write backMsg("发现疑似广告内容,请检查后再发","")
+	End If 
+	
+	'去掉验证码Session
+	Session("GetCode_yc") = ""
+	Session("GetCode_re") = ""
+	
+if ycid="" then 
+'发表帖子
+		if Dreamsun_name="" And Sys_Guest_Add=0 Then	Response.Write backmsg("登录信息丢失，请重新登录！","")
+		Set rs= Server.CreateObject("ADODB.Recordset")
+		sql="select * from "&bbstable&""
+		rs.open sql,conn,3,2
+		rs.addnew
+		rs("title")=title
+		rs("content")=content
+		rs("username")=username
+		rs("BoardID")=Int(BoardID)
+		rs("ip")=ip
+		rs("rename")=username
+		rs("IsCheck")=shenhe
+		rs("retime")=now()
+		If picurl<>"" Then rs("picurl")=picurl
+		If titlecolor<>"" Then rs("titlecolor")=titlecolor
+		If titlecolor="" Then
+			rs("titleBold") = 0
+		Else
+			rs("titleBold") = titleBold
+		End If
+		If IsRe="" Then IsRe=1
+		rs("IsRe") = isRe 'Add For V1.5
+		rs.update
+		newid=rs("id")
+		rs.close
+		Session("posttime") = Now()
+		If Dreamsun_name<>"" Then 
+			OptTable("update ["&usertable&"] set [umoney]=[umoney]+"&Sys_Add_Money&" where [username]='"&Dreamsun_name&"'")
+			'判断是否默认不审核
+			qian=",您获得发帖积分"&Sys_Add_Money&"分"&feeAlert&checkAlert
+			' 发表成功后,给[ACCOUNT]表中插入积分记录
+			OptTable("insert into [account] (accID,accValue,accFromUser,accToUser,accTime,accReason,accRemark) values("&CStr(GetMaxID("account","accid"))&","&CStr(Sys_Add_Money)&",'"&"系统"&"','"&username&"','"&CStr(Now())&"','发帖 Title"&title&"','')")
+		End If 
+		if shenhe=0 Then checkAlert = "，您的帖子可能需要经过审核后才能公布"
+		response.write backmsg("恭喜您！帖子发表成功"&qian&checkAlert,"show.asp?id="&newid&"")
+	Else
+'发表回复
+		if Dreamsun_name="" And Sys_Guest_Re=0 Then
+			Response.Write(backmsg("登录信息丢失，请重新登录！"))
+			Response.End()
+		End If
+'------1,读取出主题帖子的相关信息-------------
+		Set rs1= Server.CreateObject("ADODB.Recordset")
+		rs1.Open "Select * From "&bbstable&" where id="&ycid, conn,3,3  
+		recount=rs1("recount")
+		isRe=rs1("IsRe") '是否允许回复 Add For V1.5
+		If CInt(IsRe)=0 And isadmin<>9 Then response.write backmsg("该主题已被关闭回复","")
+		rs1("recount")=recount+1 
+		rs1("rename")=username
+		rs1("retime")=now()
+		lou=rs1("lou")'纪录当前主题的最高楼层
+			if lou="" Then lou=0
+		nowlou=lou+1 
+		rs1("lou")=nowlou
+		rs1.update
+		rs1.close
+'------把回复信息写进数据库-------------
+		Set rs= Server.CreateObject("ADODB.Recordset")
+		sql="select * from "&rebbstable&""
+		rs.open sql,conn,3,2
+		rs.addnew
+		rs("re")=ycid
+		rs("content")=content
+		rs("lou")=nowlou'当前楼层
+		rs("username")=username
+		rs("IsCheck")=shenhe
+		rs("ip")=ip
+		rs.update
+		rs.close
+		Session("posttime") = Now()
+		'判断是否默认不审核
+		If Dreamsun_name<>"" Then 
+			conn.execute("update ["&usertable&"] set [umoney]=[umoney]+"&Sys_Re_Money&" where [username]='"&Dreamsun_name&"'")
+			qian=",您获得积分"&Sys_Re_Money&"分"
+			OptTable("insert into [account] (accID,accValue,accFromUser,accToUser,accTime,accReason,accRemark) values("&CStr(GetMaxID("account","accid"))&","&CStr(Sys_Re_Money)&",'"&"系统"&"','"&Dreamsun_name&"','"&CStr(Now())&"','回"&ycid&"楼:"&nowlou&":"&titleleft(content,30)&"','')")
+		End If 
+		if shenhe=0 Then checkAlert = "，您的帖子可能需要经过审核后才能公布"
+		response.write backmsg("恭喜您！帖子回复成功"&qian&checkAlert,comurl)
+	End If
+End Sub 
+'*************************************
+' 管理员、版主编辑帖子
+'*************************************
+Sub editsave()
+if ycid="" then response.write backmsg("参数错误！","")
+if tn="" then response.write backmsg("参数错误！","")
+	If tn="bbs" Then
+		Set rs= Server.CreateObject("ADODB.Recordset")
+			rs.Open "Select * From "&bbstable&" where id="&ycid, conn,3,3  
+			CanModify=False
+			If IsAdmin=9 Then
+				CanModify=True
+			Else
+				boardid=rs("boardid")
+				If CheckAdmin(boardid)>0 Then CanModify=True
+			End If 
+			If CanModify Then 
+				rs("title")=title
+				rs("content")=content
+				rs("IsRe") = isRe '是否允许回复 Add For V1.5
+				rs("titlecolor")=titlecolor
+				rs("titleBold") = titleBold
+				rs("picurl")=picurl
+				rs("boardid")=Trim(request.form("boardid"))
+					If IsAdmin=9 Then 
+						rs("istop")=request.form("istop")
+						rs("username")=request.form("username")
+						rs("hits")=request.form("hits")
+					End If 
+				rs.update
+			End If 
+			rs.close
+		set rs=Nothing
+		atable="主题"
+	ElseIf tn="rebbs" Then
+		Set rs= Server.CreateObject("ADODB.Recordset")
+			rs.Open "Select * From "&rebbstable&" where id="&ycid, conn,3,3  
+			getreid=rs("re")
+			CanModify=False
+			If IsAdmin=9 Then
+				CanModify=True
+			Else
+				boardid=conn.execute("select boardid from "&bbstable&" where id="&getreid&"")(0)
+				If CheckAdmin(boardid)>0 Then CanModify=True
+			End If 
+			If CanModify Then 
+				rs("content")=content
+				If isadmin=9 Then rs("username")=request.form("username")
+				rs.update
+			End If 
+			rs.close
+		set rs=Nothing
+		atable="回复"
+	End If
+	ActLog(atable&"操作：帖子编辑<br>ID:"&ycid&" 标题:"&left(content,20)&"")
+	comurl=request.form("comurl")
+	response.write backmsg("恭喜您！帖子编辑成功",comurl)
+End Sub
+'*************************************
+' 用户自己编辑自己的帖子2010
+'*************************************
+Sub ueditsave()
+	if ycid="" then response.write backmsg("参数错误！","")
+	if tn="" then response.write backmsg("参数错误！","")
+	If tn="bbs" Then
+		Set rs= Server.CreateObject("ADODB.Recordset")
+			rs.Open "Select * From "&bbstable&" where id="&ycid, conn,3,3
+			If rs("username")<>Dreamsun_name Then response.write backmsg("您不是作者本人，不能编辑帖子","")
+			if datediff("n",rs("addtime"),Now()) > Sys_EditTime then
+				wei="[ALIGN=right][color=#939598]该帖子被"&Dreamsun_name&"在"&Now()&"编辑过[/color][/ALIGN]"
+			End If 
+			rs("title")=title
+			rs("content")=content & wei
+			If Sys_IsCheck=0 Then rs("ischeck")=0:shuoming="，请等待管理员审核！":End If '如果开启人工审核，修改完毕就变成未审核状态。 
+			If picurl<>"" Then rs("picurl")=picurl
+			rs.update
+			rs.close
+		set rs=Nothing
+		atable="主题"
+	ElseIf tn="rebbs" Then
+		Set rs= Server.CreateObject("ADODB.Recordset")
+			rs.Open "Select * From "&rebbstable&" where id="&ycid, conn,3,3
+			If rs("username")<>Dreamsun_name Then  response.write backmsg("您不是作者本人，不能编辑帖子","")
+			if datediff("n",rs("addtime"),Now()) > Sys_EditTime then
+				wei="[ALIGN=right][color=#939598]该帖子被"&Dreamsun_name&"在"&Now()&"编辑过[/color][/ALIGN]"
+			End If 
+			rs("content")=content&wei
+			If Sys_IsCheck=0 Then rs("ischeck")=0:shuoming="，请等待管理员审核！":End If '如果开启人工审核，修改完毕就变成未审核状态。 
+			rs.update
+			rs.close
+	End If
+	set rs=Nothing
+	atable="回复"
+	ActLog(atable&"操作：帖子编辑<br>ID:"&ycid&" 标题:"&left(title,20)&"")
+	comurl=request.form("comurl")
+	response.write backmsg("恭喜您！帖子编辑成功"&shuoming,comurl)
+End Sub 
+
+
+'*************************************
+'上一篇链接。默认是根据addtime添加时间排序的。可以修改
+'*************************************
+Sub nextoldset()
+	SQL_quick = "SELECT top 1 title,id FROM "&bbstable&" where id<"&id&" and IsCheck>0 order by id desc" 
+	set rs_quick=server.CreateObject("adodb.recordset")
+		rs_quick.open sql_quick,conn,1,1
+		  if not rs_quick.eof Then
+				response.redirect "show.asp?id="&rs_quick("id")
+			Else
+				response.write backmsg("已经到了最前面了，没有相应的主题",comurl)
+          end if
+	rs_quick.close
+	set rs_quick=Nothing
+End Sub 
+'*************************************
+'下一篇链接。默认是根据addtime添加时间排序的。可以修改
+'*************************************
+Sub nextnewset()
+	SQL_quick = "SELECT top 1 title,id FROM "&bbstable&" where id>"&id&" and IsCheck>0 order by id asc" 
+	set rs_quick=server.CreateObject("adodb.recordset")
+		rs_quick.open sql_quick,conn,1,1
+		  if not rs_quick.eof Then
+				response.redirect "show.asp?id="&rs_quick("id")
+			Else
+				response.write backmsg("已经到了最前面了，没有相应的主题",comurl)
+          end if
+	rs_quick.close
+	set rs_quick=Nothing
+End Sub 
+%>

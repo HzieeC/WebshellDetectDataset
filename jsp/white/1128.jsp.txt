@@ -1,0 +1,93 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page" /> 
+<%
+	String pri_key = bean.GenTradeId();
+	String user_id="";	
+	
+	if( session.getAttribute("session_user_id") != null )
+	{
+		user_id = session.getAttribute("session_user_id").toString();
+	}
+%>
+<html>
+  <head>
+    <title>新增面试通知信息</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type='text/javascript' src='/js/jquery-1.4.2.min.js'></script>	
+	<script type='text/javascript' src='js_menu.js'></script>	
+		 <script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script type="text/javascript">
+		function isMaxLen(o)
+		{  
+			 var nMaxLen=o.getAttribute? parseInt(o.getAttribute("maxlength")):"";  
+			 if(o.getAttribute && o.value.length>nMaxLen)
+			 {      
+				  o.value=o.value.substring(0,nMaxLen);  
+			 }  
+		}
+	</script>
+</head>
+
+<body>
+	<h1>新增面试通知信息</h1>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	<input name="trade_id" id="trade_id" type="hidden" value="<%=pri_key%>"/>
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+
+	<tr>
+		<td align="right" width="10%">应聘人<font color="red">*</font>:	</td>
+		<td><input name="reume_user_id" id="reume_user_id" size="20" maxlength="20" type="text" /></td>
+		
+	</tr>	
+	
+	<tr>
+		<td align="right" width="10%">应聘职位<font color="red">*</font>:	</td>
+		<td><input name="job_id" id="job_id" size="20" maxlength="20" type="text" /></td>
+	</tr>
+	<tr>
+		<td align="right" width="10%">面试时间<font color="red">*</font>:	</td>
+		<td><input name="do_date" id="do_date" size="20" maxlength="20" type="text" onclick="WdatePicker({minDate:'%y-%M-#{%d}',readOnly:true})"/></td>
+	</tr>
+	<tr>
+		<td align="right" width="10%">通知标题<font color="red">*</font>:	</td>
+		<td><input name="note_title" id="note_title" size="20" maxlength="20" type="text" /></td>
+	</tr>
+	<tr>
+		<td align="right" width="10%">通知描述:	</td>
+		<td><textarea rows="4" cols="45" id="note_desc" name="note_desc" maxlength="300" onKeyUp="return isMaxLen(this)" onBlur="return isMaxLen(this)"></textarea></td>
+	</tr>
+<tbody id="is_create_module_hidden">
+	<tr>
+		<td align="right" width="10%">通知地址:	</td>
+		<td><input name="note_addr" id="note_addr" size="40" maxlength="20" type="text" /></td>
+	</tr>
+	
+	<tr>
+		<td align="right" width="10%">通知结果:	</td>
+		<td><textarea rows="4" cols="45" id="note_result" name="note_result" maxlength="300" onKeyUp="return isMaxLen(this)" onBlur="return isMaxLen(this)"></textarea></td>
+	</tr>
+	<tr>
+		<td align="right" width="10%">公司名称:	</td>
+		<td><input name="cust_id" id="cust_id" size="40" maxlength="20" type="text" /></td>
+	</tr>
+	
+	<tr>
+		<td align="right" width="10%">说明:	</td>
+		<td><textarea rows="4" cols="45" id="remark" name="remark" maxlength="300" onKeyUp="return isMaxLen(this)" onBlur="return isMaxLen(this)"></textarea></td>
+	</tr>
+</tbody>	
+</table>	
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+	<tr>
+		<td align="center">
+			<input name="user_id" id="user_id" type="hidden" value="<%=user_id %>"/>
+			<input type="hidden" name="bpm_id" value="3396" />
+			<input type="submit" class="buttoncss" name="tradeSub" value="提交" />&nbsp;&nbsp;
+			<input type="button" class="buttoncss" name="tradeRut" value="返回" onClick="window.location.href='index.jsp';"/>
+		</td>
+	</tr>
+	</table>
+	</form>
+</body>
+
+</html>

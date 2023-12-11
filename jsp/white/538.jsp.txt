@@ -1,0 +1,38 @@
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>Permissions Information</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">	
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/system/SysPower/list_SysPower.js"></script>
+
+</head> 
+
+<body>
+	<table id="dataGrid"></table>
+	<div id="edit" closed="true">
+		<iframe frameborder="0" id="editDataPage" width="500px" height="150px"></iframe>
+	</div>
+	
+	<div id="search">
+		<table border="0" cellpadding="0" cellspacing="0" width="240px" height="60px" style="font-size: 12px;">
+			<tr>
+				<td>Permissions Code：</td>
+				<td><input type="text" id="powerCode" onkeydown="checkKey()"/></td>
+			</tr>
+			<tr>
+				<td>Permissions Name：</td>
+				<td><input type="text" id="powerName" onkeydown="checkKey()"/></td>
+			</tr>
+		</table>
+	</div>
+</body>
+
+</html>

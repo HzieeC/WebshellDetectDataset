@@ -1,0 +1,148 @@
+<!--#include file="admin_sb.asp"-->
+<!--#include file="inc/include.asp"-->
+<%
+'************** ASPSecurity 文件搜索****************
+' Copyright 2006
+' Create:2006-1-18
+' Update:2006-8-03
+'***************************************************
+
+server.ScriptTimeout = 600
+Dim Report, Sun, SumFiles, SumFolders
+
+	Sun = 0
+	SumFiles = 0
+	SumFolders = 1
+	timer1 = timer
+	if request.Form("Search_path")="\" then
+		TmpPath = Server.MapPath("\")
+	elseif request.Form("Search_path")="." then
+		TmpPath = Server.MapPath(".")
+	else
+		TmpPath = Server.MapPath("\")&"\"&request.Form("Search_path")
+	end if
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link rel="stylesheet" rev="stylesheet" href="inc/control.css" type="text/css" media="all" />
+</head>
+<body class="ContentBody">
+<div class="MainDiv">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" class="CContent">
+  <tr>
+    <th class="CTitle">雷客图ASP站长安全助手 文件搜索结果
+  </tr>
+  <tr>
+    <td class="CPanel">
+        <div id="updateInfo" style="background:ffffe1;border:1px solid #89441f;padding:4px;display:none"></div>
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+	 <tr>
+		 <td valign="top" style="padding:5px;width:140px"><img src="images/Icon/ControlPanel.png" width="128" height="128"/></td>
+		 <td valign="top">
+		 <div align="left" style="padding:5px;line-height:170%;clear:both;font-size:12px">
+<%
+	If request.Form("Search_path") = "" or request.Form("Search_Date") = "" or request.Form("Search_FileExt") = "" Then
+		response.Write("缉捕条件不完全，恕难从命<br><br><a href='javascript:history.go(-1);'>请返回重新输入</a>")
+		response.End()
+	End If
+	DimFileExt = request.Form("Search_fileExt")
+	Call ShowAllFile(TmpPath)
+%> 
+		     <p>
+扫描完毕！一共检查文件夹<font color="#FF0000"><%=SumFolders%></font>个，文件<font color="#FF0000"><%=SumFiles%></font>个，发现符合条件的<font color="#FF0000"><%=Sun%></font>个
+		     </p>
+		 </div>    
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+	 <tr>
+		 <td valign="top">
+			 <table width="100%" border="1" cellpadding="0" cellspacing="0" style="padding:5px;line-height:170%;clear:both;font-size:12px">
+			 <tr>
+			   <td width="50%">文件相对路径</td>
+			   <td width="25%">文件创建时间</td>
+			   <td width="25%">修改时间</td>
+			   </tr>
+		     <p>
+			 <%=Report%>
+			 <br/></p>
+			 </table></td>
+	 </tr>
+	</table>
+
+</td></tr></table>
+<%
+timer2 = timer
+thetime=cstr(int(((timer2-timer1)*10000 )+0.5)/10)
+response.write "<br><font size=""2"">本页执行共用了"&thetime&"毫秒</font>"
+%>
+</div>
+</body>
+</html>
+<%
+Sub ShowAllFile(Path)
+	Set FSO = CreateObject("Scripting.FileSystemObject")
+	if not fso.FolderExists(path) then exit sub
+	Set f = FSO.GetFolder(Path)
+	Set fc2 = f.files
+	For Each myfile in fc2
+		If CheckExt(FSO.GetExtensionName(path&"\"&myfile.name)) Then
+			Call IsFind(Path&"\"&myfile.name)
+			SumFiles = SumFiles + 1
+		End If
+	Next
+	Set fc = f.SubFolders
+	For Each f1 in fc
+		ShowAllFile path&"\"&f1.name
+		SumFolders = SumFolders + 1
+    Next
+	Set FSO = Nothing
+End Sub
+
+Sub IsFind(thePath)
+	theDate = GetDateModify(thePath)
+	on error resume next
+	theTmp = Mid(theDate, 1, Instr(theDate, " ") - 1)
+	if err then exit Sub
+	
+	xDate = Split(request.Form("Search_Date"),";")
+	
+	If request.Form("Search_Date") = "ALL" Then ALLTime = True
+	
+	For i = 0 To Ubound(xDate)
+		If theTmp = xDate(i) or ALLTime = True Then 
+			If request("Search_Content") <> "" Then
+				
+				Set tStream = Server.CreateObject("ADODB.Stream")
+				tStream.type = 2
+				tStream.mode = 3
+				tStream.open
+				tStream.Position=0
+				tStream.LoadFromFile thePath
+				tStream.charset = "GB2312"
+				Do Until tStream.EOS
+					filetxt = filetxt & LCase(replace(tStream.ReadText(102400), Chr(0), ""))
+				Loop
+				tStream.close()
+				Set tStream = Nothing
+				
+				If Instr( filetxt, LCase(request.Form("Search_Content"))) > 0 Then
+					temp = "<a href=""http://"&Request.Servervariables("server_name")&"/"&tURLEncode(Replace(replace(thePath,server.MapPath("\")&"\","",1,1,1),"\","/"))&""" target=_blank>"&replace(thePath,server.MapPath("\")&"\","",1,1,1)&"</a>"
+					Report = Report&"<tr><td>"&temp&"</td><td>"&GetDateCreate(thePath)&"</td><td>"&theDate&"</td></tr>"
+					Sun = Sun + 1
+					Exit Sub
+				End If
+				
+				Set ofile = Nothing
+				Set FSOs = Nothing
+			Else
+				temp = "<a href=""http://"&Request.Servervariables("server_name")&"/"&tURLEncode(Replace(replace(thePath,server.MapPath("\")&"\","",1,1,1),"\","/"))&""" target=_blank>"&replace(thePath,server.MapPath("\")&"\","",1,1,1)&"</a>"
+				Report = Report&"<tr><td>"&temp&"</td><td>"&GetDateCreate(thePath)&"</td><td>"&theDate&"</td></tr>"
+				Sun = Sun + 1
+				Exit Sub
+			End If
+		End If
+	Next
+	
+End Sub
+%>

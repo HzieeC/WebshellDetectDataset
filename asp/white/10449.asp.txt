@@ -1,0 +1,593 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<%
+comurl=Cstr(Request.ServerVariables("HTTP_REFERER"))
+Dim Action
+    Action=Checkstr(Request.QueryString("Action"))
+If Action="c" Then 
+	Application.Contents.RemoveAll()
+	gotourl=comurl
+	If gotourl="" Then gotourl="ShowList.asp"
+	response.write "<meta http-equiv=""refresh"" content=""1;URL="&gotourl&""">恭喜，缓存已经清理完毕，返回首页！"
+	response.End 
+End If 
+%>
+<!--#include file="inc/conndb.asa"-->
+<!--#include file="inc/function.asp"-->
+<%
+PageShowSize = 10            '每页显示多少个页
+MyPageSize   = 40        '每页显示多少条
+	
+If Not IsNumeric(Request("Curpage")) Or IsEmpty(Request("Curpage")) Or Request("Curpage") <=0 Then
+MyPage=1
+Else
+MyPage=Int(Abs(Request("Curpage")))
+End if
+
+Page_WebTitle="帖子中心-"&TieBa_Name
+now_where="帖子中心"
+currWZ=now_where
+If AdminLevel(Dreamsun_Name)>0 Then 
+	navright="<A HREF=""so.asp?Action=TieList"">帖子批处理</A> | <A HREF=""so.asp?Action=ReList"">回复批处理</A> | <A HREF=""so.asp?Action=c"">清空缓存</A>  | "
+Else
+	navright=""
+End If 
+
+'启用模板类
+BoardListStr=BoardList(BoardID)
+set getTemplate = new Cls_Template
+shtml=getTemplate("ddp_head")
+'页面全局变量、普通变量替换
+shtml=replace(shtml,"$Page_WebTitle$",Page_WebTitle)
+shtml=replace(shtml,"$Page_Author$",Page_Author)
+shtml=replace(shtml,"$Page_Keywords$",Page_Keywords)
+shtml=replace(shtml,"$Page_Description$",Page_Description)
+shtml=replace(shtml,"$BoardListStr$",BoardListStr)
+shtml=replace(shtml,"$kdhLink$",dhLink())
+shtml=replace(shtml,"$topmenu$",topmenu())
+shtml=replace(shtml,"$now_where$",now_where)
+shtml=replace(shtml,"$NavRight$",NavRight)
+response.write shtml
+response.write ("<br><br><br>")
+Dim i
+Dim flg
+	Select Case Action
+        Case "TieList"
+			If AdminLevel(Dreamsun_Name)<1 Then Call backmsg("您不是版主或者管理员，请勿越权！","")
+            Call TieList()
+        Case "TieDeal"
+			If AdminLevel(Dreamsun_Name)<1 Then Call backmsg("您不是版主或者管理员，请勿越权！","")
+            Call TieDeal()
+        Case "ReList"
+			If AdminLevel(Dreamsun_Name)<1 Then Call backmsg("您不是版主或者管理员，请勿越权！","")
+            Call ReList()
+        Case "so"
+            Call soInfo()
+		Case Else 
+			Call TieList()
+    End Select
+	response.write ("<br><br>")
+
+shtml=getTemplate("ddp_foot")
+shtml=replace(shtml,"$SQLQueryNums$",SQLQueryNums)
+shtml=replace(shtml,"$runTime$",runTime)
+response.write shtml
+
+
+Sub soInfo()
+Keys = Checkstr(Request("Keys"))
+If Keys="" Or IsNull(Keys) Then
+	Call backmsg("关键字不能为空！","")
+Else
+	Keys=Replace(Keys," ","+")
+	Keys=Replace(Keys,"++","+")
+	ttt=split(Keys,"+")
+	For jkey = LBound(ttt) To UBound(ttt)
+		If ttt(jkey)<>"" Then
+			jh=jh&" and ( b.title like '%"&trim(ttt(jkey))&"%' or b.content like '%"&trim(ttt(jkey))&"%')"
+			jh2=jh2&" and content like '%"&trim(ttt(jkey))&"%'"
+		End If 
+	Next
+	shuoming=" 关键字：<span class=hot>"&Keys&"</span>"
+	tiaoj="&Keys="&Keys
+End If 
+
+if Dreamsun_name <> "" then
+	if IsAdmin=9 then
+		showIsCheck = "IsCheck>-1"
+	else
+		showIsCheck = "IsCheck=1 "
+	end if
+else 
+	showIsCheck = "IsCheck=1 "
+end If
+
+sore=CheckNum(Request("sore"))
+If sore=1 Then 
+	inreplys=" or b.id in (Select re from "&rebbstable&" where "&showIsCheck&" "&jh2&")"
+	tiaoj=tiaoj&"&sore=1"
+End If 
+
+SQL7 = "SELECT b.id,b.title,b.addtime,b.retime,b.isgood,b.istop,b.hits,b.recount,b.rename,b.username,b.titlecolor,b.titlebold,"& _
+	"b.boardid as boardid,b.IsCheck as checked,t.board_name as board_name FROM "&bbstable&" as b,"&boardtable& _
+	" as t where ((b."&showIsCheck&" "&jh&" ) "&inreplys&") and b.boardid=t.board_id  ORDER BY b.id DESC" 
+'response.write sql7
+'response.End 
+
+Set rs7 = Server.CreateObject("ADODB.Recordset")
+rs7.open sql7,conn,1,1
+%>
+<form action="so.asp?Action=TieDeal" method=post name=inbox>
+<table width="900" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+  <tr>
+    <td height="40" align="center" colspan="5"  class="zd_td2"><B>信息检索</B><%=shuoming%></td>
+  </tr>
+<%If rs7.eof and rs7.bof Then%>
+  <tr bgcolor="#ffffff">
+    <td height="80" align="center" colspan="5"><B>暂无帖子</B></td>
+  </tr>
+<%Else
+rs7.PageSize     = MyPageSize
+MaxPages         = rs7.PageCount
+rs7.absolutepage = MyPage
+Totalcount            = rs7.RecordCount
+%>
+  <tr bgcolor="#ffffff" align="center">
+    <td width="70" height="34">序列</td>
+    <td width="580" height="34">标题</td>
+    <td width="150" height="34">作者</td>
+	<td width="100" height="34" align="center">回复</td>
+	
+  </tr>
+<%
+for i=1 to rs7.PageSize
+If not rs7.eof Then
+	'显示是否被审核
+	if CStr(rs7("checked"))= "0" then
+		chkStr = " <font class=hot>[未审核]</font>"
+	else
+		chkStr = " "
+	end if
+	title=TitleLeft(Rs7("title"),45)
+	if Rs7("TitleColor")<>"" Then title="<font color="&Rs7("TitleColor")&">"&title&"</font>"
+%>
+  <tr>
+    <td height="24" align="center"><%=rs7("id")%></td>
+    <td height="24">&nbsp;&nbsp;<span style="color:#888">[<%=rs7("board_name")%>]</span>&nbsp;<A HREF="ShowInfo.asp?id=<%=rs7("id")%>" target=_blank><%=title&chkStr%></A></td>
+	<td height="24" align="center"><%=rs7("username")%><BR><span class=hui><%=DateToStr(rs7("addtime"),"Y-m-d")%></span></td>
+	<td height="24" align="center"><%=rs7("rename")%><BR><span class=hui><%=DateToStr(rs7("retime"),"Y-m-d")%></span></td></tr>
+<%
+rs7.MoveNext
+end if
+Next
+response.write "<tr bgcolor=""#ffffff"">"
+response.write "<td height=""60"" align=""center"" colspan=""4"">"& viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=so"&tiaoj,"当前总数:","so.asp")&"</td>"
+response.write "</tr>"
+		End if
+	rs7.close
+	set rs7=Nothing
+%>
+</table>
+</form>
+<%
+End Sub
+Sub TieList()
+BoardID=checkNum(Request.QueryString("boardid"))
+if BoardID="" then BoardID=0
+If BoardID<>0 Then
+	tiaojian="and boardid="&boardid&" "
+	tiaoj="&boardid="&boardid&" "
+end If
+	If IsAdmin<>9 Then
+		If Not IsArray(Arr_Category) Then GetBoardCache()
+		If IsArray(Arr_Category) Then
+			noteshow="您的权限能看到分类："
+			For zd=0 To Ubound(Arr_Category,2)
+				If CheckAdmin(Arr_Category(1,zd))=1 Then 
+					sqlStr=sqlStr & " or boardid="&Arr_Category(1,zd)
+					noteshow=noteshow &"id="&Arr_Category(1,zd)&","
+				End If 
+			Next
+			sqlStr=" and (1=2 "&sqlStr&") "
+		End If
+	End If 
+
+
+sql7 = "SELECT title,username,ischeck,TitleColor,id FROM "&bbsTable&" where ischeck>-1 " & tiaojian & sqlStr &" ORDER BY ischeck asc,id DESC"
+Set rs7 = Server.CreateObject("ADODB.Recordset")
+rs7.open sql7,conn,1,1
+%>
+<form action="so.asp?Action=TieDeal" method=post name=inbox>
+
+<table class="cssraindemo1" id="table1">
+  <tr>
+    <td height="32" align="center" colspan="4" class="zd_td2"><font color=#333333><B>帖子批管理</B> &nbsp;&nbsp;筛选帖子：</font>
+	<%=Replace(BoardSelect(BoardID),"name=""BoardId""","name=""Board"" onchange=""window.location='?Action=BbsList&boardid='+this.value""")%>
+	<%=noteshow%></td>
+  </tr>
+<%If rs7.eof and rs7.bof Then%>
+  <tr >
+    <td height="40" align="center" colspan="4"><B>暂无帖子</B></td>
+  </tr>
+<%Else
+rs7.PageSize     = MyPageSize
+MaxPages         = rs7.PageCount
+rs7.absolutepage = MyPage
+Totalcount            = rs7.RecordCount
+%><thead>
+  <tr  align="center">
+    <th width="80" height="35">序列</th>
+    <th width="560" height="35">标题</th>
+	<th width="130" height="35" align="center">作者</th>
+	<th width="130" height="35" align="center">操作</th>
+  </tr>
+  </thead>
+<%
+for i=1 to rs7.PageSize
+If not rs7.eof Then
+	'显示是否被审核
+	if CStr(rs7("isCheck"))= "0" then
+		chkStr = " <font class=hot>[未审核]</font>"
+	else
+		chkStr = " "
+	end if
+	title=TitleLeft(Rs7("title"),66)
+	if Rs7("TitleColor")<>"" Then title="<font color="&Rs7("TitleColor")&">"&title&"</font>"
+%><tbody>
+  <tr>
+    <td width="80" height="25" align="center"><input name="bbsid" type="checkbox" value="<%=rs7("id")%>"></td>
+    <td width="560" height="25">&nbsp;<A HREF="ShowInfo.asp?id=<%=rs7("id")%>" target=_blank><%=title&chkStr%></A></td>
+	<td width="130" height="25" align="center"><%=rs7("username")%></td>
+	<td width="130" height="25" align="center"><a href='edit.asp?tn=bbs&id=<%=rs7("id")%>'>编辑</a></td>
+  </tr>
+<%
+rs7.MoveNext
+end if
+Next
+%></tbody>
+<tr bgcolor="#ffffff"><td height="50" align="center" colspan="4" bgcolor="#ffffff">
+ 全选/取消 <input type="checkbox" name="chkall" value="on" onClick="CheckAll(this.form)">
+ <select name="cz" onchange="if(this.value=='BatchMove'){BoardId.disabled=false}else{BoardId.disabled=true};">
+			  <option>→操作</option>
+			  <option value="BatchVDel">批量删除</option>
+			  <option value="BatchCheck">批量审核</option>
+			  <option value="BatchNoCheck">批量屏蔽</option>
+			  <option value="BatchMove">转移分类</option>
+			  <option value="BatchTop">批量置顶（版）</option>
+			  <option value="BatchTop2">批量置顶（总）</option>
+			  <option value="BatchNoTop">取消置顶</option>
+			  <option value="BatchGood">精华操作</option>
+			  </select>
+			  <%=Replace(BoardSelect(BoardID),"name=""BoardId""","name=""BoardId"" disabled='disabled'")%><input type="submit" class="bnt01" value="执行" onClick="{if(confirm('您确定执行的操作吗?')){return true;}return false;}">
+</td></tr>
+<%response.write "<tr>"
+response.write "<td height=""80"" align=""center"" colspan=""4""  bgcolor=""#ffffff"">"& viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=TieList"&tiaoj,"当前总数:","so.asp")&"</td>"
+response.write "</tr>"
+		End if
+	rs7.close
+	set rs7=Nothing
+%>
+</table>
+</form>
+<%
+End Sub
+
+Sub ReList()
+	tj=CheckStr(Request.QueryString("tj"))
+	If tj<>"" Then
+		tjstr="and r.re="&tj
+		tjurl="&tj="&tj
+		tjshow="正在处理文章id号为"&tj&"的回复  <a href='so.asp?Action=ReList'>处理所有</a>"
+	End If
+
+	If IsAdmin<>9 Then
+		If Not IsArray(Arr_Category) Then GetBoardCache()
+		If IsArray(Arr_Category) Then
+			For zd=0 To Ubound(Arr_Category,2)
+				If CheckAdmin(Arr_Category(1,zd))=1 Then 
+					sqlStr=sqlStr & " or b.boardid="&Arr_Category(1,zd)
+				End If 
+			Next
+			sqlStr="and (1=2 "&sqlStr&") "
+		End If
+	End If 
+
+	Set rs7 = Server.CreateObject("ADODB.Recordset")
+	sql7 = "SELECT r.*,b.title as bbstitle FROM "&rebbsTable&" as r,"&bbsTable&" as b where r.[ischeck]>-1 and r.re=b.id "&tjstr&" "&sqlStr&" ORDER BY r.ischeck asc,r.id DESC"
+	rs7.open sql7,conn,1,1
+	%>
+	<form action="so.asp?Action=TieDeal" method=post name=inbox>
+	<table width="900" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+	  <tr>
+		<td height="40" align="center" colspan="5"  class="zd_td2">&nbsp; <B>帖子回复</B>(请公开审核、屏蔽或者删除) 点【该】筛选处理该帖子的回复 <%=tjshow%></td>
+	  </tr>
+	<%If rs7.eof and rs7.bof Then%>
+	  <tr bgcolor="#ffffff">
+		<td height="80" align="center" colspan="5"><B>暂无帖子</B></td>
+	  </tr>
+	<%Else
+	rs7.PageSize     = MyPageSize
+	MaxPages         = rs7.PageCount
+	rs7.absolutepage = MyPage
+	Totalcount            = rs7.RecordCount
+	%>
+	  <tr bgcolor="#ffffff" align="center">
+		<td width="50" height="35" align="center">序号</td>
+		<td width="50" height="35" align="center">楼层</td>
+		<td width="350" height="35">主题帖子标题</td>
+		<td width="400" height="35" >回复内容简要</td>
+	  <td width="50" height="35">操作</td></tr>
+	<%
+	for i=1 to rs7.PageSize
+	If not rs7.eof Then
+		bbstitle=Rs7("bbstitle")
+		recontent=TitleLeft(Rs7("content"),60)
+		'显示是否被审核
+		if CStr(rs7("isCheck"))= "0" then
+			chkStr = " <font class=hot>[未审核]</font>"
+		else
+			chkStr = " "
+		end if
+	%>
+	  <tr bgcolor="#ffffff">
+		<td height="35" align="center"><input name=bbsid type=checkbox value="<%=rs7("id")%>"></td>
+		<td height="35" align="center"><%=rs7("lou")%></td>
+		<td height="35">&nbsp;<A HREF="ShowInfo.asp?id=<%=rs7("re")%>" target=_blank><%=bbstitle%></A></td>
+		<td height="35"><span title="<%=Titleleft(recontent,200)%>"><%=Titleleft(recontent,48)&chkStr%></td>
+		<td height="35" align="center"><a href='edit.asp?tn=rebbs&id=<%=rs7("id")%>'>编辑</a> 【<a href='so.asp?Action=ReList&tj=<%=rs7("re")%>'>该</a>】</td>
+	  </tr>
+	<%
+	rs7.MoveNext
+	end if
+	Next
+	%>
+	<tr bgcolor="#ffffff"><td height="50" align="center" colspan="5"  class="zd_td2">
+
+ 全选/取消 <input type="checkbox" name="chkall" value="on" onClick="CheckAll(this.form)">
+		 <select name="cz">
+			  <option value="">→操作</option>
+			  <option value="BatchVDelR">批量删除</option>
+			  <option value="BatchCheckR">批量审核</option>
+			  <option value="BatchNoCheckR">批量屏蔽</option>
+			  </select>
+		<input name="Submit" type="submit" class="button" id="Submit" value="执行" onClick="{if(confirm('您确定执行的操作吗?')){return true;}return false;}"> 
+	</td></tr>
+	<%response.write "<tr bgcolor=""#ffffff"">"
+	response.write "<td height=""80"" align=""center"" colspan=""5"">"& viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=ReList"&tjurl&"","当前总数:","so.asp")&"</td>"
+	response.write "</tr>"
+			End if
+		rs7.close
+		set rs7=Nothing
+	%>
+	</table><br><br>
+</form>
+<%
+End Sub 
+
+
+Sub TieDeal()
+	cz=Trim(Request.Form("cz"))
+	bbsid=trim(Request.Form("bbsid"))
+	BoardID=trim(Request.Form("BoardID"))
+
+	if cz="" or isnull(cz) then	response.write backmsg("请选择相关参数！","")
+	
+	'批量虚拟删除帖子
+	If cz="BatchVDel" Then 
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		Else
+			bbsidArray=Split(bbsid,", ")
+			For vv=0 To UBound(bbsidArray)
+				id=bbsidArray(vv)
+				shuchu=shuchu & delTopic(id) & "<BR>"
+			Next
+			MsgCaption="成功信息提示"
+			MsgContent=shuchu			
+		end If
+		response.write ShowTable(MsgCaption,MsgContent,comurl)'以表格的方式返回
+	End If 
+	'批量审核主贴
+	If cz="BatchCheck" Then 
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		Else
+			bbsidArray=Split(bbsid,", ")
+			For vv=0 To UBound(bbsidArray)
+				id=bbsidArray(vv)
+				shuchu=shuchu & CheckTopic(id) & "<BR>"
+			Next
+			MsgCaption="成功信息提示"
+			MsgContent=shuchu			
+		end If
+		response.write ShowTable(MsgCaption,MsgContent,comurl)'以表格的方式返回
+	End If
+
+	'批量屏蔽主贴
+	If cz="BatchNoCheck" Then 
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		Else
+			bbsidArray=Split(bbsid,", ")
+			For vv=0 To UBound(bbsidArray)
+				id=bbsidArray(vv)
+				shuchu=shuchu & NoCheckTopic(id) & "<BR>"
+			Next
+			MsgCaption="成功信息提示"
+			MsgContent=shuchu			
+		end If
+		response.write ShowTable(MsgCaption,MsgContent,comurl)'以表格的方式返回
+	End If
+
+
+	'批量置顶操作（版）
+	If cz="BatchTop" Then 
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		Else
+			bbsidArray=Split(bbsid,", ")
+			For vv=0 To UBound(bbsidArray)
+				id=bbsidArray(vv)
+				shuchu=shuchu & IsTopTopic(id) & "<BR>"
+			Next
+			MsgCaption="成功信息提示"
+			MsgContent=shuchu			
+		end If
+		response.write ShowTable(MsgCaption,MsgContent,comurl)'以表格的方式返回
+	End If
+
+	'批量置顶操作（总）
+	If cz="BatchTop2" Then 
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		Else
+			bbsidArray=Split(bbsid,", ")
+			For vv=0 To UBound(bbsidArray)
+				id=bbsidArray(vv)
+				shuchu=shuchu & IsTop2Topic(id) & "<BR>"
+			Next
+			MsgCaption="成功信息提示"
+			MsgContent=shuchu			
+		end If
+		response.write ShowTable(MsgCaption,MsgContent,comurl)'以表格的方式返回
+	End If
+
+	'批量取消置顶操作
+	If cz="BatchNoTop" Then 
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		Else
+			bbsidArray=Split(bbsid,", ")
+			For vv=0 To UBound(bbsidArray)
+				id=bbsidArray(vv)
+				shuchu=shuchu & NoIsTopTopic(id) & "<BR>"
+			Next
+			MsgCaption="成功信息提示"
+			MsgContent=shuchu			
+		end If
+		response.write ShowTable(MsgCaption,MsgContent,comurl)'以表格的方式返回
+	End If
+
+	'批量审核回帖
+	If cz="BatchCheckR" Then 
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		Else
+			bbsidArray=Split(bbsid,", ")
+			For vv=0 To UBound(bbsidArray)
+				id=bbsidArray(vv)
+				shuchu=shuchu & CheckRe(id) & "<BR>"
+			Next
+			MsgCaption="成功信息提示"
+			MsgContent=shuchu			
+		end If
+		response.write ShowTable(MsgCaption,MsgContent,comurl)'以表格的方式返回
+	End If
+
+	'批量屏蔽回帖
+	If cz="BatchNoCheckR" Then 
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		Else
+			bbsidArray=Split(bbsid,", ")
+			For vv=0 To UBound(bbsidArray)
+				id=bbsidArray(vv)
+				shuchu=shuchu & NoCheckRe(id) & "<BR>"
+			Next
+			MsgCaption="成功信息提示"
+			MsgContent=shuchu			
+		end If
+		response.write ShowTable(MsgCaption,MsgContent,comurl)'以表格的方式返回
+	End If 
+
+	'批量虚拟删除回帖
+	If cz="BatchVDelR" Then 
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		Else
+			bbsidArray=Split(bbsid,", ")
+			For vv=0 To UBound(bbsidArray)
+				id=bbsidArray(vv)
+				shuchu=shuchu & delReBBS(id) & "<BR>"
+			Next
+			MsgCaption="成功信息提示"
+			MsgContent=shuchu			
+		end If
+		response.write ShowTable(MsgCaption,MsgContent,comurl)'以表格的方式返回
+	End If 
+
+	'批量设置精华和取消精华（原来是精华就取消，原来不是就设置）
+	If cz="BatchGood" Then 
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		Else
+			bbsidArray=Split(bbsid,", ")
+			For vv=0 To UBound(bbsidArray)
+				id=bbsidArray(vv)
+				shuchu=shuchu & IsGoodSet(id) & "<BR>"
+			Next
+			MsgCaption="成功信息提示"
+			MsgContent=shuchu			
+		end If
+		response.write ShowTable(MsgCaption,MsgContent,comurl)'以表格的方式返回
+	End If
+
+	'批量移动 没有考虑验证权限。
+	If cz="BatchMove" Then 
+	if BoardID="" or isnull(BoardID) then	response.write backmsg("请选择相关分类参数！","")
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		else
+			conn.execute("update "&bbsTable&" set BoardID="&BoardID&" where id in ("&bbsid&")")
+			response.write backmsg("恭喜，批量移动成功",comurl)
+		end if
+	End If 
+	'回收站操作，只允许管理员isadmin=9操作。
+	'批量删除、清空回收站
+	If cz="BatchDel" Then
+		If IsAdmin<9 Then Call backmsg("您权限不够，请不要恶意操作。","")
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		else
+			conn.execute("delete from "&bbsTable&" where id in ("&bbsid&")")
+			conn.execute("delete from "&rebbsTable&" where re in ("&bbsid&")")
+			response.write backmsg("恭喜，批量删除成功",comurl)
+		end if
+	End If
+	'批量虚拟删除
+	If cz="BatchDelR" Then 
+		If IsAdmin<9 Then Call backmsg("您权限不够，请不要恶意操作。","")
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		else
+			conn.execute("delete from "&rebbsTable&" where id in ("&bbsid&")")
+			response.write backmsg("恭喜，批量删除回帖成功",comurl)
+		end if
+	End If
+	'还原帖子
+	If cz="ReDel" Then 
+		If IsAdmin<9 Then Call backmsg("您权限不够，请不要恶意操作。","")
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		else
+			conn.execute("update "&bbsTable&" set IsCheck=1 where id in ("&bbsid&")")
+			If boardid<>"" Then '如果有了分类参数，就还原到那个分类下了。
+				conn.execute("update "&bbsTable&" set boardid="&boardid&" where id in ("&bbsid&")")
+				shuo="新的分类id为"&boardid
+			End If 
+			response.write backmsg("恭喜，批量还原成功"&shuo,comurl)
+		end if
+	End If
+
+	'还原帖子
+	If cz="ReDelR" Then 
+		If IsAdmin<9 Then Call backmsg("您权限不够，请不要恶意操作。","")
+		if bbsid="" or isnull(bbsid) then
+			response.write backmsg("请选择相关参数！","")
+		else
+			conn.execute("update "&rebbsTable&" set IsCheck=1 where id in ("&bbsid&")")
+			response.write backmsg("恭喜，批量还原回帖成功"&shuo,comurl)
+		end if
+	End If 
+
+End Sub 
+%>

@@ -1,0 +1,147 @@
+<!--#include file="conn_xp/xp.asp"-->
+<!--#include file="conn_xp/shopxp.asp"-->
+<%if request.Cookies("shopxp")("username")="" then
+response.write "<script language=javascript>alert('对不起，您还没有登陆！');history.go(-1);</script>"
+response.End
+end if%>
+<%
+dim action,dingdan,username
+action=request.QueryString("action")
+dingdan=request.QueryString("dan")
+username=request.QueryString("username")
+select case action
+case "liuyan"
+set rs=server.CreateObject("adodb.recordset")
+	rs.Open "select reply from shopxp_action where dingdan='"&dingdan&"'",conn,1,3
+rs("reply")=request("reply")
+rs.Update
+rs.Close
+ 
+set rs=nothing
+response.write"<SCRIPT language=JavaScript>alert('回复成功！');"
+response.write"javascript:history.go(-1)</SCRIPT>"
+case "save"
+if request("zhuangtai")<>"" then
+	set rs=server.CreateObject("adodb.recordset")
+	rs.Open "select zhuangtai from shopxp_action where dingdan='"&dingdan&"'",conn,1,3
+	do while not rs.EOF
+	old_zhuangtai=rs("zhuangtai")
+		rs("zhuangtai")=request("zhuangtai")
+		rs.Update
+		rs.MoveNext
+	loop
+	rs.Close
+	set rs=nothing
+'conn.execute "update shopxp_action set zhuangtai="&request("zhuangtai")&" where dingdan='"&dingdan&"' "
+end if
+if request("zhuangtai")=4 then
+fhsj=now()
+conn.execute "update shopxp_action set fhsj=date() where dingdan='"&dingdan&"' "
+end if
+
+if cint(request("zhuangtai"))=5 and old_zhuangtai<>5 then
+	jifen=0
+	ifhuyuanka=0
+		set rs2=server.CreateObject("adodb.recordset")
+		rs2.Open "select vipid from shopxp_sys",conn,1,1
+		vipid=rs2("vipid")
+		rs2.close
+		set rs2=nothing
+	set rs=server.CreateObject("adodb.recordset")
+	rs.Open "select productcount,shopxpptid from shopxp_action where dingdan='"&dingdan&"'",conn,1,1
+	while not rs.eof
+		set rs2=server.CreateObject("adodb.recordset")
+		rs2.Open "select shopxpptid,yeshu from shopxp_product where shopxpptid="&rs("shopxpptid"),conn,1,1
+		jifen=jifen+rs("productcount")*rs2("yeshu")
+		rs2.close
+		set rs2=nothing
+		
+		if rs("shopxpptid")=cint(vipid) then 
+			ifhuyuanka=1
+		end if
+		
+		rs.MoveNext
+	wend
+	rs.Close
+	'response.write ifhuyuanka&"'"&vipid
+	'response.end
+	set rs=server.CreateObject("adodb.recordset")
+	rs.Open "select jifen,reglx,vipdate from [Dv_User] where username='"&username&"'",conn,1,3
+	rs("jifen")=rs("jifen")+jifen
+	if ifhuyuanka=1 then 
+		rs("reglx")=2
+		if rs("vipdate")<>"" then 
+		if rs("vipdate")<date then
+		rs("vipdate")=date+365
+		else
+		rs("vipdate")=rs("vipdate")+365
+		end if
+		else
+		rs("vipdate")=date+365
+		end if
+	end if
+	rs.Update
+	rs.Close
+	set rs=nothing
+	
+	if ifhuyuanka=1 then 
+		response.Write "<script language=javascript>alert('订单状态修改成功！客户本次购物获得积分:"&jifen&"，你本次购买了会员卡，恭喜你现在已经成为本站的VIP用户！！');history.go(-1);</script>"
+	else
+		response.Write "<script language=javascript>alert('订单状态修改成功！客户本次购物获得积分:"&jifen&"');history.go(-1);</script>"
+	end if
+else
+	response.Write "<script language=javascript>alert('订单状态修改成功！');history.go(-1);</script>"
+end if
+
+
+case "del"
+'删除时要判断状态，未收到货时要返还积分和库存的
+set rs=server.createobject("adodb.recordset")
+rs.open "select zhuangtai from shopxp_action where dingdan='"&dingdan&"' ",conn,1,1
+if rs("zhuangtai")>7 then
+rs.close
+
+
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select * from shopxp_action where  dingdan='"&dingdan&"'",conn,1,1
+while not rs.eof
+	set rs_s=server.CreateObject("adodb.recordset")
+	rs_s.open "select * from shopxp_product where shopxpptid="&rs("shopxpptid"),conn,1,3
+	rs_s("kucun")=rs_s("kucun")+rs("productcount")
+	rs_s("shopxpcjiao")=rs_s("shopxpcjiao")-rs("productcount")
+	rs_s.update
+	rs_s.close
+	set rs_s=nothing
+rs.movenext
+wend
+rs.close
+
+z_jifen=0
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select * from shopxp_action_jp where  dingdan='"&dingdan&"'",conn,1,1
+while not rs.eof
+z_jifen=z_jifen+rs("jifen")
+rs.movenext
+wend
+rs.close
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select * from [Dv_User] where username='"&request.Cookies("shopxp")("username")&"'",conn,1,3
+rs("jifen")=rs("jifen")+z_jifen
+rs.update
+rs.close
+set rs=nothing
+
+else
+rs.close
+set rs=nothing
+end if
+conn.execute "delete from shopxp_action where dingdan='"&dingdan&"' "
+response.Write "<script language=javascript>alert('订单删除成功！');window.close();window.opener.location.reload();</script>"
+
+end select
+
+%> 
+
+
+
+

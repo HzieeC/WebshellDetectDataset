@@ -1,0 +1,122 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>会员中心</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<script type="text/javascript" src="${ctx }/scripts/js/jquery-1.3.2.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jqPager/jquery.pager.js"></script><!-- 分页 -->
+    <script language="JavaScript" type="text/javascript" src="${ctx}/scripts/front/common/common_pager.js"></script><!-- 分页 -->
+	<script type="text/javascript" src="${ctx}/scripts/front/yhzx.js"></script>
+	
+	<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+	<link href="${ctx }/styles/css/hyzx.css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+<!--
+.STYLE30 {
+	font-size: 16px;
+	font-family: "微软雅黑";
+	color: #FF0000;
+}
+.STYLE31 {
+	color: #0000FF
+}
+.STYLE33 {
+	color: #FF7000;
+	font-weight: bold;
+}
+-->
+</style>
+
+</head>
+<body>
+<div class="kuang_da">
+  <%@ include file="/WEB-INF/page/front/head.jsp" %>
+  <div class="dizhilanda">您现在的位置：<a href="${ctx }/index.do">首页</a> &gt; <a href="#"><strong>会员中心</strong></a></div>
+  <div class="kkda">
+    <div class="xcym_zc">
+      <div class="xcymda">
+        <div class="zxym_ph_bt">会员中心</div>
+        <div class="xcym_xl">
+          <div class="xcym_bt"><a class="" href="#">个人中心</a></div>
+          <div class="xcym_db">
+            <a href="javascript:void(0);" onclick="personInfor()">我的资料</a><br />
+            <a href="javascript:void(0);" onclick="addressInfor()">收货地址</a><br />
+            <a href="javascript:void(0);" onclick="passwordInfor()">修改密码</a><br />
+            <a href="javascript:void(0);" onclick="sendInfor()">发信息</a><br />
+            <a href="javascript:void(0);" onclick="receviedInfor()">收信息</a><br />
+		 </div>
+        </div>
+        <div class="xcym_xl" style="display:none;">
+          <div class="xcym_bt"><a class="" href="#">订单中心</a></div>
+          <div class="xcym_db"><a href="#">我的订单</a><br />
+            <a href="#">在线支付</a><br />
+            <a href="#">我的关注</a><br />
+            <a href="#">价格保护</a><br />
+            <a href="#">神秘促销</a></div>
+        </div>
+        <div class="xcym_xl" style="display:none;">
+          <div class="xcym_bt"><a href="#">客户服务</a></div>
+          <div class="xcym_db"><a href="#">返修/退换货</a><br />
+            <a href="#">退款申请</a><br />
+            <a href="#">我的投诉</a><br />
+            <a href="#">价格举报</a></div>
+        </div>
+        <div class="xcym_xl" style="display:none;">
+          <div class="xcym_bt"><a class="" href="#">社区中心<br />
+            </a></div>
+          <div class="xcym_db"><a href="#">商品评价/晒单</a><br />
+            <a href="#">购买咨询</a><br />
+            <a href="#">推荐有礼</a><br />
+            <a href="#">站内 消息</a>（<span class="STYLE2">0</span>）</div>
+        </div>
+        <div class="xcym_xl" style="display:none;">
+          <div class="xcym_bt"><a class="" href="#">其他系列</a></div>
+          <div class="xcym_db"><a href="#">其他</a><br/>
+            <a href="#">其他</a><br/>
+            <a href="#">其他</a><br/>
+            <a href="#">其他</a><br/>
+            <a href="#">其他</a><br/>
+            <a href="#">其他</a></div>
+        </div>
+      </div>
+      <div class="zxym_ph">
+          <div class="zxym_ph_bt">销售排行</div>
+             <c:forEach items="${goodList}" var="list" begin="0" end="4">
+		        <div class="zxym_ph_db">
+		          <div class="zxym_ph_img"><a href="${ctx }/spxq.do?good.id=${list.id }"><img src="${ctx }/${list.pic }" width="45px" height="60px"/></a></div>
+		          <div class="zxym_ph_wz"><span class="STYLE31"><a class="lj_2" href="${ctx }/spxq.do?good.id=${list.id }">${list.name }</a></span><br />
+		            <span class="STYLE2">￥${list.price }</span></div>
+		        </div>
+             </c:forEach>
+         </div>
+    </div>
+    <div class="zxym_yc">
+        <div style="width: 845px;float: right;height: 700px;">
+  			<iframe src="${ctx}/userManage.do" id="mainFrame" width="100%" scrolling="no" height="100%"  frameborder="0"></iframe>
+        </div>
+      <div class="zxym_da">
+        <div class="zxyc_dh">
+          <div class="zxyc_zz">最近热卖</div>
+        </div>
+        <div class="spyl_zw">
+          <c:forEach items="${goodList}" var="good" begin="5" end="9">
+	          <div class="spyl_bk">
+	            <div class="spyl_img"><a href="${ctx }/spxq.do?good.id=${good.id }"><img src="${ctx }${good.pic }" width="140" height="134" /></a></div>
+	            <div class="spyl_wz"><a href="${ctx }/spxq.do?good.id=${good.id }">${good.name }</a><br />
+	              <span class="STYLE2">￥${good.price }</span> </div>
+	          </div>
+          </c:forEach>
+        </div>
+      </div>
+    </div>
+  </div>
+  <%@ include file="/WEB-INF/page/front/footer.jsp" %>
+</div>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<%
+/* *
+ *功能：担保交易接口接入页
+ *版本：3.2
+ *日期：2011-03-17
+ *说明：
+ *以下代码只是为了方便商户测试而提供的样例代码，商户可以根据自己网站的需要，按照技术文档编写,并非一定要使用该代码。
+ *该代码仅供学习和研究支付宝接口使用，只是提供一个参考。
+
+ *************************注意*****************
+ *如果您在接口集成过程中遇到问题，可以按照下面的途径来解决
+ *1、商户服务中心（https://b.alipay.com/support/helperApply.htm?action=consultationApply），提交申请集成协助，我们会有专业的技术工程师主动联系您协助解决
+ *2、商户帮助中心（http://help.alipay.com/support/232511-16307/0-16307.htm?sh=Y&info_type=9）
+ *3、支付宝论坛（http://club.alipay.com/read-htm-tid-8681712.html）
+ *如果不想使用扩展功能请把扩展功能参数赋空值。
+ * 总金额计算方式是：总金额=price*quantity+logistics_fee+discount。
+ * 建议把price看作为总金额，是物流运费、折扣、购物车中购买商品总额等计算后的最终订单的应付总额。
+ * 建议物流参数只使用一组，根据买家在商户网站中下单时选择的物流类型（快递、平邮、EMS），程序自动识别logistics_type被赋予三个中的一个值
+ * 各家快递公司都属于EXPRESS（快递）的范畴
+ **********************************************
+ */
+%>
+<%@ page language="java" contentType="text/html; charset=UTF-8"	pageEncoding="UTF-8"%>
+<%@ page import="com.alipaydb.services.*"%>
+<%@ page import="com.alipaydb.config.AlipayConfig"%>
+<%@ page import="com.alipaydb.util.*"%>
+<%@ page import="java.util.*"%>
+<%@ page import="com.bizoss.trade.ti_payment.*"%>
+<%@ page import="com.bizoss.trade.ti_orderinfo.*"%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>支付宝担保交易</title>
+	</head>
+	<%    
+		////////////////////////////////////请求参数//////////////////////////////////////
+		
+		//必填参数//
+		 Ti_orderinfoInfo orderinfo = new Ti_orderinfoInfo();
+ 		
+		//请与贵网站订单系统中的唯一订单号匹配
+		String out_trade_no = request.getParameter("dbout_trade_no");
+		
+		//订单名称，显示在支付宝收银台里的“商品名称”里，显示在支付宝的交易管理的“商品名称”的列表里。		
+		String subject ="";
+	  if(request.getParameter("dbreq_pay")==null)
+	  {
+	  	subject= request.getParameter("dbsubject");
+	  }
+	  else
+	  {
+	  	subject= new String(request.getParameter("dbsubject").getBytes("ISO-8859-1"),"UTF-8");
+	  }
+		
+		//订单描述、订单详细、订单备注，显示在支付宝收银台里的“商品描述”里		
+		String body = request.getParameter("dbbody");
+		
+		//订单总金额，显示在支付宝收银台里的“应付总额”里		
+		String price = request.getParameter("dbprice");		
+		
+		//物流费用，即运费。
+		String logistics_fee = request.getParameter("dblogistics_fee");
+		//物流类型，三个值可选：EXPRESS（快递）、POST（平邮）、EMS（EMS）
+		String logistics_type = "EXPRESS";
+		//物流支付方式，两个值可选：SELLER_PAY（卖家承担运费）、BUYER_PAY（买家承担运费）
+		String logistics_payment = "SELLER_PAY";
+		
+		//商品数量，建议默认为1，不改变值，把一次交易看成是一次下订单而非购买一件商品。
+		String quantity = "1";
+		
+		//扩展参数//
+		
+		/**买家收货信息（推荐作为必填）
+		该功能作用在于买家已经在商户网站的下单流程中填过一次收货信息，而不需要买家在支付宝的付款流程中再次填写收货信息。
+		若要使用该功能，请至少保证receive_name、receive_address有值
+		**/
+		String receive_name	= "";			 
+		String receive_address = "";		 
+		String receive_zip = "";				 
+		String receive_phone = "";	 
+		String receive_mobile = "";	 
+		
+		List orderlist = orderinfo.getListByPk(out_trade_no);
+		//获取收货人信息
+		if(orderlist!=null && orderlist.size()>0){
+			Hashtable newsMap = (Hashtable)orderlist.get(0);
+			if(newsMap.get("consignee")!=null && !newsMap.get("consignee").toString().equals("")){
+				receive_name = newsMap.get("consignee").toString();
+			}
+			if(newsMap.get("address")!=null && !newsMap.get("address").toString().equals("")){
+				receive_address = newsMap.get("address").toString();
+			}
+			if(newsMap.get("zip_code")!=null && !newsMap.get("zip_code").toString().equals("")){
+				receive_zip = newsMap.get("zip_code").toString();
+			}
+			if(newsMap.get("tel")!=null && !newsMap.get("tel").toString().equals("")){
+				receive_phone = newsMap.get("tel").toString();
+			}
+			if(newsMap.get("cellphone")!=null && !newsMap.get("cellphone").toString().equals("")){
+				receive_mobile	 = newsMap.get("cellphone").toString();
+			}
+		}
+		else
+		{
+			out.println("没有获取到收货人信息，请检查是否填写收货地址和收货人信息！"+out_trade_no);
+			return;
+		}
+		
+		
+		// 网站商品的展示地址，不允许加?id=123这类自定义参数
+		String show_url = "http://www.8diansp.com";
+		
+		//获取支付宝账号信息
+		String cust_id =request.getParameter("dbcust_id");
+		 
+		Map params=new Hashtable();
+		params.put("cust_id",cust_id);
+		params.put("pay_code","alipay");
+		 
+		Map alipayMap = new Ti_paymentInfo().getCustAlipayInfo(params);
+	 
+		String partner="",key="",seller_email="";
+		if(alipayMap!=null){
+			partner = alipayMap.get("pay_account").toString();
+			key = alipayMap.get("passwd").toString();
+			seller_email = alipayMap.get("pay_email").toString();
+		}
+		else
+		{
+			out.println("卖家支付宝帐号异常，支付失败，请联系管理员！");
+			return;
+		}
+		AlipayConfig.partner=partner;
+		AlipayConfig.key=key;
+		AlipayConfig.seller_email=seller_email;
+		 
+	  
+		//把请求参数打包成数组
+		Map<String, String> sParaTemp = new Hashtable<String, String>();
+		sParaTemp.put("payment_type","1");
+		sParaTemp.put("show_url", show_url);
+		sParaTemp.put("out_trade_no", out_trade_no);
+		sParaTemp.put("subject", subject);
+		sParaTemp.put("body", body);
+		sParaTemp.put("price", "0.01");
+		sParaTemp.put("logistics_fee", logistics_fee);
+		sParaTemp.put("logistics_type", logistics_type);
+		sParaTemp.put("logistics_payment", logistics_payment);
+		sParaTemp.put("quantity", quantity);
+		sParaTemp.put("receive_name", receive_name);
+		sParaTemp.put("receive_address", receive_address);
+		sParaTemp.put("receive_zip", receive_zip);
+		sParaTemp.put("receive_phone", receive_phone);
+		sParaTemp.put("receive_mobile", receive_mobile);		
+		sParaTemp.put("partner", partner);
+    sParaTemp.put("return_url",AlipayConfig.return_url);
+    sParaTemp.put("notify_url",AlipayConfig.notify_url);
+    sParaTemp.put("seller_email", seller_email);
+    sParaTemp.put("_input_charset","utf-8");
+		
+		//构造函数，生成请求URL
+		
+		String sHtmlText = AlipayService.create_partner_trade_by_buyer(sParaTemp);
+		out.println(sHtmlText);
+	%>
+	<body>
+	</body>
+</html>

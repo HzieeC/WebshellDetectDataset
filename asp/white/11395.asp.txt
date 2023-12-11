@@ -1,0 +1,240 @@
+<!--#include file="../my/UserChk.asp"-->
+<!--#include file="../INC/incuser.asp"-->
+<%
+if Request.form("FormOrder") then
+	TourID = Request.Form("TourID")
+	OrderNumber = Request.Form("OrderNumber")
+	InDate = ReplaceBadChar(Request.Form("InDate"))
+	OutDate = ReplaceBadChar(Request.Form("OutDate"))
+	AdultNum = Request.Form("AdultNum")
+	ChildNum = Request.Form("ChildNum")
+	
+	AdultPeople = ReplaceBadChar(Request.Form("AdultPeople"))
+	AdultCardType = ReplaceBadChar(Request.Form("AdultCardType"))
+	AdultCardID = ReplaceBadChar(Request.Form("AdultCardID"))
+	
+	ChildPeople = ReplaceBadChar(Request.Form("ChildPeople"))
+	ChildCardID = ReplaceBadChar(Request.Form("ChildCardID"))
+	
+	UserTrueName = ReplaceBadChar(Request.Form("UserTrueName"))
+	UserMobile = ReplaceBadChar(Request.Form("UserMobile"))
+	UserTel = ReplaceBadChar(Request.Form("UserTel"))
+	UserEmail = ReplaceBadChar(Request.Form("UserEmail"))
+	UserMassage = ReplaceBadChar(Request.Form("UserMassage"))
+
+	UserIP = GetUserIP()
+	
+	if InDate = "" then
+		Founderr = True
+		ErrMsg = "<LI>出发日期不能为空！</LI>"
+	end if
+	if not CheckInteger(AdultNum) then
+		Founderr = True
+		ErrMsg = ErrMsg &"<LI>成人人数必须是整数！</LI>"
+	end if
+	if UserTrueName = "" then
+		Founderr = True
+		ErrMsg = ErrMsg &"<LI>联系人姓名不能为空！</LI>"
+	end if
+	if UserMobile = "" then
+		Founderr = True
+		ErrMsg = ErrMsg &"<LI>联系人手机号码不能为空！</LI>"
+	end if
+	If Founderr Then
+		Call WriteErrMsg()
+		Response.End()
+	End If
+	
+	PriceAdult = 0
+	PriceChild = 0
+	sql2="select PriceAdult, PriceChild from Pulb_TourRoute where ID="&TourID
+	set rs2=server.createobject("adodb.recordset")
+	rs2.open sql2,Conn,1,1
+	if not rs2.eof then
+		PriceAdult = rs2(0)
+		PriceChild = rs2(1)
+	end if
+	rs2.close
+	set rs2=nothing
+	OrderPrice = PriceAdult * Cint(AdultNum) + PriceChild * Cint(ChildNum)
+
+	sql="select * from Pulb_Order where OrderNumber='"&OrderNumber&"'"
+	set rs=server.createobject("adodb.recordset")
+	rs.open sql,Conn,1,1
+	if not rs.eof then
+		Founderr = True
+		ErrMsg = "<LI>请不要重复提交订单！</LI>"
+	end if
+	rs.close
+	If Founderr Then
+		set rs=nothing
+		CloseDB
+		Call WriteErrMsg()
+		Response.End()
+	End If
+	
+	sql="select * from Pulb_Order"
+	rs.open sql,Conn,1,3
+	rs.addnew
+	rs("OrderNumber") = OrderNumber
+	rs("UID") = UID
+	rs("OrderMoney") = OrderPrice
+    rs("UserTrueName") = UserTrueName
+	rs("UserTel") = UserTel
+	rs("UserMobile") = UserMobile
+	rs("UserEmail") = UserEmail
+	rs("UserMassage") = UserMassage
+	rs("UserIP") = UserIP
+	rs("OrderTime") = now()
+	rs.update
+	rs.close
+	
+	sql="select * from Pulb_OrderTour"
+	rs.open sql,Conn,1,3
+	rs.addnew
+	rs("OrderNumber") = OrderNumber
+	rs("TourID") = TourID
+	rs("InDate") = InDate
+	rs("OutDate") = OutDate
+    rs("AdultNum") = AdultNum
+	rs("ChildNum") = ChildNum
+	rs("AdultPeople") = AdultPeople
+	rs("AdultCardType") = AdultCardType
+	rs("AdultCardID") = AdultCardID
+	rs("ChildPeople") = ChildPeople
+	rs("ChildCardID") = ChildCardID
+	rs.update
+	rs.close
+	set rs=nothing
+	CloseDB
+	response.Redirect "orderok.asp?oid="&OrderNumber
+end if
+
+OrderNumber = ReplaceBadChar(Request.QueryString("oid"))
+if OrderNumber = "" then
+	ErrMsg = "<LI>订单号不能为空！</LI>"
+	Call WriteErrMsg()
+	Response.End()
+end if
+
+sql="select O.StateID, O.OrderMoney, O.CouponMoney, O.Score, T.TourID, T.InDate, T.AdultNum, T.ChildNum from Pulb_Order O, Pulb_OrderTour T where O.OrderNumber=T.OrderNumber and O.OrderNumber='"&OrderNumber&"'"
+set rs=server.createobject("adodb.recordset")
+rs.open sql,Conn,1,1
+if not rs.eof then
+	StateID = rs(0)
+	OrderMoney = rs(1)
+	CouponMoney = rs(2)
+	TourID = rs(4)
+	InDate = rs(5)
+	AdultNum = rs(6)
+	ChildNum = rs(7)
+else
+	Founderr = True
+	ErrMsg = "<LI>没有找到操作对象！</LI>"
+end if
+rs.close
+set rs=nothing
+If Founderr Then
+	CloseDB
+	Call WriteErrMsg()
+	Response.End()
+End If
+if TourID > 0 then
+	sql="select * from Pulb_TourRoute where IsShow and ID="&TourID
+	set rs=server.createobject("adodb.recordset")
+	rs.open sql,Conn,1,1
+	if not rs.eof then
+		ClassID = rs("ClassID")
+		Title = rs("Title")
+		TourDays = rs("TourDays")
+		CityFrom = rs("CityFrom")
+		CityTo = rs("CityTo")
+		PriceAdultDefault = rs("PriceAdult")
+		PriceChildDefault = rs("PriceChild")
+		Schedule = rs("Schedule")
+		PriceExplain = rs("PriceExplain")
+		TopReason = rs("TopReason")
+	else
+		Founderr = True
+		ErrMsg = "<LI>没有找到操作对象！</LI>"
+	end if
+	rs.close
+	set rs=nothing
+	If Founderr Then
+		Call WriteErrMsg()
+		Response.End()
+	End If
+end if
+
+CurrentPage = "<A href='content.asp?id="&TourID&"'>"& Title &"</a> -> 预订：订单提交成功"
+%><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>订单提交成功-<%=SystemInfo(1)%></title>
+<link rel="stylesheet" href="/css/main.css" type="text/css">
+<script language="javascript" src="/js/jquery-1.4.js"></script>
+<script language="javascript" src="/js/base.js"></script>
+<script language="javascript" src="/js/site.source.js"></script>
+</head>
+
+<body>
+<%=FunHeader()%>
+<div class="main">
+	<div class='body'>
+		<%if StateID = 0 then
+			ClassName = "step3"
+		elseif StateID = 1 then
+			ClassName = "step3"
+		elseif StateID = 2 then
+			ClassName = "step3"
+		elseif StateID = 3 then
+			ClassName = "step4"
+		elseif StateID = 4 then
+			ClassName = "step5"
+		end if
+		%><div class="h_step <%=ClassName%>"></div>
+	</div>
+	<div class='body'>
+		<div class="orderb">
+			<div class="orderok">
+				<h3>订单号：<span style="color:red; font-size:16px"><%=OrderNumber%></span>　订单已提交成功！</h3>
+				<table width="500" border="0" cellspacing="0" cellpadding="0" class="pay_table tabborder2">
+					<TR>
+					<TD width="20%" align="right">订单号：</TD>
+					<TD width="80%"><%=OrderNumber%></TD>
+					</TR>
+					<TR>
+					<TD align="right">订单状态：</TD>
+					<TD><%=GetOrderState(StateID)%><%if StateID = 3 then response.Write "　<a href='/pay/order.asp?oid="&OrderNumber&"'>请付款</a>"%></TD>
+					</TR>
+					<TR>
+					<TD align="right">订单金额：</TD>
+					<TD><b><span class="price_s"><em>&yen;</em><font><%=OrderMoney+CouponMoney%></font></span></b></TD>
+					</TR>
+					<TR>
+					<TD align="right">预订线路：</TD>
+					<TD><%=Title%></TD>
+					</TR>
+					<TR>
+					<TD align="right">出发日期：</TD>
+					<TD><%=InDate%></TD>
+					</TR>
+					<TR>
+					<TD align="right">游玩人数：</TD>
+					<TD>成人：<%=AdultNum%>人　儿童：<%=ChildNum%>人</TD>
+					</TR>
+				</TABLE>
+				<UL>
+					<LI>我们将尽快确认您的预订，如有其它疑问，请致电我们，我们将竭诚为您服务！</LI>
+					<LI>如果您所填写的手机号码或游玩人信息有误，此订单将被自动取消！</LI>
+					<LI><a href="/my/ordertour.asp">进入会员中心>></a></LI>
+				</UL>
+			</div>
+		</div>
+	</div>
+</div>
+<%=FunFooter(0)%>
+<%CloseDB%>
+</body>
+</html>

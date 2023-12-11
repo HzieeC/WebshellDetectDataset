@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<script src="${contextPath}/static/jqtrans/jquery.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+<title></title>
+</head>
+<body>
+<div id="joinExamHidden" style="display:none"></div>
+<div class="userInfo">
+	<h1><fmt:message key="openmailfunction"/></h1>
+
+	<div class="Btn">
+		<div id="radio">
+    <input type="radio" id="radio1" name="radio"  /><label for="radio1"><fmt:message key="openmail"/></label>
+    <input type="radio" id="radio2" name="radio" checked="checked"/><label for="radio2"><fmt:message key="closemail"/></label>
+  </div>
+	</div>
+	
+<form id="mailSetting" >
+<div style="display:none" id="mail">
+		<table class="yTable1 margintop"width="50% !important">
+				<tr >
+					<th >STMP服务器:</th>
+					<td><input name="name" id="name" type="text" class="inputbox" noadd="yes" value="stmp.ricesoft.com"/></td>
+					<th>端口号:</th>
+					<td><input name="name" id="name" type="text" class="inputbox" noadd="yes" value="80" size="10"/></td>
+					<th >默认发件人:</th>
+					<td><input name="name" id="name" type="text" class="inputbox" noadd="yes" value="admin@ricesoft.com"/></td>
+				</tr>
+				<tr >
+					<th >账号:</th>
+					<td><input name="name" id="name" type="text" class="inputbox" noadd="yes" value="admin"/></td>
+					<th>密码:</th>
+					<td><input name="name" id="name" type="text" class="inputbox" noadd="yes" value="admin" size="10"/></td>
+					
+				</tr>
+			
+		</table>
+	</div>
+		<div class="sp-blue mb10">&nbsp;</div>
+		<div class="Btn">
+		<input type="button"  value="<fmt:message key="save"/>" id="save"/>
+	
+		</div>
+</form></div>
+
+<script type="text/javascript">
+  seajs.use("${scriptBasePath}/mail/index.js");
+</script>
+</body>
+</html>

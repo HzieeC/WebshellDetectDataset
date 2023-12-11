@@ -1,0 +1,171 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_inquiry.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Map  ti_inquiry = new Hashtable();
+	String s_title = "";
+	if(request.getParameter("search_name")!=null && !request.getParameter("search_name").equals("")){
+		s_title = request.getParameter("search_name");
+		ti_inquiry.put("goods_name",s_title);
+	}
+	Ti_inquiryInfo ti_inquiryInfo = new Ti_inquiryInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_inquiryInfo.getListByPage(ti_inquiry,Integer.parseInt(iStart),limit);
+	int counter = ti_inquiryInfo.getCountByObj(ti_inquiry);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?search_name="+s_title+"&iStart=",Integer.parseInt(iStart),limit);
+%>
+<html>
+  <head>
+    
+    <title>供应询价</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="inquiry.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>供应询价</h1>
+			</td>
+			<td>
+				<!--<a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a>-->
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	
+	<!--
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>-----------------</h4>
+		  <span>1----------------。</span><br/>
+		  <span>2----------------。</span>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+	  -->
+	  
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+			按产品标题：<input name="search_name" id="search_name" type="text" />
+				
+				<input name="searchInfo" type="button" value="搜索" onclick="searchForm()"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			
+		  	<th>产品</th>
+		  	
+		  	<th>咨询标题</th>
+		  	
+		  	<th>产品总量</th>
+		  	
+		  	<th>所报价格</th>
+			
+			<th>询价时间</th>
+		  	
+			<th width="12%">查看/回复</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String trade_id="",info_id="",title="",order_num="",goods_name="",req_price="",in_date="";
+		  			  	if(map.get("trade_id")!=null) trade_id = map.get("trade_id").toString();
+						if(map.get("info_id")!=null) info_id = map.get("info_id").toString();
+						if(map.get("title")!=null) title = map.get("title").toString();
+						if(map.get("order_num")!=null) order_num = map.get("order_num").toString();
+						if(map.get("req_price")!=null) req_price = map.get("req_price").toString();
+						if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+						if(in_date.length()>19)in_date=in_date.substring(0,19);
+						if(map.get("goods_name")!=null) goods_name = map.get("goods_name").toString();
+
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=trade_id %>" /></td>
+			
+		  	<td><%=goods_name%></td>
+		  	
+		  	<td><%=title%></td>
+		  	
+		  	<td><%=order_num%></td>
+		  	
+		  	<td><%=req_price%></td>
+			
+			<td><%=in_date%></td>
+		  	
+			<td width="10%"><a href="updateInfo.jsp?trade_id=<%=trade_id %>"><img src="/program/admin/images/edit.gif" title="修改" /></a></td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=trade_id%>','2486');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计：<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="2486" />
+	  </form>
+</body>
+
+</html>

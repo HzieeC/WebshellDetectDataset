@@ -1,0 +1,85 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=gb2312" />
+<head>
+<style>
+a.addfile{background:url(../images/others/addfile.gif) no-repeat;display:block;float:left;height:20px;margin-top:-1px;position:relative;text-decoration:none;top:0pt;width:80px;cursor:pointer;}
+input.addfile{cursor:pointer;height:20px;left:-13px;position:absolute;top:5px;width:1px;filter:alpha(opacity=0);opacity:0;}
+#dv_fileinput_list{font-size:12px;font-family:verdana;}
+</style>
+<script language="javascript">
+<!--
+var DvFileInput={
+	$:function(d){return document.getElementById(d);},
+	isFF:function(){var a=navigator.userAgent;return a.indexOf('Gecko')!=-1&&!(a.indexOf('KHTML')>-1||a.indexOf('Konqueror')>-1||a.indexOf('AppleWebKit')>-1);},
+	ae:function(o,t,h){if (o.addEventListener){o.addEventListener(t,h,false);}else if(o.attachEvent){o.attachEvent('on'+t,h);}else{try{o['on'+t]=h;}catch(e){;}}},
+	count:0,
+	add:function(){
+		var o=DvFileInput.$('dv_fileinput_'+DvFileInput.count);
+		++DvFileInput.count;
+		var oInput=document.createElement('input');
+		oInput.type='file';
+		oInput.id='dv_fileinput_'+DvFileInput.count;
+		oInput.name='dv_fileinput_'+DvFileInput.count;
+		oInput.size=1;
+		oInput.className='addfile';
+		DvFileInput.ae(oInput,'change',function(){DvFileInput.add();});
+		o.parentNode.insertBefore(oInput,o);
+		o.blur();
+		o.style.display='none';
+		DvFileInput.show();
+	},
+	filename:function(u){
+		var p=u.lastIndexOf('\\');
+		return (p==-1?u:u.substr(p+1));
+	},
+	show:function(){
+		var oDiv=document.createElement('div');
+		var oBtn=document.createElement('input');
+		oBtn.id='dv_fileinput_btn_'+(DvFileInput.count-1);
+        oBtn.type='button';
+        oBtn.value='删除';
+		oDiv.style.font='normal 12px verdana';
+		var o=DvFileInput.$('dv_fileinput_'+(DvFileInput.count-1));
+		DvFileInput.ae(oBtn,'click',function(){
+			DvFileInput.$('dv_fileinput_'+(DvFileInput.count-1)).disabled=true;
+			oBtn.parentNode.parentNode.removeChild(oBtn.parentNode);
+        });
+        oDiv.innerHTML=DvFileInput.filename(o.value);
+        oDiv.appendChild(oBtn);
+        DvFileInput.$('dv_fileinput_show').appendChild(oDiv);
+	},
+	init:function(){
+		var a=document;
+		a.writeln('<div id="dv_fileinput_formarea"><a href="javascript:;" class="addfile"><input id="dv_fileinput_0" name="dv_fileinput_0" class="addfile" size="1" type="file" onchange="DvFileInput.add();");></a><br/><div id="dv_fileinput_list"></div><div id="dv_fileinput_show"></div><input type="button" onclick="DvFileInput.send()" value="上传" /></div>');
+	},
+	send:function(){
+		var f=document.createElement("form");
+		var o=DvFileInput.$('dv_fileinput_formarea');
+		o.appendChild(f);
+		var hiddenIframe=document.createElement("iframe");
+		hiddenIframe.src="about:blank";
+		hiddenIframe.name="aaa";
+		hiddenIframe.id="aaa";
+		hiddenIframe.width="300";
+		hiddenIframe.height="200";
+		hiddenIframe.frameborder="1";
+		f.appendChild(hiddenIframe);
+		f.action="post_upload.asp?t=1&boardid=3";
+		f.target="aaa";
+		f.method="post";
+		f.enctype="multipart/form-data";
+		setTimeout(function(){f.submit();},1000);
+	}
+};
+//-->
+</script>
+</head>
+<body>
+<script language="javascript">
+<!--
+DvFileInput.init();	
+//-->
+</script>
+</body>
+</html>

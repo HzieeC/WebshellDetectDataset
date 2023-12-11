@@ -1,0 +1,390 @@
+﻿<%
+''' 风声 Asp 无组件上传类 v2.11 Sdcms 修改版
+''' ==================================================================
+''' 版权所有 http://www.fonshen.com
+''' ------------------------------------------------------------------
+''' ==================================================================
+''' 修改：IT平民 in 2012.05
+class sdcms_upload
+
+	private m_totalsize,m_maxsize,m_filetype,m_savepath,m_autosave,m_error,m_charset
+	private m_dicform,m_binform,m_binitem,m_strdate,m_lngtime
+	public	formitem,fileitem
+
+	public property get version
+		version="fonshen asp uploadclass version 2.11"
+	end property
+
+	public property get error
+		error=m_error
+	end property
+
+	public property get charset
+		charset=m_charset
+	end property
+	public property let charset(strcharset)
+		m_charset=strcharset
+	end property
+
+	public property get totalsize
+		totalsize=m_totalsize
+	end property
+	public property let totalsize(lngsize)
+		if isnumeric(lngsize) then m_totalsize=clng(lngsize)
+	end property
+
+	public property get maxsize
+		maxsize=m_maxsize
+	end property
+	public property let maxsize(lngsize)
+		if isnumeric(lngsize) then m_maxsize=clng(lngsize)
+	end property
+
+	public property get filetype
+		filetype=m_filetype
+	end property
+	public property let filetype(strtype)
+		m_filetype=strtype
+	end property
+
+	public property get savepath
+		savepath=m_savepath
+	end property
+	public property let savepath(strpath)
+		m_savepath=replace(strpath,chr(0),"")
+	end property
+
+	public property get autosave
+		autosave=m_autosave
+	end property
+	public property let autosave(byval flag)
+		select case flag
+			case 0,1,2: m_autosave=flag
+		end select
+	end property
+
+	private sub class_initialize
+		m_error	   = -1
+		m_charset  = "utf-8"
+		m_totalsize= 0
+		m_maxsize  = 153600
+		m_filetype = "jpg|gif|doc"
+		m_savepath = ""
+		m_autosave = 0
+		dim dtmnow : dtmnow = date()
+		m_strdate  = year(dtmnow)&right("0"&month(dtmnow),2)&right("0"&day(dtmnow),2)
+		m_lngtime  = clng(timer()*1000)
+		set m_binform = server.createobject("adodb.stream")
+		set m_binitem = server.createobject("adodb.stream")
+		set m_dicform = server.createobject("scripting.dictionary")
+		m_dicform.comparemode = 1
+	end sub
+
+	private sub class_terminate
+		m_dicform.removeall
+		set m_dicform = nothing
+		set m_binitem = nothing
+		m_binform.close()
+		set m_binform = nothing
+	end sub
+
+	public function open()
+		open = 0
+		if m_error=-1 then
+			m_error=0
+		else
+			exit function
+		end if
+		dim lngrequestsize : lngrequestsize=request.totalbytes
+		if m_totalsize>0 and lngrequestsize>m_totalsize then
+			m_error=5
+			exit function
+		elseif lngrequestsize<1 then
+			m_error=4
+			exit function
+		end if
+
+		dim lngchunkbyte : lngchunkbyte = 102400
+		dim lngreadsize : lngreadsize = 0
+		m_binform.type = 1
+		m_binform.open()
+		do
+			m_binform.write request.binaryread(lngchunkbyte)
+			lngreadsize=lngreadsize+lngchunkbyte
+			if  lngreadsize >= lngrequestsize then exit do
+		loop		
+		m_binform.position=0
+		dim binrequestdata : binrequestdata=m_binform.read()
+
+		dim bcrlf,strseparator,intseparator
+		bcrlf=chrb(13)&chrb(10)
+		intseparator=instrb(1,binrequestdata,bcrlf)-1
+		strseparator=leftb(binrequestdata,intseparator)
+
+		dim stritem,strinam,strftyp,strpuri,strfnam,strfext,lngfsiz
+		const strsplit="'"">"
+		dim strformitem,strfileitem,inttemp,strtemp
+		dim p_start : p_start=intseparator+2
+		dim p_end
+		do
+			p_end = instrb(p_start,binrequestdata,bcrlf&bcrlf)-1
+			m_binitem.type=1
+			m_binitem.open()
+			m_binform.position=p_start
+			m_binform.copyto m_binitem,p_end-p_start
+			m_binitem.position=0
+			m_binitem.type=2
+			m_binitem.charset=m_charset
+			stritem = m_binitem.readtext()
+			m_binitem.close()
+			inttemp=instr(39,stritem,"""")
+			strinam=mid(stritem,39,inttemp-39)
+
+			p_start = p_end + 4
+			p_end = instrb(p_start,binrequestdata,strseparator)-1
+			m_binitem.type=1
+			m_binitem.open()
+			m_binform.position=p_start
+			lngfsiz=p_end-p_start-2
+			m_binform.copyto m_binitem,lngfsiz
+
+			if instr(inttemp,stritem,"filename=""")<>0 then
+			if not m_dicform.exists(strinam&"_from") then
+				strfileitem=strfileitem&strsplit&strinam
+				if m_binitem.size<>0 then
+					inttemp=inttemp+13
+					strftyp=mid(stritem,instr(inttemp,stritem,"content-type: ")+14)
+					strpuri=mid(stritem,inttemp,instr(inttemp,stritem,"""")-inttemp)
+					inttemp=instrrev(strpuri,"\")
+					strfnam=mid(strpuri,inttemp+1)
+					m_dicform.add strinam&"_type",strftyp
+					m_dicform.add strinam&"_name",strfnam
+					m_dicform.add strinam&"_path",left(strpuri,inttemp)
+					m_dicform.add strinam&"_size",lngfsiz
+					if instr(strfnam,".")<>0 then
+						strfext=mid(strfnam,instrrev(strfnam,".")+1)
+					else
+						strfext=""
+					end if
+
+					select case strftyp
+					case "image/jpeg","image/pjpeg","image/jpg"
+						if lcase(strfext)<>"jpg" then strfext="jpg"
+						m_binitem.position=3
+						do while not m_binitem.eos
+							do
+								inttemp = ascb(m_binitem.read(1))
+							loop while inttemp = 255 and not m_binitem.eos
+							if inttemp < 192 or inttemp > 195 then
+								m_binitem.read(bin2val(m_binitem.read(2))-2)
+							else
+								exit do
+							end if
+							do
+								inttemp = ascb(m_binitem.read(1))
+							loop while inttemp < 255 and not m_binitem.eos
+						loop
+						m_binitem.read(3)
+						m_dicform.add strinam&"_height",bin2val(m_binitem.read(2))
+						m_dicform.add strinam&"_width",bin2val(m_binitem.read(2))
+					case "image/gif"
+						if lcase(strfext)<>"gif" then strfext="gif"
+						m_binitem.position=6
+						m_dicform.add strinam&"_width",binval2(m_binitem.read(2))
+						m_dicform.add strinam&"_height",binval2(m_binitem.read(2))
+					case "image/png"
+						if lcase(strfext)<>"png" then strfext="png"
+						m_binitem.position=18
+						m_dicform.add strinam&"_width",bin2val(m_binitem.read(2))
+						m_binitem.read(2)
+						m_dicform.add strinam&"_height",bin2val(m_binitem.read(2))
+					case "image/bmp"
+						if lcase(strfext)<>"bmp" then strfext="bmp"
+						m_binitem.position=18
+						m_dicform.add strinam&"_width",binval2(m_binitem.read(4))
+						m_dicform.add strinam&"_height",binval2(m_binitem.read(4))
+					case "application/x-shockwave-flash"
+						if lcase(strfext)<>"swf" then strfext="swf"
+						m_binitem.position=0
+						if ascb(m_binitem.read(1))=70 then
+							m_binitem.position=8
+							strtemp = num2str(ascb(m_binitem.read(1)), 2 ,8)
+							inttemp = str2num(left(strtemp, 5), 2)
+							strtemp = mid(strtemp, 6)
+							while (len(strtemp) < inttemp * 4)
+								strtemp = strtemp & num2str(ascb(m_binitem.read(1)), 2 ,8)
+							wend
+							m_dicform.add strinam&"_width", int(abs(str2num(mid(strtemp, inttemp + 1, inttemp), 2) - str2num(mid(strtemp, 1, inttemp), 2)) / 20)
+							m_dicform.add strinam&"_height",int(abs(str2num(mid(strtemp, 3 * inttemp + 1, inttemp), 2) - str2num(mid(strtemp, 2 * inttemp + 1, inttemp), 2)) / 20)
+						end if
+					end select
+
+					m_dicform.add strinam&"_ext",strfext
+					m_dicform.add strinam&"_from",p_start
+					if m_autosave<>2 then
+						if not checkext(strfext) then
+							m_dicform.add strinam&"_err",5
+							exit function
+						end if
+						inttemp=getferr(lngfsiz,strfext)
+						m_dicform.add strinam&"_err",inttemp
+						if inttemp=0 then
+							if m_autosave=0 then
+								strfnam=gettimestr()
+								if strfext<>"" then strfnam=strfnam&"."&strfext
+							end if
+							m_binitem.savetofile server.mappath(m_savepath&strfnam),2
+							m_dicform.add strinam,strfnam
+						end if
+					end if
+				else
+					m_dicform.add strinam&"_err",-1
+				end if
+			end if
+			else
+				m_binitem.position=0
+				m_binitem.type=2
+				m_binitem.charset=m_charset
+				strtemp=m_binitem.readtext
+				if m_dicform.exists(strinam) then
+					m_dicform(strinam) = m_dicform(strinam)&","&strtemp
+				else
+					strformitem=strformitem&strsplit&strinam
+					m_dicform.add strinam,strtemp
+				end if
+			end if
+
+			m_binitem.close()
+			p_start = p_end+intseparator+2
+		loop until p_start+3>lngrequestsize
+		formitem=split(strformitem,strsplit)
+		fileitem=split(strfileitem,strsplit)
+		
+		open = lngrequestsize
+	end function
+
+	private function gettimestr()
+		m_lngtime=m_lngtime+1
+		gettimestr=m_strdate&right("00000000"&m_lngtime,8)
+	end function
+	
+	private function checkext(ext)
+		if trim(ext)="" then
+			checkext=false
+			exit function
+		end if
+		dim noallowext:noallowext="asp|aspx|jsp|asa|vbs|exe|cer|cdx|htw|ida|idq|printer|cgi|php|php4|cfm|htr|phtml|bat|ashx"
+		checkext=not cbool(instr(1,"|"&noallowext&"|",lcase("|"&ext&"|")))
+	end function
+
+	private function getferr(lngfsiz,strfext)
+		dim intferr
+		intferr=0
+		if lngfsiz/1024>m_maxsize and m_maxsize>0 then
+			if m_error=0 or m_error=2 then m_error=m_error+1
+			intferr=intferr+1
+		end if
+		if instr(1,lcase("|"&m_filetype&"|"),lcase("|"&strfext&"|"))=0 and m_filetype<>"" then
+			if m_error<2 then m_error=m_error+2
+			intferr=intferr+2
+		end if
+		getferr=intferr
+	end function
+
+	public function save(item,strfnam)
+		save=false
+		if m_dicform.exists(item&"_from") then
+			dim intferr,strfext
+			strfext=m_dicform(item&"_ext")
+			if not checkext(strfext) then
+				m_dicform.add item&"_err",5
+				exit function
+			end if
+			intferr=getferr(m_dicform(item&"_size"),strfext)
+			if m_dicform.exists(item&"_err") then
+				if intferr=0 then
+					m_dicform(item&"_err")=0
+				end if
+			else
+				m_dicform.add item&"_err",intferr
+			end if
+			if intferr<>0 then exit function
+			if vartype(strfnam)=2 then
+				select case strfnam
+					case 0:strfnam=gettimestr()
+						if strfext<>"" then strfnam=strfnam&"."&strfext
+					case 1:strfnam=m_dicform(item&"_name")
+				end select
+			end if
+			m_binitem.type = 1
+			m_binitem.open
+			m_binform.position = m_dicform(item&"_from")
+			m_binform.copyto m_binitem,m_dicform(item&"_size")
+			m_binitem.savetofile server.mappath(m_savepath&strfnam),2
+			m_binitem.close()
+			if m_dicform.exists(item) then
+				m_dicform(item)=strfnam
+			else
+				m_dicform.add item,strfnam
+			end if
+			save=true
+		end if
+	end function
+
+	public function getdata(item)
+		getdata=""
+		if m_dicform.exists(item&"_from") then
+			if getferr(m_dicform(item&"_size"),m_dicform(item&"_ext"))<>0 then exit function
+			m_binform.position = m_dicform(item&"_from")
+			getdata = m_binform.read(m_dicform(item&"_size"))
+		end if
+	end function
+
+	public function form(item)
+		if m_dicform.exists(item) then
+			form=m_dicform(item)
+		else
+			form=""
+		end if
+	end function
+
+	private function binval2(bin)
+		dim lngvalue,i
+		lngvalue=0
+		for i = lenb(bin) to 1 step -1
+			lngvalue = lngvalue *256 + ascb(midb(bin,i,1))
+		next
+		binval2=lngvalue
+	end function
+
+	private function bin2val(bin)
+		dim lngvalue,i
+		lngvalue=0
+		for i = 1 to lenb(bin)
+			lngvalue = lngvalue *256 + ascb(midb(bin,i,1))
+		next
+		bin2val=lngvalue
+	end function
+
+	private function num2str(num, base, lens)
+		dim ret,i
+		ret = ""
+		while(num >= base)
+			i   = num mod base
+			ret = i & ret
+			num = (num - i) / base
+		wend
+		num2str = right(string(lens, "0") & num & ret, lens)
+	end function
+
+	private function str2num(str, base)
+		dim ret, i
+		ret = 0 
+		for i = 1 to len(str)
+			ret = ret * base + cint(mid(str, i, 1))
+		next
+		str2num = ret
+	end function
+
+end class
+%>

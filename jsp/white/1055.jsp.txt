@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<%@ page import="java.util.ArrayList,javaBean.BeanGuestBook,connections.DaoGuestBook,java.util.ArrayList"%>
+<%@ page contentType="text/html; charset=GBK" %>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>留言列表 - MianFeiZhe内容管理系统</title>
+<meta name="description" content="MianFeiZhe内容管理系统">
+<meta name="keywords" content="留言列表 ,MianFeiZhe网站管理系统">
+<meta name="MSSmartTagsPreventParsing" content="TRUE">
+<meta http-equiv="MSThemeCompatible" content="Yes">
+<link href="<%=url%>/skin/default/style.css" rel="stylesheet" type="text/css">
+<script language="JavaScript" type="text/javascript" src="/inc/main.js"></script>
+</head>
+<body>
+<div style="position:absolute;top:0px;left:20px;">
+<div class="globalBody">
+  <table border="0" align="center" cellpadding="0" cellspacing="0" class="tableborder">
+    <tr>
+      <td class="masthead">
+        <div class="siteLogo"><a href="<%=url%>"><img src="<%=url%>/images/logo.jpg" width="180" height="60" border="0"></a></div>
+        <div class="bannerad"><script language="JavaScript" type="text/javascript" src="/adfile/banner.js"></script></div>
+        <div class="mastheadLinks">
+          <ul>
+            <li><img src="<%=url%>/skin/default/top_home.gif" border="0"> <a onclick="this.style.behavior='url(#default#homepage)';this.sethomepage('http://www.mianfeizhe.com');return false;" href="http://www.mianfeizhe.com" title="将本站设为你的首页">设为首页</a></li>
+            <li><img src="<%=url%>/skin/default/top_gift.gif" border="0"> <a href="javascript:window.external.AddFavorite(location.href,document.title)" title="将本站加入到你的收藏夹">加入收藏</a></li>
+            <li><img src="<%=url%>/skin/default/top_mail.gif" border="0"> <a href="mailto:83439123@qq.com">联系我们</a></li>
+          </ul>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="siteCatalog">
+        <div class="siteNav1">网站栏目</div>
+      </td>
+    </tr>
+
+    
+  </table>
+</div>
+
+<div class="globalBody">
+<table border="0" align="center" cellpadding="0" cellspacing="0" class="tableborder">
+  <tr height='35'>
+    <td width="15%"><a href='write.jsp'><img src='<%=url%>/guestbook/images/post1.gif' width=99 height=25 border=0 alt="签写留言"></a></td>
+    <td width="10%" align="center"></td>
+    <td width="60%"></td>
+  </tr>
+</table>
+<table border="0" align="center" cellpadding="0" cellspacing="0" class="tableborder">
+	<tr valign="top">
+		<td><!--留言列表 Begin-->
+
+			<%
+				DaoGuestBook dao=new DaoGuestBook();
+				ArrayList alist=new ArrayList();
+				String sql="select * from GuestBook where auditing=1";
+				alist=dao.getGBook(sql);
+				BeanGuestBook bean=null;
+				for(int i=0;i<alist.size();i++){
+        			bean=(BeanGuestBook)alist.get(i);
+			%>
+			<table cellspacing="1" cellpadding="4" width="98%" align="center" class="tableborders2">
+				<tr>
+					<td colspan="2" class="header"><table width="100%"  border="0" cellspacing="0" cellpadding="0">
+				<tr style="color: #FFFFFF;">
+					<td width="80%"><strong>留言主题: <%=bean.getTitle()%></a></strong></td>
+				</tr>
+			</table></td>
+	</tr>
+	<tr>
+		<td colspan="2" class=singleborder></td>
+	</tr>
+	<tr bgcolor="#F8F8F8" height="100%">
+		<td width="21%" valign="top"><table width="98%"  border="0" align="center" cellpadding="3" cellspacing="1">
+			<tr>
+				<td align="center"><strong><%=bean.getUserName()%></strong></td>
+			</tr>
+			<tr>
+				<td align="center"><img src="<%=url%>/guestbook/<%=bean.getFace()%>"></td>
+			</tr>
+		</table></td>
+		<td width="79%" valign="top"><table width="99%"  border="0" align="center" cellpadding="0" cellspacing="0">
+	<tr>
+		<td width="81%" height="25">
+			<img src="<%=url%>/guestbook/images/a_oicq.gif" width="45" height="18" border=0 alt="<%=bean.getQq()%>">
+			<a href="#" target="_blank"><img src="<%=url%>/guestbook/images/a_homepage.gif" width="47" height="18" border=0 alt="<%=bean.getWebUrl()%>"></a>
+	</tr>
+	<tr>
+		<td height="1" colspan="2" class="tdborder"></td>
+	</tr>
+	</table>
+	<table width="96%"  border="0" align="center" cellpadding="1" cellspacing="3">
+		<tr>
+			<td><img src="<%=url%>/guestbook/<%=bean.getEmot()%>" border=0 align="absmiddle"> <strong><span ><%=bean.getTitle()%></span></strong></td>
+		</tr>
+		<tr>
+			<td>
+			<%=bean.getContent()%>
+			<%if(bean.getBack()!=null){%>
+			<br>
+				<font color="#FF0066">管理员:<%=bean.getBack()%></font>
+			<%}%>
+			</td>
+		</tr>
+	</table>
+			</td>
+		</tr>
+		<tr bgcolor="#F8F8F8">
+			<td valign="middle" height="22" align="center"><img src="<%=url%>/guestbook/images/ip.gif" width="16" height="15" align="absmiddle" alt="发帖IP：<%=bean.getIp()%>"> <%=bean.getWriteTime()%></td>
+			<td valign="bottom"><table width="100%"  border="0" cellspacing="0" cellpadding="0">
+		<tr>
+			<td width="78%">
+			<a href="<%=url%>/guestbook/write.jsp"><img src="<%=url%>/guestbook/images/a_write.gif" border="0" align="absmiddle" alt="签写新留言"></a>
+		</tr>
+	</table></td>
+	</tr>
+	</table>
+	<%}%>
+<BR style="OVERFLOW: hidden; LINE-HEIGHT: 10px">
+		</td>
+	</tr>
+</table>
+
+<!--留言列表 End-->
+
+</div><!-- End globalBody -->
+<div class="globalBody">
+  <table border="0" align="center" cellpadding="0" cellspacing="0" class="tableborder">
+    <tr>
+      <td class="pageBottom">
+        <a href="">关于本站</a> - 
+        <a href="">网站帮助</a> - 
+        <a href="">广告合作</a> - 
+        <a href="">下载声明</a> - 
+        <a href="<%=url%>/link/link.jsp" target="_blank">友情连接</a> - 
+        <a href="">网站地图</a> -
+        <a href="<%=url%>/admin/admin_login.jsp" target="_blank">管理登陆</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="pageFooter">
+        <div class="footLogo">
+          <a href="<%=url%>" target="_blank"><img src="<%=url%>/images/logo.jpg" border="0"></a>
+        </div>
+        <div class="footInfo"> 
+          Copyright &copy; 2003-2007 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+          <br><a href="http://www.mianfeizhe.com" target="_blank" class="navmenu">MianFeiZhe内容管理系统 Beta版</a>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+</div>
+</body>
+</html>
+<script language="JavaScript" type="text/javascript" src="/count.asp"></script>

@@ -1,0 +1,244 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@ page import="com.bizoss.trade.ts_category.*" %>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" />  
+<%	 
+	String show_id = randomId.GenTradeId();
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+    String select = ts_categoryInfo.getSelCatByTLevel("4", "1");
+
+	String cust_id = "",user_id = "";
+	if(session.getAttribute("session_cust_id")!=null){
+		cust_id  = session.getAttribute("session_cust_id").toString();
+	}
+	if(session.getAttribute("session_user_id")!=null){
+		user_id  = session.getAttribute("session_user_id").toString();
+	}   
+%>
+<html>
+  <head>
+    <title>发布展会信息</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_categoryInfo.js'></script> 
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js'></script>
+	<script type="text/javascript" src="show.js"></script>
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+</head>
+
+<body>
+	<h1>发布展会信息</h1>
+	
+	<!--
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>-----------------</h4>
+		  <span>1----------------。</span><br/>
+		  <span>2----------------。</span>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+	  -->
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td  colspan="4">
+		   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;
+		   <span style="font-size:14px;font-weight:bold;">基本信息</span>			
+		   </td>
+		</tr>
+
+		<tr>
+			<td align="right" width="20%">
+				 展会标题<font color="red">*</font>
+			</td>
+			<td colspan="3">
+				<input type="text" name="title" id="title" size="62" maxlength="100" />
+			</td>
+		</tr>
+
+		<tr>
+			<td align="right" width="20%">
+				所属分类<font color="red">*</font>				
+			</td>
+			<td width="80%" colspan="3">
+				<select name="sort1" id="sort1" style="width:200px" onChange="setSecondClass(this.value);">
+					<option value="">请选择</option>
+				    <%=select%>
+				</select>
+				<select name="sort2" id="sort2"  style="width:200px;display:none" onChange="setTherdClass(this.value);">
+					<option value="">请选择</option>
+				</select>
+				<select name="sort3" id="sort3"  style="width:200px;display:none">
+					<option value="">请选择</option>
+				</select>
+				<input type="hidden" name="class_attr" id="class_attr" />
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				产品图片:			
+			</td>
+			<td colspan="3">
+			 <jsp:include page="/program/inc/uploadImgInc.jsp">
+					<jsp:param name="attach_root_id" value="<%=show_id%>" />
+				</jsp:include>
+			</td>
+		</tr> 
+
+		<tr>
+			<td align="right" width="10%">
+				详细说明<font color="red">*</font>
+			</td>
+			<td colspan="3">
+			<textarea name="content"></textarea>
+			<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+			<script type="text/javascript">
+				 //CKEDITOR.replace('content');
+			   CKEDITOR.replace( 'content',{
+			   	     filebrowserUploadUrl : '/program/inc/upload.jsp?type=file&attach_root_id=<%=show_id%>',      
+                filebrowserImageUploadUrl : '/program/inc/upload.jsp?type=img&attach_root_id=<%=show_id%>',      
+                filebrowserFlashUploadUrl : '/program/inc/upload.jsp?type=flash&attach_root_id=<%=show_id%>'     
+            });  
+			</script>
+			</td>
+		</tr>
+		
+		<tr>
+			<td colspan="4">
+		   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">详细信息</span>			
+			</td>
+		</tr>
+
+		<tr>
+			<td align="right" width="20%">
+				所在地区<font color="red">*</font>				
+			</td>
+			<td width="80%" colspan="3">
+				<select name="province" id="province" onclick="setCitys(this.value)">
+				  <option value="">省份</option> 
+				</select>
+				<select name="eparchy_code" id="eparchy_code" onclick="setAreas(this.value)">
+				  <option value="">地级市</option> 
+				 </select>
+				<select name="city_code" id="city_code" style="display:inline" >
+				 <option value="">市、县级市、县</option> 
+				</select>
+				<input name="area_attr" id="area_attr" type="hidden" value="" />   
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				 展会地址<font color="red">*</font>
+			</td>
+			<td colspan="3">
+				  <input type="text" name="show_addr" id="show_addr" size="62" maxlength="100" />
+			 </td>
+		</tr>
+
+		<tr>
+		  <td align="right" width="20%">开展时间<font color="red">*</font></td>	   
+		  <td width="28%">
+			 <input type="text" name="open_start_date" id="open_start_date" class="Wdate" value="" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'open_end_date\',{d:-1})}',readOnly:true})"  width="150px" size="20" maxlength="15" maxlength="15" />
+		  </td>
+		  <td width="12%" align="right">结束时间<font color="red">*</font></td>
+		  <td width="50%">
+			 <input type="text" name="open_end_date" id="open_end_date" class="Wdate" value="" onclick="WdatePicker({minDate:'#F{$dp.$D(\'open_start_date\',{d:1})}',readOnly:true})" size="20" width="150px" maxlength="15" />		  
+		  </td>
+		</tr>
+
+		<tr>
+		  <td align="right" width="20%">报名开始时间:</td>	   
+		  <td width="28%">
+			 <input type="text" name="start_date" id="start_date" class="Wdate" value="" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'end_date\',{d:-1})}',readOnly:true})"  width="150px" size="20" maxlength="15" />
+		  </td>
+		  <td width="12%" align="right">报名结束时间:</td>
+		  <td width="50%">
+			 <input type="text" name="end_date" id="end_date" class="Wdate" value="" onclick="WdatePicker({minDate:'#F{$dp.$D(\'start_date\',{d:1})}',readOnly:true})" size="20" width="150px" maxlength="15" />		  
+		  </td>
+		</tr>
+
+		<tr>
+			<td align="right" width="20%">
+				 举办场馆:
+			</td>
+			<td colspan="3">
+				  <input type="text" name="show_pos" id="show_pos" size="62" maxlength="100" />
+			 </td>
+		</tr>
+
+		<tr>
+			<td align="right" width="20%">
+				 展会费用:
+			</td>
+			<td colspan="3">
+				  <textarea name="fee" cols="62" rows="4" onKeyDown= "textCounter(this.form.fee,200); " onKeyUp= "textCounter(this.form.fee,200); " ></textarea>
+			 </td>
+		</tr>
+
+		<tr>
+		  <td align="right" width="20%">主办单位:</td>	   
+		  <td width="28%">
+			<textarea name="mg_unit" cols="35" rows="4"  onKeyDown= "textCounter(this.form.mg_unit,200); " onKeyUp= "textCounter(this.form.mg_unit,200); " ></textarea>
+			 
+		  </td>
+		  <td width="12%" align="right">承办单位:</td>
+		  <td width="50%">
+			<textarea name="do_unit" cols="35" rows="4" onKeyDown= "textCounter(this.form.do_unit,200); " onKeyUp= "textCounter(this.form.do_unit,200); " ></textarea>
+				  
+		  </td>
+		</tr>
+
+		<tr>
+		  <td align="right" width="20%">支持协办单位:</td>	   
+		  <td width="28%">
+			<textarea name="help_unit" cols="35" rows="4" onKeyDown= "textCounter(this.form.help_unit,200); " onKeyUp= "textCounter(this.form.help_unit,200); " ></textarea>
+			 
+		  </td>
+		  <td width="12%" align="right">展会范围:</td>
+		  <td width="50%">
+			<textarea name="in_rage" id="in_rage" cols="35" rows="4" ></textarea>
+			  
+		  </td>
+		</tr>
+
+		<tr>
+		  <td align="right" width="20%">联系电话:</td>	   
+		  <td width="28%">
+			 <input type="text" name="contact_phone" id="contact_phone" size="32" maxlength="15" />
+		  </td>
+		  <td width="12%" align="right">联系人:</td>
+		  <td width="50%">
+			 <input type="text" name="contact_man" id="contact_man" size="32" maxlength="15" />		  
+		  </td>
+		</tr>
+		
+
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="show_id" id="show_id" value="<%=show_id%>"  />
+				<input type="hidden" name="show_type" id="show_type" value="0"  />
+				<input type="hidden" name="state_code" value="a"  />
+				<input type="hidden" name="cust_id" id="cust_id" value="<%=cust_id%>" />
+				<input type="hidden" name="user_id" id="user_id" value="<%=user_id%>" />
+				<input type="hidden" name="bpm_id" value="3664" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="subForm()" />&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+  </form>
+</body>
+
+</html>
+<script>setProvince();</script>

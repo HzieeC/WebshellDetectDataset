@@ -1,0 +1,129 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ taglib uri="MianFeiZhe" prefix="mfz" %>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<link rel="stylesheet" href="css/index.css" type="text/css" />
+<link rel="stylesheet" href="css/index.css" type="text/css" />
+<title>{dede:global name='cfg_webname'/}</title>
+</head>
+
+<body>
+<div class="top0">
+    <div class="logo0">
+        <a href="http://cms.51fengge.cn"><img src="images/logo.gif" alt="网站logo，点击返回首页" /></a>
+    </div>
+    <div class="banner0">
+        <img src="images/banner.gif" alt="网站banner" />
+    </div>    
+	<p align="left">&nbsp;&nbsp;</p>
+    <div class="bbstop">
+        <img src="images/ico1.gif" alt="设为首页" />&nbsp;<a href="#" onClick="this.style.behavior='url(#default#homepage)';this.setHomePage('http://www.mianfeizhe.com');">设为首页</a>
+        <br><img src="images/ico2.gif" alt="加入收藏免费者" />&nbsp;<a href="javascript:window.external.AddFavorite('http://www.mianfeizhe.com','免费者')">加入收藏</a>
+	<br><img src="images/ico2.gif" alt="免费者" />&nbsp;<a href="http://www.mianfeizhe.com" target="_blank">免费者</a>
+        <br><img src="images/ico2.gif" alt="官方网页" />&nbsp;<a href="http://www.mianfeizhe.com" target="_blank">官方网站</a>
+    </div> 
+</div>
+<div class="navtop">
+    <ul>
+        <a href="http://cms.51fengge.cn"><li>网站首页</li></a>
+       <li><a href='~typelink~' class='thisclass'>栏目</a> </li><li><a href='[field:typelink/]'>栏目2</a> </li>
+        {/dede:channel}
+    </ul>
+</div>
+<div class="navbottom">
+<form action="{dede:field name='phpurl'/}/search.php" name="formsearch">
+    站内搜索：&nbsp;<input name="keyword" id="keyword" class="text" type="text" />
+    &nbsp;<select name="select" id="searchtype">
+        <option value="titlekeyword" selected>智能模糊搜索</option>
+        <option value="title">仅搜索标题</option>
+    </select>
+    &nbsp;<input class="select" type="image" src="images/select.gif" />
+    &nbsp;&nbsp;&nbsp;&nbsp;热门关键字：&nbsp;免费&nbsp;&nbsp;JAVA&nbsp;&nbsp;JSP
+</form>
+</div>
+<div class="list0">
+    <div class="listleft">
+        <div class="listleft1">
+            <h4><img src="images/ico5.gif" alt="icon" />&nbsp;热点关注</h4>
+          <div class="yinying"></div>
+            <ul>
+                <li>发给对方更好地发挥发给大家金或户</li>
+                <li>发给对方更好地发挥发给大家金或仿户</li>
+                <li>发给对方更好地发挥发给大家金或仿</li>
+          </ul>            
+        </div>
+      <div class="listleft3">
+            <div class="yinying"></div>
+            <h4><img src="images/ico5.gif" alt="icon"  />&nbsp;相关文章</h4><div class="yinying"></div>
+          <ul>
+                <li>发给对方更好挥发给大家金或仿金客户</li>
+          </ul>           
+      </div>   
+  </div> 
+    <div class="content">
+      <h6><img src="images/ico4.gif" alt="icon" />
+      当前位置 :文章列表</h6>
+      <div class="yinying"></div>
+      <h1><mfz:aritcle id="110" type="title"></mfz:aritcle></h1>
+      <div class="laiyuan"><strong>来源：</strong><mfz:aritcle id="110" type="source"></mfz:aritcle>&nbsp;&nbsp;    
+      <strong>作者：</strong><mfz:aritcle id="110" type="author"></mfz:aritcle>&nbsp;&nbsp;
+	  <strong>时间：</strong><mfz:aritcle id="110" type="time"></mfz:aritcle>&nbsp;&nbsp;
+	  <strong>点击：</strong> 150</div>
+      <div class="neirong"><mfz:aritcle id="110" type="content"></mfz:aritcle></div>
+      <div class="gongneng">
+      [<a href="{dede:field name='phpurl'/}/stow.php?arcID={dede:field name=ID/}">收藏</a>]
+       [<a href="{dede:field name='phpurl'/}/recommend.php?arcID={dede:field name=ID/}">推荐</a>]
+        [<a href="{dede:field name='phpurl'/}/feedback.php?arcID={dede:field name=ID/}">评论</a>]
+        [<a href="#" onClick="window.print();">打印</a>]
+      [<a href="#" onClick="window.print();">打印</a>]</div>
+      <div class="shangxia">上一篇<br />
+      下一篇 </div>
+      <div class="zuixin">
+      <span class="right"><a href="{dede:field name='phpurl'/}/feedback.php?arcID={dede:field name=ID/}">查看所有评论</a></span>最新评论<span class="xiao">共有 20 位网友发表了评论</span>
+      </div>
+      <div class="pinglun"><script src="{dede:field name='phpurl'/}/feedback_js.php?arcID={dede:field name='ID'/}"></script></div>
+      <div class="zuixin">发表评论</div>
+      <div class="pinglun"><form action="{dede:field name='phpurl'/}/feedback.php?action=send" method="post" name="feedback">
+			<input type="hidden" name="arcID" value="{dede:field name="id"/}">			
+				<p><strong>评论内容：</strong>不能超过250字，需审核，请自觉遵守互联网相关政策法规。
+				<textarea name="msg" cols="75" rows="6"></textarea>
+				</p>				
+				<p><strong>用户名：</strong><input name="username" class="username" type="text" maxlength="20" />
+				<strong>密码：</strong><input name="pwd" class="password" type="password" maxlength="20" />
+				<input name="notuser" type="checkbox" value="1" /> <strong>匿名?</strong>
+                <input name="sb" type="submit" value="发表评论" onClick='javascript:if(document.feedback.msg.value!="") document.feedback.submit(); else alert("评论内容不能为空！");'/>
+      <a href="{dede:field name='memberurl'/}/index_do.php?fmdo=user&dopost=regnew" target="_blank">注册</a></p></form></div>
+    </div>
+</div>
+<div class="lianjie">
+    <h5><span class="right"><a href="{dede:field name='phpurl'/}/flink.php"><img src="images/more2.gif" alt="more" /></a></span>
+    <img src="images/ico3.gif" alt="ico" />&nbsp;友情链接</h5>
+    <div class="link">
+    <a href="http://www.discuz.net"><img class="img110" src="images/discuz.gif" alt="Discuz!论坛" /></a>
+    <a href="http://www.dedecms.com"><img class="img110" src="images/dedecms.gif" alt="织梦技术官网" /></a>
+    <a href="http://www.blueidea.com"><img class="img110" src="images/blueidea.gif" alt="蓝色理想" /></a>
+    <a href="http://www.phpwind.com"><img class="img110" src="images/phpwind.gif" alt="phpwind官网" /></a>
+    <a href="http://www.phpcms.cn"><img class="img110" src="images/phpcms.gif" alt="phpcms官网" /></a>    
+    <a href="http://www.php168.com"><img class="img110" src="images/php168.gif" alt="php168官网" /></a>
+    <a href="http://www.ecshop.com"><img class="img110" src="images/ecshop.gif" alt="ecshop官网" /></a>
+    <a href="http://www.citk.net"><img class="img110" src="images/citk.gif" alt="丁丁家园" /></a>
+    <a href="http://www.chinaz.com"><img class="img110" src="images/chinaz.gif" alt="中国站长站" /></a> 
+  </div>
+</div>
+<div class="foottop"><a href="http://cms.51fengge.cn">返回首页</a>
+ | <a href="{dede:field name='phpurl'/}/heightsearch.php">高级搜索</a>
+ | <a href="{dede:field name='phpurl'/}/flink-add.php">加入链接</a>
+ | <a href="{dede:field name='phpurl'/}/sitemap.html">网站地图</a>
+ | <a href="{dede:field name='phpurl'/}/rssmap.html">RSS订阅</a></div>
+<div class="footbottom">
+<div>
+<p align="center">
+power by <a href="http://www.mianfeizhe.com">MianFeiZhe.Com</a> Copyright 2008-2010
+<br> 备案号:湘ICP备85020080号
+</p>
+</div>
+</div>
+</body>
+</html>

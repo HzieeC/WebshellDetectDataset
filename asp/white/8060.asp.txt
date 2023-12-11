@@ -1,0 +1,285 @@
+<%
+dim objFso,objStream,sitePath
+sitePath=".."
+call initAllObjects()
+Function createTextFile(Byval content,Byval fileDir,Byval code)
+	dim fileobj,fileCode : fileDir=replace(fileDir, "\", "/")
+	if isNul(code) then fileCode="gbk" else fileCode=code
+	call createfolder(fileDir,"filedir")
+	on error resume next:err.clear
+	set fileobj=objFso.CreateTextFile(server.mappath(fileDir),True)
+	fileobj.Write(content)
+	set fileobj=nothing
+	if Err or not isNul(code) then
+		err.clear 
+		With objStream
+			.Charset=fileCode:.Type=2:.Mode=3:.Open:.Position=0
+			.WriteText content:.SaveToFile Server.MapPath(fileDir), 2
+			.Close
+		End With
+	end if	
+	if Err Then  createTextFile=false : errid=err.number:errdes=err.description:Err.Clear : echoErr err_09,errid,errdes else createTextFile=true
+End Function
+
+Function createStreamFile(Byval stream,Byval fileDir)
+	dim errid,errdes
+	fileDir=replace(fileDir, "\", "/")
+	call createfolder(fileDir,"filedir")
+	on error resume next
+	With objStream
+		.Type =1
+		.Mode=3  
+		.Open
+		.write stream
+		.SaveToFile server.mappath(fileDir),2
+		.close
+	End With
+	if Err Then  error.clear:createStreamFile=false else createStreamFile=true
+End Function
+
+Function createFolder(Byval dir,Byval dirType)
+	dim subPathArray,lenSubPathArray, pathDeep, i
+	on error resume next
+	dir=replace(dir, "\", "/")
+	dir=replace(server.mappath(dir), server.mappath("/"), "")
+	subPathArray=split(dir, "\")
+	pathDeep=pathDeep&server.mappath("/")
+	select case dirType
+		case "filedir"
+			 lenSubPathArray=ubound(subPathArray) - 1
+		case "folderdir"
+			lenSubPathArray=ubound(subPathArray)
+	end select
+	for i=0 to  lenSubPathArray
+		pathDeep=pathDeep&"\"&subPathArray(i)
+		if not objFso.FolderExists(pathDeep) then objFso.CreateFolder pathDeep
+	next
+	if Err Then  createFolder=false : errid=err.number:errdes=err.description:Err.Clear : echoErr err_10,errid,errdes else createFolder=true
+End Function
+
+Function isExistFile(Byval fileDir)
+	on error resume next
+	If (objFso.FileExists(server.MapPath(fileDir))) Then  isExistFile=True  Else  isExistFile=False
+	if err then err.clear:isExistFile=False
+End Function
+
+Function isExistFolder(Byval folderDir)
+	on error resume next
+	If objFso.FolderExists(server.MapPath(folderDir)) Then  isExistFolder=True Else isExistFolder=False
+	if err then err.clear:isExistFolder=False
+End Function
+
+Function delFolder(Byval folderDir)
+	on error resume next
+	If isExistFolder(folderDir)=True Then  
+		objFso.DeleteFolder(server.mappath(folderDir)) 
+		if Err Then  delFolder=false : errid=err.number : errdes=err.description:Err.Clear : echoErr err_11,errid,errdes else delFolder=true
+	else
+		delFolder=false : die(err_13)
+	end if
+End Function 
+
+Function delFile(Byval fileDir)
+	on error resume next
+	If isExistFile(fileDir)=True Then objFso.DeleteFile(server.mappath(fileDir))
+	if  Err Then  delFile=false : errid=err.number : errdes=err.description:Err.Clear : echoErr err_12,errid,errdes else delFile=true
+End Function 
+
+Function initAllObjects()
+	dim errid,errdes
+	on error resume next
+	if not isobject(objFso) then set objFso=server.createobject("SCRIPTING.FILESYSTEMOBJECT")
+	If Err Then errid=err.number:errdes=err.description:Err.Clear:echoErr err_05,errid,errdes
+	if not isobject(objStream) then Set objStream=Server.CreateObject("ADODB.STREAM")
+	If Err Then errid=err.number:errdes=err.description:Err.Clear:echoErr err_04,errid,errdes
+End Function
+
+Function terminateAllObjects()
+	on error resume next
+	if conn.isConnect then conn.close
+	if isobject(conn) then : set conn=nothing
+	if isobject(objFso) then set objFso=nothing
+	if isobject(objStream) then set objStream=nothing
+	if isObject(gXmlHttpObj) then SET gXmlHttpObj=Nothing
+End Function
+
+Function moveFolder(oldFolder,newFolder)
+	dim voldFolder,vnewFolder
+	voldFolder=oldFolder
+	vnewFolder=newFolder
+	on error resume next
+	if voldFolder <> vnewFolder then
+		voldFolder=server.mappath(oldFolder)
+		vnewFolder=server.mappath(newFolder)
+		if not objFso.FolderExists(vnewFolder) then createFolder newFolder,"folderdir" 
+		if  objFso.FolderExists(voldFolder)  then  objFso.CopyFolder voldFolder,vnewFolder : objFso.DeleteFolder(voldFolder)
+		if Err Then  moveFolder=false : errid=err.number : errdes=err.description:Err.Clear : echoErr err_14,errid,errdes else moveFolder=true
+	end if
+End Function
+
+Function moveFile(ByVal src,ByVal target,Byval operType)
+	dim srcPath,targetPath
+	srcPath=Server.MapPath(src) 
+	targetPath=Server.MapPath(target)
+	if isExistFile(src) then
+		objFso.Copyfile srcPath,targetPath
+		if operType="del" then  delFile src 
+		moveFile=true
+	else
+		moveFile=false
+	end if
+End Function
+
+Function getFolderList(Byval cDir)
+	dim filePath,objFolder,objSubFolder,objSubFolders,i
+	i=0
+	redim  folderList(0)
+	filePath=server.mapPath(cDir)
+	set objFolder=objFso.GetFolder(filePath)
+	set objSubFolders=objFolder.Subfolders
+	for each objSubFolder in objSubFolders
+		ReDim Preserve folderList(i)
+		With objSubFolder
+			folderList(i)=.name&",文件夹,"&.size/1000&"KB,"&.DateLastModified&","&cDir&"/"&.name
+		End With
+		i=i + 1 
+	next 
+	set objFolder=nothing
+	set objSubFolders=nothing
+	getFolderList=folderList
+End Function
+
+Function getFileList(Byval cDir)
+	dim filePath,objFolder,objFile,objFiles,i,fileList
+	i=0
+	redim  fileList(0)
+	filePath=server.mapPath(cDir)
+	set objFolder=objFso.GetFolder(filePath)
+	set objFiles=objFolder.Files
+	for each objFile in objFiles
+		ReDim Preserve fileList(i)
+		With objFile
+			fileList(i)=.name&","&Mid(.name, InStrRev(.name, ".") + 1)&","&.size/1000&"KB,"&.DateLastModified&","&cDir&"/"&.name
+		End With
+		i=i + 1 
+	next 
+	set objFiles=nothing
+	set objFolder=nothing
+	getFileList=fileList
+End Function
+
+'读取文件内容
+Function loadFile(ByVal filePath)
+    dim errid,errdes
+    On Error Resume Next
+    With objStream
+        .Type=2
+        .Mode=3
+        .Open
+		.Charset="gbk"
+		'echo Server.MapPath(filePath)&"<br>"
+        .LoadFromFile Server.MapPath(filePath)
+        If Err Then  errid=err.number:errdes=err.description:Err.Clear:echoErr err_06,errid,errdes
+		'die "A"
+        .Position=0
+        loadFile=.ReadText
+        .Close
+    End With
+End Function
+%>
+<%
+dim action : action=getForm("action","get")
+Select  case action
+	case "del" : delBackUp
+	case "bakup" : backUp
+	case "delall" : delAll
+	case "restore" : restore
+	case "compress" : compress
+End Select 
+
+
+
+Sub databackList
+'die "aa"
+	dim path,fileListArray,i,arrayLen,fileAttr
+	path = sitePath&"/data/backup"
+	if not isExistFolder(path) then createFolder path,"folderdir"
+	fileListArray= getFileList(path)
+	arrayLen = ubound(fileListArray)
+
+	if instr(fileListArray(0),",")>0 then	
+		for  i = 0 to arrayLen
+			fileAttr=split(fileListArray(i),",")
+			 Response.Write "<tr bgcolor=""#ffffff"" align=""left"" onMouseOver=""this.bgColor='#CDE6FF'"" onMouseOut=""this.bgColor='#FFFFFF'"">"&vbcrlf& _
+			"<td height=""28"">"&i+1&"</td>"&vbcrlf& _
+			"<td><a href="""&fileAttr(4)&""" class=""txt_C1"" >"&fileAttr(0)&"</a></td>"&vbcrlf& _
+			"<td>"&fileAttr(3)&"</td>"&vbcrlf& _
+			"<td><a href=""?action=restore&path="&fileAttr(4)&""" class=""txt_C1"" onClick=""return confirm('确定恢复吗')"">恢复此备份</a> | <a href=""?action=del&path="&fileAttr(4)&""" class=""txt_C1"" onClick=""return confirm('确定要删除吗')"">删除</a></td>"&vbcrlf& _
+			"</tr>"&vbcrlf
+		next
+	else
+		Response.Write "<tr bgcolor=""#FFFFFF"" align=""center""><td colspan=""5"" algin=""center"">还没有备份文件， <a href=""?action=bakup"" class=""txt_C1"">现在备份</a></td></tr>"
+	end if
+End Sub
+
+Sub  delBackUp
+	dim path
+	path = getForm("path","get")
+	delFile path
+	alertMsgAndGo "","data_list.asp"
+End Sub
+
+Sub backUp
+	dim fileName	: fileName = timeToStr(now())
+	moveFile "../"&dbs_url,"../data/backup/"&fileName&".mdb",""
+	alertMsgAndGo "备份成功","data_list.asp"
+End Sub
+
+
+Sub restore
+	dim path
+	path = getForm("path","get")
+	moveFile path,"../"&dbs_url,""
+	alertMsgAndGo "恢复成功","data_list.asp"
+End Sub
+
+
+Sub compress
+	dim engineObj,tempDbPath
+	tempDbPath = sitePath&"/"&"data/tempdata.asp"
+	conn.Class_Terminate
+	set engineObj = server.CreateObject("JRO.JetEngine")
+	engineObj.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & server.MapPath(sitePath&"/"&accessFilePath),"Provider=Microsoft.Jet.OLEDB.4.0;Data Source="& server.MapPath(tempDbPath)
+	moveFile tempDbPath,sitePath&"/"&accessFilePath,"del" 
+	set engineObj = Nothing
+	alertMsgAndGo "压缩成功","AspCms_Data.asp"
+End Sub
+
+Sub delAll
+	dim ids,idsArray,arrayLen,i
+	ids=replace(getForm("id","post")," ","")
+	idsArray = split(ids,",") : arrayLen=ubound(idsArray)
+	for i=0 to arrayLen
+		delFile idsArray(i)
+	next
+	alertMsgAndGo "删除成功","AspCms_Data.asp"
+End Sub
+
+Function timeToStr(Byval t)
+	t=Replace(Replace(Replace(Replace(t,"-",""),":","")," ",""),"/","") : timeToStr=t
+End Function
+
+Sub alertMsgAndGo(str,url)
+	dim urlstr 
+	if url<>"" then urlstr="location.href='"&url&"';"
+	if url="-1" then urlstr="history.go(-1);"
+	if not isNul(str) then str ="alert('"&str&"');"
+	response.Write("<script>"&str&urlstr&"</script>")
+	response.End()
+End Sub
+
+'是否为空
+Function isNul(str)
+	if isnull(str) or str=""  then isNul=true else isNul=false
+End Function
+%>

@@ -1,0 +1,261 @@
+<!--#Include File="../Inc/Const.Asp"-->
+<!--#Include File="Inc/Class_Admin.Asp"-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=GB2312" />
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<title>管理员管理</title>
+<link href="Images/Style.Css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<%
+
+Call ChkLogin("admin")
+
+Dim U
+Set U = New Cls_Admin
+
+Dim Rs,Sql,Style
+Dim ID
+    ID = Request("ID")
+Dim Key
+    Key = Request("Key")
+Dim Page
+    Page = Request("Page")
+Dim Orders
+    Orders = Request("Orders")
+Dim DFieldKey
+    DFieldKey = Request("DFieldKey")
+Dim DFieldOrders
+    DFieldOrders = Request("DFieldOrders")
+If len(ID) > 0 And Not IsNumeric(ID) Then : Response.Write "编号只能是数字!" : Conn.Close : Set Conn = Nothing : Set U = Nothing : Response.End '// 检测ID
+If Len(Page) = 0 Or Not IsNumeric(ID) Then Page = 1
+If Page < 1 Then Page = 1
+If LCase(Orders) <> "asc" Then Orders = "Desc"
+If Len(DFieldKey) = 0 Then DFieldKey = "Username"
+If Len(DFieldOrders) = 0 Then DFieldOrders = "ID"
+If Instr("[id],[username],[levels]" , "[" & Lcase(DFieldKey) & "]") = 0 Then Key = ""
+If Instr("[id],[username],[levels]" , "[" & Lcase(DFieldOrders) & "]") = 0 Then DFieldOrders = "ID"
+Page = Int(Page) : Key = Replace(Key,"'","")
+Dim JumpUrl
+    JumpUrl = "&Key=" & Key & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders
+
+Select Case Request("Act")
+Case "Guide"
+	If Len(ID) = 0 Then
+		Call U.Initialize()
+		Call Main_Guide(0)
+	Else
+		U.vID = ID
+		Call U.SetValue()
+		Call Main_Guide(1)
+	End If
+Case "UpDate"
+	If U.GetValue() Then
+		If Len(ID) = 0 Then
+			If Not U.Create() Then
+				Alert U.LastError,"Admin_Admin.Asp?Page=" & Page & JumpUrl
+			Else
+				Alert "","Admin_Admin.Asp?Page=" & Page & JumpUrl
+			End If
+		Else
+			U.vID = ID
+			If Not U.Modify() Then
+				Alert U.LastError,"Admin_Admin.Asp?Page=" & Page & JumpUrl
+			Else
+				Alert "","Admin_Admin.Asp?Page=" & Page & JumpUrl
+			End If
+		End If
+	Else
+		Alert U.LastError,"Admin_Admin.Asp?Page=" & Page & JumpUrl
+	End If
+Case "Delete"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Delete() Then
+			Alert U.LastError,"Admin_Admin.Asp?Page=" & Page & JumpUrl
+		Else
+			Alert "","Admin_Admin.Asp?Page=" & Page & JumpUrl
+		End If
+	Else
+		Call Main()
+	End If
+Case "Change"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Change() Then
+			Alert U.LastError,""
+		End If
+	End If
+	Call Main()
+Case Else
+	Call Main()
+End Select
+Set U = Nothing
+If IsObject(Conn) Then Conn.Close : Set Conn = Nothing
+
+Sub Main()
+	Dim AdminCount : AdminCount = DB("Select Count([ID]) From [{pre}Admin]",1)(0)
+	Sql = "Select [ID],[Username],[Levels],[ManagePlus] From [{pre}Admin]"
+	If Len(Key) > 0 Then
+		If Instr(",ID,","," & DFieldKey & ",") > 0 Then
+			If Len(Key) > 0 And IsNumeric(Key) Then
+				Sql = Sql & " Where [" & DFieldKey & "]=" & Key & ""
+			End If
+		Else
+			Sql = Sql & " Where [" & DFieldKey & "] Like '%" & Key & "%'"
+		End If
+	End If
+	Sql = Sql & " Order By [" & DFieldOrders & "] " & Orders & ""
+	Set Rs = DB(Sql,2)
+	%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+		<td colspan=3><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<form name=frmSearch method=post action=Admin_Admin.Asp>
+					<tr>
+						<td class=css_main><a href=Admin_Admin.Asp?Page=<%=Page%><%=JumpUrl%>>管理员管理</a> <a href=Admin_Admin.Asp?Act=Guide&Page=<%=Page%><%=JumpUrl%>>添加管理员</a></td>
+						<td class=css_search><select name=DFieldKey id=DFieldKey>
+								<option value="ID" <%If Lcase(DFieldKey) = "id" Then Response.Write "selected='selecte'" %>>编号</option>
+								<option value="Username" <%If Lcase(DFieldKey) = "username" Then Response.Write "selected='selected'" %>>管理员帐号</option>
+								<option value="Levels" <%If Lcase(DFieldKey) = "levels" Then Response.Write "selected='selected'" %>>管理员权限</option>
+							</select>
+							<input name=Key type=text id=Key size=10 value="<%=Key%>"> <input type=submit name=Submit value=搜> </td>
+					</tr>
+				</form>
+			</table></td>
+	</tr>
+	<tr>
+		<td class='css_top'>编号</td>
+		<td class='css_top'>帐号</td>
+		<td class='css_top'>管理</td>
+	</tr>
+	<%
+	  If Rs.Eof Then
+	  %>
+	<tr class=css_norecord>
+		<td colspan=3>没有任何记录！</td>
+	</tr>
+	<%
+	  Else
+	  Dim i
+	  Rs.PageSize = 15
+	  Rs.AbsolutePage = Page
+	  For i = 1 To Rs.PageSize
+	  If Rs.Eof Then Exit For
+	  %>
+	<tr>
+		<td class='css_list'><%=Rs("ID")%></td>
+		<td class='css_list'><%=Rs("Username")%></td>
+		<td class='css_list'><input name=modify type=button onclick="location.href='Admin_Admin.Asp?Act=Guide&ID=<%=Rs("ID")%>&Page=<%=Page%><%=JumpUrl%>';" value=修改> <%If AdminCount > 1 Then%> <input name=delete type=button onclick="if(confirm('您确定要删除这条记录吗?')){location.href='Admin_Admin.Asp?Act=Delete&ID=<%=Rs("ID")%>&Page=<%=Page%><%=JumpUrl%>';}" value=删除> <%End If%> </td>
+	</tr>
+	<%
+	  Rs.MoveNext
+	  Next
+	  End If
+	  %>
+	<tr class=css_page_list>
+		<td colspan=3><%=PageList(Rs.PageCount,Page,Rs.RecordCount,15,"Admin_Admin.Asp?Page={p}&Key=" & Key & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders)%></td>
+	</tr>
+</table>
+<%
+	Rs.Close
+End Sub
+
+Sub Main_Guide(T)
+	%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+		<td colspan=2><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<tr>
+					<td class=css_main><a href=Admin_Admin.Asp?Page=<%=Page%><%=JumpUrl%>>管理员管理</a></td>
+				</tr>
+			</table></td>
+	</tr>
+	<form name='frm' method='post' action='Admin_Admin.Asp?Act=UpDate&ID=<%=ID%>&Page=<%=Page%><%=JumpUrl%>'>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col11>管理员帐号：
+				<div id='hUsername' style="color:#ccc;letter-spacing: 0px;font-size:13px;">长度为3-20位&nbsp;</div></td>
+			<td class=css_col21><input class='css_input' name="oUsername" type="text" id="oUsername" onfocus="hUsername.style.color='red';" onblur="hUsername.style.color='#ccc';" value="<%=U.vUsername%>" size=40 style='width:300px' <%If T = 1 Then Response.Write "readonly='true'"%>> </td>
+		</tr>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col12>管理员密码：
+				<div id='hPassword' style="color:#ccc;letter-spacing: 0px;font-size:13px;">长度3-16位,采用MD5加密 <%If T = 1 Then Response.Write "不更改则不修改密码"%></div></td>
+			<td class=css_col22><input class='css_input' name="oPassword" type="password" id="oPassword" onfocus="hPassword.style.color='red';" onblur="hPassword.style.color='#ccc';" value="<%=U.vPassword%>" size=40 style='width:300px'> </td>
+		</tr>
+		<tr>
+			<td class=css_col11>系统权限：<span id='hLevels' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col21><%If IsNull(U.vLevels) Then U.vLevels=""%>
+				<input <%If Instr(Cstr(U.vLevels), "setting") > 0 Then Response.Write "checked='checked'"%> class='css_input' name="oLevels" type="checkbox" id="oLevels" value="setting">系统配置 (包含插件管理)<br />
+				<input <%If Instr(Cstr(U.vLevels), "channel") > 0 Then Response.Write "checked='checked'"%> class='css_input' name="oLevels" type="checkbox" id="oLevels" value="channel">栏目管理<br />
+				<input <%If Instr(Cstr(U.vLevels), "sitelink") > 0 Then Response.Write "checked='checked'"%> class='css_input' name="oLevels" type="checkbox" id="oLevels" value="sitelink">站内链接<br />
+				<input <%If Instr(Cstr(U.vLevels), "label") > 0 Then Response.Write "checked='checked'"%> class='css_input' name="oLevels" type="checkbox" id="oLevels" value="label">标签管理<br />
+				<input <%If Instr(Cstr(U.vLevels), "upload") > 0 Then Response.Write "checked='checked'"%> class='css_input' name="oLevels" type="checkbox" id="oLevels" value="upload" >上传文件<br />
+				<input <%If Instr(Cstr(U.vLevels), "create") > 0 Then Response.Write "checked='checked'"%> class='css_input' name="oLevels" type="checkbox" id="oLevels" value="create" >静态生成<br />
+				<input <%If Instr(Cstr(U.vLevels), "diypage") > 0 Then Response.Write "checked='checked'"%> class='css_input' name="oLevels" type="checkbox" id="oLevels" value="diypage" >自定义页面<br />
+				<input <%If Instr(Cstr(U.vLevels), "admin") > 0 Then Response.Write "checked='checked'"%> class='css_input' name="oLevels" type="checkbox" id="oLevels" value="admin" >管理员管理<br />
+				<input <%If Instr(Cstr(U.vLevels), "tags") > 0 Then Response.Write "checked='checked'"%> class='css_input' name="oLevels" type="checkbox" id="oLevels" value="tags" >标签生成器<br />
+				
+				</td>
+		</tr>
+		<tr>
+		  <td class=css_col12>栏目权限：</td>
+		  <td class=css_col22>
+		  <%
+		  Set Rs = DB("Select [ID],[Name] From [{pre}Channel] Where [OutSideLink]=0 Order By [Order] Desc,[ID] Desc",1)
+		  Do while not rs.eof
+		  If Instr("," & U.vManageChannel & ",","," & Rs(0) & ",") > 0 Then
+		  %>
+		  <input checked='checked' class='css_input' name="oManageChannel" type="checkbox" id="oManageChannel" value="<%=Rs(0)%>"><%=Rs(1)%><br />
+		  <%Else%>
+		  <input class='css_input' name="oManageChannel" type="checkbox" id="oManageChannel" value="<%=Rs(0)%>"><%=Rs(1)%><br />
+		  <%
+		  End If
+		  Rs.MoveNext
+		  Loop
+		  Rs.CLose
+		  %>
+		  <input name="oManageChannelALL" type="checkbox" class='css_input' id="oManageChannelALL" value="yes" <%if cstr(U.vManageChannel & "")=cstr("0") then%>checked="checked"<%end if%>>
+		  <font color=red>全部栏目权限</font><br />
+		  </td>   
+	  </tr>
+		<tr>
+			<td class=css_col11>插件权限：</td>
+			<td class=css_col21><%If IsNull(U.vManagePlus) Then U.vManagePlus=""%>
+				<%
+				Dim PlusName,Plus,i
+				PlusName = Split(getplus,"/")
+				for i = 0 to ubound(PlusName)
+					Set Plus = New Cls_Plus
+					Call Plus.Open(PlusName(i))
+					If Plus.ErrorCode = 0 Then
+%>
+<input <%If Instr(Cstr(U.vManagePlus),PlusName(i)) > 0 Then Response.Write "checked='checked'"%> class='css_input' name="oManagePlus" type="checkbox" id="oManagePlus" value="<%=PlusName(i)%>"><%=Plus.Main("name")%> (<%=Plus.Main("description")%>)<br />	
+<%
+					End If
+					Set Plus = Nothing
+				Next
+				%></td></tr>
+		<tr>
+			<td class=css_col12>上传文件类型：
+				<div id='hUploadfileexts' style="color:#ccc;letter-spacing: 0px;font-size:13px;">允许上传的文件类型,多个类型用/分隔</div></td>
+			<td class=css_col22><input class='css_input' name="oUploadfileexts" type="text" id="oUploadfileexts" onfocus="hUploadfileexts.style.color='red';" onblur="hUploadfileexts.style.color='#ccc';" value="<%=U.vUploadfileexts%>" size=40 style='width:300px'> </td>
+		</tr>
+		<tr>
+			<td class=css_col11>最大上传文件：
+				<div id='hUploadfilesize' style="color:#ccc;letter-spacing: 0px;font-size:13px;">此管理员一次可上传的最大文件量,单位KB,值1024表示1MB</div></td>
+			<td class=css_col21><input class='css_input' name="oUploadfilesize" type="text" id="oUploadfilesize" onfocus="hUploadfilesize.style.color='red';" onblur="hUploadfilesize.style.color='#ccc';" value="<%=U.vUploadfilesize%>" size=40 style='width:300px'> </td>
+		</tr>
+		<tr class=css_page_list>
+			<td colspan=2><input type='submit' name='Submit' value='保存'></td>
+		</tr>
+	</form>
+</table>
+<%
+End Sub
+%>
+</body>
+</html>

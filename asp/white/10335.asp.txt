@@ -1,0 +1,116 @@
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<%
+Cid=Trim(request("ChannelID"))
+tid=Trim(request("typeid"))
+s_tit=Trim(request("s_tit"))
+keywords=Trim(request("keywords"))
+If keywords="%" Or InStr(keywords,"'") Or InStr(keywords,"select") Or InStr(keywords,"delete") Then
+	Response.Write("<script>alert(""查找的内容不合法！"");history.back();</script>")
+	Response.End()
+End If
+If keywords="" Then
+	Response.Write("<script>alert(""请输入要查找的内容！"");history.back();</script>")
+	Response.End()
+End If
+strFileName="news_searchresult.asp?ChannelID="&Cid&"&s_tit="&s_tit&"&typeid="&tid&"&keywords="&keywords&""
+if Cid="" or not IsNumeric(Cid) then
+response.Write ("<script language='JavaScript'>alert('请输入要查询的内容！');location.href='JavaScript:history.back()';</script>")
+Response.end()
+end if
+session(FRHRCMS&"ChannelID") = Cid
+'读取频道名称
+set rs=conn.execute("select * from JOB_Channel where ChannelID="&Cid&"")
+ChannelName=rs("ChannelName")
+ChannelId=rs("ChannelId")
+set rs=nothing
+'读取模版内容
+set rs=conn.execute("select * from JOB_Template where ChannelID="&ChannelID&" and IsDefault="&FR_HR_True&" and IsDefaultInProject="&FR_HR_True&" and typeid=4")
+if not rs.eof then
+TemplateContent=rs("TemplateContent")
+else
+Response.Write("读取模板出错!")
+Response.end()
+end if
+rs.close
+set rs=nothing
+html=TemplateContent
+'读取分页
+if request("page")<>"" then
+if cint(request("page"))<1 then:Page=1:else:Page=cint(request("page")):end if
+else:Page=1:end if
+%>
+<%
+html=ReplaceLableFlag(ReplaceAllLabel(html))
+if Cid<>0 then
+	'读取频道名称
+	set rs=conn.execute("select * from JOB_Channel where ChannelID="&Cid&"")
+	ChannelName=rs("ChannelName")
+	ChannelDir=rs("ChannelDir")
+	ChannelKeywords=rs("Meta_Keywords")
+	ChannelDescription=rs("Meta_Description")
+	rs.close
+	set rs=nothing
+else
+ChannelName="首页"
+end if
+html=Replace(html,"{$FR_频道名称}",ChannelName)
+html=Replace(html,"{$FR_频道目录}",ChannelDir)
+html=Replace(html,"{$FR_频道关键词}",""&ChannelKeywords&"")
+html=Replace(html,"{$FR_频道描述}",""&ChannelDescription&"")
+html=Replace(html,"{$FR_频道编号}",Cid)
+html=Replace(html,"{$FR_文章搜索结果}",SearchArticleList(10))
+html=Replace(html,"{$FR_搜索关键词}",""&keywords&"")
+Response.Write(CreateHTMLReplace(html))
+
+Function SearchArticleList(PerPageNumber)
+Dim NewsRS, NewsSql, NewsSqls, totalPut
+Set NewsRS = Server.CreateObject(FR_HR_RS)
+NewsSqls=""
+if tid<>"" then
+tid=clng(tid)
+else
+tid=0
+end if
+If tid<>0 then
+	NewsSqls=" and N_sid="&tid&""
+end if
+NewsSqls=NewsSqls&" order by N_ID desc"
+NewsSql="select * from JOB_news where "&s_tit&" Like '%"&keywords&"%' and N_cid="&cid&""&NewsSqls&""
+NewsRS.open NewsSql,conn,1,1
+if NewsRS.eof and NewsRS.bof then
+Searchhtml="没有相关的信息，请返回重新查询！！"
+else
+totalPut=NewsRS.recordcount
+'读取页数
+	if Page<>1 then
+	NewsRS.move (Page-1)*PerPageNumber
+	end if
+Searchhtml=""
+i=0
+do while not NewsRS.eof
+i=i+1
+	Searchhtml=Searchhtml&"<div style='width:98%;margin:0;padding:10px 0 0 0; font-size:12px; color:#999999;float:left;border-bottom:1px #CCCCCC dashed'><div style='margin:4px; width:100px; height:100px; float:left;'><a href="&FormatLink(NewsRS("N_addtime"),NewsRS("N_cid"),NewsRS("N_sid"),NewsRS("N_id"),0)&" target='_blank'>"
+	if NewsRS("N_Pic")<>"" and not Isnull(NewsRS("N_pic")) then
+	Pictureurl=InstallDir&FR_UPFILES_DIR&"/Article/"&NewsRS("N_Pic")
+	else
+	Pictureurl=InstallDir&FR_UPFILES_DIR&"/Article/nopicture.gif"	
+	end if
+	Searchhtml=Searchhtml&"<img src='"&Pictureurl&"' border='1' width='100' height='90' /></a></div>"& vbCrLf
+	Searchhtml=Searchhtml&"<span style='font-size:14px; font-weight:bold; line-height:30px;'><a href="&FormatLink(NewsRS("N_addtime"),NewsRS("N_cid"),NewsRS("N_sid"),NewsRS("N_id"),0)&">"&NewsRS("N_title")&"</a><a href="&FormatLink(NewsRS("N_addtime"),NewsRS("N_cid"),NewsRS("N_sid"),NewsRS("N_id"),0)&" style='font-size:12px; font-weight:normal' target='_blank'>[在新窗口打开]</a></span>"& vbCrLf
+	Searchhtml=Searchhtml&"<ul style='margin:0 10px 0 0; padding:0;'>"&left(RemoveHTML(NewsRS("N_Content")),100)&"...</ul>"& vbCrLf
+	Searchhtml=Searchhtml&"<ul style='margin:0 10px 0 0; padding:0;'>来源："&NewsRS("N_from")&"  日期："&NewsRS("N_addtime")&"</ul></div>"& vbCrLf
+	if i>=Cint(PerPageNumber) then exit do
+NewsRS.movenext
+loop
+	If totalput>0 Then
+	Searchhtml=Searchhtml&showpages(strFileName,totalPut,PerPageNumber,false,true,"篇文章")
+	End If			
+end if
+NewsRS.close
+set NewsRS=nothing
+SearchArticleList=Searchhtml
+End Function
+conn.close:set conn=nothing
+%>

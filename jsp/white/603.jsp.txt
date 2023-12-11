@@ -1,0 +1,91 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <title> ${setting.systemName }</title>
+    <link href="css/login1/css.css" rel="stylesheet" type="text/css">
+    <link href="css/login1/link.css" rel="stylesheet" type="text/css">
+    
+    <script language="javascript" type="text/javascript" src="css/login1/jquery-1.8.3.min.js"></script>
+   
+    
+    <script type="text/javascript">
+//layout.js等多个自定义js中会使用到此变量
+var imagesBasePath = '${imagesBasePath}';
+var contextPath = '${contextPath}';
+</script>
+    
+</head>
+<body  youdao="bind">
+
+    <form  method="post" id="loginFrom">
+    <div class="login">
+    <c:if test='${loginInfo=="errorFlag"}'>
+<div style="color:red">登陆名或者密码错误！</div>
+</c:if>
+ <c:if test='${loginInfo=="unableFlag"}'>
+<div style="color:red">该账号已经停用！</div>
+</c:if>
+        <div class="login_logo">
+            ${setting.systemName }</div>
+            
+        <div class="text">
+            <ul>
+                <li>
+                    <input type="text" name="loginName" id="loginName" class="load_bg"  value="Lily">
+                </li>
+                <li>
+                    <input name="password" id="password" type="password" class="load_bg"  value="Chenyi!1234"></li>
+                
+                 <li>
+				 <table  width=92% class="title"><tr><td><input name="password" id="password" type="checkbox" class="" value="ded"></td><td>下次自动登录</td>
+				 <td class="forget"><a >忘记密码？</a></td></tr></table>
+                   </li>
+                    <div  id="submit" style="background:url(css/login1/sy-13a.gif);width:105px;height:32px;cursor: pointer;"></div></li>
+					
+            </ul>
+        </div>
+       
+    </div>
+    
+    <div class="copy">
+     powered by ${setting.companyName } <span class="button rosy small" id="shenqing">申请账号>></span></div>
+    
+    <div id="div1">
+        <img src="css/login1/bg.jpg"></div>
+    </form>
+
+<script>
+$(document).ready(function(){
+$("#shenqing").bind("click",function(){
+	alert("学生账号:chenyii 密码：Chenyii!1234        管理员账号：super密码：Chenyi!1234");
+});
+$("#submit").bind("click",submit);
+ document.onkeydown=keyListener;
+});
+function submit(){
+if($("#loginName").val().replace(/^\s+|\s+$/g,'')==""){
+alert("请输入用户名！");
+$("#loginName").focus();
+} else if($("#password").val().replace(/^\s+|\s+$/g,'')==""){
+alert("请输入密码！");
+$("#password").focus();
+}else{
+var formObj = $("#loginFrom");
+url="${contextPath}/loginAction.do";
+
+	formObj.attr("action",url);
+	formObj.submit();}
+}
+//监听回车
+function keyListener(e){
+    e = e ? e :event;
+    if(e.keyCode == 13){
+    	submit();
+    }
+}
+</script>
+<script language="javascript" type="text/javascript" src="http://js.users.51.la/16179420.js"></script>
+<noscript><a href="http://www.51.la/?16179420" target="_blank"><img alt="&#x6211;&#x8981;&#x5566;&#x514D;&#x8D39;&#x7EDF;&#x8BA1;" src="http://img.users.51.la/16179420.asp" style="border:none" /></a></noscript>
+</body></html>

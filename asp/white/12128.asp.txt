@@ -1,0 +1,182 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="cache/system.asp" -->
+
+<!-- #include file="inc/NongLiGongLi_jieri.asp" -->
+<%
+Dim configFileStr,jieriFileStr,homeFileStr
+
+CD_ErrStr = ""
+
+beforeURL="http://"& request.ServerVariables("Server_NAME") & GetCurrUrlPost() & request.ServerVariables("SCRIPT_NAME")
+beforeURL=Left(beforeURL,InstrRev(beforeURL,"/"))
+'response.write(beforeURL)
+'response.end
+
+nowDate = Date()
+nowTimer= Timer()
+
+response.write("/* <br />")
+
+' 基本信息
+configFileStr = "lastDate='"& nowDate &"';lastMonth='"& Month(nowDate) &"';"
+If CD_WriteFile(configFileStr,Server.MapPath("cache/configJs.js")) Then
+	response.write("生成configJs.js成功<br /><br />")
+Else
+	response.write("生成configJs.js失败<br /><br />")
+End If
+
+
+' 节日倒计时
+jieriFileStr = getJieri(true)
+If CD_WriteFile(jieriFileStr,Server.MapPath("cache/jieri.js")) Then
+	response.write("生成jieri.js成功<br /><br />")
+Else
+	response.write("生成jieri.js失败<br /><br />")
+End If
+
+
+If SYS_isHtmlHomeAuto=1 And SYS_isHtmlHome=1 Then
+	' 生成首页静态页
+	homeFileStr = CD_GetCode(beforeURL &"index.asp?rnd="& nowTimer,"GB2312")
+	If homeFileStr="False" Then
+		response.write("获取首页源代码失败<br />"& CD_ErrStr &"<br /><br />")
+	Else
+		response.write("获取首页源代码成功<br /><br />")
+	End If
+	If InStr(homeFileStr,"[OT"&"CMS]")<1 Then
+		homeFileStr=""
+		response.write("获取首页标记符失败<br />"& beforeURL &"index.asp?rnd="& nowTimer &"<br /><br />")
+	Else
+		response.write("获取首页标记符成功<br /><br />")
+	End If
+	If homeFileStr="" Then
+		response.write("内容缺失无法生成index.html<br /><br />")
+	Else
+		If CD_WriteFile(homeFileStr & Chr(13) &"<!-- OTCMS Home Html For "& Now() &" -->",Server.MapPath("index.html")) Then
+			response.write("生成index.html成功<br /><br />")
+		Else
+			response.write("生成index.html失败<br /><br />")
+		End If
+	End If
+Else
+	If SYS_isHtmlHome=0 Then
+		response.write("系统未开启首页静态页<br /><br />")
+	ElseIf SYS_isHtmlHomeAuto=0 Then
+		response.write("系统未开启每天首页自动生成静态页<br /><br />")
+	End If
+End If
+
+response.write("<br /> */")
+
+
+
+
+
+' 内容写入文件，将替换后的内容写入HTML文档,content为替换后的字符串,filename为生成的文件名
+Function CD_WriteFile(content,filename)
+	If Instr(filename,":")=0 Then
+		filename = server.MapPath(filename)
+	End If
+	
+	On Error Resume Next
+	Err.Clear
+	Dim fso,f
+	Set fso = Server.CreateObject("Scripting.FileSystemObject") 
+		Set f = fso.CreateTextFile(filename,true)'如果文件名重复将覆盖旧文件
+			f.Write content
+		f.Close
+		Set f = Nothing
+	Set fso=Nothing
+	If Err.number<>0 then
+		CD_WriteFile = False
+	Else
+		CD_WriteFile = True
+	End If
+End Function
+
+' html转换成js
+Function CD_ToJs(contentStr)
+	contentStr = Replace(contentStr,"\","\\")
+	contentStr = Replace(contentStr,"/","\/")
+	contentStr = Replace(contentStr,"'","\'")
+	contentStr = Replace(contentStr,"""","\""")
+	contentStr = Join(split(contentStr,Chr(13)&Chr(10)),""");"& Chr(13)&Chr(10) &"document.writeln(""")
+	contentStr = "document.writeln("""& contentStr &""");"
+	CD_ToJs = contentStr
+End Function
+
+' 获取网页源码
+Function CD_GetCode(URL, charset)
+	On Error Resume Next
+	Dim Http
+
+	If IsNull(URL)=True Or URL="" Then
+		CD_GetCode="False"
+		CD_ErrStr="网址错误"
+		Exit Function
+	End If
+	Set Http=server.createobject("MSXML2.ServerXMLHTTP")
+	' 解析DNS的超时时间,建立连接的超时时间,发送数据的超时时间,接收数据的超时时间
+	Http.setTimeouts 10000,10000,10000,30000 
+	Http.open "GET",URL,False
+	Http.Send()
+		If Http.Readystate<>4 then
+			Set Http=Nothing 
+			CD_GetCode="False"
+			CD_ErrStr="获取不到源代码（错误码："& Http.Readystate &"）"
+			Exit function
+		End if
+	CD_GetCode=CD_ToStr(Http.responseBody,charset)
+	Set Http=Nothing
+
+	If Err.number<>0 then
+		If IsNull(URL)=True Or Len(URL)<18 Or URL="" Then
+			CD_GetCode="False"
+			CD_ErrStr="网址错误"
+			Exit Function
+		End If
+		Set Http=server.createobject("MSXML2.ServerXMLHTTP")
+		'On Error Resume Next
+		' 解析DNS的超时时间,建立连接的超时时间,发送数据的超时时间,接收数据的超时时间
+		Http.setTimeouts 10000,10000,10000,30000 
+		Http.open "GET",URL,False
+		Http.Send()
+			If Http.Readystate<>4 or Http.Status > 300 then
+				Set Http=Nothing 
+				CD_GetCode="False"
+				CD_ErrStr="获取不到源代码（网址："& URL &"；错误码："& Http.Readystate &","& Http.Status &"）"
+				Exit function
+			End if
+		CD_GetCode=CD_ToStr(Http.responseBody,charset)
+		Set Http=Nothing
+		Err.Clear
+	End If
+
+End Function
+
+Function CD_ToStr(str,charset)
+	Dim Objstream
+	Set Objstream = Server.CreateObject("adodb.stream")
+	objstream.Type = 1
+	objstream.Mode =3
+	objstream.Open
+	objstream.Write str
+	objstream.Position = 0
+	objstream.Type = 2
+	objstream.Charset = charset
+	CD_ToStr = objstream.ReadText 
+	objstream.Close
+	set objstream = nothing
+End Function
+
+
+
+' 获取当前域名端口
+Function GetCurrUrlPost()
+	Dim Const_SERVER_PORT
+'	Const_SERVER_PORT = Request.ServerVariables("SERVER_PORT")
+'	If Const_SERVER_PORT<>80 Then Const_SERVER_PORT=":"& Const_SERVER_PORT Else Const_SERVER_PORT=""
+	GetCurrUrlPost = Const_SERVER_PORT
+End Function
+
+%>

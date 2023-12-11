@@ -1,0 +1,92 @@
+﻿<%@ page language="java" import="java.util.*,com.bizoss.frame.util.Config" pageEncoding="UTF-8"%>
+<%@page import="com.bizoss.frame.util.InitSQLClass"%>
+<%@page import="com.bizoss.frame.dao.JdbcDbm"%>
+
+<!doctype>
+<html>
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<title>配置数据库连接向导 | 徽诚网</title>
+		<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+		<link rel="alternate" href="feed" title="订阅更新"
+			type="application/rss+xml" />
+		<meta name="application-name" content="徽诚网－每天团购一次，精品生活" />
+		<meta name="msapplication-navbutton-color" content="#C3E9F6" />
+		<meta name="msapplication-window"
+			content="width=device-width;height=device-height" />
+		<meta name="msapplication-tooltip" content="徽诚网－每天团购一次，精品生活" />
+		<meta name="msapplication-task"
+			content="name=今日团购;action-uri=/;icon-uri=/favicon.ico?v=3" />
+		<link rel="stylesheet" href="/templets/html/css/tuangou_index.css" />
+		<link rel="stylesheet" href="/templets/html/css/meituan.css" />
+		<LINK href="/templets/html/css/ht.css" type=text/css rel=stylesheet>
+		<LINK href="/templets/html/css/footer.css" type=text/css
+			rel=stylesheet>
+		<link type="text/css"
+			href="/templets/html/css/smoothness/jquery-ui-1.8.5.custom.css"
+			rel="stylesheet" />
+		<script type="text/javascript"
+			src="/templets/html/js/jquery-ui-1.8.4.custom.min.js" /></script>
+		<meta name="description" />
+		<meta name="keywords" />
+	</head>
+	<script> 
+  document.write("<s"+"cript type='text/javascript' src='/templets/html/teambuy/jsp/getSessUserId.jsp?"+Math.random()+"'></scr"+"ipt>"); 
+	
+</script>
+	<body class="bg-alt">
+
+		<jsp:include page="/templets/html/teambuy/teamtop.jsp" />
+		
+		<div id="content" class="signup-box">
+			<div class="mainboxcf">
+				<%
+					Config conf = new Config();
+					conf.init("jdbc.properties");
+					String username=request.getParameter("username");
+					String password=request.getParameter("password");
+					String ip=request.getParameter("ip");
+					String port=request.getParameter("port");
+					String database=request.getParameter("database");
+					String encoding=request.getParameter("encoding");
+					if(conf==null){
+						out.println("无法加载配置文件，请重启服务。");
+					}else{
+						String url=conf.getString("url");
+						String sub_url="";
+						sub_url=url.substring(url.indexOf("://")+3,url.lastIndexOf("/"));
+						url=url.replace(sub_url,ip+":"+port);
+						sub_url=url.substring(url.lastIndexOf("/"),url.indexOf("?")+1);
+						url=url.replace(sub_url,"/"+database+"?");					
+						conf.setString("url",url);
+						conf.setString("init_database","0");
+						conf.setString("dbname",database);	
+						conf.setString("username",username);
+						conf.setString("password",password);
+						InitSQLClass init=new InitSQLClass();
+						List<String> list=init.readSqlFile(encoding,database);
+						String tempurl=conf.getString("url");
+						if(list!=null){
+							JdbcDbm db=new JdbcDbm();
+							sub_url=tempurl.substring(0,tempurl.lastIndexOf("/"))+"/mysql";
+							init.execSQL(list,db.getConnection(sub_url,username,password));
+						}									
+						conf.saveConfig("jdbc.properties");
+					}
+					
+				 %>
+			</div>
+		</div>
+		<BR>
+		<div id="bottom">
+			<div class="bottom_text">
+				<jsp:include page="/templets/html/teambuy/footer.jsp"></jsp:include>
+			</div>
+		</div>
+		<script type="text/javascript">
+			window.location.href="/index.html";
+		</script>
+	</body>
+</html>
+

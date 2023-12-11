@@ -1,0 +1,142 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title></title> <%-- <script src="${contextPath}/js/common/jquery.js"></script> --%>
+<script src="${contextPath}/js/plugins/jquery/jquery-1.9.1.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script src="${contextPath}/js/plugins/jquery/jquery-ui.js"></script>
+	<link href="${contextPath}/js/plugins/jquery/jquery-ui.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+	<script src="${contextPath}/js/common/flex_table.js"></script>
+</head>
+<body>
+
+	<input type="hidden" value="${contextPath}" id="contextPath" />
+
+	<div class="userInfo" id="searchCon">
+		<h1><fmt:message key="new.exam"/></h1>
+		<form:form id="resultForm" name="resultForm" commandName="role">
+		<input type="hidden" id="paperId" name="paperId"/>
+			<div class="title"><fmt:message key="examsetting"/></div>
+			<table class="yTable margintop">
+				<tr>
+					<th align="right" width="60"><span>*</span><fmt:message key="examName"/></th>
+					<td align="left" colspan="3"><input name="name" id="name"
+						type="text" size="60" class="inputbox" /><span></span>
+					</td>
+
+				</tr>
+				<tr>
+					<th align="right" width="120"><span>*</span><fmt:message key="Answertime"/></th>
+					<td align="left" width="120" colspan="2"><input name="totalTime"
+						id="totalTime" type="text" class="inputbox" />
+				</tr>
+				<tr>
+					<th align="right" width="120">&nbsp;&nbsp;&nbsp;&nbsp;<fmt:message key="paperstyle"/></th>
+					<td align="left"><select name="theme">
+					<option selected="selected" value="1">蓝色心情</option>
+							<option value="2">古典怀旧</option>
+							
+					</select>
+					</td>
+				</tr>
+				<tr>
+					<th align="right" width="120">&nbsp;&nbsp;&nbsp;&nbsp;<fmt:message key="papermodel"/></th>
+					<td align="left"><select name="mode">
+					<option selected="selected" value="1">整卷模式</option>
+							<option value="2">逐题模式</option>
+							
+					</select>
+					</td>
+				</tr>
+			</table>
+			<div class="title"><fmt:message key="OpeningHours"/></div>
+			<table class="yTable margintop">
+				<tr>
+					<th align="right" width="60"><fmt:message key="starttime"/></th>
+					<td align="left" width="120"><input name="begin" id="beginDate"
+						type="text" class="inputbox" />
+					</td>
+
+					<th align="right" width="60"><fmt:message key="endtime"/></th>
+					<td align="left" width="120"><input name="end" id="endDate"
+						type="text" class="inputbox" />
+					</td>
+					<td align="left"><input name="limited" id="limited" type="checkbox" />
+						<label><fmt:message key="Unlimited"/></label></td>
+				</tr>
+
+			</table>
+			<div style="margin-top:20px;">
+				<span class="title"><fmt:message key="paperlist"/></span>
+			</div>
+			<div class="sp-blue mb10">&nbsp;</div>
+			<div class="Btn">
+			<input  id="newPaper1" value="<fmt:message key="addpaper"/>" type="button"/> 
+			
+		<input  id="cancelRole" value="<fmt:message key="new.paper"/>" type="button"/>
+				
+			</div>
+			<div class="sp-blue mb10">&nbsp;</div>
+			<div id="accordion">
+  <h3><fmt:message key="paperlist"/></h3>
+  <div>
+    	<table name="table" width="100%" border="0" cellpadding="0"
+				cellspacing="0" class="tableRes">
+				<tr>
+					<th style="width: 100%">
+						<table class="xTable " id="flextb">
+							<tr>
+								<th style="width: 30%"><fmt:message key="questionName"/></th>
+								<th style="width: 30%"><span><fmt:message key="questiondescription"/></span></th>
+								<th style="width: 10%"><span><fmt:message key="jsscores"/></span></th>
+
+								<th style="width: 20%"><span><fmt:message key="jsoperations"/></span></th>
+
+							</tr>
+
+
+						</table>
+
+						</div>
+					</th>
+
+				</tr>
+
+			</table>
+  </div>
+  </div>
+			
+			<div class="Btn">
+			<input  id="save" value="<fmt:message key="save"/>" type="button" /> 
+			<input  id="saveRole" value="<fmt:message key="release"/>" type="button"/> 
+		<input  id="cancel" value="<fmt:message key="cancel"/>" type="button"/> 
+				
+			</div>
+		</form:form>
+
+	</div>
+	<script type="text/javascript">
+	
+		$( "#accordion" ).accordion({
+      collapsible: true
+    });
+		seajs.use("${scriptBasePath}/exam/new.js");
+	</script>
+</body>
+</html>

@@ -1,0 +1,393 @@
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/check.asp"-->
+<!--#include file="inc/head.inc"-->
+<!--#include file="../inc/ubbcode.asp"-->
+<!--#include file="../inc/cls_editor.asp"-->
+<%
+Call InnerLocation("发布"&NewAsp.ModuleName)
+Dim Rs,SQL,classid
+If ChannelID = 0 Then ChannelID = 1
+classid=0
+If CInt(GroupSetting(7)) = 0 Then
+	ErrMsg = ErrMsg + "<li>对不起！您没有发布文章的权限，如需要该权限请联系管理员。</li>"
+	Founderr = True
+End If
+If CInt(NewAsp.PostGrade) > CInt(NewAsp.membergrade) Then
+	ErrMsg = ErrMsg & "<li>对不起！您没有发布文章的权限，如需要该权限请联系管理员。</li>"
+	FoundErr = True
+End If
+
+Dim InstallDir_ChannelDir
+InstallDir_ChannelDir = Trim(NewAsp.InstallDir & NewAsp.ChannelDir)
+ubb.BasePath = InstallDir_ChannelDir
+ubb.setUbbcode = Join(NewAsp.setUserEditor,"|")
+ubb.Keyword = NewAsp.KeywordList
+
+Dim Action:Action = LCase(Request("action"))
+Select Case Trim(Action)
+	Case "save"
+		Call SaveArticle
+	Case "view"
+		Call ArticleView
+	Case Else
+		Call showmain
+End Select
+If Founderr = True Then
+	Call ToErrors(ErrMsg)
+End If
+Sub showmain()
+	If Founderr = True Then Exit Sub
+%>
+<script language=JavaScript>
+var _maxCount = '<%=CLng(GroupSetting(16))%>';
+function doChange(objText, objDrop){
+	if (!objDrop) return;
+	if(document.myform.BriefTopic.selectedIndex<2){
+		document.myform.BriefTopic.selectedIndex+=1;
+	}
+	var str = objText.value;
+	var arr = str.split("|");
+	var nIndex = objDrop.selectedIndex;
+	objDrop.length=1;
+	for (var i=0; i<arr.length; i++){
+		objDrop.options[objDrop.length] = new Option(arr[i], arr[i]);
+	}
+	objDrop.selectedIndex = nIndex;
+}
+function doSubmit(){
+	var form1 = document.myform;
+	if (form1.title.value==""){
+		alert("文章标题不能为空！");
+		form1.title.focus();
+		return false;
+	}
+	if (form1.Author.value==""){
+		alert("文章作者不能为空！");
+		form1.Author.focus();
+		return false;
+	}
+	if (form1.ComeFrom.value==""){
+		alert("文章来源不能为空！");
+		form1.ComeFrom.focus();
+		return false;
+	}
+	if (form1.classid.value==""){
+		alert("该一级分类已经有下属分类，请选择其下属分类！");
+		form1.classid.focus();
+		return false;
+	}
+	if (form1.classid.value=="0"){
+		alert("该分类是外部连接，不能添加内容！");
+		form1.classid.focus();
+		return false;
+	}
+	<%If CInt(GroupSetting(2)) = 1 Then%>
+	if (form1.codestr.value==""){
+		alert("请填写验证码！");
+		form1.codestr.focus();
+		return false;
+	}
+	<%End If%>
+	var strLen=0;
+	try{
+		strLen=GetContentLength();
+	}
+	catch(e){
+		strLen=form1.content.value.length;
+	}
+	if(strLen < 2){
+		alert("文章内容不能小于2个字符！");
+		return false;
+	}
+	if(strLen > _maxCount){
+		alert("文章的内容不能超过"+_maxCount+"个字符！");
+		return false;
+	}
+}
+</script>
+<div onkeydown="CtrlEnter()">
+<table class="Usertableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="2">&gt;&gt;发布文章&lt;&lt;</th>
+	</tr>
+	<form action="ArticlePost.Asp" method="post" onsubmit="return doSubmit()" name="myform">
+	<input type="hidden" name="action" value="save"/>
+	<input type="hidden" name="ChannelID" value="<%=ChannelID%>"/>
+		<tr>
+			<td class="usertablerow2" nowrap="nowrap" align="right" width="15%"><strong>所属分类</strong></td>
+			<td class="usertablerow1" width="85%"><%
+	Call selectClasslist(ChannelID,classid)
+%></td>
+		</tr>
+		<tr>
+			<td class="usertablerow2" nowrap="nowrap" align="right"><strong>文章标题</strong></td>
+			<td class="usertablerow1"><select id="BriefTopic" name="BriefTopic">
+			<option value="0" selected="selected">选择话题</option>
+			<option value="1">[图文]</option>
+			<option value="2">[组图]</option>
+			<option value="3">[新闻]</option>
+			<option value="4">[推荐]</option>
+			<option value="5">[注意]</option>
+			<option value="6">[转载]</option>
+			</select> <input id="title" size="60" name="title" type="text" /> <font color="#ff0000">*</font></td>
+		</tr>
+		<tr>
+			<td class="usertablerow2" align="right"><strong>相关文章</strong></td>
+			<td class="usertablerow1"><input id="Related" size="60" name="Related" type="text" /> <font color="#ff0000">*</font></td>
+		</tr>
+		<tr>
+			<td class="usertablerow2" align="right"><strong>文章作者</strong></td>
+			<td class="usertablerow1"><input size="30" name="Author" value="<%=MemberName%>" type="text" /> <select onChange="Author.value=this.value;" name="font2">
+			<option value="" selected="selected">选择作者</option>
+			<option value="佚名">佚名</option>
+			<option value="本站">本站</option>
+			<option value="不详">不详</option>
+			<option value="未知">未知</option>
+			</select></td>
+		</tr>
+		<tr>
+			<td class="usertablerow2" align="right"><strong>文章来源</strong></td>
+			<td class="usertablerow1"><input size="30" name="ComeFrom" type="text" /> <select onChange="ComeFrom.value=this.value;" name="font1">
+			<option value="" selected="selected">选择来源</option>
+			<option value="本站原创">本站原创</option>
+			<option value="本站整理">本站整理</option>
+			<option value="不详">不详</option>
+			<option value="转载">转载</option>
+			</select></td>
+		</tr>
+		<tr>
+			<td class="usertablerow1" colspan="2"><%
+	'-- 编辑器设置
+	Dim oEditor,EditorCode
+	Set oEditor					= New Editor_Cls
+	oEditor.UserMode			= 1
+	oEditor.setEditMode			= NewAsp.setUserEditor(0)
+	oEditor.ChannelID			= ChannelID
+	oEditor.Width				= NewAsp.setUserEditor(2)
+	oEditor.Height				= NewAsp.setUserEditor(3)
+	oEditor.BasePath			= NewAsp.InstallDir & NewAsp.setAdminEditor(4)
+	oEditor.ToolbarSet			= NewAsp.setUserEditor(1)'Default,AdminMode,Simple,UserMode,Basic
+	oEditor.InstanceName		= "content"
+	oEditor.Execute()
+	Set oEditor = Nothing
+%></td>
+		</tr>
+		<tr>
+			<td class="usertablerow2" align="right"><strong>首页图片</strong></td>
+			<td class="usertablerow1"><input id="ImageUrl" size="60" name="ImageUrl" type="text" /> <input id="UploadFileList" type="hidden" onchange="doChange(this,document.myform.ImageFileList)" name="UploadFileList" /> <br />
+			直接从上传图片中选择 <select id="ImageFileList" onChange="ImageUrl.value=this.value;" name="ImageFileList">
+			<option value="" selected="selected">不选择首页推荐图片</option>
+			</select></td>
+		</tr>
+		<tr>
+			<td class="usertablerow2" align="right"><strong>文件上传</strong></td>
+			<td class="usertablerow1"><iframe name="image1" src="upload.asp?ChannelID=<%=ChannelID%>" frameborder="0" width="100%" scrolling="no" height="55" allowTransparency="true"></iframe></td>
+		</tr>
+		<tr>
+			<td class="usertablerow2" align="right"><strong>文章星级</strong></td>
+			<td class="usertablerow1"><select name="star">
+			<option value="5">★★★★★</option>
+			<option value="4">★★★★</option>
+			<option value="3" selected="selected">★★★</option>
+			<option value="2">★★</option>
+			<option value="1">★</option>
+			</select></td>
+		</tr><%
+If CInt(GroupSetting(2)) = 1 Then
+%>
+		<tr>
+			<td class="Usertablerow2" align="right" height="28"><strong>验证码</strong></td>
+			<td class="Usertablerow1"><input name="checkcode" type="text" class="logininput" id="checkcode" size="5" maxlength="4" onfocus="get_checkcode();this.onfocus=null;" onkeyup="ajaxcheckcode('check_code','checkcode');" />
+				<span id="img_checkcode"><label style="cursor:pointer;" onclick="get_checkcode();">点击获取验证码</label></span><span id="isok_checkcode"></span> <font color="#ff0000">*</font></td>
+		</tr>
+		<%
+End If
+%>		<tr align="center">
+			<td class="usertablerow2" colspan="2" height="28"><input class="Button" type="button" onclick="javascript:history.go(-1)" name="go_button" value="返回上一页" /> <input class="Button" type="submit" name="submit_button" value="现在发布" /></td>
+		</tr>
+	</form>
+</table>
+</div>
+<%
+End Sub
+Sub SaveArticle()
+	Dim TextContent,isAccept,i,ArticleID
+	If CLng(UserToday(3)) => CLng(GroupSetting(10)) And CLng(GroupSetting(10))>0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>您每天最多只能发布<font color=red><b>" & GroupSetting(10) & "</b></font>篇文章，如果还要继续发布请明天再来吧！</li>"
+	End If
+	If NewAsp.CheckPost=False Then
+		ErrMsg = ErrMsg + Postmsg
+		FoundErr = True
+		Exit Sub
+	End If
+	If Trim(Request.Form("title")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>文章标题不能为空！</li>"
+	End If
+	If Len(Request.Form("title")) => 100 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>文章标题不能超过100个字符！</li>"
+	End If
+	If Len(Request.Form("Related")) => 200 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>相关文章不能超过200个字符！</li>"
+	End If
+	If Trim(Request.Form("Author")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>文章作者不能为空！</li>"
+	End If
+	If Trim(Request.Form("ComeFrom")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>文章来源不能为空！</li>"
+	End If
+	If Not IsNumeric(Request.Form("star")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>文章星级不能为空。</li>"
+	End If
+
+	If Not IsNumeric(Request.Form("ClassID")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>该一级分类已经有下属分类，不能添加内容！</li>"
+	End If
+	If Trim(Request.Form("ClassID")) = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>该分类是外部连接，不能添加内容！</li>"
+	End If
+	TextContent = ""
+	For i = 1 To Request.Form("content").Count
+		TextContent = TextContent & Request.Form("content")(i)
+	Next
+	If Trim(TextContent) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>文章内容不能为空！</li>"
+	End If
+	If Len(TextContent) > CLng(GroupSetting(16)) And CLng(GroupSetting(16))>0 Then
+		ErrMsg = ErrMsg + "<li>文章内容不能大于" & GroupSetting(16) & "字符！</li>"
+		Founderr = True
+	End If
+	If NewAsp.setUserEditor(0) <> 0 Then
+		TextContent = NewAsp.HTMLEncode(TextContent)
+	End If
+	TextContent = Re_Replace(TextContent, InstallDir_ChannelDir, "[InstallDir_ChannelDir]")
+	Dim ChkPostData
+	ChkPostData = NewAsp.NeedIsAudit(TextContent, Request.Form("title") & "" & Request.Form("Related"))
+	
+	If CInt(GroupSetting(2)) = 1 Then
+		If Not NewAsp.CodeIsTrue() Then
+			ErrMsg = ErrMsg + "<meta http-equiv=refresh content=""2;URL="&Request.ServerVariables("HTTP_REFERER")&"""><li>验证码校验失败，请返回刷新页面再试。两秒后自动返回</li>"
+			Founderr = True
+		End If
+	End If
+	
+	If Founderr = True Then Exit Sub
+	'On Error Resume Next
+	Call PreventRefresh  '防刷新
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Article WHERE (ArticleID is null)"
+	Rs.Open SQL,Conn,1,3
+	Rs.Addnew
+		Rs("ChannelID") = ChannelID
+		Rs("ClassID") = NewAsp.ChkNumeric(Request.Form("ClassID"))
+		Rs("SpecialID") = 0
+		Rs("title") = NewAsp.RequestForm(Request.Form("title"),200)
+		Rs("subtitle") = ""
+		Rs("ColorMode") = 0
+		Rs("FontMode") = 0
+		Rs("content") = Html2Ubb(TextContent)
+		Rs("Related") = NewAsp.RequestForm(Request.Form("Related"),200)
+		Rs("Author") = NewAsp.RequestForm(Request.Form("Author"),50)
+		Rs("ComeFrom") = NewAsp.RequestForm(Request.Form("ComeFrom"),50)
+		Rs("star") = NewAsp.ChkNumeric(Request.Form("star"))
+		Rs("isTop") = 0
+		Rs("AllHits") = 0
+		Rs("DayHits") = 0
+		Rs("WeekHits") = 0
+		Rs("MonthHits") = 0
+		Rs("HitsTime") = Now()
+		Rs("WriteTime") = Now()
+		Rs("HtmlFileDate") = Trim(NewAsp.HtmlRndFileName)
+		Rs("username") = Trim(MemberName)
+		Rs("isBest") = 0
+		Rs("BriefTopic") = NewAsp.ChkNumeric(Request.Form("BriefTopic"))
+		Rs("ImageUrl") = NewAsp.RequestForm(Request.Form("ImageUrl"),255)
+		Rs("UploadImage") = NewAsp.checkstr(Request.Form("UploadFileList"))
+		Rs("UserGroup") = 0
+		Rs("PointNum") = 0
+		Rs("isUpdate") = 1
+		If CInt(NewAsp.IsAuditing) = 1 Or ChkPostData = True Then
+			Rs("isAccept") = 0
+		Else
+			Rs("isAccept") = 1
+		End If
+		Rs("ForbidEssay") = 0
+		Rs("AlphaIndex") = NewAsp.ReadAlpha(ubb.CheckSpecialChar(Request.Form("title")))
+		Rs("AutoPages") = 1
+	Rs.update
+	Rs.Close
+	Rs.Open "SELECT TOP 1 ArticleID FROM NC_Article WHERE ChannelID=" & ChannelID & " ORDER BY ArticleID DESC", Conn, 1, 1
+	ArticleID = Rs("ArticleID")
+	Rs.Close:Set Rs = Nothing
+	Dim strUserToday
+	strUserToday = UserToday(0) &","& UserToday(1) &","& UserToday(2) &","& UserToday(3)+1 &","& UserToday(4) &","& UserToday(5)
+	UpdateUserToday(strUserToday)
+	If CInt(NewAsp.IsAuditing) = 1 Then
+		Call ToSucceed("<li>恭喜您！提交成功。请等待管理员验证后正式发布。</li><li><a href=ArticlePost.Asp?action=view&ChannelID=" & ChannelID & "&ArticleID=" & ArticleID & ">点击此处查看该文章</a></li>")
+	Else
+		 AddUserPointNum MemberName, 1
+		 Call ToSucceed("<li>恭喜您！" & NewAsp.ModuleName & "发布成功。</li><li><a href=ArticlePost.Asp?action=view&ChannelID=" & ChannelID & "&ArticleID=" & ArticleID & ">点击此处查看该文章</a></li>")
+	End If
+End Sub
+
+Sub ArticleView()
+	Dim ArticleID
+	ArticleID = NewAsp.ChkNumeric(Request("ArticleID"))
+	If ArticleID = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！您选择了错误的系统参数。</li>"
+		Exit Sub
+	End If
+	If ChannelID = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请指定频道。</li>"
+		Exit Sub
+	End If
+	SQL = "SELECT ArticleID,title,content,ColorMode,FontMode,Author,ComeFrom,WriteTime,username FROM NC_Article WHERE ChannelID=" & ChannelID & " And username='" & MemberName & "' And ArticleID=" & CLng(ArticleID)
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.bof And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！没有找到任何文章。或者您选择了错误的系统参数！</li>"
+		Exit Sub
+	Else
+%>
+<script language=javascript>
+var newasp_fontsize=9;
+var newasp_lineheight=12;
+</script>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="UserTableBorder" style="table-layout:fixed;word-break:break-all">
+	<tr>
+	  <th>&gt;&gt;查看文章内容&lt;&lt;</th>
+	</tr>
+	<tr>
+	  <td align="center" class="usertablerow2"><a href="ArticleList.Asp?action=edit&ChannelID=<%=ChannelID%>&ArticleID=<%=Rs("ArticleID")%>"><font size="4"><%=NewAsp.ReadFontMode(Rs("title"),Rs("ColorMode"),Rs("FontMode"))%></font></a></td>
+	</tr>
+	<tr>
+	  <td align="center" class="usertablerow1">作者：<%=Rs("Author")%> 　来源于：<%=Rs("ComeFrom")%> 　发布时间：<%=Rs("WriteTime")%> 　发布人：<font color="blue"><%=Rs("username")%></font></td>
+	</tr>
+	<tr>
+	  <td class="usertablerow1"><p align="right"><a style="CURSOR: hand; POSITION: relative" onclick="if(newasp_fontsize&gt;8){NewaspContentLabel.style.fontSize=(--newasp_fontsize)+&quot;pt&quot;;NewaspContentLabel.style.lineHeight=(--newasp_lineheight)+&quot;pt&quot;;}" title="减小字体"><img src="../images/1.gif" border="0" width="15" height="15"><font color="#FF6600">减小字体</font></a> 
+                    <a style="CURSOR: hand; POSITION: relative" onclick="if(newasp_fontsize&lt;64){NewaspContentLabel.style.fontSize=(++newasp_fontsize)+&quot;pt&quot;;NewaspContentLabel.style.lineHeight=(++newasp_lineheight)+&quot;pt&quot;;}" title="增大字体"><img src="../images/2.gif" border="0" width="15" height="15"><font color="#FF6600">增大字体</font></a></p>
+					<div id="NewaspContentLabel"><%=Replace(ubb.UBBCode(Rs("content")), "[page_break]", "")%></div></td>
+	</tr>
+	<tr>
+	  <td align="center" class="usertablerow2"><input type="button" onclick="javascript:window.close()" value="关闭本窗口" name="B2" class=Button>&nbsp;&nbsp;
+	  <input type="button" name="Submit1" onclick="javascript:location.href='#'" value="返回顶部" class=button></td>
+	</tr>
+</table>
+<%
+	End If
+	Rs.Close
+	Set Rs = Nothing 
+End Sub
+%>
+<!--#include file="inc/foot.inc"-->

@@ -1,0 +1,103 @@
+<!--#include file="base64.asp"-->
+<%
+Randomize
+
+Dim oauth_timestamp,oauth_nonce,oauth_callback,BASE_STRING,oauth_signature,oauth_token,oauth_token_Secret,oauth_verifier,oauth_consumer_key,format,oauth_version,Base_Par,post_body,content,jing,wei,clientip,httptype,Base_url,str_content,pageflag,pagetime,reqnum
+
+%>
+<!--#include file="../../Include/Class_Api_Tencent.asp"-->
+<%
+
+
+oauth_callback = "&oauth_callback=" & strUrlEnCode("http://"&request.ServerVariables("HTTP_HOST")&"/Api/Tencent/callback.asp?ks="&Request.Cookies("MemberKey")&"")'授权成功后的回调地址
+'oauth_callback = "oauth_callback=null"
+oauth_consumer_key = "&oauth_consumer_key=" & App_Key
+
+Const request_token_url = "https://open.t.qq.com/cgi-bin/request_token" '常用的接口地址，需要时可以自行添加
+Const authorize_url = "https://open.t.qq.com/cgi-bin/authorize"
+Const access_token_url = "https://open.t.qq.com/cgi-bin/access_token"
+Const user_info_url = "http://open.t.qq.com/api/user/info"
+Const t_add_url = "http://open.t.qq.com/api/t/add"
+Const home_timeline_url = "http://open.t.qq.com/api/statuses/home_timeline"
+
+httptype = "GET&"
+
+oauth_nonce = "&oauth_nonce=" & makePassword(32)
+
+Const oauth_signature_method = "&oauth_signature_method=HMAC-SHA1"
+
+oauth_timestamp = "&oauth_timestamp=" & DateDiff("s","01/01/1970 08:00:00",Now())
+
+oauth_version = "&oauth_version=1.0"
+
+'参数构造
+Function get_oauth_url(oauth_url)
+	If oauth_url<>request_token_url Then
+		oauth_callback = ""  '当不需要某个参数时将其重新赋值为空
+		oauth_token = "&oauth_token=" & Request.Cookies("tencent")("oauth_token")
+		oauth_token_Secret = Request.Cookies("tencent")("oauth_token_Secret")
+		If oauth_url=access_token_url Then
+			oauth_verifier = "&oauth_verifier=" & Request.QueryString("oauth_verifier")
+		Else
+			format = "&format=json" 
+'【
+			If oauth_url = t_add_url Then
+				str_content =Request.form("user_content") '发送内容
+				clientip="&clientip=" & Request.Form("userip")
+				content ="&content=" & str_content'用于签名时需要编码
+				httptype = "POST&"
+				jing="&jing="'坐标
+				wei="&wei="
+			End If
+			If oauth_url = home_timeline_url Then
+				pageflag = "&pageflag=0"
+				pagetime ="&pagetime=0"
+				reqnum ="&reqnum=20"
+			End If
+'】每个接口的非共通参数在这里设置，比较多的话可以用Case分支
+			
+		End If
+	End If
+	Base_Par = Replace(clientip&content&format&jing&oauth_callback&oauth_consumer_key&oauth_nonce&oauth_signature_method& oauth_timestamp&oauth_token&oauth_verifier&oauth_version&wei&pageflag& pagetime&reqnum,"&","",1,1) '所有会用到的参数都要按字母顺序连接起来，然后去掉第一个&，
+		
+	BASE_STRING = httptype & strUrlEnCode(oauth_url) & "&" & strUrlEnCode(Base_Par)
+	
+	'Response.Write("<br />"&BASE_STRING& "<br />")
+			
+	oauth_signature = "&oauth_signature=" & strUrlEnCode(b64_hmac_sha1(App_Secret&"&"&oauth_token_Secret,BASE_STRING)) '生成签名
+	
+	get_oauth_url = oauth_url&"?"&Base_Par&oauth_signature '用于GET
+	
+	Base_url = oauth_url '用于post
+	
+End Function
+
+
+'生成随机串
+Function makePassword(byVal maxLen)
+	Dim strNewPass
+	Dim whatsNext, upper, lower, intCounter
+	Randomize
+	For intCounter = 1 To maxLen
+	whatsNext = Int((1 - 0 + 1) * Rnd + 0)
+	If whatsNext = 0 Then
+	upper = 122
+	lower = 100
+	Else
+	upper = 57
+	lower = 48
+	End If
+	strNewPass = strNewPass & Chr(Int((upper - lower + 1) * Rnd + lower))
+	Next
+	makePassword = strNewPass
+End function
+'URL Encode，并将不需要转换的再替换回来
+Function strUrlEnCode(byVal strUrl)
+strUrlEnCode = Server.URLEncode(strUrl)
+strUrlEnCode = Replace(strUrlEnCode,"%5F","_")
+strUrlEnCode = Replace(strUrlEnCode,"%2E",".")
+strUrlEnCode = Replace(strUrlEnCode,"%2D","-")
+strUrlEnCode = Replace(strUrlEnCode,"+","%20")
+End Function
+
+%>

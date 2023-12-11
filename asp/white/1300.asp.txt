@@ -1,0 +1,154 @@
+<!--#include file="../inc/mdb.asp"-->
+<!--#include file="../inc/config.asp"-->
+<!--#include file="../inc/cmspublic.asp"-->
+<!--#include file="../inc/cmsfunction.asp"-->
+<%
+'****************************************************
+' 花香盈路网站管理系统HxCMS V8.0 Power by HxCMS.Net
+' Web: http://www.Hxcms.net, http://www.Hx66.com.cn
+' Copyright (C) 2006 HxCMS.Net All Rights Reserved.
+'****************************************************
+dim aid,showtit,showinfo,showbody,showtool,contextual,pertinent,strKey
+aid=trim(request.querystring("id"))
+if aid="" or not IsNumeric(aid) then
+   Call HxErrMsg("传值参数非法!","goto")
+else
+   aid=CLng(aid)
+end if
+Function getGrade(id)
+if id=0 then
+   getGrade="游客身份"
+elseif id=1 then
+   getGrade="会员身份"       
+elseif id=2 then
+   getGrade="VIP身份"       
+end if
+end Function
+if aid>0 then
+   sql="select * from art where art_id="&aid
+   set rs=server.createobject("adodb.recordset")
+   rs.open sql,conn,1,3
+	if rs.bof and rs.eof then
+                Call HxErrMsg("你要找的文章不存在，或者已经被管理员删除!","goto")
+	else	
+		if rs("Passed")=1 then
+                        Call HxErrMsg("你要找的文章尚未被管理员审核!","goto")
+		else
+			start=rs("art_title")
+                        strKey=rs("art_keyword")
+                        showtit=start
+                        showbody="<script type=""text/javascript"">doClick_body('"&aid&"','0','art');</script>"
+                        showinfo="作者："&rs("art_author")&" | "
+                        showinfo=showinfo&"来源："&rs("art_ahome")&" | "
+                        showinfo=showinfo&"时间："&DateToStr(rs("art_date"),1)&" | "
+                        showinfo=showinfo&"阅读权限："&getGrade(rs("Grade"))&" | "
+                        showinfo=showinfo&"会员币："&rs("points")
+                        showtool="提交会员："&rs("tjuser")&" | 浏览次数："&rs("art_count")
+                        rs("art_count")=rs("art_count")+1
+			rs.update
+		end if
+	end if
+   rs.close:set rs=nothing
+end if
+'===============显示上下篇文章===============
+dim RelationArt
+set RelationArt = conn.execute("select top 1 art_id,art_title from art where art_id<"&aid&" and passed=0 order by art_id desc")
+IF RelationArt.eof and relationArt.bof Then
+contextual= "上篇文章：已经没有了  &nbsp; "   
+else
+contextual= "上篇文章：<a href=""Show.asp?id=" & RelationArt(0) & """>" & relationArt(1) & "</a>  &nbsp; "   
+end if   
+Set RelationArt=Nothing
+set RelationArt = conn.execute("select top 1 art_id,art_title from art where art_id>"&aid&" and passed=0 order by art_id")
+IF RelationArt.eof and relationArt.bof Then
+contextual=contextual& "下篇文章：已经没有了"   
+else
+contextual=contextual& "下篇文章：<a href=""Show.asp?id=" & RelationArt(0) & """>" & relationArt(1) & "</a>"  
+end if  
+Set RelationArt=Nothing 
+'===============显示相关文章===============
+dim arrKey,i,rs2,Spl
+pertinent= "<ul>"
+if instr(strkey,"|")>1 then
+    arrKey=split(strKey,"|")
+    strKeys="((art_keyword like '%" & arrKey(0) & "%')"
+    for i=1 to ubound(arrKey)
+	strKey=strKey & " or (art_keyword like '%" & arrKey(i) & "%')"
+    next
+	strKey=strKey & ")"
+else
+    strKey="(art_keyword like '%" & strKey & "%')"
+end if
+Sql="select top 10 art_id,art_title from art where " & strKey & " and art_id <> "&aid&" and passed=0 order by art_id DESC"
+set rs2=server.createobject("adodb.recordset")
+rs2.open Sql,conn,1,1
+if rs2.eof and rs2.bof then
+  pertinent=pertinent& "<li>没有相关文章</li>"
+else
+do while not rs2.eof
+  pertinent=pertinent& "<li><a href='Show.asp?id="&rs2(0)&"'>"&gotTopic(rs2(1),36)&"</a></li>" & vbCrLf  
+rs2.movenext
+loop
+end if
+rs2.close
+set rs2=nothing
+pertinent=pertinent& "</ul>"
+cmshead="<link href=""../Css/textbox.css"" type=""text/css"" rel=""stylesheet"" />" & vbCrLf
+Call HxCMS_Head()
+%>
+<!--页面顶部结束-->
+<!--页面当前位置-->
+<div id="position">
+  <h6><span>您的位置：</span><a href='../'>首页</a>&nbsp;>>&nbsp;<a href='Index.asp'>文章频道</a>&nbsp;>>&nbsp;<%=start%></h6>
+</div>
+<!--页面左边开始-->
+<div class="Tab_left w_8">
+        <div class="Tab_left w_8 side_border">
+        <div class="topic_bg1_1">文章阅读</div>
+        <div class="textbox">
+	     <div class="text_tit"><h1><%=showtit%></h1></div>
+	     <div class="text_info"><%=showinfo%></div>
+	     <div class="text_body" id="ShowBody">内容加载中……<%=showbody%></div>
+             <div class="text_tool"><h5><%=showtool%></h5><span>【 <a href='javascript:copyText(document.all.ShowBody)'>复制</a> 】 【 <a href="javascript:window.print()">打印</a> 】</span> </div>
+             <div class="text_url"><h4><font color="#990000">>></font>相关资讯：</h4><span><%=contextual%></span></div>
+        </div>
+        <div class="revbox">
+	     <div class="new_rev">
+		<h5><a href="javascript:void(0);" onclick="comm_body('<%=aid%>','2');"><img alt="查看网友评论" src="../images/comm_icon.gif" /> 网友评论</a></h5>
+        	<span>以下网友评论只代表其个人观点，不代表花香盈路的观点或立场</span>
+		<div class="cle_fl"></div>
+	     </div>
+	     <div id="commBody"> 
+		<div class="cle_fl"></div>
+	     </div>
+        </div>
+        </div>
+</div>
+<!--页面左边结束-->
+<!--页面右边开始-->
+<div class="Tab_right w_7">
+        <!--用户登陆 -->
+        <div class="Tab_left w_7 side_border">
+        <div class="topic_bg1">
+        <div class="topic">用户登陆</div>
+        </div>
+        <div class="other_16" id="userinfo"><img alt="" src="../images/loading.gif" /><br/>加载中……</div>
+        </div><div class="cle_fl"></div>
+        <div class="w_7 side_border">
+        <div class="topic_bg1">
+        <div class="topic">相关文章</div>
+        </div>
+        <div class="other_16 list_block"><%=pertinent%></div>
+        </div>
+</div>
+<div class="clear_float"><img alt="" src="../images/space.gif" /></div>
+<!--页面右边结束-->
+<!--页面底部开始-->
+<%
+Call HxCMS_Footer()
+'****************************************************
+' 花香盈路网站管理系统HxCMS V8.0 Power by HxCMS.Net
+' Web: http://www.Hxcms.net, http://www.Hx66.com.cn
+' Copyright (C) 2006 HxCMS.Net All Rights Reserved.
+'****************************************************
+%>

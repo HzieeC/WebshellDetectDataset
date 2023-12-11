@@ -1,0 +1,190 @@
+<!--#include file="../../ACT_INC/ACT.User.asp"-->
+<!--#include file="../../editor/index.asp"-->
+<!--#include file="fun.asp"-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>匿名投稿 by fycms.com</title>
+<%=writejs("../../")%>
+<%Dim ModeID
+  ClassID = ChkNumeric(Request("ClassID"))
+	If classid=0 Then  
+		ModeID=1
+	Else 
+
+		ModeID=actcms.ACT_L(ClassID,10) 
+	End If 
+
+ if ModeID=0 or ModeID="" Then ModeID=1
+
+	If actcms.s("act")="save" Then 
+
+Dim ActCode
+		ActCode = Request.Form("Code")
+			If CStr(ActCode) <>CStr(Session("GetCode")) then
+			 	echo("<script>alert('验证码有误，重新输入！');history.back();</script>")
+			 	Response.End
+			End If
+
+
+	dim ClassID,rs,ClassName,Title,Keywords,CopyFrom,Content,ID,PicUrl,isAccept,action
+	dim ActCMS_DIY,Save_SQL,UserHS,U_Simple,sh ,author
+ 		 ClassID=ChkNumeric(ACTCMS.s("ClassID"))
+		ModeID=1
+		 Title=closeHTML(Trim(ACTCMS.S("Title")))
+ 		 Keywords=server.HTMLEncode(Trim(ACTCMS.S("Keywords")))
+		 CopyFrom=server.HTMLEncode(Trim(ACTCMS.S("CopyFrom")))
+		 author=server.HTMLEncode(Trim(ACTCMS.S("author")))
+		 Content=ACTCMS.s("Content")
+ 		 isAccept=server.HTMLEncode(ACTCMS.S("isAccept"))
+				 
+				  If ClassID="0" Then
+					Call ACTCMS.alert("请选择栏目","")
+				   response.end
+				  End IF
+ 
+				  If Title="" Then
+					Call ACTCMS.alert("请输入简短标题","")
+				   response.end
+				  End IF
+ 	isAccept=2
+	  If Content="" Then
+		Content=" "
+	  End IF
+		Dim ChkFileName,strFileName,IF_NULL,i
+
+ 	strFileName = MD5(Now,16)
+	 If RSQL(Trim(Request.Cookies(AcTCMSN)("tg")))="1" Then Call  actcms.alert("不要重复投稿",""):response.end
+ 			If clng(actcms.actexe("select count(id) From "&ACTCMS.ACT_C(ModeID,2)&"  where isAccept =2")(0))>50 Then 
+				Call  actcms.alert("今天已经满了.明天再来","")
+			   response.end
+ 		 	End if
+ 
+ 
+
+	If actcms.actexe("select ID From "&ACTCMS.ACT_C(ModeID,2)&"  where DateDiff(""d"",addtime," & NowString & ")>=0 ").eof Then  Call  actcms.alert("不要重复投稿",""):response.end
+
+Content=replace(server.HTMLEncode(Content),chr(13)&chr(10),"<br>")
+		set ChkFileName = actcms.actexe("select ID From "&ACTCMS.ACT_C(ModeID,2)&"  where ClassID ="&ClassID&" and FileName='"& strFileName &"' order by ID desc")
+		if Not ChkFileName.eof then
+			Call ACTCMS.alert("文件名重复","")
+			Response.end
+		End If
+		Set Save_SQL = server.CreateObject("adodb.recordset")
+		Save_SQL.Open "Select * from "&ACTCMS.ACT_C(ModeID,2)&"  where 1=0",Conn,1,3
+		
+		Save_SQL.AddNew
+		Save_SQL("ClassID") = ClassID
+		Save_SQL("Title") = rsql(Title)'简短标题
+		Save_SQL("isAccept") = isAccept
+		Save_SQL("TemplateUrl") = ACTCMS.ACT_L(ClassID,5)
+		Save_SQL("Content") = Content'内容
+		Save_SQL("CopyFrom") = rsql(CopyFrom)'
+		Save_SQL("Keywords") = rsql(Keywords)'关键字
+		Save_SQL("addtime")=now
+		Save_SQL("ArticleInput") = "匿名"
+		Save_SQL("author") = rsql(request("author"))
+		Save_SQL("actlink") = 0'作者
+		Save_SQL("userid") = 0'作者
+		Save_SQL("delif") = 0
+	    Save_SQL("FileName") = strFileName'文件名
+	    Save_SQL("PicUrl")=""
+	    Save_SQL("UserIP")=GetIP()
+		If Trim(Content)<>"" Then 
+			Save_SQL("Intro")=GetStrValue(Trim(delHtml(Content)),200,"")
+		End if
+ 		Save_SQL.update
+		Set rs=ACTCMS.actexe("Select top 1 id,classid,FileName from "&ACTCMS.ACT_C(ModeID,2)&"  order by id desc")
+		If Not rs.eof Then ID = rs("ID")
+		If Instr(strFileName,"{id}") > 0 Then 
+			strFileName = Replace(rs("FileName"),"{id}",rs("id"))
+			ACTCMS.actexe("Update "&ACTCMS.ACT_C(ModeID,2)&" set FileName='"&strFileName&"' where id="&id)
+		End If 
+ 	    Save_SQL.Close:Set Save_SQL=Nothing
+		 Response.Cookies(AcTCMSN).Expires = Date + 1
+		Response.Cookies(AcTCMSN)("tg") = 1
+
+
+		Call ACTCMS.alert("投稿完成请等待审核",actcms.actsys)
+	End If 
+%>
+<link rel="stylesheet" type="text/css" href="style/form.css"/>
+
+
+
+</head>
+
+<body>
+<div class="editbox">
+    <h3>匿名投稿</h3>
+	<form action="?act=save" method="post" class="form" name="form1">
+	<input type="hidden" name="ClassID" id="ClassID" value="<%=ClassID%>">
+       <p class="select"><span>所属栏目：</span>
+         	<select name="cid" size="1"  onChange="javascript:window.location=this.options[this.selectedIndex].value;">
+          <option  value='?' >请选择</option>
+			 <%= ForClasslist(ModeID)%>
+            </select>
+        </p>
+        
+
+         <label><span>文章标题：</span><input name="title" type="text" value="" /><small>说明</small></label>
+         
+          
+     
+
+		<%
+		
+			 Dim RSObj
+	  Set RSObj=ACTCMS.ACTEXE("Select * from Table_ACT  Where ModeID=" & ModeID & " and actcms=1 and FieldType <>'PicType'  order by OrderID desc,ID asc")
+	  	Do While Not RSObj.Eof
+			echo  " <label><span>"&RSObj("Title")&"：</span>"&vbCrLf&ListField(RSObj)&vbCrLf&"</label>"&vbCrLf
+		RSObj.MoveNext
+		Loop
+	  RSObj.Close:Set RSObj=Nothing
+			
+		%>
+
+      
+
+
+
+
+
+          <label><span>文章关键字：</span><input name="Keywords" type="text" value="" /><small>英文逗号隔开</small></label>
+         
+         <p class="textarea"><span>文章简介：</span>
+         	<textarea name="Intro" cols="" rows=""></textarea>
+        </p>
+        
+        <div class="editorbox"><span class="nr">文章内容：</span>
+        	<div class="editor"> <%=writeeditor(0,"Content1","Content","","")%></div>
+        </div>
+        
+        <label class="vercode"><span>验证码：</span><input name="Code" type="text" value="" /><img src="../../act_inc/code.asp?s='+Math.random();" alt="验证码" title="看不清楚? 换一张！" style="cursor:hand;" onClick="src='../../act_inc/code.asp?s='+Math.random()"/>  </label>
+        
+        <div class="formbtns">
+         <input name="Submit1" type="button" value="保 存" onclick="CheckForm();"  class="form_ok" onfocus="this.blur()"/>
+         </div>
+         
+    </form>
+</div>
+
+<script language="javascript">
+
+<%=insertjs()%>
+function CheckForm()
+{ var form=document.form1;
+	 
+	    		<%
+
+echo checkeditpost(ModeID,1)
+ %>
+		form.Submit1.value="正在提交数据,请稍等...";
+		form.Submit1.disabled=true;
+ 	    form.submit();
+        return true;
+	}</script>  
+	
+</body>
+</html>

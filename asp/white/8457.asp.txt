@@ -1,0 +1,414 @@
+<%
+dim sss,fy_string,array_fy_string,fy_nnnn,heike_ip,say_word,cgsailmdb,mdb,conn,rs,DBPath,userip,zuziip,zzip,i,er,adminuser,adminpass,admindj,user,pass,sql
+mdb="../"
+%>
+<!--#include file = admin_chk1.asp -->
+<%
+if Request.Cookies("admindj")<>"1"  then
+   Response.Write "<BR><BR><BR><BR><center>权限不足，你没有此功能的管理权限"
+   Response.end
+end if
+%>
+<SCRIPT language=javascript>
+function unselectall()
+{
+    if(document.myform.chkAll.checked){
+	document.myform.chkAll.checked = document.myform.chkAll.checked&0;
+    } 	
+}
+
+function CheckAll(form)
+{
+  for (var i=0;i<form.elements.length;i++)
+    {
+    var e = form.elements[i];
+    if (e.Name != "chkAll")
+       e.checked = form.chkAll.checked;
+    }
+}
+
+</script>
+<LINK media=screen href="../images/ViewPic/lightbox.css" type=text/css rel=stylesheet>
+<SCRIPT src="../images/ViewPic/prototype.js" type=text/javascript></SCRIPT>
+<SCRIPT src="../images/ViewPic/moo.js" type=text/javascript></SCRIPT>
+<SCRIPT src="../images/ViewPic/litebox.js" type=text/javascript></SCRIPT>
+
+<link rel="stylesheet" type="text/css" href="../images/admin/style.css"> 
+<BODY onload=initLightbox()>
+     
+	  <table width="100%" border="0"  align=center cellpadding="3" cellspacing="1" bordercolor="#FFFFFF">
+      <tr> 
+        <th height="25"><strong>上传文件管理</strong></th>
+       </tr>
+       <tr>
+        <td height="25" bgcolor="#EFF1F8">注意：<br>
+          删除文件时,请慎重操作。一旦删除后将无法恢复(<font color="#FF0000">注意：站点文件夹userfiles用来储存所用上传文件</font>)</span></td>
+         </tr>
+         <tr><td height="10"></td>
+          </tr>
+		  <TR ALIGN=center> 
+            <TD class=forumRow> 
+<%
+
+Dim  sUploadDir, sCurrDir, sDir,sAction
+sAction = UCase(Trim(Request.QueryString("action")))
+
+Call Content()
+
+
+Sub Content()
+	If IsObjInstalled("Scripting.FileSystemObject") = False Then
+		Response.Write "此功能要求服务器支持文件系统对象（FSO），而你当前的服务器不支持！"
+		Exit Sub
+	End If
+
+	' 初始化传入参数
+	Call InitParam()
+
+	Select Case sAction
+	Case "DELALL"			' 删除所有文件
+		Call DoDelAll()
+	Case "DEL"				' 删除指定文件
+		Call DoDel()
+	Case "DELL"				' 删除指定文件
+		Call DoDell()
+	
+	Case "DELFOLDER"		' 删除文件夹
+		Call DoDelFolder()
+	End Select
+
+	' 显示文件列表
+	Call ShowList()
+End Sub
+
+' UploadFile目录下的所有文件列表
+Sub ShowList()
+	
+	If sCurrDir = "" Then Exit Sub
+
+	Response.Write "<table width=100% border=1 align=center cellpadding=0 cellspacing=0 bordercolordark=FFFFFF bordercolorlight=658BD8>" & _
+		"<form action='?dir=" & sDir & "&action=del' method=post name=myform  onSubmit=""return confirm('确定要删除选中的文件吗？');"">" & _
+		"<tr style='FONT-FAMILY: Verdana, Arial, 宋体;BACKGROUND-COLOR:#eeeeee'>" & _
+			"<td colspan=3 height=25>您现在的位置：上传文件管理目录 >> "
+		if 	sDir<>"" then 
+			Response.Write "<font color=#ff6600>"& sDir &"</font>"
+		else
+			Response.Write "<font color=#ff6600>根目录</font>"
+		end if	
+			Response.Write"</td></tr>" 
+		
+
+	Dim sCurrPage, nCurrPage, nFileNum, nPageNum, nPageSize, TotalSize
+	sCurrPage = Trim(Request("page"))
+	nPageSize = 12
+	If sCurrpage = "" Or Not IsNumeric(sCurrPage) Then
+		nCurrPage = 1
+	Else
+		nCurrPage = CLng(sCurrPage)
+	End If
+
+	Dim oFSO, oUploadFolder, oUploadFiles, oUploadFile, sFileName
+
+	Set oFSO = Server.CreateObject("Scripting.FileSystemObject")
+	On Error Resume Next
+	Set oUploadFolder = oFSO.GetFolder(Server.MapPath(sCurrDir))
+	If Err.Number>0 Then
+		Response.Write "</table>无效的目录！"
+		Exit Sub
+	End If
+
+	
+	If sDir <> "" Then
+		Response.Write "<tr align=center >" & _
+			"<td width=50><img border=0 src='../images/file/folderback.gif'></td>" & _
+			"<td align=left colspan=2 width='90%'><a href=""?dir="
+		If InstrRev(sDir, "/") > 1 Then
+			Response.Write Left(sDir, InstrRev(sDir, "/") - 1)
+		End If
+		Response.Write """>返回上一级目录</a></td></tr>"
+	End If
+
+	Dim oSubFolder
+	For Each oSubFolder In oUploadFolder.SubFolders
+		Response.Write "<tr align=center style='FONT-FAMILY: Verdana, Arial, 宋体;'>" & _
+			"<td width=50><img border=0 src='../images/file/folder.gif'></td>" & _
+			"<td align=left colspan=2 width='90%'><div align='left' style='float:left'><a href=""?dir="
+		If sDir <> "" Then
+			Response.Write sDir & "/"
+		End If
+		Response.Write oSubFolder.Name & """>" & oSubFolder.Name & "</a></div>" & _
+			"<div align='right'><a href='?dir=" & sDir & "&action=delfolder&foldername=" & oSubFolder.Name & "'>删除&nbsp;&nbsp;</a></div></td></tr>"
+	Next
+
+	TotalSize=0
+	Set oUploadFiles = oUploadFolder.Files
+
+	nFileNum = oUploadFiles.Count
+	nPageNum = Int(nFileNum / nPageSize)
+	If nFileNum Mod nPageSize > 0 Then
+		nPageNum = nPageNum+1
+		
+	End If
+	If nCurrPage > nPageNum Then
+		nCurrPage = 1
+	end If
+
+	Dim i,strFileType
+	i = 0
+	For Each oUploadFile In oUploadFiles
+	TotalSize=TotalSize+oUploadFile.Size
+		i = i + 1
+		If i > (nCurrPage - 1) * nPageSize And i <= nCurrPage * nPageSize Then
+			sFileName = oUploadFile.Name
+			Response.Write "<tr align=center style='FONT-FAMILY: Verdana, Arial, 宋体;BACKGROUND-COLOR: #E1ECF2'>" & _
+				"<td width=50>" & FileName2Pic(sFileName) & "</td>" & _				
+				"<td align=center width='20%'>"	
+						
+		 strFileType=lcase(mid(oUploadFile.Name,instrrev(oUploadFile.Name,".")+1))
+		  response.write "<a href='"  & sCurrDir & sFileName & "'  rel=lightbox>"
+		 select case strFileType
+		  case "jpg","gif","bmp","png"
+		  	response.write "<img src='" & sCurrDir & sFileName &"' width='140' height='100' border='0' ></a>"
+		  case "swf"
+		  	response.write "<img src='../images/filetype_flash.gif' width='140' height='100' border='0'></a>"
+		  case "wmv","avi","asf","mpg"
+		  	response.write "<img src='../images/filetype_media.gif' width='140' height='100' border='0'></a>"
+		  case "rm","ra","ram"
+		  	response.write "<img src='../images/filetype_rm.gif' width='140' height='100' border='0'></a>"
+		  case "rar"
+		    response.write "<img src='../images/filetype_rar.gif' width='140' height='100' border='0'></a>"
+		  case "zip"
+		    response.write "<img src='../images/filetype_zip.gif' width='140' height='100' border='0'></a>"
+		  case "exe"
+		    response.write "<img src='../images/filetype_exe.gif' width='140' height='100' border='0'></a>"
+		  case else
+		  	response.write "<img src='../images/filetype_other.gif' width='140' height='100' border='0'></a>"
+		  end select
+           Response.Write "</td><td width='72%'>"& _				
+				"<table width=100% border=0 cellpadding=3 cellspacing=1 bgcolor=white> "& _
+				"<tr style='FONT-FAMILY: Verdana, Arial, 宋体;padding: 4px 8px;BACKGROUND-COLOR: #E1ECF2'>"& _	
+				 "<td align=right width=66 >文 件 名：</td>"& _				
+				"<td><a href=""" & sCurrDir & sFileName & """ target=_blank><font color=#ff6600>"	& sFileName & "</font></td></tr>" & _
+				"<tr style='FONT-FAMILY: Verdana, Arial, 宋体;padding: 4px 8px;BACKGROUND-COLOR: #E1ECF2'>"& _
+				"<td align=right>文件大小：</td>"& _
+				"<td>" & round(oUploadFile.size/1024) & " K </td></tr>" & _
+				"<tr style='FONT-FAMILY: Verdana, Arial, 宋体;padding: 4px 8px;BACKGROUND-COLOR: #E1ECF2'>" & _
+				"<td align=right>文件类型：</td>"& _
+				"<td>" & oUploadFile.type & "</td></tr>" & _
+				"<tr style='FONT-FAMILY: Verdana, Arial, 宋体;padding: 4px 8px;BACKGROUND-COLOR: #E1ECF2'>"& _
+				"<td align=right>修改时间：</td>"& _
+				"<td>" & oUploadFile.DateLastModified & "</td></tr>" & _
+				"<tr style='FONT-FAMILY: Verdana, Arial, 宋体;padding: 4px 8px;BACKGROUND-COLOR: #E1ECF2'>"& _
+				"<td align=right>上传日期：</td>"& _
+				"<td>" & oUploadFile.datecreated & "</td></tr>" & _
+				"<tr style='FONT-FAMILY: Verdana, Arial, 宋体;padding: 4px 8px;BACKGROUND-COLOR: #E1ECF2'>"& _
+				"<td align=right>操作选项：</td>"& _
+				"<td><input type=checkbox name=delfilename value=""" & sFileName & """ >选中&nbsp;&nbsp;&nbsp;&nbsp;<a href=""?dir=" & sDir & "&action=dell&delfilename=" & sFileName & """ onClick=""return confirm('你真的要删除此文件吗!')"">删除</a></td>"& _
+				"</tr></table></td></tr>"
+		Elseif i > nCurrPage * nPageSize Then
+			Exit For
+		End If
+	Next
+	Set oUploadFolder = Nothing
+	Set oUploadFiles = Nothing
+
+	If nFileNum <= 0 Then
+		Response.Write "<tr><td colspan=3>指定目录下现在还没有文件！</td></tr>"
+	End If
+	Response.Write "</table>"
+		
+    Response.Write "<table width='100%' border=1 align=center cellpadding=0 cellspacing=0 bordercolordark=FFFFFF bordercolorlight=658BD8>"
+
+	If nFileNum > 0 Then   ' 分页		
+	Response.Write "<tr><td align=center height=30 colspan=2>&nbsp;&nbsp;&nbsp;&nbsp;共<b>" & nFileNum & "</b>个，本页占用 <b>" & TotalSize\1024 & "</b> K&nbsp;&nbsp;&nbsp;"
+		If nCurrPage > 1 Then
+			Response.Write "<a href='?dir=" & sDir & "&page=1'>首页</a>&nbsp;&nbsp;<a href='?dir=" & sDir & "&page="& nCurrPage - 1 & "'>上一页</a>&nbsp;&nbsp;"
+		Else
+			Response.Write "首页&nbsp;&nbsp;上一页&nbsp;&nbsp;"
+		End If
+		If nCurrPage < i / nPageSize Then
+			Response.Write "<a href='?dir=" & sDir & "&page=" & nCurrPage + 1 & "'>下一页</a>&nbsp;&nbsp;<a href='?dir=" & sDir & "&page=" & nPageNum & "'>尾页</a>"
+		Else
+			Response.Write "下一页&nbsp;&nbsp;尾页"
+		End If
+		Response.Write "&nbsp;&nbsp;页次:<b><span class=highlight2>" & nCurrPage & "</span>/" & nPageNum & "</b>&nbsp;&nbsp;<b>" & nPageSize & "</b>个文件/页"
+		Response.Write "&nbsp;转到：<select name='page' size='1' onchange='javascript:submit()'>"
+        for l = 1 to nPageNum		
+   		Response.Write  "<option value='" & l & "'"
+		if cint(nCurrPage)=cint(l) then Response.Write " selected "
+		Response.Write  ">第" & l & "页</option>"   
+	    next
+	    Response.Write"</select>"
+		
+		Response.Write "</td></tr>"
+	End If
+    Response.Write "<tr><td align=left >"
+	Response.Write "<input name=chkAll type=checkbox id=chkAll onclick=CheckAll(this.form) value=checkbox >选中本页显示的所有文件</td><td><input type=submit name=b value=' 删除选定的文件 '> <input type=button name=b1 value=' 清空所有文件 ' onclick=""javascript:if (confirm('你确定要清空所有文件吗？')) {location.href='admin_uploadfile.asp?dir=" & sDir & "&action=delall';}"">"
+    Response.Write "</td></tr></table></form>"
+End Sub
+
+' 删除指定的文件
+Sub DoDel()
+	On Error Resume Next
+	Dim sFileName, oFSO, sMapFileName
+	Set oFSO = Server.CreateObject("Scripting.FileSystemObject")
+	For Each sFileName In Request.Form("delfilename")
+		sMapFileName = Server.MapPath(sCurrDir & sFileName)
+		If oFSO.FileExists(sMapFileName) Then
+			oFSO.DeleteFile(sMapFileName)
+		End If
+	Next
+	Set oFSO = Nothing
+End Sub
+sub DoDell()
+	dim whichfile,oFSO
+	Set oFSO = Server.CreateObject("Scripting.FileSystemObject")
+	whichfile=trim(Request("delfilename"))
+	if whichfile="" then exit sub	
+		if left(whichfile,3)<>"../" and left(whichfile,1)<>"/" then
+			Set thisfile = oFSO.GetFile(server.MapPath(sCurrDir & whichfile))
+			thisfile.Delete True
+		end if
+	Set thisfile= Nothing
+	Set oFSO = Nothing
+	
+end sub
+
+' 删除所有的文件
+Sub DoDelAll()
+	On Error Resume Next
+	Dim sFileName, oFSO, sMapFileName, oFolder, oFiles, oFile
+	Set oFSO = Server.CreateObject("Scripting.FileSystemObject")
+	Set oFolder = oFSO.GetFolder(Server.MapPath(sCurrDir))
+	Set oFiles = oFolder.Files
+	For Each oFile In oFiles
+		sFileName = oFile.Name
+		sMapFileName = Server.MapPath(sCurrDir & sFileName)
+		If oFSO.FileExists(sMapFileName) Then
+			oFSO.DeleteFile(sMapFileName)
+		End If
+	Next
+	Set oFile = Nothing
+	Set oFolder = Nothing
+	Set oFSO = Nothing
+End Sub
+
+' 删除文件夹
+Sub DoDelFolder()
+	On Error Resume Next
+	Dim sFolderName, oFSO, sMapFolderName
+	Set oFSO = Server.CreateObject("Scripting.FileSystemObject")
+	sFolderName = Trim(Request("foldername"))
+	sMapFolderName = Server.Mappath(sCurrDir & sFolderName)
+	If oFSO.FolderExists(sMapFolderName) = True Then
+		oFSO.DeleteFolder(sMapFolderName)
+	End If
+	Set oFSO = Nothing
+End Sub
+
+' 检测服务器是否支持某一对象
+Function IsObjInstalled(strClassString)
+	On Error Resume Next
+	IsObjInstalled = False
+	Err = 0
+	Dim xTestObj
+	Set xTestObj = Server.CreateObject(strClassString)
+	If 0 = Err Then IsObjInstalled = True
+	Set xTestObj = Nothing
+	Err = 0
+End Function
+
+
+' 按文件名取图
+Function FileName2Pic(sFileName)
+	Dim sExt, sPicName
+	sExt = UCase(Mid(sFileName, InstrRev(sFileName, ".")+1))
+	Select Case sExt
+	Case "TXT"
+		sPicName = "txt.gif"
+	Case "CHM", "HLP"
+		sPicName = "hlp.gif"
+	Case "DOC"
+		sPicName = "doc.gif"
+	Case "PDF"
+		sPicName = "pdf.gif"
+	Case "MDB"
+		sPicName = "mdb.gif"
+	Case "GIF"
+		sPicName = "gif.gif"
+	Case "JPG"
+		sPicName = "jpg.gif"
+	Case "BMP"
+		sPicName = "bmp.gif"
+	Case "PNG"
+		sPicName = "pic.gif"
+	Case "ASP", "JSP", "JS", "PHP", "PHP3", "ASPX"
+		sPicName = "code.gif"
+	Case "HTM", "HTML", "SHTML"
+		sPicName = "htm.gif"
+	Case "ZIP"
+		sPicName = "zip.gif"
+	Case "RAR"
+		sPicName = "rar.gif"
+	Case "EXE"
+		sPicName = "exe.gif"
+	Case "AVI"
+		sPicName = "avi.gif"
+	Case "MPG", "MPEG", "ASF"
+		sPicName = "mp.gif"
+	Case "RA", "RM"
+		sPicName = "rm.gif"
+	Case "MP3"
+		sPicName = "mp3.gif"
+	Case "MID", "MIDI"
+		sPicName = "mid.gif"
+	Case "WAV"
+		sPicName = "audio.gif"
+	Case "XLS"
+		sPicName = "xls.gif"
+	Case "PPT", "PPS"
+		sPicName = "ppt.gif"
+	Case "SWF"
+		sPicName = "swf.gif"
+	Case Else
+		sPicName = "unknow.gif"
+	End Select
+	FileName2Pic = "<img border=0 src='../images/file/" & sPicName & "'>"
+End Function
+
+
+
+' ===============================================
+' 初始化传入参数
+' ===============================================
+Function InitParam()
+		sUploadDir ="../userfiles/"
+		sUploadDir = Replace(sUploadDir, "\", "/")
+		If Right(sUploadDir, 1) <> "/" Then
+			sUploadDir = sUploadDir & "/"
+		End If
+	sCurrDir = sUploadDir
+
+	' 样式下的目录
+	sDir = Trim(Request("dir"))
+	If sDir <> "" Then
+		If CheckValidDir(Server.Mappath(sUploadDir & sDir)) = True Then
+			sCurrDir = sUploadDir & sDir & "/"
+		Else
+			sDir = ""
+		End If
+	End If
+End Function
+
+' ===============================================
+' 检测目录的有效性
+' ===============================================
+Function CheckValidDir(s_Dir)
+	Dim oFSO
+	Set oFSO = Server.CreateObject("Scripting.FileSystemObject")
+	CheckValidDir = oFSO.FolderExists(s_Dir)
+	Set oFSO = Nothing	
+End Function
+%>
+</td></tr></table>
+</BODY>

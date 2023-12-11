@@ -1,0 +1,81 @@
+	<%@ page contentType="text/html;charset=UTF-8" %>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<script type="text/javascript" src="${ctx }/scripts/js/jquery-1.3.2.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jqPager/jquery.pager.js"></script><!-- åé¡µ -->
+    <script language="JavaScript" type="text/javascript" src="${ctx}/scripts/front/common/common_pager.js"></script><!-- åé¡µ -->
+    <script type="text/javascript" src="${ctx}/scripts/front/yhzx.js"></script>
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/hyzx.css" rel="stylesheet" type="text/css" />
+
+<!--  个人信息	 -->
+
+    <div class="gdttda">
+        <div class="hyzx_bt">
+          <div class="zxyc_dh">
+            <div class="zxyc_zz">个人信息</div>
+            <div class="sr3_t_right right"></div>
+          </div>
+        </div>
+        <div class="hyzx_tbda">
+          <div class="hyzx_timg">
+            <div class="hyzx_timg_img"><img src="${ctx }/image/gerenzhongxin_04.gif" /></div>
+            <div class="hyzx_timg_xx"></div>
+          </div>
+          <div class="hyzx_tg_yc">
+            <div class="hyzx_ycda1">您好, <span class="STYLE2">${customer.account }</span></div>
+            <div class="hyzx_ycda2">
+              <div class="hyzx_yc_h1">会员等级：${customer.vipLevelName}</div>
+              <div class="hyzx_yc_h2" style="display:none;">顾客编号：${customer.code }</div>
+            </div>
+            <div class="hyzx_ycda3">
+              <div class="hyzx_yc_h1">注册时间：<fmt:formatDate pattern="yyyy年MM月dd日" value="${loginCustomer.createTime}"/></div>
+              <div class="hyzx_yc_h2"></div>
+            </div>
+          </div>
+        </div>
+        <div class="hyzx_zxda">
+          <div class="hyzx_zx_yq" style="display:none;">
+            <div class="hyzx_zx_60">邀请好友：已邀请<span class="STYLE2">0</span>人，成功邀请<span class="STYLE2">0</span>人</div>
+            <div class="hyzx_zx_40 STYLE31"><a class="lj_2" href="#">邀请好友加入东晟&gt;&gt;</a></div>
+          </div>
+        </div>
+        <div class="hyzx_zlda">
+          <form action="" name="saveForm" id="saveForm" method="post">
+              <input type="hidden" id="id" name="customer.id" value="${customer.id }"/>
+	          <div class="hyzx_jd30">
+	            <div class="hyzx_jd100">姓名：
+	              <input name="customer.name" id="name" type="text" value="${customer.name }"/>
+	            </div>
+	            <div class="hyzx_jd100"><span class="STYLE2">*</span>Email：
+	              <input class="input_1" name="customer.email" type="text" value="${customer.email }" onchange="checkmobile()"/>
+	            </div>
+	            <div class="hyzx_jd100"><span class="STYLE2">*</span>手机：
+	              <input class="input_1" name="customer.mobile" type="text" value="${customer.mobile }" onchange="checkEmail()"/>
+	            </div>
+	            <div class="hyzx_jd100">电话：
+	              <input name="customer.telephone" type="text" value="${customer.telephone }"/>
+	            </div>
+	            <div class="hyzx_jd100">单位名称：
+	              <input name="customer.companyName" type="text" value="${customer.companyName }"/>
+	            </div>
+	            <div class="hyzx_jd100">单位地址：
+	              <input name="customer.companyAddress" type="text" value="${customer.companyAddress }"/>
+	            </div>
+	            <div class="hyzx_jd100" style="display:none;"><span class="STYLE2">*</span>现居住地：
+	              <textarea rows="3" cols="50" name=""></textarea>
+	            </div>
+	            <div class="hyzx_jd100" style="display:none;"><span class="STYLE2">*</span>邮政编码：
+	              <input name="" type="text" name="" />
+	            </div>
+	          </div>
+	          <div class="hyzx_zxda2"></div>
+	          <div class="hyzx_jd30">
+	            <input type="button" onclick="javascript:submitSaveForm();" value="保存信息"/>
+	          </div>
+	     </form>
+	</div>
+</div>

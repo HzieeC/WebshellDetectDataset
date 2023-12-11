@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pie><%
+v = Request.QueryString("v")
+Tmp = Split(v,"###")
+s_Title = Tmp(0)
+s_Value = Tmp(1)
+s_t = Split(s_Title,"|||")
+s_v = Split(s_Value,"|||")
+For i=1 To Ubound(s_t)
+%><slice title="<%=chinese2unicode(s_t(i))%>"><%=s_v(i)%></slice><%
+Next
+%></pie>
+
+<%
+Function chinese2unicode(Str)
+       dim i
+       dim Str_one
+       dim Str_unicode
+       For i=1 to len(Str)
+            Str_one=Mid(Str,i,1)
+            Str_unicode=Str_unicode&chr(38)
+            Str_unicode=Str_unicode&chr(35)
+            Str_unicode=Str_unicode&chr(120)
+            Str_unicode=Str_unicode& Hex(ascw(Str_one))
+            Str_unicode=Str_unicode&chr(59)
+       Next
+       chinese2unicode = Str_unicode
+End Function
+%>

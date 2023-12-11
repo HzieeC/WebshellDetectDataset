@@ -1,0 +1,1694 @@
+<!--#include file="../consts.asp"-->
+<%
+if if_close=True then
+	response.write"<script>alert('很抱歉，网站维护中！');window.close()</script>"
+	response.End()
+	%>
+<%else%>
+	<%
+	if if_cart=0 then'进货单开关 打开时
+		response.write"<script>alert('很抱歉，进货单功能已被关闭，请联系网站管理员！');window.open('../index.asp','_parent')</script>"
+		response.End()
+	end if
+	%>
+	<%asp_name="mycart.asp"%>
+    <%action=request.Form("action")%>
+    
+	<%if action<>"jiesuan" and action<>"fukuan" then%>
+		<%
+		session("cart_tijiao_step")=1'防止最后一步刷新提交
+        '某些页面如产品明细的不能正常显示提示层???更换代码？底部文件去掉?  592行改1条记录时总金额修改
+        if session("user_bianhao")="" then response.Redirect "../../404.html"
+			'首次点击进货单时 生成临时的订单
+                '点击本页面查看时，首先判断是否已经存在进货清单，若存在则生成订单号，反之什么也不做
+			'登录时把之前的临时订单删除
+					'SMT_key:0已提交但是待发货）/1已完成已发货/2已作废（不可恢复）/3（临时订单，登录自动删除）/ 4(临时订单,保存在服务器)
+				'key:0临时保存在购物车页面可手动删除/1正式未完成/3临时自动删除/2已经完成
+                sql="select * from My_Order_Details where key<>1 and key<>2 and SMT_bianhao='"&session("user_bianhao")&"'"
+                rs.open sql,conn,1,3
+                if not rs.eof then
+                    signal=1
+                else
+                    jilu_all=0
+                end if
+                rs.close
+                
+                IF signal=1 THEN'若My_Order_Details表存在数据 点击本页面时将生成临时订单，否则只有通过下单动作生成临时订单。
+                    sql="select * from My_Order_List where (SMT_key=3 or SMT_key=4) and SMT_bianhao='"&session("user_bianhao")&"'"
+                    rs.open sql,conn,1,3
+                    if rs.eof then'没有临时订单的话
+                        rs.addnew
+                            if session("user_bianhao")<>"" then rs("SMT_bianhao")=session("user_bianhao")
+            
+                            '生成临时的订单号
+                            Dim yy, mm, dd, hh, mn, ss, rr
+                            Randomize
+                            yy = Year(Now)
+                            mm = right("0" & Month(Now),2)
+                            dd = right("0" & Day(Now),2)
+                            hh = right("0" & Hour(Now),2)
+                            mn =right("0" & Minute(Now),2)
+                            ss = right("0" & Second(Now),2)
+                            rr = 0
+                            rr = CInt(Rnd() * 10000)
+                            ss = right("0000" & r,4)
+                            Get_Order_Po = yy & mm & dd & hh & mn & ss & rr
+                            rs("Order_Po")=Get_Order_Po
+                            
+                            rs("SMT_key")=4'临时订单状态
+                            rs("beizhu")=""
+                            rs("yunfei")=0
+                            rs("yijia")=0
+                            rs("final_price")=0
+                            rs("added_date")=Now()
+                            rs("sell_confirm")=0'卖家确认 确认为1时，则该订单会修改内容，应提示买家
+                            rs("buy_confirm")=0'买家确认 确认为1时，则该订单会修改内容，应提示买家
+                            'rs("finished_date")=""
+                        rs.update
+                    else'若已存在,获取这个订单号
+                        Get_Order_Po=rs("Order_Po")
+                    end if
+                    rs.close
+            
+                    '然后将这个订单号保存到SESSION
+                    Order_Po=Get_Order_Po
+                    session("Order_Po")=Order_Po'保存到SESSION
+                
+                    '接下来判断进货清单表内 是否存在临时被保存数据
+                    'conn.execute("update My_Order_Details set Order_Po='"&Order_Po&"' where key<>1 and key<>2 and SMT_bianhao='"&session("user_bianhao")&"'")'先删除原来的
+					
+                    sql="select * from My_Order_Details where key<>1 and key<>2 and SMT_bianhao='"&session("user_bianhao")&"'"
+                    rs.open sql,conn,1,1
+                    if not rs.eof then'若有 则把这些数据的订单号全部设为前面生成的临时订单号
+                        conn.execute("update My_Order_Details set Order_Po='"&Order_Po&"' where key<>1 and key<>2 and SMT_bianhao='"&session("user_bianhao")&"'")
+                    end if
+                    rs.close
+                END IF
+        %>
+        <link href="../css/clearbox.css" rel="stylesheet" type="text/css" />
+        <script src="../js/clearbox.js" type="text/javascript"></script>
+        <style>
+            li{
+            list-style:none;
+            }
+            body{
+            /*background-color:#fff;*/
+            font-size:12px;
+            }
+        </style>
+        <style>
+        .em_1 {width:12px;height:11px;overflow:hidden;float:right;cursor:pointer;background:url(../image/pop_up/close_pop_up.png) no-repeat -12px 0;;display:inline;margin:0px 0px 0 0;}/*关闭按钮*/
+        </style>
+        <!--提示框JS和样式-->		
+                <script>
+                      function showTips(id,index,display){
+                        if(display==1){ 
+                               jQuery("#"+id+index).show(); 
+                           }else{ 
+                               jQuery("#"+id+index).hide(); 
+                           } 
+                      }
+                </script>
+                <style>
+                .Cart_sea_layer01{position:absolute;background:#dff7dd;filter:alpha(opacity=90);margin-left:0px;margin-top:-130px;width:255px;border:#2a8000 1px solid;}
+				.buy_number_input{
+					display: inline-block;
+					height:24px;
+					line-height: 24px;
+					background:url(../order/img/number_input.png) no-repeat;
+					width: 97px;
+					_zoom:1;
+				}
+				.buy_number_input span{
+					float:left;
+					height:22px;
+					line-height:21px;
+					width:15px;
+					text-align:center;
+					display:block;
+					cursor:pointer;
+				}
+				.buy_number_input input{
+					padding-left:0px;
+					float:left;
+					width:65px;
+					height:22px;
+					line-height: 22px;
+					border:none;
+					text-align: center;
+					background:none;
+				}
+                </style>
+        <!--/提示框JS和样式-->	
+        <link href="../order/css/cart-min.css" rel="stylesheet" />
+        <link rel="stylesheet" href="css/tbsp.css" />
+        
+        <!--开始-->
+        
+			<%'获取运费承担的值
+				set rs1=server.createobject("adodb.recordset")	
+				sql1="select * from My_Order_List where if_yunfei=1 and Order_Po='"&session("Order_Po")&"' and SMT_bianhao='"&session("user_bianhao")&"'"
+				rs1.open sql1,conn,1,1
+				if not rs1.eof then
+				yunfei=1'使用货到付款
+				else
+				yunfei=0'卖家承担运费
+				end if
+				rs1.close
+				set rs1=nothing
+				set sql1=nothing
+			%>	
+			<%	
+            '获取该订单下所有的产品的总数
+                set rs=server.createobject("adodb.recordset")
+                sql="select distinct cp_bianhao from My_Order_Details where Order_Po='"&Order_Po&"'"
+                rs.open sql,conn,1,1
+                if not rs.eof or not rs.bof then
+                    Do Until rs.EOF
+					cp_bianhao=rs("cp_bianhao")
+					'获取当期库存总数
+					set rs1=server.createobject("adodb.recordset")
+					sql1="select SMT_id,SMT_scatitle,qty,cpjl,cp_bianhao from My_cp where SMT_key>0 and if_reduce_qty=1 and cp_bianhao='"&cp_bianhao&"'"
+					rs1.open sql1,conn,1,1
+					qty=rs1("qty")
+					if not rs1.eof then
+						For i=0 to rs1.recordcount
+							supply_qty_total=qty+supply_qty_total
+						rs1.movenext
+						if rs1.eof then
+						exit for
+						end if
+						Next
+					end if
+					rs.movenext
+					Loop
+				else
+                end if
+                rs.close
+                set rs=nothing
+                set sql=nothing
+			
+				'response.Write "可供货总数:"&supply_qty_total
+				%>
+       		<%
+            '遍历所有的记录统计总金额及件数
+            set rs=server.createobject("adodb.recordset")
+            sql="select * from My_Order_Details where key<>1 and key<>2 and SMT_bianhao='"&session("user_bianhao")&"'"
+            if session("Order_Po")<>"" then
+            sql=sql&" and Order_Po='"&session("Order_Po")&"'"
+            end if
+            rs.open sql,conn,1,1
+            if not rs.eof then
+                jilu_all=rs.recordcount
+                for i=1 to rs.recordcount
+                    total_price_all=total_price_all+(rs("zhekou_final_price")*rs("buy_qty"))
+                    pro_qty=pro_qty+rs("buy_qty")
+                    'total_price_all=total_price_all+((rs("cpjg")*rs("zhekou"))/100)
+                    rs.MoveNext()
+                    if rs.EOF then
+                        i = i + 1
+                        exit for
+                    end if
+                next
+            end if
+            rs.close
+            set rs=nothing
+			if if_default_yunfei=1 and default_yunfei>0 and miandan_yunfei>0 and yunfei=0 then
+				if cint(total_price_all)>=miandan_yunfei then
+				else
+					total_price_all=total_price_all+default_yunfei
+				end if
+			elseif miandan_yunfei=0 then
+				total_price_all=total_price_all+default_yunfei
+				total_price_all=formatNumber(total_price_all,2,-1,-1,0)
+			else
+			end if
+            total_price_all=formatNumber(total_price_all,2,-1,-1,0)
+        %>
+        <div>
+            <ul>
+            <li>
+            <span style="float:left;font-size:12px; margin-left:3px;">
+                您好，<%=session("user_name")%>，
+                <%if session("Order_Po")<>"" then%>
+                您现在的临时订单号是:<font color="blue"><%=session("Order_Po")%></font>。
+                    <%if jilu_all>0 then%>
+                        以下是您的进货清单:
+                    <%else%>
+                        您的进货单的空的。
+                    <%end if%>
+                <%else%>
+                您的进货单的空的。
+                <%end if%>
+            </span>
+            <span style="float:right">
+                <%if jilu_all>0 then%>
+                    (进货单状态:<font style="font-weight:700; color:#FF0000" id="carts_num"><%=jilu_all%></font>/<%=max_carts_jilu%>，合计:<font style="font-weight:700; color:#FF0000" id="carts_num2"><%=pro_qty%></font>个单位)。
+                    <input id="carts_num_qty" value="<%=jilu_all%>" type="hidden">
+                    <input id="carts_num_qty2" value="<%=pro_qty%>" type="hidden">
+                <%end if%>
+            </span>
+            </li>
+            <%if jilu_all>0 then%>
+                <li>
+                <script type="text/javascript" src="../js/del_po.js"></script>
+                <!--清空提示框-->		
+                <script>
+                function hide_all(){	
+                    document.getElementById("cart_all").style.display = "none";
+                    document.getElementById("cart_all_empty").style.display = "block";
+                }
+                </script>
+                <script>
+                function empty_results_all(){	
+                    document.getElementById('J_Total').innerHTML="0.00";
+                    document.getElementById('carts_num').innerHTML="0";
+                    document.getElementById('carts_num2').innerHTML="0";
+                    document.getElementById("cart_all_empty").style.display = "block";
+					document.getElementById('J_Go').disabled=true;
+					document.getElementById('J_Go').style.backgroundImage="url(../image/qujiesuan_gray.png)";
+					document.getElementById('J_Go').style.cursor="default";
+					window.location.reload();
+                }
+                </script>
+                    <div style="position:absolute;padding-left:0px;width:150px; margin-top:30px;">
+                        <div id="delAll1" delbox="yes" style="display:none;">
+                          <div class="Cart_sea_layer01" style="width:150px;margin-top:-51px;*margin-top:-57px;">
+                            <ul>
+                              <li style="text-align:left; padding-left:10px; line-height:25px;">您确定要清空进货单吗？</li>
+                              <li style="text-align:center;padding-left:10px; line-height:20px;">
+                                <a href="javascript:void(0)" class="simpleCart_empty" onClick="hide_all();empty_carts(po_str_to_be_del.value);empty_results_all();showTips('delAll','1','0');">确定</a>
+                                &nbsp;&nbsp;&nbsp;<a href="javascript:void(0);" onClick="showTips('delAll','1','0');" class="sea_keyword" style="text-decoration:none;">取消</a>
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                <!--/清空提示框-->		
+                <span style="clear:both;float:left;font-size:12px;margin-left:3px;">
+                <a href="javascript:void(0)" onClick="showTips('delAll','1','1');" ><img src="../order/img/close.gif" style="border:0px;"> 清除所有进货单商品</a>
+                    <input type="hidden" id="po_str_to_be_del" value="<%=session("Order_Po")%>"/>
+                    <label id="show_del_all_result" style="display:none;"></label>
+                    <a style="cursor:pointer" onClick="window.location.reload()"><img src="../order/img/refresh.png" border=0 onClick="window.location.reload()"/>刷新</a>
+                </span>
+                <span style="float:right">
+                <%if request("action")="check_small" then%>
+                <a href="javascript:void(0)" onClick="window.open('check_my_cart.asp','_new')"  style="margin-right:5px;">全屏查看进货单</a>
+                <%else%>
+                <div style=" width:113px; height:30px;background:url(../image/jixugouwu.gif); cursor:pointer;" onClick="window.open('productslist.asp','_parent')"></div>
+                <%end if%>
+                </span>
+                </li>
+            <%end if%>
+            </ul>
+        </div>
+        <%'开始获取该session订单下的所有产品%>
+            <%
+            '获取全部未完成的
+            set rs=server.createobject("adodb.recordset")
+            sql="select * from My_Order_Details where key<>1 and key<>2 and SMT_bianhao='"&session("user_bianhao")&"'"
+            if session("Order_Po")<>"" then
+            sql=sql&" and Order_Po='"&session("Order_Po")&"'"
+            end if
+            sql=sql&" order by SMT_id desc"
+            rs.open sql,conn,1,1
+            if not rs.eof then
+                '分页的实现 
+                if request("action")="check_small" then
+                listnum=20
+                else
+                listnum=20
+                end if
+                Rs.pagesize=listnum
+                page=Request("page")
+                if (page-Rs.pagecount) > 0 then
+                page=Rs.pagecount
+                elseif page = "" or page < 1 then
+                page = 1
+                end if
+                Rs.absolutepage=page
+            end if
+        %>
+            <%if not rs.eof or not rs.bof then%>	
+                <div class="page" style="float:left;">
+                <span>
+                  <%filename=asp_name&"?action="&request("action")%>
+                  <%if page=1 then %>
+                  <%else%>
+                        <a href=<%=filename%>>首页</a>
+                        <a href=<%=filename%>&page=<%=page-1%>>上一页</a> 
+                        <%if page-4>0 then%>
+                        <a href=<%=filename%>&page=<%=page-4%>><%=page-4%></a>
+                        <%end if%>
+                        <%if page-3>0 then%>
+                        <a href=<%=filename%>&page=<%=page-3%>><%=page-3%></a>
+                        <%end if%>
+                        <%if page-2>0 then%>
+                        <a href=<%=filename%>&page=<%=page-2%>><%=page-2%></a>
+                        <%end if%>
+                        <%if page-1>0 then%>
+                        <a href=<%=filename%>&page=<%=page-1%>><%=page-1%></a>
+                        <%end if%>
+                  <%end if%>
+                  <% if Rs.pagecount=1 then %>
+                  <%else%>
+                     <span class="current"><%=page%></span>
+                  <%end if%>
+                  <% if Rs.pagecount-page <> 0 then %>
+                      <%if Rs.pagecount-page>=1 then%>
+                      <a href=<%=filename%>&page=<%=page+1%>><%=page+1%></a>
+                      <%end if%>
+                      <%if Rs.pagecount-page>=2 then%>
+                      <a href=<%=filename%>&page=<%=page+2%>><%=page+2%></a>
+                      <%end if%>
+                      <%if Rs.pagecount-page>=3 then%>
+                      <a href=<%=filename%>&page=<%=page+3%>><%=page+3%></a>
+                      <%end if%>
+                      <%if Rs.pagecount-page>=4 then%>
+                      <a href=<%=filename%>?page=<%=page+4%>><%=page+4%></a>
+                      <%end if%>
+                      <a href=<%=filename%>&page=<%=page+1%>>下一页</a>
+                      <a href=<%=filename%>&page=<%=Rs.pagecount%>>末页</a>
+                    <%end if%>
+            <%end if%>
+            </span>
+            </div>
+            <!--商品-->
+        <div class="clear"></div>
+        <form method="post" name="cart_form">	
+        <div class="list" id="cart_all">
+            <table cellspacing="0" cellpadding="0" class="order-table" id="J_CartEnable">
+                    <colgroup valign="middle">
+                        <col />
+                        <col />
+                        <col />
+                        <col />
+                        <col />
+                        <col />
+                        <col />
+                        <col />
+                    </colgroup>
+                    <thead>
+					<%if if_default_yunfei=1 and default_yunfei>0 and miandan_yunfei>0 and yunfei=0 then%>
+					<tr height="40">
+                        <td class="s-chk">&nbsp;</td>
+                     	<td class="s-title" style="color:#FF0000;text-align:left;font-weight:bold;" colspan="8">亲，<font style="font-size:14px;text-decoration:underline">单笔总金额满 <%=miandan_yunfei%> <%=cart_money_name%> 包邮</font> 促销活动火热进行中!</td>
+                    </tr>
+					<%end if%>
+                        <tr>
+                            <th class="s-chk">&nbsp;</th>
+                            <th class="s-title">商品名称</th>
+                            <th class="s-point">积分<!--积分在转为正式订单并且完成时累加给会员--></th>
+                            <th class="s-price">单价(<%=cart_money_name%>)</th>
+                            <th class="s-amount">数量</th>
+                            <th class="s-agio">原单价(<%=cart_money_name%>)</th>
+                            <th class="s-agio">折扣</th>
+                            <th class="s-total">小计(<%=cart_money_name%>)</th>
+                            <th class="s-del">操作</th>
+                        </tr>
+                    </thead>
+        <!--<div id="cart_all1">-->
+                <%
+                if not rs.eof or not rs.bof then
+                    k=1
+                    do while not rs.eof and k<=listnum
+                        zhekou=rs("zhekou")
+                        if zhekou>0 and zhekou<100 then zhekou_show="<font color=green>"&round(zhekou/10,2)&"折</font>" else zhekou_show="<font color=gray>[不打折]</font>"
+                        if rs("cpjg")="" or rs("cpjg")=0 then cpjg=0 else cpjg=rs("cpjg")
+                        if cpjg>0 and InStr(1,LCase(cpjg),LCase("."),0)=0 then cpjg=cpjg&".00"
+                    %>
+                    <%
+                        cp_bianhao=rs("cp_bianhao")
+                        xinghao=rs("xinghao")
+                        colors=rs("colors")
+                        buy_qty=rs("buy_qty")
+                        zhekou_final_price=rs("zhekou_final_price")
+                        add_time=rs("add_time")
+                            '获取产品信息
+                            Set rs_cp = Server.CreateObject("ADODB.recordset")
+                            sql_cp="select * from My_cp where cp_bianhao='"&cp_bianhao&"'"
+                            rs_cp.open sql_cp,conn,1,1
+                            if not rs_cp.eof then
+                                if_reduce_qty=rs_cp("if_reduce_qty")
+                                cp_id=rs_cp("SMT_id")
+                                current_qty=rs_cp("qty")
+                                if rs_cp("cpjg")="" or rs_cp("cpjg")=0 then cpjg_yuan=0 else cpjg_yuan=rs_cp("cpjg")
+                                danjia=rs_cp("cpjg")
+								jifen=rs_cp("jifen")
+                                if cpjg_yuan>0 and InStr(1,LCase(cpjg_yuan),LCase("."),0)=0 then cpjg_yuan=cpjg_yuan&".00"
+                                money_id=rs_cp("money_id")
+                                cp_name=rs_cp("SMT_scatitle")
+                                cpjl=rs_cp("cpjl")
+								cpliang=rs_cp("cpliang")
+                                    '获取单位
+                                    set rs1=server.createobject("adodb.recordset")
+                                    sql1="select top 1 * from unit_class where unit_ID="&cpjl
+                                    rs1.open sql1,conn,1,1
+                                    if not rs1.eof then
+                                    units=rs1("unit_name")
+                                    else
+                                    units="未知"
+                                    end if
+                                    rs1.Close()
+                                    '获取货币种类
+                                    sql1="select top 1 * from Money_class where money_ID="&money_id
+                                    rs1.open sql1,conn,1,1
+                                    if not rs1.eof then
+                                    money=rs1("money_name")
+                                    else
+                                    money=""
+                                    end if
+                                    rs1.Close()
+                                '获取上产的图片封面
+                                '获取图片封面
+                                mode_id=rs_cp("pic_show_id")'1普通 2 360° 3单视频 4视频加图片
+                                if mode_id=1 or mode_id=4 then
+                                '从上传的表格中获取
+                                    sql1="select * from Cp_upfiles where pro_bianhao='"&cp_bianhao&"' order by if_cover desc"
+                                    rs1.open sql1,conn,1,1
+                                    If Not rs1.eof and Not rs1.bof Then 
+                                        upfile_counts=rs1.recordcount
+                                        tuwen_pic="../"&rs1("pic")
+                                        if mode_id=4 then
+                                            tuwen_title="视频加+图片模式"
+                                        else
+                                            tuwen_title="普通图片模式"
+                                        end if
+                                    else
+                                        upfile_counts=0
+                                        if mode_id=4 then
+                                            tuwen_pic=site_url&"/image/movie_pics.png"
+                                            tuwen_title="视频加+图片模式"
+                                        else
+                                            tuwen_pic=site_url&"/image/nopic.png"
+                                            tuwen_title="普通图片模式"
+                                        end if
+                                    end if
+                                    rs1.close 
+                                    Set rs1=Nothing 
+                                    Set sql1=Nothing
+                                elseif mode_id=2 then
+                                    tuwen_pic=site_url&"/image/360.png"
+                                    tuwen_title="360°全景图片模式"
+                                elseif mode_id=3 then
+                                    tuwen_pic=site_url&"/image/pro_movie.png"
+                                    tuwen_title="独立视频模式"
+                                end if
+                                '/获取上产的图片封面
+                                set sql1=nothing
+                                set rs1=nothing
+                                'total_jg=cpjg*buy_qty'小计
+                                total_jg_show=zhekou_final_price*buy_qty'小计
+                                'total_jg_show=round(total_jg_show,2)'保留2位小数 
+                                total_jg_show=formatNumber(total_jg_show,2,-1,-1,0)
+                        else
+                        '没有产品
+                            response.write"<script>alert(':-(   没有产品信息！');history.go(-1);</script>"
+                            response.End()
+                        end if
+                        rs_cp.close
+                        set sql_cp=nothing
+                        set rs_cp=nothing
+                    %>
+                    <%
+                    if left(cpjg*zhekou/100,1)="." then
+                        unit_price="0"&cpjg*zhekou/100
+                    else
+                        unit_price=comma(cpjg*zhekou/100)
+                    end if
+                    buy_price=buy_qty*unit_price
+                    'buy_price=round(buy_price,2)'保留2位小数 
+                    buy_price=formatNumber(buy_price,2,-1,-1,0)
+                    %>
+                    <!--商品行开始-->
+                    <tbody id="cp_tr_<%=k%>">
+                    <!--商品文字详细说明-->
+                    <%
+                    if k mod 2=0 then
+                    bgcolor="#F1F8FF"
+                    else
+                    bgcolor="#ffffff"
+                    end if
+                    %>
+                    <script>
+                        function show_cart_del_<%=k%>(){
+                        document.getElementById("cart_del_<%=k%>").style.display="block";
+                        document.getElementById("cart_tr_bg_<%=k%>").style.background="#F4FAFF";
+                        
+                        }
+                        function hide_cart_del_<%=k%>(){
+                        document.getElementById("cart_del_<%=k%>").style.display="none";
+                        document.getElementById("cart_tr_bg_<%=k%>").style.background="#FFFFFF";
+                        }
+                    </script>
+                    <tr id="cart_tr_bg_<%=k%>" onMouseOver="show_cart_del_<%=k%>();" onMouseOut="hide_cart_del_<%=k%>();">  
+                    <td class="s-chk" >
+                    <input type="hidden" class="J_CheckBoxItem J_MakePoint" name="sum" value="<%=buy_price%>" checked="checked" id="ID_<%=k%>"/>
+                    <input type="hidden" class="J_CheckBoxItem J_MakePoint" name="sum2" value="<%=buy_qty%>" checked="checked" id="LIST_QTY_<%=k%>"/><!--该2HIDDEN为不刷新统计总金额与总件数-->
+                    &nbsp;
+                    </td>
+                    <td class="s-title"> 
+                        <span class="small2big-text J_MakePoint">
+                        <a  onmouseover="showTips('pro_pic','<%=rs("SMT_id")%>','1');" onMouseOut="showTips('pro_pic','<%=rs("SMT_id")%>','0');">查看大图</a>
+                        </span>
+                    <!--图片放大提示框-->	
+                          <div style="position:absolute;margin-left:0px;*margin-left:10px;width:200px;margin-top:0px;">
+                            <div id="pro_pic<%=rs("SMT_id")%>" delbox="yes" style="display:none;">
+                              <div class="Cart_sea_layer01" style="width:200px;margin-top:0px; background-color:#FFFFFF;border:#ccc 1px solid; padding:5px; z-index:9999999; ">
+                                <ul>
+                                  <li class="line_height25" style="text-align:center;"><img src="<%=tuwen_pic%>" width="200" border="0"></li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                  <!--/图片放大提示框-->	
+                            <%select case mode_id%>
+                            <%case 1:%>
+                                <a href="../../products.asp?id=<%=cp_id%>" target="_blank"><img src="<%=tuwen_pic%>"  height="60" width="60" border="0" alt="<%=tuwen_title%>" class="itempic J_MakePoint" /></a>
+                            <%case 2:%>
+                                <a href="../../products.asp?id=<%=cp_id%>" target="_blank"><img src="<%=tuwen_pic%>"  height="60" width="60" border="0" alt="<%=tuwen_title%>" class="itempic J_MakePoint"/></a>
+                            <%case 3:%>
+                                <a href="../../products.asp?id=<%=cp_id%>" target="_blank"><img src="<%=tuwen_pic%>"  height="60" width="60" border="0" alt="<%=tuwen_title%>" class="itempic J_MakePoint"/></a>
+                            <%case 4:%>
+                                <a href="../../products.asp?id=<%=cp_id%>" target="_blank"><img src="<%=tuwen_pic%>" height="60" width="60" border="0" alt="<%=tuwen_title%>" class="itempic J_MakePoint"/></a>
+                            <%case else:%>
+                                <a href="../../products.asp?id=<%=cp_id%>" target="_blank"><img src="<%=picurl%>"  height="60" width="60" border="0" alt="<%=tuwen_title%>" class="itempic J_MakePoint"/></a>
+                            <%end select%>
+                     	    <a href="../../products.asp?id=<%=cp_id%>" target="_blank"><%=leftt(cp_name,100)%></a>
+                    <br />
+					<label style="color:#999999"><%=miaoshu1%>:  <%=xinghao%> </label>
+					<label style="color:#999999"><%=miaoshu2%>:  <%=colors%> </label>
+                    
+                    </td>
+                    <td class="s-point"><em tabindex="0"><a id="jifenshow_<%=k%>"><%=jifen*buy_qty%></a></em>
+					 <input type="hidden" id="jifen_<%=k%>" value="<%=jifen%>"/>
+					</td>
+                    <td class="s-price "><em tabindex="0" style="color:#E1730F; font-weight:700">
+                    <%=formatNumber(unit_price,2,-1,-1,0)%>
+                    </em>
+                    <%if zhekou<>100 and zhekou<>0 then%>
+                        <em class="s-change-price-text">
+                        <%
+                        if left(cpjg*(100-zhekou)/100,1)="." then
+                            jieyue_price="0"&cpjg*(100-zhekou)/100
+                        else
+                            jieyue_price=comma(cpjg)*(100-zhekou)/100
+                        end if
+                        %>
+                        省<%=formatNumber(jieyue_price,2,-1,-1,0)%><%=cart_money_name%>
+                        </em>
+                    <%end if%>
+                    <input type="hidden" id="danjia_<%=k%>" value="<%=danjia%>"/>
+                    </td>
+                    <td class="s-amount">
+        <script>
+            function deleteNumber_<%=k%>(b){//减法
+                var a=document.getElementById(b);
+                if (a.value>1){
+                    a.value=a.value*1-1;
+                    Change_qtys_<%=k%>();//异步提交修改数量
+                    Show_change_qty_result_<%=k%>();//修改提示
+                }
+                else{
+                }
+                showTips('del','<%=rs("SMT_id")%>','0');
+            }
+            function addNumber_<%=k%>(b){//加法
+                var a=document.getElementById(b);
+                a.value=a.value*1+1;
+                Change_qtys_<%=k%>();//异步提交修改数量
+                Show_change_qty_result_<%=k%>();//修改提示
+                showTips('del','<%=rs("SMT_id")%>','0');
+            }
+            function IsNum(obj){//自动删除第一个数字为0的和带有.的
+                var val = obj.value;
+                    if (val<=0){
+                        obj.value = "";
+                    }
+                    else{
+                        var one = val.substr(0,1);
+                        obj.value = one != '-'? (parseInt(val) || '') : one + (parseInt(val.substr(1,val.length)) || '');
+                    }
+            }
+            function Show_change_qty_result_<%=k%>(){//修改提示
+                document.getElementById("buy_qty_<%=k%>").value=document.getElementById("sl_<%=k%>").value;
+                var current_qty_<%=k%>=document.getElementById("buy_qty_<%=k%>").value;
+                var current_danjia_<%=k%>=document.getElementById("danjia_<%=k%>").value*document.getElementById("zhekou_price_<%=k%>").value;
+                var current_price_<%=k%>=current_qty_<%=k%>*current_danjia_<%=k%>;
+                document.getElementById('LIST_QTY_<%=k%>').value=current_qty_<%=k%>;
+                showTips('del','<%=rs("SMT_id")%>','0');
+                showTips('modify_qty','<%=rs("SMT_id")%>','0');
+            }
+        </script>
+                    <div class="oper_num" title="初始预订数量为:<%=buy_qty%>">
+                    <div class="buy_number_input">
+                        <span class="decrease_num" onClick="deleteNumber_<%=k%>('sl_<%=k%>');" style="cursor:pointer;" id="del_<%=k%>"></span>
+                        <input type="text" id="sl_<%=k%>" value="<%=buy_qty%>" autocomplete="off" onKeyUp="Show_change_qty_result_<%=k%>();IsNum(this);Change_qtys_<%=k%>();Count_price_all();Count_list_all();" onChange="Show_change_qty_result_<%=k%>();IsNum(this);Change_qtys_<%=k%>();Count_price_all();Count_list_all();" onBlur="IsNum(this);Change_qtys_<%=k%>();Count_price_all();Count_list_all();" maxlength="15" tabindex="<%=cp_id%>"/>
+                        <span class="increase_num" id="add_<%=k%>" onClick="addNumber_<%=k%>('sl_<%=k%>');" style="cursor:pointer;"></span>
+                    </div>
+                    <input type="hidden" id="qidingliang_<%=k%>" value="<%=cpliang%>"/>
+                    <input type="hidden" id="buy_qty_<%=k%>" value="<%=buy_qty%>"/>
+                    <input type="hidden" id="current_qty_<%=k%>" value="<%=current_qty%>"/>
+                    <!--当前库存-->
+        <!--数量增加按钮-->
+                    <script>
+                    <%if if_reduce_qty=1 then'库存数量减少开关 1开%>
+                    //------------------------------------------------------无刷新修改数量--------------
+                    function Change_qtys_<%=k%>(data){//判断数量是否超出实际库存
+                        var buy_qty_<%=k%>=document.getElementById('sl_<%=k%>').value;//数量
+                        var current_qty_<%=k%>=document.getElementById('current_qty_<%=k%>').value;//当前库存数量
+                        var qidingliang_<%=k%>=document.getElementById('qidingliang_<%=k%>').value;//当前库存数量
+                        if(buy_qty_<%=k%>==0||buy_qty_<%=k%>==""){//假如数量为0或空
+                            document.getElementById('sl_<%=k%>').value=<%=buy_qty%>;
+                            document.getElementById('ID_<%=k%>').value=<%=buy_price%>;
+                            //document.getElementById('xiaoji_<%=k%>').value=<%=buy_price%>;
+                            document.getElementById('LIST_QTY_<%=k%>').value=<%=buy_qty%>;
+                            Count_price_all();//即时修改总金额
+                            Count_list_all();//即时修改总件数
+                            }
+                        else if(buy_qty_<%=k%><Number(qidingliang_<%=k%>)){//假如数量少于起订量
+                            showTips('modify_qty','<%=rs("SMT_id")%>','0');//关闭先前的提示
+                            showTips('not_qidingliang_qty','<%=rs("SMT_id")%>','1');
+                            document.getElementById('sl_<%=k%>').value=<%=cpliang%>;
+                            //document.getElementById('ID_<%=k%>').value=<%=buy_price%>;
+							document.getElementById('J_Go').disabled=true;
+							document.getElementById('J_Go').style.backgroundImage="url(../image/qujiesuan_gray.png)";
+							document.getElementById('J_Go').style.cursor="default";
+                            }
+                        else if(buy_qty_<%=k%>-current_qty_<%=k%>>0){//假如数量超出实际库存
+                            //不够
+                            //alert(current_qty_<%=k%>)
+							document.getElementById("add_<%=k%>").style.display = "none";
+                            showTips('modify_qty','<%=rs("SMT_id")%>','0');//关闭先前的提示
+                            showTips('not_modify_qty','<%=rs("SMT_id")%>','1');
+                            document.getElementById('sl_<%=k%>').value=current_qty_<%=k%>;
+                            //document.getElementById('ID_<%=k%>').value=<%=buy_price%>;
+							//alert("不够")
+                            Count_price_all();//即时修改总金额
+                            Count_list_all();//即时修改总件数
+                            }
+                        else{
+                            //够
+							document.getElementById('jifenshow_<%=k%>').innerHTML=document.getElementById('jifen_<%=k%>').value*document.getElementById('sl_<%=k%>').value
+							document.getElementById('J_Go').disabled=false;
+							document.getElementById('J_Go').style.backgroundImage="url(../image/qujiesuan.png)";
+							document.getElementById('J_Go').style.cursor="pointer";
+                            showTips('not_qidingliang_qty','<%=rs("SMT_id")%>','0');
+                            document.getElementById("add_<%=k%>").style.display = "inline";
+                            showTips('not_modify_qty','<%=rs("SMT_id")%>','0');
+                            change_qty_<%=k%>();
+                        }
+                    }
+                    <%else%>
+                    //------------------------------------------------------无刷新修改数量--------------
+                    function Change_qtys_<%=k%>(data){//判断数量是否超出实际库存
+                        var buy_qty_<%=k%>=document.getElementById('sl_<%=k%>').value;//数量
+                        var current_qty_<%=k%>=document.getElementById('current_qty_<%=k%>').value;//当前库存数量
+                        if(buy_qty_<%=k%>==0||buy_qty_<%=k%>==""){//假如数量为0或空
+                            document.getElementById('sl_<%=k%>').value=<%=buy_qty%>;
+                            document.getElementById('ID_<%=k%>').value=<%=buy_price%>;
+                            //document.getElementById('xiaoji_<%=k%>').value=<%=buy_price%>;
+                            document.getElementById('LIST_QTY_<%=k%>').value=<%=buy_qty%>;
+                            Count_price_all();//即时修改总金额
+                            Count_list_all();//即时修改总件数
+                            }
+                        else{
+                            //够
+							document.getElementById("add_<%=k%>").style.display = "inline";
+                            showTips('not_modify_qty','<%=rs("SMT_id")%>','0');
+                            change_qty_<%=k%>();
+                        }
+                    }
+                    <%end if%>
+                    function change_qty_<%=k%>(){	
+                        var xmlhttp;//建立XMLHttpRequest对象 兼容FF IE 谷歌
+                        try{
+                        xmlhttp= new ActiveXObject('Msxml2.XMLHTTP');// IE浏览器 
+                        }catch(e){
+                        try{
+                        xmlhttp= new ActiveXObject('Microsoft.XMLHTTP');// IE浏览器 
+                        }catch(e){
+                        try{
+                        xmlhttp= new XMLHttpRequest();//Mozilla FF浏览器
+                        }catch(e){alert("啊哦,浏览器不支持AJAX哦~")}
+                        }
+                        }
+                    var cart_id=document.getElementById('CART_ID_<%=k%>').value;//ID
+                    var buy_qty=document.getElementById('sl_<%=k%>').value;//数量
+                    var current_qty=document.getElementById('current_qty_<%=k%>').value;//当前库存数量
+                    strURL="../change_qty.asp?cart_id="+ cart_id + "&buy_qty="+ buy_qty + "&current_qty="+ current_qty;
+                    strURL+=((strURL.indexOf("?")==-1)?"?":"&")+"rnd="+Math.random();
+                    xmlhttp.open("GET", strURL, true);
+                       xmlhttp.onreadystatechange = function(){
+                            if(xmlhttp.readyState == 4)
+                            {
+                                if(xmlhttp.status == 200){
+                                     if(xmlhttp.responseText!=""){
+                                        var data=escape(xmlhttp.responseText);
+                                        change_qty_result<%=k%>(data);
+                                     }
+                                }
+                                else{
+                                //alert("远程数据通讯失败");
+                                }
+                            }
+                            else{
+                                //alert("远程数据通讯中..");
+                                }
+                        }
+                        xmlhttp.setRequestHeader('Content-type','application/x-www-form-urlencoded');
+                        xmlhttp.send(null);//使用GET后这里就用Null
+                    }
+                    function change_qty_result<%=k%>(data){
+                        if(data==1){
+                            showTips('not_modify_qty','<%=rs("SMT_id")%>','0');
+                            document.getElementById('modified_qty_result<%=k%>').innerHTML=document.getElementById('sl_<%=k%>').value;
+                            var xiaoji_tips<%=k%>=document.getElementById('zhekou_price_<%=k%>').value*document.getElementById('sl_<%=k%>').value;//修改后的小计
+                            document.getElementById('modified_xiaoji_<%=k%>').innerHTML=xiaoji_tips<%=k%>.toFixed(2);
+                            document.getElementById('xiaoji_<%=k%>').innerHTML=xiaoji_tips<%=k%>.toFixed(2);
+                            document.getElementById('ID_<%=k%>').value=xiaoji_tips<%=k%>.toFixed(2);
+                            //showTips('modify_qty','<%=rs("SMT_id")%>','1');
+							//去掉修改数量的提醒，太繁琐
+                            Count_price_all();//即时修改总金额
+                            Count_list_all();//即时修改总件数
+                            }
+                        else{
+                            document.getElementById('add_result<%=k%>').innerHTML="<font color=gray>失败</font>";
+                        }
+                    }
+                    </script>
+                    <!--修改提示框-->	
+                          <div style="position:absolute;margin-left:0px;*margin-left:-230px;width:100px; margin-top:-50px;">
+                            <div id="modify_qty<%=rs("SMT_id")%>" delbox="yes" style="display:none;">
+                              <div class="Cart_sea_layer01" style="width:450px;margin-top:-9px;">
+                                <ul>
+                                  <li class="line_height25" style="text-align:center; color:#FF0000;"><label onClick="showTips('modify_qty','<%=rs("SMT_id")%>','0');" style="float:right; margin-top:4px; margin-right:4px;color:#585858;text-decoration:none; cursor:pointer;"><em class="em_1"></em></label></li>
+                                  <li class="line_height25" style="text-align:left; color:#FF0000;">请注意:您已经将此商品数量修改为: <label id="modified_qty_result<%=k%>" style="color:#FF0000; font-weight:700;"></label> <font color="#0066FF"><%=units%></font>，小计：<label id="modified_xiaoji_<%=k%>" style="color:#FF0000; font-weight:700;"></label> <font color="#0066FF"><%=cart_money_name%></font></li>
+                                  <li><label style="text-align:left;">品名:<%=cp_name%>[型号:<font color="#0066FF"><%=xinghao%></font>][颜色:<font color="#0066FF"><%=colors%></font>]</label></li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                  <!--/修改提示框-->	
+                            
+                    <!--库存数量不足提示框-->	
+                          <div style="position:absolute;margin-left:0px;*margin-left:-170px;width:100px; margin-top:-30px;">
+                            <div id="not_modify_qty<%=rs("SMT_id")%>" delbox="yes" style="display:none;height:22px;line-height:22px;">
+                              <div class="Cart_sea_layer01" style="width:200px;margin-top:-9px;">
+                                <ul>
+                                  <li class="line_height25" style="text-align:center; color:#FF0000;"><label onClick="Count_price_all();Count_list_all();showTips('not_modify_qty','<%=rs("SMT_id")%>','0');" style="float:right; margin-top:4px; margin-right:4px;color:#585858;text-decoration:none; cursor:pointer;"><em class="em_1"></em></label></li>
+                                  <li class="line_height25" style="text-align:center; color:#FF0000;">商品购买上限为 <%=current_qty%> <%=units%></li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                  <!--/库存数量不足提示框-->	
+                    <!--起订量不足提示框-->	
+                          <div style="position:absolute;margin-left:0px;*margin-left:-170px;width:100px; margin-top:-30px;">
+                            <div id="not_qidingliang_qty<%=rs("SMT_id")%>" delbox="yes" style="display:none;height:22px;line-height:22px;">
+                              <div class="Cart_sea_layer01" style="width:200px;margin-top:-9px;">
+                                <ul>
+                                  <li class="line_height25" style="text-align:center; color:#FF0000;"><label onClick="showTips('not_qidingliang_qty','<%=rs("SMT_id")%>','0');" style="float:right; margin-top:4px; margin-right:4px;color:#585858;text-decoration:none; cursor:pointer;"><em class="em_1"></em></label></li>
+                                  <li class="line_height25" style="text-align:center; color:#FF0000;">该商品最小起订量为 <%=cpliang%> <%=units%></li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                  <!--/起订量不足提示框-->	
+        <!--/数量增加按钮-->
+                    <label style="margin-left:3px; display:inline"><%=units%></label>
+                    </div>
+                    </td>
+                    <td class="s-agio">
+                    <span style="text-align:center;">
+                        <a style="font-size:13px; font-weight:700;color:#999999;<%if zhekou<>100 then%>text-decoration:line-through;<%end if%>">
+                        <%
+                        if left(cpjg_yuan,1)="." then
+                            cpjg_yuan="0"&cpjg_yuan
+                        else
+                            cpjg_yuan=comma(cpjg_yuan)
+                        end if
+                        %>
+                        <%=formatNumber(cpjg_yuan,2,-1,-1,0)%>
+                        </a>
+                        <input type="hidden" id="shuliang_<%=k%>" value="<%=buy_qty%>" readonly=""/>
+                        <input type="hidden" id="zhekou_price_<%=k%>" value="<%=rs("zhekou_final_price")%>" readonly=""/>
+                    </span>
+                    </td>
+                    <td class="s-agio">
+                    <span style="text-align:center;">
+                        <%=zhekou_show%>
+                    </span>
+                    </td>
+                    <td class="s-total">
+                    <em tabindex="0">
+                        <%
+                        if left(total_jg_show,1)="." then
+                            xiaoji_price="0"&total_jg_show
+                        else
+                            xiaoji_price=comma(total_jg_show)
+                        end if
+                        %>
+                    <label id="xiaoji_<%=k%>"><%=total_jg_show%></label>
+                    <input type="hidden"  name="xiaoji" id="xiaoji_price_<%=k%>" value="<%=total_jg_show%>" readonly=""/>
+                    </em>
+                    </td>
+                    <td class="s-del">
+        <!--收藏-->
+        <%
+        '判断是否已收藏
+            set rs1=server.createobject("adodb.recordset")
+            sql1="select * from My_Favorites where type_id=0 and SMT_bianhao='"&session("user_bianhao")&"' and page_id="&cp_id&""
+            rs1.open sql1,conn,1,1
+            if rs1.eof then'没有收藏过
+                if_fav=0
+            else
+                if_fav=1
+            end if
+            rs1.close
+            set rs1=nothing
+            set sql1=nothing
+        %>	
+        <%if if_fav=0 then'未收藏时%>		
+        <!--收藏按钮-->
+                    <script>
+                    //------------------------------------------------------无刷新收藏--------------
+                    function add_my_fav_<%=k%>(obj){	
+                        var xmlhttp;//建立XMLHttpRequest对象 兼容FF IE 谷歌
+                        try{
+                        xmlhttp= new ActiveXObject('Msxml2.XMLHTTP');// IE浏览器 
+                        }catch(e){
+                        try{
+                        xmlhttp= new ActiveXObject('Microsoft.XMLHTTP');// IE浏览器 
+                        }catch(e){
+                        try{
+                        xmlhttp= new XMLHttpRequest();//Mozilla FF浏览器
+                        }catch(e){alert("啊哦,浏览器不支持AJAX哦~")}
+                        }
+                        }
+                        var fav_type_id=0;
+                        var page_id=<%=cp_id%>;
+                        strURL="../add_to_my_fav.asp?fav_type_id="+ fav_type_id + "&page_id="+ page_id;
+                        strURL+=((strURL.indexOf("?")==-1)?"?":"&")+"rnd="+Math.random();
+                        xmlhttp.open("GET", strURL, true);
+                       xmlhttp.onreadystatechange = function(){
+                            if(xmlhttp.readyState == 4)
+                            {
+                                if(xmlhttp.status == 200){
+                                     if(xmlhttp.responseText!=""){
+                                        var data=escape(xmlhttp.responseText);
+                                        add_my_fav_result<%=k%>(data);
+                                     }
+                                }
+                                else{
+                                //alert("远程数据通讯失败");
+                                }
+                            }
+                            else{
+                                //alert("远程数据通讯中..");
+                                }
+                        }
+                        xmlhttp.setRequestHeader('Content-type','application/x-www-form-urlencoded');
+                        xmlhttp.send(null);//使用GET后这里就用Null
+                    }
+                    function add_my_fav_result<%=k%>(data){
+                        if(data==1){
+                            document.getElementById('fav_result<%=k%>').innerHTML="<font color=green>收藏成功</font>"
+                            }
+                        else{
+                            document.getElementById('fav_result<%=k%>').innerHTML="<font color=gray>重复收藏</font>"
+                        }
+                    }
+                    </script>
+                    <a  title="移至收藏夹"  class="fav J_MakePoint"  id="fav_result<%=k%>"  onclick="add_my_fav_<%=k%>();" href="javascript:void(0)">收藏</a>
+                    
+                    <input type="hidden" name="CP_bianhao" id="CP_bianhao_<%=k%>" value="<%=rs("cp_bianhao")%>"/>
+        <!--/收藏按钮-->
+        <%else'已收藏时%>		
+            <a title="已添加到收藏夹"  class="fav J_MakePoint" style="color:#339966">已收藏</a>
+        <%end if'未收藏时%>		
+        <!--/收藏-->
+        <!--删除按钮-->
+                    <script>
+                    //------------------------------------------------------无刷新删除进货单清单--------------
+                    function del_my_cart_<%=k%>(obj){	
+                        var xmlhttp;//建立XMLHttpRequest对象 兼容FF IE 谷歌
+                        try{
+                        xmlhttp= new ActiveXObject('Msxml2.XMLHTTP');// IE浏览器 
+                        }catch(e){
+                        try{
+                        xmlhttp= new ActiveXObject('Microsoft.XMLHTTP');// IE浏览器 
+                        }catch(e){
+                        try{
+                        xmlhttp= new XMLHttpRequest();//Mozilla FF浏览器
+                        }catch(e){alert("啊哦,浏览器不支持AJAX哦~")}
+                        }
+                        }
+                        var id_to_be_deleted=document.getElementById("CART_ID_<%=k%>").value;//ID
+                        strURL="../del_my_cart.asp?id_to_be_deleted="+ id_to_be_deleted;
+                        strURL+=((strURL.indexOf("?")==-1)?"?":"&")+"rnd="+Math.random();
+                        xmlhttp.open("GET", strURL, true);
+                       xmlhttp.onreadystatechange = function(){
+                            if(xmlhttp.readyState == 4)
+                            {
+                                if(xmlhttp.status == 200){
+                                     if(xmlhttp.responseText!=""){
+                                        var data=escape(xmlhttp.responseText);
+                                        execute_del_my_cart_result(data);
+                                     }
+                                }
+                                else{
+                                //alert("远程数据通讯失败");
+                                }
+                            }
+                            else{
+                                //alert("远程数据通讯中..");
+                                }
+                        }
+                        xmlhttp.setRequestHeader('Content-type','application/x-www-form-urlencoded');
+                        xmlhttp.send(null);//使用GET后这里就用Null
+                    }
+                    function execute_del_my_cart_result(data){
+                        if(data==1){
+                            document.getElementById('J_Total').innerHTML="<a style=cursor:pointer onClick=window.location.reload()>点击刷新</label>";
+                            document.getElementById('carts_num2').innerHTML="<a style=cursor:pointer onClick=window.location.reload()>点击刷新</label>";
+                            document.getElementById('carts_num').innerHTML="<a style=cursor:pointer onClick=window.location.reload()>点击刷新</label>";
+							document.getElementById('J_Go').disabled=true;
+							document.getElementById('J_Go').style.backgroundImage="url(../image/qujiesuan_gray.png)";
+							document.getElementById('J_Go').style.cursor="default";
+							window.location.reload();
+							//hide_tr_<%=k%>();
+                            }
+                        else{
+                        }
+                    }
+                    function hide_tr_<%=k%>(){	
+                        document.getElementById("cp_tr_<%=k%>").style.display = "none";
+                        document.getElementById('carts_num').innerHTML=document.getElementById("carts_num_qty").value-1;
+                        document.getElementById('carts_num2').innerHTML=document.getElementById("carts_num_qty2").value-document.getElementById("buy_qty_<%=k%>").value;
+                        Count_list_all();//即时修改总件数
+                        Count_price_all();//即时修改总金额
+                    }
+                    </script>
+                    <a href="javascript:void(0)" id="cart_del_<%=k%>" onClick="showTips('del','<%=rs("SMT_id")%>','1');showTips('not_modify_qty','<%=rs("SMT_id")%>','0');showTips('modify_qty','<%=rs("SMT_id")%>','0');" style="color:#F00;display:none">[移除]</a>
+                    <input type="hidden" name="CART_ID_" value="<%=rs("SMT_id")%>" id="CART_ID_<%=k%>"/>
+                    <!--单个删除提示框-->	
+                          <div style="position:absolute;margin-left:-150px;*margin-left:-220px;width:100px; margin-top:-15px;">
+                            <div id="del<%=rs("SMT_id")%>" delbox="yes" style="display:none;">
+                              <div class="Cart_sea_layer01" style="width:200px;margin-top:-9px;">
+                                <ul>
+                                  <li class="line_height25" style="text-align:center;">您确定将此商品从进货单内移除吗？</li>
+                                  <li class="line_height20" style="text-align:center;">
+                                   <a class="J_Del  J_MakePoint" href="javascript:void(0)" onClick="del_my_cart_<%=k%>();hide_tr_<%=k%>();showTips('del','<%=rs("SMT_id")%>','0');" style="text-decoration:none;">确定</a> 
+                                    &nbsp;&nbsp;&nbsp;<a href="javascript:void(0);" onClick="showTips('del','<%=rs("SMT_id")%>','0');" class="sea_keyword" style="text-decoration:none;">取消</a>
+                                  </li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                  <!--/单个删除提示框-->	
+        <!--/删除按钮-->
+                    </td>
+                    </tr>
+                    <!--/商品文字详细说明-->
+                    </tbody>
+                    <!--/商品行结束-->
+					<%
+					k=k+1
+					rs.movenext
+					loop
+					if_xiadan=1'没有下单记录的开关
+					%>
+                <%else%>
+                    <font style="font-size:12px;">无任何下单记录。<a  style="cursor:pointer;" onClick="window.open('productslist.asp','_parent')">【继续购物】</a></font>
+					<%
+                    if_xiadan=0'没有下单记录的开关
+                    end if
+                    rs.close
+                    set rs=nothing
+                    %>
+				<%if if_xiadan=1 and if_default_yunfei=1 and default_yunfei>0 and miandan_yunfei>=0 and yunfei=0 then%>
+                    <tr height="80" id="dikou_yunfei_tr2">
+                        <td class="s-chk">&nbsp;</td>
+                        <td class="s-title">运费</td>
+                        <td class="s-point">-</td>
+                        <td class="s-price">-</td>
+                        <td class="s-amount">1</th>
+                        <td class="s-agio"><a style="font-size:13px; font-weight:700;color:#999999;"><%=formatNumber(default_yunfei,2,-1,-1,0)%></a></td>
+                        <td class="s-agio">-</th>
+                        <td class="s-total"><em tabindex="0"><%=formatNumber(default_yunfei,2,-1,-1,0)%></em></td>
+                        <td class="s-del">-</th>
+                    </tr>
+				<%end if%>
+				<%if if_xiadan=1 and if_default_yunfei=1 and default_yunfei>0 and miandan_yunfei>0 and yunfei=0 then%>
+                    <tr height="80" id="dikou_yunfei_tr" style=" background-color:#FFF7F7;display:<%if total_price_all-default_yunfei-miandan_yunfei>=0 then%><%else%>none<%end if%>">
+                        <td class="s-chk">&nbsp;</td>
+                      <td class="s-title" style="color:#FF0000;">满 <%=miandan_yunfei%> <%=cart_money_name%> 包邮 免运费</td>
+                        <td class="s-point">-</td>
+                        <td class="s-price">-</td>
+                        <td class="s-amount">1</th>
+                        <td class="s-agio"><a style="font-size:13px; font-weight:700;color:#999999;">-<%=formatNumber(default_yunfei,2,-1,-1,0)%></a></td>
+                        <td class="s-agio">-</th>
+                        <td class="s-total"><em tabindex="0">-<%=formatNumber(default_yunfei,2,-1,-1,0)%></em></td>
+                        <td class="s-del">-</th>
+                    </tr>
+				<%end if%>
+        <!--</div>/id=cart-->
+            </table>
+        </DIV>
+        </form>
+        
+        <!--/class=list id=cart_all-->
+        
+        <!--id=cart_allcart_all_empty-->
+        <DIV id="cart_all_empty" style="display:none;">
+            <table cellspacing="0" cellpadding="0" class="order-table" id="J_CartEnable">
+                    <colgroup valign="middle">
+                        <col width="62" />
+                        <col width="100" />
+                        <col width="70" />
+                        <col width="70" />
+                        <col width="100" />
+                        <col width="105" />
+                        <col width="116" />
+                        <col width="56" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="s-chk">&nbsp;</th>
+                            <th class="s-title">商品名称</th>
+                            <th class="s-point">积分<!--积分在转为正式订单并且完成时累加给会员--></th>
+                            <th class="s-price">单价(<%=cart_money_name%>)</th>
+                            <th class="s-amount">数量</th>
+                            <th class="s-agio">原单价(<%=cart_money_name%>)</th>
+                            <th class="s-agio">折扣</th>
+                            <th class="s-total">小计(<%=cart_money_name%>)</th>
+                            <th class="s-del">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <tr>  
+                    <td class="s-chk" >
+                    </td>
+                    <td class="s-title"> 
+                    </td>
+                    <td class="s-point"><em tabindex="0">0</em></td>
+                    <td class="s-price ">
+                    </td>
+                    <td class="s-amount">
+                    </td>
+                    <td class="s-agio">
+                    </td>
+                    <td class="s-agio">
+                    </td>
+                    <td class="s-total">
+                    </td>
+                    <td class="s-del">
+                    </td>
+                    </tr>
+                    </tbody>
+            </table>
+        </DIV><!--/id=cart_allcart_all_empty-->
+        
+            <!--/商品-->
+        <%if jilu_all>0 then%>
+            <!--操作-->
+        <form name="form" method="post" action="mycart.asp">
+          <div id="float-bar" class="float-bar default clearfix" style="width:95%;z-index:1">
+                        <!--<span tabindex="0" class="del-items J_MakePoint mg-left" title="批量删除" id="J_DelSelect2">批量删除</span>-->
+                        <span class="del-items J_MakePoint mg-left"  tabindex="0" onMouseOver="showTips('Tip','1','1');" onMouseOut="showTips('Tip','1','0');" >[保存说明]</span>
+                    <!--保存提示框-->	
+                          <div style="position:absolute;margin-left:0px;*margin-left:-700px;width:350px; margin-top:-5px;">
+                            <div id="Tip1" delbox="yes" style="display:none;">
+                              <div class="Cart_sea_layer01" style="width:350px;margin-top:-49px;">
+                                <ul>
+                                  <li class="line_height25" style="text-align:left;">设为<font color=green>保存</font>时，临时进货清单在下次登录将不会删除。<font color=red>取消保存</font>时，临时进货清单将在下次登录被自动删除。</li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                  <!--/保存提示框-->	
+                        <%if if_xiadan=1 then%>
+                            <script type="text/javascript" src="../js/cancel_po.js"></script>
+                            <script type="text/javascript" src="../js/restore_po.js"></script>
+                            <%
+                            '遍历所有临时进货清单 如果都是0 则显示已保存，反之显示已取消保存
+                                        set rs1=server.createobject("adodb.recordset")	
+                                        sql1="select * from My_Order_Details where key<>1 and key<>2 and Order_Po='"&session("Order_Po")&"' and SMT_bianhao='"&session("user_bianhao")&"'"
+                                        rs1.open sql1,conn,1,1
+                                        if not rs1.eof then
+                                            jilu=rs1.recordcount
+                                            k=1
+                                                do while not rs1.eof and k<=jilu
+                                                set rs2=server.createobject("adodb.recordset")	
+                                                sql2="select * from My_Order_Details where key=3 and SMT_id="&rs1("SMT_id")
+                                                rs2.open sql2,conn,1,1
+                                                if not rs2.eof then
+                                                    baocun=0'已取消保存
+                                                    restore=1'可恢复
+                                                else
+                                                    baocun=1'可取消
+                                                    restore=0'已保存
+                                                end if
+                                                rs2.close
+                                                set rs2=nothing
+                                            k=k+1
+                                            rs1.movenext
+                                            loop
+                                        end if
+                                        rs1.close
+                                        set rs1=nothing
+                            %>	
+                            <%if baocun=1 then%>
+                                <span tabindex="0" class="del-items J_MakePoint mg-left" title="持久存在，直到手动删除。可点击取消保存进货清单，下次登录时会被自动删除。" id="J_DelSelect" style="cursor:hand"><label style="cursor:pointer;"  onclick="Cancel_saving();" ><font color=green>√已保存，点击取消保存</font></label></span>
+                            <%elseif restore=1 then%>
+                                <span tabindex="0" class="del-items J_MakePoint mg-left" title="下次登录会被删除。可点击保存临时进货清单。" id="J_DelSelect" style="cursor:hand"><label style="cursor:pointer;"  onclick="Restore_saving();"><font color=red>X已取消保存，点击保存</font></label></span>
+                            <%end if%>
+                            <input type="hidden" id="po_str_to_be_cancel" value="<%=session("Order_Po")%>"/>
+                        <%end if%>
+                        <div id="J_FavSelectTips" style="display: none;" class="msg mg-left"></div>
+                        <div id="J_CleanInvlid" class="msg" style="display: none;position:absolute;left:180px;top:5px;"></div>
+                        <div id="J_UncodNumMessage" class="kd-popup uncod-msg hidden">
+                            <div class="box">
+                                <div class="bd">
+                                    有<span class="J_UncodNum uncod-num"></span>种宝贝因不支持货到付款从结果中移除。</div>
+                               		<a href="" title="" class="close"><span>关闭</span></a>
+						  </div>
+                        <i class="bottom"></i>
+                        </div>
+                        <!--
+						<div id="jiesuan_tip" style="position:absolute;color:#F00;top:-30px;left:640px;display:<%if cint(pro_qty)>supply_qty_total then%>block<%else%>none<%end if%>;"><img src="../image/gantanhao.gif"> 购买总数大于可供货总数!</div>
+                       <%if cint(pro_qty)>supply_qty_total then%>
+                       		<button class="btn J_MakePoint un-go" type="submit" id="J_Go" style=" background:url(../image/qujiesuan_gray.png);border:0px;color:#FFF;curspor:default;" disabled> 结 算 </button>
+                       <%else%>
+                            <button class="btn J_MakePoint un-go" type="submit" id="J_Go" style=" background:url(../image/qujiesuan.png);border:0px;color:#FFF;cursor:pointer;"> 结 算 </button>
+					   <%end if%>
+						-->
+                       <button class="btn J_MakePoint un-go" type="submit" id="J_Go" style=" background:url(../image/qujiesuan.png);border:0px;color:#FFF;cursor:pointer;" <%if if_default_yunfei=1 and default_yunfei>0 and miandan_yunfei>0 and yunfei=0 then%>onClick="javascript:return confirm('亲，单笔总金额满 <%=miandan_yunfei%>元可以免运费哦!点击取消后可继续购物');"<%end if%>> 结 算 </button>
+                        <input type="hidden" name="action" value="jiesuan"/>
+                        <!--不使用
+						    	<div class="select-cod select-uncod" id="J_SelectCodContainer">
+								<script type="text/javascript" src="../js/huodaofukuan.js"></script>
+								<script type="text/javascript" src="../js/not_use_huodaofukuan.js"></script>
+                                <label for="J_SelectCod">
+                                <label id="huodao_tips">
+                                <%if yunfei=1 then%>
+                                <input type="checkbox" id="J_SelectCod" class="sel-cod J_MakePoint" onClick="Not_Use_HuodaoFukuan();" checked="checked"/><a style="color:#F00">使用货到付款</a>
+                                <%else%>
+                                <input type="checkbox" id="J_SelectCod" class="sel-cod J_MakePoint" onClick="Use_HuodaoFukuan();" checked="checked"/><a style="color:#390">不使用货到付款</a>
+                                <%end if%>
+                                </label>
+                                <input type="hidden" id="huodaofukuan" value="<%=session("Order_Po")%>"/>
+                                </label>
+                            	</div>
+					  -->
+		    <span class="total-price">
+                  订单总价：<em class="total" id="J_Total" tabindex="0"><%=comma(total_price_all)%></em><%=cart_money_name%>
+            <input type="hidden" id="total_price" value="<%=total_price_all%>" readonly=""/>
+            <input type="hidden" id="yunfei" name="yunfei" value="<%=default_yunfei%>">
+			</span>
+              <a href="#top"><i class="goto J_MakePoint" title="返回顶部"></i></a>
+			</div>
+        </form>
+            <!--/操作-->
+        <%else%>
+            <div style=" width:113px; height:30px;background:url(../image/jixugouwu.gif); cursor:pointer;" onClick="window.open('productslist.asp','_parent')"></div>
+        <%end if%>
+        <%
+        if jilu_all=1 then'一条记录时获取数量
+            set rs=server.createobject("adodb.recordset")
+            sql="select * from My_Order_Details where key<>1 and key<>2 and SMT_bianhao='"&session("user_bianhao")&"'"
+            if session("Order_Po")<>"" then
+            sql=sql&" and Order_Po='"&session("Order_Po")&"'"
+            end if
+            rs.open sql,conn,1,1
+            if not rs.eof then
+                First_qty_xiaoji=rs("buy_qty")*rs("zhekou_final_price")
+                First_qty_xiaoji=formatNumber(First_qty_xiaoji,2,-1,-1,0)
+                First_buy_qty=rs("buy_qty")
+            else
+                First_qty_xiaoji=0
+                First_qty_xiaoji=formatNumber(First_qty_xiaoji,2,-1,-1,0)
+                First_buy_qty=0
+            end if
+            rs.close
+            set rs=nothing
+            set sql=nothing
+        end if
+        %>
+        <script language"javascript">
+		
+            function Count_price_all(){//遍历小计求和
+				<%if jilu_all=1 then%>
+					var sum = <%=First_qty_xiaoji%>;
+					sum = parseFloat(document.cart_form.elements["sum"].value);
+				<%else%>
+					var sum = 0;
+					for(var i=0;i<document.cart_form.elements["sum"].length;i++)
+					{
+						sum = sum + parseFloat(document.cart_form.elements["sum"][i].value);
+				   }
+				<%end if%>
+				<%if if_default_yunfei=1 and default_yunfei>0 and miandan_yunfei>0 and yunfei=0 then'满足免运费金额
+					default_yunfei2=0
+					%>
+					if(sum>=<%=miandan_yunfei%>){
+						document.getElementById('dikou_yunfei_tr').style.display="";//IE6不支持table-row
+						document.getElementById('yunfei').value=<%=default_yunfei2%>;
+					}
+					else{
+						document.getElementById('yunfei').value=<%=default_yunfei%>;
+						document.getElementById('dikou_yunfei_tr').style.display="none";
+						var yunfei=<%=default_yunfei%>;
+						sum= sum + parseInt(yunfei);
+					}
+				<%elseif miandan_yunfei=0 then%>
+					document.getElementById('yunfei').value=<%=default_yunfei%>;
+					var yunfei=<%=default_yunfei%>;
+					sum= sum + parseInt(yunfei);
+				<%else%>
+				<%end if%>
+				//alert(sum)
+				//alert(sum.toFixed(2))
+				document.getElementById('J_Total').innerHTML= sum.toFixed(2);
+				document.getElementById('total_price').value= sum;
+            }
+            function Count_list_all(){//统计总件数
+				<%if jilu_all=1 then%>
+					var sum2 = <%=First_buy_qty%>;
+					sum2 = parseFloat(document.cart_form.elements["sum2"].value);
+				<%else%>
+					var sum2 = 0;
+					for(var j=0;j<document.cart_form.elements["sum2"].length;j++)
+					{
+						sum2 = sum2 + parseInt(document.cart_form.elements["sum2"][j].value);
+					}
+				<%end if%>
+            	document.getElementById('carts_num2').innerHTML= sum2;
+				document.getElementById('carts_total_tip').innerHTML=sum2;
+				
+				//alert("购买总数:"+sum2+" 可供货总数:<%=supply_qty_total%>!")
+				/*
+				if(sum2><%=supply_qty_total%>){
+					document.getElementById('jiesuan_tip').style.display="block";
+					document.getElementById('J_Go').disabled=true;
+					document.getElementById('J_Go').style.backgroundImage="url(../image/qujiesuan_gray.png)";
+					document.getElementById('J_Go').style.cursor="default";
+				}
+				else{
+					document.getElementById('jiesuan_tip').style.display="none";
+					if(buy_qty_<%=k%><Number(qidingliang_<%=k%>)){//假如数量少于起订量
+						showTips('modify_qty','<%=rs("SMT_id")%>','0');//关闭先前的提示
+						showTips('not_qidingliang_qty','<%=rs("SMT_id")%>','1');
+						document.getElementById('ID_<%=k%>').value=<%=buy_price%>;
+						document.getElementById('J_Go').disabled=true;
+						document.getElementById('J_Go').style.backgroundImage="url(../image/qujiesuan_gray.png)";
+						document.getElementById('J_Go').style.cursor="default";
+					}
+					else{
+						document.getElementById('jiesuan_tip').style.display="none";
+						document.getElementById('J_Go').disabled=false;
+						document.getElementById('J_Go').style.backgroundImage="url(../image/qujiesuan.png)";
+						document.getElementById('J_Go').style.cursor="pointer";
+					}
+				}
+				*/
+				/*
+				else if(buy_qty_<%=k%><Number(qidingliang_<%=k%>)){//假如数量少于起订量
+					showTips('modify_qty','<%=rs("SMT_id")%>','0');//关闭先前的提示
+					showTips('not_qidingliang_qty','<%=rs("SMT_id")%>','1');
+					document.getElementById('ID_<%=k%>').value=<%=buy_price%>;
+					document.getElementById('J_Go').disabled=true;
+					document.getElementById('J_Go').style.backgroundImage="url(../image/qujiesuan_gray.png)";
+					document.getElementById('J_Go').style.cursor="default";
+				}
+				else{
+					document.getElementById('jiesuan_tip').style.display="none";
+					document.getElementById('J_Go').disabled=false;
+					document.getElementById('J_Go').style.backgroundImage="url(../image/qujiesuan.png)";
+					document.getElementById('J_Go').style.cursor="pointer";
+				}
+				*/				
+				
+
+            }
+        </script>
+        <!--结束咯-->
+    <%elseif action="jiesuan" then%>
+     	<%
+		if session("Order_Po")="" then
+		response.Write "发生错误,请按照正确步骤提交!"
+		response.End()
+		end if
+		%>
+   		<%
+			table_name2="My_Order_Details"
+            '根据订单号获取遍历所有的记录统计总金额及件数 还有总积分
+            set rs=server.createobject("adodb.recordset")
+            sql="select * from "&table_name2&" where key<>1 and SMT_bianhao='"&session("user_bianhao")&"'"
+            sql=sql&" and Order_Po='"&session("Order_Po")&"'"
+            rs.open sql,conn,1,1
+            if not rs.eof then
+                jilu_all=rs.recordcount
+                for i=1 to rs.recordcount
+                    total_price_all=total_price_all+(rs("zhekou_final_price")*rs("buy_qty"))
+                    pro_qty=pro_qty+rs("buy_qty")
+					pro_bianhao=rs("cp_bianhao")
+					'获取产品积分
+					Set rs1 = Server.CreateObject("ADODB.recordset")
+					sql1="select cp_bianhao,jifen from My_cp where cp_bianhao='"&pro_bianhao&"'"
+					rs1.open sql1,conn,1,1
+					if rs1.eof and rs1.bof then
+						jifen1=0
+					else
+						if rs1("jifen")="" or isnull(jifen) then
+							jifen1=0
+						else
+							jifen1=rs1("jifen")
+						end if
+					end if
+					rs1.close
+					set rs1=nothing
+					set sql1=nothing
+                    total_jifen_all=total_jifen_all+(rs("buy_qty")*jifen1)
+                    rs.MoveNext()
+                    if rs.EOF then
+                        i = i + 1
+                        exit for
+                    end if
+                next
+            end if
+            rs.close
+            set rs=nothing
+            set sql=nothing
+			'yunfeis=Checkstr(trim(request.Form("yunfei")))
+			if if_default_yunfei=1 and default_yunfei>0 and miandan_yunfei>0 and yunfei=0 then
+				if cint(total_price_all)>=miandan_yunfei then
+				else
+					total_price_all=total_price_all+default_yunfei
+				end if
+			elseif miandan_yunfei=0 then
+				total_price_all=total_price_all+default_yunfei
+			else
+			end if
+			total_price_all=formatNumber(total_price_all,2,-1,-1,0)
+			'total_price_all=total_price_all + yunfeis
+            'total_price_all=formatNumber(total_price_all,2,-1,-1,0)
+		%>
+		<%
+		if if_default_yunfei=1 and default_yunfei>0 and miandan_yunfei>0 and yunfei=0 then
+			conn.execute("update My_Order_List set yunfei="&default_yunfei&",if_hd_myf=1 where SMT_bianhao='"&session("user_bianhao")&"' and Order_Po='"&session("Order_Po")&"'")
+		elseif miandan_yunfei=0 then
+			conn.execute("update My_Order_List set yunfei="&default_yunfei&",if_hd_myf=0 where SMT_bianhao='"&session("user_bianhao")&"' and Order_Po='"&session("Order_Po")&"'")
+		end if
+		%>
+        <%
+        '获取我的常量
+        set rs=server.createobject("adodb.recordset")
+        sql="select * from members where SMT_key>0"
+        sql=sql&" and SMT_bianhao='"&session("user_bianhao")&"' and SMT_bianhao<>''"
+        rs.open sql,conn,1,1
+        if not rs.eof then
+			'基本信息
+			colxr=rs("SMT_colxr")
+			sex=rs("SMT_colxrsex")
+			mobile=rs("SMT_colxother")
+			addone_id=rs("SMT_addone_id")
+			addtwo_id=rs("SMT_addtwo_id")
+			cotelq=rs("SMT_cotelq")
+			cotel=rs("SMT_cotel")
+			mail=rs("SMT_mail")
+			'获取1级地址
+			set rs1=server.createobject("adodb.recordset")
+			if isnumeric(addone_id)=true and addone_id>0 and addone_id<>"" then
+				sql1="select top 1 * from ypaddone where SMT_addone_id="&addone_id
+				rs1.open sql1,conn,1,1
+				addone=rs1("SMT_addone")&" "
+			else
+				addone="未知"
+			end if
+			rs1.Close()
+			'获取2级地址
+			if isnumeric(addtwo_id)=true and addtwo_id>0 and addtwo_id<>"" then
+				sql1="select top 1 * from ypaddtwo where SMT_addtwo_id="&addtwo_id
+				rs1.open sql1,conn,1,1
+				addtwo=rs1("SMT_addtwo")&" "
+			else
+				addtwo="未知"
+			end if
+			rs1.Close()
+			set rs1=nothing
+			set sql1=nothing
+			coaddress=rs("SMT_coaddress")
+			coyb=rs("SMT_coyb")
+			shouhuodizhi=addone&addtwo&coaddress&"(邮编:"&coyb&") 联系人:"&colxr&sex&"，联系电话:"&cotelq&"-"&cotel&"/"&mail
+        end if
+        rs.close
+        set rs=nothing
+        set sql=nothing
+        %>
+		<form name="form2" method="post" action="mycart.asp">
+			<script language="JavaScript" type="text/javascript">
+            var s=0;
+            function textComs_cart(field, cpjmfield, maxlimit) {
+            if (field.value.length > maxlimit) 
+            field.value = field.value.substring(0,maxlimit);
+            else 
+            cpjmfield.value = maxlimit - field.value.length;
+            }
+            </script>
+            <div style="margin-left:10px;">
+            <ul>
+            <li style="color:#F00;">请确认您的订单信息：</li>
+            <li>@ 您的订单号为：<a href="mycart.asp" target="_blank" style="color:#36C"><%=session("Order_Po")%>，点击查看明细</a></li>
+            <li style="font-size:16px;color:#F60;">@ 订单内共：<%=jilu_all%> 个类目，合计：<%=pro_qty%> 个单位，应付总金额: <font style="color:#FF0000;"><%=total_price_all%>&nbsp;<%=cart_money_name%></font>，可获得总积分为：<font style="color:#FF0000;"><%=total_jifen_all%></font>分(订单完成后累加)</li>
+            <li>@ 请确认您的收货地址(可另行编辑)：<input type="text" id="shouhuodizhi"  name="shouhuodizhi" value="<%=shouhuodizhi%>" class="input2" style="width:630px;font-size:12px;" autocomplete="off"/></li>
+            <li>@ 备注信息(您还可以把开票信息写在这里)：
+            <textarea name="beizhu" cols="30" rows="3" wrap="on" <%=info_inputstyle%> id="beizhu"  onkeydown="textComs_cart(this.form.beizhu,this.form.remLen_cart,200);" onKeyUp="textComs_cart(this.form.beizhu,this.form.remLen_cart,200);" style="font-size:12px;"></textarea>
+             <font color=#FF0000>*还剩 <input readonly="readonly" type="text" name="remLen_cart" size="4" maxlength="3" value="1000" id="remLen_cart"  style="background-color:#F9F9F9; border:0; font-style: oblique;"/></font>
+             <button class="btn J_MakePoint un-go" type="submit" id="J_Go" style=" background:url(../image/qujiesuan.png);border:0px;color:#FFF;width:120px;height:30px;font-size:18px; font-weight:bold;color:#FFF;" onClick="javascript:return confirm('确认订单吗?');"> 确认订单 </button>
+             </li>
+            </ul>
+            </div>
+             <input type="hidden" name="action" value="fukuan"/>
+			 <input type="hidden" id="yunfei" name="yunfei" value="<%=yunfeis%>">
+			 <input type="hidden" id="total_jifen" name="total_jifen" value="<%=total_jifen_all%>">
+        </form>
+    <%elseif action="fukuan" then%>
+    	<%
+		if session("Order_Po")="" or session("cart_tijiao_step")<>1 then'防止最后一步刷新提交
+		response.Write "发生错误,请按照正确步骤提交!"
+		response.End()
+		end if
+		%>
+		<%
+			table_name2="My_Order_Details"
+            '根据订单号获取遍历所有的记录统计总金额及件数
+            set rs=server.createobject("adodb.recordset")
+            sql="select * from "&table_name2&" where key<>1 and SMT_bianhao='"&session("user_bianhao")&"'"
+            sql=sql&" and Order_Po='"&session("Order_Po")&"'"
+            rs.open sql,conn,1,1
+            if not rs.eof then
+                jilu_all=rs.recordcount
+                for i=1 to rs.recordcount
+                    total_price_all=total_price_all+(rs("zhekou_final_price")*rs("buy_qty"))
+                    pro_qty=pro_qty+rs("buy_qty")
+                    'total_price_all=total_price_all+((rs("cpjg")*rs("zhekou"))/100)
+                    rs.MoveNext()
+                    if rs.EOF then
+                        i = i + 1
+                        exit for
+                    end if
+                next
+            end if
+            rs.close
+            set rs=nothing
+            set sql=nothing
+			'yunfeis=Checkstr(trim(request.Form("yunfei")))
+			if if_default_yunfei=1 and default_yunfei>0 and miandan_yunfei>0 and yunfei=0 then
+				if cint(total_price_all)>=miandan_yunfei then
+				else
+					total_price_all=total_price_all+default_yunfei
+				end if
+			elseif miandan_yunfei=0 then
+				total_price_all=total_price_all+default_yunfei
+			else
+			end if
+			total_price_all=formatNumber(total_price_all,2,-1,-1,0)
+			'response.Write total_price_all
+			'response.End()
+			'total_price_all=total_price_all + yunfeis
+            'total_price_all=formatNumber(total_price_all,2,-1,-1,0)
+		%>
+		<%
+		shouhuodizhi=Checkstr(trim(request.form("shouhuodizhi")))
+		beizhu=Checkstr(trim(request.form("beizhu")))
+		total_jifen=Checkstr(trim(request.form("total_jifen")))
+        '更新所有相关信息为已提交
+
+		set rs=server.createobject("adodb.Connection")
+		rs.Open conn
+		sql = "update My_Order_Details set key=0 where Order_Po='"&session("Order_Po")&"' and SMT_bianhao='"&session("user_bianhao")&"'"
+		rs.Execute sql
+		rs.Close
+		Set rs = Nothing
+		Set sql = Nothing
+
+  		
+		set rs=server.createobject("adodb.recordset")
+		sql="select * from My_Order_Details where Order_Po='"&session("Order_Po")&"' and SMT_bianhao='"&session("user_bianhao")&"' and key=0"
+		rs.open sql,conn,1,1
+		if not rs.eof or not rs.bof then
+			do while not rs.eof	
+				set rs1=server.createobject("adodb.recordset")
+				sql1="select * from My_Order_Details where Order_Po='"&session("Order_Po")&"' and SMT_bianhao='"&session("user_bianhao")&"' and key=0"
+				rs1.open sql1,conn,1,3
+				rs1("key")=1
+				rs1.update
+				rs1.close
+				set rs1=nothing
+				set sql1=nothing
+			rs.movenext
+			loop
+        end if
+		rs.close
+        set rs=nothing
+        set sql=nothing
+		'response.End()
+		xiadan_time=NOW()
+        conn.execute("update My_Order_List set jifen_total="&total_jifen&",SMT_key=0,added_date='"&xiadan_time&"',contact='"&shouhuodizhi&"',beizhu='"&beizhu&"',final_price="&total_price_all&",original_price="&total_price_all&" where Order_Po='"&session("Order_Po")&"' and SMT_bianhao='"&session("user_bianhao")&"'")
+		PO_submited=session("Order_Po")
+		
+		'下单后自动发送邮件提示不要错过订单
+		'先获取网站参数
+		set rs1=server.createobject("adodb.recordset")
+		sql1="select site_url,site_email,my_smtp,my_smtp_name,my_smtp_pwd from My_config"
+		rs1.open sql1,conn,1,1
+			site_url=rs1("site_url")
+			email=rs1("site_email")
+			my_smtp=rs1("my_smtp")'SMT邮箱
+			my_smtp_name=rs1("my_smtp_name")'SMT邮箱账户
+			my_smtp_pwd=rs1("my_smtp_pwd")'SMT邮箱密码
+		rs1.close
+		
+		'然后获取内容
+		emailtitle="[亲,收到一笔新订单，订单号为:"&session("Order_Po")&"]"&left(content_str,40)
+		emailcontent=">>订单号:<font color='blue'>"&session("Order_Po")&"</font><br><br>>>下单时间:<font color='666666'>"&xiadan_time&"</font><br><br>>>订单总金额:<font color='red'>"&total_price_all&"</font><br><br>>>订单联系人及收货地址为:<br><font color='blue'>"&shouhuodizhi&"</font><br><br>>>买家留言:<br><font color='green'>"&beizhu&"</font><br><br>请尽快登录后台查看。<br><font color='red'>[请及时与买家联系,不要错过任何订单!]</font><br><font color='#ccc'>[系统邮件请不要回复]</font>"
+		set rs1=nothing
+		set sql1=nothing
+		send_mail_now()'开始发送邮件
+		'询价邮件发送程序结束
+		session("Order_Po")=""
+		session("cart_tijiao_step")=""
+        %>
+		<table><tr><td>
+<style>
+*{
+	margin:0;
+	padding:0;
+}
+ul,ol{
+	list-style:none;
+}
+.new-btn-login{
+    background-color: transparent;
+	cursor:pointer;
+    background-image: url("../order/alipay/images/new-btn-fixed.png");
+    border: medium none;
+}
+.new-btn-login{
+    background-position: 0 -198px;
+    width: 82px;
+	color: #FFFFFF;
+    font-weight: bold;
+    height: 28px;
+    line-height: 28px;
+    padding: 0 10px 3px;
+}
+.new-btn-login:hover{
+	background-position: 0 -167px;
+	width: 82px;
+	color: #FFFFFF;
+    font-weight: bold;
+    height: 28px;
+    line-height: 28px;
+    padding: 0 10px 3px;
+}
+</style>
+<style>
+.titles_border3{border:2px solid #CCC;margin:10px;padding:5px;padding-left:8px;font-size:14px;color:#F60;font-weight:bold;}
+.titles_border2{border:2px solid #CCC;padding:5px;margin:10px;padding-left:20px;font-size:14px;color:#333;font-weight:bold;}
+.titles_border{border:2px solid #CCC;padding:0px;margin:10px;font-size:14px;color:#333;font-weight:bold;}
+.titles{border-top:2px sloid #CCC;border-left:2px sloid #CCC;border-right:2px sloid #CCC;border-bottom:2px dashed #CCC;background-color: #F2F2F2;font-size:14px;color:#333;font-weight:bold;padding:5px;padding-left:20px;}
+.titlesfont{font-size:14px;color:#333;font-weight:bold;padding:5px;padding-left:20px;}
+</style>
+            <div style="margin-left:10px;width:880px">
+                <div style="font-size:22px;color:#F00;">订单提交成功，请尽快安排付款。</div>
+                <div class="titles_border2">@ 您的订单号为：<a href="javascript:void(0)" onClick="showDiv_myinfo()" style="color:#36C"><%=PO_submited%>，您可以通过[我的助手]随时查看未完成的订单详情。</a></div>
+                <div class="titles_border2">您可以选择以下方式支付，应付金额应为<label style="font-size:22px;line-height:22px; color:#F60; font-weight:bold;"> <%=comma(total_price_all)%> </label>元。</div>
+				<%if allow_alipay=1 then%>
+                    <div class="titles_border">
+                        <div class="titles">在线支付方式</div>
+                        <form name="alipayment" action="../order/alipay/alipayto.asp" method="post" target="_blank">
+                            <div style="padding:10px;margin:10px;">
+                            <!--<input type="radio" value="1" name="pay_way"/>-->
+                            <img src="../order/alipay/images/alipay.gif"  width="70"/>
+                            <button class="new-btn-login" type="submit" style="text-align:center;">确认付款</button>
+                            <button class="new-btn-login" type="button" style="text-align:center;margin-left:10px;"  onClick="window.open('productslist.asp','_self');">下次再说</button>
+                            <input type="hidden" size="30" name="subject" value="<%=coname%>-订单号:<%=Order_Po%>" />
+                            <input type="hidden" size="30" name="alibody" value="<%=beizhu%>" />
+                            <input type="hidden" size="30" name="Order_Po" value="<%=Order_Po%>" />
+                            <input type="hidden" maxLength="16" size="30" name="total_fee" onfocus="if(Number(this.value)==0){this.value='';}" value="<%=comma(total_price_all)%>"/>
+                            </div>
+                        </form>
+                    </div>
+				<%end if%>
+                <div class="titles_border">
+                    <div class="titles">
+                    或者通过邮局/银行汇款或者转账,汇款方式如下。
+                    </div>
+                    <div style="font-size:22px;color:#F60; padding:10px;">
+                    <%=fukuanfangshi%>
+                    </div>
+                    <div class="titlesfont">
+                    请在支付完毕后尽快通知我们，以便安排发货和开票。
+                    </div>
+                </div>
+            </div>
+             <input type="hidden" name="action" value="fukuan"/>
+		</td></tr></table>
+    <%end if%>
+<%end if%>
+	
+	<%
+	Function send_mail_now()
+		'先获取SMTP的信息
+		Set JMail = Server.CreateObject("JMail.Message")
+			JMail.ISOEncodeHeaders = True'是否将信头编码成iso-8859-1字符集. 缺省是True  
+			JMail.Silent = True'如果JMail.silent设置为true,ErrorCode包含的是错误代码 
+			JMail.Charset = "gb2312"'设置标题和内容编码，如果标题有中文，必须设定编码为gb2312 
+			
+			JMail.From = email ' 发送者邮箱 
+			JMail.FromName = "[网站新订单提醒]" ' 发送者姓名 
+			JMail.MailServerUserName = my_smtp_name ' 身份验证的用户名 
+			JMail.MailServerPassword = my_smtp_pwd ' 身份验证的密码 
+
+			JMail.AddRecipient email
+			'JMail.AddRecipient emailname, emailaddr'加入新的收件人 
+			JMail.Subject = emailtitle 
+			JMail.Body = emailcontent 
+			
+			JMail.HTMLBody = "<html><body style='font-size:14px;'><br>"&emailcontent 
+			JMail.appendHTML "<br><br></body></html>" 
+			JMail.Body = "很抱歉，您的邮件系统无法正常显示HTML格式信件。" 
+			JMail.appendText " " 
+			
+			if JMail.Send( my_smtp ) then '执行邮件发送（通过邮件服务器地址） 
+				'response.Write 2'成功
+			else 
+				'response.Write 1'失败
+			end if 
+			JMail.Close() 
+		Set JMail = Nothing 
+	End function
+	%>

@@ -1,0 +1,35 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ taglib uri="http://java.sun.com/jstl/core_rt" prefix="c" %>
+<%
+	String url = request.getContextPath();
+	String path = (String)request.getAttribute("path");
+	response.addHeader("refresh","3;url='"+path+"'");
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<br>
+<table align="center" border="0" cellpadding="5" cellspacing="0" class="tableBorder1">
+    <tr> 
+      <th colspan=2 align="left"><img src="<%=url%>/admin/images/welcome.gif" width="16" height="17" align="absMiddle"> 成功提示信息!</th>
+    </tr>
+  <tr><td align=center width="20%" class=TableRow1><img src="<%=url%>/admin/images/succ.gif" width=95 height=97 border=0></td><td width="80%" class=TableRow1> <b style=color:blue><span id=jump>3</span> 秒钟后系统将自动返回</b><br><li>恭喜您！操作成功。</li></td></tr>
+  <tr><td colspan=2 align=center height=25 class=TableRow2><a href='<%=path%>'>返回上一页...</a></td></tr>
+ </table><p>&nbsp;</p>
+
+</body></html>
+<script>function countDown(secs){jump.innerText=secs;if(--secs>0)setTimeout("countDown("+secs+")",1000);}countDown(3);</script><br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

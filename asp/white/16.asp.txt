@@ -1,0 +1,77 @@
+<!--#include file="../Conn.asp"-->
+<!--#include file="../Cache/AdnCms.Admin.asp"-->
+<!--#include file="AdnCms.Security.asp"-->
+<!--#include file="AdnCms.Function.asp"-->
+<%Response.Charset="gb2312"
+Dim dataid,page,pageall,rscount,cmusername,cmcontent
+action=Trim(Request("action"))
+dataid=Adn_CLng(Request("id"))
+page=Adn_CLng(Request.QueryString("page")) : If page<1 Then page=1
+If Adn_CLng(AdminId(18))=0 Then Response.Write "SORRY！站长已关闭评论功能！": response.end 
+Select Case action
+Case "addsave"
+  If GetTimeSpan("LastCmmontTime")<40 Then
+	Response.Write "wait"
+  Else
+    Call OpenConn()
+    cmusername=Left(EncodeHtml(Bad_Url(NoSqlHack(Request.Form("cm_username")))),10)
+    cmcontent=Left(EncodeHtml(Bad_Url(NoSqlHack(Request.Form("cm_content")))),255)
+	Conn.Execute("Insert Into adnim_cm(cm_id,data_id,cm_username,cm_content,cm_date,cm_ip) values("&Adn_MaxId("cm")&","&dataid&",'"&ReplaceHtml(cmusername)&"','"&ReplaceHtml(cmcontent)&"','"&now()&"','"&Left(Adn_Ip,15)&"')")
+	SetSessionTime "LastCmmontTime",Now()
+	Response.Write "ok"
+	Call CloseConn()
+  End If
+Case Else
+    Call OpenConn()
+	Set rs = Server.CreateObject("adodb.recordset")
+	sql = "Select cm_id,data_id,cm_username,cm_content,cm_date,cm_ip from adnim_cm where data_id="&dataid&" order by cm_id desc"
+    rs.Open sql, Conn, 1, 1
+	If Not rs.bof Then
+	    rs.pagesize=Adn_CLng(AdminId(19))'每页数量
+		pageall=rs.pagecount   '总页数
+	    rscount=rs.recordcount '总记录数
+		If page>rs.PageCount Then page=rs.PageCount
+		rs.absolutepage=page
+		For i=1 to rs.pagesize
+			Response.Write "<ul><dl class='comment'><li class='img'><img src='"&Config(0)&"Images/nobody.gif'></li><li class='intro'>"&ShowFace(Server.Htmlencode(DecodeHtml(rs("cm_content"))))&"</li></dl><dl class='time'><span>称呼:"&DecodeHtml(rs("cm_username"))&"</span>日期:"&rs("cm_date")&"</dl></ul>"
+			rs.movenext
+			If rs.eof Then Exit For
+		Next
+		If Not(pageall=1 and page=1) Then Call CmPage
+	'Else
+	    'Response.Write "该片暂无评论"
+	End If
+	rs.close
+	Set rs=nothing
+	Call CloseConn()%>
+	<div class="cmadd">
+	<form id="send_comment" action="<%=Config(0)%>Include/AdnCms.Comment.asp?action=addsave" method="post">
+	<input type="hidden" name="id" value="<%=dataid%>">
+	<div>称　　呼：<input type="text" id="cm_username" name="cm_username" class="username" value=""> (必填) 
+	<input type="button" id="cm_submit" name="Submit" value="发 表 评 论" onClick="SubmitComment(<%=dataid%>);"> </div>
+	<div>内　　容：<textarea cols="50" rows="5" id="cm_content" name="cm_content" class="content"></textarea></div>
+	<div class="face"><%Call AddFace()%></div>
+	</form>
+	</div><%
+End Select
+Sub CmPage
+    Dim ll,nn,ii:ll=page-5:nn=page+5
+	If ll<1 Then ll=1:If nn>pageall Then nn=pageall
+    Response.Write "<div class=""page"">共"&pageall&"页 <a href=""javascript:"" onclick=""AdnComment("&dataid&",1);"" >首页</a> <a href=""javascript:"" onclick=""AdnComment("&dataid&","&page-1&");"">前一页</a>"
+	For ii=ll to nn
+		If page=ii Then Response.Write" <span>"&ii&"</span>" Else Response.Write " <a href=""javascript:"" onclick=""AdnComment("&dataid&","&ii&");"">"&ii&"</a>"
+	Next
+	Response.Write " <a href=""javascript:"" onclick=""AdnComment("&dataid&","&page+1&");"">下一页</a> <a href=""javascript:"" onclick=""AdnComment("&dataid&","&pageall&")"">尾页</a></div>"
+End Sub
+Sub AddFace()'表情添加
+    For ii=1 to 10
+	Response.Write"<img src='"&Config(0)&"Images/Faces/"&ii&".gif' width=""32"" height=""32"" onclick='addFace("&ii&")'/>"
+	Next
+End Sub
+Function ShowFace(Str)'表情显示
+    For ii=1 to 17
+	Str=replace(Str,"[AdnFace:"&ii&"]","<img src="&Config(0)&"images/faces/"&ii&".gif></img>")
+	Next	
+	ShowFace=Str	
+End Function
+%>

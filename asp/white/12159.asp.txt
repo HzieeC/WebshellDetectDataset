@@ -1,0 +1,286 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="inc/func_file.asp" -->
+<!--#include file="../cache/system.asp" -->
+<%
+Call CheckIframe()
+
+
+
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 ****
+
+Call OpenMemberexe("","login",10)
+Call CloseMemberexe()
+
+
+	menuFileID = 145
+	Call IsSecMenuRight("alert",menuFileID,dataType)
+
+
+
+
+Select Case mudi
+	Case "deal"
+		Call deal()
+
+End Select
+
+
+Call CloseConobj()
+
+
+
+
+
+Private Sub deal()
+	dealMode		= ToGetStr("dealMode")
+
+	oldFileNum		= ToGetInt("oldFileNum")
+	scoreMode		= ToGetInt("scoreMode")
+	newScore		= ToGetFloat("newScore")
+	homeThumbScore	= ToGetFloat("homeThumbScore")
+	thumbScore		= ToGetFloat("thumbScore")
+	flashScore		= ToGetFloat("flashScore")
+	imgScore		= ToGetFloat("imgScore")
+	marInfoScore	= ToGetFloat("marInfoScore")
+	recomScore		= ToGetFloat("recomScore")
+	topScore		= ToGetFloat("topScore")
+
+	isNew			= ToGetInt("isNew")
+	isHomeThumb		= ToGetInt("isHomeThumb")
+	isThumb			= ToGetInt("isThumb")
+	isFlash			= ToGetInt("isFlash")
+	isImg			= ToGetInt("isImg")
+	isMarquee		= ToGetInt("isMarquee")
+	isRecom			= ToGetInt("isRecom")
+	isTop			= ToGetInt("isTop")
+
+	recordMaxNum	= ToGetInt("recordMaxNum")
+	pageMaxNum		= ToGetInt("pageMaxNum")
+	hourDiff		= ToGetInt("hourDiff")
+
+	xmlFilePage		= ToGetInt("xmlFilePage")
+
+
+	SQLstr = ""
+	If isNew=1 Then SQLstr=SQLstr &" and IF_isNew=1"
+	If isHomeThumb=1 Then SQLstr=SQLstr &" and IF_isHomeThumb=1"
+	If isThumb=1 Then SQLstr=SQLstr &" and IF_isThumb=1"
+	If isFlash=1 Then SQLstr=SQLstr &" and IF_isFlash=1"
+	If isImg=1 Then SQLstr=SQLstr &" and IF_isImg=1"
+	If isMarquee=1 Then SQLstr=SQLstr &" and IF_isMarquee=1"
+	If isRecom=1 Then SQLstr=SQLstr &" and IF_isRecom=1"
+	If isTop=1 Then SQLstr=SQLstr &" and IF_isTop=1"
+
+
+	infoTypeCount = conobj.execute("select count(IT_ID) from OT_infoType")(0)
+	infoCount = conobj.execute("select count(IF_ID) from OT_info where 1=1"& SQLstr)(0)
+	If dealMode="count" Then
+		Call JS_AlertEnd("首页1条，列表页"& infoTypeCount &"条，符合条件的文章数"& infoCount &" 条，共计："& (1+infoTypeCount+infoCount) &"条。")
+	Else
+
+	End If
+
+	If recordMaxNum<=0 Or recordMaxNum>infoCount Then recordMaxNum=infoCount
+	If recordMaxNum<=0 Then
+		Call JS_AlertEnd("没有符合条件的记录。")
+	ElseIf recordMaxNum>1000000 Then
+		Call JS_AlertEnd("符合条件的记录超过 1000000 条（现有 "& recordMaxNum &" 条），请设置【限制最大条数】小于等于100000。")
+	End If
+	If pageMaxNum<100 Or pageMaxNum>5000 Then
+		Call JS_AlertEnd("每个文件最大条数取值范围内：100 至 5000。")
+	End If
+	recordPage = Int(recordMaxNum/pageMaxNum*(-1))*(-1)
+	xmlDataNum = 0
+	OT_WebHost = GetCurrUrlDir(1)
+	addHourStr = Right("0"& hourDiff,2) &":00"
+	todayTime = now()
+	timeStr = Year(todayTime) &"-"& Right("0"& Month(todayTime),2) &"-"& Right("0"& Day(todayTime),2) &"T"& Right("0"& Hour(todayTime),2) &":"& Right("0"& Minute(todayTime),2) &":"& Right("0" & Second(todayTime),2) &"+"& addHourStr
+	xmlFilePage = xmlFilePage + 1
+
+	If recordPage>1 And xmlFilePage=1 Then
+		ReDim xmlStrArr(recordPage+1)
+		xmlStrArr(0) = ""&_
+		"<?xml version='1.0' encoding='"& OT_Charset &"'?>"& vbcrlf &_
+		"<sitemapindex xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"""& vbcrlf &_
+			"xsi:schemaLocation=""http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/siteindex.xsd"""& vbcrlf &_
+			"xmlns=""http://www.sitemaps.org/schemas/sitemap/0.9"">"& vbcrlf &_
+			""
+			For i=1 To recordPage
+				xmlStrArr(i) = ""&_
+				"<sitemap>"& vbcrlf &_
+					"<loc>"& OT_WebHost &"sitemap"& i &".xml</loc>"& vbcrlf &_
+					"<lastmod>" & timeStr & "</lastmod>"& vbcrlf &_
+				"</sitemap>"& vbcrlf &_
+				""
+			Next
+		xmlStrArr(recordPage+1) = ""&_
+		"</sitemapindex>"&_
+		""
+		Call File_Write(Join(xmlStrArr,""),Server.MapPath("../sitemap.xml"))
+	End If
+
+
+	ReDim xmlArr(2+infoTypeCount+pageMaxNum)
+	xmlArrPoint=0
+	xmlArr(0) = ""&_
+	"<?xml version='1.0' encoding='"& OT_Charset &"'?>"& vbcrlf &_
+	"<urlset xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"""& vbcrlf &_
+		"xsi:schemaLocation=""http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd"""& vbcrlf &_
+		"xmlns=""http://www.sitemaps.org/schemas/sitemap/0.9"">"& vbcrlf &_
+		""
+		If xmlFilePage=1 Then
+			If oldFileNum>1 Then
+				For oi=1 To oldFileNum
+					Call File_Del(Server.MapPath("../sitemap"& oi &".xml"))
+				Next
+			End If
+			xmlArr(1) = ""&_
+			"<url>"& vbcrlf &_
+				"<loc>"& OT_WebHost &"</loc>"& vbcrlf &_
+				"<lastmod>" & timeStr & "</lastmod>"& vbcrlf &_
+				"<changefreq>daily</changefreq>"& vbcrlf &_
+				"<priority>1.0</priority>"& vbcrlf &_
+			"</url>"& vbcrlf &_
+			 ""
+			xmlArrPoint=1
+			Set infoTypeexe=conobj.execute("select IT_ID,IT_lookScore from OT_infoType")
+				Do Until infoTypeexe.EOF
+					xmlArrPoint = xmlArrPoint + 1
+					todayTime = Now()
+					timeStr = Year(todayTime) &"-"& Right("0"& Month(todayTime),2) &"-"& Right("0"& Day(todayTime),2) &"T"& Right("0"& Hour(todayTime),2) &":"& Right("0"& Minute(todayTime),2) &":"& Right("0" & Second(todayTime),2) &"+"& addHourStr
+			xmlArr(xmlArrPoint) = ""&_
+			"<url>"& vbcrlf &_
+				"<loc>"& Url_NewsListID("",infoTypeexe("IT_ID"),0) &"</loc>"& vbcrlf &_
+				"<lastmod>" & timeStr & "</lastmod>"& vbcrlf &_
+				"<changefreq>daily</changefreq>"& vbcrlf &_
+				"<priority>"& FormatNumber(infoTypeexe("IT_lookScore")/10,1,true) &"</priority>"& vbcrlf &_
+			"</url>"& vbcrlf &_
+			 ""
+				infoTypeexe.moveNext()
+				Loop
+			infoTypeexe.close()
+			Set infoTypeexe=Nothing
+
+			xmlDataNum = xmlDataNum + infoTypeCount + 1
+
+			jsStr = ""&_
+				"$id('scoreMode"& scoreMode &"').checked=true;"&_
+				"$id('newScore').value='"& FormatNumber(newScore,1,True) &"';"&_
+				"$id('homeThumbScore').value='"& FormatNumber(homeThumbScore,1,True) &"';"&_
+				"$id('thumbScore').value='"& FormatNumber(thumbScore,1,True) &"';"&_
+				"$id('flashScore').value='"& FormatNumber(flashScore,1,True) &"';"&_
+				"$id('imgScore').value='"& FormatNumber(imgScore,1,True) &"';"&_
+				"$id('marInfoScore').value='"& FormatNumber(marInfoScore,1,True) &"';"&_
+				"$id('recomScore').value='"& FormatNumber(recomScore,1,True) &"';"&_
+				"$id('topScore').value='"& FormatNumber(topScore,1,True) &"';"&_
+
+				"$id('isNew').checked="& isNew &";"&_
+				"$id('isHomeThumb').checked="& isHomeThumb &";"&_
+				"$id('isThumb').checked="& isThumb &";"&_
+				"$id('isFlash').checked="& isFlash &";"&_
+				"$id('isImg').checked="& isImg &";"&_
+				"$id('isMarquee').checked="& isMarquee &";"&_
+				"$id('isRecom').checked="& isRecom &";"&_
+				"$id('isTop').checked="& isTop &";"&_
+
+				"$id('recordMaxNum').value='"& ToGetInt("recordMaxNum") &"';"&_
+				"$id('pageMaxNum').value='"& pageMaxNum &"';"&_
+				"$id('hourDiff').value='"& hourDiff &"';"&_
+
+				"$id('oldFileNum').value='"& recordPage &"';"&_
+				"$id('lastUpdatTime').innerHTML="""& now() &""";"&_
+				"CheckScoreMode();"&_
+				""
+			Call File_Write(jsStr,Server.MapPath("../cache/siteMap.js"))
+		End If
+				
+	Set inforec = server.CreateObject("ADODB.recordset")
+	inforec.open "select top "& recordMaxNum &" IF_ID,IF_time,IF_isNew,IF_isHomeThumb,IF_isThumb,IF_isFlash,IF_isImg,IF_isMarquee,IF_isRecom,IF_isTop from OT_info where 1=1"& SQLstr &" order by IF_time DESC",conobj,3,1
+		If Not inforec.EOF Then
+			showPageSize=pageMaxNum
+			inforec.pagesize=showPageSize	
+			showPageCount=inforec.pagecount
+			showCount=inforec.recordcount
+			page=xmlFilePage
+			if page < 1 Or page > showPageCount Then page=1
+			inforec.absolutepage=page
+
+			For i=1 To showPageSize
+				If inforec.EOF Then Exit For
+				xmlArrPoint = xmlArrPoint + 1
+
+				lookScore = 0
+				If scoreMode=0 Then
+					lookScore = "0."& RndNumTo(1,9)
+				Else
+					If inforec("IF_isNew")=1 Then lookScore = lookScore + newScore
+					If inforec("IF_isHomeThumb")=1 Then lookScore = lookScore + homeThumbScore
+					If inforec("IF_isThumb")=1 Then lookScore = lookScore + thumbScore
+					If inforec("IF_isFlash")=1 Then lookScore = lookScore + flashScore
+					If inforec("IF_isImg")=1 Then lookScore = lookScore + imgScore
+					If inforec("IF_isMarquee")=1 Then lookScore = lookScore + marInfoScore
+					If inforec("IF_isRecom")=1 Then lookScore = lookScore + recomScore
+					If inforec("IF_isTop")=1 Then lookScore = lookScore + topScore
+					If lookScore>1 Then
+						lookScore=1
+					ElseIf lookScore=0 Then
+						lookScore=0.1
+					End If
+					lookScore = FormatNumber(lookScore,1,true)
+				End If
+				todayTime = inforec("IF_time")
+				timeStr = Year(todayTime) &"-"& Right("0"& Month(todayTime),2) &"-"& Right("0"& Day(todayTime),2) &"T"& Right("0"& Hour(todayTime),2) &":"& Right("0"& Minute(todayTime),2) &":"& Right("0" & Second(todayTime),2) &"+"& addHourStr
+				xmlArr(xmlArrPoint) = ""&_
+				"<url>"& vbcrlf &_
+					"<loc>"& Url_NewsShowID(inforec("IF_ID"),0) &"</loc>"& vbcrlf &_
+					"<lastmod>" & timeStr & "</lastmod>"& vbcrlf &_
+					"<changefreq>daily</changefreq>"& vbcrlf &_
+					"<priority>"& lookScore &"</priority>"& vbcrlf &_
+				"</url>"& vbcrlf &_
+				""
+				xmlDataNum = xmlDataNum + 1
+			inforec.movenext
+			Next
+		End If
+	inforec.close
+	Set inforec=Nothing
+
+		xmlArr(xmlArrPoint+1) = "</urlset>"
+
+		If recordPage>1 Then
+			sitemapPathStr = "../sitemap"& xmlFilePage &".xml"
+			Call File_Write(Join(xmlArr,""),Server.MapPath(sitemapPathStr))
+		Else
+			sitemapPathStr = "../sitemap.xml"
+			Call File_Write(Join(xmlArr,""),Server.MapPath(sitemapPathStr))
+		End If
+
+	pageRale = FormatNumber(xmlFilePage/recordPage,2)
+	response.write(_
+	"<style>body{ text-align:left; margin:0 auto; font-size:12px; color:#000000; line-height:1.2; font-family:宋体; }</style>"&_
+	"<div style='border:#15a4d0 1px solid; padding:0px; width:700px; height:30px; position:relative;'>"&_
+		"<div style='z-index:8; width:"& (pageRale*698) &"px; position:absolute; height:28px; background:url(images/lineBg.jpg); font-size:1px;'>&nbsp;</div>"&_
+		"<div style='z-index:88; position:absolute; color:#000000; line-height:30px; text-align:left; font-size:14px; padding-left:320px;'>"& xmlFilePage &"/"& recordPage &"("& (pageRale*100) &"%)</div>"&_
+		"<div style='z-index:88; position:absolute; padding-left:8px; color:#000000; line-height:30px; text-align:left; font-size:12px;'>"& sitemapPathStr &"(内含"& xmlDataNum &"条记录)...生成成功</div>"&_
+	"</div>"&_
+	"")
+	If xmlFilePage<recordPage Then
+		Call JS_HrefEnd("siteMap_deal.asp?mudi="& mudi &"&dealMode="& dealMode &"&scoreMode="& scoreMode &"&newScore="& newScore &"&homeThumbScore="& homeThumbScore &"&thumbScore="& thumbScore &"&flashScore="& flashScore &"&imgScore="& imgScore &"&marInfoScore="& marInfoScore &"&recomScore="& recomScore &"&topScore="& topScore &"&isNew="& isNew &"&isHomeThumb="& isHomeThumb &"&isThumb="& isThumb &"&isFlash="& isFlash &"&isImg="& isImg &"&isMarquee="& isMarquee &"&isRecom="& isRecom &"&isTop="& isTop &"&recordMaxNum="& recordMaxNum &"&pageMaxNum="& pageMaxNum &"&hourDiff="& hourDiff &"&xmlFilePage="& xmlFilePage &"")
+	Else
+		response.write(_
+		"<script language='javascript' type='text/javascript'>parent.$id('oldFileNum').value='"& recordPage &"';</script>"&_
+		"")
+	End If
+End Sub
+
+
+%>

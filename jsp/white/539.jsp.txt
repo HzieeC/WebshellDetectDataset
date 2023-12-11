@@ -1,0 +1,54 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+
+<html>
+<head>
+	<title>Permissions Information</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/system/SysPower/edit_SysPower.js"></script>
+</head>
+
+<body>
+    <table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+					<form id="saveForm" method="post" action="">
+			    	    <s:hidden name="sysPower.id" id="id" />
+			    		<s:hidden name="sysPower.creatorId" />
+			    		<s:hidden name="sysPower.creatorName" />
+			    		<s:hidden name="sysPower.createTime" />
+			    		<s:hidden name="sysPower.modifierId" />
+			    		<s:hidden name="sysPower.modifierName" />
+			    		<s:hidden name="sysPower.modifyTime" />
+			    		<s:hidden name="sysPower.state" />
+			    		
+						<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">						
+							<tr>
+								<td class='gridtitle'>权限名称</td>
+								<td class='gridbody'>
+									<s:textfield name="sysPower.name" id="name" size="30" /><font color="red">*</font>
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'>权限编号</td>
+								<td class='gridbody'>
+									<s:textfield name="sysPower.code" id="code" onblur="isCodeExisted()" size="30" /><font color="red">*</font>
+								</td>							
+							</tr>							
+						</table>
+								    		
+					</form>
+				</div>
+			</td>
+		</tr>
+	</table>
+</body>
+
+</html>
+

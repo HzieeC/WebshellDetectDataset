@@ -1,0 +1,266 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="../inc/md5.asp"-->
+<!--#include file="consts.asp" -->
+<div style="font-size:12px; color:#666">
+<%
+action=Checkstr(trim(request("action")))
+if action="resendmail" then
+	uid=Checkstr(trim(request("uid")))
+	'根据@获取账户名
+	member_email_addr_str=Split(uid,"@")'
+	member_email_addr="http://www."&member_email_addr_str(1)
+	regcode=Checkstr(trim(request("regcode")))
+	'conn.execute("update members set SMT_regcode='"&regcode&"' where SMT_mail='"&uid&"' and SMT_if_regcode=0")
+
+	Call send_mail()'发送注册激活邮件
+	
+	Function send_mail()
+		'先获取SMTP的信息
+		emailaddr=mail'收件人邮箱
+		emailname=colxr&colxrsex'收件人称呼
+		emailtitle="[重发]来自"&coname&"网站的会员邮件验证"
+		emailcontent="欢迎您注册成为"&coname&"的会员，请点击以下链接完成注册：<br><a href='"&site_url&"/veryfy_regname.asp?regcode="&regcode&"&uid="&uid&"' target=_blank style='color:#36C;font-size:14px;'>"&site_url&"/veryfy_regname.asp?regcode="&regcode&"&uid="&uid&"</a><br>如果你的邮箱不支持链接点击，请将以上链接地址拷贝到你的浏览器地址栏中。此邮件由系统自动产生，请勿回复。如果您申请了发送多封激活邮件，请以最后的一封为准。"
+		
+		Set JMail = Server.CreateObject("JMail.Message")
+			JMail.ISOEncodeHeaders = True'是否将信头编码成iso-8859-1字符集. 缺省是True  
+			JMail.Silent = True'如果JMail.silent设置为true,ErrorCode包含的是错误代码 
+			JMail.Charset = "gb2312"'设置标题和内容编码，如果标题有中文，必须设定编码为gb2312 
+			JMail.From = email ' 发送者邮箱 
+			JMail.FromName = coname ' 发送者姓名 
+			JMail.MailServerUserName = my_smtp_name ' 身份验证的用户名 
+			JMail.MailServerPassword = my_smtp_pwd ' 身份验证的密码 
+			JMail.AddRecipient uid, uid'加入新的收件人 
+			JMail.Subject = emailtitle 
+			JMail.Body = emailcontent 
+			JMail.HTMLBody = "<html><body style='font-size:14px;'><br>"&emailcontent 
+			JMail.appendHTML "<br><br></body></html>" 
+			JMail.Body = "很抱歉，您的邮件系统无法正常显示HTML格式信件。" 
+			JMail.appendText " " 
+			if JMail.Send( my_smtp ) then '执行邮件发送（通过邮件服务器地址）smtp.域名.com 不一定是邮件服务器 
+				response.write"<script>alert('邮件发送成功!\r\n\r\n我们已经将激活邮件发至您的邮箱内。\r\n\r\n\请点击确认后登录您的邮箱激活您的会员资格。');window.open('"&member_email_addr&"','_parent')</script>"
+			else 
+				response.write"<script>alert('邮件发送失败,请联系管理员。');window.open('"&member_email_addr&"','_parent')</script>"
+			end if 
+			JMail.Close() 
+		Set JMail = Nothing 
+	End function
+end if
+	
+	
+
+
+	dim tab_name
+	tab_name="members"
+	dim sql
+	dim rs
+	dim password
+	user=Checkstr(trim(request("user")))
+		if user="" then
+			err_str= "@请输入用户名/手机号/会员卡号<br>"
+		end if	
+	password=md5(Checkstr(trim(request("pass"))))
+		if password="" or password="D41D8CD98F00B204E9800998ECF8427E" then
+			err_str= err_str&"@请输入用户密码<br>"
+		end if
+	regjm=Checkstr(trim(request("regjm")))
+		if regjm="" then
+			err_str= err_str&"@请输入验证码<br>"
+		else
+			If regjm=Empty Or Trim(Session("GetCode"))<>regjm Then
+				err_str= err_str&"@验证码输入错误<br>"
+			end if
+		end if
+	'safecode2=Checkstr(trim(request("safecode")))
+		'if safecode2="" then
+			'err_str= err_str&"@请输入安全码<br>"
+		'end if
+	'safecode=md5(Checkstr(trim(request("safecode"))))
+	page_name=Checkstr(trim(request("page_name")))
+	
+	if err_str<>"" then
+		err_str= err_str&"<a style=cursor:pointer href='login.asp'>[返回上一步]<a>"
+		response.Write err_str
+		Response.End 
+	end if
+	
+	set rs=server.createobject("adodb.recordset")
+	sql="select * from "&tab_name&" where SMT_pass='"&password&"' and (SMT_user='"&user&"' or SMT_colxother='"&user&"' or SMT_bianhao='"&user&"')"
+	'sql="select * from "&tab_name&" where SMT_key=1 and SMT_pass='"&password&"' and safe_code='"&safecode&"' and (SMT_user='"&user&"' or SMT_colxother='"&user&"' or SMT_bianhao='"&user&"')"
+	'response.Write sql
+	'response.End()
+	rs.open sql,conn,1,1
+	'response.Write sql
+ 	if not (rs.bof and rs.eof) then
+	
+		if rs("SMT_if_regcode")=0 and if_allow_regmail=1 then'注册需要邮件认证开启时then
+			regcode=rs("SMT_regcode")
+			uid=rs("SMT_mail")
+			
+			response.Write "对不起，您的会员资格尚未激活。请先激活。<br><a href='check_login.asp?action=resendmail&regcode="&regcode&"&uid="&uid&"'>[点此重发邮件]</a>"
+			response.End()
+		end if
+		
+	'if not rs.eof then
+ 		if password=rs("SMT_pass") then
+			session("user_ID")=rs("SMT_id")
+			session("user_name")=rs("SMT_user")
+			session("user_coname")=rs("SMT_coname")
+			session("user_bianhao")=rs("SMT_bianhao")
+			session("user_nickname")=rs("SMT_nickname")
+			session("user_colxr")=rs("SMT_colxr")
+			session("user_colxrsex")=rs("SMT_colxrsex")
+			session("user_username")=rs("SMT_colxr")&"&nbsp;"&rs("SMT_colxrsex")
+			'登录时把之前的临时订单删除		'SMT_key:0已提交但是待发货）/1已完成已发货/2已作废（不可恢复）/3（临时订单，登录自动删除）/ 4(临时订单,保存在服务器)
+			if session("Order_Po")="" then
+				'先获取所有先前的临时订单，删除,以后做到登陆去-开始。
+				'先删除订单下得所有商品
+				'key:0临时保存在购物车页面可手动删除/1正式未完成/3临时自动删除/2已经完成
+				Set rs = Server.CreateObject ("Adodb.Recordset")
+				sql="select SMT_id,SMT_bianhao from My_Order_List where SMT_bianhao='"&session("user_bianhao")&"' and SMT_key=3"
+				rs.Open sql,conn,1,1
+				if not rs.eof then
+					for i=1 to rs.recordcount
+						del_po_no=rs("SMT_id")'逐个获取订单号
+						conn.execute("delete from My_Order_Details where Order_Po='"&del_po_no&"' and key=3")
+						rs.MoveNext()
+						if rs.EOF then
+							i = i + 1
+							exit for
+						end if
+					next
+				end if
+				rs.close
+				'然后删除订单
+				conn.execute("delete from My_Order_List where SMT_bianhao='"&session("user_bianhao")&"' and SMT_key=3")
+				'然后删除登录之前遗留的临时订单
+				conn.execute("delete from My_Order_Details where SMT_bianhao='"&session("user_bianhao")&"' and key=3")
+				'接下来判断购物清单表内 是否存在临时被保存数据
+				sql="select * from My_Order_Details where key=0 and SMT_bianhao='"&session("user_bianhao")&"'"
+				rs.open sql,conn,1,1
+				if not rs.eof then'若有 则把这些数据的订单号全部设为前面生成的临时订单号
+					'先生成临时的订单号
+					Set rs1 = Server.CreateObject ("Adodb.Recordset")
+					sql1="select * from My_Order_List where SMT_key=4 and SMT_bianhao='"&session("user_bianhao")&"'"
+					rs1.open sql1,conn,1,3
+					if rs1.eof then'没有临时订单的话
+						rs1.addnew
+							if session("user_bianhao")<>"" then rs1("SMT_bianhao")=session("user_bianhao")
+							'生成临时的订单号
+							Dim yy, mm, dd, hh, mn, ss, rr
+							Randomize
+							yy = Year(Now)
+							mm = right("0" & Month(Now),2)
+							dd = right("0" & Day(Now),2)
+							hh = right("0" & Hour(Now),2)
+							mn =right("0" & Minute(Now),2)
+							ss = right("0" & Second(Now),2)
+							rr = 0
+							rr = CInt(Rnd() * 10000)
+							ss = right("0000" & r,4)
+							Get_Order_Po = yy & mm & dd & hh & mn & ss & rr
+							rs1("Order_Po")=Get_Order_Po
+							rs1("SMT_key")=4'临时订单状态
+							rs1("beizhu")=""
+							rs1("yunfei")=0
+							rs1("yijia")=0
+							rs1("final_price")=0
+							rs1("added_date")=Now()
+							rs1("sell_confirm")=0'卖家确认 确认为1时，则该订单会修改内容，应提示买家
+							rs1("buy_confirm")=0'买家确认 确认为1时，则该订单会修改内容，应提示买家
+						rs1.update
+                    else'若已存在,获取这个订单号
+                        Get_Order_Po=rs1("Order_Po")
+                    end if
+					rs1.close
+					set rs1=nothing
+					set sql1=nothing
+					'然后将这个订单号保存到SESSION
+					Order_Po=Get_Order_Po
+					session("Order_Po")=Get_Order_Po'保存到SESSION
+					'将之前保存在服务器的详细清单的订单号重新变成刚才新生成订单号
+					conn.execute("update My_Order_Details set Order_Po='"&Order_Po&"' where key=0 and SMT_bianhao='"&session("user_bianhao")&"'")
+				end if
+				rs.close
+			end if
+			
+			'记录登录-开始	
+			conn.execute("update "&tab_name&" set SMT_htc=SMT_htc+1 where SMT_id="&session("user_ID"))'增加登录次数
+			Set FileRs = Server.CreateObject("ADODB.recordset")
+			sqlstr="Select SMT_id,SMT_lastdate from "&tab_name&" where SMT_id="&session("user_ID")'先获取上次登录时间和IP
+			FileRs.Open sqlStr,conn,1,1
+			if not FileRs.eof then
+				if Filers("SMT_lastdate")="" then
+					session("login_time")=now()
+					session("login_time_now")=now()
+				else
+					session("login_time")=Filers("SMT_lastdate")
+					session("login_time_now")=now()
+				end if
+			end if
+			Filers.close
+			set Filers=nothing
+			'判断是否为同一天登录，若不是则积分+member_add_jifen-开始
+			last_time=year(session("login_time"))&"-"&month(session("login_time"))&"-"&day(session("login_time"))
+			this_time=date()
+			if datediff("d",last_time,this_time)<>0 then
+				conn.execute("update "&tab_name&" set SMT_zhishu=SMT_zhishu+"&member_add_jifen&" where SMT_id="&session("user_ID"))'计录本次登录时间
+			end if
+			'/判断是否为同一天登录，若不是则积分+member_add_jifen-结束
+			lastlogin_ip = Request.ServerVariables("HTTP_X_FORWARDED_FOR") 
+			If lastlogin_ip = "" Then lastlogin_ip = Request.ServerVariables("REMOTE_ADDR")
+			conn.execute("update "&tab_name&" set SMT_lastdate='"&now()&"',SMT_loginhtc=SMT_loginhtc+1,lastlogin_ip='"&lastlogin_ip&"' where SMT_id="&session("user_ID"))'计录本次登录时间及次数
+			'获取当前的积分，假如超过升级VIP积分将自动升级为VIP-开始
+				set rs_jf=server.createobject("adodb.recordset")
+				sql_jf="select * from "&tab_name&" where SMT_key=1 and SMT_pass='"&password&"' and safe_code='"&safecode&"' and (SMT_user='"&user&"' or SMT_colxother='"&user&"' or SMT_bianhao='"&user&"')"
+				rs_jf.open sql_jf,conn,1,1
+				if not(rs_jf.bof and rs_jf.eof) then
+					m_zhishu=rs_jf("SMT_zhishu")
+					if m_zhishu>=up_to_vip then
+						conn.execute("update "&tab_name&" set SMT_vip=2 where SMT_id="&session("user_ID"))'升级为VIP
+					end if
+				end if
+				rs_jf.close
+				set rs_jf=nothing
+				set sql_jf=nothing
+			'获取当前的积分，假如超过升级VIP积分将自动升级为VIP-结束
+			'记录登录-结束	
+			if if_close<>True then%>
+                <script>
+				parent.window.location.reload()//刷新父页面（即回到当前页面）
+                </script>
+                <style>
+				.login_ok_tip{height:30px;line-height:30px;font-size:18px;font-weight:bold;color:#F60; border-bottom:2px dashed #39C;}
+				.loading_banner{margin-top:10px;width:208px;height:13px;line-height:13px;background:url(image/loading_banner.gif) no-repeat 0px 0px;}
+                </style>
+				<div class="login_ok_tip">登陆成功！请等待回到当前页面。</div>
+                <div class="loading_banner"></div>
+			<%
+			else
+				response.Redirect "login.asp"
+				'response.Write "网站维护中!"
+				'response.End()
+			end if
+ 		else
+			response.write "<script>alert('用户登录出错，下面是产生错误的可能原因：\n\n·用户名、密码或验证码错误\n\n·用户权限已被关闭');history.go(-1);</Script>"
+			response.write"<script>window.open('login.asp','_self')</script>"
+
+			rs.close
+			Response.End 
+			call Error()
+ 		end if
+	else
+		call Error()
+	end if
+
+	sub Error()
+		response.write "<script>alert('用户登录出错，下面是产生错误的可能原因：\n\n·用户名、密码或验证码错误\n\n·用户权限已被关闭');history.go(-1);</Script>"
+		response.write"<script>window.open('login.asp','_self')</script>"
+		Response.End 
+	end sub
+	conn.close
+	set rs=nothing
+	set conn=nothing
+%>
+</div>

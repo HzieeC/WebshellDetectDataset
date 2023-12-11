@@ -1,0 +1,264 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="inc/file_memberLog.asp" -->
+<!-- #include file="inc/file_serverFile.asp" -->
+<%
+Call CheckIframe()
+
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 ****
+
+
+Call OpenMemberexe("","login",2)
+Call CloseMemberexe()
+
+
+
+Select Case mudi
+	Case "dynWeb"
+		If IsSecMenuRight("jud",15,dataType)=False And IsSecMenuRight("jud",57,ToInt(request.Form("dataID")))=False Then
+			response.write "<script language='javascript' type='text/javascript'>alert('您无权限');history.back(-1)</script>"
+			response.End()
+		End If
+		Call dynWeb()
+
+	Case "del"
+		Call IsSecMenuRight("alert",15,dataType)
+		Call Del()
+
+	Case "typeAddOrRev"
+		Call TypeAddOrRev()
+
+	Case "typeSend"
+		Call IsSecMenuRight("alert",90,dataType)
+		Call TypeSend()
+
+	Case "typeDel"
+		Call IsSecMenuRight("alert",91,dataType)
+		Call TypeDel()
+
+End Select
+
+
+Call CloseConobj()
+
+
+
+
+
+
+
+
+'添加、修改动态页面
+Private Sub dynWeb()
+	URL			= ToPostStr("URL")
+	dataType	= ToPostStr("dataType")
+	dataTypeCN	= ToPostStr("dataTypeCN")
+	URL			= ToPostStr("URL")
+	dataID		= ToPostInt("dataID")
+	theme		= ToPostStr("theme")
+	mode		= ToPostStr("mode")
+	webURL		= ToPostStr("webURL")
+	webKey		= ToPostStr("webKey")
+	webDesc		= RegExpStr(ToPostStr("webDesc"),"html")
+	content		= ToPostStr("content")
+	upImgStr	= ToPostStr("upImgStr")
+		newUpImgStr = ServerFile_EditorImgStr(upImgStr,content)
+	rank		= ToPostInt("rank")
+
+	If theme="" Then
+		Call JS_AlertBackEnd("表单内容接收不全")
+	End If
+
+	If mode="" Then
+		mode="web"
+	ElseIf mode<>"url" Then
+		webURL=""
+	End If
+
+		beforeURL=GetCurrUrlDir(1)
+		imgUrl=beforeURL & InfoImgDir
+		content		= Replace(content,imgUrl,InfoImgAdminDir)
+
+
+	application.lock
+		Set webrec=server.CreateObject("ADODB.recordset")
+		webrec.open "select top 1 * from OT_infoWeb where IW_ID="& dataID,conobj,0,2
+			If webrec.EOF Then
+				webrec.addNew()
+				webrec("IW_type")=dataType
+				alertMode = "添加"
+			Else
+				alertMode = "修改"
+			End If
+		webrec("IW_theme")		= theme
+		webrec("IW_mode")		= mode
+		webrec("IW_URL")		= webURL
+		webrec("IW_webKey")		= webKey
+		webrec("IW_webDesc")	= webDesc
+		webrec("IW_content")	= content
+		IW_upImgStr = webrec("IW_upImgStr")
+		webrec("IW_upImgStr")	= newUpImgStr
+		webrec("IW_rank")		= rank
+
+		webrec.update
+		webrec.close
+		Set webrec=Nothing
+	application.unlock
+
+
+	Call ServerFile_Editor(IW_upImgStr,upImgStr,content)
+
+	alertResult = "成功"
+	Call MemberLog_Deal(0,"","",theme,"【"& dataTypeCN &"】"& alertMode & alertResult &"！")
+
+
+	Call JS_AlertHrefEnd(""& alertMode &"成功！",URL)
+End Sub
+
+
+
+
+
+
+
+
+'删除类别
+Private Sub Del()
+	dataID	= ToGetInt("dataID")
+	theme	= ToGetStr("theme")
+
+	If dataID<=0 Then
+		Call JS_AlertEnd("指定ID错误！")
+	End If
+
+	Set checkexe = conobj.execute("select IW_upImgStr from OT_infoWeb where IW_ID="& dataID)
+		If checkexe.EOF Then
+			Call JS_AlertEnd("记录搜索不到")
+		End If
+		IW_upImgStr = checkexe("IW_upImgStr")
+	checkexe.close
+	Set checkexe=Nothing
+
+	conobj.execute("delete from OT_infoWeb where IW_ID="& dataID)
+
+
+	Call ServerFile_UseCutMore(IW_upImgStr)
+
+	alertResult = "成功"
+	Call MemberLog_Deal(0,"","",theme,"【"& dataTypeCN &"】删除"& alertResult &"！")
+
+
+	response.write("<script language='javascript' type='text/javascript'>parent.$id('data"& dataID &"').style.display='none'</script>")
+End Sub
+
+
+
+
+
+
+'添加与修改
+Private Sub TypeAddOrRev()
+	URL			= ToPostStr("URL")
+	dataID		= ToPostInt("dataID")
+	dataType	= ToPostStr("dataType")
+	themeType	= ToPostStr("themeType")
+	theme		= ToPostStr("theme")
+	rank		= ToPostInt("rank")
+	isGroup		= ToPostStr("isGroup")
+		If isGroup="start" Then
+	groupName	= ToPostStr("groupName")
+		End If
+
+	
+	If theme="" Then
+		response.write "<script language='javascript' type='text/javascript'>alert('表单内容接收不全');history.back(-1)</script>"
+		response.end
+	End If
+	
+application.lock
+	Set dealrec=server.CreateObject("ADODB.recordset")
+	dealrec.open "select top 1 * from OT_infoWeb where IW_ID="& dataID,conobj,3,3
+		If dealrec.EOF Then
+			Call IsSecMenuRight("alertBack",89,dataType)
+			dealrec.addnew
+			alertStr="添加"
+		Else
+			Call IsSecMenuRight("alertBack",90,dataType)
+			alertStr="修改"
+		End If
+	dealrec("IW_type")=themeType
+	dealrec("IW_theme")=theme
+	dealrec("IW_rank")=rank
+	dealrec("IW_isGroup")=isGroup
+	dealrec("IW_groupName")=groupName
+	dealrec.update
+	dealrec.close
+	Set dealrec=Nothing
+application.unlock
+
+	response.write("<script language='javascript' type='text/javascript'>alert('"& alertStr &"成功！');document.location.href='"& URL &"'</script>")
+End Sub
+
+
+
+
+
+
+
+
+'数据发送
+Private Sub TypeSend()
+	numID=ToGetInt("typeNum")
+	dataID=ToGetInt("dataID")
+	Set sendexe=conobj.execute("select * from OT_infoWeb where IW_ID="& dataID)
+		If sendexe.EOF Then
+			response.write "<script language='javascript' type='text/javascript'>alert('搜索不到指定记录');</script>"
+			response.End
+		End If
+'	"parent.typeForm.dataType.value="""& sendexe("IW_type") &""";"&_
+	response.write(_
+	"<script language='javascript' type='text/javascript'>"&_
+	"parent.$id('numID').innerHTML='"& numID &"';"&_
+	"parent.$id('showDataID').innerHTML='"& sendexe("IW_ID") &"';"&_
+	"parent.$id('dataID').value='"& sendexe("IW_ID") &"';"&_
+	"parent.$id('theme').value="""& sendexe("IW_theme") &""";"&_
+	"parent.$id('rank').value="""& sendexe("IW_rank") &""";"&_
+	"parent.$id('isGroup').value="""& sendexe("IW_isGroup") &""";"&_
+	"parent.$id('groupName').value="""& sendexe("IW_groupName") &""";"&_
+	"parent.$id('subButton').src='images/button_rev.gif';"&_
+	"</script>")
+	sendexe.close
+	Set sendexe=Nothing
+End Sub
+
+
+
+
+
+
+
+
+
+'删除类别
+Private Sub TypeDel()
+	dataID=ToGetInt("dataID")
+
+	If dataID<=0 Then
+		response.write "<script language='javascript' type='text/javascript'>alert('指定ID错误！');</script>"
+		response.End
+	End If
+
+	conobj.execute("delete from OT_infoWeb where IW_ID="& dataID)
+
+	response.write("<script language='javascript' type='text/javascript'>parent.$id('data"& dataID &"').style.display='none'</script>")
+End Sub
+
+%>

@@ -1,0 +1,199 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.trade.ti_normal_biz_model.*" %>
+<%@ page import="java.util.*" %>
+<%@ page import="com.bizoss.trade.ti_attach.Ti_attachInfo" %>
+<%@ page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	 
+	Hashtable ti_normal_biz_model = new Hashtable();
+	String biz_id = "",s_model_name = "";
+	if(request.getParameter("biz_id")!=null && !request.getParameter("biz_id").equals("")){
+		biz_id = request.getParameter("biz_id");
+		ti_normal_biz_model.put("biz_id",biz_id);
+	}
+	if(request.getParameter("s_title")!=null && !request.getParameter("s_title").equals("")){		
+		s_model_name = request.getParameter("s_title"); 
+		ti_normal_biz_model.put("model_name",s_model_name);
+	}
+	 
+	Ti_normal_biz_modelInfo ti_normal_biz_modelInfo = new Ti_normal_biz_modelInfo();
+	
+	Ti_attachInfo  ti_attachInfo = new Ti_attachInfo(); 
+	 
+
+  
+
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_normal_biz_modelInfo.getListByPage(ti_normal_biz_model,Integer.parseInt(iStart),limit);
+	int counter = ti_normal_biz_modelInfo.getCountByObj(ti_normal_biz_model);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"modelmgr.jsp?biz_id="+biz_id+"&iStart=",Integer.parseInt(iStart),limit);
+
+%>
+<html>
+  <head>
+    <title>规格管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+		<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	<script type="text/javascript" src="biz.js"></script>
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>规格管理</h1> 
+			</td>
+			<td>
+				 
+					 
+				<!--a href="addmodel.jsp?biz_id=<%=biz_id%>"><img src="/program/company/index/images/post.gif" /></a-->
+				 
+			</td>
+		</tr>
+	</table>
+	
+	<form action="modelmgr.jsp" name="indexForm" method="post">
+	
+	<!--
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>-----------------</h4>
+		  <span>1----------------。</span><br/>
+		  <span>2----------------。</span>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+	  -->
+	  
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				标题:<input name="s_title" type="text" />
+				 
+				  <input type="hidden" name="biz_id" id="biz_id" value="<%=biz_id%>" />
+				<input name="searchInfo" type="button" value="查询" onclick="searchForm()" />	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString%></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onClick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter%>
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+				<th>图片</th>
+		  	<th>规格名称</th>
+		  	<th>型号</th>
+		  	<th>重量</th>
+		  	<th>价格</th>		   
+				<!--th width="10%">修改</th-->
+	  		<th width="10%">删除</th>
+	  		 
+		</tr>
+		
+		
+		<% 
+			Hashtable map = new Hashtable();
+			for(int i=0;i<list.size();i++){
+				map = (Hashtable)list.get(i);
+				String model_id="",model_name="",specification="",weight="",pack_type="",content="",max_supply="",biz_price="";
+			 
+					if(map.get("model_id")!=null) model_id = map.get("model_id").toString();
+					if(map.get("model_name")!=null) model_name = map.get("model_name").toString();
+					if(map.get("specification")!=null) specification = map.get("specification").toString();
+					if(map.get("weight")!=null) weight = map.get("weight").toString();
+					if(map.get("pack_type")!=null) pack_type = map.get("pack_type").toString();
+					if(map.get("content")!=null) content = map.get("content").toString();
+					if(map.get("max_supply")!=null) max_supply = map.get("max_supply").toString();
+					if(map.get("biz_price")!=null) biz_price = map.get("biz_price").toString();
+				 
+				 
+					 
+					 
+					String img_path =  ti_attachInfo.getFilePathByAttachrootid(model_id);
+            
+					if(img_path.equals("")){
+						 img_path ="/program/admin/images/cpwu.gif";            
+					}   
+					
+					 
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i%>" id="checkone<%=i%>" value="<%=model_id %>" /></td>
+			
+			<td width="10%"><img src="<%=img_path%>" border="0" width="85" height="85" /></td>
+
+		  	<td width="30%"><%=model_name%>
+			</td>
+		  	<td width="10%"><%=specification%></td>
+		  	<td width="15%"><%=weight%></td>
+		  	<td width="10%">￥<%=biz_price%></td>
+		   
+			<!--td width="10%">
+				<a class="tittle" href="updateInfo.jsp?biz_id=<%=model_id%>"><img src="/program/admin/images/edit.gif" title="修改" /></a>				
+			</td-->
+			
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=model_id%>','5128');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+	  			 
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onClick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter%>
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString%></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="5128" />
+	  </form>
+</body>
+
+</html>

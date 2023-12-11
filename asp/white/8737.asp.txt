@@ -1,0 +1,128 @@
+<!--#include file="Include/Class_Pass.asp" -->
+<!--#include file="Include/Class_Main.asp" -->
+
+<%
+Dim SQL,Rs
+Dim Username,Password,Code,Re,LoginIp,Thesoft
+Username=SafeRequestform("username")
+Password=SafeRequestform("password")
+Password=md5(password)
+
+Code=SafeRequestform("code")
+Code1=SafeRequestform("code1")
+'//检测是否是跨站登陆
+If Instr(Lcase(request.serverVariables("HTTP_REFERER")),Lcase(request.ServerVariables("Server_Name")))=0 Then
+ Response.Write Cls_WebName&"提示：非法操作！"
+ Response.End()
+End If 
+
+If username="" or Password="" Then 
+ Response.Write"<script>alert(""用户名和密码不能为空！ "");location.href=""javascript:history.go(-1)"";</script>"
+ Response.end
+End If
+
+
+
+Thesoft=Request.ServerVariables("HTTP_USER_AGENT")
+If instr(thesoft,"Windows NT 5.0") Then
+	vOS="Win2000"
+ElseIf instr(thesoft,"Windows NT 5.2") Then
+	vOs="Win2003"
+ElseIf instr(thesoft,"Windows NT 5.1") Then
+	vOs="WinXP"
+ElseIf instr(thesoft,"Windows NT") Then
+	vOs="WinNT"
+ElseIf instr(thesoft,"Windows 9") Then
+	vOs="Win9x"
+ElseIf instr(thesoft,"unix") or instr(thesoft,"linux") or instr(thesoft,"SunOS") or instr(thesoft,"BSD") Then
+	vOs="类Unix"
+ElseIf instr(thesoft,"Mac") Then
+	vOs="Mac"
+Else
+	vOs="Other"
+End If
+Loginip=Request.serverVariables("REMOTE_ADDR")
+
+Set Rs = Server.createobject("ADODB.recordset")
+Set Re = Server.createobject("ADODB.recordset")
+
+SQL = "Select su_SupperName From [OUCCS_Supper] Where su_SupperName='"&UserName&"'"
+Rs.open SQL,Conn,1,1
+If Rs.eof  Then
+ '//管理员用户名不正确
+ Rs.close
+ Set Rs=Nothing
+ Set Re=Nothing
+ '//将失败的登陆记录插入到日志表
+ if Data_Type = 0 then
+ Conn.Execute "Insert Into [OUCCS_Login] (sl_user,sl_loginip,sl_Ostype,sl_result,sl_logindate) Values ('"&Username&"[后]','"&loginip&"','"&vos&"','Errorname',now())"
+ else
+ Conn.Execute "Insert Into [OUCCS_Login] (sl_user,sl_loginip,sl_Ostype,sl_result,sl_logindate) Values ('"&Username&"[后]','"&loginip&"','"&vos&"','Errorname',getdate())"
+ end if
+
+ Response.Write "<script>alert('管理用户帐号或者密码不正确，请重新登陆...');location.href='Web_Login.asp';</script>"
+ response.End()
+Else
+ Re.open "select su_ID,su_SupperName,su_Password,su_Iflag,su_Pid from [OUCCS_Supper] where su_SupperName='"&UserName&"' And su_Password='"&Password&"'",conn,1,1
+ If re.eof Then
+  '//管理员密码不正确
+  rs.close
+  re.close
+  set rs=nothing
+  set re=nothing
+  '//将失败的登陆记录插入到日志表
+  if Data_Type = 0 then
+  conn.execute "insert into [OUCCS_Login] (sl_user,sl_loginip,sl_Ostype,sl_result,sl_logindate,sl_errorpas) values ('"&Username&"[后]','"&loginip&"','"&vos&"','Errorpass',now(),'"&SafeRequestform("password")&"')"  
+  else
+  conn.execute "insert into [OUCCS_Login] (sl_user,sl_loginip,sl_Ostype,sl_result,sl_logindate,sl_errorpas) values ('"&Username&"[后]','"&loginip&"','"&vos&"','Errorpass',getdate(),'"&SafeRequestform("password")&"')"  
+  end if
+
+
+  Response.Write "<script>alert('管理用户帐号或者密码不正确，请重新登陆...');location.href='Web_Login.asp';</script>"
+  response.End()
+ Else
+   '//再次检测密码是否正确
+   If Password=Trim(re("su_password")) Then
+
+	  '//生成登陆标记
+	  Dim key
+      Randomize
+	  key=cstr(Int((999999-1+100000)*Rnd+1))
+	  
+	  'Response.cookies("Web").Domain                   = "ouccs.com"
+	  Response.cookies("Web")("Web_cookies")           = key
+	  Response.cookies("Web")("Web_SupperID")          = Re("su_ID")
+	  Response.cookies("Web")("Web_Suppername")        = Re("su_suppername")
+	  Response.cookies("Web")("Web_PassWord")          = Re("su_PassWord")
+	  Response.cookies("Web")("Web_Flag")              = Re("su_Iflag")
+	  Response.cookies("Web")("Web_Pid")               = Re("su_Pid")
+	  
+	  if Data_Type = 0 then
+	  '//更新管理员登陆信息
+	  Conn.Execute "Update [OUCCS_Supper] Set su_Cookies='"&Key&"',su_Lastime=now(),su_LastIp='"&LoginIp&"' Where su_Suppername='"&Username&"'"
+	  '//插入正确的登陆记录到日志表
+      Conn.execute "insert into [OUCCS_Login] (sl_user,sl_loginip,sl_Ostype,sl_logindate) values ('"&Username&"[后]','"&loginip&"','"&vos&"',now())" 
+      else
+	  '//更新管理员登陆信息
+	  Conn.Execute "Update [OUCCS_Supper] Set su_Cookies='"&Key&"',su_Lastime=getdate(),su_LastIp='"&LoginIp&"' Where su_Suppername='"&Username&"'"
+	  '//插入正确的登陆记录到日志表
+      Conn.execute "insert into [OUCCS_Login] (sl_user,sl_loginip,sl_Ostype,sl_logindate) values ('"&Username&"[后]','"&loginip&"','"&vos&"',getdate())" 
+      end if
+ 
+      '//登陆成功，跳转到管理中心
+	  Response.Redirect "Index.asp"
+
+    Else 
+	  Response.Write "<script>alert('不能登陆...');location.href='Web_Login.asp';</script>"
+      Response.End()
+    End If
+
+ End If
+End If
+'//关闭数据库连接
+Rs.close
+Re.close
+Set rs=nothing
+Set re=nothing
+Call CloseDB()	
+%>

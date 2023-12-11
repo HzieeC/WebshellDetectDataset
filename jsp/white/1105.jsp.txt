@@ -1,0 +1,427 @@
+	<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+	<%@ page import="com.bizoss.frame.util.Config"%>
+	<%@ page import="com.bizoss.trade.ti_user.Ti_userInfo"%>
+	<%@page import="com.bizoss.trade.ti_finance.*"%>
+	<%@page import="com.bizoss.frame.util.RandomID"%>
+<%@ taglib prefix="azure" uri="http://taglib.bizoss.com/azure/taglib" %>
+		<%
+	response.setHeader("Pragma","No-cache");
+	response.setHeader("Cache-Control","no-cache");
+	response.setDateHeader("Expires", 0); 
+	 %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<META HTTP-EQUIV="Pragma" CONTENT="no-cache">
+		<META HTTP-EQUIV="Cache-Control" CONTENT="no-cache">
+		<META HTTP-EQUIV="Expires" CONTENT="0"> 
+		<title>8点团 会员中心</title>
+		<link rel="stylesheet" href="/templets/html/8diantuan/css/home.css" type="text/css"/>
+		<link href="/templets/html/8diantuan/css/style.css" rel="stylesheet" type="text/css" />
+		<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+		<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+		<script type="text/javascript" src="/js/thickbox.js"></script>
+		<script type="text/javascript" src="/program/member/index/8diantuan/index.js"></script>
+		<script type='text/javascript'
+			src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+		<script type='text/javascript'
+			src='<%=request.getContextPath()%>/dwr/util.js'></script>
+		<script type='text/javascript'
+			src='<%=request.getContextPath()%>/dwr/interface/Ti_userInfo.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_teamorderInfo.js'></script>   
+				<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_groupVoucherInfo.js'></script>   
+		<script src="/program/member/order/js_order.js"></script>
+		<script src="/program/member/index/js/commen.js"></script>
+	</head>
+	<body >
+
+		<jsp:include page="/templets/html/8diantuan/teamtop.jsp" />
+		<%
+			request.setCharacterEncoding("UTF-8");
+			RandomID randomID = new RandomID();
+			String _trade_id = randomID.GenTradeId();
+			Config conf = new Config();
+			conf.init("config.properties");
+			String weburl = conf.getString("weburl").trim();
+
+			String _user_id = "", user_name = "";
+			if (session.getAttribute("session_user_id") != null&&!"".equals(session.getAttribute("session_user_id").toString())) {
+				_user_id = session.getAttribute("session_user_id").toString();
+			}
+			if (session.getAttribute("session_user_name") != null) {
+				user_name = session.getAttribute("session_user_name").toString();
+			}
+		 
+		
+			String session_cust_id = "";
+			if (session.getAttribute("session_cust_id") != null) {
+				session_cust_id = session.getAttribute("session_cust_id")
+						.toString();
+			}
+
+			String user_type = "";
+			if (session.getAttribute("session_user_type") != null) {
+				user_type = session.getAttribute("session_user_type").toString();
+			}
+			String cust_type = "";
+			if (session.getAttribute("session_cust_type") != null && !((String) session.getAttribute("session_cust_type")).equals("")) {
+				cust_type = (String) session.getAttribute("session_cust_type");
+			}
+			
+			List list = null;
+			Hashtable nMap = new Hashtable();
+
+			Ti_userInfo ti_userinfo = new Ti_userInfo();
+			list = ti_userinfo.getComCodeByUserID(_user_id);
+			Hashtable map = new Hashtable();
+			if (list != null && list.size() > 0)
+				map = (Hashtable) list.get(0);
+			String comm_code = "", comm_cust_id = "";
+			if (map.get("comm_code") != null)
+				comm_code = map.get("comm_code").toString();
+
+			Ti_financeInfo ti_financeInfo = new Ti_financeInfo();
+			
+			Hashtable mapf = new Hashtable();
+			mapf.put("cust_id",session_cust_id);
+			mapf.put("finance_type","1");
+			mapf.put("account_type","1");
+			list = ti_financeInfo.getListByPk2(mapf);
+			
+		 
+			Hashtable mapp = new Hashtable();
+			if (list != null && list.size() > 0)
+				mapp = (Hashtable) list.get(0);
+			String use_vmoney = "";			 
+			if (mapp.get("use_vmoney") != null){
+				use_vmoney = mapp.get("use_vmoney").toString();
+				session.setAttribute("session_use_vmoney",use_vmoney);
+			}
+		%>
+
+	<%
+	if (cust_type.equals("0")){	
+	%>
+	<script LANGUAGE="JavaScript">
+    <!--
+    window.location="/company_member.html";
+    // -->
+    </script>
+	<%
+	}
+%>
+<%
+	if (user_name.equals("")){	
+	%>
+	<script LANGUAGE="JavaScript">
+    <!--
+    window.location="/8diantuan_signin.html";
+    // -->
+    </script>
+	<%
+	}
+%>
+<!--左边后台切换 开始 -->
+<div id="contaner">
+ 
+<div class="GRZX_l" >
+<div class="dhooo_tab">
+  <ul class="tab_btn" id="myTab_btns1">
+    <li class="hot">我的团购券</li>
+    <li>我的订单</li>
+    <li>我的邀请</li>
+    <li>账户余额</li>
+    <li>收货地址</li>
+  </ul>
+  <div class="main" id="main1">
+    <div class="shell">
+      <ul id="content1">
+        <li>
+          <div class="content">
+            <div class="nTab">
+              <div class="TabTitle">
+                <h4>我的团购券</h4>
+                <ul id="myTab1">
+                  <li class="active" onClick="nTabs(this,0);">未使用</li>
+                  <li class="normal" onClick="nTabs(this,1);">已使用</li>
+                  <li class="normal" onClick="nTabs(this,2);">已作废</li>
+                </ul>
+              </div>
+              <div class="TabContent">
+                <div id="myTab1_Content0">
+                 	<jsp:include page="/program/member/myvoucher/group_voucher.jsp" flush="true">
+						<jsp:param name="enabled" value="1" />
+					</jsp:include>
+                </div>
+                <div id="myTab1_Content1" class="none">
+                 	<jsp:include page="/program/member/myvoucher/group_voucher.jsp" flush="true">
+						<jsp:param name="enabled" value="0" />
+					</jsp:include>
+                </div>
+                 <div id="myTab1_Content2" class="none">
+                 	<jsp:include page="/program/member/myvoucher/group_voucher.jsp" flush="true">
+						<jsp:param name="enabled" value="2" />
+					</jsp:include>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="content">
+            <div class="nTab">
+              <div class="TabTitle">
+                <h4>我的订单</h4>
+                <ul id="myTab2">
+                  <li class="active" onClick="nTabs(this,0);">全部</li>
+                  <li class="normal" onClick="nTabs(this,1);">已付款</li>
+                  <li class="normal" onClick="nTabs(this,2);">未付款</li>
+                </ul>
+              </div>
+              <div class="TabContent">
+                <div id="myTab2_Content0">
+                 	<jsp:include page="/program/member/teamorder/group_order.jsp" flush="true">
+						<jsp:param name="o_order_state" value="" />
+					</jsp:include>
+                </div>
+                <div id="myTab2_Content1" class="none">
+                  	<jsp:include page="/program/member/teamorder/group_order.jsp" flush="true">
+						<jsp:param name="o_order_state" value="1" />
+					</jsp:include>
+                </div>
+                <div id="myTab2_Content2" class="none">
+                 	<jsp:include page="/program/member/teamorder/group_order.jsp" flush="true">
+						<jsp:param name="o_order_state" value="0" />
+					</jsp:include>
+                </div>
+	                <form action="/program/jsalipay/index.jsp" name="payment" id="payment" method="post">
+						<input type="hidden" name="out_trade_no" id="out_trade_no"
+							value="" />
+						<input type="hidden" name="price" id="price" value="" />
+						<input type="hidden" name="subject" id="subject" value="" />
+						<input type="hidden" name="logistics_fee" id="logistics_fee"
+							value="" />
+						<input type="hidden" name="logistics_type" id="logistics_type"
+							value="" />
+						<input type="hidden" name="only_kind" value="1" />
+					</form>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="content">
+            <div class="nTab">
+              <div class="TabTitle">
+                <h4>我的邀请</h4>
+                <ul id="myTab3">
+                  <li class="active" onClick="nTabs(this,0);">全部</li>
+                  <li class="normal" onClick="nTabs(this,1);">未购买</li>
+                  <li class="normal" onClick="nTabs(this,2);">已返利</li>
+                </ul>
+              </div>
+              <div class="TabContent">
+                <div id="myTab3_Content0">
+                  <div class="share-list"> 
+                  	<jsp:include page="/program/member/yaoqing/group_yaoqing.jsp" flush="true">
+						<jsp:param name="comm_cust_id" value="<%=session_cust_id %>" />
+					</jsp:include>
+					<p>&nbsp;</p>
+                    <p><img src="/templets/html/8diantuan/images/logo_qq1.gif" />这是您的专用邀请链接，请通过 MSN 或 QQ 发送给好友：<br />
+                      <input type="text" onfocus="this.select()"  size="30" value="<%=weburl%>/8diantuan_register.html?cd=<%=comm_code%>&comm_cust_id=<%=session_cust_id %>" id="share-copy-text" class="input_invite">
+                      <input id="share-copy-button" class="copy_btn" type="button" value="复制" onclick="copy()" />
+                    </p>
+                  </div>
+                </div>
+                <div id="myTab3_Content1" class="none">
+                  <div class="share-list"> 
+                 	 <jsp:include page="/program/member/yaoqing/group_yaoqing.jsp" flush="true">
+						<jsp:param name="trade_state_code" value="0" />
+						<jsp:param name="comm_cust_id" value="<%=session_cust_id %>" />
+					</jsp:include>
+					<p>&nbsp;</p>
+                    <p><img src="/templets/html/8diantuan/images/logo_qq1.gif" />这是您的专用邀请链接，请通过 MSN 或 QQ 发送给好友：<br />
+                      <input type="text" onfocus="this.select()"  size="30" value="<%=weburl%>/8diantuan_register?cd=<%=comm_code%>&comm_cust_id=<%=session_cust_id %>" id="share-copy-text" class="input_invite">
+                      <input id="share-copy-button" class="copy_btn" type="button" value="复制" onclick="copy()" />
+                    </p>
+                  </div>
+                </div>
+                <div id="myTab3_Content2" class="none">
+                  <div class="share-list"> 
+                  	 <jsp:include page="/program/member/yaoqing/group_yaoqing.jsp" flush="true">
+						<jsp:param name="trade_state_code" value="1" />
+						<jsp:param name="comm_cust_id" value="<%=session_cust_id %>" />
+					 </jsp:include>
+					 <p>&nbsp;</p>
+                     <p><img src="/templets/html/8diantuan/images/logo_qq1.gif" />这是您的专用邀请链接，请通过 MSN 或 QQ 发送给好友：<br />
+                      <input type="text" onfocus="this.select()"  size="30" value="<%=weburl%>/8diantuan_register?cd=<%=comm_code%>&comm_cust_id=<%=session_cust_id %>" id="share-copy-text" class="input_invite">
+                      <input id="share-copy-button" class="copy_btn" type="button" value="复制" onclick="copy()" />
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="content">
+            <div class="nTab">
+              <div class="TabTitle">
+                <h4>账户余额</h4>
+              
+              </div>
+              <div class="TabContent">
+                <div id="myTab4_Content0">
+                  <div class="share-list">
+                    <p>
+						目前您的账户余额为
+						<strong>
+							<%
+								if (use_vmoney == null || use_vmoney.equals(""))
+									out.print("0");
+								else {
+									out.print(use_vmoney);
+								}
+							%>
+						</strong>元
+					</p>
+					<p>
+						<form action="/program/jsalipay/index.jsp" method="post" name="chongzhiForm" target="_blank">
+								<input type="hidden" name="num" id="num" value="0" />
+								<input type="hidden" name="type" id="type" value="1" />
+								<input type="hidden" name="old_money" id="old_money" value="<%=use_vmoney %>" />
+								
+								<input type="hidden" name="user_id" value="<%=_user_id %>" />
+							 
+								<input type="hidden" name="out_trade_no" id="out_trade_no" value="<%=_trade_id %>"/>
+								<input type="hidden" name="price" id="price2" value=""/>
+								<input type="hidden" name="subject" id="subject2" value="会员充值"/>
+								<input type="hidden" name="body" id="body" value="2"/>
+								<input type="hidden" name="reason" id="reason" value="会员充值"/>
+						
+						<h3>请输入您的充值金额：<input name="use_vmoney" id="use_vmoney" value="0" type="text" onkeyup="if(isNaN(this.value))this.value='0';" size="5" maxlength="5" />元
+						 <input type="button" class="gdbtn" value="充值"  onclick="return chongzhi();" />
+						</h3>
+						</form>
+					</p>
+					<p>
+						<form action="/doTradeReg.do" method="post" name="returnForm">
+						<input type="hidden" name="bpm_id" value="5888" />
+						<input type="hidden" name="return_state" value="0" />
+						<input type="hidden" name="cur_vmoney" id="cur_vmoney" value="<%=use_vmoney %>" />
+						<input name="trade_id" id="trade_id" value="<%=_trade_id %>" type="hidden"  />
+				 		<input name="cust_id" id="cust_id" type="hidden" value="<%=session_cust_id%>" />
+							<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+						        <tr>
+						          <td width="100%" align="left"><br>
+								  		<h3>
+								  			请输入要提取的金额：
+								  			<input name="use_vmoney" id="use_vmoney" value="0" type="text" onkeyup="if(isNaN(this.value))this.value='0';" size="5" maxlength="5" />元
+											<br/>
+											请输入您的银行账号：
+								  			<input name="bank_no" id="bank_no" value="" type="text" onkeyup="if(isNaN(this.value))this.value='0';" />
+											<br/>
+											请输入您的银行名称：
+								  			<input name="bank_name" id="bank_name" value="" type="text"  />
+											
+										<input type="button" class="gdbtn" name="tradeSub" value="申请提现"  onclick="return submitReturnForm();" />
+										</h3>
+								  </td>
+						        </tr>
+						        
+						      </table>
+				      	</form>
+					</p>
+                  </div>
+                </div>
+             
+                
+              </div>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="content">
+            <div class="nTab">
+              <div class="TabTitle">
+                <h4>收货地址</h4>
+                <ul id="myTab5">
+                  <li class="active" onClick="nTabs(this,0);">修改地址</li>
+                  <li class="normal" onClick="nTabs(this,1);">修改密码</li>
+                 <!--  <li class="normal" onClick="nTabs(this,2);">绑定</li> -->
+                </ul>
+              </div>
+              <div class="TabContent">
+                <div id="myTab5_Content0">
+                	 <jsp:include page="/program/member/address/group_address.jsp" flush="true"></jsp:include>
+                </div>
+                <div id="myTab5_Content1" class="none">
+                 	<form action="/doTradeReg.do" name="pwdForm" method="post">
+						<input type="hidden" name="user_name" id="user_name"
+							value="<%=user_name%>" />
+						<input type="hidden" name="cust_id" id="cust_id"
+							value="<%=session_cust_id%>" />
+						<input type="hidden" name="bpm_id" value="5412" />
+						<input type="hidden" name="user_id" value="<%=_user_id%>" />
+						
+						 <div class="f-input"><span><strong>*</strong>原始密码:</span>
+							<input type="password" class="field" value=""
+								name="orignalpwd" id="orignalpwd" />
+						 </div>
+						<div class="f-input">
+							<span><strong>*</strong>新密码:</span>
+							<input type="password" class="field" value="" name="passwd"
+								id="passwd" />
+						</div>
+						<div class="f-input">
+							<span><strong>*</strong>确认密码:</span>
+							<input type="password" class="field" value=""
+								name="passwdconfirm" id="passwdconfirm" />
+						</div>
+						<div class="f-input">
+							<center>
+								<input type="button" class="gdbtn" value="更改"
+									onclick="submitpwdForm()" />
+							</center>
+						</div>
+						</form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+<script type="text/javascript" src="/templets/html/8diantuan/js/tab_qiehuan.js"></script>
+<!--左边后台切换 结束 -->
+</div>
+  
+  <div class="GRZX_r">
+    
+    <div class="content_rc">
+      <h5>邀请有奖</h5>
+      <span> <img align="absmiddle" src="/templets/html/8diantuan/images/yaoqiang.png"> </span>
+      <p> 每邀请一位好友首次购买您将获得 <strong>10</strong> 元返利 </p>
+    </div>
+    <div class="content_rc">
+      <dl>
+        <dt> <p> <img src="/templets/html/8diantuan/images/xinxi.gif" border="0"> </p> </dt>
+        <dd> <p>联系我们提供团购信息</p> </dd>
+      </dl>
+      <dl>
+        <dt> <p> <img src="/templets/html/8diantuan/images/youjian.gif" border="0"> </p> </dt>
+        <dd> <p> 发送合作请求至： zhaoshang@ganji.com</p> </dd>
+      </dl>
+      <dl>
+        <dt> <p> <img src="/templets/html/8diantuan/images/dianhua.gif" border="0"> </p> </dt>
+        <dd> <p> 拨打商务合作热线 400-888-8888 </p> </dd>
+      </dl>
+    </div>
+  </div>
+
+		<jsp:include page="/templets/html/8diantuan/footer.jsp" />
+	</body>
+</html>

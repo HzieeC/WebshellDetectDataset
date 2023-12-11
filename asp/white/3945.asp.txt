@@ -1,0 +1,166 @@
+<%
+Dim Rs,SQL,foundstr
+Dim classid,ChildStr
+Dim RssBody,RssTitle,RssHomePageUrl
+Dim XMLDOM,node,Cnode,Cnode1,msginfo
+Dim TextContent,ChannelRootDir,ChannelDirectory
+
+'Set XMLDOM = NewAsp.CreateXMLDoc("Microsoft.FreeThreadedXMLDOM")
+Set XMLDOM = NewAsp.CreateXmlDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+XMLDOM.appendChild(XMLDOM.createElement("rss"))
+XMLDOM.documentElement.attributes.setNamedItem(XMLDOM.createNode(2,"version","")).text="2.0"
+Set node = XMLDOM.documentElement.appendChild(XMLDOM.createNode(1,"channel",""))
+node.appendChild(XMLDOM.createTextNode(vbCrLf))
+RssTitle = "获取软件列表"
+classid = NewAsp.CheckNumeric(Request("classid"))
+If CLng(NewAsp.BindDomain) = 0 Then
+	RssHomePageUrl = NewAsp.MainDomain
+	ChannelRootDir = NewAsp.MainDomain & NewAsp.InstallDir & NewAsp.ChannelDir
+	ChannelDirectory = NewAsp.ChannelDir
+Else
+	RssHomePageUrl = NewAsp.DomainName
+	ChannelRootDir = NewAsp.DomainName & "/"
+	ChannelDirectory = ""
+End If
+
+Sub XMLSoftList()
+	Dim specialID,stype
+	If Trim(Request("specialID")) <> "" Then
+		specialID = NewAsp.CheckNumeric(Request("SpecialID"))
+		specialID = CLng(specialID)
+		If specialID = 0 Then
+			foundstr = "And A.specialID>0 ORDER BY A.SoftTime DESC ,A.SoftID DESC"
+		Else
+			foundstr = "And A.specialID=" & specialID & " ORDER BY A.SoftTime DESC ,A.SoftID DESC"
+		End If
+	Else
+		If classid > 0 Then
+			SQL = "SELECT ClassName,ChildStr FROM [NC_Classify] WHERE ChannelID=" & ChannelID & " And classid=" & CLng(classid)
+			Set Rs = NewAsp.Execute(SQL)
+			If Rs.BOF And Rs.EOF Then
+				Set Cnode=node.appendChild(XMLDOM.createNode(1,"item",""))
+				Cnode.appendChild(XMLDOM.createNode(1,"title","")).text="没有找到软件分类"
+				Cnode.appendChild(XMLDOM.createNode(1,"link","")).text=RssHomePageUrl
+				Cnode.appendChild(XMLDOM.createNode(1,"author","")).text=NewAsp.MainSetting(1)
+				Cnode.appendChild(XMLDOM.createNode(1,"pubDate","")).text=NewAsp.FormatToDate(Now(),"yyyy-MM-dd hh:mm:ss")
+				Set Cnode1=Cnode.appendChild(XMLDOM.createNode(1,"description",""))
+				msginfo= "没有找到软件分类！"
+				Cnode1.appendChild(XMLDOM.createCDATASection(msginfo))
+				Cnode.appendChild(XMLDOM.createNode(1,"category","")).text=" "
+				Rs.Close: Set Rs = Nothing
+				Exit Sub
+			Else
+				RssTitle = Rs("ClassName") & "最新软件订阅"
+				ChildStr = Rs("ChildStr")
+			End If
+			Rs.Close:Set Rs = Nothing
+			foundstr = "And A.classid in (" & ChildStr & ") ORDER BY A.SoftTime DESC ,A.SoftID DESC"
+		Else
+			RssTitle = "最近更新软件订阅"
+			foundstr = "ORDER BY A.SoftTime DESC ,A.SoftID DESC"
+		End If
+	End If
+	If Trim(Request("type")) <> "" Then
+		stype = NewAsp.CheckNumeric(Request("type"))
+		stype = CInt(stype)
+		If stype = 0 Then
+			foundstr = Replace(foundstr, "A.SoftTime", "A.AllHits")
+		Else
+			foundstr = "And IsBest>0 " & foundstr
+		End If
+	End If
+	'node.appendChild(XMLDOM.createTextNode(vbCrLf))
+	node.appendChild(XMLDOM.createNode(1,"title","")).text=RssTitle & " - " & NewAsp.MainSetting(1)
+	node.appendChild(XMLDOM.createTextNode(vbCrLf))
+	node.appendChild(XMLDOM.createNode(1,"link","")).text=NewAsp.MainDomain
+	node.appendChild(XMLDOM.createTextNode(vbCrLf))
+	node.appendChild(XMLDOM.createNode(1,"language","")).text="zh-cn"
+	node.appendChild(XMLDOM.createTextNode(vbCrLf))
+	node.appendChild(XMLDOM.createNode(1,"description","")).text=NewAsp.MainSetting(1)
+	node.appendChild(XMLDOM.createTextNode(vbCrLf))
+	node.appendChild(XMLDOM.createNode(1,"copyright","")).text=NewAsp.MainDomain
+	node.appendChild(XMLDOM.createTextNode(vbCrLf))
+	node.appendChild(XMLDOM.createNode(1,"generator","")).text="Rss Generator By NewAsp.Net"
+	node.appendChild(XMLDOM.createTextNode(vbCrLf))
+	node.appendChild(XMLDOM.createNode(1,"docs","")).text=RssHomePageUrl & Request.ServerVariables("PATH_INFO")
+	node.appendChild(XMLDOM.createTextNode(vbCrLf))
+	Set Cnode=node.appendChild(XMLDOM.createNode(1,"image",""))
+	Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+	Cnode.appendChild(XMLDOM.createNode(1,"title","")).appendChild(XMLDOM.createCDATASection(Replace(Trim(NewAsp.MainSetting(1)), "&nbsp;", "")))
+	Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+	Cnode.appendChild(XMLDOM.createNode(1,"url","")).text=NewAsp.MainDomain & "/images/logo.gif"
+	Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+	Cnode.appendChild(XMLDOM.createNode(1,"link","")).text=NewAsp.MainDomain
+	Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+	Dim HtmlFileName,HtmlFileUrl
+	SQL = " A.SoftID,A.classid,A.SoftName,A.SoftVer,A.SoftSize,A.[Content],A.impower,A.SoftTime,A.HtmlFileDate,A.username,"
+	SQL = "SELECT TOP 100 " & SQL & " C.ClassName,C.HtmlFileDir,B.ChannelDir,B.StopChannel,B.ModuleName,B.IsCreateHtml,B.HtmlExtName FROM ([NC_SoftList] A INNER JOIN [NC_Classify] C On A.classid=C.classid) INNER JOIN [NC_Channel] B On A.ChannelID=B.ChannelID WHERE A.isAccept>0 And A.ChannelID=" & CLng(ChannelID) & " " & foundstr & ""
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		Set Cnode=node.appendChild(XMLDOM.createNode(1,"item",""))
+		Cnode.appendChild(XMLDOM.createNode(1,"title","")).text="没有找到你想下载的软件"
+		Set Cnode1=Cnode.appendChild(XMLDOM.createNode(1,"description",""))
+		msginfo= "没有找到你想下载的软件！"
+		Cnode1.appendChild(XMLDOM.createCDATASection(msginfo))
+		Cnode.appendChild(XMLDOM.createNode(1,"link","")).text=RssHomePageUrl
+		Cnode.appendChild(XMLDOM.createNode(1,"category","")).text=" "
+		Cnode.appendChild(XMLDOM.createNode(1,"author","")).text=NewAsp.MainSetting(1)
+		Cnode.appendChild(XMLDOM.createNode(1,"comments","")).text=RssHomePageUrl
+		Cnode.appendChild(XMLDOM.createNode(1,"pubDate","")).text=NewAsp.FormatToDate(Now(),"yyyy-MM-dd hh:mm:ss")
+		Rs.Close: Set Rs = Nothing
+		Exit Sub
+	Else
+		Do While Not Rs.EOF
+			If Rs("IsCreateHtml") <> 0 Then
+				HtmlFileUrl = RssHomePageUrl & NewAsp.HtmlDestination(NewAsp.InfoDestination, ChannelDirectory, Rs("HtmlFileDate"),Rs("HtmlFileDir"),Rs("classid"),Rs("softid"),1,"")
+			Else
+				If IsURLRewrite Then
+					HtmlFileUrl = ChannelRootDir & Rs("softid") & NewAsp.HtmlExtName
+				Else
+					HtmlFileUrl = ChannelRootDir & "show.asp?id=" & Rs("softid")
+				End If
+			End If
+			TextContent = Rs("content")&""
+			'---------------------------------------------
+			node.appendChild(XMLDOM.createTextNode(vbCrLf))
+			Set Cnode=node.appendChild(XMLDOM.createNode(1,"item",""))
+			Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+			Cnode.appendChild(XMLDOM.createNode(1,"title","")).appendChild(XMLDOM.createCDATASection(Replace(Trim(NewAsp.EscapeInvalidUnicode(Rs("SoftName") & " " & Rs("SoftVer"))), "&nbsp;", "")))
+			Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+			Set Cnode1=Cnode.appendChild(XMLDOM.createNode(1,"description",""))
+			msginfo= NewAsp.EscapeInvalidUnicode(NewAsp.CutString(TextContent, 300))
+			Cnode1.appendChild(XMLDOM.createCDATASection(msginfo))
+			Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+			Cnode.appendChild(XMLDOM.createNode(1,"link","")).appendChild(XMLDOM.createCDATASection(HtmlFileUrl))
+			Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+			Cnode.appendChild(XMLDOM.createNode(1,"author","")).appendChild(XMLDOM.createCDATASection(Rs("impower")))
+			Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+			Cnode.appendChild(XMLDOM.createNode(1,"pubDate","")).appendChild(XMLDOM.createCDATASection(NewAsp.FormatToDate(Rs("SoftTime"),"yyyy-MM-dd hh:mm:ss")))
+			Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+			Cnode.appendChild(XMLDOM.createNode(1,"category","")).appendChild(XMLDOM.createCDATASection(NewAsp.EscapeInvalidUnicode(Rs("ClassName"))))
+			Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+			Cnode.appendChild(XMLDOM.createNode(1,"comments","")).appendChild(XMLDOM.createCDATASection(HtmlFileUrl))
+			Cnode.appendChild(XMLDOM.createTextNode(vbCrLf))
+			Rs.MoveNext
+		Loop
+	End If
+	Rs.Close: Set Rs = Nothing
+	node.appendChild(XMLDOM.createTextNode(vbCrLf))
+End Sub
+
+Sub ShowXML()
+	Response.Clear
+	Response.CharSet="gb2312"
+	Response.ContentType="text/xml"
+	Response.Write "<?xml version=""1.0"" encoding=""gb2312""?>" & vbCrLf
+	'Response.Write "<?xml-stylesheet type=""text/xsl"" href=""../skin/rssdown.xslt"" version=""1.0""?>" & vbCrLf
+	Response.Write XMLDOM.xml & vbCrLf
+	Set XMLDOM=Nothing
+End Sub
+
+Sub main()
+	Call XMLSoftList()
+	Call ShowXML()
+End Sub
+
+%>

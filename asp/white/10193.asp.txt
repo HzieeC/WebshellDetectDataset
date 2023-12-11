@@ -1,0 +1,207 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../checkvalid.asp"-->
+<!--#include file="../../inc/commoncode.asp"-->
+<%
+If Not FRAdminLevel(406) Then
+	Call ErrorMsg()
+End If
+Const strFileName="Admin_ComTemp.asp"
+const MaxPerpage=10
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+id=request.QueryString("id")
+action=request.QueryString("action")
+idt=request.QueryString("idt")
+did=request.QueryString("did")
+select case action
+	'更改模板为不默认
+	case "no"
+		if idt<>"" and Isnumeric(idt) then
+			conn.execute("update JOB_ComTemp set Temp_default=0 where Temp_Id="&idt)
+		end if	
+		response.Redirect strFileName
+	'更改模板为默认
+	case "yes"
+		if idt<>"" and Isnumeric(idt) then
+			sql="select Temp_type,Temp_ProId from JOB_ComTemp where Temp_Id="&idt
+			set rst=conn.execute(sql)
+			ProjectID=rst("Temp_ProId")
+			typeid=rst("Temp_type")
+			rst.close
+			set rst=nothing
+			conn.execute("update JOB_ComTemp set Temp_default=0 where Temp_ProId="&ProjectID&" and Temp_type="&typeid)
+			conn.execute("update JOB_ComTemp set Temp_default=1 where Temp_Id="&idt)
+		end if
+		response.Redirect strFileName
+	'复制模板
+	case "copy"
+		if did<>"" and Isnumeric(did) then
+			sql="select * from JOB_ComTemp where Temp_Id="&did
+			set rsc=conn.execute(sql)
+			if not rsc.eof then
+				set rsf=server.CreateObject("adodb.recordset")
+				sql="select * from JOB_ComTemp"
+				rsf.open sql,conn,1,3
+				rsf.addnew
+					rsf("Temp_type")=rsc("Temp_type")
+					rsf("Temp_ProId")=rsc("Temp_ProId")
+					rsf("Temp_name")=rsc("Temp_name")&"副本"
+					rsf("Temp_content")=rsc("Temp_content")
+					rsf("Temp_img")=rsc("Temp_img")
+					rsf("Temp_addtime")=rsc("Temp_addtime")
+					rsf("Temp_default")=0
+					rsf("Temp_show")=1
+				rsf.update
+				rsf.close
+				set rsf=nothing
+			end if
+			rsc.close
+			set rsc=nothing
+		end if
+		response.Redirect strFileName
+	'删除模板
+	case "del"
+		if did<>"" and Isnumeric(did) then
+			conn.execute("delete from JOB_ComTemp where Temp_Id="&did)
+		end if
+		response.Redirect strFileName		
+end select
+
+if id<>"" then
+	sqlt="select Pro_Id,Pro_name from JOB_ComTempPro where Pro_Id="&id&""
+	set rst=Server.CreateObject(FR_HR_Rs)
+	rst.open sqlt,conn,1,1
+	if not rst.eof then
+		ID=rst("Pro_Id")
+		TemplateProjectName=rst("Pro_name")&"模版"
+	end if
+	rst.close
+	set rst=nothing
+else
+	TemplateProjectName="所有方案模版"
+end if
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<link href="../css/style.css" rel=stylesheet type=text/css />
+<title>企业网站模板管理</title>
+</head>
+<body>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <tr>
+    <th align="center" >企业网站模板</th>
+  </tr>
+  <tr class="amrow">
+    <td><span class="bodytitle"><font color="ff6600"><b class="style1">　管理选项</b></font>：</span>&nbsp;<a href="Admin_AddComTemp.asp">添加模板</a> | <a href="Admin_ComTemp.asp?show=all">模板管理</a> | [<a href="javascript:location.reload()">刷新页面</a>]</td>
+  </tr>
+</table>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder mt6">
+    <tr class="title">
+      <th height="22" colspan="10" align="center" ><%=TemplateProjectName%></th>
+    </tr>
+	  <tr class="tdbg">
+      <td width="50" height="20" align="center"><strong>模板ID</strong></td>
+      <td width="259" align="center"><strong>模板名称</strong></td>
+      <td width="240" align="center"><strong>所属方案</strong></td>
+      <td width="152" align="center"><strong>是否默认</strong></td>
+      <td width="127" align="center"><strong>模板类型</strong></td>
+      <td width="32" align="center"><strong>修改</strong></td>
+      <td width="34" align="center"><strong>删除</strong></td>
+      <td width="34" align="center"><strong>复制</strong></td>
+    </tr>
+		<%
+		set rs=server.CreateObject(FR_HR_RS)
+		if id="" then
+		sql="select * from JOB_ComTemp order by Temp_Id desc"
+		else
+		sql="select * from JOB_ComTemp where Temp_ProId="&id&" order by Temp_Id desc"
+		end if
+		rs.open sql,conn,1,1
+		if not rs.eof then
+		totalPut=rs.recordcount
+		if (page-1)*MaxPerpage>totalput then
+		if (totalPut mod MaxPerpage)=0 then
+			page= totalPut \ MaxPerpage
+		else
+			page= totalPut \ MaxPerpage + 1
+		end if
+		end if
+		if (page-1)*MaxPerpage<totalPut then
+			rs.move  (page-1)*MaxPerpage
+		else
+			page=1
+		end if
+		do while not rs.eof
+	%>
+    <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'">
+      <td width="50" height="20" align="center"><%=rs("Temp_Id")%></td>
+      <td align="center"><%=rs("Temp_name")%></td>
+      <td width="240" align="center"><%=ComTempProName(rs("Temp_ProId"))%></td>
+      <td align="center">
+	  	<%
+		if rs("Temp_default")=1 then
+		response.write "<font color=green><a href="&strFileName&"?action=no&idt="&rs("Temp_Id")&">√</a></font>"
+		else
+		response.write "<font color=red><font color=green><a href="&strFileName&"?action=yes&idt="&rs("Temp_Id")&">×</a></font>"
+		end if
+		%></td>
+      <td width="127" align="center"><%if rs("Temp_type")=1 then%>企业信息模版<%elseif rs("Temp_type")=2 then%>企业职位模版<%else%>企业新闻模版<%end if%></td>
+      <td width="32" align="center"><a href="Admin_AddComTemp.asp?tempid=<%=rs("Temp_Id")%>">修改</a></td>
+      <td width="34" align="center"><%if rs("Temp_default")=1 then%>
+<font color="#999999">删除</font>
+<%else%><a href="<%=strFileName%>?action=del&did=<%=rs("Temp_Id")%>">删除</a><%end if%></td>
+      <td width="34" align="center"><a href="<%=strFileName%>?action=copy&did=<%=rs("Temp_Id")%>">复制</a></td>
+    </tr>
+	<%
+		i=i+1
+		if i>=MaxPerPage then exit do
+		rs.movenext
+		loop
+		else
+		%>
+		<tr>
+ 			<td height="22" colspan="10" align="center" >暂无模板</td>
+		</tr>
+	<%		
+	end if
+	rs.close
+	set rs=nothing
+	If totalput>0 Then
+	%>
+	<tr>
+	  <td height="22" colspan="10" align="center" ><%Call Showpage(strFileName&"?id="&id&"&tid="&tid,totalput,MaxPerPage,false,true,"套企业模板")%></td>
+	</tr>
+ 	<%End If%>
+</table>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>
+<%
+Function ComTempProName(TempProID)
+	if TempProID<>"" and Isnumeric(TempProID) then
+		sqltempP="Select Pro_name from JOB_ComTempPro where Pro_Id="&TempProID&""
+		set rstempP=Server.CreateObject(FR_HR_Rs)
+		rstempP.open sqltempP,conn,1,1
+		if not rstempP.eof then
+			ComTempProName=rstempP("Pro_name")
+		else
+			ComTempProName="未知"
+		end if
+		rstempP.close
+		set rstempP=nothing
+	else
+		ComTempProName="未知"
+	end if
+End Function
+%>

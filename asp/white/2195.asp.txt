@@ -1,0 +1,77 @@
+<!--#include file="config.asp"-->
+<!--#include file="inc/function.asp"-->
+<%
+response.Charset="gbk"
+dim actpath
+actpath = request.QueryString("path")
+actpath = replace(actpath,"/","\")
+if actpath="" then actpath="\"
+actpath = clearFolderDot(actpath)
+if left(actpath,1)<>"\" then actpath = "\" & actpath
+actpath = rootpath & actpath
+if right(actpath,1)="\" then actpath = left(actpath,len(actpath)-1)
+if not isexists(actpath) then
+	response.Status="404 Not Found"
+	response.Write "文件不存在"
+	response.End()
+end if
+dim stream,filename
+set stream = server.CreateObject("adodb.stream")
+stream.mode=3
+stream.type=1
+stream.open
+stream.loadfromfile actpath
+filename = split(actpath,"\")(ubound(split(actpath,"\")))
+response.ContentType="application/octet-stream"
+response.AddHeader "Content-Disposition", "attachment; filename=" & (filename)
+
+HTTP_RANGE = request.ServerVariables("HTTP_RANGE")
+if HTTP_RANGE="" then
+	response.AddHeader "Content-Length", clng(stream.size)
+	if request.ServerVariables("REQUEST_METHOD")<>"HEAD" then
+		While Not Stream.EOS
+			Response.BinaryWrite Stream.Read(1024 * 64)
+		Wend
+	end if
+else
+	HTTP_RANGE = replace(HTTP_RANGE,"bytes=","")
+	ranges = split(HTTP_RANGE,"-")
+	range_1 = clng(ranges(0))
+	stream.position = range_1
+	if ranges(1)<>"" then
+		range_2 = clng(ranges(1))
+		if range_2>=stream.size then range_2 = stream.size-1
+		response.Status="206 Partial Content"
+		response.AddHeader "Content-Length", range_2-range_1+1
+		response.AddHeader "Content-Range", "bytes " & range_1 & "-" & range_2 & "/" & stream.size
+		response.AddHeader "Accept-Ranges", "bytes"
+		if request.ServerVariables("REQUEST_METHOD")<>"HEAD" then
+			readsize=range_2-range_1+1
+			partsize=1024
+			if readsize<=partsize then
+				response.BinaryWrite stream.read(readsize)
+			else
+				isreaded=0
+				needread=partsize
+				do
+					response.BinaryWrite stream.read(needread)
+					isreaded=isreaded+needread
+					if readsize-isreaded<partsize then needread=readsize-isreaded
+				loop until isreaded>=readsize
+			end if
+		end if
+	else
+		response.Status="206 Partial Content"
+		response.AddHeader "Content-Length", stream.size-range_1
+		response.AddHeader "Content-Range", "bytes " & range_1 & "-" & (stream.size-1) & "/" & stream.size
+		response.AddHeader "Accept-Ranges", "bytes"
+		if request.ServerVariables("REQUEST_METHOD")<>"HEAD" then
+			While Not Stream.EOS
+				Response.BinaryWrite Stream.Read(1024 * 64)
+			Wend
+		end if
+	end if
+end if
+stream.close
+set stream = nothing
+%>

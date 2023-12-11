@@ -1,0 +1,518 @@
+<%@ page language="java" pageEncoding="UTF-8"%>
+<%@page import="com.huigao.security.support.SecurityUserHolder"%>
+<%@page import="com.huigao.pojo.Users"%>
+<%@page import="java.util.Map"%>
+<%@page import="java.util.List"%>
+<%@page import="com.huigao.pojo.Resource"%>
+<%@page import="java.util.Set"%>
+<%@page import="java.util.Iterator"%>
+
+<%
+	boolean statistic = false;	
+
+	Users users = SecurityUserHolder.getCurrentUser();
+	Map<String,List<Resource>> m = users.getRoleResources(); 
+	Set<String> set = m.keySet();
+	Iterator<String> it = set.iterator(); 
+	for (int i = 0; i < m.size(); i++) {
+		String key = it.next();
+		List<Resource> list = m.get(key);
+		for (int j = 0; j < list.size(); j++) {
+			Resource r = list.get(j);
+			if(r.getValue().contains("/module/daka/statistic")) {statistic = true;  break;}
+		}
+	}
+%>
+
+
+Ext.namespace('Xietong.daka');
+
+Xietong.daka.MonthCollect = function(){
+	this.init();
+};
+
+Ext.extend(Xietong.daka.MonthCollect,Ext.util.Observable,{
+	init:function(){
+		var date = new Date().add(Date.MONTH,-1).format('Y-m');
+		this.query(date);
+		$import('js/Ext.ux/Ext.ux.MonthPicker.js')
+		$import('module/common/DepartmentComboBox.js');
+		$import('module/common/TipsStore.js');
+		this.main();
+	},
+	
+	main:function() {
+		var a = this;
+		var departmentCombo_month = new Xietong.department.DepartmentComboBox({
+			listeners:{
+				'expand':function(combo){
+					combo.store.insert(0,new Department({id:0,departmentName:'所有部门'}));
+				},
+				'collapse': function(combo) {
+					combo.store.remove(combo.store.getAt(0));
+				}
+			}
+		});
+		departmentCombo_month.store.load();
+		
+	/* ------------monthCollect----------- */
+		var monthCollectDs=new Ext.data.Store({
+			proxy: new Ext.data.HttpProxy({
+				url:'module/daka/monthcollect.do'
+			}),
+			reader:new Ext.data.JsonReader({
+				root:'root',
+				totalProperty:'totalCount'
+			},[
+				{name:'id'},
+				{name:'time'},
+				{name:'userId'},
+				{name:'realName'},
+				{name:'workTime'},
+				{name:'overTime'},
+				{name:'businessTime'},
+				{name:'sickTime'},
+				{name:'vacationTime'},
+				{name:'countOfLate'},
+				{name:'countOfEO'}
+			])
+		});
+		monthCollectDs.setDefaultSort('id', 'desc');
+		
+		var monthCollectSm = new Ext.grid.CheckboxSelectionModel({
+			singleSelect:true,
+			listeners:{
+				'rowselect':function(sm,rowIndex, record){
+					monthDetailDs.load({
+						params:{
+							userId:record.get("userId"),
+							start:0
+						}
+					});
+				}
+			}
+		});
+		
+		var monthCollectCm =  new Ext.grid.ColumnModel([
+			new Ext.grid.RowNumberer(),{
+				header:'时间',
+				dataIndex:'time',
+				width:100
+			},{
+				header:'员工姓名',
+				dataIndex:'realName',
+				width:100
+			},{
+				header:'工作时间(天)',
+				width:200,
+				dataIndex:'workTime',
+				sortable:true,
+				renderer:function(v){
+					return (v/60/60/7.5).toFixed(2);
+				}
+			},{
+				header:'加班时间(小时)',
+				width:200,
+				dataIndex:'overTime',
+				sortable:true,
+				renderer:function(v){
+					return (v/60/60).toFixed(2);
+				}
+			},{
+				header:'事假时间(小时)',
+				width:200,
+				dataIndex:'businessTime',
+				sortable:true,
+				renderer:function(v){
+					return (v/60/60).toFixed(2);
+				}
+			},{
+				header:'病假时间(小时)',
+				width:200,
+				dataIndex:'sickTime',
+				sortable:true,
+				renderer:function(v){
+					return (v/60/60).toFixed(2);
+				}
+			},{
+				header:'休假时间(小时)',
+				width:200,
+				dataIndex:'vacationTime',
+				sortable:true,
+				renderer:function(v){
+					return (v/60/60).toFixed(2);
+				}
+			},{
+				header:'迟到(次)',
+				width:200,
+				dataIndex:'countOfLate',
+				sortable:true
+			},{
+				header:'早退(次)',
+				width:200,
+				dataIndex:'countOfEO',
+				sortable:true
+			},
+			monthCollectSm
+		]);
+		
+		var monthRefreshBtn = new Ext.Button({
+			text:'刷新',
+			iconCls:'icon-refresh',
+			handler:function() {
+				monthCollectDs.reload();
+			}
+		});
+		
+		var monthField = new Ext.ux.MonthField({
+			format:'Y-m',
+			readOnly:true,
+			allowBlank:false,
+			value:new Date().add(Date.MONTH,-1)
+		});
+		
+		var monthSearchBtn = new Ext.Button({
+			text:'查询',
+			iconCls:'icon-search',
+			handler:function() {
+				if(departmentCombo_month.isValid()) {
+					a.query(monthField.getValue().format('Y-m'));
+					monthCollectDs.load({params:{
+						start:0,
+						limit:15,
+						month:monthField.getValue().format('Y-m'),
+						departmentId:departmentCombo_month.getValue()
+					}});
+				}
+			}
+		});
+		
+		<%if(statistic){ %>
+		var statisticBtn = new Ext.Button({
+			text:'统计',
+			iconCls:'icon-plugin',
+			handler:function() {
+				a.query2(monthField.getValue().format('Y-m'),function(){
+					monthCollectDs.reload();
+				});
+			}
+		});
+		<%} %>
+		
+		var monthCollectGrid = new Ext.grid.GridPanel({
+			cm:monthCollectCm,
+			sm:monthCollectSm,
+			store:monthCollectDs,
+			loadMask: {msg:'正在加载数据，请稍候......'},
+			viewConfig:{ forceFit:true  },
+			bbar: new Ext.PagingToolbar({
+				pageSize:15,
+				store:monthCollectDs,
+				displayInfo:true,
+				displayMsg:'显示第{0}到{1}条记录，共{2}条记录',
+				emptyMsg:'没有记录'
+			}),
+			tbar: [
+				monthRefreshBtn, '-',
+				'时间',monthField,'&nbsp;&nbsp;',
+				'部门:',departmentCombo_month,'&nbsp;&nbsp;',
+				monthSearchBtn,'&nbsp;&nbsp;&nbsp;' <%if(statistic){ %>,'-',statisticBtn<%} %>
+			]
+		});
+		
+		monthCollectDs.on('beforeload', function() {
+			this.baseParams = {
+		 		departmentId:departmentCombo_month.getValue(),
+				month:monthField.getValue().format('Y-m') 
+		 	};
+		});
+		
+		monthCollectDs.load({params:{
+			start:0,
+			limit:15
+		}});
+		
+		
+		
+		/* ------------monthDetail----------- */
+		
+		var tipStore = new Xietong.tips.TipsStore({autoLoad:true});
+		
+		var monthDetailDs=new Ext.data.Store({
+			proxy: new Ext.data.HttpProxy({
+				url:'module/common/monthlist.do'
+			}),
+			reader:new Ext.data.JsonReader({
+				root:'root',
+				totalProperty:'totalCount'
+			},[
+				{name:'id'},
+				{name:'dakaDate'},
+				{name:'date1'},
+				{name:'date2'},
+				{name:'date3'},
+				{name:'date4'},
+				{name:'tip1'},
+				{name:'tip2'},
+				{name:'tip3'},
+				{name:'tip4'}
+			]),
+			listeners:{
+				'beforeload':function(){
+					this.baseParams.month = monthField.getValue().format('Y-m') 
+				}
+			}
+		});
+		
+		var monthDetailSm = new Ext.grid.CheckboxSelectionModel();
+		
+		var monthDetailCm =  new Ext.grid.ColumnModel([
+			new Ext.grid.RowNumberer(),{
+				header:'编号',
+				dataIndex:'id',
+				hidden:true
+			},{
+				header:'日期',
+				dataIndex:'dakaDate',
+				width:100,
+				sortable:true
+			},{
+				header:'时间1',
+				width:100,
+				dataIndex:'date1'
+			},{
+				header:'系统提示',
+				dataIndex:'tip1',
+				width:80,
+				renderer:function(v){
+					var index = tipStore.find('id',v);
+					if(index == -1) return '--';
+					var tip1 = tipStore.getAt(index).get('tipName');
+					if(v == 2 || v == 3 || v == 4) return "<font color='red'>" + tip1 + "</font>";
+					if(v == 8 || v == 9 || v == 10) return "<font color='blue'>" + tip1 + "</font>";
+					return tip1;
+				}
+			},{
+				header:'时间2',
+				width:100,
+				dataIndex:'date2'
+			},{
+				header:'系统提示',
+				dataIndex:'tip2',
+				width:80,
+				renderer:function(v){
+					var index = tipStore.find('id',v);
+					if(index == -1) return '--';
+					var tip2 = tipStore.getAt(index).get('tipName');
+					if(v == 5) return "<font color='red'>" + tip2 + "</font>";
+					if(v == 8 || v == 9 || v == 10) return "<font color='blue'>" + tip2 + "</font>";
+					return tip2;
+				}
+			},{
+				header:'时间3',
+				width:100,
+				dataIndex:'date3'
+			},{
+				header:'系统提示',
+				dataIndex:'tip3',
+				width:80,
+				renderer:function(v){
+					var index = tipStore.find('id',v);
+					if(index == -1) return '--';
+					var tip3 = tipStore.getAt(index).get('tipName');
+					if(v == 2 || v == 3 || v == 4) return "<font color='red'>" + tip3 + "</font>";
+					if(v == 8 || v == 9 || v == 10) return "<font color='blue'>" + tip3 + "</font>";
+					return tip3;
+				}
+			},{
+				header:'时间4',
+				width:100,
+				dataIndex:'date4'
+			},{
+				header:'系统提示',
+				dataIndex:'tip4',
+				width:80,
+				renderer:function(v){
+					var index = tipStore.find('id',v);
+					if(index == -1) return '--';
+					var tip4 = tipStore.getAt(index).get('tipName');
+					if(v == 5) return "<font color='red'>" + tip4 + "</font>";
+					if(v == 8 || v == 9 || v == 10) return "<font color='blue'>" + tip4 + "</font>";
+					return tip4;
+				}
+			}
+		]);
+		
+		var monthDetailGrid = new Ext.grid.EditorGridPanel({
+			cm:monthDetailCm,
+			sm:monthDetailSm,
+			store:monthDetailDs,
+			clicksToEdit:1,
+			loadMask: {msg:'正在加载数据，请稍候......'},
+			viewConfig:{ forceFit:true  }
+		});
+		
+		
+	/*--------------总体显示----------------*/
+		var mainPanel = new Ext.Panel({
+			renderTo:'daka-monthcollect-main',
+			height:Ext.get("daka-monthcollect-main").getHeight(),
+			width:Ext.get("daka-monthcollect-main").getWidth(),
+			border:false,
+			collapsible: true,
+			fitToFrame:true,
+			layout:'border',
+			items:[{
+				region:'south',
+				title:'个人月度详细',
+				iconCls:'icon-grid',
+				layout:'fit',
+				split:true,
+				collapsible:true,
+				border:false,
+				height:200,
+				minSize: 150,
+	    		maxSize: 350,
+				items:[monthDetailGrid]
+			},{
+				region:'center',
+				iconCls:'icon-grid',
+				layout:'fit',
+				split:true,
+				border:false,
+				items:[monthCollectGrid]
+			}]
+		});
+		
+	},
+	
+	query : function(date) {
+		var a = this;
+		Ext.lib.Ajax.request('POST','module/daka/hasStatistic.do', 
+			{
+				success:function(response) {
+					if(response.responseText == 'true'){
+					} else if(response.responseText == 'false') {
+						<%if(statistic){ %>
+							Ext.Msg.show({
+								title: "问题",
+								msg:"该月份尚未数据统计，现在统计？",
+								buttons:Ext.MessageBox.YESNO,
+								icon: Ext.MessageBox.QUESTION,
+								fn:function(e){
+									if(e == 'no'){
+										return;
+									} else {
+										a.statistic(date);
+									}
+								}
+							});
+						<%} else { %>
+							Ext.Msg.show({
+								title: "信息",
+								msg:"该月份尚未数据统计!",
+								buttons:Ext.MessageBox.OK,
+								icon: Ext.MessageBox.INFO
+							});
+						<%} %>
+					} else {
+						Ext.Msg.show({
+							title: "错误",
+							msg:response.responseText,
+							buttons:Ext.MessageBox.OK,
+							icon: Ext.MessageBox.ERROR
+						});
+					}
+				},
+				failure:function(){
+					Ext.Msg.show({
+						title: "错误",
+						msg:"与后台联系的时候出了问题，请联系管理员！",
+						buttons:Ext.MessageBox.OK,
+						icon: Ext.MessageBox.ERROR
+					});
+				}
+			},
+			'month=' + date
+		);
+	},
+	<%if(statistic){ %>
+	query2 : function(date,callback) {
+		var a = this;
+		Ext.lib.Ajax.request('POST','module/daka/hasStatistic.do', 
+			{
+				success:function(response) {
+					if(response.responseText == 'true'){
+						Ext.Msg.show({
+							title: "问题",
+							msg:"该月份数据已经统计过，是否要重新统计统计？",
+							buttons:Ext.MessageBox.YESNO,
+							icon: Ext.MessageBox.QUESTION,
+							fn:function(e){
+								if(e == 'no'){
+									return;
+								} else {
+									a.statistic(date,callback);
+								}
+							}
+						});
+					} else if(response.responseText == 'false') {
+						a.statistic(date,callback);
+					} else {
+						Ext.Msg.show({
+							title: "错误",
+							msg:response.responseText,
+							buttons:Ext.MessageBox.OK,
+							icon: Ext.MessageBox.ERROR
+						});
+					}
+				},
+				failure:function(){
+					Ext.Msg.show({
+						title: "错误",
+						msg:"与后台联系的时候出了问题，请联系管理员！",
+						buttons:Ext.MessageBox.OK,
+						icon: Ext.MessageBox.ERROR
+					});
+				}
+			},
+			'month=' + date
+		);
+	},
+	statistic: function(date,callback){
+		Ext.Ajax.request({
+	    	url: 'module/daka/statistic.do',
+	   		success: function(response){
+	   			if(response.responseText == 'true') { 
+	   				Ext.Msg.show({title: "信息",
+						msg:"统计成功",
+						buttons:Ext.MessageBox.OK,
+						icon: Ext.MessageBox.INFO,
+						fn:callback
+					});
+	   			} else {
+					Ext.Msg.show({
+						title: "信息",
+						msg:"统计失败，请重新统计",
+						buttons:Ext.MessageBox.OK,
+						icon: Ext.MessageBox.ERROR
+					});
+	   			}
+	   		},
+	   		failure: function(){ 
+	   			Ext.Msg.show({
+					title: "错误",
+					msg:"与后台联系的时候出了问题，请联系管理员！",
+					buttons:Ext.MessageBox.OK,
+					icon: Ext.MessageBox.ERROR
+				});
+	   		},
+	   		params: { month: date }
+		});
+	},
+	<%} %>
+	//-----------------模块销毁函数---------------------------
+	destroy:function(){
+	}
+
+});

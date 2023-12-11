@@ -1,0 +1,509 @@
+<%
+''============================================================
+''===列表页函数
+''============================================================
+dim arr_fields_name,FnCount,dbs,path,arr_set_show,arr_set_edit,url_page,rstb
+i=0
+
+''初始化
+sub table_init(dbs)
+	path=Trim(Request.QueryString("path"))
+	keyword=Request("keyword")
+	fd=Request("all_field")
+	sql="select * from " & dbs_set & " where table_name='" & dbs & "'"
+	set rs_set=conn.execute(sql)
+	arr_set_show=split(rs_set("fields_show"),",")
+	arr_set_edit=split(rs_set("fields_edit"),",")
+	set rstb = Server.CreateObject("adodb.recordset")
+	sqlstr="select * from " & dbs & " where 1=1"
+	if path<>"" then sqlstr=sqlstr & " and fullpath='" & path & "' or fullpath like '" & path & ",%'" end if
+	if len(keyword)>0 then sqlstr=sqlstr & " and " & fd & " like '%" & keyword & "%'" end if
+	rstb.open sqlstr,conn,1,1
+	if rstb.bof or rstb.eof then
+		Response.Write("<p>&nbsp;</p><h1 align=center>记录空！</h1>")
+		Response.End()
+	end if
+	rstb.close
+	FnCount=rstb.fields.count
+end sub
+
+'**************************************************
+'函数名：get_fields
+'作  用：获取字段标题
+'**************************************************
+sub get_fields()
+	strFn=""
+	for i=0 to FnCount-1
+		strFn=strFn&rstb.fields(i).name&","
+	next
+	arr_fields_name=split(strFn,",")
+end sub
+
+'**************************************************
+'函数名：list_fields_name
+'作  用：显示标题栏
+'**************************************************
+function list_fields_name()
+	strTemp=""
+	for i=0 to FnCount-1
+		if is_show(i) then
+			strTemp=strTemp & "<th>" & get_title(rstb.fields(i).name) & "</th>"
+		end if
+	next
+	list_fields_name=strTemp
+end function
+
+'**************************************************
+'函数名：list_fields_value
+'作  用：显示内容栏
+'**************************************************
+function list_fields_value()
+	strTemp=""
+	for i=0 to FnCount-1
+		if is_show(i) then
+			if rsl.fields(i).name="fullpath" then
+				sql="select classname from " & dbs_class & " where fullpath='" & rsl.fields(i).value & "'"
+				strTemp=strTemp & "<td>" & getone(sql) & "</td>"
+			else
+				strTemp=strTemp & "<td>" & rsl.fields(i).value & "</td>"
+			end if
+		end if
+	next
+	list_fields_value=strTemp
+end function
+
+'**************************************************
+'函数名：is_show
+'作  用：此栏目是否显示
+'**************************************************
+function is_show(ii)
+	tep=false
+	for j=0 to Ubound(arr_set_show)
+		if int(arr_set_show(j))=int(ii) then
+			tep=true
+		end if
+	next
+	is_show=tep
+end function
+
+'**************************************************
+'函数名：get_table_name
+'作  用：取得表名
+'**************************************************
+function get_table_name()
+	get_table_name=getone("select table_name from dbs_set where table='" & dbs & "'")
+end function
+
+'**************************************************
+'函数名：get_title
+'作  用：取得表字段别名
+'**************************************************
+function get_title(fn)
+	t_tep=""
+	pos=0
+	sqlstr1="select * from " & dbs
+	set rs1=conn.execute(sqlstr1)
+	for k=0 to rs1.fields.count-1
+		if rs1.fields(k).name=fn then
+			pos=k
+		end if
+	next
+	sqlstr2="select * from " & dbs_set & " where table_name='" & dbs & "'"
+	set rs2=conn.execute(sqlstr2)
+	if not rs2.bof and not rs2.eof then
+		title=rs2("title")
+		if instr(title,",")>0 then
+			arr_title=split(title,",")
+			if ubound(arr_title)>=int(pos) then
+				t_tep=trim(arr_title(pos))
+			end if
+		end if
+	end if
+	rs1.close:set rs1=nothing
+	rs2.close:set rs2=nothing
+	if t_tep="" then
+		get_title=fn
+	else
+		get_title=t_tep
+	end if
+end function
+
+'**************************************************
+'函数名：get_do
+'作  用：取得操作链接
+'**************************************************
+function get_do()
+	strTemp=""
+	url_edit="table_edit.asp?dbs="&dbs&"&amp;editField="&rsl.fields(0).name&"&amp;"&rsl.fields(0).name&"="&rsl.fields(0).value
+	url_del="do/db_delete_do.asp?dbs="&dbs&"&amp;editField="&rsl.fields(0).name&"&amp;"&rsl.fields(0).name&"="&rsl.fields(0).value
+	if path<>"" then
+		url_edit=url_edit & "&amp;path=" & path
+		url_del=url_del & "&amp;path=" & path
+	end if
+	if page<>"" then
+		url_edit=url_edit & "&amp;page=" & page
+	end if
+	strTemp=strTemp & "<a href="""&url_edit&""">编辑</a>"
+	strTemp=strTemp & " | <a href="""&url_del&""">删除</a>"
+	get_do=strTemp
+end function
+
+'**************************************************
+'函数名：get_fields_edit
+'作  用：取得下拉框
+'**************************************************
+function get_fields_edit(def)
+	f_temp="<select name=""all_field"">"
+	for i=0 to FnCount-1
+		if isEdit(arr_set_show,i) then
+			if def=rstb.fields(i).name then
+			f_temp = f_temp & "<option value=""" & rstb.fields(i).name & """ selected>" & get_title(rstb.fields(i).name) & "</option>"
+			else
+			f_temp = f_temp & "<option value=""" & rstb.fields(i).name & """>" & get_title(rstb.fields(i).name) & "</option>"
+			end if
+		end if
+	next
+	f_temp = f_temp & "</select>"
+	get_fields_edit=f_temp
+end function
+
+''============================================================'============================================================
+''===以下部分为编辑功能页函数
+''============================================================'============================================================
+dim editField,arrFe,arrIt,arrData,arrp1,arrp2,arrdf,edit_id
+''表单编辑初始化
+sub form_init(flag,dbs_curr)
+	dbs=dbs_curr
+	editField=Trim(Request.QueryString("editField"))
+	path=Trim(Request.QueryString("path"))
+	page=Trim(Request.QueryString("page"))
+	strTemp=""
+	sqlstr="select * from " & dbs_set & " where table_name='" & dbs & "'"
+	set rsTs=conn.execute(sqlstr)
+	arrFe=split(rsTs("fields_edit"),",")
+	arrIt=split(rsTs("input_type"),",")
+	arrData=split(rsTs("data"),",")
+	arrp1=split(rsTs("param1"),",")
+	arrp2=split(rsTs("param2"),",")
+	arrdf=split(rsTs("default"),",")
+	rsTs.close
+	set rsTs=nothing
+	
+	set rstb = Server.CreateObject("adodb.recordset")
+	sqlstr="select * from " & dbs
+	if flag="edit" then
+		sqlstr="select * from " & dbs & " where " & editField & "=" & Trim(Request.QueryString(editField))
+	end if
+	rstb.open sqlstr,conn,1,1
+	FnCount=rstb.fields.count
+	call get_fields()
+	edit_id=getedit_id()
+end sub
+
+function form_list(flag)
+	strTemp=""
+	for i=0 to FnCount-1
+		if isEdit(arrFe,i) then
+		  default=trim(arrdf(i))
+		  if default="dt" then default=date() end if
+		  if default="tm" then default=now() end if
+		  strTemp=strTemp & "<tr><td width=""150"">" & get_title(arr_fields_name(i)) & ":</td>" & vbcr
+		  if flag="edit" then
+		  	strTemp=strTemp & "<td>" & input_select(arrIt(i),rstb.fields(i).value) & "</td></tr>" & vbcr
+		  else
+		  	strTemp=strTemp & "<td>" & input_select(arrIt(i),default) & "</td></tr>" & vbcr
+		  end if
+		end if
+	next
+	strTemp=strTemp & "<input type=""hidden"" name="""&edit_id&""" value="""&getForm(edit_id,"get")&""">"
+	form_list=strTemp
+end function
+
+function get_request()
+	strRequest=""
+	flg=0
+	for i=0 to FnCount-1
+		if isEdit(arrFe,i) then
+		  if flg=0 then
+			  strRequest=strRequest & arr_fields_name(i)
+			  flg=1
+		  else
+			  strRequest=strRequest & "," & arr_fields_name(i)
+		  end if
+		end if
+	next
+	get_request=strRequest
+end function
+
+'**************************************************
+'函数名：isEdit
+'作  用：此字段是否要编辑
+'**************************************************
+function isEdit(arr,ii)
+	tep=False
+	for j=0 to Ubound(arr)
+		if int(arr(j))=int(ii) then
+			tep=True
+		end if
+	next
+	isEdit=tep
+end function
+
+function getedit_id()
+	set rst=conn.execute("select * from " & dbs)
+	getedit_id=rst.fields(0).name
+	rst.close:set rst=nothing
+end function
+
+'**************************************************
+'函数名：input_select
+'作  用：显示编辑的内容[table_add、table_edit]
+'**************************************************
+function input_select(t_ipt,t_value)
+	dim temp
+	t_name=arr_fields_name(i)
+	select case t_ipt
+		case 1:
+			temp=input_text(trim(arrp1(i)),t_value)
+		case 2:
+			temp=input_edit()
+		case 3:
+			temp=input_textarea(trim(arrp1(i)),trim(arrp2(i)))
+		case 4:
+			temp=ipt_select(t_name,trim(arrData(i)),trim(arrp2(i)),trim(arrp1(i)),t_value)
+		case 5:
+			temp=input_file(t_value)
+		case 6:
+			temp=ipt_checkbox(t_name,trim(arrData(i)),trim(arrp2(i)),trim(arrp1(i)),t_value)
+		case 7:
+			temp=ipt_radio(t_name,trim(arrData(i)),trim(arrp2(i)),trim(arrp1(i)),t_value)
+		case 8:
+			temp=ipt_select_class()
+	end select
+	input_select=temp
+end function
+
+function ipt_select(t_name,t_data,t_data_txt,t_data_value,select_value)
+	dim temp:temp=""
+	sql="select * from " & t_data
+	if default<>"" then
+		sql="select * from " & t_data & " where classname='"&default&"'"
+	end if
+	dim rst:set rst=conn.execute(sql)
+	if not rst.bof and not rst.eof then
+		temp=temp & "<select name="""&t_name&""" id="""&t_name&""">"
+		while not rst.eof
+			data_value=rst(t_data_value)
+			if trim(data_value)=trim(select_value) then
+				temp=temp & "<option value="""&data_value&""" selected>"&rst(t_data_txt)&"</option>"
+			else
+				temp=temp & "<option value="""&data_value&""">"&rst(t_data_txt)&"</option>"
+			end if
+			rst.movenext
+		wend
+		temp=temp & "</select>"
+	end if
+	rst.close:set rst=nothing
+	if lcase(t_data)="cat" then
+		ipt_select="<select name="""&t_name&""" id="""&t_name&""">" & class_Option(select_value) & "</select>"
+	else
+		ipt_select=temp
+	end if
+end function
+
+function ipt_checkbox(t_name,t_data,t_data_txt,t_data_value,select_value)
+	dim temp:temp=""
+	sql="select * from " & t_data
+	if default<>"" then
+		sql="select * from " & t_data & " where classname='"&default&"'"
+	end if
+	dim rst:set rst=conn.execute(sql)
+	if not rst.bof and not rst.eof then
+		while not rst.eof
+			data_value=rst(t_data_value)
+			data_txt=rst(t_data_txt)
+			if instr(select_value,",")>0 then
+				flag=false
+				arr=split(select_value,",")
+				for k=0 to Ubound(arr)
+					if trim(arr(k))=trim(data_value) then
+						flag=true
+					end if
+				next
+				if flag=true then
+					temp=temp & " <input name="""&t_name&""" type=""checkbox"" value="""&data_value&""" checked=""checked"" />" & data_txt
+				else
+					temp=temp & " <input name="""&t_name&""" type=""checkbox"" value="""&data_value&""" />" & data_txt
+				end if
+			else
+				if trim(data_value)=trim(select_value) then
+					temp=temp & " <input name="""&t_name&""" type=""checkbox"" value="""&data_value&""" checked=""checked"" />" & data_txt
+				else
+					temp=temp & " <input name="""&t_name&""" type=""checkbox"" value="""&data_value&""" />" & data_txt
+				end if
+			end if
+			rst.movenext
+		wend
+	end if
+	rst.close:set rst=nothing
+	ipt_checkbox=temp
+end function
+
+function ipt_radio(t_name,t_data,t_data_txt,t_data_value,select_value)
+	dim temp:temp=""
+	sql="select * from " & t_data
+	if default<>"" then
+		sql="select * from " & t_data & " where classname='"&default&"'"
+	end if
+	dim rst:set rst=conn.execute(sql)
+	if not rst.bof and not rst.eof then
+		while not rst.eof
+			data_value=rst(t_data_value)
+			data_txt=rst(t_data_txt)
+			if trim(data_value)=trim(select_value) then
+				temp=temp & " <input name="""&t_name&""" type=""radio"" value="""&data_value&""" checked=""checked"" />" & data_txt
+			else
+				temp=temp & " <input name="""&t_name&""" type=""radio"" value="""&data_value&""" />" & data_txt
+			end if
+			rst.movenext
+		wend
+	end if
+	rst.close:set rst=nothing
+	ipt_radio=temp
+end function
+'**************************************************
+'函数名：eWeb
+'作  用：调用eWebEdit。
+'参  数：eid  ----id号，econt ---内容，ewidth,eheight ---宽度和高度
+'返回值：无返回值
+'**************************************************
+function eWeb(eid,econt,ewidth,eheight)
+	tcont=econt
+	if isNull(econt) then tcont="" end if
+	eWeb="<INPUT type=""hidden"" name="""&eid&""" id="""&eid&""" value="""&Server.HTMLEncode(tcont)&""">" &_
+	"<IFRAME ID=""eWebEditor1"" src=""web300Editor/ewebeditor.asp?id="&eid&"&style=s_blue""" &_
+	" frameborder=""0"" scrolling=""no"" width="""&ewidth&""" height="""&eheight&"""></IFRAME>"
+end function
+
+function class_Option(cur_path)
+	dim rsClass,sqlClass,strOption,tmpDepth,i
+	dim arrShowLine(20)
+	strOption=""
+	for i=0 to ubound(arrShowLine)
+		arrShowLine(i)=False
+	next
+	sqlClass="Select * From " & dbs_class & " order by RootID,OrderID"
+	set rsClass=server.CreateObject("adodb.recordset")
+	rsClass.open sqlClass,conn,1,1
+	if rsClass.bof and rsClass.bof then
+		strOption="<option value=''>请先添加分类</option>"
+	else
+		do while not rsClass.eof
+			tmpDepth=rsClass("Depth")
+			if rsClass("NextID")>0 then
+				arrShowLine(tmpDepth)=True
+			else
+				arrShowLine(tmpDepth)=False
+			end if
+			strOption=strOption & "<option value='" & rsClass("FullPath") & "'"
+			if rsClass("FullPath")=cur_path then
+				strOption=strOption & " selected"
+			end if
+			strOption=strOption & ">"
+			
+			if tmpDepth>0 then
+				for i=1 to tmpDepth
+					strOption=strOption & "&nbsp;&nbsp;"
+					if i=tmpDepth then
+						if rsClass("NextID")>0 then
+							strOption=strOption & "├&nbsp;"
+						else
+							strOption=strOption & "└&nbsp;"
+						end if
+					else
+						if arrShowLine(i)=True then
+							strOption=strOption & "│"
+						else
+							strOption=strOption & "&nbsp;"
+						end if
+					end if
+				next
+			end if
+			strOption=strOption & rsClass("ClassName")
+			strOption=strOption & "</option>"
+			rsClass.movenext
+		loop
+	end if
+	rsClass.close
+	set rsClass=nothing
+	class_Option=strOption
+end function
+
+function input_text(txt_size,t_value)
+	dim tep:tep=""
+	if txt_size="" then
+		txt_size=10
+	end if
+	if t_value="" then
+		if default="dt" then default=date() end if
+		if default="tm" then default=now() end if
+	end if
+	tep=tep & "<input name="""&arr_fields_name(i)&""" id="""&arr_fields_name(i)&""" type=""text"" size="""&txt_size&""" value=""" & t_value & """ />"
+	input_text=tep
+end function
+
+function input_edit()
+	dim tep:tep=""
+	t_name=arr_fields_name(i)
+	if len(getForm(editField,"get"))>0 then
+		sqlstr="select " & t_name & " from " & dbs & " where " & editField & "=" & getForm(editField,"get")
+		set rst=conn.execute(sqlstr)
+		if not rst.bof and not rst.eof then
+			t_value=rst(t_name)
+		end if
+		rst.close:set rst=nothing
+	else
+		t_value=""
+	end if
+	tep=tep & eWeb(t_name,t_value,550,350)
+	input_edit=tep
+end function
+
+function input_textarea(rows,cols)
+	dim tep:tep=""
+	if rows="" then
+		rows=5
+	end if
+	if cols="" then
+		cols=45
+	end if
+	t_name=arr_fields_name(i)
+	if len(getForm(editField,"get"))>0 then
+		sqlstr="select " & t_name & " from " & dbs & " where " & editField & "=" & getForm(editField,"get")
+		set rst=conn.execute(sqlstr)
+		if not rst.bof and not rst.eof then
+			t_value=rst(t_name)
+		end if
+		rst.close:set rst=nothing
+	else
+		t_value=""
+	end if
+	tep=tep & "<textarea name="""&arr_fields_name(i)&""" id="""&arr_fields_name(i)&""" rows="""&rows&""" cols="""&cols&""">" & t_value & "</textarea>"
+	input_textarea=tep
+end function
+
+function input_file(t_value)
+	dim tep:tep=""
+	tep=tep & "<table><tr><td><input name="""&arr_fields_name(i)&""" type=""text"" size=""30"" value=""" & t_value & """ /></td>"
+	tep=tep & "<td><iframe id=""UploadFiles"" src="""&get_dir_file()&"inc/upload_Photo.asp?ipt="&arr_fields_name(i)&""" frameborder=""0"" scrolling=""No"" class=""ifrm"" width=""240"" height=""25""></iframe></td></tr></table>"
+	input_file=tep
+end function
+
+function ipt_select_class()
+	dim tep:tep=""
+	tep=tep & "<select name=""ClassID"">"
+	tep=tep & class_Option(rstb.fields(i).value)
+	tep=tep & "</select>"
+	ipt_select_class=tep
+end function
+%>

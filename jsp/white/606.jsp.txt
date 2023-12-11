@@ -1,0 +1,105 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>编辑角色</title>
+<link href="${contextPath}/js/plugins/dtree/dtree.css" rel="stylesheet" type="text/css" media="all">
+<script src="${contextPath}/js/plugins/jquery/jquery.js"></script>
+
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+<script src="${contextPath}/js/plugins/dtree/dtree.js"></script> 
+</head>
+<body>
+
+<input type="hidden" value="${contextPath}" id="contextPath"/>
+
+<div class="userInfo" id="searchCon">
+<form:form id="resultForm" name="resultForm" commandName="role">
+<input type="hidden"  name="code" value="${role.code}"/>
+        <div class="title">编辑角色</div>
+						<table class="yTable margintop">   
+			<tr>
+			    <th align="right" width="120"><span>*</span><fmt:message key="role.name"/> </th>
+				<td align="left"><input name="name" id="name" type="text"  class="inputbox" value="${role.name }"/><span></span>
+				</td>
+			</tr>
+			<tr>
+			    <th align="right" width="120">&nbsp;&nbsp;&nbsp;&nbsp;<fmt:message key="role.level"/></th>
+				<td align="left">
+				<select name="level">  
+				<option value="2" <c:if  test="${role.level eq '2'}">selected</c:if> >一般用户</option>
+				 <option value="1" <c:if  test="${role.level eq '1'}">selected</c:if> >管理员</option>
+				</select>
+				</td>
+			</tr>
+			<!--  <tr>
+				<th align="right" width="120"><span>*</span>角色别名</th>
+				<td align="left"><input name="alias" id="alias" type="text" class="inputbox"/></td>
+			</tr>-->
+			<tr>
+				<th align="right" width="120"><fmt:message key="remark"/></th>
+				<td align="left" ><textarea name="remark" id="remark" cols="45" rows="5">${role.remark }</textarea></td>
+			</tr>
+		</table>
+		 <c:forEach items="${selectedAuthority}" var="authority">
+			<input type="hidden"  name="authorityCode" value="${authority.code}"/>
+	    </c:forEach>
+  		<input type="hidden" id="nodeIds" name="nodeIds"/>
+        <span class="label"  > <fmt:message key="authority.tips"/></span>
+        <div class="dtree"style="margin-top:10px">
+		<script type="text/javascript">
+		var tree = new dTree('tree','${contextPath}');
+		tree.config.useSelection=false;
+		tree.config.useCookies=false;
+		tree.config.check=true;
+		tree.add('0','-1','系统权限');
+		var url = "${contextPath}/getAuthorityList.json";
+		jQuery.ajax( {
+			type:"get",
+			url : url,
+			timeout : 5000,
+			async:false,
+			success:function(response) {
+				$.each(response.authorityList ,function(i,node){
+					//将heard中的分类加到权限表中去,用type将其区分开
+					 tree.add(node.code,node.parentCode,$("#"+node.name).val());//+" [ "+ node.remark +" ]"
+				});
+			},
+			error : function() {
+				$.msg.alert('系统提示','系统错误');
+			}
+		});
+		document.write(tree);
+		tree.co(0).checked=true;
+		jQuery(':input[name="authorityCode"]').each(function(i,obj){	
+			tree.co(jQuery(obj).val()).checked=true;
+		});
+		</script>
+		</div> 
+		<div class="Btn">
+		<input  id="edit" value="<fmt:message key="save"/>" type="button"/> 
+		<input  id="cancel" value="<fmt:message key="cancel"/>" type="button"/> 
+				
+		</div>
+</form:form>
+
+</div>
+<script type="text/javascript">
+seajs.use("${scriptBasePath}/role/edit.js");
+</script>
+</body>
+</html>

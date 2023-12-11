@@ -1,0 +1,270 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<%server.ScriptTimeout=999999999%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../../Inc/CommonFunction.asp" -->
+<!--#include file="../../inc/md5.asp"-->
+<!--#include file="../../smsapi/smsapi.asp"-->
+<!--#include file="../checkvalid.asp" -->
+<%If Not FRAdminLevel(707) Then Call ErrorMsg()
+Buffer(True)%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head> 
+<title>短信群发管理</title> 
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link href="../Css/style.css" rel="stylesheet" type="text/css">
+</head>
+<script language="javascript">
+function insertText(labelstr)
+{
+document.smsform.msgbody.focus();
+var sel=document.selection;
+if (sel!=null) 
+   {
+   var mg=sel.createRange();
+   if (mg!=null)
+        {
+        mg.text=labelstr;
+        }
+   }
+}
+function getmembertype(typeid)
+{
+	document.frames["memberframe"].location.replace("admin_membertype.asp?typeid="+typeid);
+}
+function check()
+{
+if (document.smsform.msgbody.value=="")
+{
+	alert("请输入短信内容!");
+	document.smsform.msgbody.focus();
+	return false;
+}
+}
+</script>
+<%smsact=request.QueryString("smsact")
+if smsact="Smssave" then
+vcpuser=Request.Form("username")
+vcppassword=Request.Form("pass")
+vcpapikey=Request.Form("apikey")
+
+Set fs = CreateObject("Scripting.FileSystemObject")
+filename = Server.MapPath("../../smsapi/config.asp")
+fs.DeleteFile(filename) 
+set filenew = fs.Createtextfile(filename,true, False)
+filenew.Writeline "<%"
+filenew.Writeline "On Error Resume Next"
+filenew.Writeline "session(""vcpserver"")=""http://sms.finereason.com/gateway/"""
+filenew.Writeline "session(""vcpuser"")="""+vcpuser+""""  
+filenew.Writeline "session(""vcppassword"")=""" & vcppassword & """"
+filenew.Writeline "session(""vcpapikey"")=""" & vcpapikey & """"
+filenew.Writeline "%"+">" 
+filenew.Writeline  
+filenew.close
+Set filenew = Nothing
+Set filename = Nothing
+Set fs = Nothing
+response.Redirect("Admin_SendSms.asp")
+end if
+dim action
+action=request("action")
+member=trim(request("member"))
+if action="save" then
+Response.Write "<div id=""SearchDiv"" style=""position:absolute;z-index:9999;right:20px;FILTER: alpha(opacity=80);background-color:#FEFEE9; border:1px #CCCCCC solid; width:200px; height:20px; line-height:100%; text-align:center;padding-top:4px;""><img src=""/skin/skin1/loing.gif"" align=""middle""> 正在发送，请稍后……</div>"
+response.flush
+mtype=request("mtype")
+mtypes=request("mtypes")
+mdate=request("mdate")
+msgbody=request("msgbody")
+msgbody=CreateHTMLReplace(ReplaceLableFlag(ReplaceAllLabel(msgbody)))
+page=clng(request("page"))
+If page="" Or  IsNull(page) Or page<1 then page=1
+MaxPerPage=10
+if member="" then
+	sql="select member_login,member_name,Member_mobile from JOB_Member where Member_mobile is not null"
+	select case mdate
+		case 1:sql=sql&" and (DateDiff("&FR_HR_d&",Member_logindate,"&FR_HR_Now&")>7 or Member_logindate is null)"
+		case 2:sql=sql&" and (DateDiff("&FR_HR_d&",Member_logindate,"&FR_HR_Now&")>30 or Member_logindate is null)"
+		case 3:sql=sql&" and DateDiff("&FR_HR_d&","&FR_HR_Now&",Member_enddate)>7"
+		case 4:sql=sql&" and DateDiff("&FR_HR_d&","&FR_HR_Now&",Member_enddate)>30"
+	end select
+	if mtype<>0 then
+		sql=sql&" and Member_typeid="&mtype&""
+	end if
+	if mtypes<>0 then
+		sql=sql&" and Member_groupid="&mtypes&""
+	end if
+	sql=sql&" order by member_id desc"
+	set rs=Server.CreateObject(FR_HR_RS)
+	rs.open sql,conn,1,1
+	if not rs.eof then
+	rs.pagesize=MaxPerPage
+	mpage=rs.pagecount
+	rs.move (page-1)*MaxPerpage
+		v=0:j=0
+		do while not rs.eof		
+		v=v+1
+		msgbodys=replace(msgbody,"{$FR_会员用户名}",""&rs("member_login")&"")
+		msgbodyss=replace(msgbodys,"{$FR_会员名称}",""&rs("member_name")&"")
+		if rs("Member_mobile")<>"" and not isnull(rs("Member_mobile")) then
+		mobile=rs("Member_mobile")
+		else
+		mobile=""
+		end if
+		'整合手机短信
+		if mobile<>"" and Smssend=1 then
+			Set newclient=New SMS
+			respxml=newclient.sendSMS(""&mobile&"",""&msgbodyss&"","")
+			code=newclient.getCode()
+			Set newclient=Nothing
+			if code<>"000" then
+			conn.execute("Insert into JOB_Sms(S_memberlogin,S_tomemberlogin,S_tomobile,S_issuccess,S_sendtime,S_content) values('webmaster','"&rs("member_login")&"','"&mobile&"',0,"&FR_HR_Now&",'"&msgbodyss&"')")
+			else
+			conn.execute("Insert into JOB_Sms(S_memberlogin,S_tomemberlogin,S_tomobile,S_issuccess,S_sendtime,S_content) values('webmaster','"&rs("member_login")&"','"&mobile&"',1,"&FR_HR_Now&",'"&msgbodyss&"')")
+			end if
+		end if
+		j=j+1
+		if v>=MaxPerPage then exit do
+		rs.movenext
+		loop
+		if mpage=<page then
+		msg="<script language=""JavaScript"">document.getElementById(""SearchDiv"").style.display='none';</script>"&(page-1)*MaxPerpage&"-"&rs.recordcount&"封已发送完毕，成功"&j&"条，失败"&v-j&"条！<br>恭喜您，任务执行完毕！"
+		call Show_Suc(msg,"Admin_SendSms.asp")
+		response.End()
+		else
+		msg=""&(page-1)*MaxPerpage&"-"&page*MaxPerpage&"条已发送完毕，成功"&j&"条，失败"&v-j&"条！<br>3秒后将继续发送……"
+		call Show_Suc(msg,"Admin_SendSms.asp")
+		Response.Write "<meta http-equiv=Refresh content='3; URL=Admin_SendSms.asp?action=save&member="&replace(member,"'","")&"&msgbody="&msgbody&"&page="&page+1&"&mtype="&mtype&"&mtypes="&mtypes&"&mdate="&mdate&"'>"
+		Response.End()
+		end if
+	else
+	Response.Write "<script language=""JavaScript"">document.getElementById(""SearchDiv"").style.display='none';alert('选择的会员类型下没有用户!');window.location='admin_Sendsms.asp'</script>"
+	end if
+	rs.close
+	set rs=nothing
+else
+	member=replace(replace(member,",","','")," ","")
+	set rs=Server.CreateObject(FR_HR_RS)
+	sql="select member_login,member_name,Member_mobile from job_member where member_login in ('"&member&"') order by member_id desc"
+	rs.open sql,conn,1,1
+	if not rs.eof then
+	rs.pagesize=MaxPerPage
+	mpage=rs.pagecount
+	rs.move (page-1)*MaxPerpage
+		v=0:j=0
+		do while not rs.eof		
+		v=v+1
+		msgbodys=replace(msgbody,"{$FR_会员用户名}",""&rs("member_login")&"")
+		msgbodyss=replace(msgbodys,"{$FR_会员名称}",""&rs("member_name")&"")
+		if rs("Member_mobile")<>"" and not isnull(rs("Member_mobile")) then
+		mobile=rs("Member_mobile")
+		else
+		mobile=""
+		end if
+		'整合手机短信
+		if mobile<>"" and Smssend=1 then
+			Set newclient=New SMS
+			respxml=newclient.sendSMS(""&mobile&"",""&msgbodyss&"","")
+			code=newclient.getCode()
+			Set newclient=Nothing
+			if code<>"000" then
+			conn.execute("Insert into JOB_Sms(S_memberlogin,S_tomemberlogin,S_tomobile,S_issuccess,S_sendtime,S_content) values('webmaster','"&rs("member_login")&"','"&mobile&"',0,"&FR_HR_Now&",'"&msgbodyss&"')")
+			else
+			conn.execute("Insert into JOB_Sms(S_memberlogin,S_tomemberlogin,S_tomobile,S_issuccess,S_sendtime,S_content) values('webmaster','"&rs("member_login")&"','"&mobile&"',1,"&FR_HR_Now&",'"&msgbodyss&"')")
+			end if
+		end if
+		j=j+1
+		if v>=MaxPerPage then exit do
+		rs.movenext
+		loop
+		if mpage=<page then
+		msg="<script language=""JavaScript"">document.getElementById(""SearchDiv"").style.display='none';</script>"&(page-1)*MaxPerpage&"-"&rs.recordcount&"条已发送完毕，成功"&j&"条，失败"&v-j&"条！<br>恭喜您，任务执行完毕！"
+		call Show_Suc(msg,"Admin_SendSms.asp")
+		response.End()
+		else
+		msg=""&(page-1)*MaxPerpage&"-"&page*MaxPerpage&"条已发送完毕，成功"&j&"条，失败"&v-j&"条！<br>3秒后将继续发送……"
+		call Show_Suc(msg,"Admin_SendSms.asp")
+		Response.Write "<meta http-equiv=Refresh content='3; URL=Admin_SendSms.asp?action=save&member="&replace(member,"'","")&"&msgbody="&msgbody&"&page="&page+1&"'>"
+		Response.End()
+		end if
+	else
+	Response.Write "<script language=""JavaScript"">document.getElementById(""SearchDiv"").style.display='none';alert('选择的会员类型下没有用户!');window.location='admin_Sendsms.asp'</script>"
+	end if
+	rs.close
+	set rs=nothing
+end if
+end if
+%>
+<body>
+<iframe height=0 width=0 src="" id="memberframe"></iframe>
+<%
+Set newclient=New SMS
+respxml=newclient.infoSMSAccount()
+account=respxml
+%>
+<table width="98%" border="0" cellspacing="1" cellpadding="2" align="center" class="tableBorder">
+  <tr>
+    <th height="25" class="tableHeaderText">手机短信发送管理</th>
+  </tr>
+  <tr height=25>
+  <form name="conform" action="?smsact=Smssave" method="post">
+      <td><b>　接口配置：</b>短信帐号:
+        <input type="text" id="username" name="username" size="12" value="<%=session("vcpuser")%>">  
+        短信密码：
+        <input type="password" id = "pass" name="pass" size="12" value="<%=session("vcppassword")%>">  
+        MD5私钥：
+        <input type="password" id = "apikey" name="apikey" size="12" value="<%=session("vcpapikey")%>">  
+        最新余额：<font color="#FF0000"><b><%=account%></b></font>条 
+      <input type="submit" value="修改配置" class="inputs"></td>
+    </form>
+  </tr>
+  <tr height=25>
+    <td><b>　管理选项：</b><a href="Admin_SendSms.asp">群发短信</a> | <a href="Admin_Sms.asp?r=1">发送成功记录</a> | <a href="Admin_Sms.asp?r=0">发送失败记录</a> | <a href="Admin_Sms.asp">全部记录</a> | [<a href="javascript:location.reload()">刷新页面</a>]</td>
+  </tr>
+</table><br>
+<table cellpadding=2 cellspacing=1 border=0 width=98% class=tableBorder align=center>
+<form action="?action=save&member=<%=member%>" method="post" name="smsform" onsubmit="return check();">
+	<tr>
+		<th height=25 colspan="2" class="tableHeaderText">短信群发管理</th>	
+	</tr>
+	<tr>
+		<td width="14%" align="right">收件人：</td>
+		<td width="86%" style="word-break:break-all;"><%if member="" then%><select name="mtype" onChange=getmembertype(this.options[this.selectedIndex].value)>
+		<option value="0">全部会员</option>
+		<%for m=0 to ubound(Groupid)%>
+		<option value="<%=m+1%>"><%=Grouptype(m)%></option>
+		<%next%>
+	    </select>
+		<span id=load205></span><span id=membertype><select name="mtypes">
+		<option value="0" selected>全部会员</option>
+		</select>
+		</span>
+		<select name="mdate">
+	    <option value="0">所有会员</option>
+	    <option value="1">一周未登录</option>
+	    <option value="2">30天未登录</option>
+	    <option value="3">一周内到期</option>
+	    <option value="4">30天内到期</option>
+	    </select>
+		<%else
+		Response.Write(replace(member," ",""))
+		end if%>
+      </td>
+	</tr>
+	<tr>
+	  <td align="right">短信内容：</td>
+	  <td><textarea name="msgbody" cols="80" rows="5"></textarea>
+	  <br>可选标签：<a style="cursor:hand" onClick="javascript:insertText('{$FR_会员用户名}');">会员用户名</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_会员名称}');">会员名称</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站名称}');">网站名称</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站标题}')">网站标题</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站网址}')">网站网址</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_LOGO地址}')">LOGO地址</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站关键字}')">网站关键字</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站描述}')">网站描述</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_联系人}')">联系人</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_联系地址}')">联系地址</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_联系电话}')">联系电话</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_联系传真}')">联系传真</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_管理员名称}')">管理员名称</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_管理员邮箱}')">管理员邮箱</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_系统目录}')">系统目录</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_管理员目录}')">管理员目录</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_页尾导航}')">页尾导航</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站版权}')">网站版权</a></td>
+    </tr>
+	<tr>
+		<td width="14%">　</td>
+	  <td width="86%">&nbsp;
+	    <input name="submit1" type="submit" class="inputs" value=" 发 送 ">
+      <input name="Submit" type="reset" class="inputs" value=" 重 置 " /></td>
+	</tr>
+</form>
+</table>
+<!--#include file="../inc/copy.asp"-->
+</body>
+</html>

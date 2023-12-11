@@ -1,0 +1,75 @@
+<!--#include file="conn.asp"-->
+<%
+'调用方法 如 http://127.0.0.1/bbs/online.asp?dis=yes&stats=当前位置,dis参数如果为yes表示要显示在线数，如果没有则不显示，stats为当前的位置
+'username值版主为2管理员为1
+dim sessid,out,rs2,rs1,sql,sql2,sql0,sql3,xxx,stats,ipdress,rs,username,admin,count3,addtime
+call FTBBS_HTML_MB(ft)
+onlinetime=Application("FTBBSMB")(40,0)
+sessid=session.SessionID
+username=trim(getcookie("name"))
+addtime=Ftbbs_Time
+sql0="select top 1 sessid from "&ft&"ftbbs_Online where sessid='" & sessid & "'"
+set rs2=conn.Execute(sql0)
+stats=trim(Request.QueryString("stats")) '获取当前位置
+if Request.ServerVariables("HTTP_X_FORWARDED_FOR")="" then ipdress=Request.ServerVariables("REMOTE_ADDR") else ipdress=Request.ServerVariables("HTTP_X_FORWARDED_FOR") end if
+
+If username="" then '判断版主或管理员
+   admin=0 
+else
+   if getcookie("bz")=1 then
+   admin=2
+   elseif getcookie("bbsadmin")=1 then
+   admin=1
+   else
+   admin=0
+   end if
+end if
+
+if rs2.eof then
+    if username="" then
+        sql="insert into "&ft&"ftbbs_Online (sessid,username,useradmin,stats,ip,logintime,lasttime) values('" & sessid & "','匿名',0,'"&stats&"','"&ipdress&"','"&addtime&"','" & addtime & "')"
+    else
+        sql0="select top 1 username,lasttime from "&ft&"ftbbs_Online where username='" & username & "'"
+        Set rs1 = Server.CreateObject("ADODB.Recordset")
+        rs1.open sql0,conn,1,1
+        if rs1.BOF and rs1.EOF then       
+            sql="insert into "&ft&"ftbbs_Online (sessid,username,useradmin,stats,ip,logintime,lasttime) values('" & sessid & "','"&username&"',"&admin&",'"&stats&"','"&ipdress&"','" & addtime & "','" & addtime & "')"      
+        else
+            sql="Update "&ft&"ftbbs_Online set lasttime='" & addtime & "',stats='"&stats&"' where username='" & username & "'"
+        end if
+        rs1.Close
+        set rs1=nothing
+    end if
+else
+    if username="" then
+        sql="Update "&ft&"ftbbs_Online set username='匿名',useradmin=0,stats='"&stats&"',ip='"&ipdress&"',lasttime='" & addtime & "' where sessid='" & sessid & "'"
+    else
+        sql="Update "&ft&"ftbbs_Online set username='"&username&"',useradmin="&admin&",stats='"&stats&"',ip='"&ipdress&"',lasttime='" & addtime & "' where sessid='" & sessid & "'"
+    end if
+end if
+conn.Execute(sql)
+rs2.close
+
+sql="delete from "&ft&"ftbbs_Online where datediff(""n"",lasttime,'"&addtime&"')>"&onlinetime&""
+conn.Execute (sql) '删除onlinetime分钟前的用户
+sql="select count(id) from "&ft&"ftbbs_Online where username='匿名'"
+set rs2=conn.Execute(sql)
+count1=rs2(0)
+rs2.close
+
+sql="select count(id) from "&ft&"ftbbs_Online where username<>'匿名'"
+set rs2=conn.Execute(sql)
+count2=rs2(0)
+rs2.close
+sql="select count(id) from "&ft&"ftbbs_Online where stats='"&stats&"'"
+set rs2=conn.Execute(sql)
+count3=rs2(0)
+rs2.close    
+set rs2=nothing
+conn.close
+
+If trim(Request.QueryString("dis"))="yes" then
+   Response.Write "document.write('总共<font color=red>"&count1+count2&"</font>人在线,其中注册用户<font color=red>"&count2&"</font>人,游客<font color=red>"&count1&"</font>人 当前位置［"&stats&"］共有<font color=red>"&count3&"</font>人 <a class=map href=""disonline.asp"">在线列表</a>');"
+   'Response.Write "document.write('[总共<font color=red>"&Application("count1")+Application("count2")&"</font>人在线,其中注册用户<font color=red>"&Application("count2")&"</font>人] 当前位置共有<font color=red>"&count3&"</font>人');"
+end if
+%>

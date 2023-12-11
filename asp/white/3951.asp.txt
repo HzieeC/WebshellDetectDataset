@@ -1,0 +1,603 @@
+<!--#include file="../../inc/ubbcode.asp"-->
+<!--#include file="../../inc/base64.asp"-->
+<!--#include file="const.asp"-->
+<%
+If NewAsp.BindDomain=1 Then
+	NewAsp.ChannelPath=NewAsp.DomainName&"/"
+Else
+	NewAsp.ChannelPath=NewAsp.MainDomain&NewAsp.InstallDir&NewAsp.ChannelDir
+End If
+Dim XMLDom,dataNode,i
+Dim HtmlContent,softid,classid,showid
+Dim m_strTitle,m_strContent,m_strRelated,m_strHomePage,m_strSubtitle
+Dim m_intPlugin,m_strPluginDesc,m_strDateTime,m_strCurrentPosition
+Dim iBackCount,iNextCount:iBackCount=0:iNextCount=0
+Dim m_strBackLink,m_strNextLink,m_strBackHtml,m_strNextHtml
+Dim m_strTagtitle,m_strTagslist,Taglist,IsOutTags
+Dim goodnum,badnum,totalscore,maxwidth,goodwidth,badwidth
+Dim HtmlFilePath,HtmlFileName
+Dim IsThunderUnion,IsFlashGetDownload
+IsThunderUnion=(NewAsp.PlusSetting(1)="1" And Len(NewAsp.PlusSetting(2))>0)
+IsFlashGetDownload=(NewAsp.PlusSetting(3)="1" And Len(NewAsp.PlusSetting(4))>0)
+showid=0
+IsOutTags=False
+
+Sub main()
+	If showid=0 Then
+		softid=NewAsp.ChkNumeric(Request("id"))
+		If softid=0 Then softid=NewAsp.ChkNumeric(Request("softid"))
+	Else
+		softid=NewAsp.ChkNumeric(showid)
+	End If
+	iBackCount=0:iNextCount=0
+	ubb.BasePath = NewAsp.ChannelPath
+	ubb.setUbbcode = Join(NewAsp.setUserEditor,"|")
+
+	LoadSoftData()
+
+	TPL_FileName=Check_TPL_File(TPL_FilePath,"downcopy",softid,classid)
+	HtmlContent = NewAsp.LoadTemplate(TPL_FilePath&"\"&TPL_FileName)
+	HtmlContent = Replace(HtmlContent, "{$pagetitle}", Replace(Trim(m_strTitle), "{$", "{ $"))
+	HtmlContent = Replace(HtmlContent, "{$channelid}", ChannelID)
+	HtmlContent = Replace(HtmlContent, "{$classid}", classid)
+	HtmlContent = Replace(HtmlContent, "{$softid}", softid)
+	HtmlContent = Replace(HtmlContent, "{$postid}", softid)
+	HtmlContent = Replace(HtmlContent, "{$channeldir}", NewAsp.ChannelPath)
+	TPL_Scan HtmlContent
+	Set XMLDom = Nothing : Set dataNode = Nothing
+End Sub
+
+Sub LoadSoftData()
+	Dim Rs,SQL
+	SQL = "SELECT A.*,C.ClassName,C.readme,C.ParentID,C.ParentStr,C.HtmlFileDir,C.ChildStr FROM [NC_SoftList] A INNER JOIN [NC_Classify] C On A.ClassID=C.ClassID WHERE A.ChannelID="&CLng(ChannelID)&" And A.isAccept>0 And A.softid="&CLng(softid)
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		Set Rs = Nothing
+		Response.Write "<p align=""center"" style=""font-size: 16px;color: red;"">对不起，该页面发生了错误，无法访问! </p>"
+		Response.End
+	End If
+
+	Set XMLDom = NewAsp.RecordsetToxml(Rs,"row","xml")
+	Rs.Close:Set Rs = Nothing
+	Set dataNode = XMLDom.documentElement.selectSingleNode("row")
+	If Not dataNode Is Nothing Then
+		softid=CLng(dataNode.selectSingleNode("@softid").text)
+		classid=CLng(dataNode.selectSingleNode("@classid").text)
+		m_strSubtitle=dataNode.selectSingleNode("@subtitle").text&""
+
+		m_strTitle=Trim(NewAsp.RemoveHtml(dataNode.selectSingleNode("@softname").text&" "&dataNode.selectSingleNode("@softver").text))
+		m_strContent=ubb.UbbCode(dataNode.selectSingleNode("@content").text)
+		dataNode.selectSingleNode("@content").text=m_strContent
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"title","")).text=m_strTitle
+		m_strDateTime=NewAsp.FormatToDate(dataNode.selectSingleNode("@softtime").text,TPL_Config(11))
+		dataNode.selectSingleNode("@softtime").text=m_strDateTime
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"datetime","")).text=m_strDateTime
+		m_strHomePage=dataNode.selectSingleNode("@homepage").text&""
+		If m_strHomePage<>"" And LCase(m_strHomePage)<>"http://" Then
+			Dim strHomePage,sHomePage
+			strHomePage=TPL_Config(13)
+			sHomePage=dataNode.selectSingleNode("@homepage").text
+			If InStr(sHomePage,"://")=0 Then
+				sHomePage="http://"&sHomePage
+			End If
+			strHomePage=Replace(strHomePage, "{$installdir}", NewAsp.MainsiteDir)
+			strHomePage=Replace(strHomePage, "{$homepage}", sHomePage)
+			dataNode.selectSingleNode("@homepage").text=strHomePage
+		Else
+			dataNode.selectSingleNode("@homepage").text=TPL_Config(12)
+		End If
+		If dataNode.selectSingleNode("@contact").text&""="" Then
+			dataNode.selectSingleNode("@contact").text=TPL_Config(14)
+		End If
+		If dataNode.selectSingleNode("@author").text&""="" Then
+			dataNode.selectSingleNode("@author").text=TPL_Config(15)
+		End If
+		If dataNode.selectSingleNode("@decode").text&""="" Then
+			dataNode.selectSingleNode("@decode").text=TPL_Config(16)
+		End If
+		If dataNode.selectSingleNode("@regsite").text&""="" Or LCase(dataNode.selectSingleNode("@regsite").text&"")="http://" Then
+			dataNode.selectSingleNode("@regsite").text=TPL_Config(17)
+		End If
+
+		Dim strSoftImage,strPreviewImg,arrImageSize,arrPreviewSize
+		Dim strImagesLink,strPreviewLink,IsPreviewLink,sPreviewLink,strImage
+
+		IsPreviewLink=False
+		arrImageSize = Split(TPL_Config(18)&"|", "|")
+		arrPreviewSize = Split(TPL_Config(19)&"|", "|")
+		strSoftImage=dataNode.selectSingleNode("@softimage").text&""
+		strPreviewImg=dataNode.selectSingleNode("@previewimg").text&""
+
+		If strSoftImage<>"" And LCase(strSoftImage)<>"http://" Then
+			strImagesLink = NewAsp.GetImagePath(strSoftImage,NewAsp.ChannelPath)
+			sPreviewLink=NewAsp.ChannelPath&"previewimg.asp?softid="&softid
+			strImage=NewAsp.GetFlashAndPic(strImagesLink, arrImageSize(0), arrImageSize(1))
+			dataNode.selectSingleNode("@softimage").text="<a target=""_blank"" href="""&sPreviewLink&""">"&strImage&"</a>"
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"image","")).text="<a target=""_blank"" href="""&sPreviewLink&""">"&strImage&"</a>"
+			IsPreviewLink=True
+		Else
+			dataNode.selectSingleNode("@softimage").text=TPL_Config(20)
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"image","")).text=TPL_Config(20)
+		End If
+		If strPreviewImg<>"" And LCase(strPreviewImg)<>"http://" Then
+			strPreviewLink = NewAsp.GetImagePath(strPreviewImg,NewAsp.ChannelPath)
+			dataNode.selectSingleNode("@previewimg").text=NewAsp.GetFlashAndPic(strPreviewLink, arrPreviewSize(0), arrPreviewSize(1))
+			IsPreviewLink=True
+		Else
+			dataNode.selectSingleNode("@previewimg").text=""
+		End If
+		If IsPreviewLink Then
+			sPreviewLink=TPL_Config(22)
+			sPreviewLink= Replace(sPreviewLink, "{$previewurl}", NewAsp.ChannelPath&"previewimg.asp?softid="&softid)
+		Else
+			sPreviewLink=TPL_Config(21)
+		End If
+		sPreviewLink=Replace(sPreviewLink, "{$installdir}", NewAsp.MainsiteDir)
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"previewlink","")).text=sPreviewLink
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"size","")).text=NewAsp.BytesToString(CLng(dataNode.selectSingleNode("@softsize").text)*1024)
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"supsoftid","")).text=NewAsp.Supplemental(softid,6)
+		m_intPlugin=NewAsp.ChkNumeric(dataNode.selectSingleNode("@plugin").text)
+		Select Case m_intPlugin
+			Case 1 : m_strPluginDesc = TPL_Config(26)
+			Case 2 : m_strPluginDesc = TPL_Config(27)
+			Case 3 : m_strPluginDesc = TPL_Config(28)
+			Case 4 : m_strPluginDesc = TPL_Config(29)
+			Case 5 : m_strPluginDesc = TPL_Config(30)
+			Case 6 : m_strPluginDesc = TPL_Config(31)
+			Case 7 : m_strPluginDesc = TPL_Config(32)
+		Case Else
+			m_strPluginDesc = TPL_Config(25)
+		End Select
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"plusdesc","")).text=m_strPluginDesc
+		Dim strMembersoft:strMembersoft=""
+		If CLng(dataNode.selectSingleNode("@usergroup").text)>0 Then
+			strMembersoft=TPL_Config(33)
+			strMembersoft=Replace(strMembersoft, "{$installdir}", NewAsp.MainsiteDir)
+			strMembersoft=Replace(strMembersoft, "{$softid}", softid)
+			strMembersoft=Replace(strMembersoft, "{$pointnum}", dataNode.selectSingleNode("@pointnum").text)
+		End If
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"membersoft","")).text=strMembersoft
+		m_strCurrentPosition=CurrentPosition(dataNode.selectSingleNode("@classid").text,dataNode.selectSingleNode("@parentstr").text," - ")
+		If Len(m_strSubtitle) = 0 Then
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitle","")).text=currentclass
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopic","")).text=NewAsp.MainSetting(1)
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitles","")).text=""
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopics","")).text=""
+		Else
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitle","")).text=m_strSubtitle
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopic","")).text=m_strSubtitle
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitles","")).text=" - "&m_strSubtitle
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopics","")).text=","&m_strSubtitle
+		End If
+	End If
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Dim Node
+	Select Case sToken
+		Case "downlinks"	:	TPL_Echo DownHtmlLinks
+		Case "thislinks"	:	TPL_Echo ThisHtmlLinks
+		Case "classlinks"	:	TPL_Echo ThisClassLinks
+		Case "classtitle"	:	TPL_Echo ClassTitleLinks
+		Case "hits"			:	TPL_Echo dataNode.selectSingleNode("@allhits").text
+		Case "gethomepage"	:	TPL_Echo GetHomePage(sVariant)
+		Case "description"	:	TPL_Echo GetDescription(sVariant)
+		Case "currentclass"	:	TPL_Echo CurrentClass
+		Case "parentclass"	:	TPL_Echo ParentClass
+		Case "tagtitle"		:	GetTagsList(Taglist) : TPL_Echo m_strTagtitle
+		Case "tagslist"		:	GetTagsList(Taglist) : TPL_Echo m_strTagslist
+		Case "positions"	:	TPL_Echo CurrentPosition(dataNode.selectSingleNode("@classid").text,dataNode.selectSingleNode("@parentstr").text,sVariant)
+		Case "moremenu"		:	TPL_Echo moremenu(sVariant)
+		Case "typemenu"		:	TPL_Echo typemenu(sVariant)
+		Case Else
+			If Not IsObject(dataNode) Then Exit Sub
+			Set Node = dataNode.selectSingleNode("@"&sToken&"")
+			If Not (Node Is Nothing) Then
+				TPL_Echo Node.text
+			End If
+	End Select
+	Set Node = Nothing
+	If Err Then Err.Clear
+End Sub
+
+Sub GetTagsList(strTag)
+	On Error Resume Next
+	Dim Rs,SQL,i,tmpTags,tmpTaglist,strLinks
+	If IsOutTags=True Then Exit Sub
+	strTag = checkTagList(strTag)
+	tmpTags=""
+	If Len(strTag)>0 Then
+		Set Rs = NewAsp.Execute("SELECT TagID,Tagname,Tagcount FROM NC_Tags WHERE ChannelID="&ChannelID&" And TagID in("&strTag&")")
+		If Not Rs.EOF Then
+			SQL=Rs.GetRows(-1)
+		Else
+			SQL=Null
+		End If
+		Set Rs=Nothing
+		If IsArray(SQL) Then
+			For i=0 To Ubound(SQL,2)
+				If i=0 Then
+					tmpTags=SQL(1,i)
+				Else
+					tmpTags=tmpTags&" "&SQL(1,i)
+				End If
+				If IsURLRewrite Then
+					strLinks=CheckURLRewrite(NewAsp.ChannelPath,"tag-"&Server.URLEncode(SQL(1,i))&"-1"&NewAsp.HtmlExtName)
+				Else
+					strLinks=NewAsp.ChannelPath&"tag.asp?name="&Server.URLEncode(SQL(1,i))
+				End If
+				tmpTaglist=tmpTaglist&TPL_Config(35)
+				tmpTaglist=Replace(tmpTaglist, "{$tagid}", SQL(0,i))
+				tmpTaglist=Replace(tmpTaglist, "{$tagname}", SQL(1,i))
+				tmpTaglist=Replace(tmpTaglist, "{$tagcount}", SQL(2,i))
+				tmpTaglist=Replace(tmpTaglist, "{$link}", strLinks)
+			Next
+			SQL=Null
+		Else
+			tmpTaglist=TPL_Config(34)
+		End If
+	Else
+		tmpTaglist=TPL_Config(34)
+	End If
+
+	m_strTagtitle=tmpTags
+	m_strTagslist=tmpTaglist
+	IsOutTags=True
+End Sub
+
+Function ThisClassLinks()
+	Dim strLink,strChannDir
+	If NewAsp.IsCreateHtml=0 Then
+		If IsURLRewrite Then
+			strLink=CheckURLRewrite(NewAsp.ChannelPath,"list_1_"&classid&NewAsp.HtmlExtName)
+		Else
+			strLink="list.asp?classid="&classid
+		End If
+	Else
+		If NewAsp.BindDomain=0 Then
+			strChannDir=NewAsp.ChannelDir
+		End If
+		strLink=NewAsp.HtmlDestination(NewAsp.sortDestination, strChannDir,dataNode.selectSingleNode("@htmlfiledate").text,dataNode.selectSingleNode("@htmlfiledir").text,classid,softid,1,"")
+	End If
+	ThisClassLinks=strLink
+End Function
+
+Function ClassTitleLinks()
+	ClassTitleLinks="<a href="""&ThisClassLinks&""">"&dataNode.selectSingleNode("@classname").text&"</a>"
+End Function
+
+Function ThisHtmlLinks()
+	Dim strLink,strChannDir
+	If NewAsp.IsCreateHtml=0 Then
+		If IsURLRewrite Then
+			strLink=CheckURLRewrite(NewAsp.ChannelPath,softid&NewAsp.HtmlExtName)
+		Else
+			strLink=NewAsp.ChannelPath&"show.asp?id="&softid
+		End If
+	Else
+		If NewAsp.BindDomain=0 Then
+			strChannDir=NewAsp.ChannelDir
+		End If
+		strLink=NewAsp.HtmlDestination(NewAsp.InfoDestination, strChannDir,dataNode.selectSingleNode("@htmlfiledate").text,dataNode.selectSingleNode("@htmlfiledir").text,classid,softid,1,"")
+		'strLink=Mid(NewAsp.ChannelPath,1,InStrRev(NewAsp.ChannelPath,"/")-1)&NewAsp.HtmlDestination(NewAsp.InfoDestination, "",dataNode.selectSingleNode("@htmlfiledate").text,dataNode.selectSingleNode("@htmlfiledir").text,classid,softid,1,"")
+		If NewAsp.BindDomain=1 Then
+			strLink=NewAsp.DomainName&strLink
+		Else
+			strLink=NewAsp.MainDomain&strLink
+		End If
+	End If
+	ThisHtmlLinks=strLink
+End Function
+
+Function DownHtmlLinks()
+	Dim strLink
+	If NewAsp.BindDomain=1 Then
+		strLink=NewAsp.DomainName&"/"
+	Else
+		strLink=NewAsp.MainDomain&NewAsp.InstallDir&NewAsp.ChannelDir
+	End If
+	If IsURLRewrite Then
+		DownHtmlLinks=CheckURLRewrite(strLink,"dl"&NewAsp.Supplemental(softid,6)&NewAsp.HtmlExtName)
+	Else
+		DownHtmlLinks=strLink& "softdown.asp?softid="&softid
+	End If
+End Function
+
+Function GetHomePage(iVariant)
+	iVariant=NewAsp.ChkNumeric(iVariant)
+	If m_strHomePage<>"" And LCase(m_strHomePage)<>"http://" Then
+		Dim strHomePage
+		If InStr(m_strHomePage,"://")=0 Then
+			m_strHomePage="http://"&m_strHomePage
+		End If
+		strHomePage=NewAsp.CutStr(m_strHomePage,iVariant)
+		GetHomePage="<a target=""_blank"" href="""&m_strHomePage&""">"&strHomePage&"</a>"
+	Else
+		GetHomePage=TPL_Config(12)
+	End If
+End Function
+
+Function GetDescription(iVariant)
+	iVariant=NewAsp.ChkNumeric(iVariant)
+	If iVariant=0 Then iVariant=180
+	Dim re,strHtml
+	strHtml = m_strContent
+	Set re = New RegExp
+	re.IgnoreCase = True
+	re.Global = True
+	re.Pattern = "\[br\]":strHtml = re.Replace(strHtml, "")
+	re.Pattern = "\[align=right\](.*)\[\/align\]":strHtml = re.Replace(strHtml, "")
+	re.Pattern = "([\f\n\r\t\v])":strHtml = re.Replace(strHtml, "")
+	re.Pattern = "<(.[^>]*)>":strHtml = re.Replace(strHtml, "")
+	Set re = Nothing
+	strHtml = Replace(strHtml, "&nbsp;", " "):strHtml = Replace(strHtml, "====", "")
+	strHtml = Replace(strHtml, "----", ""):strHtml = Replace(strHtml, "////", "")
+	strHtml = Replace(strHtml, "\\\\", ""):strHtml = Replace(strHtml, "####", "")
+	strHtml = Replace(strHtml, "@@@@", ""):strHtml = Replace(strHtml, "****", "")
+	strHtml = Replace(strHtml, "~~~~", ""):strHtml = Replace(strHtml, "≡≡≡", "")
+	strHtml = Replace(strHtml, "++++", ""):strHtml = Replace(strHtml, "::::", "")
+	strHtml = Replace(strHtml, "　", ""):strHtml = Replace(strHtml, Chr(9), "")
+	strHtml = Replace(strHtml, Chr(10), ""):strHtml = Replace(strHtml, Chr(34), "&quot;")
+	strHtml = Replace(strHtml, Chr(39), "&#39;"):strHtml = Replace(strHtml, "[InstallDir_ChannelDir]", "")
+	strHtml = Replace(strHtml, "[NextPage]", ""):strHtml = Replace(strHtml, "[Page_Break]", "")
+	If iVariant>0 Then strHtml=Left(strHtml,iVariant)
+	GetDescription = strHtml
+End Function
+
+Function XmlDatalistNode(iXMLDom,sTokenAttrib)
+		Set XmlDatalistNode=DownAddressNode(iXMLDom)
+End Function
+
+Function DownAddressNode(iXMLDom)
+	Dim SQL,Rs,oRs,datalist,Node,strQuery,i,ii,n,show
+	Dim stype,rootNode,strTarget,IsRndAddress,showdown,strLink2,sDownloadName
+	Dim strDownText,strLinks,strDownName,selfont,sDownFileName,strDownFileName
+
+	i=0 : ii=0 : n=0
+	If IsNull(iXMLDom.documentElement.getAttribute("downmode")) Then iXMLDom.documentElement.setAttribute "downmode","0"
+	If IsNull(iXMLDom.documentElement.getAttribute("showdown")) Then iXMLDom.documentElement.setAttribute "showdown","0"
+	If IsNull(iXMLDom.documentElement.getAttribute("thunderid")) Then iXMLDom.documentElement.setAttribute "thunderid","" & NewAsp.PlusSetting(2) & ""
+	If IsNull(iXMLDom.documentElement.getAttribute("flashgetid")) Then iXMLDom.documentElement.setAttribute "flashgetid","" & NewAsp.PlusSetting(4) & ""
+	stype			= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("type"))
+	rootNode		= NewAsp.CheckStr(iXMLDom.documentElement.getAttribute("node"))
+	strTarget		= NewAsp.CheckStr(iXMLDom.documentElement.getAttribute("target"))
+	IsRndAddress	= NewAsp.ChkBoolean(iXMLDom.documentElement.getAttribute("isrnd"))
+	showdown		= NewAsp.ChkBoolean(iXMLDom.documentElement.getAttribute("showdown"))
+	If rootNode = "" Or rootNode = "row" Or rootNode = "xml" Then rootNode = "datalist"
+
+	If IsRndAddress Then
+		If IsSqlDataBase = 1 Then
+			strQuery=" ORDER BY IsOuter DESC, newid()"
+		Else
+			strQuery=" ORDER BY IsOuter DESC, rnd(A.downid)"
+		End If
+	Else
+		strQuery=" ORDER BY orders ASC"
+	End If
+
+	If stype=1 Then
+		If IsURLRewrite Then
+			strLinks=CheckURLRewrite(NewAsp.ChannelPath,"dl"&NewAsp.Supplemental(softid,6)&NewAsp.HtmlExtName)
+		Else
+			strLinks=NewAsp.ChannelPath& "softdown.asp?softid=" & softid
+		End If
+
+		iXMLDom.documentElement.selectSingleNode("@downmode").text=1
+		iXMLDom.documentElement.selectSingleNode("@action").text=2
+		Set datalist=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		datalist.appendChild(datalist.createElement("datalist"))
+		Set Node=datalist.createNode(1,"row","")
+
+		Node.attributes.setNamedItem(datalist.createNode(2,"url","")).text=NewAsp.ChannelPath
+		Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=1
+		Node.attributes.setNamedItem(datalist.createNode(2,"n","")).text=0
+		Node.attributes.setNamedItem(datalist.createNode(2,"ii","")).text=1
+		Node.attributes.setNamedItem(datalist.createNode(2,"softid","")).text=softid
+		Node.attributes.setNamedItem(datalist.createNode(2,"downid","")).text=0
+		Node.attributes.setNamedItem(datalist.createNode(2,"title","")).text=NewAsp.RemoveHtml(m_strTitle)
+		Node.attributes.setNamedItem(datalist.createNode(2,"topic","")).text=m_strTitle
+		Node.attributes.setNamedItem(datalist.createNode(2,"downname","")).text=m_strTitle
+		Node.attributes.setNamedItem(datalist.createNode(2,"downloadname","")).text=m_strTitle
+		Node.attributes.setNamedItem(datalist.createNode(2,"downtitle","")).text=m_strTitle
+		Node.attributes.setNamedItem(datalist.createNode(2,"link","")).text=strLinks
+		Node.attributes.setNamedItem(datalist.createNode(2,"link2","")).text=strLinks
+		Node.attributes.setNamedItem(datalist.createNode(2,"show","")).text=3
+		Node.attributes.setNamedItem(datalist.createNode(2,"isouter","")).text=0
+		Node.attributes.setNamedItem(datalist.createNode(2,"isdisp","")).text=0
+		datalist.documentElement.appendChild(Node)
+		Set Node=Nothing
+	Else
+		Set datalist=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		datalist.appendChild(datalist.createElement("datalist"))
+		Set oRs=NewAsp.Execute("SELECT id,downid,DownFileName,DownText FROM [NC_DownAddress] WHERE softid=" & CLng(softid))
+		If (oRs.BOF And oRs.EOF) Or m_intPlugin=7 Then
+			Set Node=datalist.createNode(1,"row","")
+			Node.attributes.setNamedItem(datalist.createNode(2,"url","")).text=NewAsp.ChannelPath
+			Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=1
+			Node.attributes.setNamedItem(datalist.createNode(2,"n","")).text=0
+			Node.attributes.setNamedItem(datalist.createNode(2,"ii","")).text=1
+			Node.attributes.setNamedItem(datalist.createNode(2,"softid","")).text=softid
+			Node.attributes.setNamedItem(datalist.createNode(2,"downid","")).text=0
+			Node.attributes.setNamedItem(datalist.createNode(2,"title","")).text=NewAsp.RemoveHtml(m_strTitle)
+			Node.attributes.setNamedItem(datalist.createNode(2,"topic","")).text=m_strTitle
+			Node.attributes.setNamedItem(datalist.createNode(2,"downname","")).text=TPL_Config(23)
+			Node.attributes.setNamedItem(datalist.createNode(2,"downloadname","")).text=TPL_Config(23)
+			Node.attributes.setNamedItem(datalist.createNode(2,"downtitle","")).text=TPL_Config(23)
+			Node.attributes.setNamedItem(datalist.createNode(2,"link","")).text="javascript:"
+			Node.attributes.setNamedItem(datalist.createNode(2,"link2","")).text="javascript:"
+			Node.attributes.setNamedItem(datalist.createNode(2,"show","")).text=2
+			Node.attributes.setNamedItem(datalist.createNode(2,"isouter","")).text=0
+			Node.attributes.setNamedItem(datalist.createNode(2,"isdisp","")).text=0
+			datalist.documentElement.appendChild(Node)
+			Set Node=Nothing
+		Else
+			Do While Not oRs.EOF
+				ii = ii + 1
+				strDownText = oRs("DownText") & ""
+				sDownFileName = oRs("DownFileName") & ""
+				If Len(strDownText) = 0 Then strDownText = "立即下载"
+				If InStr(strDownText, "###") > 0 Then
+					strDownName=strDownText
+				Else
+					strDownName=m_strTitle
+				End If
+				strDownName=Replace(strDownName, "###", "")
+				Set Node=datalist.createNode(1,"downrow","")
+				Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=ii
+				Node.attributes.setNamedItem(datalist.createNode(2,"downid","")).text=oRs("downid")
+				Node.attributes.setNamedItem(datalist.createNode(2,"downtitle","")).text=Replace(strDownText, "###", "")
+				Node.attributes.setNamedItem(datalist.createNode(2,"downname","")).text=strDownName
+				Node.attributes.setNamedItem(datalist.createNode(2,"title","")).text=strDownName
+				datalist.documentElement.appendChild(Node)
+				Set Node=Nothing
+				'---- 如果使用了下载服务器,就打开下载服务器
+				If oRs("downid") > 0 Then
+					SQL="SELECT downid,DownloadName,DownloadPath,IsDisp,UserGroup,DownPoint,IsOuter,selfont FROM NC_DownServer WHERE ChannelID="&NewAsp.ChannelID&" And depth=1 And rootid="&oRs("downid")&" And isLock=0 "&strQuery
+					Set Rs=NewAsp.Execute(SQL)
+					If Not (Rs.BOF And Rs.EOF) Then
+						Do While Not Rs.EOF
+							i=i+1
+							If Rs("IsOuter")=2 And IsThunderUnion Then
+								strLink2=ThunderEncode(Trim(Rs("DownloadPath")&sDownFileName))
+							ElseIf Rs("IsOuter")=3 And IsFlashGetDownload Then
+								strLink2=FlashgetEncode(Trim(Rs("DownloadPath")&sDownFileName),NewAsp.PlusSetting(4))
+							Else
+								strLink2=Trim(Rs("DownloadPath")&sDownFileName)
+							End If
+							If (Rs("IsDisp") <> 1 Or Rs("IsOuter") > 1) And Not showdown Then
+								If sType = 2 Then
+									If IsURLRewrite Then
+										strLinks=CheckURLRewrite(NewAsp.ChannelPath,softid & "_" & Rs("downid") & "_" & oRs(0) & "_1" & Newasp.HtmlExtName)
+									Else
+										strLinks=NewAsp.ChannelPath& "softdown.asp?softid="&softid&"&downid="&Rs("downid")&"&n=" &oRs(0) & "&type=1"
+									End If
+								Else
+									If InStr(sDownFileName, "*") > 0 Then
+										strLinks=NewAsp.ChannelPath& "download.asp?softid="&softid&"&downid="&Rs("downid")&"&id="&oRs(0)&"&n="&i
+									Else
+										strLinks=NewAsp.ChannelPath& "download.asp?softid="&softid&"&downid="&Rs("downid")&"&id="&oRs(0)
+									End If
+									If ((Rs("IsOuter")=2 And IsThunderUnion) Or (Rs("IsOuter")=3 And IsFlashGetDownload)) And Rs("IsDisp")=1 Then
+										strLinks=strLink2
+									End If
+								End If
+							Else
+								If InStr(sDownFileName, "*") > 0 Then
+									strDownFileName=Replace(sDownFileName, "*", i)
+								End If
+								If Rs("IsOuter") <> 1 Or showdown Then
+									strLinks=strLink2
+								Else
+									strLinks=Trim(Rs("DownloadPath"))
+									strLink2=strLinks
+								End If
+							End If
+							selfont = Rs("selfont") & ""
+							If InStr(strDownText, "###") > 0 Then
+								strDownName=Trim(Rs("DownloadName")& "")
+								strDownName=Replace(strDownName, "{$SoftName}", strDownText)
+								strDownName=Replace(strDownName, "{$softname}", strDownText)
+								show=1
+							Else
+								strDownName=Trim(Rs("DownloadName")& "")
+								strDownName=Replace(strDownName, "{$SoftName}", m_strTitle)
+								strDownName=Replace(strDownName, "{$softname}", m_strTitle)
+								show=0
+							End If
+							strDownName=Replace(strDownName, "###", "")
+							sDownloadName=strDownName
+							If Len(selfont) > 8 Then
+								strDownName= "<span "&selfont&">"&strDownName&"</span>"
+							End If
+							Set Node=datalist.createNode(1,"row","")
+
+							Node.attributes.setNamedItem(datalist.createNode(2,"url","")).text=NewAsp.ChannelPath
+							Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+							Node.attributes.setNamedItem(datalist.createNode(2,"n","")).text=n
+							Node.attributes.setNamedItem(datalist.createNode(2,"ii","")).text=ii
+							Node.attributes.setNamedItem(datalist.createNode(2,"softid","")).text=softid
+							Node.attributes.setNamedItem(datalist.createNode(2,"downid","")).text=Rs(0)
+							Node.attributes.setNamedItem(datalist.createNode(2,"title","")).text=NewAsp.RemoveHtml(m_strTitle)
+							If show=1 Then
+								Node.attributes.setNamedItem(datalist.createNode(2,"topic","")).text=strDownName
+							Else
+								Node.attributes.setNamedItem(datalist.createNode(2,"topic","")).text=m_strTitle
+							End If
+							Node.attributes.setNamedItem(datalist.createNode(2,"downname","")).text=strDownName
+							Node.attributes.setNamedItem(datalist.createNode(2,"downloadname","")).text=sDownloadName
+							Node.attributes.setNamedItem(datalist.createNode(2,"downtitle","")).text=Replace(strDownText, "###", "")
+							Node.attributes.setNamedItem(datalist.createNode(2,"link","")).text=strLinks
+							Node.attributes.setNamedItem(datalist.createNode(2,"link2","")).text=strLink2
+							Node.attributes.setNamedItem(datalist.createNode(2,"show","")).text=show
+							Node.attributes.setNamedItem(datalist.createNode(2,"isouter","")).text=Rs("IsOuter")
+							Node.attributes.setNamedItem(datalist.createNode(2,"isdisp","")).text=Rs("IsDisp")
+
+							datalist.documentElement.appendChild(Node)
+							Set Node=Nothing
+							Rs.MoveNext
+							ii=ii+1
+							n=n+1
+						Loop
+					End If
+					Rs.Close:Set Rs = Nothing
+				Else
+					'--无下载服务器
+					i=i+1
+					strLink2=sDownFileName
+					If showdown Then
+						strLinks=strLink2
+					Else
+						If stype=2 Then
+							If IsURLRewrite Then
+								strLinks=CheckURLRewrite(NewAsp.ChannelPath,softid&"_0_"&oRs(0) & "_1"&Newasp.HtmlExtName)
+							Else
+								strLinks=NewAsp.ChannelPath&"softdown.asp?softid="&softid&"&downid=0&n="&oRs(0)&"&type=1"
+							End If
+						Else
+							strLinks=NewAsp.ChannelPath& "download.asp?softid="&softid&"&downid=0&id="&oRs(0)
+						End If
+					End If
+					Set Node=datalist.createNode(1,"row","")
+
+					Node.attributes.setNamedItem(datalist.createNode(2,"url","")).text=NewAsp.ChannelPath
+					Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+					Node.attributes.setNamedItem(datalist.createNode(2,"n","")).text=n
+					Node.attributes.setNamedItem(datalist.createNode(2,"ii","")).text=ii
+					Node.attributes.setNamedItem(datalist.createNode(2,"softid","")).text=softid
+					Node.attributes.setNamedItem(datalist.createNode(2,"downid","")).text=0
+					Node.attributes.setNamedItem(datalist.createNode(2,"title","")).text=NewAsp.RemoveHtml(m_strTitle)
+					If InStr(strDownText, "###") > 0 Then
+						Node.attributes.setNamedItem(datalist.createNode(2,"topic","")).text=Replace(strDownText, "###", "")
+					Else
+						Node.attributes.setNamedItem(datalist.createNode(2,"topic","")).text=m_strTitle
+					End If
+					Node.attributes.setNamedItem(datalist.createNode(2,"downname","")).text=Replace(strDownText, "###", "")
+					Node.attributes.setNamedItem(datalist.createNode(2,"downloadname","")).text=Replace(strDownText, "###", "")
+					Node.attributes.setNamedItem(datalist.createNode(2,"downtitle","")).text=Replace(strDownText, "###", "")
+					Node.attributes.setNamedItem(datalist.createNode(2,"link","")).text=strLinks
+					Node.attributes.setNamedItem(datalist.createNode(2,"link2","")).text=strLink2
+					Node.attributes.setNamedItem(datalist.createNode(2,"show","")).text=2
+					Node.attributes.setNamedItem(datalist.createNode(2,"isouter","")).text=0
+					Node.attributes.setNamedItem(datalist.createNode(2,"isdisp","")).text=0
+					datalist.documentElement.appendChild(Node)
+					Set Node=Nothing
+					n=n+1
+				End If
+				oRs.MoveNext
+			Loop
+		End If
+		Set oRs=Nothing
+	End If
+	Set DownAddressNode=datalist
+	Set datalist=Nothing
+End Function
+%>

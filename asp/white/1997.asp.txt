@@ -1,0 +1,712 @@
+<!--#include file="Conn.asp"-->
+<!-- #include file="inc/const.asp" -->
+<!-- #include file="Dv_plus/myspace/script/Dv_ClsSpace.asp" -->
+<%
+Dvbbs.LoadTemplates("usermanager")
+Dim MySpace
+Set MySpace = New Cls_Space
+'Dvbbs.Stats = Dvbbs.MemberName & template.Strings(67)
+
+If Cint(Dvbbs.GroupSetting(1))=0 And MySpace.Act="userinfo" Then
+	Response.redirect "showerr.asp?ErrCodes=<li>您没有浏览本论坛会员资料的权限，请<a href='login.asp'>登录</a>或者同管理员联系。&action=OtherErr&autoreload=1"
+	Response.End
+End If
+
+
+Dvbbs.Stats = MySpace.Space_Info.getAttribute("title")&"--"&MySpace.Space_User.getAttribute("username") & template.Strings(67)
+
+MySpace.Head()
+If MySpace.Act = "saveedit" Then
+	SaveEdit()
+ElseIf MySpace.Act = "saveskin" Then
+	SaveSkin()
+Else
+	Main()
+End If
+
+Dvbbs.ActiveOnline()
+Set MySpace = Nothing
+Dvbbs.Footer()
+Dvbbs.PageEnd()
+Sub Main()
+	Dim Channals
+
+	If MySpace.Act="" and MySpace.ReCache=0  Then
+
+	Else
+		BoardList()
+		Set Channals = MySpace.Space_Info.selectSingleNode("leftchannal")
+		If Channals.childNodes.Length>0 and MySpace.Space_Info.getAttribute("s_style")<>"2" Then
+			GetChannalData Channals
+		End If
+
+		Set Channals = MySpace.Space_Info.selectSingleNode("rightchannal")
+		If Channals.childNodes.Length>0 and MySpace.Space_Info.getAttribute("s_style")<>"1" Then
+			GetChannalData Channals
+		End If
+
+		Set Channals = MySpace.Space_Info.selectSingleNode("mainchannal")
+		Select Case MySpace.Act
+			Case "userinfo"
+			Case "topic"
+				LoadChanalData Channals,"usertopic"
+			Case "reply"
+				LoadChanalData Channals,"userreply"
+			Case "board"
+			Case "modifyset"
+				If Not MySpace.Admin Then
+					Response.redirect "showerr.asp?ErrCodes=<li>你没有权限修改别人的个性首页。&action=NoHeadErr&autoreload=1"
+					Exit Sub
+				End If
+			Case "modifyskin"
+				If Not MySpace.Admin Then
+					Response.redirect "showerr.asp?ErrCodes=<li>你没有权限修改别人的个性首页。&action=NoHeadErr&autoreload=1"
+					Exit Sub
+				End If
+		Case Else
+			If Channals.childNodes.Length>0 Then
+				GetChannalData Channals
+			End If
+		End Select
+	End If
+
+	MySpace.TranTemplate()
+
+End Sub
+
+'获取频道数据
+Sub GetChannalData(Node)
+	Dim ChildNode
+	For each ChildNode in Node.childNodes
+		LoadChanalData  ChildNode,ChildNode.getAttribute("id")
+	Next
+End Sub
+
+Sub LoadChanalData(Node,Nodeid)
+	Select Case Nodeid
+		Case "userinfo"
+		Case "usertopic"
+			Load_UserTopic(Node)
+		Case "userreply"
+			Load_UserReply(Node)
+		Case "userfav"
+			Load_UserFav(Node)
+		Case "usermsg"
+			Load_UserMsg(Node)
+		Case "userfriend"
+			Load_UserFriend(Node)
+		Case "userbest"
+			Load_UserBest(Node)
+		Case "userupload"
+			Load_UserFiles(Node)
+		Case Else
+	End Select
+End Sub
+
+
+'SaveEdit()
+'保存设置修改
+Sub SaveEdit()
+	If Dvbbs.Userid=0 Then
+		Response.redirect "showerr.asp?ErrCodes=<li>请登陆后再进行修改。&action=NoHeadErr&autoreload=1"
+		Exit Sub
+	End If
+	If Not MySpace.Admin Then
+		Response.redirect "showerr.asp?ErrCodes=<li>你没有权限修改别人的个性首页。&action=NoHeadErr&autoreload=1"
+		Exit Sub
+	End If
+	Dim layoutset
+	layoutset = Dvbbs.CheckNumeric(Request.Form("layoutset"))
+	If layoutset = 0 Then
+		layoutset = 1
+	End If
+	If Len(Request.Form("spacetitle"))>100 or Len(Request.Form("spacetitle"))<1 Then
+		Response.redirect "showerr.asp?ErrCodes=<li>标题不能为空或者超出100个字符&action=NoHeadErr&autoreload=1"
+		Exit Sub
+	End If
+	If Len(Request.Form("spaceintro"))>250 or Len(Request.Form("spaceintro"))<1 Then
+		Response.redirect "showerr.asp?ErrCodes=<li>简介不能为空或者超出250个字符&action=NoHeadErr&autoreload=1"
+		Exit Sub
+	End If
+	Dim Rs,Sql
+	Dim Setting,IsMyindex,i,TempStr,S_css,S_id,Stylepath
+	Dim UserSetting
+	S_css = Request.Form("s_css")
+	Stylepath = Request.Form("stylepath")
+	IsMyindex = Request.Form("ismyindex")
+	UserSetting = ""
+	Setting = ""
+	S_id = Dvbbs.Checknumeric(Request.Form("styleid"))
+	If Request.Form("modify")="1" Then
+		If IsMyindex<>"" Then
+			IsMyindex = Dvbbs.CheckNumeric(IsMyindex)
+			'当发生设置更改时执行数据更新
+			If IsMyindex<>Cint(MySpace.Space_User.getAttribute("set4")) Then
+				MySpace.Space_User.attributes.getNamedItem("set4").text = IsMyindex
+				For i=1 to 4
+					UserSetting = UserSetting & Replace(MySpace.Space_User.getAttribute("set"&i),"|||","")
+					If i<4 Then UserSetting = UserSetting & "|||"
+				Next
+				Dvbbs.Execute("Update Dv_user Set Usersetting='"&Dvbbs.Checkstr(UserSetting)&"' where Userid="&MySpace.Sid)
+			End If
+		End If
+		For i=0 to 20
+			TempStr = Request.Form("set_"&i)
+			If TempStr="" Then TempStr = "0"
+			Setting = Setting & Replace(TempStr,",","")
+			If i<20 Then Setting = Setting & ","
+		Next
+	End If
+	'当选取风格
+	If S_id>0 Then
+		Set Rs = Dvbbs.execute("select top 1 s_css,s_path from Dv_Space_skin where id="&S_id)
+		If Not Rs.Eof Then
+			S_css = Rs(0)
+			Stylepath = Rs(1)
+		End If
+		Rs.Close
+	End If
+	'更新扩展频道数据,清理已删的频道
+	Dim Modules,TempMods,ModulesNode,Node
+	If Request.Form("modify")<>"1" Then
+		Modules = ""
+		TempMods = Request.Form("layoutleft")&","&Request.Form("layoutright")&","&Request.Form("layoutmain")
+		TempMods = Split(Lcase(TempMods),",")
+		For i = 0 to Ubound(TempMods)
+			If TempMods(i)<>"" Then
+				If Left(TempMods(i),4) = "mod_" Then
+					Modules = Modules & TempMods(i) & ","
+				End If
+			End If
+		Next
+		Set ModulesNode = MySpace.Space_Info.selectSingleNode("modules")
+		If ModulesNode.childnodes.length>0 Then
+			For Each Node in ModulesNode.childnodes
+				If Instr(","&Modules,","&Node.selectSingleNode("ModulePrefs").getAttribute("id")&",") = 0 Then
+					ModulesNode.RemoveChild(Node)
+				End If
+			Next
+		End If
+	End If
+	If Not IsObject(Conn) Then ConnectionDatabase
+	Sql = "Select Top 1 id,userid,username,title,intro,s_left,s_right,s_center,s_css,s_style,s_path,updatetime,[set],plusdb,cachedb,ownercachedb from [Dv_Space_user] where"
+	Sql = Sql & " Userid=" & MySpace.Sid
+	Set Rs=Dvbbs.iCreateObject("Adodb.RecordSet")
+	Rs.Open Sql,Conn,1,3
+	If Rs.Eof Then
+		Rs.AddNew
+		Rs(1) = Dvbbs.UserID
+		Rs(2) = Dvbbs.Membername
+		Rs(12) = "10,5,15,20,0,30,20,20,10,5,30,0,0,0,0,0,0,0,0,0,0"
+	End If
+	Rs(3) = Dvbbs.ChkBadWords(Request.Form("spacetitle"))
+	Rs(4) = Dvbbs.ChkBadWords(Request.Form("spaceintro"))
+	If Request.Form("modify")<>"1" Then
+		Rs(5) = Request.Form("layoutleft")
+		Rs(6) = Request.Form("layoutright")
+		Rs(7) = Request.Form("layoutmain")
+	End If
+	If Request.Form("modify")<>"1" Then
+		Rs(13) = ModulesNode.xml
+	End If
+	Rs(14) = ""	'清空cachedb
+	Rs(15) = ""	'ownercachedb清空
+	Rs(9) = layoutset
+	If Stylepath<>"" and Stylepath<>MySpace.Space_Info.getAttribute("s_path") Then
+		Rs(10) = Replace(Stylepath,".","")
+	Else
+		Rs(10) = MySpace.Space_Info.getAttribute("s_path")
+	End If
+	Rs(11) = Now()
+	If S_css<>"" Then
+		Rs(8) = S_css
+	End If
+	If Setting<>"" and Request.Form("modify")="1" Then
+		Rs(12) = Setting
+	End If
+	Rs.Update
+	Rs.Close
+	Set Rs = Nothing
+	
+	If Request.Form("modify")="1" Then
+		MySpace.Suc("<li>设置保存成功！</li>")
+	Else
+		Response.redirect "userspace.asp?sid="&MySpace.Sid
+	End If
+End Sub
+
+'保存风格修改
+Sub SaveSkin()
+	If Dvbbs.Userid=0 Then
+		Response.redirect "showerr.asp?ErrCodes=<li>请登陆后再进行修改。&action=NoHeadErr&autoreload=1"
+		Exit Sub
+	End If
+	If Not MySpace.Admin Then
+		Response.redirect "showerr.asp?ErrCodes=<li>你没有权限修改别人的个性首页。&action=NoHeadErr&autoreload=1"
+		Exit Sub
+	End If
+	Dim addtoskins,S_css
+	Dim Skin_name,Skin_Path
+	Dim Rs,Sql
+
+	Addtoskins = Request.Form("addtoskins")
+	S_css = Request.Form("s_css")
+	If S_css = "" Then
+		Response.redirect "showerr.asp?ErrCodes=<li>样式CSS不能为空&action=NoHeadErr&autoreload=1"
+		Exit Sub
+	End If
+
+	'推荐风格
+	If Addtoskins="1" Then
+		Skin_name = Trim(Dvbbs.CheckStr(Request.Form("skinname")))
+		If Skin_name="" or Len(Skin_name)>50 Then
+			Response.redirect "showerr.asp?ErrCodes=<li>风格名称不能为空或超过50个字符。&action=NoHeadErr&autoreload=1"
+			Exit Sub
+		End If
+		Set Rs = Dvbbs.Execute("Select Top 1 id from [Dv_Space_skin] where S_name='"&Skin_name&"' and s_userid<>"&MySpace.Sid)
+		If Not Rs.Eof Then
+			Response.redirect "showerr.asp?ErrCodes=<li>该风格名称已被占用，请重新定义风格名称。&action=NoHeadErr&autoreload=1"
+			Exit Sub
+		End If
+		Rs.Close
+		Skin_Path = MySpace.CreatStylePath
+		Sql = "Select Top 1 s_name,s_username,s_userid,s_css,s_path,s_lock from [Dv_Space_skin] where s_userid="&MySpace.Sid
+		If Not IsObject(Conn) Then ConnectionDatabase
+		Set Rs=Dvbbs.iCreateObject("Adodb.RecordSet")
+		Rs.Open Sql,Conn,1,3
+		If Rs.Eof Then
+			Rs.AddNew
+			Rs(1) = Dvbbs.Membername
+			Rs(2) = MySpace.Sid
+			Rs(4) = Skin_Path	's_path
+			If Skin_Path<>"" Then
+				MySpace.CopyFolder MySpace.Space_Info.getAttribute("s_path"),Skin_Path
+			End If
+		End If
+		Rs(0) = Skin_name
+		Rs(3) = S_css
+		Rs(5) = 0	'修改后将转为审核状态 0:审核，1：公共
+		Rs.update
+		Rs.Close
+	Else
+		If Instr(MySpace.Space_Info.getAttribute("s_path"),"userskins")=0 Then
+			Skin_Path = MySpace.CreatStylePath
+			MySpace.CopyFolder MySpace.Space_Info.getAttribute("s_path"),Skin_Path
+			Addtoskins = 1
+		Else
+			Skin_Path = MySpace.Space_Info.getAttribute("s_path")
+		End If
+	End If
+	'重写CSS文件
+	If Instr(Skin_Path,"userskins") Then
+		MySpace.WriteFile MySpace.Space_Skinpath&Skin_Path&"style.css",S_css
+	End If
+	Sql = "Select Top 1 s_css,s_path,cachedb,ownercachedb from [Dv_Space_user] where Userid=" & MySpace.Sid
+	If Not IsObject(Conn) Then ConnectionDatabase
+	Set Rs=Dvbbs.iCreateObject("Adodb.RecordSet")
+	Rs.Open Sql,Conn,1,3
+	If Not Rs.Eof Then
+		Rs(0) = S_css
+		If Addtoskins="1" Then
+			Rs(1) = Skin_Path
+		End If
+		Rs(2) = ""
+		Rs(3) = ""
+		Rs.update
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	MySpace.Suc("<li>设置保存成功！</li>")
+End Sub
+
+'检查节点是否存在，CLEAR：TRUE=删除下级所有子节点
+Function CheckNodes(Node,Clear)
+	Dim TempNode
+	If Node.hasChildNodes Then
+		If Clear Then
+			For Each TempNode in Node.childNodes
+				Node.RemoveChild(TempNode)
+			Next
+		End If
+	End If
+	Set CheckNodes = Node
+End Function
+
+'获取用户精华数据
+Sub Load_UserBest(Node)
+	Dim Rs,Sql,TopicNodes,TempNode,Nums
+	'Dv_BookMark
+	If Node is Nothing Then
+		Exit Sub
+	Else
+		Set Node = CheckNodes(Node,true)
+	End If
+	Nums = Dvbbs.CheckNumeric(MySpace.Space_Info.getAttribute("set_1"))
+	Sql = "Select top "&Nums&" id,Announceid,Rootid,boardid,title,PostUserName,PostUserid,dateandtime,expression from Dv_BestTopic where PostUserid="&MySpace.Sid&" order by id desc"
+	Set Rs = Dvbbs.Execute(sql)
+	If not Rs.Eof Then
+		SQL=Rs.GetRows(-1)
+		Set TopicNodes = Dvbbs.ArrayToxml(sql,rs,"row","userbest")
+	Else
+		Set TopicNodes = Nothing
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	If Not TopicNodes Is Nothing Then 
+		For Each TempNode in TopicNodes.documentElement.childNodes
+			If Len(TempNode.getAttribute("title"))>25 Then
+				TempNode.attributes.getNamedItem("title").text=Dvbbs.ChkBadWords(Left(Dvbbs.Replacehtml(TempNode.getAttribute("title")),25))&"..."
+			Else
+				TempNode.attributes.getNamedItem("title").text=Dvbbs.ChkBadWords(Dvbbs.Replacehtml(TempNode.getAttribute("title")))
+			End If
+			TempNode.attributes.getNamedItem("dateandtime").text=Formatdatetime(cdate(TempNode.getAttribute("dateandtime")),2)
+			TempNode.setAttribute "isbest",1
+		Next
+		TopicStats_Pic(TopicNodes.documentElement)
+		Node.appendChild(TopicNodes.documentElement)
+	End If
+End Sub
+
+'获取用户附件数据
+Sub Load_UserFiles(Node)
+	Dim Rs,Sql,TopicNodes,TempNode
+	'Dv_BookMark
+	If Node is Nothing Then
+		Exit Sub
+	Else
+		Set Node = CheckNodes(Node,true)
+	End If
+	Dim HideBoards,Nums
+	Nums = Dvbbs.CheckNumeric(MySpace.Space_Info.getAttribute("set_3"))
+
+	HideBoards = " Not F_BoardID in("&LockBoards()&") "
+	Sql = "Select top "&Nums&" F_ID,F_BoardID,F_AnnounceID,F_Filename,F_Readme,F_Type,F_Flag,F_Viewname,F_Username,F_DownNum,F_ViewNum,F_FileType,F_AddTime from [DV_Upfile] where "&HideBoards&" and F_Flag<>4 and  F_UserID ="&MySpace.Sid&"  order by F_ID desc"
+	'Response.Write sql
+	Set Rs = Dvbbs.Execute(sql)
+	If not Rs.Eof Then
+		SQL=Rs.GetRows(-1)
+		Set TopicNodes = Dvbbs.ArrayToxml(sql,rs,"row","userfile")
+	Else
+		Set TopicNodes = Nothing
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	If Not TopicNodes Is Nothing Then
+		Dim F_AnnounceID
+		If Dvbbs.Forum_Setting(76)="" Or Dvbbs.Forum_Setting(76)="0" Then Dvbbs.Forum_Setting(76)="UploadFile/"
+		If right(Dvbbs.Forum_Setting(76),1)<>"/" Then Dvbbs.Forum_Setting(76)=Dvbbs.Forum_Setting(76)&"/"
+		TopicNodes.documentElement.setAttribute "ishide",Dvbbs.Forum_Setting(75)
+		TopicNodes.documentElement.setAttribute "filepath",Dvbbs.Forum_Setting(76)
+		TopicNodes.documentElement.setAttribute "defaultfile",Dvbbs.Forum_Info(6)
+		For Each TempNode in TopicNodes.documentElement.childNodes
+			If Len(TempNode.getAttribute("f_readme"))>25 Then
+				TempNode.attributes.getNamedItem("f_readme").text=Dvbbs.ChkBadWords(Left(TempNode.getAttribute("f_readme"),25))&"..."
+			Else
+				TempNode.attributes.getNamedItem("f_readme").text=Dvbbs.ChkBadWords(TempNode.getAttribute("f_readme"))
+			End If
+			F_AnnounceID = Split(TempNode.getAttribute("f_announceid"),"|")
+			If Ubound(F_AnnounceID)>0 Then
+				TempNode.setAttribute "rootid",F_AnnounceID(1)
+				TempNode.setAttribute "announceid",F_AnnounceID(0)
+			End If
+			TempNode.removeAttribute "f_announceid"
+			TempNode.attributes.getNamedItem("f_addtime").text=Formatdatetime(cdate(TempNode.getAttribute("f_addtime")),2)
+		Next
+		Node.appendChild(TopicNodes.documentElement)
+	End If
+End Sub
+
+
+'获取用户短信数据
+Sub Load_UserMsg(Node)
+	Dim Rs,Sql,TopicNodes,TempNode,Nums
+	'Dv_BookMark
+	If Node is Nothing Then
+		Exit Sub
+	Else
+		Set Node = CheckNodes(Node,true)
+	End If
+	Nums = Dvbbs.CheckNumeric(MySpace.Space_Info.getAttribute("set_8"))
+	Sql = "Select top "&Nums&" id,sender,title,flag,sendtime from Dv_Message where incept='"&Dvbbs.Checkstr(MySpace.Space_Info.getAttribute("username"))&"' order by id desc"
+	Set Rs = Dvbbs.Execute(sql)
+	If not Rs.Eof Then
+		SQL=Rs.GetRows(20)
+		Set TopicNodes = Dvbbs.ArrayToxml(sql,rs,"row","usermsg")
+	Else
+		Set TopicNodes = Nothing
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	If Not TopicNodes Is Nothing Then 
+		For Each TempNode in TopicNodes.documentElement.childNodes
+			If Len(TempNode.getAttribute("title"))>25 Then
+				TempNode.attributes.getNamedItem("title").text=Dvbbs.ChkBadWords(Left(Dvbbs.Replacehtml(TempNode.getAttribute("title")),25))&"..."
+			Else
+				TempNode.attributes.getNamedItem("title").text=Dvbbs.ChkBadWords(Dvbbs.Replacehtml(TempNode.getAttribute("title")))
+			End If
+			TempNode.attributes.getNamedItem("sendtime").text=Formatdatetime(cdate(TempNode.getAttribute("sendtime")),2)
+		Next
+		Node.appendChild(TopicNodes.documentElement)
+	End If
+End Sub
+
+'获取用户收藏数据
+Sub Load_UserFav(Node)
+	Dim Rs,Sql,TopicNodes,TempNode,Nums
+	'Dv_BookMark
+	If Node is Nothing Then
+		Exit Sub
+	Else
+		Set Node = CheckNodes(Node,true)
+	End If
+	Nums = Dvbbs.CheckNumeric(MySpace.Space_Info.getAttribute("set_9"))
+	Sql = "Select top "&Nums&" url,topic,addtime from Dv_BookMark where username='"&Dvbbs.Checkstr(MySpace.Space_Info.getAttribute("username"))&"' order by id desc"
+	Set Rs = Dvbbs.Execute(sql)
+	If not Rs.Eof Then
+		SQL=Rs.GetRows(-1)
+		Set TopicNodes = Dvbbs.ArrayToxml(sql,rs,"row","userfav")
+	Else
+		Set TopicNodes = Nothing
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	If Not TopicNodes Is Nothing Then 
+		For Each TempNode in TopicNodes.documentElement.childNodes
+			If Len(TempNode.getAttribute("topic"))>25 Then
+				TempNode.attributes.getNamedItem("topic").text=Dvbbs.ChkBadWords(Left(Dvbbs.Replacehtml(TempNode.getAttribute("topic")),25))&"..."
+			Else
+				TempNode.attributes.getNamedItem("topic").text=Dvbbs.ChkBadWords(Dvbbs.Replacehtml(TempNode.getAttribute("topic")))
+			End If
+			TempNode.attributes.getNamedItem("addtime").text=Formatdatetime(cdate(TempNode.getAttribute("addtime")),2)
+
+		Next
+		Node.appendChild(TopicNodes.documentElement)
+	End If
+End Sub
+
+
+'获取用户好友数据
+'F_Mod 用户关系标识。 陌生人=0， 我的好友=1，黑名单=2 
+Sub Load_UserFriend(Node)
+	If Node is Nothing Then
+		Exit Sub
+	Else
+		Set Node = CheckNodes(Node,true)
+	End If
+	Dim Rs,Sql,TopicNodes,TempNode,Nums
+	Nums = Dvbbs.CheckNumeric(MySpace.Space_Info.getAttribute("set_10"))
+	Sql = "Select top "&Nums&" F_Friend,F_addtime,F_Mod From Dv_Friend where F_UserID="&MySpace.Sid&" order by F_mod,F_id desc"
+	Set Rs = Dvbbs.Execute(sql)
+	If not Rs.Eof Then
+		SQL=Rs.GetRows(-1)
+		Set TopicNodes = Dvbbs.ArrayToxml(sql,rs,"row","userfriend")
+	Else
+		Set TopicNodes = Nothing
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	If Not TopicNodes Is Nothing Then 
+		For Each TempNode in TopicNodes.documentElement.childNodes
+			TempNode.attributes.getNamedItem("f_friend").text=Dvbbs.ChkBadWords(TempNode.getAttribute("f_friend"))
+			TempNode.attributes.getNamedItem("f_addtime").text=Formatdatetime(cdate(TempNode.getAttribute("f_addtime")),2)
+		Next
+		Node.appendChild(TopicNodes.documentElement)
+	End If
+End Sub
+
+
+'获取主题数据
+Sub Load_UserTopic(Node)
+	'读取用户主题
+	If Node is Nothing  or MySpace.Sid=0 Then
+		Exit Sub
+	Else
+		Set Node = CheckNodes(Node,true)
+	End If
+	Dim Rs,Sql,SqlStr,TopicNodes,TempNode
+	Dim HideBoards
+	Dim Page,MaxRows,Endpage,CountNum,PageSearch,SqlString,i
+	PageSearch = ""
+	Endpage = 0
+	If MySpace.Act="topic" Then
+		MaxRows = Dvbbs.CheckNumeric(MySpace.Space_Info.getAttribute("set_6"))
+	Else
+		MaxRows = Dvbbs.CheckNumeric(MySpace.Space_Info.getAttribute("set_0"))
+	End If
+	CountNum = 0
+	Page = Request("Page")
+	If IsNumeric(Page) = 0 or Page="" Then Page=1
+	Page = Clng(Page)
+	HideBoards = " Not Boardid in ("&LockBoards()&") "
+	If MySpace.Act="topic" Then
+		Sql = "Select "
+	Else
+		Sql = "Select top "&MaxRows
+	End If
+	Sql  = Sql & " topicid,boardid,title,postusername,postuserid,dateandtime,child,hits,votetotal,lastpost,lastposttime,istop,isvote,isbest,locktopic,expression,topicmode,mode,getmoney,getmoneytype,usetools,issmstopic,hidename"
+	SqlStr = " From dv_Topic Where  "&HideBoards&" and PostUserID="&MySpace.Sid
+	Sql = Sql & SqlStr & " Order By TopicID Desc"
+	CountNum = Dvbbs.Execute("Select Count(topicid) "&SqlStr)(0)
+	Dvbbs.SqlQueryNum = Dvbbs.SqlQueryNum + 1
+	If Not IsObject(Conn) Then ConnectionDatabase
+	Set Rs = Dvbbs.iCreateObject ("adodb.recordset")
+	Rs.Open Sql,Conn,1,1
+	If Not Rs.Eof Then
+		'CountNum = Rs.RecordCount
+		If CountNum Mod MaxRows=0 Then
+			Endpage = CountNum \ MaxRows
+		Else
+			Endpage = CountNum \ MaxRows+1
+		End If
+		Rs.MoveFirst
+		If Page > Endpage Then Page = Endpage
+		If Page < 1 Then Page = 1
+		If Page >1 Then 				
+			Rs.Move (Page-1) * MaxRows
+		End if
+		SQL=Rs.GetRows(MaxRows)
+		Set TopicNodes = Dvbbs.ArrayToxml(sql,rs,"row","topic")
+	Else
+		Set TopicNodes = Nothing
+	End If
+	Rs.Close
+	Set Rs = Nothing
+
+	Dim Lastpost
+	If Not TopicNodes Is Nothing Then 
+		TopicNodes.documentElement.setAttribute "endpage",Endpage
+		TopicNodes.documentElement.setAttribute "maxrows",MaxRows
+		TopicNodes.documentElement.setAttribute "countnum",CountNum
+		TopicNodes.documentElement.setAttribute "page",Page
+		TopicNodes.documentElement.setAttribute "pagesearch",PageSearch
+		TopicStats_Pic(TopicNodes.documentElement)
+		For Each TempNode in TopicNodes.documentElement.childNodes
+			TempNode.attributes.getNamedItem("title").text=Dvbbs.ChkBadWords(Dvbbs.Replacehtml(TempNode.getAttribute("title")))
+			TempNode.attributes.getNamedItem("postusername").text=Dvbbs.ChkBadWords(TempNode.getAttribute("postusername"))
+			i=0
+			For each lastpost in Split(TempNode.getAttribute("lastpost"),"$")
+				TempNode.setAttribute "lastpost_"& i,lastpost
+				i=i+1
+			Next
+			TempNode.removeAttribute "lastpost"
+		Next
+		Node.appendChild(TopicNodes.documentElement)
+	End If
+End Sub
+
+'获取回复帖子数据
+Sub Load_UserReply(Node)
+	'读取用户回复
+	If Node is Nothing or MySpace.Sid=0 Then
+		Exit Sub
+	Else
+		Set Node = CheckNodes(Node,true)
+	End If
+	Dim Rs,Sql,SqlStr,TopicNodes,HideBoards,TempNode
+	Dim Page,MaxRows,Endpage,CountNum,PageSearch,SqlString,i
+	PageSearch = ""
+	Endpage = 0
+	If MySpace.Act="reply" Then
+		MaxRows = Dvbbs.CheckNumeric(MySpace.Space_Info.getAttribute("set_7"))
+	Else
+		MaxRows = Dvbbs.CheckNumeric(MySpace.Space_Info.getAttribute("set_2"))
+	End If
+	CountNum = 0
+	Page = Request("Page")
+	If IsNumeric(Page) = 0 or Page="" Then Page=1
+	Page = Clng(Page)
+	HideBoards = " Not Boardid in("&LockBoards()&") "
+	If MySpace.Act="reply" Then
+		Sql = "Select"
+	Else
+		Sql = "Select top "&MaxRows
+	End If
+	Sql = Sql + " Announceid,BoardID,rootid,topic,Expression,username,postuserid,dateandtime,IsBest,LockTopic,Body,Length"
+	SqlStr = " From "&Dvbbs.NowUseBbs&" Where parentid>0 and "&HideBoards&" and PostUserID="&MySpace.Sid
+	Sql = Sql + SqlStr +" Order By Announceid Desc"
+	Dvbbs.SqlQueryNum = Dvbbs.SqlQueryNum + 1
+	CountNum = Dvbbs.Execute("Select Count(Announceid) "+SqlStr)(0)
+	If Not IsObject(Conn) Then ConnectionDatabase
+	Set Rs = Dvbbs.iCreateObject ("adodb.recordset")
+	Rs.Open Sql,Conn,1,1
+	If Not Rs.Eof Then
+		'CountNum = Rs.RecordCount
+		If CountNum Mod MaxRows=0 Then
+			Endpage = CountNum \ MaxRows
+		Else
+			Endpage = CountNum \ MaxRows+1
+		End If
+		Rs.MoveFirst
+		If Page > Endpage Then Page = Endpage
+		If Page < 1 Then Page = 1
+		If Page >1 Then 				
+			Rs.Move (Page-1) * MaxRows
+		End if
+		SQL=Rs.GetRows(MaxRows)
+		Set TopicNodes = Dvbbs.ArrayToxml(sql,rs,"row","reply")
+	Else
+		Set TopicNodes = Nothing
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	If Not TopicNodes Is Nothing Then
+		TopicNodes.documentElement.setAttribute "endpage",Endpage
+		TopicNodes.documentElement.setAttribute "maxrows",MaxRows
+		TopicNodes.documentElement.setAttribute "countnum",CountNum
+		TopicNodes.documentElement.setAttribute "page",Page
+		TopicNodes.documentElement.setAttribute "pagesearch",PageSearch
+		TopicStats_Pic(TopicNodes.documentElement)
+		For Each TempNode in TopicNodes.documentElement.childNodes
+			If TempNode.getAttribute("topic")="" Then
+				TempNode.attributes.getNamedItem("topic").text = Left(Dvbbs.Replacehtml(TempNode.getAttribute("body")),30)
+			Else
+				TempNode.attributes.getNamedItem("topic").text=Dvbbs.ChkBadWords(Dvbbs.Replacehtml(TempNode.getAttribute("topic")))
+			End If
+			TempNode.removeAttribute "body"
+			TempNode.attributes.getNamedItem("username").text=Dvbbs.ChkBadWords(TempNode.getAttribute("username"))
+			i=0
+		Next
+		Node.appendChild(TopicNodes.documentElement)
+	End If
+End Sub
+
+Sub BoardList()
+	MySpace.XmlDoc.DocumentElement.appendChild Application(Dvbbs.CacheName&"_boardlist").documentElement.cloneNode(True)
+End Sub
+
+'限制访问的版块ID列表
+Function LockBoards()
+	Dim Nodes,ChildNode
+	Dim BoardList,i
+	If Dvbbs.Master or MySpace.Admin Then
+		LockBoards= "444"
+		Exit Function
+	End If
+	Set Nodes = Application(Dvbbs.CacheName&"_boardlist").documentElement.childNodes
+	i = 0
+	For Each ChildNode in Nodes
+		i = i+1
+		If ChildNode.getAttribute("checkout")="1" or ChildNode.getAttribute("hidden")=1 or ChildNode.getAttribute("checklock")=1 Then
+			BoardList = BoardList & ChildNode.getAttribute("boardid")
+			If i<Nodes.length Then BoardList =  BoardList & ","
+		End If
+	Next
+	If BoardList<>"" Then
+		BoardList = "444,777,"&BoardList
+	Else
+		BoardList= "444,777"
+	End If
+	If Right(BoardList,1)="," Then BoardList = Left(BoardList,Len(BoardList)-1)
+	LockBoards = BoardList
+End Function
+
+'添加帖子状态图标信息
+Sub TopicStats_Pic(Node)
+	Node.setAttribute "bestpic",MySpace.Space_Info.getAttribute("skinpath")&"bestpic.gif" 'Dvbbs.mainpic(5)
+	Node.setAttribute "votepic",MySpace.Space_Info.getAttribute("skinpath")&"votepic.gif" 'Dvbbs.mainpic(6)
+	Node.setAttribute "islockpic",MySpace.Space_Info.getAttribute("skinpath")&"islockpic.gif" 'Dvbbs.mainpic(4)
+	Node.setAttribute "hotpic",MySpace.Space_Info.getAttribute("skinpath")&"hotpic.gif" 'Dvbbs.mainpic(3)
+	Node.setAttribute "openpic",MySpace.Space_Info.getAttribute("skinpath")&"openpic.gif" 'Dvbbs.mainpic(2)
+	Node.setAttribute "ispic",MySpace.Space_Info.getAttribute("skinpath")&"openpic.gif" 'Dvbbs.mainpic(1)
+End Sub
+%>

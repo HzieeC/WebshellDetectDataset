@@ -1,0 +1,562 @@
+<!--#Include File="Conn.asp" -->
+<!--#Include File="Inc/Const.asp" -->
+<!--#Include File="Inc/Dv_ClsOther.asp" -->
+<%
+Dvbbs.LoadTemplates("usermanager")
+Dvbbs.Stats = "帖子评论"
+Dvbbs.ErrType = 1
+Dvbbs.mainsetting(0)="80%"
+Dvbbs.Name = "DvTalk"
+Dvbbs.Head()
+Dvbbs.ShowSQL=0 '设为1可显示所有SQL语句，方便调试
+'On Error Resume Next    '删除本行可显示错误信息，方便调试
+
+Dim DT_TopicId,DT_AnnounceId,HTML,DT_ErrFlag,DT_Save,DT_PostUserId,DT_PostUserName,DT_BoardId,DT_PostUserMoney,DT_PostUserWealth
+Dim DT_GiveType,DT_Content,DT_GiveCount,DT_Sql,DT_RS,DT_HadTalk,DT_OnlyGroup,DT_NoTalk,DT_Table,DT_LockTopic,DT_StopTopic
+
+'----------------------设置区域--------------------------------
+'Copyright (C) 2000 - 2008 Cndw.Com   适用 DVBBS 8.3.0正式版  Write By  雨·漫步 Modifly By Reoaiq
+Const DT_TalkTime = 3       '同一个用户最多可以评论多少次,-1为不限制，0为不准评论，正数为评论次数。
+Const DT_CanHTML = 0        '评论是否允许使用HTML标签,0为不允许，1为允许，为了安全考虑建议不允许！
+Const DT_CanTalkSelf = 1    '是否允许评论自己的帖子，0为不允许，1为允许
+Const DT_UStart = 1         '普通用户送钱起始值,如下面的DT_JustTalk设置为0则这里要大于0，如果DT_JustTalk设置为1则这里可以等于0，但不可为负！
+Const DT_UEnd = 10          '普通用户送钱最大值
+Const DT_MStart = -200        '版主和管理员扣钱下限
+Const DT_MEnd = 200          '版主和管理员加钱上限
+Const DT_Step = 1           '加扣钱列表框的步进值
+Const DT_JustTalk = 0       '是否允许只评论不送钱，0为不允许，1为允许。如果设为0则还需要调整DT_UStart为送钱的最小值不能为0，对管理员无效
+Const DT_OnlyMaster = 0     '是否只允许版主以上级别进行评论
+Const DT_OnlyGroupOn = 0    '只允许指定用户组评论开关，设置0为所有用户都可评论，设置1为限制用户组评论，需要将允许评论的用户组写入DT_OnlyGroup中
+DT_OnlyGroup = "1|2|3"      '只允许指定的用户组评论，填写用户组ID号,在后台用户组(等级)管理中可找到，用|分隔，不使用此限制请设置DT_OnlyGroupOn为0
+DT_NoTalk = "444|777"       '禁止评论的版面编号,用|分隔，444和777分别表示回收站状态和没有被审核的帖子
+'----------------------设置区域--------------------------------
+If DT_NoTalk <> "" Then
+    DT_NoTalk = Split(DT_NoTalk,"|")
+End If
+
+If DT_OnlyGroup <> "" Then
+    DT_OnlyGroup = Split(DT_OnlyGroup,"|")
+End If
+
+DT_ErrFlag = False
+DT_BoardId = Dvbbs.CheckNumeric(Request.QueryString("BoardId"))
+DT_TopicId = Dvbbs.CheckNumeric(Request.QueryString("TopicId"))
+DT_AnnounceId = Dvbbs.CheckNumeric(Request.QueryString("AnnounceId"))
+DT_Save = Dvbbs.CheckNumeric(Request.QueryString("DT_Save"))
+HTML = "<BR />"
+If Dvbbs.Master Or Dvbbs.Boardmaster Or Dvbbs.Superboardmaster Then
+    HTML = HTML & "<div align=center><a href=""javascript:;"" onclick=""parent.location.reload('DvTalk_del.asp?TopicId="& DT_TopicId &"&amp;AnnounceId="& DT_AnnounceId &"');"">管理评论</a></div>"
+End If
+
+Call main
+
+Set DT_RS = Nothing '防止出错，最后再设一次Nothing
+Response.Write HTML
+Dvbbs.Footer
+Dvbbs.PageEnd
+
+Function main()
+
+	Call CheckIsErr
+
+	If DT_ErrFlag Then Exit Function
+
+	If DT_Save = 0 Then
+
+		Call ShowForm
+
+	Else
+		Call SaveTalk
+
+		If DT_ErrFlag Then
+			Exit Function
+		Else
+			HTML = HTML & "<td><ul><li><font color='Green'>评论成功！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndpost()'; type='button' value='关闭' name='close'></td></tr></table>"
+		End If
+
+	End If
+
+End Function
+
+Function CheckIsErr() '检测权限及相关数据
+
+    '是否登录
+	If Dvbbs.UserId = 0 Or Dvbbs.UserId = "" Then
+		HTML = HTML & "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+		HTML = HTML & "<td><ul><li><font color=red>您没有登录或没有评论的权限！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		DT_ErrFlag = True
+		Exit Function
+	End If
+
+    '是否管理员以上级别
+    If DT_OnlyMaster <> 0 Then
+        If Not (Dvbbs.Master Or Dvbbs.Boardmaster Or Dvbbs.Superboardmaster) Then
+            HTML = HTML & "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+            HTML = HTML & "<td><ul><li><font color=red>管理员设置了只允许版主以上级别才可以评论！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+            DT_ErrFlag = True
+            Exit Function
+        End If
+    End If
+
+    '限制用户组评论
+    If DT_OnlyGroupOn <> 0 Then
+        Dim Group_Temp,Group_Flag '临时变量
+        Group_Flag = False
+        For Each Group_Temp In DT_OnlyGroup
+            If CStr(Group_Temp) = CStr(Dvbbs.UserGroupID) Then
+                Group_Flag = True
+                Exit For
+            End If
+        Next
+        If Group_Flag = False Then
+            HTML = HTML & "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+            HTML = HTML & "<td><ul><li><font color=red>您所在的用户组不能进行评论！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+            DT_ErrFlag = True
+            Exit Function
+        End If
+    End If
+
+    '主题ID是否正确
+	If DT_TopicId = 0 Then
+		HTML = HTML & "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+		HTML = HTML & "<td><ul><li><font color=red>主题ID参数错误，请不要提交非法参数！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		DT_ErrFlag = True
+		Exit Function
+	End If
+
+    '帖子ID是否正确
+	If DT_AnnounceId = 0 Then
+		HTML = HTML & "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+		HTML = HTML & "<td><ul><li><font color=red>帖子ID参数错误，请不要提交非法参数！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		DT_ErrFlag = True
+		Exit Function
+	End If
+
+    '版面是否正确
+    If IsArray(DT_NoTalk) Then
+        Dim ChkId_Temp '临时变量
+        For Each ChkId_Temp In DT_NoTalk
+            If CStr(ChkId_Temp) = CStr(DT_BoardId) Then
+                HTML = HTML & "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+                HTML = HTML & "<td><ul><li><font color=red>帖子所在版面已被管理员设置禁止评论！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+                DT_ErrFlag = True
+                Exit Function
+            End If
+        Next
+    End If
+
+End Function
+
+Function ShowForm() '显示评论表单
+	HTML = HTML & "<form action='DvTalk_index.asp?BoardId="& DT_BoardId &"&TopicId="& DT_TopicId &"&AnnounceId="& DT_AnnounceId &"&DT_Save=1' method='post'><table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+    If DT_JustTalk = 0 Then
+	    HTML = HTML & "<td style='width:20%;'>送给作者：</td><td><select style='width:100px;' id='DT_GiveType' name='DT_GiveType'><option value='1'>金币</option><option value='2'>金钱</option></select></td></tr>"
+    Else
+	    HTML = HTML & "<td style='width:20%;'>送给作者：</td><td><select style='width:100px;' id='DT_GiveType' name='DT_GiveType'><option value='0'>不送</option><option value='1'>金币</option><option value='2'>金钱</option></select></td></tr>"
+    End If
+	HTML = HTML & "<tr class='tablebody1'><td style='width:20%;'>赠送数量：</td><td><select style='width:100px;' id ='DT_GiveCount' name='DT_GiveCount'>" & vbCrLf
+
+	Dim i,Start_i,End_i,Step_i '临时变量
+
+	If Not (Dvbbs.Master Or Dvbbs.Boardmaster Or Dvbbs.Superboardmaster) Then
+		Start_i = CInt(DT_UStart)
+	Else
+		Start_i = CInt(DT_MStart)
+	End If
+
+	If Not (Dvbbs.Master Or Dvbbs.Boardmaster Or Dvbbs.Superboardmaster) Then
+		End_i = CInt(DT_UEnd)
+	Else
+		End_i = CInt(DT_MEnd)
+	End If
+
+	Step_i = CInt(DT_Step)
+
+	For i = Start_i to End_i step Step_i
+		If i = 0 Then
+			HTML = HTML & "<option value='"&i&"' selected>"&i&"</option>" & vbCrLf
+		Else
+			HTML = HTML & "<option value='"&i&"'>"&i&"</option>" & vbCrLf
+		End If
+	Next
+
+	HTML = HTML & "</select></td></tr>" & vbCrLf
+	HTML = HTML & "<tr class='tablebody1'><td style='width:20%;'>评论内容：</td><td><INPUT style='width:280px;' id='DT_Content' type='text' name='DT_Content' maxlength='250'></td></tr>" & vbCrLf
+	HTML = HTML & "<tr class='tablebody1'><td colspan='2' style='text-align:center;'><input class='input0' type='submit' value='提交'>&nbsp;&nbsp;<input class='input0' type='reset' value='重写'>&nbsp;&nbsp;<INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr>" & vbCrLf
+	HTML = HTML & "</table></form>" & vbCrLf
+
+End Function
+
+Function SaveTalk() '保存数据
+	DT_GiveType = Dvbbs.CheckNumeric(Request.Form("DT_GiveType"))
+	DT_GiveCount = Dvbbs.CheckNumeric(Request.Form("DT_GiveCount"))
+	DT_Content = Dvbbs.CheckStr(Request.Form("DT_Content"))
+    If DT_GiveCount = 0 Then
+        DT_GiveType = 0
+    End If
+    If DT_Content = "" Then
+        DT_Content = "无评论"
+    End If
+    If DT_CanHTML = 0 Then
+        DT_Content = Server.HtmlEncode(DT_Content)
+    End If
+
+	HTML = HTML & "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+
+    '检测评论长度
+	If Len(DT_Content) > 250 Then
+		HTML = HTML & "<td><ul><li><font color=red>您的评论太长，如需长篇大论请跟帖！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		DT_ErrFlag = True
+		Exit Function
+	End If
+
+    '检测用户金币或金钱是否足够支付赠送,版主和管理员不受限
+	If Not (Dvbbs.Master Or Dvbbs.Boardmaster Or Dvbbs.Superboardmaster) Then
+		Select Case DT_GiveType
+			Case 0:
+			Case 1
+				If Clng(Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@usermoney").text) < Clng(DT_GiveCount) Then
+					HTML = HTML & "<td><ul><li><font color=red>您的金币不足以支付本次赠送！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+					DT_ErrFlag = True
+					Exit Function
+				End If
+			Case 2
+				If Clng(Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userwealth").text) < Clng(DT_GiveCount) Then
+					HTML = HTML & "<td><ul><li><font color=red>您的金钱不足以支付本次赠送！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+					DT_ErrFlag = True
+					Exit Function
+				End If
+			Case Else
+				HTML = HTML & "<td><ul><li><font color=red>请不要提交非法数据！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+				DT_ErrFlag = True
+				Exit Function
+		End Select
+	End If
+
+    '取出帖子所在表
+    On Error Resume Next
+    DT_Sql = "select [PostTable],[LockTopic] from [Dv_Topic] where TopicID=" & DT_TopicId
+    Set DT_RS = Dvbbs.Execute(DT_Sql)
+
+    If Err.Number <> 0 Then
+
+		HTML = HTML & "<td><ul><li><font color=red>查询数据库发生错误："&Err.Description&"！(Code:001)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		Err.Clear
+		DT_RS.Close
+		Set DT_RS = Nothing
+		DT_ErrFlag = True
+		Exit Function
+
+	Else
+
+		If DT_RS.BOF And DT_RS.EOF Then
+
+			HTML = HTML & "<td><ul><li><font color=red>主题ID参数错误，请不要提交非法参数！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+			DT_RS.Close
+			Set DT_RS = Nothing
+			DT_ErrFlag = True
+			Exit Function
+
+		Else
+
+			DT_Table = DT_RS(0)
+            DT_LockTopic = DT_RS(1)
+			DT_RS.Close
+			Set DT_RS = Nothing
+
+		End If
+
+	End If
+
+    '取出帖子所属版面，作者，作者ID，原有评论内容
+    On Error Resume Next
+    DT_Sql = "select [BoardId],[PostUserId],[UserName],[Dv_Talk],[LockTopic] from ["&DT_Table&"] where AnnounceId=" & DT_AnnounceId
+    Set DT_RS = Dvbbs.Execute(DT_Sql)
+
+    If Err.Number <> 0 Then
+
+		HTML = HTML & "<td><ul><li><font color=red>查询数据库发生错误："&Err.Description&"！(Code:002)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		Err.Clear
+		DT_RS.Close
+		Set DT_RS = Nothing
+		DT_ErrFlag = True
+		Exit Function
+
+	Else
+
+		If DT_RS.BOF And DT_RS.EOF Then
+
+			HTML = HTML & "<td><ul><li><font color=red>主题ID参数错误，请不要提交非法参数！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+			DT_RS.Close
+			Set DT_RS = Nothing
+			DT_ErrFlag = True
+			Exit Function
+
+		Else
+
+            DT_BoardId = DT_RS(0)
+			DT_PostUserId = DT_RS(1)
+            DT_PostUserName = DT_RS(2)
+            DT_HadTalk = DT_RS(3)
+            DT_StopTopic = DT_RS(4)
+			DT_RS.Close
+			Set DT_RS = Nothing
+
+        End If
+
+	End If
+
+    '判断作者信息是否合法
+    If CLng(DT_PostUserId) = 0 And CInt(DT_GiveType) <> 0 Then
+
+			HTML = HTML & "<td><ul><li><font color=red>帖子作者为客人，不能赠送！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+            DT_ErrFlag = True
+			Exit Function
+
+    End If
+
+    '判断是否为自己
+    If DT_CanTalkSelf = 0 Then
+        If CLng(DT_PostUserId) = CLng(Dvbbs.UserId) Then
+
+                HTML = HTML & "<td><ul><li><font color=red>不能评论自己的帖子！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+                DT_ErrFlag = True
+                Exit Function
+
+        End If
+    End If
+
+    '判断版面是否允许评论，冗余检测，确保版面号不被伪造
+    If IsArray(DT_NoTalk) Then
+        Dim BoardId_Temp '临时变量
+        For Each BoardId_Temp In DT_NoTalk
+            If CStr(BoardId_Temp) = CStr(DT_BoardId) Then
+                HTML = HTML & "<td><ul><li><font color=red>帖子所在版面已被管理员设置禁止评论！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+                DT_ErrFlag = True
+                Exit Function
+            End If
+        Next
+    End If
+
+    '判断帖子状态，不正常帖子不准评论
+    If CInt(DT_LockTopic) <> 0 Or CInt(DT_StopTopic) <> 0 Then
+        HTML = HTML & "<td><ul><li><font color=red>帖子被锁定或没有通过审核！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+        DT_ErrFlag = True
+		Exit Function
+    End If
+
+	'检查用户是否已经评论超过指定次数,版主和管理员不受限
+	If Not (Dvbbs.Master Or Dvbbs.Boardmaster Or Dvbbs.Superboardmaster) Then
+
+        Dim Temp '暂存变量
+        If DT_HadTalk = "" Or IsNull(DT_HadTalk) Then
+            Temp = ""
+        Else
+    		Temp = Split(DT_HadTalk,"dispuser.asp?id=" & Dvbbs.UserId &"""")
+            If DT_TalkTime <> -1 And DT_TalkTime <= UBound(Temp,1) Then
+                HTML = HTML & "<td><ul><li><font color=red>管理员限制了每人对同一帖子只能评论"&DT_TalkTime&"次！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+                DT_ErrFlag = True
+                Exit Function
+            End If
+        End If
+
+	End If
+
+    '如果是扣分，则检测执行人的权限，再检测被扣用户，防止被扣成负钱   -_-|||
+    If Clng(DT_GiveCount) < 0 Then
+
+        If Not (Dvbbs.Master Or Dvbbs.Boardmaster Or Dvbbs.Superboardmaster) Then
+			HTML = HTML & "<td><ul><li><font color=red>只有管理员、版主、超级版主才可以使用负分！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+			DT_ErrFlag = True
+			Exit Function
+		Else
+            On Error Resume Next
+            DT_Sql = "select [UserMoney],[userWealth] from [Dv_User] where UserId=" & DT_PostUserId
+            Set DT_RS = Dvbbs.Execute(DT_Sql)
+
+            If Err Then
+                HTML = HTML & "<td><ul><li><font color=red>查询数据库发生错误："&Err.Description&"！(Code:003)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+                Err.Clear
+                DT_RS.Close
+                Set DT_RS = Nothing
+                DT_ErrFlag = True
+                Exit Function
+
+            Else
+
+                If DT_RS.BOF And DT_RS.EOF Then
+
+                    HTML = HTML & "<td><ul><li><font color=red>作者ID参数错误，请不要提交非法参数！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+                    DT_RS.Close
+                    Set DT_RS = Nothing
+                    DT_ErrFlag = True
+                    Exit Function
+
+                Else
+
+                    DT_PostUserMoney = DT_RS(0)
+                    DT_PostUserWealth = DT_RS(1)
+                    DT_RS.Close
+                    Set DT_RS = Nothing
+
+                End If
+
+            End If
+
+            Select Case DT_GiveType
+                Case 0:
+                Case 1
+                    If (Clng(DT_PostUserMoney) + Clng(DT_GiveCount)) < 0 Then
+                        HTML = HTML & "<td><ul><li><font color=red>作者的金币不够支付您的扣款！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+                        DT_ErrFlag = True
+                        Exit Function
+                    End If
+                Case 2
+                    If (Clng(DT_PostUserWealth) + Clng(DT_GiveCount)) < 0 Then
+                        HTML = HTML & "<td><ul><li><font color=red>作者的金钱不够支付您的扣款！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+                        DT_ErrFlag = True
+                        Exit Function
+                    End If
+                Case Else
+                    HTML = HTML & "<td><ul><li><font color=red>请不要提交非法数据！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+                    DT_ErrFlag = True
+                    Exit Function
+            End Select
+
+        End If
+    End If
+
+    Call  ModifyUser '修改用户金币/金钱信息
+	If DT_ErrFlag = True Then
+        Exit Function
+    End If
+
+	'更新Dv_bbs1表的Dv_Talk字段，将评论信息写入
+    Select Case DT_GiveType
+        Case 0
+            DT_Content = "<talk><name><a href=""dispuser.asp?id=" &  Dvbbs.UserId & """>" & Dvbbs.MemberName & "</a></name><give>无赠送</give><content>" & DT_Content & "</content><time>" & Now() & "</time></talk>" & vbCrLf & DT_HadTalk
+        Case 1
+            If CInt(DT_GiveCount) > 0 Then
+                DT_Content = "<talk><name><a href=""dispuser.asp?id=" & Dvbbs.UserId & """>" & Dvbbs.MemberName & "</a></name><give>金币<count type=""more"">+" & DT_GiveCount & "</count></give><content>" & DT_Content & "</content><time>" & Now() & "</time></talk>"  & vbCrLf & DT_HadTalk
+            Else
+                DT_Content = "<talk><name><a href=""dispuser.asp?id=" & Dvbbs.UserId & """>" & Dvbbs.MemberName & "</a></name><give>金币<count type=""less"">" & DT_GiveCount & "</count></give><content>" & DT_Content & "</content><time>" & Now() & "</time></talk>"  & vbCrLf & DT_HadTalk
+            End If
+        Case 2
+            If CInt(DT_GiveCount) > 0 Then
+                DT_Content = "<talk><name><a href=""dispuser.asp?id=" & Dvbbs.UserId & """>" & Dvbbs.MemberName & "</a></name><give>金钱<count type=""more"">+" & DT_GiveCount & "</count></give><content>" & DT_Content & "</content><time>" & Now() & "</time></talk>"  & vbCrLf & DT_HadTalk
+            Else
+                DT_Content = "<talk><name><a href=""dispuser.asp?id=" & Dvbbs.UserId & """>" & Dvbbs.MemberName & "</a></name><give>金钱<count type=""less"">" & DT_GiveCount & "</count></give><content>" & DT_Content & "</content><time>" & Now() & "</time></talk>"  & vbCrLf & DT_HadTalk
+            End If
+        Case Else
+            HTML = HTML & "<td><ul><li><font color=red>错误的参数，请勿提交非法参数！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+            DT_ErrFlag = True
+		    Exit Function
+    End Select
+
+    On Error Resume Next
+	DT_Sql = "update ["&DT_Table&"] set Dv_Talk='"& DT_Content &"' where AnnounceId=" & DT_AnnounceId
+	Dvbbs.Execute(DT_Sql)
+
+	If Err.Number <> 0 Then
+		HTML = HTML & "<td><ul><li><font color=red>写入数据库发生错误："&Err.Description&"！(Code:005)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		Err.Clear
+		DT_ErrFlag = True
+		Exit Function
+	End If
+
+End Function
+
+'更改用户数据
+Function ModifyUser()
+	Dim Temp_Uid
+	Temp_Uid = Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userid").text
+
+	'修改用户的金钱或金币数量
+	Select Case DT_GiveType
+		Case 0:Exit Function
+		Case 1
+			If Not (Dvbbs.Master Or Dvbbs.Boardmaster Or Dvbbs.Superboardmaster) Then
+                On Error Resume Next
+				DT_Sql="update [Dv_User] set UserMoney = UserMoney-"&DT_GiveCount&" where UserID="&Temp_Uid
+				Dvbbs.Execute(DT_Sql)
+
+				If Err.Number <> 0 Then
+					HTML = HTML & "<td><ul><li><font color=red>写入数据库发生错误："&Err.Description&"！(Code:006)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+					Err.Clear
+					DT_ErrFlag = True
+					Exit Function
+				End If
+
+				Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@usermoney").text = Clng(Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@usermoney").text) - DT_GiveCount
+			End If
+
+            On Error Resume Next
+			DT_Sql="update [Dv_User] set UserMoney = UserMoney+"&DT_GiveCount&" where UserID="&DT_PostUserId
+			Dvbbs.Execute(DT_Sql)
+
+			If Err.Number <> 0 Then
+				HTML = HTML & "<td><ul><li><font color=red>写入数据库发生错误："&Err.Description&"！(Code:007)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+				Err.Clear
+				DT_ErrFlag = True
+				Exit Function
+			End If
+
+		Case 2
+			If Not (Dvbbs.Master Or Dvbbs.Boardmaster Or Dvbbs.Superboardmaster) Then
+
+                On Error Resume Next
+				DT_Sql="update [Dv_User] set userWealth=userWealth-"&DT_GiveCount&" where UserID="&Temp_Uid
+				Dvbbs.Execute(DT_Sql)
+
+				If Err.Number <> 0 Then
+					HTML = HTML & "<td><ul><li><font color=red>写入数据库发生错误："&Err.Description&"！(Code:008)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+					Err.Clear
+					DT_ErrFlag = True
+					Exit Function
+				End If
+
+				Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userwealth").text = Clng(Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userwealth").text) - DT_GiveCount
+			End If
+
+            On Error Resume Next
+			DT_Sql="update [Dv_User] set userWealth = userWealth+"&DT_GiveCount&" where UserID="&DT_PostUserId
+			Dvbbs.Execute(DT_Sql)
+
+			If Err.Number <> 0 Then
+				HTML = HTML & "<td><ul><li><font color=red>写入数据库发生错误："&Err.Description&"！(Code:009)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+				Err.Clear
+				DT_ErrFlag = True
+				Exit Function
+			End If
+
+		Case Else
+			HTML = HTML & "<td><ul><li><font color=red>请不要提交非法数据！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+			DT_ErrFlag = True
+			Exit Function
+	End Select
+
+End Function
+%>
+
+<script language="JavaScript" type="text/javascript">
+<!--
+function wndClose(){
+	try{
+		parent.DvWnd.close();
+	}
+	catch(e){
+		window.close()
+	}
+}
+function wndpost(){
+    try
+    {
+        parent.location.reload();
+    }
+    catch (e)
+    {
+        wndClose();
+    }
+}
+//-->
+</script>

@@ -1,0 +1,262 @@
+﻿<!--#include file="../ACT_inc/ACT.User.asp"-->
+<%
+		Dim ACTCLS,ModeID
+		Dim Url,urlarr,ACT_L,UserHS,ACT_Lable,PerPageNumber,TypeContent,UserID,PayTF,classid
+		Dim CurrPage,ID,InfoPurview,ReadPoint,ClassPurview,ClassReadPoint,UserLoginTF,ChargeType,PitchTime,ReadTimes
+  	  Set ACT_L = New ACT_Code
+	  Set UserHS = New ACT_User
+ 		     Dim  SqlStr,TemplateContent,Rs,sqlstrs
+		     UserLoginTF=Cbool(UserHS.UserLoginChecked)
+   			 ID = rsql(actcms.s("id"))
+ 			 CurrPage=ChkNumeric(actcms.s("page"))
+			 ModeID=2
+ 			 If ModeID=0 Then ModeID=2
+   			 If CurrPage<=0 Then CurrPage=CurrPage+1
+ 			 If IsNumeric(ID)=True Then 
+				If Len(ID)<9 Then 
+					sqlstrs=" id="&ID
+				Else 
+					sqlstrs=" classid="&ID
+
+				End If 
+ 			 Else 
+ 					sqlstrs=" pinyin='"&ID&"'"
+			 End If
+ 			 Set Rs=actcms.actexe("Select * From "&ACTCMS.ACT_C(ModeID,2)&" where " & sqlstrs)
+			 If Rs.Eof And Rs.Bof Then
+				Call ACTCMS.Alert("您要查看的文章已删除。或是您非法传递注入参数!!",AcTCMS.Domain):Response.End
+			 ElseIf Rs("actlink") = 1 Then
+				 Response.Redirect Rs("FileName")
+			End If
+ 			 TypeContent=actcms.Htmljapan(actcms.HTMLCode(getcontentxml(modeid,id,rs("addtime"))))
+ 			 InfoPurview = Cint(rs("infopurview"))
+			 ReadPoint   = Cint(rs("readpoint"))
+			 ChargeType  = Cint(rs("chargetype"))
+			 PitchTime   = Cint(rs("pitchtime"))
+			 ReadTimes   = Cint(rs("readtimes"))
+			 UserID   = ChkNumeric(rs("userid"))
+			 classid   = rs("classid")
+			 ClassPurview= Cint(actcms.ACT_L(rs("classid"),19))
+			ClassReadPoint= Cint(actcms.ACT_L(rs("classid"),20))
+ 			
+			Dim ClassChargeType,ClassPitchTime,ClassReadTimes
+			
+	 
+
+
+
+
+
+			Select Case InfoPurview
+				
+				Case "0"
+					Call checkclassinfo()
+				Case "1"
+					IF UserLoginTF=false Then Call GetNoLoginInfo()
+				Case "2"
+  					If  ACTCMS.FoundInArr(rs("arrGroupID"),Trim(UserHS.GroupID),",")=False and readpoint=0  Then 
+						  die("对不起，你所在的用户组没有查看的权限1!")
+					 Else
+						  Call PayPointProcess()
+					End If 
+
+			End Select 
+ 		    If  ReadPoint>0 Then Call PayPointProcess()
+
+
+	 
+
+
+		Sub checkclassinfo()
+		IF  (ClassPurview=1 or ClassPurview=2 Or ClassReadPoint>0) Then 
+
+		 If UserLoginTF=false Then
+			    Call GetNoLoginInfo
+			  Else     
+ 			     ReadPoint  = Cint(actcms.ACT_L(classid,20))
+				 ChargeType = Cint(actcms.ACT_L(classid,21))
+				 PitchTime  = Cint(actcms.ACT_L(classid,22))
+				 ReadTimes  = Cint(actcms.ACT_L(classid,23))
+ 				 If ClassPurview=2 Then
+					If ACTCMS.FoundInArr(ACTCMS.ACT_L(classid,6),Trim(UserHS.GroupID),",")=false Then
+						  die("对不起，你所在的用户组没有查看的权限!")
+					 Else
+						Call PayPointProcess()
+					 End If
+				 Else    
+ 					 Call PayPointProcess()
+ 				End If
+			  End If
+		End If 
+
+
+		End Sub 
+
+
+
+	   '收费扣点处理过程
+	   Sub PayPointProcess()
+ 	       Dim UserChargeType:UserChargeType=UserHS.ChargeType
+	      	IF UserLoginTF=false Then Call GetNoLoginInfo()
+ 			 Select Case ChargeType
+			  Case 0:Call CheckPayTF("1=1")
+			  Case 1:Call CheckPayTF("datediff('h',AddDate," & NowString & ")<" & PitchTime)
+			  Case 2:Call PayConfirm()
+			  End Select
+  					   
+	   End Sub
+
+
+
+
+
+
+
+ 	   Sub GetNoLoginInfo()
+		   TypeContent="<div align=center>对不起，您还没有登录，本文至少要求本站的注册会员才可查看!</div><div align=center>如果您还没有注册，请<a href=""" & ACTCMS.actsys & "User/Reg.asp""><font color=red>点此注册</font></a>吧!</div><div align=center>如果您已是本站注册会员，赶紧<a href=""" & ACTCMS.actsys & "User/login.asp""><font color=red>点此登录</font></a>吧！</div>"
+	   End Sub
+
+	   '检查是否过期，如果过期要重复扣点券
+	   '返回值 过期返回 true,未过期返回false
+	   Sub CheckPayTF(Param)
+	    Dim SqlStr:SqlStr="Select top 1 Times From Point_Log_ACT Where ModeID=" & ModeID & " And InfoID=" & ID & " And PointFlag=2 and UserID=" & UserHS.UserID & " And (" & Param & ") Order By ID"
+   	    Dim RS:Set RS=Server.CreateObject("ADODB.RECORDSET")
+		RS.Open SqlStr,conn,1,3
+
+
+		IF RS.Eof And RS.Bof Then
+			Call PayConfirm()	
+		Else
+		       RS.Movelast
+			   RS(0)=RS(0)+1
+			   RS.Update
+		End IF
+		 RS.Close:Set RS=nothing
+	   End Sub
+	   
+
+	   Sub PayConfirm()
+	     If UserLoginTF=false Then Call GetNoLoginInfo():Exit Sub
+		 If ReadPoint<=0 Then Exit Sub
+
+			 If Cint(UserHS.Point)<ReadPoint Then
+					 TypeContent="<div style=""text-align:center"">对不起，你的可用" & actcms.ActCMS_Sys(24) & "不足!阅读本文需要 <span style=""color:red"">" & ReadPoint & "</font> " & actcms.ActCMS_Sys(25) & actcms.ActCMS_Sys(24) &",你还有 <span style=""color:green"">" & UserHS.Point & "</span> " & actcms.ActCMS_Sys(25) & actcms.ActCMS_Sys(24) & "</div>,请及时与我们联系！" 
+			 Else 
+ 					If ChkNumeric(actcms.s("pay"))="1" Then
+						Call ACTCMS.PointInOrOut(ModeID,ID,UserHS.UserID,2,ReadPoint,"系统","阅读文档收费",0)
+ 						 Dim PayPoint:PayPoint=(ReadPoint*ActCMS.ACT_L(classid,24))/100
+						 If PayPoint>0 Then
+						 
+						Call ACTCMS.PointInOrOut(ModeID,ID,UserID,1,PayPoint,"系统","阅读文档收费",0)
+
+ 						 End If
+ 						 
+					Else
+						TypeContent="<div align=center>阅读本文需要消耗 <font color=red>" & ReadPoint & "</font> " & actcms.ActCMS_Sys(25) & actcms.ActCMS_Sys(24) &",你目前尚有 <font color=green>" & UserHS.Point & "</font> " & actcms.ActCMS_Sys(25) & actcms.ActCMS_Sys(24) &"可用,阅读本文后，您将剩下 <font color=blue>" & UserHS.Point-ReadPoint & "</font> " & actcms.ActCMS_Sys(25) & actcms.ActCMS_Sys(24) &"</div><div align=center>你确实愿意花 <font color=red>" & ReadPoint & "</font> " & actcms.ActCMS_Sys(25) & actcms.ActCMS_Sys(24) & "来阅读此文吗?</div><div>&nbsp;</div><div align=center><a href=""?id="& ID & "&page=" & CurrPage &"&pay=1"">我愿意</a>    <a href=""" &AcTCMS.actsys & """>我不愿意</a></div>"
+					End If
+			 End If
+	   End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			 If rs("isAccept")<>0 Then
+				 If UserHS.UserName<>rs("ArticleInput") Then
+				   Call ACTCMS.Alert("对不起，该文章还没有通过审核!",AcTCMS.Domain)
+				   Response.End
+			     End If 
+			 End If
+			Application(AcTCMSN & "ACTCMS_TCJ_Type") = "ARTICLECONTENT"
+			Application(AcTCMSN & "classid") = rs("classid")
+			Application(AcTCMSN & "modeid")=ModeID
+			Application(AcTCMSN & "id")=rs("id")
+			 id = rs("id")
+			 classid=rs("classid")
+			 TemplateContent = LoadTemplate(rs("templateurl"))
+
+			Dim ContentArr
+			If actcms.ACT_C(modeid,18)="1" Then
+				 ContentArr=Split(getcontentxml(modeid,rs("id"),rs("addtime")),"[NextPage]")
+			Else 
+				If rs("content")<>"" Then 
+ 					ContentArr = Split(rs("content"),"[NextPage]")
+				Else 
+ 					ContentArr = Split("&nbsp;","[NextPage]")
+				End If 
+			End If 
+ 			 Dim TotalPage,N,ArticlePageStr
+			 TotalPage = Cint(UBound(ContentArr) + 1)
+			   If TotalPage > 1 Then
+					   If CurrPage = 1 Then
+						 ArticlePageStr = "<p><div Class=""PageCss"" align=center><a href="""&actcms.acturl&"art/index.asp?id=" & ID & "&page="&(CurrPage + 1) & """>下一页</a><br>"
+					   ElseIf CurrPage = TotalPage Then
+						 ArticlePageStr = "<p><div Class=""PageCss"" align=center><a href="""&actcms.acturl&"art/index.asp?id=" & ID & "&page="&(CurrPage - 1) & """>上一页</a><br>"
+					   Else
+						ArticlePageStr = "<p><div Class=""PageCss"" align=center><a href="""&actcms.acturl&"art/index.asp?id=" & ID & "&page="&(CurrPage - 1) & """>上一页</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="""&actcms.acturl&"art/index.asp?id=" & ID & "&page="&(CurrPage + 1) & """>下一页</a><br>"
+					   End If
+					   ArticlePageStr = ArticlePageStr & "本文共<b> " & TotalPage & " </b>页,第&nbsp;&nbsp;"
+				   For N = 1 To TotalPage
+						 If CurrPage = N Then
+						  ArticlePageStr = ArticlePageStr & "<b Class=""PageCss"">[" & N & "]</b>&nbsp;"
+						 Else
+						  ArticlePageStr = ArticlePageStr & "<a Class=""PageCss"" href="""&actcms.acturl&"art/index.asp?id=" & ID & "&page=" & N & """>[" & N & "]</a>&nbsp;"
+						 End If
+					  If TotalPage > 8 Then
+					   If N Mod 8 = 0 Then ArticlePageStr = ArticlePageStr & "<p>"
+					  End If
+					Next
+					ArticlePageStr = ContentArr(CurrPage-1) & ArticlePageStr & "页</div></p>"
+				 Else
+					If actcms.ACT_C(modeid,18)="1" Then
+						  ArticlePageStr = TypeContent
+					Else 
+						  ArticlePageStr = rs("content")
+					End If 
+				 End If
+  			 Dim newt:Set newt=New Cls_Template
+			 Dim userlogin:userlogin=CBool(UserHS.UserLoginChecked)
+			 If userlogin=True Then 
+				TemplateContent=rep(TemplateContent,"{fy:userlogin}","1=1")
+			 Else 
+				TemplateContent=rep(TemplateContent,"{fy:userlogin}","1=0")
+			 End If 
+ 			
+  
+			 If  Actcms.ACT_C(ModeID,13)=0 Then 
+				TemplateContent=rep(TemplateContent,"{fy:Commentcode}","1=1")
+			 Else 
+				TemplateContent=rep(TemplateContent,"{fy:Commentcode}","1=0")
+			 End If 
+			  
+			  TemplateContent=newt.GetContent(ModeID,rs,TemplateContent,ArticlePageStr)'自定义函数
+			If userlogin=True Then 
+				Dim usersqlstr,usrs
+				usersqlstr="select f.* from User_ACT F inner join "&ACTCMS.ACT_U(UserHS.UModeID,2)&" U on F.userid=U.userid where u.userid="&userhs.userid&"   order by u.userid desc"
+				Set usrs=actcms.actexe(usersqlstr)
+				If  Not   usrs.eof Then  TemplateContent = newt.GetUserInfo(TemplateContent,usrs)
+			Else 
+				TemplateContent = newt.GetnoUserInfo(TemplateContent,"")
+			End If 	 
+			  
+			  
+			  echo TemplateContent&vbcrlf & "<!-- Created Page at " & Now() & " ,By fycms.com ,ACT Content Management System(fycms)  -->" & vbCrLf
+ 		Call CloseConn
+  
+  %>

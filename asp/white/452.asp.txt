@@ -1,0 +1,75 @@
+<%
+' 创建列表页面
+Function CreateChannel(ByVal Cid, ByVal Page)
+    Dim Rs, Ns
+    Set Rs = DB("Select [ID],[Name],[ChildID],[ChildIDs],[Picture],[Keywords],[Description],[Domain],[Cid],[FatherID] From [{pre}Channel] Where [ID]=" & Cid, 1)
+    If Rs.EOF Then Response.Write "栏目不存在": Conn.Close: CreateChannel = False: Response.End
+
+    ' 读取对应模板
+    Dim NTemplate
+    If Len(Rs(2)) > 0 Then NTemplate = GetChannel(Cid, "Templatechannel") Else NTemplate = GetChannel(Cid, "Templateclass") ' 获取封面或列表模板
+
+    ' 缓存模板信息
+    Dim TPL, HTML, Tid, Turl, Tmp
+    Set TPL = New Cls_Template
+    If Not ChkCache(Cid & "_" & NTemplate) Then
+        Call TPL.Load(NTemplate) ' 载入模板
+		TPL.Content = ReplaceX(TPL.Content,"{field:title}",rs("name"))
+        TPL.Content = TPL.Parser_Tags("\{field:(.+?)\}", TPL.Content, Rs) ' 本栏目信息替换
+        TPL.Content = ReplaceX(TPL.Content, "{tag:sitepath}", getsitepath(rs("id"))) '#当前路径
+        Call TPL.Parser_My
+        Call TPL.Parser_Sys
+        Call TPL.Parser_Com
+        Call SetCache(Cid & "_" & NTemplate, TPL.Content)
+    End If
+    TPL.Content = GetCache(Cid & "_" & NTemplate) ' 获取缓存模板信息
+    TPL.Cid = Cid
+    TPL.Page = Page
+    Call TPL.Parser_Page
+    Call TPL.Parser_IF
+    HTML = TPL.Content
+    HTML = Replace(HTML,"{page}",page)
+    If Createhtml = 1 Then
+        ' 保存文件
+        'If Len(Rs(2)) > 0 Or Page = 1 Then
+        If Page = 1 Then
+            Call CreateFile(HTML, GetChannel(Cid, "Ruleindex") & "Index." & Defaultext) ' 保存封面
+        Else
+            Dim PageFile: PageFile = ReplaceX(GetChannel(Cid, "Ruleindex") & GetChannel(Cid, "Rulechannel"), "{page}", Page)
+            If Right(PageFile, 1) = "/" Then PageFile = PageFile & "Index." & Defaultext
+            Dim Tmps, TmpU: Tmps = Split(PageFile, "/"): TmpU = Tmps(UBound(Tmps))
+            If InStr(TmpU, ".") = 0 Then PageFile = PageFile & "." & Defaultext
+            Call CreateFile(HTML, PageFile) ' 创建列表页
+        End If
+        CreateChannel = HTML ' 也返回HTML
+    Else
+        CreateChannel = HTML ' 动态返回
+    End If
+    Set TPL = Nothing
+    Rs.Close: Set Rs = Nothing
+End Function
+
+' 获取列表分页记录数
+Function GetListSize(ByVal Tmp)
+    If Not ChkCache("GetListSize_" & Tmp) Then
+        Dim TPL, Reg, Matches, Match
+        Set TPL = New Cls_Template
+        Set Reg = New RegExp
+        Reg.Ignorecase = True
+        Reg.Global = True
+        Call TPL.Load(Tmp) ' 载入模板
+        Reg.Pattern = "<!--Page:\{(.+?)\}-->([\s\S]*?)<!--Page-->"
+        Set Matches = Reg.Execute(TPL.Content)
+        For Each Match In Matches
+            GetListSize = TPL.GetAttr(Match.SubMatches(0), "size", True)
+        Next
+        If Len(GetListSize) = 0 Then GetListSize = 10
+        If Not IsNumeric(GetListSize) Then GetListSize = 10 Else GetListSize = Int(GetListSize)
+        If GetListSize < 1 Then GetListSize = 10
+        Call SetCache("GetListSize_" & Tmp, GetListSize)
+    Else
+        GetListSize = Int(GetCache("GetListSize_" & Tmp))
+    End If
+End Function
+%>
+

@@ -1,0 +1,106 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<sf:ResourceGroup type="css">
+	<sf:Resource path="/js/dtree/dtree.css"/>
+</sf:ResourceGroup>
+<sf:ResourceGroup type="js">
+   <sf:Resource path="/js/jquery/jquery.js"/>
+	<sf:Resource path="/js/dtree/dtree.js"/>
+</sf:ResourceGroup>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title><fmt:message key='System.Role.Modify'></fmt:message></title>
+</head>
+<body>
+<input type="hidden" value="${contextPath}" id="contextPath">
+<input type="hidden" value="${contextPath}<ifa:constant fieldName='ROLE_INDEX_URL' namespace='cim'/>" id="indexUrl">
+<input type="hidden" value="${contextPath }<ifa:constant fieldName='ROLE_CHECK_NAME_URL' namespace='cim'/>" id="checkNameUrl">
+<input type="hidden" value="${contextPath}<ifa:constant fieldName='ROLE_UPDATE_URL' namespace='cim'/>" id="updateUrl">
+<div class="userInfo" id="searchCon">
+	<form:form id="resultForm" name="resultForm" commandName="role">
+         <h1><fmt:message key='System.Role.Modify'></fmt:message></h1> 
+         <table class="yTable margintop">   
+			<tr>
+			   <th align="right" width="120"><fmt:message key='System.Role.Name' ></fmt:message> </th>
+				<td align="left"><input name="name" id="name" type="text" value="<c:out value="${role.name}"/>"  class="inputbox" /></td>
+			</tr>
+			<!--
+						<tr>
+			    <th align="right" width="120">验证码：</th>
+				<td align="left">
+				<select name="authCodeFlag">  
+				 <option value="0" <c:if  test="${role.authCodeFlag eq 0}">selected</c:if> >停用</option>
+				 <option value="1" <c:if  test="${role.authCodeFlag eq 1}">selected</c:if>>启用</option>
+				</select>
+				</td>
+			</tr>
+			-->
+			<tr>
+			    <th align="right" width="120"><fmt:message key='System.Role.Level' ></fmt:message></th>
+				<td align="left">
+				<select name="level">  
+				 <option value="1" <c:if  test="${role.level eq '1'}">selected</c:if> ><fmt:message key='System.Role.Admin' ></fmt:message></option>
+				 <option value="2" <c:if  test="${role.level eq '2'}">selected</c:if> ><fmt:message key='System.Role.Normal' ></fmt:message></option>
+				</select>
+				</td>
+			</tr>
+			<tr>
+				<th align="right" width="120"><fmt:message key='System.Role.Alis' ></fmt:message> </th>
+				<td align="left"><input name="alias" id="alias" type="text" value="<c:out value="${role.alias}"/>" style="width:200px "/></td>
+			</tr>
+			<tr>
+				<th align="right" width="120"><fmt:message key='System.Role.Remark' ></fmt:message> </th>
+				<td align="left" ><textarea name="remark" id="remark" cols="45" rows="5" ><c:out value="${role.remark}"/></textarea></td>
+			</tr>
+		</table>
+	    <c:forEach items="${selectedAuthority}" var="authority">
+			<input type="hidden"  name="authorityCode" value="${authority.code}"/>
+	    </c:forEach>
+		<div ><fmt:message key='System.Role.Authority.Menu' ></fmt:message> </div>
+	    <div class="dtree">
+		<script type="text/javascript">
+		var tree = new dTree('tree','${contextPath}');
+		tree.config.useSelection=false;
+		tree.config.useCookies=false;
+		tree.config.check=true;
+		tree.add('0','-1','<fmt:message key="System.Authority" />');
+		var url = "${contextPath}<ifa:constant fieldName='AUTHORITY_INDEX_LIST_URL' namespace='cim'/>";
+		jQuery.ajax( {
+			type:"get",
+			url : url+".json",
+			dataType : "json",
+			timeout : 5000,
+			async:false,
+			success:function(response) {
+			jQuery.each(response.authorityList,function(i,node){	
+					 tree.add(node.code,node.parentCode,i18n[node.name]);//+" [ "+ node.remark +" ]"
+				});
+			},
+			error : function() {
+				$.msg.alert(i18n['Page.Dialog.title'],i18n['System.Error']);
+			}
+		});
+		document.write(tree);
+		tree.co(0).checked=true;
+		jQuery(':input[name="authorityCode"]').each(function(i,obj){	
+			tree.co(jQuery(obj).val()).checked=true;
+		});
+		</script>
+		</div> 
+		<div class="Btn">
+		     <a href="#" class="bb" id="edit"><div><span><fmt:message key='Entity.Operation.save' ></fmt:message> </span></div></a>
+		     <a href="#" class="bb" id=index><div><span><fmt:message key='Entity.Operation.cancel' ></fmt:message> </span></div></a>
+		</div>
+		<input type="hidden" id="nodeIds" name="nodeIds">
+		<input type="hidden" id="roleCode" name="code" value="<c:out value="${role.code}"/>"/>
+		<input type="hidden"  name="_method" value="PUT">
+	</form:form>
+</div>
+<script type="text/javascript">
+	seajs.use("${scriptBasePath}/cimjs/role/edit.js");
+</script>
+</body>
+</html>

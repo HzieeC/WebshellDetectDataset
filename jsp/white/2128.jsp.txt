@@ -1,0 +1,228 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@include file="/websrc/page/common/jsloader.jsp"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String openRegister = (String)request.getAttribute("openRegister");
+	%>
+	<title>Anynote</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			Ext.QuickTips.init();
+			Ext.state.Manager.setProvider(new Ext.state.CookieProvider());
+			// 设置主题
+			var theme = Ext.state.Manager.get('Anynote_theme');
+			if(theme && theme!=''){
+				Anynote.changeTheme(theme);
+			}else{
+				Anynote.changeTheme(Anynote.THEME_DEFAULT);
+			}
+			// 用户登录Form
+			var loginFormPanel = new Ext.FormPanel({
+				id: 'loginFormPanel',
+		        labelWidth: 40,
+		        border: false,
+		        buttonAlign: 'center',
+		        style: 'border-bottom:0px;',
+		        bodyStyle: 'padding:10px;background-color:transparent;',
+		        url: '<%=baseUrl %>/loginAction.do?method=login',
+	            items:[new Ext.form.TextField ({// 账号
+	            		inputType: 'textfiled',
+		                id: 'userId',
+		                name: 'userId',
+		                fieldLabel: '账号',
+		                anchor:'98%',
+		                allowBlank:false,
+		                maxLength: 20,
+		               	listeners:{
+							specialKey:function(field, e){
+								if(e.getKey() == Ext.EventObject.ENTER){
+									Ext.getCmp("login-button").handler();
+								}
+							}
+		               	}
+		           }),new Ext.form.TextField ({// 密码
+		        	   inputType: 'password',
+		               id:'password',
+		               name:'password',
+		               fieldLabel:'密码',
+		               anchor:'98%',
+		               allowBlank:false,
+		               maxLength: 20,
+		               listeners:{
+							specialKey:function(field, e){
+								if(e.getKey() == Ext.EventObject.ENTER){
+									Ext.getCmp("login-button").handler();
+								}
+							}
+		               }
+				}),{
+		               xtype: 'checkboxgroup',
+		               itemCls: 'x-check-group-alt',
+		               columns: 3,
+		               items: [
+		                   {boxLabel: '记住账号', name: 'rememberUserId',
+		                	   listeners: {
+		                	   		check: function(){
+										if(!this.getValue()){
+											var form = loginFormPanel.getForm();
+											form.findField('autoLogin').setValue(false);
+										}
+									}
+		                	   }
+			               },
+		                   {boxLabel: '记住密码', name: 'rememberPwd',
+		                	   listeners: {
+			            	   		check: function(){
+										if(!this.getValue()){
+											var form = loginFormPanel.getForm();
+											form.findField('autoLogin').setValue(false);
+										}
+									}
+		                	   }
+			               },
+		                   {boxLabel: '自动登录', name: 'autoLogin',
+		                	   listeners: {
+			            	   		check: function(){
+										if(this.getValue()){
+											var form = loginFormPanel.getForm();
+											form.findField('rememberUserId').setValue(true);
+											form.findField('rememberPwd').setValue(true);
+										}
+									}
+		                	   }
+			               }
+		               ]
+		           }],
+				buttons: [{
+					id:'login-button',
+                    text:'登录',
+                    handler: function(){
+                    	var form = loginFormPanel.getForm();
+						var userId = $("#userId").val();
+						var password = $("#password").val();
+						if(userId=="" || password == ""){
+							Ext.Msg.alert('提示', '请输入用户名和密码.');
+						}else{
+							// 发送请求
+							Anynote.ajaxRequest({
+								baseUrl: '<%=baseUrl %>',
+								baseParams: {userId:userId, password:password},
+								action: '/loginAction.do?method=login',
+								callback: function(jsonResult){
+									// 设置Cookie
+									var rememberUserId = form.findField('rememberUserId').getValue();
+									var rememberPwd = form.findField('rememberPwd').getValue();
+									var autoLogin = form.findField('autoLogin').getValue();
+									if(rememberUserId){
+										Ext.state.Manager.set('Anynote_userId', userId);
+									}else{
+										Ext.state.Manager.set('Anynote_userId', '');
+									}
+									if(rememberPwd){
+										Ext.state.Manager.set('Anynote_password', password);
+									}else{
+										Ext.state.Manager.set('Anynote_password', '');
+									}
+									Ext.state.Manager.set('Anynote_autoLogin', autoLogin);
+									Ext.state.Manager.set('Anynote_hasLocked', false);
+									Ext.Msg.wait("正在登录，请稍等...","","");
+									location.href="<%=baseUrl %>/websrc/page/index.jsp";
+								},
+								showWaiting: true
+							});
+						}
+                	}
+                },{
+                    text: '取消',
+                    handler: function(){
+                		loginFormPanel.getForm().reset();
+                    }
+                }]
+		    });
+
+		    // 状态栏HTMl
+		    var bbarHtml = "<a href='javascript:resetPwd();'>忘记密码？</a>";
+			if('<%=openRegister%>'=='true'){
+				bbarHtml = bbarHtml + "&nbsp;&nbsp;<a href='javascript:register();'>注册</a>";
+			}
+			// 用户登录窗口
+			var loginWindow = new Ext.Window({
+				renderTo: 'login-win-div',
+				id: 'loginWindow',
+				title: '用户登录',
+				width: 300,
+				height: 180,
+				closeAction: 'hide',
+				maximizable: false,
+				resizable: false,
+				closable: false,
+				draggable: false,
+				layout:'fit',
+				plain: true,
+				buttonAlign: 'center',
+				items: [loginFormPanel],
+				bbar: new Ext.Panel({
+					html: bbarHtml,
+					border: false,
+					bodyStyle: 'background-color:transparent;padding:3px 10px;'
+				})
+			}).show();
+
+			// 根据cookie初期化form
+			initLoginForm();
+
+			// 根据cookie初期化form
+		    function initLoginForm(){
+		    	// 取得cookie
+				var cookieUserId = Ext.state.Manager.get('Anynote_userId');
+				var cookiePwd = Ext.state.Manager.get('Anynote_password');
+				var cookieAutoLogin = Ext.state.Manager.get('Anynote_autoLogin');
+				var form = loginFormPanel.getForm();
+				// 账号
+				if(cookieUserId && cookieUserId!=''){
+					form.findField('userId').setValue(cookieUserId);
+					form.findField('rememberUserId').setValue(true);
+				}
+				// 密码
+				if(cookiePwd && cookiePwd!=''){
+					form.findField('password').setValue(cookiePwd);
+					form.findField('rememberPwd').setValue(true);
+				}
+				// 自动登录
+				form.findField('autoLogin').setValue(cookieAutoLogin);
+				if(cookieAutoLogin==true){
+					Ext.getCmp("login-button").handler();
+				}
+			}
+
+			// 窗口大小改变时，从新设置窗口位置
+		    window.onresize = function() {    
+				var left = ($(window).width() - loginWindow.getWidth())/2;
+				loginWindow.setPosition(left);
+			};
+		});
+
+		// 忘记密码
+		function resetPwd(){
+			// 转到登录页面
+			location.href="<%=baseUrl %>/websrc/page/user/resetPwd.jsp";
+		}
+		// 注册
+		function register(){
+			// 转到登录页面
+			location.href="<%=baseUrl %>/websrc/page/user/register.jsp";
+		}
+	</script>
+</head>
+<body class="x-border-layout-ct" style="position:static;overflow:hidden;">
+	<table id="logo-table">
+		<tr>
+			<td align="center" height="40"><a href="<%=baseUrl %>"><img src="<%=baseUrl %>/websrc/image/Anynote.png"></img></a></td>
+		</tr>
+	</table>
+	<div id="login-win-div"></div>
+</body>
+</html>

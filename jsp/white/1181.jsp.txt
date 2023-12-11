@@ -1,0 +1,117 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page" />
+<%@page import="com.bizoss.trade.ts_module.*" %>
+<%@page import="java.util.*" %>
+<html>
+  <head>
+    <title>模型管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+		<script type="text/javascript" src="/js/thickbox.js"></script>
+	    <script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+		<script type="text/javascript" src="index.js"></script>
+	
+		<script src="/js/jquery.js" type="text/javascript"></script>
+		
+       <script>
+	 			 jQuery.noConflict();
+	 	 </script>
+</head>
+  <% 
+  	String module_id="";
+  	if(request.getParameter("module_id")!=null) module_id = request.getParameter("module_id");
+  	Ts_moduleInfo ts_moduleInfo = new Ts_moduleInfo();
+  	List list = ts_moduleInfo.getListByPk(module_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String module_name="",module_code="",article_temp="",article_save="",db_name="",is_sub="",module_no="";
+  	if(map.get("module_name")!=null) module_name = map.get("module_name").toString();
+  	if(map.get("module_code")!=null) module_code = map.get("module_code").toString();
+  	if(map.get("article_temp")!=null) article_temp = map.get("article_temp").toString();
+  	if(map.get("article_save")!=null) article_save = map.get("article_save").toString();
+  	if(map.get("db_name")!=null) db_name = map.get("db_name").toString();
+  	if(map.get("is_sub")!=null) is_sub = map.get("is_sub").toString();
+	if(map.get("module_no")!=null) module_no = map.get("module_no").toString();
+	
+  	if(request.getParameter("article_temp")!=null) article_temp = request.getParameter("article_temp");
+  %>
+<body>
+	<h1>修改模型</h1>
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="13%">
+				模型名称<font color="red">*</font>
+			</td>
+			<td><input name="module_name" id="module_name" value="<%=module_name%>" type="text" maxlength="50"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				模型编码<font color="red">*</font>
+			</td>
+			<td><input name="module_code" id="module_code" value="<%=module_code%>" type="text" maxlength="50"/></td>
+		</tr>
+
+		<tr>
+			<td align="right" width="10%">
+				模型编号<font color="red">*</font>
+			</td>
+			<td><input name="module_no" id="module_no" value="<%=module_no%>" type="text" maxlength="2" size="4"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				详细页模板<font color="red">*</font>
+			</td>
+			<td>
+				<input name="article_temp" id="article_temp" value="<%=article_temp%>" type="text" maxlength="200" size="50" readonly />
+				<input type="button" onClick="choiceFile('','<%=module_id %>')" value="浏 览" class="buttab"/>		
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				详细页生成地址<font color="red">*</font>
+			</td>
+			<td><input name="article_save" id="article_save" value="<%=article_save%>" type="text" maxlength="200" size="50"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				数据库表名<font color="red">*</font>
+			</td>
+			<td><input name="db_name" id="db_name" type="text" value="<%=db_name%>" maxlength="20"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				是否支持订阅<font color="red">*</font>
+			</td>
+			<td>
+				支持<input name="is_sub" id="is_sub" type="radio" value="1" <%if(is_sub.equals("1"))out.println("checked");%>/>&nbsp;
+				不支持<input name="is_sub" id="is_sub" type="radio" value="2" <%if(is_sub.equals("2"))out.println("checked");%>/>
+			</td>
+		</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="2238" />
+				<input type="hidden" name="module_id" value="<%=module_id %>" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="return checkSub();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

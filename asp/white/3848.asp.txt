@@ -1,0 +1,930 @@
+<!--#include file="const.asp"-->
+<!--#include file="../inc/cls_xmlhttp.asp"-->
+<!--#include file="collection.asp"-->
+<%
+Dim m_strPreviewimg,i
+Dim PaginalList,IsPagination,startid,lastid
+Dim strLeachName,RemoveFile
+
+Dim Action,CacheID,d,p,sType,totalnumber,strFreshLink
+Dim HttpArray,ListArray,TaskDone
+Dim m_intClassID,m_intRank,m_intPlugin,m_intsoftid
+Dim IsUpdates,blnUpdate,m_strMessage,m_strFullTitle
+Dim m_strFileName,FullFilePath,m_strUploadPicDir,UploadPicPath
+Dim dwFileByteSize
+
+If Not ChkAdmin("Collection_"&ChannelID) Then
+	Call Transfer_error()
+End If
+
+ItemID=NewAsp.ChkNumeric(Request("ItemID"))
+CacheID=NewAsp.ChkNumeric(Request("CacheID"))
+sType=NewAsp.ChkNumeric(Request("stype"))
+totalnumber=NewAsp.ChkNumeric(Request("totalnumber"))
+p=NewAsp.ChkNumeric(Request("p"))
+Action = LCase(Request("action"))
+d=Request("d")
+If d="" Then d=Now()
+If p=0 Then p=1
+TaskDone=False
+
+m_strUploadPicDir = Replace(Trim(NewAsp.ChannelSetting(7)), "\", "/")
+If Len(m_strUploadPicDir) < 2 Then m_strUploadPicDir = "UploadPic/"
+If Right(m_strUploadPicDir,1) <> "/" Then m_strUploadPicDir = m_strUploadPicDir & "/"
+UploadPicPath=NewAsp.InstallDir & NewAsp.ChannelDir & m_strUploadPicDir
+
+Select Case Trim(Action)
+Case "saveurl"
+	Call showmain()
+	Call showScript()
+	Call LoadListTemplate(listid)
+	Call FindHttpList()
+	Response.Write "<script>$('DetailedText').innerHTML='友情提示！收集URL列表完成。';</script>"
+	Response.Write "<script>$('submit_button').disabled=false;$('submit_button2').disabled=false;</script>"
+	Response.Flush
+Case "begin"
+	Call showmain()
+	Call showScript()
+	Call LoadListTemplate(listid)
+	Call FindHttpList()
+	Application(NewAsp.CacheName&"_collectionlist_"&ChannelID&"_"&CacheID)=m_strLinkArry
+	Response.Write "<script language='JavaScript'>" & vbNewLine
+	Response.Write "function reFresh(){window.location.href='admin_savedata.asp?action=savedata&ChannelID="&ChannelID&"&ItemID="&ItemID&"&stype=0';}" & vbNewLine
+	Response.Write "setTimeout('reFresh()',1000);" & vbNewLine
+	Response.Write "</script>" & vbNewLine
+	Response.Flush
+Case "savedata"
+	Call showsetting()
+	If TaskDone=False Then
+		Call showmain()
+		Call showScript()
+		Call LoadListTemplate(listid)
+		Call FindHttpData()
+		Call showDetailed()
+		Call savedata()
+		If TaskDone=False Then
+			Response.Write "<script language='JavaScript'>" & vbNewLine
+			Response.Write "function reFresh(){window.location.href='"&strFreshLink&"';}" & vbNewLine
+			Response.Write "setTimeout('reFresh()',"&setInterval&");" & vbNewLine
+			Response.Write "</script>" & vbNewLine
+			Response.Flush
+		End If
+	End If
+Case Else
+	'Call showmain()
+	'admin_savedata.asp?action=savedata&ChannelID=2&ItemID=21&CacheID=21&stype=1
+End Select
+
+Sub showsetting()
+	If sType=1 Then
+		HttpArray=Application(NewAsp.CacheName&"_collectionlist_"&ChannelID&"_"&CacheID)
+		If IsArray(HttpArray) Then
+			totalnumber=UBound(HttpArray)
+			If totalnumber>0 And p<=totalnumber Then
+				ListArray=Split(HttpArray(p), "|")
+				m_strFindLink=ListArray(0)
+				ItemID=CLng(ListArray(1))
+				m_intsoftid=CLng(ListArray(2))
+				m_intClassID=CLng(ListArray(3))
+				m_intRank=CLng(ListArray(4))
+				m_intPlugin=CLng(ListArray(5))
+				ListArray=Null
+			Else
+				TaskDone=True
+				Response.Write "<script>showtitle('采集任务完成');</script>" & vbCrLf
+				Response.Flush
+				Application.Lock
+				Application.Contents.Remove(NewAsp.CacheName&"_collectionlist_"&ChannelID&"_"&CacheID)
+				Application.unLock
+			End If
+		End If
+	Else
+		CacheID=ItemID
+		HttpArray=Application(NewAsp.CacheName&"_collectionlist_"&ChannelID&"_"&CacheID)
+		If IsArray(HttpArray) Then
+			totalnumber=UBound(HttpArray)
+			If totalnumber>0 And p<=totalnumber Then
+				m_strFindLink=HttpArray(p)
+				m_intsoftid=0
+				m_intClassID=0
+				m_intRank=0
+				m_intPlugin=0
+			Else
+				TaskDone=True
+				Response.Write "<script>showtitle('采集任务完成');</script>" & vbCrLf
+				Response.Flush
+				Application.Lock
+				Application.Contents.Remove(NewAsp.CacheName&"_collectionlist_"&ChannelID&"_"&CacheID)
+				Application.unLock
+			End If
+		End If
+	End If
+	strFreshLink="admin_savedata.asp?action="&Action&"&ChannelID="&ChannelID&"&ItemID="&ItemID&"&d="&d&"&CacheID="&CacheID&"&stype="&sType&"&p="&p+1&""
+End Sub
+
+Sub showmain()
+	Dim Node
+	If Not IsObject(Application(NewAsp.CacheName&"_softconfig")) Then Call LoadSoftConfig()
+	Set Node=Application(NewAsp.CacheName&"_softconfig").documentElement.selectSingleNode("row")
+	If Not Node is Nothing Then
+		UseDownload=CLng(Node.selectSingleNode("@usedownload").text)
+		RepeatDeal=CLng(Node.selectSingleNode("@repeatdeal").text)
+		isProgress=CLng(Node.selectSingleNode("@isprogress").text)
+		TrueAddress=CLng(Node.selectSingleNode("@trueaddress").text)
+		setInterval=CLng(Node.selectSingleNode("@setinterval").text)
+		MaxDownSize=CLng(Node.selectSingleNode("@maxdownsize").text)
+		AllowDownExt=Trim(Node.selectSingleNode("@allowdownext").text&"")
+		FilePrefix=Trim(Node.selectSingleNode("@fileprefix").text&"")
+		FileSuffix=Trim(Node.selectSingleNode("@filesuffix").text&"")
+
+		isZipFile=CLng(Node.selectSingleNode("@iszipfile").text)
+		ZipMode=CLng(Node.selectSingleNode("@zipmode").text)
+		ZipTimeout=CLng(Node.selectSingleNode("@ziptimeout").text)
+		MaxZipsize=CLng(Node.selectSingleNode("@maxzipsize").text)
+		AllowFileExt=Trim(Node.selectSingleNode("@allowfileext").text&"")
+		WinRarPath=Trim(Node.selectSingleNode("@winrarpath").text&"")
+		DownFilePath=Trim(Node.selectSingleNode("@downfilepath").text&"")
+		ReadmePath=Trim(Node.selectSingleNode("@readmepath").text&"")
+		ReadmeFile=Trim(Node.selectSingleNode("@readmefile").text&"")
+		RarNoteFile=Trim(Node.selectSingleNode("@rarnotefile").text&"")
+	End If
+	Set Node=Nothing
+
+	If Not IsObject(Application(NewAsp.CacheName&"_softitem_"&ChannelID&"_"&ItemID)) Then Call LoadItemSetting(ItemID)
+	Set Node=Application(NewAsp.CacheName&"_softitem_"&ChannelID&"_"&ItemID).documentElement.selectSingleNode("row")
+	If Not Node is Nothing Then
+		classid=CLng(Node.selectSingleNode("@classid").text)
+		specialid=CLng(Node.selectSingleNode("@specialid").text)
+		listid=CLng(Node.selectSingleNode("@listid").text)
+		infoid=CLng(Node.selectSingleNode("@infoid").text)
+		StopItem=CLng(Node.selectSingleNode("@stopitem").text)
+		Encoding=Trim(Node.selectSingleNode("@encoding").text)
+		IsDown=CLng(Node.selectSingleNode("@isdown").text)
+		downid=CLng(Node.selectSingleNode("@downid").text)
+		MaxAddress=CLng(Node.selectSingleNode("@maxaddress").text)
+		SaveFilePath=Trim(Node.selectSingleNode("@savefilepath").text&"")
+		PathForm=CLng(Node.selectSingleNode("@pathform").text)
+		RemoteListUrl=Trim(Node.selectSingleNode("@remotelisturl").text)
+		PaginalList=Trim(Node.selectSingleNode("@paginallist").text&"")
+		IsPagination=CLng(Node.selectSingleNode("@ispagination").text)
+		startid=CLng(Node.selectSingleNode("@startid").text)
+		lastid=CLng(Node.selectSingleNode("@lastid").text)
+		AutoClass=CLng(Node.selectSingleNode("@autoclass").text)
+		RetuneClass=Node.selectSingleNode("@retuneclass").text&""
+		strReplace=Node.selectSingleNode("@strreplace").text&""
+		RemoveCode=Node.selectSingleNode("@removecode").text&""
+		NamedDemourl=Trim(Node.selectSingleNode("@nameddemourl").text&"")
+		AutoRename=CLng(Node.selectSingleNode("@autorename").text)
+		IsNowTime=CLng(Node.selectSingleNode("@isnowtime").text)
+		AllHits=CLng(Node.selectSingleNode("@allhits").text)
+		star=CLng(Node.selectSingleNode("@star").text)
+		isLogin=CLng(Node.selectSingleNode("@islogin").text)
+		strLeachName=Trim(Node.selectSingleNode("@strleachname").text&"")
+		RemoveFile=Trim(Node.selectSingleNode("@removefile").text&"")
+	End If
+	Set Node=Nothing
+
+	If Not IsObject(Application(NewAsp.CacheName&"_infotemplate_"&ChannelID&"_"&infoid)) Then Call LoadInfoTemplate(infoid)
+	Set Node=Application(NewAsp.CacheName&"_infotemplate_"&ChannelID&"_"&infoid).documentElement.selectSingleNode("row")
+	If Not Node is Nothing Then
+		Pagination=CLng(Node.selectSingleNode("@pagination").text)
+		FindTitle=Split(Node.selectSingleNode("@findtitle").text&"||||||||||||||||||||||||", "|||")
+		FindContent=Split(Node.selectSingleNode("@findcontent").text&"||||||||||||||||||||||||", "|||")
+		FindCategory=Split(Node.selectSingleNode("@findcategory").text&"||||||||||||||||||||||||", "|||")
+		FindDateTime=Split(Node.selectSingleNode("@finddatetime").text&"||||||||||||||||||||||||", "|||")
+		FindOthers=Split(Node.selectSingleNode("@findothers").text&"||||||||||||||||||||||||", "|||")
+		FindPagination=Split(Node.selectSingleNode("@findpagination").text&"||||||||||||||||||||||||", "|||")
+		AppendUrl=Split(Node.selectSingleNode("@appendurl").text&"|||||||||", "|||")
+		TitleReplace=Split(Node.selectSingleNode("@titlereplace").text&"|||||||||", "|||")
+		ContentReplace=Split(Node.selectSingleNode("@contentreplace").text&"|||||||||", "|||")
+		sourceReplace=Node.selectSingleNode("@sourcereplace").text&""
+	End If
+	Set Node=Nothing
+	m_strCookies=TitleReplace(8)
+End Sub
+
+Sub FindHttpList()
+	Dim i,strListArry,strURL
+	Response.Write "<script>$('DetailedText').innerHTML=$('collectmsg').innerHTML;</script>"
+	Response.Write "<script>$('submit_button').disabled=true;$('submit_button2').disabled=true;</script>"
+	Response.Flush
+	On Error Resume Next
+	If IsPagination=0 Then
+		m_strHtmlCode=cmHttp.GetRemoteData(RemoteListUrl, Encoding)
+		m_strHtmlList=cmHttp.FindHtmlCode(m_strHtmlCode,FindListArea(1),FindListArea(2),FindListArea(0),False)
+		If Len(m_strHtmlList)=0 Then
+			OutErrors ("友情提示\n\n获取远程列表错误\n请检查采集项目第二步的获取列表开始和结束代码是否有误！")
+			Exit Sub
+		End If
+		strListArry=cmHttp.GetMatchContent(m_strHtmlList,FindListLink(1),FindListLink(2),FindListLink(0))
+
+		If UBound(strListArry)=0 Then
+			OutErrors ("友情提示\n\n获取远程列表连接错误\n请检查采集项目第二步的获取连接开始和结束代码是否有误！")
+			Exit Sub
+		Else
+			m_strLinkArry=cmHttp.RearrangedUrl(strListArry,RemoteListUrl,RedirectUrl)
+		End If
+		strListArry=Null
+	Else
+		If startid = lastid Then
+			strURL=Replace(Replace(PaginalList, "*", startid), "{$pageid}", startid, 1, -1, 1)
+			If Not cmHttp.CheckXmlHTTP(strURL) Then strURL=RemoteListUrl
+			m_strHtmlCode=cmHttp.GetRemoteData(strURL, Encoding)
+			m_strHtmlList=cmHttp.FindHtmlCode(m_strHtmlCode,FindListArea(1),FindListArea(2),FindListArea(0),False)
+			strListArry=cmHttp.GetMatchContent(m_strHtmlList,FindListLink(1),FindListLink(2),FindListLink(0))
+			If UBound(strListArry)=0 Then Exit Sub
+			m_strLinkArry=cmHttp.RearrangedUrl(strListArry,strURL,RedirectUrl)
+			strListArry=Null
+		Else
+			Dim s,l
+			If startid<lastid Then
+				s=startid:l=lastid
+			Else
+				s=lastid:l=startid
+			End If
+			For i=s To l
+				If Not Response.IsClientConnected Then Response.End
+				strURL=Replace(Replace(PaginalList, "*", i), "{$pageid}", i, 1, -1, 1)
+				If Not cmHttp.CheckXmlHTTP(strURL) Then strURL=RemoteListUrl
+				m_strHtmlCode=cmHttp.GetRemoteData(strURL, Encoding)
+				m_strHtmlList=cmHttp.FindHtmlCode(m_strHtmlCode,FindListArea(1),FindListArea(2),FindListArea(0),False)
+				strListArry=cmHttp.GetMatchContent(m_strHtmlList,FindListLink(1),FindListLink(2),FindListLink(0))
+				If UBound(strListArry)>0 Then
+					m_strLinkArry=cmHttp.ConcatArray(strListArry,m_strLinkArry)
+				End If
+				strListArry=Null
+			Next
+			m_strLinkArry=cmHttp.RearrangedUrl(m_strLinkArry,strURL,RedirectUrl)
+		End If
+	End If
+	If FindReplace(0)<>"" Then m_strLinkArry=cmHttp.ReplaceUrlToArray(m_strLinkArry,FindReplace)
+	If UBound(m_strLinkArry)>0 Then
+		m_strFindLink=m_strLinkArry(1)
+	Else
+		Response.Write "<script>$('DetailedText').innerHTML='没有收集到可用的URL列表';</script>"
+		Response.Flush
+		Exit Sub
+	End If
+
+End Sub
+
+Sub FindHttpData()
+	Response.Write "<script>showtitle('正在采集数据，请稍候...');</script>" & vbCrLf
+	Response.Write "<script>$('submit_button').disabled=true;$('submit_button2').disabled=true;</script>"
+	Response.Flush
+	On Error Resume Next
+	m_strReferer=m_strFindLink
+	m_strHtmlCode=cmHttp.GetRemoteData(m_strFindLink, Encoding)
+	If Len(m_strHtmlCode)=0 Then Exit Sub
+	m_strHtmlCode=cmHttp.ReplaceSource(m_strHtmlCode,sourceReplace)
+	'--获取标题
+	m_strTitle=cmHttp.FindHtmlCode(m_strHtmlCode,FindTitle(1),FindTitle(2),FindTitle(0),False)
+	If Len(m_strTitle)=0 Then
+		'OutErrors ("友情提示\n\n获取软件标题错误\n请检查采集项目第三步的获取标题的开始和结束代码是否有误！")
+		'Exit Sub
+	End If
+	'--获取内容
+	m_strContent=cmHttp.FindHtmlCode(m_strHtmlCode,FindContent(1),FindContent(2),FindContent(0),False)
+	If m_strContent = "" Then m_strContent = m_strTitle
+	'--内容字符过虑
+	If ContentReplace(0)<>"" Then m_strContent=Replace(m_strContent, ContentReplace(0), "")
+	If ContentReplace(1)<>"" Then m_strContent=Replace(m_strContent, ContentReplace(1), "")
+	'--过虑内容中的匹配字符
+	If ContentReplace(5)<>"" And ContentReplace(6)<>"" Then
+		m_strContent=cmHttp.CheckMatchString(m_strContent,ContentReplace(5),ContentReplace(6),ContentReplace(4))
+	End If
+	If ContentReplace(8)<>"" And ContentReplace(9)<>"" Then
+		m_strContent=cmHttp.CheckMatchString(m_strContent,ContentReplace(8),ContentReplace(9),ContentReplace(7))
+	End If
+	m_strContent=cmHttp.Html2Ubb(m_strContent,RemoveCode)
+	'--获取副标题
+	If FindTitle(7)<>"" And FindTitle(8)<>"" Then
+		m_strSubTitle=cmHttp.FindHtmlCode(m_strHtmlCode,FindTitle(7),FindTitle(8),FindTitle(6),True)
+	End If
+	'--获取版本
+	If FindTitle(4)<>"" And FindTitle(5)<>"" Then
+		m_strVersion=cmHttp.FindHtmlCode(m_strHtmlCode,FindTitle(4),FindTitle(5),FindTitle(3),True)
+	End If
+	If AutoClass>0 And sType=0 Then
+		'--获取分类
+		If FindCategory(1)<>"" And FindCategory(2)<>"" Then
+			m_strClassHtml=cmHttp.FindHtmlCode(m_strHtmlCode,FindCategory(1),FindCategory(2),FindCategory(0),False)
+			If m_strClassHtml<>"" Then
+				'--获取父分类
+				If FindCategory(3)<>"" And FindCategory(4)<>"" Then
+					m_strParent=cmHttp.FindHtmlCode(m_strClassHtml,FindCategory(3),FindCategory(4),0,True)
+					If m_strParent<>"" Then m_strClassHtml=Replace(m_strClassHtml, m_strParent, "{$parent$}")
+				End If
+				'--获取子分类
+				If FindCategory(5)<>"" And FindCategory(6)<>"" Then
+					m_strChild=cmHttp.FindHtmlCode(m_strClassHtml,FindCategory(5),FindCategory(6),0,True)
+				End If
+				If m_strParent="" And m_strChild="" Then
+					m_strChild=cmHttp.RemoveHTML(m_strClassHtml)
+				End If
+				'--分类替换操作
+				If Len(RetuneClass) > 0 Then
+					m_strParent=cmHttp.ReplaceClass(m_strParent, RetuneClass)
+					m_strChild=cmHttp.ReplaceClass(m_strChild, RetuneClass)
+				End If
+				'根据分类名称获取分类ID
+				If AutoClass=1 Then
+					classid=GetClassID(ChannelID, Trim(m_strParent), Trim(m_strChild))
+				Else
+					classid=GetClassID(ChannelID, vbNullString, Trim(m_strChild))
+				End If
+			End If
+		End If
+	Else
+		Dim iRs,FileDirArray
+		If m_intClassID>0 And sType=1 Then classid=m_intClassID
+		Set iRs=NewAsp.Execute("SELECT classid,rootid,depth,HtmlFileDir FROM [NC_Classify] WHERE ChannelID="&ChannelID&" And ClassID="&classid&" And child=0 And TurnLink=0")
+		If iRs.BOF And iRs.EOF Then
+			classid=0
+			Exit Sub
+		Else
+			FileDirArray=Split(iRs("HtmlFileDir"), "/")
+			ClassDirName=FileDirArray(0) & "/"
+			FileDirArray=Null
+		End If
+		Set iRs = Nothing
+	End If
+	If classid=0 Then Exit Sub
+	
+	If IsNowTime=0 Then
+		'--获取更新时间
+		If FindDateTime(1)<>"" And FindDateTime(2)<>"" Then
+			m_strDateTime=cmHttp.FindHtmlCode(m_strHtmlCode,FindDateTime(1),FindDateTime(2),FindDateTime(0),False)
+			If FindDateTime(3)<>"" And FindDateTime(4)<>"" Then
+				m_strDateTime=cmHttp.FindHtmlCode(m_strDateTime,FindDateTime(3),FindDateTime(4),FindDateTime(0),True)
+			End If
+			m_strDateTime=cmHttp.stringToDate(m_strDateTime)
+		Else
+			m_strDateTime=Now()
+		End If
+	Else
+		m_strDateTime=Now()
+	End If
+	'--获取软件大小
+	If FindOthers(1)<>"" And FindOthers(2)<>"" Then
+		m_strFilesize=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(1),FindOthers(2),FindOthers(0),True)
+		m_strFilesize=cmHttp.FormatSize(m_strFilesize)
+		If m_strFilesize>0 Then
+			dwFileByteSize=m_strFilesize*1024
+		Else
+			dwFileByteSize=0
+		End If
+	Else
+		m_strFilesize=0
+	End If
+	'--获取软件语言
+	If FindOthers(4)<>"" And FindOthers(5)<>"" Then
+		startcode=Replace(Replace(FindOthers(4), "{$title$}", m_strTitle), "{$parent$}", m_strParent)
+		lastcode=Replace(Replace(FindOthers(5), "{$title$}", m_strTitle), "{$parent$}", m_strParent)
+		m_strLanguage=cmHttp.FindHtmlCode(m_strHtmlCode,startcode,lastcode,FindOthers(3),True)
+	End If
+	m_strLanguage=Replace(Replace(m_strLanguage, "[中文]", ""), "[英文]", "")
+	If Len(m_strLanguage)<2 Then m_strLanguage="简体中文"
+	If m_strLanguage = "未知" Then m_strLanguage = "简体中文"
+
+	'--获取软件类型
+	If FindOthers(7)<>"" And FindOthers(8)<>"" Then
+		startcode=Replace(Replace(FindOthers(7), "{$title$}", m_strTitle), "{$parent$}", m_strParent)
+		lastcode=Replace(Replace(FindOthers(8), "{$title$}", m_strTitle), "{$parent$}", m_strParent)
+		m_strSoftType=cmHttp.FindHtmlCode(m_strHtmlCode,startcode,lastcode,FindOthers(6),True)
+	End If
+	m_strSoftType = Replace(m_strSoftType, "原创绿化", "绿色软件")
+	If Len(m_strSoftType)<2 Then m_strSoftType="国产软件"
+	'--获取授权方式
+	If FindOthers(10)<>"" And FindOthers(11)<>"" Then
+		startcode=Replace(Replace(Replace(FindOthers(10), "{$title$}", m_strTitle), "{$parent$}", m_strParent), "{$softtype$}", m_strSoftType)
+		lastcode=Replace(Replace(Replace(FindOthers(11), "{$title$}", m_strTitle), "{$parent$}", m_strParent), "{$softtype$}", m_strSoftType)
+		m_strImpower=cmHttp.FindHtmlCode(m_strHtmlCode,startcode,lastcode,FindOthers(9),True)
+	End If
+	If Len(m_strImpower)<2 Then m_strImpower="共享软件"
+	'--获取运行环境
+	If FindOthers(13)<>"" And FindOthers(14)<>"" Then
+		m_strRunSystem=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(13),FindOthers(14),FindOthers(12),True)
+		m_strRunSystem=Replace(Replace(m_strRunSystem, ", ", "/"), ",", "/")
+	End If
+	If Len(m_strRunSystem)<2 Then m_strRunSystem="Win2000/WinXP/Win2003/WinVista"
+	'--获取联系方式
+	If FindOthers(16)<>"" And FindOthers(17)<>"" Then
+		m_strContact=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(16),FindOthers(17),FindOthers(15),True)
+	Else
+		m_strContact=""
+	End If
+	'--获取官方主页
+	If FindOthers(19)<>"" And FindOthers(20)<>"" Then
+		m_strHomePage=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(19),FindOthers(20),FindOthers(18),True)
+	Else
+		m_strHomePage=""
+	End If
+	'--获取缩略图
+	If FindOthers(22)<>"" And FindOthers(23)<>"" Then
+		Dim PreviewHtml
+		PreviewHtml=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(22),FindOthers(23),FindOthers(21),False)
+		If FindOthers(24)<>"" And FindOthers(25)<>"" Then
+			PreviewHtml=cmHttp.FindHtmlCode(PreviewHtml,FindOthers(24),FindOthers(25),FindOthers(21),True)
+		End If
+		If Len(PreviewHtml)>3 Then
+			m_strPreviewimg=cmHttp.FormatRemoteUrl(m_strFindLink, PreviewHtml,"")
+		Else
+			m_strPreviewimg=""
+		End If
+	Else
+		m_strPreviewimg=""
+	End If
+	'--获取推荐星级
+	If FindOthers(27)<>"" And FindOthers(28)<>"" Then
+		m_strStar=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(27),FindOthers(28),FindOthers(26),False)
+		If FindOthers(29)<>"" And FindOthers(30)<>"" Then
+			m_strStar=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(29),FindOthers(30),FindOthers(26),True)
+		End If
+		m_strStar=NewAsp.ChkNumeric(m_strStar)
+		If m_strStar<2 Or m_strStar>5 Then m_strStar=3
+	Else
+		If star>1 Then
+			m_strStar=star
+		Else
+			m_strStar=cmHttp.GetRndStar()
+		End If
+	End If
+	If m_intRank>0 Then
+		m_intStar=m_intRank
+	Else
+		m_intStar=NewAsp.ChkNumeric(m_strStar)
+	End If
+	'--获取下载地址
+	If FindOthers(32)<>"" And FindOthers(33)<>"" Then
+		If FindOthers(32)="9" And FindOthers(33)="9" Then
+			m_strDownArry=Array("0",cmHttp.FormatRemoteUrl(m_strFindLink,m_strFindLink,AppendUrl(0)))
+		Else
+			m_strDownHtml=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(32),FindOthers(33),FindOthers(31),False)
+			If m_strDownHtml<>"" And FindOthers(34)<>"" And FindOthers(35)<>"" Then
+				m_strDownArry=cmHttp.GetMatchContent(m_strDownHtml,FindOthers(34),FindOthers(35),FindOthers(31))
+				m_strDownArry=cmHttp.RearrangedUrl(m_strDownArry,m_strFindLink,AppendUrl(0))
+			Else
+				If m_strDownHtml<>"" Then
+					m_strDownArry=Array("0",m_strDownHtml)
+				Else
+					m_strDownArry=Array("0")
+				End If
+			End If
+		End If
+		If Pagination>0 And UBound(m_strDownArry)>0 Then
+			Dim strDownlink
+			strDownlink=m_strDownArry(1):m_strDownArry=Null
+			If TitleReplace(4)<>"" Then
+				strDownlink=cmHttp.Re_Replace(strDownlink,TitleReplace(4),TitleReplace(5))
+			End If
+			m_strDownHtml=cmHttp.GetRemoteData(strDownlink, Encoding)
+			m_strDownHtml=cmHttp.FindHtmlCode(m_strDownHtml,FindPagination(1),FindPagination(2),FindPagination(0),False)
+			If m_strDownHtml<>"" And FindPagination(3)<>"" And FindPagination(4)<>"" Then
+				m_strDownArry=cmHttp.GetMatchContent(m_strDownHtml,FindPagination(3),FindPagination(4),FindPagination(0))
+				m_strDownArry=cmHttp.RearrangedUrl(m_strDownArry,strDownlink,AppendUrl(1))
+			Else
+				If m_strDownHtml<>"" Then
+					m_strDownArry=Array("0",m_strDownHtml)
+				Else
+					m_strDownArry=Array("0")
+				End If
+			End If
+			If UBound(m_strDownArry)>0 And FindPagination(6)<>"" And FindPagination(7)<>"" Then
+				strDownlink=m_strDownArry(1):m_strDownArry=Null
+				m_strDownHtml=cmHttp.GetRemoteData(strDownlink, Encoding)
+				m_strDownHtml=cmHttp.FindHtmlCode(m_strDownHtml,FindPagination(6),FindPagination(7),FindPagination(5),True)
+				m_strDownArry=Array("0",m_strDownHtml)
+			End If
+		End If
+	Else
+		m_strDownArry=Array("0")
+	End If
+	DownAddrNum=UBound(m_strDownArry)
+	If MaxAddress>DownAddrNum Or MaxAddress=0 Then
+		MaxAddress=1
+	End If
+	If DownAddrNum>0 Then
+		m_strDownAddress=m_strDownArry(MaxAddress)
+		If Pagination>0 Then
+			If TitleReplace(6)<>"" Then
+				m_strDownAddress=cmHttp.Re_Replace(m_strDownAddress,TitleReplace(6),TitleReplace(7))
+			End If
+		Else
+			If TitleReplace(4)<>"" Then
+				m_strDownAddress=cmHttp.Re_Replace(m_strDownAddress,TitleReplace(4),TitleReplace(5))
+			End If
+		End If
+	Else
+		m_strDownAddress=""
+	End If
+	'--标题过滤替换
+	If TitleReplace(0)<>"" Then
+		m_strTitle=cmHttp.Re_Replace(m_strTitle,TitleReplace(0),TitleReplace(1))
+	End If
+	If TitleReplace(2)<>"" Then
+		m_strTitle=cmHttp.Re_Replace(m_strTitle,TitleReplace(2),TitleReplace(3))
+	End If
+	'--软件简介替换操作
+	If Len(strReplace)>2 Then
+		m_strContent=cmHttp.ReplaceClass(m_strContent, strReplace)
+		If Len(m_strHomePage)>2 Then
+			m_strHomePage=cmHttp.ReplaceClass(m_strHomePage, strReplace)
+		End If
+		If Len(m_strContact)>2 Then
+			m_strContact=cmHttp.ReplaceClass(m_strContact, strReplace)
+		End If
+	End If
+	'-－内容追加字符
+	m_strContent=cmHttp.FormatContentUrl(m_strContent,m_strFindLink)
+	m_strContent=ContentReplace(2)&m_strContent&ContentReplace(3)
+	m_strTitle=cmHttp.CheckNostr(m_strTitle)
+	m_strTitle=cmHttp.CheckTitle(m_strTitle, TitleReplace(0), TitleReplace(1))
+	m_strTitle=cmHttp.CheckTitle(m_strTitle, TitleReplace(2), TitleReplace(3))
+	'--下载统计
+	m_intAllHits=AllHits
+	If AllHits=999 Then m_intAllHits=cmHttp.GetRndHits
+	If AllHits=99 Then m_intAllHits=cmHttp.GetRandHits
+	If AllHits=9 Then m_intAllHits=cmHttp.GetRndNumber
+	m_intsoftid=0
+End Sub
+
+Sub savedata()
+	Dim ChildFilePath,LoadFilePath
+	If classid=0 Then
+		Response.Write "<script>showtitle('分类ID错误！可能这个分类是外部连接。请编辑采集项目重新选择分类。');</script>" & vbCrLf
+		Response.Flush
+		Call showTaskDone()
+		Exit Sub
+	End If
+	If Len(m_strDownAddress&"")<3 Or Len(m_strTitle)<1 Then
+		Response.Write "<script>showtitle('截取下载地址或者标题错误');</script>" & vbCrLf
+		Response.Flush
+		Call showTaskDone()
+		Exit Sub
+	End If
+	On Error Resume Next
+	'-- 设置下载文件路径
+	If PathForm = 9 Then
+		ChildFilePath = ClassDirName
+	ElseIf PathForm = 8 Then
+		ChildFilePath = ClassDirName & cmHttp.BuildDatePath(8)
+	Else
+		ChildFilePath = cmHttp.BuildDatePath(PathForm)
+	End If
+
+	If downid = 0 Then
+		LoadFilePath = NewAsp.InstallDir & NewAsp.ChannelDir & "UploadFile/" & ChildFilePath
+	Else
+		LoadFilePath = SaveFilePath & ChildFilePath
+	End If
+	'-- 将相对路径转换成绝对路径
+	FullFilePath = ChkMapPath(LoadFilePath)
+
+	m_strAlphaTitle=cmHttp.CheckInput(m_strTitle,4)
+	m_strFullTitle=Trim(m_strTitle&" "&m_strVersion)
+	Dim Rs,SQL
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT * FROM NC_SoftList WHERE ChannelID="&ChannelID&" And softname='"&Replace(m_strTitle, "'", "''")&"'"
+	Rs.Open SQL,Conn,1,3
+
+	If Rs.BOF And Rs.EOF Then
+		IsUpdates=True
+		blnUpdate=False
+		If UseDownload <> 9 Then
+			ClassUpdateCount ChannelID, classid
+		End If
+	Else
+		If DateDiff("d", Now(), Rs("SoftTime")) = 0 Then
+			IsUpdates = False
+		End If
+		If RepeatDeal = 0 Then
+			IsUpdates = False
+		ElseIf RepeatDeal = 1 Then
+			IsUpdates = True
+			blnUpdate = True
+		Else
+			IsUpdates = True
+			blnUpdate = False
+			If UseDownload <> 9 Then
+				ClassUpdateCount ChannelID, classid
+			End If
+		End If
+	End If
+
+	If IsUpdates Then
+		'--是否打开下载功能
+		If UseDownload>0 And IsDown>0 Then
+			'--下载缩略图
+			Dim strDatePath,strRndFileName
+			If Len(m_strPreviewimg)>0 Then
+				strDatePath=cmHttp.CreateDatePath(UploadPicPath)
+				strRndFileName=cmHttp.GetRndFileName(cmHttp.GetFileExtName(m_strPreviewimg))
+				If cmHttp.SaveRemoteFile(UploadPicPath & strDatePath & strRndFileName, m_strPreviewimg) Then
+					m_strPreviewimg = m_strUploadPicDir & strDatePath & strRndFileName
+				Else
+					m_strPreviewimg=""
+				End If
+			End If
+			If cmHttp.PictureEx And blnUpdate=False Then
+				strDatePath=cmHttp.CreateDatePath(UploadPicPath)
+				m_strContent=cmHttp.RemoteToLocal(m_strContent,UploadPicPath & strDatePath,m_strUploadPicDir&strDatePath)
+			End If
+		End If
+		'--是否打开下载功能，下载软件到本地
+		If UseDownload>0 And IsDown=1 Then
+			m_strFileName = RemoteFileToLocal(m_strDownAddress, FullFilePath)
+			If blnFileToLocal = False Then
+				Response.Write "<script>showtitle('下载文件失败');</script>" & vbCrLf
+				Response.Flush
+				Call showTaskDone()
+				Exit Sub
+			End If
+			If downid>0 Then
+				m_strFileName=ChildFilePath & m_strFileName
+			Else
+				m_strFileName=LoadFilePath & m_strFileName
+			End If
+		Else
+			If downid>0 Then
+				m_strFileName=cmHttp.ParseDownPath(m_strDownAddress)
+			Else
+				m_strFileName=m_strDownAddress
+			End If
+		End If
+
+		If blnUpdate=False Then Rs.Addnew
+		Rs("ChannelID") = ChannelID
+		Rs("ClassID") = classid
+		Rs("SpecialID") = specialid
+		Rs("SoftName") = NewAsp.RequestForm(m_strTitle,255)
+		Rs("SoftVer") = NewAsp.RequestForm(m_strVersion,50)
+
+		If blnUpdate=False Then
+			Rs("subtitle") = NewAsp.RequestForm(m_strSubTitle,200)
+			Rs("Related") = ""
+			Rs("Homepage") = m_strHomePage
+			Rs("Contact") = m_strContact
+		Else
+			If Len(m_strSubTitle)>1 Then Rs("subtitle") = NewAsp.RequestForm(m_strSubTitle,200)
+			If Len(m_strHomePage)>1 Then Rs("Homepage") = m_strHomePage
+			If Len(m_strContact)>1 Then Rs("Contact") = m_strContact
+		End If
+
+		Rs("content") = m_strContent
+		Rs("Languages") = NewAsp.RequestForm(m_strLanguage,50)
+		Rs("SoftType") = NewAsp.RequestForm(m_strSoftType,50)
+		Rs("RunSystem") = NewAsp.RequestForm(m_strRunSystem,150)
+		Rs("impower") = NewAsp.RequestForm(m_strImpower,50)
+		Rs("SoftSize") = m_strFilesize
+		Rs("star") = m_intStar
+		Rs("SoftTime") = m_strDateTime
+		Rs("plugin") = m_intPlugin
+		Rs("isUpdate") = 1
+
+		If blnUpdate=False Then
+			Rs("username") = Trim(AdminName)
+			Rs("AllHits") = m_intAllHits : Rs("DayHits") = m_intAllHits : Rs("WeekHits") = m_intAllHits
+			Rs("MonthHits") = m_intAllHits : Rs("HitsTime") = Now() : Rs("HtmlFileDate") = Trim(NewAsp.HtmlRndFileName)
+			Rs("SoftImage") = m_strPreviewimg
+			Rs("AlphaIndex") = NewAsp.ReadAlpha(m_strAlphaTitle)
+			Rs("Author") = "" : Rs("Regsite") = "" : Rs("showreg") = 0 : Rs("PointNum") = 0 : Rs("SoftPrice") = 0
+			Rs("Decode") = "" : Rs("isBest") = 0 : Rs("ColorMode") = 0 : Rs("FontMode") = 0 : Rs("isTop") = 0
+			Rs("UserGroup") = 0 : Rs("Previewimg") = "" : Rs("ErrCode") = 0 : Rs("isAccept") = 1 : Rs("ForbidEssay") = 0
+			Rs("PauseDown") = 0 : Rs("good") = 0 : Rs("bad") = 0 : Rs("Taglist")=""
+		End If
+		Rs.update
+		softid = Rs("softid")
+		m_strMessage="恭喜您！软件采集成功。"
+	Else
+		m_strMessage="软件采集失败！目标软件已存在，不予采集。"
+	End If
+	Rs.Close: Set Rs = Nothing
+	If blnUpdate=False Then
+		Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+		Rs.Open "SELECT TOP 1 softid FROM NC_SoftList WHERE ChannelID="&ChannelID&" ORDER BY softid DESC", Conn, 1, 1
+		softid = Rs("softid")
+		Rs.Close: Set Rs = Nothing
+	End If
+	
+	'--如果选择了下载服务器，添加下载地址
+	If blnUpdate = False And UseDownload<>9 And Len(m_strFileName)>3 Then
+		AddDownServer ChannelID, downid, softid, Trim(m_strFileName), "立即下载"
+		blnUpdate = False: IsUpdates = False
+	End If
+	'--开始更新下载地址
+	If blnUpdate And IsUpdates And UseDownload<>9 And Len(m_strFileName)>3 Then
+		Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+		SQL = "SELECT * FROM NC_DownAddress WHERE ChannelID=" & ChannelID & " And softid=" & softid
+		Rs.Open SQL, Conn, 1, 3
+		If Rs.BOF And Rs.EOF Then
+			'--如果软件不存在就添加新的下载地址
+			Rs.AddNew
+			Rs("ChannelID") = ChannelID
+			Rs("softid") = softid
+			Rs("downid") = downid
+			Rs("DownFileName") = Trim(m_strFileName)
+			Rs("DownText") = "立即下载"
+		Else
+			'--如果下载地址存在就更新
+			Rs("downid") = downid
+			Rs("DownFileName") = Trim(m_strFileName)
+		End If
+		Rs.Update
+		Rs.Close
+		Set Rs = Nothing
+	End If
+	Response.Write "<script>showtitle('"&m_strMessage&"');</script>" & vbCrLf
+    Response.Flush
+	Call showTaskDone()
+End Sub
+
+Sub showTaskDone()
+	If p=>totalnumber Then
+		TaskDone=True
+		Response.Write "<script>showtitle('采集任务完成');</script>" & vbCrLf
+		Response.Write "<script>$('submit_button').disabled=false;$('submit_button2').disabled=false;</script>"
+		Response.Flush
+		Application.Lock
+		Application.Contents.Remove(NewAsp.CacheName&"_collectionlist_"&ChannelID&"_"&CacheID)
+		Application.unLock
+	End If
+End Sub
+
+'-- 添加下载地址
+Function AddDownServer(ByVal ChannelID, ByVal downid, ByVal softid, ByVal softname, ByVal downText)
+	If Trim(softname) = "" Then Exit Function
+	downid = NewAsp.ChkNumeric(downid)
+	softid = NewAsp.ChkNumeric(softid)
+	If ""=downText Then downText = "立即下载"
+	If softid = 0 Then Exit Function
+	Dim addRs,SQL
+	Set addRs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_DownAddress WHERE ChannelID=" & ChannelID & " And softid=" & softid
+	addRs.Open SQL, Conn, 1, 3
+	If addRs.BOF And addRs.EOF Then
+		addRs.AddNew
+		addRs("ChannelID")=ChannelID
+		addRs("softid")=softid
+		addRs("downid")=downid
+		addRs("DownFileName")=softname
+		addRs("DownText")=downText
+		addRs.Update
+	End If
+	addRs.Close
+	Set addRs = Nothing
+End Function
+
+Function RemoteFileToLocal(ByVal URL, ByVal fromPath)
+	blnFileToLocal=False
+	Dim m_strFName
+	On Error Resume Next
+	cmHttp.CreatedPathEx(fromPath)
+	m_strFName=cmHttp.ParseFilename(URL)
+	If cmHttp.SaveRemoteFile(cmHttp.CheckPath(fromPath)&m_strFName,URL) Then
+		blnFileToLocal=True
+		RemoteFileToLocal=m_strFName
+	Else
+		blnFileToLocal=False
+		RemoteFileToLocal=""
+	End If
+End Function
+
+Function ElapsedTime()
+	Dim ElapsedSeconds
+	ElapsedSeconds=DateDiff("s", d, Now())
+	If ElapsedSeconds > 3600 then
+		ElapsedTime = ElapsedSeconds \ 3600 & " 时 " & (ElapsedSeconds mod 3600) \ 60 & " 分 " & ElapsedSeconds mod 60 & " 秒"
+	ElseIf ElapsedSeconds > 60 then
+		ElapsedTime = ElapsedSeconds \ 60 & " 分 " & ElapsedSeconds mod 60 & " 秒"
+	Else
+		ElapsedTime = ElapsedSeconds mod 60 & " 秒"
+	End If
+End Function
+
+Sub showDetailed()
+	Response.Write "<script>$('planmain').style.display='';</script>"
+%>
+<div id="DetailedText">
+<b>软件名称：</b><%=m_strTitle%><br/>
+	<%If m_strVersion<>"" Then%><b>软件版本：</b><%=m_strVersion%><br/><%End IF%>
+	<%If m_strSubTitle<>"" Then%><b>副 标 题：</b><%=m_strSubTitle%><br/><%End IF%>
+	<b>更新时间：</b><%=m_strDateTime%><br/>
+	<b>软件大小：</b><%=cmHttp.FormatFileSize(dwFileByteSize)%><br/>
+	<b>软件语言：</b><%=m_strLanguage%><br/>
+	<b>软件类型：</b><%=m_strSoftType%><br/>
+	<b>授权方式：</b><%=m_strImpower%><br/>
+	<b>运行环境：</b><%=m_strRunSystem%><br/>
+	<%If m_strParent<>"" Or m_strChild<>"" Then%><b>软件分类：</b><%=m_strParent%> / <%=m_strChild%><br/><%End IF%>
+	<%If m_strContact<>"" Then%><b>联系方式：</b><%=m_strContact%><br/><%End IF%>
+	<%If m_intStar>0 Then%><b>推荐星级：</b><%Call cmHttp.showstar(m_intStar)%><br/><%End IF%>
+	<b>官方主页：</b><%=cmHttp.PlusLinks(m_strHomePage)%><br/>
+	<b>目标地址：</b><%=cmHttp.PlusLinks(m_strFindLink)%><br/>
+	<%If DownAddrNum>0 Then%>
+		<b>下载地址：</b><%=cmHttp.PlusLinks(m_strDownAddress)%>
+	<%End IF%>
+</div>
+<script type="text/javascript">
+<!--
+	$("DetailedText").innerHTML=document.getElementById("DetailedText").innerHTML;
+	plantext(<%=totalnumber%>,<%=p%>);
+	planpercent('<%=FormatPercent(p/totalnumber,2,-1)%>');
+	planwidth(<%=Fix((p/totalnumber) * 500)%>);
+	//$("urlid").innerHTML='<%=strFreshLink%>';
+//-->
+</script>
+<%
+	Response.Flush
+End Sub
+
+Sub showScript()
+%>
+<script type="text/javascript">
+<!--
+function $(s){return parent.document.getElementById(s);}
+function planwidth(iwidth){
+	$('ProgressBar').style.width=iwidth+'px';
+}
+function planpercent(ipercent){
+	$('PercentText').innerHTML=ipercent;
+}
+function showtitle(s){
+	$('begintitle').innerHTML=s;
+}
+function plantext(totalnumber,icount){
+	$('plancount').innerHTML='总共：<font color="blue">'+totalnumber+'</font>&nbsp;&nbsp;已完成 <font color="red">'+icount+'</font> 个';
+}
+function proesstext(p,s,totalsize,iTick){
+	$('plantext').innerHTML='大小：<font color="blue">'+formatsize(totalsize)+'</font> / <font color="red">'+formatsize(p)+'</font>&nbsp;&nbsp;速度：'+s+'&nbsp;&nbsp;用时：'+formatSeconds(iTick);
+	//$('plantext').innerHTML='大小：<font color="blue">'+totalsize+'</font> / <font color="red">'+p+'</font>&nbsp;&nbsp;速度：'+s+'&nbsp;&nbsp;用时：'+formatSeconds(iTick);
+}
+function formatSeconds(iMSEL){
+	var ElapsedSeconds=Math.floor(iMSEL/1000);
+	var s='';
+	if (ElapsedSeconds > 3600){
+		s = Math.floor(ElapsedSeconds / 3600) + " 时 " + Math.floor((ElapsedSeconds % 3600) / 60) + " 分 " + Math.floor(ElapsedSeconds % 60) + " 秒";
+	}
+	else if (ElapsedSeconds > 60){
+		s = Math.floor(ElapsedSeconds / 60) + " 分 " + Math.floor(ElapsedSeconds % 60) + " 秒";
+	}else{
+		s = Math.floor(ElapsedSeconds % 60) + " 秒";
+	}
+	return s;
+}
+function formatsize(size){
+	var KB=1024;
+	var MB=1024*1024;
+	var s='未知';
+
+	if (size<KB) {
+		s=size+' Bytes';
+	}else{
+		var k=Math.floor(size/KB);
+		if (k<10) {
+			s=formatnumber(size/KB,2)+' KB';
+		}else if (k<100) {
+			s=formatnumber(size/KB,1)+' KB';
+		}else if (k<1000) {
+			s=formatnumber(size/KB,0)+' KB';
+		}else if (k<10000) {
+			s=formatnumber(size/MB,2)+' MB';
+		}else if (k<100000) {
+			s=formatnumber(size/MB,1)+' MB';
+		}else if (k<1000000) {
+			s=formatnumber(size/MB,0)+' MB';
+		}else if (k<10000000) {
+			s=formatnumber(size/MB/KB,2)+' GB';
+		}else{
+			s=formatnumber(size/MB/KB,1)+' GB';
+		}
+	}
+	return s
+}
+function formatnumber(value,num){
+	var a,b,c,i
+	a = value.toString();
+	b = a.indexOf('.');
+	c = a.length;
+	if (num==0) {
+		if (b!=-1)
+		a = a.substring(0,b);
+	}else{
+		if (b==-1) {
+			a = a + ".";
+			for (i=1;i<=num;i++)
+				a = a + "0";
+		}else{
+			a = a.substring(0,b+num+1);
+			for (i=c;i<=b+num;i++)
+				a = a + "0";
+		}
+	}
+	return a
+}
+
+//-->
+</script>
+<%
+	Response.Flush
+End Sub
+%>

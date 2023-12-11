@@ -1,0 +1,44 @@
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>组织架构</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">	
+	
+	
+	<script type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/good/goodType/list_goodType.js"></script>
+</head> 
+
+<body>
+	<!-- 最大级别 -->
+	<input id="maxLevel" type="hidden" name="maxLevel" value="${maxLevel }">
+	<table id="dataGrid"></table>
+	
+	<div id="edit" closed="true">
+		<iframe frameborder="0" id="editDataPage" width="550px" height="240px"></iframe>
+	</div>
+		
+</body>
+<!-- 语言设置-->
+<input type="hidden" id="No" value="<s:text name="listgoodType.No"/>"/>
+<input type="hidden" id="Name" value="<s:text name="listgoodType.Name"/>"/>
+<input type="hidden" id="BasicInformation" value="<s:text name="BasicInformation"/>"/>
+<input type="hidden" id="Operation" value="<s:text name="Operation"/>"/>
+<input type="hidden" id="Edit" value="<s:text name="Edit"/>"/>
+<input type="hidden" id="Delete" value="<s:text name="Delete"/>"/>
+<input type="hidden" id="Addasubclass" value="<s:text name="listgoodType.Addasubclass"/>"/>
+<input type="hidden" id="Addacategories" value="<s:text name="listgoodType.Addacategories"/>"/>
+<input type="hidden" id="Commoditycategorymanagement" value="<s:text name="listgoodType.Commoditycategorymanagement"/>"/>
+<input type="hidden" id="Save" value="<s:text name="Save"/>"/>
+<input type="hidden" id="Wanttodelete" value="<s:text name="Wanttodelete"/>"/>
+<input type="hidden" id="DeletedSuccessful" value="<s:text name="DeletedSuccessful"/>"/>
+<input type="hidden" id="DeleteFailed" value="<s:text name="DeleteFailed"/>"/>
+<input type="hidden" id="Select" value="<s:text name="Select"/>"/>
+<input type="hidden" id="PleaseSelect" value="<s:text name="listcustomer.PleaseSelect"/>"/>
+</html>

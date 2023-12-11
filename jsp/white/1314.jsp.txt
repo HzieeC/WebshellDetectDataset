@@ -1,0 +1,156 @@
+<%@ page language="java" import="java.util.*" pageEncoding="gb2312"%>
+<%@ page contentType="text/html;charset=gb2312" %>
+<%@page import="com.bizoss.trade.ti_casepre.*" %>
+<%@page import="java.util.*,com.bizoss.frame.util.FileIO" %>
+<html>
+  <head>
+    
+    <title>查看案源线索</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+
+  <% 
+  	String id="";
+  	if(request.getParameter("id")!=null) id = request.getParameter("id");
+  	Ti_casepreInfo ti_casepreInfo = new Ti_casepreInfo();
+  	List list = ti_casepreInfo.getListByPk(id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String tittle="",content="",area_name="",in_date="",state="",src_url="";
+  	if(map.get("tittle")!=null) tittle = map.get("tittle").toString();
+  	if(map.get("content")!=null) content = map.get("content").toString();
+  	if(map.get("area_name")!=null) area_name = map.get("area_name").toString();
+  	if(map.get("in_date")!=null) {
+  		in_date = map.get("in_date").toString();
+  		if(in_date.length()>19)
+  			in_date=in_date.substring(0,19);
+  	}
+  	if(map.get("state")!=null) state = map.get("state").toString();
+  	if(map.get("src_url")!=null) src_url = map.get("src_url").toString();
+
+  %>
+	
+	<h1>查看案源线索<h1>
+	
+	
+	<form action="/doTradeReg.do" method="post" name="updateForm">
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="10%">
+				标题<font color="red">*</font>
+			</td>
+			<td><input name="tittle" id="tittle" width="70" size="70" value="<%=tittle %>" type="text" readonly="readonly"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				地区<font color="red">*</font>
+			</td>
+			<td><input name="area_name" id="area_name" width="70" size="70" value="<%=area_name %>" type="text" readonly="readonly"/>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				内容<font color="red">*</font>
+			</td>
+			<td><textarea name="content" id="content" cols="80" rows="8" readonly="readonly"><%=content %></textarea></td>
+		</tr>
+		
+		
+		
+		
+		<tr>
+			<td align="right" width="10%">
+				状态<font color="red">*</font>
+			</td>
+			<td>
+				<%if(state.equals("0"))out.print("未追踪"); %>
+				<%if(state.equals("1"))out.print("追踪中"); %>
+			    <%if(state.equals("2"))out.print("结束"); %>
+			</td>
+		</tr>
+		
+	    <tr>
+			<td align="right" width="10%">
+				源地址<font color="red">*</font>
+			</td>
+			<td><a href="javascript:showUrl('<%=src_url%>')"><%=src_url%></a></td>
+		</tr>
+
+	    <tr>
+			<td align="right" width="10%">
+				录入时间<font color="red">*</font>
+			</td>
+			<td><%=in_date%></td>
+		</tr>
+	</table>
+	
+	</form>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><h2>我来回复</h2></td></tr>
+	</table>
+	<%
+				String req_url="";
+				String rep_content="";
+			    String qid="",askername="",cyask_user="",__hash__="",login_hash="";
+			   
+				if(src_url.indexOf("www.9ask.cn/souask/q")>0){
+				    qid=src_url.substring(src_url.lastIndexOf("/")+2,src_url.lastIndexOf("."));
+				%>
+					<jsp:include page="answer/9ask.jsp">
+						<jsp:param name="qid" value="<%=qid %>"/>
+						<jsp:param name="casepre_id" value="<%=id %>"/>
+					</jsp:include>
+			<%	}else if(src_url.indexOf("china.findlaw.cn/ask")>0){
+				    qid=src_url.substring(src_url.lastIndexOf("/")+10,src_url.lastIndexOf("."));
+					rep_content=FileIO.getContent(src_url,"gb2312",15,5);
+					cyask_user=FileIO.getUserInfo(rep_content,"userid",null);
+					if(cyask_user.equals("匿名"))
+						cyask_user="hefeilawyer";
+					rep_content=FileIO.getContent(src_url,"gb2312",270,10);
+				    System.out.print(rep_content);
+				    askername=FileIO.getUserInfo(rep_content,"askername","value");
+				    __hash__=FileIO.getUserInfo(rep_content,"__hash__","value");%>
+					<jsp:include page="answer/findlaw.jsp">
+						<jsp:param name="qid" value="<%=qid %>"/>
+						<jsp:param name="cyask_user" value="<%=cyask_user %>"/>
+						<jsp:param name="casepre_id" value="<%=id %>"/>
+						<jsp:param name="askername" value="<%=askername %>"/>
+						<jsp:param name="__hash__" value="<%=__hash__ %>"/>
+					</jsp:include>
+				<% 
+				}else if(src_url.indexOf("www.lawtime.cn/ask")>0){
+					qid=src_url.substring(src_url.lastIndexOf("/")+10,src_url.lastIndexOf("."));
+					rep_content=FileIO.getContent(src_url,"gb2312",270,30);
+				    askername=FileIO.getUserInfo(rep_content,"askername2","value");
+				    __hash__=FileIO.getUserInfo(rep_content,"__hash__","value");
+				    rep_content=FileIO.getContent(src_url,"gb2312",35,5);
+				    System.out.print(rep_content);
+				    login_hash=FileIO.getUserInfo(rep_content,"__hash__","value");
+				    %>
+				    <jsp:include page="answer/lawtime.jsp">
+						<jsp:param name="qid" value="<%=qid %>"/>
+						<jsp:param name="askername" value="<%=askername %>"/>
+						<jsp:param name="__hash__" value="<%=__hash__ %>"/>
+						<jsp:param name="casepre_id" value="<%=id %>"/>
+						<jsp:param name="login_hash" value="<%=login_hash %>"/>
+					</jsp:include>
+				<%}
+			 %>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><h2>回复记录查看</h2></td></tr>
+	</table>
+			<jsp:include page="answer_index.jsp" >
+						<jsp:param name="qid" value="<%=qid %>"/>
+						<jsp:param name="casepre_id" value="<%=id %>"/>
+					</jsp:include>
+</body>
+
+</html>

@@ -1,0 +1,104 @@
+<%@ page contentType="text/html; charset=GBK" isELIgnored="false" %>
+<%
+	String url = request.getContextPath();
+	request.getSession().setAttribute("action","manage");
+	request.getSession().setAttribute("act","manage");
+%>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=gb2312" />
+<title>MianFeiZhe内容管理系统 - 管理中心 - 左边管理菜单</title>
+<link rel="stylesheet" href="images/css/admin_left_1.css" type="text/css" media="all" />
+<script language="JavaScript">
+function logout(){
+	if (confirm("系统提示：您确定要退出控制面板吗？"))
+	top.location = "admin_logout.jsp";
+	return false;
+}
+</script>
+<script language="JavaScript">
+function showsubmenu(sid) {
+	var whichEl = eval("submenu" + sid);
+	var menuTitle = eval("menuTitle" + sid);
+	if (whichEl.style.display == "none"){
+		eval("submenu" + sid + ".style.display='';");
+		eval("menuTitle" + sid + ".className='menu_title';");
+	}else{
+		eval("submenu" + sid + ".style.display='none';");
+		eval("menuTitle" + sid + ".className='menu_title2';");
+	}
+}
+</script>
+</head>
+<body>
+<div id="pageMain"><div id="mainBody">
+<dl id="adminInfo">
+	<dt class="menu_title" id="menuTitle9999" onclick="showsubmenu(9999)">后台管理信息</dt>
+	<dd id="submenu9999">
+		<ul>
+			<li>用户名：<font color="red"><%=request.getSession().getAttribute("adminname")%></font></li>
+			<li>身　份：<font color="red">管理员</font></li>
+			<li>【<a href="loginout.jsp">注销退出</a>】</li>
+		</ul>
+	</dd>
+</dl>
+<dl>
+	<dt class="menu_title" id="menuTitle0" onclick="showsubmenu(0)">常规设置 </dt>
+	<dd id="submenu0">
+		<ul>
+			<li><a target="main" href="admin_config.jsp">基本设置</a> | <a target="main" href="admin_template.jsp">模板管理</a>  </li>
+			<li><a target="main" href="admin_log.jsp">日志管理</a> | <a target="main" href="admin_channel.jsp">频道管理</a></li>
+			<li><a target="main" href="admin_FBAD.jsp">发布公告</a> | <a target="main" href="../servletsad?action=chakan&id=1">公告管理</a></li>
+			<li><a target="main" href="admin_admanage.jsp">广告管理</a> | <a target="main" href="admin_ad_add.jsp">添加广告</a> </li>
+			 <li><a target="main" href="admin_createindex.jsp">生成首页</a> </li>
+		</ul>
+	</dd>
+</dl>
+
+<dl>
+	<dt class="menu_title" id="menuTitle1" onclick="showsubmenu(1)">文章中心管理 </dt>
+	<dd id="submenu1">
+		<ul>
+                <li><a target="main" href="../addAritcle">添加文章</a> | <a target="main" href="<%=url%>/admin/admin_AricleManage.jsp">文章管理</a></li>
+                <li><a target="main" href="../addsort">添加分类</a> | <a target="main" href="../sortlist">分类管理</a></li>
+                <li><a target="main" href="admin_article_accept.jsp">审核管理</a></li> | <a target="main" href="admin_article_move.jsp">批量移动</a></li>
+                <li><a target="main" href="admin_createArticle.jsp?ChannelID=1">生成文章HTML管理</a></li>
+                <li><a target="main" href="admin_template.jsp?action=manage&ChannelID=1">文章频道模板管理</a></li>
+                <li><a target="main" href="admin_comment.jsp?ChannelID=1">文章中心评论管理</a>
+		</ul>
+	</dd>
+</dl>
+
+<dl>
+	<dt class="menu_title" id="menuTitle1001" onclick="showsubmenu(1001)">用户管理 </dt>
+	<dd id="submenu1001">
+		<ul>
+			<li><a target="main" href="admin_user.jsp">添加会员</a> | <a target="main" href="<%=url%>/admin/admin_userManage.jsp">会员管理</a></li>
+			<li><a target="main" href="admin_password.jsp">管理员密码修改</a></li>
+			<li><a target="main" href="admin_master.jsp">管理员添加</a> | <a target="main" href="<%=url%>/servletsmanage?action=manage">管理</a></li>
+		</ul>
+	</dd>
+</dl>
+<dl>
+	<dt class="menu_title" id="menuTitle1002" onclick="showsubmenu(1002)">其它管理 </dt>
+	<dd id="submenu1002">
+		<ul>
+			<li><a target="main" href="admin_vote.jsp?action=add">增加投票</a> | <a target="main" href="admin_voteManager.jsp">投票管理</a></li>
+			<li><a target="main" href="<%=url%>/admin/admin_link.jsp">友情连接</a> | <a target="main" href="admin_book.jsp">留言管理</a></li>
+		</ul>
+	</dd>
+</dl>
+
+<dl id="systemInfo">
+	<dt class="menu_title">系统信息 </dt>
+	<dd>
+		<ul>
+			<li>版权所有：</li>
+			<li><a target="_blank" href="http://www.mianfeizhe.com/">(MianFeiZhe.Com)</a></li>
+			<li><a target="_blank" href="http://www.mianfeizhe.com/">落八</a> QQ：83439123</li>
+		</ul>
+	</dd>
+</dl>
+</div></div>
+</body>
+</html>

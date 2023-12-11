@@ -1,0 +1,31 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>无标题文档</title>
+<%@ include file="/commons/taglibs.jsp"%>
+<%@ include file="/commons/meta.jsp"%>
+</head>
+
+<body>
+	<div width="900" height="800" align="center">
+        <table width="100%">
+            <tr>
+            	<td width="40%"><img src="${ctx}/Images/jiemian.jpg"></img></td>
+            	<td align="left">
+            		<h2 style="padding-left:130px;">Order Process</h2>     
+                    <h4>1.Inquriy/Order &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Make inquriy/order by selection or by part code</h4>
+                    <h4>2.Order &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Edit form (add or delete tooling)</h4>
+                    <h4>3.Check &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Check by KETEC assistant</h4>
+                    <h4>4.Confirm &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Customer check price,tooling again, confirm to KETEC</h4>
+                    <h4>5.Pay &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Customer pay as agreed with KETEC</h4>
+                    <h4>6.In process &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;KETEC assistant start to produce</h4>
+                    <h4>7.In process &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;KETEC ship out order,input tracking No.</h4>
+                    <h4>8.In process &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Customer accept shippment,confirm in website</h4>
+                    <h4>9.History &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Finish deal after paying and accept shippment</h4>
+               </td>
+        	</tr>
+        </table>
+    </div>
+</body>
+</html>

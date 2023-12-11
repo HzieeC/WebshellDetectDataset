@@ -1,0 +1,57 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="java.util.*" %>
+<% 
+		
+  	String user_id = "";
+  	if(request.getParameter("user_id")!=null) 
+  		user_id = request.getParameter("user_id");
+  		
+%>
+<html>
+  <head>
+  	<title>重置个人会员密码</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="js_personal.js"></script>
+</head>
+
+<body>
+  
+	
+	<h1>重置个人会员密码</h1>
+
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	<table width="100%" cellpadding="1" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="15%">
+				新密码<font color="red">*</font>
+			</td>
+			<td><input name="passwd" id="passwd" type="password" maxlength="20" value="" /></td>
+		</tr>
+		<tr>
+			<td align="right" width="15%">
+				确认密码<font color="red">*</font>
+			</td>
+			<td><input name="c_passwd" id="c_passwd" type="password" maxlength="20" value="" /></td>
+		</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="2222" />
+				<input name="user_id" id="user_id" type="hidden" value="<%=user_id%>" />
+				<input class="buttoncss" type="button" name="Submit2" id="Submit2" value="提交" onclick="submitPasswd()" />&nbsp;&nbsp;
+				<input class="buttoncss" type="button" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+	
+	
+	
+</body>
+
+</html>

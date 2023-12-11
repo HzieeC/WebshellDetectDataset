@@ -1,0 +1,78 @@
+<!--#include file="../../Inc/Const.Asp"-->
+<%
+dim plus
+set plus = new cls_plus
+plus.open("public")
+plus.state
+plus.newtpl("plus_public.html")
+
+dim gourl : gourl = "index.asp"
+if request("action") = "do" then
+	call checkpost(false)
+	if plus.config("sn") = 1 and cstr(session("pubcode")) <> request.form("sn") then call alert(plus.lang("snerr"),gourl)
+	If isdate(session("public_lastpPostTime")) and datediff("s",Session("public_lastpPostTime"),now()) < plus.config("timelimit") then call alert(replace(plus.lang("timelimit"),"$1",plus.config("timelimit")),gourl)
+	dim vcid,pcid,vtitle,vcontent,vauthor,vsource,vaid
+	vcid = request.form("cid") : if not isnumeric(vcid) or len(vcid)=0 then vcid = 0 else vcid = int(vcid)
+	pcid = "," & plus.config("channelid") & ","
+	vtitle = replace(request.form("title"),"'","")
+
+	vtitle = Replace(vtitle,"""","")
+	vtitle = Replace(vtitle,"%","")
+	vtitle = Replace(vtitle,"<","")
+	vtitle = Replace(vtitle,">","")
+	
+	vcontent = request.form("content")
+	
+	vauthor = replace(request.form("author"),"'","")
+	vsource = replace(request.form("source"),"'","")
+	if vcid =  0 then call alert(plus.lang("nullcid"),gourl)
+	if vcid = -1 then call alert(plus.lang("cantpub"),gourl)
+	if vcid = -2 then call alert(plus.lang("nullpower"),gourl)
+	if pcid <> ",0," and instr(pcid, "," & vcid & ",") = 0 then call alert(plus.lang("nullpower"),gourl)
+ 	if len(vtitle) < 2 then call alert(plus.lang("nulltitle"),gourl)
+	if len(vcontent) < plus.config("contentmin") then call alert(replace(plus.lang("contentmin"),"$1",plus.config("contentmin")),gourl)
+	if len(vcontent) > plus.config("contentmax") then call alert(replace(plus.lang("contentmax"),"$1",plus.config("contentmax")),gourl)
+	dim rs
+	set rs = db("select [id] from [{pre}channel] where [id]=" & vcid,1)
+	if rs.eof then rs.close : conn.close : call alert(plus.lang("nullcid"),gourl)
+	rs.close
+	set rs = db("select * from [{pre}content]",3)
+	rs.addnew
+	rs("Cid") = vcid
+	rs("Sid") = 0
+	rs("Title") = vtitle
+	rs("Style") = ","
+	rs("Author") = vauthor
+	rs("Source") = vsource
+	rs("Jumpurl") = ""
+	rs("Keywords") = ""
+	rs("Description") = ""'vDescription
+	rs("Commend") = 0
+	rs("Indexpic") = ""
+	rs("Views") = 0
+	rs("IsComment") = 1
+	rs("Order") = 0
+	rs("Diyname") = ""
+	rs("Display") = 0
+	rs("Createtime") = now()
+	rs("Modifytime") = now()
+	rs.update
+	rs.close
+	vaid = db("select max([id]) from [{pre}content]",1)(0)
+	set rs = db("Select [aid],[cid],[content] from [" & GetChannel(vcid,"table") & "]",3)
+	rs.addnew
+	rs("Aid") = vaid
+	rs("Cid") = vcid
+	rs("Content") = vcontent
+	rs.update
+	rs.close
+	conn.close
+	set conn = nothing
+	Session("public_lastpPostTime") = now
+	call alert(plus.lang("pubok"),installdir)
+else
+	if plus.config("sn") = 1 then plus.settpl "{sndisplay}","" else plus.settpl "{sndisplay}","style=""display:none;"""
+	response.write plus.gettpl
+end if
+set plus = nothing
+%>

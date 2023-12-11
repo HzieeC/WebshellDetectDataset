@@ -1,0 +1,306 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../inc/setup.asp"-->
+<!--#include file="../inc/const.asp"-->
+<!--#include file="../inc/check.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_taglist.asp
+' 更新日期：2008-05-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%><form method="post" name="search_form" action="?ChannelID=<%=ChannelID%>">
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="200" align="left"><%=NewAsp.ModuleName%>Tags 管理</td>
+		<td class="tableline" width="*" align="right"><a href="?ChannelID=<%=ChannelID%>">管理首页</a>
+			 - <a href="?ChannelID=<%=ChannelID%>&showmode=1">没有使用的Tag</a>
+			 - <a href="?action=add&ChannelID=<%=ChannelID%>">添加</a>
+			 - <a href="admin_setting.asp">基本设置</a>&nbsp;&nbsp;
+			 <b>Tag名称：</b><input size="15" type="text" name="word" value="<%=Server.HTMLEncode(Trim(Request("word")&""))%>" /> <input class="button" type="submit" name="search_button" value="查找" />
+		</td>
+	</tr>
+</table>
+</form>
+<%
+Dim maxperpage,totalrec,Pcount,pagelinks,showmode,pagenow,topcount,count,Taglist
+Dim Action,SQLQuery
+
+Action=LCase(Request("action"))
+If Not ChkAdmin("Tags_"&ChannelID) Then
+	Call Transfer_error()
+End If
+Select Case Trim(Action)
+Case "savenew"
+	Call savenew()
+Case "savedit"
+	Call savedit()
+Case "edit"
+	Call editags()
+Case "add"
+	Call addtags()
+Case "del"
+	Call deltags()
+Case Else
+	Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+	Dim i,iCount,lCount
+	Dim Rs,SQL,n,ii
+	Dim Keyword,showmode
+	maxperpage=100
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+	count=NewAsp.ChkNumeric(Request("count"))
+	Keyword = Trim(Request("word"))
+	showmode = NewAsp.ChkNumeric(Request("showmode"))
+	keyword=NewAsp.CheckStr(Request("word"))
+	If Len(keyword)>1 Then
+		If IsSqlDataBase=1 Then
+			SQLQuery="And (Tagname like '%"&keyword&"%')"
+		Else
+			SQLQuery="And (InStr(1,LCase(Tagname),LCase('"&keyword&"'),0)>0)"
+		End If
+	End If
+	If showmode=1 Then SQLQuery="And Tagcount=0"
+	If count=0 Then
+		totalrec=NewAsp.Execute("SELECT COUNT(*) FROM NC_Tags WHERE ChannelID="&ChannelID&" "&SQLQuery&"")(0)
+	Else
+		totalrec=count
+	End If
+%>
+<table  border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="5">选择标签</th>
+</tr>
+<tr>
+	<td colspan="5" class="tablerow1" align="left" id="showNextPage">&nbsp;</td>
+</tr>
+<form name="selform" method="post" action="?ChannelID=<%=ChannelID%>">
+<input type="hidden" name="action" value="del">
+<%
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT TagID,Tagname,Tagcount FROM NC_Tags WHERE ChannelID="&ChannelID&" "&SQLQuery&" ORDER BY TagID DESC"
+	Rs.Open SQL,Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		Taglist=Rs.GetRows(maxperpage)
+	Else
+		Taglist=Null
+	End If
+	Rs.close()
+	Set Rs=Nothing
+
+	pagelinks="?channelid="&ChannelID&"&word="&Request("word")&"&showmode="&Request("showmode")&"&count="&totalrec&"&"
+	iCount=2:lCount=2:n=0
+	If IsArray(Taglist) Then
+		For i=0 To Ubound(Taglist,2)
+			If Not Response.IsClientConnected Then Response.End
+			If (i Mod 2) = 0 Then iCount=2 Else iCount=1
+			If i=0 Then Response.Write "<tr align=""left"">" & vbNewLine
+			Response.Write "<td class=""tablerow"&iCount&""">"
+			Response.Write "<input type=""checkbox"" name=""TagsID"" value="""&Taglist(0,i)&"""/>"
+			Response.Write "<a href=""?action=edit&ChannelID="&ChannelID&"&TagID="&Taglist(0,i)&""">" &Taglist(1,i)& "(" &Taglist(2,i)& ")</a> "
+			'Response.Write "&times;"
+			Response.Write "</td>" & vbNewLine
+			n=n+1
+			If (n Mod 5) = 0 Then
+				Response.Write "</tr>" & vbNewLine
+				If n<maxperpage And n<totalrec Then Response.Write "<tr align=""left"">" & vbNewLine
+			End If
+		Next
+		If (n Mod 5) > 0 Then
+			For ii=1 To 5-(n Mod 5)
+				If (i Mod 2) = 0 Then iCount=2 Else iCount=1
+				i=i+1
+				Response.Write "<td class=""tablerow"&iCount&""">&nbsp;</td>" & vbNewLine
+			Next
+			Response.Write "</tr>" & vbNewLine
+		End If
+	End If
+%>
+<tr>
+	<td class="tablerow2" colspan="5"><input class="button" type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class="button" type="button" name="chksel" value="反选" onClick="ContraSel(this.form)">
+		<input class="button" type="submit" name="submit_button" value="删除Tags" onclick="return confirm('您确定要删除所选的Tags吗?');">
+	</td>
+</tr>
+</form>
+<tr>
+	<td colspan="5" class="tablerow1" id="NextPageText"><var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+</table>
+<script type="text/javascript">
+document.getElementById("showNextPage").innerHTML = document.getElementById("NextPageText").innerHTML;
+</script>
+<%
+End Sub
+
+Sub showTagsList()
+
+End Sub
+
+Sub addtags()
+%>
+<form name="myform" method="post" action="?ChannelID=<%=ChannelID%>">
+<input type="hidden" name="action" value="savenew">
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">添加Tag</th>
+</tr>
+<tr>
+	<td class="tablerow1" width="20%" align="right"><b>Tag名称：</b></td>
+	<td class="tablerow1" width="80%"><input type="text" name="Tagname" size="80"></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>Tag统计：</b></td>
+	<td class="tablerow2"><input type="text" name="Tagcount" size="10" value="0"></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>Tag计数：</b></td>
+	<td class="tablerow1"><input type="text" name="Taghits" size="10" value="0"></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>&nbsp;</b></td>
+	<td class="tablerow2"><input type="button" name="go_button" onclick="javascript:history.go(-1)" value="返回上一页" class="button">&nbsp;&nbsp;
+	<input type="submit" name="submit_button" value="提 交" class="button"></td>
+</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub editags()
+	Dim Rs,SQL
+	SQL="SELECT TagID,Tagname,Tagcount,Taghits FROM NC_Tags WHERE ChannelID="&ChannelID&" And TagID="&NewAsp.ChkNumeric(Request("TagID"))
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = "<li>错误的系统参数。</li>"
+		Set Rs = Nothing
+		Exit Sub
+	End If
+%>
+<form name="myform" method="post" action="?ChannelID=<%=ChannelID%>">
+<input type="hidden" name="action" value="savedit">
+<input type="hidden" name="TagID" value="<%=Rs("TagID")%>">
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">编辑Tag</th>
+</tr>
+<tr>
+	<td class="tablerow1" width="20%" align="right"><b>Tag名称：</b></td>
+	<td class="tablerow1" width="80%"><input type="text" name="Tagname" size="60" value="<%=Server.HTMLEncode(Rs("Tagname")&"")%>"></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>Tag统计：</b></td>
+	<td class="tablerow2"><input type="text" name="Tagcount" size="10" value="<%=Rs("Tagcount")%>"></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>Tag计数：</b></td>
+	<td class="tablerow1"><input type="text" name="Taghits" size="10" value="<%=Rs("Taghits")%>"></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>&nbsp;</b></td>
+	<td class="tablerow2"><input type="button" name="go_button" onclick="javascript:history.go(-1)" value="返回上一页" class="button">&nbsp;&nbsp;
+	<input type="submit" name="submit_button" value="提 交" class="button"></td>
+</tr>
+</table>
+</form>
+<%
+	Set Rs = Nothing
+End Sub
+
+Sub deltags()
+	Dim TagsIDlist
+	TagsIDlist=NewAsp.CheckIDlist(Request("TagsID"))
+	If TagsIDlist<>"" And TagsIDlist<>"0" Then
+		NewAsp.Execute ("DELETE FROM NC_Tags WHERE TagID in ("&TagsIDlist&")")
+	End If
+	Response.redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+Sub savenew()
+	Dim tempTags,tagItem,tmpTagslist,tagName,i
+	i=0
+	tmpTagslist=checkTagString(Request.Form("Tagname"))
+	If Len(tmpTagslist)>0 Then
+		tempTags = Split(tmpTagslist," ")
+		For Each tagItem In tempTags
+			If Len(Trim(tagItem))>0 Then
+				tagName=Trim(tagItem)
+				If Not checkTag(tagName) Then
+					NewAsp.Execute("Insert into NC_Tags (ChannelID,Modules,classid,Tagname,Tagcount,Taghits,IsBest,IsTop) values ("&ChannelID&","&NewAsp.Modules&",0,'"&tagName&"',"&NewAsp.ChkNumeric(Request.Form("Tagcount"))&",0,0,0)")
+					i=i+1
+				End If
+			End If
+		Next
+	End If
+	Succeed("<li>恭喜您！添加 "&i&" 个Tags完成。</li>")
+End Sub
+
+Function checkTagString(str)
+	Dim strTags,arrTags,tagItem,tmpTags,i
+	CheckTagString=""
+	If IsNull(str) Then Exit Function
+	strTags=Replace(Trim(str), Chr(0), "")
+	strTags=Replace(strTags, Chr(34), "")
+	strTags=Replace(strTags,  vbCrLf, "")
+	strTags=Replace(strTags, "'", "")
+	strTags=Replace(strTags, "　", "")
+	strTags=Replace(strTags, " ", ",")
+	strTags=Replace(strTags, "|", ",")
+	If ""=strTags Then Exit Function
+	i=0:tmpTags=""
+	arrTags=Split(strTags, ",")
+	For Each tagItem In arrTags
+		If Len(tagItem)>1 Then
+			If i=0 Then
+				tmpTags=tagItem
+			Else
+				tmpTags=tmpTags&" "&tagItem
+			End If
+			i=i+1
+		End If
+	Next
+	CheckTagString=tmpTags
+End Function
+
+Function checkTag(tagName)
+	tagName=Replace(tagName, "'", "''")
+	checkTag=CBool(NewAsp.Execute("SELECT COUNT(*) FROM NC_Tags WHERE ChannelID="&ChannelID&" And Tagname='"&tagName&"'")(0))
+End Function
+
+Sub savedit()
+	Dim strTagname,tagcount
+	strTagname=Trim(NewAsp.CheckStr(Request.Form("Tagname")))
+	If Trim(strTagname)<>"" Then
+		tagcount=NewAsp.Execute("SELECT COUNT(*) FROM NC_Tags WHERE Tagname='" & strTagname & "' And ChannelID="&ChannelID&" And TagID<>"&NewAsp.ChkNumeric(Request.Form("TagID")))(0)
+		If tagcount>0 Then
+			FoundErr = True
+			ErrMsg = "<li>此Tag已经存在，请返回重新输入。</li>"
+			Exit Sub
+		Else
+			NewAsp.Execute ("UPDATE NC_Tags SET Tagname='"&strTagname&"',Tagcount="&NewAsp.ChkNumeric(Request.Form("Tagcount"))&",Taghits="&NewAsp.ChkNumeric(Request.Form("Taghits"))&" WHERE ChannelID="&ChannelID&" And TagID="&NewAsp.ChkNumeric(Request.Form("TagID")))
+		End If
+	End If
+	Succeed("<li>恭喜您！修改Tags成功。</li>")
+End Sub
+
+%>

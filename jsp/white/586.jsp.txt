@@ -1,0 +1,153 @@
+<%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+	<title>-完成订单</title>
+    <%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	<link href="${ctx}/styles/css/css.css" rel="stylesheet" type="text/css" />
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	
+</head>
+<body>
+<!--  页头  -->
+<div align="center">
+<table width="978" border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td height="79" background="${ctx }/imgas/dingdanqueren_01.jpg">
+	    <table width="978" height="22" border="0" align="center" cellpadding="0" cellspacing="0">
+	      <tr>
+	        <td width="515"><a href="${ctx }/index.do"><img src="${ctx }/imgas/dingdanqueren_04.gif" width="305" height="56" border="0" /></a></td>
+	        <td width="463" align="right">
+		        <table width="323" height="38" border="0" cellpadding="0" cellspacing="0">
+	          <tr>
+	            <td align="right" style="font-size: 12px;">
+	                您好,<c:if test="${loginCustomer != null}">
+	           		  <a href="${ctx }/customerManage.do"><font color="red">${loginCustomer.name}</font></a>，
+	           	  </c:if>
+	           	  欢迎光临e商城！<c:if test="${loginCustomer == null}">
+		             <a href="${ctx }/frontLogin.do"><font color="red">[登录]</font></a>
+		             <a href="${ctx }/frontLogin.do"><font color="red">[注册]</font></a> |
+	             </c:if>
+	             <c:if test="${loginCustomer != null}">
+	                [<span class="lan12"><a href="${ctx }/safeLogout.do" class="a1">安全退出</a></span>]
+	             </c:if>
+	            </td>
+	          </tr>
+	          <tr>
+	            <td align="right">
+	            <table border="0" cellspacing="0" cellpadding="0">
+	              <tr>
+	                <td width="30"><img src="${ctx }/imgas/dingdanqueren_07.gif" width="19" height="14" /></td>
+	                <td width="220" style="font-size: 12px;"><a href="${ctx }/myShoppingCar.do">购物车(<span class="hong12cuti">
+	                <c:if test="${shoppingCarSize !=null}">${shoppingCarSize}</c:if>
+	                <c:if test="${shoppingCarSize ==null}">0</c:if></span>)</a> | <a href="${ctx }/customerManage.do" target="_blank">我的e商城</a> | <a href="${ctx }/infor.do" target="_blank">帮助中心</a> </td>
+	              </tr>
+	            </table>
+	            </td>
+	          </tr>
+	        </table>
+	        </td>
+	      </tr>
+	    </table>
+    </td>
+  </tr>
+</table>
+<br />
+<br />
+<!--  页头  -->
+
+<!--订单提交表单-->
+<table width="978" height="256" border="0" align="center" cellpadding="0" cellspacing="0">
+  <tr>
+    <td align="center" bgcolor="#e9e9e9">
+	    <table width="963" height="242" border="0" cellpadding="0" cellspacing="0" bgcolor="#FFFFFF">
+	      <tr>
+	        <td align="center">
+	        <table width="882" height="208"  align="center" border="0" cellpadding="0" cellspacing="0">
+	          <tr>
+	          	<td>
+		          <table  border="0" align="left" cellpadding="10" cellspacing="10">
+			  	 	<tr>
+			  	 		<td><h2 style="font-size: 15">付款状态</h2></td>
+			  	 		<td><h2 style="color: red;font-size: 15;">付款成功</h2></td>
+			  	 	</tr>
+			  	 	<tr>
+			  	 		<td><h2 style="font-size: 15">支付方式</h2></td>
+			  	 		<td><h2 style="color: red;font-size: 15">${paymentName}</h2></td>
+			  	 	</tr>
+			  	 	<tr>
+			  	 		<td><h2 style="font-size: 15">订单编号</h2></td>
+			  	 		<td><h2 style="color: red;font-size: 15">${orderNo}</h2></td>
+			  	 	</tr>
+			  	 	<tr>
+			  	 		<td><h2 style="font-size: 15">付款金额</h2></td>
+			  	 		<td><h2 style="color: red;font-size: 15">${totalFee}</h2></td>
+			  	 	</tr>
+			  	 	<tr>
+			  	 		<td><h2 style="font-size: 15">联系人</h2></td>
+			  	 		<td><h2 style="color: red;font-size: 15">${linkMan}</h2></td>
+			  	 	</tr>
+			  	 	<c:if test="${tradeNo!=null}">
+			  	 	<tr>
+			  	 		<td><h2 style="font-size: 15">支付交易号</h2></td>
+			  	 		<td><h2 style="color: red;font-size: 15">${tradeNo}</h2></td>
+			  	 	</tr>
+			  	 	</c:if>
+			  	 	<tr>
+			  	 		<td><h2 style="font-size: 15">付款时间</h2></td>
+			  	 		<td><h2 style="color: red;font-size: 15"><fmt:formatDate pattern="yyyy-MM-dd mm:dd:ss" value="${currentTime}" /></h2></td>
+			  	 	</tr>
+	  	 		</table>
+	  	 		</td>
+	          </tr>
+	          <tr>
+	             <td height="68">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+		            <table width="882" height="51" border="0" cellpadding="0" cellspacing="0" class="hongsesibiankuang">
+		                <tr>
+		                  <td height="49" align="center" bgcolor="#fffde9">
+			                  <table width="855" border="0" cellpadding="0" cellspacing="0">
+			                    <tr><td align="left" style="font-size:12px;color:red">提示：您付款成功，请等待卖家发货，如有必要，您可以联系对方。</td></tr>
+			                  </table>
+		                  </td>
+		                </tr>
+		            </table>
+	             </td>
+	          </tr>
+	          <tr>
+	            <td height="50">
+		            <table width="558" height="25" border="0" align="left" cellpadding="0" cellspacing="0">
+		              <tr>
+		              	<td align="left" style="font-size:12px;"><span class="hei14">现在您可以：</span><span class="lan14">
+		              		<a href="${ctx }/orderManage.do" target="_blank">查看订单状态</a>&nbsp; 
+		              		<a href="${ctx }/index.do" target="_blank">继续购物</a>&nbsp; 
+		              		<a href="${ctx }/infor.do" target="_blank">查看货到付款帮助</a>&nbsp; 
+		              		<!--  反馈意见  -->
+		              	</span></td>
+		              </tr>
+		            </table>
+	            </td>
+	          </tr>
+	        </table>
+	        </td>
+	      </tr>
+	    </table>
+    </td>
+  </tr>
+</table>
+<!--订单提交表单-->
+<br />
+
+<!--商品列表-->
+
+</div>
+<!--商品列表-->
+<br />
+<br />
+<br />
+<!-- 页脚开始 -->
+<%@ include file="/WEB-INF/page/front/footer.jsp"%>
+<!-- 页脚结束 -->
+</body>
+

@@ -1,0 +1,189 @@
+<!--#include file="const.asp"-->
+<!--#include file="common.asp"-->
+<%
+Dim MoreAction:MoreAction=0
+Dim classname,m_strABC,MaxPageList
+Dim HtmlFilePath,HtmlFileName,BuildHtmlDone
+BuildHtmlDone=0
+
+Sub main()
+	SQLField = "A.flashid,A.ChannelID,A.classid,A.specialid,A.title,A.subtitle,A.ColorMode,A.FontMode,A.OuterLinks,A.[Describe],A.[filesize],A.Author,A.ComeFrom,A.star,A.showmode,A.PointNum,A.username,A.addTime,A.AllHits,A.isTop,A.isBest,A.HtmlFileDate,A.Taglist,A.miniature,C.ClassName,C.HtmlFileDir,C.readme"
+	maxperpage=NewAsp.ChkNumeric(TPL_Config(27))
+	If maxperpage=0 Then maxperpage=30
+	MaxPageList=NewAsp.ChkNumeric(TPL_Config(34))
+	If MaxPageList=0 Then MaxPageList=200
+	i=0:n=0:BuildHtmlDone=0
+	If IsNowOutputText Then
+		pagenow=NewAsp.ChkNumeric(Request("page"))
+		m_strABC=NewAsp.CheckInput(Request("q"),2)
+	Else
+		Pcount=0
+	End If
+	If ""=m_strABC Then m_strABC="A-Z"
+	If pagenow=0 Then pagenow=1
+
+
+	TPL_FileName=Check_TPL_File(TPL_FilePath,"morelist",MoreAction,0)
+	HtmlContent = NewAsp.LoadTemplate(TPL_FilePath&"\"&TPL_FileName)
+	HtmlContent = Replace(HtmlContent, "{$channelid}", ChannelID)
+	Select Case MoreAction
+		Case 1	:	HtmlContent = Replace(HtmlContent, "{$pagetitle}", TPL_Config(31))
+		Case 2	:	HtmlContent = Replace(HtmlContent, "{$pagetitle}", TPL_Config(32))
+		Case 3	:	HtmlContent = Replace(HtmlContent, "{$pagetitle}", TPL_Config(33)&" - "&Replace(m_strABC, "{$", "{ $"))
+	Case Else	:	HtmlContent = Replace(HtmlContent, "{$pagetitle}", TPL_Config(30))
+	End Select
+	HtmlContent = Replace(HtmlContent, "{$action}", MoreAction)
+	HtmlContent = Replace(HtmlContent, "{$pagenow}", MoreAction)
+	HtmlContent = Replace(HtmlContent, "{$classid}", 0)
+	TPL_Scan HtmlContent
+End Sub
+
+Sub showTopiclist()
+	Dim Rs,SQL
+	SQLQuery=" And A.isAccept=1"
+
+	On Error Resume Next
+
+	m_strOrder="A.addtime"
+	Call TestMoreAction()
+
+	If Not IsObject(Conn) Then ConnectionDatabase
+	If MoreAction=3 Then
+		totalrec=MaxPageList
+	Else
+		totalrec=Newasp.Execute("SELECT COUNT(*) FROM NC_FlashList A WHERE A.ChannelID="&ChannelID&" "&SQLQuery&"")(0)
+		If totalrec>MaxPageList Then totalrec=MaxPageList
+	End If
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	If pagenow>=Pcount Then BuildHtmlDone=1
+
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT TOP "&MaxPageList&" "& SQLField &" FROM [NC_FlashList] A INNER JOIN [NC_Classify] C on A.ClassID=C.ClassID WHERE A.ChannelID=" &ChannelID& " "&SQLQuery&" ORDER BY "&m_strOrder&" DESC"
+	Rs.Open SQL,Conn,1,1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum+1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		Topiclist=Rs.GetRows(maxperpage)
+	Else
+		Topiclist=Null:BuildHtmlDone=1
+	End If
+	Rs.close():Set Rs=Nothing
+End Sub
+
+Sub TestMoreAction()
+	Dim softTypeID
+	Select Case MoreAction
+		Case 1	:	SQLQuery=" And A.isBest>0"&SQLQuery
+			If NewAsp.IsCreateHtml=0 Then
+				If IsURLRewrite Then
+					m_strLinks=CheckURLRewrite(NewAsp.ChannelPath,"bestlist-[page]"&NewAsp.HtmlExtName)
+				Else
+					m_strLinks="showbest.asp?"
+				End If
+			Else
+				m_strLinks=NewAsp.ChannelPath&OtherHtmlPath&"bestlist-[page]"&NewAsp.HtmlExtName
+				HtmlFileName=NewAsp.ChannelDest&OtherHtmlPath&"bestlist-"&pagenow&NewAsp.HtmlExtName
+			End If
+		Case 2	:	m_strOrder="A.Allhits"
+			If NewAsp.IsCreateHtml=0 Then
+				If IsURLRewrite Then
+					m_strLinks=CheckURLRewrite(NewAsp.ChannelPath,"hotlist-[page]"&NewAsp.HtmlExtName)
+				Else
+					m_strLinks="showhot.asp?"
+				End If
+			Else
+				m_strLinks=NewAsp.ChannelPath&OtherHtmlPath&"hotlist-[page]"&NewAsp.HtmlExtName
+				HtmlFileName=NewAsp.ChannelDest&OtherHtmlPath&"hotlist-"&pagenow&NewAsp.HtmlExtName
+			End If
+		Case 3
+			If ""=m_strABC Then m_strABC="A-Z"
+			maxperpage=100:MaxPageList=100:BuildHtmlDone=1
+			SQLQuery=" And A.AlphaIndex='"&Replace(m_strABC, "'", "''")&"'"&SQLQuery
+			If NewAsp.IsCreateHtml=0 Then
+				If IsURLRewrite Then
+					m_strLinks=CheckURLRewrite(NewAsp.ChannelPath,"ABC_"&m_strABC&"_1"&NewAsp.HtmlExtName)
+				Else
+					m_strLinks="showabc.asp?q="&m_strABC
+				End If
+			Else
+				m_strLinks=NewAsp.ChannelPath&OtherHtmlPath&"ABC_"&m_strABC&"_1"&NewAsp.HtmlExtName
+				HtmlFileName=NewAsp.ChannelDest&OtherHtmlPath&"ABC_"&m_strABC&"_1"&NewAsp.HtmlExtName
+			End If
+	Case Else
+		m_strOrder="A.addtime"
+		If NewAsp.IsCreateHtml=0 Then
+			If IsURLRewrite Then
+				m_strLinks=CheckURLRewrite(NewAsp.ChannelPath,"newlist-[page]"&NewAsp.HtmlExtName)
+			Else
+				m_strLinks="shownew.asp?"
+			End If
+		Else
+			m_strLinks=NewAsp.ChannelPath&OtherHtmlPath&"newlist-[page]"&NewAsp.HtmlExtName
+			HtmlFileName=NewAsp.ChannelDest&OtherHtmlPath&"newlist-"&pagenow&NewAsp.HtmlExtName
+		End If
+	End Select
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	Select Case sTokenName
+		Case "action=0"		:	If MoreAction=0 Then TPL_Scan sTemplate
+		Case "action=1"		:	If MoreAction=1 Then TPL_Scan sTemplate
+		Case "action=2"		:	If MoreAction=2 Then TPL_Scan sTemplate
+		Case "action=3"		:	If MoreAction=3 Then TPL_Scan sTemplate
+		Case "action=4"		:	If MoreAction=4 Then TPL_Scan sTemplate
+		Case "action!=3"	:	If MoreAction<>3 Then TPL_Scan sTemplate
+		Case "pagenow=1"	:	If pagenow=1 Then TPL_Scan sTemplate
+		Case "pagenow=0"	:	If pagenow>1 Then TPL_Scan sTemplate
+		Case "topiclist"
+			Call showTopiclist()
+			If IsArray(Topiclist) Then
+				For i=0 To UBound(Topiclist,2)
+					n=n+1:If (n Mod 2) = 0 Then im=2 Else im=1
+					If (i Mod 2) = 0 Then m=1 Else m=2
+					TPL_Scan sTemplate
+				Next
+			End If
+		Case "menuitem"
+	End Select
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+		Case "topiclist"
+			ParseTopicNode		sTokenName
+		Case "menuitem"
+			ParseMenuNode		sTokenName
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Select Case sToken
+		Case "i"			:	TPL_Echo i+1
+		Case "moremenu"		:	TPL_Echo moremenu(sVariant)
+		Case "typemenu"		:	TPL_Echo typemenu(sVariant)
+		Case "totalrec"		:	TPL_Echo totalrec
+		Case "pagenow"		:	TPL_Echo pagenow
+		Case "pagecount"	:	TPL_Echo Pcount
+	End Select
+	If Err Then Err.Clear
+End Sub
+
+Sub ParseMenuNode(sToken)
+	On Error Resume Next
+	Dim Node
+	Select Case sToken
+		Case "i"			:	TPL_Echo i+1
+	End Select
+	If Err Then Err.Clear
+End Sub
+
+
+%>

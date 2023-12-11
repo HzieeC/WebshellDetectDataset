@@ -1,0 +1,124 @@
+<%@ Language=VBScript %>
+<!--#include file="cominc/conndb.asa"-->
+<!--#include file="cominc/function.asp"-->
+<%
+Response.ContentType="application/xml"
+Response.Charset="gb2312" 
+Response.Expires=0
+
+Action=CheckStr(Request("Action"))
+
+If Action="NewReview" Then 
+	Call checkuser()
+	r_shopid=Trim(unescape(request.form("id")))
+	r_sort1=Trim(unescape(request.form("s1")))
+	r_sort2=Trim(unescape(request.form("s2")))
+	r_sort3=Trim(unescape(request.form("s3")))
+	r_sort4=Trim(unescape(request.form("s4")))
+	r_avrprice=Trim(unescape(request.form("a")))
+	r_content=Trim(unescape(request.form("c")))
+	r_content=server.htmlencode(r_content)
+	
+	If r_shopid=0 Or r_shopid="" Or r_sort1="" Or r_sort2="" Or r_sort3="" Or r_sort4="" Or r_avrprice="" Then Response.Write backMsg("参数丢失","")
+	Set rs= Server.CreateObject("ADODB.Recordset")
+		sql="select * from "&reviewTable&""
+		rs.open sql,conn,3,2
+		rs.addnew
+		rs("r_shopid")=r_shopid
+		rs("r_addname")=Dreamsun_Name
+		rs("r_addip")=reip()
+		rs("r_sort1")=r_sort1
+		rs("r_sort2")=r_sort2
+		rs("r_sort3")=r_sort3
+		rs("r_sort4")=r_sort4
+		rs("r_avrprice")=r_avrprice
+		rs("r_addtime")=now()
+		rs("r_content")=r_content
+		rs.update
+		rs.close
+	Set rs=Nothing
+
+	Set rs= Server.CreateObject("ADODB.Recordset")
+		sql="select sum(r_sort1) as sort1,sum(r_sort2) as sort2,sum(r_sort3) as sort3,sum(r_sort4) as sort4,sum(r_avrprice) as avrprice,count(*) as total from "&reviewTable&" where r_shopid="&r_shopid
+		rs.open sql,conn,1,1
+		sort1=rs("sort1")
+		sort2=rs("sort2")
+		sort3=rs("sort3")
+		sort4=rs("sort4")
+		total=rs("total")
+		avrprice=rs("avrprice")
+		rs.close
+	Set rs=Nothing
+	If total>0 Then 
+		avr_sort1=Round(sort1/total)
+		avr_sort2=Round(sort2/total)
+		avr_sort3=Round(sort3/total)
+		avr_sort4=Round(sort4/total)
+		avr_avrprice=Round(avrprice/total)
+		shop_sort=Round((avr_sort1 + avr_sort2 + avr_sort3 + avr_sort4)/4,1)
+		sql="update ["&shopTable&"] set shop_sort='"&shop_sort&"',shop_sort1="&avr_sort1&",shop_sort2="&avr_sort2&",shop_sort3="&avr_sort2&",shop_sort4="&avr_sort2&",shop_average="&avr_avrprice&",shop_review="&total&" where shop_id="&r_shopid&""
+		conn.execute(sql)
+	End If
+	'增加完图片后，需要进行数据统计
+	'1，统计该用户的信息。
+	conn.execute "update "&userTable&" set postreview=postreview+1,coin=coin+"&coin_addreview&" where username='"&Dreamsun_Name&"'",RowsAffected 
+	If RowsAffected=0 Then 
+		Call GetUserCount(Dreamsun_Name)
+	End If 
+	'2，统计站点信息。
+	Call GetSiteCount()
+	Session("posttime") = Now()
+	If Err Then 
+	   Response.Write(escape("出现错误！"))
+		response.End 
+	Else 
+	   'Response.Write(escape("点评成功！"))
+	End If
+ElseIf Action="ok" Then 
+
+
+
+
+
+
+
+
+
+End If 
+
+
+Dim  CurPage
+shopid=Int(Request("shopid"))
+CurPage=cint(Request("page"))
+If CurPage = empty or CurPage<1 Then 
+	 CurPage = 1
+End If
+Response.Write("<?xml version=""1.0"" encoding=""gb2312""?>")
+Set rs=Server.CreateObject("ADODB.Recordset")
+Sql="SELECT kb_review.*,kb_user.postreview,kb_user.postphoto,kb_user.postshop,kb_user.coin From kb_review left join kb_user on kb_review.r_addname=kb_user.username where kb_review.r_shopid="&shopid&" order by kb_review.r_addtime desc,kb_review.r_id desc"  
+rs.Open Sql,Conn,1,3
+IF rs.Eof And rs.Bof Then
+    Response.Write("<data page=""0"" P_Nums=""0"">")
+	Response.Write("<Content>没有点评</Content>")
+	Response.Write("<Sort>没有</Sort>")
+	Response.Write("</data>")
+	Response.End
+Else
+    Dim PerPage,P_Nums,PageCountN,D_Nums
+    PerPage=2
+	Rs.PageSize=PerPage
+	Rs.AbsolutePage=CurPage
+    P_Nums=Rs.PageCount 
+	D_Nums=Rs.RecordCount
+	Response.Write("<data page="""&CurPage&""" P_Nums="""&P_Nums&""" D_Nums="""&D_Nums&""">")
+    Do Until rs.EOF or PageCountN=PerPage
+	  Response.Write("<Author PostTime="""&rs("r_addtime")&"""><![CDATA["&rs("r_addname")&"]]></Author>")
+	  Response.Write("<Content><![CDATA["&Replace(ChkBadWords(rs("r_content")),Chr(10),"<br>")&"]]></Content>")
+	  Response.Write("<Sort UserInfo="""&rs("postreview")&","&rs("postphoto")&","&rs("postshop")&","&ShowUserLevel(rs("coin"))&","&"""><![CDATA["&rs("r_sort1")&","&rs("r_sort2")&","&rs("r_sort3")&","&rs("r_sort4")&","&rs("r_avrprice")&"]]></Sort>")
+	  rs.MoveNext
+	  PageCountN=PageCountN+1
+	Loop
+End If
+Response.Write("</data>")
+
+%>

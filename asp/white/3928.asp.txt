@@ -1,0 +1,201 @@
+<!--#include file="../conn.asp" -->
+<!--#include file="const.asp"-->
+<!--#include file="../inc/cls_keyword.asp"-->
+<%
+'-- AJAX查询说明
+'-- query.asp?word=关键字&channelid=1&m=1&t=0&l=20&h=0&n=10
+'-- 参数说明
+'-- word=查询关键字
+'-- channelid=频道ID
+'-- m=所属频道模块；1=文章，2=下载，5=动画
+'-- t=搜索类型；t=0：前台搜索，t=1：后台搜索
+'-- l=标题长度
+'-- h=显示HTML代码；h=1：显示HTML代码，h=0：显示JS脚本代码
+'-- 搜索结果JS Array 说明
+'-- window.newasp.sug({q:'查询关键字',s:[完成标题],a:[URL]});
+
+Response.Expires = -9999
+Response.AddHeader "pragma", "no-cache"
+Response.AddHeader "cache-ctrol", "no-cache"
+NewAsp.ChkPostAgent()
+
+Dim SQLQuery,SQLField,Keyword,MaxSearchlist
+Dim Topiclist,FirstSQLQuery,strMaxLen,strMinLen,maxstrlen
+Dim ChannelID,m_strKeyword,searchmode,module,showhtml
+
+MaxSearchlist=10	'-- 搜索结果数
+strMaxLen=30		'-- 关键字最大长度限制
+strMinLen=2			'-- 关键字最小长度限制
+maxstrlen=0			'-- 标题最大长度限制
+Call Main()
+NewAsp.PageEnd()
+
+Sub main()
+	On Error Resume Next
+	searchmode=NewAsp.ChkNumeric(Request("t"))
+	maxstrlen=NewAsp.ChkNumeric(Request("l"))
+	showhtml=NewAsp.ChkNumeric(Request("h"))
+	ChannelID=NewAsp.ChkNumeric(Request("ChannelID"))
+	module=NewAsp.ChkNumeric(Request("m"))
+	MaxSearchlist=NewAsp.ChkNumeric(Request("n"))
+	m_strKeyword=Trim(Request("word"))
+	If Len(m_strKeyword)=0 Then m_strKeyword=Trim(Request("keyword"))
+	If Len(m_strKeyword)<strMinLen Then Exit Sub
+	Keyword=Left(m_strKeyword,strMaxLen)
+	FirstSQLQuery=""
+	If ChannelID>0 Then FirstSQLQuery="And A.ChannelID="&ChannelID
+	If module=0 Then module=2
+	If MaxSearchlist<1 Or MaxSearchlist>100 Then MaxSearchlist=10
+	If ChannelID>0 Then NewAsp.ChannelID=ChannelID Else NewAsp.ChannelID=module
+	NewAsp.Ellipsis=""
+	Call showTopiclist()
+	Topiclist=Null
+End Sub
+
+Sub showTopiclist()
+	Dim i,m_strResult,m_strResultTitle,m_strResultLinks
+	Dim strTitle,strLen,strContent,strLinks,strLink2,strChannDir
+	Dim strDomainName,channid,strIDField
+	strLen=maxstrlen
+	Select Case module
+		Case 1	:	Call QueryNewsData()	:	strIDField="&ArticleID="
+		Case 2	:	Call QuerySoftData()	:	strIDField="&softid="
+		Case 5	:	Call QueryFlashData()	:	strIDField="&flashid="
+	End Select
+	
+	If IsArray(Topiclist) Then
+		For i=0 To UBound(Topiclist,2)
+			strTitle=NewAsp.CheckTitle(Topiclist(3,i))
+			If strLen>0 Then strTitle=NewAsp.CutStr(strTitle,strLen)
+			channid=CLng(Topiclist(1,i))
+			If searchmode=1 Then
+				strLinks="admin_post.asp?action=edit&channelid="&channid&strIDField&Topiclist(0,i)
+				strLink2="admin_list.asp?channelid="&channid&"&classid="&Topiclist(2,i)
+			Else
+				If CLng(Topiclist(11,i))=0 Then
+					strDomainName=NewAsp.InstallDir&Topiclist(10,i)
+				Else
+					strDomainName=Topiclist(12,i)&"/"
+				End If
+				If CLng(Topiclist(13,i))=0 Then
+					If IsURLRewrite Then
+						strLinks=CheckURLRewrite(strDomainName,Topiclist(0,i)&Topiclist(14,i))
+						strLink2=CheckURLRewrite(strDomainName,"list_1_"&Topiclist(2,i)&Topiclist(14,i))
+					Else
+						strLinks=strDomainName&"show.asp?id="&Topiclist(0,i)
+						strLink2=strDomainName&"list.asp?classid="&Topiclist(2,i)
+					End If
+				Else
+					If CLng(Topiclist(11,i))=0 Then
+						strChannDir=Topiclist(10,i)
+						strLinks=NewAsp.HtmlDestination(Topiclist(15,i), strChannDir, Topiclist(7,i),Topiclist(8,i),Topiclist(2,i),Topiclist(0,i),1,"")
+						strLink2=NewAsp.HtmlDestination(Topiclist(16,i), strChannDir, Topiclist(7,i),Topiclist(8,i),Topiclist(2,i),Topiclist(0,i),1,"")
+					Else
+						strLinks=Topiclist(12,i)&NewAsp.HtmlDestination(Topiclist(15,i), strChannDir, Topiclist(7,i),Topiclist(8,i),Topiclist(2,i),Topiclist(0,i),1,"")
+						strLink2=Topiclist(12,i)&NewAsp.HtmlDestination(Topiclist(16,i), strChannDir, Topiclist(7,i),Topiclist(8,i),Topiclist(2,i),Topiclist(0,i),1,"")
+					End If
+				End If
+			End If
+			If showhtml=1 Then
+				Response.Write "<li><a href="""&strLinks&""">"
+				Response.Write strTitle
+				Response.Write "</a></li>" & vbCrLf
+			Else
+				If i=0 Then
+					m_strResultTitle=m_strResultTitle&"'"&strTitle&"'"
+					m_strResultLinks=m_strResultLinks&"'"&strLinks&"'"
+				Else
+					m_strResultTitle=m_strResultTitle&", '"&strTitle&"'"
+					m_strResultLinks=m_strResultLinks&", '"&strLinks&"'"
+				End If
+			End If
+		Next
+	Else
+	End If
+	If showhtml=0 Then
+		Response.Write "window.newasp.sug({q:'"&Server.HTMLEncode(Keyword)&"',s:["&Server.HTMLEncode(m_strResultTitle)&"],a:["&Server.HTMLEncode(m_strResultLinks)&"]});"
+	End If
+	Response.Flush
+End Sub
+
+Sub QueryNewsData()
+	Dim Rs,SQL
+	SQLField = "A.ArticleID,A.ChannelID,A.classid,A.title,A.OuterLinks,A.WriteTime,A.AllHits,A.HtmlFileDate,C.HtmlFileDir,C.ClassName"
+	If cmWords.CheckKeyword(Keyword) Then
+		If IsSqlDataBase=1 Then
+			SQLQuery = "A.title like '%"&Keyword&"%'"
+		Else
+			SQLQuery = "InStr(1,LCase(A.title),LCase('"&Keyword&"'),0)>0"
+		End If
+	Else
+		Exit Sub
+	End If
+	If Len(SQLQuery) >10 Then SQLQuery=FirstSQLQuery&" And ("&SQLQuery&")" Else Exit Sub
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT TOP "&MaxSearchlist&" "& SQLField &",B.ChannelDir,B.BindDomain,B.DomainName,B.IsCreateHtml,B.HtmlExtName,B.InfoDestination,B.SortDestination FROM ([NC_Article] A INNER JOIN [NC_Classify] C on A.classid=C.classid) INNER JOIN [NC_Channel] B ON A.ChannelID=B.ChannelID WHERE A.isAccept=1 "&SQLQuery&" ORDER BY A.WriteTime DESC"
+	Set Rs=NewAsp.Execute(SQL)
+	If Not Rs.EOF Then
+		Topiclist=Rs.GetRows(-1)
+	Else
+		Topiclist=Null
+	End If
+	Rs.close():Set Rs=Nothing
+End Sub
+
+Sub QuerySoftData()
+	Dim Rs,SQL,SQLIsNullField
+	If IsSqlDataBase=1 Then
+		SQLIsNullField="RTRIM(A.SoftName)+' '+RTRIM(ISNULL(A.SoftVer,'')) as title"
+	Else
+		SQLIsNullField="RTRIM(A.SoftName)+' '+RTRIM(IIF(ISNULL(A.SoftVer),'',A.SoftVer)) as title"
+	End If
+	SQLField = "A.softid,A.ChannelID,A.classid,"&SQLIsNullField&",A.OuterLinks,A.SoftTime,A.AllHits,A.HtmlFileDate,C.HtmlFileDir,C.ClassName"
+	If cmWords.CheckKeyword(Keyword) Then
+		If IsSqlDataBase=1 Then
+			SQLQuery = "A.SoftName+' '+ISNULL(A.SoftVer,' ') like '%"&Keyword&"%'"
+		Else
+			SQLQuery = "InStr(1,LCase(A.SoftName+' '+IIF(ISNULL(A.SoftVer),' ',A.SoftVer)),LCase('"&Keyword&"'),0)>0"
+		End If
+	Else
+		Exit Sub
+	End If
+	If Len(SQLQuery) >10 Then SQLQuery=FirstSQLQuery&" And ("&SQLQuery&")" Else Exit Sub
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT TOP "&MaxSearchlist&" "& SQLField &",B.ChannelDir,B.BindDomain,B.DomainName,B.IsCreateHtml,B.HtmlExtName,B.InfoDestination,B.SortDestination FROM ([NC_SoftList] A INNER JOIN [NC_Classify] C on A.classid=C.classid) INNER JOIN [NC_Channel] B ON A.ChannelID=B.ChannelID WHERE A.isAccept=1 "&SQLQuery&" ORDER BY A.SoftTime DESC"
+	Set Rs=NewAsp.Execute(SQL)
+	If Not Rs.EOF Then
+		Topiclist=Rs.GetRows(-1)
+	Else
+		Topiclist=Null
+	End If
+	Rs.close():Set Rs=Nothing
+End Sub
+
+Sub QueryFlashData()
+	Dim Rs,SQL
+	SQLField = "A.flashid,A.ChannelID,A.classid,A.title,A.OuterLinks,A.addtime,A.AllHits,A.HtmlFileDate,C.HtmlFileDir,C.ClassName"
+	If cmWords.CheckKeyword(Keyword) Then
+		If IsSqlDataBase=1 Then
+			SQLQuery = "A.title like '%"&Keyword&"%'"
+		Else
+			SQLQuery = "InStr(1,LCase(A.title),LCase('"&Keyword&"'),0)>0"
+		End If
+	Else
+		Exit Sub
+	End If
+	If Len(SQLQuery) >10 Then SQLQuery=FirstSQLQuery&" And ("&SQLQuery&")" Else Exit Sub
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT TOP "&MaxSearchlist&" "& SQLField &",B.ChannelDir,B.BindDomain,B.DomainName,B.IsCreateHtml,B.HtmlExtName,B.InfoDestination,B.SortDestination FROM ([NC_FlashList] A INNER JOIN [NC_Classify] C on A.classid=C.classid) INNER JOIN [NC_Channel] B ON A.ChannelID=B.ChannelID WHERE A.isAccept=1 "&SQLQuery&" ORDER BY A.addtime DESC"
+	Set Rs=NewAsp.Execute(SQL)
+	If Not Rs.EOF Then
+		Topiclist=Rs.GetRows(-1)
+	Else
+		Topiclist=Null
+	End If
+	Rs.close():Set Rs=Nothing
+End Sub
+
+Function CheckURLRewrite(strPath,strFile)
+	CheckURLRewrite=strPath&strFile
+End Function
+%>

@@ -1,0 +1,112 @@
+	<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>订单中心</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+
+
+
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/hyzx.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/tt.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/easyui.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/form.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/icon.css" rel="stylesheet" type="text/css" />
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css"/>
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css"/>
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css"/>
+
+
+<!--<script language="JavaScript" type="text/javascript" src="../js/jquery.form.js"></script>
+<script language="JavaScript" type="text/javascript" src="../js/jquery.js"></script>
+<script language="JavaScript" type="text/javascript" src="../js/jquery.easyui.min.js"></script>
+<script language="JavaScript" type="text/javascript" src="../js/WdatePicker.js"></script>
+<script type="text/javascript" src="../js/list_common.js"></script>
+-->
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/My97DatePicker/WdatePicker.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	
+   <script type="text/javascript" src="${ctx }/scripts/front/list_orders.js"></script> 
+
+     <!-- <script type="text/javascript" src="${ctx }/scripts/order/list_orders.js"></script>-->
+
+
+</head>
+
+<body>
+    <input type="hidden" id="loginManId" value="${customer.id}" /><!-- 当前登录人id -->
+	<input type="hidden" id="roleCode" value="${loginUser.roleCode}" /><!-- 当前登录人角色 -->
+	<s:hidden name="orders.flowState" id="flowSta" />
+
+
+	<input type="hidden" id="flowState" value="${orders.flowState}" />
+	<input type="hidden" id="payState" value="${orders.payState}" />
+	<input type="hidden" id="flowStateStr" value="${orders.flowStateStr}" /><!-- 流程状态字符串 -->
+	<input type="hidden" id="payState" value="${payState}" />
+	
+	
+<div class="kuang_da">
+   <%@ include file="/WEB-INF/page/front/head.jsp" %>
+  <div class="dht0">
+    <div class="dizhilanda">您现在的位置：<a href="${ctx }">首页</a>&gt; <a href="${ctx }/ddgl.do"><strong>订单管理</strong></a></div>
+
+<div class="zxyc_dh">
+              <div class="zxyc_zz">订单中心</div>
+              <div class="sr3_t_right right"></div>
+              <div class="r3_t_right_rgh" style="display:none;"><p>合计数量：<span id="totalShul"></span></p><p>金额：￥<span id="total"></span></p><p>未付款：￥<span id="WeiMoney"></span></p></div>
+              
+            </div>
+</div>
+
+
+	<div style=" width:980px; float:left;" >
+		<table width="980" border="0" cellpadding="0"  cellspacing="1" class="gdcn-table-bgcolor" style="font-size: 12px;">
+			<tr>
+				<td class='gridtitle'>&nbsp;&nbsp;单据编号：</td>
+				<td class='gridbody'><input type="text" id="orderCode" onkeydown="checkKey()" size="12"/></td>
+				<td class='gridtitle'>&nbsp;&nbsp;开单日期：</td>
+				<td class='gridbody'><input type="text" id="createTime" onclick="WdatePicker({dateFmt:'yyyy-MM-dd'})" readonly="true" onkeydown="checkKey()" size="12"/></td>
+				<td class='gridtitle' align="center">付款状态:
+					<select id="flowStateNum" >
+						<option value=""><s:text name="listorders.Selectstate"/></option>        <!-- 选择状态 -->
+						<option value="0">未付款</option>
+						<option value="1">已付款</option>
+						<option value="2">已确认收款</option>
+					</select>
+				 </td>
+				 <td class='gridtitle' align="center">发货状态:
+					<select id="deliveryNum" >
+						<option value=""><s:text name="listorders.Selectstate"/></option>        <!-- 选择状态 -->
+						<option value="0">未发货</option>
+						<option value="1">已发货</option>
+						<option value="2">已确认发货</option>
+					</select>
+				 </td>
+				<td class='gridtitle'>
+					<a onclick="searchData()"  class="easyui-linkbutton" href="javascript:void(0);"><span class="l-btn-text icon-search" style="padding-left: 20px;">搜索</span></a>&nbsp;&nbsp;&nbsp;
+	  				<a onclick="cancelSearch()"  class="easyui-linkbutton" href="javascript:void(0);" id="btnAudit"><span class="l-btn-text icon-reload" style="padding-left: 20px;">清空</span></a>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+    <table id="dataGrid"></table>
+	<form id="frm" action="">
+		<table id="deleteall"></table>
+	</form>
+
+
+
+
+<div style="width:980px; float:left; height:10px; "> </div>
+   <%@ include file="/WEB-INF/page/front/footer.jsp" %>
+</div>
+            
+</body>
+</html>

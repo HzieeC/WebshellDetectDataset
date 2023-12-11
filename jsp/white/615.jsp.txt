@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!-- saved from url=(0044)http://jianliben.sinaapp.com/sample/bordered -->
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+		
+		<!--[if lt IE 6]>
+		<script src="http://css3-mediaqueries-js.googlecode.com/svn/trunk/css3-mediaqueries.js"></script>
+		<![endif]-->
+		<link rel="shortcut icon" href="http://jianliben.sinaapp.com/favicon.ico" type="image/x-icon">
+		
+		<link type="text/css" rel="stylesheet" href="${contextPath}/resume/style/common.min.css">
+		<link type="text/css" rel="stylesheet" href="./bordered/bordered.min.css">
+		
+		<script type="text/javascript" src="./bordered/browser.min.js"></script>
+		<script type="text/javascript">
+			if (Client.browser.ie && Client.browser.ie < 8) {
+				location.href = 'http://jianliben.sinaapp.com/error/ie';
+			}
+		</script>
+			
+		<script type="text/javascript" src="./bordered/context.min.js"></script>
+		<script>
+			context.host  = 'http://jianliben.sinaapp.com/';
+			context.res   = 'http://jianliben.sinaapp.com/public/static/';
+			context.tpl   = 'bordered';
+			context.theme = '#B4C9CE';
+			context.back  = '';
+			context.static= 'http://jianliben.sinaapp.com/public/static/';
+			context.user  = '';
+			context.head  = 'http://jianliben.sinaapp.com/public/static/images/user_icon.png';
+			context.isTpl = true;
+		</script>
+		
+		<style type="text/css">
+			#mobile-check-agent {
+				display:block;
+			}
+			@media screen and (max-width:530px) {
+				#mobile-check-agent {
+					display:none;
+				}
+			}
+		</style>
+	<link type="text/css" rel="stylesheet" href="${contextPath}/resume/style/fishEditor.min.css" id="dynamic-link-node"></head>
+	<body tpl="bordered" theme="#B4C9CE" back="" class="resume">
+		<!-- 移动设备检测 -->
+		<div id="mobile-check-agent" style="position:absolute;width:0px;height:0px;left:0px;top:0px;"></div>
+		<script type="text/javascript">
+			var mobileCheck = document.getElementById('mobile-check-agent');
+			try {
+				var style = window.getComputedStyle(mobileCheck, null);
+			} catch(e) {
+				style = mobileCheck.currentStyle;
+			}
+			context.mobile = ('none' == style.display) ? true : false;
+		</script>
+		
+		<div id="container">
+<!-- header start -->
+	<%@ include file="/WEB-INF/views/common/resume.jsp"%>	
+<!-- template end -->	
+			<div id="content" style="background:url(./images/tpl_bg.png) center 0px repeat-y;background-color:#FFF;">
+				<div id="language-change"><!--
+					<a href="javascript:;">中文</a><font size="1" color="#BBB"> |</font>
+					<a href="javascript:;">英文</a><font size="1" color="#BBB"> |</font>-->
+					<a id="translate-link" href="javascript:;">翻译助手</a>
+					<div id="translate-panel">
+						<div id="translate-arrow"></div>
+						<div id="translate-close">x</div>
+						<div id="translate-loading"></div>
+						<textarea id="translate-input" placeholder="输入要翻译的内容..."></textarea>
+						<input id="translate-button" type="button" value="翻译">
+						<a id="translate-clear" href="javascript:;">清空</a>
+						<div id="translate-output"></div>
+					</div>
+				</div>
+				<!-- color picker -->
+				<span class="scale-under-530">
+				<div id="content-theme" class="theme-color-pick" title="背景色">
+					<script type="text/javascript" src="./bordered/jscolor.js"></script>
+					<input id="content-color-input" class="color {pickerPosition:&#39;right&#39;}" value="FFFFFF" autocomplete="off" style="background-image: none; background-color: rgb(255, 255, 255); color: rgb(0, 0, 0);">
+				</div>
+				<div id="title-theme" class="theme-color-pick" title="主题色">
+					<input id="title-color-input" class="color {pickerPosition:&#39;right&#39;}" value="B4C9CE" autocomplete="off" style="background-image: none; background-color: rgb(180, 201, 206); color: rgb(0, 0, 0);">
+				</div>
+				</span>
+				<!--<div id="resume-back"><img src="back.jpg" width="800" height="1130" /></div>-->
+				<div id="resume-paper">
+					<table id="field-list" cellspacing="0" cellpadding="0">
+						<tbody id="baseinfo">
+							<tr>
+								<td class="field-title-td">
+									<div class="field-title-wrap">
+										<div class="baseinfo-title editable" contenteditable="true"><span style="font-size: 15px;"><strong><font color="#660000">基本信息</font></strong></span></div>
+									</div>
+									<div class="add-del-btn" style="visibility: visible;">
+										<a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn"></a>
+									</div>
+								</td>
+							</tr>
+							<tr>
+								<td class="field-value-td">									<span id="avater-wrapper">
+										<img width="124" height="150" id="avater-img" src="./bordered/avater.gif">
+									<div id="fish-upload" style="position: absolute; display: none;"><form enctype="multipart/form-data" name="fishUpload-form" action="" method="post" target="fishUpload-target" style="position: relative; width: 124px; height: 25px; line-height: 25px; text-align: center; font-size: 12px; background-color: rgb(221, 221, 221); overflow: hidden; display: inline-block; margin: 0px; padding: 0px; background-position: initial initial; background-repeat: initial initial;"><span>上传图片</span><input name="file" type="file" style="position: absolute; top: -10px; right: -10px; font-size: 100px; opacity: 0;"></form></div></span>
+	<div id="field-clear-1"></div>								<span style="float:left;">
+										<p>
+											<span class="baseinfo-label editable" contenteditable="true">姓名：</span>
+											<span class="baseinfo-value editable editable-out" contenteditable="true">郭三刀</span>
+											<span class="add-del-btn" style="visibility: hidden;">
+												<a href="javascript:;" class="field-add-btn">＋</a>
+												<a href="javascript:;" class="field-del-btn"></a>
+											</span>
+										</p>
+										<p>
+											<span class="baseinfo-label editable" contenteditable="true">生日：</span><span class="baseinfo-value editable" contenteditable="true">1989-xx-xx</span>
+											<span class="add-del-btn" style="visibility: hidden;"><a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a></span>
+										</p>
+										<p>
+											<span class="baseinfo-label editable editable-out" contenteditable="true">性别：</span><span class="baseinfo-value editable" contenteditable="true">男</span>
+											<span class="add-del-btn" style="visibility: hidden;"><a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a></span>
+										</p>
+										<p>
+											<span class="baseinfo-label editable" contenteditable="true">电话：</span><span class="baseinfo-value editable" contenteditable="true">15116444941</span>
+											<span class="add-del-btn" style="visibility: hidden;"><a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a></span>
+										</p>
+										<p>
+											<span class="baseinfo-label editable" contenteditable="true">邮箱：</span><span class="baseinfo-value editable" contenteditable="true">maifute@163.com</span>
+											<span class="add-del-btn" style="visibility: hidden;"><a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a></span>
+										</p>
+										<p>
+											<span class="baseinfo-label editable" contenteditable="true">学历：</span><span class="baseinfo-value editable" contenteditable="true">本科</span>
+											<span class="add-del-btn" style="visibility: hidden;"><a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a></span>
+										</p>
+									</span>
+	<div id="field-clear-2"></div>								<span style="float:left;">
+										<p>
+											<span class="baseinfo-label editable" contenteditable="true">身份证号：</span><span class="baseinfo-value editable" contenteditable="true">4307221989xxxxxxxx</span>
+											<span class="add-del-btn" style="visibility: hidden;"><a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn"></a></span>
+										</p>
+										<p>
+											<span class="baseinfo-label editable" contenteditable="true">毕业学校：</span><span class="baseinfo-value editable" contenteditable="true">湖南xx大学</span>
+											<span class="add-del-btn" style="visibility: hidden;"><a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a></span>
+										</p>
+										<p>
+											<span class="baseinfo-label editable" contenteditable="true">所属专业：</span><span class="baseinfo-value editable" contenteditable="true">电子商务</span>
+											<span class="add-del-btn" style="visibility: hidden;"><a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a></span>
+										</p>
+										<p>
+											<span class="baseinfo-label editable" contenteditable="true">工作单位：</span><span class="baseinfo-value editable editable-hover" contenteditable="true">xx公司</span>
+											<span class="add-del-btn" style="visibility: visible;"><a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a></span>
+										</p>
+										<p>
+											<span class="baseinfo-label editable" contenteditable="true">工作时间：</span><span class="baseinfo-value editable editable-out" contenteditable="true">2012.7 - 2013.7</span>
+											<span class="add-del-btn" style="visibility: hidden;"><a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a></span>
+										</p>
+										<p>
+											<span class="baseinfo-label editable editable-out" contenteditable="true">应聘意向：</span><span class="baseinfo-value editable" contenteditable="true">前端开发，产品助理</span>
+											<span class="add-del-btn" style="visibility: hidden;"><a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a></span>
+										</p>
+									</span>
+
+								</td>
+							</tr>
+						</tbody>
+						<tbody>
+							<tr>
+								<td class="field-title-td">
+									<div class="field-title-wrap">
+										<div class="field-title editable" contenteditable="true"><b><span style="font-size: 15px;"><font color="#660000">工作经历</font></span></b></div>
+									</div>
+									<div class="add-del-btn" style="visibility: hidden;">
+										<a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a>
+									</div>
+								</td>
+							</tr><tr>
+								<td class="field-value-td">
+									<div class="field-value editable" contenteditable="true">
+										<ul><li><b style="font-size: 14px; line-height: 1.6em;">2012年8月 到 2013年6月</b></li></ul>
+										<i><u>xx公司-互联网云服务部</u></i><br>
+										部门主要负责xx公司云计算产品的运营管理以及运营管理系统的开发与维护，我所在的项目组负责用户接入系统portal的开发。<br>
+										我主要参与了三个模块的开发工作：<br>
+										1、云存储模块，负责订单相关，鉴权相关，性能优化相关方面的工作；<br>
+										2、portal数据备份恢复，负责portal各部件的全量与增量自动备份、恢复、告警脚本的编写；<br>
+										3、云主机开放API模块，参与了模块的设计，AKSK模块的开发以及部分Rest API的代码编写。
+									</div>
+								</td>
+							</tr>
+						</tbody>
+						<tbody>
+							<tr>
+								<td class="field-title-td">
+									<div class="field-title-wrap">
+										<div class="field-title editable" contenteditable="true"><b><span style="font-size: 15px;"><font color="#660000">项目经验</font></span></b></div>
+									</div>
+									<div class="add-del-btn" style="visibility: hidden;">
+										<a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a>
+									</div>
+								</td>
+							</tr><tr>
+								<td class="field-value-td">
+									<div class="field-value editable" contenteditable="true">
+										<ul><li><b style="font-size: 14px; line-height: 1.6em;">2011年3月 到 2011年5月</b></li></ul>
+										<i><u>银行债务管理系统</u></i><br>
+										在校期间和老师一起做的一个项目。主要是对银行债务人及欠债情况的管理，如欠债情况查询统计，欠债信息更新等。我主要负责系统的前端和部分后端，前端用ExtJS开发，后端用Struts2开发。
+										<hr style="height: 1px; border-style: dashed none none; border-top-width: 1px; border-top-color: rgb(56, 163, 219);">
+										<b><ul><li><b style="font-size: 14px; line-height: 1.6em;">2012年3月 到 2012年5月</b></li></ul></b>
+										<i><u>腾讯微博Java SDK</u></i><br>
+										腾讯讯微博开放平台第三方Java SDK，为第三方应用开发者提供面向Java的开发接口，开发过程中使用了工厂，单例，装饰器等一些常用设计模式。
+										<hr style="height: 1px; border-style: dashed none none; border-top-width: 1px; border-top-color: rgb(56, 163, 219);">
+										<b><ul><li><b style="font-size: 14px; line-height: 1.6em;">2011年10月 到 2012年6月</b></li></ul></b>
+										<i><u>“打车宝”移动技术与应用系统</u></i><br>
+										此项目是由含我在内的湖南师大的四位学生启动的一个创业项目，“打车宝”是国内最早的打车服务软件之一，系统由手机APP，车载APP，后端服务器三部分组成；我主要负责服务器端的开发（Java/Netty）及团队技术工作的管理（项目进度，技术交流等）；团队在2月份注册了长沙思擎电子科技有限公司，项目4月份获得了全国挑战杯大赛省金奖，国家三等奖。
+										<hr style="height: 1px; border-style: dashed none none; border-top-width: 1px; border-top-color: rgb(56, 163, 219);">
+										<b><ul><li><b style="font-size: 14px; line-height: 1.6em;">2012年10月 到 2012年4月</b></li></ul></b>
+										<i><u>“简历本”在线简历应用</u></i><br>
+										该应用是基于Web在线简历的制作工具，应用给用户提供在线的Web简历模板，用户可对简历进行高度灵活的所见即所得的编辑并实时保存；用户可将简历转换为PDF文件并下载、转换为Word文件下载；用户可将简历发送到指定邮箱而保持简历样式不变；用户可对简历进行在线打印。应用采用PHP脚本开发，开发过程中提炼出了一些JS公共组件：<a href="http://jianliben.sinaapp.com/sample/bordered#" target="_blank" title="DOM操作工具">fishJS</a>、<a href="http://jianliben.sinaapp.com/sample/bordered#" target="_blank" title="模态弹出框">fishBox</a>、<a href="http://jianliben.sinaapp.com/sample/bordered#" target="_blank" title="异步文件上传">fishUpload</a>、<a href="http://jianliben.sinaapp.com/sample/bordered#" target="_blank" title="富文本编辑器">fishEditor</a>。应用地址：jianliben.sinaapp.com。
+									</div>
+								</td>
+							</tr>
+						</tbody>
+						<tbody>
+							<tr>
+								<td class="field-title-td">
+									<div class="field-title-wrap">
+										<div class="field-title editable" contenteditable="true"><b><span style="font-size: 15px;"><font color="#660000">教育经历</font></span></b></div>
+									</div>
+									<div class="add-del-btn" style="visibility: hidden;">
+										<a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a>
+									</div>
+								</td>
+							</tr><tr>
+								<td class="field-value-td">
+									<div class="field-value editable" contenteditable="true">
+										<ul><li><b style="font-size: 14px; line-height: 1.6em;">2008年9月 到 2012年6月</b></li></ul>
+										湖南xx大学 - 数学与计算机科学学院 - 电子商务 - 本科
+									</div>
+								</td>
+							</tr>
+						</tbody>
+						<tbody>
+							<tr>
+								<td class="field-title-td">
+									<div class="field-title-wrap">
+										<div class="field-title editable" contenteditable="true"><b><span style="font-size: 15px;"><font color="#660000">兴趣爱好</font></span></b></div>
+									</div>
+									<div class="add-del-btn" style="visibility: hidden;">
+										<a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a>
+									</div>
+								</td>
+							</tr><tr>
+								<td class="field-value-td">
+									<div class="field-value editable" contenteditable="true">
+										篮球，唱歌，上网，旅行
+									</div>
+								</td>
+							</tr>
+						</tbody>
+						<tbody>
+							<tr>
+								<td class="field-title-td">
+									<div class="field-title-wrap">
+										<div class="field-title editable" contenteditable="true"><b><span style="font-size: 15px;"><font color="#660000">附件作品</font></span></b></div>
+									</div>
+									<div class="add-del-btn" style="visibility: hidden;">
+										<a href="javascript:;" class="field-add-btn">＋</a><a href="javascript:;" class="field-del-btn">×</a>
+									</div>
+								</td>
+							</tr><tr>
+								<td class="field-value-td">
+									<div class="field-value editable" contenteditable="true">
+										ibog个人博客系统 ：hereen.net<br>
+										腾讯微博Java SDK ：code.google.com/p/qweibo4j/downloads/list<br>
+										打车宝移动技术与应用系统 ：hereen.net/dachebao<br>
+										简历本在线简历应用 ：jianliben.sinaapp.com
+									</div>
+								</td>
+							</tr>
+						</tbody>
+					</table>																											</div>
+				<span id="paper-decorate">
+	                <div id="lt-corner" class="content-corner"></div>
+	                <div id="rt-corner" class="content-corner"></div>
+	                <div id="rb-corner" class="content-corner"></div>
+	                <div id="lb-corner" class="content-corner"></div>
+                </span>
+			</div>
+<!-- footer start -->
+			<!-- footer start -->
+
+<!-- footer end -->
+<!-- 隐藏表单 用于异步下载PDF文件 -->	
+<form name="hideForm" style="display:none;" action="http://jianliben.sinaapp.com/resume/pdf" method="post">
+	<input type="hidden" name="file" value="">
+</form>
+		<!-- footer end -->
+		</div>
+		
+		<script type="text/javascript" src="./bordered/jquery-1.6.2.js"></script>
+		<script type="text/javascript" src="./bordered/fishJS.all.min.js"></script><div style="position: fixed; left: 0px; top: 0px; background-color: rgb(204, 204, 204); opacity: 0.5; display: none; z-index: 999; background-position: initial initial; background-repeat: initial initial;"></div><div style="position: absolute; left: 50%; top: 180px; margin-left: -210px; width: 420px; height: auto; border: 1px solid gray; background-color: white; display: none; overflow-x: hidden; font-style: normal; font-variant: normal; font-weight: normal; font-size: 12px; line-height: normal; font-family: 微软雅黑; z-index: 1000; box-shadow: gray 0px 0px 10px; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; background-position: initial initial; background-repeat: initial initial;"><div style="position: relative; width: 88%; height: 30px; line-height: 30px; border-bottom-width: 1px; border-bottom-color: rgb(170, 170, 170); border-bottom-style: solid; padding-left: 15px; background-color: rgb(221, 221, 221); float: left; background-position: initial initial; background-repeat: initial initial;"></div><div style="position: relative; width: 12%; height: 30px; line-height: 30px; border-bottom-width: 1px; border-bottom-color: rgb(170, 170, 170); border-bottom-style: solid; margin-right: -15px; background-color: rgb(221, 221, 221); float: right; background-position: initial initial; background-repeat: initial initial;"><a href="javascript:void(0);" style="color:#333;font-size:15px;text-decoration:none;margin:5px 0px 0px 10px;display: inline-table;">x</a></div><div style="position: relative; width: 100%; height: auto; line-height: 20px; text-align: center; padding: 40px 0px; float: left; word-break: break-all; word-wrap: break-word;"></div><div style="position: relative; width: 100%; height: 35px; border-top-width: 1px; border-top-color: rgb(170, 170, 170); border-top-style: solid; line-height: 35px; text-align: right; background-color: rgb(221, 221, 221); float: left; background-position: initial initial; background-repeat: initial initial;"><input type="button" unselectable="on" style="width: 60px; height: 23px; line-height: 21px; margin: 5px 15px 0px 0px; border: 1px outset rgb(238, 238, 238); color: rgb(61, 51, 51); background-color: rgb(187, 187, 187); cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; display: none; background-position: initial initial; background-repeat: initial initial;"><input type="button" unselectable="on" style="width: 60px; height: 23px; line-height: 21px; margin: 5px 15px 0px 0px; border: 1px outset rgb(238, 238, 238); color: rgb(61, 51, 51); background-color: rgb(187, 187, 187); cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; display: none; background-position: initial initial; background-repeat: initial initial;"></div></div><div style="position: absolute; left: 50%; top: 180px; margin-left: -210px; width: 420px; height: auto; border: 1px solid gray; background-color: white; display: none; overflow-x: hidden; font-style: normal; font-variant: normal; font-weight: normal; font-size: 12px; line-height: normal; font-family: 微软雅黑; z-index: 1000; box-shadow: gray 0px 0px 10px; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; background-position: initial initial; background-repeat: initial initial;"><div style="position: relative; width: 88%; height: 30px; line-height: 30px; border-bottom-width: 1px; border-bottom-color: rgb(170, 170, 170); border-bottom-style: solid; padding-left: 15px; background-color: rgb(221, 221, 221); float: left; background-position: initial initial; background-repeat: initial initial;"></div><div style="position: relative; width: 12%; height: 30px; line-height: 30px; border-bottom-width: 1px; border-bottom-color: rgb(170, 170, 170); border-bottom-style: solid; margin-right: -15px; background-color: rgb(221, 221, 221); float: right; background-position: initial initial; background-repeat: initial initial;"><a href="javascript:void(0);" style="color:#333;font-size:15px;text-decoration:none;margin:5px 0px 0px 10px;display: inline-table;">x</a></div><div style="position: relative; width: 100%; height: auto; line-height: 20px; text-align: center; padding: 40px 0px; float: left; word-break: break-all; word-wrap: break-word;"></div><div style="position: relative; width: 100%; height: 35px; border-top-width: 1px; border-top-color: rgb(170, 170, 170); border-top-style: solid; line-height: 35px; text-align: right; background-color: rgb(221, 221, 221); float: left; background-position: initial initial; background-repeat: initial initial;"><input type="button" unselectable="on" style="width: 60px; height: 23px; line-height: 21px; margin: 5px 15px 0px 0px; border: 1px outset rgb(238, 238, 238); color: rgb(61, 51, 51); background-color: rgb(187, 187, 187); cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; display: none; background-position: initial initial; background-repeat: initial initial;"><input type="button" unselectable="on" style="width: 60px; height: 23px; line-height: 21px; margin: 5px 15px 0px 0px; border: 1px outset rgb(238, 238, 238); color: rgb(61, 51, 51); background-color: rgb(187, 187, 187); cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; display: none; background-position: initial initial; background-repeat: initial initial;"></div></div><div style="position: absolute; left: 50%; top: 180px; margin-left: -210px; width: 420px; height: auto; border: 1px solid gray; background-color: white; display: none; overflow-x: hidden; font-style: normal; font-variant: normal; font-weight: normal; font-size: 12px; line-height: normal; font-family: 微软雅黑; z-index: 1000; box-shadow: gray 0px 0px 10px; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; background-position: initial initial; background-repeat: initial initial;"><div style="position: relative; width: 88%; height: 30px; line-height: 30px; border-bottom-width: 1px; border-bottom-color: rgb(170, 170, 170); border-bottom-style: solid; padding-left: 15px; background-color: rgb(221, 221, 221); float: left; background-position: initial initial; background-repeat: initial initial;"></div><div style="position: relative; width: 12%; height: 30px; line-height: 30px; border-bottom-width: 1px; border-bottom-color: rgb(170, 170, 170); border-bottom-style: solid; margin-right: -15px; background-color: rgb(221, 221, 221); float: right; background-position: initial initial; background-repeat: initial initial;"><a href="javascript:void(0);" style="color:#333;font-size:15px;text-decoration:none;margin:5px 0px 0px 10px;display: inline-table;">x</a></div><div style="position: relative; width: 100%; height: auto; line-height: 20px; text-align: center; padding: 40px 0px; float: left; word-break: break-all; word-wrap: break-word;"><input style="width: 70%; padding: 4px 5px; border: 1px solid rgb(204, 204, 204); outline: none; box-shadow: rgba(0, 0, 0, 0.0980392) 1px 1px 2px inset;"></div><div style="position: relative; width: 100%; height: 35px; border-top-width: 1px; border-top-color: rgb(170, 170, 170); border-top-style: solid; line-height: 35px; text-align: right; background-color: rgb(221, 221, 221); float: left; background-position: initial initial; background-repeat: initial initial;"><input type="button" unselectable="on" style="width: 60px; height: 23px; line-height: 21px; margin: 5px 15px 0px 0px; border: 1px outset rgb(238, 238, 238); color: rgb(61, 51, 51); background-color: rgb(187, 187, 187); cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; display: none; background-position: initial initial; background-repeat: initial initial;"><input type="button" unselectable="on" style="width: 60px; height: 23px; line-height: 21px; margin: 5px 15px 0px 0px; border: 1px outset rgb(238, 238, 238); color: rgb(61, 51, 51); background-color: rgb(187, 187, 187); cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; display: none; background-position: initial initial; background-repeat: initial initial;"></div></div><div style="position: absolute; left: 50%; top: 180px; margin-left: -210px; width: 420px; height: auto; border: 1px solid gray; background-color: white; display: none; overflow-x: hidden; font-style: normal; font-variant: normal; font-weight: normal; font-size: 12px; line-height: normal; font-family: 微软雅黑; z-index: 1000; box-shadow: gray 0px 0px 10px; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; background-position: initial initial; background-repeat: initial initial;"><div style="position: relative; width: 88%; height: 30px; line-height: 30px; border-bottom-width: 1px; border-bottom-color: rgb(170, 170, 170); border-bottom-style: solid; padding-left: 15px; background-color: rgb(221, 221, 221); float: left; background-position: initial initial; background-repeat: initial initial;"></div><div style="position: relative; width: 12%; height: 30px; line-height: 30px; border-bottom-width: 1px; border-bottom-color: rgb(170, 170, 170); border-bottom-style: solid; margin-right: -15px; background-color: rgb(221, 221, 221); float: right; background-position: initial initial; background-repeat: initial initial;"><a href="javascript:void(0);" style="color:#333;font-size:15px;text-decoration:none;margin:5px 0px 0px 10px;display: inline-table;">x</a></div><div style="position: relative; width: 100%; height: auto; line-height: 20px; text-align: center; padding: 40px 0px; float: left; word-break: break-all; word-wrap: break-word;"></div><div style="position: relative; width: 100%; height: 35px; border-top-width: 1px; border-top-color: rgb(170, 170, 170); border-top-style: solid; line-height: 35px; text-align: right; background-color: rgb(221, 221, 221); float: left; background-position: initial initial; background-repeat: initial initial;"><input type="button" unselectable="on" style="width: 60px; height: 23px; line-height: 21px; margin: 5px 15px 0px 0px; border: 1px outset rgb(238, 238, 238); color: rgb(61, 51, 51); background-color: rgb(187, 187, 187); cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; display: none; background-position: initial initial; background-repeat: initial initial;"><input type="button" unselectable="on" style="width: 60px; height: 23px; line-height: 21px; margin: 5px 15px 0px 0px; border: 1px outset rgb(238, 238, 238); color: rgb(61, 51, 51); background-color: rgb(187, 187, 187); cursor: pointer; border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; display: none; background-position: initial initial; background-repeat: initial initial;"></div></div><iframe name="fishUpload-target" style="display: none;"></iframe>
+		<script type="text/javascript" src="./bordered/toolbar.min.js"></script><div id="common-toolbar" unselectable="on" style="display: none; left: 435px; top: 74px;"><div id="toolbar-btn-bold-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-bold" unselectable="on" class="toolbar-btn" href="javascript:;" title="加粗">&nbsp;</a></div><div id="toolbar-btn-italic-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-italic" unselectable="on" class="toolbar-btn" href="javascript:;" title="斜体">&nbsp;</a></div><div id="toolbar-btn-underline-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-underline" unselectable="on" class="toolbar-btn" href="javascript:;" title="下划线">&nbsp;</a></div><div id="toolbar-btn-justifyLeft-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-justifyLeft" unselectable="on" class="toolbar-btn" href="javascript:;" title="左对齐">&nbsp;</a></div><div id="toolbar-btn-justifyCenter-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-justifyCenter" unselectable="on" class="toolbar-btn" href="javascript:;" title="剧中">&nbsp;</a></div><div id="toolbar-btn-justifyRight-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-justifyRight" unselectable="on" class="toolbar-btn" href="javascript:;" title="右对齐">&nbsp;</a></div><div id="toolbar-btn-insertUnorderedList-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-insertUnorderedList" unselectable="on" class="toolbar-btn" href="javascript:;" title="">&nbsp;</a></div><div id="toolbar-btn-insertOrderedList-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-insertOrderedList" unselectable="on" class="toolbar-btn" href="javascript:;" title="">&nbsp;</a></div><div id="toolbar-btn-indent-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-indent" unselectable="on" class="toolbar-btn" href="javascript:;" title="缩进">&nbsp;</a></div><div id="toolbar-btn-outdent-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-outdent" unselectable="on" class="toolbar-btn" href="javascript:;" title="">&nbsp;</a></div><div id="toolbar-btn-createLink-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-createLink" unselectable="on" class="toolbar-btn" href="javascript:;" title="链接">&nbsp;</a></div><div id="toolbar-btn-unlink-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-unlink" unselectable="on" class="toolbar-btn" href="javascript:;" title="删除链接">&nbsp;</a></div><div style="clear: both;"></div><div id="toolbar-btn-insertImage-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-insertImage" unselectable="on" class="toolbar-btn" href="javascript:;" title="图片">&nbsp;</a></div><div id="toolbar-btn-insertHorizontalRule-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-insertHorizontalRule" unselectable="on" class="toolbar-btn" href="javascript:;" title="水平线">&nbsp;<span class="toolbar-btn-arrows"></span></a><div id="undefined" class="toolbar-panel" style="display: none;"><table cellspacing="0" cellpadding="0"><tbody><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:1px dashed #BBB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:1px dashed #BBB;" width="70" val="height:1px;border:none;border-top:1px dashed #BBB;"></a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:2px dashed #BBB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:2px dashed #BBB;" width="70" val="height:1px;border:none;border-top:2px dashed #BBB;"></a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:1px dotted #BBB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:1px dotted #BBB;" width="70" val="height:1px;border:none;border-top:1px dotted #BBB;"></a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:2px dotted #BBB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:2px dotted #BBB;" width="70" val="height:1px;border:none;border-top:2px dotted #BBB;"></a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:1px solid  #BBB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:1px solid  #BBB;" width="70" val="height:1px;border:none;border-top:1px solid  #BBB;"></a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:2px solid  #BBB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:2px solid  #BBB;" width="70" val="height:1px;border:none;border-top:2px solid  #BBB;"></a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:1px dashed #38A3DB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:1px dashed #38A3DB;" width="70" val="height:1px;border:none;border-top:1px dashed #38A3DB;"></a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:2px dashed #38A3DB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:2px dashed #38A3DB;" width="70" val="height:1px;border:none;border-top:2px dashed #38A3DB;"></a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:1px dotted #38A3DB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:1px dotted #38A3DB;" width="70" val="height:1px;border:none;border-top:1px dotted #38A3DB;"></a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:2px dotted #38A3DB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:2px dotted #38A3DB;" width="70" val="height:1px;border:none;border-top:2px dotted #38A3DB;"></a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:1px solid  #38A3DB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:1px solid  #38A3DB;" width="70" val="height:1px;border:none;border-top:1px solid  #38A3DB;"></a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="height:1px;border:none;border-top:2px solid  #38A3DB;" style="text-align:center;"><hr unselectable="on" style="height:1px;border:none;border-top:2px solid  #38A3DB;" width="70" val="height:1px;border:none;border-top:2px solid  #38A3DB;"></a></td></tr></tbody></table></div></div><div id="toolbar-btn-foreColor-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-foreColor" unselectable="on" class="toolbar-btn" href="javascript:;" title="前景色">&nbsp;<span class="toolbar-btn-arrows"></span></a><div id="undefined" class="toolbar-panel" style="display: none;"><table cellspacing="0" cellpadding="0"><tbody><tr><td><input type="button" title="#000000" style="background-color:#000000" val="#000000"></td><td><input type="button" title="#000033" style="background-color:#000033" val="#000033"></td><td><input type="button" title="#000066" style="background-color:#000066" val="#000066"></td><td><input type="button" title="#000099" style="background-color:#000099" val="#000099"></td><td><input type="button" title="#0000FF" style="background-color:#0000FF" val="#0000FF"></td></tr><tr><td><input type="button" title="#003300" style="background-color:#003300" val="#003300"></td><td><input type="button" title="#003333" style="background-color:#003333" val="#003333"></td><td><input type="button" title="#003366" style="background-color:#003366" val="#003366"></td><td><input type="button" title="#003399" style="background-color:#003399" val="#003399"></td><td><input type="button" title="#0033FF" style="background-color:#0033FF" val="#0033FF"></td></tr><tr><td><input type="button" title="#006600" style="background-color:#006600" val="#006600"></td><td><input type="button" title="#006633" style="background-color:#006633" val="#006633"></td><td><input type="button" title="#006666" style="background-color:#006666" val="#006666"></td><td><input type="button" title="#006699" style="background-color:#006699" val="#006699"></td><td><input type="button" title="#0066FF" style="background-color:#0066FF" val="#0066FF"></td></tr><tr><td><input type="button" title="#009900" style="background-color:#009900" val="#009900"></td><td><input type="button" title="#009933" style="background-color:#009933" val="#009933"></td><td><input type="button" title="#009966" style="background-color:#009966" val="#009966"></td><td><input type="button" title="#009999" style="background-color:#009999" val="#009999"></td><td><input type="button" title="#0099FF" style="background-color:#0099FF" val="#0099FF"></td></tr><tr><td><input type="button" title="#00FF00" style="background-color:#00FF00" val="#00FF00"></td><td><input type="button" title="#00FF33" style="background-color:#00FF33" val="#00FF33"></td><td><input type="button" title="#00FF66" style="background-color:#00FF66" val="#00FF66"></td><td><input type="button" title="#00FF99" style="background-color:#00FF99" val="#00FF99"></td><td><input type="button" title="#00FFFF" style="background-color:#00FFFF" val="#00FFFF"></td></tr><tr></tr></tbody></table><table cellspacing="0" cellpadding="0"><tbody><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr></tbody></table><table cellspacing="0" cellpadding="0"><tbody><tr><td><input type="button" title="#660000" style="background-color:#660000" val="#660000"></td><td><input type="button" title="#660033" style="background-color:#660033" val="#660033"></td><td><input type="button" title="#660066" style="background-color:#660066" val="#660066"></td><td><input type="button" title="#660099" style="background-color:#660099" val="#660099"></td><td><input type="button" title="#6600FF" style="background-color:#6600FF" val="#6600FF"></td></tr><tr><td><input type="button" title="#663300" style="background-color:#663300" val="#663300"></td><td><input type="button" title="#663333" style="background-color:#663333" val="#663333"></td><td><input type="button" title="#663366" style="background-color:#663366" val="#663366"></td><td><input type="button" title="#663399" style="background-color:#663399" val="#663399"></td><td><input type="button" title="#6633FF" style="background-color:#6633FF" val="#6633FF"></td></tr><tr><td><input type="button" title="#666600" style="background-color:#666600" val="#666600"></td><td><input type="button" title="#666633" style="background-color:#666633" val="#666633"></td><td><input type="button" title="#666666" style="background-color:#666666" val="#666666"></td><td><input type="button" title="#666699" style="background-color:#666699" val="#666699"></td><td><input type="button" title="#6666FF" style="background-color:#6666FF" val="#6666FF"></td></tr><tr><td><input type="button" title="#669900" style="background-color:#669900" val="#669900"></td><td><input type="button" title="#669933" style="background-color:#669933" val="#669933"></td><td><input type="button" title="#669966" style="background-color:#669966" val="#669966"></td><td><input type="button" title="#669999" style="background-color:#669999" val="#669999"></td><td><input type="button" title="#6699FF" style="background-color:#6699FF" val="#6699FF"></td></tr><tr><td><input type="button" title="#66FF00" style="background-color:#66FF00" val="#66FF00"></td><td><input type="button" title="#66FF33" style="background-color:#66FF33" val="#66FF33"></td><td><input type="button" title="#66FF66" style="background-color:#66FF66" val="#66FF66"></td><td><input type="button" title="#66FF99" style="background-color:#66FF99" val="#66FF99"></td><td><input type="button" title="#66FFFF" style="background-color:#66FFFF" val="#66FFFF"></td></tr><tr></tr></tbody></table><table cellspacing="0" cellpadding="0"><tbody><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr></tbody></table><table cellspacing="0" cellpadding="0"><tbody><tr><td><input type="button" title="#FF0000" style="background-color:#FF0000" val="#FF0000"></td><td><input type="button" title="#FF0033" style="background-color:#FF0033" val="#FF0033"></td><td><input type="button" title="#FF0066" style="background-color:#FF0066" val="#FF0066"></td><td><input type="button" title="#FF0099" style="background-color:#FF0099" val="#FF0099"></td><td><input type="button" title="#FF00FF" style="background-color:#FF00FF" val="#FF00FF"></td></tr><tr><td><input type="button" title="#FF3300" style="background-color:#FF3300" val="#FF3300"></td><td><input type="button" title="#FF3333" style="background-color:#FF3333" val="#FF3333"></td><td><input type="button" title="#FF3366" style="background-color:#FF3366" val="#FF3366"></td><td><input type="button" title="#FF3399" style="background-color:#FF3399" val="#FF3399"></td><td><input type="button" title="#FF33FF" style="background-color:#FF33FF" val="#FF33FF"></td></tr><tr><td><input type="button" title="#FF6600" style="background-color:#FF6600" val="#FF6600"></td><td><input type="button" title="#FF6633" style="background-color:#FF6633" val="#FF6633"></td><td><input type="button" title="#FF6666" style="background-color:#FF6666" val="#FF6666"></td><td><input type="button" title="#FF6699" style="background-color:#FF6699" val="#FF6699"></td><td><input type="button" title="#FF66FF" style="background-color:#FF66FF" val="#FF66FF"></td></tr><tr><td><input type="button" title="#FF9900" style="background-color:#FF9900" val="#FF9900"></td><td><input type="button" title="#FF9933" style="background-color:#FF9933" val="#FF9933"></td><td><input type="button" title="#FF9966" style="background-color:#FF9966" val="#FF9966"></td><td><input type="button" title="#FF9999" style="background-color:#FF9999" val="#FF9999"></td><td><input type="button" title="#FF99FF" style="background-color:#FF99FF" val="#FF99FF"></td></tr><tr><td><input type="button" title="#FFFF00" style="background-color:#FFFF00" val="#FFFF00"></td><td><input type="button" title="#FFFF33" style="background-color:#FFFF33" val="#FFFF33"></td><td><input type="button" title="#FFFF66" style="background-color:#FFFF66" val="#FFFF66"></td><td><input type="button" title="#FFFF99" style="background-color:#FFFF99" val="#FFFF99"></td><td><input type="button" title="#FFFFFF" style="background-color:#FFFFFF" val="#FFFFFF"></td></tr><tr></tr></tbody></table><table cellspacing="0" cellpadding="0"><tbody><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr></tbody></table></div></div><div id="toolbar-btn-backColor-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-backColor" unselectable="on" class="toolbar-btn" href="javascript:;" title="背景色">&nbsp;<span class="toolbar-btn-arrows"></span></a><div id="undefined" class="toolbar-panel" style="display: none;"><table cellspacing="0" cellpadding="0"><tbody><tr><td><input type="button" title="#000000" style="background-color:#000000" val="#000000"></td><td><input type="button" title="#000033" style="background-color:#000033" val="#000033"></td><td><input type="button" title="#000066" style="background-color:#000066" val="#000066"></td><td><input type="button" title="#000099" style="background-color:#000099" val="#000099"></td><td><input type="button" title="#0000FF" style="background-color:#0000FF" val="#0000FF"></td></tr><tr><td><input type="button" title="#003300" style="background-color:#003300" val="#003300"></td><td><input type="button" title="#003333" style="background-color:#003333" val="#003333"></td><td><input type="button" title="#003366" style="background-color:#003366" val="#003366"></td><td><input type="button" title="#003399" style="background-color:#003399" val="#003399"></td><td><input type="button" title="#0033FF" style="background-color:#0033FF" val="#0033FF"></td></tr><tr><td><input type="button" title="#006600" style="background-color:#006600" val="#006600"></td><td><input type="button" title="#006633" style="background-color:#006633" val="#006633"></td><td><input type="button" title="#006666" style="background-color:#006666" val="#006666"></td><td><input type="button" title="#006699" style="background-color:#006699" val="#006699"></td><td><input type="button" title="#0066FF" style="background-color:#0066FF" val="#0066FF"></td></tr><tr><td><input type="button" title="#009900" style="background-color:#009900" val="#009900"></td><td><input type="button" title="#009933" style="background-color:#009933" val="#009933"></td><td><input type="button" title="#009966" style="background-color:#009966" val="#009966"></td><td><input type="button" title="#009999" style="background-color:#009999" val="#009999"></td><td><input type="button" title="#0099FF" style="background-color:#0099FF" val="#0099FF"></td></tr><tr><td><input type="button" title="#00FF00" style="background-color:#00FF00" val="#00FF00"></td><td><input type="button" title="#00FF33" style="background-color:#00FF33" val="#00FF33"></td><td><input type="button" title="#00FF66" style="background-color:#00FF66" val="#00FF66"></td><td><input type="button" title="#00FF99" style="background-color:#00FF99" val="#00FF99"></td><td><input type="button" title="#00FFFF" style="background-color:#00FFFF" val="#00FFFF"></td></tr><tr></tr></tbody></table><table cellspacing="0" cellpadding="0"><tbody><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr></tbody></table><table cellspacing="0" cellpadding="0"><tbody><tr><td><input type="button" title="#660000" style="background-color:#660000" val="#660000"></td><td><input type="button" title="#660033" style="background-color:#660033" val="#660033"></td><td><input type="button" title="#660066" style="background-color:#660066" val="#660066"></td><td><input type="button" title="#660099" style="background-color:#660099" val="#660099"></td><td><input type="button" title="#6600FF" style="background-color:#6600FF" val="#6600FF"></td></tr><tr><td><input type="button" title="#663300" style="background-color:#663300" val="#663300"></td><td><input type="button" title="#663333" style="background-color:#663333" val="#663333"></td><td><input type="button" title="#663366" style="background-color:#663366" val="#663366"></td><td><input type="button" title="#663399" style="background-color:#663399" val="#663399"></td><td><input type="button" title="#6633FF" style="background-color:#6633FF" val="#6633FF"></td></tr><tr><td><input type="button" title="#666600" style="background-color:#666600" val="#666600"></td><td><input type="button" title="#666633" style="background-color:#666633" val="#666633"></td><td><input type="button" title="#666666" style="background-color:#666666" val="#666666"></td><td><input type="button" title="#666699" style="background-color:#666699" val="#666699"></td><td><input type="button" title="#6666FF" style="background-color:#6666FF" val="#6666FF"></td></tr><tr><td><input type="button" title="#669900" style="background-color:#669900" val="#669900"></td><td><input type="button" title="#669933" style="background-color:#669933" val="#669933"></td><td><input type="button" title="#669966" style="background-color:#669966" val="#669966"></td><td><input type="button" title="#669999" style="background-color:#669999" val="#669999"></td><td><input type="button" title="#6699FF" style="background-color:#6699FF" val="#6699FF"></td></tr><tr><td><input type="button" title="#66FF00" style="background-color:#66FF00" val="#66FF00"></td><td><input type="button" title="#66FF33" style="background-color:#66FF33" val="#66FF33"></td><td><input type="button" title="#66FF66" style="background-color:#66FF66" val="#66FF66"></td><td><input type="button" title="#66FF99" style="background-color:#66FF99" val="#66FF99"></td><td><input type="button" title="#66FFFF" style="background-color:#66FFFF" val="#66FFFF"></td></tr><tr></tr></tbody></table><table cellspacing="0" cellpadding="0"><tbody><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr></tbody></table><table cellspacing="0" cellpadding="0"><tbody><tr><td><input type="button" title="#FF0000" style="background-color:#FF0000" val="#FF0000"></td><td><input type="button" title="#FF0033" style="background-color:#FF0033" val="#FF0033"></td><td><input type="button" title="#FF0066" style="background-color:#FF0066" val="#FF0066"></td><td><input type="button" title="#FF0099" style="background-color:#FF0099" val="#FF0099"></td><td><input type="button" title="#FF00FF" style="background-color:#FF00FF" val="#FF00FF"></td></tr><tr><td><input type="button" title="#FF3300" style="background-color:#FF3300" val="#FF3300"></td><td><input type="button" title="#FF3333" style="background-color:#FF3333" val="#FF3333"></td><td><input type="button" title="#FF3366" style="background-color:#FF3366" val="#FF3366"></td><td><input type="button" title="#FF3399" style="background-color:#FF3399" val="#FF3399"></td><td><input type="button" title="#FF33FF" style="background-color:#FF33FF" val="#FF33FF"></td></tr><tr><td><input type="button" title="#FF6600" style="background-color:#FF6600" val="#FF6600"></td><td><input type="button" title="#FF6633" style="background-color:#FF6633" val="#FF6633"></td><td><input type="button" title="#FF6666" style="background-color:#FF6666" val="#FF6666"></td><td><input type="button" title="#FF6699" style="background-color:#FF6699" val="#FF6699"></td><td><input type="button" title="#FF66FF" style="background-color:#FF66FF" val="#FF66FF"></td></tr><tr><td><input type="button" title="#FF9900" style="background-color:#FF9900" val="#FF9900"></td><td><input type="button" title="#FF9933" style="background-color:#FF9933" val="#FF9933"></td><td><input type="button" title="#FF9966" style="background-color:#FF9966" val="#FF9966"></td><td><input type="button" title="#FF9999" style="background-color:#FF9999" val="#FF9999"></td><td><input type="button" title="#FF99FF" style="background-color:#FF99FF" val="#FF99FF"></td></tr><tr><td><input type="button" title="#FFFF00" style="background-color:#FFFF00" val="#FFFF00"></td><td><input type="button" title="#FFFF33" style="background-color:#FFFF33" val="#FFFF33"></td><td><input type="button" title="#FFFF66" style="background-color:#FFFF66" val="#FFFF66"></td><td><input type="button" title="#FFFF99" style="background-color:#FFFF99" val="#FFFF99"></td><td><input type="button" title="#FFFFFF" style="background-color:#FFFFFF" val="#FFFFFF"></td></tr><tr></tr></tbody></table><table cellspacing="0" cellpadding="0"><tbody><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr><tr></tr></tbody></table></div></div><div id="toolbar-btn-fontSize-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-fontSize" unselectable="on" class="toolbar-btn" href="javascript:;" title="字号">字号<span class="toolbar-btn-arrows"></span></a><div id="undefined" class="toolbar-panel" style="display: none;"><table cellspacing="0" cellpadding="0"><tbody><tr><td><a href="javascript:;" val="12px" style="font-size:12px">12px</a></td></tr><tr><td><a href="javascript:;" val="13px" style="font-size:13px">13px</a></td></tr><tr><td><a href="javascript:;" val="14px" style="font-size:14px">14px</a></td></tr><tr><td><a href="javascript:;" val="15px" style="font-size:15px">15px</a></td></tr><tr><td><a href="javascript:;" val="16px" style="font-size:16px">16px</a></td></tr><tr><td><a href="javascript:;" val="17px" style="font-size:17px">17px</a></td></tr><tr><td><a href="javascript:;" val="18px" style="font-size:18px">18px</a></td></tr><tr><td><a href="javascript:;" val="19px" style="font-size:19px">19px</a></td></tr><tr><td><a href="javascript:;" val="20px" style="font-size:20px">20px</a></td></tr></tbody></table></div></div><div id="toolbar-btn-fontName-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-fontName" unselectable="on" class="toolbar-btn" href="javascript:;" title="字体">字体<span class="toolbar-btn-arrows"></span></a><div id="undefined" class="toolbar-panel" style="display: none;"><table cellspacing="0" cellpadding="0"><tbody><tr><td><a href="javascript:;" val="黑体" style="font-family:黑体">黑体</a></td></tr><tr><td><a href="javascript:;" val="宋体" style="font-family:宋体">宋体</a></td></tr><tr><td><a href="javascript:;" val="仿宋_GB2312" style="font-family:仿宋_GB2312">仿宋_GB2312</a></td></tr><tr><td><a href="javascript:;" val="楷体_GB2312" style="font-family:楷体_GB2312">楷体_GB2312</a></td></tr><tr><td><a href="javascript:;" val="微软雅黑" style="font-family:微软雅黑">微软雅黑</a></td></tr><tr><td><a href="javascript:;" val="Arial" style="font-family:Arial">Arial</a></td></tr><tr><td><a href="javascript:;" val="Tahoma" style="font-family:Tahoma">Tahoma</a></td></tr><tr><td><a href="javascript:;" val="Georgia" style="font-family:Georgia">Georgia</a></td></tr><tr><td><a href="javascript:;" val="Helvetica" style="font-family:Helvetica">Helvetica</a></td></tr><tr><td><a href="javascript:;" val="Sans-serif" style="font-family:Sans-serif">Sans-serif</a></td></tr></tbody></table></div></div><div id="toolbar-btn-specialChar-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-specialChar" unselectable="on" class="toolbar-btn" href="javascript:;" title="特殊字符">&nbsp;<span class="toolbar-btn-arrows"></span></a><div id="undefined" class="toolbar-panel" style="display: none;"><table cellspacing="0" cellpadding="0"><tbody><tr><td><a unselectable="on" href="javascript:;" val="☆">☆</a></td><td><a unselectable="on" href="javascript:;" val="★">★</a></td><td><a unselectable="on" href="javascript:;" val="○">○</a></td><td><a unselectable="on" href="javascript:;" val="●">●</a></td><td><a unselectable="on" href="javascript:;" val="◇">◇</a></td><td><a unselectable="on" href="javascript:;" val="◆">◆</a></td><td><a unselectable="on" href="javascript:;" val="□">□</a></td><td><a unselectable="on" href="javascript:;" val="■">■</a></td><td><a unselectable="on" href="javascript:;" val="△">△</a></td><td><a unselectable="on" href="javascript:;" val="▲">▲</a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="①">①</a></td><td><a unselectable="on" href="javascript:;" val="②">②</a></td><td><a unselectable="on" href="javascript:;" val="③">③</a></td><td><a unselectable="on" href="javascript:;" val="④">④</a></td><td><a unselectable="on" href="javascript:;" val="⑤">⑤</a></td><td><a unselectable="on" href="javascript:;" val="⑥">⑥</a></td><td><a unselectable="on" href="javascript:;" val="⑦">⑦</a></td><td><a unselectable="on" href="javascript:;" val="⑧">⑧</a></td><td><a unselectable="on" href="javascript:;" val="⑨">⑨</a></td><td><a unselectable="on" href="javascript:;" val="⑩">⑩</a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="Ⅰ">Ⅰ</a></td><td><a unselectable="on" href="javascript:;" val="Ⅱ">Ⅱ</a></td><td><a unselectable="on" href="javascript:;" val="Ⅲ">Ⅲ</a></td><td><a unselectable="on" href="javascript:;" val="Ⅳ">Ⅳ</a></td><td><a unselectable="on" href="javascript:;" val="Ⅴ">Ⅴ</a></td><td><a unselectable="on" href="javascript:;" val="Ⅵ">Ⅵ</a></td><td><a unselectable="on" href="javascript:;" val="Ⅶ">Ⅶ</a></td><td><a unselectable="on" href="javascript:;" val="Ⅷ">Ⅷ</a></td><td><a unselectable="on" href="javascript:;" val="Ⅸ">Ⅸ</a></td><td><a unselectable="on" href="javascript:;" val="Ⅹ">Ⅹ</a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="◎">◎</a></td><td><a unselectable="on" href="javascript:;" val="※">※</a></td><td><a unselectable="on" href="javascript:;" val="→">→</a></td><td><a unselectable="on" href="javascript:;" val="←">←</a></td><td><a unselectable="on" href="javascript:;" val="↑">↑</a></td><td><a unselectable="on" href="javascript:;" val="↓">↓</a></td><td><a unselectable="on" href="javascript:;" val="┆">┆</a></td><td><a unselectable="on" href="javascript:;" val="￣">￣</a></td><td><a unselectable="on" href="javascript:;" val="＿">＿</a></td><td><a unselectable="on" href="javascript:;" val="√">√</a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="〓">〓</a></td><td><a unselectable="on" href="javascript:;" val="℃">℃</a></td><td><a unselectable="on" href="javascript:;" val="∧">∧</a></td><td><a unselectable="on" href="javascript:;" val="∨">∨</a></td><td><a unselectable="on" href="javascript:;" val="∝">∝</a></td><td><a unselectable="on" href="javascript:;" val="∞">∞</a></td><td><a unselectable="on" href="javascript:;" val="≈">≈</a></td><td><a unselectable="on" href="javascript:;" val="≌">≌</a></td><td><a unselectable="on" href="javascript:;" val="∽">∽</a></td><td><a unselectable="on" href="javascript:;" val="∈">∈</a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="＋">＋</a></td><td><a unselectable="on" href="javascript:;" val="－">－</a></td><td><a unselectable="on" href="javascript:;" val="×">×</a></td><td><a unselectable="on" href="javascript:;" val="÷">÷</a></td><td><a unselectable="on" href="javascript:;" val="±">±</a></td><td><a unselectable="on" href="javascript:;" val="≤">≤</a></td><td><a unselectable="on" href="javascript:;" val="≥">≥</a></td><td><a unselectable="on" href="javascript:;" val="≠">≠</a></td><td><a unselectable="on" href="javascript:;" val="∵">∵</a></td><td><a unselectable="on" href="javascript:;" val="∴">∴</a></td></tr><tr><td><a unselectable="on" href="javascript:;" val="α">α</a></td><td><a unselectable="on" href="javascript:;" val="β">β</a></td><td><a unselectable="on" href="javascript:;" val="γ">γ</a></td><td><a unselectable="on" href="javascript:;" val="η">η</a></td><td><a unselectable="on" href="javascript:;" val="θ">θ</a></td><td><a unselectable="on" href="javascript:;" val="λ">λ</a></td><td><a unselectable="on" href="javascript:;" val="μ">μ</a></td><td><a unselectable="on" href="javascript:;" val="ρ">ρ</a></td><td><a unselectable="on" href="javascript:;" val="σ">σ</a></td><td><a unselectable="on" href="javascript:;" val="φ">φ</a></td></tr></tbody></table></div></div><div id="toolbar-btn-removeFormat-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-removeFormat" unselectable="on" class="toolbar-btn" href="javascript:;" title="清除格式">&nbsp;</a></div><div id="toolbar-btn-scope-wrap" class="toolbar-btn-wrap"><a id="toolbar-btn-scope" unselectable="on" class="toolbar-btn" href="javascript:;" title="作用域">局部</a></div><div id="toolbar-shade"></div></div>
+		<script type="text/javascript" src="./bordered/papertpl.min.js"></script>
+		
+		<script type="text/javascript">
+			function initFishUpload() {
+				var upload = new FishUpload({
+					render : document.getElementById('avater-wrapper'),
+//					url    : "http://jianliben.sinaapp.com/resume/upload?from=tpl",
+					start  : function() {
+						if(context.user) {
+							fishBox.alert({text:'请先<font color="#D07171">创建简历</font>！'});
+						} else {
+							var content = '<div style="">';
+							content += '<a href="http://jianliben.sinaapp.com/account/wblogin"><img src="http://jianliben.sinaapp.com/public/static/images/wb_loginbtn.png" style="+display:inline;" /></a>&nbsp;';
+							content += '<a href="http://jianliben.sinaapp.com/account/qqlogin"><img src="http://jianliben.sinaapp.com/public/static/images/qq_loginbtn.png" style="+display:inline;" /></a></div>';
+							fishBox.dialog({title:'登录', text:content, no:function(){}});
+						}
+						return false;
+					},
+					over   : function(data) {
+					},
+					autoSubmit : true,
+					id : 'fish-upload',
+					style : {
+						width : '124px'
+					},
+					multiple : false
+				});
+				upload.hide();
+				$('#avater-wrapper').mouseover(function(event) {
+				  	upload.show();
+				});
+				$('#avater-wrapper').mouseleave(function(event) {
+				  	upload.hide();
+				});
+			}
+			initFishUpload();
+		
+			$f('#operate-create').bind('click', function(event) {
+				$f.get(context.host+'resume/islogin', {}, function(data) {
+					data = $f.string2json(data);
+					if(0 === data.retCode) {
+						fishBox.confirm({
+							title:'创建简历',
+							text:'您将使用当前模板创建一份简历，确定继续吗？',
+							yes:function() {
+								location.href = context.host + 'resume/create';
+							}, 
+							no:function() {
+							}
+						});
+					} else if(-1 === data.retCode) {
+						var content = '<div style="">';
+						content += '<a href="http://jianliben.sinaapp.com/account/wblogin"><img src="http://jianliben.sinaapp.com/public/static/images/wb_loginbtn.png" style="+display:inline;" /></a>&nbsp;';
+						content += '<a href="http://jianliben.sinaapp.com/account/qqlogin"><img src="http://jianliben.sinaapp.com/public/static/images/qq_loginbtn.png" style="+display:inline;" /></a></div>';
+						fishBox.dialog({title:'登录', text:content, no:function(){}});
+					}
+				});
+			});
+			
+			//if(context.user) {
+			//	fishBox.alert({text:'您还没有创建简历，点击“<font color="#D07171">创建简历</font>”按钮创建自己的简历！'});
+			//}
+			//tip
+			$('#tips').text('选择一份模板，创建自己的简历！').slideDown(300)
+					.css('margin-left', '-110px').bind('click', function() {
+				$(this).slideUp(300);
+			});
+			setTimeout(function() {
+				$('#tips').slideUp(300);
+			}, 10000);
+			//默认头像
+			$f.elem('#avater-img').setAttribute('src', 'http://jianliben.sinaapp.com/public/static/images/avater.gif');
+		</script>
+		
+		<!-- the slider -->
+		<link rel="stylesheet" type="text/css" href="./bordered/template.slider.min.css">
+		<script type="text/javascript" src="./bordered/template.slider.min.js"></script>
+		<script type="text/javascript">$('#ca-container').contentcarousel();</script>
+		
+						
+	
+
+</body></html>

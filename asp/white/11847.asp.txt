@@ -1,0 +1,159 @@
+<!--#include file="../../Conn.asp" -->
+<!--#include file="../../Comm/Site_Class.asp" -->
+<%
+PagePath = "../../"
+
+Set Qsite = New Site_Class
+
+Qsite.SiteConfig_Master()
+%>
+<!--#include file="../Check_Login.asp" -->
+<%
+Qsite.Check_AdminFlag(arrAdminFlag(9 , 2))
+
+Dim CurrentPage,FileName
+Dim AdminId,AdminName,IsLock
+Dim Act
+
+If Request.Form <> "" Then
+	Response.Redirect("Admin_Manage.asp?AdminName="& Qsite.chgStr(Trim(Request.Form("AdminName"))))
+	Response.End()
+End If
+
+Set Rs = server.createobject("ADODB.Recordset")
+
+AdminName = Qsite.chgStr(Trim(Request.QueryString("AdminName")))
+IsLock = Qsite.chgStr(Trim(Request.QueryString("IsLock")))
+
+If IsLock <> "" And IsLock <> "1" Then IsLock = "0"
+
+If AdminName <> "" Then
+	Sql = "select * from AdminTbl where AdminName like '%"& AdminName &"%' and AdminName <> 'wangzhan' order by AdminId asc"
+Else
+	If IsLock <> "" Then
+		Sql = "select * from AdminTbl where IsLock = '"& IsLock &"' order by AdminId asc"
+	Else
+		Sql = "select * from AdminTbl where AdminName <> 'wangzhan' order by AdminId asc"
+	End If
+End If
+
+FileName = "Admin_Manage.asp?AdminName="& AdminName &"&IsLock="& IsLock
+
+Act = Qsite.chgStr(Trim(Request.QueryString("action")))
+
+If Act = "del" Then
+	AdminId = Qsite.chgStr(Trim(Request.QueryString("AdminId")))
+	CurrentPage = Qsite.chgStr(Trim(Request.QueryString("Page")))
+	If AdminId = "" Or Not IsNumeric(AdminId) Then AdminId = 0
+	If CurrentPage = "" Or Not IsNumeric(CurrentPage) Then CurrentPage = 1
+	
+	If Cstr(AdminId) = Cstr(Session("AdminId")) Then
+		Qsite.ShowMsg "不能删除自己的帐号" , ""
+	End If
+	
+	Conn.Execute("delete from AdminTbl where AdminId = "& AdminId)
+	
+	Response.Redirect(FileName & "&page="& CurrentPage)
+	Response.End()
+End If
+%>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>管理员列表</title>
+<link href="../skins/css/main.css" rel="stylesheet" type="text/css">
+<script language="javascript">
+function AdminDel(AdminId)
+{
+	var fn = "<%=FileName%>"
+	var question = confirm("你确定要删除此条记录吗？");
+	if (question !="0")
+	{
+		location.href = fn + "&action=del&AdminId=" + AdminId;
+	}
+}
+</script>
+</head>
+
+<body>
+<form name="PosForm" method="post" action="Admin_Manage.asp" style="margin:0" onSubmit="return CheckForm();">
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" class="td_title">管理员搜索</td>
+		</tr>
+		<tr>
+			<td height="23" class="td_content">用户名：
+				<input name="AdminName" type="text" class="input_1" id="AdminName" size="40">
+				<input name="Submit" type="submit" class="input_1" value="搜索">			</td>
+		</tr>
+	</table>
+</form>
+<br>
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" colspan="4" class="td_title">管理员列表 -- [<a href="Admin_Manage.asp">所有</a> | <a href="Admin_Manage.asp?IsLock=0">正常</a> | <a href="Admin_Manage.asp?IsLock=1">锁定</a>] </td>
+		</tr>
+		<tr>
+			<td width="31%" height="23" class="td_content"><strong>用户名</strong></td>
+			<td width="24%" height="23" class="td_content"><strong>状态</strong></td>
+			<td width="25%" class="td_content"><strong>管理员类型</strong></td>
+			<td width="20%" class="td_content"><strong>操作</strong></td>
+		</tr>
+<%
+Rs.Open Sql , Conn , 1 , 1
+If Rs.Eof and AdminName = "wangzhan" Then
+%>
+		<tr>
+			<td height="23" colspan="4" class="td_content">没有相关管理员</td>
+		</tr>
+<%
+Else
+	Rs.PageSize = 20
+	CurrentPage = Clng(Request("page"))
+	If CurrentPage < 1 Then CurrentPage = 1
+	If CurrentPage > Rs.PageCount Then CurrentPage = Rs.PageCount
+	Rs.AbsolutePage = CurrentPage
+	i = 0
+	Do While Not Rs.Eof
+%>
+		<tr>
+			<td height="23" class="td_content"><%=Rs("AdminName")%></td>
+			<td height="23" class="td_content">
+			<%
+			If Rs("IsLock") = "0" Then
+				Response.Write("正常")
+			Else
+				Response.Write("<font color=""#FF0000"">锁定</font>")
+			End If
+			%>			</td>
+			<td class="td_content">超级管理员</td>
+			<td class="td_content">
+			<%
+			If Cstr(Rs("AdminId")) = Cstr(Session("AdminId")) Then
+				Response.Write("<font color=""#CCCCCC"">修改 | 删除</font>")
+			Else
+			%>
+			<a href="Admin_Edit.asp?strAdminName=<%=AdminName%>&strIsLock=<%=IsLock%>&strPage=<%=CurrentPage%>&AdminId=<%=Rs("AdminId")%>">修改</a> | <a href="#" onClick="AdminDel('<%=Rs("AdminId")%>');return false;">删除</a>
+			<%
+			End If
+			%>			</td>
+		</tr>
+<%
+	i = i + 1
+	Rs.MoveNext
+	If i >= Rs.PageSize Then Exit Do
+	Loop
+%>
+		<tr>
+			<td height="23" colspan="4" class="td_content">
+<%
+	Qsite.Page_Cn CurrentPage , Rs.PageCount , Rs.RecordCount , FileName
+%>			</td>
+		</tr>
+<%
+End If
+Rs.Close
+%>
+	</table>
+</body>
+</html>

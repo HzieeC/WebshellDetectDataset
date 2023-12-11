@@ -1,0 +1,675 @@
+<%@language=vbscript codepage=936 %>
+<!--#include file="inc/Conn.asp"-->
+<%
+AdminName=replace(session("AdminName"),"'","")
+if AdminName<>"" then
+set rs=server.createobject("adodb.recordset")
+sql="select UserName from Admin72 where UserName='" & session("AdminName") & "' and Password='" & session("AdminPassword") & "'"
+set rs=conn.execute(sql)
+  if rs.eof and rs.bof then
+  else
+  rs.close
+  set rs=nothing
+  call CloseConn()
+  response.Redirect("admin/default.asp")
+  response.End()
+  end if
+rs.close
+set rs=nothing
+end if
+
+if Trim(request("Action"))="login" then
+%>
+<!--#include file="Inc/Config.asp"-->
+<!--#include file="inc/Md7.asp"-->
+<%
+dim username,password,CheckCode
+username=replace(trim(request("UserName4")),"'","")
+password=replace(trim(Request("password")),"'","")
+CheckCode=replace(trim(Request("CheckCode")),"'","")
+if UserName="" then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>用户名不能为空！</li>"
+end if
+if CheckCode="" then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>验证码不能为空！</li>"
+end if
+if session("CheckCode")="" then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>你登录时间过长，请重新返回登录页面进行登录。</li>"
+end if
+if CheckCode<>CStr(session("CheckCode")) then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>您输入的确认码和系统产生的不一致，请重新输入。</li>"
+end if
+if FoundErr<>True then
+	password=md5(password)
+	set rs=server.createobject("adodb.recordset")
+	sql="select * from Admin72 where password='"&password&"' and username='"&username&"'"
+	rs.open sql,conn,1,3
+	if rs.bof and rs.eof then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>用户名或密码错误！！！</li>"
+	else
+		if password<>rs("password") then
+			FoundErr=True
+			ErrMsg=ErrMsg & "<br><li>用户名或密码错误！！！</li>"
+		else
+		    RndPassword=GetRndPassword(16)
+			rs("LastLoginIP")=Request.ServerVariables("REMOTE_ADDR")
+			rs("LastLoginTime")=now()
+			rs("LoginTimes")=rs("LoginTimes")+1
+			rs("RndPassword")=RndPassword
+			rs.update
+			session.Timeout=SessionTimeout
+			Session("Admin_Count")="OK"
+			session("AdminName")=rs("username")
+			session("AdminPassword")=rs("Password")
+			session("Purview")=rs("Purview")
+			session("RndPassword")=RndPassword
+			rs.close
+			set rs=nothing
+			call CloseConn()
+			Response.Redirect "admin/default.asp"
+		end if
+	end if
+	rs.close
+	set rs=nothing
+end if
+if FoundErr=True then
+	call WriteErrMsg()
+end if
+call CloseConn()
+
+'****************************************************
+'过程名：WriteErrMsg
+'作  用：显示错误提示信息
+'参  数：无
+'****************************************************
+sub WriteErrMsg()
+	dim strErr
+	strErr=strErr & "<html><head><title>错误信息</title><meta http-equiv='Content-Type' content='text/html; charset=gb2312'>" & vbcrlf
+	strErr=strErr & "<style type='text/css'><!-- BODY{	FONT-FAMILY: '宋体';	FONT-SIZE: 9pt;	text-decoration: none;	line-height: 150%;	background-color: #FBFDFF;	FONT-SIZE: 9pt;background:#ffffff;text-decoration: none;SCROLLBAR-FACE-COLOR: #C6EBDE;SCROLLBAR-HIGHLIGHT-COLOR: #ffffff; SCROLLBAR-SHADOW-COLOR: #39867B; SCROLLBAR-3DLIGHT-COLOR: #39867B; SCROLLBAR-ARROW-COLOR: #330000; SCROLLBAR-TRACK-COLOR: #E2F3F1; SCROLLBAR-DARKSHADOW-COLOR: #ffffff;}TD{	FONT-FAMILY: '宋体';	FONT-SIZE: 9pt;}Input{	FONT-SIZE: 9pt;	HEIGHT: 20px;}Button{	FONT-SIZE: 9pt;	HEIGHT: 20px; }Select{	FONT-SIZE: 9pt;	HEIGHT: 20px;}A{	TEXT-DECORATION: none;	color: #000000;}A:hover{	COLOR: #428EFF;	text-decoration: underline;}.title{	background:#E1F4EE;}.border{	border: 1px solid #39867B;}.tdbg{	background:#E1F4EE;	line-height: 120%;}.bgcolor {	background-color: #91BCE3;}--></style></head><body>" & vbcrlf
+	strErr=strErr & "<table border='0' width='100%' cellspacing='0' cellpadding='0' height='100%'><tr><td align='center'><table cellpadding=2 cellspacing=1 border=0 width=400 class='border' align=center>" & vbcrlf
+	strErr=strErr & "  <tr align='center'><td height='22' class='title'><strong>错误信息</strong></td></tr>" & vbcrlf
+	strErr=strErr & "  <tr><td height='100' class='tdbg' valign='top'><br> <b>产生错误的可能原因：</b><br>" & errmsg &"</td></tr>" & vbcrlf
+	strErr=strErr & "  <tr align='center'><td class='tdbg'><a href='Manage.asp'>&lt;&lt; 返回登录页面</a></td></tr>" & vbcrlf
+	strErr=strErr & "</table></td></tr></table>" & vbcrlf
+	strErr=strErr & "</body></html>" & vbcrlf
+	response.write strErr
+end sub
+
+Function GetRndPassword(PasswordLen)
+	Dim Ran,i,strPassword
+	strPassword=""
+	For i=1 To PasswordLen
+		Randomize
+		Ran = CInt(Rnd * 2)
+		Randomize
+		If Ran = 0 Then
+			Ran = CInt(Rnd * 25) + 97
+			strPassword =strPassword & UCase(Chr(Ran))
+		ElseIf Ran = 1 Then
+			Ran = CInt(Rnd * 9)
+			strPassword = strPassword & Ran
+		ElseIf Ran = 2 Then
+			Ran = CInt(Rnd * 25) + 97
+			strPassword =strPassword & Chr(Ran)
+		End If
+	Next
+	GetRndPassword=strPassword
+End Function
+%>
+
+<%
+else
+%>
+
+<%
+'强制浏览器重新访问服务器下载页面，而不是从缓存读取页面
+Response.Buffer = True 
+Response.Expires = -1
+Response.ExpiresAbsolute = Now() - 1 
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+'主要是使随机出现的图片数字随机
+%>
+<html>
+<head>
+<title>管理员登录</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<style type="text/css">
+<!--
+BODY
+{
+	FONT-FAMILY: "宋体";
+	FONT-SIZE: 9pt;
+	text-decoration: none;
+	line-height: 150%;
+	background-color: #FBFDFF;
+	FONT-SIZE: 9pt;background:#ffffff;
+text-decoration: none;
+SCROLLBAR-FACE-COLOR: #C6EBDE;
+SCROLLBAR-HIGHLIGHT-COLOR: #ffffff; SCROLLBAR-SHADOW-COLOR: #39867B; SCROLLBAR-3DLIGHT-COLOR: #39867B; SCROLLBAR-ARROW-COLOR: #330000; SCROLLBAR-TRACK-COLOR: #E2F3F1; SCROLLBAR-DARKSHADOW-COLOR: #ffffff;
+}
+TD{	FONT-FAMILY: "宋体";	FONT-SIZE: 9pt;}
+Input{	FONT-SIZE: 9pt;	HEIGHT: 20px;}
+Button{	FONT-SIZE: 9pt;	HEIGHT: 20px; }
+Select{	FONT-SIZE: 9pt;	HEIGHT: 20px;}
+A{	TEXT-DECORATION: none;	color: #000000;}
+A:hover{	COLOR: #428EFF;	text-decoration: underline;}
+.border{	border: 1px solid #39867B;}
+.tdbg{	background:#E1F4EE;	line-height: 120%;}
+.bgcolor {	background-color: #91BCE3;}
+-->
+</style>
+<script language=javascript>
+<!--
+function SetFocus()
+{
+if (document.Login.UserName4.value=="")
+	document.Login.UserName4.focus();
+else
+	document.Login.UserName4.select();
+}
+function CheckForm()
+{
+	if(document.Login.UserName4.value=="")
+	{
+		alert("请输入用户名！");
+		document.Login.UserName4.focus();
+		return false;
+	}
+	if (document.Login.CheckCode.value==""){
+       alert ("请输入您的验证码！");
+       document.Login.CheckCode.focus();
+       return(false);
+    }
+}
+
+function CheckBrowser() 
+{
+  var app=navigator.appName;
+  var verStr=navigator.appVersion;
+  if (app.indexOf('Netscape') != -1) {
+  } 
+  else if (app.indexOf('Microsoft') != -1) {
+    if (verStr.indexOf("MSIE 3.0")!=-1 || verStr.indexOf("MSIE 4.0") != -1 || verStr.indexOf("MSIE 5.0") != -1 || verStr.indexOf("MSIE 5.1") != -1)
+      alert("互联Ｅ站友情提示：\n    您的浏览器版本太低，可能会导致无法使用后台的部分功能。建议您使用 IE6.0 或以上版本。");
+  }
+}
+//-->
+</script>
+</head>
+<body class="bgcolor">
+<table border="0" width="100%" cellpadding="0" cellspacing="0" height="100%">
+  <tr>
+    <td width="100%" valign="middle" align="center">
+
+<table border=1 borderColor=#6699CC cellPadding=4 cellSpacing=1 width=450 style="border-collapse: collapse" align=center >
+	<tr> 
+		<td style="background-color:#2171D6;padding-TOP:8px;font-size: 10.5pt;text-align:center;color:#FFFFFF;">
+          互联Ｅ站科技有限公司
+      </td>
+	</tr>
+	<tr valign="baseline"> 
+		<td bgcolor=#FFFFFF align=center valign=middle height=60> 
+			<table width="100%" border="0" cellspacing="0" cellpadding="0">
+				<tr>
+					<td width=20> </td>
+					
+            <td width=150>
+              <div align="center"><img src="Img/admin_p.gif" width="90" height="100" border="0" usemap="#Map"> 
+              </div>
+            </td>
+					<td width=280>
+<form name="Login" action="Manage.asp?action=login" method="post" target="_parent" onSubmit="return CheckForm();">
+	<table width="100%" border="0" cellspacing="8" cellpadding="0" align="center">
+		<tr align="center"> 
+			<td height="27" colspan="2"><font color="#000000" size="3"><strong>管理员登录</strong></font> 
+			</td>
+		</tr>
+		<tr> 
+			<td align="right"><font color="#000000">用户名称：</font></td>
+			<td><input name="UserName4"  type="text"  id="UserName4" maxlength="20" style="width:160px;border-style:solid;border-width:1;padding-left:4;padding-right:4;padding-top:1;padding-bottom:1" onmouseover="this.style.background='#FDE8FE';" onmouseout="this.style.background='#FFFFFF'" onFocus="this.select(); "></td>
+		</tr>
+		<tr> 
+			<td align="right"><font color="#000000">用户密码：</font></td>
+		<td><input name="Password"  type="password" maxlength="20" style="width:160px;border-style:solid;border-width:1;padding-left:4;padding-right:4;padding-top:1;padding-bottom:1" onmouseover="this.style.background='#FDE8FE';" onmouseout="this.style.background='#FFFFFF'" onFocus="this.select(); "></td>
+<!--		<td><input name="Password"  type="password" class="wenbenkuang"  maxlength="20" style="width:160px;border-style:solid;border-width:1;padding-left:4;padding-right:4;padding-top:1;padding-bottom:1"   onMouseOut="this.style.background=''" onMouseOver="this.style.background='#F9F9F9'" onFocus="this.select();" readOnly onKeyDown="Calc.password.value=this.value" onChange="Calc.password.value=this.value" onclick= "password1=this;showkeyboard();this.readOnly=1;Calc.password.value=''"></td>		-->
+		</tr>
+		<tr> 
+			<td align="right"><font color="#00000">验 证 码：</font></td>
+			<td><input name="CheckCode" size="6" maxlength="4" style="border-style:solid;border-width:1;padding-left:4;padding-right:4;padding-top:1;padding-bottom:1" onmouseover="this.style.background='#FDE8FE';" onmouseout="this.style.background='#FFFFFF'" onFocus="this.select(); ">
+				<font color="#FF0000">请在左边输入</font>            <img src="inc/checkcode.asp"></td>
+		</tr>
+		<tr> 
+			<td colspan="2"> <div align="center"> &nbsp;&nbsp;&nbsp;&nbsp;
+				<input   type="submit" name="Submit" value=" 确&nbsp;认 " style="font-size: 9pt; height: 19; width: 60; color: #000000; background-color: #FFCCFF; border: 1 solid #336600;padding-TOP:2px;padding-BOTTOM:1px;" onMouseOver ="this.style.backgroundColor='#ffffff'" onMouseOut ="this.style.backgroundColor='#FFCCFF'">
+				&nbsp; 
+				<input name="reset" type="reset"  id="reset" value=" 清&nbsp;除 " style="font-size: 9pt; height: 19; width: 60; color: #000000; background-color: #FFCCFF; border: 1 solid #336600;padding-TOP:2px;padding-BOTTOM:1px;" onMouseOver ="this.style.backgroundColor='#ffffff'" onMouseOut ="this.style.backgroundColor='#FFCCFF'"><br>
+				</div></td>
+		</tr>
+	</table>
+</form>
+					</td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+</table>
+<br><br>
+</td>
+  </tr>
+</table>
+
+<script language="JavaScript" type="text/JavaScript">
+CheckBrowser();
+SetFocus(); 
+</script>
+</body>
+</html>
+<script LANGUAGE="javascript">
+<!--
+function checkspace(checkstr) {
+  var str = '';
+  for(i = 0; i < checkstr.length; i++) {
+    str = str + ' ';
+  }
+  return (str == checkstr);
+}
+function check()
+{
+  if(checkspace(document.admininfo.admin.value)) {
+	document.admininfo.admin.focus();
+    alert("管理员用户名不能为空！");
+	return false;
+  }
+  if(checkspace(document.admininfo.Password.value)) {
+	document.admininfo.Password.focus();
+    alert("密码不能为空！");
+	return false;
+  }
+    if(checkspace(document.admininfo.verifycode.value)) {
+	document.admininfo.verifycode.focus();
+    alert("验证码不能为空！");
+	return false;
+  }
+	document.admininfo.submit();
+  }
+  
+  //定义当前是否大写的状态
+window.onload=
+	function()
+	{
+		password1=null;		
+		initCalc();
+	}
+
+var CapsLockValue=0;
+
+var check;
+function setVariables() {
+tablewidth=630;  // logo width, in pixels
+tableheight=20;  // logo height, in pixels
+if (navigator.appName == "Netscape") {
+horz=".left";
+vert=".top";
+docStyle="document.";
+styleDoc="";
+innerW="window.innerWidth";
+innerH="window.innerHeight";
+offsetX="window.pageXOffset";
+offsetY="window.pageYOffset";
+}
+else {
+horz=".pixelLeft";
+vert=".pixelTop";
+docStyle="";
+styleDoc=".style";
+innerW="document.body.clientWidth";
+innerH="document.body.clientHeight";
+offsetX="document.body.scrollLeft";
+offsetY="document.body.scrollTop";
+   }
+}
+function checkLocation() {
+if (check) {
+objectXY="softkeyboard";
+var availableX=eval(innerW);
+var availableY=eval(innerH);
+var currentX=eval(offsetX);
+var currentY=eval(offsetY);
+x=availableX-tablewidth+currentX;
+//y=availableY-tableheight+currentY;
+y=currentY;
+
+evalMove();
+}
+setTimeout("checkLocation()",0);
+}
+function evalMove() {
+//eval(docStyle + objectXY + styleDoc + horz + "=" + x);
+eval(docStyle + objectXY + styleDoc + vert + "=" + y);
+}
+	self.onError=null;
+	currentX = currentY = 0;  
+	whichIt = null;           
+	lastScrollX = 0; lastScrollY = 0;
+	NS = (document.layers) ? 1 : 0;
+	IE = (document.all) ? 1: 0;
+	function heartBeat() {
+		if(IE) { diffY = document.body.scrollTop; diffX = document.body.scrollLeft; }
+	    if(NS) { diffY = self.pageYOffset; diffX = self.pageXOffset; }
+		if(diffY != lastScrollY) {
+	                percent = .1 * (diffY - lastScrollY);
+	                if(percent > 0) percent = Math.ceil(percent);
+	                else percent = Math.floor(percent);
+					if(IE) document.all.softkeyboard.style.pixelTop += percent;
+					if(NS) document.softkeyboard.top += percent; 
+	                lastScrollY = lastScrollY + percent;}
+		if(diffX != lastScrollX) {
+			percent = .1 * (diffX - lastScrollX);
+			if(percent > 0) percent = Math.ceil(percent);
+			else percent = Math.floor(percent);
+			if(IE) document.all.softkeyboard.style.pixelLeft += percent;
+			if(NS) document.softkeyboard.left += percent;
+			lastScrollX = lastScrollX + percent;	}		}
+	function checkFocus(x,y) { 
+	        stalkerx = document.softkeyboard.pageX;
+	        stalkery = document.softkeyboard.pageY;
+	        stalkerwidth = document.softkeyboard.clip.width;
+	        stalkerheight = document.softkeyboard.clip.height;
+	        if( (x > stalkerx && x < (stalkerx+stalkerwidth)) && (y > stalkery && y < (stalkery+stalkerheight))) return true;
+	        else return false;}
+	function grabIt(e) {
+	    check = false;
+		if(IE) {
+			whichIt = event.srcElement;
+			while (whichIt.id.indexOf("softkeyboard") == -1) {
+				whichIt = whichIt.parentElement;
+				if (whichIt == null) { return true; } }
+			whichIt.style.pixelLeft = whichIt.offsetLeft;
+		    whichIt.style.pixelTop = whichIt.offsetTop;
+			currentX = (event.clientX + document.body.scrollLeft);
+	   		currentY = (event.clientY + document.body.scrollTop); 	
+		} else { 
+	        window.captureEvents(Event.MOUSEMOVE);
+	        if(checkFocus (e.pageX,e.pageY)) { 
+	                whichIt = document.softkeyboard;
+	                StalkerTouchedX = e.pageX-document.softkeyboard.pageX;
+	                StalkerTouchedY = e.pageY-document.softkeyboard.pageY;} }
+	    return true;	}
+	function moveIt(e) {
+		if (whichIt == null) { return false; }
+		if(IE) {
+		    newX = (event.clientX + document.body.scrollLeft);
+		    newY = (event.clientY + document.body.scrollTop);
+		    distanceX = (newX - currentX);    distanceY = (newY - currentY);
+		    currentX = newX;    currentY = newY;
+		    whichIt.style.pixelLeft += distanceX;
+		    whichIt.style.pixelTop += distanceY;
+			if(whichIt.style.pixelTop < document.body.scrollTop) whichIt.style.pixelTop = document.body.scrollTop;
+			if(whichIt.style.pixelLeft < document.body.scrollLeft) whichIt.style.pixelLeft = document.body.scrollLeft;
+			if(whichIt.style.pixelLeft > document.body.offsetWidth - document.body.scrollLeft - whichIt.style.pixelWidth - 20) whichIt.style.pixelLeft = document.body.offsetWidth - whichIt.style.pixelWidth - 20;
+			if(whichIt.style.pixelTop > document.body.offsetHeight + document.body.scrollTop - whichIt.style.pixelHeight - 5) whichIt.style.pixelTop = document.body.offsetHeight + document.body.scrollTop - whichIt.style.pixelHeight - 5;
+			event.returnValue = false;
+		} else { 
+			whichIt.moveTo(e.pageX-StalkerTouchedX,e.pageY-StalkerTouchedY);
+	        if(whichIt.left < 0+self.pageXOffset) whichIt.left = 0+self.pageXOffset;
+	        if(whichIt.top < 0+self.pageYOffset) whichIt.top = 0+self.pageYOffset;
+        if( (whichIt.left + whichIt.clip.width) >= (window.innerWidth+self.pageXOffset-17)) whichIt.left = ((window.innerWidth+self.pageXOffset)-whichIt.clip.width)-17;
+	        if( (whichIt.top + whichIt.clip.height) >= (window.innerHeight+self.pageYOffset-17)) whichIt.top = ((window.innerHeight+self.pageYOffset)-whichIt.clip.height)-17;
+	        return false;}
+	    return false;	}
+	function dropIt() {whichIt = null;
+	    if(NS) window.releaseEvents (Event.MOUSEMOVE);
+	    return true;	}
+	if(NS) {window.captureEvents(Event.MOUSEUP|Event.MOUSEDOWN);
+		window.onmousedown = grabIt;
+	 	window.onmousemove = moveIt;
+		window.onmouseup = dropIt;	}
+	if(IE) {
+		document.onmousedown = grabIt;
+	 	document.onmousemove = moveIt;
+		document.onmouseup = dropIt;	}
+//	if(NS || IE) action = window.setInterval("heartBeat()",1);
+
+
+
+	document.write("<DIV align=center id=\"softkeyboard\" name=\"softkeyboard\" style=\"position:absolute; left:0px; top:0px; width:500px; z-index:180;display:none\">  <table id=\"CalcTable\" width=\"\" border=\"0\" align=\"center\" class=\"font1\" cellpadding=\"0\" cellspacing=\"0\" bgcolor=\"\">           <FORM id=Calc name=Calc action=\"\" method=post autocomplete=\"off\">       <tr> <td title=\"为了保证后台登陆安全,建议使用密码输入器输入密码!\" align=\"right\" valign=\"middle\"  class=\"font1\" bgcolor=\"\" style=\"cursor: default;height:30\"> <INPUT type=hidden value=\"\" name=password>  <INPUT type=hidden value=ok name=action2 class=font1>&nbsp<font style=\"font-size:12px;\">管理系统密码输入器&nbsp&nbsp&nbsp&nbsp&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp&nbsp;&nbsp&nbsp;</font><INPUT style=\"width:100px;height:23px;background-color:#54BAF1;\" type=button value=\"使用键盘输入\" bgtype=\"1\"   class=\"font1\" onclick=\"password1.readOnly=0;password1.focus();softkeyboard.style.display='none';password1.value='';\"><span style=\"width:2px;\"></span></td>      </tr>      <tr align=\"center\">         <td align=\"center\" bgcolor=\"#FFFFFF\"> <table align=\"center\" width=\"%\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\">\n          <tr align=\"left\" valign=\"middle\"> \n            <td> <input type=button value=\" ~ \"></td>\n            <td> <input type=button value=\" ! \"></td>\n            <td> <input type=button  value=\" @ \"></td>\n            <td> <input type=button value=\" # \"></td>\n            <td> <input type=button value=\" $ \"></td>\n            <td> <input type=button value=\" % \"></td>\n            <td> <input type=button value=\" ^ \"></td>\n            <td> <input type=button value=\" & \"></td>\n            <td> <input type=button value=\" * \"></td>\n            <td> <input type=button value=\" ( \"></td>\n            <td> <input type=button value=\" ) \"></td>\n            <td> <input type=button value=\" _ \"></td>\n            <td> <input type=button value=\" + \"></td>\n            <td> <input type=button value=\" | \"></td>\n            <td colspan=\"1\" rowspan=\"2\"> <input name=\"button10\" type=button  class=\"font1\" value=\" 退格\" onclick=\"setpassvalue();\"  onDblClick=\"setpassvalue();\" style=\"width:100px;height:42px\"> \n            </td>\n          </tr>\n          <tr align=\"left\" valign=\"middle\"> \n            <td> <input type=button value=\" ` \"></td>\n            <td> <input type=button value=\" 1 \"></td>\n            <td> <input type=button value=\" 2 \"></td>\n            <td> <input type=button value=\" 3 \"></td>\n            <td> <input type=button value=\" 4 \"></td>\n            <td> <input type=button value=\" 5 \"></td>\n            <td> <input type=button value=\" 6 \"></td>\n            <td> <input type=button value=\" 7 \"></td>\n            <td> <input type=button value=\" 8 \"></td>\n            <td> <input type=button value=\" 9 \"></td>\n            <td> <input name=\"button6\" type=button value=\" 0 \"></td>\n            <td> <input type=button value=\" - \"></td>\n            <td> <input type=button value=\" = \"></td>\n            <td> <input type=button value=\" \\ \"></td>\n            <td> </td>\n          </tr>\n          <tr align=\"left\" valign=\"middle\"> \n            <td> <input type=button value=\" q \"></td>\n            <td> <input type=button value=\" w \"></td>\n            <td> <input type=button value=\" e \"></td>\n            <td> <input type=button value=\" r \"></td>\n            <td> <input type=button value=\" t \"></td>\n            <td> <input type=button value=\" y \"></td>\n            <td> <input type=button value=\" u \"></td>\n            <td> <input type=button value=\" i \"></td>\n            <td> <input type=button value=\" o \"></td>\n            <td> <input name=\"button8\" type=button value=\" p \"></td>\n            <td> <input name=\"button9\" type=button value=\" { \"></td>\n            <td> <input type=button value=\" } \"></td>\n            <td> <input type=button value=\" [ \"></td>\n            <td> <input type=button value=\" ] \"></td>\n            <td><input name=\"button9\" type=button onClick=\"capsLockText();setCapsLock();\"   class=\"font1\" onDblClick=\"capsLockText();setCapsLock();\" value=\"切换大/小写\" style=\"width:100px;\"></td>\n          </tr>\n          <tr align=\"left\" valign=\"middle\"> \n            <td> <input type=button value=\" a \"></td>\n            <td> <input type=button value=\" s \"></td>\n            <td> <input type=button value=\" d \"></td>\n            <td> <input type=button value=\" f \"></td>\n            <td> <input type=button value=\" g \"></td>\n            <td> <input type=button value=\" h \"></td>\n            <td> <input type=button value=\" j \"></td>\n            <td> <input name=\"button3\" type=button value=\" k \"></td>\n            <td> <input name=\"button4\" type=button value=\" l \"></td>\n            <td> <input name=\"button5\" type=button value=\" : \"></td>\n            <td> <input name=\"button7\" type=button value=\" &quot; \"></td>\n            <td> <input type=button value=\" ; \"></td>\n            <td> <input type=button value=\" ' \"></td>\n            <td rowspan=\"2\" colspan=\"2\"> <input name=\"button12\" type=button onclick=\"OverInput();\" value=\"   确定  \" style=\"width:130px;height:42\"  class=\"font1\"></td>\n          </tr>\n          <tr align=\"left\" valign=\"middle\"> \n            <td> <input name=\"button2\" type=button value=\" z \"></td>\n            <td> <input type=button value=\" x \"></td>\n            <td> <input type=button value=\" c \"></td>\n            <td> <input type=button value=\" v \"></td>\n            <td> <input type=button value=\" b \"></td>\n            <td> <input type=button value=\" n \"></td>\n            <td> <input type=button value=\" m \"></td>\n            <td> <input type=button value=\" &lt; \"></td>\n            <td> <input type=button value=\" &gt; \"></td>\n            <td> <input type=button value=\" ? \"></td>\n            <td> <input type=button value=\" , \"></td>\n            <td> <input type=button value=\" . \"></td>\n            <td> <input type=button value=\" / \"></td>\n          </tr>\n        </table></td>    </FORM>      </tr>  </table></DIV>")
+//给输入的密码框添加新值
+	function addValue(newValue)
+	{
+		if (CapsLockValue==0)
+		{
+			var str=Calc.password.value;
+			if(str.length<password1.maxLength)
+			{
+				Calc.password.value += newValue;
+			}			
+			if(str.length<=password1.maxLength)
+			{
+				password1.value=Calc.password.value;
+			}
+		}
+		else
+		{
+			var str=Calc.password.value;
+			if(str.length<password1.maxLength)
+			{
+				Calc.password.value += newValue.toUpperCase();
+			}
+			if(str.length<=password1.maxLength)
+			{
+				password1.value=Calc.password.value;
+			}
+		}
+	}
+//实现BackSpace键的功能
+	function setpassvalue()
+	{
+		var longnum=Calc.password.value.length;
+		var num
+		num=Calc.password.value.substr(0,longnum-1);
+		Calc.password.value=num;
+		var str=Calc.password.value;
+			password1.value=Calc.password.value;
+	}
+//输入完毕
+	function OverInput()
+	{
+		//m_pass.mempass.value=Calc.password.value;
+		var str=Calc.password.value;
+			password1.value=Calc.password.value;
+			//alert(theForm.value);
+		//theForm.value=m_pass.mempass.value;
+		softkeyboard.style.display="none";
+		Calc.password.value="";
+		password1.readOnly=1;
+		//password1.value=Calc.password.value;
+	}
+//关闭软键盘
+	function closekeyboard(theForm)
+	{
+		//eval("var theForm="+theForm+";");
+		//theForm.value="";
+		softkeyboard.style.display="none";
+		//Calc.password.value="";
+
+	}
+//显示软键盘
+	function showkeyboard()
+	{
+		if(event.y+140)
+		softkeyboard.style.top=event.y+document.body.scrollTop+15;
+		if((event.x-250)>0)
+		{
+			softkeyboard.style.left=event.x-250;
+		}
+		else
+		{
+			softkeyboard.style.left=0;
+		}
+		
+		softkeyboard.style.display="block";
+		password1.readOnly=1;
+		password1.blur();
+		//password1.value="";
+	}
+
+//设置是否大写的值
+function setCapsLock()
+{
+	if (CapsLockValue==0)
+	{
+		CapsLockValue=1
+//		Calc.showCapsLockValue.value="当前是大写 ";
+	}
+	else 
+	{
+		CapsLockValue=0
+//		Calc.showCapsLockValue.value="当前是小写 ";
+	}
+}
+
+
+function setCalcborder()
+{
+	CalcTable.style.border="1px solid #0090FD"
+}
+
+function setHead()
+{
+	CalcTable.cells[0].style.backgroundColor="#7EDEFF"	
+}
+
+function setCalcButtonBg()
+{
+	for(var i=0;i<Calc.elements.length;i++)
+	{
+		if(Calc.elements[i].type=="button"&&Calc.elements[i].bgtype!="1")
+		{
+	//		if(i==10)
+//	alert(123);
+			Calc.elements[i].style.borderTopWidth= 0
+			Calc.elements[i].style.borderRightWidth= 2
+			Calc.elements[i].style.borderBottomWidth= 2
+			Calc.elements[i].style.borderLeftWidth= 0
+			Calc.elements[i].style.borderTopStyle= "none";
+			Calc.elements[i].style.borderRightStyle= "solid";
+			Calc.elements[i].style.borderBottomStyle= "solid";
+			Calc.elements[i].style.borderLeftStyle= "none";
+			//#46AC17
+			Calc.elements[i].style.borderTopColor= "#118ACC";
+			Calc.elements[i].style.borderRightColor= "#118ACC";
+			Calc.elements[i].style.borderBottomColor= "#118ACC";
+			Calc.elements[i].style.borderLeftColor= "#118ACC";
+			//#CBF3B2
+			Calc.elements[i].style.backgroundColor="#ADDEF8";
+
+			
+			
+			var str1=Calc.elements[i].value;
+			str1=str1.trim();
+			/*
+			if(str1=="`") 
+			{
+				Calc.elements[i].style.fontSize=14;
+			}
+			*/
+
+			if(str1.length==1)
+			{
+				//Calc.elements[i].style.fontSize=16;
+				//Calc.elements[i].style.fontWeight='bold';
+			}
+			
+			var thisButtonValue=Calc.elements[i].value;
+			thisButtonValue=thisButtonValue.trim();
+			if(thisButtonValue.length==1)
+			{
+				Calc.elements[i].onclick=
+					function ()
+					{
+						var thisButtonValue=this.value;
+						thisButtonValue=thisButtonValue.trim();
+						addValue(thisButtonValue);
+						//alert(234)
+					}
+				Calc.elements[i].ondblclick=
+					function ()
+					{
+						var thisButtonValue=this.value;
+						thisButtonValue=thisButtonValue.trim();
+						addValue(thisButtonValue);
+						//alert(234)
+					}
+			}
+			
+		}
+	}
+}
+
+function initCalc()
+{
+	setCalcborder();
+	setHead();
+	setCalcButtonBg();
+}
+
+String.prototype.trim = function()
+{
+    // 用正则表达式将前后空格
+    // 用空字符串替代。
+    return this.replace(/(^\s*)|(\s*$)/g, "");
+}
+
+var capsLockFlag;
+capsLockFlag=true;
+
+function capsLockText()
+{
+if(capsLockFlag)//改成大写
+{
+	for(var i=0;i<Calc.elements.length;i++)
+	{
+			var char=Calc.elements[i].value;
+			var char=char.trim()
+		if(Calc.elements[i].type=="button"&&char>="a"&&char<="z"&&char.length==1)
+		{
+		
+			Calc.elements[i].value=" "+String.fromCharCode(char.charCodeAt(0)-32)+" "
+		}
+	}
+}
+else
+{
+	for(var i=0;i<Calc.elements.length;i++)
+	{
+			var char=Calc.elements[i].value;
+			var char=char.trim()
+		if(Calc.elements[i].type=="button"&&char>="A"&&char<="Z"&&char.length==1)
+		{
+		
+			Calc.elements[i].value=" "+String.fromCharCode(char.charCodeAt(0)+32)+" "
+		}
+	}
+}
+capsLockFlag=!capsLockFlag;
+}
+
+window.onload=
+	function ()
+	{
+		password1=null;		
+		initCalc();
+		
+
+	}
+//-->
+</script> 
+<%
+end if
+%>

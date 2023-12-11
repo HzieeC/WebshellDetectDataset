@@ -1,0 +1,546 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../inc/setup.asp"-->
+<!--#include file="../inc/const.asp"-->
+<!--#include file="../inc/check.asp"-->
+<!--#include file="../../inc/md5.asp"-->
+<%
+Server.ScriptTimeout = 99999
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_link.asp
+' 更新日期：2008-09-16
+' 官方网站：新云网络(www.newasp.net www.newasp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 newasp.net - All Rights Reserved.
+' newasp is a trademark of newasp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="100" align="left">友情连接管理</td>
+		<td class="tableline" align="center"><form name="myform" method="post" action="admin_link.asp">
+			<input type="text" name="keyword" size="30">
+			<input type="submit" name="search_button" value="搜索链接" class="button">
+		</form></td>
+		<td class="tableline" width="*" align="right"><a href="admin_setting.asp">基本设置</a>
+			 - <a href="admin_link.asp">连接管理</a>
+			 - <a href="admin_link.asp?action=add">添加连接</a>
+			 - <a href="admin_link.asp?showmode=0">文字连接</a>
+			 - <a href="admin_link.asp?showmode=1">LOGO连接</a>
+			 - <a href="admin_link.asp?showmode=2">首页连接</a>
+		</td>
+	</tr>
+</table>
+<%
+Dim maxperpage,totalrec,Pcount,pagelinks,pagenow,count
+Dim Action,LinkArry,SQLQuery
+Action = LCase(Request("action"))
+If Not ChkAdmin("FriendLink") Then
+	Call Transfer_error()
+End If
+Select Case Trim(Action)
+Case "add"
+	Call addLink()
+Case "edit"
+	Call editLink()
+Case "del"
+	Call delLink()
+Case "delall"
+	Call delAllLink()
+Case "savenew"
+	Call savenew()
+Case "savedit"
+	Call savedit()
+Case "lock"
+	Call lockLink()
+Case "free"
+	Call freeLink()
+Case Else
+	Call showmain()
+End Select
+If FoundErr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+	Dim i,iCount,lCount
+	iCount=2:lCount=2
+	maxperpage = 30 '###每页显示数
+	count=NewAsp.ChkNumeric(Request("count"))
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+%>
+<form name="selform" method="post" action="?action=del">
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th width="5%" nowrap>选择</th>
+	<th width="30%">网站名称</th>
+	<th width="12%">链接类型</th>
+	<th width="25%">管理操作</th>
+	<th width="6%">状态</th>
+	<th width="6%">首页</th>
+	<th width="16%">日期</th>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="7" align="left" id="showNextPage">&nbsp;</td>
+</tr>
+<%
+	Call showLinklist()
+	If IsArray(LinkArry) Then
+		For i=0 To Ubound(LinkArry,2)
+			If Not Response.IsClientConnected Then Response.End
+			If (i mod 2) = 0 Then
+				iCount=2:lCount=1
+			Else
+				iCount=1:lCount=2
+			End If
+%>
+<tr align="center">
+	<td class="tablerow<%=iCount%> hovered"><input type="checkbox" name="id" value="<%=LinkArry(0,i)%>"></td>
+	<td class="tablerow<%=iCount%> hovered"><a href="javascript:" onclick="window.open('<%=Replace(LinkArry(2,i), "'", "&#39;")%>')"><%=Server.HTMLEncode(LinkArry(1,i))%></a></td>
+	<td class="tablerow<%=iCount%> hovered">
+	<%
+			If CLng(LinkArry(5,i)) = 1 Then
+				Response.Write "LOGO链接"
+			Else
+				Response.Write "文字链接"
+			End If
+	%>
+	</td>
+	<td class="tablerow<%=iCount%> hovered"><a href="?action=edit&id=<%=LinkArry(0,i)%>"><u>编辑</u></a> | 
+		<a href="?action=lock&id=<%=LinkArry(0,i)%>"><u>锁定</u></a> | 
+		<a href="?action=free&id=<%=LinkArry(0,i)%>"><u>解锁</u></a> | 
+		<a href="?action=del&id=<%=LinkArry(0,i)%>" onclick="return confirm('此操作将删除此友情连接\n 您确定执行此操作吗?')"><u>删除</u></a>
+	</td>
+	<td class="tablerow<%=iCount%> hovered">
+	<%
+			If CLng(LinkArry(7,i)) = 0 Then
+				Response.Write "正常"
+			Else
+				Response.Write "<font color=""red"">锁定</font>"
+			End If
+	%>
+	</td>
+	<td class="tablerow<%=iCount%> hovered">
+	<%
+			If CLng(LinkArry(6,i)) = 0 Then
+				Response.Write "<font color=""red"">×</font>"
+			Else
+				Response.Write "<font color=""blue"">√</font>"
+			End If
+	%>
+	</td>
+	<td class="tablerow<%=iCount%> hovered"><%=showDateTime(LinkArry(3,i),"yyyy-MM-dd")%></td>
+</tr>
+<%
+		Next
+	End If
+%>
+<tr>
+	<td class="tablerow<%=lCount%>" colspan="7">
+	<input class="button" type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class="button" type="button" name="chksel" value="反选" onClick="ContraSel(this.form)">
+	<input class="button" type="submit" name="submit_button2" value="删除" onclick="{if(confirm('您确定要删除已选择的连接吗?')){return true;}return false;}">
+	<input class="button" type="button" name="del_button" value="清空所有连接" onclick="{if(confirm('您确定要清空所有友情连接吗?')){location.href='admin_link.asp?action=delall';return true;}return false;}">
+	<input class="button" type="button" name="new_button" value="添加友情连接" onclick="location.href='admin_link.asp?action=add';"></td>
+</tr>
+<tr>
+	<td class="tablerow<%=iCount%>" colspan="7" id="NextPageText"><var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+</table>
+</form>
+<script type="text/javascript">
+document.getElementById("showNextPage").innerHTML = document.getElementById("NextPageText").innerHTML;
+</script>
+<%
+	LinkArry=Null
+End Sub
+
+Sub showLinklist()
+	Dim Rs,SQL,keyword,showmode
+	keyword = Trim(Request("keyword"))
+	If Len(keyword&"")>1 Then
+		keyword = Replace(Replace(Replace(keyword, "'", "''"), "<", "&lt;"), ">", "&gt;")
+		If NewAsp.ChkNumeric(Request("field")) = 1 Then
+			SQLQuery="WHERE LinkName LIKE '%" & keyword & "%'"
+		ElseIf NewAsp.ChkNumeric(Request("field")) = 2 Then
+			SQLQuery="WHERE Linkurl LIKE '%" & keyword & "%'"
+		Else
+			SQLQuery="WHERE LinkName LIKE '%" & keyword & "%' Or Linkurl LIKE '%" & keyword & "%'"
+		End If
+	Else
+		If Len(Request("showmode")&"")>0 Then
+			showmode=NewAsp.ChkNumeric(Request("showmode"))
+			If showmode=1 Then
+				SQLQuery="WHERE isLogo=1"
+			ElseIf showmode=2 Then
+				SQLQuery="WHERE isIndex=1"
+			Else
+				SQLQuery="WHERE isLogo=0"
+			End If
+		Else
+			SQLQuery=""
+		End If
+	End If
+	If count=0 Then
+		totalrec=NewAsp.Execute("SELECT COUNT(*) FROM [NC_link] "&SQLQuery)(0)
+	Else
+		totalrec=count
+	End If
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	pagelinks="?keyword="&Request("keyword")&"&showmode="&Request("showmode")&"&count="&totalrec&"&"
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT Linkid,LinkName,LinkUrl,LinkTime,LinkHist,isLogo,isIndex,isLock FROM [NC_link] "&SQLQuery&" ORDER BY LinkTime DESC,linkid DESC"
+	Rs.Open SQL,Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		LinkArry=Rs.GetRows(maxperpage)
+	Else
+		LinkArry=Null
+	End If
+	Rs.close()
+	Set Rs=Nothing
+End Sub
+
+Sub addLink()
+%>
+<form name="myform" method="post" action="?action=savenew">
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th  colspan="2">添加友情连接</th>
+</tr>
+<tr>
+	<td class="tablerow1" width="25%" align="right"><b>网站名称：</b></td>
+	<td class="tablerow1" width="75%"><input type="text" name="name" size="60"></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>连接地址：</b></td>
+	<td class="tablerow2"><input type="text" name="url" size="60" value="http://"></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>LOGO地址：</b></td>
+	<td class="tablerow1"><input type="text" name="logo" id="Previewimg" size="60"></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>上传图片：</b></td>
+	<td class="tablerow2"><iframe name="image" frameborder="0" width='100%' height="45" scrolling="no" src="../upload.asp?ChannelID=0&stype=LINK" allowTransparency="true"></iframe></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>网站简介：</b></td>
+	<td class="tablerow1"><textarea name="readme" rows="5" cols="60"></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>连接类型：</b></td>
+	<td class="tablerow2">
+	<input type="radio" name="islogo" value="0" checked> 文字连接&nbsp;&nbsp;
+	<input type="radio" name="islogo" value="1"> LOGO连接
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>是否在首页显示：</b></td>
+	<td class="tablerow1">
+		<input type="radio" name="isIndex" value="0" checked> 否&nbsp;&nbsp;
+		<input type="radio" name="isIndex" value="1"> 是
+	</td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>前台修改连接所用的密码：</b></td>
+	<td class="tablerow2"><input type="text" name="password" size="20" value="<%=RndPassWord%>">&nbsp;
+	<input type="checkbox" name="AutoLoad" value="yes"> 保存远程图片</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>&nbsp;</b></td>
+	<td class="tablerow1"><input type="reset" name="reset_button" value="清 除" class="button">&nbsp;&nbsp;<input type="submit" name="submit_button" value="保存设置" class="button"></td>
+</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub editLink()
+	Dim Rs,SQL
+	SQL="SELECT * FROM [NC_link] WHERE linkid=" & NewAsp.ChkNumeric(Request("id"))
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>错误的系统参数！</li>"
+		Set Rs = Nothing
+		Exit Sub
+	End If
+%>
+<form name="myform" method="post" action="?action=savedit">
+<input type="hidden" name="id" value="<%=Rs("LinkID")%>">
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th  colspan="2">编辑友情连接</th>
+</tr>
+<tr>
+	<td class="tablerow1" width="25%" align="right"><b>网站名称：</b></td>
+	<td class="tablerow1" width="75%"><input type="text" name="name" size="60" value="<%=Server.HTMLEncode(Rs("Linkname"))%>"></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>连接地址：</b></td>
+	<td class="tablerow2"><input type="text" name="url" size="60" value="<%=Server.HTMLEncode(Rs("Linkurl")&"")%>"></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>LOGO地址：</b></td>
+	<td class="tablerow1"><input type="text" name="logo" id="Previewimg" size="60" value="<%=Server.HTMLEncode(Rs("logourl")&"")%>"></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>上传图片：</b></td>
+	<td class="tablerow2"><iframe name="image" frameborder="0" width='100%' height="45" scrolling="no" src="../upload.asp?ChannelID=0&stype=LINK" allowTransparency="true"></iframe></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>网站简介：</b></td>
+	<td class="tablerow1"><textarea name="readme" rows="5" cols="60"><%=Server.HTMLEncode(Rs("readme")&"")%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>连接类型：</b></td>
+	<td class="tablerow2">
+	<input type="radio" name="islogo" value="0"<%If Rs("islogo")=0 Then Response.Write " checked"%>> 文字连接&nbsp;&nbsp;
+	<input type="radio" name="islogo" value="1"<%If Rs("islogo")>0 Then Response.Write " checked"%>> LOGO连接
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>是否在首页显示：</b></td>
+	<td class="tablerow1">
+		<input type="radio" name="isIndex" value="0"<%If Rs("isIndex")=0 Then Response.Write " checked"%>> 否&nbsp;&nbsp;
+		<input type="radio" name="isIndex" value="1"<%If Rs("isIndex")>0 Then Response.Write " checked"%>> 是&nbsp;&nbsp;
+		<input type="checkbox" name="isupdate" value="1"> 更新时间
+	</td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>前台修改连接所用的密码：</b></td>
+	<td class="tablerow2"><input type="text" name="password" size="20"> <font color="blue">不修改请留空</font>&nbsp;&nbsp;
+	<input type="checkbox" name="AutoLoad" value="yes"> 保存远程图片</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>&nbsp;</b></td>
+	<td class="tablerow1"><input type="reset" name="reset_button" value="清 除" class="button">&nbsp;&nbsp;<input type="submit" name="submit_button" value="保存设置" class="button"></td>
+</tr>
+</table>
+</form>
+<%
+	Rs.Close:Set Rs=Nothing
+End Sub
+
+Sub savenew()
+	Dim sUploadDir,strUploadDir,SaveFileType,SaveFilesName
+	Dim password,strLogo
+	Dim Rs,SQL
+	password = Trim(Request("password"))
+	If password="" Then
+		password = md5(NewAsp.GetRandomCode(16),16)
+	Else
+		password = md5(password,16)
+	End If
+	strLogo = Trim(Request.Form("logo"))
+	If Trim(Request("url")) <> "" And Trim(Request("readme")) <> "" And Trim(Request("name")) <> "" Then
+		If Trim(Request("AutoLoad")) = "yes" Then
+			sUploadDir = "../link/UploadPic/"
+			strUploadDir = CreatePath(sUploadDir)
+			SaveFileType = Mid(strLogo, InStrRev(strLogo, ".") + 1)
+			SaveFilesName = GetRndFileName(SaveFileType)
+			If SaveRemotePic(sUploadDir & strUploadDir & SaveFilesName, strLogo) = True Then
+				strLogo = "link/UploadPic/" & strUploadDir & SaveFilesName
+			Else
+				strLogo = strLogo
+			End If
+		End If
+		Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+		SQL = "SELECT * FROM [NC_Link] WHERE (Linkid is null)"
+		Rs.Open SQL, Conn, 1, 3
+		Rs.addnew
+			Rs("Linkname").Value =  NewAsp.CheckStr(Request.Form("name"))
+			Rs("readme").Value = NewAsp.CheckStr(Request.Form("readme"))
+			Rs("logourl").Value = strLogo
+			Rs("Linkurl").Value = Request.Form("url")
+			Rs("password").Value = password
+			Rs("islogo").Value = NewAsp.ChkNumeric(Request.Form("islogo"))
+			Rs("isLock").Value = 0
+			Rs("isIndex").Value = NewAsp.ChkNumeric(Request.Form("isIndex"))
+			Rs("LinkTime").Value = Now()
+			Rs.Update
+		Rs.Close
+		Set Rs = Nothing
+		Succeed("<li>添加成功，请继续其他操作。</li>")
+	Else
+		ErrMsg = ErrMsg + "<li>请输入完整友情链接信息。</li>"
+		Founderr = True
+		Exit Sub
+	End If
+End Sub
+
+Sub savedit()
+	Dim sUploadDir,strUploadDir,SaveFileType,SaveFilesName
+	Dim strLogo
+	Dim Rs,SQL
+	strLogo = Trim(Request.Form("logo"))
+	If Trim(Request("AutoLoad")) = "yes" Then
+		sUploadDir = "../link/UploadPic/"
+		strUploadDir = CreatePath(sUploadDir)
+		SaveFileType = Mid(strLogo, InStrRev(strLogo, ".") + 1)
+		SaveFilesName = GetRndFileName(SaveFileType)
+		If SaveRemotePic(sUploadDir & strUploadDir & SaveFilesName, strLogo) = True Then
+			strLogo = "link/UploadPic/" & strUploadDir & SaveFilesName
+		Else
+			strLogo = strLogo
+		End If
+	End If
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM [NC_Link] WHERE Linkid=" & NewAsp.ChkNumeric(Request("id"))
+	Rs.Open SQL, Conn, 1, 3
+		Rs("Linkname").Value = Trim(Request.Form("name"))
+		Rs("readme").Value = Trim(Request.Form("readme"))
+		Rs("logourl").Value = strLogo
+		Rs("Linkurl").Value = Trim(Request.Form("url"))
+		If Trim(Request("password")) <> "" Then Rs("password").Value = md5(Request.Form("password"),16)
+		Rs("islogo").Value = NewAsp.ChkNumeric(Request.Form("islogo"))
+		Rs("isIndex").Value = NewAsp.ChkNumeric(Request.Form("isIndex"))
+		If NewAsp.ChkNumeric(Request.Form("isupdate"))=1 Then
+			Rs("LinkTime").Value = Now()
+		End If
+		Succeed ("<li>更新成功，请继续其他操作。</li>")
+		Rs.Update
+	Rs.Close
+	Set Rs = Nothing
+End Sub
+
+Sub delLink()
+	Dim SQL,strIDlist
+	strIDlist=NewAsp.CheckIDlist(Request("id"))
+	If strIDlist<>"0" And ""<>strIDlist Then
+		SQL = "DELETE FROM [NC_link] WHERE Linkid in (" & strIDlist & ")"
+		NewAsp.Execute (SQL)
+	End If
+	Succeed ("删除成功，请继续其他操作。")
+End Sub
+
+Sub delAllLink()
+	NewAsp.Execute ("DELETE FROM [NC_link]")
+	Succeed ("友情连接已被成功清空。")
+End Sub
+
+Sub lockLink()
+	Dim SQL,strIDlist
+	strIDlist=NewAsp.CheckIDlist(Request("id"))
+	If strIDlist<>"0" And ""<>strIDlist Then
+		SQL = "UPDATE [NC_link] SET islock=1 WHERE Linkid in (" & strIDlist & ")"
+		NewAsp.Execute (SQL)
+	End If
+	Succeed ("锁定操作成功。")
+End Sub
+
+Sub freeLink()
+	Dim SQL,strIDlist
+	strIDlist=NewAsp.CheckIDlist(Request("id"))
+	If strIDlist<>"0" And ""<>strIDlist Then
+		SQL = "UPDATE [NC_link] SET islock=0 WHERE Linkid in (" & strIDlist & ")"
+		NewAsp.Execute (SQL)
+	End If
+	Succeed ("解除锁定操作成功。")
+End Sub
+
+Function SaveRemotePic(s_LocalFileName, s_RemoteFileUrl)
+	Dim Ads
+	Dim Retrieval
+	Dim GetRemoteData
+	Dim bError
+	Dim STREAMClassID
+	bError = False
+	SaveRemotePic = False
+	On Error Resume Next
+	Set Retrieval = NewAsp.CreateAXObject("Msxml2.ServerXMLHTTP"& MsxmlVersion)
+	With Retrieval
+		.setTimeouts 65000, 65000, 65000, 65000
+		.Open "GET", s_RemoteFileUrl, False
+		.setRequestHeader "Referer", s_RemoteFileUrl
+		.Send
+		If .readyState <> 4 Then Exit Function
+		If .Status > 300 Then Exit Function
+		GetRemoteData = .ResponseBody
+	End With
+	Set Retrieval = Nothing
+	STREAMClassID = "ADO"+"DB"+"."+"Str"+"eam"
+	Set Ads = NewAsp.CreateAXObject(STREAMClassID)
+	With Ads
+		.type = 1
+		.Open
+		.Write GetRemoteData
+		.SaveToFile Server.MapPath(s_LocalFileName), 2
+		.Cancel
+		.Close
+	End With
+	Set Ads = Nothing
+	If Err.Number = 0 And bError = False Then
+		SaveRemotePic = True
+	Else
+		Err.Clear
+	End If
+End Function
+
+Function GetRndFileName(ByVal sExt)
+	Dim sRnd
+	Randomize
+	sRnd = Int(900 * Rnd) + 100
+	GetRndFileName = Year(Now) & Month(Now) & Day(Now) & Hour(Now) & Minute(Now) & Second(Now) & sRnd & "." & sExt
+End Function
+
+Function RndPassWord()
+	Dim num1,rndnum
+	Randomize
+	Do While Len(rndnum) < 8
+		num1 = CStr(Chr((57 - 48) * rnd + 48))
+		rndnum = rndnum & num1
+	loop
+	RndPassWord = rndnum
+End Function
+
+Function CreatePath(fromPath)
+	Dim uploadpath
+	uploadpath = Year(Now) & "-" & Month(Now) '以年月创建上传文件夹，格式：2007－8
+	uploadpath = Replace(uploadpath, ".", "_")
+	On Error Resume Next
+	If CreateFolderEx(Server.MapPath(fromPath & uploadpath)) Then
+		CreatePath = uploadpath & "/"
+	Else
+		CreatePath = ""
+	End If
+End Function
+
+Function CreateFolderEx(sPath)
+    On Error Resume Next
+	Dim strPath,fso
+    sPath = Replace(sPath, "\\", "\")
+	Err=False
+	Set fso = NewAsp.CreateAXObject(NewAsp.MainSetting(47))
+    If Trim(sPath) = "" Then Exit Function
+    If fso.FolderExists(sPath) Then
+        CreateFolderEx=True
+        Exit Function
+    End If
+
+    strPath = sPath
+    If Right(strPath, 1) = "\" Then strPath = Left(strPath, Len(strPath) - 1)
+    strPath = Left(strPath, InStrRev(strPath, "\") - 1)
+    If fso.FolderExists(strPath) = False Then
+        CreateFolderEx (strPath)
+    End If
+    If fso.FolderExists(sPath) = False Then fso.CreateFolder sPath
+
+    If Err Then
+          CreateFolderEx=False
+     Else
+          CreateFolderEx=True
+     End If
+	 Set fso = Nothing
+End Function
+%>

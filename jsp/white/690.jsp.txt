@@ -1,0 +1,76 @@
+<%@ page language="java" import="java.util.*" pageEncoding="GB2312"%>
+<%@ taglib prefix="s" uri="/struts-tags" %>  
+
+<%
+String path = request.getContextPath();
+String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
+%>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <base href="<%=basePath%>">
+    
+    <title>shop购物网后台管理_订单列表</title>
+      
+	<meta http-equiv="pragma" content="no-cache">
+	<meta http-equiv="cache-control" content="no-cache">
+	<meta http-equiv="expires" content="0">    
+	<meta http-equiv="keywords" content="keyword1,keyword2,keyword3">
+	<meta http-equiv="description" content="This is my page">
+	<link href="./css/style.css" rel="stylesheet" type="text/css">
+
+  </head>
+  
+  <body >
+  <table cellspacing="0" cellpadding="0" border="0" bgColor="#c0c0c0">
+  <tr>
+  <td>
+  <table cellspacing="1" cellpadding="0" border="0">
+  <tr bgcolor="#ffffff" align="center">
+ <td background="./images/tablebg.jpg">id </td> <td background="./images/tablebg.jpg">产品id </td> <td background="./images/tablebg.jpg">数量</td><td background="./images/tablebg.jpg">总金额</td> <td background="./images/tablebg.jpg">会员账号</td><td background="./images/tablebg.jpg">付款方式</td><td background="./images/tablebg.jpg">送货方式</td><td background="./images/tablebg.jpg">订购时间</td><td background="./images/tablebg.jpg">操作</td></tr>               
+            <s:iterator value="pageBean.list6">      
+            <tr bgcolor="#ffffff" align="center">  
+            <td><s:property value="id"/>
+            </td>
+            <td>
+            <s:property value="productid"/>
+            </td> 
+             <td>
+             <s:property value="quantity"/>
+             </td>
+            <td>
+             <font color="red" > <s:property value="totalprice"/></font>元
+             </td>
+             <td>
+               <s:property value="username"/>
+                </td>              
+                <td> <s:property value="payment"/></td>
+                <td> <s:property value="postway"/></td>
+                <td> <s:property value="orderdatetime"/></td>
+                  <td>是否付款(已经付款/没有付款)</td>
+          </tr> 
+        </s:iterator>
+        </table>
+        </td>
+        </tr>
+        </table>
+          共<s:property value="pageBean.totalRows"/> 条记录
+        共<s:property value="pageBean.totalPages"/> 页
+        当前第<s:property value="pageBean.currentPage"/>页<br/>       
+        <s:if test="%{pageBean.currentPage == 1}">
+            第一页 上一页
+        </s:if>
+        <s:else>
+            <a href="viewOrder!list?page=1">第一页</a>
+            <a href="viewOrder!list?page=<s:property value="%{pageBean.currentPage-1}"/>">上一页</a>
+        </s:else>
+        <s:if test="%{pageBean.currentPage != pageBean.totalPages}">
+            <a href="viewOrder!list?page=<s:property value="%{pageBean.currentPage+1}"/>">下一页</a>
+            <a href="viewOrder!list?page=<s:property value="pageBean.totalPages"/>">最后一页</a>
+        </s:if>
+        <s:else>
+            下一页 最后一页
+        </s:else>   
+  </body>
+</html>

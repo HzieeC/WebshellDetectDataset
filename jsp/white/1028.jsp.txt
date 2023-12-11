@@ -1,0 +1,119 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="java.util.ArrayList" %>
+<%@ page import="javaBean.BeanLink" %>
+<%@ page import="pagination.PaginationLink" %>
+<%
+	String url = request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<table border="0" cellspacing="1" cellpadding="3" align=center class="tableBorder"> <tr>  <th height="22" colspan=6><a href="<%=url%>/admin/admin_link.jsp"><font color="#FFFFFF">友情链接首页</font></a> | <a href="<%=url%>/admin/admin_linkAdd.jsp"><font color=#FFFFFF>增加新的友情链接</font></a></th> </tr> <tr>  <td height="22" colspan=6 class=TableRow1>
+
+<form name="searchsoft" method="POST" action="<%=url%>/servletslink?action=search" target="main">按名称搜索：
+<input type="hidden" name="Auditing" value="0">
+<input class=smallInput type="text" name="keyword" size="35"> 	  
+条件：	  
+<select name="field">	
+<option value="name" selected>网站名称</option>
+<option value="wu">不限条件</option>
+]</select>
+
+<input type="submit" value="搜索链接" name="submit" class="Button">&nbsp;&nbsp;&nbsp;&nbsp;<a href="<%=url%>/servletslink?action=delall" onclick="{if(confirm('此操作将删除所有友情链接,删除后不能恢复\n 您确定执行此操作吗?')){return true;}return false;}">删除所有链接</a> </td></form> </tr> </table><br>
+
+
+<table border="0" cellspacing="1" cellpadding="3" align=center class="tableBorder"> <tr align=center> <th width="5%">选择</td> <th width="35%"><B>名 称</th> <th width="12%"><B>网站类型</th> <th width="20%"><B>操 作</th> <th width="20%"><B>站长Email</th> <th width="8%"><B>位置</th> </tr>
+<% 
+	String pageCurrent = request.getParameter("pageCurrent");
+	if (pageCurrent == null) {
+		pageCurrent = "0";
+	}
+	PaginationLink atg=new PaginationLink();
+	String sqlstr="select count(*) from Link";
+	atg.setSum(sqlstr);//查询出总共有多少
+	atg.setPageSize(15);//设置每页显示多少数量
+	atg.setPageCount();//
+	atg.setPageCurrent(Integer.parseInt(pageCurrent));//设置当前页
+	
+	String sql="select TOP "+atg.getPageSize()+" * from Link where id not in (select top "+atg.getPageSize()*atg.getPageCurrent()+" id from Link)";
+	atg.setAlist(sql);
+	
+	int CurrentPage=atg.getPageCurrent();
+	int count=atg.getPageCount();
+%>
+
+<form name="selform" method="post" action="servletslink?action=del">
+<%
+	ArrayList alist=null;
+	String action=(String)request.getSession().getAttribute("action");
+	if(action.equals("caozuo")){
+		alist=(ArrayList)request.getAttribute("alist");
+	}else{
+		alist=atg.getAlist();
+	}
+	BeanLink bean=null;
+	for(int i=0;i<alist.size();i++){
+		bean=(BeanLink)alist.get(i);
+%>
+<tr align=center> <td height=25 class=TableRow1><input type="checkbox" name="id" value="<%=bean.getId()%>"></td> <td class=TableRow1><a href="<%=bean.getWebUrl()%>" target=_blank><%=bean.getWebName()%></a></td> <td class=TableRow1><%=bean.getWebType()%></td>
+<input type="hidden" name="Auditing" value="0">
+<td class=TableRow1><a href='<%=url%>/servletslink?action=update&id=<%=bean.getId()%>'><u>编辑</u></a> | <a href="<%=url%>/servletslink?action=delete&id=<%=bean.getId()%>" onclick="{if(confirm('此操作将删除本友情连接\n 您确定执行此操作吗?')){return true;}return false;}"><u>删除</u></a></td> 
+
+<td class=TableRow1><%=bean.getWebEmail()%></td> 
+<%if(bean.getAuditing()==0){%>
+	<td class=TableRow1><font color=blue>未审核</font></td> 
+<%}else if(bean.getAuditing()==1){%>
+	<td class=TableRow1><font color=blue>首页</font></td>
+<%}else{%>
+	<td class=TableRow1><font color=blue>内页</font></td> 
+	<%}%>
+</tr>
+<%}%>
+<tr><td colspan="6" class="TableRow1"><input class="Button" type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class="Button" type="button" name="chksel" value="反选" onClick="ContraSel(this.form)"> 
+<input class="Button" type="submit" name="Submit2" value="删除" onclick="return confirm('您确定要删除选定的友情站点吗?');"></td></tr>
+
+</form>
+
+<tr>
+<td align='center' class='TableRow2' colspan="6" >
+<%
+	if(atg.getPageCurrent()==0&&atg.getSum()>atg.getPageSize()){%>
+	首页
+	<a href="<%=url%>/admin/admin_link.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	上一页
+	<a href="<%=url%>/admin/admin_link.jsp?pageCurrent=<%=count-1%>">尾页</a>
+	共<%=atg.getSum()%>页.当前<%=CurrentPage+1%>/<%=count%>页
+		
+	<%}else if(atg.getPageCurrent()==(atg.getPageCount()-1)&&atg.getSum()>atg.getPageSize()){%>
+		<a href="<%=url%>/admin/admin_link.jsp?pageCurrent=0">首页</a>
+		下一页
+		<a href="<%=url%>/admin/admin_link.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+		尾页
+		共<%=atg.getSum()%>页.当前<%=CurrentPage+1%>/<%=count%>页
+	<%}else if(atg.getSum()<=atg.getPageSize()){%>
+		首页 下一页 上一页 尾页
+	<%}else{%>
+	<a href="<%=url%>/admin/admin_link.jsp?pageCurrent=0">首页</a>
+	<a href="<%=url%>/admin/admin_link.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	
+	<a href="<%=url%>/admin/admin_link.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+	
+	<a href="<%=url%>/admin/admin_link.jsp?pageCurrent=<%=count-1%>">尾页</a>
+	共<%=atg.getSum()%>页.当前<%=CurrentPage+1%>/<%=count%>页
+	<% }  %>
+</td>
+</tr> </table></td></tr></table><br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.newasp.net target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

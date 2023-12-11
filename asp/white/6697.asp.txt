@@ -1,0 +1,576 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="../inc/consts.asp" -->
+<!--#include file="inc/up_shuoming.asp" -->
+<%
+if session("class_id")="" then
+	response.write"<script>alert('权限不够！');window.open('guanli.asp','_parent')</script>"
+	response.End()
+end if
+%>
+<%
+asp_name="msg.asp"
+msg_type=request("msg_type")
+if msg_type="" then msg_type=9
+if_chuli=request("if_chuli")
+if if_chuli="" then if_chuli=9
+if_zhuti=request("if_zhuti")
+if if_zhuti="" then if_zhuti=9
+
+cpid=request("cpid")'过滤为某一产品询价
+cp_type=request("cp_type")'0为中文,1为英文
+
+table_name="My_Msg"
+table_name2="My_msg_counts"
+
+
+set rs=server.createobject("adodb.recordset")
+sql="select * from "&table_name2&""
+rs.open sql,conn,1,1
+if not rs.eof then
+	msg_count=rs.recordcount
+else
+	msg_count=0
+end if
+rs.close
+
+'获取配置常量
+sql="select max_msg_oneday from My_config"
+rs.open sql,conn,1,1
+if not rs.eof then
+msg_records_limit=rs("max_msg_oneday")'该IP在当天是否已经发布过超过留言的上限 默认3
+end if
+rs.close
+
+if request("action")="del" then
+	if session("class_id")=0 or session("class_id")=1 then
+		conn.execute("delete from "&table_name&" where SMT_id="&request("id")&"")
+		response.write"<script>alert('留言删除成功！');window.open('"&asp_name&"?page="&request("page")&"','_self')</script>"
+	else
+		response.write"<script>alert('无此权限！');window.open('"&asp_name&"?page="&request("page")&"','_self')</script>"
+	end if
+end if
+
+if request("action")="change_msg_limit" then
+	msg_records_limit=request("msg_records_limit")
+	conn.execute("update My_config set max_msg_oneday="&msg_records_limit&"")
+	response.write"<script>alert('留言上限更新成功！');window.open('"&asp_name&"','_self')</script>"
+end if
+if request("action")="clear_counts" then
+	conn.execute("delete from "&table_name2&"")
+	response.write"<script>alert('留言计数表清除成功！');window.open('"&asp_name&"','_self')</script>"
+end if
+
+%>
+<%
+if request("Submit")="批量删除" then
+	if session("class_id")=0 or session("class_id")=1 then
+		id=request("id")
+		id=split(id,",")
+		for i=0 to UBound(id)
+			conn.execute("delete from "&table_name&" where SMT_id="&id(i)&"")
+		next
+	else
+		response.write"<script>alert('无此权限！');window.open('"&asp_name&"','_self')</script>"
+	end if
+end if
+%>
+
+<style type="text/css">
+body {
+	margin-left: 0px;
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	background-color: #F8F9FA;
+}
+.dialog_1{width:306px;height:221px;background:url(images/dialog_1.gif) no-repeat;position:absolute;top:160px;right:260px;display:none;z-index:2;margin:0;padding:0;}
+.dialog_1 .words{width:200px;height:150px;position:relative;top:60px;left:50px;z-index:3;color:#666;font-size:13px;height:22px; line-height:22px;border:0px solid #666; padding-left:20px;word-wrap:break-word;word-break:break-all;}
+.dialog_1 .words_title{width:200px;height:150px;position:relative;top:60px;left:50px;z-index:3;color:#36C;font-size:13px;height:22px; line-height:22px;border:0px solid #666;word-wrap:break-word;word-break:break-all;}
+</style>
+<script src="js/detect_job.js" type="text/javascript"></script>
+<script language="javascript" src="Date_Js/WdatePicker.js"></script>
+<script type="text/javascript" src="js/showdiv.js"></script>
+<script src="../inc/script.js" type="text/javascript"></script>
+
+<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="../t/editor/xheditor-hello.js"></script>
+<script>
+function CheckAll(form)  {
+  for (var i=0;i<form.elements.length;i++)    {
+    var e = form.elements[i];
+    if (e.name != 'chkall')       e.checked = form.chkall.checked; 
+   }
+  }
+</script>
+<script>
+function show_dialog(){
+	document.getElementById("dialog_1").style.display="block";
+}
+function show_msg(t,m){
+	document.getElementById("dialog_2").innerHTML=t;
+	document.getElementById("dialog_3").innerHTML="“"+m+"”";
+}
+function hide_dialog(){
+	document.getElementById("dialog_1").style.display="none";
+}
+function Change_position(e){
+	var x=e.clientX;
+	var y=e.clientY;
+	document.getElementById("dialog_1").style.top=y-200;
+	document.getElementById("dialog_1").style.left=x+30;
+}
+</script>
+<link href="css/skin.css" rel="stylesheet" type="text/css" />
+<body onLoad="check_job_name(this.value);check_gz(this.value);check_if_jz(this.value);check_zrs(this.value);"> <!--check_data();-->
+<div id="dialog_1" class="dialog_1"><div class="words_title" id="dialog_2"></div><div class="words" id="dialog_3"></div></div>
+
+<div>
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+	  <tr>
+		<td width="17" height="29" valign="top" background="images/mail_leftbg.gif"><img src="images/left-top-right.gif" width="17" height="29" /></td>
+		<td height="29" valign="top" background="images/content-bg.gif">
+		
+		<table width="100%" height="31" border="0" cellpadding="0" cellspacing="0" class="left_topbg" id="table2">
+		  <tr>
+			<td height="31"><div class="titlebt">收到留言</div></td>
+		  </tr>
+		</table>
+		
+		</td>
+		<td width="16" valign="top" background="images/mail_rightbg.gif"><img src="images/nav-right-bg.gif" width="16" height="29" /></td>
+	  </tr>
+	  <tr>
+		<td height="71" valign="middle" background="images/mail_leftbg.gif">&nbsp;</td>
+		<td valign="top" bgcolor="#F7F8F9">
+		<table width="100%" height="138" border="0" cellpadding="0" cellspacing="0">
+		  <tr>
+			<td height="13" valign="top">&nbsp;</td>
+		  </tr>
+		  <tr>
+			<td valign="top"><table width="98%" border="0" align="center" cellpadding="0" cellspacing="0">
+			  <tr>
+				<td class="left_txt">当前位置：<%=page_top%>网站常规管理 > 收到留言管理</td>
+			  </tr>
+			  <tr>
+				<td height="20"><table width="100%" height="1" border="0" cellpadding="0" cellspacing="0" bgcolor="#CCCCCC">
+				  <tr>
+					<td></td>
+				  </tr>
+				</table></td>
+			  </tr>
+			  <tr>
+				<td>
+<%
+sql="select * from "&table_name&""
+rs.open sql,conn,1,1
+if not rs.eof then
+	if_liuyan=1
+else
+	if_liuyan=0
+end if
+rs.close
+%>
+<%if request("action")="" then%>
+	<table width="100%" height="55" border="0" cellpadding="0" cellspacing="0">
+    <form action="<%=asp_name%>"  name="form1" method="post">
+	<tr>
+	<td width="10%" height="55" valign="middle"><img src="images/title.gif" width="54" height="55" style="BORDER:#999999 1px solid;"></td>
+	<td width="90%" valign="top" style="font-size:12px;">
+	<%if if_liuyan=1 then%>	
+	<div class="left_txt2">在这里，您可以管理收到的全部留言！</div>
+	<%else%>
+	<div class="left_txt2">没有收到任何留言！</div>
+	<%end if%>	
+	 过滤：
+	 <select name="msg_type" onChange="if(this.options[this.selectedIndex].value !='')window.location=(this.options[this.selectedIndex].value)">
+	 <option  value="<%response.Write asp_name&"?msg_type=9&if_zhuti="&if_zhuti&"&if_chuli="&if_chuli&"&page="&page&"&cpid="&cpid&"&cp_type="&cp_type%>" <%if msg_type="" or msg_type=9 then%>selected="selected"<%end if%>>查看全部类别</option>
+	 <option  value="<%response.Write asp_name&"?msg_type=0&if_zhuti="&if_zhuti&"&if_chuli="&if_chuli&"&page="&page&"&cpid="&cpid&"&cp_type="&cp_type%>" <%if msg_type=0 then%>selected="selected"<%end if%>>只看询价</option>
+	 <option value="<%response.Write asp_name&"?msg_type=1&if_zhuti="&if_zhuti&"&if_chuli="&if_chuli&"&page="&page&"&cpid="&cpid&"&cp_type="&cp_type%>" <%if msg_type=1 then%>selected="selected"<%end if%>>只看建议</option>
+	 <option value="<%response.Write asp_name&"?msg_type=2&if_zhuti="&if_zhuti&"&if_chuli="&if_chuli&"&page="&page&"&cpid="&cpid&"&cp_type="&cp_type%>"<%if msg_type=2 then%>selected="selected"<%end if%>>只看投诉</option>
+	 </select>
+	 <select name="if_zhuti" onChange="if(this.options[this.selectedIndex].value !='')window.location=(this.options[this.selectedIndex].value)">
+	 <option  value="<%response.Write asp_name&"?if_zhuti=9&if_chuli="&if_chuli&"&msg_type="&msg_type&"&page="&page&"&cpid="&cpid&"&cp_type="&cp_type%>" <%if if_zhuti="" or if_zhuti=9 then%>selected="selected"<%end if%>>查看主题和回复</option>
+	 <option  value="<%response.Write asp_name&"?if_zhuti=0&if_chuli="&if_chuli&"&msg_type="&msg_type&"&page="&page&"&cpid="&cpid&"&cp_type="&cp_type%>" <%if if_zhuti=0 then%>selected="selected"<%end if%>>只看主题</option>
+	 <option  value="<%response.Write asp_name&"?if_zhuti=1&if_chuli="&if_chuli&"&msg_type="&msg_type&"&page="&page&"&cpid="&cpid&"&cp_type="&cp_type%>" <%if if_zhuti=1 then%>selected="selected"<%end if%>>只看回复</option>
+	 </select>
+	 <select name="if_chuli" onChange="if(this.options[this.selectedIndex].value !='')window.location=(this.options[this.selectedIndex].value)">
+	 <option  value="<%response.Write asp_name&"?if_chuli=9&if_zhuti="&if_zhuti&"&msg_type="&msg_type&"&page="&page&"&cpid="&cpid&"&cp_type="&cp_type%>" <%if if_chuli="" or if_chuli=9 then%>selected="selected"<%end if%>>查看处理状态</option>
+	 <option  value="<%response.Write asp_name&"?if_chuli=0&if_zhuti="&if_zhuti&"&msg_type="&msg_type&"&page="&page&"&cpid="&cpid&"&cp_type="&cp_type%>" <%if if_chuli=0 then%>selected="selected"<%end if%>>未处理</option>
+	 <option  value="<%response.Write asp_name&"?if_chuli=1&if_zhuti="&if_zhuti&"&msg_type="&msg_type&"&page="&page&"&cpid="&cpid&"&cp_type="&cp_type%>" <%if if_chuli=1 then%>selected="selected"<%end if%>>已处理</option>
+	 </select>
+	<input type="submit" onClick="javascript:return confirm('确定清除留言计数器吗(防止当天垃圾留言)?');" value="清除计数器<%if msg_count>0 then response.Write "("&msg_count&")"%>" onMouseOver="this.className='input'" onMouseOut="this.className='input2'" class="input2" style="cursor:help;" title="为什么要清除计数器?清除后，所有人当天可留言(主题)次数将被重置，次数限制可在下面设置。" <%if msg_count=0 then%> disabled<%end if%>><img src="../t/image/ask.gif" style="cursor:help" title="为什么要清除计数器?清除后，所有人当天可留言(主题)次数将被重置，次数限制可在下面设置。">
+    <input type="hidden" name="action" value="clear_counts">
+	</td>
+	</tr>
+	</form>
+    <form action="<%=asp_name%>" name="form2" method="post">
+	<tr>
+	<td width="10%"></td>
+	<td style="font-size:12px;">设置同一IP用户一天留言次数(仅主题):
+      <select name="msg_records_limit">
+    <%'获取当前数据%>
+    <option value="<%=msg_records_limit%>" selected="selected"><%=msg_records_limit%></option>
+    <%
+    q=1
+    do while q<=50
+    %>
+    <option value="<%=q%>"><%=q%></option>
+    <%
+    q=q+1
+    loop
+    %>
+    </select> 个主题。
+    (建议不要超过5条)
+    <input type="hidden" name="action" value="change_msg_limit">
+    <input type="submit" value="确定修改" name="submit_me" onMouseOver="this.className='input'" onMouseOut="this.className='input2'" class="input2"/>
+	</td>
+	</tr>
+	</form>
+<%if if_liuyan=1 then%>	
+<%
+	set rs=server.createobject("adodb.recordset")
+	sql="select * from "&table_name&" where 1=1"
+	
+	if cpid<>"" then
+		sql=sql&" and cpid ="&cpid&" and cp_type ="&cp_type&"" 
+	end if
+	
+	if msg_type<>"" and msg_type<>9 then
+		sql=sql&" and msg_type ="&msg_type&"" 
+	end if
+	if if_chuli<>"" and if_chuli<>9 then
+		sql=sql&" and if_chuli="&if_chuli
+	end if
+	if if_zhuti<>"" and if_zhuti<>9 then
+		if if_zhuti=0 then
+		sql=sql&" and root_id=0"
+		else
+		sql=sql&" and root_id>0"
+		end if
+	end if
+	sql=sql&" and (msg_sender<>'' or not isnull(msg_sender))"
+	sql=sql &" order by added_date desc,if_readed asc,SMT_bianhao desc"
+	'response.Write sql
+	'response.End()
+	rs.open sql,conn,1,1
+	if not rs.eof or not rs.bof then
+		'分页的实现 
+		listnum=6
+		Rs.pagesize=listnum
+		page=Request("page")
+		if (page-Rs.pagecount) > 0 then
+		page=Rs.pagecount
+		elseif page = "" or page < 1 then
+		page = 1
+		end if
+		Rs.absolutepage=page
+	end if
+%>
+	<!--顶部-->
+	<tr>
+	<td width="100%" valign="top" colspan="2">
+		<table width="100%" height="31" border="0" cellpadding="0" cellspacing="0" class="nowtable" style="margin-top:8px;">
+		<tr>
+		<td class="left_bt2" valign="middle">
+	<span style=" float:left; margin-left:10px;">
+	收到留言一览
+	<a style="cursor:pointer" onClick="window.location.reload()"><img src="images/refresh.png" border=0 onClick="window.location.reload()" alt="刷新"/>刷新</a>
+    <a style="color:#666; font-weight:100;">
+    (图示:<img src="../t/image/news.gif">主题{回复数} / <img src="../t/image/ico-comment.gif">会员的回复 / <img src="../t/image/ok.gif">已处理 / <img src="../t/image/gray.gif">未处理)    
+    </a>
+	</span>
+	<span style=" float:right; margin-right:10px;">
+			<%if Rs.pagecount> 1 then %>
+			页数跳转:<select name="page" onChange="if(this.options[this.selectedIndex].value !='')window.location=(this.options[this.selectedIndex].value)">
+			<option value="">-请选择-</option>
+			<%for l=1 to Rs.PageCount%>
+			<option value="<%response.Write asp_name&"?msg_type="&msg_type&"&if_chuli="&if_chuli&"&if_zhuti="&if_zhuti&"&page="&l%>">第<%=l%>页</option>
+			<%next%>
+			</select>
+			<%end if%>
+	</span>
+		</td>
+		</tr>
+		</table>
+	</td>
+	</tr>
+	<!--/顶部-->
+    <!--页码-->
+	<tr>
+	<td width="100%" valign="top" colspan="2">
+	<table width="100%"  border="0" cellpadding="0" cellspacing="0" style="font-size:12px;">
+	<tr>
+	<td width="25%"><div class="page"><a>共 <%=rs.recordcount%> 条留言</a></div></td>
+	<td>
+	<%if not rs.eof or not rs.bof then%>	
+    <div class="page">
+		<span>
+		  <%filename=asp_name&"?msg_type="&msg_type&"&if_chuli="&if_chuli&"&if_zhuti="&if_zhuti&"&cpid="&cpid&"&cp_type="&cp_type%>
+		  <%if page=1 then %>
+		  <%else%>
+				<a href=<%=filename%>>首页</a>
+				<a href=<%=filename%>&page=<%=page-1%>>上一页</a> 
+				<%if page-4>0 then%>
+				<a href=<%=filename%>&page=<%=page-4%>><%=page-4%></a>
+				<%end if%>
+				<%if page-3>0 then%>
+				<a href=<%=filename%>&page=<%=page-3%>><%=page-3%></a>
+				<%end if%>
+				<%if page-2>0 then%>
+				<a href=<%=filename%>&page=<%=page-2%>><%=page-2%></a>
+				<%end if%>
+				<%if page-1>0 then%>
+				<a href=<%=filename%>&page=<%=page-1%>><%=page-1%></a>
+				<%end if%>
+		  <%end if%>
+		  <% if Rs.pagecount=1 then %>
+		  <%else%>
+		 	 <span class="current"><%=page%></span>
+		  <%end if%>
+		  <% if Rs.pagecount-page <> 0 then %>
+			  <%if Rs.pagecount-page>=1 then%>
+			  <a href=<%=filename%>&page=<%=page+1%>><%=page+1%></a>
+			  <%end if%>
+			  <%if Rs.pagecount-page>=2 then%>
+			  <a href=<%=filename%>&page=<%=page+2%>><%=page+2%></a>
+			  <%end if%>
+			  <%if Rs.pagecount-page>=3 then%>
+			  <a href=<%=filename%>&page=<%=page+3%>><%=page+3%></a>
+			  <%end if%>
+			  <%if Rs.pagecount-page>=4 then%>
+			  <a href=<%=filename%>&page=<%=page+4%>><%=page+4%></a>
+			  <%end if%>
+			  <a href=<%=filename%>&page=<%=page+1%>>下一页</a>
+			  <a href=<%=filename%>&page=<%=Rs.pagecount%>>末页</a>
+			<%end if%>
+	</span>
+	</div>
+	<%end if%>
+	</td>
+	</tr>
+    <!--/页码-->
+    <!--数据-->
+        <tr>
+        <td width="100%" height="20" colspan="2">
+        <form name="from1" method="post" action="msg.asp">
+        <Table class="records_list" style="position:relative;" onMouseOut="hide_dialog();" onMouseOver="show_dialog();">
+      		<TR class="records_list_item">
+                <TD colspan="15" style="padding-left:3px;">
+                <%if session("class_id")=0 or session("class_id")=1 then%>全选<input name="chkall" type="checkbox" id="chkall" value="select" onClick="CheckAll(this.form)" style="border:0"><input type="submit" name="Submit" value="批量删除" onClick="return confirm('将删除所有被勾选的留言。确定吗?')">   
+                <%end if%></TD>
+            </TR>
+      		<TR class="records_list_item">
+                <TD style="text-align:center;width:30px;">编号</TD>
+                <TD style="width:auto;">选择</TD>
+                <TD style="width:auto;">收到日期</TD>
+                <TD style="width:auto;">IP</TD>
+                <TD style="width:auto;">状态</TD>
+                <TD style="width:auto;">页面</TD>
+                <TD style="width:auto;">产品</TD>
+                <TD style="width:auto;">类别</TD>
+                <TD style="width:auto;">姓名</TD>
+                <TD style="width:auto;">性别</TD>
+                <TD style="width:auto;">会员</TD>
+                <TD style="width:auto;">联系方式</TD>
+                <TD style="width:auto;">正文</TD>
+                <TD style="width:auto;">查看留言</TD>
+                <TD style="width:auto;">删除</TD>
+           </TR>
+		<%
+    	    if not rs.eof or not rs.bof then
+			k=1
+			do while not rs.eof and k<=listnum
+				id=rs("SMT_id")
+				ip=rs("ip_addr")
+				msg_sender=rs("msg_sender")
+				msg_type=rs("msg_type")'0询价 1建议 2投诉
+				sender_sex=rs("sender_sex")'0男 1女
+                select case sender_sex
+                    case 0:xingbie= "先生"
+                    case 1:xingbie= "女士"
+                    case else:xingbie= "先生"
+                end select
+				msg_contact=rs("msg_contact")
+				title=rs("SMT_title")
+				added_date=rs("added_date")
+				src_page=rs("src_page")
+				SMT_message=rs("SMT_message")
+				src_page=rs("src_page")
+				if_chuli=rs("if_chuli")
+				if_readed=rs("if_readed")
+				bianhao=rs("SMT_bianhao")
+				root_id=rs("root_id")
+				cpid=rs("cpid")
+				cp_type=rs("cp_type")
+				if cpid>0 and cp_type=0 then
+					'获取品名
+                    set rs1=server.createobject("adodb.recordset")
+                    sql1="select * from My_cp where SMT_id = "& cpid
+                    rs1.open sql1,conn,1,1
+                    if not rs1.eof then
+                        cp_name=rs1("SMT_scatitle")
+                    else
+                    end if
+                    rs1.Close()
+                    set rs1=nothing
+                    set sql1=nothing
+					cp_url="products.asp?id="&cpid
+				elseif cp_type=1 then
+					'获取品名
+                    set rs1=server.createobject("adodb.recordset")
+                    sql1="select * from My_cp_e where SMT_id = "& cpid
+                    rs1.open sql1,conn,1,1
+                    if not rs1.eof then
+                        cp_name=rs1("SMT_scatitle")
+                    else
+                    end if
+                    rs1.Close()
+                    set rs1=nothing
+                    set sql1=nothing
+					cp_url="products_e.asp?id="&cpid
+				end if
+				'获取回复
+                    set rs1=server.createobject("adodb.recordset")
+                    sql1="select top 1 * from My_Msg where root_id="&root_id&" and SMT_bianhao<>''"
+                    rs1.open sql1,conn,1,1
+                    if not rs1.eof then
+                        replies_count=rs1.recordcount
+                    else
+                        replies_count=0
+                    end if
+                    rs1.Close()
+                    set rs1=nothing
+                    set sql1=nothing
+					if replies_count>0 then replies_count_tip="{<font color=#666>"&replies_count&"</font>}"
+				%>
+				<%
+				if k mod 2=0 then
+				bgcolor="#efefef"
+				else
+				bgcolor="#ffffff"
+				end if
+				bgcolor_over="DEEDFA"
+				%>
+        	   <TR class="records_list_details" onMouseOver="Change_position(event);show_msg('<%=msg_sender%><%=xingbie%> 留言(IP:<%=ip%>)：','<%=SMT_message%>');this.className='tr1_on';"  onMouseOut="this.className='tr1';" bgcolor="<%=bgcolor%>">
+                    <TD style="text-align:center;"><img src="../image/counts/<%=k%>.gif"></TD>
+                    <TD><%if session("class_id")=0 or session("class_id")=1 then%><input type="checkbox" name="ID" value="<%=rs("SMT_id")%>" style="border:0"><%end if%></TD>
+                    <TD style="color:#666;">
+					<%=added_date%>
+					<%
+                    select case if_readed
+                    case 0:response.Write " <font color=red>[未读]</font>"
+                    case 1:response.Write " <font color=green>[已读]</font>"
+                    case else:response.Write " <font color=red>[未读]</font>"
+                    end select
+                    %>
+					</TD>
+					<TD style="cursor:pointer;"><%=ip%><a href="http://www.ip138.com/ips138.asp?ip=<%=ip%>&action=2" target="_blank" style="color:#36C;">[查查看]</a></TD>
+                    <TD>
+                    <%
+					if root_id=0 then response.Write "<img src='../t/image/news.gif' title='主题'>" else response.Write "<img src='../t/image/ico-comment.gif' title='回复'>"
+					%>
+                    <%response.Write replies_count_tip%>
+					<%
+                    select case if_chuli
+                    case 0:response.Write "<img src='../t/image/gray.gif' title='未处理'>"
+                    case 1:response.Write "<img src='../t/image/ok.gif' title='已处理'>"
+                    case else:response.Write "<img src='../t/image/gray.gif' title='未处理'>"
+                    end select
+                    %>
+					</TD>
+                    <TD style="color:#666;"><%=src_page%></TD>
+                    <TD style="color:#666;">
+                    <%if len(cp_name)>18 then%>
+                        <marquee style="margin:0px;width:150px;" scrollamount="2" scrolldelay="1"><a href="../t/<%=cp_url%>" title="<%=cp_name%>" target="_blank" style="color:blue;"><%=cp_name%></a></marquee>
+                    <%else%>
+                        <a href="../t/<%=cp_url%>" target="_blank"><%=leftt(cp_name,18)%></a>
+					<%end if%>
+                    
+                    
+                    </TD>
+                    <TD>
+					<%
+					select case  msg_type
+					case 0:response.Write "<font color=red>询价</font>"
+					case 1:response.Write "<font color=green>建议</font>"
+					case 2:response.Write "<font color='#666'>投诉</font>"
+					case else:response.Write "<font color=red>询价</font>"
+					end select
+					%>
+					</TD>
+					<TD style="color:#666;"><%=msg_sender%></TD>
+                    <TD>
+					<%
+					response.Write xingbie
+                    %>
+					</TD>
+ 					<TD style="color:#666;">
+					<%if bianhao<>"" then%>
+					<%
+					if bianhao<>"" then
+						Set rs1 = Server.CreateObject("ADODB.recordset")
+						sql1= "Select * from members where SMT_bianhao='"&bianhao&"'"
+						rs1.Open sql1,conn,1,1
+						if not rs1.eof then
+						conames=rs1("SMT_coname")
+						member_id=rs1("SMT_id")
+						end if
+						rs1.close
+						set rs1=nothing
+					end if
+					%>
+                    <a href="member_show.asp?id=<%=member_id%>" rel="clearbox(860,450,click)" title="会员:<%=conames%> 的资料"><img src="images/query.png" border="0"><font color=red title="点击查看会员:<%=conames%> 的资料"><%=leftt(conames,10)%></font></a>
+					<%end if%>
+					</TD>
+                   <TD><%=msg_contact%></TD>
+                    <TD style="<%if if_readed=0 then response.write "font-weight:700;" else response.write "font-weight:100;color:#666;"%>"><%if SMT_message<>"" then response.Write leftt(SMT_message,20)%></TD>
+                    <TD><a style="color:#36F;" href="msg_show.asp?id=<%=rs("SMT_id")%>" rel="clearbox(700,500,click)" title="留言来自：<%=msg_sender%>">回复</a></TD>
+					
+                    <TD><%if session("class_id")=0  then%><a href="<%=asp_name%>?action=del&id=<%=rs("SMT_id")%>&page=<%=page%>" onClick="javascript:return confirm('确定删除吗?');">删除</a><%else%><img src="images/delete_dis.png" alt="您无权操作"><%end if%></TD>
+                </TR>
+                <%
+                k=k+1
+                rs.movenext
+                loop
+                %>
+            <%else%>
+        	   <TR class="records_list_details" ><TD colspan="20"><font style="font-size:12px;">无匹配结果</font></TD></TR>
+            <%end if%>
+            <%
+            rs.close
+            set rs=nothing
+            %>
+             </Table>
+             </form>
+        </td>
+        </tr>
+	<!--/数据-->
+        </table>
+        </td>
+        </tr>
+    <%end if 'if jobs%>				
+	</table>
+<%end if' if action%>				
+				</td>
+			  </tr>
+			  <tr>
+				<td>&nbsp;</td>
+			  </tr>
+			  
+			</table>
+			  </td>
+		  </tr>
+		</table>
+		</td>
+		<td background="images/mail_rightbg.gif">&nbsp;</td>
+	  </tr>
+	  <tr>
+		<td valign="middle" background="images/mail_leftbg.gif"><img src="images/buttom_left2.gif" width="17" height="17" /></td>
+		  <td height="17" valign="top" background="images/buttom_bgs.gif"><img src="images/buttom_bgs.gif" width="17" height="17" /></td>
+		<td background="images/mail_rightbg.gif"><img src="images/buttom_right2.gif" width="16" height="17" /></td>
+	  </tr>
+	</table>
+</div>
+</body>

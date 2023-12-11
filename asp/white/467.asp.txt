@@ -1,0 +1,67 @@
+<%
+Class DataList
+    Dim ID ' 主键,默认为 ID
+    Dim Field ' 字段,默认为 *
+    Dim Table ' 数据表,不可为空
+    Dim Where ' 条件,不用带
+    Dim Order ' 排序,默认按主键排序
+    Dim Result ' 返回类型,0则Getrows,1则采指针,默认 0
+    Dim PageSize ' 每页记录数,默认15
+    Dim AbsolutePage ' 当前页,默认 1 [第一页]
+    
+    Dim Data ' 返回记录集
+    Dim Eof ' 是否有记录
+    Dim RecordCount ' 总记录数
+    Dim PageCount ' 总页数
+    
+    Public Function List()
+        Dim Rs
+        If Not IsNumeric(AbsolutePage) Or Len(AbsolutePage) = 0 Then AbsolutePage = 1 Else AbsolutePage = Int(AbsolutePage)
+        If AbsolutePage < 1 Then AbsolutePage = 1
+        If Len(ID) = 0 Then ID = "[ID]"
+        If Len(Field) = 0 Then Field = "*"
+        If Len(Where) > 0 Then Where = "Where " & Where
+        If Len(Order) > 0 Then Order = "Order By " & Order Else Order = "Order By " & ID & " Desc"
+        If Not IsNumeric(PageSize) Or Len(PageSize) = 0 Or PageSize < 1 Then PageSize = 15
+        If Not IsNumeric(Result) Or Len(Result) = 0 Or Result = 0 Then Result = 0 Else Result = 1
+        PageSize = Int(PageSize)
+        Select Case LCase(DataBaseType)
+        Case "access"
+            Set Rs = DB("Select " & Field & " From " & Table & " " & Where & " " & Order, 2)
+            Rs.PageSize = PageSize
+            If Not Rs.Eof Then Rs.AbsolutePosition = (AbsolutePage - 1) * PageSize + 1
+            RecordCount = Rs.RecordCount: PageCount = Rs.PageCount
+        Case "mssql"
+            RecordCount = DB("Select COUNT(" & ID & ") From " & Table & " " & Where, 1)(0): PageCount = Abs(Int(0 - (RecordCount / PageSize)))
+            Set Rs = DB("Select " & Field & " From " & Table & " Where " & ID & " Not IN ( Select Top " & (AbsolutePage - 1) * PageSize & " " & ID & " From " & Table & " " & Where & " " & Order & " ) And " & ID & " IN ( Select Top " & AbsolutePage * PageSize & " " & ID & " From " & Table & " " & Where & " " & Order & " ) " & Order, 1)
+            If RecordCount < PageSize Then
+                PageCount = 1
+            Else
+                PageCount = Abs(Int(0 - (RecordCount / PageSize)))
+            End If
+        Case "mysql"
+            RecordCount = DB("Select COUNT(" & ID & ") as 'countit' From " & Table & " " & Where, 1)(0)
+            If Int(CStr(RecordCount)) < PageSize Then
+                PageCount = 1
+            Else
+                PageCount = Abs(Int(0 - (Int(CStr(RecordCount)) / PageSize)))
+            End If
+            Set Rs = DB("Select " & Field &" From " & Table &" " & Where &" "& Order &" LIMIT "&(AbsolutePage-1)*PageSize&","&PageSize,1)
+        Case "else"
+            Response.Write Lang_NoDataDriver: Response.End
+        End Select
+        If Result = 0 Then
+            If Rs.Eof Then
+                Eof = True
+            Else
+                Eof = False
+                If RecordCount < PageSize Then Data = Rs.GetRows(RecordCount) Else Data = Rs.GetRows(PageSize)
+                Rs.Close: Set Rs = Nothing
+            End If
+        Else
+            If Rs.Eof Then Eof = True Else Eof = False
+            Set Data = Rs
+        End If
+    End Function
+End Class
+%>

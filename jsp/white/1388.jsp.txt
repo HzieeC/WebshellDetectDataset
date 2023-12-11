@@ -1,0 +1,237 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %> 
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" />
+<%
+    String src_id = randomId.GenTradeId();
+	String cust_id="",user_id="";
+	if(session.getAttribute("session_cust_id")!=null){
+	     cust_id  =session.getAttribute("session_cust_id").toString();
+	}
+    if(session.getAttribute("session_user_id")!=null){
+	     user_id  =session.getAttribute("session_user_id").toString();
+	}
+	
+	 Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	 
+	 String goods_type = tb_commparaInfo.getSelectItem("55","");  
+	 String send_type = tb_commparaInfo.getSelectItem("63","");
+	 String pay_type = tb_commparaInfo.getSelectItem("64","");
+		
+%>
+
+
+<html>
+<head>
+    <title>新增货源</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script src="js_srcgoods.js"></script>
+</head>
+
+<body>
+	<h1>新增货源</h1>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	 
+	 <table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="20%">
+				物品名称<font color="red">*</font>
+			</td>
+			
+			<td  colspan="3">
+			  <input name="goods_name" id="goods_name" type="text" size="60" maxlength ="100"/>
+		    </td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				货物类型<font color="red">*</font>
+			</td>
+			
+			<td  colspan="3">
+			  <select name="s_goods_type" id="s_goods_type" onchange="setGoodsType(this.value)">
+				   <option value="">请选择...</option>
+				   <%=goods_type%>
+			   </select>
+			
+			 <span id="p_d" style="display:none;">
+			    &nbsp;&nbsp;自定义类型<font color="red">*</font><input type="text" name ="i_goods_type" id="i_goods_type" value=""  maxlength ="100"/>
+			 </span>  
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				运输方式<font color="red">*</font>
+			</td>
+			
+			<td  colspan="3">
+			  <select name="send_type" id="send_type">
+				   <option value="">请选择...</option>
+				   <%=send_type%>
+			   </select>
+		    </td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				重量:
+			</td>
+			<td  width="18%">
+			  <input name="weight" id="weight" type="text" size="6" maxlength="10"/> &nbsp;(单位:千克)
+			</td>
+			<td width="12%" align="right">体积:</td>
+			<td width="60%">
+			   <input name="volume" id="volume" type="text" maxlength="40"/>
+			</td>
+		</tr>
+		
+		
+		<tr>
+			<td align="right" width="20%">
+				货物价值:
+			</td>
+			<td  width="18%">
+			 <input name="goods_value" id="goods_value" type="text" maxlength="100"/>
+			</td>
+			<td width="12%" align="right">参考运价:</td>
+			<td width="60%">
+			   <input name="price" id="price" type="text" maxlength="10"  onKeyUp="if(isNaN(value))this.value=''"  />
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				姓名:
+			</td>
+			<td  width="18%">
+			  <input name="name" id="name" type="text"  maxlength="10"/>
+			</td>
+			<td width="12%" align="right">始发地:</td>
+			<td width="60%">
+			   <input name="start_addr" id="start_addr" type="text"  maxlength="60"/>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				电话:
+			</td>
+			<td  width="18%">
+			   <input name="phone" id="phone" type="text" maxlength="20"/>
+			</td>
+			<td width="12%" align="right">手机:</td>
+			<td width="60%">
+			   <input name="cellphone" id="cellphone" type="text" maxlength="20" />
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				msn:
+			</td>
+			<td  width="18%">
+			   <input name="msn" id="msn" type="text"  maxlength="60"/>
+			</td>
+			<td width="12%" align="right">qq:</td>
+			<td width="60%">
+			   <input name="qq" id="qq" type="text"  maxlength="20"/>
+			</td>
+		</tr>
+		
+		
+		<tr>
+			<td align="right" width="20%">
+				email:
+			</td>
+			<td  width="18%">
+			   <input name="email" id="email" type="text"  maxlength="60"/>
+			</td>
+			<td width="12%" align="right">收件人目的地:</td>
+			<td width="60%">
+			  <input name="end_addr" id="end_addr" type="text" maxlength="100"/>
+			</td>
+		</tr>
+		
+		
+		
+		<tr>
+			<td align="right" width="20%">
+				是否代收货款:
+			</td>
+			<td  width="18%">
+			 <input type="radio" name="is_pay" id="is_pay1" value="0" /> 是
+			 <input type="radio" name="is_pay" id="is_pay2" value="1" checked /> 否
+			</td>
+			<td width="12%" align="right">是否签回单:</td>
+			<td width="60%">
+			   
+			   <input type="radio" name="is_back_order" id="is_back_order1" value="0" /> 是
+			   <input type="radio" name="is_back_order" id="is_back_order2" value="1" checked /> 否
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				指定时间派送:
+			</td>
+			<td  width="18%">
+			  <input name="send_time" id="send_time" type="text" maxlength="20" />
+			</td>
+			<td width="12%" align="right">保价:</td>
+			<td width="60%">
+			    <input name="insure_price" id="insure_price" type="text" maxlength="10"   onKeyUp="if(isNaN(value))this.value=''" />
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				付费方式:
+			</td>
+			<td  width="18%">
+			
+			  <select name="pay_type" id="pay_type">
+				   <option value="">请选择...</option>
+				   <%=pay_type%>
+			   </select>
+			
+			</td>
+			<td width="12%" align="right">包装要求:</td>
+			<td width="60%">
+			    <input name="pack" id="pack" type="text" maxlength="100" />
+			</td>
+		</tr>
+		
+		<tr>
+		<td align="right" width="20%">
+			信息有效期<font color="red">*</font>			
+		</td>
+		<td colspan="3">    
+			<input type="radio" name="end_date" id="end_date1" value="10" />10天
+			<input type="radio" name="end_date" id="end_date2" value="20" />20天
+			<input type="radio" name="end_date" id="end_date3" value="30" checked />1个月	
+			<input type="radio" name="end_date" id="end_date4" value="90" />3个月	
+			<input type="radio" name="end_date" id="end_date5" value="180" />6个月
+		</td>
+	</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="2997" />
+				<input type="hidden" name="src_id" value="<%=src_id%>" />
+				<input type="hidden" name="cust_id" value="<%=cust_id%>" />
+				<input type="hidden" name="state_code" value="c" />
+				<input type="hidden" name="user_id" id="user_id" value="<%=user_id%>" />
+				<input type="submit" class="buttoncss" name="tradeSub" value="提交" />&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

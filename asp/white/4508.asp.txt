@@ -1,0 +1,236 @@
+<%if session("shopxpadmin")="" then
+response.Write "<script LANGUAGE='javascript'>alert('网络超时或者您还没有登录请登录');window.location.href='login.asp';</script>"
+response.End
+else
+if session("sjbf")=0 then
+response.Write "<p align=center><font color=red>您没有此项目管理权限！</font></p>"
+response.End
+end if
+end if%>
+<%
+DvaspDataname=request("DvaspDataname")
+DvaspDatanameNew=request("DvaspDatanameNew")
+Action=trim(request("Action"))
+mdb="database_name.asp"
+Bkmdb="databackup_name.asp"
+%>
+<html>
+<head>
+<title>管理中心</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link href="../img_shopxp/css.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<div align="center">
+<%
+select case Action
+case "Rename"  '数剧库更名
+	        call DataRename()
+case "Backup"  '备份数剧库
+		call DataBackup()
+case "Restore"   '数据库恢复
+		call DataRestore()
+case "Compress"  '数据库压缩
+		call DataCompress()
+case else                
+		call main()
+end select 
+if FoundErr=True then
+	call Error_Msg(ErrMsg)
+end if
+sub DataRename()   '###数剧库更名
+Founderr=False
+if DvaspDatanameNew="" then
+FoundErr=True
+		ErrMsg=ErrMsg+"<li>数剧库名称不能为空!</li>"
+end if
+if DvaspDataname=DvaspDatanameNew then
+FoundErr=True
+		ErrMsg=ErrMsg+"<li>数剧库名称没有改呢！！</li>"
+end if
+if FoundErr=True then
+call Error_Msg(ErrMsg)
+	response.end
+end if
+if founderr=false then
+Set fs=Server.CreateObject("Scripting.FileSystemObject")
+fs.CopyFile Server.MapPath("..\data\"&DvaspDataname&""),Server.MapPath("..\data\"&DvaspDatanameNew&"")
+Set TS1 = fs.CreateTextFile(Server.MapPath(""&mdb&""), True) 
+TS1.write "<"&chr(37)&"Dataname="&chr(34)&DvaspDatanameNew&chr(34)&chr(37)&">"
+Set TS1 = Nothing
+fs.DeleteFile Server.MapPath("..\data\"&DvaspDataname&""),True
+Set fs=nothing
+call Succeed_Msg("已经成功将数据库文件名&nbsp;<font color=red>"&DvaspDataname&"</font>&nbsp;改为&nbsp;<font color=red>"&DvaspDatanameNew&"</font>!")
+end if
+end sub
+sub DataRestore()   '###数据库恢复
+dim backpath
+Dbpath=request.form("Dbpath")
+			backpath=request.form("backpath")
+			if dbpath="" then
+			ErrMsg=ErrMsg+  "请输入您要恢复成的数据库全名"	
+                        call Error_Msg(ErrMsg)
+	                response.end
+			else
+			Dbpath=server.mappath(Dbpath)
+			end if
+			backpath=server.mappath(backpath)
+		
+			Set Fso=server.createobject("scripting.filesystemobject")
+			if fso.fileexists(dbpath) then  					
+			fso.copyfile Dbpath,Backpath
+			call Succeed_Msg( "成功恢复数据！")
+			else
+			ErrMsg=ErrMsg+ "备份目录下并无您的备份文件！"	
+                        call Error_Msg(ErrMsg)
+	                response.end
+			end if
+end sub
+sub DataCompress()   '###数据库压缩
+dim dbpath,boolIs97
+dbpath = request("dbpath")
+boolIs97 = request("boolIs97")
+
+If dbpath <> "" Then
+dbpath = server.mappath(dbpath)
+	response.write(CompactDB(dbpath,boolIs97))
+end if
+end sub
+'=====================压缩参数=========================
+Function CompactDB(dbPath, boolIs97)
+Dim fso, Engine, strDBPath,JET_3X
+strDBPath = left(dbPath,instrrev(DBPath,"\"))
+Set fso = CreateObject("Scripting.FileSystemObject")
+
+If fso.FileExists(dbPath) Then
+Set Engine = CreateObject("JRO.JetEngine")
+
+	If boolIs97 = "True" Then
+		Engine.Compactdatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & dbpath, _
+		"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb;" _
+		& "Jet OLEDB:Engine Type=" & JET_3X
+	Else
+		Engine.Compactdatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & dbpath, _
+		"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb"
+	End If
+
+fso.CopyFile strDBPath & "temp.mdb",dbpath
+fso.DeleteFile(strDBPath & "temp.mdb")
+Set fso = nothing
+Set Engine = nothing
+
+        call Succeed_Msg("你的数据库, " & dbpath & ", 已经压缩成功!" )
+        
+Else
+	ErrMsg = ErrMsg+  "数据库名称或路径不正确. 请重试!" & vbCrLf
+        call Error_Msg(ErrMsg)
+End If
+
+End Function
+sub main()
+ErrMsg=ErrMsg+ "数剧库操作错误！"	
+                        call Error_Msg(ErrMsg)
+	                response.end
+end sub
+sub DataBackup()   '###备份数剧库
+Dbpath=request.form("Dbpath")
+		Dbpath=server.mappath(Dbpath)
+		bkfolder=request.form("bkfolder")
+		bkdbname=request.form("bkdbname")
+		Set Fso=server.createobject("scripting.filesystemobject")
+		if fso.fileexists(dbpath) then
+			If CheckDir(bkfolder) = True Then
+			fso.copyfile dbpath,bkfolder& "\"& bkdbname
+ Set TS1 = fso.CreateTextFile(Server.MapPath(""&Bkmdb&""), True) 
+TS1.write "<"&chr(37)&"BackupName="&chr(34)&bkDBname&chr(34)&chr(37)&">"
+Set TS1 = Nothing
+			else
+			MakeNewsDir bkfolder
+			fso.copyfile dbpath,bkfolder& "\"& bkdbname
+Set TS1 = fso.CreateTextFile(Server.MapPath(""&Bkmdb&""), True) 
+TS1.write "<"&chr(37)&"BackupName="&chr(34)&bkDBname&chr(34)&chr(37)&">"
+Set TS1 = Nothing
+			end if
+                        call Succeed_Msg( "<li>备份数据库成功，您备份的数据库路径为" &bkfolder& "\"& bkdbname)
+                        
+else
+ErrMsg=ErrMsg+"<li>没有找到备份目录!</li>"
+
+call Error_Msg(ErrMsg)
+	response.end
+end if
+end sub	
+
+'------------------检查某一目录是否存在-------------------
+Function CheckDir(FolderPath)
+	folderpath=Server.MapPath(".")&"\"&folderpath
+    Set fso1 = CreateObject("Scripting.FileSystemObject")
+    If fso1.FolderExists(FolderPath) then
+       '存在
+       CheckDir = True
+    Else
+       '不存在
+       CheckDir = False
+    End if
+    Set fso1 = nothing
+End Function
+'-------------根据指定名称生成目录-----------------------
+Function MakeNewsDir(foldername)
+	dim f
+    Set fso1 = CreateObject("Scripting.FileSystemObject")
+        Set f = fso1.CreateFolder(foldername)
+        MakeNewsDir = True
+    Set fso1 = nothing
+End Function
+
+dim errmsg,sucmsg
+	sub Error_Msg(ErrMsg)
+response.write "<br><br><br><br><br><br><br><br>"& vbCrLf
+response.write "<TITLE>错误报告！　Error Information</TITLE>"& vbCrLf
+response.write "<META http-equiv=Content-Type content=""text/html; charset=gb2312"">"& vbCrLf
+response.write "<LINK href=""style.css"" type=text/css rel=stylesheet>"& vbCrLf
+response.write "<BR><BR>"& vbCrLf
+response.write "             <TABLE align=center bgColor=#DEDFDE cellpadding=""2"" cellspacing=""0"" border=0 style=""border: outset 2px;width:65%;"">"& vbCrLf
+response.write "              <TR>               "& vbCrLf
+response.write "      <TD height=18 style=""FILTER: progid:DXImageTransform.Microsoft.Gradient(startColorStr='#294184', endColorStr='#A5CBF7', gradientType='1')""><b><font color=#FFFFFF>错误报告！　Error Information</FONT></b></td>"& vbCrLf
+response.write "      <TD align=right bgColor=#A5CBF7><a href=javascript:window.close()><img src=""../admin/shopxp_images/close2.gif"" width=""18"" height=""15"" border=0 align=""absmiddle""></a></td>"& vbCrLf
+response.write "    </tr>"& vbCrLf
+response.write "              <TR>"& vbCrLf
+response.write "                <TD colSpan=2>"& vbCrLf
+response.write "                  <FIELDSET><LEGEND accessKey=F align=left>产生错误的可能原因：</LEGEND>"& vbCrLf
+response.write "                  <TABLE align=center cellSpacing=2 cellPadding=2 width=""90%"" border=0>"& vbCrLf
+response.write "                    <TR>"& vbCrLf
+response.write "                      <TD>"&ErrMsg&"</TD>"& vbCrLf
+response.write "                      </TD></TR>"& vbCrLf
+response.write "                    <TR>"& vbCrLf
+response.write "                      <TD height=25 align=middle colSpan=2><BR><INPUT onclick=javascript:history.go(-1) type=submit value="" 确 定 "" name=submit></TD></TR></TABLE></FIELDSET> "& vbCrLf
+response.write "                  </TD></TR></TABLE></TD></TR></TABLE>"& vbCrLf
+	end sub
+'********成功提示信息****************
+sub Succeed_Msg(SucMsg)
+response.write "<br><br><br><br><br><br><br><br>"& vbCrLf
+response.write "<TITLE>成功信息！　Success Information</TITLE>"& vbCrLf
+response.write "<META http-equiv=Content-Type content=""text/html; charset=gb2312"">"& vbCrLf
+response.write "<LINK href=""style.css"" type=text/css rel=stylesheet>"& vbCrLf
+response.write "<BR><BR>"& vbCrLf
+response.write "             <TABLE align=center bgColor=#DEDFDE cellpadding=""2"" cellspacing=""0"" border=0 style=""border: outset 2px;width:65%;"">"& vbCrLf
+response.write "              <TR>"& vbCrLf
+response.write "                "& vbCrLf
+response.write "      <TD height=18 style=""FILTER: progid:DXImageTransform.Microsoft.Gradient(startColorStr='#102873', endColorStr='#A5CBF7', gradientType='1')""><b><font color=#FFFFFF>成功信息！　Success Information</FONT></b></td>"& vbCrLf
+response.write "      <TD align=right bgColor=#A5CBF7><a href=javascript:window.close()><img src=""../admin/shopxp_images/close2.gif"" width=""18"" height=""15"" border=0 align=""absmiddle""></a></td>"& vbCrLf
+response.write "    </tr>"& vbCrLf
+response.write "              <TR>"& vbCrLf
+response.write "                <TD colSpan=2>"& vbCrLf
+response.write "                  <FIELDSET><LEGEND accessKey=F align=left>操作成功！</LEGEND>"& vbCrLf
+response.write "                  <TABLE align=center cellSpacing=2 cellPadding=2 width=""90%"" border=0>"& vbCrLf
+response.write "                    <TR>"& vbCrLf
+response.write "                      <TD>"&SucMsg&"</TD>"& vbCrLf
+response.write "                      </TD></TR>"& vbCrLf
+response.write "                    <TR>"& vbCrLf
+response.write "                      <TD height=25 align=middle colSpan=2><BR><INPUT onclick=javascript:location.href='"&Request.ServerVariables("HTTP_REFERER")&"' type=submit value="" 确 定 "" name=submit></TD></TR></TABLE></FIELDSET> "& vbCrLf
+response.write "                  </TD></TR></TABLE></TD></TR></TABLE><BR><BR>"& vbCrLf
+end sub
+%>
+</div>
+</body>
+</html> 

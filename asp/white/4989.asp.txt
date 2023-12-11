@@ -1,0 +1,156 @@
+<%@CODEPAGE="936"%>
+<!-- #include file="../inc/qq_inc.asp" -->
+<!-- #include file="../inc/qq_api.asp" -->
+<!-- #include file="../inc/conn.asp" -->
+<!-- #include file="../inc/md5.asp" -->
+<%
+'response.charset="gb2312"
+
+Select Case Trim(request.querystring("mudi"))
+	Case "success"
+		Call success()
+
+	Case Else
+		Call login()
+	
+End Select
+
+' API登录
+Sub login()
+	session("apiType")	= Empty
+	session("apiId")	= Empty
+	session("apiNick")	= Empty
+
+	currUrl = "http://"& request.ServerVariables("Server_NAME") & request.ServerVariables("SCRIPT_NAME")
+	session("apiType") = LCase(Trim(request.querystring("apiType")))
+ 	if session("apiType")="" then session("apiType")="qq"
+	Select Case session("apiType")
+		Case "qq"
+	session("OT_qqAppId")	= qqAppId		' QQ的APP ID
+	session("OT_qqAppKey")	= qqAppKey	' QQ的APP KEY
+			Dim qqApi, qqUrl
+			Set qqApi = New API_QQlogin
+			qqApi.SetApiId(session("OT_qqAppId"))
+			qqApi.SetApiKey(session("OT_qqAppKey"))
+			qqApi.SetApiUrl(currUrl &"?mudi=success")
+
+			qqUrl = qqApi.CreateLoginUrl()
+
+			Response.Redirect(qqUrl)
+
+		Case Else
+			session("apiType")			= Empty
+			session("OT_qqAppId")		= Empty
+			session("OT_qqAppKey")		= Empty
+			response.write("不存在该接口")
+			response.End			
+
+	End Select
+	
+End Sub
+
+
+' API登录授权成功
+Sub success()
+	If session("apiType")="qq" Then
+		If Len(""& session("OT_qqAppId"))<=3 Or Len(""& session("OT_qqAppKey"))<=3 Then
+			Call JS_AlertHrefEnd("QQ授权回馈信息超时，请重新尝试下。","./")
+		response.End()
+		End If
+
+		Dim qqApi,result,qqId,qqNick,qqImg
+		Set qqApi = New API_QQlogin
+		qqApi.SetApiId(session("OT_qqAppId"))
+		qqApi.SetApiKey(session("OT_qqAppKey"))
+		result = qqApi.CheckLogin()
+		If Not IsArray(result) Then
+			Call JS_AlertHrefEnd("QQ授权登录失败，请重新尝试下。","./")
+		response.End()
+		Else
+			result = qqApi.GetAccessToken(result)
+			qqId = FilterStr(result(0),"sql")
+			If Len(qqId)<>32 Then
+		Call JS_AlertHrefEnd("QQ授权回馈信息检验失败，请重新尝试下。","./")
+		response.End()
+			End If
+
+			result = qqApi.GetUserInfo(result)
+			qqNick = UTF2GB(qqApi.GetUserName(result))
+			qqName = qqNick
+
+	username=qqId&"@qq.com"
+	session("username") = username
+	passwordmima=month(now)&day(now)&hour(now)&minute(now)&second(now)&replace(timer(),".","")
+	passwordmima=right(passwordmima,8)
+	EmailCode=Md5(passwordmima)
+	'set rsq=Server.CreateObject("ADODB.RecordSet")
+	'sqlq="select * from user where username='"&username&"'"
+	'rsq.open sqlq,conn,3,3
+	'If rsq.bof and rsq.eof then
+	'rsq.addnew
+	'rsq("username")=username
+	'rsq("password")=EmailCode
+	'rsq("nickname")=nickname
+	'rsq("EmailCode")=EmailCode
+	'rsq("User_Type")="2"
+	'rsq("user_rege")=ReqIP()
+	'rsq("check")="1"
+	'rsq("user_loge")=FormatDateTime(Now(),0)
+	'rsq.update
+	'rsq.close
+	'call JS_AlertHrefEnd(""&qqNick&"-你好-欢迎首次来到本站！","index.asp")
+	'else
+	'call JS_AlertHrefEnd(""&qqNick&"-你好-欢迎再次来到本站！","index.asp")
+	'end if
+	call JS_AlertHrefEnd(""&qqNick&"-你好-欢迎来到本站！","index.asp")
+		response.End()
+	End If
+		Else
+	Call JS_AlertHrefEnd("登录出错。你可以免费注册后登录。","regou.asp")
+		response.End()	
+	End If
+End Sub
+
+
+
+Function JS_AlertHrefEnd(str,url)
+	response.write(_
+	"<script language='javascript'>"&_
+	"alert("""& str &""");document.location.href='"& url &"';"&_
+	"</script>")
+	'response.End()
+End Function
+
+
+Function FilterStr(str,Fnum)
+	Dim UserPwd_Badword,Chk_badword,Fi
+	Select Case Fnum
+		Case "sql"
+	UserPwd_Badword=" ∥,∥.∥:∥;∥'∥""∥`∥~∥?∥!∥@∥#∥$∥%∥^∥&∥*∥<∥>∥(∥)∥+∥-∥/∥=∥\∥{∥}"
+
+	End Select
+	Chk_badword=Split(UserPwd_Badword,"∥")
+		For Fi=0 To UBound(Chk_badword)
+			str=Replace(""& str,Chk_badword(Fi),"")
+		Next
+	FilterStr=str
+End Function
+
+' UTF-8字符转换成GB2312
+Function UTF2GB(UTFStr)
+    For Dig=1 to len(UTFStr)
+        if mid(UTFStr,Dig,1)="%" then
+            if len(UTFStr) >= Dig+8 then
+                GBStr=GBStr & ConvChinese(mid(UTFStr,Dig,9))
+                Dig=Dig+8
+            else
+                GBStr=GBStr & mid(UTFStr,Dig,1)
+            end if
+        else
+            GBStr=GBStr & mid(UTFStr,Dig,1)
+        end if
+    Next
+    UTF2GB=GBStr
+End Function
+
+%>

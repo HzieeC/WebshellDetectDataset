@@ -1,0 +1,289 @@
+<!--#include file="../inc/access.asp"  -->
+<!-- #include file="inc/functions.asp" -->
+<!-- #include file="../inc/x_to_html/index_to_html.asp" -->
+<%
+act=Request("act")
+If act="save" Then 
+web_ListTime=trim(request.form("web_ListTime"))
+web_ListIntro=trim(request.form("web_ListIntro"))
+web_ListCount=trim(request.form("web_ListCount"))
+web_ListKeywords=trim(request.form("web_ListKeywords"))
+web_ListAuthor=trim(request.form("web_ListAuthor"))
+web_FeedComment=trim(request.form("web_FeedComment"))
+web_FeedAdvice=trim(request.form("web_FeedAdvice"))
+web_FeedCount=trim(request.form("web_FeedCount"))
+web_FeedTime=trim(request.form("web_FeedTime"))
+web_SideImage=trim(request.form("web_SideImage"))
+web_SideClass=trim(request.form("web_SideClass"))
+web_SideHot=trim(request.form("web_SideHot"))
+web_time=now()
+
+
+set rs=server.createobject("adodb.recordset")
+sql="select * from web_AdvancedSettings"
+rs.open(sql),cn,1,3
+rs("web_ListTime")=web_ListTime
+rs("web_ListIntro")=web_ListIntro
+rs("web_ListCount")=web_ListCount
+rs("web_ListKeywords")=web_ListKeywords
+rs("web_ListAuthor")=web_ListAuthor
+rs("web_FeedComment")=web_FeedComment
+rs("web_FeedAdvice")=web_FeedAdvice
+rs("web_FeedCount")=web_FeedCount
+rs("web_FeedTime")=web_FeedTime
+rs("web_SideImage")=web_SideImage
+rs("web_SideClass")=web_SideClass
+rs("web_SideHot")=web_SideHot
+rs("web_time")=web_time
+rs.update
+rs.close
+set rs=nothing
+
+call index_to_html()
+response.Write "<script language='javascript'>alert('修改成功！')</script>"
+
+end if
+ %>
+	<script charset="utf-8" src="Keditor/kindeditor.js"></script>
+	<script charset="utf-8" src="Keditor/lang/zh_CN.js"></script>
+	<script charset="utf-8" src="Keditor/editor.js"></script>
+	<%
+Call header()
+
+%>
+<%set rs=server.createobject("adodb.recordset")
+sql="select * from web_AdvancedSettings"
+rs.open(sql),cn,1,1
+if not rs.eof and not rs.bof then
+%>
+  <form id="form1" name="form1" method="post" action="?act=save">
+	<table cellpadding='3' cellspacing='1' border='0' class='tableBorder' align=center>
+	<tr>
+	  <th class='tableHeaderText' colspan=2 height=31>网站高级设置</th>
+	<tr>
+	  <td height=23 colspan="2" class='forumRow'><table width="100%" border="0" align="center" cellpadding="0" cellspacing="0">
+        <tr>
+          <td height="20" class='TipTitle'>&nbsp;√ 操作提示</td>
+        </tr>
+        <tr>
+          <td height="30" valign="top" class="TipWords"><p>
+            <p>1、修改了某项信息后，默认只会自动生成网站首页，其它页面需要手动到"生成管理"处<a href="html_items.asp">生成栏目</a>和<a href="html_article.asp">生成内容</a>才会看到修改后的效果。</p></td>
+        </tr>
+        <tr>
+          <td height="10">&nbsp;</td>
+        </tr>
+      </table></td>
+	  </tr>
+	<tr>
+	<td height=30 colspan="2" class='forumRowHighLight'><strong>&nbsp;&nbsp;&nbsp;&nbsp;列表设置</strong></td>
+	</tr>
+	<tr>
+	<td width="15%" height=23 class='forumRow'> 时间</td>
+	<td class='forumRow'><label>
+	       <input type="radio" name="web_ListTime" value="1"<%
+		if rs("web_ListTime")=1 then
+		response.write "checked"
+		end if%>>
+      显示
+      &nbsp;
+      <input name="web_ListTime" type="radio" value="0" <%if rs("web_ListTime")=0 then
+		response.write "checked"
+		end if%>>
+      不显示</label></td>
+	</tr>    
+	<tr>
+	  <td class='forumRow' height=23> 简介</td>
+	  <td class='forumRow'><label>
+	       <input type="radio" name="web_ListIntro" value="1"<%
+		if rs("web_ListIntro")=1 then
+		response.write "checked"
+		end if%>>
+      显示
+      &nbsp;
+      <input name="web_ListIntro" type="radio" value="0" <%if rs("web_ListIntro")=0 then
+		response.write "checked"
+		end if%>>
+      不显示</label></td>
+	  </tr>
+	<tr>
+	<td width="15%" height=23 class='forumRow'> 关键字</td>
+	<td class='forumRow'><label>
+	       <input type="radio" name="web_ListKeywords" value="1"<%
+		if rs("web_ListKeywords")=1 then
+		response.write "checked"
+		end if%>>
+      显示
+      &nbsp;
+      <input name="web_ListKeywords" type="radio" value="0" <%if rs("web_ListKeywords")=0 then
+		response.write "checked"
+		end if%>>
+      不显示</label></td>
+	</tr>    
+	<tr>
+	  <td class='forumRow' height=23> 作者</td>
+	  <td class='forumRow'><label>
+	       <input type="radio" name="web_ListAuthor" value="1"<%
+		if rs("web_ListAuthor")=1 then
+		response.write "checked"
+		end if%>>
+      显示
+      &nbsp;
+      <input name="web_ListAuthor" type="radio" value="0" <%if rs("web_ListAuthor")=0 then
+		response.write "checked"
+		end if%>>
+      不显示</label></td>
+	  </tr>      
+	<tr>
+	<td width="15%" height=23 class='forumRow'> 条数设置</td>
+	<td class='forumRow'><label>
+          <input type="radio" name="web_ListCount" value="5"<%
+		if rs("web_ListCount")=5 then
+		response.write "checked"
+		end if%>>
+      5条
+      &nbsp;
+      <input name="web_ListCount" type="radio" value="10" <%if rs("web_ListCount")=10 then
+		response.write "checked"
+		end if%>>
+      10条      &nbsp;
+      <input name="web_ListCount" type="radio" value="20" <%if rs("web_ListCount")=20 then
+		response.write "checked"
+		end if%>>
+      20条
+</label></td>
+	</tr>  
+	<tr>
+	<td height=30 colspan="2" class='forumRowHighLight'><strong>&nbsp;&nbsp;&nbsp;&nbsp;评论留言设置</strong></td>
+	</tr>
+	<tr>
+	<td width="15%" height=23 class='forumRow'> 文章评论</td>
+	<td class='forumRow'><label>
+	       <input type="radio" name="web_FeedComment" value="1"<%
+		if rs("web_FeedComment")=1 then
+		response.write "checked"
+		end if%>>
+      审核
+      &nbsp;
+      <input name="web_FeedComment" type="radio" value="0" <%if rs("web_FeedComment")=0 then
+		response.write "checked"
+		end if%>>
+      不审核</label></td>
+	</tr>    
+	<tr>
+	  <td class='forumRow' height=23> 访客留言</td>
+	  <td class='forumRow'><label>
+	       <input type="radio" name="web_FeedAdvice" value="1"<%
+		if rs("web_FeedAdvice")=1 then
+		response.write "checked"
+		end if%>>
+      审核
+      &nbsp;
+      <input name="web_FeedAdvice" type="radio" value="0" <%if rs("web_FeedAdvice")=0 then
+		response.write "checked"
+		end if%>>
+      不审核</label></td>
+	  </tr>
+	<tr>
+	<td width="15%" height=23 class='forumRow'> 条数设置</td>
+	<td class='forumRow'><label>
+	       <input type="radio" name="web_FeedCount" value="5"<%
+		if rs("web_FeedCount")=5 then
+		response.write "checked"
+		end if%>>
+      5条
+      &nbsp;
+      <input name="web_FeedCount" type="radio" value="10" <%if rs("web_FeedCount")=10 then
+		response.write "checked"
+		end if%>>
+      10条      &nbsp;
+      <input name="web_FeedCount" type="radio" value="20" <%if rs("web_FeedCount")=20 then
+		response.write "checked"
+		end if%>>
+      20条
+</label></td>
+	</tr>  
+ 	<tr>
+	  <td class='forumRow' height=23> 排序</td>
+	  <td class='forumRow'><label>
+	       <input type="radio" name="web_FeedTime" value="desc"<%
+		if rs("web_FeedTime")="desc" then
+		response.write "checked"
+		end if%>>
+      按时间正序
+      &nbsp;
+      <input name="web_FeedTime" type="radio" value="asc" <%if rs("web_FeedTime")="asc" then
+		response.write "checked"
+		end if%>>
+      按时间倒序</label></td>
+	  </tr>   
+	<tr>
+	<td height=30 colspan="2" class='forumRowHighLight'><strong>&nbsp;&nbsp;&nbsp;&nbsp;侧边栏设置</strong></td>
+	</tr>
+	<tr>
+	<td width="15%" height=23 class='forumRow'> 图片显示数</td>
+	<td class='forumRow'><label>
+	       <input type="radio" name="web_SideImage" value="4"<%
+		if rs("web_SideImage")=4 then
+		response.write "checked"
+		end if%>>
+      4张
+      &nbsp;
+      <input name="web_SideImage" type="radio" value="6" <%if rs("web_SideImage")=6 then
+		response.write "checked"
+		end if%>>
+      6张      &nbsp;
+      <input name="web_SideImage" type="radio" value="8" <%if rs("web_SideImage")=8 then
+		response.write "checked"
+		end if%>>
+      8张
+</label></td>
+	</tr>    
+	<tr>
+	  <td class='forumRow' height=23> 分类显示数</td>
+	  <td class='forumRow'><label>
+	       <input type="radio" name="web_SideClass" value="4"<%
+		if rs("web_SideClass")=4 then
+		response.write "checked"
+		end if%>>
+      4个
+      &nbsp;
+      <input name="web_SideClass" type="radio" value="6" <%if rs("web_SideClass")=6 then
+		response.write "checked"
+		end if%>>
+      6个      &nbsp;
+      <input name="web_SideClass" type="radio" value="8" <%if rs("web_SideClass")=8 then
+		response.write "checked"
+		end if%>>
+      8个
+</label></td>
+	  </tr>
+	<tr>
+	<td width="15%" height=23 class='forumRow'> 文章显示数</td>
+	<td class='forumRow'><label>
+	       <input type="radio" name="web_SideHot" value="5"<%
+		if rs("web_SideHot")=5 then
+		response.write "checked"
+		end if%>>
+      5条
+      &nbsp;
+      <input name="web_SideHot" type="radio" value="10" <%if rs("web_SideHot")=10 then
+		response.write "checked"
+		end if%>>
+      10条      &nbsp;
+      <input name="web_SideHot" type="radio" value="15" <%if rs("web_SideHot")=15 then
+		response.write "checked"
+		end if%>>
+      15条
+</label></td>
+	</tr>                
+	<tr><td height="50" colspan=2  class='forumRow'><div align="center">
+	  <INPUT type=submit value='提交' onClick='javascript:return checksignup1()' name=Submit>
+	  </div></td></tr>
+	</table>
+</form>
+
+<%
+Call DbconnEnd()
+else
+response.write "暂时无数据"
+end if %>

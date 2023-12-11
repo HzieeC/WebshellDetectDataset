@@ -1,0 +1,250 @@
+<!--#include file="const.asp"-->
+<!--#include file="common.asp"-->
+<%
+Dim ChildData,rootid,ischild,childstr,Parentstr,classname,ParentList
+Dim HtmlFilePath,HtmlFileName,BuildHtmlDone,ClassReadme
+BuildHtmlDone=0
+
+Sub main()
+	maxperpage=NewAsp.ChkNumeric(TPL_Config(1))
+	If maxperpage=0 Then maxperpage=20
+	i=0:n=0:BuildHtmlDone=0
+	If IsNowOutputText Then
+		pagenow=NewAsp.ChkNumeric(Request("page"))
+		classid=NewAsp.ChkNumeric(Request("classid"))
+		m_intOrder=NewAsp.ChkNumeric(Request("order"))
+	Else
+		Pcount=0
+	End If
+	If pagenow=0 Then pagenow=1
+	IsDispToplist=NewAsp.ChkBoolean(TPL_Config(6))
+	If classid>0 Then
+		ChildData=NewAsp.GetChildData(ChannelID,classid,0)
+		childstr=ChildData(0)
+		classname=ChildData(1)
+		ischild=CLng(ChildData(2))
+		Parentstr=ChildData(3)
+		rootid=CLng(ChildData(4))
+		HtmlFileDir=ChildData(5)
+		ClassReadme=ChildData(6)
+	Else
+		classname="所有分类"
+	End If
+
+	If NewAsp.IsCreateHtml=0 Then
+		If IsURLRewrite Then
+			m_strLinks=CheckURLRewrite(NewAsp.ChannelPath,"list_[page]_"&classid&NewAsp.HtmlExtName)
+		Else
+			m_strLinks="list.asp?classid="&classid&"&order="&m_intOrder&"&"
+		End If
+	Else
+		Dim strChannDir
+		If NewAsp.BindDomain=0 Then
+			strChannDir=NewAsp.ChannelDir
+		End If
+		m_strLinks=NewAsp.HtmlDestination(NewAsp.sortDestination, strChannDir, m_intOrder,HtmlFileDir,classid,0,pagenow,"page")
+		HtmlFileName=NewAsp.HtmlDestination(NewAsp.sortDestination, NewAsp.ChannelDir, m_intOrder,HtmlFileDir,classid,0,pagenow,"html")
+	End If
+
+	m_strTitle=classname
+	If ischild>0 And NewAsp.ChkNumeric(TPL_Config(4))=1 Then
+		TPL_FileName=Check_TPL_File(TPL_FilePath,"list1",classid,rootid)
+	Else
+		TPL_FileName=Check_TPL_File(TPL_FilePath,"list",classid,rootid)
+	End If
+	HtmlContent = NewAsp.LoadTemplate(TPL_FilePath&"\"&TPL_FileName)
+	If Len(TPL_Config(9))>1 Then
+		HtmlContent = Replace(HtmlContent, "{$pagetitle}", Replace(m_strTitle&TPL_Config(9), "{$", "{ $"))
+	Else
+		HtmlContent = Replace(HtmlContent, "{$pagetitle}", Replace(m_strTitle, "{$", "{ $"))
+	End If
+	HtmlContent = Replace(HtmlContent, "{$channelid}", ChannelID)
+	HtmlContent = Replace(HtmlContent, "{$classid}", classid)
+	TPL_Scan HtmlContent
+	TopTopic=Null:Topiclist=Null:ParentList=Null
+End Sub
+
+Sub showParentList()
+	Dim Rs,SQL,MaxParentList
+	If NewAsp.ChkNumeric(TPL_Config(5))>0 Then
+		MaxParentList="TOP "&TPL_Config(5)
+	End If
+	SQL = "SELECT "&MaxParentList&" classid,ClassName,HtmlFileDir FROM [NC_Classify] WHERE ChannelID="&ChannelID&" And TurnLink=0  And ParentID="&classid&" ORDER BY orders ASC, ClassID ASC"
+	Set Rs = NewAsp.Execute(SQL)
+	If Not Rs.EOF Then
+		ParentList=Rs.GetRows(-1)
+	Else
+		ParentList=Null
+	End If
+	Rs.close():Set Rs=Nothing
+	BuildHtmlDone=1
+End Sub
+
+Sub showToplist()
+	Dim Rs,Cmd,MaxTopList
+	MaxTopList=NewAsp.ChkNumeric(TPL_Config(0))
+	If MaxTopList=0 Or MaxTopList>50 Then MaxTopList=20
+	SQLQuery=""
+	On Error Resume Next
+	If pagenow=1 And IsDispToplist Then
+		If classid>0 Then
+			If ischild>0 Then
+				SQLQuery=" And A.isAccept=1 And A.classid in (" & childstr & ") And A.IsTop>0"
+			Else
+				SQLQuery=" And A.isAccept=1 And A.classid="&classid&" And A.IsTop>0"
+			End If
+		Else
+			SQLQuery=" And A.isAccept=1 And A.IsTop>0"
+		End If
+		Set Rs=NewAsp.Execute("SELECT TOP "& MaxTopList &" "& SQLField &" FROM [NC_FlashList] A INNER JOIN [NC_Classify] C on A.ClassID=C.ClassID WHERE A.ChannelID=" &ChannelID& " "&SQLQuery&" ORDER BY A.IsTop DESC,A.addtime DESC")
+		If Not Rs.EOF Then
+			TopTopic=Rs.GetRows(-1)
+		Else
+			TopTopic=Null
+		End If
+		Rs.close():Set Rs=Nothing
+	End If
+End Sub
+
+Sub showTopiclist()
+	If Not IsObject(Conn) Then ConnectionDatabase
+	Dim Rs,SQL
+	SQLQuery=""
+	If IsDispToplist Then SQLQuery = " And A.IsTop=0"
+	If classid>0 Then
+		If ischild>0 Then
+			SQLQuery=" And A.isAccept=1 And A.classid in (" & childstr & ")"&SQLQuery
+		Else
+			SQLQuery=" And A.isAccept=1 And A.classid="&classid&SQLQuery
+		End If
+	Else
+		SQLQuery=" And A.isAccept=1"&SQLQuery
+	End If
+
+	On Error Resume Next
+	If m_intOrder=1 Then
+		m_strOrder="A.flashid"
+	ElseIf m_intOrder=2 Then
+		m_strOrder="A.Allhits"
+	ElseIf m_intOrder=3 Then
+		m_strOrder="A.filesize"
+	Else
+		m_strOrder="A.addtime"
+	End If
+	totalrec=NewAsp.Execute("SELECT COUNT(*) FROM NC_FlashList A WHERE A.ChannelID="&ChannelID&" "&SQLQuery&"")(0)
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	If pagenow>=Pcount Then BuildHtmlDone=1
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT "& SQLField &" FROM [NC_FlashList] A INNER JOIN [NC_Classify] C on A.ClassID=C.ClassID WHERE A.ChannelID=" &ChannelID& " "&SQLQuery&" ORDER BY "&m_strOrder&" DESC"
+	Rs.Open SQL,Conn,1,1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum+1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		Topiclist=Rs.GetRows(maxperpage)
+	Else
+		Topiclist=Null:BuildHtmlDone=1
+	End If
+	Rs.close():Set Rs=Nothing
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	Select Case sTokenName
+		Case "showtop=1"	:	If IsDispToplist Then TPL_Scan sTemplate
+		Case "showtop=0"	:	IsDispToplist=False
+		Case "pagenow=1"	:	If pagenow=1 Then TPL_Scan sTemplate
+		Case "pagenow=0"	:	If pagenow>1 Then TPL_Scan sTemplate
+		Case "toplist"
+			If pagenow=1 And IsDispToplist Then
+				Call showToplist()
+				If IsArray(TopTopic) Then
+					For i=0 To UBound(TopTopic,2)
+						n=n+1:If (n Mod 2) = 0 Then im=2 Else im=1
+						If (i Mod 2) = 0 Then m=1 Else m=2
+						TPL_Scan sTemplate
+						topcount=topcount+1
+					Next
+				End If
+			End If
+		Case "topiclist"
+			Call showTopiclist()
+			If IsArray(Topiclist) Then
+				For i=0 To UBound(Topiclist,2)
+					n=n+1:If (n Mod 2) = 0 Then im=2 Else im=1
+					If (i Mod 2) = 0 Then m=1 Else m=2
+					TPL_Scan sTemplate
+				Next
+			End If
+		Case "classlist","category"
+			Call showParentList()
+			If IsArray(ParentList) Then
+				For i=0 To UBound(ParentList,2)
+					n=n+1:If (n Mod 2) = 0 Then im=2 Else im=1
+					If (i Mod 2) = 0 Then m=1 Else m=2
+					TPL_Scan Replace(sTemplate, "{$sortid}", ParentList(0,i))
+				Next
+			End If
+	End Select
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+		Case "toplist"
+			ParseTopTopicNode		sTokenName
+		Case "topiclist"
+			ParseTopiclistNode		sTokenName
+		Case "classlist","category"
+			ParseParentlistNode		sTokenName
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Select Case sToken
+		Case "i"			:	TPL_Echo i+1
+		Case "positions"	:	TPL_Echo CurrentPosition(classid,Parentstr,sVariant)
+		Case "currentclass"	:	TPL_Echo CurrentClass
+		Case "moremenu"		:	TPL_Echo moremenu(sVariant)
+		Case "typemenu"		:	TPL_Echo typemenu(sVariant)
+		Case "classname"	:	TPL_Echo classname
+		Case "readme"		:	TPL_Echo ClassReadme
+		Case "totalrec"		:	TPL_Echo totalrec
+		Case "pagenow"		:	TPL_Echo pagenow
+		Case "pagecount"	:	TPL_Echo Pcount
+		Case "topcount"		:	TPL_Echo topcount
+	End Select
+	If Err Then Err.Clear
+End Sub
+
+Sub ParseParentlistNode(sToken)
+	Dim strContent,strLinks,strChannDir
+	If NewAsp.IsCreateHtml=0 Then
+		If IsURLRewrite Then
+			strLinks=CheckURLRewrite(NewAsp.ChannelPath,"list_1_"&Parentlist(0,i)&NewAsp.HtmlExtName)
+		Else
+			strLinks="list.asp?classid="&Parentlist(0,i)
+		End If
+	Else
+		If NewAsp.BindDomain=0 Then
+			strChannDir=NewAsp.ChannelDir
+		End If
+		strLinks=NewAsp.HtmlDestination(NewAsp.sortDestination, strChannDir, "",Parentlist(2,i),Parentlist(0,i),0,1,"")
+	End If
+	Select Case sToken
+		Case "i"			:	TPL_Echo i
+		Case "n"			:	TPL_Echo n
+		Case "m"			:	TPL_Echo m
+		Case "link"			:	TPL_Echo strLinks
+		Case "classname"	:	TPL_Echo Parentlist(1,i)
+		Case "classtitle"	:	TPL_Echo "<a href="""&strLinks&""">"&Parentlist(1,i)&"</a>"
+		Case "classid"		:	TPL_Echo Parentlist(0,i)
+	End Select
+End Sub
+
+%>

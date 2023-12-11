@@ -1,0 +1,435 @@
+<!--#include file="Cai_Vip_Conn.asp" -->
+<!--#include file="Cai_Vip_Adn.asp" -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>ADN自定义采集系统</title>
+<link href="Cai_Vip_Style.css" type=text/css rel=stylesheet>
+</head>
+<BODY leftMargin=0 topMargin=0 scroll=yes MARGINHEIGHT="0" MARGINWIDTH="0">
+<%
+Dim Action
+Action=Request("action")
+Select Case Action
+Case "Import"                   '项目导入第一步
+    Call Import
+Case "Import2"                  '项目导入第二步
+    Call Import2
+Case "DoImport"                 '导入项目处理
+    Call DoImport
+Case "Export"                   '导出项目
+    Call Export
+Case "DoExport"                 '导出项目处理
+    Call DoExport
+Case Else
+    Call ItemManage
+End Select
+'=================================================
+'过程名：Import
+'作  用：导入项目第一步
+'=================================================
+Sub Import()
+    Response.Write "<br>" & vbCrLf
+    Response.Write "<form name='myform' method='post' action='Cai_Vip_Import.asp?action=Import2'>"
+    Response.Write "  <table width='100%' border='0' align='center' cellpadding='2' cellspacing='1' class='table'>"
+    Response.Write "    <tr class='xingmu'>"
+    Response.Write "      <td height='22' align='center''><strong>采集项目导入（第一步）</strong></td>"
+    Response.Write "    </tr>"
+    Response.Write "    <tr class='hback'>"
+    Response.Write "      <td height='100'>&nbsp;&nbsp;&nbsp;&nbsp;请输入要导入的采集数据库的文件名："
+    Response.Write "        <input name='ItemMdb' type='text' id='ItemMdb' value='Adn_Item.mdb' size='20' maxlength='50'>"
+    Response.Write "        <input name='Submit' type='submit' id='Submit' value=' 下一步 '>"
+    Response.Write "        </td>"
+    Response.Write "    </tr>"
+    Response.Write "  </table>"
+    Response.Write "</form>"
+End Sub
+'=================================================
+'过程名：Import2
+'作  用：导入项目采集第二步
+'=================================================
+Sub Import2()
+    On Error Resume Next
+    Dim rs, sql
+    Dim mdbname, tconn, trs, iCount
+    mdbname = Replace(Trim(Request.Form("ItemMdb")), "'", "")
+    If mdbname = "" Then
+	    Call Admin_ShowErr("<li>请填写导入数据库名</li>","Cai_Vip_Import.asp?action=Import",0)
+    End If
+
+    Set tconn = Server.CreateObject("ADODB.Connection")
+    tconn.Open "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(mdbname)
+    If Err.Number <> 0 Then
+        Response.Write "<li>数据库操作失败,请以后再试,错误原因：" & Err.Description
+        Err.Clear
+		Response.End
+    End If
+
+    Response.Write "<br>" & vbCrLf
+    Response.Write "<form name='myform' method='post' action='Cai_Vip_Import.asp?action=DoImport'>"
+    Response.Write "  <table width='100%' border='0' align='center' cellpadding='2' cellspacing='1' class='table'>"
+    Response.Write "    <tr >"
+    Response.Write "      <td height='22' align='center'><strong>项目采集导入（第二步）</strong></td>"
+    Response.Write "    </tr>"
+    Response.Write "    <tr class='hback'>"
+    Response.Write "      <td height='100' align='center'>"
+    Response.Write "        <br>"
+    Response.Write "        <table border='0' cellspacing='0' cellpadding='0'>"
+    Response.Write "          <tr align='center'>"
+    Response.Write "            <td><strong>将被导入的采集项目</strong><br>"
+    Response.Write "<select name='ItemID' size='2' multiple style='height:300px;width:250px;'>"
+    sql = "select * from Collect_Class"
+    Set rs = Server.CreateObject("Adodb.RecordSet")
+    rs.Open sql, tconn, 1, 1
+    If rs.BOF And rs.EOF Then
+        Response.Write "<option value='0'>没有任何采集项目</option>"
+        iCount = 0
+    Else
+        iCount = rs.RecordCount
+        Do While Not rs.EOF
+            Response.Write "<option value='" & rs("id") & "'>" & rs("CollectName") & "</option>"
+            rs.MoveNext
+        Loop
+    End If
+    rs.Close
+    Set rs = Nothing
+    Response.Write "</select></td>"
+    Response.Write "            <td width='80'><input type='submit' name='Submit' value='导入&gt;&gt;' "
+    If iCount = 0 Then Response.Write " disabled"
+    Response.Write "></td>"
+    Response.Write "            <td><strong>系统中已经存在的项目采集</strong><br>"
+    Response.Write "             <select name='tItemID' size='2' multiple style='height:300px;width:250px;' disabled>"
+    Set rs = Connx.Execute(sql)
+    If rs.BOF And rs.EOF Then
+        Response.Write "<option value='0'>没有任何采集项目</option>"
+    Else
+        Do While Not rs.EOF
+            Response.Write "<option value='" & rs("id") & "'>" & rs("CollectName") & "</option>"
+            rs.MoveNext
+        Loop
+    End If
+    rs.Close
+    Set rs = Nothing
+    Response.Write "              </select></td>"
+    Response.Write "          </tr>"
+    Response.Write "        </table>"
+    Response.Write "     <br><b>提示：按住“Ctrl”或“Shift”键可以多选</b><br>"
+    Response.Write "        <input name='ItemMdb' type='hidden' id='ItemMdb' value='" & mdbname & "'>"
+    Response.Write "        <input name='Action' type='hidden' id='Action' value='DoImport'>"
+    Response.Write "        <br>"
+    Response.Write "      </td>"
+    Response.Write "    </tr>"
+    Response.Write "  </table>"
+    Response.Write "</form>"
+End Sub
+'=================================================
+'过程名：DoImport
+'作  用：导入采集项目处理
+'=================================================
+Sub DoImport()
+    On Error Resume Next
+    Dim mdbname, tconn, trs, Table_PE_Filters
+    Dim ItemID
+    Dim rs, sql
+    ItemID = Trim(Request("ItemID"))
+    mdbname = Replace(Trim(Request.Form("Itemmdb")), "'", "")
+    If IsValidID(ItemID) = False Then
+		Call Admin_ShowErr("<li>请指定要导入的采集项目</li>","Cai_Vip_Import.asp?action=Import2",0)
+    End If
+    If mdbname = "" Then
+		Call Admin_ShowErr("<li>请填写导入数据库名</li>","Cai_Vip_Import.asp?action=Import2",0)
+    End If
+    
+    Set tconn = Server.CreateObject("ADODB.Connection")
+    tconn.Open "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(mdbname)
+    If Err.Number <> 0 Then
+        Response.Write "<li>数据库操作失败,请以后再试,错误原因：" & Err.Description
+        Err.Clear
+        Exit Sub
+    End If
+    
+    Set rs = tconn.Execute(" select * from Collect_Class where ID in (" & ItemID & ")  order by ID")
+    Set trs = Server.CreateObject("adodb.recordset")
+    trs.Open "select * from Collect_Class", Connx, 1, 3
+    Do While Not rs.EOF
+        trs.addnew
+        trs("CollectName") = rs("CollectName")
+        trs("ListPaingType") = rs("ListPaingType")
+        trs("selEncoding") = rs("selEncoding")
+        trs("ListPaingType") = rs("ListPaingType")
+        trs("ListPaingStr") = rs("ListPaingStr")
+        trs("ListPaingStr2") = rs("ListPaingStr2")
+        trs("ListPaingID1") = rs("ListPaingID1")
+        trs("ListPaingID2") = rs("ListPaingID2")
+        trs("ListPaingStr3") = rs("ListPaingStr3")
+        trs("Script_Iframe") = rs("Script_Iframe")
+        trs("Script_Object") = rs("Script_Object")
+        trs("Script_Script") = rs("Script_Script")
+        trs("Script_Div") = rs("Script_Div")
+        trs("Script_Class") = rs("Script_Class")
+        trs("Script_Table") = rs("Script_Table")
+        trs("Script_Tr") = rs("Script_Tr")
+        trs("Script_Span") = rs("Script_Span")
+        trs("Script_Img") = rs("Script_Img")
+        trs("Script_Font") = rs("Script_Font")
+        trs("Script_A") = rs("Script_A")
+        trs("Script_Html") = rs("Script_Html")
+        trs("Script_Td") = rs("Script_Td")
+        trs("SaveFiles") = rs("SaveFiles")
+        trs("CollecOrder") = rs("CollecOrder")
+        trs("RepeatCollect") = rs("RepeatCollect")
+        trs("LsString") = rs("LsString")		
+        trs("LoString") = rs("LoString")
+        trs("HsString") = rs("HsString")
+        trs("HoString") = rs("HoString")
+        trs("Htitle") = rs("Htitle")
+        trs("Ftitle") = rs("Ftitle")
+        trs("Hname") = rs("Hname")
+        trs("Fname") = rs("Fname")
+        trs("Htupian") = rs("Htupian")
+        trs("Ftupian") = rs("Ftupian")
+        trs("ClassType") = rs("ClassType")
+        trs("CollectClass") = rs("CollectClass")
+        trs("HClass") = rs("HClass")
+        trs("FClass") = rs("FClass")
+        trs("RegionType") = rs("RegionType")
+        trs("CollectRegion") = rs("CollectRegion")
+        trs("HRegion") = rs("HRegion")
+        trs("FRegion") = rs("FRegion")
+        trs("Hcontent") = rs("Hcontent")	
+        trs("Fcontent") = rs("Fcontent")
+        trs("ScopeOn") = rs("ScopeOn")
+        trs("Hscope") = rs("Hscope")
+        trs("Fscope") = rs("Fscope")
+        trs("Hweburl") = rs("Hweburl")
+        trs("Fweburl") = rs("Fweburl")
+        trs("UrlType") = rs("UrlType")
+        trs("Rurl") = rs("Rurl")
+		trs("Reurl") = rs("Reurl")
+        trs("Hpurl") = rs("Hpurl")
+        trs("Fpurl") = rs("Fpurl")
+        trs("AdnDinShi") = rs("AdnDinShi")
+        trs("AdnPicType") = rs("AdnPicType")
+		trs("AdnNameType") = rs("AdnNameType")
+        trs("HAdnName") = rs("HAdnName")
+		trs("FAdnName") = rs("FAdnName")
+        trs("AdnUrlType") = rs("AdnUrlType")
+		trs("AdnUrlIntro") = rs("AdnUrlIntro")
+        trs("AdnReplaceType") = rs("AdnReplaceType")
+		trs("AdnReplace") = rs("AdnReplace")	
+        trs.Update
+        rs.MoveNext
+    Loop
+    trs.Close
+    Set trs = Nothing
+    rs.Close
+    Set rs = Nothing
+    '判断PE_Filters 表是否存在
+	Call Admin_ShowErr("已经成功从指定的数据库中导入选中的采集项目！","Cai_Vip_Import.asp?action=Import",1)
+End Sub
+'=================================================
+'过程名：Export
+'作  用：导出采集项目
+'=================================================
+Sub Export()
+    Dim rs, sql, iCount
+    sql = "select * from Collect_Class"
+    Set rs = Connx.Execute(sql)
+
+    Response.Write "<br>" & vbCrLf
+    Response.Write "<form name='myform' method='post' action='Cai_Vip_Import.asp?action=DoExport'>"
+    Response.Write "  <table width='100%' border='0' align='center' cellpadding='2' cellspacing='0' class='border'>"
+    Response.Write "    <tr class='title'> "
+    Response.Write "      <td height='22' align='center'><strong>采集项目导出</strong></td>"
+    Response.Write "    </tr>"
+    Response.Write "    <tr class='tdbg'><td height='10'></td></tr>"
+    Response.Write "    <tr class='tdbg'>"
+    Response.Write "      <td align='center'>"
+    Response.Write "        <table border='0' cellspacing='0' cellpadding='0'>"
+    Response.Write "          <tr>"
+    Response.Write "           <td>"
+    Response.Write "            <select name='ItemID' size='2' multiple style='height:300px;width:450px;'>"
+    If rs.BOF And rs.EOF Then
+        Response.Write "         <option value=''>还没有采集项目！</option>"
+        '关闭提交按钮
+        iCount = 0
+    Else
+        iCount = rs.RecordCount
+        Do While Not rs.EOF
+            Response.Write "     <option value='" & rs("ID") & "'>" & rs("CollectName") & "</option>"
+            rs.MoveNext
+        Loop
+    End If
+    rs.Close
+    Set rs = Nothing
+    Response.Write "         </select>"
+    Response.Write "       </td>"
+    Response.Write "       <td align='left'>&nbsp;&nbsp;&nbsp;&nbsp;<input type='button' name='Submit' value=' 选定所有 ' onclick='SelectAll()'>"
+    Response.Write "       <br><br>&nbsp;&nbsp;&nbsp;&nbsp;<input type='button' name='Submit' value=' 取消选定 ' onclick='UnSelectAll()'><br><br><br><b>&nbsp;提示：按住“Ctrl”或“Shift”键可以多选</b></td>"
+    Response.Write "      </tr>"
+    Response.Write "      <tr height='30'>"
+    Response.Write "        <td colspan='2'>目标数据库：<input name='Itemmdb' type='text' id='ItemMdb' value='Adn_Item.mdb' size='20' maxlength='50'>&nbsp;&nbsp;<INPUT TYPE='checkbox' NAME='FormatConn' value='yes' id='id' checked> 先清空目标数据库</td>"
+    Response.Write "      </tr>"
+    Response.Write "      <tr height='50'>"
+    Response.Write "         <td colspan='2' align='center'><input type='submit' name='Submit' value='执行导出操作' onClick=""document.myform.Action.value='DoExport';"">"
+    Response.Write "          <input name='Action' type='hidden' id='Action' value='Export'>"
+    Response.Write "         </td>"
+    Response.Write "        </tr>"
+    Response.Write "    </table>"
+    Response.Write "   </td>"
+    Response.Write " </tr>"
+    Response.Write "</table>"
+    Response.Write "</form>"
+    Response.Write "<script language='javascript'>" & vbCrLf
+    Response.Write "function SelectAll(){" & vbCrLf
+    Response.Write "  for(var i=0;i<document.myform.ItemID.length;i++){" & vbCrLf
+    Response.Write "    document.myform.ItemID.options[i].selected=true;}" & vbCrLf
+    Response.Write "}" & vbCrLf
+    Response.Write "function UnSelectAll(){" & vbCrLf
+    Response.Write "  for(var i=0;i<document.myform.ItemID.length;i++){" & vbCrLf
+    Response.Write "    document.myform.ItemID.options[i].selected=false;}" & vbCrLf
+    Response.Write "}" & vbCrLf
+    Response.Write "</script>" & vbCrLf
+End Sub
+'=================================================
+'过程名：DoExport
+'作  用：导出项目采集处理
+'=================================================
+Sub DoExport()
+    On Error Resume Next
+    
+    Dim rs, sql
+    Dim mdbname, tconn, trs
+    Dim ItemID, FormatConn, Table_PE_Item
+    FormatConn = Request.Form("FormatConn")
+    ItemID = Trim(Request("ItemID"))
+    mdbname = Replace(Trim(Request.Form("Itemmdb")), "'", "")
+    If IsValidID(ItemID) = False Then
+		Call Admin_ShowErr("<li>请指定要导出的采集项目</li>","Cai_Vip_Import.asp?action=Import2",0)
+    End If
+    If mdbname = "" Then
+		Call Admin_ShowErr("<li>请填写导出数据库名</li>","Cai_Vip_Import.asp?action=Import2",0)
+    End If
+    Set tconn = Server.CreateObject("ADODB.Connection")
+    tconn.Open "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(mdbname)
+    If Err.Number <> 0 Then
+        Response.Write "<li>数据库操作失败,请以后再试,错误原因：" & Err.Description
+        Err.Clear
+        Exit Sub
+    End If
+	
+    If FormatConn <> "" Then
+        tconn.Execute ("delete from Collect_Class")'是否先清空
+    End If
+
+    Set rs = Connx.Execute(" select * from Collect_Class where ID in (" & ItemID & ")  order by ID")
+    Set trs = Server.CreateObject("adodb.recordset")
+    trs.Open "select * from Collect_Class", tconn, 1, 3
+    Do While Not rs.EOF
+        trs.addnew
+        trs("CollectName") = rs("CollectName")
+        trs("ListPaingType") = rs("ListPaingType")
+        trs("selEncoding") = rs("selEncoding")
+        trs("ListPaingType") = rs("ListPaingType")
+        trs("ListPaingStr") = rs("ListPaingStr")
+        trs("ListPaingStr2") = rs("ListPaingStr2")
+        trs("ListPaingID1") = rs("ListPaingID1")
+        trs("ListPaingID2") = rs("ListPaingID2")
+        trs("ListPaingStr3") = rs("ListPaingStr3")
+        trs("Script_Iframe") = rs("Script_Iframe")
+        trs("Script_Object") = rs("Script_Object")
+        trs("Script_Script") = rs("Script_Script")
+        trs("Script_Div") = rs("Script_Div")
+        trs("Script_Class") = rs("Script_Class")
+        trs("Script_Table") = rs("Script_Table")
+        trs("Script_Tr") = rs("Script_Tr")
+        trs("Script_Span") = rs("Script_Span")
+        trs("Script_Img") = rs("Script_Img")
+        trs("Script_Font") = rs("Script_Font")
+        trs("Script_A") = rs("Script_A")
+        trs("Script_Html") = rs("Script_Html")
+        trs("Script_Td") = rs("Script_Td")
+        trs("SaveFiles") = rs("SaveFiles")
+        trs("CollecOrder") = rs("CollecOrder")
+        trs("RepeatCollect") = rs("RepeatCollect")
+        trs("LsString") = rs("LsString")		
+        trs("LoString") = rs("LoString")
+        trs("HsString") = rs("HsString")
+        trs("HoString") = rs("HoString")
+        trs("Htitle") = rs("Htitle")
+        trs("Ftitle") = rs("Ftitle")
+        trs("Hname") = rs("Hname")
+        trs("Fname") = rs("Fname")
+        trs("Htupian") = rs("Htupian")
+        trs("Ftupian") = rs("Ftupian")
+        trs("ClassType") = rs("ClassType")
+        trs("CollectClass") = rs("CollectClass")
+        trs("HClass") = rs("HClass")
+        trs("FClass") = rs("FClass")
+        trs("RegionType") = rs("RegionType")
+        trs("CollectRegion") = rs("CollectRegion")
+        trs("HRegion") = rs("HRegion")
+        trs("FRegion") = rs("FRegion")
+        trs("Hcontent") = rs("Hcontent")	
+        trs("Fcontent") = rs("Fcontent")
+        trs("ScopeOn") = rs("ScopeOn")
+        trs("Hscope") = rs("Hscope")
+        trs("Fscope") = rs("Fscope")
+        trs("Hweburl") = rs("Hweburl")
+        trs("Fweburl") = rs("Fweburl")
+        trs("UrlType") = rs("UrlType")
+        trs("Rurl") = rs("Rurl")
+		trs("Reurl") = rs("Reurl")
+        trs("Hpurl") = rs("Hpurl")
+        trs("Fpurl") = rs("Fpurl")
+        trs("AdnDinShi") = rs("AdnDinShi")
+        trs("AdnPicType") = rs("AdnPicType")
+		trs("AdnNameType") = rs("AdnNameType")
+        trs("HAdnName") = rs("HAdnName")
+		trs("FAdnName") = rs("FAdnName")
+        trs("AdnUrlType") = rs("AdnUrlType")
+		trs("AdnUrlIntro") = rs("AdnUrlIntro")
+        trs("AdnReplaceType") = rs("AdnReplaceType")
+		trs("AdnReplace") = rs("AdnReplace")
+        trs.Update
+        rs.MoveNext
+    Loop
+    trs.Close
+    Set trs = Nothing
+    rs.Close
+    Set rs = Nothing
+    
+	Call Admin_ShowErr("已经成功将所选中的采集项目导出到指定的数据库中！","Cai_Vip_Import.asp?action=Import",1)
+End Sub
+
+'**************************************************
+'函数名：IsValidID
+'作  用：检查传过来的ＩＤ是否是合法ＩＤ或者ＩＤ串
+'参  数：Check_ID ---- ID 字符串
+'返回值：True  ---- 合法ID
+'**************************************************
+Function IsValidID(Check_ID)
+    Dim FixID, i
+    If IsNull(Check_ID) Or Check_ID = "" Then
+        IsValidID = False
+        Exit Function
+    End If
+    FixID = Replace(Check_ID, "|", "")
+    FixID = Replace(FixID, ",", "")
+    FixID = Replace(FixID, "-", "")
+    FixID = Trim(Replace(FixID, " ", ""))
+    If FixID = "" Or IsNull(FixID) Then
+        IsValidID = False
+    Else
+        For i = 1 To Len(FixID) Step 100
+            If Not IsNumeric(Mid(FixID, i, 100)) Then
+                IsValidID = False
+                Exit Function
+            End If
+        Next
+        IsValidID = True
+    End If
+End Function
+%>
+</body>
+</html>

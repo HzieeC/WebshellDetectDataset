@@ -1,0 +1,783 @@
+<%
+' ********************************************
+' 以下为常用函数
+' ********************************************
+' ============================================
+' 错误返回处理
+' ============================================
+Sub GoError(str)
+	Call DBConnEnd()
+	Response.Write "<script language=javascript>alert('" & str & "\n\n系统将自动返回前一页面...');history.back();</script>"
+	Response.End
+End Sub
+
+
+'**************************************************
+'过程名：WriteErrMsg
+'作  用：显示错误提示信息
+'参  数：无
+'**************************************************
+sub WriteErrMsg()
+	dim strErr
+	strErr=strErr & "<html><head><title>错误信息</title><meta http-equiv='Content-Type' content='text/html; charset=gb2312'>" & vbcrlf
+	strErr=strErr & "<link href='../admin/js/common.css' rel='stylesheet' type='text/css'></head><body>" & vbcrlf
+	strErr=strErr & "<table cellpadding=2 width='400'  border='0' cellpadding='3' cellspacing='1' bgcolor='#DEDFDE' align=center>" & vbcrlf
+	strErr=strErr & "  <tr align='center' bgcolor='#F7F7F7'><td height='22'><strong>错误信息</strong></td></tr>" & vbcrlf
+	strErr=strErr & "  <tr bgcolor='#FFFFFF'><td height='100' valign='top'><b>产生错误的可能原因：</b>" & errmsg &"</td></tr>" & vbcrlf
+	strErr=strErr & "  <tr align='center' bgcolor='#FFFFFF'><td><a href='javascript:history.go(-1)'>&lt;&lt; 返回上一页</a></td></tr>" & vbcrlf
+	strErr=strErr & "</table>" & vbcrlf
+	strErr=strErr & "</body></html>" & vbcrlf
+	response.write strErr
+end sub
+
+
+
+' ============================================
+' 得到安全字符串,在查询中或有必要强行替换的表单中使用
+' ============================================
+Function GetSafeStr(str)
+	GetSafeStr = Replace(Replace(Replace(Trim(str), "'", ""), Chr(34), ""), ";", "")
+End Function
+
+' ============================================
+' 把字符串进行HTML解码,替换server.htmlencode
+' 去除Html格式，用于显示输出
+' ============================================
+Function outHTML(str)
+	Dim sTemp
+	sTemp = str
+	outHTML = ""
+	If IsNull(sTemp) = True Then
+		Exit Function
+	End If
+	sTemp = Replace(sTemp, "&", "&amp;")
+	sTemp = Replace(sTemp, "<", "&lt;")
+	sTemp = Replace(sTemp, ">", "&gt;")
+	sTemp = Replace(sTemp, Chr(34), "&quot;")
+	sTemp = Replace(sTemp, Chr(10), "<br>")
+	outHTML = sTemp
+End Function
+
+' ============================================
+' 去除Html格式，用于从数据库中取出值填入输入框时
+' 注意：value="?"这边一定要用双引号
+' ============================================
+Function inHTML(str)
+	Dim sTemp
+	sTemp = str
+	inHTML = ""
+	If IsNull(sTemp) = True Then
+		Exit Function
+	End If
+	sTemp = Replace(sTemp, "&", "&amp;")
+	sTemp = Replace(sTemp, "<", "&lt;")
+	sTemp = Replace(sTemp, ">", "&gt;")
+	sTemp = Replace(sTemp, Chr(34), "&quot;")
+	inHTML = sTemp
+End Function
+
+' ===============================================
+' 初始化下拉框
+'	s_FieldName	: 返回的下拉框名	
+'	a_Name		: 定值名数组
+'	a_Value		: 定值值数组
+'	v_InitValue	: 初始值
+'	s_Sql		: 从数据库中取值时,select name,value from table
+'	s_AllName	: 空值的名称,如:"全部","所有","默认"
+' ===============================================
+Function InitSelect(s_FieldName, a_Name, a_Value, v_InitValue, s_Sql, s_AllName)
+	Dim i
+	InitSelect = "<select name='" & s_FieldName & "' size=1>"
+	If s_AllName <> "" Then
+		InitSelect = InitSelect & "<option value=''>" & s_AllName & "</option>"
+	End If
+	If s_Sql <> "" Then
+		oRs.Open s_Sql, oConn, 0, 1
+		Do While Not oRs.Eof
+			InitSelect = InitSelect & "<option value=""" & inHTML(oRs(1)) & """"
+			If oRs(1) = v_InitValue Then
+				InitSelect = InitSelect & " selected"
+			End If
+			InitSelect = InitSelect & ">" & outHTML(oRs(0)) & "</option>"
+			oRs.MoveNext
+		Loop
+		oRs.Close
+	Else
+		For i = 0 To UBound(a_Name)
+			InitSelect = InitSelect & "<option value=""" & inHTML(a_Value(i)) & """"
+			If a_Value(i) = v_InitValue Then
+				InitSelect = InitSelect & " selected"
+			End If
+			InitSelect = InitSelect & ">" & outHTML(a_Name(i)) & "</option>"
+		Next
+	End If
+	InitSelect = InitSelect & "</select>"
+End Function
+
+' ============================================
+' 每页头部内容
+' ============================================
+Sub Header()
+	Response.Write "<meta http-equiv='Content-Type' content='text/html; charset=gb2312'><link href=js/common.css rel=stylesheet type=text/css><noscript><iframe src=*.html></iframe></noscript>"
+End Sub
+
+' ============================================
+' 每页底部内容
+' ============================================
+Sub Footer()
+	Call DBConnEnd()
+	Response.Write "</BODY></HTML>"
+End Sub
+
+' ============================================
+' 判断管理员是否登陆
+' ============================================
+Sub adminer()
+if session("username")="" and session("password")="" then
+response.write "<script>window.setTimeout(""location.href='login.htm'"",0);</script>"
+End If
+End Sub
+
+
+
+' ============================================
+' 判断是否直接输入地址访问本系统的后台管理页面
+' ============================================
+sub ComeUrl
+dim ComeUrl,cUrl
+ComeUrl=lcase(trim(request.ServerVariables("HTTP_REFERER")))
+if ComeUrl="" then
+	response.write "<br><p align=center><font color='red'>对不起，为了系统安全，不允许直接输入地址访问本系统的后台管理页面。</font></p>"
+	response.end
+else
+	cUrl=trim("http://" & Request.ServerVariables("SERVER_NAME"))
+	if mid(ComeUrl,len(cUrl)+1,1)=":" then
+		cUrl=cUrl & ":" & Request.ServerVariables("SERVER_PORT")
+	end if
+	cUrl=lcase(cUrl & request.ServerVariables("SCRIPT_NAME"))
+	if lcase(left(ComeUrl,instrrev(ComeUrl,"/")))<>lcase(left(cUrl,instrrev(cUrl,"/"))) then
+		response.write "<br><p align=center><font color='red'>对不起，为了系统安全，不允许从外部链接地址访问本系统的后台管理页面。</font></p>"
+		response.end
+	end if
+end if
+end sub
+
+
+
+' ============================================
+' 判断是否访问本系统的后台管理页面用户类型
+'是管理员用户，还是新闻添加用户
+' ============================================
+
+sub IfUserClass
+Dim uRs,uSql
+Set uRs=Server.CreateObject("ADODB.Recordset")
+uSql="Select username,userclass From admin Where username='"&session("username")&"'"
+uRs.Open uSql,oConn,1,1
+If Not uRs.Eof Then
+If uRs("userclass")=0 Then
+response.Write "<script language=javascript>alert('您不是管理员，没有此栏目管理权限！');history.go(-1);</script>"
+Response.End
+End If
+End If
+end sub
+
+
+'**************************************************
+'函数名：IsObjInstalled
+'作  用：检查组件是否已经安装
+'参  数：strClassString ----组件名
+'返回值：True  ----已经安装
+'       False ----没有安装
+'**************************************************
+Function IsObjInstalled(strClassString)
+	On Error Resume Next
+	IsObjInstalled = False
+	Err = 0
+	Dim xTestObj
+	Set xTestObj = Server.CreateObject(strClassString)
+	If 0 = Err Then IsObjInstalled = True
+	Set xTestObj = Nothing
+	Err = 0
+End Function
+
+
+
+
+
+
+
+'**************************************************
+'新闻无限分类
+'**************************************************
+sub NewsClass_Option(ShowType,CurrentID)
+	if ShowType=0 then
+	    response.write "<option value='0'"
+		if CurrentID=0 then response.write " selected"
+		response.write ">无（作为一级栏目）</option>"
+	end if
+	dim rsClass,sqlClass,strTemp,tmpDepth,i
+	dim arrShowLine(20)
+	for i=0 to ubound(arrShowLine)
+		arrShowLine(i)=False
+	next
+	sqlClass="Select * From NewsClass order by RootID,OrderID"'RootID根栏目ID,OrderID排序ID
+	set rsClass=oConn.execute(sqlClass)
+	if rsClass.bof and rsClass.eof then 
+		response.write "<option value=''>请先添加栏目</option>"
+	else
+		do while not rsClass.eof
+			tmpDepth=rsClass("Depth")'Depth栏目层数
+			if rsClass("NextID")>0 then'NextID同级的下一个栏目ID
+				arrShowLine(tmpDepth)=True
+			else
+				arrShowLine(tmpDepth)=False
+			end if
+			if ShowType=1 then
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+			elseif ShowType=2 then
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+			elseif ShowType=3 then
+				if rsClass("Child")>0 then
+					strTemp="<option value=''"
+				else
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+				end if
+			elseif ShowType=4 then
+				if rsClass("Child")>0 then'Child子栏目数
+					strTemp="<option value=''"
+				else
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+				end if
+			else
+				strTemp="<option value='" & rsClass("ClassID") & "'"
+			end if
+			if CurrentID>0 and rsClass("ClassID")=CurrentID then
+				 strTemp=strTemp & " selected"
+			end if
+			strTemp=strTemp & ">"
+			
+			if tmpDepth>0 then
+				for i=1 to tmpDepth
+					strTemp=strTemp & "&nbsp;&nbsp;"
+					if i=tmpDepth then
+						if rsClass("NextID")>0 then
+							strTemp=strTemp & "├&nbsp;"
+						else
+							strTemp=strTemp & "└&nbsp;"
+						end if
+					else
+						if arrShowLine(i)=True then
+							strTemp=strTemp & "│"
+						else
+							strTemp=strTemp & "&nbsp;"
+						end if
+					end if
+				next
+			end if
+			strTemp=strTemp & rsClass("ClassName")
+			strTemp=strTemp & "</option>"
+			response.write strTemp
+			rsClass.movenext
+		loop
+	end if
+	rsClass.close
+	set rsClass=nothing
+end sub
+
+
+Dim ZwMyCount
+ZwMyCount=""
+
+
+'**************************************************
+'软件下载无限分类
+'**************************************************
+sub SoftClass_Option(ShowType,CurrentID)
+	if ShowType=0 then
+	    response.write "<option value='0'"
+		if CurrentID=0 then response.write " selected"
+		response.write ">无（作为一级下载分类）</option>"
+	end if
+	dim rsClass,sqlClass,strTemp,tmpDepth,i
+	dim arrShowLine(20)
+	for i=0 to ubound(arrShowLine)
+		arrShowLine(i)=False
+	next
+	sqlClass="Select * From SoftClass order by RootID,OrderID"'RootID根栏目ID,OrderID排序ID
+	set rsClass=oConn.execute(sqlClass)
+	if rsClass.bof and rsClass.eof then 
+		response.write "<option value=''>请先添加栏目</option>"
+	else
+		do while not rsClass.eof
+			tmpDepth=rsClass("Depth")'Depth栏目层数
+			if rsClass("NextID")>0 then'NextID同级的下一个栏目ID
+				arrShowLine(tmpDepth)=True
+			else
+				arrShowLine(tmpDepth)=False
+			end if
+			if ShowType=1 then
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+			elseif ShowType=2 then
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+			elseif ShowType=3 then
+				if rsClass("Child")>0 then
+					strTemp="<option value=''"
+				else
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+				end if
+			elseif ShowType=4 then
+				if rsClass("Child")>0 then'Child子栏目数
+					strTemp="<option value=''"
+				else
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+				end if
+			else
+				strTemp="<option value='" & rsClass("ClassID") & "'"
+			end if
+			if CurrentID>0 and rsClass("ClassID")=CurrentID then
+				 strTemp=strTemp & " selected"
+			end if
+			strTemp=strTemp & ">"
+			
+			if tmpDepth>0 then
+				for i=1 to tmpDepth
+					strTemp=strTemp & "&nbsp;&nbsp;"
+					if i=tmpDepth then
+						if rsClass("NextID")>0 then
+							strTemp=strTemp & "├&nbsp;"
+						else
+							strTemp=strTemp & "└&nbsp;"
+						end if
+					else
+						if arrShowLine(i)=True then
+							strTemp=strTemp & "│"
+						else
+							strTemp=strTemp & "&nbsp;"
+						end if
+					end if
+				next
+			end if
+			strTemp=strTemp & rsClass("ClassName")
+			strTemp=strTemp & "</option>"
+			response.write strTemp
+			rsClass.movenext
+		loop
+	end if
+	rsClass.close
+	set rsClass=nothing
+end sub
+
+'**************************************************
+'函数名：ReplaceBadChar
+'作  用：过滤非法的SQL字符
+'参  数：strChar-----要过滤的字符
+'返回值：过滤后的字符
+'**************************************************
+function ReplaceBadChar(strChar)
+	if strChar="" then
+		ReplaceBadChar=""
+	else
+		ReplaceBadChar=replace(replace(replace(replace(replace(replace(replace(strChar,"'",""),"*",""),"?",""),"(",""),")",""),"<",""),".","")
+	end if
+end function
+
+
+
+
+'**************************************************
+'函数名：gotTopic
+'作  用：截字符串，汉字一个算两个字符，英文算一个字符
+'参  数：str   ----原字符串
+'       strlen ----截取长度
+'返回值：截取后的字符串
+'**************************************************
+function gotTopic(str,strlen)
+	if str="" then
+		gotTopic=""
+		exit function
+	end if
+	dim l,t,c, i
+	str=replace(replace(replace(replace(str,"&nbsp;"," "),"&quot;",chr(34)),"&gt;",">"),"&lt;","<")
+	l=len(str)
+	t=0
+	for i=1 to l
+		c=Abs(Asc(Mid(str,i,1)))
+		if c>255 then
+			t=t+2
+		else
+			t=t+1
+		end if
+		if t>=strlen then
+			gotTopic=left(str,i) & "..."
+			exit for
+		else
+			gotTopic=str
+		end if
+	next
+	gotTopic=replace(replace(replace(replace(gotTopic," ","&nbsp;"),chr(34),"&quot;"),">","&gt;"),"<","&lt;")
+end function
+
+
+
+
+'**************************************************
+'函数名：IsValidEmail
+'作  用：检查Email地址合法性
+'参  数：email ----要检查的Email地址
+'返回值：True  ----Email地址合法
+'       False ----Email地址不合法
+'**************************************************
+function IsValidEmail(email)
+	dim names, name, i, c
+	IsValidEmail = true
+	names = Split(email, "@")
+	if UBound(names) <> 1 then
+	   IsValidEmail = false
+	   exit function
+	end if
+	for each name in names
+		if Len(name) <= 0 then
+			IsValidEmail = false
+    		exit function
+		end if
+		for i = 1 to Len(name)
+		    c = Lcase(Mid(name, i, 1))
+			if InStr("abcdefghijklmnopqrstuvwxyz_-.", c) <= 0 and not IsNumeric(c) then
+		       IsValidEmail = false
+		       exit function
+		     end if
+	   next
+	   if Left(name, 1) = "." or Right(name, 1) = "." then
+    	  IsValidEmail = false
+	      exit function
+	   end if
+	next
+	if InStr(names(1), ".") <= 0 then
+		IsValidEmail = false
+	   exit function
+	end if
+	i = Len(names(1)) - InStrRev(names(1), ".")
+	if i <> 2 and i <> 3 then
+	   IsValidEmail = false
+	   exit function
+	end if
+	if InStr(email, "..") > 0 then
+	   IsValidEmail = false
+	end if
+end function
+
+
+
+'------------------检查某一目录是否存在-------------------
+Function CheckDir(FolderPath)
+	dim fso
+	folderpath=Server.MapPath(".")&"\"&folderpath
+	Set fso1 = Server.CreateObject("Scripting.FileSystemObject")
+	If fso.FolderExists(FolderPath) then
+	'存在
+		CheckDir = True
+	Else
+	'不存在
+		CheckDir = False
+	End if
+	Set fso = nothing
+End Function
+
+'-------------根据指定名称生成目录---------
+Function MakeNewsDir(foldername)
+	dim fso,f
+	Set fso = Server.CreateObject("Scripting.FileSystemObject")
+    Set f = fso.CreateFolder(foldername)
+    MakeNewsDir = True
+	Set fso = nothing
+End Function
+
+
+'**************************************************
+'函数名：SendMail
+'作  用：用Jmail组件发送邮件
+'参  数：MailtoAddress  ----收信人地址
+'        MailtoName    -----收信人姓名
+'        Subject       -----主题
+'        MailBody      -----信件内容
+'        FromName      -----发信人姓名
+'        MailFrom      -----发信人地址
+'        Priority      -----信件优先级
+'**************************************************
+function SendMail(MailtoAddress,MailtoName,Subject,MailBody,FromName,MailFrom,Priority)
+	on error resume next
+	Dim JMail
+	Set JMail=Server.CreateObject("JMail.Message")
+	if err then
+		SendMail= "<br><li>没有安装JMail组件</li>"
+		err.clear
+		exit function
+	end if
+	JMail.Charset="gb2312"          '邮件编码
+	JMail.silent=true
+	JMail.ContentType = "text/html"     '邮件正文格式
+	'JMail.ServerAddress=nt2003.Site_Setting(18)		'用来发送邮件的SMTP服务器
+   	'如果服务器需要SMTP身份验证则还需指定以下参数
+	JMail.MailServerUserName = nt2003.Site_Setting(19)	'登录用户名
+   	JMail.MailServerPassWord = nt2003.Site_Setting(20)	'登录密码
+  	JMail.MailDomain = nt2003.Site_Setting(21)		'域名（如果用“name@domain.com”这样的用户名登录时，请指明domain.com
+	JMail.AddRecipient MailtoAddress,MailtoName		'收信人
+	JMail.Subject=Subject         '主题
+	JMail.HMTLBody=MailBody       '邮件正文（HTML格式）
+	JMail.Body=MailBody          '邮件正文（纯文本格式）
+	JMail.FromName=FromName         '发信人姓名
+	JMail.From = MailFrom         '发信人Email
+	JMail.Priority=Priority              '邮件等级，1为加急，3为普通，5为低级
+	JMail.Send(nt2003.site_setting(18))
+	SendMail =JMail.ErrorMessage
+	JMail.Close
+	Set JMail=nothing
+end function
+
+
+
+'**************************************************
+'图片频道无限分类
+'**************************************************
+sub PictureClass_Option(ShowType,CurrentID)
+	if ShowType=0 then
+	    response.write "<option value='0'"
+		if CurrentID=0 then response.write " selected"
+		response.write ">无（作为一级图片分类）</option>"
+	end if
+	dim rsClass,sqlClass,strTemp,tmpDepth,i
+	dim arrShowLine(20)
+	for i=0 to ubound(arrShowLine)
+		arrShowLine(i)=False
+	next
+	sqlClass="Select * From PictureClass order by RootID,OrderID"'RootID根栏目ID,OrderID排序ID
+	set rsClass=oConn.execute(sqlClass)
+	if rsClass.bof and rsClass.eof then 
+		response.write "<option value=''>请先添加栏目</option>"
+	else
+		do while not rsClass.eof
+			tmpDepth=rsClass("Depth")'Depth栏目层数
+			if rsClass("NextID")>0 then'NextID同级的下一个栏目ID
+				arrShowLine(tmpDepth)=True
+			else
+				arrShowLine(tmpDepth)=False
+			end if
+			if ShowType=1 then
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+			elseif ShowType=2 then
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+			elseif ShowType=3 then
+				if rsClass("Child")>0 then
+					strTemp="<option value=''"
+				else
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+				end if
+			elseif ShowType=4 then
+				if rsClass("Child")>0 then'Child子栏目数
+					strTemp="<option value=''"
+				else
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+				end if
+			else
+				strTemp="<option value='" & rsClass("ClassID") & "'"
+			end if
+			if CurrentID>0 and rsClass("ClassID")=CurrentID then
+				 strTemp=strTemp & " selected"
+			end if
+			strTemp=strTemp & ">"
+			
+			if tmpDepth>0 then
+				for i=1 to tmpDepth
+					strTemp=strTemp & "&nbsp;&nbsp;"
+					if i=tmpDepth then
+						if rsClass("NextID")>0 then
+							strTemp=strTemp & "├&nbsp;"
+						else
+							strTemp=strTemp & "└&nbsp;"
+						end if
+					else
+						if arrShowLine(i)=True then
+							strTemp=strTemp & "│"
+						else
+							strTemp=strTemp & "&nbsp;"
+						end if
+					end if
+				next
+			end if
+			strTemp=strTemp & rsClass("ClassName")
+			strTemp=strTemp & "</option>"
+			response.write strTemp
+			rsClass.movenext
+		loop
+	end if
+	rsClass.close
+	set rsClass=nothing
+end sub
+
+%>
+
+
+<%
+'**************************************************
+'网站其它频道无限分类
+'**************************************************
+sub OtherChannel_Option(ShowType,CurrentID)
+	if ShowType=0 then
+	    response.write "<option value='0'"
+		if CurrentID=0 then response.write " selected"
+		response.write ">无（作为一级频道栏目分类）</option>"
+	end if
+	dim rsClass,sqlClass,strTemp,tmpDepth,i
+	dim arrShowLine(20)
+	for i=0 to ubound(arrShowLine)
+		arrShowLine(i)=False
+	next
+	sqlClass="Select * From OtherChannel order by RootID,OrderID"'RootID根栏目ID,OrderID排序ID
+	set rsClass=oConn.execute(sqlClass)
+	if rsClass.bof and rsClass.eof then 
+		response.write "<option value=''>请先添加栏目</option>"
+	else
+		do while not rsClass.eof
+			tmpDepth=rsClass("Depth")'Depth栏目层数
+			if rsClass("NextID")>0 then'NextID同级的下一个栏目ID
+				arrShowLine(tmpDepth)=True
+			else
+				arrShowLine(tmpDepth)=False
+			end if
+			if ShowType=1 then
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+			elseif ShowType=2 then
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+			elseif ShowType=3 then
+				if rsClass("Child")>0 then
+					strTemp="<option value=''"
+				else
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+				end if
+			elseif ShowType=4 then
+				if rsClass("Child")>0 then'Child子栏目数
+					strTemp="<option value=''"
+				else
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+				end if
+			else
+				strTemp="<option value='" & rsClass("ClassID") & "'"
+			end if
+			if CurrentID>0 and rsClass("ClassID")=CurrentID then
+				 strTemp=strTemp & " selected"
+			end if
+			strTemp=strTemp & ">"
+			
+			if tmpDepth>0 then
+				for i=1 to tmpDepth
+					strTemp=strTemp & "&nbsp;&nbsp;"
+					if i=tmpDepth then
+						if rsClass("NextID")>0 then
+							strTemp=strTemp & "├&nbsp;"
+						else
+							strTemp=strTemp & "└&nbsp;"
+						end if
+					else
+						if arrShowLine(i)=True then
+							strTemp=strTemp & "│"
+						else
+							strTemp=strTemp & "&nbsp;"
+						end if
+					end if
+				next
+			end if
+			strTemp=strTemp & rsClass("ClassName")
+			strTemp=strTemp & "</option>"
+			response.write strTemp
+			rsClass.movenext
+		loop
+	end if
+	rsClass.close
+	set rsClass=nothing
+end sub
+
+%>
+
+
+
+<%
+'**************************************************
+'酷站频道无限分类
+'**************************************************
+sub CoolSiteClass_Option(ShowType,CurrentID)
+	if ShowType=0 then
+	    response.write "<option value='0'"
+		if CurrentID=0 then response.write " selected"
+		response.write ">无（作为一级酷站分类）</option>"
+	end if
+	dim rsClass,sqlClass,strTemp,tmpDepth,i
+	dim arrShowLine(20)
+	for i=0 to ubound(arrShowLine)
+		arrShowLine(i)=False
+	next
+	sqlClass="Select * From CoolSiteClass order by RootID,OrderID"'RootID根栏目ID,OrderID排序ID
+	set rsClass=oConn.execute(sqlClass)
+	if rsClass.bof and rsClass.eof then 
+		response.write "<option value=''>请先添加栏目</option>"
+	else
+		do while not rsClass.eof
+			tmpDepth=rsClass("Depth")'Depth栏目层数
+			if rsClass("NextID")>0 then'NextID同级的下一个栏目ID
+				arrShowLine(tmpDepth)=True
+			else
+				arrShowLine(tmpDepth)=False
+			end if
+			if ShowType=1 then
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+			elseif ShowType=2 then
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+			elseif ShowType=3 then
+				if rsClass("Child")>0 then
+					strTemp="<option value=''"
+				else
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+				end if
+			elseif ShowType=4 then
+				if rsClass("Child")>0 then'Child子栏目数
+					strTemp="<option value=''"
+				else
+					strTemp="<option value='" & rsClass("ClassID") & "'"
+				end if
+			else
+				strTemp="<option value='" & rsClass("ClassID") & "'"
+			end if
+			if CurrentID>0 and rsClass("ClassID")=CurrentID then
+				 strTemp=strTemp & " selected"
+			end if
+			strTemp=strTemp & ">"
+			
+			if tmpDepth>0 then
+				for i=1 to tmpDepth
+					strTemp=strTemp & "&nbsp;&nbsp;"
+					if i=tmpDepth then
+						if rsClass("NextID")>0 then
+							strTemp=strTemp & "├&nbsp;"
+						else
+							strTemp=strTemp & "└&nbsp;"
+						end if
+					else
+						if arrShowLine(i)=True then
+							strTemp=strTemp & "│"
+						else
+							strTemp=strTemp & "&nbsp;"
+						end if
+					end if
+				next
+			end if
+			strTemp=strTemp & rsClass("ClassName")
+			strTemp=strTemp & "</option>"
+			response.write strTemp
+			rsClass.movenext
+		loop
+	end if
+	rsClass.close
+	set rsClass=nothing
+end sub
+
+%> 

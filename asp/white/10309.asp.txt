@@ -1,0 +1,113 @@
+<!--#include file="../../conn/conn.asp"-->
+<!--#include file="../../inc/Commoncode.asp"-->
+<!--#include file="../../inc/pay_md5.asp"-->
+<!--#include file="../../inc/base64.asp"-->
+<!--#include file="../paysub.asp"-->
+<%
+if Request.Cookies(FRHRCMS)("user_login")<>"" then
+	paytype=cint(request("paytype"))
+	money=request("v_amount")
+	''''''''''''''''''''''''''''''''''''网银账号处理
+	set rs=server.CreateObject("adodb.recordset")
+	query="select * from Job_pay_online where chk=1 and payflag="&paytype
+	rs.open query,conn,1,1
+	if not rs.eof then
+	ipayno=rs("shbh")
+    ipaykey=rs("pay_key")
+	end if
+	rs.close  
+	
+	v_mid=replace(strAnsi2Unicode(Base64decode(strUnicode2Ansi(ipayno))),chr(13)&chr(10),"<br>")
+    key=replace(strAnsi2Unicode(Base64decode(strUnicode2Ansi(ipaykey))),chr(13)&chr(10),"<br>")
+	
+	if payflag=2 then
+			curdate=now()
+			OrderNo=year(curdate)&month(curdate)&day(curdate)&"-"&v_mid&"-"&hour(curdate)&minute(curdate)&second(curdate)
+	else
+	'交易日期，格式：YYYYMMDD
+			yy=year(date)
+			mm=right("00"&month(date),2)
+			dd=right("00"&day(date),2)
+			
+			'生成订单号所有所需元素,格式为：小时，分钟，秒
+			xiaoshi=right("00"&hour(time),2)
+			fenzhong=right("00"&minute(time),2)
+			miao=right("00"&second(time),2)
+			OrderNo=yy & mm & dd & xiaoshi & fenzhong & miao
+	end if
+	select case paytype
+	case 1 
+		pay_type="支付宝支付"
+	case 2
+      	pay_type="网银支付"
+   	case 3
+      	pay_type="Ipay在线支付"
+   	case 4
+      	pay_type="NPS在线支付"
+   	case 5
+      	pay_type="PayPal国际支付"
+   	case else
+      response.write "系统错误"
+	end select
+	
+	pay_mid=v_mid
+	pay_amount=money
+	pay_pmode="" '用什么卡进行的支付
+	pay_oid=OrderNo	
+	sql="select * from JOB_member where member_login='"&Request.Cookies(FRHRCMS)("user_login")&"'"
+	rs.open sql,conn,1,1
+	if not rs.eof then
+	email=rs("member_email")
+	add=rs("member_address")
+	tel=rs("member_tel")
+	pay_address=add
+	pay_email=email
+	pay_tel=tel
+	pay_address=rs("member_address")
+	pay_email=rs("member_email")
+	pay_tel=rs("member_tel")
+	rs.close
+	pay_member=Request.Cookies(FRHRCMS)("user_login")
+	
+	sql="select * from JOB_pay_back"
+	rs.open sql,conn,1,3
+	rs.addnew	
+	rs("pay_mid")=pay_mid '账号
+	rs("pay_amount")=pay_amount
+	rs("pay_type")=pay_type
+	rs("pay_pmode")=pay_pmode
+	rs("pay_oid")=OrderNo
+	rs("pay_content")="账户充值"
+	rs("pay_member")=pay_member
+	rs("pay_class")=Request.Cookies(FRHRCMS)("user_type")
+	rs("pay_address")=pay_address
+	rs("pay_email")=pay_email
+	rs("pay_tel")=pay_tel	
+	rs("pay_date")=now()
+	rs("pay_userip")=request.servervariables("remote_addr")
+	rs("pay_isucceed")=0
+	rs("pay_pstring")=""
+    rs.update
+	rs.close
+	set rs=nothing
+   select case paytype
+   case 1
+      call pay_AliPay()
+   case 2
+      call pay_chinabank()
+   case 3
+      call pay_ipay()
+   case 4
+      call pay_nps()
+   case 5
+      call pay_paypal()
+   case else
+      response.write "系统错误"
+   end select
+	else
+	response.write "查无此用户信息，请与网站管理员联系"
+	end if
+else
+response.write "登陆时间过长 或 账户为无效账户，请与网站管理员联系"
+end if
+%>

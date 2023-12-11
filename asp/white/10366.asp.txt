@@ -1,0 +1,112 @@
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<!--#include file="checkcmember.asp" -->
+<%
+If FR_HR_Sql = True then Call SQLin()
+company_id=trim(request("comid"))
+TemplateID=Request.Form("Tempid")
+if TemplateID<>"" then
+	session("tempid")=TemplateID
+else
+	TemplateID=session("tempid")
+end if
+if TemplateID="" then
+	response.write "参数不足或参数错误！"
+	response.end
+end if
+If company_id="" Or IsNumeric(company_id)=False Then
+	response.write "参数不足或参数错误！"
+	response.end
+End If
+Response.Write(CreateHTMLReplace(ViewComContent(company_id,TemplateID)))
+Call CloseConn()
+
+'替换模版对应的标签内容
+Function ViewComContent(ComStr,TemplateID)
+	if not isNumeric(ComStr) then
+		exit Function
+	end if
+	'读取公司资料
+	set rs=conn.execute("select * from JOB_Member where Member_id="&ComStr&" and Member_name is not null")
+	if not (rs.eof and rs.bof) then
+		Member_id=rs("Member_id")
+		Member_name=rs("Member_name")
+		Member_regdate=rs("Member_regdate")
+		Member_groupid=rs("Member_groupid")
+		Member_logo=rs("Member_logo")
+		if Member_logo<>"" and not isnull(Member_logo) then
+		Member_logo=InstallDir&FR_UPFILES_DIR&"/Company/"&Member_logo&""
+		else
+		Member_logo=InstallDir&FR_UPFILES_DIR&"/Company/nologo.gif"
+		end if
+		Member_logo="<img src="&Member_logo&" width=180 height=60 style='padding:1px;border:1px #CCCCCC Solid' />"
+		Member_provinceid=rs("Member_provinceid")
+		Member_capitalid=rs("Member_capitalid")
+		Member_cityid=rs("Member_cityid")
+		Member_trade=rs("Member_trade")
+		Member_ecoclass=rs("Member_ecoclass")
+		Member_fund=rs("Member_fund")
+		if rs("Member_workers")<>"" then
+		Member_workers=rs("Member_workers")
+		else
+		Member_workers="　"
+		end if
+		if rs("Member_founddate")<>"" then
+		Member_founddate=rs("Member_founddate")
+		else
+		Member_founddate="　"
+		end if
+		Member_introduce=rs("Member_introduce")
+		if Member_introduce<>"" then
+		Member_introduce=Member_introduce
+		else
+		Member_introduce="暂无公司简介！"
+		end if
+		set rs=nothing
+		set rs=conn.execute("select ChannelName,UseCreateHTML from JOB_Channel where ChannelID=2")
+		ChannelName=rs("ChannelName")
+		UseCreateHTML=rs("UseCreateHTML")
+		set rs=nothing
+		'读取模版内容
+		'读取企业定制的模版方案内容
+		html=LoadTemplate(9998,1,TemplateID)
+		html=Replace(html,"{$FR_公司编号}",Member_id)
+		html=Replace(html,"{$FR_公司标志}",Member_logo)
+		html=Replace(html,"{$FR_公司名称}",Member_name)
+		html=Replace(html,"{$FR_会员级别}",Membergroup(Member_groupid))
+		html=Replace(html,"{$FR_所属行业}",Membertrade(Member_trade))
+		html=Replace(html,"{$FR_所在地区}",Hireworkadds(Member_provinceid&"*"&Member_capitalid&"*"&Member_cityid))
+		html=Replace(html,"{$FR_公司性质}",Memberecoclass(Member_ecoclass))
+		html=Replace(html,"{$FR_成立日期}",Member_founddate)
+		html=Replace(html,"{$FR_注册资金}",Member_fund&"万元人民币")
+		html=Replace(html,"{$FR_公司规模}",Member_workers)
+		html=Replace(html,"{$FR_公司简介}",Member_introduce)
+		html=Replace(html,"{$FR_招聘职位}",HireList(ComStr))
+		html=Replace(html,"{$FR_公司联系方式}","<span id='contact'></span>")
+		html=Replace(html,"{$FR_企业职位列表}",""&GetComHireList(Member_id)&"")
+		html=ReplaceLableFlag(ReplaceAllLabel(html))
+		ViewComContent=html
+	end if
+End Function
+
+
+'读取企业招聘职位
+Function GetComHireList(Cid)
+	Dim HireRS,HireSql
+	Set HireRS = Server.CreateObject(FR_HR_RS)
+	html=""
+	HireSql = "Select hire_id,hire_place,hire_number from JOB_C_hire where company_id="&Cid&" and datediff("&FR_HR_d&",hire_enddate,"&FR_HR_Now&")<=0 and hire_status=1 order by hire_id desc"
+		HireRS.open HireSql,conn,1,1
+		IF Not HireRS.EOF Then
+		Do While Not HireRS.EOF
+		html=html&"<li class='hire_list'><a href='viewhire.asp?hireid="&HireRS("hire_id")&"'>"&HireRS("hire_place")&"("&Hirenumber(HireRS("hire_number"))&"人)</a></li>"& vbCrLf
+		HireRS.MoveNext
+		Loop
+		Else
+		html=html&"<li>尚未发布职位信息!</li>"& vbCrLf
+		End If
+	HireRS.Close:Set HireRS=Nothing
+GetComHireList=html
+End Function
+%>

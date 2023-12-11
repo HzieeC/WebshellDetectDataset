@@ -1,0 +1,176 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@page import="org.apache.commons.lang.StringUtils"%>
+<%@page import="org.apache.commons.io.FileSystemUtils"%>	
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<%
+String rootPath = application.getRealPath("/");
+	String freeSpaceInfo = "-";
+	long freeSpace;
+	try {
+		freeSpace = FileSystemUtils.freeSpaceKb(rootPath);
+	} catch (Exception e) {
+		freeSpace = 0;
+	}
+	if (freeSpace != 0) {
+		if (freeSpace < 1024) {
+			freeSpaceInfo = "<span class=\"red\">" + freeSpace + "KB</span>";
+		} else if (freeSpace <= 1024 && freeSpace < 51200) {
+			freeSpaceInfo = "<span class=\"red\">" + (freeSpace / 1024) + "MB</span>";
+		} else if (freeSpace >= 51200 && freeSpace < 1048576) {
+			freeSpaceInfo = "<span class=\"green\">" + (freeSpace / 1024) + "MB</span>";
+		} else if (freeSpace >= 1024 * 1024) {
+			freeSpaceInfo = "<span class=\"green\">" + (freeSpace / 1048576) + "GB</span>";
+		}
+	}
+	
+	String maxMemoryInfo = "-";
+	double maxMemory;
+	try {
+		maxMemory = Runtime.getRuntime().maxMemory() / 1024 / 1024;
+	} catch (Exception e) {
+		maxMemory = 0;
+	}
+	if (maxMemory != 0) {
+		if (maxMemory > 128) {
+			maxMemoryInfo = "<span class=\"green\">" + maxMemory + "MB</span>";
+		} else {
+			maxMemoryInfo = "<span class=\"red\">" + maxMemory + "MB</span>";
+		}
+	}	
+	
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title></title>
+	<link href="${contextPath}/js/plugins/dtree/dtree.css" rel="stylesheet"
+		type="text/css" media="all">
+		<%-- <script src="${contextPath}/js/plugins/jquery/jquery.js"></script> --%>
+		<script src="${contextPath}/static/jqtrans/jquery.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+		
+		
+</head>
+<body>
+	<input type="hidden" value="${contextPath}" id="contextPath" />
+	<div class="userInfo" id="searchCon">
+		<form:form id="settingInfo" name="settingInfo" >
+			<div class="title"><fmt:message key="jssystemParam"/></div>
+			<table class="yTable margintop">
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="system.name"/></th>
+					<td align="left"><input name="systemName" id="systemName" type="text"
+						class="inputbox" size="30" value="${setting.systemName }"/><span></span></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="school.company.name"/></th>
+					<td align="left"><input name="companyName" id="companyName" type="text"
+						class="inputbox" size="30" value="${setting.companyName }"/><span></span></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="system.site"/></th>
+					<td align="left"><input name="url" id="url" type="text"
+						class="inputbox" size="30"value="${setting.url }"/><span></span></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="isregister"/></th>
+					<td align="left"><input name="register" id="shutDown" type="radio" checked="checked"
+						class="inputbox" size="30"/><label><fmt:message key="open"/></label><input name="register" id="shutDown" type="radio"
+						class="inputbox" size="30"/><label><fmt:message key="close"/></label></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="default.role"/></th>
+					<td align="left"><input name="defaultRegisterRole1" id="defaultRegisterRole1" type="text"
+						class="inputbox" size="20" value="${setting.defaultRegisterRole }"/>
+						<input id="defaultRegisterRole" name="defaultRegisterRole" type="hidden" value="26">
+						<span></span></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="logo"/></th>
+					<td align="left"><input name="name" id="name" type="file"
+						class="inputbox" size="30"/><span>最佳效果：145×40</span></td>
+				</tr>
+<tr>
+					<th align="right" width="120"><span></span><fmt:message key="Enablesinglesignon"/></th>
+					<td align="left"><input name="singleLogin" id="shutDown" type="radio" checked="checked"
+						class="inputbox" size="30"/><label><fmt:message key="open"/></label><input name="singleLogin" id="shutDown" type="radio"
+						class="inputbox" size="30"/><label><fmt:message key="close"/></label></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="Anticheating"/></th>
+					<td align="left"><input name="cheat" id="shutDown" type="radio" checked="checked"
+						class="inputbox" size="30"/><label><fmt:message key="open"/></label><input name="cheat" id="shutDown" type="radio"
+						class="inputbox" size="30"/><label><fmt:message key="close"/></label></td>
+				</tr>
+				
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="closesystem"/></th>
+					<td align="left"><input name="open" id="open" type="radio" checked="checked"
+						class="inputbox" size="30"/><label><fmt:message key="open"/></label><input name="open" id="close" type="radio"
+						class="inputbox" size="30"/><label><fmt:message key="close"/></label></td>
+				</tr>
+				<tr style="display:none" id="closeReason">
+					<th align="right" width="120"><span></span>关闭原因</th>
+					<td align="left"><textarea></textarea></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="os"/></th>
+					<td align="left"><%=System.getProperty("os.name")%> (<%=System.getProperty("os.arch")%>)<span></span></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="JDK"/></th>
+					<td align="left"><%=System.getProperty("java.version")%><span></span></td>
+				</tr><tr>
+					<th align="right" width="120"><span></span><fmt:message key="WEBserver"/></th>
+					<td align="left"><%=application.getServerInfo()%><span></span></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="database"/></th>
+					<td align="left">MySQL 5.0<span></span></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="diskspace"/></th>
+					<td align="left"><%=freeSpaceInfo%><span></span></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="memorysize"/></th>
+					<td align="left"><%=maxMemoryInfo%><span></span></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="encoding"/></th>
+					<td align="left">UTF-8<span></span></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span></span><fmt:message key="vision"/></th>
+					<td align="left">${setting.vesion }<span></span></td>
+				</tr>
+			</table>
+
+
+			<div class="Btn">
+				<a href="#" class="bb" id="saveRole">
+				
+						<input  id="save" type="button" value="<fmt:message key="save"/>"/>
+					
+				</a> 
+			</div>
+		</form:form>
+	</div>
+	<script type="text/javascript">
+		seajs.use("${scriptBasePath}/system/index.js");
+	</script>
+</body>
+</html>

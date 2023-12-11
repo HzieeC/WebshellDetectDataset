@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<script src="${contextPath}/static/jqtrans/jquery.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+<title></title>
+</head>
+<body>
+<div id="joinExamHidden" style="display:none"></div>
+<div class="userInfo">
+	<h1><fmt:message key="openSMSfunction"/></h1>
+
+	<div class="Btn">
+		<div id="radio">
+    <input type="radio" id="radio1" name="radio"  /><label for="radio1"><fmt:message key="openSMS"/></label>
+    <input type="radio" id="radio2" name="radio" checked="checked"/><label for="radio2"><fmt:message key="closeSMS"/></label>
+  </div>
+	</div>
+	
+<form id="smsSetting" >
+<div style="display:none" id="sms">
+		<table class="yTable1 margintop"width="50% !important">
+				<tr >
+					<th >host:</th>
+					<td><input name="name" id="name" type="text" class="inputbox" noadd="yes" value="211.136.163.68"/></td>
+					<th>port:</th>
+					<td><input name="name" id="name" type="text" class="inputbox" noadd="yes" value="9981" size="10"/></td>
+					
+				</tr>
+				<tr >
+					<th >accountId:</th>
+					<td><input name="name" id="name" type="text" class="inputbox" noadd="yes" value="10657109093530"/></td>
+					<th>serviceId:</th>
+					<td><input name="name" id="name" type="text" class="inputbox" noadd="yes" value="dell!1237" size="10"/></td>
+					<th>password:</th>
+					<td><input name="name" id="name" type="text" class="inputbox" noadd="yes" value="555580001" size="10"/></td>
+				</tr>
+			
+		</table>
+		<div class="row"><a href="http://211.136.163.68/" target="_blank">账号申请点击这里？</a></div>
+		</div>
+			<div class="sp-blue mb10">&nbsp;</div>
+		<div class="Btn">
+		<input type="button"  value="<fmt:message key="save"/>" id="save"/>
+		</div>
+</form></div>
+
+<script type="text/javascript">
+  seajs.use("${scriptBasePath}/sms/index.js");
+</script>
+</body>
+</html>

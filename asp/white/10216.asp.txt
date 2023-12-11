@@ -1,0 +1,963 @@
+<!--#include file="../../conn/conn.asp"-->
+<!--#include file="../../inc/Commoncode.asp"-->
+<!--#include file="../checkvalid.asp"-->
+<%
+If Not FRAdminLevel(301) Then
+	Call ErrorMsg()
+End If
+action=request.QueryString("action")
+eid=request.QueryString("eid")
+if request.Form("submit1")<>"" then
+ChannelName=request.Form("ChannelName")
+ReadMe=request.Form("ReadMe")
+ChannelType=request.Form("ChannelType")
+ModuleType=request.Form("ModuleType")
+ChannelDir=trim(request.Form("ChannelDir"))
+ChannelShortName=request.Form("ChannelShortName")
+ChannelItemUnit=request.Form("ChannelItemUnit")
+Meta_Keywords=request.Form("Meta_Keywords")
+Meta_Description=request.Form("Meta_Description")
+LinkUrl=request.Form("LinkUrl")
+OpenType=request.Form("OpenType")
+Disabled=request.Form("Disabled")
+if action="edit" and eid<>"" then
+	sql="select * from JOB_Channel where ChannelID<>"&eid&" and ChannelName='"&ChannelName&"'"'如果是修改则不用判断目录是否存在！
+else
+	if ChannelType=2 then
+		sql="select * from JOB_Channel where ChannelName='"&ChannelName&"'"'如果添加外部频道只检查频道名称是否存在
+	else
+		sql="select * from JOB_Channel where ChannelName='"&ChannelName&"' or ChannelDir='"&ChannelDir&"'"'添加前判断频道名字和频道目录是否存在！
+	end if
+end if
+
+set rsc=conn.execute(sql)
+if not rsc.eof then
+	if ChannelType=2 then
+	response.write "<script language=javascript>alert('对不起该频道已经存在！');location.href='admin_addchannel.asp';</script>"
+	else
+	response.write "<script language=javascript>alert('对不起该频道或目录已经存在！');location.href='admin_addchannel.asp';</script>"
+	end if
+else
+sqlo="select max(OrderID) as m from JOB_Channel"
+set rso=conn.execute(sqlo)
+	max=rso("m")
+rso.close
+set rso=nothing
+rsc.close
+set rsc=nothing
+set rs=server.CreateObject("adodb.recordset")
+	if action="edit" and eid<>"" then
+	sql="select * from JOB_Channel where ChannelID="&eid
+	else
+	sql="select * from JOB_Channel"
+	end if
+rs.open sql,conn,1,3
+if action<>"edit" then
+rs.addnew
+end if
+if action<>"edit" then
+	if ChannelType<>2 then
+		if checkstr(ChannelDir) then
+		rs("ChannelDir")=ChannelDir
+		'**************************生成文件*********************************
+		
+		Set fso = CreateObject("Scripting.FileSystemObject")
+			if fso.FolderExists(server.MapPath(InstallDir&ChannelDir)) Then    '判断文件夹是否存在
+			response.write "<font color=red>系统错误提示：</font>系统目录已经存在！<a href='admin_addchannel.asp'>返回</a>"
+			response.End()
+			else
+			fso.CreateFolder (server.MapPath(InstallDir&ChannelDir))
+			end if
+		
+		'********************************************************************
+		else
+		response.write "<font color=red>系统错误提示：</font>对不起频道目录必须只是英文！<a href='admin_addchannel.asp'>返回</a>"
+		response.End()
+		end if
+	end if
+end if
+
+rs("ChannelName")=ChannelName
+rs("ReadMe")=ReadMe
+rs("ChannelType")=ChannelType
+if ChannelType=2 then
+rs("LinkUrl")=LinkUrl
+else
+	if action<>"edit" then
+	rs("ModuleType")=ModuleType
+	end if
+rs("ChannelShortName")=ChannelShortName
+rs("ChannelItemUnit")=ChannelItemUnit
+rs("Meta_Keywords")=Meta_Keywords
+rs("Meta_Description")=Meta_Description
+end if
+if action<>"edit" then
+rs("OrderID")=max+1
+end if
+rs("OpenType")=OpenType
+rs("Disabled")=Disabled
+'************更新参数start**************
+if action="edit" and (ChannelType=0 or ChannelType=1) then
+
+
+	rs("UseCreateHTML")=request("UseCreateHTML")
+	rs("AutoCreateType")=request("AutoCreateType")
+	rs("ListFileType")=request("ListFileType")
+	rs("StructureType")=request("StructureType")
+	rs("FileNameType")=request("FileNameType")
+	rs("FileExt_Index")=request("FileExt_Index")
+	rs("FileExt_List")=request("FileExt_List")
+	rs("FileExt_Item")=request("FileExt_Item")
+	rs("MaxPerPage_Index")=request("MaxPerPage_Index")
+	rs("MaxPerPage_SearchResult")=request("MaxPerPage_SearchResult")
+	rs("MaxPerPage_New")=request("MaxPerPage_New")
+	rs("MaxPerPage_Hot")=request("MaxPerPage_Hot")
+	rs("MaxPerPage_Elite")=request("MaxPerPage_Elite")
+
+
+end if
+'************更新参数end**************
+
+rs.update
+rs.close
+set rs=nothing
+
+if ChannelType<>2 and action<>"edit" then
+
+set rsc=conn.execute("select max(ChannelID) as m from JOB_Channel")
+m=rsc("m")
+rsc.close
+set rsc=nothing
+
+'********************************复制文件************************************
+Set FSO=Server.CreateObject(FR_HR_fso)
+If  Err Then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>您的服务器不支持写文件,文件创建失败！</li>"
+end If
+'创建首页
+set hndFile = fso.OpenTextFile(server.MapPath(InstallDir&"Article/index.asp"))
+LoadFile = hndFile.ReadAll
+Set hndFile = Nothing
+Fso.CreateTextFile(Server.MapPath(InstallDir&ChannelDir&"/index.asp")).WriteLine(replace(LoadFile,"Cid=10","Cid="&m&""))
+'创建列表页
+set hndFile = fso.OpenTextFile(server.MapPath(InstallDir&"Article/List.asp"))
+LoadFile = hndFile.ReadAll
+Set hndFile = Nothing
+Fso.CreateTextFile(Server.MapPath(InstallDir&ChannelDir&"/List.asp")).WriteLine(replace(LoadFile,"Cid=10","Cid="&m&""))
+'创建内容页
+set hndFile = fso.OpenTextFile(server.MapPath(InstallDir&"Article/Article.asp"))
+LoadFile = hndFile.ReadAll
+Set hndFile = Nothing
+Fso.CreateTextFile(Server.MapPath(InstallDir&ChannelDir&"/Article.asp")).WriteLine(replace(LoadFile,"Cid=10","Cid="&m&""))
+If  Err Then
+FoundErr=True
+ErrMsg=ErrMsg & "<br><li>您的服务器不支持写文件,频道文件创建失败！</li>"
+End If
+Set FSO=Nothing  
+
+'*******************************复制模板*************************************
+sql="select * from JOB_Template where ChannelID=10"
+set rsf=conn.execute(sql)
+do while not rsf.eof
+	set rsa=server.CreateObject("adodb.recordset")
+	sql="select * from JOB_Template "
+	rsa.open sql,conn,1,3
+	rsa.addnew
+		rsa("ChannelID")=m
+		rsa("TemplateName")=rsf("TemplateName")
+		rsa("TemplateContent")=rsf("TemplateContent")
+		rsa("IsDefault")=rsf("IsDefault")
+		rsa("ProjectName")=rsf("ProjectName")
+		rsa("IsDefaultInProject")=rsf("IsDefaultInProject")
+		rsa("Deleted")=rsf("Deleted")
+		rsa("typeid")=rsf("typeid")
+	rsa.update
+	rsa.close
+rsf.movenext
+loop
+rsf.close
+set rsf=nothing
+
+'********************************************************************
+end if
+response.write "<script language=javascript>alert('操作成功！');location.href='admin_channel.asp';</script>"
+
+end if
+end if
+
+
+if action="edit" and eid<>"" then
+
+sql="select * from JOB_Channel where ChannelID="&eid
+set rse=conn.execute(sql)
+if not rse.eof then
+	ChannelName_e=rse("ChannelName")
+	ReadMe_e=rse("ReadMe")
+	ChannelType_e=rse("ChannelType")
+	OpenType_e=rse("OpenType")
+	Disabled_e=rse("Disabled")
+
+	if ChannelType_e=2 then
+	LinkUrl_e=rse("LinkUrl")
+	else
+	ModuleType_e=rse("ModuleType")
+	ChannelDir_e=rse("ChannelDir")
+	ChannelShortName_e=rse("ChannelShortName")
+	ChannelItemUnit_e=rse("ChannelItemUnit")
+	Meta_Keywords_e=rse("Meta_Keywords")
+	Meta_Description_e=rse("Meta_Description")
+	UseCreateHTML_e=rse("UseCreateHTML")
+	AutoCreateType_e=rse("AutoCreateType")
+	ListFileType_e=rse("ListFileType")
+	StructureType_e=rse("StructureType")
+	FileNameType_e=rse("FileNameType")
+	FileExt_Index_e=rse("FileExt_Index")
+	FileExt_List_e=rse("FileExt_List")
+	FileExt_Item_e=rse("FileExt_Item")
+	MaxPerPage_Index_e=rse("MaxPerPage_Index")
+	MaxPerPage_SearchResult_e=rse("MaxPerPage_SearchResult")
+	MaxPerPage_New_e=rse("MaxPerPage_New")
+	MaxPerPage_Hot_e=rse("MaxPerPage_Hot")
+	MaxPerPage_Elite_e=rse("MaxPerPage_Elite")
+	end if
+end if
+rse.close
+set rse=nothing
+end if
+
+%>
+<html>
+<head>
+<title>频道添加</title>
+<meta http-equiv=content-type content="text/html; charset=gb2312">
+<link href="../css/style.css" rel=stylesheet type=text/css> 
+<script language="javascript">
+function show(a){
+		if (a==0)
+		{
+			div2.style.display="none"
+			div1.style.display="none"
+			ff.innerHTML="<font color=red>*</font>"
+		}else
+		{
+			div2.style.display=""
+			div1.style.display=""
+			ff.innerHTML=""
+		}
+}
+function check(){
+	if(form1.ChannelName.value=="")
+	{
+		alert("对不起频道名称不能为空！");
+		return false;
+	}
+	if(form1.ChannelType[0].checked){
+		
+		if(form1.LinkUrl.value==""){
+			alert("外部连接地址不能为空！");
+			return false;
+		}
+	}else{
+		if(form1.ChannelDir.value==""){
+			alert("频道目录不能为空！");
+			return false;
+			}
+		if(form1.ChannelShortName.value==""){
+			alert("项目名称不能为空！");
+			return false;	
+			}
+		if(form1.ChannelItemUnit.value==""){
+			alert("项目单位不能为空！");
+			return false;	
+			}
+		  }
+	return true;
+}
+</script></head>
+<body>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <tr>
+    <th height=25 class="tableHeaderText">频道管理 </th>
+  </tr>
+  <tr>
+    <td height="22" class="bodytitle"><font color="ff6600"><b class="style1">　频道管理</b></font>：　<A href="Admin_Channel.asp">频道管理首页</A>　|　<a href="Admin_addChannel.asp">添加频道</a>　|　<a href="admin_orderchannel.asp">频道排序</a></td>
+  </tr>
+</table>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <form name="form1" method="post" action="?action=<%=action%>&eid=<%=eid%>" onSubmit="return check();"><tr>
+    <th height=25 colspan="2" class="tableHeaderText">频道添加</th>
+  </tr>
+  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'"> 
+    <td width="26%"><font color="ff6600"><b class="style1">频道名称:</b></font></td>
+    <td width="74%">
+      <label>
+        <input name="ChannelName" type="text" id="ChannelName" value="<%=ChannelName_e%>">
+        </label>    
+      <font color=red>*</font></td>
+  </tr>
+  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'">
+    <td><font color="ff6600"><b class="style1">频道说明:</b></font><br>
+	鼠标移至频道名称上时将显示设定的说明文字（不支持HTML）	</td>
+    <td><label>
+      <textarea name="ReadMe" cols="30" rows="3" id="ReadMe"><%=ReadMe_e%></textarea>
+    </label></td>
+  </tr>
+  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'">
+    <td>&nbsp;</td>
+    <td><label>
+	<%
+		if action="edit" and ChannelType_e=2 then
+	%>
+      <input name="ChannelType" type="radio" class="checkbox" onClick="show(0)" value="2" checked>
+	 <%
+	 else
+	 if action <>"edit" then
+	 %>
+      <input name="ChannelType" type="radio" class="checkbox" onClick="show(0)" value="2" checked>
+	  <% else %>
+      <input name="ChannelType" type="radio" disabled="disabled" class="checkbox" onClick="show(0)" value="2">
+	 <% end if %>
+	 <% end if %>
+      <font color="ff6600"><b class="style1">外部频道</b></font></label>　
+            外部频道指链接到本系统以外的地址中。当此频道准备链接到网站中的其他系统时，请使用这种方式。
+            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+              <tr>
+                <td width="34%" height="45" align="right">外部频道的链接地址：</td>
+                <td width="35%"><label>
+				<%
+						if action="edit" and ChannelType_e=2 then
+				%>
+
+                  <input name="LinkUrl" type="text" id="LinkUrl" value="<%=LinkUrl_e%>" size="40">
+				  	 <%
+	 				else
+					 if action ="edit" then
+					 %>
+	 	  			<% else %>
+                  <input name="LinkUrl" type="text" id="LinkUrl" value="<%=LinkUrl_e%>" size="40">
+				<% end if %>
+	 			<% end if %>
+
+
+
+                </label>
+                  
+                  <label>                  </label></td>
+                <td width="31%">
+				<div id="ff" >
+				<%
+				if action="edit" and ChannelType_e=2 then
+				%>
+
+				<font color=red>*</font>
+				<% end if %>
+				<%
+				if action<>"edit" then
+				%>
+
+				<font color=red>*</font>
+				<% end if %>
+				</div>				</td>
+              </tr>
+      </table></td>
+  </tr>
+  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'">
+    <td>&nbsp;</td>
+    <td>
+	<%if action="edit" then
+		select case ChannelType_e
+			case 0%>
+			<input name="ChannelType" type="radio" class="checkbox" onClick="show(1)" value="0" checked>
+			<font color="ff6600"><b class="style1">系统频道　</b></font>系统内部频道指的是在本系统现有功能模块（新闻、文章、图片等）频道。
+	        <%case 1%>
+			<input name="ChannelType" type="radio" class="checkbox" onClick="show(1)" value="1" checked>
+		<%end select
+	else%>
+	<input name="ChannelType" type="radio" class="checkbox" onClick="show(1)" value="1">
+      <font color="ff6600"><b class="style1">内部频道　</b></font>系统内部频道指的是在本系统现有功能模块（新闻、文章、图片等）基础上添加新的频道，新频道具备和所使用功能模块完全相同的功能。例如，添加一个名为“网络学院”的新频道，新频道使用“文章”模块的功能，则新添加的“网络学院”频道具有原文章频道的所有功能。
+    此功能需要服务器支持FSO才可用。
+	<%end if%>
+	<div id="div2" style="display:
+	<%if action="edit" and (ChannelType_e=0 or ChannelType_e=1) then
+			response.write ""
+		else
+			response.write "none"
+		end if%>">
+      <table width="100%" border="0" align="center" cellpadding="2" cellspacing="1">
+        <tr>
+          <td width="37%" height="30"><STRONG><font color="ff6600"><b class="style1">频道使用的功能模块：</b></font></STRONG></td>
+          <td width="63%"><label>
+		  <%if action="edit" and (ChannelType_e=0 or ChannelType_e=1) then%>
+            <select name="ModuleType" id="ModuleType" disabled="disabled">
+              <option value="1" <%if ModuleType_e=1 then Response.Write"selected"%>>求职</option>
+			  <option value="2" <%if ModuleType_e=2 then Response.Write"selected"%>>招聘</option>
+			  <option value="3" <%if ModuleType_e=3 then Response.Write"selected"%>>院校</option>
+			  <option value="4" <%if ModuleType_e=4 then Response.Write"selected"%>>猎头</option>
+			  <option value="5" <%if ModuleType_e=5 then Response.Write"selected"%>>培训</option>
+			  <option value="6" <%if ModuleType_e=6 then Response.Write"selected"%>>留言</option>
+			  <option value="7" <%if ModuleType_e=7 then Response.Write"selected"%>>测评</option>
+			  <option value="8" <%if ModuleType_e=8 then Response.Write"selected"%>>派遣</option>
+			  <option value="9" <%if ModuleType_e=9 then Response.Write"selected"%>>下载</option>
+			  <option value="10" <%if ModuleType_e=10 then Response.Write"selected"%>>文章</option>
+			  <option value="11" <%if ModuleType_e=11 then Response.Write"selected"%>>论坛</option>
+			  <option value="12" <%if ModuleType_e=12 then Response.Write"selected"%>>视频招聘</option>
+			  <option value="13" <%if ModuleType_e=13 then Response.Write"selected"%>>视频简历</option>
+			  <option value="14" <%if ModuleType_e=14 then Response.Write"selected"%>>帮助</option>
+			  <option value="15" <%if ModuleType_e=15 then Response.Write"selected"%>>分站</option>
+            </select>
+			<% else %>
+            <select name="ModuleType" id="ModuleType">
+              <option value="10">文章</option>
+            </select>
+			<% end if %>
+			<font color=red>*</font></label></td>
+        </tr>
+        <tr>
+          <td><STRONG><font color="ff6600"><b class="style1">频道目录：</b></font></STRONG>（频道英文名）<font color="#FF0000">只能是英文，不能带空格或“\”、“/”等符号。</font><BR>
+            样例：News或Article或Soft</td>
+          <td><label>
+		 <%
+		  if action="edit" and (ChannelType_e=0 or ChannelType_e=1) then
+		  %>
+
+            <input name="ChannelDir" type="text" id="ChannelDir" size="20" disabled="disabled" value="<%=ChannelDir_e%>">
+			<% else %>
+			<input name="ChannelDir" type="text" id="ChannelDir" size="20">
+			<% end if %>
+          </label>
+            <font color="#FF0000">注：请慎重填写，一但填写不得修改．</font></td>
+        </tr>
+        <tr>
+          <td><STRONG><font color="ff6600"><b class="style1">项目名称：</b></font></STRONG><BR>
+            例如：频道名称为“网络学院”，其项目名称为“文章”或“教程”</td>
+          <td><input name="ChannelShortName" type="text" id="ChannelShortName" value="<%=ChannelShortName_e%>" size="20">
+            <font color=red>*</font></td>
+        </tr>
+        <tr>
+          <td><STRONG><font color="ff6600"><b class="style1">项目单位：</b></font></STRONG><BR>
+            例如：“篇”、“条”、“个”</td>
+          <td><input name="ChannelItemUnit" type="text" id="ChannelItemUnit" value="<%=ChannelShortName_e%>" size="10">
+            <font color=red>*</font></td>
+        </tr>
+      </table>
+	  </div>	  </td>
+  </tr>
+<tr>
+<td height="1" colspan="2" bgcolor="#EFEFEF">
+<div id="div1" style="display:
+	<%
+		if action="edit" and (ChannelType_e=0 or ChannelType_e=1) then
+			response.write ""
+		else
+			response.write "none"
+		end if	
+	%>">
+<table width="100%" border="0" cellspacing="1" cellpadding="2">
+  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'">
+    <td width="26%"><font color="ff6600"><b class="style1">频道META关键词：</b></font><BR>
+      针对搜索引擎设置的关键词<BR>
+      例如：在文本框填写<BR>
+      “网站,门户,新闻,快讯”<BR>
+      多个关键词请用,号分隔</td>
+    <td width="74%"><label>
+      <textarea name="Meta_Keywords" cols="70" rows="5" id="Meta_Keywords"><%=Meta_Keywords_e%></textarea>
+    </label></td>
+  </tr>
+    <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'">
+    <td><font color="ff6600"><b class="style1">频道META网页描述：</b></font><BR>
+      针对搜索引擎设置的网页描述<BR>
+      例如：在文本框填写<BR>
+      “网站,门户,新闻,快讯”<BR>
+      多个描述请用,号分隔</td>
+    <td><label>
+    <textarea name="Meta_Description" cols="70" rows="5" id="Meta_Description"><%=Meta_Description_e%></textarea>
+    </label></td>
+  </tr>
+</table>
+</div></td>
+</tr>
+  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'">
+    <td><STRONG><font color="ff6600"><b class="style1">打开方式：</b></font></STRONG></td>
+    <td><label>
+    <input name="OpenType" type="radio" class="checkbox" value="0" 
+	<%
+		if action ="edit" and OpenType_e=0 then
+		response.write "checked"
+		else
+			if action <> "edit" then
+				response.write "checked"
+			end if
+		end if
+	%>>
+    在原窗口打开　　　
+    <input name="OpenType" type="radio" class="checkbox" value="1" 
+		<%
+		if action ="edit" and OpenType_e=1 then
+		response.write "checked"
+		end if
+	%>>
+
+在新窗口打开</label></td>
+  </tr>
+
+  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'">
+    <td><STRONG><font color="ff6600"><b class="style1">禁用本频道：</b></font></STRONG></td>
+    <td>
+     <input name="Disabled" type="radio" class="checkbox" value="True"
+	  	<%
+		if action ="edit" and Disabled_e then
+			response.write "checked"
+		end if
+	%>>
+     是　　　
+      <input name="Disabled" type="radio" class="checkbox" value="False" 
+	  	<%
+		if action ="edit" and not Disabled_e then
+		response.write "checked"
+		else
+			if action <> "edit" then
+				response.write "checked"
+			end if
+		end if
+	%>>
+      否</td></tr>
+  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'">
+    <td colspan="2" align="center">
+	<div id="cs" style="display:
+	<%if action <>"edit" or ChannelType_e=2 then
+		response.write "none"
+		end if
+	%>
+	">
+	<table width="100%" border="0" cellpadding="2" cellspacing="1">
+      <tr>
+        <td width="26%" bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">生成HTML方式：</b></font></STRONG><BR>
+          服务器支持FSO才能启用“生成HTML”功能<BR>
+          请谨慎选择！以后在每一次更改生成方式前，你最好先删除所有以前生成的文件，然后在保存频道参数后再重新生成所有文件。</td>
+        <td width="74%" bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="UseCreateHTML" type="radio" class="checkbox" value="0" 
+			<%
+				if UseCreateHTML_e=0 then
+				response.write "checked"
+				end if
+			%>
+			>
+              不生成</td>
+          </tr>
+          <tr>
+            <td><input name="UseCreateHTML" type="radio" class="checkbox" value="1" 
+			<%
+				if UseCreateHTML_e=1 then
+				response.write "checked"
+				end if
+			%>
+			>
+              全部生成</td>
+          </tr>
+          <tr>
+            <td><input name="UseCreateHTML" type="radio" class="checkbox" value="2"
+						<%
+				if UseCreateHTML_e=2 then
+				response.write "checked"
+				end if
+			%>
+
+			>
+              只生成内容页，首页</td>
+          </tr>
+        </table></td>
+        </tr>
+      <tr>
+        <td colspan="2" bgcolor="#FFFFFF"><strong><font color="ff6600"><b class="style1">以下参数仅当“生成HTML方式”设为后二者时才有效。
+<br>
+请谨慎选择！以后在每一次更改以下参数前，你最好先删除所有以前生成的文件，然后在保存参数设置后再重新生成所有文件。</b></font></strong></td>
+        </tr>
+      <tr>
+        <td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">自动生成HTML时的生成方式：</b></font></STRONG><BR>
+          添加/修改信息时，系统可以自动生成有关页面文件，请在这里选择自动生成时的方式。</td>
+        <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="AutoCreateType" type="radio" class="checkbox" value="0" 
+			<%
+				if AutoCreateType_e=0 then
+				response.write "checked"
+				end if
+			%>
+			>
+              不自动生成</td>
+          </tr>
+          <tr>
+            <td><input name="AutoCreateType" type="radio" class="checkbox" value="1"
+			<%
+				if AutoCreateType_e=1 then
+				response.write "checked"
+				end if
+			%>
+			>
+              自动生成全部所需页面<br>              　
+              　当“生成HTML方式”设置为“全部生成”时，将生成所有页面；当“生成HTML方式”设置为后两种时，会根据设置的选项生成有关页面。</td>
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">栏目列表文件的存放位置：</b></font></STRONG></td>
+        <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="ListFileType" type="radio" class="checkbox" value="0"
+			<%
+				if ListFileType_e=0 then
+				response.write "checked"
+				end if
+			%>
+			>
+              列表文件统一保存在指定的“List”文件夹中<br>
+              
+              　　例：Article/List/List_236.html（栏目首页）<BR>　
+              　　 Article/List/List_236_2.html（第二页）</td>
+          </tr>
+          <tr>
+            <td><input name="ListFileType" type="radio" class="checkbox" value="1"
+			<%
+				if ListFileType_e=1 then
+				response.write "checked"
+				end if
+			%>
+			>
+              列表文件统一保存在频道文件夹中<br>
+              　　例：Article/List_236.html（栏目首页）<BR>
+              　
+              　　 Article/List_236_2.html（第二页）</td>
+          </tr>
+          <tr>
+            <td><input name="ListFileType" type="radio" class="checkbox" value="2"
+			<%
+				if ListFileType_e=2 then
+				response.write "checked"
+				end if
+			%>
+			>
+              列表文件统一保存在频道文件夹中（继承模拟静态页面目录地址）<br>
+              　　例：Article/List-236.html（栏目首页）<BR>
+              　
+              　　 Article/List-236-2.html（第二页）</td>
+          </tr>
+        </table></td>
+      </tr>
+	  <tr>
+	  		<td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">内容页文件的存放位置：</b></font></STRONG></td>
+            <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="StructureType" type="radio" class="checkbox" value="0" 
+			<%
+				if StructureType_e=0 then
+				response.write "checked"
+				end if
+			%>
+			>
+              频道/HTML/文件（直接放在指定的“HTML”文件夹中）<br>
+              
+              　　例：Article/HTML/1368.html</td>
+          </tr>
+          <tr>
+            <td><input name="StructureType" type="radio" class="checkbox" value="1"
+			<%
+				if StructureType_e=1 then
+				response.write "checked"
+				end if
+			%>
+			>
+              频道/月份/文件（直接按月份保存，每月一个目录）<br>
+              　　例：Article/200408/1368.html</td>
+          </tr>
+          <tr>
+            <td><input name="StructureType" type="radio" class="checkbox" value="2"
+			<%
+				if StructureType_e=2 then
+				response.write "checked"
+				end if
+			%>
+			>
+              频道/文件（直接保存到频道目录继承模拟静态页面目录地址）<br>
+              　　例：Article/Article-1358-1.html</td>
+          </tr>
+        </table></td>
+	  </tr>
+      <tr>
+        <td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">内容页文件的命名方式：</b></font></STRONG></td>
+        <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="FileNameType" type="radio" class="checkbox" value="0" 
+			<%
+				if FileNameType_e=0 then
+				response.write "checked"
+				end if
+			%>
+			>
+              文章ID.html　　例：1358.html</td>
+          </tr>
+          <tr>
+            <td><input name="FileNameType" type="radio" class="checkbox" value="1"
+			<%
+				if FileNameType_e=1 then
+				response.write "checked"
+				end if
+			%>
+			>
+              更新时间.html　　例：20040828112308.html</td>
+          </tr>
+          <tr>
+            <td><input name="FileNameType" type="radio" class="checkbox" value="2"
+			<%
+				if FileNameType_e=2 then
+				response.write "checked"
+				end if
+			%>
+			>
+              频道英文名_文章ID.html　　例：Article_1358.html</td>
+          </tr>
+          <tr>
+            <td><input name="FileNameType" type="radio" class="checkbox" value="3"
+			<%
+				if FileNameType_e=3 then
+				response.write "checked"
+				end if
+			%>
+			>
+              频道英文名_更新时间.html　　例：Article_20040828112308.html</td>
+          </tr>
+          <tr>
+            <td><input name="FileNameType" type="radio" class="checkbox" value="4"
+			<%
+				if FileNameType_e=4 then
+				response.write "checked"
+				end if
+			%>
+			>
+              文件名-ID-分页.html（继承模拟静态页面名称命名方式）<br>
+　　例：Article-1358.html（栏目首页）<BR>
+　
+              　　 Article-1358-2.html（第二页）</td>
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">频道首页的扩展名：</b></font></STRONG></td>
+        <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="FileExt_Index" type="radio" class="checkbox" value="0"
+			<%
+				if FileExt_Index_e=0 then
+				response.write "checked"
+				end if
+			%>
+			>
+              .html　　
+              <input name="FileExt_Index" type="radio" class="checkbox" value="1"
+			<%
+				if FileExt_Index_e=1 then
+				response.write "checked"
+				end if
+			%>
+			  >
+.htm　　
+<input name="FileExt_Index" type="radio" class="checkbox" value="2"
+			<%
+				if FileExt_Index_e=2 then
+				response.write "checked"
+				end if
+			%>
+>
+.shtml　　
+<input name="FileExt_Index" type="radio" class="checkbox" value="3"
+			<%
+				if FileExt_Index_e=3 then
+				response.write "checked"
+				end if
+			%>
+>
+.shtm　　
+<input name="FileExt_Index" type="radio" class="checkbox" value="4"
+			<%
+				if FileExt_Index_e=4then
+				response.write "checked"
+				end if
+			%>
+>
+.asp</td>
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">栏目页扩展名：</b></font></STRONG></td>
+        <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="FileExt_List" type="radio" class="checkbox" value="0"
+			<%
+				if FileExt_List_e=0 then
+				response.write "checked"
+				end if
+			%>
+			>
+              .html　　
+              <input name="FileExt_List" type="radio" class="checkbox" value="1"
+			<%
+				if FileExt_List_e=1 then
+				response.write "checked"
+				end if
+			%>
+			  >
+              .htm　　
+              <input name="FileExt_List" type="radio" class="checkbox" value="2"
+			<%
+				if FileExt_List_e=2 then
+				response.write "checked"
+				end if
+			%>
+			  >
+              .shtml　　
+              <input name="FileExt_List" type="radio" class="checkbox" value="3"
+			<%
+				if FileExt_List_e=3 then
+				response.write "checked"
+				end if
+			%>
+			  >
+              .shtm　　
+              <input name="FileExt_List" type="radio" class="checkbox" value="4"
+			<%
+				if FileExt_List_e=4 then
+				response.write "checked"
+				end if
+			%>
+			  >
+              .asp</td>
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">内容页的扩展名：</b></font></STRONG></td>
+        <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="FileExt_Item" type="radio" class="checkbox" value="0"
+			<%
+				if FileExt_Item_e=0 then
+				response.write "checked"
+				end if
+			%>
+			>
+              .html　　
+              <input name="FileExt_Item" type="radio" class="checkbox" value="1"
+			<%
+				if FileExt_Item_e=1 then
+				response.write "checked"
+				end if
+			%>
+			  >
+              .htm　　
+              <input name="FileExt_Item" type="radio" class="checkbox" value="2"
+			<%
+				if FileExt_Item_e=2 then
+				response.write "checked"
+				end if
+			%>
+			  >
+              .shtml　　
+              <input name="FileExt_Item" type="radio" class="checkbox" value="3"
+			<%
+				if FileExt_Item_e=3 then
+				response.write "checked"
+				end if
+			%>
+			  >
+              .shtm　　
+              <input name="FileExt_Item" type="radio" class="checkbox" value="4"
+			<%
+				if FileExt_Item_e=4 then
+				response.write "checked"
+				end if
+			%>
+			  >
+              .asp</td>
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">频道首页的每页信息数：</b></font></STRONG></td>
+        <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><label>
+              <input name="MaxPerPage_Index" type="text" id="MaxPerPage_Index" size="3" maxlength="3" value="<%=MaxPerPage_Index_e%>">
+            条记录</label></td>
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">频道搜索页的每页信息数：</b></font></STRONG></td>
+        <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="MaxPerPage_SearchResult" type="text" id="MaxPerPage_SearchResult" size="3" maxlength="3" value="<%=MaxPerPage_SearchResult_e%>">
+条记录</td>
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">频道最新信息页的每页信息数：</b></font></STRONG></td>
+        <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="MaxPerPage_New" type="text" id="MaxPerPage_New" size="3" maxlength="3" value="<%=MaxPerPage_New_e%>">
+条记录</td>
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">频道热门信息页的每页信息数：</b></font></STRONG></td>
+        <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="MaxPerPage_Hot" type="text" id="MaxPerPage_Hot" size="3" maxlength="3" value="<%=MaxPerPage_Hot_e%>">
+条记录</td>
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td bgcolor="#EFEFEF"><STRONG><font color="ff6600"><b class="style1">频道推荐信息页的每页信息数：</b></font></STRONG></td>
+        <td bgcolor="#EFEFEF"><table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><input name="MaxPerPage_Elite" type="text" id="MaxPerPage_Elite" size="3" maxlength="3" value="<%=MaxPerPage_Elite_e%>">
+条记录</td>
+          </tr>
+        </table></td>
+      </tr>
+    </table>
+	</div>
+	</td>
+    </tr>
+  <tr>
+    <td height="30" colspan="2" align="center">
+	<input name="Submit1" type="submit" class="inputs" id="Submit1" value="确认提交">　
+      <input name="Submit2" type="reset" class="inputs" value="重新填写">
+    
+	</td>
+  </tr>
+</form></table>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>
+<%
+FUNCTION checkstr(name)
+For i = 1 To Len(name)
+c = Lcase(Mid(name, i, 1))
+If InStr("abcdefghijklmnopqrstuvwxyz", c) <= 0 Then
+checkstr=false
+Exit Function
+else
+checkstr=true
+End If
+Next 
+END FUNCTION
+%>
+<%conn.Close:Set conn=Nothing%>
+
+
+

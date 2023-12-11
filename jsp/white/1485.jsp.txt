@@ -1,0 +1,388 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_finance.Ti_financeInfo"%>
+<%@page import="com.bizoss.trade.ti_member.Ti_memberInfo"%>
+<%@page import="com.bizoss.trade.ti_advpara.Ti_advparaInfo"%>
+<%@page import="com.bizoss.trade.ti_company.Ti_companyInfo"%>
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page" />
+<%@ page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.trade.ts_area.*" %>
+<%@page import="java.lang.*" %>
+<%@page import="com.bizoss.trade.tb_agent_biz.Tb_agent_bizInfo"%>
+<%
+	Ti_companyInfo companyInfo=new Ti_companyInfo();
+	String _trade_id = bean.GenTradeId();
+	request.setCharacterEncoding("UTF-8");
+	String user_id="";
+	if(session.getAttribute("session_user_id")!=null){
+		user_id = session.getAttribute("session_user_id").toString();
+	}
+	Map bizmap = new Hashtable();
+	String cust_id = "",cust_name="";
+	if(request.getParameter("cust_id")!=null && !request.getParameter("cust_id").equals("")){
+		cust_id = request.getParameter("cust_id");
+	}
+	if(request.getParameter("cust_name")!=null && !request.getParameter("cust_name").equals("")){
+		cust_name =new String(request.getParameter("cust_name").getBytes("ISO-8859-1"), "UTF-8");
+	}
+	if(request.getParameter("custname")!=null && !request.getParameter("custname").equals("")){
+		cust_name =request.getParameter("custname");
+	}
+	String _product_code = "";
+	if(request.getParameter("_product_code")!=null && !request.getParameter("_product_code").equals("")){
+		_product_code = request.getParameter("_product_code");
+		bizmap.put("product_code",_product_code);
+	}
+	String _is_settle = "";
+	if(request.getParameter("_is_settle")!=null && !request.getParameter("_is_settle").equals("")){
+		_is_settle = request.getParameter("_is_settle");
+		bizmap.put("is_settle",_is_settle);
+	}
+	//取得分公司提成比例
+	List sublist=null; 
+	sublist=companyInfo.getListByPk(cust_id);
+	String mainmarket="0";
+	if(sublist!=null&&sublist.size()>0){
+		Map submap=(Hashtable)sublist.get(0);	 
+		if(submap.get("main_market")!=null)
+			mainmarket=submap.get("main_market").toString();
+	}
+	//over
+	
+	String s_area_attr = "";
+	String dlcust_id="",dlcust_name="";
+	List clist=null;
+	Map cmap=new Hashtable();
+	if(request.getParameter("area_attr")!=null && !request.getParameter("area_attr").equals("")){
+		s_area_attr = request.getParameter("area_attr");
+		bizmap.put("area_attr",s_area_attr);
+		//查看地区下的代理商
+		//out.print(s_area_attr+","+(s_area_attr.split("[|]")).length);
+		if((s_area_attr.split("[|]")).length>=2){
+			cmap.put("area_attr",s_area_attr);
+			cmap.put("user_class","8");
+			clist=companyInfo.getListByPage(cmap,0,1);
+			if(clist!=null&&clist.size()>0){
+				cmap=(Hashtable)clist.get(0);
+				if(cmap.get("cust_id")!=null)
+					dlcust_id=cmap.get("cust_id").toString();
+				if(cmap.get("short_name")!=null)
+					dlcust_name=cmap.get("short_name").toString();
+			}
+		}
+		
+	}
+	
+	String s_start_date = "";
+	if(request.getParameter("s_start_date")!=null && !request.getParameter("s_start_date").equals("")){
+		s_start_date = request.getParameter("s_start_date");
+		bizmap.put("s_start_date",s_start_date);
+	}
+	String s_end_date = "";
+	if(request.getParameter("s_end_date")!=null && !request.getParameter("s_end_date").equals("")){
+		s_end_date = request.getParameter("s_end_date");
+		bizmap.put("s_end_date",s_end_date);
+	}
+	
+	Tb_agent_bizInfo bizInfo=new Tb_agent_bizInfo();
+	
+	Ti_financeInfo financeInfo=new Ti_financeInfo();
+	Map fmap=new Hashtable();
+	fmap.put("cust_id",cust_id);
+	fmap.put("account_type","1");
+	fmap.put("finance_type","1");
+	List flist=financeInfo.getListByPk2(fmap);
+	
+	
+	String iStart = "0";
+	int limit = 20;
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	String state = tb_commparaInfo.getSelectItem("39","");   
+	List tradetypelist = tb_commparaInfo.getSelectItemToList("114",""); 
+	Hashtable tradetypeMap = new Hashtable();
+	String para_product_code="",product_name="",tradetypeopt="";
+	if (tradetypelist!=null && tradetypelist.size()>0)
+	{
+		for (int i = 0; i < tradetypelist.size(); i++) {
+				tradetypeMap = (Hashtable) tradetypelist.get(i);
+				if (tradetypeMap.get("para_code4") != null) para_product_code = tradetypeMap.get("para_code4").toString();
+				if (tradetypeMap.get("param_name") != null) product_name = tradetypeMap.get("param_name").toString();
+				tradetypeopt = tradetypeopt+"<option value="+para_product_code+">"+product_name+"</option>";
+				}
+	}
+	 
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+
+	List list = bizInfo.getListByPage(bizmap,Integer.parseInt(iStart),limit);
+	String pkid=bizInfo.getAllTradeIdByAreaAttr(bizmap);
+	int counter = bizInfo.getCountByObj(bizmap);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"bizlistdl.jsp?iStart=",Integer.parseInt(iStart),limit);
+  /**代理商提成计算方式：(商品销售总价格 X 代理商提成比例)**/
+  List totalList=bizInfo.getTotalPriceByAreaAttr(bizmap);
+	String all_agent_product_code="0",all_income_num="0";
+	if(totalList!=null&&totalList.size()>0)
+	{
+		bizmap=(Hashtable)totalList.get(0);
+		if(bizmap.get("income_num")!=null && !bizmap.get("income_num").toString().equals(""))
+		{
+			all_income_num=bizmap.get("income_num").toString();			
+		}
+		if(bizmap.get("agent_product_code")!=null && !bizmap.get("agent_product_code").toString().equals(""))
+		{
+			all_agent_product_code=bizmap.get("agent_product_code").toString();			 
+		}
+	}
+ 
+	String use_vmoney="0",vmoney="0",frz_vmoney="0";
+	if(flist!=null&&flist.size()>0){
+		fmap=(Hashtable)flist.get(0);
+		if(fmap.get("use_vmoney").toString()!=null&&!"".equals(fmap.get("use_vmoney").toString()))
+			use_vmoney=fmap.get("use_vmoney").toString();
+		if(fmap.get("vmoney").toString()!=null&&!"".equals(fmap.get("vmoney").toString()))
+			vmoney=fmap.get("vmoney").toString();
+		if(fmap.get("frz_vmoney").toString()!=null&&!"".equals(fmap.get("frz_vmoney").toString()))
+			frz_vmoney=fmap.get("frz_vmoney").toString();	
+	}
+	
+  float new_price=Float.parseFloat(all_income_num);
+  Ts_areaInfo ts_areaInfo = new Ts_areaInfo();
+	Map areaMap  = ts_areaInfo.getAreaClass();
+	
+	Ti_memberInfo memberInfo=new Ti_memberInfo();
+	Ti_advparaInfo advparaInfo=new Ti_advparaInfo();
+	%>
+<html>
+  <head>
+    
+    <title>代理商业绩结算管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/engine.js"></script>
+	<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/util.js"></script>
+	<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js"></script>	
+	<script type="text/javascript" src="js_commen.js"></script>
+	<script type="text/javascript" src="/js/commen.js"></script>
+	
+	<script>	 
+	 setstartProvince('');	 
+	  </script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="80%">
+				<h1>代理商业绩结算管理</h1>
+			</td>
+			
+		</tr>
+	</table>
+	
+	<form action="bizlist.jsp" name="indexForm" method="post">
+
+	  
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<!--tr>
+			<td align="left" >
+			按产品类型:<select name="_product_code">
+				<option value="">请选择</option>
+            	 <%=tradetypeopt%>
+            	</select>
+			 按所在地区:			
+
+				<select name="province" id="province" onclick="setCitys(this.value)">
+				  <option value="">省份</option> 
+				</select>
+				<select name="eparchy_code" id="eparchy_code" onclick="setAreas(this.value)">
+				  <option value="">地级市</option> 
+				 </select>
+				<select name="city_code" id="city_code" style="display:inline" >
+				 <option value="">市、县级市、县</option> 
+				</select>
+				<br/>	
+			 按销售时间:<input name="s_start_date" type="text" value="<%=s_start_date %>" id="s_start_date" class="Wdate" value="" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'s_end_date\',{d:-1})}',readOnly:true})" size="15"  width="150px"/>
+								~
+					<input name="s_end_date" id="s_end_date" value="<%=s_end_date %>" type="text" class="Wdate" value="" onclick="WdatePicker({minDate:'#F{$dp.$D(\'s_start_date\',{d:1})}',readOnly:true})" size="15" width="150px"/>	
+				是否结算:<select name="_is_settle" >
+							<option value="0" <%if(_is_settle.equals("0"))out.print("checked"); %>>未结算</option>
+							<option value="1" <%if(_is_settle.equals("1"))out.print("checked"); %>>已结算</option>
+						</select>
+				<input type="hidden" name="area_attr" id="area_attr" value="<%=s_area_attr %>" />
+				<input type="hidden" name="product_code" id="product_code" value="<%=_product_code %>" />
+				<input type="hidden" name="is_settle" id="is_settle" value="0" />
+				<input type="hidden" name="cust_id" id="cust_id" value="<%=dlcust_id %>" />	
+				<input type="hidden" name="custname" id="custname" value="<%=cust_name %>" />					
+				<input name="searchInfo" type="button" value="查询" onclick="searcher();"/>	
+			</td>
+		</tr-->
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;		 
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%" style="font-size:16px">
+				 合计：<%=dlcust_name %>共销售金额：<%=all_agent_product_code%>&nbsp;&nbsp;
+				 <%=cust_name %> 所获提成合计为：<%=all_income_num%>&nbsp;&nbsp;
+				  
+				  
+				 	<input class="buttab" type="button" value="结算" onclick="settle_clk()">
+				 
+				 
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+		  	<th>产品销售</th>
+		  	<th>销售标的</th>
+		  	<th>代理商</th>
+		  	<th>销售价格</th>		
+		  	<th>提成比例(%)</th>		   
+		  	<th>提成金额</th>
+		  	<th>是否结算</th>
+		  	<th>结算流水号</th>
+			<th>结算时间</th>
+	  		 
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String trade_id="",trade_type="",product_code="",product_code_name="",biz_id="",area_attr="",
+		  			agent_product_code="",income_ratio="",income_num="",settle_trade_id="",
+		  			is_settle="",settle_date="";
+					
+		  			  	if(map.get("trade_id")!=null) trade_id = map.get("trade_id").toString();
+						if(map.get("trade_type")!=null) trade_type = map.get("trade_type").toString();
+						if(map.get("product_code")!=null) product_code = map.get("product_code").toString();
+						if(map.get("product_code_name")!=null) product_code_name = map.get("product_code_name").toString();
+						if(map.get("biz_id")!=null) biz_id = map.get("biz_id").toString();
+						if(map.get("area_attr")!=null) area_attr = map.get("area_attr").toString();
+						if(map.get("agent_product_code")!=null) agent_product_code = map.get("agent_product_code").toString();
+						if(map.get("income_ratio")!=null) income_ratio = map.get("income_ratio").toString();
+						if(map.get("income_num")!=null) income_num = map.get("income_num").toString();
+						if(map.get("settle_trade_id")!=null) settle_trade_id = map.get("settle_trade_id").toString();
+						if(map.get("is_settle")!=null) is_settle = map.get("is_settle").toString();
+						if(map.get("settle_date")!=null) settle_date = map.get("settle_date").toString();
+						if(settle_date.length()>10)settle_date=settle_date.substring(0,10);
+						
+						StringBuffer stateoutput =new StringBuffer();
+						if(!area_attr.equals(""))
+							{
+							  String chIds[] =	area_attr.split("\\|");	
+							  for(String chId:chIds)
+							  {
+								 if(areaMap!=null)
+								 {
+									 if(areaMap.get(chId)!=null)
+									 {
+										stateoutput.append(areaMap.get(chId).toString());                 
+									  }                  
+								 
+								  }                 
+							   }		    
+							}
+						cmap.put("area_attr",area_attr);
+						cmap.put("user_class","8");
+						
+						clist=companyInfo.getListByPage(cmap,0,1);
+						String t_dlname="";
+						if(clist!=null&&clist.size()>0){
+							cmap=(Hashtable)clist.get(0);
+							//out.print(cmap.get("short_name")+",i="+i);
+							if(cmap.get("short_name")!=null)
+								t_dlname=cmap.get("short_name").toString();
+						}
+		  %>
+		<tr>
+		  	<td><%=product_code_name %></td>
+		  	<td>
+		  	<%
+		  		if(product_code.equals("B")||product_code.equals("G")){%>
+		  			<a href="/program/admin/order/orderInfo.jsp?order_no=<%=biz_id %>"><%=biz_id%></a>
+		  		<%}
+		  		if(product_code.equals("I")){%>
+		  			<a href="/program/admin/order/teambuyInfo.jsp?order_no=<%=biz_id %>"><%=biz_id%></a>
+		  		<%}//B,G,I商品销售 I 团购
+		  		if(product_code.equals("C")||product_code.equals("F")||product_code.equals("H")||product_code.equals("J")){%>
+		  			<a href="/program/admin/advpara/advInfo.jsp?pos_id=<%=biz_id %>"><%=advparaInfo.getPosNameByPk(biz_id) %></a>
+		  		<%}//c f h j广告位销售
+		  		if(product_code.equals("A")||product_code.equals("D")||product_code.equals("E")){%>
+		  			<a href="/program/admin/memberqiye/updateCompanyInfo.jsp?cust_id=<%=biz_id %>&jumpurl=/program/company/agentbiz/index.jsp"><%=memberInfo.getCustNameByPk(biz_id) %></a>
+		  		<%}//a d e会员销售
+		  	 %>
+		  	</td>
+			<td><%=t_dlname %><br/><%=stateoutput%></td> 
+		  	<td><%=agent_product_code %></td>
+		   	<td><%=income_ratio%></td>
+		  	<td><%=income_num%></td> 
+		  	<td><%if(is_settle.equals("0"))out.print("未结算");else{out.print("已结算");}%></td> 
+		  	<td><%=settle_trade_id%></td> 
+		  	<td><%=settle_date%></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	
+	  <input type="hidden" name="trade_id" id="trade_id" value="<%=_trade_id %>" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="5359" />
+	  <input type="hidden" name="cust_id" id="cust_id" value="<%=cust_id %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="<%=pkid %>" />
+	  <input type="hidden" name="is_pay" id="is_pay" value="1" />
+	  
+	  <input type="hidden" name="biz_id" id="biz_id" value="<%=dlcust_id %>" />
+	  <input type="hidden" name="user_id" id="user_id" value="<%=user_id %>" />
+	  <input type="hidden" name="account_type" id="account_type" value="1" />
+	  <input type="hidden" name="finance_type" id="finance_type" value="1" />
+	  <input type="hidden" name="use_vmoney" id="use_vmoney" value="<%=new_price %>" />
+	  <input type="hidden" name="vmoney" id="vmoney" value="<%=new_price %>" />
+	  <input type="hidden" name="frz_vmoney" id="frz_vmoney" value="<%=frz_vmoney %>" />
+	  <input type="hidden" name="agent_product_codee" id="agent_product_codee" value="<%=all_income_num %>" />
+	 
+	  <input type="hidden" name="num" id="num" value="<%=(int)new_price %>" />
+	  <input type="hidden" name="type" id="type" value="1" />
+	  <input type="hidden" name="jiesuan" id="jiesuan" value="1" />
+	   <input type="hidden" name="reason" id="reason" value="代理商业绩结算" />
+	  </form>
+	  
+	  
+</body>
+
+</html>

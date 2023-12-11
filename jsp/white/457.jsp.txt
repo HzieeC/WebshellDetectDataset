@@ -1,0 +1,747 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page import="com.bizoss.trade.shopcart.*"%>
+<%@ page import="com.bizoss.trade.ti_address.*" %>
+<%@ page import="com.bizoss.frame.util.Config" %>
+<%@page import="java.text.DecimalFormat" %>
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page" /><%@ page import="com.bizoss.createIndex.search.*" %>
+<%@ page import="com.bizoss.trade.ti_voucher.Ti_voucherInfo"%>
+<%@page import="com.bizoss.trade.ti_gift.Ti_giftInfo"%>
+<%
+    request.setCharacterEncoding("UTF-8");
+	
+	Ti_giftInfo ti_giftInfo=new Ti_giftInfo();
+	Map temp=null;
+	String user_id = "";	
+	if( session.getAttribute("session_user_id") != null )
+	{
+		user_id = session.getAttribute("session_user_id").toString().trim();
+	}
+	if(user_id.equals(""))
+	{
+	    //out.print("<script>location.href='/index.html';</script>"); //未登录，不允许进入此页面
+	}
+	
+	Ti_addressInfo ti_addressInfo = new Ti_addressInfo();
+	String consignee="",area_attr="",post_code="",tel="",cellphone="",address="";
+	String type_order="";// 1 修改确定页面传来
+	
+	if(request.getParameter("type_order") != null){type_order = request.getParameter("type_order");}
+	
+	
+	
+	//--由购物车 或 点击立即购买直接过来
+	if(!type_order.equals("1"))
+	{
+		HashMap addrMap =  ti_addressInfo.getOneAddrByLevel(user_id);
+		if(addrMap!=null && addrMap.size()>0)
+		{
+		   if(addrMap.get("consignee")!=null){consignee = addrMap.get("consignee").toString();}
+		   if(addrMap.get("area_attr")!=null){area_attr = addrMap.get("area_attr").toString();}
+		   if(addrMap.get("post_code")!=null){post_code = addrMap.get("post_code").toString();}
+		   if(addrMap.get("tel")!=null){tel = addrMap.get("tel").toString();}
+		   if(addrMap.get("cellphone")!=null){cellphone = addrMap.get("cellphone").toString();}
+		   if(addrMap.get("address")!=null){address = addrMap.get("address").toString();}
+		}
+		else
+		{
+		  out.print("<script>location.href='/templets/html/shop/jsp/confirm_order_address.jsp#hasaddress';</script>");
+		}
+	}
+	else
+	{
+	    if(request.getParameter("consignee") != null){consignee = request.getParameter("consignee");}
+		if(request.getParameter("area_attr") != null){area_attr = request.getParameter("area_attr");}
+		if(request.getParameter("post_code") != null){post_code = request.getParameter("post_code");}
+		if(request.getParameter("tel") != null){tel = request.getParameter("tel");}
+		if(request.getParameter("cellphone") != null){cellphone = request.getParameter("cellphone");}
+		if(request.getParameter("address") != null){address = request.getParameter("address");}
+	}
+	
+	AreaIndexFiles areaBean = new AreaIndexFiles();
+	String areaoutput="";
+	String one_provice=""; 
+	if(!area_attr.equals(""))
+	{
+	   String areaArr[] = area_attr.split("\\|");
+	   if(areaArr.length > 0)
+	   {
+	       one_provice = areaArr[0];
+	       for( int k = 0; k < areaArr.length; k++)
+		   {
+			  if( k == areaArr.length-1)
+			  {
+				   areaoutput +=  areaBean.getAreaNameById(areaArr[k]);	 		
+			  }
+			  else
+			  {
+				   areaoutput +=  areaBean.getAreaNameById(areaArr[k])+ "-";
+			  }		  
+		   }
+	   }
+	}
+	
+	
+	String contact="";
+	if(!cellphone.equals("") && !tel.equals(""))
+	{
+	  contact = cellphone +"/"+ tel;
+	}
+	else if(!cellphone.equals("") && tel.equals(""))
+	{
+	  contact = cellphone ;
+	}
+	else if(cellphone.equals("") && !tel.equals(""))
+	{
+	  contact = tel;
+	}
+	
+	//--购物车商品
+	HashMap<String ,HashMap<String ,Goods>> cartMap = null;
+	CartServices shopcart = null;
+	int listsize =0;
+	if(session.getAttribute("shoppingCart") != null) {
+	  	shopcart = (CartServices) session.getAttribute("shoppingCart");
+		cartMap = shopcart.getCartMap();
+	} 
+	
+	if(cartMap != null && cartMap.size() > 0)
+	{
+		listsize = cartMap.size();
+	}
+	else
+	{
+	    //out.print("<script>location.href='/index.html';</script>");
+	}
+	
+	DecimalFormat df = new DecimalFormat("####.00");		
+	CommparaIndexFiles commparaIndex = new CommparaIndexFiles();
+	AttachIndexFiles attachIndex = new AttachIndexFiles();
+	GoodsIndexFiles goodsIndex = new GoodsIndexFiles();
+	CompanyIndexFiles comIndex = new CompanyIndexFiles();
+	CategoryattrIndexFiles attrIndex = new CategoryattrIndexFiles();
+	PaymentIndexFiles paymentIndex = new PaymentIndexFiles();
+	ShipingIndexFiles shipingIndex = new ShipingIndexFiles();
+	ShipingAreaIndexFiles ShipingAreaIndex = new ShipingAreaIndexFiles();
+	
+	Config configa = new Config();
+	configa.init();
+	String goodsrootpath = configa.getString("goods_article_path");
+	String custrootpath = configa.getString("company_shop_path");
+	
+	double totalPrice = 0;
+	int totalGoodsCount = 0;
+	int totalIntegralNum = 0;
+	double totalGoodsWeight =0;
+	double totalPriceNoOffer=0;
+	int session_custlevel=0;
+	  if( session.getAttribute("member_level") != null ){
+			session_custlevel = Integer.parseInt(session.getAttribute("member_level").toString().trim());
+		}
+		String ordergift="";
+	int offer_type=0;
+	if(shopcart != null){
+		totalPriceNoOffer = shopcart.getAllItemsPrice();
+		totalPrice=shopcart.getAllItemsOfferPrice(session_custlevel);
+		totalGoodsCount = shopcart.getAllItemsCount();
+		totalIntegralNum = shopcart.getAllItemsIntegralNum();
+		totalGoodsWeight = shopcart.getAllItemsWeight();
+		ordergift=shopcart.getGift_ids();
+		offer_type=shopcart.getOffer_type();
+	}
+	
+	
+	//--配送方式
+	Map shippingSearchMap = new HashMap();
+	List shipingList = shipingIndex.getShipingInfo(shippingSearchMap);
+	double shipingfeetotal = 0;
+	
+	//--支付方式
+	Map paymentSearchMap = new HashMap();
+	List paymentList = paymentIndex.getPaymentInfo(paymentSearchMap);
+	
+    double totalcost = 0;
+	
+	String invoiceContentStr = commparaIndex.getSelectItemByID("23","para_code2","para_code1");
+	Map commMap = new HashMap();
+	commMap.put("param_attr","25");
+	commMap.put("para_code3","1");//取普通包装
+	List packageList = commparaIndex.getCommparaInfo(commMap);
+	String trade_no = bean.GenOrderId();
+
+%>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>配送地址</title>
+<link href="/templets/html/shop/css/qd.css" rel="stylesheet" type="text/css" />
+<link href="/templets/html/shop/css/mall_bottom.css" rel="stylesheet" type="text/css" />
+<link href="/templets/html/shop/css/mall_top.css" rel="stylesheet" type="text/css" />
+<link  href="/templets/html/shop/css/Home.css" rel="stylesheet"/>
+<link href="/templets/html/shop/css/style.css" rel="stylesheet" type="text/css" />
+<SCRIPT language="javascript" src="/templets/html/shop/js/order_address.js"/>
+<SCRIPT src="/templets/html/shop/js/taobao.js"></SCRIPT>
+<SCRIPT src="/templets/html/shop/js/nav_style_num.js"></SCRIPT>
+<script type='text/javascript' src='/dwr/engine.js'></script>
+<script type='text/javascript' src='/dwr/util.js'></script>
+<script type='text/javascript' src='/dwr/interface/Ti_subscribeInfo.js'></script>
+<script type='text/javascript' src='/templets/html/shop/js/_shop.js'></script>
+<style type="text/css">
+
+.STYLE1 {color: #FFFFFF}
+</style>
+<STYLE>.div {
+ BORDER-RIGHT: #0000ff 2px solid; BORDER-TOP: #0000ff 2px solid; FONT-SIZE: 12px; Z-INDEX: 1000; BORDER-LEFT: #0000ff 2px solid; LINE-HEIGHT: 90px; BORDER-BOTTOM: #0000ff 2px solid; POSITION: absolute; BACKGROUND-COLOR: #efefef
+}
+</STYLE>
+</head>
+<body>
+<script> 
+  document.write("<s" + "cript type='text/javascript' src='/templets/html/shop/top.jsp?" + Math.random() + "'></scr" + "ipt>"); 
+  //TB.Header.init(); 
+</script>
+</div>
+<!--导航结束-->
+<div class="clear"/>
+</div>
+<div class="clear"/>
+</div>
+<!--提交订单开始-->
+<div class="clear"/>
+</div>
+<div class="content0">
+  <div class="chengxu">
+    <div class="chengxu_m">
+      <ul>
+        <li class="txt_li">登录/注册<small>login/regist</small><img align="absmiddle" src="/templets/html/shop/images/jiantou.gif" /></li>
+        <li class="txt_li">我的购物车<small>shopping cart</small><img align="absmiddle" src="/templets/html/shop/images/jiantou.gif" /></li>
+        <li class="txt_li">填写订单信息<small>order information</small><img align="absmiddle" src="/templets/html/shop/images/jiantou_l.gif" /></li>
+        <li class="tex_current">提交订单,付款<small>submit/pay</small><img align="absmiddle"src="/templets/html/shop/images/jiantou_r.gif" /></li>
+        <li class="txt_li">等待收货<small>wait for delivery</small></li>
+      </ul>
+    </div>
+  </div>
+  <%
+StringBuffer buf=new StringBuffer();
+ %>
+  <div class="content"/>
+  <div class="add_c"/>
+  <div class="add_dz"/>
+  <div class="titleqd"/>
+  <p><span class="titleqd_sp"/>收货人信息</span> <span class="p_l"/>[<a href="/templets/html/shop/jsp/confirm_order_address.jsp#hasaddress"/>修改</a>]</span></p>
+</div>
+<div class="deta"/>
+<p><span class="deta_sp"/>收货人：<%=consignee%></span> <span class="deta_sp"/>地区：<%=areaoutput%></span> <span class="deta_sp"/>邮政编码：<%=post_code%></span></p>
+<p><span class="deta_sp"/>收货地址：<%=address%></span> <span class="deta_sp"/>固定电话：<%=tel%></span> <span class="deta_sp"/>移动电话：<%=cellphone%></span></p>
+</div>
+<div class="titleqd"/>
+<p><span class="titleqd_sp"/>配送方式</span>
+  <%
+				    String ship_name="",one_shipping_id="";
+					
+					    if(request.getParameter("shipping_id") != null){one_shipping_id = request.getParameter("shipping_id");}
+		                if(request.getParameter("ship_name") != null){ship_name = request.getParameter("ship_name");}
+		  
+				  %>
+  <span class="p_l"/><%=ship_name%></span>
+  </div>
+<div class="clear"/>
+</div>
+<div class="titleqd"/>
+<p><span class="titleqd_sp"/>支付方式</span>
+  <% 
+						int paylistsize = 0;
+						String pay_name="",pay_id="",pay_code="",hand_fare="0";	
+						double pay_type_fee=0;	  	
+						if(request.getParameter("pay_code") != null){pay_code = request.getParameter("pay_code");} 
+						if(!type_order.equals("1")){
+							if(paymentList!=null && paymentList.size()>0)
+							{
+								for(int i=0;i<paymentList.size();i++)
+								{
+									HashMap map = (HashMap)paymentList.get(i);	
+									if(map.get("pay_name")!=null) pay_name = map.get("pay_name").toString();
+									if(map.get("pay_id")!=null) pay_id = map.get("pay_id").toString();
+									if(map.get("pay_code")!=null) pay_code = map.get("pay_code").toString();
+									if(map.get("hand_fare")!=null) hand_fare = map.get("hand_fare").toString();
+									if(pay_code.equals("alipay")){break;}//支付方式选择未处理完
+								 
+								}
+							}
+						}
+						else
+						{
+						    if(paymentList!=null && paymentList.size()>0)
+								{
+									for(int j=0;j<paymentList.size();j++)
+									{
+										HashMap fmap = (HashMap)paymentList.get(j);
+									  if(fmap.get("pay_code")!=null && fmap.get("pay_code").equals(pay_code))
+									  {
+											if(fmap.get("pay_name")!=null) pay_name = fmap.get("pay_name").toString();
+											if(fmap.get("pay_id")!=null) pay_id = fmap.get("pay_id").toString();											
+											if(fmap.get("hand_fare")!=null) hand_fare = fmap.get("hand_fare").toString();
+											if (pay_code.equals("payunderline")){					
+												
+												pay_type_fee =Float.valueOf(hand_fare)/100*totalPrice; 						 
+												pay_name = pay_name+"，[ 收取手续费："+df.format(pay_type_fee)+"元 ]";
+											}
+										else
+											{
+												pay_name="在线支付-"+pay_name;
+											}
+										}
+									}
+								}
+							  
+						}
+				%>
+				
+				
+ 				<span class="p_l"/><%=pay_name%></span> </p>
+</div>
+<%
+				    String voucher_info  ="",voucher_info2="";
+					
+		                if(request.getParameter("voucherinfos") != null){voucher_info = request.getParameter("voucherinfos");}
+						if(request.getParameter("voucherinfos2") != null){voucher_info2 = request.getParameter("voucherinfos2");}
+						if(voucher_info!=null&&!"".equals(voucher_info)){%>
+<div class="titleqd"/>
+<p><span class="titleqd_sp"/>优惠券</span> <span class="p_l"/><%=voucher_info2%></span></p>
+</div>
+<div class="clear"/>
+</div>
+<%}
+				  %>
+<div class="clear"/>
+</div>
+<div class="titleqd_last"/>
+<p><span class="titleqd_sp"/>包装方式</span>
+  <%
+			
+			     String param_name="",para_code1="",para_code2="",para_code3="";
+				 double packfee = 0,one_pack_fee=0;
+				  if(!type_order.equals("1"))
+				  {
+					 if(packageList!=null && packageList.size()>0)
+					 {
+							HashMap map = (HashMap)packageList.get(0);
+							if(map.get("param_name")!=null) param_name = map.get("param_name").toString();
+							if(map.get("para_code1")!=null) para_code1 = map.get("para_code1").toString();
+							if(map.get("para_code2")!=null) para_code2 = map.get("para_code2").toString();
+							if(map.get("para_code3")!=null) para_code3 = map.get("para_code3").toString();
+					  }
+				  }
+				  else
+				  {
+				     if(request.getParameter("para_code1") != null){para_code1 = request.getParameter("para_code1");}
+		             if(request.getParameter("para_code2") != null){para_code2 = request.getParameter("para_code2");}
+					 if(request.getParameter("para_code3") != null){para_code3 = request.getParameter("para_code3");}
+				  
+				  }
+				  if(!para_code2.equals(""))
+				 {
+						one_pack_fee = Double.parseDouble(para_code2);
+						packfee = one_pack_fee*totalGoodsCount;
+				  }
+			%>
+  <span class="p_l"/><%=para_code1%></span> <span class="p_l"/> [<a href="javascript:subBack('pack_focus');"/>修改</a>]</span> </p>
+</div>
+<div class="clear"/>
+</div>
+<div class="clear"/>
+</div>
+<div class="clear"/>
+</div>
+<div class="titleqd_last"/>
+<p><span class="titleqd_sp"/>送货时间</span>
+  <%
+			   String best_time="";
+			   	if(!type_order.equals("1"))
+				{
+				   best_time="工作日、双休日与节假日均可送货";
+				}
+				else
+				{
+				   if(request.getParameter("best_time") != null){best_time = request.getParameter("best_time");}
+				}
+			 %>
+  <span class="p_l"/><%=best_time%></span> <span class="p_l"/> [<a href="javascript:subBack('time_focus');"/>修改</a>]</span> </p>
+</div>
+<div class="clear"/>
+</div>
+</div>
+</div>
+</div>
+<%    
+		shipingfeetotal = ShipingAreaIndex.getShippingFee(one_shipping_id,one_provice,totalPrice,totalGoodsWeight,totalGoodsCount);	
+		//totalcost = packfee +totalPrice + shipingfeetotal;
+		totalcost = packfee +totalPrice ;
+		//double totalcostNoOffer= packfee +totalPriceNoOffer + shipingfeetotal;
+		double totalcostNoOffer= packfee +totalPriceNoOffer;
+   %>
+<!--收获信息结束-->
+<%
+	  if (cartMap != null && cartMap.size() > 0){	
+		  Set cartSet = cartMap.entrySet();
+		  Iterator cartIterator = cartSet.iterator();
+		  int i = 0;
+	%>
+<div class="add_c_h"/>
+<div>
+  <p><span class="add_title"/>产品清单</span><a href="/templets/html/shop/jsp/confirm_buycart.jsp"/><span class="add_xg"/>回到购物车，修改产品 ></span></a></p>
+</div>
+<div class="clear"/>
+</div>
+<div>
+  <table width="97%" border="0" cellpadding="0" cellspacing="0" class="cpqd_list"/>
+  <tr class="bt"/>
+  <td width="31%"/>
+  产品名称
+  </td>
+  <td width="11%"/>
+  商品属性
+  </td>
+  <td width="11%"/>
+  赠送积分
+  </td>
+  <td width="11%"/>
+  单价
+  </td>
+  <td width="11%"/>
+  优惠价
+  </td>
+  <td width="11%"/>
+  礼品
+  </td>
+  <td width="11%"/>
+  数量
+  </td>
+  <!--<td width="11%"/>优惠</td>-->
+  <td width="11%"/>
+  小计
+  </td>
+  </tr>
+  <%
+		    	
+		    
+  		  while (cartIterator.hasNext()){
+				++i;
+				Map.Entry entry = (Map.Entry)cartIterator.next();
+				String cust_id = entry.getKey().toString();      			
+				HashMap<String, Goods> goodsMap = cartMap.get(cust_id);
+
+				Set goodsSet = goodsMap.entrySet();
+				Iterator goodsIterator = goodsSet.iterator();
+				int listsizei = goodsMap.size();
+				String custUrl = custrootpath + cust_id + "/index.html";
+  %>
+
+  <% int j=0;
+		List list=null;
+       while(goodsIterator.hasNext()){
+          ++j;
+      	  Map.Entry goodsentry = (Map.Entry)goodsIterator.next();
+		  
+          String goods_random_id = goodsentry.getKey().toString();
+		  String goods_id = goods_random_id.split("\\/")[0];
+          Goods goodsInstance = goodsMap.get(goods_random_id);
+			String goods_name = "",in_date="";
+			String goods_props = "";
+			String gift_id="";
+			String goods_cust_id = "";
+			float shop_price = 0;
+			float offer_price=0;
+			float vip_price = 0;
+			int buy_num = 0;
+			int goods_IntegralNum = 0;
+			float goods_subtotal = 0;
+			float offergoods_subtotal=0;
+			float weight=0;
+			String attr_str = "";
+			if(goodsInstance != null){
+			    goods_subtotal = goodsInstance.getTotalShopPrice();//单个商品小计
+			    offergoods_subtotal=goodsInstance.getTotalOfferPrice();
+			    goods_IntegralNum = goodsInstance.getTotalIntegralNum();
+				goods_props = goodsInstance.getGoods_props();
+				shop_price = goodsInstance.getShop_price();
+				offer_price=goodsInstance.getOffer_price();
+				vip_price = goodsInstance.getVip_price();
+				buy_num = goodsInstance.getBuy_num();
+				weight = goodsInstance.getOneTotalWeight();
+				attr_str = attrIndex.getCatAttrFromStr(goods_props);
+				
+				gift_id=goodsInstance.getGift_id();
+				if(gift_id!=null&&!"".equals(gift_id)){
+					list=ti_giftInfo.getListByPk(gift_id);
+					if(list!=null&&list.size()>0){
+						temp=(HashMap)list.get(0);
+						gift_id=temp.get("gift_name").toString();
+					}
+				}
+				
+				Map ginfoMap = goodsIndex.getOneGoods(goods_id);
+				if(ginfoMap.get("goods_name")!=null) {
+					goods_name = ginfoMap.get("goods_name").toString();
+					buf.append(goods_name+",");
+				}
+				if(ginfoMap.get("in_date")!=null) in_date = ginfoMap.get("in_date").toString();
+				if(ginfoMap.get("cust_id")!=null) goods_cust_id = ginfoMap.get("cust_id").toString();
+			}
+			if(in_date.length()>=8){
+				String yeard = in_date.substring(0,4);
+				String monthd = in_date.substring(4,6);
+				String dayd = in_date.substring(6,8);
+				in_date = yeard+"-"+monthd+"-"+dayd;
+			}
+			
+			 String img_path =  attachIndex.getFilepathById(goods_id);
+            
+             if(img_path.equals(""))
+             {
+                 img_path ="/program/admin/templets/jsp/images/cpwu.gif";            
+             }     
+			
+		 String goodsUrl="";
+			if (goods_cust_id.equals("100000000000000"))
+				{
+				 	goodsUrl=goodsrootpath+in_date+"/"+goods_id+".html";
+				}
+			else
+				{
+					goodsUrl= custrootpath+goods_cust_id+"/goods/"+ in_date + "/"+ goods_id + ".html";
+				}
+  %>
+  <tr class="r_bg"/>
+  <td class="td_t"/>
+  <a href="<%=goodsUrl%>"/><%=goods_name%></a>
+  </td>
+  <td><%=attr_str%></td>
+  <td><%=goods_IntegralNum%></td>
+  <td>￥<%=df.format(shop_price)%> </td>
+  <td>￥<%=df.format(offer_price)%> </td>
+  <td><%=gift_id%></td>
+  <td><%=buy_num%></td>
+  <!--<td>优惠</td>-->
+  <td>￥<%=df.format(offergoods_subtotal)%></td>
+  </tr>
+  <%
+		   } 
+		}
+	}	
+  %>
+  </table>
+</div>
+</div>
+<div class="clear"/>
+</div>
+<div class="add_cont"/>
+<div class="add_cont_l"/>
+<ul class="add_cont_l_ul"/>
+<li class="f-left  li_home"/>
+<a href="/templets/html/shop/jsp/confirm_buycart.jsp"/>回到购物车，修改产品 ></a>
+</li>
+<li class="f-left"/>
+产品数量总计：<%=totalGoodsCount%>件
+</li>
+<li class="f-left"/>
+赠送积分总计：<%=totalIntegralNum%> 分
+</li>
+</ul>
+<div class="clear"/>
+</div>
+<p class="title_p" onclick="setShow('leavelWord');"/>
+你需要附加说明吗？
+</p>
+<div class="cont_text" style="display:none;" id="leavelWord"/>
+<p class="cont_t_t"/>
+</p>
+<div class=""/>
+<p class="f-left" style="padding: 0 10px 0 50px"/>
+如有请留言
+</p>
+<textarea style="width:180px; height:52px;" name="o_mem_message" id="o_mem_message"/>
+</textarea>
+</div>
+</div>
+<p class="title_p" onclick="setShow('invoiceDiv');"/>
+您需要开具发票吗？
+</p>
+<div class="cont_text" style="display:none;height:auto;" id="invoiceDiv"/>
+<p class="cont_t_t"/>
+</p>
+<div class=""/>
+<ul style="padding-left:85px;padding-top:5px;" id="inv_div"/>
+<li>发票抬头：
+  <input type="text"  name="invoicetop" id="invoicetop" style="width:150px;" maxlength="30" >
+</li>
+<li>发票内容：
+  <select name="invoicecontent" id="invoicecontent"/>
+  
+  <%=invoiceContentStr%>
+  </select>
+  </ul>
+  </div>
+  </div>
+  </div>
+  <script>
+	   function setInvoiceOpr(val)
+	   {
+	      if(val == '1')
+		  {
+		      document.getElementById('inv_div').style.display ='block';
+		  }
+		  else
+		  {
+		     document.getElementById('inv_div').style.display ='none';
+		  }
+	   
+	   
+	   }
+	
+	</script>
+  <div class="add_cont_r"/>
+  <p>产品金额共计：￥<%=df.format(totalPrice)%></p>
+  <p>包装费：￥<%=df.format(packfee)%></p>
+  <p>运费：￥<%=df.format(shipingfeetotal)%></p>
+  <%
+  	if (pay_code.equals("payunderline"))
+  	{
+  		%>
+  <p>货到付款手续费：￥<%=df.format(pay_type_fee)%></p>		
+  		<%
+  	totalcost = totalcost+pay_type_fee;
+  	}
+  %>
+  
+  <p class="red"/>
+  您共需要为订单支付：￥<%=df.format(totalcost)%>
+  </p>
+  </div>
+  <div class="clear"/>
+  </div>
+  </div>
+  <div class="clear"/>
+  </div>
+  <div class="qd_qr"/>
+  请核对以上信息，确认无误后点击“提交订单”<a href="javascript:subOrder();"/><img style=" margin-left:8px" src="../../images/dd_28.jpg" /></a>
+  </div>
+  </div>
+  <!--广告开始-->
+  <div class="commitment"/>
+  <div class="commitment_left"/>
+  <div class="commitment_pic"/>
+  <a href=""/><img src="/templets/html/images/commitment_1.jpg" /></a>
+  </div>
+  <div class="commitment_txt"/>
+  <p><span class="commitment_txt1"/>全国900个城市货到付款</span><span class="commitment_txt2"/><a href=""/></a></span></p>
+  </div>
+  </div>
+  <div class="commitment_center"/>
+  <div class="commitment_pic"/>
+  <a href=""/><img src="/templets/html/images/commitment_2.jpg" /></a>
+  </div>
+  <div class="commitment_txt3"/>
+  <p><span class="commitment_txt1"/>购买满200免运费</span><span class="commitment_txt2"/><a href=""/></a></span></p>
+  </div>
+  </div>
+  <div class="commitment_right"/>
+  <div class="commitment_pic"/>
+  <a href=""/><img src="/templets/html/images/commitment_3.jpg" /></a>
+  </div>
+  <div class="commitment_txt4"/>
+  <p><span class="commitment_txt1"/>30天无忧退换货保障</span><span class="commitment_txt2"/><a href=""/></a></span><span class="commitment_txt1"/></span></p>
+  </div>
+  </div>
+  </div>
+  <!--广告结束-->
+  <div class="clear"/>
+  </div>
+  <!--底部开始-->
+  <jsp:include page="/templets/html/shop/footer.jsp"/>
+  <!--底部结束-->
+  <%
+					Ti_voucherInfo voucherinfo=new Ti_voucherInfo();
+						double all_voucher_money=0;
+						String[] first=null,second=null;
+						if(voucher_info!=null&&!"".equals(voucher_info)){
+							 first=voucher_info.split("[|]");
+							for(int i=0;i<first.length;i++){
+								 second=first[i].split("[:]");
+								 if(second!=null){
+									 all_voucher_money=voucherinfo.getMoneyByType(second[0]);
+									 all_voucher_money=all_voucher_money*Integer.parseInt(second[1]);
+								 }
+								
+							}
+						}
+%>
+  <form name="orderForm" id="orderForm" action="/doTradeReg.do" method="POST" >
+    <input type="hidden" name="bpm_id" id="order_bpm_id" value="3329"/>
+    <input type="hidden" name="jumpurl" value="/templets/html/shop/jsp/order_confirm.jsp" />
+    <input type="hidden" name="no_offer_total_amount" id="no_offer_total_amount" value="<%=df.format(totalcostNoOffer)%>"/>
+    <input type="hidden" name="all_total_amount" id="all_total_amount" value="<%=df.format(totalcost)%>"/>
+    <input type="hidden" name="all_voucher_money" id="all_voucher_money" value="<%=df.format(all_voucher_money)%>"/>
+    <input type="hidden" name="packfee" id="packfee" value="<%=packfee%>"/>
+    <input type="hidden" name="totalPrice" id="totalPrice" value="<%=df.format(totalPrice)%>"/>
+    <input type="hidden" name="shipingfeetotal" id="shipingfeetotal" value="<%=shipingfeetotal%>"/>
+    <input type="hidden" name="trade_no" id="trade_no" value="<%=trade_no%>"/>
+    <input type="hidden" name="consignee" id="order_consignee" value="<%=consignee%>"/>
+    <input type="hidden" name="inter_num" id="order_inter_num" value="<%=totalIntegralNum%>"/>
+    <input type="hidden" name="address" id="order_address" value="<%=address%>"/>
+    <input type="hidden" name="best_time" id="order_best_time" value="<%=best_time%>"/>
+    <input type="hidden" name="zip_code" id="order_zip_code" value="<%=post_code%>"/>
+    <input type="hidden" name="cellphone" id="order_cellphone" value="<%=cellphone%>"/>
+    <input type="hidden" name="tel" id="order_tel" value="<%=tel%>"/>
+    <input type="hidden" name="sign_building" id="order_sign_building" value=""/>
+    <input type="hidden" name="invoicetype" id="order_invoicetype" value=""/>
+    <input type="hidden" name="if_need_invoice" id="order_if_need_invoice" value="1"/>
+    <!-- no -->
+    <input type="hidden" name="package_id" id="order_package_id" value="<%=para_code3%>"/>
+    <input type="hidden" name="package_fee" id="order_package_fee" value="<%=one_pack_fee%>"/>
+    <input type="hidden" name="area_attr" id="order_area_attr" value="<%=area_attr%>"/>
+    <input type="hidden" name="shipping_id" id="order_shipping_id" value="<%=one_shipping_id%>"/>
+    <input type="hidden" name="shipping_fee" id="order_shipping_fee" value="<%=shipingfeetotal%>"/>
+    <input type="hidden" name="shipping_name" id="order_shipping_name" value="<%=ship_name%>"/>
+    <input type="hidden" name="orderMessage" id="order_orderMessage" value=""/>
+    <input type="hidden" name="pay_id" id="order_pay_id" value="<%=para_code3%>"/>
+    <input type="hidden" name="email" id="order_email" value=""/>
+    <input type="hidden" name="mem_message" id="order_mem_message" value=""/>
+    <input type="hidden" name="pay_name" id="order_pay_name" value="<%=pay_name%>"/>
+    <input type="hidden" name="how_oos" id="order_how_oos" value="0"/>
+    <input type="hidden" name="order_source" id="order_order_source" value="0"/>
+    <input type="hidden" name="invoice_content" id="order_invoicecontent" value=""/>
+    <input type="hidden" name="invoice_top" id="order_invoicetop" value=""/>
+    <input type="hidden" name="invoicename" id="order_invoicename" value=""/>
+    <input type="hidden" name="order_state" id="order_order_state" value="0"/>
+    <input type="hidden" name="invoice_company" id="order_invoice_company" value=""/>
+    <input type="hidden" name="invoice_tax_no" id="order_invoice_tax_no" value=""/>
+    <input type="hidden" name="invoice_address" id="order_invoice_address" value=""/>
+    <input type="hidden" name="invoice_phone" id="order_invoice_phone" value=""/>
+    <input type="hidden" name="invoice_bank" id="order_invoice_bank" value=""/>
+    <input type="hidden" name="invoice_account" id="order_invoice_account" value=""/>
+    <input type="hidden" name="offer_bef" id="offer_bef" value="<%=df.format(totalcostNoOffer) %>"/>
+    <input type="hidden" name="offer_aft" id="offer_aft" value="<%=df.format(totalcost)%>"/>
+    <input type="hidden" name="offer_type" id="offer_type" value="<%=offer_type %>"/>
+    <input type="hidden" name="gift_ids" id="gift_ids" value="<%=ordergift %>"/>
+    <input type="hidden" name="voucherinfos" id="voucherinfos" value="<%=voucher_info %>"/>
+    <input type="hidden" name="subject" id="subject" value="<%=buf.toString() %>"/>
+  </form>
+  <form action="/templets/html/shop/jsp/confirm_again_address.jsp" method="post" name="backForm"/>
+  <input type="hidden" name="area_attr" id="put_area_attr" value="<%=area_attr%>" />
+  <input type="hidden" name="consignee" id="put_consignee" value="<%=consignee%>" />
+  <input type="hidden" name="post_code" id="put_post_code" value="<%=post_code%>" />
+  <input type="hidden" name="tel" id="put_tel" value="<%=tel%>" />
+  <input type="hidden" name="cellphone" id="put_cellphone" value="<%=cellphone%>" />
+  <input type="hidden" name="address" id="put_address" value="<%=address%>" />
+  </form>
+  <script>
+ function subBack(val)
+ {
+    document.backForm.action='/templets/html/shop/jsp/confirm_again_address.jsp#'+val;
+    document.backForm.submit();
+ }
+
+</script>
+</body>
+</html>

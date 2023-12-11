@@ -1,0 +1,99 @@
+	<%@ page contentType="text/html;charset=UTF-8" %>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<script type="text/javascript" src="${ctx }/scripts/js/jquery-1.3.2.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jqPager/jquery.pager.js"></script><!-- 分页 -->
+    <script language="JavaScript" type="text/javascript" src="${ctx}/scripts/front/common/common_pager.js"></script><!-- 分页 -->
+	<script type="text/javascript" src="${ctx}/scripts/front/yhzx.js"></script>
+	
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/hyzx.css" rel="stylesheet" type="text/css" />
+
+<!-- 	修改收货地址 -->
+
+   <div class="gdttda">
+       <div class="hyzx_bt">
+	       <div class="zxyc_dh">
+		       <div class="zxyc_zz"><a href="javascript:void(0);" onclick="showList()" style="color:#ffffff; font-size: 14px;">收货地址列表</a></div><div class="zxyc_zz"><a href="javascript:void(0);" onclick="showAdd()" style="color:#ffffff; font-size: 14px;">新增收货地址</a></div>
+		       <div class="sr3_t_right right"></div>
+	       </div>
+       </div>
+        <div id="addressInfor" style="display:none;">  
+		   	   <form action="" name="saveAddressInfor" id="saveAddressInfor" method="post">
+		   	       <div style="margin-left:100px;margin-top:100px;">
+		   	       	   <input type="hidden" id="recipientId" value="${loginCustomer.operatorId }"/>
+			   	   	   <p>邮编：<input type="text" size="30" name="receivedAddress.zipCode" id="zipCode"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;联系人：<input type="text" id="linkman" size="30" name="receivedAddress.linkman"/></p>
+			   	   	   <p>手机：<input type="text" size="30" name="receivedAddress.mobile" id="mobile"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;电&nbsp;&nbsp;&nbsp;&nbsp;话：<input type="text" id="telephone" size="30" name="receivedAddress.telephone"/></p>
+			   	   	   <p>地址：<textarea name="receivedAddress.address" id="address" cols="60" rows="3"></textarea></p>
+			   	   	   <P style="float:right;margin-right:200px;"><input type="button" value="保存" onclick="submitAddressForm()"/></P>
+		   	       </div>
+		   	   </form>
+		   </div> <!-- sendInfor结束 -->  
+       
+       <div id="addressList">
+       	   <table width="100%" height="100%" border="0" cellpadding="0" cellspacing="0" class="huisesibiankuang" align="left">
+		   <tr>
+			   <td width="100%" align="right" valign="top">
+				   <table width="100%" border="0" cellpadding="0" cellspacing="0">
+					   <tr><td height="20"></td></tr>
+					   <!-- 表头 -->
+					   <!-- 主体 -->
+					   <tr>
+					       <td>
+						        <table width="98%" border="0" cellpadding="0" cellspacing="0">
+						          <tr bgcolor="#F6F6F6">
+						            <td height="33" align="center" background="${ctx }/styles/front/images/dingdanzhongxin2222_08.gif">
+							            <table width="100%" height="17" border="0" cellpadding="0" cellspacing="0">
+							              <tr>
+							              	<td width="100" align="center">收货人</td>
+							              	<td width="200" align="center">收货地址</td>
+							              	<td width="100" align="center">手机</td>
+							                <td width="100" align="center">固定电话</td>
+							                <td width="100" align="center">邮编</td>
+							                <td width="100" align="center">操作</td>
+							              </tr>
+							            </table>
+						            </td>
+						          </tr>
+						          <c:forEach items="${receivedAddressList}" var="list" varStatus="i">
+							      <tr>
+						            <td align="center" class="huisexiahuaxian">
+							            <table width="100%" height="22" border="0" cellpadding="0" cellspacing="0" style=" border-bottom:1px dotted #CCCCCC;">
+							              <tr style="font-size:14px;">
+							                <td width="100" align="center" align="center" class="youbianhuisekuang" style="font-size:12px;line-height:18px">${loginCustomer.name }&nbsp;</td>
+							              	<td width="200" align="center" class="youbianhuisekuang" style="font-size:12px;line-height:18px">${list.address }&nbsp;</td>
+							              	<td width="100" align="center" class="youbianhuisekuang" style="font-size:12px;line-height:18px">${list.mobile }&nbsp;</td>
+							                <td width="100" align="center" height="35" align="center" class="youbianhuisekuang" style="font-size:12px;">${list.telephone }&nbsp;</td>
+							              	<td width="100" align="center" height="35" align="center" class="youbianhuisekuang" style="font-size:12px;">${list.zipCode }</td>
+							              	<td width="100" align="center" class="youbianhuisekuang" style="font-size:12px;"><a href="javascript:void(0);" onclick="deleteAddress('${list.id }')">删除</a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="${ctx }/editAddress.do?receivedAddress.id=${list.id }">修改</a></td>
+							              </tr>
+							            </table>
+						            </td>
+							      </tr>
+							      </c:forEach>
+							      <c:if test="${size == 0}">
+							          <tr>
+							            <td height="50" align="center" class="huisexiahuaxian">
+								            <table width="779" height="17" border="0" cellpadding="0" cellspacing="0">
+								              <tr><td height="50" align="center" class="huisexiahuaxian"><span style="color:red;font-size:14px;">没有咨询记录</span></td></tr>
+								            </table>
+							            </td>
+							          </tr>
+						          </c:if>
+						        </table>
+						        <c:if test="${size > 0}">
+							       <div id="pagerBot" style="margin-right: 0px;"></div><!--分页组件-->
+							    </c:if>
+					       </td>
+					   </tr>
+					   <!-- 主体 -->
+				   </table>
+			   </td>
+		   </tr>
+		</table>
+       </div>
+       
+   </div>

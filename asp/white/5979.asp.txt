@@ -1,0 +1,533 @@
+<!--#include file="config.asp" -->
+<%
+Dim conn
+dim qs,errc,iii
+qs=LCase(request.servervariables("query_string"))
+dim nothis(21)
+nothis(0)="net user"
+nothis(1)="xp_cmdshell"
+nothis(2)="/add"
+nothis(3)="exec%20master.dbo.xp_cmdshell"
+nothis(4)="net localgroup administrators"
+nothis(5)="select"
+nothis(6)="count"
+nothis(7)="asc"
+nothis(8)="char"
+nothis(9)="mid"
+nothis(10)="'"
+nothis(11)=""""
+nothis(12)="insert"
+nothis(13)="delete"
+nothis(14)="drop"
+nothis(15)="truncate"
+nothis(16)="from"
+nothis(17)="and user>0"
+nothis(18)=","
+nothis(19)="%20"
+nothis(20)="exec"
+nothis(21)="union"
+errc=false
+for iii= 0 to ubound(nothis)
+if instr(qs,nothis(iii))<>0 then
+errc=true
+end if
+next
+if errc then
+Response.Write("对不起，非法URL地址请求!")
+response.end
+end if
+'db="\database\"&ku '注意必须是"\",不能用"/",否则ChkMapPath函数将无法转换路径,如果所有文件放一个目录upload下则要改成:db="\upload\db\ftbbs.mdb"
+On Error Resume Next   
+Set conn = Server.CreateObject("ADODB.Connection")
+if linkdb=1 then
+   ConnectionString = "Provider = Microsoft.Jet.OLEDB.4.0;Data Source = " & ChkMapPath(ku) 'Server.MapPath(db)
+   conn.Open ConnectionString 
+else
+   conn.Open conndb
+end if
+If Err Then
+   err.Clear
+   Set conn = Nothing
+   Response.Write "数据库连接出错，请检查连接字串。"
+   Response.End
+End If
+'防POST SQL注入
+Function Checkstr(Str)
+	If Isnull(Str) or Str="" Then
+		CheckStr = ""
+		Exit Function 
+	End If
+	Str = Replace(Str,Chr(0),"")
+	'Str = Replace(Str,",","&#8218;")
+	Str = ReplaceStr(Str,"union","^union^")
+	Str = ReplaceStr(Str,"delete","^delete^")
+	Str = ReplaceStr(Str,"insert","^insert^")
+	Str = ReplaceStr(Str,"select","^select^")
+	Str = ReplaceStr(Str,"update","^update^")
+	Str = ReplaceStr(Str,"exec","^exec^")
+	Str = ReplaceStr(Str,"and","^and^")
+	
+	Str = ReplaceStr(Str,"%","%^")
+	Str = ReplaceStr(Str,"master","^master^")
+	Str = ReplaceStr(Str,"truncate","^truncate^")
+	Str = ReplaceStr(Str,"declare","^declare^")
+	Str = ReplaceStr(Str,"and","^and^")
+	CheckStr = Replace(Str,"'","''")
+End Function
+Function ReplaceStr(str,patrn,str2)
+	Dim regEx
+	Set regEx = New RegExp
+		regEx.IgnoreCase = True
+		regEx.Global = True
+	regEx.Pattern = patrn
+	ReplaceStr = regEx.Replace(str,str2)
+End Function
+Function CheckCharStr(usernamepsw,flag)
+    for i=1 to len(usernamepsw)
+    cl=mid(usernamepsw,i,1)
+    if cl="'" or cl="<" or cl=">" or cl="%" or cl="/" or cl="-" then
+       response.write "<script language='javascript'>"
+       response.write "alert('用户名或密码中不能有非法字符!');"
+       'response.write "history.go(-1);"
+	   if flag=1 then
+	   response.write "window.location.href='userlogin.asp';"
+	   elseif flag=3 then
+	   response.write "window.location.href='register.asp';"
+	   else
+	   response.write "window.location.href='userlogin.asp?flag=Y';"
+	   end if
+       response.write "</script>"
+       response.end  
+   end if
+   next
+End Function
+'错误信息返回函数
+'错误信息返回函数
+Function ftbbs_msg(msg,reurl)
+   response.write "<script language='javascript'>"
+   response.write "alert('"&msg&"');"
+   response.write "window.location.href='"&reurl&"';"
+   response.write "</script>"
+   response.end
+End Function
+Function login_msg(msg,reurl)
+   response.redirect reurl&"?msg="&msg
+End Function
+
+'取当前页面的绝对地址
+myurl=cstr(request.servervariables("script_name"))
+if(request.querystring<>"")then
+myurl=myurl&"?"&server.htmlencode(request.querystring)
+end if
+
+Function FTBBS_HTML_MB(ft)  '读取模板函数call FTBBS_HTML_MB(ft),应用Application("FTBBSMB")(1,0)
+    If vartype(Application("FTBBSMB"))=0 then
+		sql="select top 1 * from "&ft&"ftbbsmb where id=1"
+        Set rs = Server.CreateObject("ADODB.Recordset")
+        rs.open sql,conn,1,1
+        Application.Lock
+        Application("FTBBSMB")=rs.GetRows(-1)
+        Application.UnLock
+        rs.Close
+        set rs=nothing
+    end if
+End Function
+Function FTBBS_BZ_NAME(BoardID_1,ft)
+       str="select BBS_Cate_ID,BBS_Cate_Name,BBS_Cate_Manager_Name,BBS_Cate_QS from "&ft&"BBS_CATE Where BBS_Cate_PID='0' and BBS_Cate_ID='"&BoardID_1&"' order by BBS_ID asc"
+       Set rs = Server.CreateObject("ADODB.Recordset")
+       rs.open str,conn,1,1
+        Application.Lock
+        Application("BBS_Cate_Name1")=rs("BBS_Cate_Name")
+		Application("BBS_Cate_QS1")=rs("BBS_Cate_QS")
+        Application.UnLock
+       rs.close
+       set rs=nothing
+End Function
+Function FTBBS_BZ_NAME2(BoardID_1,BoardID_2,ft)
+       sql="select BBS_Cate_ID,BBS_Cate_Name,BBS_Cate_Manager_Name,BBS_Cate_QS from "&ft&"BBS_CATE Where BBS_Cate_PID='"&BoardID_1&"' and BBS_Cate_ID='"&BoardID_2&"' order by BBS_ID asc"
+       Set rs = Server.CreateObject("ADODB.Recordset")
+       rs.open sql,conn,1,1
+        Application.Lock
+        Application("BBS_Cate_Name2")=rs("BBS_Cate_Name")
+		Application("BBS_Cate_Manager_Name")=rs("BBS_Cate_Manager_Name")
+		Application("BBS_Cate_QS2")=rs("BBS_Cate_QS")
+        Application.UnLock
+       rs.close
+       set rs=nothing
+End Function
+'图片名称
+function makefilename(fname)
+  fname = now()
+  fname = replace(fname,"-","")
+  fname = replace(fname,"/","")
+  fname = replace(fname," ","") 
+  fname = replace(fname,":","")
+  fname = replace(fname,"PM","")
+  fname = replace(fname,"AM","")
+  fname = replace(fname,"上午","")
+  fname = replace(fname,"下午","")
+  makefilename=fname
+end function 
+'图片后缀
+function GetExtendName(FileName)
+  dim ExtName
+  ExtName = LCase(FileName)
+  ExtName = right(ExtName,3)
+  ExtName = right(ExtName,3-Instr(ExtName,"."))
+  GetExtendName = ExtName
+end function
+'检查是否安装组件
+Function IsObjInstalled(strClassString)
+    On Error Resume Next
+    IsObjInstalled = False
+    Dim xTestObj
+    Set xTestObj = Server.CreateObject(strClassString)
+    If Err<>-2147221005 Then IsObjInstalled = True Else IsObjInstalled = False End IF
+    Set xTestObj = Nothing
+End Function
+'++++++++++++++++++++++++
+' 函数名：ChkMapPath
+' 作  用：相对路径转换为绝对路径
+' 参  数：strPath ----原路径
+' 返回值：绝对路径
+Public Function ChkMapPath(ByVal strPath)
+	On Error Resume Next
+	Dim fullPath
+	strPath = Replace(Replace(Trim(strPath), "//", "/"), "\\", "\")
+
+	If strPath = "" Then strPath = "."
+	If InStr(strPath,":\") = 0 Then 
+		fullPath = Server.MapPath(strPath)
+	Else
+		strPath = Replace(strPath,"/","\")
+		fullPath = Trim(strPath)
+		If Right(fullPath, 1) = "\" Then
+			fullPath = Left(fullPath, Len(fullPath) - 1)
+		End If
+	End If
+	ChkMapPath = fullPath
+End Function
+
+Function userlogin(ft) '检测用户是否登录
+    Dim UserName
+    UserName=getcookie("name")
+    If UserName<>"" Then
+        sql="select top 1 clubuser_name,clubuser_password,bbsmanager from "&ft&"clubuser Where clubuser_name='"&UserName&"'"
+        Set rs = Server.CreateObject("ADODB.Recordset")
+        rs.open sql,conn,1,1
+        if rs.bof and rs.eof then
+            userlogin="N"
+        else
+            If rs("clubuser_password")=DecodeCookie((getcookie("clubuser_password"))) Then
+               userlogin="Y"
+			   Response.Cookies("bz")=rs("bbsmanager")
+            Else
+               userlogin="N"
+            End If
+        end IF
+        rs.close
+        set rs=nothing
+    else
+        userlogin="N"
+    end if    
+End Function
+
+Function headhtml() '平板结构头文件
+call FTBBS_HTML_MB(ft)
+sitenav=Application("FTBBSMB")(65,0)
+head=sitenav & vbCrLf
+head=head+"<table width=""980"" border=""0"" align=""center"" cellpadding=""0"" cellspacing=""0"">"& vbCrLf
+head=head+"<tr>"& vbCrLf 
+head=head+"<td width=""13%"" height=""70""><div align=""left""><img src=""images/tmlogo.gif"" width=""112"" height=""50""></div></td>"& vbCrLf
+head=head+"<td width=""87%""><div align=""right"">"& vbCrLf
+head=head+"<script language=""JavaScript"" src=""sitead.js""></script>"& vbCrLf
+head=head+"</div></td>"& vbCrLf
+head=head+"</tr>"& vbCrLf
+head=head+"</table>"& vbCrLf
+headhtml=head
+End Function
+
+Function treehead() '树型结构头
+call FTBBS_HTML_MB(ft)
+sitenav=Application("FTBBSMB")(65,0)
+head=sitenav & vbCrLf
+head=head+"<table width=""840"" border=""0"" align=""center"" cellpadding=""0"" cellspacing=""0"">"& vbCrLf
+head=head+"<tr>"& vbCrLf 
+head=head+"<td height=""82"" align=""center"">"& vbCrLf
+head=head+"<script language=""JavaScript"" src=""ftbbshomead.js""></script>"& vbCrLf
+head=head+"</tr>"& vbCrLf
+head=head+"</table>"& vbCrLf
+treehead=head
+End Function
+
+Function GetOpInfo(Str,Flag)
+	If inStr(Str,";")>0 then
+		Dim FT
+		FT = split(Str,";")
+		If Ubound(FT) >= 2 then
+			FT(2) = replace(FT(2),")","")
+			FT(2) = replace(FT(2),"NT 5.2","2003")
+			FT(2) = replace(FT(2),"NT 5.1","XP")
+			FT(2) = replace(FT(2),"NT 5.0","2000")
+			FT(2) = replace(FT(2),"9x","Me")
+			FT(1) = Trim(FT(1))
+			FT(2) = Trim(FT(2))
+			If Flag = 1 then
+				GetOpInfo = FT(1)
+			Else
+				GetOpInfo = FT(2)
+			End If
+		Else
+			If Flag = 1 then
+				GetOpInfo = "未知"
+			Else
+				GetOpInfo = "未知"
+			End If
+		End If
+	Else
+		If Flag = 1 then
+			GetOpInfo = "未知"
+		Else
+			GetOpInfo = "未知"
+		End If
+	End If
+End Function
+Sub makeftbbstree(ft,fso)
+tree="<table width=""130"" border=""0"" cellpadding=""0"" cellspacing=""0"" class=""text"">"& vbCrLf
+tree=tree+"<tr align=""left"" valign=""middle"">" & vbCrLf
+tree=tree+"<td width=""40"">"& vbCrLf
+tree=tree+"<table width=""130"" border=""0"" cellpadding=""0"" cellspacing=""0"" class=""text"">"& vbCrLf
+tree=tree+"<tr align=""left"" valign=""middle"">"& vbCrLf
+tree=tree+"<td width=""15""><a href=""#"" onClick=""expandIt('KB$bbs_id$'); return false"" style=""cursor: default;""><img id=""dir$bbs_id$"" name=""dir$bbs_id$"" src=""images/$openclose$"" width=""18"" height=""18"" border=0></a></td>"& vbCrLf
+tree=tree+"<td width=""15""><a href=""#"" onClick=""expandIt('KB$bbs_id$'); return false"" style=""cursor: default;""><img id=""fold$bbs_id$"" name=""fold$bbs_id$"" src=""images/$openclosex$"" width=""18"" height=""15"" border=0></a></td>"& vbCrLf
+tree=tree+"<td>"& vbCrLf
+tree=tree+"<div id=""KB$bbs_id$Parent"" class=""parent""> &nbsp;<a class=head3 href=""#"" onClick=""parent.frames('main').location.href='main.asp?layer_1=$BBSCateID$&qs=$BBSCateQs$';expandIt('KB$bbs_id$'); return false""><b>$BBSCateName$</b></a> </div>"& vbCrLf
+tree=tree+"</td>"& vbCrLf
+tree=tree+"</tr>"& vbCrLf
+tree=tree+"</table>"& vbCrLf
+tree=tree+"</td>"& vbCrLf
+tree=tree+"</tr>"& vbCrLf			
+tree=tree+"<tr align=""left"" valign=""middle"">" & vbCrLf
+tree=tree+"<td>" & vbCrLf
+tree=tree+"<div id=""KB$bbs_id$Child"" $classchild$>" & vbCrLf
+tree=tree+"<table width=""130"" border=""0"" cellpadding=""0"" cellspacing=""0"" class=""text"">"& vbCrLf				
+tree=tree+"$888888$"			 						
+tree=tree+"</table>"& vbCrLf
+tree=tree+"</div>"& vbCrLf	
+tree=tree+"</td>"& vbCrLf
+tree=tree+"</tr>"& vbCrLf
+tree=tree+"</table>"& vbCrLf
+
+ftbbsub="<tr align=""left"" valign=""middle"">" & vbCrLf
+ftbbsub=ftbbsub+"<td width=""15"" class="" ""><img src=""images/treeline.gif"" width=""18"" height=""18""></td>" & vbCrLf      
+ftbbsub=ftbbsub+"<td width=""15"" align=""center"" valign=""top"">$line$</td>"& vbCrLf
+ftbbsub=ftbbsub+"<td>"& vbCrLf
+ftbbsub=ftbbsub+"<table width=""100%"" border=""0"" cellpadding=""0"" cellspacing=""0"" class=""text"">"& vbCrLf
+ftbbsub=ftbbsub+"<tr>" & vbCrLf     
+ftbbsub=ftbbsub+"<td width=""10""><img src=""images/doc.gif"" width=""16"" height=""18""></td>"& vbCrLf
+ftbbsub=ftbbsub+"<td> <a class=head3 href=""main.asp?layer_1=$BBS_Cate_PID$&layer_2=$BBS_Cate_ID$&qs=$BBS_Cate_Qs$"" target=""main""> $BBS_Cate_Name$</a></td>"& vbCrLf
+ftbbsub=ftbbsub+"</tr>"& vbCrLf
+ftbbsub=ftbbsub+"</table>"& vbCrLf
+ftbbsub=ftbbsub+"</td>"& vbCrLf
+ftbbsub=ftbbsub+"</tr>"& vbCrLf
+
+call FTBBS_HTML_MB(ft)
+sql="select BBS_ID,BBS_Cate_Name,BBS_Cate_ID,BBS_Cate_PID,BBS_Cate_Qs,treesign from "&ft&"BBS_Cate where BBS_Cate_PID='0' and deleted=0 order by totop asc"
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,1
+dotree=""
+do while not rs.eof
+   
+  sql15="select BBS_Cate_Name,BBS_Cate_ID,BBS_Cate_PID,BBS_Cate_Qs from "&ft&"BBS_Cate where BBS_Cate_PID='"&rs("BBS_Cate_ID")&"' and deleted=0 order by totop asc"
+  set rm=server.createobject("adodb.recordset")
+  rm.open sql15,conn,1,1
+   treembhtm=""
+   treenl=""
+  if not rm.eof then   
+   if rs("treesign")=1 then
+      openclose="opentm.gif"
+      openclosex="openx.gif"
+   else
+      openclose="closetm.gif"
+      openclosex="close.gif"
+   end if
+   if rs("treesign")=0 then
+      k="class=""child"""
+   else
+      k="" 
+   end if
+   dotree=tree
+   dotree=replace(dotree,"$openclose$",openclose)
+   dotree=replace(dotree,"$openclosex$",openclosex)
+   dotree=replace(dotree,"$bbs_id$",rs(0))
+   dotree=replace(dotree,"$BBSCateName$",rs(1))
+   dotree=replace(dotree,"$BBSCateID$",rs(2))
+   dotree=replace(dotree,"$BBSCatePID$",rs(3))
+   dotree=replace(dotree,"$BBSCateQs$",rs(4))
+   dotree=replace(dotree,"$classchild$",k)   
+   
+   i=0
+   'treembhtm=""
+   'treenl=""
+    do while not rm.eof
+     if i=rm.recordcount-1 then
+		line="<img src=""images/nodeend.gif"" width=""16"" height=""18"">"
+	 else
+	    line="<img src=""images/node.gif"" width=""16"" height=""18"">"
+	 end if
+	 treembhtm=treembhtm&ftbbsub
+	 treembhtm=replace(treembhtm,"$line$",line)
+     treembhtm=replace(treembhtm,"$BBS_Cate_Name$",rm(0))
+     treembhtm=replace(treembhtm,"$BBS_Cate_ID$",rm(1))
+     treembhtm=replace(treembhtm,"$BBS_Cate_PID$",rm(2))
+     treembhtm=replace(treembhtm,"$BBS_Cate_Qs$",rm(3))
+	 treenl=replace(dotree,"$888888$",treembhtm)
+     i=i+1
+	 rm.movenext
+    loop
+   'else
+    'treembhtm="没有分论坛"
+  end if
+    mbnl=mbnl&treenl
+rs.movenext
+loop
+
+treemb=replace(Application("FTBBSMB")(9,0),"$ftbbstree$",mbnl)
+htmtreeurl="../ftbbstree.htm"
+myFile = Server.MapPath(htmtreeurl)
+
+Const ForReading = 1
+Const Forwriting = 2
+Const ForAppending = 8
+Set fileStreamObj = CreateObject(fso)
+fileStreamObj.CreateTextFile(myFile)
+set textStream = fileStreamObj.OpenTextFile(myFile,ForWriting,False)
+textStream.Write(treemb)
+textStream.Close()
+End sub
+
+Public Function getcode()
+	dim tmpstr
+	Randomize
+	tempstr=cstr(Int(900000*rnd)+100000)
+	getcode = "<img src=""inc/ftbbscode.asp?s="&tempstr&""" style=""cursor:hand;border:1px solid #ccc;vertical-align:top;"" onclick=""this.src='inc/ftbbscode.asp?s="&tempstr&"';"" alt=""看不清?点一下"" id=""ftbbscodeimg"" /><input type=""hidden"" name=""codename"" value="""&tempstr&""" />"
+End Function
+'检查验证码是否正确
+Public Function codepass()
+	Dim CodeStr,codename
+	CodeStr = Trim(request("CodeStr"))
+	codename = Trim(request("codename"))
+	If CStr(Session("GetCode"&codename)) = CStr(CodeStr) And CodeStr <> "" Then
+		codepass = True
+		Session("GetCode"&codename)=empty
+	Else
+		codepass = False
+		Session("GetCode"&codename)=empty
+	End If
+End Function
+'转换成标准的时间格式
+Public Function Ftbbs_Time()
+   Ftbbs_Time = Now() 
+   Ftbbs_Year = Year(Ftbbs_Time) 
+   Ftbbs_Month = Month(Ftbbs_Time) 
+   Ftbbs_Day = Day(Ftbbs_Time) 
+   Ftbbs_Hour = Hour(Ftbbs_Time) 
+   Ftbbs_Minute = Minute(Ftbbs_Time) 
+   Ftbbs_Second = Second(Ftbbs_Time) 
+   Ftbbs_Time = Ftbbs_Year & "-" & Ftbbs_Month & "-" & Ftbbs_Day & " " & Ftbbs_Hour & ":" & Ftbbs_Minute & ":" & Ftbbs_Second
+End Function
+Function ft_home(defaulthome)
+  if defaulthome=1 then
+     if request.cookies("ftbbstype")=1 then
+	 homepage="default_list.asp"
+	 else
+     homepage="ftbbshome.asp"
+	 end if
+  else
+     if request.cookies("ftbbstype")=1 then
+      homepage="default_list.asp"
+     else
+      homepage="main.asp" 
+     end if
+  end if
+  ft_home=homepage
+End Function
+Function chkpost() 
+  Dim url1,url2 
+  chkpost=true 
+  url1=Cstr(Request.ServerVariables("HTTP_REFERER")) 
+  url2=Cstr(Request.ServerVariables("SERVER_NAME")) 
+  If Mid(url1,8,Len(url2))<>url2 Then 
+  chkpost=false 
+  exit function 
+  End If 
+End function
+Function CodeCookie(Str)
+    Dim i
+    Dim CookieStr
+    For i = Len(Str) To 1 Step -1
+        CookieStr = CookieStr & AscW(Mid(Str, i, 1))
+        If (i <> 1) Then CookieStr = CookieStr & "a"
+    Next
+    CodeCookie = CookieStr
+End Function
+
+Function DecodeCookie(Str)
+    Dim i
+    Dim StrArr, StrRtn
+    StrArr = Split(Str, "a")
+    For i = 0 To UBound(StrArr)
+        If IsNumeric(StrArr(i)) = True Then
+            StrRtn = ChrW(StrArr(i)) & StrRtn
+        Else
+            StrRtn = Str
+            Exit Function
+        End If
+    Next
+    DecodeCookie = StrRtn
+End Function
+'设置cookies
+Function setcookie(cookexpires,cookdomain,cookneme,cookvalue)
+   if cookexpires<>0 then
+   Response.Cookies(cookneme).Expires=Date+cookexpires
+   end if
+   if cookdomain<>"" then
+   Response.Cookies(cookneme).Domain=cookdomain
+   end if
+   Response.Cookies(cookneme)=cookvalue
+End Function
+'读取cookies
+Function getcookie(ckname)
+	If Isnull(ckname) or ckname="" Then
+	   getcookie = ""
+	   Exit Function 
+	End If
+	ckvalue = request.cookies(ckname)
+	ckname=LCase(ckname)
+	If (ckname="clubuser_id" or ckname="bz" or ckname="bbsadmin" or ckname="payuser" or ckname="bokeer") and ckvalue<>"" Then
+    On Error Resume Next
+	ckvalue=clng(ckvalue)
+	else
+	ckvalue = Replace(ckvalue,"'","")
+	ckvalue = Replace(ckvalue," ","")
+	ckvalue = Replace(ckvalue,",","")
+	ckvalue = Replace(ckvalue,";","")
+	ckvalue = Replace(ckvalue,Chr(0),"")
+	End if
+	getcookie = ckvalue
+End Function
+'清除cookies
+Function clearcookie(cookdomain,cookneme)
+   if cookdomain<>"" then
+   Response.Cookies(cookneme).Domain=cookdomain
+   end if
+   Response.Cookies(cookneme)=""
+End Function
+
+Sub CloseDb()
+    if IsObject(conn) then
+        conn.Close
+        set conn=nothing
+    end if
+End Sub		
+%>

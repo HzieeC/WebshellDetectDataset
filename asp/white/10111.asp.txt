@@ -1,0 +1,424 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%> 
+<%Session.CodePage=936%> 
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../../inc/sendmail.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<!--#include file="../../inc/md5.asp"-->
+<!--#include file="../../API/API_Config.asp"-->
+<!--#include file="../../API/API_Function.asp"-->
+<%sUploadDir=UpFilesPath("Person")
+If Not FRAdminLevel(302) Then Call ErrorMsg()
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+keyword=CheckStr(trim(request("keyword"))) 
+segment=CheckStr(trim(request("segment")))
+operate=trim(request("operate"))
+group=trim(request("group"))
+Dim Action
+Dim page,i
+Dim totalPut
+const MaxPerpage=20
+strFileName="pmember_searchlist.asp?segment="&segment&"&keyword="&keyword&"&operate="&operate&"&group="&group&""
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+%>
+<%
+step=trim(request("step"))
+member=trim(request("member"))
+if trim(request("step"))<>"" then
+if step="sendmail" then response.redirect "../websys/admin_mail.asp?member="&member&""
+member=replace(replace(member,",","','")," ","")
+set rsw=conn.execute("select * from job_member where member_login in ('"&member&"') and member_typeid=1")
+do while not rsw.eof
+member=rsw("member_login")
+	select case step
+		case "del"
+			'删除简历信息
+		    sql="Select resume_id from job_p_resume where resume_pmember='"&member&"'"
+			set rs=Server.CreateObject("ADODB.RecordSet")
+			rs.open sql,conn,1,1
+			if not rs.eof then
+				resume_ids=rs("resume_id")
+				Call PersonResumeContentDelHtml(resume_ids)
+			end if
+			rs.close
+			set rs=nothing			
+			conn.execute("delete from job_c_myexpert where myexpert_pmember='"&member&"'")
+			conn.execute("delete from job_c_myreceive where myreceive_pmember='"&member&"'")
+			conn.execute("delete from job_c_interview where cominterview_pmember='"&member&"'")
+			conn.execute("delete from job_c_recycle where comrecycle_pmember='"&member&"'")
+			conn.execute("delete from job_p_education where education_pmember='"&member&"'")
+			conn.execute("delete from job_p_training where train_pmember='"&member&"'")
+			conn.execute("delete from job_p_lang where lang_pmember='"&member&"'")
+			conn.execute("delete from job_p_work where work_pmember='"&member&"'")
+			conn.execute("delete from job_p_letter where letter_pmember='"&member&"'")
+			conn.execute("delete from job_p_resume where resume_pmember='"&member&"'")
+			conn.execute("delete from job_member where member_login='"&member&"'")
+			'添加对整合接口的支持
+			If API_Enable Then
+				'重置错误状态和信息
+				set sMyXmlHTTP=server.createobject("MSXML2.ServerXMLHTTP")
+				sMyXmlHTTP.setTimeouts API_Timeout, API_Timeout, API_Timeout * 6, API_Timeout * 6
+				Dim intIndex
+					For intIndex = 0 To UBound(ArrUrls)
+					sMyXmlHTTP.open "POST",ArrUrls(intIndex),false
+					sMyXmlHTTP.setRequestHeader "Content-Type", "text/xml; charset=gb2312"
+					sMyXmlHTTP.Send "<root><appid>finereason</appid><action>delete</action><syskey>"&MD5(member&API_SysKey, 16)&"</syskey><username>"&member&"</username><userstatus>0</userstatus></root>"
+					Next
+			End If
+		case "adui"
+			conn.execute("update job_member set member_flag=1 where member_login='"&member&"'")
+			If emailsendperflag=1 Then
+				 pMemberEmail=rsw("member_email")
+				 Call SendMail(pMemberEmail,"注册账号审核",EmailPerOfRegCheck)
+			End IF
+		case "unadui":conn.execute("update job_member set member_flag=0 where member_login='"&member&"'")
+		case "command":conn.execute("update job_member set member_command=1 where member_login='"&member&"'")
+		case "uncommand":conn.execute("update job_member set member_command=0 where member_login='"&member&"'")
+		case "picture":conn.execute("update job_member set member_logoflag=1 where member_login='"&member&"' and member_typeid=1")
+		case "unpicture":conn.execute("update job_member set member_logoflag=0 where member_login='"&member&"' and member_typeid=1")
+	end select
+rsw.movenext
+loop
+set rsw=nothing
+end if
+%>
+<html>
+<head>
+<title></title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<LINK href=../css/style.css rel=stylesheet type="text/css">
+<script language="javascript" src="../Inc/Admin.js"></script><style type="text/css">
+<!--
+.style11 {	color: #0066CC;
+	font-weight: bold;
+}
+-->
+</style>
+</head>
+<body>
+<table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <tr> 
+	   <th  height=25 class="tableHeaderText">个人会员管理</th>
+  </tr>
+  <form action="pmember_searchlist.asp" method="post">
+    <tr bgcolor="7897E0">
+      <td height="28" bgcolor="#FFFFFF" align="left"><font color="ff6600"><b class="style11">　管理选项</b></font>：&nbsp;<a href="pmember_searchlist.asp">管理首页</a> |  <a href="pmember_searchlist.asp">人才管理</a> | <a href="resume_searchlist.asp" target="main">简历管理</a> | [<a href="javascript:location.reload()">刷新页面</a>]</td>
+    </tr>
+    <tr bgcolor="7897E0">
+      <td height="28" bgcolor="#FFFFFF" align="left"><font color="ff6600"><b class="style11">　二级选项</b></font>： <a href="?operate=0">待审人才</a> | <a href="?operate=1">已审人才</a> | <a href="?operate=2">精英人才</a> | <a href="?operate=3">待审照片</a> | <a href="?operate=4">已过期</a> | <a href="?operate=5">一周内到期</a> | <a href="?operate=6">30天内到期</a></td>
+    </tr>
+    <tr bgcolor="7897E0">
+      <td height="28" bgcolor="#FFFFFF" align="left"><font color="ff6600"><b class="style11">　服务选项</b></font>：
+        <%set rss=conn.execute("select * from job_Group where Group_membertype=1")
+	  if not rss.eof then
+	  do while not rss.eof%>
+        <a href="?operate=<%=operate%>&group=<%=rss("Group_id")%>"><%=rss("Group_name")%></a> |
+      <%rss.movenext
+		loop
+		end if%></td>
+    </tr>
+    <tr bgcolor="7897E0"> 
+      <td height="28" bgcolor="#FFFFFF" align="left"> 
+          &nbsp;&nbsp;&nbsp;&nbsp;关键字： 
+          <input name="keyword" type="text" id="keyword" size="10">
+          <select name="segment" size="1" id="segment">
+            <option value="pmember_login">会员帐号</option>
+            <option value="pmember_name">姓名</option>
+          </select>
+          <input name="Submit" type="submit" class="inputs" value="搜索">      </td>
+    </tr>
+  </form>
+</table> 
+<%Call main()
+if FoundErr=True then
+	call Show_Err()
+end if
+%>
+<%sub main()
+sql="select * from job_member where Member_typeid=1 and"  
+if segment="pmember_name" then
+sql=sql&" member_name like '%"& keyword &"%'"
+else
+sql=sql&" member_login like '%"& keyword &"%'"
+end if
+if operate<>"" then
+	select case operate
+		case 0
+			sql=sql&" and member_flag=0"
+		case 1
+			sql=sql&" and member_flag=1"
+		case 2
+			sql=sql&" and member_command=1"
+		case 3
+			sql=sql&" and member_logostatus=0"
+		case 4
+			sql=sql&" and datediff("&FR_HR_d&",member_enddate,"&FR_HR_Now&")>0"
+		case 5
+			sql=sql&" and datediff("&FR_HR_d&",member_enddate,"&FR_HR_Now&")>7 and datediff("&FR_HR_d&",member_enddate,"&FR_HR_Now&")<=0"
+		case 6
+			sql=sql&" and datediff("&FR_HR_d&",member_enddate,"&FR_HR_Now&")>30 and datediff("&FR_HR_d&",member_enddate,"&FR_HR_Now&")<=0"
+	end select	
+end if
+if group<>"" then
+	sql=sql&" and Member_groupid="&group&""
+end if
+sql=sql&" order by member_id desc"
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,1
+if rs.eof and rs.bof then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>暂无个人用户，请添加后再进行管理！</li>"
+	exit sub
+else
+	totalPut=rs.recordcount
+	if (page-1)*MaxPerpage>totalput then
+		if (totalPut mod MaxPerpage)=0 then
+			page= totalPut \ MaxPerpage
+		else
+			page= totalPut \ MaxPerpage + 1
+		end if
+	end if
+	if page=1 then
+		Call MainInfo()
+	else
+		if (page-1)*MaxPerpage<totalPut then
+			rs.move  (page-1)*MaxPerpage
+			dim bookmark
+			bookmark=rs.bookmark
+			Call MainInfo()
+		else
+			page=1
+			Call MainInfo()
+		end if
+	end if
+end if
+rs.close
+set rs=nothing
+end sub	
+%>
+<%Sub MainInfo()%> 
+<table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <tr>
+    <th height=25 colspan="13" class="tableHeaderText">个人会员列表</th>
+  </tr>
+<form name="form2" action="pmember_searchlist.asp" method="post">		
+		<tr class="tableHeaderText" height=25>
+		  <td align="center"><b>编号</b></td> 
+          <td align="center"><b>会员登录名</b></td>
+		  <td align="center"><b>姓名</b></td>
+          <td align="center"><b>照片</b></td>
+          <td align="center"><b>最近访问日期</b></td>
+		  <td align="center"><b>登录</b></td>
+          <td align="center"><b>激活/总数</b></td>
+		  <td align="center"><b>服务类型</b></td>
+		  <td align="center"><b>消费记录</b></td>
+		  <td align="center"><b>状态</b></td>
+          <td align="center"><b>精英</b></td>
+		  <td align="center"><b>余额</b></td>
+          <td align="center"><input name="checkSelect" type="checkbox" class="checkbox" onClick="javascript: checkAll(this)" value="checkbox"></td>
+        </tr>
+<%do while not rs.eof%>
+        <tr>
+          <td align="center"><%=rs("Member_id")%></td> 
+          <td align="center"><a href="../../member/index.asp?login=<%=rs("Member_login")%>&pwd=<%=rs("Member_pwd")%>&types=pmember&name=<%=rs("member_name")%>" title="点击进入会员中心！" target="_blank"><%=rs("Member_login")%></a></td>
+		  <td align="center">&nbsp;<a href="#" onClick="window.open ('pmember_info.asp?id=<%=rs("Member_id")%>','newwindow','height=500,width=550,top=0,left=0,toolbar=no,menubar=no,scrollbars=yes, resizable=no,location=no, status=no') "><%=rs("Member_name")%></a></td>
+          <td align="center"><%
+		  if rs("Member_logo")&""<>"" or not isnull(rs("Member_logo")) then %>
+		  	<img src="../images/haveimg.gif" alt="个人照片：&lt;br&gt;&lt;img src=<%=sUploadDir&rs("Member_logo")%> border=1 width=100 height=140&gt;" width="12" height="12" border="0" >
+          <%		  	
+				if rs("Member_logoflag")=1 then
+					if rs("Member_logostatus")=0 then	  
+						response.write "<font color='#666666'>已屏蔽</font>"
+					else
+						response.write "正常"
+					end if
+				else
+					response.Write "<font color='#666666'>未审核</font>"
+				end if
+			else
+			response.write "未上传"
+		   end if%></td>
+          <td align="center"><%=rs("member_logindate")%></td>
+		  <td align="center"><%=rs("member_loginnum")%>次</td>
+          <td align="center">
+	      <%
+			set rst=server.createobject("ADODB.Recordset")
+            sql="select count(*) as resumenum from job_p_resume where resume_pmember='"&rs("member_login")&"'"
+            rst.open sql,conn,1,1
+			 resumenum=rst("resumenum")
+			rst.close
+			sql="select count(*) as resumeactivate from job_p_resume where resume_pmember='"&rs("member_login")&"' and (resume_cnstatus=1)"
+            rst.open sql,conn,1,1
+			 resumeactivate=rst("resumeactivate")
+			rst.close
+			set rst=nothing
+			if resumenum<>0 then
+			response.write "<a href='#' onclick=""window.open ('pmember_activeresume.asp?pmember="&rs("member_login")&"','win_point','height=150,width=550,top=150,left=200,toolbar=no,menubar=no,scrollbars=no, resizable=no,location=no, status=no');""><strong><font color=red>"&resumeactivate&"</font></strong></a>"
+			else
+			Response.Write"<strong><font color=red>"&resumeactivate&"</font></strong>"
+			end if
+			Response.Write"/"&resumenum&""
+		   %>          </td>
+		   <td align="center"><a href="#" title="点击可进入设置<%=rs("member_name")%>会员类型及会员服务时间。" onClick="if (confirm('确实要修改用户类型吗？')) window.open ('../user/admin_usertypemodi.asp?id=<%=rs("member_id")%>&member_typeid=<%=rs("member_typeid")%>','newwindow','height=260,width=550,top=0,left=0,toolbar=no,menubar=no,scrollbars=no, resizable=no,location=no, status=no') ">
+		  <%if rs("Member_groupid")<>0 or rs("Member_groupid")<>"" then
+		  set rst=conn.execute("select * from job_Group where Group_membertype=1 and Group_id="&rs("Member_groupid")&"")
+			  if not rst.eof then
+			  Response.Write rst("Group_name")
+			  else
+			  Response.Write("未归类")
+			  end if
+		end if
+		  if cint(rs("member_typeid"))<>5 and rs("member_enddate")<date() then
+		  	response.Write "(<font color=red>已过期</font>)"
+			end if
+		  %>
+		  </a></td>
+		  <td align="center"><a href="../user/admin_paypoint.asp?keyword=<%=rs("Member_login")%>&membertype=1">查看</a></td>
+		  <td align="center"><%
+		  if rs("member_flag")=1 then
+		  	response.Write "正常"
+		  else
+		  	response.Write "<font color='#999999'>未审核</font>"
+		  end if	  
+		  %></td>		  
+          <td align="center">
+		  <%if rs("member_command")=1 then%><font color="#0000FF">精英</font><%else%>普通<%end if%></td>
+		   <td align="center"><a href="#" title="点击可进入设置<%=rs("member_name")%>帐户余额，可实现管理员后台充值！" onClick="if (confirm('确定要修改此帐户的余额吗？')) window.open ('pmember_userpointmodi.asp?id=<%=rs("member_id")%>','win_point','height=230,width=550,top=0,left=0,toolbar=no,menubar=no,scrollbars=no, resizable=no,location=no, status=no')"><%=rs("Member_balance")%></a></td>
+          <td align="center"><input name="member" type="checkbox" class="checkbox" value="<%=rs("member_login")%>"></td>
+        </tr>
+       <%
+		i=i+1
+		if i>=MaxPerPage then exit do
+		rs.movenext
+		loop
+  %>
+  	<input type="hidden" name="keyword" value="<%=keyword%>"> 
+	<input type="hidden" name="segment" value="<%=segment%>">
+	<input type="hidden" name="currentpage" value="<%=ipage%>">
+   <tr >
+    <td height="25" colspan="13" align="right" aligh="right">
+      <input name="button" type="button" class="inputs" onClick="confirmX(1);" value="审核"> 
+      <input name="button" type="button" class="inputs" onClick="confirmX(2);" value="撤销审核">
+      <input name="button" type="button" class="inputs" onClick="confirmX(6);" value="照片审核">
+      <input name="button" type="button" class="inputs" onClick="confirmX(7);" value="撤销照片审核">
+      <input name="button" type="button" class="inputs" onClick="confirmX(3);" value="精英推荐">
+	  <input name="button" type="button" class="inputs" onClick="confirmX(4);" value="撤销精英">
+	  <input name="button" type="button" class="inputs" onClick="confirmX(8);" value="邮件">
+	  <input name="button" type="button" class="inputs" onClick="confirmX(5);" value="删除">    </td>
+  </tr>
+  
+  <tr >
+    <td height="25" colspan="13" aligh="right"><%If totalput>0 Then
+	Call Showpage(strFileName,totalput,MaxPerPage,false,true,"个人才")
+End If%></td>
+  </tr></form>
+</table>
+<%end sub%>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>
+<script language="javascript">
+function confirmX(num)
+{
+	var ids = document.getElementsByName("member");
+	var check=false;
+	if (ids != null) {
+		
+		for (i=0; i<ids.length; i++) 
+		{
+			var obj = ids(i);
+			if (obj.checked==true)
+			{
+				check=true;
+				
+			}
+		}
+		if(check==false){alert("请选择操作对象！");return false;}
+	}
+	if(num==1)
+	{
+		if(confirm("你确定要审核你所选择的个人账号吗？"))	
+		{
+			document.form2.action="pmember_searchlist.asp?step=adui";
+			document.form2.submit();		
+		}
+	}
+	if(num==2)
+	{
+		if(confirm("你确定要撤销审核你所选择的个人账号吗？"))	
+		{
+			document.form2.action="pmember_searchlist.asp?step=unadui";
+			document.form2.submit();		
+		}
+	}
+	if(num==3)
+	{
+		if(confirm("你确定要推荐此人为精英人才吗？"))	
+		{
+			document.form2.action="pmember_searchlist.asp?step=command";
+			document.form2.submit();		
+		}
+	}
+	if(num==4)
+	{
+		if(confirm("你确定要撤销此人的精英人才状态吗？"))	
+		{
+			document.form2.action="pmember_searchlist.asp?step=uncommand";
+			document.form2.submit();		
+		}
+	}
+	if(num==5)
+	{
+		if(confirm("警告:此操作将会删除包括个人账号在内,以及在此账号的所有相关信息!\n是否继续操作下去?"))	
+		{
+			document.form2.action="vip.asp";
+			document.form2.submit();		
+		}
+	}
+	if(num==6)
+	{
+		if(confirm("你确定要审核你所选择的照片吗？"))	
+		{
+			document.form2.action="pmember_searchlist.asp?step=picture";
+			document.form2.submit();		
+		}
+	}
+	if(num==7)
+	{
+		if(confirm("你确定要撤销审核你所选择的照片吗？"))	
+		{
+			document.form2.action="pmember_searchlist.asp?step=unpicture";
+			document.form2.submit();		
+		}
+	}
+	if(num==8)
+	{
+		if(confirm("你确定要给选定的人才发送邮件吗？"))	
+		{
+			document.form2.action="pmember_searchlist.asp?step=sendmail";
+			document.form2.submit();		
+		}
+	}
+	return false;	
+}
+function checkAll(box1) {
+    var ids = document.getElementsByName("member");
+	if (ids != null) {
+		for (i=0; i<ids.length; i++) {
+			var obj = ids(i);
+			obj.checked = box1.checked;
+		}
+	}
+}
+</script>

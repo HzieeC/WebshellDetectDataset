@@ -1,0 +1,201 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+
+<html>
+<head>
+	<title>Customers is registered</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/common/common.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/index/register.js"></script>
+	
+</head>
+<body>
+	<div style="margin-top: 10px;"></div>
+	<table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E" align="center">
+		<tr><td align="center" style="font-size: 22px;font-weight: bolder;"><s:text name="register.Customerfont"/></td></tr>
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+					<form id="saveForm" method="post" action="" onsubmit="return checkForm2()">
+						<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">
+								
+							<tr>
+								<td class='gridtitle' colspan="3" style="font-size: 14px; font-weight: bold;"><center><s:text name="register.logincredentials"/></center></td>
+							</tr>					
+							<tr>
+								<td class='gridtitle' width="15%"><s:text name="register.Username"/></td>
+								<td class='gridbody' width="25%">
+									<input name="customer.account" id="account" value="${customer.account}" onchange="isAccountExisted(this)" />
+								</td>
+								<td class='gridbody'>
+									<font color="red">* <s:text name="register.Userfont"/></font>
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="register.Nickname"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.name" id="name" maxlength="64" />
+								</td>
+								<td class='gridbody'>
+									<font color="red"> * </font>
+								</td>
+							</tr>	
+							<tr>
+								<td class='gridtitle'><s:text name="register.pwd"/></td>
+								<td class='gridbody'>
+									<s:password name="customer.pwd" id="pwd" maxlength="18" />
+								</td>
+								<td class='gridbody'> 	
+									<font color="red"> &nbsp;* <s:text name="register.Nicknamefont"/></font>
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="register.ConfirmPassword"/>
+								<td class='gridbody'>
+									<input type="password" name="rePwd" id="rePwd" maxlength="18" />
+								</td>
+								<td class='gridbody'>
+									<font color="red"> &nbsp;* <s:text name="register.Twothesamepassword"/></font>
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle' colspan="3" style="font-size: 14px; font-weight: bold;"><center><s:text name="register.CustomerInformation"/></center></td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="register.ContactPerson"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.linkman" id="linkman" maxlength="100" />
+								</td>
+								<td class='gridbody'>
+									<font color="red"> *</font>
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="register.Mobilephone"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.mobile" id="mobile" maxlength="30"/>
+								</td>
+								<td class='gridbody'>
+									<font color="red"> * <!--<s:text name="register.Mobilephonefont"/>--></font>
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="register.Telephone"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.telephone" id="telephone" maxlength="30" />
+								</td>
+								<td class='gridbody'>
+								<!--  
+									<s:text name="register.Emptywith"/>：010-12345678/0111-12345678
+								-->
+								</td>	
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="register.Email"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.email" id="email"/>
+								</td>
+								<td class='gridbody'>
+									<font color="red">*&nbsp;&nbsp;<s:text name="register.Asaloginname"/></font>
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="register.CompanyName"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.companyName" id="companyName" />
+								</td>
+								<td class='gridbody'>
+									<font color="red">*</font>
+								</td>
+							</tr>
+							<tr>	
+								<td class='gridtitle'><s:text name="register.CompanyAddress"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.companyAddress" id="companyAddress" />
+								</td>
+								<td class='gridbody'>
+									<font color="red">*</font>
+								</td>
+							</tr>
+							<!-- 
+								<tr>
+								<td class='gridtitle'><s:text name="register.Machinebrand"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.machineBrand" id="machineBrand" />
+								</td>
+								<td class='gridbody'>
+									<font color="red">*</font>
+								</td>
+							</tr>
+							<tr>	
+								<td class='gridtitle'><s:text name="register.Machinemodel"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.machineModel" id="machineModel" />
+								</td>
+								<td class='gridbody'>
+									<font color="red">*</font>
+								</td>
+							</tr>
+							 -->
+							<tr>
+							  <td class='gridtitle'><s:text name="register.verificationcode"/></td>
+				              <td class='gridbody' colspan="2">
+					              <input id="vcode" type="text" name="vcode"/>
+					              <span id="randomCode" style="background-image: url(${ctx}/Images/fuzzy.jpg);"></span>&nbsp;&nbsp;
+					              <a href="javascript:void(0);" onclick="randomCode()"><s:text name="register.vague"/></a>
+				              </td>
+				            </tr>
+				            <tr>
+				            	<td class='gridtitle'></td>
+								<td class='gridbody' colspan="2">
+									<input type="checkbox" id="agree"> &nbsp;<s:text name="register.Readandagree"/> 《....》
+								</td>
+							</tr>
+							<tr>
+							 <td class='gridbody' colspan="3">
+							 	<center>
+								 <input name="submit" type="submit" class="buttun" value="<s:text name="register.Submit"/>" style="background-image:url(${ctx }/Images/index/buttun.gif); border:0; height:25px; width:62px;" />
+				          		  &nbsp;&nbsp;&nbsp;&nbsp;
+		            			<input name="reset" type="reset"" class="buttun" value="<s:text name="register.Reset"/>" style="background-image:url(${ctx }/Images/index/buttun.gif); border:0; height:25px; width:62px;" />
+		            			</center>
+        					 </td>
+							</tr>
+							<tr>
+								<td colspan="3"></td>
+							</tr>
+						</table>
+					</form>
+				</div>
+	    	</td>
+	    </tr>
+	</table>
+<!-- 语言设置-->	
+<input type="hidden" id="Registeredsuccess" value="<s:text name="register.Registeredsuccess"/>"/>
+<input type="hidden" id="Registeredfailure" value="<s:text name="register.Registeredfailure"/>"/>
+<input type="hidden" id="errortheregistered" value="<s:text name="register.errortheregistered"/>"/>
+<input type="hidden" id="Pleaseinputuser" value="<s:text name="register.Pleaseinputuser"/>"/>
+<input type="hidden" id="Pleasefillout" value="<s:text name="register.Pleasefillout"/>"/>
+<input type="hidden" id="Landingnamecan" value="<s:text name="register.Landingnamecan"/>"/>
+<input type="hidden" id="Pleaseenter" value="<s:text name="register.Pleaseenter"/>"/>
+<input type="hidden" id="Pleaseconfirm" value="<s:text name="register.Pleaseconfirm"/>"/>
+<input type="hidden" id="Passwordsand" value="<s:text name="register.Passwordsand"/>"/>
+<input type="hidden" id="Pleasefill" value="<s:text name="register.Pleasefill"/>"/>
+<input type="hidden" id="Pleasefillin" value="<s:text name="register.Pleasefillin"/>"/>
+<input type="hidden" id="Yourcellularphone" value="<s:text name="register.Yourcellularphone"/>"/>
+<input type="hidden" id="Yourfixedphone" value="<s:text name="register.Yourfixedphone"/>"/>
+<input type="hidden" id="EmailISNOTNULL" value="<s:text name="register.EmailISNOTNULL"/>"/>
+<input type="hidden" id="Pleasefilloutthe" value="<s:text name="register.Pleasefilloutthe"/>"/>
+<input type="hidden" id="Pleaseinputmachinebrand" value="<s:text name="register.Pleaseinputmachinebrand"/>"/>
+<input type="hidden" id="Pleaseinputmachinemodel" value="<s:text name="register.Pleaseinputmachinemodel"/>"/>
+<input type="hidden" id="EnterValidationCode" value="<s:text name="register.EnterValidationCode"/>"/>
+<input type="hidden" id="Verificationcodeisnot" value="<s:text name="register.Verificationcodeisnot"/>"/>
+<input type="hidden" id="Pleasereadtheregistration" value="<s:text name="register.Pleasereadtheregistration"/>"/>
+<input type="hidden" id="Theaccounthasfound" value="<s:text name="register.Theaccounthasfound"/>"/>
+<input type="hidden" id="Theaccounthasfound" value="<s:text name="register.Theaccounthasfound"/>"/>
+<input type="hidden" id="SystemError" value="<s:text name="SystemError"/>"/>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="connections.DaoAritcle,java.util.Vector,javaBean.BeanAritcle"%>
+<%@ page import="java.text.SimpleDateFormat,java.util.Date,java.util.Calendar"%>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>MianFeiZhe内容管理系统 - 用户管理中心</title>
+<meta name="description" content="mianfeizhe内容管理系统" />
+<link href="style.css" type="text/css" rel="stylesheet" />
+<script language="JavaScript" src="images/manage.js"></script>
+<script language="JavaScript" src="images/common.js"></script>
+
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<table border="0" align="center" width="100%" cellspacing="0" cellpadding="0">
+	<tr>		
+		<td width="5%" height="22" background="<%=url%>/user/images/manage_top_bg.gif"><img src="images/manage_arrow_right.gif" style="cursor:hand" align="absMiddle"><td>
+		<td width="95%" background="images/manage_top_bg.gif">当前位置：<span class="shadow" id="locationid">我的文章列表</span></td>
+	</tr>
+</table>
+<table border="0" align="center" width="100%" cellspacing="0" cellpadding="0">
+	<tr>
+		<td height="6"></td>
+	</tr>
+</table>
+<table cellspacing=1 align=center cellpadding=3 border=0 class=Usertableborder>
+	<tr height=20 align=center>
+		<td class=Usertablerow2 colspan=5>
+		<a href="aritcle.jsp">发布新的文章</a> </td>
+	</tr>
+
+<tr>
+<th valign=middle>我的文章列表</th>
+<th valign=middle noWrap>审核</th>
+<th valign=middle noWrap>发布日期</th>
+<th valign=middle noWrap>管理操作</th>
+</tr>
+<%
+	DaoAritcle dao=new DaoAritcle();
+	String name=(String)request.getSession().getAttribute("name");
+	String sql="select * from aritcle where Author='"+name+"'";
+	BeanAritcle bean=null;
+	Vector ve=dao.AritcleBind(sql);
+	
+	Date date=new Date();
+	SimpleDateFormat sim=new SimpleDateFormat("yyyy-MM-dd k:mm:ss");
+	String now=sim.format(date);
+	if(ve.size()==0){
+		out.println("<tr>");
+		out.println("<td class=Usertablerow1 align=center valign=middle colspan=5>没有找到任何文章。</td>");
+		out.println("</tr>");
+	}else{
+		for(int i=0;i<ve.size();i++){
+			bean=(BeanAritcle)ve.get(i);
+%>
+<tr align=right>
+	<td class=Usertablerow2 align="left"><%=bean.getTitle()%></td>
+	<%if(bean.getAritcleIssue()==0){%>
+	<td class=Usertablerow2 align="center">未通过</td>
+	<%}else{%>
+	<td class=Usertablerow2 align="center">通过</td>
+	<%}%>
+	<td class=Usertablerow2 align="center"><%=bean.getUpdateTime()%></td>
+	<%if(bean.getAritcleIssue()==0){%>
+	<td class=Usertablerow2 align="center"><a href='<%=url%>/servletsuserarticle?action=udel&id=<%=bean.getAritcleId()%>'>删除</a>|<a href='<%=url%>/user/articleUpdate.jsp?id=<%=bean.getAritcleId()%>'>编辑</a></td>
+	<%}else{%>
+		<td class=Usertablerow2 align="center">不可操作</td>
+	<%}%>
+</tr>
+	<%}%>
+<%}%>
+</table></body>
+</html>

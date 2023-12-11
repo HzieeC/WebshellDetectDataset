@@ -1,0 +1,101 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="javaBean.AddSortB"%>
+<%@ page import="java.util.Vector"%>
+<%@ page import="connections.Dao"%>
+<%
+	String url = request.getContextPath();
+	String sqlid=(String)request.getAttribute("sqlid");
+	String sqlstr=(String)request.getAttribute("sqlstr");
+	Dao dao=new Dao();
+    Vector ve=dao.getClassName();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<table border=0 align=center cellpadding=3 cellspacing=1 class=tableborder>
+<tr>
+	<th colspan=2>批量生成文章HTML页管理</th>
+</tr>
+
+<form name="createIndex" method=post action='<%=url%>/servletscreatehtml'>
+<tr>	
+	<td colspan=2 class=tablerow2>1、<font color=blue>生成首页</font>
+	</td>
+</tr>
+</td></tr>
+<tr>
+	<td align=right class=tablerow1>点击这里开始生成HTML→</td>	
+	<input type="hidden" name="webType" value="index">
+	<td class=tablerow1><input class="Button" type="submit" name="B2" value='开始生成HTML'></td>
+</tr>
+</form>
+
+<form name="createList" method=post action='<%=url%>/servletscreatehtml'>
+<tr>	
+	<td colspan=2 class=tablerow2>2、<font color=blue>生成列页</font>
+	</td>
+</tr>
+</td></tr>
+<tr>
+	<td align=right class=tablerow1>点击这里开始生成HTML→</td>	
+	<input type="hidden" name="webType" value="list">
+	<td class=tablerow1><input class="Button" type="submit" name="B2" value='开始生成HTML'></td>
+</tr>
+</form>
+
+<form name="createContent" method=post action='<%=url%>/servletscreatehtml'>
+<tr>	
+	<td colspan=2 class=tablerow2>3、<font color=blue>生成内容页</font>
+	</td>
+</tr>
+</td></tr>
+<tr>
+	<td align=right class=tablerow1>点击这里开始生成HTML→</td>	
+	<input type="hidden" name="webType" value="content">
+	<input type="hidden" name="create" value="all">
+	<td class=tablerow1><input class="Button" type="submit" name="B2" value='开始生成HTML'></td>
+</tr>
+</form>
+
+<form name="CreateAll" method="post" action="<%=url%>/servletscreatehtml" >
+<input type="hidden" name="webType" value="all">
+<tr height="32">	<td colspan=2 class=tablerow1></td></tr><tr>	<td colspan=2 class=tablerow2>4、<font color=blue>生成全部
+<tr>	<td align=right class=tablerow1>点击这里开始生成HTML→</td>	<td class=tablerow1><input class="Button" type="submit" name="B2" value='开始生成HTML'> &nbsp;&nbsp;&nbsp;&nbsp;</td></tr>
+</font></td></tr></tr> 
+</form>
+
+<form name="CreateCList" method="post" action="<%=url%>/servletscreatehtml" >
+<input type="hidden" name="webType" value="clist">
+<tr>	<td colspan=2 class=tablerow2>5、<font color=blue>按分类生成文章相关HTML页</font></td></tr><form name=Createform8 method=post action=Admin_CreateArticle.Asp>
+<input type=hidden name=ChannelID value='1'><input type=hidden name=field value='2'><tr> <td class=tablerow1>
+<select name='listid' size='2' multiple style='height:260px;width:200px;'>
+<%if(ve==null){%>
+<option>没有添加分类</option>
+<%}else{
+	AddSortB bean=null;
+	for(int i=0;i<ve.size();i++){
+		bean=(AddSortB)ve.get(i);
+		out.println("<option value='"+bean.getClassId()+"'>"+bean.getClassName()+"</option>");
+	}
+}%>
+</select>
+</td>
+<td class=tablerow1 valign=top><input class=Button type=submit name=Submit1 value='生成分类列表页方法'><br><br>
+请按 CTRL 键多选</td> </tr>
+</form>
+
+</table><br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

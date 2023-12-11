@@ -1,0 +1,638 @@
+<!-- #include file="admin_inc.asp" -->
+<!--#include file="../inc/pinyin.asp"-->
+<%
+server.scripttimeout=99999
+const gatherWaitTime=3		'采集每页数据间隔时间
+Dim gbTypeArray,backurl:backurl=getForm("backurl","get")
+Dim ac,h,wd,rid,t,pg:ac=getForm("ac","both"):h=getForm("h","both"):wd=getForm("wd","both"):rid=getForm("rid","both"):t=getForm("t","both"):pg=getForm("pg","both")
+redim res(2,-1)
+if not isNum(pg) then
+	pg=1
+else
+	pg=Clng(pg)
+end if
+
+if not isNum(t) then
+	t=0
+else
+	t=Clng(t)
+end if
+
+'资源API
+AddResUrl -1,"","<h3>百度影音资源库</h3>"
+AddResUrl 1,"http://www.bdzyz.com/xml/caiji.asp","【BDHD】<font color=""#0000FF"">百度影音资源网 - BDZYZ.COM 百度影音资源网,无广告,缓冲快www.886tv.com</font>"
+AddResUrl 2,"http://api.baduzy.com/xml/caiji.asp","【BDHD】<font color=""#FF0000"">百度影音资源网 - BADUZY.COM 百度影音资源网,无广告,缓冲快www.886tv.com</font>"
+AddResUrl 3,"http://www.bdyyzyz.com/bdyyzyz/xml","【BDHD】<font color=""#3366FF"">百度影音资源网 - BDYYZYZ.COM  百度影音资源网 无广告,电信播放缓冲快,更新快www.886tv.com</font>"
+AddResUrl 4,"http://c.sfdy.net:88/caiji/api/max.asp","【BDHD】<font color=""#6600FF"">百度影音资源网 - SFDY.NET  百度影音资源网 无广告,电信播放缓冲快,更新快www.886tv.com</font>"
+AddResUrl -1,"","<h3>快播（Qvod)资源库</h3>"
+AddResUrl 5,"http://www.qvodzy.com.cn/api/max.asp","【QVOD】<font color=""#FF0000"">快播(Qvod)资源网 - QVODZY.COM.CN 快播资源网,无广告,更新快www.886tv.com</font>"
+AddResUrl 6,"http://www.hakuzy.com/xml/maxresxml.asp","【QVOD】<font color=""#FF0000"">快播(Qvod)资源网 - HACOW.COM 哈酷资源网,无广告,更新快www.886tv.com</font>"
+AddResUrl 7,"http://www.fensizy.com/api/max4.asp","【QVOD】<font color=""#6600FF"">快播(Qvod)资源网 - FensiZY.COM  粉丝资源网 无广告,更新快www.886tv.com</font>"
+
+Header
+Select Case ac
+	Case "list":getlist()
+	Case "bind":bindType
+	Case "bindsubmit":bindSubmit
+	case "select":gather
+	Case "type":gatherType
+	Case "day":gatherDay
+	Case "all":gatherALl
+	Case else
+		Main
+End Select
+Footer
+terminateAllObjects
+
+Function rNodeText(ByRef node,ByVal name)
+	rNodeText=Replace(node.selectNodes(name)(0).text,"<","&lt;")
+End Function
+
+Function filterQuote(ByVal s)
+	filterQuote=ReplaceStr(s,"'","")
+End Function
+
+Function U2UTF8(Byval a_iNum)
+    Dim sResult,sUTF8,iTemp,iHexNum,i:iHexNum = Clng(a_iNum)
+	If iHexNum = 0 Then  Exit Function
+    sResult = ""
+    If (iHexNum < 128) Then
+        sResult = "%" & hex(iHexNum)
+    ElseIf (iHexNum < 2048) Then
+        sResult = "%" & hex(&H80 + (iHexNum And &H3F))
+        iHexNum = iHexNum \ &H40
+        sResult = "%" & hex(&HC0 + (iHexNum And &H1F)) & sResult
+    ElseIf (iHexNum < 65536) Then
+        sResult = "%" & hex(&H80 + (iHexNum And &H3F))
+        iHexNum = iHexNum \ &H40
+        sResult = "%" & hex(&H80 + (iHexNum And &H3F)) & sResult
+        iHexNum = iHexNum \ &H40
+        sResult = "%" & hex(&HE0 + (iHexNum And &HF)) & sResult
+    End If
+    U2UTF8 = sResult
+End Function
+
+Function Utf8UrlEncode(Byval sStr)
+    Dim sGB,sResult,sTemp
+    Dim iLen,iUnicode,iTemp,i:sGB = sStr:iLen = Len(sGB)
+    For i = 1 To iLen
+         sTemp = Mid(sGB,i,1):iTemp = Asc(sTemp)
+         If (iTemp>127 OR iTemp<0) Then
+             iUnicode = AscW(sTemp)
+             If iUnicode<0 Then
+                 iUnicode = iUnicode + 65536
+             End If
+        Else
+            iUnicode = iTemp
+        End If
+        sResult = sResult & U2UTF8(iUnicode)
+    Next
+    Utf8UrlEncode = sResult
+End Function
+
+Function makePageNumber(Byval currentPage,Byval pageListLen,Byval totalPages)
+	currentPage=clng(currentPage)
+	dim beforePages,pagenumber,page
+	dim beginPage,endPage,strPageNumber
+	if pageListLen mod 2=0 then beforePages=pagelistLen / 2 else beforePages=clng(pagelistLen / 2) - 1
+	if  currentPage < 1  then currentPage=1 else if currentPage > totalPages then currentPage=totalPages
+	if pageListLen > totalPages then pageListLen=totalPages
+	if currentPage - beforePages < 1 then
+		beginPage=1 : endPage=pageListLen
+	elseif currentPage - beforePages + pageListLen > totalPages  then
+		beginPage=totalPages - pageListLen + 1 : endPage=totalPages
+	else 
+		beginPage=currentPage - beforePages : endPage=currentPage - beforePages + pageListLen - 1
+	end if	
+	for pagenumber=beginPage  to  endPage
+		if pagenumber=1 then page="" else page=pagenumber
+		if clng(pagenumber)=clng(currentPage) then
+			strPageNumber=strPageNumber&"<span><font color=red>"&pagenumber&"</font></span>"
+		else
+		   	strPageNumber=strPageNumber&"<a href='?ac="&ac&"&rid="&rid&"&t="&t&"&h="&h&"&wd="&Server.UrlEncode(wd)&"&pg="&pagenumber&"'>"&pagenumber&"</a>"
+		end if
+	next
+	makePageNumber=strPageNumber
+End Function
+
+Sub getlist()
+	Dim xmlobj,xml,nodes,i,l,tlist,pagestr,x,y,z,url:set xmlobj = mainClassobj.createObject("MainClass.Xml")
+	url=res(1,rid)&"?ac=list&t="&t&"&h="&h&"&pg="&pg&"&wd="&Utf8UrlEncode(wd)
+	xml=bytesToStr(getRemoteContent(url,"body"),"utf-8")
+	If left(xml, 5) <> "<?xml" then die err_xml else xmlobj.xmlDomObj.loadXML xml
+	dim page,pagecount,pagesize,recordcount
+	set nodes=xmlobj.getNodes("rss/list")(0)
+	page=Clng(xmlobj.getAttributesByNode(nodes,"page"))
+	pagecount=Clng(xmlobj.getAttributesByNode(nodes,"pagecount"))
+	pagesize=Clng(xmlobj.getAttributesByNode(nodes,"pagesize"))
+	recordcount=Clng(xmlobj.getAttributesByNode(nodes,"recordcount"))
+	set nodes=nothing
+
+	set nodes=xmlobj.getNodes("rss/class/ty"):l=nodes.length-1:redim tlist(1,l)
+	for i=0 to l
+		tlist(0,i)=xmlobj.getAttributesByNode(nodes(i),"id"):tlist(1,i)=nodes(i).text
+	next
+	set nodes=nothing
+	pagestr = "<div class=""cuspages"" style=""margin:0""><div class=""pages"" style=""margin:0"">共 "&recordcount&" 条数据 每页 "&pagesize&" 条 当前 "&page&"/"&pagecount&" 页码"
+	pagestr = pagestr & "<a href=""?ac="&ac&"&rid="&rid&"&t="&t&"&h="&h&"&wd="&Server.UrlEncode(wd)&"&pg=1"">首页</a> <a href=""?ac="&ac&"&rid="&rid&"&t="&t&"&h="&h&"&wd="&Server.UrlEncode(wd)&"&pg="&(page-1)&""">上一页</a>"
+	pagestr = pagestr & makePageNumber(page,10,pagecount)
+	pagestr = pagestr & "<a href=""?ac="&ac&"&rid="&rid&"&t="&t&"&h="&h&"&wd="&Server.UrlEncode(wd)&"&pg="&(page+1)&""">下一页</a> <a href=""?ac="&ac&"&rid="&rid&"&t="&t&"&h="&h&"&wd="&Server.UrlEncode(wd)&"&pg="&pagecount&""">尾页</a>"
+	pagestr = pagestr & "&nbsp;&nbsp;跳转<input type=""text"" id=""skip"" value="""" onkeyup=""this.value=this.value.replace(/[^\d]+/,'')"" style=""width:40px""/>&nbsp;&nbsp;<input type=""button"" value=""确定"" class=""btn"" onclick=""location.href='?ac="&ac&"&rid="&rid&"&t="&t&"&h="&h&"&wd="&Server.UrlEncode(wd)&"&pg='+$('skip').value;""/></div></div>"
+%>
+<table class="tb">
+<thead>
+	<tr class="thead"><th colspan="4">&nbsp;<a href="?">采集平台</a>&nbsp;&raquo;&nbsp;<a href="?ac=list&rid=<%=rid%>"><%=res(2,rid)%></a></th></tr>
+	<tr><th colspan="4">
+	<ul class="ul">
+	<%
+		echo "<li><a href=""?ac=list&rid="&rid&""">全部</a></li>"
+		for i=0 to UBound(tlist,2)
+			z = res(0,rid)&"_"&tlist(0,i)
+			y = getBindedLocalId(z):if not isNum(y) then y=0
+			if y = 0 then
+				x = "<font color=blue>[<b>未绑定</b>]</font>"
+			else
+				x = "<font color=red>[<b>已绑定</b>]</font>"
+			end if
+			echo "<li><a href=""?ac=list&rid="&rid&"&t="&tlist(0,i)&""">"&tlist(1,i)&"</a>&nbsp;&nbsp;<a href=""?ac=bind&curid="&z&"&class="&y&"&tname="&server.urlencode(tlist(1,i))&""">" & x & "</a></li>"
+		next
+	%>
+	</ul>
+	</th></tr>
+	<tr><th colspan="4">
+	<%=pagestr%>
+	</th></tr>
+	<form action="?" method="get">
+	<input type="hidden" name="ac" value="<%=ac%>">
+	<input type="hidden" name="rid" value="<%=rid%>">
+	<input type="hidden" name="t" value="<%=t%>">
+	<input type="hidden" name="h" value="<%=h%>">
+	<tr><th colspan="4">
+	&nbsp;<input type="button" class="btn" style="width:65px" onclick="checkOthers('input','ids')" value="全选反选" />
+	&nbsp;<input type="button" class="btn" style="width:45px" onclick="$('choose').submit()" value="采集"/>
+	&nbsp;<input type="button" class="btn" style="width:65px" onclick="location.href='?ac=day&rid=<%=rid%>&t=<%=t%>&h=24&backurl='+encodeURIComponent(location.href);" value="采集当天"/>
+	&nbsp;<input type="button" class="btn" style="width:103px"onclick="location.href='?ac=type&rid=<%=rid%>&t=<%=t%>&backurl='+encodeURIComponent(location.href);" value="一键采集该分类"<%if t<1 then echo "disabled"%>/>
+	&nbsp;<input type="button" class="btn" style="width:65px" onclick="location.reload()" value="刷新网页"/>
+	&nbsp;&nbsp;查询：<input type="text" name="wd" value="<%=wd%>" style="width:100px">
+	&nbsp;<input type="submit" class="btn" name="submit" value="搜 索" />
+	&nbsp;<select onchange="self.location.href='?ac=list&rid=<%=rid%>&t='+this.options[this.selectedIndex].value+'&h=<%=h%>&pg=&wd='">
+	<option value="">按分类查看</option>
+	<%
+		for i=0 to UBound(tlist,2)
+			echo "<option value="""&tlist(0,i)&""">"&tlist(1,i)&"</option>"
+		next
+	%>
+	</select>
+	</th></tr>
+	</form>
+	<tr>
+		<th>名称</th>
+		<th>分类</th>
+		<th>来源</th>
+		<th width="135">时间</th>
+	</tr>
+</thead>
+<tbody>
+<form action="?" method="post" name="choose" id="choose">
+<input type="hidden" name="ac" value="select">
+<input type="hidden" name="rid" value="<%=rid%>">
+<%
+	dim la,id,ti,na,ty,dt,no,ch:set nodes=xmlobj.getNodes("rss/list/video"):l=nodes.length-1
+	for i=0 to l
+	la=rNodeText(nodes(i),"last")
+	id=rNodeText(nodes(i),"id")
+	ti=rNodeText(nodes(i),"tid")
+	na=rNodeText(nodes(i),"name")
+	ty=rNodeText(nodes(i),"type")
+	dt=rNodeText(nodes(i),"dt")
+	no=rNodeText(nodes(i),"note")
+	ch=""
+	if isDate(la) then
+		if DateValue(la)=Date() then ch=" checked":la="<font color=red>"&la&"</font>"
+	end if
+%>
+	<tr>
+		<td><input type="checkbox" class="checkbox" name="ids" value="<%=id%>" id="<%=id%>"<%=ch%>/><label for="<%=id%>"><%=na%><font color="#FF0000"><%=no%></font></label></td>
+		<td><a href="?ac=list&t=<%=ti%>&rid=<%=rid%>"><%=ty%></a></td>
+		<td><%=dt%></td>
+		<td><%=la%></td>
+	</tr>
+<%
+	next
+%>
+</form>
+	<tr><td colspan="4">
+	<%=pagestr%>
+	</td></tr>
+</tbody>
+</table>
+<%
+	set nodes=nothing:set xmlobj=nothing
+End Sub
+
+Sub Main
+%>
+<table class="tb">
+	<thead>
+		<tr class="thead"><th>&nbsp;<a href="www.886tv.com">齐齐乐电影网[886TV.com]采集资源库</th></tr>
+	</thead>
+</table>
+<table class="tb2">
+<tbody>
+<%
+dim i
+for i=0 to UBound(res,2)
+if res(0,i)=-1 then
+%>
+	<tr>
+		<td colspan="2"><%=res(2,i)%></td>
+	</tr>
+<%
+else
+%>
+	<tr id="res<%=res(0,i)%>">
+		<td><a href="?ac=list&rid=<%=i%>">(<%=right("00"&res(0,i),2)%>)<%=res(2,i)%></a></td>
+		<td width="200"><a href="#" onclick="location.href='?ac=day&rid=<%=i%>&backurl='+encodeURIComponent(location.href);">采集当天</a> <a href="#" onclick="location.href='?ac=type&rid=<%=i%>&backurl='+encodeURIComponent(location.href);">一键采集所有</a> <a href="?ac=list&rid=<%=i%>">视频列表</a></td>
+	</tr>
+<%
+end if
+next
+%>
+</tbody>
+</table>
+<%
+End Sub
+
+Sub Header
+checkPower
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<!--2010-09-15 10:57-->
+<title>采集平台</title>
+<link href="imgs/admin.css" rel="stylesheet" type="text/css" />
+<script src="../js/common.js" type="text/javascript"></script>
+<script src="imgs/main.js" type="text/javascript"></script>
+<script>if(parent.$('admincpnav')) parent.$('admincpnav').innerHTML='后台首页&nbsp;&raquo;&nbsp;<%=menuList(1,0)%>&nbsp;&raquo;&nbsp;采集平台';</script>
+<style type="text/css">
+input{height:12px;}
+.tb2 td{padding:2px 5px 2px 5px;height:25px}
+.tb2 .thc{text-align:center;line-height:30px; background-color: #F5F7F8;font-size:18px;font-weight:bold;color:#000}
+.tb2 .thr{text-align:center;height:20px}
+.label{padding:0;width:150px;text-align:right;border-right:1px solid #DEEFFA;}
+.btn{height:22px}
+.red{color:red}
+.blue{color:blue}
+.gray{color:gray}
+.ul li{float:left;margin:3px;width:150px}
+h3{padding:0;margin:0;font-size:12px;background:none;border:none}
+</style>
+<script type="text/javascript">
+window.RESLIB40=true;
+function show(){
+	var arg=arguments;
+	for(var i=0;i<arg.length;i++){
+		$(arg[i]).style.display="";
+	}
+}
+
+function hide(){
+	var arg=arguments;
+	for(var i=0;i<arg.length;i++){
+		$(arg[i]).style.display="none";
+	}
+}
+</script>
+</head>
+<body bgcolor="#F7FBFF">
+<div class="container" id="cpcontainer">
+<%
+End Sub
+
+Sub Footer
+%></div>
+<div align=center><%echoRunTime%></div>
+<div align=center>Copyright 2005-2009 All rights reserved. <a target="_blank" href="http://www.maxcms.net/">Maxcms4.0</a></div>
+<div style="display:none"><script language="javascript" src="http://maxcms.bokecc.com/update/max4.0/maxcms_tool.js"></script></div>
+</body>
+<iframe frameborder="0" scrolling="no" height="0" width="0" name="hiddensubmit" id="hiddensubmit" src="about:blank"></iframe>
+</html>
+<%
+End Sub
+
+Sub bindType
+	dim bind_back,vtypename,curBindId,typeid,operType:bind_back=getRefer
+	vtypename=getForm("tname","get"):curBindId=getForm("curid","get"):operType=getForm("class","get")
+%>
+<table class="tb">
+<thead>
+	<tr class="thead"><th colspan="4">&nbsp;<a href="?">采集平台</a>&nbsp;&raquo;&nbsp;绑定分类</th></tr>
+	<tr><th colspan="4">
+<%
+	echo "<div class='bindtype'><form action='?ac=bindsubmit&curid="&curBindId&"&class="&operType&"' method='post' id='gatherform' name='gatherform'><span>将分类 <font class='red'>"&vtypename&"</font> 绑定到您的网站分类的</span><input type='hidden' value='"&bind_back&"' name='bind_back' >&nbsp;&nbsp;<select name='m_type' id='m_type'><option value=''>请选择数据分类</option>"
+	typeid=getBindedLocalId(curBindId)
+    makeTypeOptionSelected 0,"&nbsp;|&nbsp;&nbsp;",typeid
+	echo "</select>&nbsp;&nbsp;<input type='hidden' name='m_oldtype' value='"&typeid&"' /><input type='submit' class='btn' value='绑  定'/>&nbsp;&nbsp;<input type='button' class='btn' value='返  回' onClick='javascript:history.back();return false;'/></form></div>"
+%>
+	</th></tr>
+</thead>
+</table>
+<%
+End Sub
+
+Sub bindSubmit
+	dim bind_back,curBindId,operType,m_type,rsobj,m_oldtype
+	curBindId=getForm("curid","get"):operType=getForm("class","get")
+	m_type=getForm("m_type","post"):bind_back=getForm("bind_back","post"):m_oldtype=getForm("m_oldtype","post")
+	if isNum(m_type) then
+		if not isNul(m_oldtype) then
+			set rsobj=conn.db("select m_unionid from {pre}type where m_id="&m_oldtype,"records3")
+			if not rsobj.eof then
+				rsobj("m_unionid")=delBindId(curBindId,rsobj("m_unionid"))
+				rsobj.update
+			end if
+			rsobj.close:set rsobj=nothing
+		end if
+		set rsobj=conn.db("select m_unionid from {pre}type where m_id="&m_type,"records3")
+		if  not  rsobj.eof then
+			rsobj("m_unionid")=addUnionid(curBindId,rsobj("m_unionid"))
+			rsobj.update
+		end if
+		rsobj.close:set rsobj=nothing
+		alertMsg "绑定成功",bind_back
+	else
+		set rsobj=conn.db("select m_unionid from {pre}type where ','+m_unionid+',' like '%,"&curBindId&",%'","records3")
+		if not rsobj.eof then
+			rsobj("m_unionid")=delBindId(curBindId,rsobj("m_unionid"))
+			rsobj.update
+		end if
+		rsobj.close:set rsobj=nothing
+		alertMsg "解除绑定",bind_back
+	end if
+End Sub
+
+Function delBindId(bindid,unionId)
+	if isNul(unionId) then 
+		delBindId=unionId
+	else
+		if instr(","&unionId&",",","&bindid&",")>0 then delBindId=trimOuterStr(replace(","&unionId&",",","&bindid&",",","),",") else addUnionid=unionId
+	end if
+End Function
+
+Function addUnionid(bindid,unionId)
+	if isNul(unionId) then 
+		addUnionid=bindid
+	else
+		if instr(","&unionId&",",","&bindid&",")>0 then addUnionid=unionId else addUnionid=unionId&","&bindid
+	end if
+End Function
+
+Function getBindedLibIds()
+	dim libIds,i,arrayLen
+	if not isarray(gbTypeArray) then
+		gbTypeArray=conn.db("select m_id,m_unionid from {pre}type where m_type=0 AND len(m_unionid)>0","array")
+	end if
+	if isArray(gbTypeArray) then
+		arrayLen=ubound(gbTypeArray,2)
+		for i=0 to arrayLen
+			if i<arrayLen then libIds=libIds&gbTypeArray(1,i)&"," else libIds=libIds&gbTypeArray(1,i)
+		next
+	end if
+	getBindedLibIds=libIds
+End Function
+
+Function getBindedLocalId(libId)
+	dim arrayLen,i,j,unionArray,arrayLen2
+	if not isarray(gbTypeArray) then
+		gbTypeArray=conn.db("select m_id,m_unionid from {pre}type where m_type=0 AND len(m_unionid)>0","array")
+	end if
+	if not isArray(gbTypeArray) then getBindedLocalId="" : Exit Function
+	arrayLen=ubound(gbTypeArray,2)
+	for i=0 to arrayLen
+		unionArray=split(gbTypeArray(1,i),",") : arrayLen2=ubound(unionArray)
+		for j=0 to arrayLen2
+			if trim(unionArray(j))=trim(libId) then getBindedLocalId=gbTypeArray(0,i) : Exit Function
+		next
+	next
+	getBindedLocalId=""
+End Function
+
+Sub gather
+	dim weburl,ids:ids=replace(getForm("ids","both"),", ",",")
+	if isNul(ids) then alertMsg "请选择采集数据","":last
+	weburl=res(1,Clng(rid))&"?ac=videolist&ids="&ids
+	intoDatabase weburl,"select"
+End Sub
+
+Sub gatherType
+	dim weburl:weburl=res(1,Clng(rid))&"?ac=videolist&rid="&rid&"&t="&t&"&pg="&pg
+	intoDatabase weburl,"type"
+End Sub
+
+Sub gatherDay
+	dim weburl:weburl=res(1,Clng(rid))&"?ac=videolist&rid="&rid&"&t="&t&"&h=24&pg="&pg
+	intoDatabase weburl,"day"
+End Sub
+
+Sub gatherAll
+	dim weburl:weburl=res(1,Clng(rid))&"?ac=videolist&rid="&rid&"&pg="&pg
+	intoDatabase weburl,"type"
+End Sub
+
+Function repairStr(ByVal vstr,ByVal sfrom)
+	dim regExpObj : set regExpObj= new RegExp : regExpObj.ignoreCase = true : regExpObj.Global = true : regExpObj.Pattern = "[\s\S]+?\$[\s\S]+?\$[\s\S]+?"
+	dim i,j,f: j=1
+	vstr = split(vstr,"#"):f=getReferedId(sfrom)
+	for i = 0  to ubound(vstr)
+		if not(isnul(vstr(i))) then
+			if regExpObj.Test(vstr(i)) = false then 
+				regExpObj.Pattern = "[\s\S]+?\$[\s\S]+?"
+				if regExpObj.Test(vstr(i)) = true then 
+					vstr(i) = trim(vstr(i))&"$"&f
+				else
+					vstr(i) = "第"&j&"集$"&trim(vstr(i))&"$"&f
+				end if 
+				regExpObj.Pattern = "[\s\S]+?\$[\s\S]+?\$[\s\S]+?"
+			else 
+				vstr(i) = trim(vstr(i))
+			end if
+			j=j+1
+		end if 
+	next
+	repairStr = sfrom&"$$"&Join(vstr,"#")
+	set regExpObj =nothing
+End Function
+
+Sub intoDatabase(url,gtype)
+	dim xmlobj,xml,alertContent,vtype,vNodes,i,m_playdata,pagecount,page,j,l,childNodes:pagecount=0:page=pg
+	set xmlobj = mainClassobj.createObject("MainClass.Xml")
+	echo "<div style='font-size:13px'><font color=red>视频采集开始：</font>"&url&"<br>"
+	xml=bytesToStr(getRemoteContent(url,"body"),"utf-8")
+	If left(xml, 5) <> "<?xml" then die err_xml else xmlobj.xmlDomObj.loadXML FilterChar(xml)
+	if xmlobj.isExistNode("rss/list/message") then
+		alertContent=xmlobj.getNodeValue("rss/list/message","")
+		if not isNul(alertContent)  then  alertMsg alertContent,"" : last
+	end if
+	if gtype="type" or gtype="day" then pagecount=xmlobj.getAttributes("rss/list","pagecount",0)
+	if not isNum(pagecount) then pagecount=1 else pagecount=Clng(pagecount)
+	set vNodes=xmlobj.getNodes("rss/list/video")
+	dim f,vid,title,libid,actor,pic,des,states,localId,sql,publishyear,publisharea,vrsObj,vrsObj2,m_note,m_enname,m_lang,director,m_sql,m_where,m_i,titleArray
+	on error resume next
+	for i=0 to vNodes.length-1
+		m_where=""
+		Set childNodes=vNodes(i).childNodes(13).childNodes:vid=""
+		l=childNodes.length
+		for j=0 to l-1
+			if vid="" then
+				vid=repairStr(childNodes(j).text,childNodes(j).getAttributeNode("flag").nodevalue)
+			else
+				vid= vid & "$$$" & repairStr(childNodes(j).text,childNodes(j).getAttributeNode("flag").nodevalue)
+			end if
+		next
+		Set childNodes=nothing:vid=filterQuote(vid)
+		libid=res(0,rid) & "_" & Clng(vNodes(i).childNodes(2).text)
+		title=replace(filterQuote(vNodes(i).childNodes(3).text)," ","")
+		vtype=vNodes(i).childNodes(4).text
+		if computeStrLen(title)>115 then title=getStrByLen(title,115)
+		pic=filterQuote(vNodes(i).childNodes(5).text)
+		des=filterQuote(vNodes(i).childNodes(14).text)
+		m_lang=filterQuote(vNodes(i).childNodes(6).text)
+		if computeStrLen(m_lang)>30 then m_lang=getStrByLen(m_lang,30)
+		publisharea=filterQuote(vNodes(i).childNodes(7).text)
+		if computeStrLen(publisharea)>30 then publisharea=getStrByLen(publisharea,30)
+		publishyear=vNodes(i).childNodes(8).text
+		states=vNodes(i).childNodes(9).text
+		m_note=filterQuote(vNodes(i).childNodes(10).text)
+		actor=replaceStr(trim(filterQuote(vNodes(i).childNodes(11).text))," ",",")
+		if computeStrLen(actor)>250 then actor=getStrByLen(actor,250)
+		director=replaceStr(filterQuote(vNodes(i).childNodes(12).text)," ",",")
+		if computeStrLen(director)>40 then director=getStrByLen(director,40)
+		if not isNum(publishyear) then publishyear=0
+		if not isNum(states) then states=0
+		localId=getBindedLocalId(libid)
+		if not isNul(title) then
+			title=replace(replace(title,"[","【"),"]","】")
+			if isNum(localId) then
+				titleArray=split(title,"/")
+				if UBound(titleArray)>-1 then title=titleArray(0)
+				for m_i=0 to ubound(titleArray)
+					if not isNul(titleArray(m_i)) then m_where=m_where&" or '/'+m_name+'/' like '%/"&titleArray(m_i)&"/%' "
+				next
+				m_where=trimOuterStr(m_where," or")
+				m_sql="select top 1 m_id,m_playdata from {pre}data where "&m_where
+				set vrsObj=conn.db(m_sql,"execute")
+				if vrsObj.eof then
+					m_enname=MoviePinYin(title):sql="insert into {pre}data(m_name,m_type,m_state,m_pic,m_actor,m_des,m_playdata,m_isunion,m_publishyear,m_publisharea,m_note,m_letter,m_enname,m_director,m_lang) values('"&title&"',"&localId&","&states&",'"&pic&"','"&actor&"','"&des&"','"&vid&"',1,"&publishyear&",'"&publisharea&"','"&m_note&"','"&Left(m_enname,1)&"','"&m_enname&"','"&director&"','"&m_lang&"')"
+				else
+					select case gatherSet
+						case 0,1,2,3
+							m_playdata = gatherIntoLibTransfer(vrsObj("m_playdata"),vid,gatherSet)
+							sql="update {pre}data set m_state="&states&ifthen(isSpecial(vtype),",m_note='"&m_note&"'","")&",m_lang='"&m_lang&"',m_playdata='"&m_playdata&"',m_isunion=1,m_addtime='"&now()&"' where m_id="&vrsObj("m_id")
+						case 4
+							m_enname=MoviePinYin(title):sql="insert into {pre}data(m_name,m_type,m_state,m_pic,m_actor,m_des,m_playdata,m_isunion,m_publishyear,m_publisharea,m_note,m_letter,m_enname,m_director,m_lang) values('"&title&"',"&localId&","&states&",'"&pic&"','"&actor&"','"&des&"','"&vid&"',1,"&publishyear&",'"&publisharea&"','"&m_note&"','"&Left(m_enname,1)&"','"&m_enname&"','"&director&"','"&m_lang&"')"
+						case 5
+							sql="update {pre}data set m_actor='"&actor&"',m_director='"&director&"',m_lang='"&m_lang&"',m_pic='"&pic&"',m_des='"&des&"',m_publishyear="&publishyear&ifthen(isSpecial(vtype),",m_note='"&m_note&"'","")&",m_publisharea='"&publisharea&"',m_addtime='"&now()&"' where m_id="&vrsObj("m_id")
+					end select
+				end if
+				vrsObj.close : set vrsObj=nothing
+				conn.db sql,"execute"
+				'echo "OK<br>"
+			else
+				libid=000000
+				titleArray=split(title,"/")
+				if UBound(titleArray)>-1 then title=titleArray(0)
+				for m_i=0 to ubound(titleArray)
+					if not isNul(titleArray(m_i)) then m_where=m_where&" or '/'+m_name+'/' like '%/"&titleArray(m_i)&"/%' "
+				next
+				m_where=trimOuterStr(m_where," or")
+				m_sql="select top 1 m_id,m_playdata from {pre}temp where "&m_where
+				set vrsObj2=conn.db(m_sql,"execute")
+				if vrsObj2.eof then
+					'pic=gatherPicHandle(pic,title)
+					sql="insert into {pre}temp(m_name,m_type,m_state,m_pic,m_actor,m_des,m_playdata,m_publishyear,m_publisharea,m_director,m_lang) values('"&title&"',"&libid&","&states&",'"&pic&"','"&actor&"','"&des&"','"&vid&"',"&publishyear&",'"&publisharea&"','"&director&"','"&m_lang&"')"
+				else
+					select case gatherSet
+						case 0,1,2,3
+							m_playdata = gatherIntoLibTransfer(vrsObj2("m_playdata"),vid,gatherSet)
+							sql="update {pre}temp  set m_name='"&title&"',m_state="&states&",m_lang='"&m_lang&"',m_playdata='"&m_playdata&"',m_addtime='"&now()&"' where m_id="&vrsObj2("m_id")
+						case 4
+							'pic=gatherPicHandle(pic,title)
+							sql="insert into {pre}temp(m_name,m_type,m_state,m_pic,m_actor,m_des,m_playdata,m_publishyear,m_publisharea,m_director,m_lang) values('"&title&"',"&libid&","&states&",'"&pic&"','"&actor&"','"&des&"','"&vid&"',"&publishyear&",'"&publisharea&"','"&director&"','"&m_lang&"')"
+						case 5
+							'pic=gatherPicHandle(pic,title)
+							sql="update {pre}temp set m_pic='"&pic&"',m_actor='"&actor&"',m_director='"&director&"',m_lang='"&m_lang&"',m_des='"&des&"',m_publishyear="&publishyear&",m_publisharea='"&publisharea&"',m_addtime='"&now()&"' where m_id="&vrsObj2("m_id")
+					end select
+				end if
+				vrsObj2.close : set vrsObj2=nothing
+				conn.db sql,"execute"
+			end if
+		end if
+		echo "数据<font color=red>"&title&"</font>已经采集成功<br>"
+	Next
+	set xmlobj = nothing
+	if page<pagecount then
+		page=page+1:backurl=Server.URLEncode(backurl)
+		echo "<br/>暂停"&gatherWaitTime&"秒--<font color=red>即将开始同步第"&page&"/"&pagecount&"页</font><br/></div>"
+		if gtype="day" Then
+			echo "<script language=""javascript"">setTimeout(""makeNextPage();"","&gatherWaitTime&"000);function makeNextPage(){location.href='?ac="&ac&"&rid="&rid&"&pg="&page&"&h=24&backurl="&backurl&"';}</script>"
+		elseif gtype="type" then
+			echo "<script language=""javascript"">setTimeout(""makeNextPage();"","&gatherWaitTime&"000);function makeNextPage(){location.href='?ac="&ac&"&rid="&rid&"&pg="&page&"&t="&t&"&backurl="&backurl&"';}</script>"
+		end if
+	else
+		if gtype="select" then
+			die "<script>alert('恭喜，全部搞定');history.go(-1);</script>"
+		else
+			die "<script>alert('恭喜，全部搞定');location.href='"&backurl&"'</script>"
+		end if
+	end if
+End Sub
+
+Sub AddResUrl(ByVal rid,ByVal sUrl,ByVal sTxt)
+	on Error resume next
+	Dim l:l=UBound(res,2)+1:l=ifthen(err.number>0,0,l):ReDim Preserve res(2,l)
+	res(0,l)=rid:res(1,l)=sUrl:res(2,l)=sTxt
+End Sub
+
+Function getRemoteContent(Byval url,Byval returnType)
+	if not isObject(gXmlHttpObj) then:set gXmlHttpObj=tryXmlHttp():end if
+	gXmlHttpObj.open "GET",url,False
+	gXmlHttpObj.send()
+	select case returnType
+		case "text"
+			getRemoteContent=gXmlHttpObj.responseText
+		case "body"
+			getRemoteContent=gXmlHttpObj.responseBody
+	end select
+End Function
+
+Function FilterChar(ByVal Text)
+	dim i
+	for i=1 to &H1F
+		if i<>10 AND i<>13 then Text=Replace(Text,Chr(i),"")
+	next
+	FilterChar=Text
+End Function
+
+Function ifthen(ByVal Bo,ByVal v1,ByVal v2)
+	if Bo=true then
+		ifthen=v1
+	else
+		ifthen=v2
+	end if
+End Function
+
+Function isSpecial(ByVal sType)
+	isSpecial=false
+	if Instr(sType,"剧")>2 then
+		isSpecial=true
+	elseif Instr(sType,"动漫")>0 then
+		isSpecial=true
+	elseif Instr(sType,"动画")>0 then
+		isSpecial=true
+	elseif Instr(sType,"综艺")>0 then
+		isSpecial=true
+	end if
+End Function
+%>

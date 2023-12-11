@@ -1,0 +1,161 @@
+<!--#include file="../inc/cls_main.asp"-->
+<%
+Dim UserToday
+MyAppPath = "../"
+Set NewAsp = New MainNewAsp_Cls
+NewAsp.LoadSetting
+
+Function Check_TPL_File(sPath,sFile,sid,cid)
+	On Error Resume Next
+	Dim fso,strPath1,strPath2
+	Set fso=NewAsp.CreateAXObject(NewAsp.MainSetting(47))
+	strPath1=NewAsp.TemplatePath&sPath&"\"&sFile&"_"&sid&".html"
+	strPath2=NewAsp.TemplatePath&sPath&"\"&sFile&"-"&cid&".html"
+	If fso.FileExists(strPath1) Then
+		Check_TPL_File=sFile&"_"&sid
+	Else
+		If fso.FileExists(strPath2) Then
+			Check_TPL_File=sFile&"-"&cid
+		Else
+			Check_TPL_File=sFile
+		End If
+	End If
+	Set fso=Nothing
+	If Err.Number <> 0 Then Err.Clear
+End Function
+
+Function Check_TPL_Path(chanid,modules)
+	On Error Resume Next
+	Dim fso,strPath
+	Set fso=NewAsp.CreateAXObject(NewAsp.MainSetting(47))
+	strPath=NewAsp.TemplatePath&"channel_"&chanid
+	If fso.FolderExists(strPath) Then
+		Check_TPL_Path="channel_"&chanid
+	Else
+		Check_TPL_Path="channel_"&modules
+	End If
+	Set fso=Nothing
+	If Err.Number <> 0 Then Err.Clear
+End Function
+
+NewAsp.Copyright = "<!--" & vbCrLf
+NewAsp.Copyright = NewAsp.Copyright & "┌─────────────────NEWASP──┐" & vbCrLf
+NewAsp.Copyright = NewAsp.Copyright & "│新云网站内容管理系统 Version 4.0            │" & vbCrLf
+NewAsp.Copyright = NewAsp.Copyright & "│版权所有: 新云网络 (NewAsp.net)             │" & vbCrLf
+NewAsp.Copyright = NewAsp.Copyright & "│E-Mail:   newasp@163.com  QQ: 94022511      │" & vbCrLf
+NewAsp.Copyright = NewAsp.Copyright & "└────────────────────.NET┘" & vbCrLf
+NewAsp.Copyright = NewAsp.Copyright & "-->"
+
+Function checkTagList(str)
+	Dim strTags,tmpTags,arrTags,tagItem,i
+	checkTagList=""
+	If IsNull(str) Then Exit Function
+	strTags=Replace(Trim(str), Chr(0), "")
+	strTags=Replace(strTags, "}{", ",")
+	strTags=Replace(strTags, "}", "")
+	strTags=Replace(strTags, "{", "")
+	If InStr(strTags, "|")>0 Then strTags=Mid(strTags,1,InStr(strTags, "|")-1)
+	If ""=strTags Then Exit Function
+	i=0:tmpTags=""
+	arrTags=Split(strTags, ",")
+	For Each tagItem In arrTags
+		If IsNumeric(tagItem) Then
+			If i=0 Then
+				tmpTags=tagItem
+			Else
+				tmpTags=tmpTags&","&tagItem
+			End If
+			i=i+1
+		End If
+	Next
+	checkTagList=tmpTags
+End Function
+
+Function ParseTagstring(strTag)
+	Dim iPosBegin
+	ParseTagstring=""
+	If IsNull(strTag) Then Exit Function
+	iPosBegin=InStr(strTag, "|")
+	If iPosBegin=0 Then Exit Function
+	ParseTagstring=Mid(strTag,iPosBegin+1,Len(strTag))
+End Function
+
+Function ParseTaglinks(strTag)
+	Dim iPosBegin,strLinks,strTags,strItem,tmpTaglist
+	ParseTaglinks=""
+	If IsNull(strTag) Then Exit Function
+	iPosBegin=InStr(strTag, "|")
+	If iPosBegin=0 Then Exit Function
+	strTags=Mid(strTag,iPosBegin+1,Len(strTag))
+	If ""=strTags Then Exit Function
+
+	For Each strItem in Split(strTags, " ")
+		If IsURLRewrite Then
+			strLinks=CheckURLRewrite(NewAsp.ChannelPath,"tag-"&Server.URLEncode(strItem)&"-1"&NewAsp.HtmlExtName)
+		Else
+			strLinks=NewAsp.ChannelPath&"tag.asp?name="&Server.URLEncode(strItem)
+		End If
+		tmpTaglist=tmpTaglist&"<a href="""&strLinks&""" target=""_blank"">"&strItem&"</a> "
+	Next
+	ParseTaglinks=tmpTaglist
+End Function
+
+Sub GetUserTodayInfo()
+	Dim Lastlogin,UserDayInfo
+	Lastlogin = Request.Cookies(NewAsp.CookiesName)("LastTime")
+	UserDayInfo = Request.Cookies(NewAsp.CookiesName)("UserToday")
+	If Not IsDate(LastLogin) Then LastLogin = Now()
+	On Error Resume Next
+	If DateDiff("d",LastLogin,Now())<>0 Then
+		NewAsp.Execute("UPDATE [NC_User] SET UserToday='0,0,0,0,0,0',LastTime=" & NowString & " WHERE userid=" & NewAsp.memberid)
+		UserDayInfo = "0,0,0,0,0,0"
+		Response.Cookies(NewAsp.CookiesName)("UserToday") = UserDayInfo
+		Response.Cookies(NewAsp.CookiesName)("LastTime") = Now()
+	End If
+	UserToday = Split(UserDayInfo, ",")
+	If Ubound(UserToday) <> 5 Then
+		NewAsp.Execute("UPDATE [NC_User] SET UserToday='0,0,0,0,0,0',LastTime=" & NowString & " WHERE userid=" & NewAsp.memberid)
+		UserDayInfo = "0,0,0,0,0,0"
+		Response.Cookies(NewAsp.CookiesName)("UserToday") = UserDayInfo
+		Response.Cookies(NewAsp.CookiesName)("LastTime") = Now()
+		UserToday = Split(UserDayInfo, ",")
+	End If
+End Sub
+Function UpdateUserToday(ByVal str)
+	On Error Resume Next
+	If Trim(str) <> "" Then
+		NewAsp.Execute("UPDATE [NC_User] SET UserToday='" & NewAsp.CheckStr(str) & "' WHERE userid=" & NewAsp.memberid)
+		Response.Cookies(NewAsp.CookiesName)("UserToday") = NewAsp.CheckStr(str)
+	End If
+End Function
+
+'================================================
+'过程名：PreventRefresh
+'作  用：防止刷新页面
+'================================================
+Sub PreventRefresh()
+	Dim RefreshTime,isRefresh
+	RefreshTime = 10   '防止刷新时间,单位（秒）
+	isRefresh = 1    '是否使用防刷新功能，0=否，1=是
+	If isRefresh = 1 Then
+		If (Not IsEmpty(Session("RefreshTime"))) And RefreshTime > 0 Then
+			If DateDiff("s", Session("RefreshTime"), Now()) < RefreshTime Then
+				Response.Write "<meta http-equiv=""Content-Type"" content=""text/html; chaRset=gb2312""/><meta http-equiv=""refresh"" content="""&RefreshTime&"""/><br/>本页面起用了防刷新机制，请不要在"&RefreshTime&"秒内连续刷新本页面<br/>正在打开页面，请稍后……"
+				Response.End
+			Else
+				Session("RefreshTime") = Now()
+			End If
+		Else
+			Session("RefreshTime") = Now()
+		End If
+	End If
+End Sub
+
+Sub OutAlertScript(str)
+	Response.Write "<script language=javascript>" & vbcrlf
+	Response.Write "alert('" & str & "');"
+	Response.Write "history.back()" & vbcrlf
+	Response.Write "</script>" & vbcrlf
+	Response.End
+End Sub
+%>

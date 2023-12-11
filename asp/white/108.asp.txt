@@ -1,0 +1,1364 @@
+<%
+' The font pack is included seperately so custom packs can be used
+%>
+<!--#include file="font.asp"-->
+<%
+' ***************************************************************
+' ************************** ASPCanvas **************************
+' ***************************************************************
+'
+'             Drawing and presentation object for ASP
+'
+'        Chris Read (aka Centurix/askdaquack/captainscript)
+'
+'    Thanks to Richard Deeming (www.trinet.co.uk) for improving 
+'    the arc drawing algorithm
+'    Thanks to Daniel Hasan for bezier curve adjustments
+'    Thanks to Tony Stefano for his extra font packs
+'
+'                            Updated 23/02/2003
+'
+' ASPCanvas home: http://users.bigpond.net.au/mrjolly/
+' ***************************************************************
+'
+' This file contains the following classes
+' Canvas - Main GIF rendering class
+' PixelStack - Used to store an order of pixels
+' Point - A single pixel coord
+' 
+' This file contains the following utility functions
+' MakeWord - Convert the value to a big-endian word
+' MakeByte - Trim value to an 8 bit value
+' Blue - Extract Blue value from RGB
+' Green - Extract Green value from RGB
+' Red - Extract Red value from RGB
+' Low - Retrieve the low 8 bits from the value
+' High - Retrieve the high 8 bits from the value
+' ShiftLeft - Shift the value left x bits
+' ShiftRight - Shift the value right x bits
+'
+' This class requires font.asp for text rendering support
+'
+' !!!Please read notes.htm for information on using this class!!!
+'
+' ***************************************************************
+' ASPCanvas Copyright (c) 2002, Chris Read. All rights reserved.
+' ***************************************************************
+' Redistribution and use in source form, with or without modification, 
+' are permitted provided that the following conditions are met:
+'
+' * Redistributions of source code must retain the above copyright notice, 
+' this list of conditions and the following disclaimer.
+'
+' * All advertising materials mentioning features or use of this software 
+' must display the following acknowledgement: This product includes software 
+' developed by Chris Read with portions contributed by Richard Deeming, 
+' Daniel Hasan and Tony Stefano.
+'
+' * The name of the author may not be used to endorse or promote products 
+' derived from this software without specific prior written permission.
+'
+' THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR 
+' IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES 
+' OF MERCHANT ABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
+' IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+' SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+' PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; 
+' OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
+' WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+' ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+' POSSIBILITY OF SUCH DAMAGE.
+'
+' ***************************************************************
+
+' Constants for this class
+public const MAX_WIDTH		= 65535
+public const MAX_HEIGHT		= 65535
+public const INIT_WIDTH		= 20
+public const INIT_HEIGHT	= 20
+public const FLAG_DEBUG		= false
+public const CURRENT_VER	= "01.00.05"
+public const PI				= 3.14159265 ' Roughly
+
+Class Canvas
+' Public data
+	public GlobalColourTable()
+	public LocalColourTable()
+	public ForegroundColourIndex ' Current foreground pen
+	public BackgroundColourIndex ' Current background pen
+	public TransparentColourIndex ' Current transparency colour index
+	public UseTransparency ' Boolean for writing transparency
+	public GIF89a ' Write GIF89a data
+	public Comment ' Image comment 255 characters max
+	
+' Private data
+	private sImage
+	private lWidth
+	private lHeight
+	private iBits
+	private lColourResolution
+	private bSortFlag
+	private bytePixelAspectRatio
+	private byteSeperator
+	private byteGraphicControl
+	private byteEndOfImage
+	private lLeftPosition
+	private lTopPosition
+	private lLocalColourTableSize
+	private lGlobalColourTableSize
+	private lReserved
+	private bInterlaceFlag
+	private bLocalColourTableFlag
+	private bGlobalColourTableFlag
+	private lCodeSize
+	private bTest
+	
+' ***************************************************************************
+' ************************ Raster management functions **********************
+' ***************************************************************************
+
+	public property get Version()
+		Version = CURRENT_VER
+	end property
+
+	' Get a specific pixel colour
+	public property get Pixel(ByVal lX,ByVal lY)
+		if lX <= lWidth and lX > 0 and lY <= lHeight and lY > 0 then
+			Pixel = AscB(MidB(sImage,(lWidth * (lY - 1)) + lX,1))
+		else ' Out of bounds, return zero
+			Pixel = 0
+		end if
+	end property
+	
+	' Set a specific pixel colour, look at speeding this up somehow...
+	public property let Pixel(ByVal lX,ByVal lY,lValue)
+		Dim sTemp
+		Dim lOffset
+		
+		lX = int(lX)
+		lY = int(lY)
+		lValue = int(lValue)
+
+		lOffset = lWidth * (lY - 1)
+
+		if lX <= lWidth and lY <= lHeight and lX > 0 and lY > 0 then ' Clipping
+			' Set the pixel value at this point
+			sImage = LeftB(sImage,lOffset + (lX - 1)) & ChrB(lValue) & RightB(sImage,LenB(sImage) - (lOffset + lX))
+		end if		
+	end property
+
+	' Read only width and height, to change these, resize the image
+	public property get Width()
+		Width = lWidth
+	end property
+
+	public property get Height()
+		Height = lHeight
+	end property
+
+	public sub Replace(ByVal lOldColour,ByVal lNewColour)
+		Dim lTempX
+		Dim lTempY
+		
+		for lTempy = 1 to lHeight
+			for lTempX = 1 to lWidth
+				if Pixel(lTempX,lTempY) = lOldColour then
+					Pixel(lTempX,lTempY) = lNewColour
+				end if
+			next
+		next
+	end sub
+
+	' Copy a section of the picture from one location to the other
+	public sub Copy(ByVal lX1,ByVal lY1,ByVal lX2,ByVal lY2,ByVal lX3,ByVal lY3)
+		Dim sCopy
+		Dim lTemp1
+		Dim lTemp2
+		Dim lStartX
+		Dim lStartY
+		Dim lFinishX
+		Dim lFinishY
+		Dim lWidth
+		Dim lHeight
+		
+		if lX1 > lX2 then
+			lStartX = lX2
+			lFinishX = lX1
+		else
+			lStartX = lX1
+			lFinishX = lX2
+		end if
+		
+		if lY1 > lY2 then
+			lStartY = lY2
+			lFinishY = lY1
+		else
+			lStartY = lY1
+			lFinishY = lY2
+		end if
+		
+		sCopy = ""
+		
+		lWidth = lFinishX - lStartX + 1
+		lHeight = lFinishY - lStartY + 1
+
+		for iTemp2 = lStartY to lFinishY
+			for iTemp1 = lStartX to lFinishX
+				sCopy = sCopy & ChrB(Pixel(iTemp1,iTemp2))
+			next
+		next
+		
+		for iTemp2 = 1 to lHeight
+			for iTemp1 = 1 to lWidth
+				Pixel(lX3 + iTemp1,lY3 + iTemp2) = AscB(MidB(sCopy,(iTemp2 - 1) * lWidth + iTemp1,1))
+			next
+		next
+	end sub
+
+	' Non-recursive flood fill, VBScript has a short stack (200 bytes) so recursion won't work
+	public sub Flood(ByVal lX,ByVal lY)
+		Dim aPixelStack
+		Dim objPixel
+		Dim lOldPixel
+
+		Set aPixelStack = New PixelStack
+		
+		aPixelStack.Push lX,lY
+		
+		lOldPixel = Pixel(lX,lY)
+		
+		while(aPixelStack.Size > 0)
+			Set objPixel = aPixelStack.Pop
+			
+			if objPixel.X >= 1 and objPixel.X <= lWidth and objPixel.Y >= 1 and objPixel.Y <= lHeight then
+				if Pixel(objPixel.X,objPixel.Y) <> ForegroundColourIndex and Pixel(objPixel.X,objPixel.Y) = lOldPixel then
+					Pixel(objPixel.X,objPixel.Y) = ForegroundColourIndex
+					
+					aPixelStack.Push objPixel.X + 1,objPixel.Y
+					aPixelStack.Push objPixel.X - 1,objPixel.Y
+					aPixelStack.Push objPixel.X,objPixel.Y + 1
+					aPixelStack.Push objPixel.X,objPixel.Y - 1
+				end if
+			end if
+		wend
+	end sub
+
+
+	public sub Polygon(aX,aY,bJoin)
+		Dim iTemp
+		Dim lUpper
+
+		if UBound(aX) <> UBound(aY) then exit sub
+		if UBound(aX) < 1 then exit sub ' Must be more than one point
+		
+		lUpper = UBound(aX) - 1
+		
+		' Draw a series of lines from arrays aX and aY
+		for iTemp = 1 to lUpper
+			Line aX(iTemp - 1),aY(iTemp - 1),aX(iTemp),aY(iTemp)
+		next
+		
+		if bJoin then
+			Line aX(lUpper),aY(lUpper),aX(0),aY(0)
+		end if
+	end sub
+
+	' Easy as, err, rectangle?
+	public sub PieSlice(lX,lY,lRadius,sinStartAngle,sinArcAngle,bFilled)
+		Dim sinActualAngle
+		Dim sinMidAngle
+		Dim lX2
+		Dim lY2
+		Dim iTemp
+		
+		Arc lX,lY,lRadius,lRadius,sinStartAngle,sinArcAngle
+		AngleLine lX,lY,lRadius,sinStartAngle
+		sinActualAngle = sinStartAngle + sinArcAngle
+		if sinActualAngle > 360 then
+			sinActualAngle = sinActualAngle - 360
+		end if
+		AngleLine lX,lY,lRadius,sinActualAngle
+		' Now pick a start flood point at the furthest point from the center
+		' Divide the arc angle by 2
+		sinMidAngle = sinStartAngle + (sinArcAngle / 2)
+		
+		if sinMidAngle > 360 then
+			sinMidAngle = sinMidAngle - 360
+		end if
+
+		if bFilled then
+			for iTemp = 1 to lRadius - 1
+				lY2 = CInt(lY + (Sin(DegreesToRadians(sinMidAngle)) * iTemp))
+				lX2 = CInt(lX + (Cos(DegreesToRadians(sinMidAngle)) * iTemp))
+
+				Flood lX2,lY2
+			next
+		end if
+	end sub
+
+	public sub Bezier(lX1,lY1,lCX1,lCY1,lCX2,lCY2,lX2,lY2,lPointCount)
+		Dim sinT
+		dim lX,lY,lLastX,lLastY
+		dim sinResolution
+		
+		if lPointCount = 0 then exit sub
+		
+		sinResolution = 1 / lPointCount
+		
+		sinT = 0
+		
+		lLastX = lX1
+		lLastY = lY1
+		
+		while sinT <= 1
+			lX = int(((sinT^3) * -1 + (sinT^2) * 3 + sinT * -3 + 1) * lX1 + ((sinT^3) *  3 + (sinT^2) *-6 + sinT *  3) * lCX1 + ((sinT^3) * -3 + (sinT^2) * 3) * lCX2 + (sinT^3) * lX2)
+			lY = int(((sinT^3) * -1 + (sinT^2) * 3 + sinT * -3 + 1) * lY1 + ((sinT^3) *  3 + (sinT^2) *-6 + sinT *  3) * lCY1 + ((sinT^3) * -3 + (sinT^2) * 3) * lCY2 + (sinT^3) * lY2)
+
+			Line lLastX,lLastY,lX,lY
+			
+			lLastX = lX
+			lLastY = lY
+			
+			sinT = sinT + sinResolution
+		wend
+
+		Line lLastX,lLastY,lX2,lY2
+		
+	end sub
+
+	' ArcPixel Kindly donated by Richard Deeming (www.trinet.co.uk)
+	Private Sub ArcPixel(lX, lY, ltX, ltY, sinStart, sinEnd)
+		Dim dAngle
+	    
+	    If ltX = 0 Then
+	        dAngle = Sgn(ltY) * PI / 2
+	    ElseIf ltX < 0 And ltY < 0 Then
+	        dAngle = PI + Atn(ltY / ltX)
+	    ElseIf ltX < 0 Then
+	        dAngle = PI - Atn(-ltY / ltX)
+	    ElseIf ltY < 0 Then
+	        dAngle = 2 * PI - Atn(-ltY / ltX)
+	    Else
+	        dAngle = Atn(ltY / ltX)
+	    End If
+	    
+	    If dAngle < 0 Then dAngle = 2 * PI + dAngle
+
+		' Compensation for radii spanning over 0 degree marker
+		if sinEnd > DegreesToRadians(360) and dAngle < (sinEnd - DegreesToRadians(360)) then
+			dAngle = dAngle + DegreesToRadians(360)
+		end if
+		
+	    If sinStart < sinEnd And (dAngle > sinStart And dAngle < sinEnd) Then
+	        'This is the "corrected" angle
+	        'To change back, change the minus to a plus
+	        Pixel(lX + ltX, lY + ltY) = ForegroundColourIndex
+	    End If
+	End Sub
+	 
+	' Arc Kindly donated by Richard Deeming (www.trinet.co.uk), vast improvement on the
+	' previously kludgy Arc function.
+	Public Sub Arc(ByVal lX, ByVal lY, ByVal lRadiusX, ByVal lRadiusY, ByVal sinStartAngle, ByVal sinArcAngle)
+		' Draw an arc at point lX,lY with radius lRadius
+		' running from sinStartAngle degrees for sinArcAngle degrees
+		Dim lAlpha, lBeta, S, T, lTempX, lTempY
+		Dim dStart, dEnd
+	    
+	    dStart = DegreesToRadians(sinStartAngle)
+	    dEnd = dStart + DegreesToRadians(sinArcAngle)
+	    
+	    lAlpha = lRadiusX * lRadiusX
+	    lBeta = lRadiusY * lRadiusY
+	    lTempX = 0
+	    lTempY = lRadiusY
+	    S = lAlpha * (1 - 2 * lRadiusY) + 2 * lBeta
+	    T = lBeta - 2 * lAlpha * (2 * lRadiusY - 1)
+	    ArcPixel lX, lY, lTempX, lTempY, dStart, dEnd
+	    ArcPixel lX, lY, -lTempX, lTempY, dStart, dEnd
+	    ArcPixel lX, lY, lTempX, -lTempY, dStart, dEnd
+	    ArcPixel lX, lY, -lTempX, -lTempY, dStart, dEnd
+
+	    Do
+	        If S < 0 Then
+	            S = S + 2 * lBeta * (2 * lTempX + 3)
+	            T = T + 4 * lBeta * (lTempX + 1)
+	            lTempX = lTempX + 1
+	        ElseIf T < 0 Then
+	            S = S + 2 * lBeta * (2 * lTempX + 3) - 4 * lAlpha * (lTempY - 1)
+	            T = T + 4 * lBeta * (lTempX + 1) - 2 * lAlpha * (2 * lTempY - 3)
+	            lTempX = lTempX + 1
+	            lTempY = lTempY - 1
+	        Else
+	            S = S - 4 * lAlpha * (lTempY - 1)
+	            T = T - 2 * lAlpha * (2 * lTempY - 3)
+	            lTempY = lTempY - 1
+	        End If
+
+	        ArcPixel lX, lY, lTempX, lTempY, dStart, dEnd
+	        ArcPixel lX, lY, -lTempX, lTempY, dStart, dEnd
+	        ArcPixel lX, lY, lTempX, -lTempY, dStart, dEnd
+	        ArcPixel lX, lY, -lTempX, -lTempY, dStart, dEnd
+
+	    Loop While lTempY > 0
+	End Sub
+
+	public sub AngleLine(ByVal lX,ByVal lY,ByVal lRadius,ByVal sinAngle)
+		' Draw a line at an angle
+		' Angles start from the top vertical and work clockwise
+		' Work out the destination defined by length and angle
+		Dim lX2
+		Dim lY2
+		
+		lY2 = (Sin(DegreesToRadians(sinAngle)) * lRadius)
+		lX2 = (Cos(DegreesToRadians(sinAngle)) * lRadius)
+		
+		Line lX,lY,lX + lX2,lY + lY2
+	end sub
+
+	' Bresenham line algorithm, this is pretty quick, only uses point to point to avoid the
+	' mid-point problem
+	public sub Line(ByVal lX1,ByVal lY1,ByVal lX2,ByVal lY2)
+		Dim lDX
+		Dim lDY
+		Dim lXIncrement
+		Dim lYIncrement
+		Dim lDPr
+		Dim lDPru
+		Dim lP
+		
+		lDX = Abs(lX2 - lX1)
+		lDY = Abs(lY2 - lY1)
+		
+		if lX1 > lX2 then
+			lXIncrement = -1
+		else
+			lXIncrement = 1
+		end if
+		
+		if lY1 > lY2 then
+			lYIncrement = -1
+		else
+			lYIncrement = 1
+		end if
+		
+		if lDX >= lDY then
+			lDPr = ShiftLeft(lDY,1)
+			lDPru = lDPr - ShiftLeft(lDX,1)
+			lP = lDPr - lDX
+			
+			while lDX >= 0
+				Pixel(lX1,lY1) = ForegroundColourIndex
+				if lP > 0 then
+					lX1 = lX1 + lXIncrement
+					lY1 = lY1 + lYIncrement
+					lP = lP + lDPru
+				else
+					lX1 = lX1 + lXIncrement
+					lP = lP + lDPr
+				end if
+				lDX = lDX - 1
+			wend
+		else
+			lDPr = ShiftLeft(lDX,1)
+			lDPru = lDPr - ShiftLeft(lDY,1)
+			lP = lDPR - lDY
+			
+			while lDY >= 0
+				Pixel(lX1,lY1) = ForegroundColourIndex
+				if lP > 0 then
+					lX1 = lX1 + lXIncrement
+					lY1 = lY1 + lYIncrement
+					lP = lP + lDPru
+				else
+					lY1 = lY1 + lYIncrement
+					lP = lP + lDPr
+				end if
+				lDY = lDY - 1
+			wend
+		end if
+		
+	end sub
+
+	public sub Rectangle(ByVal lX1,ByVal lY1,ByVal lX2,ByVal lY2)
+		' Easy as pie, well, actually pie is another function... draw four lines
+		Line lX1,lY1,lX2,lY1
+		Line lX2,lY1,lX2,lY2
+		Line lX2,lY2,lX1,lY2
+		Line lX1,lY2,lX1,lY1
+	end sub
+
+	public sub Circle(ByVal lX,ByVal lY,ByVal lRadius)
+		Ellipse lX,lY,lRadius,lRadius
+	end sub
+
+	' Bresenham ellispe, pretty quick also, uses reflection, so rotation is out of the 
+	' question unless we perform a matrix rotation after rendering the ellipse coords
+	public sub Ellipse(ByVal lX,ByVal lY,ByVal lRadiusX,ByVal lRadiusY)
+		' Draw a circle at point lX,lY with radius lRadius
+		Dim lAlpha,lBeta,S,T,lTempX,lTempY
+		
+		lAlpha = lRadiusX * lRadiusX
+		lBeta = lRadiusY * lRadiusY
+		lTempX = 0
+		lTempY = lRadiusY
+		S = lAlpha * (1 - 2 * lRadiusY) + 2 * lBeta
+		T = lBeta - 2 * lAlpha * (2 * lRadiusY - 1)
+		Pixel(lX + lTempX,lY + lTempY) = ForegroundColourIndex
+		Pixel(lX - lTempX,lY + lTempY) = ForegroundColourIndex
+		Pixel(lX + lTempX,lY - lTempY) = ForegroundColourIndex
+		Pixel(lX - lTempX,lY - lTempY) = ForegroundColourIndex
+		Do
+			if S < 0 then
+				S = S + 2 * lBeta * (2 * lTempX + 3)
+				T = T + 4 * lBeta * (lTempX + 1)
+				lTempX = lTempX + 1
+			elseif T < 0 then
+				S = S + 2 * lBeta * (2 * lTempX + 3) - 4 * lAlpha * (lTempY - 1)
+				T = T + 4 * lBeta * (lTempX + 1) - 2 * lAlpha * (2 * lTempY - 3)
+				lTempX = lTempX + 1
+				lTempY = lTempY - 1
+			else
+				S = S - 4 * lAlpha * (lTempY - 1)
+				T = T - 2 * lAlpha * (2 * lTempY - 3)
+				lTempY = lTempY - 1
+			end if
+			Pixel(lX + lTempX,lY + lTempY) = ForegroundColourIndex
+			Pixel(lX - lTempX,lY + lTempY) = ForegroundColourIndex
+			Pixel(lX + lTempX,lY - lTempY) = ForegroundColourIndex
+			Pixel(lX - lTempX,lY - lTempY) = ForegroundColourIndex
+		loop while lTempY > 0
+	end sub
+
+	' Vector font support
+	' These fonts are described in terms of points on a grid with simple
+	' X and Y offsets. These functions take elements of a string and render
+	' them from arrays storing character vector information. Vector fonts are
+	' have proportional widths, unlike bitmapped fonts which are fixed in size
+	' The format for the vector array is simply a variable length list of x y pairs
+	' the sub DrawVectorChar renders the single character from the array.
+	' The other advantage of vector fonts is that they can be scaled :)
+
+	' Maybe add an angle value?
+	public sub DrawVectorTextWE(ByVal lX,ByVal lY,sText,lSize)
+		Dim iTemp
+		Dim lCurrentStringX
+		
+		lCurrentStringX = lX
+		
+		For iTemp = 1 to Len(sText)
+			lCurrentStringX = lCurrentStringX + DrawVectorChar(lCurrentStringX,lY,Mid(sText,iTemp,1),lSize,true) + int(lSize)
+		Next
+	end sub
+	
+	public sub DrawVectorTextNS(ByVal lX,ByVal lY,sText,lSize)
+		Dim iTemp
+		Dim lCurrentStringY
+		
+		lCurrentStringY = lY
+		
+		For iTemp = 1 to Len(sText)
+			lCurrentStringY = lCurrentStringY + DrawVectorChar(lX,lCurrentStringY,Mid(sText,iTemp,1),lSize,false) + int(lSize)
+		Next
+	end sub
+	
+	private function DrawVectorChar(ByVal lX,ByVal lY,sChar,lSize,bOrientation)
+		Dim iTemp
+		Dim aFont
+		Dim lLargestWidth
+		
+		if sChar <> " " then
+			aFont = VFont(sChar)
+		
+			if bOrientation then
+				lLargest = aFont(1,0) * lSize
+			else
+				lLargest = aFont(1,1) * lSize
+			end if
+		
+			for iTemp = 1 to UBound(aFont,1) - 1
+				if bOrientation then
+					if aFont(iTemp,2) = 1  then ' Pen down
+						Line lX + aFont(iTemp - 1,0) * lSize,lY + aFont(iTemp - 1,1) * lSize,lX + aFont(iTemp,0) * lSize,lY + aFont(iTemp,1) * lSize
+					end if
+					if (aFont(iTemp,0) * lSize) > lLargest then
+						lLargest = aFont(iTemp,0) * lSize
+					end if
+				else
+					if aFont(iTemp,2) = 1 then ' Pen down
+						Line lX + aFont(iTemp - 1,0) * lSize,lY + aFont(iTemp - 1,1) * lSize,lX + aFont(iTemp,0) * lSize,lY + aFont(iTemp,1) * lSize
+					end if
+					if (aFont(iTemp,1) * lSize) > lLargest then
+						lLargest = aFont(iTemp,1) * lSize
+					end if
+				end if
+			next
+		else
+			lLargest = lSize * 3
+		end if
+		
+		' Return the width of the character
+		DrawVectorChar = lLargest
+	end function
+
+	' Bitmap font support
+	public sub DrawTextWE(ByVal lX,ByVal lY,sText)
+		' Render text at lX,lY
+		' There's a global dictionary object called Font and it should contain all the 
+		' letters in arrays of a 5x5 grid
+		Dim iTemp1
+		Dim iTemp2
+		Dim iTemp3
+		Dim bChar
+		
+		For iTemp1 = 0 to UBound(Letter) - 1
+			For iTemp2 = 1 to len(sText)
+				For iTemp3 = 1 to Len(Font(Mid(sText,iTemp2,1))(iTemp1))
+					bChar = Mid(Font(Mid(sText,iTemp2,1))(iTemp1),iTemp3,1)
+					if bChar <> "0" then
+						Pixel(lX + ((iTemp2 - 1) * Len(Letter(0))) + iTemp3,lY + iTemp1) = CLng(bChar)
+					end if
+				next
+			next
+		next
+	end sub
+
+	public sub DrawTextNS(ByVal lX,ByVal lY,sText)
+		' Render text at lX,lY
+		' There's a global dictionary object called Font and it should contain all the 
+		' letters in arrays of a 5x5 grid
+		Dim iTemp1
+		Dim iTemp2
+		Dim iTemp3
+		Dim bChar
+
+		for iTemp1 = 1 to len(sText)
+			for iTemp2 = 0 to UBound(Letter) - 1
+				for iTemp3 = 1 to len(Font(Mid(sText,iTemp1,1))(iTemp2))
+					bChar = Mid(Font(Mid(sText,iTemp1,1))(iTemp2),iTemp3,1)
+					if bChar <> "0" then
+						Pixel(lX + iTemp3,lY + (iTemp1 * (UBound(Letter) + 1)) + iTemp2) = CLng(bChar)
+					end if
+				next
+			next
+		next
+	end sub
+
+	' Clear the image, because String sends out UNICODE characters, we double up the index as a WORD
+	public sub Clear()
+		' Possibly quicker, but a little less accurate
+		sImage = String(lWidth * ((lHeight + 1) / 2),ChrB(BackgroundColourIndex) & ChrB(BackgroundColourIndex))
+	end sub
+	
+	public sub Resize(ByVal lNewWidth,ByVal lNewHeight,bPreserve)
+		' Resize the image, don't stretch
+		Dim sOldImage
+		Dim lOldWidth
+		Dim lOldHeight
+		Dim lCopyWidth
+		Dim lCopyHeight
+		Dim lX
+		Dim lY
+		
+		if bPreserve then
+			sOldImage = sImage
+			lOldWidth = lWidth
+			lOldHeight = lHeight
+		end if
+
+		lWidth = lNewWidth
+		lHeight = lNewHeight
+
+		Clear
+		
+		if bPreserve then
+			' Now copy the old image into the new
+			if lNewWidth > lOldWidth then
+				lCopyWidth = lOldWidth
+			else
+				lCopyWidth = lNewWidth
+			end if
+		
+			if lNewHeight > lOldHeight then
+				lCopyHeight = lOldHeight
+			else
+				lCopyHeight = lNewHeight
+			end if
+
+			' Now set the new width and height
+			lWidth = lNewWidth
+			lHeight = lNewHeight
+		
+			' Copy the old bitmap over, possibly could do with improvement, this does it
+			' on a pixel leve, there is room here to perform a MidB from one string to another
+			for lY = 1 to lCopyHeight
+				for lX = 1 to lCopyWidth
+					Pixel(lX,lY) = AscB(MidB(sOldImage,(lOldWidth * (lY - 1)) + lX,1))
+				next
+			next
+		end if
+	end sub
+	
+' ***************************************************************************
+' ************************* GIF Management functions ************************
+' ***************************************************************************
+	
+	public property get TextImageData()
+		Dim iTemp
+		Dim sText
+		
+		sText = ImageData
+			
+		TextImageData = ""
+			
+		for iTemp = 1 to LenB(sText)
+			TextImageData = TextImageData & Chr(AscB(Midb(sText,iTemp,1)))
+		next
+	end property
+	
+	' Dump the image out as a GIF 87a
+	public property get ImageData()
+		Dim sText
+		Dim lTemp		
+		
+		ImageData = MagicNumber
+		ImageData = ImageData & MakeWord(lWidth)
+		ImageData = ImageData & MakeWord(lHeight)
+		ImageData = ImageData & MakeByte(GlobalDescriptor)
+		ImageData = ImageData & MakeByte(BackgroundColourIndex)
+		ImageData = ImageData & MakeByte(bytePixelAspectRatio)
+		ImageData = ImageData & GetGlobalColourTable
+
+		if GIF89a then
+			' Support for extended blocks
+			if UseTransparency then
+				ImageData = ImageData & MakeByte(byteGraphicControl)
+				ImageData = ImageData & MakeByte(&HF9)
+				ImageData = ImageData & MakeByte(&H04)
+				ImageData = ImageData & MakeByte(1)
+				ImageData = ImageData & MakeWord(0)
+				ImageData = ImageData & MakeByte(TransparentColourIndex)
+				ImageData = ImageData & MakeByte(0)
+			end if
+			if Comment <> "" then
+				ImageData = ImageData & MakeByte(byteGraphicControl)
+				ImageData = ImageData & MakeByte(&HFE)
+				sText = Left(Comment,255) ' Truncate to 255 characters
+				ImageData = ImageData & MakeByte(Len(sText))
+				For lTemp = 1 to Len(sText)
+					ImageData = ImageData & MakeByte(Asc(Mid(sText,lTemp,1)))
+				Next
+				ImageData = ImageData & MakeByte(0)
+			end if
+		end if
+		
+		ImageData = ImageData & MakeByte(byteSeperator)
+		ImageData = ImageData & MakeWord(lLeftPosition)
+		ImageData = ImageData & MakeWord(lTopPosition)
+		ImageData = ImageData & MakeWord(lWidth)
+		ImageData = ImageData & MakeWord(lHeight)
+		ImageData = ImageData & MakeByte(LocalDescriptor)
+		ImageData = ImageData & MakeByte(lCodeSize)
+		ImageData = ImageData & GetRasterData
+		ImageData = ImageData & MakeByte(0)
+		ImageData = ImageData & MakeByte(byteEndOfImage)
+		
+	end property
+	
+	public sub Write()
+		if bTest then
+			' Write out the bytes in ASCII
+			Response.Write Debug(ImageData)
+		else
+			' Fix from Daniel Hasan so that duplicate headers don't get sent to confuse Netscape
+			Response.ContentType = "image/gif"
+			' Correct content disposition, so that when saving the image through the browser
+			' the filename and type comes up as image.gif instead of an asp file
+			Response.AddHeader "Content-Disposition","filename=image.gif"
+			Response.BinaryWrite ImageData
+		end if
+	end sub
+	
+	private function Debug(sGIF)
+		Debug = "<pre>"
+		for iTemp = 1 to LenB(sGIF)
+			Debug = Debug & right("00" & Hex(AscB(MidB(sGIF,iTemp,1))),2) & " "
+			
+			if iTemp mod 2 = 0 then
+				Debug = Debug & "<font color=red>|</font>"
+			end if
+			
+			if iTemp mod 32 = 0 then
+				Debug = Debug & "<br>"'<font color = blue >"&(iTemp/32+1)+10&"</font> "
+			end if
+		next
+		Debug = Debug & "</pre>"
+	end function
+	
+	' Retrieve the raster data from the image
+	private function GetRasterData()
+		GetRasterData = UncompressedData
+	end function
+	
+	' Uncompressed data to avoid UNISYS royalties for LZW usage
+	' As of 1.0.4, this undertook a major overhaul and now writes
+	' gif data at almost 6 times the speed of the old algorithm...
+	private function UncompressedData()
+		Dim lClearCode
+		Dim lEndOfStream
+		Dim lChunkMax
+		Dim sTempData
+		Dim iTemp
+		Dim sTemp
+		
+		UncompressedData = ""
+		lClearCode = 2^iBits
+		lChunkMax = 2^iBits - 2
+		lEndOfStream = lClearCode + 1
+		
+		sTempData = ""
+		
+		' Insert clearcodes where necessary
+	'	response.Write debug(sImage)
+	'	response.End
+		for iTemp = 1 to LenB(sImage) step lChunkMax
+			sTempData = sTempData & MidB(sImage,iTemp,lChunkMax) & ChrB(lClearCode)
+		next
+		
+		' Split the data up into blocks, could possibly speed this up with longer MidB's
+		for iTemp = 1 to LenB(sTempData) step 255
+			sTemp = MidB(sTempData,iTemp,255)
+			UncompressedData = UncompressedData & MakeByte(LenB(sTemp)) & sTemp
+		next
+
+		' Terminate the raster data
+		UncompressedData = UncompressedData & MakeByte(0)
+		UncompressedData = UncompressedData & MakeByte(lEndOfStream)
+	end function
+
+	private function GetGlobalColourTable()
+		' Write out the global colour table
+		Dim iTemp
+		
+		GetGlobalColourTable = ""
+		
+		for iTemp = 0 to UBound(GlobalColourTable) - 1
+			
+			GetGlobalColourTable = GetGlobalColourTable & MakeByte(Red(GlobalColourTable(iTemp)))
+			GetGlobalColourTable = GetGlobalColourTable & MakeByte(Green(GlobalColourTable(iTemp)))
+			GetGlobalColourTable = GetGlobalColourTable & MakeByte(Blue(GlobalColourTable(iTemp)))
+			
+		next
+		
+	end function
+	
+	private function GetLocalColourTable()
+		' Write out a local colour table
+		Dim iTemp
+		
+		GetLocalColourTable = ""
+		
+		for iTemp = 0 to UBound(LocalColourTable) - 1
+			GetLocalColourTable = GetLocalColourTable & MakeByte(Red(LocalColourTable(iTemp)))
+			GetLocalColourTable = GetLocalColourTable & MakeByte(Green(LocalColourTable(iTemp)))
+			GetLocalColourTable = GetLocalColourTable & MakeByte(Blue(LocalColourTable(iTemp)))
+		next
+	end function
+	
+	private function GlobalDescriptor()
+		GlobalDescriptor = 0
+		
+		if bGlobalColourTableFlag then
+			GlobalDescriptor = GlobalDescriptor or ShiftLeft(1,7)
+		end if
+		
+		GlobalDescriptor = GlobalDescriptor or ShiftLeft(lColourResolution,4)
+		
+		if bSortFlag then
+			GlobalDescriptor = GlobalDescriptor or ShiftLeft(1,3)
+		end if
+		
+		GlobalDescriptor = GlobalDescriptor or lGlobalColourTableSize
+	end function
+	
+	private function LocalDescriptor()
+		LocalDescriptor = 0
+		if bLocalColourTableFlag then
+			LocalDescriptor = LocalDescriptor or ShiftLeft(1,7)
+		end if
+		
+		if bInterlaceFlag then
+			LocalDescriptor = LocalDescriptor or ShiftLeft(1,6)
+		end if
+		
+		if bSortFlag then
+			LocalDescriptor = LocalDescriptor or ShiftLeft(1,5)
+		end if
+		
+		LocalDescriptor = LocalDescriptor or ShiftLeft(lReserved,3)
+		
+		LocalDescriptor = LocalDescriptor or lLocalColourTableSize
+	end function
+	
+	' Retrieve the MagicNumber for a GIF87a/GIF89a
+	private function MagicNumber()
+		MagicNumber = ""
+		MagicNumber = MagicNumber & ChrB(Asc("G"))
+		MagicNumber = MagicNumber & ChrB(Asc("I"))
+		MagicNumber = MagicNumber & ChrB(Asc("F"))
+		MagicNumber = MagicNumber & ChrB(Asc("8"))
+		if GIF89a then
+			MagicNumber = MagicNumber & ChrB(Asc("9"))
+		else
+			MagicNumber = MagicNumber & ChrB(Asc("7"))
+		end if
+		MagicNumber = MagicNumber & ChrB(Asc("a"))
+	end function
+
+	' Windows bitmap support
+	private function BitmapMagicNumber()
+		BitmapMagicNumber = ChrB(Asc("B")) & ChrB(Asc("M"))
+	end function
+
+	' File support for reading bitmaps using the ADO Stream object
+	public sub LoadBMP(sFilename)
+		Dim objStream
+		Dim sBMP
+		
+		set objStream = Server.CreateObject("ADODB.Stream")
+		
+		objStream.Type = 1 ' adTypeBinary
+		objStream.Open
+		objStream.LoadFromFile sFilename
+
+		sBMP = objStream.Read
+		
+		objStream.Close
+		
+		set objStream = Nothing
+		
+		DecodeBMP sBMP
+	end sub
+
+	public sub SaveBMP(sFilename)
+		Dim objStream
+		Dim objRS
+		Dim sBMP
+		Dim aBMP()
+		Dim lTemp
+
+		sBMP = EncodeBMP
+		
+		set objStream = Server.CreateObject("ADODB.Stream")
+		
+		objStream.Type = 1 ' adTypeBinary
+		objStream.Open
+		objStream.Write ASCIIToByteArray(EncodeBMP)
+		objStream.SaveToFile sFilename,2
+		objStream.Close
+		
+		set objStream = Nothing
+	end sub
+
+	' ASCIIToByteArray converts ASCII strings to a byte array
+	' a byte array is different from an array of bytes, some things require
+	' a byte array, such as writing to the ADODB stream. This function
+	' utilises the ADODB ability to convert to byte arrays from dual digit HEX strings...
+	private function ASCIIToByteArray(sText)
+		Dim objRS
+		Dim lTemp
+		Dim sTemp
+
+		sTemp = ""
+		
+		' Convert the string to dual digit zero padded hex, 
+		' there ain't no quick way of doing this... Would be interested to hear
+		' if anyone do this quicker...
+		For lTemp = 1 to LenB(sText)
+			sTemp = sTemp & Right("00" & Hex(AscB(MidB(sText,lTemp,1))),2)
+		Next
+		
+		' Ok, this may look a little weird, but trust me, this works...
+		' Open us a recordset
+		set objRS = Server.CreateObject("ADODB.Recordset")
+		
+		' Add a fields to the current recordset, add the hex string
+		objRS.Fields.Append "Temp",204,LenB(sText)
+		objRS.Open
+		objRS.AddNew
+		objRS("Temp") = sTemp ' ADODB will convert here
+		objRS.Update
+		objRS.MoveFirst
+		
+		ASCIIToByteArray = objRS("Temp") ' A variant byte array is returned
+		
+		objRS.Close
+		
+		set objRS = Nothing
+	end function
+
+	' Read a 256 colour bitmap into the canvas from an ASCII string of values
+	' Bitmaps were chosen because it provides the following:
+	' * Easy access to the colour table
+	' * 256 colour support which is strikingly similar to GIF colour support
+	' * Direct byte for byte copying for the bitmap data
+	' * No compression, quicker loading and converting
+	public function DecodeBMP(sBuffer)
+		Dim lOffset
+		Dim lNewWidth
+		Dim lNewHeight
+		Dim lBPP
+		Dim lCompression
+		Dim lImageSize
+		Dim lTemp
+		Dim lColourIndex
+		Dim lPad
+		Dim lLineSize
+		Dim sLine
+		Dim sBitmap
+		
+		' Check the magic number
+		if MidB(sBuffer,1,2) = BitmapMagicNumber then
+			lOffset = GetLong(MidB(sBuffer,11,4))
+			lNewWidth = GetLong(MidB(sBuffer,19,4))
+			lNewHeight = GetLong(MidB(sBuffer,23,4))
+			lBPP = GetWord(MidB(sBuffer,29,2))
+			lCompression = GetLong(MidB(sBuffer,31,4))
+			lImageSize = GetLong(MidB(sBuffer,35,4))
+			
+			' Check the vital statistics of the image before proceeding
+			' The criteria for the image is as follows:
+			' 8 Bits per pixel
+			' No compression
+			if lBPP = 8 and lCompression = 0 then
+				' Ok, so we have the header data for the bitmap, now we reformat the image
+				' Image is resized, nothing is preserved
+				Resize lNewWidth,lNewHeight,False
+			
+				lColourIndex = 0
+				
+				' Process the palette values, 256 RGBQUAD values in total
+				For lTemp = 55 to 1079 Step 4
+					GlobalColourTable(lColourIndex) = RGB(AscB(MidB(sBuffer,lTemp + 2,1)),AscB(MidB(sBuffer,lTemp + 1,1)),AscB(MidB(sBuffer,lTemp,1)))
+					lColourIndex = lColourIndex + 1
+				Next
+
+				' Ok, we have width, height, and a valid colour table
+				' now we read the bitmap data directly into the string array
+				' all line lengths MUST be a multiple of 4, so we work out
+				' the padding (if any)
+				lPad = 4 - (lNewWidth Mod 4) ' We remove this many bytes from the end of each line
+
+				if lPad = 4 then lPad = 0
+				
+				' Actual line width in the file
+				lLineSize = lNewWidth + lPad
+				
+				' Bitmap information starts from the bottom line of the image and works
+				' its way up
+				sBitmap = MidB(sBuffer,lOffset + 1,lImageSize) ' Get the bitmap data
+
+				' Reset sImage
+				sImage = ""
+				
+				' Copy the data directly into the canvas, byte for byte
+				For lTemp = 1 to LenB(sBitmap) Step lLineSize
+					sImage = MidB(sBitmap,lTemp,lNewWidth) & sImage
+				Next
+			end if
+		end if
+	end function
+	
+	' Dump a 256 colour bitmap as an ASCII string of values
+	public function EncodeBMP()
+		Dim sTemp
+		Dim lTemp
+		Dim lImageSize
+		Dim lFileSize
+		Dim lPad
+		Dim sBitmap
+		Dim sPad
+		
+		sTemp = sTemp & MakeWord(0) ' Reserved (2)
+		sTemp = sTemp & MakeWord(0) ' Reserved (2)
+		sTemp = sTemp & MakeLong(1078) ' Offset (4)
+		sTemp = sTemp & MakeLong(40) ' Headersize (4)
+		sTemp = sTemp & MakeLong(lWidth) ' Width (4)
+		sTemp = sTemp & MakeLong(lHeight) ' Height (4)
+		sTemp = sTemp & MakeWord(1) ' Planes (2)
+		sTemp = sTemp & MakeWord(8) ' BPP (2)
+		sTemp = sTemp & MakeLong(0) ' Compression (4)
+
+		lPad = 4 - (lWidth Mod 4)
+		
+		if lPad = 4 then lPad = 0
+		
+		lImageSize = (lWidth + lPad) * lHeight
+		
+		sTemp = sTemp & MakeLong(lImageSize) ' Image Size(4)
+		
+		sTemp = sTemp & MakeLong(0) ' Pixels per meter X (4)
+		sTemp = sTemp & MakeLong(0) ' Pixels per meter Y (4)
+		sTemp = sTemp & MakeLong(256) ' Colours used (4)
+		sTemp = sTemp & MakeLong(256) ' Important colours (4)
+		' RGBQUAD arrays (BGRX)
+		For lTemp = 0 to UBound(GlobalColourTable) - 1
+			sTemp = sTemp & MakeByte(Blue(GlobalColourTable(lTemp)))
+			sTemp = sTemp & MakeByte(Green(GlobalColourTable(lTemp)))
+			sTemp = sTemp & MakeByte(Red(GlobalColourTable(lTemp)))
+			sTemp = sTemp & MakeByte(0) ' Pad
+		Next
+		' Image lines from the bottom up, padded to the closest 4 pixels
+		
+		sPad = ""
+		' Make a pad for the end of each line
+		for lTemp = 1 to lPad
+			sPad = sPad & Chr(0)
+		Next
+
+		sBitmap = ""		
+		' Do each line
+		for lTemp = 1 to LenB(sImage) step lWidth
+			sBitmap = MidB(sImage,lTemp,lWidth) & sPad & sBitmap
+		next
+		
+		sTemp = sTemp & sBitmap
+		
+		lFileSize = LenB(sTemp) + 6
+
+		' Magic number (2) and size of the file in bytes (4)		
+		sTemp = BitmapMagicNumber & MakeLong(lFileSize) & sTemp
+		
+		EncodeBMP = sTemp
+	end function
+
+
+	private function DecimalToBinary(lNumber)
+		Dim lTemp
+		Dim bFound
+		
+		DecimalToBinary = ""
+		
+		bFound = False
+		
+		for lTemp = 7 to 0 step - 1
+			if lNumber and 2^lTemp then
+				DecimalToBinary = DecimalToBinary & "1"
+				bFound = True
+			elseif bFound then
+				DecimalToBinary = DecimalToBinary & "0"
+			end if
+		next
+		
+		if DecimalToBinary = "" then DecimalToBinary = "0"
+	end function
+
+	private sub DumpBinary(sBlock,lBitLength,bClose)
+		if bClose then
+			Response.Write "<pre>"
+		end if
+		
+		for lTemp = 1 to LenB(sBlock)
+			' Write out the binary
+			Response.Write " " 
+			for lTemp2 = lBitLength-1 to 0 step -1
+				if AscB(MidB(sBlock,lTemp,1)) and 2^lTemp2 then
+					Response.Write "1"
+				else
+					Response.Write "0"
+				end if
+			next
+			if lTemp Mod lBitLength = 0 then
+				Response.Write "<br>"
+			end if
+		next
+		
+		if bClose then
+			Response.Write "</pre>"
+		end if
+	end sub
+
+	public sub WebSafePalette()
+		' Reset the colours to the web safe palette
+		Dim iTemp1
+		Dim iTemp2
+		Dim iTemp3
+		Dim lIndex
+		
+		iIndex = 0
+		
+		For iTemp1 = &HFF0000& to 0 step - &H330000&
+			For iTemp2 = &HFF00& to 0 step - &H3300&
+				For iTemp3 = &HFF& to 0 step - &H33&
+					GlobalColourTable(iIndex) = iTemp1 or iTemp2 or iTemp3
+					iIndex = iIndex + 1
+				Next
+			Next
+		Next
+	end sub
+
+	private sub Class_Initialize()
+		sImage = "" ' Raster data
+
+		GIF89a = False ' Default to 87a data
+
+		ReDim GlobalColourTable(256) ' Start with a 256 colour global table
+		lGlobalColourTableSize = 7
+		bGlobalColourTableFlag = true
+
+		ReDim LocalColourTable(0) ' No local table support yet
+		lLocalColourTableSize = 0
+		bLocalColourTableFlag = false
+
+		' All the 7's
+		lColourResolution = 7
+		iBits = 7 ' Always 7 bit data (128 colours)
+		lCodeSize = 7
+
+		BackgroundColourIndex = 0
+		
+		BackgroundColourIndex = 0
+		ForegroundColourIndex = 1
+		TransparentColourIndex = 0
+		UseTransparency = False
+
+		lLeftPosition = 0
+		lTopPosition = 0
+		lWidth = INIT_WIDTH
+		lHeight = INIT_HEIGHT
+		
+		Clear
+		
+		bytePixelAspectRatio = 0
+
+		bSortFlag = false
+		bInterlaceFlag = false
+
+		byteSeperator = Asc(",")
+		byteGraphicControl = Asc("!")
+		byteEndOfImage = Asc(";")
+		
+		Comment = ""
+
+		lReserved = 0
+		bTest = FLAG_DEBUG
+	end sub
+	
+	private sub Class_Terminate()
+	end sub
+End Class
+
+' Pixel stack for certain pixel operations (like floodfill etc.)
+Class PixelStack
+	Private aPoints()
+	
+	Public Sub Push(lX,lY)
+		' Add these coords to the stack
+		ReDim Preserve aPoints(UBound(aPoints) + 1)
+		
+		set aPoints(UBound(aPoints)) = new Point
+		
+		aPoints(UBound(aPoints)).X = lX
+		aPoints(UBound(aPoints)).Y = lY
+	End Sub
+	
+	Public function Pop()
+		' Get and remove the last coords from the stack
+		Set Pop = aPoints(UBound(aPoints))
+		
+		ReDim Preserve aPoints(UBound(aPoints) - 1)
+	End function
+	
+	Public Property Get Size()
+		Size = UBound(aPoints)
+	End Property
+	
+	Private Sub Class_Initialize()
+		ReDim aPoints(0)
+	End Sub
+	
+	Private Sub Class_Terminate()
+	End Sub
+End Class
+
+' Simple point class
+Class Point
+	Public X
+	Public Y
+End Class
+
+' ***************************************************************************
+' ******************* Utility functions for this class **********************
+' ***************************************************************************
+
+function GetLong(sValue)
+	GetLong = 0
+	if LenB(sValue) >= 4 then
+		GetLong = ShiftLeft(GetWord(MidB(sValue,3,2)),16) or GetWord(MidB(sValue,1,2))
+	end if
+end function
+
+function MakeLong(lValue)
+	Dim lLowWord
+	Dim lHighWord
+	
+	lLowWord = lValue and 65535
+	lHighWord = ShiftRight(lValue,16) and 65535
+	
+	MakeLong = MakeWord(lLowWord) & MakeWord(lHighWord)
+end function
+
+' Get a number from a big-endian word
+function GetWord(sValue)
+	GetWord = ShiftLeft(AscB(RightB(sValue,1)),8) or AscB(LeftB(sValue,1))
+end function
+
+' Make a big-endian word
+function MakeWord(lValue)
+	MakeWord = ChrB(Low(lValue)) & ChrB(High(lValue))
+end function
+
+' Filter out the high byte
+function MakeByte(lValue)
+	MakeByte = ChrB(Low(lValue))
+end function
+
+function Blue(lValue)
+	Blue = Low(ShiftRight(lValue,16))
+end function
+
+function Green(lValue)
+	Green = Low(ShiftRight(lValue,8))
+end function
+
+function Red(lValue)
+	Red = Low(lValue)
+end function
+
+' Low byte order
+function Low(lValue)
+	Low = lValue and 255
+end function
+
+' High byte order
+function High(lValue)
+	High = ShiftRight(lValue,8)
+end function
+
+' Shift all bits left
+function ShiftLeft(lValue,lBits)
+	ShiftLeft = lValue * (2^lBits)
+end function
+
+' Shift all bits right
+function ShiftRight(lValue,lBits)
+	ShiftRight = int(lValue / (2^lBits))
+end function
+
+function DegreesToRadians(ByVal sinAngle)
+	DegreesToRadians = sinAngle * (PI/180)
+end function
+
+function RadiansToDegrees(ByVal sinAngle)
+	RadiansToDegrees = sinAngle * (180/PI)
+end function
+%>

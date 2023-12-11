@@ -1,0 +1,180 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_custcomment.*,com.bizoss.trade.ti_personal.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+		
+	Ti_personalInfo ti_personalInfo = new Ti_personalInfo();
+	Map ti_custcomment = new Hashtable();
+	String _start_date="",_end_date="",s_cust_id = "",_com_type="";
+	if(request.getParameter("s_start_date")!=null && !request.getParameter("s_start_date").equals("")){
+		_start_date = request.getParameter("s_start_date");
+		ti_custcomment.put("start_date",_start_date);
+	}	
+	if(request.getParameter("s_end_date")!=null && !request.getParameter("s_end_date").equals("")){
+		_end_date = request.getParameter("s_end_date");
+		ti_custcomment.put("end_date",_end_date);
+	}
+	ti_custcomment.put("com_type","3");
+	Ti_custcommentInfo ti_custcommentInfo = new Ti_custcommentInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_custcommentInfo.getListByPage(ti_custcomment,Integer.parseInt(iStart),limit);
+	int counter = ti_custcommentInfo.getCountByObj(ti_custcomment);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?s_start_date="+_start_date+"&s_end_date="+_end_date+"&iStart=",Integer.parseInt(iStart),limit);
+%>
+<html>
+  <head>
+    
+    <title>查看留言信息</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="js_cust.js"></script>
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>查看留言信息</h1>
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+
+				&nbsp;按时间段:
+									
+					<input name="s_start_date" type="text" id="s_start_date" class="Wdate" value="" onClick="WdatePicker({maxDate:'#F{$dp.$D(\'s_end_date\',{d:-1})}',readOnly:true})" size="15"  width="150px"/>
+            -
+          <input name="s_end_date" id="s_end_date" type="text" class="Wdate" value="" onClick="WdatePicker({minDate:'#F{$dp.$D(\'s_start_date\',{d:1})}',readOnly:true})" size="15" width="150px"/>
+				
+				<input name="searchInfo" type="button" value="搜索" onClick="search();"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onClick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onClick="selectAll()"></th>
+			
+		  	<th>留言内容</th>
+		  	  	
+		  	<th>商品名称</th>
+		  	
+		  	<th>留言时间</th>
+		
+			<th width="10%">查看/回复</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String info_id="",goods_id="",com_type="",content="",in_date="",user_id="",info_level="",up_num="",down_num="",reply_content="",reply_date="",reply_user_id="";
+		  			  String goods_name="",user_name="";
+		  			  	if(map.get("info_id")!=null) info_id = map.get("info_id").toString();
+  	                    if(map.get("goods_id")!=null) goods_id = map.get("goods_id").toString();
+  						if(map.get("goods_name")!=null){
+  							 goods_name = map.get("goods_name").toString();
+  							 if(goods_name.length()>30){
+  							 	goods_name=goods_name.substring(0,30);
+  							 }
+  						}
+						if(map.get("com_type")!=null) com_type = map.get("com_type").toString();
+						if(map.get("content")!=null) content = map.get("content").toString();
+						if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+						if(in_date.length()>19)in_date=in_date.substring(0,19);
+						if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+						
+						if(map.get("info_level")!=null) info_level = map.get("info_level").toString();
+						if(map.get("up_num")!=null) up_num = map.get("up_num").toString();
+						if(map.get("down_num")!=null) down_num = map.get("down_num").toString();
+						if(map.get("reply_content")!=null) reply_content = map.get("reply_content").toString();
+						if(map.get("reply_date")!=null) reply_date = map.get("reply_date").toString();
+					    if(reply_date.length()>19)reply_date=reply_date.substring(0,19);
+						if(map.get("reply_user_id")!=null) reply_user_id = map.get("reply_user_id").toString();
+
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=info_id %>" /></td>
+			
+		  	<td>
+				<%
+					if(reply_content.equals("")){
+						out.println("<font color='red'>[未回复]</font>");
+					}else{
+						out.println("<font color='green'>[已回复]</font>");	
+					}
+				%>
+				<%=content%>
+			</td>
+		  	 	
+		  	<td><%=goods_name%></td>
+		  	
+		  	<td><%=in_date%></td>
+		 
+			<td width="10%"><a class="tittle" href="updateInfo.jsp?info_id=<%=info_id %>"><img src="/program/company/images/edit.gif" title="查看" /></a></td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=info_id%>','3235');"><img src="/program/company/images/delete.gif" title="删除" /></a></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onClick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="3235" />
+	  </form>
+</body>
+
+</html>

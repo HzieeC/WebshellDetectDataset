@@ -1,0 +1,143 @@
+<%
+Dim GroupSetting,UserLastIP,Cookies_Name
+Dim MemberName,MemberEmail,memberid
+MemberName=NewAsp.CheckBadstr(NewAsp.memberName)
+memberid=NewAsp.ChkNumeric(NewAsp.memberid)
+MemberEmail=NewAsp.RequestForm(Request.Cookies(NewAsp.CookiesName)("usermail"),50)
+UserLastIP=NewAsp.CheckBadstr(Request.Cookies(NewAsp.CookiesName)("userlastip"))
+
+If Not CheckLogin Then
+	Response.Status = "301 Moved Permanently"
+	Response.AddHeader "Location", "login.asp"
+	Response.Flush:Response.End
+End If
+
+If Trim(MemberName) = "" Or memberid = 0 Then
+	Response.Status = "301 Moved Permanently"
+	Response.AddHeader "Location", "login.asp"
+	Response.Flush:Response.End
+End If
+MemberName = Left(MemberName,45)
+GroupSetting = Split(NewAsp.UserGroupSetting(CInt(NewAsp.membergrade)), "|||")
+Call GetUserTodayInfo()
+Cookies_Name = "usercookies_" & memberid
+
+If Trim(Request.Cookies(Cookies_Name)) = "" Then
+	Response.Cookies(Cookies_Name)("userip") = NewAsp.UserTrueIP
+	Response.Cookies(Cookies_Name)("dayarticlenum") = 0
+	Response.Cookies(Cookies_Name)("daysoftnum") = 0
+	Response.Cookies(Cookies_Name).Expires = Date + 1
+End If
+
+If NewAsp.ChkNumeric(GroupSetting(41))=2 Or CLng(NewAsp.MainSetting(21))=1 Then
+	If UserNowIP <> UserLastIP Or UserLastIP <> NewAsp.UserTrueIP Then
+		Response.Cookies(NewAsp.CookiesName) = ""
+		ErrMsg = "<li>你已经在其他地方登录，本系统不允许两个人使用同一个帐号登录。</li>"
+		Call ToErrors(ErrMsg)
+		Response.End
+	End If
+End If
+
+If CInt(NewAsp.memberclass) > 0 Then
+	Dim rsUserClass,SQLUserClass
+	Set rsUserClass = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQLUserClass = "SELECT userid,UserClass,UserLock,ExpireTime FROM NC_User WHERE username='" & MemberName & "' And userid=" & CLng(memberid)
+	rsUserClass.Open SQLUserClass,Conn,1,3
+	If rsUserClass.BOF And rsUserClass.EOF Then
+		Response.Cookies(NewAsp.CookiesName) = ""
+		rsUserClass.Close:Set rsUserClass = Nothing
+		Response.Redirect "login.asp"
+	Else
+		If rsUserClass("UserLock") > 0 Then
+			Response.Cookies(NewAsp.CookiesName) = ""
+			rsUserClass.Close:Set rsUserClass = Nothing
+			Response.Redirect "login.asp"
+		End If
+		If DateDiff("D", CDate(rsUserClass("ExpireTime")), Now()) > 0 And rsUserClass("UserClass") <> 999 Then
+			rsUserClass("UserClass") = 999
+			rsUserClass.Update
+		End If
+	End If
+	rsUserClass.Close:Set rsUserClass = Nothing
+End If
+
+'================================================
+' 函数名：CreatePath
+' 作  用：按月份自动创建文件夹
+' 参  数：fromPath ----原文件夹路径
+'================================================
+Function CreatePath(fromPath)
+	Dim uploadpath
+	uploadpath = Year(Now) & "-" & Month(Now) '以年月创建上传文件夹，格式：2007－8
+	uploadpath = Replace(uploadpath, ".", "_")
+	On Error Resume Next
+	If CreateFolderEx(Server.MapPath(fromPath & uploadpath)) Then
+		CreatePath = uploadpath & "/"
+	Else
+		CreatePath = ""
+	End If
+End Function
+
+Function CreateFolderEx(sPath)
+    On Error Resume Next
+	Dim strPath,fso
+    sPath = Replace(sPath, "\\", "\")
+	Err=False
+	Set fso = NewAsp.CreateAXObject(NewAsp.MainSetting(47))
+    If Trim(sPath) = "" Then Exit Function
+    If fso.FolderExists(sPath) Then
+        CreateFolderEx=True
+        Exit Function
+    End If
+
+    strPath = sPath
+    If Right(strPath, 1) = "\" Then strPath = Left(strPath, Len(strPath) - 1)
+    strPath = Left(strPath, InStrRev(strPath, "\") - 1)
+    If fso.FolderExists(strPath) = False Then
+        CreateFolderEx (strPath)
+    End If
+    If fso.FolderExists(sPath) = False Then fso.CreateFolder sPath
+
+    If Err Then
+          CreateFolderEx=False
+     Else
+          CreateFolderEx=True
+     End If
+	 Set fso = Nothing
+End Function
+
+Sub selectClasslist(chanid,cid)
+	Dim XMLDom,Node,i
+	If cid>-1 Then 
+		Response.Write "<select name=""classid"" id=""classid"">" &  vbCrLf
+		Response.Write "<option value=""0"">≡选择详细分类≡</option>" & vbCrLf
+	End If
+	On Error Resume Next
+
+	If Not IsObject(Application(NewAsp.CacheName &"_classlist_" & chanid)) Then NewAsp.LoadClassList(chanid)
+	Set XMLDom=Application(NewAsp.CacheName &"_classlist_" & chanid)
+	If Not XMLDom is Nothing Then
+		For Each Node In XMLDom.documentElement.selectNodes("row")
+			If CLng(Node.selectSingleNode("@turnlink").text)=0 Then
+				Response.Write "<option value="""&Node.selectSingleNode("@classid").text&""""
+			End If
+			If cid>0 Then
+				If CLng(Node.selectSingleNode("@classid").text)=cid Then Response.Write " selected=""selected"""
+			End If
+			Response.Write ">"
+			If CLng(Node.selectSingleNode("@depth").text)=1 Then Response.Write "　├ "
+			If CLng(Node.selectSingleNode("@depth").text)>1 Then
+				For i=2 To CLng(Node.selectSingleNode("@depth").text)
+					Response.Write "　"
+				Next
+				Response.Write "　├ "
+			End If
+			Response.Write Trim(Node.selectSingleNode("@classname").text)
+			Response.Write "</option>" & vbCrLf
+		Next
+	End If
+	If cid>-1 Then Response.Write "</select>" & vbCrLf
+	Set XMLDom = Nothing
+End Sub
+
+%>

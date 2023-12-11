@@ -1,0 +1,114 @@
+<!--#include file="../../Inc/Const.Asp"-->
+<%
+Dim Plus
+Set Plus = New Cls_Plus
+Plus.Open("search") ' 打开配置文件
+Plus.CheckUser ' 权限检查
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=GB2312" />
+<title>管理</title>
+<link href="../../inc/Images/style.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript" src="../../inc/Images/func.js"></script>
+</head>
+<body>
+<%
+Dim Rs,Sql,i,j
+
+Dim ID :ID = Request("ID")
+Dim Url : Url = "_Manage.Asp"
+Dim Page : Page = Request("Page")
+If Len(Page) = 0 Or Not IsNumeric(ID) Then Page = 1
+If Page < 1 Then Page = 1
+
+Select Case LCase(Request("Act"))
+Case "delete"
+	Call Tags_Delete()
+Case "clear"
+	Call Tags_Clear()
+Case Else
+		Call Tags_Main()
+End Select
+
+Sub Tags_Delete()
+	If Len(ID) > 0 And IsNumeric(ID) Then Call DB("Delete From [{pre}Tags] Where [ID]=" & ID ,0)
+	Conn.Close : Set Conn = Nothing : Response.Redirect Url
+End Sub
+
+Sub Tags_Clear()
+		'# 清理 Tags　
+		On Error Resume Next
+		Dim TagsNumber : TagsNumber = Request("t") '# 可保存的 TAGS 条数
+		If Len(TagsNumber) = 0 Or Not IsNumeric(TagsNumber) Then TagsNumber = 128 Else TagsNumber = Int(TagsNumber)
+		Set Rs = DB("Select [Modifytime] From [{pre}Tags] Order By [Modifytime] Desc",2)
+		If Rs.RecordCount > TagsNumber Then
+			Rs.AbsolutePosition = TagsNumber
+			Select Case LCase(DataBaseType)
+			Case "access" Call DB("Delete From [{pre}Tags] Where [Modifytime]<#" & Rs(0) & "#",1)
+			Case "mssql" Call DB("Delete From [{pre}Tags] Where [Modifytime]<'" & Rs(0) & "'",1)
+			End Select
+		End If
+		Rs.CLose : Set Rs = Nothing : Conn.Close : Set Conn = Nothing : Response.Redirect Url
+End Sub
+
+Sub Tags_Main()
+	Set Rs = DB("Select [ID],[Name],[Count],[Modifytime] From [{pre}Tags] Order By [Count] Desc",2)
+	%>
+	<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+	<td colspan=4><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+	<form name=frmClear method=post action=<%=Url%>?Act=Clear>
+	<tr>
+	<td class=css_main><a href="<%=Url%>">站内搜索关键字排行</a></td>
+	<td class=css_search>保留关键字个数 <input name=t type=text id=t size=10 value="128"> <input type=submit name=Submit value=清理关键字> </td>
+	</tr>
+	</form>
+	</table></td>
+	</tr>
+	<tr>
+	<td class='css_top'>关键字</td>
+	<td class='css_top'>搜索次数</td>
+	<td class='css_top'>最后一次</td>
+	<td class='css_top'>删除</td>
+	</tr>
+	<%
+	If Rs.Eof Then
+	%>
+	<tr class=css_norecord>
+	<td colspan=4>没有任何记录！</td>
+	</tr>
+	<%
+	Else
+	Dim i
+	Rs.PageSize = 15
+	Rs.AbsolutePage = Page
+	For i = 1 To Rs.PageSize
+	If Rs.Eof Then Exit For
+	%>
+	<tr>
+	<td class='css_list'><%=Rs("Name")%></td>
+	<td class='css_list'><%=Rs("Count")%></td>
+	<td class='css_list'><%=Rs("Modifytime")%></td>
+	<td class='css_list'><input name=delete type=button onclick="if(confirm('您确定要删除这条记录吗?')){location.href='<%=Url%>?Act=Delete&ID=<%=Rs("ID")%>&Page=<%=Page%>';}" value=删除></td>
+	</tr>
+	<%
+	Rs.MoveNext
+	Next
+	End If
+	%>
+	<tr class=css_page_list>
+	<td colspan=4><%=PageList(Rs.PageCount,Page,Rs.RecordCount,15,Url & "?Page={p}")%></td>
+	</tr>
+	</table>
+	<%
+	Rs.Close : Set Rs = Nothing
+	Conn.CLose : Set Conn = Nothing
+End Sub
+%>
+</body>
+</html>
+<%
+Set Plus = Nothing
+%>

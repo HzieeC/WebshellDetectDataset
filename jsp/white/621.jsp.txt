@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<script src="${contextPath}/static/jqtrans/jquery.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+<title></title>
+</head>
+<body>
+
+<div class="userInfo">
+	<h1><fmt:message key="userManagement"/></h1>
+<form id="userSearchForm">
+		<table class="yTable margintop" >
+				<tr >
+				    <th ><fmt:message key="loginName"/></th>
+					<td><input name="loginName" id="loginName" type="text" class="inputbox"/></td>
+					<th ><fmt:message key="userName1"/></th>
+					<td><input name="name" id="name" type="text" class="inputbox"/></td>
+					<th><fmt:message key="sex"/></th>
+					<td width="250">
+						<input type="radio" value="0" name="sex" id="sex1"/><label><fmt:message key="female"/></label>
+							      	
+									<input type="radio" value="1" name="sex" id="sex2"/><label><fmt:message key="male"/></label>
+									
+									<input type="radio" checked="checked" value="" name="sex" id="sex0"/><label><fmt:message key="all"/></label>
+							      		 
+					</td>
+				</tr>
+				
+				<tr >
+					<th><fmt:message key="moble"/></th>
+					<td><input name="mobilePhone" id="mobilePhone" type="text" class="inputbox"></td>
+					<th><fmt:message key="mail"/></th>
+					<td><input name="email" id="email" type="text" class="inputbox"></td>
+					<th><fmt:message key="userStatus"/></th>
+					<td>   
+					 <select name="available" id="available" class="inputbox">
+					      <option value=""><fmt:message key="all"/> </option>
+					      <option value="1"><fmt:message key="jsuserenable"/> </option>
+					      <option value="0"><fmt:message key="jsuserdisabled"/> </option>
+					 </select>
+					 </td>
+				</tr>
+		</table>
+		<div class="Btn">
+		<input name="search" id="save" type="button" value="<fmt:message key="search"/>"
+						/>
+	<input name="save" id="new" type="button" value="<fmt:message key="new"/>"
+						/>
+						<input name="save" id="reset" type="button" value="导入用户"
+						/>
+		<input name="save" id="reset" type="button" value="<fmt:message key="reset"/>"
+						/>
+	</div>
+</form>
+	
+	<br/>
+	<div id="searchResult" class="xTable" style="width:100%;"></div>
+</div>
+<form  id="updatePasswordUserForm" class="userInfo" style="display: none;">
+	<table class="yTable margintop">
+		<tr>
+		  <th style="width: 65px;"><fmt:message key='System.Password.New' ></fmt:message> </th>
+          <td><input id="psdIndex" name="psdIndex" type="password" class="inputbox"  style="width: 135px;"/></td>
+		</tr>
+		<tr>
+		  <th style="width: 65px;"><fmt:message key='System.Password.Confirm' ></fmt:message> </th>
+          <td><input id="rePasswordUserIndex" name="rePasswordUserIndex" type="password" class="inputbox" style="width: 135px;"/></td>
+		</tr>
+
+	</table>
+</form>
+<script type="text/javascript">
+  seajs.use("${scriptBasePath}/user/userIndex.js");
+</script>
+</body>
+</html>

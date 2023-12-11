@@ -1,0 +1,77 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" />
+<%@ page import="com.bizoss.trade.ti_financestrategy.*" %>
+<%
+	 String cust_class_name="";
+	 String cust_class="";
+	 String user_id = "";
+	 String payment="";
+   if(session.getAttribute("session_user_id")!=null){
+	     user_id  =session.getAttribute("session_user_id").toString();
+	     
+	     if(request.getParameter("smemerberleave")!=null) cust_class_name=request.getParameter("smemerberleave");
+	    Ti_financestrategyInfo ti_financestrategyInfo=new Ti_financestrategyInfo();
+	     List financestrategyInfo_list=ti_financestrategyInfo.getListByPk(cust_class_name);
+	     Hashtable financestrategyInfo_map = new Hashtable();
+	     if(financestrategyInfo_list!=null && financestrategyInfo_list.size()>0) financestrategyInfo_map=(Hashtable)financestrategyInfo_list.get(0);
+	  
+	     if(financestrategyInfo_map.get("cust_class_name")!=null){
+	     cust_class_name=financestrategyInfo_map.get("cust_class_name").toString();
+	     }	    
+	     if(financestrategyInfo_map.get("cust_class")!=null){
+	     cust_class=financestrategyInfo_map.get("cust_class").toString();
+	     }
+	     if(financestrategyInfo_map.get("payment")!=null){
+	     payment=financestrategyInfo_map.get("payment").toString();
+	     }
+	}
+
+
+ %>
+<html>
+  <head>
+    <title>新增会员级别策略</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="ti_financestrategy.js"></script>
+</head>
+
+<body>
+	<h1>=新增会员级别策略</h1>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">		
+		<tr>
+			<td align="right" width="10%">
+				会员级别<font color="red">*</font>
+			</td>
+			<td>
+			<select id="memerberleave" name="memerberleave" >
+				<option value="">请选择</option>
+			<%=cust_class_name %>
+			</select>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				缴纳费用<font color="red">*</font>
+			</td>
+			<td>
+			<input type="text" name="payment" id="payment" value="<%=payment%>" >
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="6733" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="return submitForm();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

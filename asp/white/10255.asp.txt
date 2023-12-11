@@ -1,0 +1,366 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%> 
+<%Session.CodePage=936%> 
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../../inc/sendmail.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<%
+If Not FRAdminLevel(303) Then
+	Call ErrorMsg()
+End If
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+keyword=CheckStr(trim(request("keyword"))) 
+segment=CheckStr(trim(request("segment")))
+setresult=trim(request("setresult"))
+Dim Action
+Dim page,i
+Dim totalPut
+const MaxPerpage=20
+strFileName="company_service.asp?segment="&segment&"&keyword="&keyword&"&setresult="&setresult&""
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>智能招聘人才管理系统 后台管理系统</title>
+<link href="../css/style.css" rel="stylesheet" type="text/css" />
+<script language="javascript" src="../Inc/Admin.js"></script><script language="JavaScript" type="text/JavaScript">
+function ConfirmDel(ID,Name)
+{
+   if(confirm("您确定要删除定单【"+Name+"】吗？\n\n警告：此操作不可恢复，请慎重操作！"))
+     location.href="<%=strFileName%>&Action=Del&id="+ID
+}
+function unSelectAll()
+{
+    if(document.form1.chkAll.checked){
+	document.form1.chkAll.checked = document.form1.chkAll.checked&0;
+    } 	
+}
+function SelectAll(form)
+{
+  for (var i=0;i<form.elements.length;i++)
+    {
+    var e = form.elements[i];
+    if (e.Name != "chkAll"&&e.disabled!=true&&e.zzz!=1)
+       e.checked = form.chkAll.checked;
+    }
+}
+</script></head>
+<body>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1"  class="tableBorder">
+  <tr>
+    <th  height=25 class="tableHeaderText">企业招聘管理</th>
+  </tr>
+  <form action="<%=strFileName%>" method="post">
+    <tr>
+      <td height="28" align="left"><font color="ff6600"><b class="style1">　管理选项</b></font>：&nbsp;<a href="cmember_searchlist.asp">管理首页</a> | <a href="cmember_searchlist.asp">企业管理</a> | <a href="hire_searchlist.asp">职位管理</a> | <a href="company_service.asp">服务申请管理</a> | [<a href="javascript:location.reload()">刷新页面</a>]</td>
+    </tr>
+    <tr>
+      <td height="28" align="left"><font color="ff6600"><b class="style11">　定单状态</b></font>： <a href="?setresult=0">申请中</a> | <a href="?setresult=1">处理中</a> | <a href="?setresult=2">等待付款</a> | <a href="?setresult=3">成功</a> | <a href="?setresult=4">过期</a> | <a href="?setresult=5">作废</a></td>
+    </tr>
+    <tr>
+      <td height="28" align="left">&nbsp;&nbsp;&nbsp;&nbsp;关键字：
+        <input name="keyword" type="text" id="keyword" size="10">
+          <select name="segment" size="1" id="select">
+            <option value="cmember_login">会员帐号</option>
+            <option value="cmember_pactnum">合同编号</option>
+          </select>
+        <input name="Submit2" type="submit" class="inputs" value="搜索"></td>
+    </tr>
+    <tr>
+      <td height="28" align="left"><B>注意</B>：<BR>
+        <font color=blue>①定单状态每操作一次系统将自动的发邮件到用户的邮箱！</font><BR>
+        <font color=red>②请直接点击对应的状态打开操作面板，定单的状态由管理员手动设置。</font><br>
+        <font color=red>③已付款开通服务，请直接点击对应的用户名来打开设置窗口。</font></td>
+    </tr>
+  </form>
+</table>
+<%
+Action=trim(Request("Action"))
+Select Case Action
+	Case "Modify"
+		Call ShowData()
+	Case "SaveData"
+		Call SaveData()
+	Case "Del"
+		Call Del()
+	Case Else
+		Call main()
+End Select
+
+if FoundErr=True then
+	call Show_Err()
+end if
+
+Conn.Close
+Set Conn=Nothing
+%>
+<%
+sub main()
+Set rs= Server.CreateObject(FR_HR_RS)
+sql="select * from JOB_orderservice"
+if segment="cmember_pactnum" then
+sql=sql&" where Order_pactnum like '%"& keyword &"%'"
+else
+sql=sql&" where Order_member like '%"& keyword &"%'"
+end if
+if setresult<>"" then
+	sql=sql&" and Order_result="&setresult
+end if
+sql=sql&" order by Order_datetime desc"
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>暂无任定单！</li>"
+		exit sub
+	else
+		totalPut=rs.recordcount
+		if (page-1)*MaxPerpage>totalput then
+			if (totalPut mod MaxPerpage)=0 then
+				page= totalPut \ MaxPerpage
+			else
+				page= totalPut \ MaxPerpage + 1
+			end if
+		end if
+		if page=1 then
+			Call MainInfo()
+		else
+			if (page-1)*MaxPerpage<totalPut then
+				rs.move  (page-1)*MaxPerpage
+				dim bookmark
+				bookmark=rs.bookmark
+				Call MainInfo()
+			else
+				page=1
+				Call MainInfo()
+			end if
+		end if
+	end if
+	rs.close
+	set rs=nothing
+End Sub
+%>
+<%Sub MainInfo()%>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder mt10">
+<form name="form1" method="Post" action="<%=strFileName%>">
+	  <tr class="title" align="center">
+	  <th  height=25 colspan="8" class="tableHeaderText">服务申请列表</th>
+    </tr>
+	  <tr class="title" align="center">
+		<td width="5%" height="22" class=tableHeaderText><strong>编号</strong></td>
+		<td width="18%" class=tableHeaderText><strong>产品服务名称</strong></td> 
+		<td width="15%" class=tableHeaderText><strong><strong>用户名</strong></strong></td>
+		<td width="18%" class=tableHeaderText><strong>合同编号</strong></td>
+		<td width="15%" class=tableHeaderText><strong>申请时间</strong></td>
+		<td width="15%" class=tableHeaderText><strong><strong>处理时间</strong></strong></td>
+		<td width="9%" class=tableHeaderText><strong>状态</strong></td>
+	    <td width="5%" class=tableHeaderText><strong>选中</strong></td>
+	  </tr>
+<%do while not rs.eof
+	id=Rs("Order_id")
+	groupid=rs("Order_groupid")
+	groupname=rs("Order_groupname")
+	content=rs("Order_content")
+	member=rs("Order_member")
+	datetime=rs("Order_datetime")
+	if rs("Order_result")<>"" then
+		Select Case rs("Order_result")
+			Case 0:result="申请中"
+			Case 1:result="处理中"
+			Case 2:result="等待付款"
+			Case 3:result="成功"
+			Case 4:result="过期"
+			Case 5:result="作废"
+		End Select
+	end if
+	pactnum=rs("Order_pactnum")
+	dealdatetime=rs("Order_dealdatetime")
+	set rst=conn.execute("select * from JOB_member where member_login='"&member&"' and member_typeid=2")
+		if not rst.eof then
+			memberid=rst("member_id")
+		else
+			memberid=0
+		end if
+	set rst=nothing		
+%>
+	  <tr class="tdbg" align="center">
+		<td align="center"><%=ID%></td>
+		<td><a href="#" onClick="document.getElementById('<%=ID%>').style.display='block';" title="点击查看附加要求"><%=groupname%></a></td> 
+		<td align="center"><%if memberid=0 then%><%=member%><%else%><a href="#" title="点击可进入设置<%=member%>会员类型及会员服务时间。" onClick="if (confirm('确实要修改用户类型吗？')) window.open ('../user/admin_usertypemodi.asp?id=<%=memberid%>&member_typeid=2','newwindow','height=260,width=550,top=0,left=0,toolbar=no,menubar=no,scrollbars=no, resizable=no,location=no, status=no') "><%=member%></a><%end if%></td>
+		<td align="center"><%=pactnum%></td>
+		<td align="center"><%=datetime%></td>
+		<td align="center"><%=dealdatetime%></td>
+		<td align="center"><a href="company_service.asp?Action=Modify&ID=<%=ID%>"><%=result%></a></td>
+	    <td align="center"><input name="id" type="checkbox" class="checkbox" value="<%=id%>" /></td>
+	  </tr>
+	  	  <tr class="tdbg" align="center" id="<%=id%>" style="display:none;">
+		<td align="left">&nbsp;</td>
+	    <td colspan="6" align="left"><strong>附加内容：</strong><%=Content%></td>
+	    <td align="left"><a href="#" onClick="document.getElementById('<%=ID%>').style.display='none';">关闭</a></td>
+  	  </tr>
+	<%
+		i=i+1
+		if i>=MaxPerPage then exit do
+		rs.movenext
+		loop
+	%>
+		  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'" align="center">
+	    <td colspan="8" align="right"><input name="chkAll" type="checkbox" class="checkbox" onClick="SelectAll(this.form)" value="checkbox" />
+          <input name="Action" type="hidden" value="Del" />
+          选中所有项目&nbsp;&nbsp;&nbsp;&nbsp;将选定的项目：
+          <input name="submit2" type="submit" class="inputs" value="批量删除" /></td>
+	    </tr>
+		  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'" align="center">
+		    <td colspan="8"><%If totalput>0 Then
+	Call Showpage(strFileName,totalput,MaxPerPage,false,true,"个定单")
+End If%></td>
+	      </tr>
+</form>
+</table>
+<%End Sub%>
+<%
+Sub ShowData()
+	ID=trim(request.QueryString("ID"))
+	If ID<>"" Then
+		If IsNumeric(ID)=False Then
+			FoundErr=True
+			ErrMsg=ErrMsg & "<br><li>参数错误！</li>"
+			Exit Sub
+		End If
+		sql="select * from JOB_orderservice where Order_id=" & ID
+		set rs=server.CreateObject (FR_HR_RS)
+		rs.open sql,conn,1,1
+		if rs.bof and rs.eof then
+			FoundErr=True
+			ErrMsg=ErrMsg & "<br><li>此定单不存在或者已经删除！</li>"
+			Exit Sub
+		else
+			revert=Rs("Order_revert")
+			result=rs("Order_result")
+		end if
+		rs.Close
+		Set rs=Nothing
+	End If
+%>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder mt10">
+  <form name="form1" method="post" action="<%=strFileName%>">
+    
+    
+    <tr class="tdbg">
+      <th  height=25 colspan="2" class="tableHeaderText">服务开通操作</th>
+    </tr>
+    <tr class="tdbg">
+      <td height="40" align="right"><strong>申请状态：</strong></td>
+      <td><label>
+        <select name="result">
+          <option value="0" selected>申请中</option>
+          <option value="1" <%if result=1 then Response.Write"selected"%>>处理中</option>
+          <option value="2" <%if result=2 then Response.Write"selected"%>>等待付款</option>
+          <option value="3" <%if result=3 then Response.Write"selected"%>>成功</option>
+          <option value="4" <%if result=4 then Response.Write"selected"%>>过期</option>
+          <option value="5" <%if result=5 then Response.Write"selected"%>>作废</option>
+        </select>
+      </label></td>
+    </tr>
+    <tr class="tdbg">
+      <td width="11%" height="40" align="right"><strong>补充说明：</strong></td>
+      <td width="89%"><textarea name="revert" cols="60" rows="5"><%=revert%></textarea></td>
+    </tr>
+    <tr class="tdbg">
+      <td height="40" colspan="2" align="center"><input name="id" type="hidden" value="<%=id%>" />
+          <input name="Action" type="hidden" value="SaveData" />
+          <input name="btnSave" type="submit" class="inputs" style="cursor:hand;" value="提交操作" />
+        &nbsp;
+        <input name="btnCancel" type="button" class="inputs" style="cursor:hand;" onClick="window.location.href='<%=strFileName%>'" value=" 取 消 " />      </td>
+    </tr>
+  </form>
+</table>
+<%End Sub%>
+<%
+sub SaveData()
+id=trim(request("id"))
+if id<>"" And IsNumeric(id)=False then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>参数错误！</li>"
+	Exit Sub
+	id=CLng(id)
+end if
+result=request.form("result")
+revert=request.form("revert")
+set rs=server.createobject("adodb.recordset")
+sql="select * from JOB_orderservice where Order_id="&id&""
+rs.open sql,conn,1,3
+member=rs("Order_member")
+groupname=rs("Order_groupname")
+rs("Order_revert")=revert
+rs("Order_dealdatetime")=now()
+rs("Order_result")=result
+rs.update
+rs.close
+set rst=conn.execute("select * from JOB_member where member_login='"&member&"' and member_typeid=2")
+	if not rst.eof then
+		UserEmail=rst("member_email")
+		Select Case result
+			Case 1:results="处理中"
+			Call SendMail(UserEmail,""&member&",您购买的会员服务正在处理！",""&member&"您好，您在<a href="&siteurl&" target=_blank>"&sitename&"</a>申请的"&groupname&"会员服务相关工作人员正在处理，现在就<a href="&siteurl&InstallDir&"company/login.asp target=_blank>登陆查看</a>！")
+			Case 2:results="等待付款"
+			Call SendMail(UserEmail,""&member&",您购买的会员服务已进入等待付款状态！",""&member&"您好，您在<a href="&siteurl&" target=_blank>"&sitename&"</a>申请的"&groupname&"会员服务已进入等待付款状态，请尽快通过银行、在线支付等渠道支付您的会员服务费用，现在就<a href="&siteurl&InstallDir&"company/login.asp target=_blank>进入会员中心</a>在线支付费用！")
+			Case 3:results="成功"
+			Call SendMail(UserEmail,""&member&",您购买的会员服务已开通成功！",""&member&"您好，您在<a href="&siteurl&" target=_blank>"&sitename&"</a>申请的"&groupname&"会员服务相关工作人员已经给您开通啦！现在就<a href="&siteurl&InstallDir&"company/login.asp target=_blank>登陆</a>享受特殊服务！")
+			Case 4:results="过期"
+			Call SendMail(UserEmail,""&member&",您购买的会员服务已到期！",""&member&"您好，您在<a href="&siteurl&" target=_blank>"&sitename&"</a>所享有的"&groupname&"会员服务已经到期，请尽快续签会员服务协议，现在就<a href="&siteurl&InstallDir&"company/login.asp target=_blank>登陆</a>准备续签！")
+			Case 5:results="作废"
+			Call SendMail(UserEmail,""&member&",您购买的会员服务申请未成功！",""&member&"您好，您在<a href="&siteurl&" target=_blank>"&sitename&"</a>申请的"&groupname&"会员服务由于　"&revert&"　，导致未开通成功，现在就<a href="&siteurl&InstallDir&"company/login.asp target=_blank>登陆</a>重新申请！")
+		End Select
+	else
+		response.write"<SCRIPT language=JavaScript>alert('邮件发送未成功，原因：会员不存在！');</script>"
+	end if
+set rst=nothing
+response.write"<SCRIPT language=JavaScript>alert('处理成功！');</script>"
+response.redirect strFileName
+response.End()
+end sub
+%>
+<%
+sub Del()
+	id=trim(Request("id"))
+	if id="" then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>参数不足！</li>"
+		exit sub
+	end if
+	sql="select * from JOB_orderservice where Order_id In("& id &")"
+    set rs=server.CreateObject ("Adodb.recordset")
+	rs.open sql,conn,1,3
+	if rs.bof and rs.eof then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>定单不存在或者已被删除！</li>"
+		exit sub
+	else
+		Do While Not(rs.Eof)
+			rs.delete
+			rs.update
+			rs.MoveNext
+		Loop
+	end if
+	rs.close
+	set rs=nothing
+    response.redirect strFileName
+	response.End()
+end sub
+%>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>

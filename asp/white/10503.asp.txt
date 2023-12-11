@@ -1,0 +1,209 @@
+﻿<!--#include file="../lib/base.asp"-->
+<!--#include file="../theme/admin/config.asp"-->
+<!--#include file="../lib/cmd.asp"-->
+<%
+''' SDCMS base
+''' ==================================================================
+''' 版权所有 http://www.sdcms.cn
+''' ------------------------------------------------------------------
+''' 这不是一个自由软件！您只能在不用于商业目的的前提下对程序代码进行修改和使用；
+''' 未经授权不允许对程序代码以任何形式任何目的的再发布。
+''' ==================================================================
+''' 编写: IT平民
+''' 修改：IT平民 in 2012.08
+
+dim htmlhome:htmlhome=sdcms.getsys("htmlhome")
+dim htmlclass:htmlclass=sdcms.getsys("htmlclass")
+dim htmlparent:htmlparent=sdcms.getsys("htmlparent")
+dim htmlcontent:htmlcontent=sdcms.getsys("htmlcontent")
+dim htmltotal:htmltotal=sdcms.getsys("htmltotal")
+
+function get_adminfolder
+	dim a,b,c
+	a=request.servervariables("script_name")
+	b=split(a,"/")
+	c=ubound(b)
+	get_adminfolder=replace(a,b(c),"")
+end function
+
+sub deal_tags(byval t0,byval t1)
+	if sdcms.strlen(t0)>0 then
+		dim t2,i
+		t2=split(t0,",")
+		for i=0 to ubound(t2)
+			if sdcms.strlen(trim(t2(i)))>0 then
+			dim rs
+				set rs=server.createobject("adodb.recordset")
+				rs.open "select hits from sd_expand_tags where title='"&trim(t2(i))&"'",sdcms.db.conn,1,3
+				if not rs.eof then
+				dim hits:hits=rs(0)
+					if hits>0 then hits=hits-1 else hits=0
+					rs.update
+					rs(0)=hits
+					rs.update
+				end if
+				rs.close
+				set rs=nothing
+			end if
+		next
+	end if
+	if sdcms.strlen(t1)>0 then
+		t2=split(t1,",")
+		for i=0 to ubound(t2)
+			if sdcms.strlen(trim(t2(i)))>0 then
+				set rs=server.createobject("adodb.recordset")
+				rs.open "select title,hits from sd_expand_tags where title='"&trim(t2(i))&"'",sdcms.db.conn,1,3
+				if rs.eof then
+					rs.addnew
+					rs(0)=t2(i)
+					rs(1)=1
+				else
+					rs.update
+					rs(1)=rs(1)+1
+				end if
+				rs.update
+				rs.close
+				set rs=nothing
+			end if
+		next
+	end if
+end sub
+
+sub deal_file(byval t0,byval t1)
+	sdcms.db.dbupdate "sd_attachment","adminid="&adminid&" and cid=0 and classid="&t1&"",array(array("cid",t0,0,0))
+end sub
+
+sub deal_del_file(byval t0,byval t1)
+	sdcms.db.dbupdate "sd_attachment","cid="&t0&" and classid="&t1&"",array(array("cid",-1,0,0))
+end sub
+
+sub deal_publish(byval t0)
+	dim str_publish:str_publish=sdcms.getsys("str_publish")
+	if str_publish<=0 then
+		exit sub
+	end if
+	dim userid:userid=sdcms.db.dbloadone("userid","sd_content","id="&t0&"")
+	if userid=0 then
+		exit sub
+	end if
+	dim userdata
+	userdata=sdcms.db.dbload(1,"point,groupid,(select allowupgrade from sd_user_group where id=sd_user.groupid)","sd_user","id="&userid&"","")
+	if ubound(userdata)<0 then
+		exit sub
+	end if
+	dim point,groupid,allowupgrade,npoint
+	point=userdata(0,0)
+	groupid=userdata(1,0)
+	allowupgrade=userdata(2,0)
+	npoint=point+str_publish
+	sdcms.db.dbupdate "sd_user","id="&userid&"",array(array("point",npoint,10,0))
+	sdcms.db.insert "sd_user_point",array(array("point",str_publish,0,0),array("userid",userid,0,0),array("type",1,0,0),array("content","投稿通过审核，获得积分："&str_publish&"",0,1),array("createdate",now(),0,1))
+	if allowupgrade=1 then sdcms.userupgrade npoint,groupid,userid
+end sub
+
+sub single_page(byval t0)
+	if webmode<3 then
+		exit sub
+	end if
+	dim url,getcode,get_act,get_info,total,j
+	url=weburl&get_adminfolder
+	url=url&"html/list.asp"
+	url=url&"?classid="&t0&"&admin_id="&adminid&"&loginbase="&admin_loginbase&""
+	getcode=sdcms.gethttp(url,"")
+	get_act=left(getcode,1)
+	get_info=right(getcode,len(getcode)-1)
+	total=get_info
+	if get_act<>"1" then
+		exit sub
+	end if
+	if total>1 then
+		for j=2 to total
+			if j<total then
+				getcode=sdcms.gethttp(url&"&page="&j&"","")
+			end if
+		next
+	end if
+end sub
+
+sub single_html(byval t0,byval t1,byval t2)
+	if webmode<3 then
+		exit sub
+	end if
+	t2=sdcms.iif(t2="",1,0)
+	dim url,getcode,get_act,get_info,total,j,i
+	if htmlhome then
+		url=weburl&get_adminfolder
+		url=url&"html/index.asp"
+		url=url&"?admin_id="&adminid&"&loginbase="&admin_loginbase&""
+		sdcms.gethttp url,""
+	end if
+	if htmlcontent and t2=1 then
+		url=weburl&get_adminfolder
+		url=url&"html/show.asp"
+		url=url&"?id="&t0&"&admin_id="&adminid&"&loginbase="&admin_loginbase&""
+		getcode=sdcms.gethttp(url,"")
+		get_act=left(getcode,1)
+		get_info=right(getcode,len(getcode)-1)
+		total=get_info
+		if get_act<>"1" then
+			exit sub
+		end if
+		if total>1 then
+			for j=2 to total
+				if j<total then
+					getcode=sdcms.gethttp(url&"&page="&j&"","")
+				end if
+			next
+		end if
+	end if
+	if htmlparent then
+		dim sonarr
+		sonarr=split(sdcms.get_parentid(t1),",")
+		for i=0 to ubound(sonarr)
+			url=weburl&get_adminfolder
+			url=url&"html/list.asp"
+			url=url&"?classid="&sonarr(i)&"&admin_id="&adminid&"&loginbase="&admin_loginbase&""
+			getcode=sdcms.gethttp(url,"")
+			get_act=left(getcode,1)
+			get_info=right(getcode,len(getcode)-1)
+			total=get_info
+			if get_act<>"1" then
+				exit sub
+			end if
+			if total>1 then
+				if htmltotal>0 then
+					if total>htmltotal+1 then total=htmltotal+1
+				end if
+				for j=2 to total
+					if j<total then
+						getcode=sdcms.gethttp(url&"&page="&j&"","")
+					end if
+				next
+			end if
+		next
+	else
+		if htmlclass then
+			url=weburl&get_adminfolder
+			url=url&"html/list.asp"
+			url=url&"?classid="&t1&"&admin_id="&adminid&"&loginbase="&admin_loginbase&""
+			getcode=sdcms.gethttp(url,"")
+			get_act=left(getcode,1)
+			get_info=right(getcode,len(getcode)-1)
+			total=get_info
+			if get_act<>"1" then
+				exit sub
+			end if
+			if total>1 then
+				if htmltotal>0 then
+					if total>htmltotal+1 then total=htmltotal+1
+				end if
+				for j=2 to total
+					if j<total then
+						getcode=sdcms.gethttp(url&"&page="&j&"","")
+					end if
+				next
+			end if
+		end if
+	end if
+end sub
+%>

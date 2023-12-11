@@ -1,0 +1,254 @@
+<script language="javascript" type="text/javascript" runat="server">
+//本段代码由： http://pajhome.org.uk/crypt/md5 精简而成， 版权归原作者所有
+var hcbus_b64pad  = "=";
+var hcbus_chrsz   = 8;
+
+function hcbus_sha1_ft(t, b, c, d)
+{
+  if(t < 20) return (b & c) | ((~b) & d);
+  if(t < 40) return b ^ c ^ d;
+  if(t < 60) return (b & c) | (b & d) | (c & d);
+  return b ^ c ^ d;
+}
+
+function hcbus_sha1_kt(t)
+{
+  return (t < 20) ?  1518500249 : (t < 40) ?  1859775393 :
+         (t < 60) ? -1894007588 : -899497514;
+}
+
+function hcbus_rol(num, cnt)
+{
+  return (num << cnt) | (num >>> (32 - cnt));
+}
+
+function hcbus_safe_add(x, y)
+{
+  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
+  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+  return (msw << 16) | (lsw & 0xFFFF);
+}
+
+function hcbus_core_sha1(x, len)
+{
+  x[len >> 5] |= 0x80 << (24 - len % 32);
+  x[((len + 64 >> 9) << 4) + 15] = len;
+
+  var w = Array(80);
+  var a =  1732584193;
+  var b = -271733879;
+  var c = -1732584194;
+  var d =  271733878;
+  var e = -1009589776;
+
+  for(var i = 0; i < x.length; i += 16)
+  {
+    var olda = a;
+    var oldb = b;
+    var oldc = c;
+    var oldd = d;
+    var olde = e;
+
+    for(var j = 0; j < 80; j++)
+    {
+      if(j < 16) w[j] = x[i + j];
+      else w[j] = hcbus_rol(w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16], 1);
+      var t = hcbus_safe_add(hcbus_safe_add(hcbus_rol(a, 5), hcbus_sha1_ft(j, b, c, d)),
+                       hcbus_safe_add(hcbus_safe_add(e, w[j]), hcbus_sha1_kt(j)));
+      e = d;
+      d = c;
+      c = hcbus_rol(b, 30);
+      b = a;
+      a = t;
+    }
+
+    a = hcbus_safe_add(a, olda);
+    b = hcbus_safe_add(b, oldb);
+    c = hcbus_safe_add(c, oldc);
+    d = hcbus_safe_add(d, oldd);
+    e = hcbus_safe_add(e, olde);
+  }
+  return Array(a, b, c, d, e);
+
+}
+
+function hcbus_str2binb(str)
+{
+  var bin = Array();
+  var mask = (1 << hcbus_chrsz) - 1;
+  for(var i = 0; i < str.length * hcbus_chrsz; i += hcbus_chrsz)
+    bin[i>>5] |= (str.charCodeAt(i / hcbus_chrsz) & mask) << (32 - hcbus_chrsz - i%32);
+  return bin;
+}
+
+function hcbus_core_hmac_sha1(key, data)
+{
+  var bkey = hcbus_str2binb(key);
+  if(bkey.length > 16) bkey = hcbus_core_sha1(bkey, key.length * hcbus_chrsz);
+
+  var ipad = Array(16), opad = Array(16);
+  for(var i = 0; i < 16; i++)
+  {
+    ipad[i] = bkey[i] ^ 0x36363636;
+    opad[i] = bkey[i] ^ 0x5C5C5C5C;
+  }
+
+  var hash = hcbus_core_sha1(ipad.concat(hcbus_str2binb(data)), 512 + data.length * hcbus_chrsz);
+  return hcbus_core_sha1(opad.concat(hash), 512 + 160);
+}
+
+function hcbus_binb2b64(binarray)
+{
+  var tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  var str = "";
+  for(var i = 0; i < binarray.length * 4; i += 3)
+  {
+    var triplet = (((binarray[i   >> 2] >> 8 * (3 -  i   %4)) & 0xFF) << 16)
+                | (((binarray[i+1 >> 2] >> 8 * (3 - (i+1)%4)) & 0xFF) << 8 )
+                |  ((binarray[i+2 >> 2] >> 8 * (3 - (i+2)%4)) & 0xFF);
+    for(var j = 0; j < 4; j++)
+    {
+      if(i * 8 + j * 6 > binarray.length * 32) str += hcbus_b64pad;
+      else str += tab.charAt((triplet >> 6*(3-j)) & 0x3F);
+    }
+  }
+  return str;
+}
+function hcbus_b64_hmac_sha1(data, key){ return hcbus_binb2b64(hcbus_core_hmac_sha1(key, data));}
+</script>
+<%
+'author: 一曲小诗
+'website: www.hcbus.com
+Class QqConnet
+	'生成数据数
+	Public Function MakeRandNum()
+		Randomize
+		Dim width : width = 6 '随机数长度,默认6位
+		width = 10 ^ (width - 1)
+		MakeRandNum = Int((width*10 - width) * Rnd() + width)
+	End Function
+	
+	'获取当前时间戳
+	Public Function Timestamp()
+		Timestamp = DateDiff("s", "1970-1-1 00:00:00", Now()) - 3600 * 8
+	End Function
+	
+	'url编码，只替换默认的字符串
+	Public Function UrlEncode(ByVal urlstr)
+		urlstr = Replace(urlstr, "+", "%2B")
+		urlstr = Replace(urlstr, " ", "+")
+		urlstr = Replace(urlstr, "=", "%3D")
+		urlstr = Replace(urlstr, "&", "%26")
+		urlstr = Replace(urlstr, ":", "%3A")
+		urlstr = Replace(urlstr, "/", "%2F")
+		UrlEncode = urlstr
+	End Function
+	
+	'生成签名
+	Public Function MakeSign(method, url, params, secret)
+		MakeSign = UrlEncode(hcbus_b64_hmac_sha1(method & "&" & UrlEncode(url) & "&" & UrlEncode(params), QQ_OAUTH_CONSUMER_SECRET & "&" & secret))
+	End Function
+	
+	
+	'请求url,获取请求内容
+	Public Function RequestUrl(url)
+		Set XmlObj = Server.CreateObject("Microsoft.XMLHTTP")
+		XmlObj.open "GET", url, false
+		XmlObj.send
+		RequestUrl = XmlObj.responseText
+		Set XmlObj = nothing
+	End Function
+	
+	'获取临时token,返回一个数组Array(oauth_token, oauth_token_secret),用于生成调用地址
+	Public Function GetTempToken()
+		Dim url, params, result
+		Dim temp
+		result = Array("", "")
+		url = "http://openapi.qzone.qq.com/oauth/qzoneoauth_request_token"
+		params = "oauth_consumer_key=" & QQ_OAUTH_CONSUMER_KEY
+		params = params & "&oauth_nonce=" & MakeRandNum()
+		params = params & "&oauth_signature_method=HMAC-SHA1"
+		params = params & "&oauth_timestamp=" & Timestamp()
+		params = params & "&oauth_version=1.0"
+		params = params & "&oauth_signature=" & MakeSign("GET", url, params, "")
+		url = url & "?" & params
+		temp = RequestUrl(url)
+		temp = Split(temp, "&")
+		result(0) = Split(temp(0), "=")(1)
+		result(1) = Split(temp(1), "=")(1)
+		Session("qq_oauth_token_secret") = result(1)
+		GetTempToken = result
+	End Function
+	
+	'生成登录地址
+	Public Function CreateLoginUrl()
+		Dim url, params, token
+		token = GetTempToken()
+		url = "http://openapi.qzone.qq.com/oauth/qzoneoauth_authorize"
+		params = "oauth_consumer_key=" & QQ_OAUTH_CONSUMER_KEY
+		params = params & "&oauth_token=" & token(0)
+		params = params & "&oauth_callback=" & UrlEncode(QQ_CALLBACK_URL)
+		CreateLoginUrl = url & "?" & params
+	End Function
+	
+	'检测是否合法登录,如果合法，则返回用户信息
+	Public Function CheckLogin()
+		Dim oauth_token, openid, oauth_signature, oauth_vericode, timestamp
+		oauth_token = Trim(Request.QueryString("oauth_token"))
+		openid = Trim(Request.QueryString("openid"))
+		oauth_signature = Trim(Request.QueryString("oauth_signature"))
+		oauth_vericode = Trim(Request.QueryString("oauth_vericode"))
+		timestamp = Trim(Request.QueryString("timestamp"))
+		If UrlEncode(oauth_signature) = UrlEncode(hcbus_b64_hmac_sha1(openid & timestamp, QQ_OAUTH_CONSUMER_SECRET)) Then
+			CheckLogin = Array(openid, oauth_token, oauth_vericode)
+		Else
+			CheckLogin = False
+		End If
+	End Function
+	
+	'获取存取token,返回一个数组Array(openid, oauth_token, oauth_token_secret),用于生成调用地址,传入参数为合法登录后的用户信息
+	Public Function GetAccessToken(token)
+		Dim url, params, result
+		Dim temp
+		result = Array("", "", "")
+		url = "http://openapi.qzone.qq.com/oauth/qzoneoauth_access_token"
+		params = "oauth_consumer_key=" & QQ_OAUTH_CONSUMER_KEY
+		params = params & "&oauth_nonce=" & MakeRandNum()
+		params = params & "&oauth_signature_method=HMAC-SHA1"
+		params = params & "&oauth_timestamp=" & Timestamp()
+		params = params & "&oauth_token=" & token(1)
+		params = params & "&oauth_vericode=" & token(2)
+		params = params & "&oauth_version=1.0"
+		params = params & "&oauth_signature=" & MakeSign("GET", url, params, Session("qq_oauth_token_secret"))
+		url = url & "?" & params
+		temp = RequestUrl(url)
+		temp = Split(temp, "&")
+		result(0) = Split(temp(3), "=")(1)
+		result(1) = Split(temp(1), "=")(1)
+		result(2) = Split(temp(2), "=")(1)
+		GetAccessToken = result
+	End Function
+	
+	'获取用户信息,得到一个json格式的字符串
+	Public Function GetUserInfo(token)
+		Dim url, params, result
+		url = "http://openapi.qzone.qq.com/user/get_user_info"
+		params = "oauth_consumer_key=" & QQ_OAUTH_CONSUMER_KEY
+		params = params & "&oauth_nonce=" & MakeRandNum()
+		params = params & "&oauth_signature_method=HMAC-SHA1"
+		params = params & "&oauth_timestamp=" & Timestamp()
+		params = params & "&oauth_token=" & token(1)
+		params = params & "&oauth_version=1.0"
+		params = params & "&openid=" & token(0)
+		params = params & "&oauth_signature=" & MakeSign("GET", url, params, token(2))
+		url = url & "?" & params
+		GetUserInfo = RequestUrl(url)
+	End Function
+	
+	'获取用户名字,从json字符串里截取相关字符
+	Public Function GetUserName(json)
+		json = Split(json, """nickname"":""")(1)
+		GetUserName = Split(json, """")(0)
+	End Function
+End Class
+%>

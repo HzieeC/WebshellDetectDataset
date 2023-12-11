@@ -1,0 +1,8 @@
+<!--#include file="ubb.asp"-->
+<%
+If request("content")="" Then 
+	response.write"ÇëÊäÈëÄÚÈÝ<a href=""javascript:history.go(-1)"">·µ»Ø</a>"
+else
+	response.write Ubbcode(request("content"))
+End If 
+%>

@@ -1,0 +1,295 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<%@page import="util.StringUtils"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String feedId = request.getParameter("feedId");
+		String feedUrl = request.getParameter("feedUrl");
+		String feedCount = request.getParameter("feedCount");
+		String feedName = request.getParameter("feedName");
+		if(StringUtils.isEmpty(feedName) || "null".equals(feedName)){
+			feedName = "所有订阅";
+		}else{
+			feedName = java.net.URLDecoder.decode(feedName, "UTF-8");
+		}
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 订阅数据
+			var feedData = [];
+			var feedDataStore = new Ext.data.SimpleStore({  
+	            fields : ['title', 'link', 'description', 'updated'],  
+	            data : feedData
+	        });
+			// 图片显示模板
+			var feedTpl = new Ext.XTemplate(
+				'<tpl for=".">',
+		            '<div class="item">',
+			            '<div class="item-title">',
+			            	'<span class="title"><a href="{link}" target="_blank">{title}</a></span>',
+			            	'<span class="updated">{updated}</span>',
+			            	'<div class="x-clear"></div>',
+			            '</div>',
+			            '<div class="item-description">{description}</div>',
+			            '<div class="item-bottom"></div>',
+				    '</div>',
+		        '</tpl>'
+			);
+			// 分页工具栏
+			var feedBottomBar = new Ext.PagingToolbar({
+				pageSize: <%=feedCount %>,
+				store: feedDataStore,
+				displayInfo: true,
+				displayMsg: '共 {2} 条',
+				emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+				doLoad: function(start){getFeed();}
+	        });
+			// 订阅显示DataView
+			var feedDataView = new Ext.DataView({
+				id: 'feedDataView',
+	            store: feedDataStore,
+	            loadingText: '加载中...',
+	            tpl: feedTpl,
+	            singleSelect: true,
+	            autoScroll: true,
+	            emptyText: '没有数据.',
+	            overClass:'x-view-over',
+	            itemSelector:'div.item',
+	            prepareData: function(data){
+	                data.pictureName = Ext.util.Format.ellipsis(data.title, 100);
+	                data.updated = new Date(data.updated).format('Y/m/d H:i:s');
+	                //data.description = Ext.util.Format.stripTags(data.description);
+	                return data;
+	            },
+	            listeners: {
+	            	selectionchange: function(dataview,div,nodes){
+	            	},
+	            	beforeclick: function(dataview,index,item,e){
+	            		if(e.getTarget().nodeName.toUpperCase() == 'A') return false;
+	            	}
+	            }
+	        });
+	        
+			// 主面板
+			var feedViewerPanel = new Ext.Panel({
+				id: 'feedViewerPanel',
+				renderTo: 'feedViewerPanelDiv',
+				border: false,
+				layout: 'fit',
+				items: [feedDataView],
+				tbar: new Ext.Toolbar({
+					items: [
+						'当前订阅：<%=feedName%>',
+						'-',
+						new Ext.Button({
+						    id: 'feedViewer-favorite-button',
+							text: '收藏',
+							iconCls: 'star'
+						}),
+						new Ext.Button({
+						    id: 'feedViewer-email-button',
+							text: '邮件',
+							iconCls: 'email'
+						}),
+						'-',
+						new Ext.Button({
+						    id: 'feedViewer-prev-button',
+							text: '上一条目',
+							iconCls: 'page-prev'
+						}),
+						new Ext.Button({
+						    id: 'feedViewer-next-button',
+							text: '下一条目',
+							iconCls: 'page-next',
+							iconAlign: 'right'
+						})
+					]
+				}),
+				bbar: feedBottomBar
+			});
+			// 设置Grid高度和宽度
+			Anynote.resizeGridTo("feedViewerPanel", 0, 28);
+
+			// 获得订阅数据
+			getFeed();
+
+			// 上一条目
+			$('#feedViewer-prev-button').click(function(){
+				var indexs = feedDataView.getSelectedIndexes();
+				if(indexs.length == 0){
+					selectItem(0);
+				}else{
+					var index = indexs[0];
+					if(index - 1 < 0){
+						Ext.Msg.confirm("提示", "是否跳转到最后一条记录？", function(btn){
+							if(btn=="yes"){
+								selectItem(feedData.length - 1);
+							}
+						});
+					}else{
+						selectItem(index - 1);
+					}
+				}
+			});
+
+			// 下一条目
+			$('#feedViewer-next-button').click(function(){
+				var indexs = feedDataView.getSelectedIndexes();
+				if(indexs.length == 0){
+					selectItem(0);
+				}else{
+					var index = indexs[0];
+					if(index + 1 > feedData.length - 1){
+						Ext.Msg.confirm("提示", "是否跳转到第一条记录？", function(btn){
+							if(btn=="yes"){
+								selectItem(0);
+							}
+						});
+					}else{
+						selectItem(index + 1);
+					}
+				}
+			});
+
+			// 收藏订阅数据
+			$('#feedViewer-favorite-button').click(function(){
+				var records = feedDataView.getSelectedRecords();
+				if(records.length == 1){
+					// 封装参数
+					var record = feedDataView.getSelectedRecords()[0];
+					var params = {
+						title: record.get('title'),
+						link: record.get('link'),
+						description: record.get('description'),
+						updated: record.get('updated')
+					};
+					// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: params,
+						action: '/feedAction.do?method=favorite',
+						showWaiting: true,
+						showMsg: true,
+						successMsg: '收藏成功.'
+					});
+				}else{
+					Ext.Msg.alert("提示", "请选择一条数据.");
+				}
+			});
+
+			// 发送订阅数据
+			$('#feedViewer-email-button').click(function(){
+				var records = feedDataView.getSelectedRecords();
+				if(records.length == 1){
+					sendFeedViewerWindow = new Ext.Window({
+						title: '发送订阅',
+						width: 350,
+						height: 180,
+						modal: true,
+						layout:'fit',
+						items: new Ext.form.TextArea({
+							emptyText: '请输入Email地址，用逗号分隔.',
+							id: 'Email',
+							name: 'Email'
+						}),
+						buttons: [{
+		                    text:'确定',
+		                    handler: sendFeed
+		                },{
+		                    text: '取消',
+		                    handler: function(){
+		                		sendFeedViewerWindow.close();
+		                    }
+		                }]
+					});
+					sendFeedViewerWindow.show();
+				}else{
+					Ext.Msg.alert("提示", "请选择一条数据.");
+				}
+			});
+			// 发送订阅
+			function sendFeed(){
+				var emails = $("#Email").val();
+				var emailArr = emails.split(",");
+				if(emailArr.length>5){
+					showErrorMsg("最多支持五个邮箱.");
+					return;
+				}else{
+					for(var i=0;i<emailArr.length;i++){
+						var is = validateInput("email",emailArr[i],"请输入有效的Email地址.");
+						if(!is)  return;
+					}
+				}
+
+				// 封装参数
+				var record = feedDataView.getSelectedRecords()[0];
+				var params = {
+					emails: emails,
+					title: record.get('title'),
+					link: record.get('link'),
+					description: record.get('description')
+				};
+				// 发送请求
+				Anynote.ajaxRequest({
+					baseUrl: '<%=baseUrl %>',
+					baseParams: params,
+					action: '/feedAction.do?method=sendFeed',
+					callback: function(jsonResult){
+						sendFeedViewerWindow.close();
+					},
+					showWaiting: true,
+					showMsg: true,
+					successMsg: '发送成功.',
+					failureMsg: '发送失败.'
+				});
+			}
+
+			/**
+			* 获得订阅数据
+			*/
+			function getFeed(){
+				var feedLoadMask = new Ext.LoadMask(Ext.get("feedViewerPanelDiv"), {msg:"读取中..."});
+				feedLoadMask.show();
+				jQuery.getFeed({
+					url: '<%=baseUrl %>/feedAction.do?method=getFeed&feedId=<%=feedId%>&feedUrl=<%=feedUrl%>',
+					success: function(feed){
+						feedData = [];
+						for(var i = 0; i < feed.items.length && i < '<%=feedCount%>'; i++) {
+							var item = feed.items[i];
+							feedData.push([
+										item.title,
+										item.link,
+										item.description,
+										item.updated
+							]);
+						}
+						feedDataStore.loadData(feedData);
+						feedDataView.select(0);
+						$('#feedDataView').scrollTop(0);
+						feedLoadMask.hide();
+					},
+					error: function(){
+						feedLoadMask.hide();
+					}
+				});
+			}
+
+			/**
+			* 选择一条项目
+			*/
+			function selectItem(selectIndex){
+				feedDataView.select(selectIndex);
+				var selectDiv = feedDataView.getNode(selectIndex);
+				$('#feedDataView').scrollTop($(selectDiv).position().top + $('#feedDataView').scrollTop());
+			}
+		});
+	</script>
+</head>
+<body>
+<div id="feedViewerPanelDiv" class="feedDataViewDiv">
+</div>
+</body>
+</html>

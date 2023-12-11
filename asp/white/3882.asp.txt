@@ -1,0 +1,126 @@
+<!--#include file="const.asp"-->
+<!--#include file="../inc/common.asp"-->
+<%
+Server.ScriptTimeout = 99999
+Admin_header
+IsNowOutputText = False
+
+Dim Action
+If Not ChkAdmin("9999") Then
+	Call Transfer_error()
+End If
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+	Case "sitemap"	:	Call createdGoogleSiteMap()
+	Case Else
+		Call createdGoogleSiteMap()
+End Select
+If FoundErr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+NewAsp.PageEnd()
+
+Sub createdGoogleSiteMap()
+	Dim Rs,SQL,i,strLinks,strChannDir
+	Dim sitemapPath,sitemapnum,m_strMaxTop,strLocPath
+	sitemapPath=Server.MapPath(Request("sitemapPath"))
+	sitemapnum=NewAsp.ChkNumeric(Request("sitemapnum"))
+	If sitemapnum = 0 Then m_strMaxTop = "TOP 5000" Else m_strMaxTop = "TOP " & sitemapnum
+	If NewAsp.BindDomain=0 Then
+		strLocPath=NewAsp.MainDomain&NewAsp.InstallDir&NewAsp.ChannelDir
+	Else
+		strLocPath=NewAsp.DomainName&"/"
+	End If
+	NewAspStream.charset="UTF-8"
+	NewAspStream.Type = 2
+	NewAspStream.Mode = 3
+	NewAspStream.open()
+	NewAspStream.WriteText("<?xml version=""1.0"" encoding=""UTF-8""?>"&vbCrLf)
+	NewAspStream.WriteText("<urlset xmlns=""http://www.google.com/schemas/sitemap/0.84"">"&vbCrLf)
+	NewAspStream.WriteText("<url>")
+	NewAspStream.WriteText("<loc>"&NewAsp.MainDomain&NewAsp.InstallDir&"</loc>")
+	NewAspStream.WriteText("<lastmod>"&NewAsp.FormatToDate(Now(),"yyyy-MM-dd")&"</lastmod>")
+	NewAspStream.WriteText("<changefreq>always</changefreq>")
+	NewAspStream.WriteText("<priority>1.0</priority>")
+	NewAspStream.WriteText("</url>"&vbCrLf)
+	NewAspStream.WriteText("<url>")
+	NewAspStream.WriteText("<loc>"&strLocPath&"</loc>")
+	NewAspStream.WriteText("<lastmod>"&NewAsp.FormatToDate(Now(),"yyyy-MM-dd")&"</lastmod>")
+	NewAspStream.WriteText("<changefreq>always</changefreq>")
+	NewAspStream.WriteText("<priority>1.0</priority>")
+	NewAspStream.WriteText("</url>"&vbCrLf)
+	
+	SQL = "SELECT classid,HtmlFileDir FROM [NC_Classify] WHERE ChannelID=" & ChannelID & " And TurnLink=0 ORDER BY rootid,orders"
+	Set Rs = NewAsp.Execute(SQL)
+	If Not (Rs.BOF And Rs.EOF) Then
+		SQL=Rs.GetRows(-1)
+	Else
+		SQL=Null
+	End If
+	Rs.Close:Set Rs = Nothing
+	If IsArray(SQL) Then
+		For i=0 To UBound(SQL,2)
+			If NewAsp.IsCreateHtml=0 Then
+				If IsURLRewrite Then
+					strLinks=CheckURLRewrite(strLocPath,"list_1_"&SQL(0,i)&NewAsp.HtmlExtName)
+				Else
+					strLinks=strLocPath&"list.asp?classid="&SQL(0,i)
+				End If
+			Else
+				strLocPath=NewAsp.DomainName
+				If NewAsp.BindDomain=0 Then
+					strChannDir=NewAsp.ChannelDir
+					strLocPath=NewAsp.MainDomain
+				End If
+				strLinks=strLocPath&NewAsp.HtmlDestination(NewAsp.sortDestination, strChannDir, "",SQL(1,i),SQL(0,i),0,1,"")
+			End If
+			NewAspStream.WriteText("<url>")
+			NewAspStream.WriteText("<loc>"&Replace(strLinks, "&", "&amp;")&"</loc>")
+			NewAspStream.WriteText("<lastmod>"&NewAsp.FormatToDate(Now(),"yyyy-MM-dd")&"</lastmod>")
+			NewAspStream.WriteText("<changefreq>daily</changefreq>")
+			NewAspStream.WriteText("<priority>0.8</priority>")
+			NewAspStream.WriteText("</url>"&vbCrLf)
+		Next
+	End If
+	SQL=Null
+	SQL = "SELECT " & m_strMaxTop & " A.ArticleID,A.classid,A.WriteTime,A.HtmlFileDate,C.HtmlFileDir FROM [NC_Article] A INNER JOIN [NC_Classify] C On A.ClassID=C.ClassID WHERE A.ChannelID=" & ChannelID & " And A.isAccept>0 ORDER BY A.WriteTime DESC ,A.ArticleID DESC"
+	Set Rs = NewAsp.Execute(SQL)
+	If Not (Rs.BOF And Rs.EOF) Then
+		SQL=Rs.GetRows(-1)
+	Else
+		SQL=Null
+	End If
+	Rs.Close:Set Rs = Nothing
+	If IsArray(SQL) Then
+		For i=0 To UBound(SQL,2)
+			If NewAsp.IsCreateHtml=0 Then
+				If IsURLRewrite Then
+					strLinks=CheckURLRewrite(strLocPath,SQL(0,i)&NewAsp.HtmlExtName)
+				Else
+					strLinks=strLocPath&"show.asp?id="&SQL(0,i)
+				End If
+			Else
+				strLocPath=NewAsp.DomainName
+				If NewAsp.BindDomain=0 Then
+					strChannDir=NewAsp.ChannelDir
+					strLocPath=NewAsp.MainDomain
+				End If
+				strLinks=strLocPath&NewAsp.HtmlDestination(NewAsp.InfoDestination, strChannDir, SQL(3,i),SQL(4,i),SQL(1,i),SQL(0,i),1,"")
+			End If
+			NewAspStream.WriteText("<url>")
+			NewAspStream.WriteText("<loc>"&Replace(strLinks, "&", "&amp;")&"</loc>")
+			NewAspStream.WriteText("<lastmod>"&NewAsp.FormatToDate(SQL(2,i),"yyyy-MM-dd")&"</lastmod>")
+			NewAspStream.WriteText("<changefreq>weekly</changefreq>")
+			NewAspStream.WriteText("<priority>0.5</priority>")
+			NewAspStream.WriteText("</url>"&vbCrLf)
+		Next
+		
+	End If
+	SQL=Null
+	NewAspStream.WriteText("</urlset>")
+	NewAspStream.SaveToFile sitemapPath,2
+	NewAspStream.close()
+	Succeed("<li>恭喜您！生成Google站点地址成功。")
+End Sub
+%>

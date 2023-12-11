@@ -1,0 +1,314 @@
+<%
+Class Cls_DI
+	Public DI_ID,DI_UserExpend,DI_UserLimit,DI_IsExpend,DI_UserExpend1,DI_IsCreate,DI_TempMinute,DI_FailDate,DI_Readme
+	Public DI_IsGain,DI_UserGain,DI_UserGain1,DI_IsOpen
+	Public DI_UserID,DI_UserWealth,DI_UserEP,DI_UserCP,DI_UserMoney,DI_UserTicket
+	Public DI_UserPost,DI_UserLogins,DI_JoinDate
+	Public DI_CheckUserLimit
+
+	'取得邀请码插件设置数据
+	Public Sub Load_Setup()
+		If Application(Dvbbs.CacheName & "_DI_IsSetup")="" Then
+			Dim Sql,Rs
+			Sql = "Select Top 1 DI_ID,DI_UserExpend,DI_UserLimit,DI_IsExpend,DI_IsCreate,DI_TempMinute,DI_FailDate,DI_Readme,DI_IsGain,DI_UserGain,DI_IsOpen From [Dv_Plus_Invite_Setup]"
+			Set Rs = Dvbbs.Execute(Sql)
+			Sql = Rs.GetRows(1)
+			Rs.Close:Set Rs = Nothing
+			Application.Lock
+			Application.Contents.Remove(Dvbbs.CacheName & "_DI_SetupData")
+			Application.Contents.Remove(Dvbbs.CacheName & "_DI_IsSetup")
+			Application(Dvbbs.CacheName & "_DI_SetupData") = Sql
+			Application(Dvbbs.CacheName & "_DI_IsSetup") = Sql(0,0)
+			Application.UnLock
+		Else
+			Sql = Application(Dvbbs.CacheName & "_DI_SetupData")
+		End If
+
+		DI_ID = Sql(0,0)
+		DI_UserExpend = Split(Sql(1,0),"|") Rem 消耗积分 DI_UserExpend = UserWealth|UserEP|UserCP|UserMoney|UserTicket
+		DI_UserExpend1 = Sql(1,0)
+		DI_UserLimit = Split(Sql(2,0),"|") Rem 限制(条件) DI_UserLimit = UserPost|UserLogins|UserJoinDate
+		DI_IsExpend = Sql(3,0) Rem 是否消耗积分等，0=不消耗，1=消耗
+		DI_IsCreate = Sql(4,0) Rem 用户能否创建，0=不能，1=能
+		DI_TempMinute = Sql(5,0) Rem 邀请码使用分钟
+		DI_FailDate = Sql(6,0) Rem 用户创建邀请码有效期(天)
+		DI_Readme = Sql(7,0) Rem 说明，在验证邀请码页面显示
+		DI_IsGain = Sql(8,0) Rem 是否增加积分等，0=不增加，1=增加
+		DI_UserGain = Split(Sql(9,0),"|") Rem 增加积分UserWealth|UserEP|UserCP|UserMoney|UserTicket
+		DI_UserGain1 = Sql(9,0)
+		DI_IsOpen = Sql(10,0)
+	End Sub
+
+	'取得用户积分
+	Public Sub Load_UserInfo(userid)
+		Dim Sql,Rs
+		Sql = "Select UserID,UserWealth,UserEP,UserCP,UserMoney,UserTicket,UserPost,UserLogins,JoinDate From [Dv_User] Where UserID="& userid &""
+		Set Rs = Dvbbs.Execute(Sql)
+		Sql = Rs.GetRows(-1)
+		Rs.Close:Set Rs = Nothing
+		DI_UserID = Sql(0,0)
+		DI_UserWealth = Sql(1,0)
+		DI_UserEP = Sql(2,0)
+		DI_UserCP = Sql(3,0)
+		DI_UserMoney = Sql(4,0)
+		DI_UserTicket = Sql(5,0)
+		DI_UserPost = Sql(6,0)
+		DI_UserLogins = Sql(7,0)
+		DI_JoinDate = Sql(8,0)
+			If Not IsDate(DI_JoinDate) Then DI_JoinDate = Now()
+			DI_JoinDate = DateDiff("d",DI_JoinDate,Now())
+	End Sub
+
+	'返回可申请邀请个数
+	Public Function GetCodeCount()
+		Dim i,t
+		i = 1
+		t = True
+		While t
+			If CLng(DI_UserWealth) < CLng(DI_UserExpend(0)*i) Then t = False
+			If CLng(DI_UserEP) < CLng(DI_UserExpend(1)*i) Then t = False
+			If CLng(DI_UserCP) < CLng(DI_UserExpend(2)*i) Then t = False
+			If CLng(DI_UserMoney) < CLng(DI_UserExpend(3)*i) Then t = False
+			If CLng(DI_UserTicket) < CLng(DI_UserExpend(4)*i) Then t = False
+			GetCodeCount = i-1
+			i = i + 1
+		Wend
+	End Function
+
+	'判断是否符合条件 True = 符合 False = 不符合
+	Public Sub CheckUserLimit(userid)
+		DI_CheckUserLimit = True
+		Dim Sql,Rs,UserPost1,UserLogins1,JoinDate1
+		Sql = "Select UserPost,UserLogins,JoinDate From [Dv_User] Where UserID="& userid &""
+		Set Rs = Dvbbs.Execute(Sql)
+		Sql = Rs.GetRows(-1)
+		UserPost1 = Dvbbs.CheckNumeric(Sql(0,0))
+		UserLogins1 = Dvbbs.CheckNumeric(Sql(1,0))
+		JoinDate1 = Sql(2,0)
+			If Not IsDate(JoinDate1) Then JoinDate1 = Now()
+		If CLng(UserPost1) < CLng(DI_UserLimit(0)) Then DI_CheckUserLimit = False
+		If CLng(UserLogins1) < CLng(DI_UserLimit(1)) Then DI_CheckUserLimit = False
+		If JoinDate1+DI_UserLimit(2) > Now() Then DI_CheckUserLimit = False
+	End Sub
+
+	'删除过期邀请码 在reg.asp调用 有过期邀请码即删除 '第二次更新撤掉此功能。不删除，修改为过期即标识为已使用
+	Public Sub Del_FailDate()
+		Dim Rs
+		Set Rs = Dvbbs.Execute("Select * From [Dv_Plus_Invite] Where DI_IsFail<2 And DI_FailDate < "& SqlNowString)
+		If Not Rs.Eof Then
+			Rs.Close:Set Rs = Nothing
+			Dvbbs.Execute("Update [Dv_Plus_Invite] Set DI_IsFail=3 Where DI_IsFail<2 And DI_FailDate < "& SqlNowString)
+			Call DI_NoadSql("邀请码插件","存在过期邀请码，更新成功")
+		Else
+			Rs.Close:Set Rs = Nothing
+		End If
+	End Sub
+
+	'写入论坛系统日志
+	Public Sub DI_NoadSql(l_touser,l_content)
+		Dvbbs.Execute("INSERT INTO [Dv_Log] (l_touser,l_username,l_content,l_addtime,l_ip,l_type) VALUES ('"&l_touser&"','"&Dvbbs.MemberName&"','"&l_content&"',"&SqlNowString&",'"&Dvbbs.UserTrueIP&"',6)")
+	End Sub
+
+	'返回随机邀请码 md5加密 可修改32位 注意字段长度
+	Public Function getRanNumber()
+		Dim randomNumber,obj_Date
+		Randomize
+		randomNumber = CInt(Rnd * 9000) + CInt(Rnd * 9000) + 100000
+		obj_Date = Now()
+		obj_Date = DateDiff("s","1970-01-01 08:00:00",obj_Date) + randomNumber
+		getRanNumber = Md5(obj_Date,16) 'Md5(obj_Date,32)
+	End Function
+
+	'返回临时时间
+	Public Function GetTempDate()
+		Dim obj_Date,DI_TempMinute1
+		DI_TempMinute1 = DI_TempMinute*60
+		obj_Date = Now()
+		obj_Date = DateDiff("s","1970-01-01 08:00:00",obj_Date)+DI_TempMinute1
+		GetTempDate = DateAdd("s",obj_Date,"1970-01-01 08:00:00")
+	End Function
+
+	'更新邀请码状态
+	Public Sub UpdateCodeStats(n)
+		Dim Sql,Rs,i
+		If n=1 Then '检查是否已过临时时间,更新状态为 1=未使用
+			Sql = "Select DI_ID,DI_Code From [Dv_Plus_Invite] Where DI_TempDate < "& SqlNowString &" And DI_IsFail=1"
+			Set Rs = Dvbbs.Execute(Sql)
+			If Not Rs.Eof Then
+				Sql = Rs.GetRows(-1)
+				Rs.Close:Set Rs = Nothing
+				For i=0 To UBound(Sql,2)
+					If Session("DI_Code") = Sql(1,i) Then
+						Session("DI_Verify") = False
+					End If
+					Dvbbs.Execute("Update [Dv_Plus_Invite] Set DI_IsFail=0 Where DI_ID="&Sql(0,i))
+				Next
+			Else
+				Rs.Close:Set Rs = Nothing
+			End If
+		ElseIf n=2 Then '检查状态是否在使用中,更新状态为 2=已使用
+			Sql = "Select DI_ID,DI_Code From [Dv_Plus_Invite] Where DI_TempDate > "& SqlNowString &" And DI_IsFail=1"
+			Set Rs = Dvbbs.Execute(Sql)
+			If Not Rs.Eof Then
+				Sql = Rs.GetRows(-1)
+				Rs.Close:Set Rs = Nothing
+				For i=0 To UBound(Sql,2)
+					If Session("DI_Code") = Sql(1,i) Then
+						Session("DI_Verify") = False
+						Dvbbs.Execute("Update [Dv_Plus_Invite] Set DI_IsFail=2 Where DI_ID="&Sql(0,i))
+					End If
+				Next
+			Else
+				Rs.Close:Set Rs = Nothing
+			End If
+		ElseIf n=3 Then '检查是否已过期,更新Session("DI_Verify")为False
+			Sql = "Select DI_ID,DI_Code,DI_IsFail From [Dv_Plus_Invite] Where DI_Code='"& Session("DI_Code") &"'"
+			Set Rs = Dvbbs.Execute(Sql)
+			If Not Rs.Eof Then
+				If Rs("DI_IsFail")="2" Then '已被使用
+					Session("DI_Verify") = False
+					Response.Redirect "showerr.asp?ErrCodes=<li>邀请码已使用，不能注册！&action=OtherErr"
+					Response.End
+				ElseIf  Rs("DI_IsFail")="3" Then '已过期
+					Session("DI_Verify") = False
+					Response.Redirect "showerr.asp?ErrCodes=<li>邀请码已过期，不能注册！&action=OtherErr"
+					Response.End
+				End If
+				Rs.Close:Set Rs = Nothing
+			Else
+				Rs.Close:Set Rs = Nothing
+				Session("DI_Verify") = False
+				Response.Redirect "showerr.asp?ErrCodes=<li>邀请码错误或已被删除，不能注册！&action=OtherErr"
+				Response.End
+			End If
+		End If
+	End Sub
+
+	'返回邀请码地址
+	Public Function GetCodeUrl(Code)
+		Dim DI_SERVER_NAME,DI_SERVER_PORT,SCRIPT_NAME,i
+		DI_SERVER_NAME = Request.ServerVariables("SERVER_NAME")
+		DI_SERVER_PORT = Request.ServerVariables("SERVER_PORT")
+		SCRIPT_NAME = Request.ServerVariables("SCRIPT_NAME")
+		If DI_SERVER_PORT = "80" Then
+			DI_SERVER_PORT = ""
+		Else
+			DI_SERVER_PORT = ":" & DI_SERVER_PORT
+		End If
+		GetCodeUrl = "http://"&DI_SERVER_NAME&DI_SERVER_PORT&SCRIPT_NAME&"?DI_Code="&Code
+		GetCodeUrl = Replace(GetCodeUrl,"Dv_Plus_Invite.asp","Dv_Plus_Invite_Verify.asp")
+		GetCodeUrl = Replace(GetCodeUrl,"Dv_Plus_Invite_Apply.asp","Dv_Plus_Invite_Verify.asp")
+	End Function
+
+	'返回用户信息
+	Public Function GetUserInfo(name)
+		Dim Sql,Rs
+		Sql = "Select UserID,UserWealth,UserEP,UserCP,UserMoney,UserTicket From [Dv_User] Where Username='"& name &"'"
+		Set Rs = Dvbbs.Execute(Sql)
+		If Not Rs.Eof Then
+			GetUserInfo = "ID："&Rs("UserID")& VbCrLf &_
+						"金钱："&Rs("UserWealth")& VbCrLf &_
+						"经验："&Rs("UserEP")& VbCrLf &_
+						"魅力："&Rs("UserCP")& VbCrLf &_
+						"金币："&Rs("UserMoney")& VbCrLf &_
+						"点卷："&Rs("UserTicket")
+			Rs.Close:Set Rs = Nothing
+		Else
+			GetUserInfo = ""
+			Rs.Close:Set Rs = Nothing
+		End If
+	End Function
+
+	'添加字段索引
+	Public Sub AddIndex(ByVal TableName, ByVal IndexName, ByVal ValueText)
+		On Error Resume Next
+		Dvbbs.Execute("CREATE INDEX " & IndexName & " ON " & TableName & "(" & ValueText & ")")
+		If Err.Number <> 0 Then
+			Call echo("<li>在 " & TableName & " 表新建" & IndexName & "索引错误，原因" & Err.Description & "操作:跳过.</li>",0)
+			Err.Clear()
+		Else
+			Call echo("<li>在 " & TableName & " 表添加 " & IndexName & " 索引成功。</li>",0)
+		End If
+	End Sub
+
+	'添加字段通用函数
+	Public Sub AddColumn(TableName,ColumnName,ColumnType)
+		On Error Resume Next
+		Dvbbs.Execute("Alter Table "&TableName&" Add "&ColumnName&" "&ColumnType&"")
+		If Err Then
+			Call echo("<li>新建 "&TableName&" 表中字段<font color='blue'>错误</font>，请手动将数据库中 <B>"&ColumnName&"</B> 字段建立，属性为 <B>"&ColumnType&"</B>，原因" & Err.Description & "操作:跳过.</li>",0)
+			Err.Clear()
+		Else
+			Call echo("<li>新建 "&TableName&" 表中字段 "&ColumnName&" 成功。</li>",0)
+		End If
+	End Sub
+
+	'Response.Write
+	Public Function echo(str,br)
+		Dim i
+		Response.Write str & VbCrLf
+		For i=0 To br
+			Response.Write "<br/>" & VbCrLf
+		Next
+	End Function
+
+	Public Function needupdate()
+		On Error Resume Next
+		needupdate = True
+		Err = 0
+		Dim nSql,nRs,i
+		nSql = "Select top 1 DI_ID,DI_Code,DI_CreateDate,DI_TempDate,DI_FailDate,DI_CreateUserName,DI_IsFail,DI_UserExpend,DI_RegUserName,DI_RegTime,DI_UserGain From [Dv_Plus_Invite]"
+		nSql = nSql & "||Select top 1 DI_ID,DI_UserExpend,DI_UserLimit,DI_IsExpend,DI_IsCreate,DI_TempMinute,DI_FailDate,DI_Readme,DI_IsGain,DI_UserGain,DI_IsOpen From [Dv_Plus_Invite_Setup]"
+		nSql = Split(nSql,"||")
+		For i = 0 To UBound(nSql)
+			Set nRs = Dvbbs.Execute(nSql(i))
+			If Not Err = 0 Then
+				needupdate = False
+			End If
+			nRs.Close:Set nRs = Nothing
+		Next
+		If Err = 0 Then
+			needupdate = True
+		End If
+	End Function
+
+	'注册成功，赠送积分
+	Public Sub SucAndGain(RegUserName,RegTime,Code,UserGain)
+		If DI_IsGain=1 Then '需要赠送
+			'获得申请人
+			Dim Rs,ApplyUserName
+			Set Rs = Dvbbs.Execute("Select Top 1 DI_CreateUserName From [Dv_Plus_Invite] Where DI_Code='"& Code &"'")
+			If Not Rs.Eof Then
+				ApplyUserName = Rs(0)
+				Rs.Close:Set Rs = Nothing
+			Else
+				Rs.Close:Set Rs = Nothing
+				Exit Sub
+			End If
+
+			Dvbbs.Execute("Update [Dv_User] Set "&_
+							"UserWealth=UserWealth+"& DI_obj.DI_UserGain(0) &","&_
+							"UserEP=UserEP+"& DI_obj.DI_UserGain(1) &","&_
+							"UserCP=UserCP+"& DI_obj.DI_UserGain(2) &","&_
+							"UserMoney=UserMoney+"& DI_obj.DI_UserGain(3) &","&_
+							"UserTicket=UserTicket+"& DI_obj.DI_UserGain(4) &""&_
+							" Where UserName='"& ApplyUserName &"'")
+			If IsSqlDataBase = 1 Then
+				Dvbbs.Execute("Update [Dv_Plus_Invite] Set "&_
+							"[DI_RegUserName]='"& RegUserName &"',"&_
+							"[DI_RegTime]='"& RegTime &"',"&_
+							"[DI_UserGain]='"& UserGain &"' "&_
+							"Where DI_Code='"& Code &"'")
+			Else
+				Dvbbs.Execute("Update [Dv_Plus_Invite] Set "&_
+							"[DI_RegUserName]='"& RegUserName &"',"&_
+							"[DI_RegTime]=#"& RegTime &"#,"&_
+							"[DI_UserGain]='"& UserGain &"' "&_
+							"Where DI_Code='"& Code &"'")
+			End If
+			Call DI_NoadSql("reg.asp","用户："& ApplyUserName &"，获赠积分成功：金钱"&DI_obj.DI_UserGain(0)&"、经验"&DI_obj.DI_UserGain(1)&"、魅力"&DI_obj.DI_UserGain(2)&"、金币"&DI_obj.DI_UserGain(3)&"、点卷"&DI_obj.DI_UserGain(4)&"")
+		End If
+	End Sub
+
+End Class
+%>

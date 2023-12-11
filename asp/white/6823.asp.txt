@@ -1,0 +1,89 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="../inc/consts.asp" -->
+<!--#include file="inc/UpLoad_Class.vbs.asp"-->
+<%
+dim upload
+set upload = new AnUpLoad
+	file_formats="doc|docx|xls|xlsx|ppt|txt"
+	upload.Exe = file_formats'上传文件的格式
+	upload.MaxSize = 50*1024  '从数据库中获取上传单个文件的大小 本变量的单位:字节
+	upload.GetData()
+	
+if upload.ErrorID>0 then 
+	response.Write upload.Description
+else
+	dim file,savpath
+	set file = upload.files("FileName")
+	SavePath = "../upfiles/jianli_files"'文件保存的路径 自定义
+	if right(SavePath,1)<>"/" then SavePath=SavePath&"/"       '存放上传文件的路径
+	if upload.forms("action")<>"up" then
+			response.write"<script>alert('操作错误！');history.go(-1);</script>"
+			response.End()
+	else
+		if upload.forms("jl_ty2")<>"0" then
+				response.write"<script>alert('请先选择同意提交！');history.go(-1);</script>"
+				response.End()
+		end if
+	end if
+	
+	jl_gw=replace(upload.forms("jl_gw"),"'","")
+	if jl_gw<>"" and not isnull(jl_gw) then
+		if isnumeric(jl_gw)=true and jl_gw>0 then
+			gangwei=jl_gw
+		else
+			response.write"<script>alert('参数错误！');history.go(-1);</script>"
+			response.End()
+		end if
+	else
+	end if
+	jl_name2=replace(upload.forms("jl_name2"),"'","")
+	if jl_name2="" then jl_name2="未填"
+	'先判断是否重复邮箱 否则拒绝录入
+	set rs=Server.CreateObject("Adodb.Recordset")
+	sql="select * from My_jianli where jl_email='"&upload.forms("jl_email")&"'"
+	rs.open sql,conn,1,1
+	if not rs.eof then
+		response.write"<script>alert('邮件已存在,请不要重发！');history.go(-1);</script>"
+		response.End()
+	end if
+	rs.close
+	set rs=nothing
+	set sql=nothing
+
+	if not(file is nothing) then
+		if file.saveToFile(savepath,0,true) then
+			'==============================
+			'记录到相册数据库
+			set rs_album=Server.CreateObject("Adodb.Recordset")
+			sql_album="select * from My_jianli"
+			rs_album.open sql_album,conn,1,3
+			rs_album.addnew
+				rs_album("jl_name")=jl_name2 'NAME
+				rs_album("jl_gw")=gangwei
+				rs_album("jl_email")=replace(upload.forms("jl_email"),"'","") 'EMAIL
+				rs_album("Jl_file")=SavePath&file.filename
+				rs_album("file_size")=file.Size
+				rs_album("file_ext")=file.extend
+				rs_album("jl_date")=now()
+			rs_album.update
+			rs_album.close
+			set rs_album=nothing
+			session("jianli_status")=1
+			actionresult=1
+			%>
+			<%if actionresult=1 then%>
+				<script language="javascript">
+				alert("\上传成功!点击后返回可继续上传!\r\n如果您是发布信息时上传的,请关闭后再选择附件。")
+				window.location='<%=temp_mulu%>/jl.asp'
+				</script>
+			<%end if%>
+			<%
+		else
+			response.Write file.Exception
+		end if
+	end if
+end if
+set upload = nothing
+%>

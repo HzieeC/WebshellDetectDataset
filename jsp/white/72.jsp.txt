@@ -1,0 +1,324 @@
+﻿<%@page import="com.bizoss.trade.ti_custlevel.Ti_custlevelInfo"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@page import="com.bizoss.trade.shopcart.*"%>
+<%@page import="com.bizoss.trade.ti_goods.*"%>
+<%@page import="java.net.URLDecoder"%>
+<%@page import="com.bizoss.trade.ti_discountpolicy.Ti_discountpolicyInfo"%>
+<%@page import="com.bizoss.createIndex.search.GoodsIndexFiles"%>
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page" />
+
+ <%
+		
+		//加入购物车后的跳转
+		String skip_type = request.getParameter("skip_type");
+		if(skip_type == null){
+			skip_type = "buyCart";
+		}
+		
+		request.setCharacterEncoding("UTF-8");
+		String from = "";
+			if(request.getHeader("referer")!=null){
+				from = request.getHeader("referer").toString();
+			}
+		
+			String user_type = "";
+			if(session.getAttribute("session_user_type")!=null && !((String)session.getAttribute("session_user_type")).equals("")){
+					user_type = (String)session.getAttribute("session_user_type");
+					if(!user_type.equals("2")&&!user_type.equals("0")){
+						out.println("<script type='text/javascript'>");
+						out.println("alert('您还没有登录，还不能购买商品,请先登录。');");
+						//out.println("history.go(-1);");
+						out.println("window.location.href ='/signin.html'");
+						out.println("</script>");
+						String name = (String)session.getAttribute("session_user_name");
+						return;
+					}
+				}	
+
+		String type="0";
+		if(request.getParameter("type")!=null){
+			type = request.getParameter("type").trim();
+		}
+		String type_id=""; //拍卖 or 批发
+		if(request.getParameter("type_id")!=null){
+			type_id = request.getParameter("type_id").toString();
+		}
+		
+    	String operatecode = "1";
+    	if(request.getParameter("operatecode")!=null){
+    		operatecode = request.getParameter("operatecode");
+    	}
+    	CartServices shopcart = null;
+    	if(session.getAttribute("shoppingCart") != null){
+		
+    		shopcart = (CartServices)session.getAttribute("shoppingCart");
+    	}else{
+    		shopcart = new CartServices();
+    		session.setAttribute("shoppingCart",shopcart);
+			session.setMaxInactiveInterval(3600);
+    	}
+		String user_id = "";
+		if( session.getAttribute("session_user_id") != null ){
+			user_id = session.getAttribute("session_user_id").toString().trim();
+		}	
+		
+      String cust_id="";
+      if(request.getParameter("cust_id")!=null){
+          cust_id = request.getParameter("cust_id").trim();
+      }
+      
+      String session_cust_id="";
+      int cust_level=0;
+      if( session.getAttribute("session_cust_id") != null ){
+			session_cust_id = session.getAttribute("session_cust_id").toString().trim();
+			Ti_custlevelInfo ti_custlevelInfo=new Ti_custlevelInfo();
+			List list=ti_custlevelInfo.getListByPk(session_cust_id);
+			if(list!=null&&list.size()>0){
+				Map cusMap=(Hashtable)list.get(0);
+				if(cusMap.get("cust_class")!=null&&!"".equals(cusMap.get("cust_class").toString()))
+				cust_level=Integer.parseInt(cusMap.get("cust_class").toString());
+			}
+		}	
+	 int member_level=0;
+      if(request.getParameter("member_level")!=null&&!"".equals(request.getParameter("member_level").toString())){
+          member_level = Integer.parseInt(request.getParameter("member_level").trim());
+          session.setAttribute("member_level",member_level);
+      }
+		
+		
+		
+	   String discount_id="";
+      if(request.getParameter("discount_id")!=null){
+          discount_id = request.getParameter("discount_id").trim();
+      }	
+      String goods_props="";
+      if(request.getParameter("goods_props")!=null){
+          goods_props = request.getParameter("goods_props").trim();
+      }
+		goods_props = new String(goods_props.getBytes("iso8859-1"),"utf-8");
+		goods_props = java.net.URLDecoder.decode(goods_props,"UTF-8"); 
+      String goods_id="";
+	
+      if(request.getParameter("goods_id")!=null){
+          goods_id = request.getParameter("goods_id").trim();
+      }
+
+        float goodsprice = 0,vipprice=0;  
+    	if(request.getParameter("goodsprice") != null && !request.getParameter("goodsprice").equals("")){
+    		// goodsprice = java.net.URLDecoder.decode(goodsprice,"UTF-8"); 
+			 goodsprice = Float.parseFloat(request.getParameter("goodsprice"));
+    	}
+		
+        int buy_num = 1;
+    	if(request.getParameter("buy_num") != null && !request.getParameter("buy_num").equals("") && !request.getParameter("buy_num").equals("NaN")){
+    		 buy_num = Integer.parseInt(request.getParameter("buy_num"));
+    	}
+        int integralNum = 0;
+		
+		//Ti_goodsInfo goodsInfo = new Ti_goodsInfo();
+		
+		GoodsIndexFiles goodsIndex= new GoodsIndexFiles();
+		
+		float totalPrice = 0;
+		int totalCount = 0;
+		int singleCustCount = 0;
+		int totalIntegralNum = 0;
+		//String gift_ids="";
+		String giftInfos="";
+		String discount_ids="";
+		String giftids="";
+		int offer_type=0;
+		float weight=0;
+		float offer_price=0;
+
+		if(user_id != null && !user_id.equals("")&& user_type.equals("0")||user_type.equals("2")){
+				//if(user_id != null && !user_id.equals("")){
+			if(cust_id != null && !cust_id.equals("")){
+			if(operatecode.equals("1") && !goods_id.equals("")){//add goods to cart
+				String random_id = bean.GenTradeId();
+				String random_goods_id = goods_id + "/" + random_id;
+				Map   gmap = goodsIndex.getOneGoods(goods_id);
+				if(gmap.get("send_inter")!=null && !gmap.get("send_inter").toString().equals(""))
+				{
+				    integralNum = Integer.parseInt(gmap.get("send_inter").toString());
+				}
+				if(gmap.get("weight")!=null && !gmap.get("weight").toString().equals(""))
+				{
+				    weight = Float.parseFloat(gmap.get("weight").toString());
+				}
+				String gift_id="";
+				int sendnumber=0;
+				if(vipprice<1)
+					vipprice=goodsprice;
+				
+				Ti_discountpolicyInfo info=new Ti_discountpolicyInfo();
+				List dislist=info.getListByPk(discount_id);
+				if(dislist!=null&&dislist.size()>0){
+							Map disMap=(Hashtable)dislist.get(0);
+							float spending=0;
+							float number=0;
+							float discount=0;
+							float ship_offer=0;
+							if(disMap.get("offer_type")!=null&&!"".equals(disMap.get("offer_type").toString()))
+							offer_type=Integer.parseInt(disMap.get("offer_type").toString());
+							switch (offer_type){
+							case 1:{
+								gift_id=disMap.get("gift_ids").toString();
+								offer_price=vipprice;
+								sendnumber=1;
+							}break;
+							case 2:{
+								if(cust_level==member_level){
+									spending=Float.parseFloat(disMap.get("spending").toString());
+									if(vipprice>=spending){
+										discount=Float.parseFloat(disMap.get("discount").toString());
+										//计算折扣后的价格
+										offer_price=vipprice*discount/(10000/100);
+									}else{
+										offer_price=vipprice;
+									}
+								}else{
+									offer_price=vipprice;
+								}
+							}break;
+							case 3:{
+									if(cust_level==member_level){
+									number=Float.parseFloat(disMap.get("number").toString());
+									if(buy_num>=number){
+										discount=Float.parseFloat(disMap.get("discount").toString());
+										//计算折扣后的价格
+										offer_price=vipprice*discount/(10000/100);
+									}else{
+										offer_price=vipprice;
+									}
+								}else{
+									offer_price=vipprice;
+								}
+							}break;
+							case 4:{
+								if(cust_level==member_level){
+									ship_offer=Float.parseFloat(disMap.get("ship_offer").toString());
+									spending=Float.parseFloat(disMap.get("spending").toString());
+								   if(vipprice>=spending){
+										offer_price=vipprice-ship_offer;
+									}else{
+										offer_price=vipprice;
+									}
+								}else{
+									offer_price=vipprice;
+								}
+							}break;
+							case 5:{
+									if(cust_level==member_level){
+									spending=Float.parseFloat(disMap.get("spending").toString());
+								   if(vipprice>=spending){
+								   			gift_id=disMap.get("gift_ids").toString();
+								   			sendnumber=1;
+									}else{
+										offer_price=vipprice;
+									}
+								}else{
+									offer_price=vipprice;
+								}
+							}break;
+							case 6:{
+								out.println(cust_level+"--"+member_level);
+								if(cust_level==member_level){
+									number=Float.parseFloat(disMap.get("number").toString());
+								   if(buy_num>=number){
+								   			sendnumber=Integer.parseInt(disMap.get("send_a_few").toString());
+								   			gift_id=disMap.get("gift_ids").toString();
+									}else{
+										offer_price=vipprice;
+									}
+								}else{
+									offer_price=vipprice;
+								}
+							}break;
+						}
+				}else
+					offer_price=vipprice;
+				
+				Goods goodsItem = new Goods(random_goods_id,goods_props,goodsprice,vipprice,buy_num,integralNum,weight,type,type_id,discount_id,offer_price,gift_id,sendnumber);
+				shopcart.addItem(cust_id,goodsItem);
+			} else if(operatecode.equals("2") && !goods_id.equals("")) {//update goods count
+				out.println(giftInfos);
+				shopcart.updateItemCount(cust_id,goods_id,buy_num,goodsprice);
+				shopcart.updateDiscountInfo(cust_id,goods_id);
+				totalPrice = shopcart.getAllItemsPrice();
+				totalCount = shopcart.getAllItemsCount();	
+				giftInfos=shopcart.getAllItemsGifts();
+				discount_ids=shopcart.getAllItemsDiscountids();
+				giftids=shopcart.getGift_ids();
+				offer_type=shopcart.getOffer_type();
+				totalIntegralNum = shopcart.getAllItemsIntegralNum();
+						
+			} else if(operatecode.equals("3") && !goods_id.equals("")) {//remove goods from cart
+			
+				if(cust_id != null && !cust_id.equals("") && goods_id != null && !goods_id.equals("")){
+					
+					String shopcartCust[] = cust_id.split("\\|");
+						for( int l = 0; l < shopcartCust.length; l++ ){
+							String shopcartGoods[] = goods_id.split("\\|");
+								for( int k = 0; k < shopcartGoods.length; k++ ){
+
+								shopcart.removeGoodsItem(shopcartCust[l],shopcartGoods[k]);
+								shopcart.updateDiscountInfo(cust_id,goods_id);
+								if(shopcartCust.length == 1){
+									singleCustCount = shopcart.getAllItemsCounts(shopcartCust[l]);							
+								}
+									
+								}
+						}
+				}	
+			giftInfos=shopcart.getAllItemsGifts();
+			giftids=shopcart.getGift_ids();
+			offer_type=shopcart.getOffer_type();
+			discount_ids=shopcart.getAllItemsDiscountids();
+			totalPrice = shopcart.getAllItemsPrice();
+			totalCount = shopcart.getAllItemsCount();			
+			totalIntegralNum = shopcart.getAllItemsIntegralNum();
+			} else if(operatecode.equals("4") && !goods_id.equals("")) {//clear shop cart
+				shopcart.clear();
+			}else if(operatecode.equals("5") && !goods_id.equals("")){//update goods props
+System.out.println("insert operatecode====="+operatecode);
+				shopcart.updateItemProps(cust_id,goods_id,goods_props);
+				totalPrice = shopcart.getAllItemsPrice();
+				totalCount = shopcart.getAllItemsCount();	
+				totalIntegralNum = shopcart.getAllItemsIntegralNum();
+
+			}
+		}
+		}else{%>
+			<script>
+					window.location.href='/signin.html';
+			</script>
+		<%}
+	
+%>  
+<span name="gift_idsRemote" id="gift_idsRemote" style="display:none;"><%=giftInfos%></span>
+<span name="discountids_idsRemote" id="discountids_idsRemote" style="display:none;"><%=discount_ids%></span>
+<span name="ordergiftidsRemote" id="ordergiftidsRemote" style="display:none;"><%=giftids%></span>
+<span name="offer_typeRemote" id="offer_typeRemote" style="display:none;"><%=offer_type%></span>
+<span name="totalPriceRemote" id="totalPriceRemote" style="display:none;"><%=totalPrice%></span>
+<span name="totalCountRemote" id="totalCountRemote" style="display:none;"><%=totalCount%></span>
+<span name="singleCustCountRemote" id="singleCustCountRemote" style="display:none;"><%=singleCustCount%></span>
+<span name="totalIntegralNumRemote" id="totalIntegralNumRemote" style="display:none;"><%=totalIntegralNum%></span>
+
+
+<script>
+	var skip_type = "<%=skip_type%>";
+	//跳入购物车
+	if(skip_type == "buyCart"){
+		window.location.href='/program/member/personal/buycart/confirm_buycart.jsp?type_id=<%=type_id%>';	
+	}else if(skip_type == "history"){
+		alert("加入购物车成功！");
+		history.go(-1);
+	}else if(skip_type == "myBuyCart"){
+		window.location.href='/program/member/personal/buycart/confirm_buycart.jsp?type_id=<%=type_id%>';
+	}
+</script>
+
+

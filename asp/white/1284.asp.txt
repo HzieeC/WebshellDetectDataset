@@ -1,0 +1,158 @@
+<!--#include file="mdb.asp"-->
+<!--#include file="config.asp"-->
+<!--#include file="cmsprivate.asp"-->
+<%
+'****************************************************
+' 零柒。蜀工作室网站管理系统 Power by 07ing.com
+' Web: http://www.07ing.net, http://www.07ing.com
+' Copyright (C) 2006 零柒。蜀工作室 All Rights Reserved.
+'****************************************************
+Response.Buffer = True 
+Response.ExpiresAbsolute = Now() - 1 
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.AddHeader "Pragma", "No-Cache"
+response.Charset="gb2312"
+function checkForm(Str)	'//过滤非法字符
+   Str=decode(Str)	'//解码escape过的字符
+   Str = replace(Str, ">", "&gt;")
+   Str = replace(Str, "<", "&lt;")
+   Str = Replace(Str, CHR(32), "&nbsp;")
+   Str = Replace(Str, CHR(9), "&nbsp;")
+   Str = Replace(Str, CHR(9), "&#160;&#160;&#160;&#160;")
+   Str = Replace(Str, CHR(34), "&quot;")
+   Str = Replace(Str, CHR(39), "&#39;")
+   Str = Replace(Str, CHR(13), "")
+   Str = Replace(Str, CHR(10), "<br>")
+   checkForm=Str
+end function 
+dim showconnent
+dim aid,cid,uname,co,scode
+dim founderr:founderr=False
+aid=Request.QueryString("a")
+cid=Request.QueryString("id")
+if aid="" or not IsNumeric(aid) then 
+   Response.Write(escape("参数非法"))
+   response.end
+else
+   aid=Clng(aid)
+end if
+if cid="" or not IsNumeric(cid) then 
+   Response.Write(escape("参数非法"))
+   response.end
+else
+   cid=Clng(cid)
+end if
+if request.form("do")="add" then
+   uname=checkForm(request.form("uname"))
+   co=checkForm(request.form("txtcomment"))
+   scode=checkForm(request.form("scode"))
+   if co="" or uname="" then
+     response.write(escape("Err_100"))
+     Response.end
+   end if
+   if hx_In<>"" then
+      badwords=split(hx_In,"|")
+      for z=0 to ubound(badwords)
+          if instr(Lcase(uname),badwords(z))>0 or instr(Lcase(co),badwords(z))>0 then
+              founderr=true
+              exit for
+           end if
+      next
+   end if
+   if founderr=true then
+     response.write(escape("Err_101"))
+     Response.end
+   end if
+   if int(Session("RndNum"))<>int(scode) then
+     response.write(escape("Err_102"))
+     Response.end
+   end if
+   Session("RndNum")=""
+   if UserLogined=True then
+      if Hx66_name=uname then
+         uname=Hx66_name
+      else
+         uname="[匿名]"&uname
+      end if
+   else
+      uname="[匿名]"&uname
+   end if
+   sql="select * from cms_comment" 
+   set rs=server.createobject("adodb.recordset")
+   rs.open sql,conn,1,3 
+   rs.addnew 
+   rs("channel")=aid
+   rs("cid")=cid
+   rs("content")=co
+   rs("cname")=uname
+   rs("cip")=userip
+   rs.update
+   rs.Close
+end if
+ssql="select * from cms_comment where channel="& aid & " and cid=" & cid &" order by id desc"
+set rs=server.createobject("adodb.recordset")
+rs.open ssql,conn,1,1
+showconnent= "<ul>"
+if rs.eof and rs.bof then
+   showconnent=showconnent& "<li>目前尚无相关评论！</li>"
+else
+   plnum=rs.recordcount
+   if plnum<0 then plnum=0
+   dim pgsize,pgnm,i,page,spage
+   pgsize=10 
+   page=Request.QueryString("page") 
+   rs.pagesize=pgsize 
+   pgnm=rs.pagecount 
+   if page="" or clng(page)<1 or not IsNumeric(curpage) then
+      page=1 
+   else
+      page=page  
+   end if
+   if clng(page)>pgnm then page=pgnm 
+   if pgnm>0 then rs.absolutepage=page 
+   if page<2 then
+      spage="<a href=""javascript:;"" onclick=""javascript:comm_body('"&cid&"','"&aid&"','1');"">首  页</a>"
+   else
+      spage="<a href=""javascript:;"" onclick=""javascript:comm_body('"&cid&"','"&aid&"','"&page-1&"');"">上一页</a>"
+   end if
+   if pgnm-page<1 then
+      spage=spage
+   else
+      spage=spage&"&nbsp;&nbsp;<a href=""javascript:;"" onclick=""javascript:comm_body('"&cid&"','"&aid&"','"&page+1&"');"">下一页</a>"
+   end if
+i=0 
+do while not rs.eof and i<pgsize
+showconnent=showconnent&"<li><span>"&rs("ctime")&" - "&rs("cip")&"</span>"
+showconnent=showconnent&"<img src=""../images/comm1_inco.gif"" alt="""" />"&rs("cname")&" 发表评论："
+showconnent=showconnent&"<div class=""revtext"" style=""table-layout:fixed;word-wrap:break-word;"">"&rs("content")&"</div>"
+showconnent=showconnent&"</li>"
+i=i+1
+rs.movenext
+loop
+end if
+if spage<>"" then showconnent=showconnent&"<li><span>"&spage&"</span>共有评论"&plnum&"条</li>"
+if Commentview="会员" and UserLogined<>True then
+showconnent=showconnent&"<li><h5>请注册或登陆后发表评论</h5></li>"
+else
+showconnent=showconnent&"<li><h5>您的评论</h5>"
+showconnent=showconnent&"用户名：<input name=""uname"" type=""text"" id=""uname"" size=""20"" maxlength=""20"" value="""&Hx66_name&""" />"
+showconnent=showconnent&" 验证码：<input name='sCode' type='text' id='sCode' size='10'>"
+showconnent=showconnent&"&nbsp;<img id=""vcodeImg"" src=""about:blank"" onerror=""this.onerror=null;this.src='../inc/num.asp?s='+Math.random();"" alt=""验证码"" title=""看不清楚?换一张"" style=""margin-right:30px;cursor:pointer;width:40px;height:18px;margin-bottom:-4px;margin-top:3px;"" onclick=""src='../inc/num.asp?s='+Math.random()""/>"
+showconnent=showconnent&"<input type=""button"" onclick=""javascript:comm_put('"&cid&"','"&aid&"');"" value=""发表评论"" />"
+showconnent=showconnent&" <input type=""button"" onclick=""javascript:Close('commBody');"" value=""关 闭"" />"
+showconnent=showconnent&"<div><textarea name=""txtcomment"" cols=""75"" rows=""4"" id=""txtcomment"" class=""rev_textarea""></textarea> <=100字</div></li>"
+showconnent=showconnent&"<div>1、用户发表意见仅代表其个人意见，并且承担一切因发表内容引起的纠纷和责任。<br />2、本站管理人员有权在不通知用户的情况下删除不符合规定的评论信息或留做证据。<br />3、请客观的评价您所看到的资讯，提倡就事论事，杜绝漫骂和人身攻击等不文明行为。</div>"
+end if
+showconnent=showconnent&"</ul>"
+Response.Write(escape(showconnent))
+rs.close
+set rs=nothing
+conn.close
+set conn=nothing
+'****************************************************
+' 零柒。蜀工作室网站管理系统 Power by 07ing.com
+' Web: http://www.07ing.net, http://www.07ing.com
+' Copyright (C) 2006 零柒。蜀工作室 All Rights Reserved.
+'****************************************************
+%>

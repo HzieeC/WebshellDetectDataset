@@ -1,0 +1,1508 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../inc/setup.asp"-->
+<!--#include file="../inc/const.asp"-->
+<!--#include file="../inc/check.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_channel.asp
+' 更新日期：2008-05-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%>
+<script language="JavaScript">
+function ChannelSetting(n){
+	if (n == 1){
+		document.getElementById("ChannelSetting1").style.display='none';
+		document.getElementById("ChannelSetting2").style.display='';
+	}
+	else{
+		document.getElementById("ChannelSetting1").style.display='';
+		document.getElementById("ChannelSetting2").style.display='none';
+	}
+}
+</script>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="100" align="left">站点频道管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_channel.asp">管理首页</a> - <a href="?action=add">添加频道</a>
+<%
+Dim sModuleName
+Dim oRs,ModuleName,strModuleName,sChannelID,NewChannelID
+Set oRs = NewAsp.Execute("SELECT ChannelID,ChannelName,ModuleName FROM NC_Channel WHERE ChannelType<2 And ChannelID<>3 ORDER BY orders ASC")
+Do While Not oRs.EOF
+	Response.Write " - <a href=""?action=edit&ChannelID="
+	Response.Write oRs("ChannelID")
+	Response.Write """>"
+	Response.Write oRs("ModuleName")
+	Response.Write "设置</a>"
+	strModuleName = strModuleName & oRs("ModuleName") & "|||"
+	sChannelID = sChannelID & oRs("ChannelID") & "|||"
+	oRs.movenext
+Loop
+Set oRs = Nothing
+%>
+			 - <a href="?action=orders">频道排序</a>
+		</td>
+	</tr>
+</table>
+<%
+Dim Action,ChannelDir,TitleColor,mChannelDir,mChannelID
+Dim i,RsObj
+Action = LCase(Trim(Request("action")))
+If Not ChkAdmin("Channel") Then
+	Call Transfer_error()
+End If
+Select Case Trim(Action)
+Case "savenew"
+	Call SavenewChannel()
+Case "savedit"
+	Call SaveditChannel()
+Case "add"
+	Call ChannelAdd()
+Case "edit"
+	Call ChannelEdit()
+Case "del"
+	Call ChannelDel()
+Case "orders"
+	Call ChannelOrders()
+Case "saveorder"
+	Call SaveOrder()
+Case "stopchannel"
+	Call UpdateStop()
+Case "ishidden"
+	Call UpdateHidden()
+Case "linktarget"
+	Call UpdateLinkTarget()
+Case "createhtml"
+	Call UpdateCreateHtml()
+Case "reload"
+	Call ReloadChannelCache()
+Case "copy"
+	Call copyChannelFile()
+Case Else
+	Call showmain()
+End Select
+If FoundErr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+	Response.Write "<table id=""tablehovered"" border=""0"" align=""center"" cellspacing=""1"" cellpadding=""3"" class=""tableborder"">"
+	Response.Write "	<tr align=""center"">"
+	Response.Write "		<th>频道ID</th>"
+	Response.Write "		<th>频道名称</th>"
+	Response.Write "		<th>频道类型</th>"
+	Response.Write "		<th>频道状态</th>"
+	Response.Write "		<th>是否HTML</th>"
+	Response.Write "		<th>名称状态</th>"
+	Response.Write "		<th>连接目标</th>"
+	Response.Write "		<th>管理选项</th>"
+	Response.Write "	</tr>"
+
+	Dim Rs,SQL,iCount,lCount
+	i = 1:iCount = 1:lCount = 1
+	SQL = "SELECT * FROM NC_Channel WHERE ChannelID<>3 ORDER BY orders"
+	Set Rs = NewAsp.Execute(SQL)
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum + 1
+	Do While Not Rs.EOF
+		If (i mod 2) = 0 Then
+			iCount = 2:lCount = 1
+		Else
+			iCount = 1:lCount = 2
+		End If
+		Response.Write "	<tr align=""center"">"
+		Response.Write "		<td class=""tablerow" & iCount & " hovered"">" & Rs("ChannelID") & "</td>"
+		Response.Write "		<td class=""tablerow" & iCount & " hovered"">"
+		Response.Write ("<a href=""?action=edit&ChannelID=" & Rs("ChannelID") & """ title=修改此频道设置>")
+		Response.Write (NewAsp.ReadFontMode(Rs("ChannelName"),Rs("ColorModes"),Rs("FontModes")))
+		Response.Write ("</a>")
+		Response.Write "		</td>"
+		Response.Write "		<td class=""tablerow" & iCount & " hovered"" align=""center"">"
+		If Rs("ChannelType") = 0 Then
+			Response.Write ("<font color=""blue"">系统频道")
+		Elseif Rs("ChannelType") = 1 Then
+			Response.Write ("<font color=""green"">内部频道")
+		Else
+			Response.Write ("<font color=""red"">外部频道")
+		End If
+		Response.Write ("<font>")
+		Response.Write ("</td>")
+		If Rs("ChannelType") < 2 Then
+			Response.Write ("<td class=""tablerow" & iCount & " hovered"" align=""center"">")
+			If Rs("StopChannel") <> 0 Then
+				Response.Write ("<a href=""?action=StopChannel&ChannelID=" & Rs("ChannelID") & "&EditID=0"" title=""切换到：打开此频道""><font color=red>关闭<font></a>")
+			Else
+				Response.Write ("<a href=""?action=StopChannel&ChannelID=" & Rs("ChannelID") & "&EditID=1"" title=""切换到：关闭此频道"">打开</a>")
+			End If
+			Response.Write "		</td>"
+			Response.Write "		<td class=""tablerow" & iCount & " hovered"" align=""center"">"
+			If Rs("IsCreateHtml") = 0 Then
+				If Rs("ChannelID") = 4 Then
+					Response.Write ("否")
+				Else
+					Response.Write ("<a href=""?action=createhtml&ChannelID=" & Rs("ChannelID") & "&EditID=1"" title=""切换到：生成HTML"">否</a>")
+				End If
+			Else
+				Response.Write ("<a href=""?action=createhtml&ChannelID=" & Rs("ChannelID") & "&EditID=0"" title=""切换到：不生成HTML""><font color=blue>是</font></a>")
+			End If
+		Else
+			Response.Write ("<td colspan=""2"" class=""tablerow" & iCount & " hovered"" align=""center"">")
+			Response.Write ("<a href=""" & Rs("ChannelUrl") & """ target=""_blank""><font color=""blue"">" & Rs("ChannelUrl") & "</font></a>")
+		End If
+		Response.Write "		</td>"
+		Response.Write "				<td class=""tablerow" & iCount & " hovered"" align=""center"">"
+		If Rs("IsHidden") <> 0 Then
+			Response.Write ("<a href=""?action=ishidden&ChannelID=" & Rs("ChannelID") & "&EditID=0"" title=""切换到：隐藏频道名称""><font color=green>隐藏<font></a>")
+		Else
+			Response.Write ("<a href=""?action=ishidden&ChannelID=" & Rs("ChannelID") & "&EditID=1"" title=""切换到：隐藏频道名称"">显示</a>")
+		End If
+		Response.Write "		</td>"
+		Response.Write "		<td class=""tablerow" & iCount & " hovered"" align=""center"">"
+		If Rs("LinkTarget") = 0 Then
+			Response.Write ("<a href=""?action=linktarget&ChannelID=" & Rs("ChannelID") & "&EditID=1"" title=""切换到：新窗口打开"">本窗口打开</a>")
+		Else
+			Response.Write ("<a href=""?action=linktarget&ChannelID=" & Rs("ChannelID") & "&EditID=0"" title=""切换到：本窗口打开""><font color=""blue"">新窗口打开<font></a>")
+		End If
+		Response.Write "		</td>"
+		Response.Write "		<td class=""tablerow" & iCount & " hovered"" align=""center""><a href=""?action=edit&ChannelID="
+		Response.Write Rs("ChannelID")
+		Response.Write """>编 辑</a>"
+		If Rs("ChannelID") => 10 Then
+			Response.Write " | <a href=""?action=del&ChannelID="
+			Response.Write Rs("ChannelID")
+			Response.Write """ onclick=""{if(confirm('此操作将删除此频道\n您确定要删除吗?')){return true;}return false;}"">删 除</A>"
+		End If
+		If Rs("ChannelType") < 2 Then
+			If Rs("ChannelID") <> 4 Then
+				Response.Write " | <a href="""
+				If Rs("BindDomain") = 0 Then
+					Response.Write "../../" & Rs("ChannelDir")
+				Else
+					Response.Write Rs("DomainName") &"/"
+				End If
+				Response.Write "RemoveCache.Asp?action=remove&p="
+				Response.Write AdminPass
+				Response.Write """ target=""RemoveCache""><font color=""green"">更新频道缓存</font></a>"
+			End If
+			If Rs("ChannelType")=1 Then
+				Response.Write " | <a href=""?action=copy&ChannelID="&Rs("ChannelID")&"&modules="&Rs("modules")&""">复制文件</a>"
+			End If
+		End If
+		Response.Write "		</td>"
+		Response.Write "	</tr>"
+
+	Rs.movenext
+	i = i + 1
+	Loop
+	Rs.Close
+	Set Rs = Nothing
+	Response.Write "	<tr>"
+	Response.Write "		<td colspan=""8"" class=""tablerow" & lCount & """><b>说明：</b> <br>1)、点击相应的状态名可以进行相关快捷切换操作；<br>"
+	Response.Write "</td>	</tr>"
+	Response.Write "</table>"
+	Response.Write "<iframe style=""border:0px;width:0px;height:0px;"" src="""" name=""RemoveCache"" id=""RemoveCache""></iframe>"
+End Sub
+
+Sub ChannelAdd()
+	Dim Rs
+	Set Rs = NewAsp.Execute("SELECT MAX(ChannelID) FROM NC_Channel")
+	If Rs.BOF And Rs.EOF Then
+		NewChannelID = 1
+	Else
+		NewChannelID = Rs(0) + 1
+	End If
+	If IsNull(NewChannelID) Then NewChannelID = 1
+	Rs.Close
+	If NewChannelID < 10 Then NewChannelID = 10
+%>
+
+<table id="tablehovered1" class="tableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th align="left" colspan="2"> 添加站点频道</th>
+	</tr>
+	<form action="?action=savenew" method="post">
+	<input type="hidden" name="NewChannelID" value="<%=NewChannelID%>">
+	<tr>
+		<td class="tablerow1" width="20%" align="right"><u>频道名称</u></td>
+		<td class="tablerow1" width="80%"><input name="ChannelName" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2" align="right"><u>频道名称模式</u></td>
+		<td class="tablerow2">颜色： <select size="1" name="ColorModes">
+		<option value="0" selected="selected">请选择标题颜色</option>
+<%
+	TitleColor = "," & NewAsp.MainSetting(48)
+	TitleColor = Split(TitleColor, ",")
+	For i = 1 To UBound(TitleColor)
+		Response.Write ("<option style=""background-color:"& TitleColor(i) &";color: "& TitleColor(i) &""" value="""& i &""">"& TitleColor(i) &"</option>")
+	Next
+%>
+		</select> 字体： <select size="1" name="FontModes">
+		<option value="0" selected="selected">请选择字体</option>
+		<option value="1">粗体</option>
+		<option value="2">斜体</option>
+		<option value="3">下划线</option>
+		<option value="4">粗体+斜体</option>
+		<option value="5">粗体+下划线</option>
+		<option value="6">斜体+下划线</option>
+		</select></td>
+	</tr>
+	<tr>
+		<td class="tablerow1" align="right"><u>频道注释</u></td>
+		<td class="tablerow1"><input size="60" name="Caption" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2" align="right"><u>频道类型</u></td>
+		<td class="tablerow2"><input type="radio" checked="checked" onClick="ChannelType1.style.display='';ChannelType2.style.display='none';ChannelType3.style.display='none';" name="ChannelType" value="2" /> 外部频道&nbsp;&nbsp; <input type="radio" onClick="ChannelType1.style.display='none';ChannelType2.style.display='';ChannelType3.style.display='';" name="ChannelType" value="1" /> 内部频道</td>
+	</tr>
+	<tr id="ChannelType1">
+		<td class="tablerow1" align="right"><u>频道连接URL</u></td>
+		<td class="tablerow1"><input size="45" name="ChannelUrl" value="<%=NewAsp.MainDomain%>" type="text" /> <font color="#ff0000">* 请输入完整的URL</font></td>
+	</tr>
+	<tr id="ChannelType2" style="display: none">
+		<td class="tablerow2" align="right"><u>所属模块</u></td>
+		<td class="tablerow2"><select szie="1" name="modules">
+		<option value="0" selected="selected">外部</option>
+		<option value="1">文章</option>
+		<option value="2">软件</option>
+		<option value="5">动画</option>
+		</select></td>
+	</tr>
+	<tr id="ChannelType3" style="display: none">
+		<td class="tablerow1" align="right"><u>频道目录</u></td>
+		<td class="tablerow1"><input name="ChannelDir" value="dir" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2" align="right"><u>连接目标</u></td>
+		<td class="tablerow2"><input type="radio" checked="checked" name="LinkTarget" value="0" /> 本窗口打开&nbsp;&nbsp; <input type="radio" name="LinkTarget" value="1" /> 新窗口打开</td>
+	</tr>
+	<tr>
+		<td class="tablerow1" align="right"><u>频道菜单状态</u></td>
+		<td class="tablerow1"><input type="radio" checked="checked" name="IsHidden" value="0" /> 正常&nbsp;&nbsp; <input type="radio" name="IsHidden" value="1" /> 隐藏</td>
+	</tr>
+	<tr>
+		<td class="tablerow2" align="right">&nbsp;</td>
+		<td class="tablerow2">
+		<p align="center"><input class="button" type="button" onclick="javascript:history.go(-1)" name="B1" value="返回上一页" />&nbsp;&nbsp; <input class="button" type="submit" name="B2" value="保存设置" /></p>
+		</td>
+	</tr>
+</table>
+<%
+End Sub
+
+Sub ChannelEdit()
+	Dim Rs,SQL,RsObj
+	Dim Rs_c,tempstr
+	Dim Channel_Setting
+	Dim m_setEditor,m_setEditorArray,m_setAdminEditor,m_setUserEditor
+	Set Rs = NewAsp.Execute("SELECT * FROM NC_Channel WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = "数据库出现错误,没有此站点频道!"
+		Rs.Close
+		Set Rs = Nothing
+		Exit Sub
+	End If
+	Channel_Setting = Split(Rs("Channel_Setting") & "||||||||||||||||||||||||||||||", "|||")
+	tempstr = NewAsp.HtmlRndFileName
+	m_setEditor = Rs("setEditor") & ""
+	If Len(m_setEditor) < 50 Then
+		m_setEditor = "0|AdminMode|590|350|editor/|||0|Simple|560|350|0|0|0|0|0|1|0|0|0|0|0|550|5000|1|1|1|1|1|0|0|0|0|0|0|0|0|0"
+	End If
+	sModuleName = Rs("ModuleName")
+	m_setEditorArray		= Split(m_setEditor, "|||")
+	m_setAdminEditor		= Split(m_setEditorArray(0), "|")
+	m_setUserEditor		= Split(m_setEditorArray(1), "|")
+%>
+<form name="myform" method="POST" action="?action=savedit">
+	<input type="hidden" name="ChannelID" value="<%=Rs("ChannelID")%>">
+	<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+		<tr>
+			<th colspan="2" align="left">编辑站点频道--<%=NewAsp.ModuleName%>设置 <span class="clicksubmit" onclick="document.myform.submit();">[保存设置]</span></th>
+		</tr>
+		<tr>
+			<td width="28%" class="tablerow1"><div class="divbody">频道名称：</div></td>
+			<td width="72%" class="tablerow1">
+			<input type="text" name="ChannelName" size="20" value="<%=Rs("ChannelName")%>"></td>
+		</tr>
+				<tr>
+			<td class="tablerow2"><div class="divbody">频道名称模式：</div></td>
+			<td class="tablerow2">颜色：
+			<select size="1" name="ColorModes">
+			<option value="0">请选择标题颜色</option>
+<%
+	TitleColor = "," & NewAsp.MainSetting(48)
+	TitleColor = Split(TitleColor, ",")
+	For i = 1 To UBound(TitleColor)
+		Response.Write ("<option style=""background-color:"& TitleColor(i) &";color: "& TitleColor(i) &""" value='"& i &"'")
+		If Rs("ColorModes") = i Then Response.Write (" selected")
+		Response.Write (">"& TitleColor(i) &"</option>")
+	Next
+%>
+			</select> 字体：
+		<select size="1" name="FontModes">
+		<option value="0"<%If Rs("FontModes") = 0 Then Response.Write (" selected")%>>请选择字体</option>
+		<option value="1"<%If Rs("FontModes") = 1 Then Response.Write (" selected")%>>粗体</option>
+		<option value="2"<%If Rs("FontModes") = 2 Then Response.Write (" selected")%>>斜体</option>
+		<option value="3"<%If Rs("FontModes") = 3 Then Response.Write (" selected")%>>下划线</option>
+		<option value="4"<%If Rs("FontModes") = 4 Then Response.Write (" selected")%>>粗体+斜体</option>
+		<option value="5"<%If Rs("FontModes") = 5 Then Response.Write (" selected")%>>粗体+下划线</option>
+		<option value="6"<%If Rs("FontModes") = 6 Then Response.Write (" selected")%>>斜体+下划线</option>
+
+		</select></td>
+		</tr>
+		<tr>
+			<td class="tablerow1"><div class="divbody">频道注释：</div></td>
+			<td class="tablerow1">
+			<input type="text" name="Caption" size="60" value="<%=Rs("Caption")%>"></td>
+		</tr>
+		<tr>
+			<td class="tablerow2"><div class="divbody">连接目标：</div></td>
+			<td class="tablerow2">
+			<input type="radio" name="LinkTarget" value="0"<%If Rs("LinkTarget") = 0 Then Response.Write (" checked")%>> 本窗口打开&nbsp;&nbsp;
+			<input type="radio" name="LinkTarget" value="1"<%If Rs("LinkTarget") = 1 Then Response.Write (" checked")%>> 新窗口打开</td>
+		</tr>
+		<tr>
+			<td class="tablerow1"><div class="divbody">频道菜单状态：</div></td>
+			<td class="tablerow1">
+			<input type="radio" name="IsHidden" value="0"<%If Rs("IsHidden") = 0 Then Response.Write (" checked")%>> 正常&nbsp;&nbsp;
+			<input type="radio" name="IsHidden" value="1"<%If Rs("IsHidden") = 1 Then Response.Write (" checked")%>> 隐藏</td>
+		</tr>
+		<tr>
+			<td class="tablerow2"><div class="divbody">连接类型：</div></td>
+			<td class="tablerow2">
+			<%If Rs("ChannelType") = 0 Then%>
+			<input type="radio" name="ChannelType" value="0" checked> 系统频道
+			<%ElseIf Rs("ChannelType") = 1 Then%>
+			<input type="radio" name="ChannelType" value="1"<%If Rs("ChannelType") = 1 Then Response.Write (" checked")%>> 内部频道&nbsp;&nbsp;
+			<%Else%>
+			<input type="radio" name="ChannelType" value="2"<%If Rs("ChannelType") = 2 Then Response.Write (" checked")%>> 外部频道
+			<%End IF%></td>
+		</tr>
+		<tr id="ChannelSetting1"<%If Rs("ChannelType") = 0 Or Rs("ChannelType") = 1 Then Response.Write (" style=""display:none""")%>>
+			<td class="tablerow1"><div class="divbody">频道连接URL：</div></td>
+			<td class="tablerow1">
+			<input type="text" name="ChannelUrl" size="45" value="<%=Rs("ChannelUrl")%>"> <font color="#FF0000">
+			* 外部连接URL以“http://”开头</font></td>
+		</tr><%
+	If Rs("ChannelType") => 1 Then
+		%><tr>
+			<td class="tablerow2">&nbsp;</td>
+			<td class="tablerow2" align="center"><input type="button" onclick="javascript:history.go(-1)" value="返回上一页" name="B1" class="button">&nbsp;&nbsp;
+			<input type="submit" value="保存设置" name="submit_button" class="button"></td>
+		</tr><%
+	End If
+		%></table>
+		<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder" id="ChannelSetting2"<%If Rs("ChannelType") => 2 Then Response.Write (" style=""display:none""")%>>
+			<tr>
+				<th colspan="2" align="left">系统频道设置 <span class="clicksubmit" onclick="document.myform.submit();">[保存设置]</span></th>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">是否关闭本频道：</div></td>
+				<td class="tablerow1">
+				<input type="radio" name="StopChannel" value="0"<%If Rs("StopChannel") = 0 Then Response.Write (" checked")%>> 打开&nbsp;&nbsp;
+				<input type="radio" name="StopChannel" value="1"<%If Rs("StopChannel") = 1 Then Response.Write (" checked")%>> 关闭&nbsp;&nbsp; </td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">频道模块名称：</div></td>
+				<td class="tablerow2">
+				<input type="text" name="ModuleName" size="10" value="<%=Rs("ModuleName")%>"></td>
+			</tr>
+			<tr>
+				<td width="28%" class="tablerow1"><div class="divbody">频道功能模块：</div></td>
+				<td width="72%" class="tablerow1">
+					<select size="1" name="modules" disabled>
+<%
+		Response.Write "	<option value=""0"""
+		If Rs("modules") = 0 Then Response.Write (" selected")
+		Response.Write ">外部</option>"
+		strModuleName = Split(strModuleName,"|||")
+		sChannelID = Split(sChannelID,"|||")
+		For i = 0 To UBound(strModuleName) - 1
+			Response.Write "	<option value="
+			Response.Write sChannelID(i)
+			If Rs("modules") = Clng(sChannelID(i)) Then Response.Write (" selected")
+			Response.Write ">"
+			Response.Write strModuleName(i)
+			Response.Write "</option>"
+		Next
+%>		</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">频道所在目录：</div></td>
+				<td class="tablerow2">
+				<input type="text" name="ChannelDir" size="20" value="<%=Rs("ChannelDir")%>"> <font color="#FF0000">
+				* 如果要修改频道所在目录，请手工修改相应的目录名称</font></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">是否启用域名绑定功能：</div></td>
+				<td class="tablerow1">
+				<input type="radio" name="BindDomain" value="0"<%If Rs("BindDomain") = 0 Then Response.Write (" checked")%> onClick="setBindDomain.style.display='none';"> 否&nbsp;&nbsp;
+				<input type="radio" name="BindDomain" value="1"<%If Rs("BindDomain") = 1 Then Response.Write (" checked")%> onClick="setBindDomain.style.display='';"> 是&nbsp;&nbsp;
+				<font color="blue">* 如果启用域名绑定功能，此频道将用你设置的域名访问本频道</font></td>
+			</tr>
+			<tr id="setBindDomain"<%If Rs("BindDomain") = 0 Then Response.Write (" style=""display:none""")%>>
+				<td class="tablerow2"><div class="divbody">频道所绑定的域名和目录：</div></td>
+				<td class="tablerow2">
+				域名：<input type="text" name="DomainName" size="40" value="<%=Rs("DomainName")%>">
+				<br><font color="#FF0000">* 请输入你要绑定的域名，如：http://www1.NewAsp.net</font><br/>
+				路径：<input type="text" name="NamedPath" size="40" value="<%=Rs("NamedPath")%>">
+				<br><font color="#FF0000">* 请指定你的频道物理路径，如：<%=ChkMapPath(NewAsp.InstallDir & Rs("ChannelDir"))%>；如果不指定路径请留空</font></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">是否生成HTML：</div></td>
+				<td class="tablerow1">
+				<input type="radio" name="IsCreateHtml" value="0"<%If Rs("IsCreateHtml") = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="IsCreateHtml" value="1"<%If Rs("IsCreateHtml") = 1 Then Response.Write (" checked")%><%If Rs("ChannelID") = 4 Then Response.Write (" disabled")%>> 是</td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">HTML文件的扩展名：</div></td>
+				<td class="tablerow2"><input onClick="tagreadme.style.display='none';" type="text" name="HtmlExtName" size="10" value="<%=Rs("HtmlExtName")%>"> <font color=blue>* 如：“.html”，“.htm”，“.shtml”，“.asp”</font></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">分类列表页HTML文件路径：</div></td>
+				<td class="tablerow1"><input onClick="tagreadme.style.display='';" type="text" name="SortDestination" size="60" value="<%=Rs("SortDestination")%>"> <font color="blue">* 生成分类页面的路径和HTML文件格式</font></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">信息内容页HTML文件路径：</div></td>
+				<td class="tablerow2"><input onClick="tagreadme.style.display='';" type="text" name="InfoDestination" size="60" value="<%=Rs("InfoDestination")%>"> <font color="blue">* 生成信息页面的路径和HTML文件格式</font></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">其它专题页HTML文件路径：</div></td>
+				<td class="tablerow1"><input onClick="tagreadme.style.display='';" type="text" name="MoreDestination" size="60" value="<%=Rs("MoreDestination")%>"> <font color="blue">* 生成其它页面的路径和HTML文件格式</font></td>
+			</tr>
+			<tr id="tagreadme" style="display:none">
+				<td class="tablerow2"><div class="divbody">文件路径标签说明：</div></td>
+				<td class="tablerow2"><font color="red">[InstallDir]：</font>程序根路径标签；<font color="red">[channel]</font>：频道目录标签；<font color="red">[class]</font>分类目录标签；<br/>
+				<font color="red">[classid]</font>：分类ID标签；<font color="red">[id]</font>：内容ID标签；<font color="red">[page]</font>：分页标签；[name]：专题名标签；<br/>
+				其它标签：<font color="blue">[sortid] [cid] [sid] [parent] [child] [datetime] [date] [year]</font></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">是否允许用户上传文件：</div></td>
+				<td class="tablerow2">
+				<input type="radio" name="StopUpload" value="1"<%If Rs("StopUpload") = 1 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="StopUpload" value="0"<%If Rs("StopUpload") = 0 Then Response.Write (" checked")%>> 是</td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">允许上传文件的大小：</div></td>
+				<td class="tablerow1"><input type="text" name="MaxFileSize" size="10" value="<%=Rs("MaxFileSize")%>"> <b>KB</b></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">允许上传文件的类型：<br>多种文件类型之间用“|”分隔</div></td>
+				<td class="tablerow2"><input type="text" name="UpFileType" size="60" value="<%=Rs("UpFileType")%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">是否开启审核功能：</div></td>
+				<td class="tablerow1">
+				<input type="radio" name="IsAuditing" value="0"<%If Rs("IsAuditing") = 0 Then Response.Write (" checked")%>> 关闭&nbsp;&nbsp;
+				<input type="radio" name="IsAuditing" value="1"<%If Rs("IsAuditing") = 1 Then Response.Write (" checked")%>> 打开</td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">
+<%
+				If Rs("ChannelID") = 4 Then
+					Response.Write "发表留言"
+				Else
+					Response.Write "发表评论"
+				End If
+%>
+的用户等级：</div></td>
+				<td class="tablerow2"><select size="1" name="AppearGrade">
+<%
+	Set RsObj = NewAsp.Execute("SELECT GroupName,Grades FROM NC_UserGroup ORDER BY Groupid")
+	Do While Not RsObj.EOF
+		Response.Write Chr(9) & Chr(9) & "<option value=""" & RsObj("Grades") & """"
+		If Rs("AppearGrade") = RsObj("Grades") Then Response.Write " selected"
+		Response.Write ">"
+		Response.Write RsObj("GroupName")
+		Response.Write "</option>" & vbCrLf
+		RsObj.movenext
+	Loop
+	Set RsObj = Nothing
+%>		</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">
+				<%
+				If Rs("ChannelID") = 4 Then
+					Response.Write "回复留言"
+				Else
+					Response.Write "发布" & sModuleName
+				End If
+				%>的用户等级：</div></td>
+				<td class="tablerow1"><select size="1" name="PostGrade">
+<%
+	Set RsObj = NewAsp.Execute("SELECT GroupName,Grades FROM NC_UserGroup ORDER BY Groupid")
+	Do While Not RsObj.EOF
+		Response.Write Chr(9) & Chr(9) & "<option value=""" & RsObj("Grades") & """"
+		If Rs("PostGrade") = RsObj("Grades") Then Response.Write " selected"
+		Response.Write ">"
+		Response.Write RsObj("GroupName")
+		Response.Write "</option>" & vbCrLf
+		RsObj.movenext
+	Loop
+	Set RsObj = Nothing
+%>		</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">最小评论留言字符：</div></td>
+				<td class="tablerow2"><input type="text" name="LeastString" size="10" value="<%=Rs("LeastString")%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">最大评论留言字符：</div></td>
+				<td class="tablerow1"><input type="text" name="MaxString" size="10" value="<%=Rs("MaxString")%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">每页显示列表数：</div></td>
+				<td class="tablerow2"><input type="text" name="PaginalNum" size="10" value="<%=Rs("PaginalNum")%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">最小热门点击数：</div></td>
+				<td class="tablerow1"><input type="text" name="LeastHotHist" size="10" value="<%=Rs("LeastHotHist")%>"></td>
+			</tr>
+<%
+If Rs("modules") = 2 Then
+%>
+			<tr>
+				<td class="tablerow2"><div class="divbody">设置软件运行环境：<br>每个运行环境请用“|”分开</div></td>
+				<td class="tablerow2"><textarea name="ChannelSetting" cols="60" rows="3"><%=Channel_Setting(0)%></textarea></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">设置软件默认运行环境：</div></td>
+				<td class="tablerow1"><input type="text" name="ChannelSetting" size="60" value="<%=Channel_Setting(1)%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">设置软件类型：<br>每个软件类型请用“,”分开</div></td>
+				<td class="tablerow2"><textarea name="ChannelSetting" cols="60" rows="3"><%=Channel_Setting(2)%></textarea></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">设置软件授权方式：<br>每种授权方式请用“,”分开</div></td>
+				<td class="tablerow1"><input type="text" name="ChannelSetting" size="60" value="<%=Channel_Setting(3)%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">设置软件语言：<br>每种软件语言请用“,”分开</div></td>
+				<td class="tablerow2"><input type="text" name="ChannelSetting" size="60" value="<%=Channel_Setting(4)%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">默认上传设置：</div></td>
+				<td class="tablerow1"><select name="ChannelSetting">
+					<option value="0"<%If Channel_Setting(5) <> "1" Then Response.Write " selected"%>>不生成缩略图</option>
+					<option value="1"<%If Channel_Setting(5) = "1" Then Response.Write " selected"%>>生成缩略图</option>
+				</select> <select name="ChannelSetting">
+					<option value="0"<%If Channel_Setting(6) <> "1" Then Response.Write " selected"%>>不自动更名</option>
+					<option value="1"<%If Channel_Setting(6) = "1" Then Response.Write " selected"%>>自动更名</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">设置上传图片目录：</div></td>
+				<td class="tablerow2"><input type="text" name="ChannelSetting" size="60" value="<%If Len(Channel_Setting(7)) < 2 Then Response.Write "UploadPic/" Else Response.Write Channel_Setting(7)%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">设置上传文件目录：</div></td>
+				<td class="tablerow1"><input type="text" name="ChannelSetting" size="60" value="<%If Len(Channel_Setting(8)) < 2 Then Response.Write "UploadFile/" Else Response.Write Channel_Setting(8)%>"></td>
+			</tr>
+			<tr style="display: none">
+				<td class="tablerow2"><div class="divbody">默认内容生成XML设置：</div></td>
+				<td class="tablerow2"><select name="ChannelSetting">
+					<option value="0"<%If Channel_Setting(9) <> "1" Then Response.Write " selected"%>>不生成XML</option>
+					<option value="1"<%If Channel_Setting(9) = "1" Then Response.Write " selected"%>>内容生成XML</option>
+				</select></td>
+			</tr>
+			<tr style="display: none">
+				<td class="tablerow1"><div class="divbody">XML文件名前缀：</div></td>
+				<td class="tablerow1"><input type="text" name="ChannelSetting" size="20" value="<%=Channel_Setting(10)%>"></td>
+			</tr>
+			<tr style="display: none">
+				<td class="tablerow2"><div class="divbody">XML文件扩展名：</div></td>
+				<td class="tablerow2"><input type="text" name="ChannelSetting" size="20" value="<%If Len(Trim(Channel_Setting(11))) < 3 Then Response.Write ".xml" Else Response.Write Channel_Setting(11)%>"></td>
+			</tr>
+			<tr style="display: none">
+				<td class="tablerow1"><div class="divbody">XML文件路径：</div></td>
+				<td class="tablerow1"><input type="text" name="ChannelSetting" size="60" value="<%If Len(Trim(Channel_Setting(12))) < 2 Then Response.Write "xmlfile/" Else Response.Write Channel_Setting(12)%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">更新时间状态：</div></td>
+				<td class="tablerow2"><select name="ChannelSetting">
+					<option value="0"<%If Channel_Setting(13) <> "1" Then Response.Write " selected"%>>不选中</option>
+					<option value="1"<%If Channel_Setting(13) = "1" Then Response.Write " selected"%>>选中状态</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">默认星级：</div></td>
+				<td class="tablerow1"><select name="ChannelSetting">
+					<option value="5"<%If Channel_Setting(14) = "5" Then Response.Write " selected"%>>★★★★★</option>
+					<option value="4"<%If Channel_Setting(14) = "4" Then Response.Write " selected"%>>★★★★</option>
+					<option value="3"<%If Channel_Setting(14) = "3" Then Response.Write " selected"%>>★★★</option>
+					<option value="2"<%If Channel_Setting(14) = "2" Then Response.Write " selected"%>>★★</option>
+					<option value="1"<%If Channel_Setting(14) = "1" Then Response.Write " selected"%>>★</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">默认发表评论状态：</div></td>
+				<td class="tablerow2"><select name="ChannelSetting">
+					<option value="0"<%If Channel_Setting(15) <> "1" Then Response.Write " selected"%>>允许发表评论</option>
+					<option value="1"<%If Channel_Setting(15) = "1" Then Response.Write " selected"%>>禁止发表评论</option>
+				</select></td>
+			</tr>
+<%
+	ElseIf Rs("modules") = 4 Then
+		Response.Write "<input type=""hidden"" name=""ChannelSetting"" value=""||||||||||||||||||||||||||||||||"">"
+		Response.Write "<input type=""hidden"" name=""ChannelSetting"" value=""@@@||||||"">"
+		Response.Write "<input type=""hidden"" name=""ChannelSetting"" value=""@@@||||||"">"
+	Else
+		Dim m_strTitle1,m_strTitle2,m_strText1,m_strText2
+		If Rs("modules") = 3 Then
+			m_strTitle1 = "商品单位"
+			m_strTitle2 = "商品货源"
+			m_strText1 = "套,件,台,盒,部,瓶,个,本"
+			m_strText2 = "有货,限量,无货,特惠,打折,特价"
+		Else
+			m_strTitle1 = "作者"
+			m_strTitle2 = "来源"
+			m_strText1 = "佚名,本站,不详,未知"
+			m_strText2 = "本站整理,本站原创,不详,转载"
+		End If
+%>
+			<tr>
+				<td class="tablerow2"><div class="divbody">设置<%=m_strTitle1%>：<br>每个<%=m_strTitle1%>请用“,”分开</div></td>
+				<td class="tablerow2"><textarea name="ChannelSetting" cols="60" rows="3"><%If Len(Channel_Setting(0)) < 2 Or Channel_Setting(0) = "@@@" Then Response.Write m_strText1 Else Response.Write Channel_Setting(0)%></textarea></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">设置<%=m_strTitle2%>：<br>每个<%=m_strTitle2%>请用“,”分开</div></td>
+				<td class="tablerow1"><textarea name="ChannelSetting" cols="60" rows="3"><%If Len(Channel_Setting(1)) < 2 Or Channel_Setting(1) = "@@@" Then Response.Write m_strText2 Else Response.Write Channel_Setting(1)%></textarea></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">更新时间状态：</div></td>
+				<td class="tablerow2"><select name="ChannelSetting">
+					<option value="0"<%If Channel_Setting(2) <> "1" Then Response.Write " selected"%>>不选中</option>
+					<option value="1"<%If Channel_Setting(2) = "1" Then Response.Write " selected"%>>选中状态</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">默认星级：</div></td>
+				<td class="tablerow1"><select name="ChannelSetting">
+					<option value="5"<%If Channel_Setting(3) = "5" Then Response.Write " selected"%>>★★★★★</option>
+					<option value="4"<%If Channel_Setting(3) = "4" Then Response.Write " selected"%>>★★★★</option>
+					<option value="3"<%If Channel_Setting(3) = "3" Then Response.Write " selected"%>>★★★</option>
+					<option value="2"<%If Channel_Setting(3) = "2" Then Response.Write " selected"%>>★★</option>
+					<option value="1"<%If Channel_Setting(3) = "1" Then Response.Write " selected"%>>★</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">默认发表评论状态：</div></td>
+				<td class="tablerow2"><select name="ChannelSetting">
+					<option value="0"<%If Channel_Setting(4) <> "1" Then Response.Write " selected"%>>允许发表评论</option>
+					<option value="1"<%If Channel_Setting(4) = "1" Then Response.Write " selected"%>>禁止发表评论</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">默认上传设置：</div></td>
+				<td class="tablerow1"><select name="ChannelSetting">
+					<option value="0"<%If Channel_Setting(5) <> "1" Then Response.Write " selected"%>>不生成缩略图</option>
+					<option value="1"<%If Channel_Setting(5) = "1" Then Response.Write " selected"%>>生成缩略图</option>
+				</select> <select name="ChannelSetting">
+					<option value="0"<%If Channel_Setting(6) <> "1" Then Response.Write " selected"%>>不自动更名</option>
+					<option value="1"<%If Channel_Setting(6) = "1" Then Response.Write " selected"%>>自动更名</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">设置上传图片目录：</div></td>
+				<td class="tablerow2"><input type="text" name="ChannelSetting" size="60" value="<%If Len(Channel_Setting(7)) < 2 Then Response.Write "UploadPic/" Else Response.Write Channel_Setting(7)%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">设置上传文件目录：</div></td>
+				<td class="tablerow1"><input type="text" name="ChannelSetting" size="60" value="<%If Len(Channel_Setting(8)) < 2 Then Response.Write "UploadFile/" Else Response.Write Channel_Setting(8)%>"></td>
+			</tr>
+			<tr style="display: none">
+				<td class="tablerow2"><div class="divbody">默认内容生成XML设置：</div></td>
+				<td class="tablerow2"><select name="ChannelSetting">
+					<option value="0"<%If Channel_Setting(9) <> "1" Then Response.Write " selected"%>>不生成XML</option>
+					<option value="1"<%If Channel_Setting(9) = "1" Then Response.Write " selected"%>>内容生成XML</option>
+				</select></td>
+			</tr>
+			<tr style="display: none">
+				<td class="tablerow1"><div class="divbody">XML文件名前缀：</div></td>
+				<td class="tablerow1"><input type="text" name="ChannelSetting" size="20" value="<%=Channel_Setting(10)%>"></td>
+			</tr>
+			<tr style="display: none">
+				<td class="tablerow2"><div class="divbody">XML文件扩展名：</div></td>
+				<td class="tablerow2"><input type="text" name="ChannelSetting" size="20" value="<%If Len(Trim(Channel_Setting(11))) < 3 Then Response.Write ".xml" Else Response.Write Channel_Setting(11)%>"></td>
+			</tr>
+			<tr style="display: none">
+				<td class="tablerow1"><div class="divbody">XML文件路径：</div></td>
+				<td class="tablerow1"><input type="text" name="ChannelSetting" size="60" value="<%If Len(Trim(Channel_Setting(12))) < 2 Then Response.Write "xmlfile/" Else Response.Write Channel_Setting(12)%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">默认分页设置：</div></td>
+				<td class="tablerow2"><select name="ChannelSetting">
+					<option value="0"<%If Trim(Channel_Setting(13)) <> "1" Then Response.Write " selected"%>>自动分页</option>
+					<option value="1"<%If Trim(Channel_Setting(13)) = "1" Then Response.Write " selected"%>>手动分页</option>
+				</select></td>
+			</tr>
+<%
+	End If
+%>
+			<tr>
+				<th colspan="2" align="left">编辑器设置 <span class="clicksubmit" onclick="document.myform.submit();">[保存设置]</span></th>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">后台编辑器类型：</div></td>
+				<td class="tablerow1"><input type="radio" name="setEditor(0)" value="0"<%If m_setAdminEditor(0) = 0 Then Response.Write (" checked")%>> HTML编辑器&nbsp;&nbsp;
+				<input type="radio" name="setEditor(0)" value="1"<%If m_setAdminEditor(0) = 1 Then Response.Write (" checked")%>> UBB编辑器(常规)
+				<input type="radio" name="setEditor(0)" value="2"<%If m_setAdminEditor(0) = 2 Then Response.Write (" checked")%>> UBB编辑器(专家)</td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">后台编辑器模式：</div></td>
+				<td class="tablerow2"><select size="1" name="setEditor(1)">
+		<option value="Default"<%If LCase(m_setAdminEditor(1)) = "default" Then Response.Write (" selected")%>>默认编辑模式</option>
+		<option value="AdminMode"<%If LCase(m_setAdminEditor(1)) = "adminmode" Then Response.Write (" selected")%>>常规编辑模式</option>
+		<option value="Simple"<%If LCase(m_setAdminEditor(1)) = "simple" Then Response.Write (" selected")%>>简单编辑模式</option>
+		<option value="Basic"<%If LCase(m_setAdminEditor(1)) = "basic" Then Response.Write (" selected")%>>基本编辑模式</option>
+		</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">后台编辑器宽度：</div></td>
+				<td class="tablerow1"><input type="text" name="setEditor(2)" size="10" value="<%=m_setAdminEditor(2)%>"> px</td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">后台编辑器高度：</div></td>
+				<td class="tablerow2"><input type="text" name="setEditor(3)" size="10" value="<%=m_setAdminEditor(3)%>"> px</td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">编辑器目录：</div></td>
+				<td class="tablerow1"><input type="text" name="setEditor(4)" size="20" value="<%=m_setAdminEditor(4)%>"></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">前台编辑器类型：</div></td>
+				<td class="tablerow2"><input type="radio" name="setEditor(5)" value="0"<%If m_setUserEditor(0) = 0 Then Response.Write (" checked")%>> HTML编辑器&nbsp;&nbsp;
+				<input type="radio" name="setEditor(5)" value="1"<%If m_setUserEditor(0) = 1 Then Response.Write (" checked")%>> UBB编辑器(常规)&nbsp;&nbsp;
+				<input type="radio" name="setEditor(5)" value="2"<%If m_setUserEditor(0) = 2 Then Response.Write (" checked")%>> UBB编辑器(专家)&nbsp;&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">前台编辑器模式：</div></td>
+				<td class="tablerow1"><select size="1" name="setEditor(6)">
+		<option value="Default"<%If LCase(m_setUserEditor(1)) = "default" Then Response.Write (" selected")%>>默认编辑模式</option>
+		<option value="UserMode"<%If LCase(m_setUserEditor(1)) = "usermode" Then Response.Write (" selected")%>>常规编辑模式</option>
+		<option value="Simple"<%If LCase(m_setUserEditor(1)) = "simple" Then Response.Write (" selected")%>>简单编辑模式</option>
+		<option value="Basic"<%If LCase(m_setUserEditor(1)) = "basic" Then Response.Write (" selected")%>>基本编辑模式</option>
+		</select></td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">前台编辑器宽度：</div></td>
+				<td class="tablerow2"><input type="text" name="setEditor(7)" size="10" value="<%=m_setUserEditor(2)%>"> px</td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">前台编辑器高度：</div></td>
+				<td class="tablerow1"><input type="text" name="setEditor(8)" size="10" value="<%=m_setUserEditor(3)%>"> px</td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">禁用所有UBB标签：</div></td>
+				<td class="tablerow2"><input type="radio" name="setEditor(9)" value="0"<%If m_setUserEditor(4) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(9)" value="1"<%If m_setUserEditor(4) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;
+				<font color="red"></font></td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">禁用URL标签：</div></td>
+				<td class="tablerow1"><input type="radio" name="setEditor(10)" value="0"<%If m_setUserEditor(5) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(10)" value="1"<%If m_setUserEditor(5) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">禁用IMG标签：</div></td>
+				<td class="tablerow2"><input type="radio" name="setEditor(11)" value="0"<%If m_setUserEditor(6) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(11)" value="1"<%If m_setUserEditor(6) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">禁用FLASH标签：</div></td>
+				<td class="tablerow1"><input type="radio" name="setEditor(12)" value="0"<%If m_setUserEditor(7) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(12)" value="1"<%If m_setUserEditor(7) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">禁用多媒体标签：</div></td>
+				<td class="tablerow2"><input type="radio" name="setEditor(13)" value="0"<%If m_setUserEditor(8) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(13)" value="1"<%If m_setUserEditor(8) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;
+				<input type="radio" name="setEditor(13)" value="2"<%If m_setUserEditor(8) = 2 Then Response.Write (" checked")%>> 模式二&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">禁用Email标签：</div></td>
+				<td class="tablerow1"><input type="radio" name="setEditor(14)" value="0"<%If m_setUserEditor(9) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(14)" value="1"<%If m_setUserEditor(9) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">禁用HTML标签：</div></td>
+				<td class="tablerow2"><input type="radio" name="setEditor(15)" value="0"<%If m_setUserEditor(10) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(15)" value="1"<%If m_setUserEditor(10) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">禁用DOWN标签：</div></td>
+				<td class="tablerow1"><input type="radio" name="setEditor(16)" value="0"<%If m_setUserEditor(11) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(16)" value="1"<%If m_setUserEditor(11) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">禁用ED2K标签：</div></td>
+				<td class="tablerow2"><input type="radio" name="setEditor(17)" value="0"<%If m_setUserEditor(12) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(17)" value="1"<%If m_setUserEditor(12) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">自动识别网址：</div></td>
+				<td class="tablerow1"><input type="radio" name="setEditor(18)" value="0"<%If m_setUserEditor(13) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(18)" value="1"<%If m_setUserEditor(13) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">禁用内容关键字：</div></td>
+				<td class="tablerow2"><input type="radio" name="setEditor(19)" value="0"<%If m_setUserEditor(14) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(19)" value="1"<%If m_setUserEditor(14) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">禁用CC视频标签：</div></td>
+				<td class="tablerow1"><input type="radio" name="setEditor(22)" value="0"<%If m_setUserEditor(17) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(22)" value="1"<%If m_setUserEditor(17) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow2"><div class="divbody">禁用CC视频上传插件：</div></td>
+				<td class="tablerow2"><input type="radio" name="setEditor(23)" value="0"<%If m_setUserEditor(18) = 0 Then Response.Write (" checked")%>> 否&nbsp;&nbsp;
+				<input type="radio" name="setEditor(23)" value="1"<%If m_setUserEditor(18) = 1 Then Response.Write (" checked")%>> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="tablerow1"><div class="divbody">固定内容中图片大小：</div></td>
+				<td class="tablerow1"><input type="text" name="setEditor(20)" size="10" value="<%=m_setUserEditor(15)%>"> px
+				<font color="red">* 小于10=按比例缩小</font></td>
+			</tr>
+			<%
+	If Rs("modules") = 1 Then
+%>
+			<tr>
+				<td class="tablerow2"><div class="divbody">内容自动分页字符数：</div></td>
+				<td class="tablerow2"><input type="text" name="setEditor(21)" size="10" value="<%=m_setUserEditor(16)%>">
+				<font color="red">* 如果不自动分页请输入“0”</font></td>
+			</tr>
+<%
+	Else
+		Response.Write "<input type=""hidden"" name=""setEditor(21)"" value=""0""/>" & vbNewLine
+	End If
+%>
+		</td>
+		</tr>
+		<tr>
+			<td class="tablerow1">&nbsp;</td>
+			<td class="tablerow1" align="center"><input type="button" onclick="javascript:history.go(-1)" value="返回上一页" name="B1" class="button">&nbsp;&nbsp;
+			<input type="submit" value="保存设置" name="B2" class="button"></td>
+		</tr>
+	</table></form>
+<%
+Rs.Close:Set Rs = Nothing
+End Sub
+
+Sub CheckSave()
+	If Len(Request.Form("ChannelName")) = 0 Or Len(Request.Form("ChannelName")) => 25 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>网站频道名称不能为空或者超过20个字符！</li>"
+	End If
+	If Len(Request.Form("ColorModes")) = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>标题颜色参数错误！</li>"
+	End If
+	If Len(Request.Form("Caption")) = 0 Or Len(Request.Form("Caption")) => 200 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>频道注释不能为空或者超过200个字符！</li>"
+	End If
+	If Len(Request.Form("ChannelUrl")) = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>频道连接URL不能为空！</li>"
+	End If
+
+End Sub
+
+Sub SavenewChannel()
+	CheckSave
+	Dim Rs,SQL
+	Dim neworders,m_strSetting
+	If Len(Request.Form("ChannelDir")) = 0 And Request.Form("ChannelType") <> 2 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>频道所在目录不能为空！</li>"
+	End If
+	ChannelDir = Replace(Replace(Replace(Request.Form("ChannelDir"), "\","/"), " ",""), "'","")
+	If Right(ChannelDir, 1) <> "/" And ChannelDir <> "" Then
+		ChannelDir = ChannelDir & "/"
+	Else
+		ChannelDir = ChannelDir
+	End If
+	If Left(ChannelDir, 1) = "/" And ChannelDir <> "" Then
+		ChannelDir = Mid(ChannelDir, InStr(ChannelDir, "/") + 1)
+	End If
+	If InStr(ChannelDir, ":/")>0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>频道目录输入错误！</li>"
+		Exit Sub
+	End If
+	If Request.Form("ChannelType") = 1 Then
+		If Request.Form("modules") = 0 Then
+			FoundErr = True
+			ErrMsg = ErrMsg + "<li>请选择正确的模块！</li>"
+			Exit Sub
+		End If
+		Set Rs = NewAsp.Execute("SELECT ChannelID,ChannelDir FROM NC_Channel WHERE ChannelType=0 And ChannelID=" & NewAsp.ChkNumeric(Request.Form("modules")))
+		If Rs.EOF And Rs.BOF Then
+			ErrMsg = "<li>找不到指定模块。</li>"
+			Founderr = True
+			Exit Sub
+		Else
+			mChannelID = Rs("ChannelID")
+			mChannelDir = Rs("ChannelDir")
+			If LCase(ChannelDir) = LCase(mChannelDir) Then
+				ErrMsg = "<li>不能指定和系统频道相同的目录。</li>"
+				Founderr = True
+				Exit Sub
+			End If
+		End If
+		Set Rs = Nothing
+	End If
+
+	Set Rs = NewAsp.Execute("SELECT ChannelID FROM NC_Channel WHERE ChannelID=" & NewAsp.ChkNumeric(Request("NewChannelID")))
+	If Not (Rs.EOF And Rs.BOF) Then
+		ErrMsg = "<li>您不能指定和别的频道一样的序号。</li>"
+		Founderr = True
+		Exit Sub
+	Else
+		NewChannelID = NewAsp.ChkNumeric(Request("NewChannelID"))
+	End If
+	Set Rs = Nothing
+	If NewChannelID = 999 Then NewChannelID = NewChannelID + 1
+	If NewChannelID = 9999 Then NewChannelID = NewChannelID + 1
+	If Founderr = True Then Exit Sub
+	Set Rs = NewAsp.Execute ("SELECT MAX(orders) FROM NC_Channel")
+	If Not (Rs.EOF And Rs.BOF) Then
+		neworders = Rs(0)
+	End If
+	If IsNull(neworders) Then neworders = 0
+	Set Rs = Nothing
+	Select Case NewAsp.ChkNumeric(Request.Form("modules"))
+		Case 1
+			m_strSetting = "佚名,本站,不详,未知|||本站整理,本站原创,不详,转载|||0|||3|||0|||0|||1|||UploadPic/|||UploadFile/|||0|||news_|||.xml|||xmlfile/|||0||||||||||||||||||@@@||||||@@@||||||"
+		Case 2
+			m_strSetting = "Win9X/|ME/|NT/|2000/|XP/|2003/|Vista/|Linux/|Unix/|Mac/|||Win9X/Win2000/WinXP/Win2003/|||国产软件,国外软件,汉化补丁,源码程序|||共享版,免费版,自由版,试用版,演示版,商业版|||简体中文,繁体中文,英文,多国语言|||0|||1|||UploadPic/|||UploadFile/|||0|||soft_|||.xml|||xmlfile/|||0|||3|||0||||||||||||||||||@@@||||||@@@||||||"
+		Case 5
+			m_strSetting = "佚名,本站,不详,未知|||本站整理,本站原创,不详,转载|||0|||3|||0|||0|||1|||UploadPic/|||UploadFile/|||0||||||.xml|||xmlfile/|||0||||||||||||||||||@@@||||||@@@||||||"
+		Case Else
+		m_strSetting = "||||||@@@||||||@@@||||||"
+	End Select
+
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Channel"
+	Rs.Open SQL,Conn,1,3
+	Rs.Addnew
+		Rs("ChannelID") = NewChannelID
+		Rs("orders") = neworders + 1
+		Rs("ColorModes") = NewAsp.ChkNumeric(Request.Form("ColorModes"))
+		Rs("FontModes") = NewAsp.ChkNumeric(Request.Form("FontModes"))
+		Rs("ChannelName") = NewAsp.RequestForm(Request.Form("ChannelName"),50)
+		Rs("Caption") = NewAsp.RequestForm(Request.Form("Caption"),50)
+		Rs("ChannelDir") = ChannelDir
+		Rs("StopChannel") = 0
+		Rs("IsHidden") = NewAsp.ChkNumeric(Request.Form("IsHidden"))
+		Rs("LinkTarget") = NewAsp.ChkNumeric(Request.Form("LinkTarget"))
+		Rs("ChannelType") = NewAsp.ChkNumeric(Request.Form("ChannelType"))
+		Rs("ChannelUrl") = Trim(Request.Form("ChannelUrl"))
+		Rs("modules") = NewAsp.ChkNumeric(Request.Form("modules"))
+		Rs("BindDomain") = 0
+		Rs("DomainName") = "http://"
+		If CInt(Request.Form("ChannelType")) = 1 Then
+			Rs("ModuleName") = "新频道"
+		Else
+			Rs("ModuleName") = "外部"
+		End If
+		Rs("IsCreateHtml") = 0
+		Rs("HtmlExtName") = ".html"
+		Rs("StopUpload") = 1
+		Rs("MaxFileSize") = 500
+		Rs("UpFileType") = "rar|zip|exe|gif|jpg|png|bmp|swf"
+		Rs("IsAuditing") = 1
+		Rs("AppearGrade") = 0
+		Rs("PostGrade") = 0
+		Rs("LeastString") = 10
+		Rs("MaxString") = 500
+		Rs("PaginalNum") = 15
+		Rs("LeastHotHist") = 50
+		Rs("Channel_Setting") = m_strSetting
+		Rs("SortDestination") = "[InstallDir][channel]html/list[classid]-[page].html"
+		Rs("InfoDestination") = "[InstallDir][channel]html/[id].html"
+		Rs("MoreDestination") = "[InstallDir][channel]html/special-[page].html"
+		Rs("setEditor") = "0|AdminMode|590|350|editor/|||0|Simple|560|350|0|0|0|0|0|1|0|0|0|0|0|550|5000|1|1|1|1|1|0|0|0|0|0|0|0|0|0"
+		Rs("NamedPath") = ""
+	Rs.update
+	Rs.Close:Set Rs = Nothing
+	Call RemoveCache
+	If CInt(Request.Form("modules")) > 0 Then
+		Succeed("<li>添加新的频道成功</li><script>parent.leftFrame.location='../admin_left.asp?action=menu&m=" & Request.Form("modules") & "';</script>")
+	Else
+		Succeed("<li>添加新的频道成功</li>")
+	End If
+	If CInt(Request.Form("modules")) > 0 And CInt(Request.Form("ChannelType")) = 1 Then
+		Call ChannelCopy
+	End If
+
+End Sub
+
+Sub copyChannelFile()
+	Dim Rs
+	NewChannelID=NewAsp.ChkNumeric(Request("ChannelID"))
+	Set Rs = NewAsp.Execute("SELECT ChannelID,ChannelDir FROM NC_Channel WHERE ChannelType=1 And ChannelID="&NewChannelID)
+	If Rs.BOF And Rs.EOF Then
+		Set Rs = Nothing
+		Response.Redirect Request.ServerVariables("HTTP_REFERER")
+		Exit Sub
+	Else
+		ChannelDir=Rs("ChannelDir")
+	End If
+	Set Rs = Nothing
+	Set Rs = NewAsp.Execute("SELECT ChannelID,ChannelDir FROM NC_Channel WHERE ChannelType=0 And modules="&NewAsp.ChkNumeric(Request("modules")))
+	If Rs.BOF And Rs.EOF Then
+		Set Rs = Nothing
+		Response.Redirect Request.ServerVariables("HTTP_REFERER")
+		Exit Sub
+	Else
+		mChannelDir=Rs("ChannelDir")
+	End If
+	Set Rs = Nothing
+
+	Call ChannelCopy()
+	OutHintScript("恭喜您！文件复制成功。")
+End Sub
+
+Sub ChannelCopy()
+	On Error Resume Next
+	Dim newChannelDir,oldChannelDir
+	Dim tmpChannel,tmpChannelArray
+	oldChannelDir = NewAsp.InstallDir & mChannelDir
+	newChannelDir = NewAsp.InstallDir & ChannelDir
+	NewAsp.CreatPathEx(newChannelDir & "UploadPic")
+	NewAsp.CreatPathEx(newChannelDir & "UploadFile")
+	NewAsp.CopyToFile oldChannelDir & "index.asp",newChannelDir & "index.asp"
+	NewAsp.CopyToFile oldChannelDir & "list.asp",newChannelDir & "list.asp"
+	NewAsp.CopyToFile oldChannelDir & "show.asp",newChannelDir & "show.asp"
+	NewAsp.CopyToFile oldChannelDir & "special.asp",newChannelDir & "special.asp"
+	NewAsp.CopyToFile oldChannelDir & "ajaxpost.asp",newChannelDir & "ajaxpost.asp"
+	NewAsp.CopyToFile oldChannelDir & "showbest.asp",newChannelDir & "showbest.asp"
+	NewAsp.CopyToFile oldChannelDir & "showhot.asp",newChannelDir & "showhot.asp"
+	NewAsp.CopyToFile oldChannelDir & "shownew.asp",newChannelDir & "shownew.asp"
+	NewAsp.CopyToFile oldChannelDir & "comment.asp",newChannelDir & "comment.asp"
+	NewAsp.CopyToFile oldChannelDir & "hits.asp",newChannelDir & "hits.asp"
+	NewAsp.CopyToFile oldChannelDir & "tag.asp",newChannelDir & "tag.asp"
+	NewAsp.CopyToFile oldChannelDir & "showabc.asp",newChannelDir & "showabc.asp"
+	NewAsp.CopyToFile oldChannelDir & "removecache.asp",newChannelDir & "removecache.asp"
+	NewAsp.CopyToFile oldChannelDir & "rssfeed.asp",newChannelDir & "rssfeed.asp"
+	tmpChannel = NewAsp.ReadTextFile("../script/Channel.dat")
+	tmpChannel = Replace(tmpChannel, "$ChannelID$", NewChannelID,1,-1,1)
+	NewAsp.writeTextFile newChannelDir & "config.asp",tmpChannel
+	'NewAsp.CopyToFile oldChannelDir & "postcopy.asp",newChannelDir & "postcopy.asp"
+	If CInt(Request("modules")) = 1 Then
+		NewAsp.CopyToFile oldChannelDir & "content.asp",newChannelDir & "content.asp"
+		'NewAsp.CopyToFile oldChannelDir & "sendmail.asp",newChannelDir & "sendmail.asp"
+	ElseIf CInt(Request("modules")) = 2 Then
+		NewAsp.CopyToFile oldChannelDir & "showtype.asp",newChannelDir & "showtype.asp"
+		NewAsp.CopyToFile oldChannelDir & "error.asp",newChannelDir & "error.asp"
+		NewAsp.CopyToFile oldChannelDir & "download.asp",newChannelDir & "download.asp"
+		NewAsp.CopyToFile oldChannelDir & "softdown.asp",newChannelDir & "softdown.asp"
+		NewAsp.CopyToFile oldChannelDir & "previewimg.asp",newChannelDir & "previewimg.asp"
+		NewAsp.CopyToFile oldChannelDir & "downcopy.asp",newChannelDir & "downcopy.asp"
+	Else
+		NewAsp.CopyToFile oldChannelDir & "download.asp",newChannelDir & "download.asp"
+		NewAsp.CopyToFile oldChannelDir & "down.asp",newChannelDir & "down.asp"
+		NewAsp.CopyToFile oldChannelDir & "downfile.asp",newChannelDir & "downfile.asp"
+		NewAsp.CopyToFile oldChannelDir & "play.html",newChannelDir & "play.html"
+	End If
+End Sub
+
+Sub SaveditChannel()
+	CheckSave
+	Dim Rs,SQL
+	Dim HtmlExtName,sDomainName,m_setEditor,i
+	Dim strEditorDir,strNamedPath
+	For i = 0 To 23
+		If i = 4 Then
+			strEditorDir = NewAsp.CheckStr(Trim(Request.Form("setEditor(4)")))
+			If strEditorDir = "" Then strEditorDir = "editor/"
+			strEditorDir = Replace(strEditorDir, "\", "/")
+			If Right(strEditorDir,1) <> "/" Then
+				strEditorDir = strEditorDir & "/"
+			End If
+			If Left(strEditorDir,1) = "/" Then
+				FoundErr = True
+				ErrMsg = ErrMsg + "<li>编辑器目录输入错误！</li>"
+				Exit Sub
+			End If
+			m_setEditor = m_setEditor & strEditorDir & "|||"
+		Else
+			m_setEditor = m_setEditor & Trim(Request.Form("setEditor(" & i & ")")) & "|"
+		End If
+	Next
+	m_setEditor = m_setEditor & "1|1|1|1|1"
+	If Len(Request.Form("ChannelDir")) = 0 And Request.Form("ChannelType") <> 2 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>频道所在目录不能为空！</li>"
+	End If
+	ChannelDir = Replace(Replace(Replace(Trim(Request.Form("ChannelDir")), "\","/"), " ",""), "'","")
+	If Right(ChannelDir, 1) <> "/" And ChannelDir <> "" Then
+		ChannelDir = ChannelDir & "/"
+	Else
+		ChannelDir = ChannelDir
+	End If
+	If Left(ChannelDir, 1) = "/" And ChannelDir <> "" Then
+		ChannelDir = Mid(ChannelDir, InStr(ChannelDir, "/") + 1)
+	End If
+	If InStr(ChannelDir, ":/")>0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>频道目录输入错误！</li>"
+		Exit Sub
+	End If
+	strNamedPath = Replace(Replace(Replace(Trim(Request.Form("NamedPath")), "/","\"), " ",""), "'","")
+	If Len(strNamedPath) > 1 Then
+		If Right(strNamedPath,1) = "\" Then
+			strNamedPath = Left(strNamedPath,Len(strNamedPath)-1)
+		End If
+	End If
+	If Trim(Request.Form("IsCreateHtml")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请选择是否生成HTML文件！</li>"
+	End If
+	If Left(Trim(Request.Form("HtmlExtName")),1) <> "." Then
+		HtmlExtName = "." & Trim(Request.Form("HtmlExtName"))
+	Else
+		HtmlExtName = Trim(Request.Form("HtmlExtName"))
+	End If
+	If Not IsNumeric(Request("MaxFileSize")) Then
+		ErrMsg = ErrMsg & "<li>上传文件大小请使用整数！</li>"
+		Founderr = True
+	End If
+	If Not IsNumeric(Request("LeastString")) Then
+		ErrMsg = ErrMsg & "<li>最小字符请使用整数！</li>"
+		Founderr = True
+	End If
+	If Not IsNumeric(Request("MaxString")) Then
+		ErrMsg = ErrMsg & "<li>最大字符请使用整数！</li>"
+		Founderr = True
+	End If
+	If Not IsNumeric(Request("PaginalNum")) Then
+		ErrMsg = ErrMsg & "<li>每页显示列表数请使用整数！</li>"
+		Founderr = True
+	End If
+	If Not IsNumeric(Request("LeastHotHist")) Then
+		ErrMsg = ErrMsg & "<li>最小热门点击数请使用整数！</li>"
+		Founderr = True
+	End If
+	sDomainName = Replace(Replace(Trim(Request.Form("DomainName")), "\","/"), "'","")
+	If Right(sDomainName, 1) = "/" Then
+		sDomainName = Left(sDomainName,Len(sDomainName)-1)
+	End If
+	Dim TempStr, ChannelSetting
+	For Each TempStr In Request.Form("ChannelSetting")
+			ChannelSetting = ChannelSetting & Replace(TempStr, "|||", "") & "|||"
+	Next
+	If Founderr = True Then Exit Sub
+	Set Rs = NewAsp.Execute("SELECT ChannelID,Channel_Setting FROM NC_Channel WHERE ChannelType<2 And ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+	If Not (Rs.BOF And Rs.EOF) Then
+		Dim m_strArraysetting
+		m_strArraysetting = Split(Rs("Channel_Setting") & "@@@||||||@@@||||||", "@@@")
+		ChannelSetting = ChannelSetting & "|||||||||||||||@@@" & m_strArraysetting(1) & "@@@" & m_strArraysetting(2)
+	End If
+	Set Rs = Nothing
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Channel WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID"))
+	Rs.Open SQL,Conn,1,3
+		Rs("ColorModes") = NewAsp.ChkNumeric(Request.Form("ColorModes"))
+		Rs("FontModes") = NewAsp.ChkNumeric(Request.Form("FontModes"))
+		Rs("ChannelName") = NewAsp.CheckBadstr(Request.Form("ChannelName"))
+		Rs("Caption") = NewAsp.CheckBadstr(Request.Form("Caption"))
+		Rs("ChannelDir") = Trim(ChannelDir)
+		Rs("StopChannel") = NewAsp.ChkNumeric(Request.Form("StopChannel"))
+		Rs("IsHidden") = NewAsp.ChkNumeric(Request.Form("IsHidden"))
+		Rs("LinkTarget") = NewAsp.ChkNumeric(Request.Form("LinkTarget"))
+		Rs("ChannelType") = Trim(Request.Form("ChannelType"))
+		Rs("ChannelUrl") = Trim(Request.Form("ChannelUrl"))
+		Rs("ModuleName") = Trim(Request.Form("ModuleName"))
+		Rs("BindDomain") = NewAsp.ChkNumeric(Request.Form("BindDomain"))
+		Rs("DomainName") = Trim(sDomainName)
+		Rs("IsCreateHtml") = NewAsp.ChkNumeric(Request.Form("IsCreateHtml"))
+		Rs("HtmlExtName") = HtmlExtName
+		Rs("StopUpload") = NewAsp.ChkNumeric(Request.Form("StopUpload"))
+		Rs("MaxFileSize") = NewAsp.ChkNumeric(Request.Form("MaxFileSize"))
+		Rs("UpFileType") = Trim(Request.Form("UpFileType"))
+		Rs("IsAuditing") = NewAsp.ChkNumeric(Request.Form("IsAuditing"))
+		Rs("AppearGrade") = NewAsp.ChkNumeric(Request.Form("AppearGrade"))
+		Rs("PostGrade") = NewAsp.ChkNumeric(Request.Form("PostGrade"))
+		Rs("LeastString") = NewAsp.ChkNumeric(Request.Form("LeastString"))
+		Rs("MaxString") = NewAsp.ChkNumeric(Request.Form("MaxString"))
+		Rs("PaginalNum") = NewAsp.ChkNumeric(Request.Form("PaginalNum"))
+		Rs("LeastHotHist") = NewAsp.ChkNumeric(Request.Form("LeastHotHist"))
+		Rs("Channel_Setting") = Trim(ChannelSetting)
+		Rs("SortDestination") = Replace(Trim(Request.Form("SortDestination")), "\", "/")
+		Rs("InfoDestination") = Replace(Trim(Request.Form("InfoDestination")), "\", "/")
+		Rs("MoreDestination") = Replace(Trim(Request.Form("MoreDestination")), "\", "/")
+		Rs("setEditor") = m_setEditor
+		Rs("NamedPath") = strNamedPath
+	Rs.update
+	Rs.Close
+	Set Rs = Nothing
+	Call RemoveCache
+	Succeed("<li>修改频道设置成功！</li>")
+End Sub
+
+Sub ChannelDel()
+	Dim Rs
+	If NewAsp.ChkNumeric(Request("ChannelID")) = 0 Then
+		ErrMsg = "<li>请选择正确的频道ID！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If NewAsp.ChkNumeric(Request("ChannelID")) < 10 Then
+		ErrMsg = "<li>此频道为系统初始频道不能删除，请选择其它频道删除！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	Set Rs = NewAsp.Execute("SELECT ClassID FROM [NC_Classify] WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+	If Not (Rs.BOF And Rs.EOF) Then
+		Set Rs = Nothing
+		ErrMsg = "<li>此频道正在使用中不能删除！如果要删除此频道，请先删除所有分类。</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	Set Rs = Nothing
+	Set Rs = NewAsp.Execute("SELECT ChannelDir,ChannelType FROM [NC_Channel] WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+	If Not (Rs.BOF And Rs.EOF) Then
+		If Rs("ChannelType") = 0 Then
+			Set Rs = Nothing
+			ErrMsg = "<li>此频道是系统频道不能删除。</li>"
+			Founderr = True
+			Exit Sub
+		Else
+			If Rs("ChannelType")=1 Then
+				NewAsp.FolderDelete(NewAsp.InstallDir & Rs("ChannelDir"))
+				Response.Write "<script>parent.leftFrame.location='../admin_left.asp';</script>"
+			End If
+		End If
+	End If
+	Set Rs = Nothing
+	Call RemoveCache
+
+	Conn.Execute("DELETE FROM NC_Channel WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+	Succeed("<li>频道删除成功！</li>")
+End Sub
+
+Sub ChannelOrders()
+	Dim n,iCount
+	Dim Rs,SQL
+	Dim trs
+	Dim uporders
+	Dim doorders
+	Response.Write " <table border=""0"" cellspacing=""1"" cellpadding=""2"" class=""tableborder"" align=""center"">" & vbCrLf
+	Response.Write " <tr>" & vbCrLf
+	Response.Write " <th colspan=""2"">频道重新排序修改"
+	Response.Write " </th>"
+	Response.Write " </tr>" & vbCrLf
+	SQL = "SELECT * FROM NC_Channel ORDER BY orders"
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		Response.Write "您还没有添加相应的频道。"
+	Else
+		n = 1
+		Do While Not Rs.EOF
+			If (n mod 2) = 0 Then
+				iCount = 2
+			Else
+				iCount = 1
+			End If
+			Response.Write "<form action=""?action=saveorder"" method=""post""><tr><td width=""50%"" class=""tablerow" & iCount & """>" & vbCrLf
+			Response.Write NewAsp.ReadFontMode(Rs("ChannelName"),Rs("ColorModes"),Rs("FontModes"))
+			Response.Write "</td><td width=""50%"" class=""tablerow" & iCount & """>" & vbCrLf
+			Set trs = NewAsp.Execute("SELECT COUNT(*) FROM NC_Channel WHERE orders<" & Rs("orders") & "")
+				uporders = trs(0)
+				If IsNull(uporders) Then uporders = 0
+
+				Set trs = NewAsp.Execute("SELECT COUNT(*) from NC_Channel WHERE orders>" & Rs("orders") & "")
+				doorders = trs(0)
+				If IsNull(doorders) Then doorders = 0
+				If uporders > 0 Then
+					Response.Write "<select name=""uporders"" size=""1""><option value=""0"">↑</option>" & vbCrLf
+					For i = 1 To uporders
+						Response.Write "<option value=""" & i & """>↑" & i & "</option>" & vbCrLf
+					Next
+					Response.Write "</select>"
+				End If
+				If doorders > 0 Then
+					If uporders > 0 Then Response.Write "&nbsp;"
+					Response.Write "<select name=""doorders"" size=""1""><option value=""0"">↓</option>" & vbCrLf
+					For i = 1 To doorders
+						Response.Write "<option value=""" & i & """>↓" & i & "</option>" & vbCrLf
+					Next
+					Response.Write "</select>" & vbCrLf
+				End If
+				If doorders > 0 Or uporders > 0 Then
+					Response.Write "<input type=""hidden"" name=""ChannelID"" value=""" & Rs("ChannelID") & """>&nbsp;<input type=""submit"" name=""submit_button"" class=""button"" value=""修 改"">" & vbCrLf
+				End If
+			Response.Write "</td></tr></form>" & vbCrLf
+			Rs.movenext
+			n = n + 1
+		Loop
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	Response.Write "</table>"
+End Sub
+
+Sub SaveOrder()
+	Dim Rs,SQL
+	Dim orders
+	Dim uporders
+	Dim doorders
+	Dim oldorders
+	If Not IsNumeric(Request("ChannelID")) Then
+		ErrMsg = ErrMsg & "<li>非法的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If NewAsp.ChkNumeric(Request("uporders")) > 0 Then
+		Set Rs = NewAsp.Execute("SELECT ChannelID,orders FROM NC_Channel WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+		orders = Rs(1)
+		i = 0
+		oldorders = 0
+		Set Rs = NewAsp.Execute("SELECT ChannelID,orders FROM NC_Channel WHERE orders<" & orders & " ORDER BY orders DESC")
+		Do While Not Rs.EOF
+			i = i + 1
+			If CInt(Request("uporders")) >= i Then
+				NewAsp.Execute ("UPDATE NC_Channel SET orders=" & orders & "+" & oldorders & " WHERE ChannelID=" & Rs(0))
+				If CInt(Request("uporders")) = i Then uporders = Rs(1)
+			End If
+			orders = Rs(1)
+			Rs.movenext
+		Loop
+		NewAsp.Execute ("UPDATE NC_Channel SET orders=" & uporders & " WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+		Set Rs = Nothing
+	ElseIf NewAsp.ChkNumeric(Request("doorders")) > 0 Then
+		Set Rs = NewAsp.Execute("SELECT ChannelID,orders FROM NC_Channel WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+		orders = Rs(1)
+		i = 0
+		oldorders = 0
+		Set Rs = NewAsp.Execute("SELECT ChannelID,orders from NC_Channel WHERE orders>" & orders & " ORDER BY orders DESC")
+		Do While Not Rs.EOF
+			i = i + 1
+			If CInt(Request("doorders")) >= i Then
+				NewAsp.Execute ("UPDATE NC_Channel SET orders=" & orders & " WHERE ChannelID=" & Rs(0))
+				If CInt(Request("doorders")) = i Then doorders = Rs(1)
+			End If
+			orders = Rs(1)
+			Rs.movenext
+		Loop
+		NewAsp.Execute ("UPDATE NC_Channel SET orders=" & doorders & " WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+		Set Rs = Nothing
+	End If
+	Call RemoveCache
+	Response.redirect "admin_channel.asp?action=orders"
+End Sub
+
+Sub UpdateStop()
+	If Not IsNumeric(Request("ChannelID")) Then
+		ErrMsg = ErrMsg & "<li>非法的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If Request("ChannelID") <> "" And Request("EditID") <> ""  Then
+		NewAsp.Execute ("UPDATE NC_Channel SET StopChannel=" & NewAsp.ChkNumeric(Request("EditID")) & " WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+		Call RemoveCache
+	Else
+		ErrMsg = ErrMsg & "<li>非法的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If Request("EditID") <> 0  Then
+		OutHintScript("恭喜您！本频道已成功关闭。")
+	Else
+		OutHintScript("恭喜您！本频道已成功打开。")
+	End If
+End Sub
+
+Sub UpdateHidden()
+	If Not IsNumeric(Request("ChannelID")) Then
+		ErrMsg = ErrMsg & "<li>非法的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If Request("ChannelID") <> "" And Request("EditID") <> ""  Then
+		NewAsp.Execute ("UPDATE NC_Channel set IsHidden=" & NewAsp.ChkNumeric(Request("EditID")) & " WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+		Call RemoveCache
+	Else
+		ErrMsg = ErrMsg & "<li>非法的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If Request("EditID") <> 0  Then
+		OutHintScript("恭喜您！隐藏频道菜单成功。")
+	Else
+		OutHintScript("恭喜您！显示频道菜单成功。")
+	End If
+End Sub
+
+Sub UpdateLinkTarget()
+	If Not IsNumeric(Request("ChannelID")) Then
+		ErrMsg = ErrMsg & "<li>非法的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If Request("ChannelID") <> "" And Request("EditID") <> ""  Then
+		NewAsp.Execute ("UPDATE NC_Channel SET LinkTarget=" & NewAsp.ChkNumeric(Request("EditID")) & " WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+		Call RemoveCache
+		OutHintScript("恭喜您！更新连接目标成功。")
+	Else
+		ErrMsg = ErrMsg & "<li>非法的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+End Sub
+
+Sub UpdateCreateHtml()
+	If Not IsNumeric(Request("ChannelID")) Then
+		ErrMsg = ErrMsg & "<li>非法的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If Request("ChannelID") <> "" And Request("EditID") <> ""  Then
+		NewAsp.Execute ("UPDATE NC_Channel SET IsCreateHtml=" & NewAsp.ChkNumeric(Request("EditID")) & " WHERE ChannelID=" & NewAsp.ChkNumeric(Request("ChannelID")))
+		Call RemoveCache
+	Else
+		ErrMsg = ErrMsg & "<li>非法的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If Request("EditID") <> 0  Then
+		OutHintScript("恭喜您！打开此频道生成HTML功能成功。")
+	Else
+		OutHintScript("恭喜您！关闭此频道生成HTML功能成功。")
+	End If
+End Sub
+Sub ReloadChannelCache()
+	NewAsp.DelCache "Channel" & Request("ChannelID")
+	NewAsp.DelCache "MyChannel" & Request("ChannelID")
+	NewAsp.DelCache "ChannelMenu"
+	NewAsp.DelCache "SiteClassMap"
+	Response.Write "<script>alert('更新缓存成功！');javascript:history.back(1)</script>"
+End Sub
+Sub RemoveCache()
+	NewAsp.DelCache "Channel" & Request("ChannelID")
+	NewAsp.DelCache "channelmenu"
+	NewAsp.LoadChannelList()
+	NewAsp.LoadChannelData(Request("ChannelID"))
+	RemoveLabelCache NewAsp.modules
+	RemoveAppCache "specialmenu"
+	Application(NewAsp.CacheName &"_classlist_" & ChannelID)=Null
+	RemoveAppCache "classmenu_"&ChannelID
+End Sub
+
+%>

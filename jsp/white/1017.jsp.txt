@@ -1,0 +1,73 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%
+	String url = request.getContextPath();
+%>
+<script language="JavaScript">
+<!--
+function CheckForm()
+{
+if (document.myform.password.value.length == 0)
+ {
+alert("请输入您的原始密码!");
+document.myform.password.focus();
+return false;
+}
+if (document.myform.password1.value.length == 0)
+ {
+alert("请输入您的新密码!");
+document.myform.password1.focus();
+return false;
+}
+if (document.myform.password2.value.length == 0)
+ {
+alert("请输入您的确认密码");
+document.myform.password2.focus();
+return false;
+}
+return true;
+}
+//--></script>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<table border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+ <tr>
+ <th colspan="2">管理员名称及密码修改</th></tr>
+<form method=Post name="myform" action="<%=url%>/servletsmanage">
+ <tr> 
+ <td width="25%" align="right" nowrap class="tablerow2">管理员名称：</td>
+ <td class="tablerow1" width="75%">　<INPUT type=text size=25 name="username" value="<%=request.getSession().getAttribute("adminname")%>" readonly> * <font COLOR=#FF0000>不修改可以留空</font></td>
+ </tr>
+ <tr> 
+ <td align="right" nowrap class="tablerow2">原始密码：</td>
+ <td class="tablerow1">　<INPUT type="password" size=25 name="userpwd"></td>
+ </tr>
+ <tr> 
+ <td align="right" nowrap class="tablerow2">新密码：</td>
+ <td class="tablerow1">　<INPUT type="password" size=25 name="newPwd1"></td>
+ </tr>
+ <tr> 
+ <td align="right" nowrap class="tablerow2">确认新密码：</td>
+ <td class="tablerow1">　<INPUT type="password" size=25 name="newPwd2"></td>
+ </tr>
+ <tr> 
+ <td align="center" colspan="2" class="tablerow1">
+<input type="submit" name="Submit" class="button" value="确认修改">　
+</td>
+ </tr></form>
+</table><BR>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

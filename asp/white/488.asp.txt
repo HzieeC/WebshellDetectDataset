@@ -1,0 +1,155 @@
+<!--#Include File="../Inc/Const.Asp"-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=GB2312" />
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<title>上传文件管理</title>
+<link href="Images/Style.Css" rel="stylesheet" type="text/css" />
+<script src="Images/Ajax.js"></script>
+</head>
+<body>
+<%
+
+Call ChkLogin("upload")
+
+Dim Rs,Sql,Style
+Dim ID
+    ID = Request("ID")
+Dim Key
+    Key = Request("Key")
+Dim Page
+    Page = Request("Page")
+Dim Orders
+    Orders = Request("Orders")
+Dim DFieldKey
+    DFieldKey = Request("DFieldKey")
+Dim DFieldOrders
+    DFieldOrders = Request("DFieldOrders")
+If len(ID) > 0 And Not IsNumeric(ID) Then : Response.Write "编号只能是数字!" : Conn.Close : Set Conn = Nothing : Set U = Nothing : Response.End '// 检测ID
+If Len(Page) = 0 Or Not IsNumeric(ID) Then Page = 1
+If Page < 1 Then Page = 1
+If LCase(Orders) <> "asc" Then Orders = "Desc"
+If Len(DFieldKey) = 0 Then DFieldKey = "Aid"
+If Len(DFieldOrders) = 0 Then DFieldOrders = "ID"
+If Instr("[id],[aid],[dir],[ext],[time]" , "[" & Lcase(DFieldKey) & "]") = 0 Then Key = ""
+If Instr("[id],[aid],[dir],[ext],[time]" , "[" & Lcase(DFieldOrders) & "]") = 0 Then DFieldOrders = "ID"
+Dim DFieldKey1 : If LCase(DFieldKey) = "aid" Then DFieldKey1 = "{pre}Content].[Title" Else DFieldKey1 = "{pre}Upload].[" & DFieldKey
+Page = Int(Page) : Key = Replace(Key,"'","")
+Dim JumpUrl
+    JumpUrl = "&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders
+
+Select Case Request("Act")
+Case "Clear"
+	Dim DelDir
+	Set Rs = DB("Select [ID],[Dir] From [{pre}Upload] Where [Aid]=0",1)
+	Response.Write "<br />"
+	Do While Not Rs.Eof
+		Call DeleteFile(Rs(1))
+		Call DeleteFile(installdir & "uploadfile/small/" & replace(replace(replace(replace(lcase(Rs(1)),".jpg",""),"/",""),"uploadfile",""),".jpeg","") & "/")
+		Response.Write "删除 " &  Rs(1) & "<BR>"	 : Response.Flush : Response.Clear
+		Rs.MoveNext
+	Loop
+	Rs.Close
+	Call DB("Delete From [{pre}Upload] Where [Aid]=0",0)
+	Set Rs = Nothing
+	If IsObject(Conn) Then Conn.Close : Set Conn = Nothing
+	Response.Write "<br /><a href=Admin_Upload.Asp?Page=" & Page & JumpUrl & ">上传文件清理完毕,点击返回</a>"
+	Response.End
+Case "Clearsl"
+	Call DeleteFile(installdir & "uploadfile/small/")
+	Response.Write "<br /><a href=Admin_Upload.Asp?Page=" & Page & JumpUrl & ">缩略图片文件夹 " & installdir & "uploadfile/small/ 已清空,需要调用缩略图的页面在重新解析方可生成,点击返回</a>"
+	Response.End
+Case Else
+	Call Main()
+End Select
+If IsObject(Conn) Then Conn.Close : Set Conn = Nothing
+
+Sub Main()
+	Sql = "Select [{pre}Upload].[ID],[Title],[Dir],[Ext],[Time] From [{pre}Upload],[{pre}Content]"
+	If Len(Key) > 0 Then
+		If Instr(",ID,","," & DFieldKey & ",") > 0 Then
+			If Len(Key) > 0 And IsNumeric(Key) Then
+				Sql = Sql & " Where [" & DFieldKey1 & "]=" & Key & ""
+			End If
+		Else
+			Sql = Sql & " Where [" & DFieldKey1 & "] Like '%" & Key & "%'"
+		End If
+	End If
+	If Instr(LCase(Sql)," where [") > 0 Then
+		Sql = Sql & " And [{pre}Upload].[AID] > 0 And [{pre}Content].[ID]=[{pre}UPload].[AID] Order By [{pre}Upload].[" & DFieldOrders & "] " & Orders & ""
+	Else
+		Sql = Sql & " Where [{pre}Upload].[AID] > 0 And [{pre}Content].[ID]=[{pre}UPload].[AID] Order By [{pre}Upload].[" & DFieldOrders & "] " & Orders & ""
+	End If
+	Set Rs = DB(Sql,2)
+	%>
+	<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	  <tr class=css_menu>
+	    <td colspan=5><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+	        <form name=frmSearch method=post action=Admin_Upload.Asp>
+	          <tr>
+	            <td class=css_main><a href=Admin_Upload.Asp?Page=<%=Page%><%=JumpUrl%>>上传文件管理</a> <a href=Admin_Upload.Asp?Act=Clear>清理上传文件</a> <a href=Admin_Upload.Asp?Act=Clearsl>清理所有缩略图</a></td>
+	            <td class=css_search><select name=DFieldKey id=DFieldKey>
+	              <option value="ID" <%If Lcase(DFieldKey) = "id" Then Response.Write "selected='selecte'" %>>编号</option><option value="Dir" <%If Lcase(DFieldKey) = "dir" Then Response.Write "selected='selected'" %>>路径</option><option value="Ext" <%If Lcase(DFieldKey) = "ext" Then Response.Write "selected='selected'" %>>扩展名</option><option value="Time" <%If Lcase(DFieldKey) = "time" Then Response.Write "selected='selected'" %>>时间</option>
+	              </select>
+	              <input name=Key type=text id=Key size=10 value="<%=Key%>">
+	              <input type=submit name=Submit value=搜>	            </td>
+	          </tr>
+	        </form>
+	      </table></td>
+	  </tr>
+	  <tr>
+	    <td class='css_top'>编号</td>
+	    <td class='css_top'><a href='Admin_Upload.Asp?Page=<%=Page%>&DFieldOrders=Aid&Orders=<%If Lcase(DFieldOrders) = Lcase("Aid") And Orders = "Desc" Then Response.Write "Asc" Else Response.Write "Desc" %>'>所属文章</a></td>
+	    <td class='css_top'>路径</td>
+	    <td class='css_top'>扩展名</td>
+	    <td class='css_top'>上传时间</td>
+	    </tr>
+	  <%
+	  If Rs.Eof Then
+	  %>
+	  <tr class=css_norecord>
+	    <td colspan=5>没有任何记录！</td>
+	  </tr>
+	  <%
+	  Else
+	  Dim i
+	  Rs.PageSize = 15
+	  Rs.AbsolutePage = Page
+	  For i = 1 To Rs.PageSize
+	  If Rs.Eof Then Exit For
+	  %>
+	  <tr>
+	    <td width=35 class='css_list'><%=Rs("ID")%></td>
+	    <td class='css_list'>
+	      <div align="left"><%=Left(Rs("Title"),20)%>          </div></td>
+	    <td class='css_list'>
+		  <div align="left">
+		    <%
+		  If LCase(Rs("Ext")) = "jpg" Or LCase(Rs("Ext")) = "gif" Or LCase(Rs("Ext")) = "bmp" Or LCase(Rs("Ext")) = "png" Or LCase(Rs("Ext")) = "jpeg" Then
+		  %>
+		      <span id="Zoom<%=Rs("ID")%>"></span><span onclick="window.open('<%=Rs("Dir")%>');" onmouseover="zoom('Zoom<%=Rs("ID")%>','<%=Rs("Dir")%>');" style="cursor:hand;" onmouseout="Zoom<%=Rs("ID")%>.innerHTML='';" ><%=Rs("Dir")%></span>
+	        <%Else%>
+		      <a href="<%=Rs("Dir")%>" target="_blank"><%=Rs("Dir")%></a>
+	        <%
+		  End If
+		  %>
+          </div></td>
+	    <td width=50 class='css_list'><%=Rs("Ext")%></td>
+	    <td width=110 class='css_list'><%=Rs("Time")%></td>
+	    </tr>
+	  <%
+	  Rs.MoveNext
+	  Next
+	  End If
+	  %>
+	  <tr class=css_page_list>
+	    <td colspan=5><%=PageList(Rs.PageCount,Page,Rs.RecordCount,15,"Admin_Upload.Asp?Page={p}&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders)%><span id="append_parent"></span></td>
+	  </tr>
+</table>
+	<%
+	Rs.Close
+End Sub
+%>
+</body>
+</html>

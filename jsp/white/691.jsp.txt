@@ -1,0 +1,326 @@
+<%@ page language="java" import="java.util.*" pageEncoding="gb2312"%>
+ <html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<meta name="keywords" content="">
+<style type=text/css>
+body  { background:#0080ff; margin:0px; font:normal 12px 宋体; }
+table  { border:0px; }
+td  { font:normal 12px 宋体; }
+img  { vertical-align:bottom; border:0px; }
+a  { font:normal 12px 宋体; color:#215DC6; text-decoration:none; }
+a:hover  { color:#428EFF }
+.sec_menu  { border-left:1px solid white; border-right:1px solid white; border-bottom:1px solid white; overflow:hidden; background:#D6DFF7; }
+.menu_title  { }
+.menu_title span  { position:relative; top:2px; left:8px; color:#215DC6; font-weight:bold; }
+.menu_title2  { }
+.menu_title2 span  { position:relative; top:2px; left:8px; color:#428EFF; font-weight:bold; }
+</style>
+<script language=javascript>
+function menuShow(obj,maxh,obj2)
+{
+  if(obj.style.pixelHeight<maxh)
+  {
+    obj.style.pixelHeight+=maxh/20;
+    obj.filters.alpha.opacity+=5;
+    obj2.background="images/title_bg_hide.gif";
+    if(obj.style.pixelHeight==maxh/10)
+      obj.style.display='block';
+    myObj=obj;
+    myMaxh=maxh;
+    myObj2=obj2;
+    setTimeout('menuShow(myObj,myMaxh,myObj2)','5');
+  }
+}
+function menuHide(obj,maxh,obj2)
+{
+  if(obj.style.pixelHeight>0)
+  {
+    if(obj.style.pixelHeight==maxh/20)
+      obj.style.display='none';
+    obj.style.pixelHeight-=maxh/20;
+    obj.filters.alpha.opacity-=5;
+    obj2.background="images/title_bg_show.gif";
+    myObj=obj;
+    myMaxh=maxh
+    myObj2=obj2;
+    setTimeout('menuHide(myObj,myMaxh,myObj2)','5');
+  }
+  else
+    if(whichContinue)
+      whichContinue.click();
+}
+function menuChange(obj,maxh,obj2)
+{
+  if(obj.style.pixelHeight)
+  {
+    menuHide(obj,maxh,obj2);
+    whichOpen='';
+    whichcontinue='';
+  }
+  else
+    if(whichOpen)
+    {
+      whichContinue=obj2;
+      whichOpen.click();
+    }
+    else
+    {
+      menuShow(obj,maxh,obj2);
+      whichOpen=obj2;
+      whichContinue='';
+    }
+}
+</script>
+<base target=main>
+<style type="text/css">
+<!--
+body {
+	margin-top: 0px;
+}
+-->
+</style>
+</head>
+
+<body onselectstart="return false;" ondragstart="return false;" oncontextmenu="return false;">
+<table cellpadding=0 cellspacing=0 width=158 align=center>
+  <tr style="cursor:hand;">
+    <td height=42 valign=bottom>
+      <img src=images/title.gif width=158 height="100%">
+    </td>
+  </tr>
+</table>
+ 
+<table cellpadding=0 cellspacing=0 width=158 align=center>
+  <tr style="cursor:hand;">
+    <td height=25 class=menu_title  onmouseover=this.className=menu_title2 onmouseout=this.className=menu_title background=images/title_bg_hide.gif id=menuTitle1 onClick="menuChange(menu1,80,menuTitle1);">
+      <span>用户管理</span>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <div class=sec_menu style="width:158px;height:80px;filter:alpha(Opacity=100);overflow:hidden;" id=menu1>
+        <table cellpadding=0 cellspacing=0 align=center width=135 style="position:relative;top:10px;">
+          <tr>
+            <td height=20>
+              <a href="adminUser!list" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              用户列表</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
+</table>
+<script language=javascript>
+  var whichOpen=menuTitle1;
+  var whichContinue='';
+</script>
+ 
+<table cellpadding=0 cellspacing=0 width=158 align=center>
+  <tr style="cursor:hand;">
+    <td height=25 class=menu_title onmouseover=this.className=menu_title2 onmouseout=this.className=menu_title  background=images/title_bg_show.gif id=menuTitle2 onClick="menuChange(menu2,120,menuTitle2)">
+      <span>分类管理</span>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <div class=sec_menu style="width:158;height:0;filter:alpha(Opacity=0);display:none;" id=menu2>
+        <table cellpadding=0 cellspacing=0 align=center width=135 style="position:relative;top:10px;">
+          <tr>
+            <td height=20>
+              <a href="type/addbigtype.jsp" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              增加大类</a>
+            </td>
+          </tr>
+          <tr>
+            <td height=20>
+              <a href="listBigtype2!list" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              增加小类</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
+</table>
+ 
+<table cellpadding=0 cellspacing=0 width=158 align=center>
+  <tr style="cursor:hand;">
+    <td height=25 class=menu_title onmouseover=this.className=menu_title2 onmouseout=this.className=menu_title background=images/title_bg_show.gif id=menuTitle3 onClick="menuChange(menu3,120,menuTitle3);">
+      <span>产品管理</span>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <div class=sec_menu style="width:158;height:0;filter:alpha(Opacity=0);display:none;" id=menu3>
+        <table cellpadding=0 cellspacing=0 align=center width=135 style="position:relative;top:10px;">
+          <tr>
+            <td height=20>
+              <a href="addProduct!list" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              增加产品</a>
+            </td>
+          </tr>
+          <tr>
+            <td height=20>
+              <a href="adminProducts!list" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              产品列表</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
+</table>
+<table cellpadding=0 cellspacing=0 width=158 align=center>
+  <tr style="cursor:hand;">
+    <td height=25 class=menu_title onmouseover=this.className=menu_title2 onmouseout=this.className=menu_title background=images/title_bg_show.gif id=menuTitle4 onClick="menuChange(menu4,120,menuTitle4);">
+      <span>订单管理</span>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <div class=sec_menu style="width:158;height:0;filter:alpha(Opacity=0);display:none;" id=menu4>
+        <table cellpadding=0 cellspacing=0 align=center width=135 style="position:relative;top:10px;">
+            <td height=20>
+              <a href="viewOrder!list" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              订单列表</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
+</table> 
+<table cellpadding=0 cellspacing=0 width=158 align=center>
+  <tr style="cursor:hand;">
+    <td height=25 class=menu_title onmouseover=this.className=menu_title2 onmouseout=this.className=menu_title background=images/title_bg_show.gif id=menuTitle5 onClick="menuChange(menu5,140,menuTitle5);">
+      <span>新闻管理</span>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <div class=sec_menu style="width:158;height:0;filter:alpha(Opacity=0);display:none;" id=menu5>
+        <table cellpadding=0 cellspacing=0 align=center width=135 style="position:relative;top:10px;">
+          <tr>
+            <td height=20>
+              <a href="news/addnews.jsp" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              添加新闻</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
+</table>
+<table cellpadding=0 cellspacing=0 width=158 align=center>
+  <tr style="cursor:hand;">
+    <td height=25 class=menu_title onmouseover=this.className=menu_title2 onmouseout=this.className=menu_title background=images/title_bg_show.gif id=menuTitle6 onClick="menuChange(menu6,140,menuTitle6);">
+      <span>公告管理</span>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <div class=sec_menu style="width:158;height:0;filter:alpha(Opacity=0);display:none;" id=menu6>
+        <table cellpadding=0 cellspacing=0 align=center width=135 style="position:relative;top:10px;">
+          <tr>
+            <td height=20>
+              <a href="notice/addnotice.jsp" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              添加公告</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<table cellpadding=0 cellspacing=0 width=158 align=center>
+  <tr style="cursor:hand;">
+    <td height=25 class=menu_title onmouseover=this.className=menu_title2 onmouseout=this.className=menu_title background=images/title_bg_show.gif id=menuTitle7 onClick="menuChange(menu7,140,menuTitle7);">
+      <span>支付管理</span>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <div class=sec_menu style="width:158;height:0;filter:alpha(Opacity=0);display:none;" id=menu7>
+        <table cellpadding=0 cellspacing=0 align=center width=135 style="position:relative;top:10px;">
+          <tr>
+          </tr>
+              <tr>
+            <td height=20>
+              <a href="payment/onlinepay.jsp" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              在线支付设置</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<table cellpadding=0 cellspacing=0 width=158 align=center>
+  <tr style="cursor:hand;">
+    <td height=25 class=menu_title onmouseover=this.className=menu_title2 onmouseout=this.className=menu_title background=images/title_bg_show.gif id=menuTitle8 onClick="menuChange(menu8,140,menuTitle8);">
+      <span>管理员管理</span>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <div class=sec_menu style="width:158;height:0;filter:alpha(Opacity=0);display:none;" id=menu8>
+        <table cellpadding=0 cellspacing=0 align=center width=135 style="position:relative;top:10px;">
+          <tr>
+          </tr>
+              <tr>
+            <td height=20>
+              <a href="manager/managerlist.jsp" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              管理员列表</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<table cellpadding=0 cellspacing=0 width=158 align=center>
+  <tr style="cursor:hand;">
+    <td height=25 class=menu_title onmouseover=this.className=menu_title2 onmouseout=this.className=menu_title background=images/title_bg_show.gif id=menuTitle9 onClick="menuChange(menu9,140,menuTitle9);">
+      <span>广告管理</span>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <div class=sec_menu style="width:158;height:0;filter:alpha(Opacity=0);display:none;" id=menu9>
+        <table cellpadding=0 cellspacing=0 align=center width=135 style="position:relative;top:10px;">
+          <tr>
+          </tr>
+            <tr>
+            <td height=20>
+              <a href="ad/addad.jsp" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              添加广告</a>
+            </td>
+          </tr>
+              <tr>
+            <td height=20>
+              <a href="listAd2!list" target="right" onfocus=this.blur();><img src=images/img_u.gif>
+              广告列表</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
+</table>
+
+ 
+<table cellpadding=0 cellspacing=0 width=158 align=center>
+  <tr style="cursor:hand;">
+    <td height=25 class=menu_title background=images/title_bg_quit.gif>
+      <span><a href="logoutAdmin!logout" target="_top">退出</a> </span>
+    </td>
+  </tr>
+</table>
+</body>
+
+</html>

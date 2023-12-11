@@ -1,0 +1,203 @@
+<%@ CODEPAGE = "936" %>
+<!--#include file="../Include/ConfigStat.asp"-->
+<%
+'****************** 创建数据对象 ******************
+
+Set rs = Server.CreateObject("ADODB.Recordset")
+
+'****************** 记录相关数据 ******************
+
+' IP
+vip=Request.ServerVariables("Remote_Addr")
+' 来路
+vcome=Request("referer")
+' 被访问页面
+vpage=Request.ServerVariables("HTTP_REFERER")
+' 时间
+vyear=year(now())
+vmonth=month(now())
+vday=day(now())
+vhour=hour(now())
+vtime=now()
+vweek=weekday(now())
+' 客户端软件使用情况
+thesoft=Request.ServerVariables("HTTP_USER_AGENT")
+' 浏览器
+if instr(thesoft,"NetCaptor") then
+	vsoft="NetCaptor"
+elseif instr(thesoft,"MSIE 6") then
+	vsoft="MSIE 6.x"
+elseif instr(thesoft,"MSIE 5") then
+	vsoft="MSIE 5.x"
+elseif instr(thesoft,"MSIE 4") then
+	vsoft="MSIE 4.x"
+elseif instr(thesoft,"Netscape") then
+	vsoft="Netscape"
+elseif instr(thesoft,"Opera") then
+	vsoft="Opera"
+else
+	vsoft="Other"
+end if
+' 操作系统
+if instr(thesoft,"Windows NT 5.0") then
+	vOS="Win 2000"
+elseif instr(thesoft,"Windows NT 5.1") then
+	vOs="Win XP"
+elseif instr(thesoft,"Windows NT") then
+	vOs="Win NT"
+elseif instr(thesoft,"Windows 9") then
+	vOs="Win 9x"
+elseif instr(thesoft,"unix") or instr(thesoft,"linux") or instr(thesoft,"SunOS") or instr(thesoft,"BSD") then
+	vOs="类Unix"
+elseif instr(thesoft,"Mac") then
+	vOs="Mac"
+else
+	vOs="Other"
+end if
+' 访问者所在地区
+ipnow=cip(vip)
+sql="select * from ip where (onip<=" & ipnow & " and offip>=" & ipnow & ")"
+rs.Open sql,conn,1,1
+
+if rs.EOF then
+	vwhere="未知"
+	vwheref=""
+else
+	vwhere=rs("addj")
+	vwheref=rs("addf")
+end if
+rs.Close
+
+'****************** 写主数据库 ******************
+sql="select top 1 * from view"
+rs.Open sql,conn,3,2
+rs.AddNew
+rs("vyear")=vyear
+rs("vmonth")=vmonth
+rs("vday")=vday
+rs("vhour")=vhour
+rs("vtime")=vtime
+rs("vweek")=vweek
+rs("vip")=vip
+rs("vwhere")=vwhere
+rs("vwheref")=vwheref
+rs("vcome")=vcome
+rs("vpage")=vpage
+rs("vsoft")=vsoft
+rs("vos")=vos
+rs.Update 
+rs.Close
+
+'****************** 读写简数据库 ******************
+sql="select * from vjian"
+rs.Open sql,conn,3,3
+' 写入数据
+if rs.EOF then
+	rs.AddNew
+	rs("today")=1
+	rs("yesterday")=0
+	rs("vdate")=date()
+	rs("vtop")=1
+	rs.Update
+else
+	on error resume next
+	olddate=cdate(rs("vdate"))
+	datecha=date()-olddate
+	'上一条记录是今天的
+	select case datecha
+	case 0
+		rs("today")=rs("today")+1
+	case 1
+		thetoday=rs("today")
+		rs("yesterday")=thetoday
+		rs("today")=1
+		rs("vdate")=date()
+	case else
+		rs("today")=1
+		rs("yesterday")=0
+		rs("vdate")=date()
+	end select
+	
+	rs("vtop")=rs("vtop")+1
+	rs.Update
+end if
+'读出数据
+	vtoday=rs("today")
+	vyesterday=rs("yesterday")
+	vtop=rs("vtop")
+	rs.Close
+'************ 读写COOKIE，得到用户浏览量 **********
+
+'我对有关读写 cookie 的部分知道的不多，请大家指点。
+	vuser=cint(Request.Cookies(mNameEn)("lao"))+1
+	Response.Cookies(mNameEn)("lao")=vuser
+	Response.Cookies(mNameEn).Expires=date()+CookieExpires
+
+'****************** 关闭数据对象 ******************
+set rs=nothing
+conn.Close 
+set conn=nothing
+
+'******************** 写出HTML ********************
+
+'程序及图像文件路径
+theurl="http://" & Request.ServerVariables("http_host") & finddir(Request.ServerVariables("url"))
+
+'获取输出要求
+style=Request("style")
+
+'根据要求输出
+select case style
+case "LOGO"	'LOGO
+	outstr="<table width='88' border='0' cellspacing='0' cellpadding='0' height='31' background='" & theurl & "Images/Stat_Counter.gif'><tr><td height='5' width='24'></td><td height='5' width='57'></td><td height='5' width='7'></td></tr><tr><td height='16'></td><td height='16' align='center' valign='top'><marquee behavior='loop' scrollDelay='100' scrollAmount='3' style='font-size: 12px; line-height=15px'><a href='" & theurl & "index.asp' target='_blank' style='color: #ffffff; text-decoration: none'>"
+	outstr=outstr & "<font face='Arial, Verdana, san-serif' color='#407526'>总访问量: " & vtop & " &nbsp;今日访问: " & vtoday & " &nbsp;昨日访问: " & vyesterday & " &nbsp;您的访量: " & vuser & "</font>"
+	outstr=outstr & "</a></marquee></td><td height='16'></td></tr><tr><td height='10'></td><td height='10'></td><td height='10'></td></tr></table>"
+
+case "Icon"		'ICON
+	outstr="<a href='" & theurl & "../index.asp' title='" & countname &  _
+		"总量：" & vtop & _
+		"&nbsp;&nbsp;今日：" & vtoday & " 昨日：" & vyesterday & _
+		"&nbsp;&nbsp;您的：" & vuser & "' target='_blank'><img border='0' src='" & theurl & _
+		"Images/Stat_Icon.gif'></a>"
+
+case "Flash"	'FLASH
+	outstr="<embed src='" & theurl & "Images/Stat_Count.swf?cgi=" & theurl & "flash.asp' type='application/x-shockwave-flash' width='" & FlashWidth & "' height='" & FlashHeight & "'></embed>"
+
+case "Text"		'TEXT
+	outstr=vtop
+case "Nothing"		'Nothing
+	outstr=""
+end select
+
+'输出
+Response.Write "document.write(" & chr(34) & outstr & chr(34) & ")"
+
+
+
+'****************** 自定义函数 ********************
+
+function cip(sip)
+	tip=cstr(sip)
+	sip1=left(tip,cint(instr(tip,".")-1))
+	tip=mid(tip,cint(instr(tip,".")+1))
+	sip2=left(tip,cint(instr(tip,".")-1))
+	tip=mid(tip,cint(instr(tip,".")+1))
+	sip3=left(tip,cint(instr(tip,".")-1))
+	sip4=mid(tip,cint(instr(tip,".")+1))
+	cip=cint(sip1)*256*256*256+cint(sip2)*256*256+cint(sip3)*256+cint(sip4)
+end function
+
+Function finddir(filepath)
+	finddir=""
+	for i=1 to len(filepath)
+	if left(right(filepath,i),1)="/" or left(right(filepath,i),1)="\" then
+	  abc=i
+	  exit for
+	end if
+	next
+	if abc <> 1 then
+	finddir=left(filepath,len(filepath)-abc+1)
+	end if
+end Function
+%>
+

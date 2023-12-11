@@ -1,0 +1,23 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="java.util.Vector,javaBean.BeanAD,connections.ElseDao" %>
+<%
+	int id=Integer.parseInt(request.getParameter("id"));
+	ElseDao dao=new ElseDao();
+	String sqlstr="select * from ad where id="+id;
+    Vector ve=dao.getAD(sqlstr);
+    BeanAD bean=(BeanAD)ve.get(0);
+%>
+<html>
+	<head>
+		<title></title>
+		<body>
+			<p align="center">
+				<h1><%=bean.getTitle()%>&nbsp;&nbsp;发布时间:<%=bean.getTime()%>&nbsp;&nbsp;发布人:<%=bean.getWriter()%></h1>
+			</p>
+			<p align=center>&nbsp;&nbsp;</p>
+			<p>
+				<%=bean.getContent()%>
+			</p>
+		</body>
+	</head>
+</html>

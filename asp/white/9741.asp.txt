@@ -1,0 +1,131 @@
+<!--#include file="../ACT.Function.asp"-->
+<%
+
+	Dim ModeID
+	 ModeID = ChkNumeric(Request("ModeID"))
+	 if ModeID=0 or ModeID="" Then ModeID=1
+	If Not ACTCMS.ACTCMS_QXYZ(ModeID,"","") Then   Call Actcms.Alert("对不起，您没有"&ACTCMS.ACT_C(ModeID,1)&"系该项操作权限！","")
+	Select Case Request("Action")
+			Case "del"
+				Call DelClass()
+	End Select
+
+	Sub DelClass()
+	Dim DelClassIDStr,DelAllClassIDStr,Class_Num,Class_i,CheckTopClassRs
+	Dim Str_DelClassID,ArrC_i,DleClassObj,ArrC_Num
+	DelClassIDStr =  Request("ClassID")
+
+	If DelClassIDStr = "" Then
+			ShowErr = "<li>请选择栏目</li>"
+			Call Actcms.ActErr(ShowErr,"","1")
+		Response.end
+	End If 
+		If Instr(DelClassIDStr,",") > 0 Then
+			DelClassIDStr = Replace(Replace(DelClassIDStr," ,",","),", ",",")
+			Class_Num = Split(DelClassIDStr,",")
+			For Class_i = LBound(Class_Num) To UBound(Class_Num)
+				Set CheckTopClassRs = ACTCMS.ACTEXE("Select rootid,ClassID From Class_Act Where ClassID = " & Class_Num(Class_i) & " Order By OrderID Desc,ID Desc")
+				If CheckTopClassRs(0) <> "0" Then
+					If InStrTopIDTF(Class_Num(Class_i),DelClassIDStr) = True Then
+						DelClassIDStr = Replace(DelClassIDStr,"," & Class_Num(Class_i),"")
+					End If
+				End If
+				CheckTopClassRs.CLose : Set CheckTopClassRs = Nothing	
+			Next
+			Str_DelClassID = DelClassIDStr
+			ArrC_Num = Split(Str_DelClassID,",")
+			For ArrC_i = LBound(ArrC_Num) To Ubound(ArrC_Num)
+				DelAllClassIDStr = DelAllClassIDStr & "," & GetAllChildRenClassID(ArrC_Num(ArrC_i))
+			Next
+		Else
+			DelAllClassIDStr = GetAllChildRenClassID(DelClassIDStr)
+		End If
+		If Left(DelAllClassIDStr,1) = "," Then
+			DelAllClassIDStr = Right(DelAllClassIDStr,Len(DelAllClassIDStr) - 1)
+		End If
+			
+		Set DleClassObj = ACTCMS.actexe("Select * From Class_Act Where ClassID In(" & DelAllClassIDStr & ")")
+		While Not DleClassObj.Eof
+ 			Call delarticle(DleClassObj("ModeID"),DleClassObj("classid"))
+			actcms.actexe("Delete From  Class_Act Where ClassID =" & DleClassObj("classid") & "")
+			DleClassObj.MoveNext		
+		Wend
+		Call Actcms.ActErr("栏目下所有的文件均已删除","ACT_Mode/ACT.Class.asp?ModeID="&request("ModeID")&"","")
+ 	End Sub
+	
+	Function delarticle(modeid,classid)
+		On Error Resume Next
+		Dim rs,rsp
+		Set rs = ACTCMS.actexe("Select * From "&ACTCMS.ACT_C(modeid,2)&" Where ClassID="& ClassID &"")
+		Do While Not rs.eof
+					Set rsp = ACTCMS.actexe("Select * from Upload_Act  Where ArtileID=" & rs("id") & " and modeid="&modeid&"")
+						If Not  rsp.eof  Then
+							Do While Not rsp.eof
+							Call ACTCMS.DeleteFile(Rsp("UpfileDir"))
+							Conn.execute("Delete from Upload_Act  Where id= "&Rsp("id"))
+							rsp.movenext
+							loop
+						End If 
+					Dim Tmps,TmpUs 
+					If Right(ACTCMS.ACT_C(ModeID,10),1)<>"/" Then 
+							Call ACTCMS.DeleteFile(ACTCMS.ActSys&ACTCMS.ACT_C(ModeID,6)&rs("FileName")&ACTCMS.ACT_C(ModeID,11))
+					Else
+							Call ACTCMS.DeleteFile(ACTCMS.ActSys&ACTCMS.ACT_C(ModeID,6)&rs("FileName")&"/Index"&ACTCMS.ACT_C(ModeID,11))
+					End If 
+					Conn.execute("Delete from Comment_Act  Where acticleID=" & rs("id") & " and ModeID="&ModeID&"")
+					Conn.execute("Delete from Digg_ACT  Where NewsID=" & rs("id") & " and ModeID="&ModeID&"")
+					Conn.execute("Delete from "&ACTCMS.ACT_C(ModeID,2)&"  Where ID=" & rs("id") & "")
+		rs.movenext
+		loop
+	End Function 
+	Function GetAllChildRenClassID(ClassID)
+	If ClassID = "" Then Exit Function
+	Dim GetClassIDRs,AllClassID
+	Set GetClassIDRs = Conn.ExeCute("Select ClassID From Class_Act Where rootid = "&ClassID&" Order By OrderID Desc,ID Desc") 
+	If GetClassIDRs.Eof Then
+		AllClassID =  ClassID 
+	Else
+		AllClassID = ""
+		Do While Not GetClassIDRs.Eof
+			AllClassID = AllClassID & "," & GetAllChildRenClassID(GetClassIDRs(0))
+			GetClassIDRs.MoveNext
+		Loop
+		AllClassID =   ClassID  & AllClassID
+	End If
+	GetAllChildRenClassID = AllClassID
+	GetClassIDRs.Close
+	Set GetClassIDRs = Nothing				
+	End Function
+
+
+Function InStrTopIDTF(ClassID,InStrID)
+	Dim GetTopIDRs,StrID,ArrIDNum,Arr_i,InstrNum
+	Set GetTopIDRs = Conn.ExeCute("Select rootid,ClassID From Class_Act Where ClassID="& ClassID &"  Order By OrderID Desc,ID Desc")
+	If Not GetTopIDRs.Eof Then
+		Do While GetTopIDRs(0) <> "0"
+			Set GetTopIDRs = Conn.ExeCute("Select rootid,ClassID From Class_Act Where ClassID = " & GetTopIDRs(0) & " Order By OrderID Desc,ID Desc")
+			StrID = StrID & "," & GetTopIDRs(1)
+		Loop
+	End If
+	GetTopIDRs.Close : Set GetTopIDRs = Nothing
+	StrID = Replace(Replace(StrID," ,",","),", ",",")
+	If Left(StrID,1) = "," Then
+		StrID = Right(StrID,Len(StrID) - 1)
+	End If
+	If Instr(StrID,",") > 0 Then
+		ArrIDNum = Split(StrID,",")
+		For Arr_i = LBound(ArrIDNum) To UBound(ArrIDNum)
+			InstrNum = Clng(InstrNum + Instr(InStrID,ArrIDNum(Arr_i)))
+		Next
+	Else
+		InstrNum = Instr(InStrID,StrID)
+	End If	
+	If InstrNum > 0 Then
+		InStrTopIDTF = True
+	Else
+		InStrTopIDTF = False
+	End If
+End Function
+
+
+ %>

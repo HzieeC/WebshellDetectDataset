@@ -1,0 +1,93 @@
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/md5.asp"-->
+<%
+if Request.ServerVariables("HTTP_X_FORWARDED_FOR") = ""  then
+ip=Request.ServerVariables("REMOTE_ADDR")
+else
+ip=Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+end if
+
+users_name=Replace_Text(request.form("username"))
+users_pwd=MD5(trim(request.form("pwd")),32)
+verifycode=Replace_Text(request.form("verifycode"))
+
+Function isletternumber(strng)
+ isletternumber = false
+ Dim regEx, Match ' Create variables.
+ Set regEx = New RegExp   ' Create a regular expression object (stupid, huh?)
+ regEx.Pattern = "^[A-Za-z0-9]+$" ' Sets pattern.
+ regEx.IgnoreCase = True   ' Set case insensitivity.
+ Set Match = regEx.Execute(strng)   ' Execute search.
+ if match.count then isletternumber= true
+End Function
+if not isletternumber(users_name) then
+ response.write ("<script language=JavaScript>{alert('用户名：要求为字母或数字！请重新输入。');location.href = 'javascript:history.back()';}</script>")
+response.End 
+end if
+if Cint(session("verifycode"))<>cint(verifycode) then
+ response.write ("<script language=JavaScript>{alert('验证码输入错误! 请重新输入。');location.href = 'javascript:history.back()';}</script>")
+response.End 
+end if
+set rs=server.createobject("ADODB.Recordset")
+sql="select * from JOB_admin where JOB_user='"&users_name&"'"
+rs.open sql,conn,1,1
+if rs.eof then
+ rs.close
+ set rs=nothing
+ conn.close
+ set conn=nothing
+ Response.Write ("<script language=JavaScript>{alert('用户名或密码错误，请重新登录！');location.href = 'javascript:history.back()';}</script>")
+ Response.End 
+else
+ if users_pwd<>rs("JOB_pass") then
+  rs.close
+  set rs=nothing
+  conn.close
+  set conn=nothing
+  Response.Write ("<script language=JavaScript>{alert('用户名或密码错误，请重新登录！');location.href = 'javascript:history.go(-1)';}</script>")
+  Response.End 
+ else
+  Set rs2=Server.CreateObject("ADODB.RecordSet")
+  sql2="Select Min(job_id) From Job_admin"
+  rs2.Open sql2,conn,1,1
+  If Not(rs2.Eof) Then
+  	SuperAdminID=rs2(0)
+  End If
+  rs2.Close
+  Set rs2=Nothing
+  Response.Cookies("admin_name")=users_name 
+  Response.Cookies("admin_pass")=users_pwd
+  Response.Cookies("admin_flag")=rs("JOB_flag")
+  Response.Cookies("admin_type")=rs("job_type")
+  'Request.Cookies("admin_name")=users_name
+  'session("admin_pass")=users_pwd
+  'session("admin_flag")=rs("JOB_flag")
+  'session("admin_type")=rs("job_type")
+  If rs("job_id")=SuperAdminID And Request.Cookies("admin_type")="manage" Then
+  	'session("SuperAdmin")="yes"
+	 Response.Cookies("SuperAdmin")="yes"
+  End If
+  rs.close
+  '记录每次登陆的信息
+  'sql="select * from job_manage_log where admin_username='"&Request.Cookies("admin_name")&"'"
+  sql="select * from job_manage_log"
+  rs.open sql,conn,1,3
+  'if rs.eof then
+ 	  rs.addnew	:rs("dat1")=now()  
+  'end if
+  rs("ip")=ip
+  'rs("admin_username")=Request.Cookies("admin_name")
+  rs("admin_username")=Request.Cookies("admin_name")
+  rs("dat")=now() 
+  rs("cs")=rs("cs")+1
+  rs.update
+  rs.close
+  set rs=nothing
+  conn.close
+  set conn=nothing
+  response.redirect "admin_index.asp"
+  response.end
+ end if
+end if
+%>

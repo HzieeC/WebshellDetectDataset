@@ -1,0 +1,79 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<head>
+	<title>Add category</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/good/goodType/edit_goodType.js"></script>
+</head>
+<body>
+
+    <table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+					
+					<form id="goodTypeForm" method="post" action="">
+			    		<s:hidden name="goodType.id" id="id" />
+			    		<s:hidden name="goodType.parentId" />
+			    		<s:hidden name="goodType.level" />
+			     		<s:hidden name="goodType.orgId" />
+			    		<s:hidden name="goodType.orgName" />   	    
+			     		<s:hidden name="goodType.deptId" />
+			    		<s:hidden name="goodType.deptName" />
+			    		<s:hidden name="goodType.creatorId" />
+			    		<s:hidden name="goodType.creatorName" />
+			    		<s:hidden name="goodType.createTime" />
+			    		<s:hidden name="goodType.modifierId" />
+			    		<s:hidden name="goodType.modifierName" />
+			    		<s:hidden name="goodType.modifyTime" />
+			    		<s:hidden name="goodType.state" />
+				    	
+				    	<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">
+				    	   <tr>
+								<td class='gridtitle'><s:text name="editgoodType.ProductcategoryNumbers"/>：</td>
+								<td class='gridbody'>
+									<s:textfield name="goodType.code" id="code" onchange="isCodeExist()"/>(<s:text name="editgoodType.Automaticgenerationofnumber"/>)
+								</td>
+							</tr>
+							<c:if test="${parentName!=null}">
+					    	<tr>
+								<td class='gridtitle'><s:text name="editgoodType.Productclass"/>：</td>
+								<td class='gridbody'>					
+									<input type="text" id="parentName" name="parentName" disabled="disabled" maxlength="20" value="${parentName}"/>
+								</td>
+							</tr>
+							</c:if>
+							<tr>
+								<td class='gridtitle'><s:text name="editgoodType.Categoryname"/>：</td>
+								<td class='gridbody'>
+									<s:textfield name="goodType.name" id="typeName" maxlength="30" />
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="Remark"/>：</td>
+								<td class='gridbody'>
+									<s:textarea name="goodType.remark" cols="45" rows="5" />
+								</td>
+							</tr>
+						</table>
+						
+					</form>
+				</div>
+	    	</td>
+	    </tr>
+	</table>
+<!-- 语言设置-->
+<input type="hidden" id="Savedsuccessfully" value="<s:text name="Savedsuccessfully"/>"/>
+<input type="hidden" id="Savefailed" value="<s:text name="Savefailed"/>"/>
+<input type="hidden" id="Pleaseinputtheproductcategory" value="<s:text name="editgoodType.Pleaseinputtheproductcategory"/>"/>
+<input type="hidden" id="Thenumberalreadyexists" value="<s:text name="editgoodType.Thenumberalreadyexists"/>"/>
+<input type="hidden" id="SystemError" value="<s:text name="SystemError"/>"/>
+</body>
+</html>
+

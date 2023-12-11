@@ -1,0 +1,280 @@
+<!--#include file="const.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_comment.asp
+' 更新日期：2008-10-16
+' 官方网站：新云网络(www.newasp.net www.newasp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 newasp.net - All Rights Reserved.
+' newasp is a trademark of newasp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="200" align="left">问吧评论管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_index.asp">管理首页</a>
+			 - <a href="admin_comment.asp?ChannelID=<%=ChannelID%>">评论首页</a>
+			 - <a href="admin_comment.asp?ChannelID=<%=ChannelID%>&islock=0">已审核评论</a>
+			 - <a href="admin_comment.asp?ChannelID=<%=ChannelID%>&islock=1">未审核评论</a>
+			 - <a href="admin_setting.asp?ChannelID=<%=ChannelID%>">问吧设置</a>
+			 - <a href="admin_list.asp?ChannelID=<%=ChannelID%>">问答列表</a>
+		</td>
+	</tr>
+</table>
+<%
+Dim maxperpage,totalrec,Pcount,pagelinks,pagenow,count
+Dim Action,DataArry,SQLQuery,SQLField
+If Not ChkAdmin("AskedComment") Then
+	Call Transfer_error()
+End If
+Action=LCase(Request("action"))
+Select Case Trim(Action)
+Case "save"
+	Call saveComment()
+Case "edit"
+	Call editComment()
+Case "audit"
+	Call auditComment
+Case "noaudit"
+	Call NoAuditComment
+Case "del"
+	Call delComment()
+Case "delall"
+	Call delAllComment()
+Case Else
+	Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+Ask_CloseConn
+
+Sub showmain()
+	Dim i
+	maxperpage=30
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+	count=NewAsp.ChkNumeric(Request("count"))
+%>
+<form name="selform" id="selform" method="post" action="admin_comment.asp?ChannelID=<%=ChannelID%>">
+<input type="hidden" name="action" value="del">
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th width="5%" noWrap="noWrap">选择</th>
+	<th width="55%">评论主题</th>
+	<th width="5%" noWrap="noWrap">状态</th>
+	<th width="11%" noWrap="noWrap">用户名称</th>
+	<th width="12%" noWrap="noWrap">评论时间</th>
+	<th width="12%" noWrap="noWrap">评论IP</th>
+</tr>
+<tr>
+	<td class="tablerow2" colspan="6" align="left" id="showNextPage">&nbsp;</td>
+</tr>
+<%
+	Call showDatalist()
+	If IsArray(DataArry) Then
+		For i=0 To Ubound(DataArry,2)
+			If Not Response.IsClientConnected Then Response.End
+%>
+<tr align="center">
+	<td class="tablerow1 hovered"><input type="checkbox" name="commentid" value="<%=DataArry(0,i)%>"/></td>
+	<td class="tablerow1 hovered" align="left" title="点击查看此评论">
+		<a href="?ChannelID=<%=ChannelID%>&topicid=<%=DataArry(1,i)%>"><%=Server.HTMLEncode(DataArry(8,i))%></a>
+	</td>
+	<td class="tablerow1 hovered" title="点击此处编辑评论"><a href="?action=edit&ChannelID=<%=ChannelID%>&commentid=<%=DataArry(0,i)%>"><%
+	If CLng(DataArry(7,i)) = 0 Then
+		Response.Write "<b style=""color:blue;"" title=""已审核"">√</b>"
+	Else
+		Response.Write "<b style=""color:red;"" title=""未审核"">×</b>"
+	End If
+	%></a></td>
+	<td class="tablerow1 hovered" noWrap="noWrap" title="点击查看该用户的所有评论"><a href="?ChannelID=<%=ChannelID%>&username=<%=Server.HTMLEncode(DataArry(3,i))%>"><%=Server.HTMLEncode(DataArry(3,i))%></a></td>
+	<td class="tablerow1 hovered" noWrap="noWrap"><%=showDateTime(DataArry(5,i),"yyyy-MM-dd")%></td>
+	<td class="tablerow1 hovered" noWrap="noWrap"><a href="<%=AskInstalDir%>question.asp?topicid=<%=DataArry(1,i)%>" target="_blank"><%=DataArry(6,i)%></a></td>
+</tr>
+<tr>
+	<td class="tablerow2" colspan="7"><%=Left(NewAsp.RemoveHtml(DataArry(4,i))&" ",100)%></td>
+</tr>
+<%
+		Next
+		DataArry=Null
+	End If
+%>
+<tr>
+	<td class="tablerow1" colspan="6"><input class="button" type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class="button" type="button" name="chksel" value="反选" onClick="ContraSel(this.form)">
+	<%If Trim(Request("islock")) = "0" Then%>
+		<input class="button" type="submit" name="submit_button1" value="取消审核" onclick="{if(confirm('您确定要批量取消审核评论吗?')){document.selform.action.value='noaudit';return true;}return false;}">
+	<%Else%>
+		<input class="button" type="submit" name="submit_button1" value="批量审核" onclick="{if(confirm('您确定要批量审核评论吗?')){document.selform.action.value='audit';return true;}return false;}">
+	<%End If%>
+		<input class="button" type="submit" name="submit_button2" value="删除评论" onclick="{if(confirm('您确定要删除此评论吗?')){document.selform.action.value='del';return true;}return false;}">
+		<input class="button" type="submit" name="submit_button3" value="全部删除" onclick="{if(confirm('您确定要删除所有评论吗?')){document.selform.action.value='delall';return true;}return false;}">
+	</td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" colspan="6" id="NextPageText">
+	<var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+</table>
+</form>
+<script type="text/javascript">
+document.getElementById("showNextPage").innerHTML = document.getElementById("NextPageText").innerHTML;
+</script>
+<%
+End Sub
+
+Sub showDatalist()
+	On Error Resume Next
+	Dim Rs,SQL,Cmd
+	If Trim(Request("islock")) <> "" Then
+		SQLQuery=" And A.islock=" & NewAsp.ChkNumeric(Request("islock"))
+	Else
+		SQLQuery=""
+	End If
+	If NewAsp.ChkNumeric(Request("topicid")) > 0 Then
+		SQLQuery=SQLQuery&" And A.topicid=" & NewAsp.ChkNumeric(Request("topicid"))
+	End If
+	If Trim(Request("username")) <> "" Then
+		SQLQuery=" And A.username='" & NewAsp.Checkstr(Request("username")) &"'"
+	End If
+	SQLField="A.CommentID,A.TopicID,A.userid,A.UserName,A.[content],A.PostTime,A.PostIP,A.islock,B.title"
+	If count=0 Then
+		totalrec=NewAsp.Ask_Execute("SELECT COUNT(*) FROM NC_Ask_Comment A INNER JOIN [NC_Ask_Topic] B ON A.TopicID=B.TopicID WHERE B.TopicMode=1 "&SQLQuery&"")(0)
+	Else
+		totalrec=count
+	End If
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT "& SQLField &" FROM [NC_Ask_Comment] A INNER JOIN [NC_Ask_Topic] B ON A.TopicID=B.TopicID WHERE B.TopicMode=1 "&SQLQuery&" ORDER BY A.CommentID DESC"
+	Rs.Open SQL,Ask_Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		DataArry=Rs.GetRows(maxperpage)
+	Else
+		DataArry=Null
+	End If
+	Rs.close()
+	Set Rs=Nothing
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	pagelinks="admin_comment.asp?channelid="& ChannelID &"&topicid="&Request("topicid")&"&islock="&Request("islock")&"&username="&Request("username")&"&count="&totalrec&"&"
+End Sub
+
+Sub editComment()
+	Dim Rs,SQL,commentid
+	commentid = NewAsp.ChkNumeric(Request("commentid"))
+	SQL = "SELECT CommentID,UserName,[content],PostTime,PostIP,islock FROM NC_Ask_Comment WHERE commentid=" & commentid
+	Set Rs = NewAsp.Ask_Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>错误的系统参数!</li>"
+		Exit Sub
+	End If
+%>
+<form action="?action=save" method="post" name="form2">
+<input type="hidden" name="commentid" value="<%=Rs("commentid")%>" />
+<table class="tableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+<tr>
+	<th colspan="2">编辑/审核<%=NewAsp.ModuleName%>评论</th>
+</tr>
+<input type="hidden" name="ChannelID" value="<%=ChannelID%>" />
+<tr>
+	<td class="tablerow2" width="20%">用户名称</td>
+	<td class="tablerow2" width="80%"><input name="username" value="<%=Server.HTMLEncode(Rs("username"))%>" type="text" size="30" /></td>
+</tr>
+<tr>
+	<td class="tablerow1">评论时间/IP地址</td>
+	<td class="tablerow1"><font color="red"><%=Server.HTMLEncode(Rs("PostTime"))%></font>&nbsp;&nbsp;&nbsp;&nbsp;<font color="blue"><%=Server.HTMLEncode(Rs("PostIP"))%></font></td>
+</tr>
+<tr>
+	<td class="tablerow2">评论内容<br/>支持HTML代码</td>
+	<td class="tablerow2"><textarea name="content1" rows="10" cols="80"><%=Server.HTMLEncode(Rs("content"))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1">评论审核</td>
+	<td class="tablerow1"><input type="radio" name="islock" value="0"<%If Rs("islock") = 0 Then Response.Write " checked=""checked"""%> /> 确定审核&nbsp;&nbsp; 
+		<input type="radio" name="islock" value="1"<%If Rs("islock") = 1 Then Response.Write " checked=""checked"""%> /> 取消审核</td>
+</tr>
+<tr>
+	<td class="tablerow2">&nbsp;</td>
+	<td class="tablerow2"><input class="button" type="button" onclick="javascript:history.go(-1)" name="button2" value="返回上一页" /> 
+	<input class="button" type="submit" name="submit_button" value="保存编辑" /></td>
+</tr>
+</table>
+</form>
+<%
+	Set Rs = Nothing
+End Sub
+
+Sub saveComment()
+	Dim Rs,SQL,commentid
+	commentid = NewAsp.ChkNumeric(Request("commentid"))
+	If Trim(Request.Form("content1")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>评论内容不能为空！</li>"
+	End If
+	If Founderr = True Then Exit Sub
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Ask_Comment WHERE commentid=" & commentid
+	Rs.Open SQL,Ask_Conn,1,3
+	If Not (Rs.BOF And Rs.EOF) Then
+		Rs("content").Value = Trim(Request.Form("content1"))
+		Rs("islock").Value = NewAsp.ChkNumeric(Request.Form("islock"))
+		Rs.update
+	End If
+	Rs.Close:Set Rs = Nothing
+	Succeed("<li>恭喜您！编辑/审核评论成功。</li>")
+End Sub
+
+Sub delComment()
+	Dim CommentIDlist
+	CommentIDlist=NewAsp.CheckIDlist(Request("commentid"))
+	If CommentIDlist<>"" And CommentIDlist<>"0" Then
+		NewAsp.Ask_Execute ("DELETE FROM NC_Ask_Comment WHERE commentid in (" & CommentIDlist & ")")
+		Succeed("<li>恭喜您！删除评论成功。</li>")
+	Else
+		ErrMsg = "<li>错误的系统参数,请选择要删除的评论ID</li>"
+		FoundErr = True
+		Exit Sub
+	End If
+End Sub
+
+Sub delAllComment()
+	NewAsp.Ask_Execute ("DELETE FROM NC_Ask_Comment")
+	Succeed("<li>恭喜您！删除所有评论成功。</li>")
+End Sub
+
+Sub auditComment()
+	Dim CommentIDlist
+	CommentIDlist=NewAsp.CheckIDlist(Request("commentid"))
+	If CommentIDlist<>"" And CommentIDlist<>"0" Then
+		NewAsp.Ask_Execute ("UPDATE NC_Ask_Comment SET islock=0 WHERE commentid in (" & CommentIDlist & ")")
+		Succeed("<li>恭喜您！评论批量审核成功。</li>")
+	Else
+		ErrMsg = "<li>错误的系统参数,请选择要审核的评论ID</li>"
+		FoundErr = True
+		Exit Sub
+	End If
+End Sub
+
+Sub NoAuditComment()
+	Dim CommentIDlist
+	CommentIDlist=NewAsp.CheckIDlist(Request("commentid"))
+	If CommentIDlist<>"" And CommentIDlist<>"0" Then
+		NewAsp.Ask_Execute ("UPDATE NC_Ask_Comment SET islock=1 WHERE commentid in (" & CommentIDlist & ")")
+		Succeed("<li>恭喜您！评论批量取消审核成功。</li>")
+	Else
+		ErrMsg = "<li>错误的系统参数,请选择要取消审核的评论ID</li>"
+		FoundErr = True
+		Exit Sub
+	End If
+End Sub
+%>

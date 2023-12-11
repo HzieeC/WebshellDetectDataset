@@ -1,0 +1,124 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<head>
+	<title>编辑广告</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/default/easyui.css">
+	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/common/common.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/store/advertise/edit_Advertise.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/common/upload.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/ckeditor/ckeditor.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/My97DatePicker/WdatePicker.js"></script>
+</head>
+
+<body>
+    <table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+					<form id="advertiseForm" method="post" action="">
+			    		<s:hidden name="advertise.id" id="id" />
+			    		<s:hidden name="advertise.modifierId" />
+			    		<s:hidden name="advertise.modifierName" />
+			    		<s:hidden name="advertise.modifyTime" />
+			    		<s:hidden name="advertise.state" id="state"/>
+			    		<s:hidden name="imgIdStr" id="imgIdStr"/>
+			    		
+			    		<div class="easyui-tabs" fit="true" plain="true" style="height:500px;width:300px;">
+						
+								<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">
+						    	   <tr>
+										<td class='gridtitle' width="15%">广告编号:</td>
+										<td class='gridbody'>
+											<s:textfield name="advertise.code" disabled="true"/>
+										</td>
+										<td  class='gridtitle'>创建人:</td>
+										<td class='gridbody'>
+											<s:hidden name="advertise.creatorId" />
+											<s:textfield name="advertise.creatorName" id="creatorName" readonly="true"/>
+										</td>
+										<td  class='gridtitle'>创建时间:</td>
+										<td class='gridbody'>
+											<input type="text" name="advertise.createTime" id="createTime" readonly="true" 
+											onclick="WdatePicker({dateFmt:'yyyy-MM-dd'})"  value="<fmt:formatDate pattern="yyyy-MM-dd" value="${advertise.createTime}" />"/>
+										</td> 
+									          
+									</tr>
+									<tr></tr>
+									<tr>
+										<td  class='gridtitle'>广告主题:</td>
+										<td class='gridbody' colspan="10">
+											<s:textfield name="advertise.subject" id="subject" size="60" /><font color="red">*</font>
+										</td>
+									</tr>
+									<tr>
+										<td class='gridtitle'>上传广告缩略图:<br/></td>
+										<td class='gridbody' colspan="5">
+											<a href="javascript:void(0);" onclick="upload.open(this,'AdvertisePic')">选择图片</a>
+											<c:if test="${advertise.pic != null && advertise.pic != ''}">
+												<img id="pic" border="0" src="${ctx}${advertise.pic }" width="130px" height="130px"/>
+												&nbsp;&nbsp;<a href="javascript:void(0);" onclick="deletePic(this)">删除</a>
+											</c:if>
+											<input type="hidden" name="picId" id="fileUploadId" value="${advertise.picId}" /><%-- name必须为fileUploadId --%>
+											<input type="hidden" name="advertise.pic" id="picPath"  class="picPath" value="${advertise.pic }" >
+										
+										</td>
+						  		    </tr>
+						  		    <tr>
+										<td class='gridtitle'>显示位置</td>
+										<td class='gridbody' colspan="5">
+										 
+											<!-- <s:select list="goodTypeList"  listValue="name" listKey="id" name="advertise.placeId" id="placeId"
+		             							headerKey="" headerValue=" -- 请选择显示位置  -- " value="advertise.placeId"></s:select> -->
+											<select name="advertise.placeId" id="placeId" onchange="ShowPlaceMedhot()">
+											<option value=""> -- 请选择显示位置  -- </option>
+											<option value="首页方块一" <c:if test="${advertise.placeId == '首页方块一' }">selected="selected"</c:if> >首页方块一</option>
+											<option value="首页方块二" <c:if test="${advertise.placeId == '首页方块二' }">selected="selected"</c:if> >首页方块二</option>
+											<option value="首页方块三" <c:if test="${advertise.placeId == '首页方块三' }">selected="selected"</c:if> >首页方块三</option>
+											<option value="首页方块四" <c:if test="${advertise.placeId == '首页方块四' }">selected="selected"</c:if> >首页方块四</option>
+											<option value="首页方块五" <c:if test="${advertise.placeId == '首页方块五' }">selected="selected"</c:if> >首页方块五</option>
+											<option value="首页LOGO" <c:if test="${advertise.placeId == '首页LOGO' }">selected="selected"</c:if> >首页LOGO</option>
+		
+											</select>
+											广告图片位置大小：高度&nbsp;<span id="heightId" style="color: red;"></span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;宽度&nbsp;<span style="color: red;" id="widthId"></span>
+					
+										</td>
+									</tr>
+									<tr>
+										<td  class='gridtitle'>URL:</td>
+										<td class='gridbody' colspan="10">
+											<s:textfield name="advertise.url" id="subject" size="60" />
+										</td>
+									</tr>
+									<tr>
+										<td  class='gridtitle'>广告详情:</td>
+										<td class='gridbody' colspan="30" >
+											<textarea id="content" name="advertise.content" cols="60" rows="10">${advertise.content}&nbsp;</textarea>
+										</td>
+									</tr>
+								</table>
+				
+						</div>
+						<center>
+							<input type="button" value="保存" onclick="javascript:submitSaveForm();" <c:if test="${advertise.state == 's' }">disabled="disabled"</c:if>/>
+						</center>
+					</form>
+				</div>
+	    	</td>
+	    </tr>
+	</table>
+	
+</body>
+
+</html>
+
+

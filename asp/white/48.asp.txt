@@ -1,0 +1,378 @@
+<!--#include file="../Adn_Conn.asp" -->
+<!--#include file="../../Include/AdnCms.XmlHttp.asp" -->
+<%Response.Charset="GB2312"
+server.scripttimeout=99999
+Dim url,result
+url=Trim(request.QueryString("url"))
+if url="" Then Adn_Err("请正确填写侍分析地址")
+if instr(url,"6.cn")>0 then gather6Room url
+if instr(url,"hd.openv.com")>0 then gatherOpenvHd url
+if instr(url,"video.qq.com")>0 then gatherQQ url
+if instr(url,"www.tudou.com")>0 then gatherTudou url
+if instr(url,"hd.tudou.com")>0 then gatherTudouHd url
+if instr(url,"www.56.com")>0 then gather56 url
+if instr(url,"tv.56.com")>0 then gather56Hd url
+if instr(url,"youku.com")>0 then gatherYouku url
+if instr(url,"you.video.sina.com.cn")>0 then gatherSina url
+if instr(url,"movie.video.sina.com.cn")>0 then gatherSinaHd url
+if instr(url,"v.blog.sohu.com")>0 then gatherSohu url
+if instr(url,"tv.sohu.com")>0 then gatherSohuHd url
+
+Sub gather6Room(url)
+	dim pageStr,id,title,itemCount,i,topicId,vPageStr
+	pageStr = GetPage(url,"utf-8")
+	if instr(url,"playlist/")>0 then 
+		topicId=GetContent(url&"/","playlist/","/",0)
+		itemCount=regexFind(pageStr,"<em class=""hit"">([\d]+?)<\/em>")
+		for i=0 to itemCount-1
+			vPageStr=GetPage("http://6.cn/plist/"&topicId&"/"&i&".html","utf-8")
+			id=regexFind(vPageStr,"pageMessage.evid = '(.+?)'\s;")
+			title=regexFind(vPageStr,"<h2 class=""pvt"">(.+?)</h2>")
+			result = result&title&"|"&id&vbcrlf
+		next
+		result = trimOuterStr(result,vbcrlf)
+	else
+		id=GetContent(pageStr,"pageMessage.evid = '","' ;"&vbcrlf&"pageMessage.pid",0)
+		title=GetContent(pageStr,"<title>","</title>",0) : title=left(title,instr(title," - ")-1)
+		result=title&"|"&id
+	end if
+	'if right(result,1)=vbcrlf then result=left(result,len(result)-1)
+End Sub
+
+Sub gatherQQ(url)
+	dim purl,itemCount,i,pageStr,title,id,regObj,match,matches,vid,pcount
+	if instr(url,"group?g")>0 then
+		vid = GetContent(url&"#","g=","#",0)
+		pageStr = GetPage(url,"utf-8")
+		itemCount = GetContent(pageStr,"专辑所有视频<font>(",")",0)
+		if itemCount <= 10 then 
+			pcount = 1
+		else
+			if itemCount mod 10 = 0 then pcount = clng(itemCount / 10) else pcount = clng((itemCount) / 10 ) + 1
+		end if
+		for i = 1 to itemCount
+			purl = "http://video.qq.com/v1/group/video?p="&i&"&g="&vid
+			pageStr = GetPage(purl,"utf-8")			
+			set regObj = New regExp : regObj.Global = true
+			regObj.Pattern = "<a onClick=""playVideo\('(.+?)'\)"">(.+?)</a>" : set matches = regObj.Execute(pageStr)
+			for each match in matches
+				result = result&match.SubMatches(1)&"|"&match.SubMatches(0)&vbcrlf
+			next
+		next
+		result = trimOuterStr(result,vbcrlf)
+	else
+		pageStr = GetPage(url,"utf-8")	
+		title=GetContent(pageStr,"vp_title=""","""",0)
+		id=GetContent(pageStr,"vp_vid=""","""",0)
+		result = title&"|"&id
+	end if
+End Sub
+
+Sub gather56Hd(url)
+	dim pageStr,id,title,itemCount,i,vPageStr,playlistid,pageurl,paras,title2
+	dim regObj,match,matches,playurl : set regObj = New RegExp
+	regObj.ignoreCase = true : regObj.Global = true
+	pageStr = GetPage(url,"gb2312")
+	regObj.Pattern = "<li><a href=""(.+?)"">(.+?)</a></li>" : set matches = regObj.Execute(pageStr)
+	for each match in matches
+		title = match.SubMatches(1)
+		pageurl = match.SubMatches(0)
+		pageStr = GetPage(pageurl,"gb2312")
+		title2 = GetContent(pageStr,"<title>","-",0)
+		title = replace(title,"【播放】",title2)
+		paras = GetContent(pageStr,"flashvars=""img_host=","""",0)
+		id =  GetContent(paras,"host=",".",0)&"_/"& GetContent(paras,"pURL=","&",0)&"_/"& GetContent(paras,"sURL=","&",0)&"_/"& GetContent(paras,"user=","&",0)&"_/"& GetContent(paras,"URLid=","&",0)
+		'result = result&title&"|"&id&vbcrlf
+		result = result&title&"|"&"n_v19_/"&id&"_/102000_/0_/42413775"&vbcrlf
+	next
+	result = trimOuterStr(result,vbcrlf)
+End Sub
+
+Function gather56(url)
+	dim pageStr,pageurl,id,idArray,title,vid,substring1,paras
+	if inStr(url,"/album")>0 then
+		substring1 = GetContent(url,"http://","album",0)
+		vid=GetContent(url,"-aid-",".",0)
+		dim regObj,match,matches,playurl : set regObj = New RegExp
+		regObj.ignoreCase = true : regObj.Global = true
+		playurl = "http://"&substring1&"album_v2/album_videolist.phtml?callback=albumV2.callback&aid="&vid&"&o=0"
+		pageStr = GetPage(playurl,"gb2312")
+		regObj.Pattern = """video_id"":""(.+?)""" : set matches = regObj.Execute(pageStr)
+		for each match in matches
+			pageurl = "http://"&substring1&"play_album-aid-"&vid&"_vid-"&match.SubMatches(0)&".html"
+			pageStr = GetPage(pageurl,"gb2312")
+			paras =  GetContent(pageStr,"img_host=","'",0)
+			id = GetContent(paras,"host=",".",0)&"_/"&GetContent(paras,"pURL=","&",0)&"_/"&GetContent(paras,"sURL=","&",0)&"_/"&GetContent(paras,"user=","&",0)&"_/"&GetContent(paras,"URLid=","&",0)
+			title = GetContent(pageStr,"<title>","在线观看-",0)
+			'result = result&title&"|"&id&vbcrlf
+			result = result&title&"|"&"n_v19_/"&id&"_/102000_/0_/42413775"&vbcrlf
+		next
+		result = trimOuterStr(result,vbcrlf)
+	else
+		pageStr = GetPage(url,"gb2312")
+		pageurl = "http://"&GetContent(pageStr,"<span><a href=""http://","""",0)
+		pageStr = GetPage(pageurl,"gb2312")
+		title = GetContent(pageStr,"<title>"," -",0)
+		pageStr = GetContent(pageStr,"code2","/>",0)
+		pageStr = GetContent(pageStr,"56.com/",".s",0)		
+		'idArray = split(pageStr,"_/")
+		'id = idArray(0)&"_/"&idArray(1)&"_/"&idArray(2)&"_/"&idArray(3)&"_/"&idArray(4)
+		'result = title&"|"&"n_v19_/"&id&"_/102000_/0_/42413775"
+		result = title&"|"&pageStr
+	end if
+End  Function
+
+Function gatherSohuHdPlay(pageStr)
+	dim id,title
+	id=GetContent(pageStr,"var vid=""","""",0)
+	title=GetContent(pageStr,"<title>","</title>",0) : title=replace(replace(left(title,instr(title,"-搜狐视频")-1),"《",""),"》","")
+	gatherSohuHdPlay=title&"|"&id
+End Function
+
+Sub gatherSohuHd(url)
+	dim pageStr,id,title,itemCount,i,topicId,vPageStr,playlistid
+	pageStr = GetPage(url,"gb2312")
+	result=gatherSohuHdPlay(pageStr)
+	if instr(pageStr,"<div id=""roll"" class=""area"">")>0 then
+		playlistid = split(result,"|")(1)
+		result = ""
+		pageStr = GetPage("http://hot.vrs.sohu.com/vrs_videolist.action?vid="&playlistid,"gb2312")
+		dim regObj,match,matches,pattern,playurl : set regObj = New RegExp
+		regObj.ignoreCase = true : regObj.Global = true
+		pattern = """videoName"":""([\s\S]+?)"".+?""videoId"":(\d+?),"""
+		regObj.Pattern = pattern : set matches = regObj.Execute(pageStr)
+		'die regObj.test(pagestr)
+		for each match in matches
+			id = match.SubMatches(1)
+			title = match.SubMatches(0)
+			result = result&title&"|"&id&vbcrlf
+		next
+		result = trimOuterStr(result,vbcrlf)
+	else
+		result=result
+	end if
+End Sub
+
+Sub gatherSohu(url)
+	dim sohuDataUrl,itemCount,i,pageStr,title,id,regObj,match,matches
+	if instr(url,"/pw/")>0 then
+		id=GetContent(url&"/","/pw/","/",0)
+		sohuDataUrl = "http://v.blog.sohu.com/playlistVideo.jhtml?outType=3&from=2&m=viewlist&playlistId="&id&"&size=300"
+		pageStr = GetPage(sohuDataUrl,"gbk")
+		set regObj = New regExp : regObj.Global = true
+		regObj.Pattern = """,""id"":(\d+?),""title"":""(.*?)"",""" : set matches = regObj.Execute(pageStr)
+		for each match in matches
+			on error resume next
+			result = result&decodeSohu(match.SubMatches(1))&"|"&match.SubMatches(0)&vbcrlf
+			if err then exit for : err.clear
+		next
+	else
+		pageStr = GetPage(url,"gbk")	
+		title=regexFind(pageStr,"\<title\>(.+?)\s-\s") : id=GetContent(url&"/","/vw/","/",0)
+		result = title&"|"&id
+	end if
+	'if right(result,1)=vbcrlf then result=left(result,len(result)-1)
+	result = trimOuterStr(result,vbcrlf)
+End Sub
+
+Function gatherOpenvHdPlay(url)
+	dim pageStr,id,title
+	pageStr = GetPage(url,"utf-8")
+	If InStr(url,"clips")>0 Then 
+		id="hdmovieclips_"&GetContent(url,"s_",".",0)
+		title=GetContent(pageStr,"<title>","</title>",0) : title=left(title,instr(title,"-高清电影")-1)
+	elseif InStr(url,"prog_")>0 Then
+		id="CTIYuLeprog_"&GetContent(url,"g_",".",0)
+		title=GetContent(pageStr,"<title>","</title>",0) : title=left(title,instr(title,"-高清电视节目")-1) 
+	Else 
+		id="hdmovie_"&GetContent(url,"e_",".",0)
+		title=GetContent(pageStr,"<title>","</title>",0) : title=left(title,instr(title,"-高清电影")-1)
+	End If 
+	gatherOpenvHdPlay=title&"|"&id
+End Function
+
+Sub gatherOpenvHd(url)
+	dim pageStr,id,title,itemCount,i,topicId,vPageStr
+	if instr(url,"/tv_show")>0 then 
+		pageStr = GetPage(url,"utf-8")
+		dim regObj,match,matches,pattern,playurl : set regObj = New RegExp
+		regObj.ignoreCase = true : regObj.Global = true
+		pattern = "<li><a href=""(.+?)"">(.+?)</a></li>"
+		regObj.Pattern = pattern
+		'if  not regObj.Test(pageStr) then regObj.Pattern = "href=""tv_play-(\S+?)html""  target=""_play"">(.+?)</a>"
+		if  not regObj.Test(pageStr) then regObj.Pattern = "<a href=""tv_play-(hddoc_\S+?)html""[\s]+title=""(.+?)""[\s]+class"
+		set matches = regObj.Execute(pageStr)
+		for each match in matches
+			'die match.SubMatches(0)
+			If InStr(match.SubMatches(0),"cartoon")>0 Then 
+				id = "hdcartoon_"&GetContent(match.SubMatches(0),"n_",".",0)
+			elseif InStr(match.SubMatches(0),"hddoc_")>0 Then 
+				id = "hddoc_"&GetContent(match.SubMatches(0),"c_",".",0)
+			Else 
+				id = "hdteleplay_"&GetContent(match.SubMatches(0),"y_",".",0)
+			End If 
+			title = match.SubMatches(1)
+			result = result&title&"|"&id&vbcrlf
+		next
+		result = trimOuterStr(result,vbcrlf)
+	else
+		result=gatherOpenvHdPlay(url)
+	end if
+End Sub
+
+Function gatherSinaHdPlay(url)
+	dim pageStr,id,title
+	pageStr = GetPage(url,"gb2312")
+	id=GetContent(pageStr,"var vid='","'",0)
+	title=GetContent(pageStr,"<title>","</title>",0) : title=left(title,instr(title," - 新浪大片")-1)
+	gatherSinaHdPlay=title&"|"&id
+End Function
+
+Sub gatherSinaHd(url)
+	dim pageStr,id,title,itemCount,i,topicId,vPageStr
+	if instr(url,"teleplay")>0 then 
+		pageStr = GetPage(url,"gb2312")
+		dim regObj,match,matches,pattern,playurl : set regObj = New RegExp
+		regObj.ignoreCase = true : regObj.Global = true
+		'pattern = " <td width=""67"" class=""titlefontcolor""><a href=""(.+?)"""
+		pattern = "<div class=""btn_special_100""><a href=""([\s\S]+?)"""
+		regObj.Pattern = pattern : set matches = regObj.Execute(pageStr)
+		for each match in matches
+			playurl = "http://movie.video.sina.com.cn"&match.SubMatches(0)
+			result = result&gatherSinaHdPlay(playurl)&vbcrlf
+		next
+		result = trimOuterStr(result,vbcrlf)
+	else
+		result=gatherSinaHdPlay(url)
+	end if
+End Sub
+
+Sub gatherSina(url)
+	dim sinaUrl,allVideos,pageStr,pages,i,regObj,match,matches,j,url1,url2,paraArray
+	if instr(url,"/a/")>0 then
+	    paraArray = split(GetContent(url,"/a/",".html",0),"-")
+	    url1="http://you.video.sina.com.cn/api/catevideoList.php?uid="&paraArray(1)&"&tid="&paraArray(0)
+		pageStr = left(GetPage(url1,"utf-8"),40)
+		allVideos = regexFind(pageStr,""":{""count"":""(\d+)"",?")
+		url2=url1&"&pagesize="&allVideos
+		pageStr = GetPage(url2,"utf-8")
+		set regObj = New regExp : regObj.Global = true
+		regObj.Pattern = """vid"":""(\d+?)"",""uid"":""(\d+?)"",""nick"":"".+?"",""name"":""(.+?)""," : set matches = regObj.Execute(pageStr)
+		for each match in matches
+			on error resume next
+			result = result&decodeSohu(match.SubMatches(2))&"|"&match.SubMatches(0)&"&uid="&match.SubMatches(1)&vbcrlf
+			if err then exit for : err.clear
+		next
+	else
+		pageStr = GetPage(url,"utf-8")	
+		result = regexFind(pageStr,"<title>([\s\S]*?)_")&"|"&GetContent(url,"/b/","-",0)&"&uid="&GetContent(url,"-",".html",0)
+	end if
+	'if right(result,1)=vbcrlf then result=left(result,len(result)-1)
+	result = trimOuterStr(result,vbcrlf)
+End Sub
+
+Sub gatherTudouHd(url)
+	dim pageStr,id,title,itemCount,i,vPageStr,playlistid,pagenum,pageurl
+	playlistid = GetContent(url&"/","program/","/",0)'subStr2(url&"/","program/","/")
+	pagenum = getTudouHdPage(playlistid)
+	dim regObj,match,matches,playurl : set regObj = New RegExp
+	regObj.ignoreCase = true : regObj.Global = true
+	for i=1 to pagenum
+		pageStr = GetPage("http://hd.tudou.com/ajax/albumVideos.html?videoId="&playlistid&"&pageNumer="&i,"gb2312")
+		regObj.Pattern = "<a href=""(.+?)""" : set matches = regObj.Execute(pageStr)
+		for each match in matches
+			pageurl = "http://hd.tudou.com"&match.SubMatches(0)
+			pageStr = GetPage(pageurl,"UTF-8")
+			id = GetContent(pageStr,"iid: ""","""",0) : title = GetContent(pageStr,"title: ""","""",0)
+			result = result&title&"|"&id&vbcrlf
+		next
+	next
+	result = trimOuterStr(result,vbcrlf)
+End Sub
+
+Function getTudouHdPage(vid)
+	dim i,pagestr,pagestr2,pageurl
+	pageurl = "http://hd.tudou.com/ajax/albumVideos.html?videoId="&vid&"&pageNumer="
+	for i = 1 to 20
+		pagestr = left(GetPage(pageurl&i,"gb2312"),100) : pagestr2 = left(GetPage(pageurl&(i+1),"gb2312"),100)
+		if pagestr = pagestr2 then  getTudouHdPage=i : Exit Function
+	next
+End Function
+
+Sub gatherTudou(url)
+	dim tudouRss,itemSplit,itemCount,i,pageStr,title,id
+	if instr(url,"playlist")>0 then
+		tudouRss = "http://www.tudou.com/playlist/rss.do?lid="&GetContent(url,"/id/","/",0)
+		pageStr=GetPage(tudouRss,"utf-8")
+		itemSplit=Split(pageStr,"<item>")
+		itemCount=ubound(itemSplit)
+		for i=1 to itemCount
+			if i=itemCount then
+				result = result&GetContent(itemSplit(i),"<title>","</title>",0)&"|"&GetContent(itemSplit(i),"tudou:info id=""",""" pubDate",0)
+			else
+				result = result&GetContent(itemSplit(i),"<title>","</title>",0)&"|"&GetContent(itemSplit(i),"tudou:info id=""",""" pubDate",0)&vbcrlf
+			end if  
+		next
+	else
+		pageStr = GetPage(url,"GBK")	
+		title=regexFind(pageStr,"<title>([\s\S]*?)\s") : id=regexFind(pageStr,"var\siid\s=\s(\d{3,})\r\n")
+		result = title&"|"&id
+	end if
+End Sub
+
+Sub gatherYouku(url)
+	dim youkuRss,itemSplit,itemCount,i,pageStr,title,id
+	if instr(url,"playlist_show")>0 then
+		youkuRss = "http://www.youku.com/playlist/rss/id/"&GetContent(url,"id_",".html",0)
+		pageStr=GetPage(youkuRss,"utf-8")
+		itemSplit=Split(pageStr,"<item>")
+		itemCount=ubound(itemSplit)
+		for i=1 to itemCount
+			if i=itemCount then
+				result = result&GetContent(itemSplit(i),"<title>","</title>",0)&"|"&GetContent(itemSplit(i),"<guid>","</guid>",0)
+			else
+				result = result&GetContent(itemSplit(i),"<title>","</title>",0)&"|"&GetContent(itemSplit(i),"<guid>","</guid>",0)&vbcrlf
+			end if  
+		next
+	else
+		pageStr = GetPage(url,"utf-8")	
+		title=regexFind(pageStr,"\<meta\sname=""title""\scontent=""([\s\S]*?)""\>") : id=regexFind(pageStr,"var\svideoId\s=\s'(\d{3,}?)';")
+		result = title&"|"&id
+	end if
+End Sub
+
+Response.Write result
+
+Function regexFind(Byval str,Byval pattern)
+	if isNul(str) then : regexFind="" : Exit Function
+	dim regObj,match,matches,findStr : set regObj = New RegExp
+	regObj.Pattern = pattern : set matches = regObj.Execute(str)
+	for each match in matches
+		regexFind = match.SubMatches(0)
+		set regObj = nothing : set matches = nothing : Exit Function
+	next
+End Function
+
+Function Re_jiname(str)
+    Re_jiname=ReplaceHtml(replace(str," ",""))
+	If len(Re_jiname)<1 Then Re_jiname="第"&i&"集" End If
+	Re_jiname=Re_jiname&"|"
+End Function
+
+Function decodeSohu(Byval str) 
+    dim i,tempStr,char
+    tempStr="" 
+	str = replaceStr(str,"\u","%u")
+    for i=1 to len(str) 
+        char=mid(str,i,1) 
+        if mid(str,i,2)="%u" and i<=len(str)-5 then 
+            if isNum("&H" & mid(str,i+2,4)) then tempStr = tempStr & chrw(clng("&H" & mid(str,i+2,4))) : i = i+5  else tempStr = tempStr & char 
+        elseif char="%" and i<=len(str)-2 then 
+            if isNum("&H" & mid(str,i+1,2)) then tempStr = tempStr & chrw(clng("&H" & mid(str,i+1,2))) : i = i+2  else  tempStr = tempStr & char 
+        else 
+            tempStr = tempStr & char 
+        end if 
+    next 
+    decodeSohu = tempStr 
+End Function 
+%>

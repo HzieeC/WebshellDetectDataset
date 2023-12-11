@@ -1,0 +1,66 @@
+<%@ page language="java" import="java.util.*" pageEncoding="gb2312"%>
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="http://images1.lawtime.cn/js/common.js?v=20110916"></script>
+<script type="text/javascript" src="http://images1.lawtime.cn/js/js_1.js?v=20110616"></script>
+<script type="text/javascript" src="http://images1.lawtime.cn/js/info/info_7.js?v=20110318"></script>
+  <%
+  	String qid=request.getParameter("qid");
+    String casepre_id=request.getParameter("casepre_id");
+    String askername=request.getParameter("askername");
+    String __hash__=request.getParameter("__hash__");
+    String login_hash=request.getParameter("login_hash");
+  %>
+<form id="loginform" action="http://www.lawtime.cn/ask/index.php?m=logon&furl=" method="post" name="loginform">
+	账号<input name="userid" type="text" />
+	密码<input  name="psw" type="password" />
+	<input class="buttoncss" name="submit1" type="button" value="登录" onclick="loginSub()"/>
+	<input type="hidden" name="__hash__" value="<%=login_hash %>" />
+</form>
+  
+<form name="answerForm" action="http://www.lawtime.cn/ask/index.php?m=answer" method="post" onsubmit="return check_answer(this);" class="answer_form">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+		 <tr>
+			<td align="right" width="10%">
+				&nbsp;
+			</td>
+			<td >
+	           <textarea name="content" id="anchor20110427" cols="70" rows="5" class="bj"></textarea>
+	          	<input type="hidden" name="command" value="ques_answer" />
+				<input type="hidden" name="qid" value="<%=qid %>" />
+				<input type="hidden" name="askername" value="<%=askername %>" />
+				<input type="hidden" name="formhash" value="7b76564f" />
+				<input type="hidden" name="askanswertime" id="askanswertime" value="0"/>
+				<input type="hidden" name="dosubmit" value="好了，提交回答" />
+				<input type="hidden" name="__hash__" value="<%=__hash__ %>" />
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" align="center">
+				<input type="button" id="qanswer" class="buttoncss" name="qanswer1" value="提交回复" onclick="tijiao()"/>
+				 <input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+
+	</table>
+   	</form>
+   	<script type="text/javascript">
+function loginSub(){
+	document.loginform.target="_blank";
+   	document.loginform.submit();	
+}
+function tijiao(){
+	var content=document.getElementById("anchor20110427").value;
+	content=encodeURI(encodeURI(content));
+	jQuery.ajax( {
+           type : "POST",
+           url : "addLogService.jsp",
+           data : "content="+content+"&casepre_id=<%=casepre_id%>",
+           success : function(msg) {
+           	alert(msg);
+           }
+    });
+    document.answerForm.target="_blank";
+    document.answerForm.submit();
+
+}
+</script>

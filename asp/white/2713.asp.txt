@@ -1,0 +1,179 @@
+﻿<!--#include file="conn.asp"-->
+<!--#include file="config.asp"-->
+<!--#include file="opay/tenpay/classes/MediPayResponseHandler.asp"-->
+<% dim  opayid
+
+opayid=5
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select opayid,opayname,opaypassword,opayrturl,opayparter from sdx_opay where opayid="&opayid,conn,1,1
+payid=rs("opayname")
+paypwd=rs("opaypassword")
+payurl="http://"&Request.ServerVariables("HTTP_HOST")&"/"&rs("opayrturl")
+payparter=rs("opayparter")
+rs.close
+set rs=nothing
+
+%>
+
+<%
+'---------------------------------------------------------
+'财付通中介担保支付应答（处理回调）示例，商户按照此文档进行开发即可
+'---------------------------------------------------------
+
+'平台商密钥
+Dim key
+key = paypwd
+
+'创建支付应答对象
+Dim resHandler
+Set resHandler = new MediPayResponseHandler
+resHandler.setKey(key)
+
+'判断签名
+If resHandler.isTenpaySign() = True Then
+	
+	Dim cft_tid
+	Dim total_fee
+	Dim retcode
+	Dim status
+
+	'财付通交易单号
+	cft_tid = resHandler.getParameter("cft_tid")
+	
+	'金额金额,以分为单位
+	total_fee = resHandler.getParameter("total_fee")
+
+	'返回码
+	retcode = resHandler.getParameter("retcode")
+
+	'状态
+	status = resHandler.getParameter("status")
+	
+	'------------------------------
+	'处理业务开始
+	'------------------------------ 
+
+	'注意交易单不要重复处理
+	'注意判断返回金额
+	
+	'返回码判断
+	If "0" = retcode Then
+		Select Case status
+			Case "1":	'交易创建
+
+			Case "2":	'收获地址填写完毕
+
+			Case "3":	'买家付款成功，注意判断订单是否重复的逻辑
+
+                     set rs=server.CreateObject("adodb.recordset")
+rs.Open "select state,score,id,productnum from orders where goods='"&cft_tid&"'",conn,1,3
+ if rs.eof and rs.bof then
+              strnetpayresult1="支付订单号有错，请联系商家！"
+              else
+do while not rs.EOF
+rs("state")=3
+rs.Update
+
+
+set rsscore=server.CreateObject("adodb.recordset")
+rsscore.open "select score from dv_user where username='"&rs("username")&"' ",conn,1,3
+ if rsscore.eof and rsscore.bof then
+              strnetpayresult2="会员积分或商品积分有错，请联系商家！"
+              else
+
+rsscore("score") = rs("score") + rsscore("score")
+rsscore.update
+end if
+rsscore.close
+set rsscore = nothing
+rs.MoveNext
+loop
+end if
+rs.Close
+set rs=nothing
+
+set rspro=server.CreateObject("adodb.recordset")
+rspro.open "select orders.id,orders.goods,orders.productnum,orders.state,product.id,product.solded,product.stock from orders inner join product on orders.id=product.id where orders.goods='"&cft_tid&"' " ,conn,1,3
+ if rspro.eof and rspro.bof then
+              strnetpayresult3="支付订单号或商品有错，请联系商家！"
+              else
+do while not rspro.EOF
+rspro("solded")=rspro("solded")+rspro("productnum")
+rspro("stock")=rspro("stock")-rspro("productnum")
+rspro.Update
+rspro.MoveNext
+loop
+end if
+rspro.Close
+set rspro=nothing
+
+
+			Case "4":	'卖家发货成功
+                 set rs=server.CreateObject("adodb.recordset")
+rs.Open "select state,score,id,productnum from orders where goods='"&cft_tid&"'",conn,1,3
+ if rs.eof and rs.bof then
+              strnetpayresult1="支付订单号有错，请联系商家！"
+              else
+do while not rs.EOF
+rs("state")=4
+rs.Update
+rs.MoveNext
+loop
+end if
+rs.Close
+set rs=nothing
+
+
+			Case "5":	'买家收货确认，交易成功
+   set rs=server.CreateObject("adodb.recordset")
+rs.Open "select state,score,id,productnum from orders where goods='"&cft_tid&"'",conn,1,3
+ if rs.eof and rs.bof then
+              strnetpayresult1="支付订单号有错，请联系商家！"
+              else
+do while not rs.EOF
+rs("state")=5
+rs.Update
+rs.MoveNext
+loop
+end if
+rs.Close
+set rs=nothing
+
+			Case "6":	'交易关闭，未完成超时关闭
+
+			Case "7":	'修改交易价格成功
+
+			Case "8":	'买家发起退款
+
+			Case "9":	'退款成功
+
+			Case "10":	'退款关闭
+
+			Case else:	'error
+				'nothing to do
+		End Select
+	Else
+		'错误的返回码
+		
+	End If
+	
+	'------------------------------
+	'处理业务完毕
+	'------------------------------
+
+	resHandler.doShow()
+	
+
+Else
+
+	'签名失败
+	Response.Write("签名签证失败")
+
+	'Dim debugInfo
+	'debugInfo = resHandler.getDebugInfo()
+	'Response.Write("<br/>debugInfo:" & debugInfo & "<br/>")
+
+End If
+
+
+%>

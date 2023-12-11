@@ -1,0 +1,223 @@
+<%
+'忽略所有错误
+'On Error Resume Next
+
+Const OT_ISOTCMS	= true
+Const OT_SOFTTYPE	= "free"
+Const OT_SOFTTYPECN	= "免费版"
+Const OT_SOFTNAME	= "网钛文章管理系统"
+Const OT_VERSION	= "2.6"
+Const OT_VERSION2	= ""
+Const OT_UPDATETIME	= "20120706"
+Const OT_SKINVERSION= "2.2"
+Const OT_SKINTIME	= "20110508"
+Const OT_INSTALLTIME= "20120705"
+%>
+<!-- #include file="config.asp" -->
+<%
+Set conobj=server.CreateObject("ADODB.connection")
+conobj.open dbDriver
+	If Err Then
+		Err.Clear
+		Call CloseConobj()
+		Response.Write("<br><br><center>数据库连接出错，请检查连接字串。</center>")
+		Response.End()
+	End If
+
+
+
+' 关闭数据库
+Function CloseConobj()
+	conobj.close
+	Set conobj=Nothing
+End Function
+
+
+' sql语句_时间
+Function SqlForTime(ByVal str)
+	If OT_Database="access" Then
+		SqlForTime="#"& Format_Time(str,0) &"#"
+	ElseIf right(OT_Database,3)="SQL" Then
+		SqlForTime="'"& Format_Time(str,0) &"'"
+	Else
+		SqlForTime=str
+	End If
+End Function
+
+' sql语句_字符串
+Function SqlForStr(ByVal str)
+	SqlForStr=Replace(Replace(""& str,"'","''"),"""","""""")
+End Function
+
+' sql语句_获取时间
+Function SqlForGetTime()
+	If OT_Database="access" Then
+		SqlForGetTime="now()"
+	ElseIf right(OT_Database,3)="SQL" Then
+		SqlForGetTime="getdate()"
+	End If
+End Function
+
+' sql语句_获取时间
+Function SqlForDateDiff(ByVal timeType,ByVal sqlTime1,ByVal sqlTime2)
+
+	If OT_Database="access" Then
+		Select Case timeType
+			Case "s":timeType="'s'"		' 秒
+			Case "n":timeType="'n'"		' 分
+			Case "h":timeType="'h'"		' 时
+			Case "d":timeType="'d'"		' 天
+			Case "ww":timeType="'ww'"	' 周
+			Case "m":timeType="'m'"		' 月
+			Case "q":timeType="'q'"		' 季度
+			Case "yyyy":timeType="'yyyy'"		' 年
+		End Select
+	
+	ElseIf right(OT_Database,3)="SQL" Then
+		Select Case timeType
+			Case "s":timeType="second"		' 秒
+			Case "n":timeType="minute"		' 分
+			Case "h":timeType="Hour"		' 时
+			Case "d":timeType="Day"		' 天
+			Case "ww":timeType="Week"	' 周
+			Case "m":timeType="Month"		' 月
+			Case "q":timeType="quarter"		' 季度
+			Case "yyyy":timeType="year"		' 年
+		End Select
+
+	End If
+	SqlForDateDiff="datediff("& timeType &","& sqlTime1 &","& sqlTime2 &")"	' 返回值=sqlTime2-sqlTime1
+End Function
+
+
+
+Function Format_Time(ByVal timeStr,ByVal timeMode)
+	Dim y,m,d,h,mi,s
+	Format_Time = ""
+	If IsDate(timeStr) = False Then Exit Function
+
+	y	= Year(timeStr)
+	m	= Right("0"& Month(timeStr),2)
+	d	= Right("0"& Day(timeStr),2)
+	h	= Right("0"& Hour(timeStr),2)
+	mi	= Right("0"& Minute(timeStr),2)
+	s	= Right("0"& Second(timeStr),2)
+
+	Select Case timeMode
+		Case 0
+			If h &":"& mi &":"& s = "00:00:00" Then
+				Format_Time = y &"-"& m &"-"& d
+			Else
+				Format_Time = y &"-"& m &"-"& d &" "& h &":"& mi &":"& s
+			End If
+
+		Case 1
+			Format_Time = y &"-"& m &"-"& d &" "& h &":"& mi &":"& s	' yyyy-mm-dd hh:mm:ss
+
+		Case 2
+			Format_Time = y &"-"& m &"-"& d	' yyyy-mm-dd
+
+		Case 3
+			Format_Time = h &":"& mi &":"& s	' hh:mm:ss
+
+		Case 4
+			Format_Time = y &"年"& m &"月"& d &"日"	' yyyy年mm月dd日
+
+		Case 5
+			Format_Time = y & m & d	' yyyymmdd
+
+	End Select
+End Function 
+
+
+
+' 获取访问者IP
+Function GetUserIp()
+	Dim Const_userIP,Const_FORWARDED_FOR
+	If Trim(session("userIP") &"") = "" Then 
+		Const_FORWARDED_FOR = Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+		If Const_FORWARDED_FOR = "" OR InStr(Const_FORWARDED_FOR, "unknown") > 0 Then
+			Const_userIP = Request.ServerVariables("REMOTE_ADDR")
+		ElseIf InStr(Const_FORWARDED_FOR, ",") > 0 Then
+			Const_userIP = Mid(Const_FORWARDED_FOR, 1, InStr(Const_FORWARDED_FOR, ",")-1)
+		ElseIf InStr(Const_FORWARDED_FOR, ";") > 0 Then
+			Const_userIP = Mid(Const_FORWARDED_FOR, 1, InStr(Const_FORWARDED_FOR, ";")-1)
+		Else
+			Const_userIP = Const_FORWARDED_FOR
+		End If
+		Const_userIP = Trim(Mid(Const_userIP, 1, 30))
+
+		Dim regex
+		Set regex = new Regexp
+		regex.Global = False
+		regex.IgnoreCase = False
+		regex.Pattern="^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$"
+		If Not regex.Test(Const_userIP) Then
+			Const_userIP=""
+		End If
+		Set regex=Nothing
+
+		session("userIP") = Const_userIP
+	Else
+		Const_userIP = session("userIP")
+	End If
+	GetUserIp = Const_userIP
+End Function
+
+
+' 获取访问者浏览器信息
+Function GetUserBrowser()
+	Dim Const_userBrowser
+	If Trim(session("OT_userBrowser"))="" Then
+		GetUserBrowser = Request.ServerVariables("HTTP_USER_AGENT")
+	Else
+		GetUserBrowser = session("OT_userBrowser")
+	End If
+	'Const_userBrowser = md5(trim(Request.ServerVariables("HTTP_USER_AGENT")))
+	'If Trim(session("OT_userBrowser"))="" Or session("OT_userBrowser")<>Const_userBrowser Then
+	'	session.Abandon()	' 清除session信息
+	'	session("OT_userBrowser") = Const_userBrowser
+	'End If
+End Function
+
+
+' 获取访问者唯一识别码32位
+Function GetComputerCode()
+	Dim Const_computerCode
+	If Trim(session("OT_computerCode") &"") = "" Then 
+		Const_computerCode = md5(OT_SiteID & GetUserIp() & session.sessionID)
+		response.cookies(OT_SiteID &"cookies")("OT_computerCode")=OT_computerCode
+		session("OT_computerCode") = Const_computerCode
+	Else
+		Const_computerCode = session("OT_computerCode")
+	End If
+End Function
+
+' 循环显示所有cookies
+'	For Each Cookie In Request.Cookies
+'		Response.Cookies(Cookie) = Empty
+'		response.write(Cookie &"|"& Request.Cookies(Cookie) &"<br />")
+'		For Each Subkey In Request.Cookies(Cookie)
+'			response.write(Cookie &"|"& Subkey &"|"& Request.Cookies(Cookie)(Subkey) &"<br />")
+'		Next
+'	Next
+
+Function ShowVerCode(ByVal svcForm,ByVal svcId)
+	If OT_OpenVerCode=True Then
+		If Len(""& svcId)=0 Then svcId="verCode"
+		ShowVerCode = "<input type='text' id='"& svcId &"' name='verCode' maxlength='16' class='text' style='width:60px;' onclick=""GetVerCode('input','"& svcForm &"','"& svcId &"')"" onkeyup=""GetVerCode('input','"& svcForm &"','"& svcId &"')"" title='如看不清验证码，可以点击验证码进行更换' />&nbsp;&nbsp;<span id='showVerCode' class='font2_2' onclick=""GetVerCode('font','"& svcForm &"','"& svcId &"')"" style='cursor:pointer;'>点击获取验证码</span>"
+	Else
+		ShowVerCode = "<span class='font2_2'>已关闭</span>"
+	End If
+End Function
+
+
+Function ShowPopVerCode(ByVal spvcForm,ByVal spvcId)
+	If OT_OpenVerCode=True Then
+		If Len(""& spvcId)=0 Then spvcId="popVerCode"
+		ShowPopVerCode = "<input type='text' id='"& spvcId &"' name='verCode' maxlength='16' class='text' style='width:60px;' onclick=""PopupGetVerCode('input','"& spvcForm &"','"& spvcId &"')"" onkeyup=""PopupGetVerCode('input','"& spvcForm &"','"& spvcId &"')"" title='如看不清验证码，可以点击验证码进行更换' />&nbsp;&nbsp;<span id='popVerCodeStr' class='font2_2' onclick=""PopupGetVerCode('font','"& spvcForm &"','"& spvcId &"')"" style='cursor:pointer;'>点击获取验证码</span>"
+	Else
+		ShowPopVerCode = "<span class='font2_2'>已关闭</span>"
+	End If
+End Function
+%>

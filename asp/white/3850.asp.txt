@@ -1,0 +1,149 @@
+<%
+Const UnsealHttpLog=False
+Const blnUnsealZip=False
+
+Dim UseDownload, RepeatDeal, isProgress, TrueAddress, setInterval
+Dim MaxDownSize, AllowDownExt, FilePrefix, FileSuffix, isZipFile, ZipMode
+Dim ZipTimeout, MaxZipsize, AllowFileExt, WinRarPath, DownFilePath
+Dim ReadmePath, ReadmeFile, RarNoteFile, DownZipKey
+
+Dim StopItem,IsDown,MaxAddress,PathForm,SaveFilePath
+Dim AutoRename,IsNowTime,AllHits,star,isLogin
+
+Dim ItemID,ListID,InfoID,downid,ItemTitle,classid,specialid,showcode,strHtmlCode,softid
+Dim ListTitle,FindListArea,FindListLink,FindReplace,IsRedirect,RedirectUrl
+Dim InfoTitle,FindTitle,FindContent,FindCategory,FindDateTime,FindOthers,Pagination,FindPagination,TitleReplace,ContentReplace,AppendUrl,sourceReplace
+Dim Encoding,RemoteListUrl,NamedDemourl,RemoveCode
+Dim m_strHtmlCode,m_strHtmlList,m_strLinkArry,m_strFindLink
+Dim m_strClassHtml,m_strParent,m_strChild,m_strCookies,m_strReferer
+Dim AutoClass,RetuneClass,strReplace,startcode,lastcode
+Dim DownlistHtml,DownlistCode,m_strDownHtml,m_strDownList,m_strDownArry
+Dim m_strTitle,m_strContent,m_strVersion,m_strSubTitle,m_strDateTime,m_strFilesize,m_intAllHits,m_strAlphaTitle
+Dim m_strLanguage,m_strSoftType,m_strImpower,m_strRunSystem,m_strContact,m_strHomePage,m_strStar,m_intStar
+Dim blnFileToLocal,DownAddrNum,m_strDownAddress
+
+If Not IsObject(CJ_Conn) Then CJ_ConnectionDatabase
+blnFileToLocal=False
+DownAddrNum=0
+
+Sub LoadItemSetting(MYID)
+	Dim Rs,SQL,TempXmlDoc
+	SQL = "SELECT TOP 1 * FROM NC_SoftItem WHERE ItemID=" & MYID
+	Set Rs = cmHttp.Execute(SQL)
+	Set TempXmlDoc = NewAsp.RecordsetToxml(Rs,"row","xml")
+	Rs.Close
+	Set Rs = Nothing
+	Application.Lock
+	Set Application(NewAsp.CacheName&"_softitem_"&ChannelID&"_"&MYID) = TempXmlDoc
+	Application.unLock
+End Sub
+
+Sub LoadInfoTemplate(MYID)
+	Dim Rs,SQL,TempXmlDoc
+	SQL = "SELECT TOP 1 * FROM NC_TPL_Info WHERE InfoID=" & MYID
+	Set Rs = cmHttp.Execute(SQL)
+	Set TempXmlDoc = NewAsp.RecordsetToxml(Rs,"row","xml")
+	Rs.Close
+	Set Rs = Nothing
+	Application.Lock
+	Set Application(NewAsp.CacheName&"_infotemplate_"&ChannelID&"_"&MYID) = TempXmlDoc
+	Application.unLock
+End Sub
+
+Sub LoadListTemplate(MYID)
+	Dim Rs
+	Set Rs = cmHttp.Execute("SELECT TOP 1 * FROM NC_TPL_List WHERE listid="&MYID)
+	If Not(Rs.BOF And Rs.EOF) Then
+		IsRedirect=Rs("IsRedirect")
+		RedirectUrl=Rs("RedirectUrl")
+		FindListArea=Split(Rs("FindListArea")&"||||||||||||", "|||")
+		FindListLink=Split(Rs("FindListLink")&"||||||||||||", "|||")
+		FindReplace=Split(Rs("FindReplace")&"||||||||||||", "|||")
+	End If
+	Rs.Close:Set Rs = Nothing
+End Sub
+
+Sub LoadSoftConfig()
+	Dim Rs,SQL,TempXmlDoc
+	SQL = "SELECT TOP 1 * FROM NC_SoftConfig"
+	Set Rs = cmHttp.Execute(SQL)
+	Set TempXmlDoc = NewAsp.RecordsetToxml(Rs,"row","xml")
+	Rs.Close
+	Set Rs = Nothing
+	Application.Lock
+	Set Application(NewAsp.CacheName&"_softconfig") = TempXmlDoc
+	Application.unLock
+End Sub
+
+Function getsoftid(ByVal URL)
+	On Error Resume Next
+	Dim oRs,SQL
+	URL = Trim(LCase(URL))
+	SQL="SELECT id,softid FROM [NC_Softlog] WHERE ChannelID="&ChannelID&" And url='"&Replace(URL, "'", "")&"'"
+	Set oRs=cmHttp.Execute(SQL)
+	If oRs.BOF And oRs.EOF Then
+		getsoftid=0
+	Else
+		getsoftid=oRs("softid")
+	End If
+	oRs.Close: Set oRs = Nothing
+End Function
+
+Sub UpdateHttpLog(ByVal URL, ByVal itemsid, ByVal sid, ByVal title, ByVal cid, ByVal star)
+    Dim oRs,SQL
+    URL=Trim(LCase(URL))
+    Set oRs=NewAsp.CreateAXObject("ADODB.Recordset")
+    SQL="SELECT * FROM [NC_Softlog] WHERE ChannelID="&ChannelID&" And url='"&Replace(URL, "'", "")&"'"
+    oRs.Open SQL, CJ_Conn, 1, 3
+    If oRs.BOF And oRs.EOF Then
+        Exit Sub
+    Else
+		oRs("ItemID").Value = itemsid
+        oRs("softid").Value = sid
+        oRs("classid").Value = cid
+        oRs("title").Value = Trim(title)
+        oRs("addtime").Value = Now()
+        oRs("records").Value = 1
+        If oRs("star") = 0 Then
+            oRs("star").Value = star
+        End If
+        oRs.Update
+    End If
+    oRs.Close: Set oRs = Nothing
+End Sub
+
+Sub AddHttpLog(ByVal m_url, ByVal itemsid)
+    If Len(m_url) < 10 Then Exit Sub
+	Dim Rs,SQL
+    m_url = Trim(LCase(m_url))
+    Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+    SQL="SELECT * FROM [NC_Softlog] WHERE ChannelID="&ChannelID&" And url='"&Replace(m_url, "'", "")&"'"
+    Rs.Open SQL, CJ_Conn, 1, 3
+    If Rs.BOF And Rs.EOF Then
+        Rs.AddNew
+        Rs("ChannelID").Value = ChannelID
+        Rs("ItemID").Value = itemsid
+        Rs("softid").Value = 0
+        If AutoClass = 0 Then
+            Rs("classid").Value = classid
+        Else
+            Rs("classid").Value = 0
+        End If
+        Rs("title").Value = ""
+        Rs("url").Value = Replace(m_url, "'", "")
+        Rs("star").Value = 0
+        Rs("plugin").Value = 0
+        Rs("addtime").Value = Now()
+        Rs("hits").Value = 0
+        Rs("records").Value = 0
+        Rs("islock").Value = 0
+        Rs.Update
+    Else
+		Rs("ItemID").Value = itemsid
+        Rs("addtime").Value = Now()
+        Rs.Update
+    End If
+    Rs.Close
+    Set Rs = Nothing
+End Sub
+%>

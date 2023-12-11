@@ -1,0 +1,310 @@
+<!--#include file="const.asp"-->
+<!--#include file="../../inc/ubbcode.asp"-->
+<!--#include file="../inc/cls_tags.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp. Content Management System Version 4.0
+' 文件名称：admin_save.asp
+' 更新日期：2008-06-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' NewAsp. is a trademark of NewAsp.net
+'=====================================================================
+Dim Action,ArticleID,TextContent,ArticleTop,ArticleBest,ForbidEssay,ArticleAccept,Taglist
+If Not ChkAdmin("PostArticle_"&ChannelID) Then
+	Call Transfer_error()
+End If
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+Case "save"
+	Call SaveNewArticle()
+Case "modify"
+	Call ModifyArticle()
+Case Else
+	'Call showmain
+End Select
+If FoundErr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub AddUpdateTags(act)
+	Tag.ChannelID=ChannelID
+	Tag.Modules=NewAsp.Modules
+	Tag.classid=NewAsp.CheckNumeric(Request.Form("ClassID"))
+	Tag.Taghits=NewAsp.CheckNumeric(Request.Form("AllHits"))
+	Tag.IsBest=NewAsp.ChkNumeric(Request.Form("IsBest"))
+	Tag.IsTop=NewAsp.ChkNumeric(Request.Form("isTop"))
+	Tag.TagString=Trim(Request.Form("Tagstring"))
+	Tag.tagList=Trim(Request.Form("Taglist"))
+	If act=1 Then
+		Tag.AddNewTags()
+	Else
+		Tag.UpdateTags()
+	End If
+	Taglist=Tag.tagList&"|"&Tag.checkTagString(Request.Form("Tagstring"))
+End Sub
+
+Sub SaveNewArticle()
+	Call CheckSave()
+	Dim Rs,SQL
+	If Founderr = True Then Exit Sub
+	Call AddUpdateTags(1)
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Article WHERE (ArticleID is null)"
+	Rs.Open SQL,Conn,1,3
+	Rs.Addnew
+		Rs("ChannelID") = ChannelID
+		Rs("ClassID") = NewAsp.ChkNumeric(Request.Form("classid"))
+		Rs("SpecialID") = NewAsp.ChkNumeric(Request.Form("SpecialID"))
+		Rs("title") = NewAsp.RequestForm(Request.Form("title"),255)
+		Rs("subtitle") = NewAsp.RequestForm(Request.Form("subtitle"),255)
+		Rs("ColorMode") = Trim(Request.Form("ColorMode"))
+		Rs("FontMode") = Trim(Request.Form("FontMode"))
+		Rs("content") = TextContent
+		Rs("OuterLinks") = NewAsp.RequestForm(Request.Form("OuterLinks"),255)
+		Rs("Related") = NewAsp.RequestForm(Request.Form("Related"),255)
+		Rs("Author") = NewAsp.RequestForm(Request.Form("Author"),50)
+		Rs("ComeFrom") = NewAsp.RequestForm(Request.Form("ComeFrom"),50)
+		Rs("star") = Trim(Request.Form("star"))
+		Rs("isTop") = ArticleTop
+		Rs("AllHits") = NewAsp.ChkNumeric(Request.Form("AllHits"))
+		Rs("DayHits") = NewAsp.ChkNumeric(Request.Form("AllHits"))
+		Rs("WeekHits") = NewAsp.ChkNumeric(Request.Form("AllHits"))
+		Rs("MonthHits") = NewAsp.ChkNumeric(Request.Form("AllHits"))
+		Rs("HitsTime") = Now()
+		Rs("WriteTime") = Formatime(Trim(Request.Form("WriteTime")))
+		Rs("HtmlFileDate") = Trim(NewAsp.HtmlRndFileName)
+		Rs("username") = Trim(AdminName)
+		Rs("isBest") = ArticleBest
+		Rs("BriefTopic") = Trim(Request.Form("BriefTopic"))
+		Rs("ImageUrl") = Trim(Request.Form("ImageUrl"))
+		Rs("UploadImage") = Trim(Request.Form("UploadFileList"))
+		Rs("UserGroup") = Trim(Request.Form("UserGroup"))
+		Rs("PointNum") = Trim(Request.Form("PointNum"))
+		Rs("isUpdate") = 1
+		Rs("isAccept") = ArticleAccept
+		Rs("ForbidEssay") = ForbidEssay
+		Rs("AlphaIndex") = NewAsp.ReadAlpha(ubb.CheckSpecialChar(Request.Form("title")))
+		Rs("AutoPages") = NewAsp.ChkNumeric(Request.Form("AutoPages"))
+		Rs("good") = NewAsp.CheckNumeric(Request.Form("good"))
+		Rs("bad") = NewAsp.CheckNumeric(Request.Form("bad"))
+		Rs("Taglist")=Taglist
+	Rs.update
+	Rs.Close
+	
+	Rs.Open "SELECT TOP 1 ArticleID FROM NC_Article WHERE ChannelID=" & ChannelID & " ORDER BY ArticleID DESC", Conn, 1, 1
+	ArticleID = Rs("ArticleID")
+	Rs.Close:Set Rs = Nothing
+	ClassUpdateCount NewAsp.ChkNumeric(Request.Form("classid")),1
+	Call RemoveCache
+	'--生成HTML
+	Dim url
+	If CInt(NewAsp.IsCreateHtml) <> 0 Then
+		url = "admin_makeshow.asp?ChannelID=" & ChannelID & "&inArticleID=" & ArticleID & "&t=2&u=1"
+		Call ScriptCreation(url)
+		SQL = "SELECT TOP 1 ArticleID FROM NC_Article WHERE ChannelID=" & ChannelID & " And isAccept <> 0 And ArticleID < " & ArticleID & " ORDER BY ArticleID DESC"
+		Set Rs = NewAsp.Execute(SQL)
+		If Not (Rs.EOF And Rs.BOF) Then
+			url = "admin_makeshow.asp?ChannelID=" & ChannelID & "&inArticleID=" & Rs("ArticleID") & "&t=2&u=1"
+			Call ScriptCreation(url)
+		End If
+		Rs.Close
+		Set Rs = Nothing
+	End If
+
+	Succeed("<li>恭喜您！添加新的" & NewAsp.ModuleName & "成功。</li><li><a href=""admin_list.asp?action=view&ChannelID=" & ChannelID & "&ArticleID=" & ArticleID & """>点击此处查看该" & NewAsp.ModuleName & "</a></li><li><a href=""admin_post.asp?action=add&ChannelID=" & ChannelID & "&classid=" & Request.Form("classid") & """><font color=""blue"">点击此处继续添加" & NewAsp.ModuleName & "</font></a></li>")
+End Sub
+
+Sub ModifyArticle()
+	Call CheckSave()
+	If Founderr = True Then Exit Sub
+	Call AddUpdateTags(0)
+	Dim Auditing
+	Dim Rs,SQL
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Article WHERE ArticleID=" & CLng(Request("ArticleID"))
+	Rs.Open SQL,Conn,1,3
+		Auditing = Rs("isAccept")
+		Rs("ChannelID") = ChannelID
+		Rs("ClassID") = NewAsp.ChkNumeric(Request.Form("ClassID"))
+		Rs("SpecialID") = NewAsp.ChkNumeric(Request.Form("SpecialID"))
+		Rs("title") = NewAsp.RequestForm(Request.Form("title"),255)
+		Rs("subtitle") = NewAsp.RequestForm(Request.Form("subtitle"),255)
+		Rs("ColorMode") = Trim(Request.Form("ColorMode"))
+		Rs("FontMode") = Trim(Request.Form("FontMode"))
+		Rs("content") = TextContent
+		Rs("OuterLinks") = NewAsp.RequestForm(Request.Form("OuterLinks"),255)
+		Rs("Related") = NewAsp.RequestForm(Request.Form("Related"),255)
+		Rs("Author") = Trim(Request.Form("Author"))
+		Rs("ComeFrom") = Trim(Request.Form("ComeFrom"))
+		Rs("star") = Trim(Request.Form("star"))
+		Rs("isTop") = ArticleTop
+		Rs("isBest") = ArticleBest
+		If CInt(Request.Form("Update")) = 1 Then
+			Rs("WriteTime") = Now()
+		Else
+			Rs("WriteTime") = Formatime(Trim(Request.Form("WriteTime")))
+		End If
+		Rs("AllHits") = NewAsp.ChkNumeric(Request.Form("AllHits"))
+		Rs("BriefTopic") = Trim(Request.Form("BriefTopic"))
+		Rs("ImageUrl") = Trim(Request.Form("ImageUrl"))
+		Rs("UploadImage") = Trim(Request.Form("UploadFileList"))
+		Rs("UserGroup") = Trim(Request.Form("UserGroup"))
+		Rs("PointNum") = Trim(Request.Form("PointNum"))
+		Rs("isUpdate") = 1
+		Rs("isAccept") = ArticleAccept
+		Rs("ForbidEssay") = ForbidEssay
+		Rs("AlphaIndex") = NewAsp.ReadAlpha(ubb.CheckSpecialChar(Request.Form("title")))
+		Rs("AutoPages") = NewAsp.ChkNumeric(Request.Form("AutoPages"))
+		Rs("good") = NewAsp.CheckNumeric(Request.Form("good"))
+		Rs("bad") = NewAsp.CheckNumeric(Request.Form("bad"))
+		Rs("Taglist")=Taglist
+	Rs.update
+	ArticleID = Rs("ArticleID")
+	
+	If ArticleAccept = 1 And Auditing = 0 Then
+		AddUserPointNum Rs("username"),1
+	End If
+	If ArticleAccept = 0 And Auditing = 1 Then
+		AddUserPointNum Rs("username"),0
+	End If
+	Rs.Close:Set Rs = Nothing
+	ClassUpdateCount NewAsp.ChkNumeric(Request.Form("classid")),2
+	Call RemoveCache
+	If CInt(NewAsp.IsCreateHtml) <> 0 Then
+		Dim url
+		url = "admin_makeshow.asp?ChannelID=" & ChannelID & "&inArticleID=" & ArticleID & "&t=2&u=1"
+		Call ScriptCreation(url)
+	End If
+	Succeed("<li>恭喜您！修改" & NewAsp.ModuleName & "成功。</li><li><a href=""admin_list.asp?action=view&ChannelID=" & ChannelID & "&ArticleID=" & ArticleID & """>点击此处查看该" & NewAsp.ModuleName & "</a></li>")
+End Sub
+
+Sub CheckSave()
+	Dim i
+	If Trim(Request.Form("title")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>标题不能为空！</li>"
+	End If
+	If Len(Request.Form("title")) => 200 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>标题不能超过200个字符！</li>"
+	End If
+	If Trim(Request.Form("ColorMode")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>标题颜色参数错误！</li>"
+	End If
+	If Trim(Request.Form("FontMode")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>标题字体参数错误！</li>"
+	End If
+	If Len(Request.Form("Related")) => 220 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>相关" & NewAsp.ModuleName & "不能超过220个字符！</li>"
+	End If
+	If Trim(Request.Form("Author")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>" & NewAsp.ModuleName & "作者不能为空！</li>"
+	End If
+	If Trim(Request.Form("ComeFrom")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>" & NewAsp.ModuleName & "来源不能为空！</li>"
+	End If
+	If Trim(Request.Form("PointNum")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>阅览所需的点数不能为空！如果不想设置请输入零。</li>"
+	End If
+	If Not IsNumeric(Request.Form("star")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>推荐星级不能为空。</li>"
+	End If
+	If Not IsNumeric(Request.Form("UserGroup")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>阅览等级参数错误！</li>"
+	End If
+	If Not IsNumeric(Request.Form("ClassID")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>该一级分类已经有下属分类，不能添加" & NewAsp.ModuleName & "！</li>"
+		Exit Sub
+	End If
+	If Trim(Request.Form("ClassID")) = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>该分类是外部连接，不能添加" & NewAsp.ModuleName & "！</li>"
+	End If
+	If Trim(Request.Form("AllHits")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>初始点击数不能为空！</li>"
+	End If
+	If Not IsNumeric(Request("AllHits")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>初始点击数请输入整数！</li>"
+		Exit Sub
+	End If
+	If Not IsNumeric(Request("SpecialID")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>专题ID参数错误！</li>"
+		Exit Sub
+	End If
+	TextContent = ""
+	For i = 1 To Request.Form("content").Count
+		TextContent = TextContent & Request.Form("content")(i)
+	Next
+	If Trim(TextContent) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>要添加的内容不能为空！</li>"
+	End If
+	If NewAsp.setAdminEditor(0) <> 0 Then
+		TextContent = NewAsp.HTMLEncodes(TextContent)
+	End If
+	TextContent = CheckHtmlCode(Re_Replace(TextContent, InstallDir_ChannelDir, "[InstallDir_ChannelDir]"))
+
+	ArticleTop = NewAsp.ChkNumeric(Request.Form("isTop"))
+	ArticleBest = NewAsp.ChkNumeric(Request.Form("isBest"))
+	ForbidEssay = NewAsp.ChkNumeric(Request.Form("ForbidEssay"))
+	ArticleAccept = NewAsp.ChkNumeric(Request.Form("isAccept"))
+End Sub
+
+Function AddUserPointNum(username,stype)
+	On Error Resume Next
+	Dim rsuser,GroupSetting,userpoint
+	Set rsuser = NewAsp.Execute("SELECT userid,UserGrade,userpoint FROM NC_User WHERE username='"& username &"'")
+	If Not(rsuser.BOF And rsuser.EOF) Then
+		GroupSetting = Split(NewAsp.UserGroupSetting(rsuser("UserGrade")), "|||")(9)
+		If stype = 1 Then
+			userpoint = CLng(rsuser("userpoint") + GroupSetting)
+			NewAsp.Execute ("UPDATE NC_User SET userpoint="& userpoint &",experience=experience+2,charm=charm+1 WHERE userid="& rsuser("userid"))
+		Else
+			userpoint = CLng(rsuser("userpoint") - GroupSetting)
+			NewAsp.Execute ("UPDATE NC_User SET userpoint="& userpoint &",experience=experience-2,charm=charm-1 WHERE userid="& rsuser("userid"))
+		End If
+	End If
+	Set rsuser = Nothing
+End Function
+
+Function ClassUpdateCount(sortid,stype)
+	Dim rscount,Parentstr
+	On Error Resume Next
+	Set rscount = NewAsp.Execute("SELECT ClassID,Parentstr FROM [NC_Classify] WHERE ChannelID=" & ChannelID & " And ClassID=" & CLng(sortid))
+	If Not (rscount.BOF And rscount.EOF) Then
+		Parentstr = rscount("Parentstr") &","& rscount("ClassID")
+		If CInt(stype) = 1 Then
+			NewAsp.Execute ("UPDATE [NC_Classify] SET ShowCount=ShowCount+1,isUpdate=1 WHERE ChannelID="& ChannelID &" And ClassID in (" & Parentstr & ")")
+		ElseIf stype = 2 Then
+			NewAsp.Execute ("UPDATE [NC_Classify] SET isUpdate=1 WHERE ChannelID="& ChannelID &" And ClassID in (" & Parentstr & ")")
+		Else
+			NewAsp.Execute ("UPDATE [NC_Classify] SET ShowCount=ShowCount-1,isUpdate=1 WHERE ChannelID="& ChannelID &" And ClassID in (" & Parentstr & ")")
+		End If
+	End If
+	Set rscount = Nothing
+End Function
+
+Sub RemoveCache()
+	RemoveAppCache "statistic_news"
+	RemoveLabelCache 1
+End Sub
+%>

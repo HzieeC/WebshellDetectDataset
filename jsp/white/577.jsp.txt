@@ -1,0 +1,158 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+
+<html>
+<head>
+	<title>客户管理</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/common/common.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/customer/edit_customer.js"></script>
+</head>
+
+<body>
+
+    <table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+					<form id="saveForm" method="post" action="">
+			    	    <s:hidden name="customer.id" id="id" />
+			    		<s:hidden name="customer.creatorId" />
+			    		<s:hidden name="customer.creatorName" />
+			    		<s:hidden name="customer.createTime" />
+			    		<s:hidden name="customer.modifierId" />
+			    		<s:hidden name="customer.modifierName" />
+			    		<s:hidden name="customer.modifyTime" />
+			    		<s:hidden name="customer.state" id="state"/>
+					
+						<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">						
+							<tr>
+								<td class='gridtitle'><s:text name="editcustomer.CustomerID"/></td>
+								<td class='gridbody'>
+									<input name="customer.code" id="code" value="${customer.code }" />
+								</td>
+								<td class='gridtitle'><s:text name="editcustomer.Name"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.name" id="name" maxlength="16" /><font color="red">*</font>
+								</td>
+							</tr>	
+							<tr>
+								<td class='gridtitle'><s:text name="editcustomer.Username"/></td>
+								<td class='gridbody'>
+									<input name="customer.account" id="account" value="${customer.account}" /><font color="red">*&nbsp;&nbsp;&nbsp;<s:text name="editcustomer.USERID"/></font>
+									<!--onchange="isAccountExisted(this)" <c:if test="${customer.id != null}">readonly="true"</c:if>-->
+								</td>
+								<td class='gridtitle'><s:text name="editcustomer.Password"/></td>
+								<td class='gridbody'>
+									<c:if test="${customer.id != null}">
+										<input type="password" size="22" name="customer.pwd" id="pwd" value="${customer.pwd }" maxlength="18"/>
+									</c:if>
+									<c:if test="${customer.id == null}">
+										<input type="password" name="customer.pwd" id="pwd" value="${customer.pwd }" maxlength="18" /><font color="red">*</font>
+									</c:if>
+								</td>
+							</tr>
+							
+							<tr>
+								<td class='gridtitle'><s:text name="editcustomer.Contact"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.linkman" id="linkman" maxlength="64" /><font color="red">*</font>
+								</td>
+								<td class='gridtitle'><s:text name="editcustomer.E-mail"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.email" onchange="checkEmail(this.value)" id="email"/>
+									<font color="red">*&nbsp;&nbsp;</font>
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="editcustomer.Telephone"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.telephone" id="telephone"/>
+								</td>	
+								<td class='gridtitle'><s:text name="editcustomer.Cellphone"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.mobile" id="mobile"/>
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="editcustomer.Administeredby"/></td>
+								<td class='gridbody'>
+									<s:hidden name="customer.operatorId" id="operatorId" />
+									<s:textfield name="customer.operatorName" id="operatorName" onclick="selectOperator()" readonly="true"/><font color="red">*</font>
+								</td>
+								<td class='gridtitle'><s:text name="editcustomer.Customerclasses"/></td>
+								<td class='gridbody'>
+									<s:select list="vipLevelList"  listValue="name" listKey="id" name="customer.vipLevelId" id="vipLevelId"
+             							headerKey="" headerValue=" " value="customer.vipLevelId"></s:select> 
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="editcustomer.Payment"/></td>
+								<td class='gridbody' colspan="3">
+									<s:hidden name="customer.paymentId" id="paymentId"/>
+			    					<s:hidden name="customer.paymentCode" id="paymentCode" />
+									<s:textfield name="customer.paymentName" id="paymentName" onclick="selectPayment()"/><font color="red">*</font>
+								</td>	
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="editcustomer.Company"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.companyName" id="companyName" /><font color="red">*</font>
+								</td>	
+								<td class='gridtitle'><s:text name="editcustomer.Address"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.companyAddress" id="companyAddress" />
+								</td>
+							</tr>
+							<!-- 
+								<tr>
+								<td class='gridtitle'><s:text name="editcustomer.Machinebrand"/></td>
+								<td class='gridbody' >
+									<s:textfield name="customer.machineBrand" id="machineBrand" /><font color="red">*</font>
+								</td>	
+								<td class='gridtitle'><s:text name="editcustomer.Machinetype"/></td>
+								<td class='gridbody' >
+									<s:textfield name="customer.machineModel" id="machineModel" /><font color="red">*</font>
+								</td>
+							</tr>
+							 -->
+							<tr>
+								<td class='gridtitle'><s:text name="editcustomer.Remark"/></td>
+								<td class='gridbody' colspan="3">
+									<s:textarea name="customer.remark" id="remark" cols="54" rows="3"/>
+								</td>
+							</tr>
+						</table>
+					</form>
+				</div>
+	    	</td>
+	    </tr>
+	</table>
+	
+<!-- 语言设置-->
+<input type="hidden" id="Membersapprovedbythe" value="<s:text name="editcustomer.Membersapprovedbythe"/>"/>
+<input type="hidden" id="Auditsuccess" value="<s:text name="editcustomer.Auditsuccess"/>"/>
+<input type="hidden" id="Auditfailure" value="<s:text name="editcustomer.Auditfailure"/>"/>
+<input type="hidden" id="Pleaseinputaccount" value="<s:text name="editcustomer.Pleaseinputaccount"/>"/>
+<input type="hidden" id="AccountcanonlyusetheNumbers" value="<s:text name="editcustomer.AccountcanonlyusetheNumbers"/>"/>
+<input type="hidden" id="Pleaseenteryourpassword" value="<s:text name="editcustomer.Pleaseenteryourpassword"/>"/>
+<input type="hidden" id="Pleasefillinthemobile" value="<s:text name="editcustomer.Pleasefillinthemobile"/>"/>
+<input type="hidden" id="Yourcellularphonenumberisnotcorrect" value="<s:text name="editcustomer.Yourcellularphonenumberisnotcorrect"/>"/>
+<input type="hidden" id="Pleasefillintheemail" value="<s:text name="editcustomer.Pleasefillintheemail"/>"/>
+<input type="hidden" id="Theemailaddressformaterror" value="<s:text name="editcustomer.Theemailaddressformaterror"/>"/>
+<input type="hidden" id="SystemError" value="<s:text name="editcustomer.SystemError"/>"/>
+<input type="hidden" id="Pleasechoosetheclientbelongstooperate" value="<s:text name="editcustomer.Pleasechoosetheclientbelongstooperate"/>"/>
+<input type="hidden" id="Pleasechoosetheclientlevel" value="<s:text name="editcustomer.Pleasechoosetheclientlevel"/>"/>
+<input type="hidden" id="Pleasechoosetheclientspayment" value="<s:text name="editcustomer.Pleasechoosetheclientspayment"/>"/>
+<input type="hidden" id="Theaccounthasfound" value="<s:text name="editcustomer.Theaccounthasfound"/>"/>
+<input type="hidden" id="Canchooseonlyone" value="<s:text name="editcustomer.Canchooseonlyone"/>"/>
+<input type="hidden" id="Savedsuccessfully" value="<s:text name="Savedsuccessfully"/>"/>
+<input type="hidden" id="Savefailed" value="<s:text name="Savefailed"/>"/>
+</body>
+
+</html>
+

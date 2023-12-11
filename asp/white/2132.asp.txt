@@ -1,0 +1,83 @@
+<!--#include file="Conn.asp"-->
+<!--#include file="sd_md5.asp"-->
+<!--#include file="../sd_site.asp"-->
+<%
+	dim rs
+	dim username
+	dim password
+	dim edmnu
+	username=replace(trim(request("username")),"'","‘")
+	edmnu=replace(trim(request("edmnu")),"'","‘")
+	password=md5(replace(trim(request("password")),"'","‘"))
+	
+ip = Request.ServerVariables("HTTP_X_FORWARDED_FOR" ) 
+If userip = "" Then 
+ip = Request.ServerVariables("REMOTE_ADDR" )
+end if
+
+if request("username")="" and request("password")="" then
+userid="用户名密码为空"
+elseif request("username")<>"" and request("password")="" then
+userid=""&request("username")&"|密码为空"
+elseif request("username")="" and request("password")<>"" then
+userid="用户名为空|"&request("password")&""
+else
+userid=""&request("username")&"|"&request("password")&""
+end if
+    set rs=server.createobject("adodb.recordset")
+	sql="select * from [sd_count]"
+	rs.open sql,conn,1,3
+	rs.addnew
+	rs("sd_user")=userid
+	rs("sd_ip")=ip
+	rs("sd_postdate")=now()
+	rs.update
+	rs.close
+	set rs=nothing
+	if session("fox_err")="" then
+	session("fox_err")=0
+	else
+	if session("fox_err")>=30 then '错误次数设置
+	response.write " <script LANGUAGE='javascript'>alert('你已经被锁定，请不要尝试非法登陆！');history.go(-1);</script>"
+	response.end
+	end if
+	end if
+	if trim(request("username"))="" or trim(request("password"))="" then
+	response.write "<script LANGUAGE='javascript'>alert('账号密码为空！');history.go(-1);</script>"
+	response.end
+	end if
+
+if cstr(session("getcode"))<>cstr(trim(request("verifycode"))) then
+response.Write "<script LANGUAGE='javascript'>alert('请输入正确的验证码！');history.go(-1);</script>"
+response.end
+end if
+
+	set rs=server.createobject("adodb.recordset")
+	sql="select * from [sd_admin] where admin_pass='"&Password&"' and admin_name='"&UserName&"' and admin_edmnu='"&edmnu&"'"
+	rs.open sql,conn,1,1
+ 	if not rs.bof and not rs.eof then
+ 	if password=rs("admin_pass") and rs("admin_lock")=1 then
+        Response.cookies("shangdao")("administrator")=rs("admin_name")
+        Response.cookies("shangdao")("foxb")=rs("admin_foxb")
+        Response.cookies("shangdao")("fox")=rs("admin_flag")
+        session("admin_name")=rs("admin_name")
+        session("admin_shm")=rs("admin_shuoming")
+        session("admin_qu")=rs("admin_foxb")
+        session("admin_shangdao")=now()
+        Response.cookies("fox")("domain")=Request.ServerVariables("SERVER_NAME")
+		Response.Redirect "index.asp"
+ 		else
+            session("fox_err")=session("fox_err")+1
+            response.write "<script LANGUAGE='javascript'>alert('您的管理ID可能被锁定，请联系我们！');history.go(-1);</script> "  
+            response.end
+ 		end if
+	else
+            session("fox_err")=session("fox_err")+1
+            response.write "<script LANGUAGE='javascript'>alert('身份确认失败，请重新登录！');history.go(-1);</script> "            
+            response.end
+	end if
+	rs.close
+	set rs=nothing
+	conn.close
+	set conn=nothing
+%>

@@ -1,0 +1,131 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<%@ page contentType="text/html; charset=GBK" %>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>MianFeiZhe内容管理系统 - 用户管理中心</title>
+<meta name="description" content="Design By www.Newasp.com,newasp.cn" />
+<link href="style.css" type="text/css" rel="stylesheet" />
+<script language="JavaScript" src="images/manage.js"></script>
+<script language="JavaScript" src="images/common.js"></script>
+<script language="JavaScript">
+<!--
+function preloadImg(src)
+{
+	var img=new Image();
+	img.src=src
+}
+preloadImg("images/manage_arrow_left.gif");
+var displayBar=true;
+function switchBar(obj)
+{
+	if (displayBar)
+	{
+		parent.frame.style.display="none"
+		displayBar=false;
+		obj.src="images/manage_arrow_right.gif";
+		obj.title="打开左边管理菜单";
+	}
+	else{
+		parent.frame.style.display=""
+		displayBar=true;
+		obj.src="images/manage_arrow_left.gif";
+		obj.title="关闭左边管理菜单";
+	}
+}
+//-->
+</script>
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<table border="0" align="center" width="100%" cellspacing="0" cellpadding="0">
+	<tr>		
+		<td width="5%" height="22" background="images/manage_top_bg.gif"><img onclick="switchBar(this)" src="images/manage_arrow_right.gif" style="cursor:hand" title="关闭左边管理菜单" align="absMiddle"><td>
+		<td width="95%" background="images/manage_top_bg.gif">当前位置：<span class="shadow" id="locationid"></span></td>
+	</tr>
+</table>
+<table border="0" align="center" width="100%" cellspacing="0" cellpadding="0">
+	<tr>
+		<td height="6"></td>
+	</tr>
+</table><script language="JavaScript">locationid.innerHTML = "修改会员密码";</script>
+<script language="JavaScript">
+<!--
+function CheckForm() {
+	if (document.myform.password.value.length == 0) {
+		alert("请输入您的原始密码!");
+		document.myform.password.focus();
+		return false;
+	}
+	if (document.myform.password1.value.length == 0) {
+		alert("请输入您的新密码!");
+		document.myform.password1.focus();
+		return false;
+	}
+	if (document.myform.codestr.value.length != 4) {
+		alert("验证码输入有误!");
+		document.myform.codestr.focus();
+		return false;
+	}
+	if (document.myform.password2.value.length == 0) {
+		alert("请输入您的确认密码");
+		document.myform.password2.focus();
+		return false;
+	}
+		return true;
+}
+//-->
+</script>
+<table cellspacing=0 align=center cellpadding=0 width="98%" border=0> 
+	<tr>
+		<td>
+			<form method="post" name=myform action="<%=request.getContextPath()%>/servletspuser?action=changepwd" onsubmit="return CheckForm();">
+			<table cellspacing=1 align=center cellpadding=2 bgcolor=#cccccc border=0 class=Usertableborder>
+			<tr>
+				<th colspan=2>修改密码</th>
+			</tr>
+				<tr>
+					<td align=right width="38%" class=Usertablerow1 height=20>用户名：</td>
+					<td width="62%" class=Usertablerow1> <strong class=userfont1><%=request.getSession().getAttribute("name")%></strong>
+						<input type=hidden name="username" value="<%=request.getSession().getAttribute("name")%>"><input type=hidden name=userid value="1"></td></tr>
+				<tr>
+					<td align=right class=Usertablerow2 height=20>原始密码(<font color=#ff6600>*</font>)：</td>
+					<td class=Usertablerow2> <input class=inputbody type=password size=20 name=password></td>
+				</tr>
+				<tr>
+					<td align=right class=Usertablerow1 height=20>新密码(<font color=#ff6600>*</font>)：</td>
+					<td class=Usertablerow1> <input class=inputbody type=password size=20 name=password1></td>
+				</tr>
+				<tr bgcolor=#ffffff>
+					<td align=right class=Usertablerow2 height=20>&nbsp;确认新密码(<font color=#ff6600>*</font>)：</td>
+					<td class=Usertablerow2> <input type=password class=inputbody size=20 name=password2> </td>
+				</tr>
+				<tr>
+					<td align=middle class=Usertablerow2 height=25>&nbsp; </td>
+					<td class=Usertablerow2 align=center><input type=submit value=" 确 认 " name=submit class=button></td>
+				</tr>
+			</table></form>
+		</td>
+	</tr>
+</table>
+<table align=center cellspacing=3 cellpadding=0 width="98%" border=0>
+	<tr>
+		<td width=15></td>
+		<td><strong class=userfont2>注意事项：</strong></td></tr>
+	<tr>
+	<tr>
+		<td><img height=10 src="images/sword03.gif" width=10 align=absMiddle></td>
+		<td>用户密码为您管理您的帐号网站的钥匙，请妥善保管好。</td></tr>
+	<tr>
+		<td><img height=10 src="images/sword03.gif" width=10 align=absMiddle></td>
+		<td>密码最好包括数字,字母和符号。只有数字的密码容易被猜破,不安全。</td></tr>
+	<tr>
+		<td><img height=10 src="images/sword03.gif" width=10 align=absMiddle></td>
+		<td>只有旧密码正确才能修改成功!</td></tr>
+	<tr>
+		<td><img height=10 src="images/sword03.gif" width=10 align=absMiddle></td>
+		<td>带“<font color=#ff6600>*</font>”号必填。</td>
+	</tr>
+</table>
+<br style="overflow: hidden; line-height: 5px">
+</body>
+</html>

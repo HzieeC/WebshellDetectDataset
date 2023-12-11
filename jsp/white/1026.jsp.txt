@@ -1,0 +1,30 @@
+<%@ page contentType="text/html; charset=GBK" isELIgnored="false" %>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br>
+	<%
+		String js=(String)request.getAttribute("js");
+	%>
+<table border=0 align=center cellpadding=2 cellspacing=1 class=tableBorder>
+  <tr>
+    <th><strong>广告JS调用代码</strong></th></tr>
+  <tr height=25>
+    <td class=TableRow1><B>说明：</B><br> 
+	复制以下代码到模板中进行调用
+		<font color="red">
+			<xmp><%=js%></xmp>
+
+		</font>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

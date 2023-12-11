@@ -1,0 +1,130 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<%
+dim action
+action=request.QueryString("action")
+select case action
+	'保存广告位种类
+	case "adplacesave"
+		adplacename=request.Form("adplacename")
+		adplaceid=request.QueryString("adplaceid")
+		'判断新增的广告位是否有重复的
+		if adplaceid="" then
+			sql="select adplace_id from JOB_Adplace where adplace_name='"&adplacename&"' and projectid="&DefaultTPID&""
+		else
+			sql="select adplace_id from JOB_Adplace where adplace_name='"&adplacename&"' and projectid="&DefaultTPID&" and adplace_id<>"&adplaceid&""
+		end if
+		set rs=Server.CreateObject(FR_HR_RS)
+		rs.open sql,conn,1,1
+		if not rs.eof then
+			response.Write("<script>alert(""广告位种类名称["&adplacename&"]已经存在,请返回!"");history.go(-1);</script>")
+			response.End()
+		end if
+		rs.close
+		set rs=nothing
+		if adplaceid="" then
+			'添加广告种类
+			sql="Insert into JOB_Adplace(adplace_name,projectid) values('"&adplacename&"','"&DefaultTPID&"')"
+		else
+			sql="Update JOB_Adplace set adplace_name='"&adplacename&"' where adplace_id="&adplaceid&""
+		end if
+		conn.execute(sql)
+		response.Write("<script>alert(""编辑广告位种类成功！"");location.href(""adplace.asp"");</script>")
+		response.End()
+		
+	'删除广告位种类,同时删除其下的广告位和广告
+	case "adplcaedel"
+		adplaceid=request.QueryString("adplaceid")
+		if adplaceid<>"" and Isnumeric(adplaceid) then
+			'查该广告种类下的广告并删除广告图片
+			sql1="select Ad_id,Ad_pic from JOB_Ad where Ad_placeid="&adplaceid&" and projectid="&DefaultTPID&""
+			set rs1=Server.CreateObject(FR_HR_RS)
+			rs1.open sql1,conn,1,1
+			if not rs1.eof then
+				'循环删除广告图片
+				for i=1 to rs1.recordcount
+					adpath="../../adpic/"&rs1("Ad_pic")
+					Call DoDelFile(adpath)
+				rs1.movenext
+				next
+			end if
+			rs1.close
+			set rs1=nothing
+			'删除广告数据
+			conn.execute("Delete From JOB_Ad where Ad_placeid="&adplaceid&" and projectid="&DefaultTPID&"")
+			'删除广告位数据
+			conn.execute("Delete From JOB_Adsplace where Adsplace_placeid="&adplaceid&" and projectid="&DefaultTPID&"")
+			'删除广告种类数据
+			conn.execute("Delete From JOB_Adplace where adplace_id="&adplaceid&" and projectid="&DefaultTPID&"")		
+			response.Write("<script>alert(""删除广告位种类成功！"");location.href(""adplace.asp"");</script>")
+			response.End()
+		end if		
+		
+	'保存广告位
+	case "adpricesave"
+		adpriceid=request.QueryString("adpriceid")
+		adpricename=request.Form("adpricename")
+		adrow=request.Form("adrow")
+		adwidth=request.Form("adwidth")
+		adid=request.Form("adid")
+		admoney=request.Form("admoney")
+		adunit=request.Form("adunit")
+		adplaceid=request.Form("adplaceid")
+		
+		if adpriceid="" then
+			sql="select Adsplace_id from JOB_Adsplace where (Adsplace_name='"&adpricename&"' or Adsplace_priceid="&adid&") and projectid="&DefaultTPID&""
+		else
+			sql="select Adsplace_id from JOB_Adsplace where (Adsplace_name='"&adpricename&"' or Adsplace_priceid="&adid&") and projectid="&DefaultTPID&" and Adsplace_id<>"&adpriceid&""
+		end if
+		set rs=Server.CreateObject(FR_HR_RS)
+		rs.open sql,conn,1,1
+		if not rs.eof then
+			response.Write("<script>alert(""广告位名称["&adplacename&"]或者编号["&adid&"]已经存在,请返回!"");history.go(-1);</script>")
+			response.End()
+		end if
+		rs.close
+		set rs=nothing
+		
+		if adpriceid="" then
+			'添加广告位
+			sql="Insert into JOB_Adsplace(Adsplace_name,Adsplace_placeid,Adsplace_priceid,Adsplace_price,Adsplace_unit,Adsplace_row,Adsplace_width,projectid) values('"&adpricename&"','"&adplaceid&"','"&adid&"','"&admoney&"','"&adunit&"','"&adrow&"','"&adwidth&"','"&DefaultTPID&"')"
+		else
+			'修改广告位同时修改其下的广告
+			sql="Update JOB_Adsplace set Adsplace_name='"&adpricename&"',Adsplace_placeid='"&adplaceid&"',Adsplace_priceid='"&adid&"',Adsplace_price='"&admoney&"',Adsplace_unit='"&adunit&"',Adsplace_row='"&adrow&"',Adsplace_width='"&adwidth&"' where Adsplace_id="&adpriceid&" and projectid="&DefaultTPID&""
+			
+			'修改该广告位下的广告的宽*高
+			conn.execute("Update JOB_Ad set Ad_width='"&adwidth&"' where Ad_priceid="&adpriceid&" and projectid="&DefaultTPID&"")			
+		end if
+		conn.execute(sql)
+		response.Write("<script>alert(""编辑广告位成功！"");location.href(""adplace.asp"");</script>")
+		response.End()	
+	
+	'删除广告位，同时删除其下的广告	
+	case "adpricedel"
+		adpriceid=request.QueryString("adpriceid")
+		if adpriceid<>"" and Isnumeric(adpriceid) then
+			'查该广告位下的广告并删除广告图片
+			sql1="select Ad_id,Ad_pic from JOB_Ad where Ad_priceid="&adpriceid&" and projectid="&DefaultTPID&""
+			set rs1=Server.CreateObject(FR_HR_RS)
+			rs1.open sql1,conn,1,1
+			if not rs1.eof then
+				'循环删除广告图片
+				for i=1 to rs1.recordcount
+					adpath="../../adpic/"&rs1("Ad_pic")
+					Call DoDelFile(adpath)
+				rs1.movenext
+				next
+			end if
+			rs1.close
+			set rs1=nothing
+			'删除广告数据
+			conn.execute("Delete From JOB_Ad where Ad_priceid="&adpriceid&" and projectid="&DefaultTPID&"")
+			'删除广告位数据
+			conn.execute("Delete From JOB_Adsplace where Adsplace_id="&adpriceid&" and projectid="&DefaultTPID&"")
+			response.Write("<script>alert(""删除广告位成功！"");location.href(""adplace.asp"");</script>")
+			response.End()
+		end if		
+end select
+%>

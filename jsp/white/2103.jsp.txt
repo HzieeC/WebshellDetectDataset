@@ -1,0 +1,317 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<%@ page import="global.security.SessionUtils"%>
+<%@ page import="util.MessageUtils"%>
+<!DOCTYPE html>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		// 调用页面
+		String pageName = request.getParameter("page");
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<link rel="stylesheet" type="text/css" href="<%=baseUrl %>/websrc/css/pictureList.css" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 全局参数
+			var baseParams = {start:0, limit:<%=Constants.PAGE_SIZE_PICTURE %>, delflag:"<%=Constants.DEL_FLAG_1 %>"};
+			// 选中的图片id
+			var pictureUrls = '';
+
+			// 相册树Loader
+			var albumTreeLoader = new Ext.tree.TreeLoader({
+			    dataUrl: '<%=baseUrl%>/albumAction.do?method=getAlbumTree',
+			    listeners: {
+					beforeload: function(loader,node,response){
+						this.baseParams.parentId = node.id
+					},
+					load: function(loader,node,response){
+						var jsonResult = Ext.decode(response.responseText);
+						if(jsonResult && jsonResult.exceptionMsg && jsonResult.exceptionMsg!=''){
+							Anynote.exceptionWindow(jsonResult.message, jsonResult.exceptionMsg);
+						}
+					}
+				}
+			});
+			// 相册树Panel
+			var albumTree = new Ext.tree.TreePanel({
+				id: 'albumTreePanel',
+			    useArrows: true,
+			    autoScroll: true,
+			    animate: true,
+			    enableDD: true,
+			    containerScroll: true,
+			    border: false,
+			    loader: albumTreeLoader,
+			    rootVisible: false,
+			    root: {
+			        nodeType: 'async',
+			        text: 'root',
+			        draggable: false,
+			        id: '-1'
+		    	},
+		    	listeners: {
+		    		click: function(node) {
+		    			if(node.id=='allPicture'){
+		    				baseParams.albumId = '';
+			    		}else{
+		    				baseParams.albumId = node.id;
+				    	}
+	    				addAlbumImageStore.reload({
+	    					params: baseParams
+		    			});
+	    			}
+				}
+			});
+			albumTree.getRootNode().expand();
+
+			// 笔记数据源
+		    var addAlbumImageStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/pictureAction.do?method=queryForPaging',
+		        root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['pictureId', 'pictureName', 'type', 'lpath', 'spath'],
+		        sortInfo: {
+		            field    : 'pictureId',
+		            direction: 'DESC'
+		        },
+		        baseParams: baseParams,
+		        autoLoad: true
+		    });
+
+		 	// 分页工具栏
+			var addAlbumImageBottomBar = new Ext.PagingToolbar({
+				pageSize: <%=Constants.PAGE_SIZE_PICTURE %>,
+				store: addAlbumImageStore,
+				displayInfo: true,
+				displayMsg: Anynote.PAGINGTOOLBAR_DISPLAYMSG,
+				emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+				doLoad: function(start){
+					baseParams.start = start;
+					this.store.load({
+						params: baseParams
+					});
+				}
+	        });
+
+		 	// 图片属性
+			var imageAttrFormPanel = new Ext.FormPanel({
+				id: 'imageAttrFormPanel',
+				region: 'north',
+				layout: 'fit',
+				bodyStyle: 'padding:5px;border-width:0px;border-bottom-width:1px;',
+				height: 35,
+		        labelWidth: 60,
+		        url: '',
+		        items: [{
+		            layout:'column',
+		            border: false,
+		            items:[{
+		                columnWidth:.5,
+		                layout: 'form',
+		                border: false,
+		                items: [
+				           new Ext.form.NumberField ({// 图片宽度
+				               name:'imageWidth',
+				               fieldLabel:'图片宽度',
+				               anchor:'95%',
+				               allowBlank:true,
+				               decimalPrecision: 0
+				           })]
+		            },{
+		                columnWidth:.5,
+		                layout: 'form',
+		                border: false,
+		                items: [
+				           new Ext.form.NumberField ({// 图片高度
+				               name:'imageHeight',
+				               fieldLabel:'图片高度',
+				               anchor:'95%',
+				               allowBlank:true,
+				               decimalPrecision: 0
+				           })]
+		            }]
+		        }]
+		    });
+
+			// 图片显示模板
+			var addAlbumImageTpl = new Ext.XTemplate(
+				'<tpl for=".">',
+		            '<div class="thumb-wrap" id="{lpath}">',
+			            '<div class="thumb-subwrap">',
+						    '<div class="thumb">',
+						    	'<img src="<%=baseUrl + MessageUtils.setParamMessage(Constants.UPLOAD_PICTURE_PATH, new String[]{SessionUtils.getCurrentUserId()}) + "/" + Constants.THUMBNAIL%>/{spath}" title="{pictureName}">',
+						    	'<span>{pictureName}.{type}</span>',
+						    '</div>',
+						'</div>',
+				    '</div>',
+		        '</tpl>',
+		        '<div class="x-clear"></div>'
+			);
+			// 图片显示DataView
+			var addAlbumImageDataView = new Ext.DataView({
+				id: 'addAlbumImageDataView',
+				bodyStyle: 'background-color: transparent;',
+				region: 'center',
+				layout: 'fit',
+	            store: addAlbumImageStore,
+	            loadingText: '加载中...',
+	            tpl: addAlbumImageTpl,
+	            multiSelect: true,
+	            autoScroll  : true,
+	            overClass:'x-view-over',
+	            cls: 'pictureDataViewDiv',
+	            itemSelector:'div.thumb-wrap',
+	            plugins: [
+	                new Ext.DataView.DragSelector()
+	            ],
+	            prepareData: function(data){
+	                data.pictureName = Ext.util.Format.ellipsis(data.pictureName, 10);
+	                return data;
+	            },
+	            listeners: {
+	            	selectionchange: function(dv,nodes){
+	            		pictureUrls = '';
+						for(i=0;i<nodes.length;i++){
+							var node = nodes[i];
+							pictureUrls = pictureUrls + node.id + ';';
+						}
+	            	}
+	            }
+	        });
+			// 图片显示panel
+			var addAlbumImageViewPanel = new Ext.Panel({
+				id: 'addAlbumImageViewPanel',
+				region: 'center',
+				layout: 'border',
+				bodyStyle: 'background-color: #ffffff;',
+				items: [imageAttrFormPanel, addAlbumImageDataView],
+				tbar: new Ext.Toolbar({
+			    	items: [
+					    new Ext.Button({
+							text: '确定',
+							iconCls: 'tick',
+							handler: function(){
+								if(pictureUrls != ''){
+									// 目标Form
+									var formPanelId = 'editNoteFormPanel';
+									if('<%=pageName%>'=='addNote'){
+										formPanelId = 'addNoteFormPanel';
+									}else if('<%=pageName%>'=='noteList'){
+										formPanelId = 'editNoteFormPanel';
+									}
+									// 选中图片的url数组
+									var urlArr = pictureUrls.split(';');
+									var baseImgUrl = '<%=baseUrl + MessageUtils.setParamMessage(Constants.UPLOAD_PICTURE_PATH, new String[]{SessionUtils.getCurrentUserId()}) %>';
+									
+									// 取得自定义的图片高度、宽度、百分比
+									var form = imageAttrFormPanel.getForm();
+									var width = '';
+									var height = '';
+						   			if(form.isValid()){
+								    	// 宽度
+							    		var width = form.findField('imageWidth').getValue();
+							    		// 高度
+							    		var height = form.findField('imageHeight').getValue();
+							    	}else{
+										return;
+								    }
+
+							    	// 插入图片的html
+									var imgHtml = '';
+									for(i=0;i<urlArr.length-1;i++){
+										var src = baseImgUrl + '/' + urlArr[i];
+							    		if(width && width!='' && height && height!=''){
+							    			imgHtml = imgHtml + '<a href="'+src+'" target="_blank"><img src="'+src+'" width="'+width+'" height="'+height+'"/></a><br/>';
+							    		}else{
+											imgHtml = imgHtml + '<a href="'+src+'" target="_blank"><img src="'+src+'"/></a><br/>';
+								    	}
+									}
+									// 设值
+									var editor = Ext.getCmp(formPanelId).getForm().findField('content');
+									if(editor.activated){// 编辑器已激活
+										editor.insertAtCursor(imgHtml);
+									}else{// 编辑器未激活
+										editor.setValue(editor.getValue() + imgHtml);
+									}
+									// 关闭窗口
+									Ext.getCmp('addAlbumImageWindow').close();
+								}else{
+									Ext.Msg.alert('提示','请选择图片.');
+								}
+							}
+						}),
+						new Ext.Button({
+							text: '取消',
+							iconCls: 'cancel',
+							handler: function(){
+								// 关闭窗口
+								Ext.getCmp('addAlbumImageWindow').close();
+							}
+						}),
+						'-',
+						new Ext.Button({
+							text: '上传',
+							iconCls: 'upload',
+							handler: function(){
+								var albumId = "allPicture";
+								var title = '';
+								var selectNode = albumTree.getSelectionModel().getSelectedNode();
+								if(selectNode) {
+									albumId = selectNode.id;
+									title = '图片上传 - '+selectNode.text;
+								}
+								if(albumId=="allPicture" || albumId==""){
+									Ext.Msg.alert('提示', '请选择相册节点.');
+								}else{
+									Anynote.uploadFile({
+										baseUrl: '<%=baseUrl %>',
+										baseParams: {albumId:albumId,userId:"<%=SessionUtils.getCurrentUserId()%>"},
+										action: '/pictureAction.do?method=upload',
+										title: title,
+										fileTypes: '<%=Constants.UPLOAD_PICTURE_TYPE_LIMIT%>',
+										fileSize: '<%=Constants.UPLOAD_PICTURE_SIZE_LIMIT%>',
+										fileCount: <%=Constants.UPLOAD_COUNT_LIMIT%>,
+										callback: function(){
+											baseParams.albumId = albumId;
+						    				addAlbumImageStore.reload({
+						    					params: baseParams
+							    			});
+										}
+									});
+								}
+							}
+						})
+					]
+				}),
+				bbar: addAlbumImageBottomBar
+		    });
+
+			// 左侧菜单
+			var addAlbumImageMenuPanel = new Ext.Panel({
+	            region: 'west',
+	            split: true,
+                width: 200,
+                minSize: 100,
+                maxSize: 300,
+				layout:'fit',
+                collapseMode:'mini',
+				items: albumTree
+	        });
+			// 主面板
+			var addAlbumImagePanel = new Ext.Panel({
+				renderTo: 'addAlbumImageDiv',
+				border: false,
+				layout: 'border',
+				height: 470,
+				items: [addAlbumImageMenuPanel,addAlbumImageViewPanel]
+			});
+		});
+	</script>
+</head>
+<body>
+<div id="addAlbumImageDiv" style="width:100%;height:100%;">
+</div>
+</body>
+</html>

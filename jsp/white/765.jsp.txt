@@ -1,0 +1,35 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%  String basePath = request.getContextPath();%>
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>${title}</title>
+<link rel="stylesheet" href="<%=basePath%>/css/bootstrap-combined.min.css">
+<link rel="stylesheet" type="text/css" href="<%=basePath%>/css/all.css" />
+<script src="<%=basePath%>/js/jquery-1.7.1.min.js"></script>
+<style type="text/css">
+	.header_daohang_ul_style{
+		margin:0px;
+		padding:0px;
+	}
+</style>
+</head>
+<body>
+	<div class="kjwidth">
+		<h4 class="header_h"><a href="<%=basePath%>/">在线繁体字转换器</a></h4>
+	</div>
+	<!-- 导航栏 -->
+	<jsp:include page="templete/header.jsp" />
+	<!-- 导航栏END -->
+	<div class="kjwidth">
+		<p style="text-align:center;margin-top:10px;">${title }</p>
+		<pre>${text }</pre>
+	</div>
+	<!-- 底部 -->
+	<div class="kjwidth">
+		<jsp:include page="templete/footer.jsp" />
+	</div>
+	<!-- 底部END -->
+</body>
+</html>

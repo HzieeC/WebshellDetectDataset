@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<title>新增考试</title> <%-- <script src="${contextPath}/js/common/jquery.js"></script> --%>
+	<script src="${contextPath}/static/jqtrans/jquery.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+<title></title>
+</head>
+<body>
+<div id="dialog" title="Basic dialog" style="display:none">
+  <p>是否创建角色？</p>
+</div>
+<div id="dataDiv" style="display:none">
+<input id="contextPath" value="${contextPath}"/>
+
+</div>
+<form id="userForm">
+<div class="userInfo" id="searchCon">
+						<h1 class="title"><fmt:message key="new.user"/></h1>
+						<table class="yTable margintop">
+							<tr>
+                              <th><fmt:message key="loginName"/><span>*</span></th>
+							  <td><input name="loginName"  id="loginName" type="text" class="inputbox" maxlength="30"/><span></span></td>
+							  <th><fmt:message key="password"/><span>*</span></th>
+							  <td><input name="password" id="password" type="text" class="inputbox" maxlength="50"/><span id="passwordError"></span></td>
+						  </tr>
+							<tr>
+						      <th><fmt:message key="name"/><span>*</span></th>
+							  <td><input name="name"  name="name" type="text" class="inputbox" maxlength="20"/><span></span></td>
+							  <th><fmt:message key="sex"/> <span>*</span></th>
+							  <td >
+							      	<input type="radio" checked="checked" value="0" name="sex" id="sex1"/><label><fmt:message key="female"/></label>
+							      	
+									<input type="radio" value="1" name="sex" id="sex2"/><label><fmt:message key="male"/></label> 
+									  
+							  </td>
+						  </tr>
+							<tr>
+						      <th><fmt:message key="moble"/><span>*</span></th>
+							  <td><input name="mobile" id="mobile" type="text" class="inputbox" maxlength="20"   onafterpaste="this.value=this.value.replace(/[^\d|-|+]/g,'')"/><span></span></td>
+                              <th><fmt:message key="department"/></th>
+							  <td><input name="department" id="department" type="text" class="inputbox" maxlength="20"  />
+							  <input id="departmentId" name="departmentId" type="hidden" value="">
+						          <span></span>
+						     </td>
+						  </tr>
+						  <tr>
+						   <th><fmt:message key="role.name"/><span>*</span></th>
+						   <td colspan="3">
+								<div class="uum_bottomsolid">
+										    <div class="uum_selected" style="float: left; width:120px; "> <fmt:message key="select.name"/>
+										      <select style="height:140px;width:200px" multiple="multiple" name="role"  id="to_select_role" class="inputbox">
+										        <c:if test="${!empty allRoles}">
+										        <c:forEach items="${allRoles}" var="role">
+										       		 <option value="${role.code}" >${role.name}</option>
+										        </c:forEach>
+										        </c:if>
+										      </select>
+										    </div>
+										    <div class="uum_selected1" style="float: left; width:90px; padding-top: 70px; padding-left: 110px;">
+										      <input type="button" id="rightButton" class="buttonright" value=">>" name=""/>
+										      <input type="button" id="leftButton"class="buttonleft" value="<<" name=""/>
+										    </div>
+										    <div class="uum_selected2" style="float: left; width:120px; "><fmt:message key="selected.name"/>
+										      <select style="height:140px;width:200px" multiple="multiple" name="selectedRoles" id="selected_role" class="inputbox">
+										      </select>
+										      <span></span>
+										    </div>
+										    <div class="clear"></div>
+										  </div>
+										  </td>
+							 
+						  </tr>
+							<tr>
+                              <th><fmt:message key="birthday"/> </th>
+							  <td><input name="birthday" id="birthday" type="text" class="inputbox"  readonly="readonly"/><span></span></td>
+							  <th><fmt:message key="user.mail"/></th>
+							  <td><input name="email" id="email" type="text" class="inputbox" maxlength="50"/><span></span></td>
+						  </tr>
+						  	<tr>
+                              <th><fmt:message key="phone"/></th>
+							  <td><input name="phone" id="phone" type="text" class="inputbox" maxlength="20"  onafterpaste="this.value=this.value.replace(/[^\d|-]/g,'')"/><span></span></td>
+						      <th><fmt:message key="fax"/></th>
+						      <td><input name="ext" id="ext" type="text" class="inputbox" maxlength="10"  onafterpaste="this.value=this.value.replace(/[^\d|-]/g,'')"/><span></span></td>
+						  </tr>
+						  	<tr>
+                              <th><fmt:message key="education"/></th>
+							  <td><input name="education" id="education" type="text" class="inputbox" maxlength="20" /><span></span></td>
+						      <th><fmt:message key="position"/></th>
+						      <td><input name="workLimit" id="workLimit" type="text" class="inputbox"  onafterpaste="this.value=this.value.replace(/[^\d]/g,'')"/><span></span></td>
+						  </tr>
+						  	<tr>
+                             <th><fmt:message key="address"/></th>
+							  <td><input name="address" id="address" type="text" class="inputbox" maxlength="50"/><span></span></td>
+						      <th><fmt:message key="origin"/></th>
+						      <td><input name="origin" id="origin" type="text" class="inputbox" maxlength="20"/><span></span></td>
+						  </tr>
+						  	<tr>
+						      <th><fmt:message key="area"/></th>
+							  <td><input name="area" id="area" type="text" class="inputbox" maxlength="10" /><span></span></td>
+							  <th><fmt:message key="postcode"/></th>
+						      <td><input name="zipCode" id="zipCode" type="text" class="inputbox" maxlength="10"  onafterpaste="this.value=this.value.replace(/[^\d]/g,'')"/><span></span></td>
+						  </tr>
+						  <tr>
+						   <th><fmt:message key="Dateofentry"/></th>
+						      <td><input name="outDate" id="outDate" type="text" class="inputbox"  readonly="readonly"/><span></span></td>
+						  <%--<th>地区</th>
+						      <td>
+						      <select name="districtId" id="districtId" style="width:200px">
+						    	    <option value="0">选择 </option>
+							    	<c:forEach items="${districtList}" var="item">
+							    	<option value="${item.districtId}"><c:out value="${item.districtName}"/></option>
+							    	</c:forEach>
+						    	</select>
+                           <span></span></td>
+						  --%></tr>
+						  <tr>
+						  	<th><fmt:message key="Studentnumber"/></th>
+						  	<td><input name="peopleCName" id="peopleCName" type="text" class="inputbox" maxlength="10" /><span></span>
+							<input type="hidden" id="peopleId" name="peopleId" value=""/>
+						  	</td>
+						  </tr>
+						  <tr>
+						    <th><fmt:message key="remark"/></th>
+							  <td style="height: 100px;width: 250px;" colspan="3"><textarea name="remark" id="remark"  ></textarea><span></span></td>
+						  </tr>
+						</table>
+						<div class="Btn"> 
+						<input  id="saveButton" value="<fmt:message key="save"/>" type="button"/> 
+		<input  id="cancleButton" value="<fmt:message key="cancel"/>" type="button"/> 
+							
+						</div>
+</div>
+</form>
+<script type="text/javascript">
+  seajs.use("${scriptBasePath}/user/userNew.js");
+</script>	
+</body>
+</html>

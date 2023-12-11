@@ -1,0 +1,90 @@
+<!--#include file="inc/const.asp"-->
+<!--#include file="../inc/md5.asp"-->
+<!--#include file="../api/cls_api.asp"-->
+<%
+Dim username,password
+Dim repassword,answer
+Dim Rs, SQL
+Dim IsBadness : IsBadness=False
+
+If CLng(NewAsp.MainSetting(26))=-1 Or CLng(NewAsp.MainSetting(26))=999 Then
+	Response.Write "<script>alert('本站禁止使用密码找回功能，如要找回密码请联系管理员！');history.go(-1)</script>"
+	Response.End
+End If
+If Trim(Request("username")) = "" Or Trim(Request("pass")) = "" Or Trim(Request("repass")) = "" Or Trim(Request("answer")) = "" Then
+	Response.Write "<script>alert('非法参数！');history.go(-1)</script>"
+Else
+	username = NewAsp.CheckBadstr(Request("username"))
+	password = NewAsp.CheckBadstr(Request("pass"))
+	repassword = MD5(NewAsp.Checkstr(Request("repass")),16)
+	answer = MD5(Request("answer"),16)
+	If NewAsp.IsValidStr(username) = False Then
+		Response.Write "<script>alert('用户名中含有非法字符！');history.go(-1)</script>"
+		Response.End
+	End If
+	If NewAsp.IsValidPassWord(password) = False Then
+		Response.Write "<script>alert('密码中含有非法字符！');history.go(-1)</script>"
+		Response.End
+	End If
+	Set Rs = NewAsp.Execute("SELECT userid,password,answer,Badness FROM NC_User WHERE username='" & username & "'")
+	If Rs.EOF And Rs.BOF Then
+		Set Rs = Nothing
+		Response.Write "<script>alert('您输入的用户名不正确，请重新输入。');history.go(-1)</script>"
+		Response.End
+	Else
+		If Rs("Badness")>CLng(NewAsp.MainSetting(26)) And CLng(NewAsp.MainSetting(26))>0 Then
+			Set Rs = Nothing
+			Response.Write "<script>alert('取回密码超过"&NewAsp.MainSetting(26)&"次的限制，请和管理员联系取回密码。');history.go(-1)</script>"
+			Response.End
+		End If
+		If Rs("answer")<>Answer Then IsBadness=True
+		If Rs("password")<>password Then IsBadness=True
+	End If
+	Set Rs = Nothing
+	If IsBadness=True Then
+		NewAsp.Execute ("UPDATE NC_User SET Badness=Badness+1 WHERE username='" & username & "'")
+		Response.Write "<script>alert('您返回的用户资料不正确，非法操作！');history.go(-1)</script>"
+		Response.End
+	End If
+	
+	SQL = "SELECT password,UserGrade,Badness FROM [NC_User] WHERE username='" & username & "' And password='" & password & "' And answer='" & answer & "'"
+	Set Rs = NewAsp.CreateAXObject("adodb.recordset")
+	Rs.Open SQL, Conn, 1, 3
+	If Rs.EOF And Rs.bof Then
+		Response.Write "<script>alert('您返回的用户资料不正确，非法操作！');history.go(-1)</script>"
+	Else
+		If Rs("Badness")>CLng(NewAsp.MainSetting(26)) And CLng(NewAsp.MainSetting(26))>0 Then
+			Response.Write "<script>alert('取回密码超过"&NewAsp.MainSetting(26)&"次的限制，请和管理员联系取回密码。');history.go(-1)</script>"
+			Response.End
+		End If
+		If Rs("UserGrade") = 999 Then
+			Response.Write "<script>alert('非法操作！必须和管理员联系取回密码！');history.go(-1)</script>"
+		Else
+			Rs("password") = repassword
+			Rs("Badness") = 0
+			Rs.Update
+			'-----------------------------------------------------------------
+			'系统整合
+			'-----------------------------------------------------------------
+			Dim API_Newasp,API_SaveCookie,SysKey
+			If API_Enable Then
+				Set API_Newasp = New API_Conformity
+				API_NewAsp.NodeValue "action","reguser",0,False
+				API_NewAsp.NodeValue "username",UserName,1,False
+				Md5OLD = 1
+				SysKey = Md5(API_NewAsp.XmlNode("username") & API_ConformKey,16)
+				Md5OLD = 0
+				API_NewAsp.NodeValue "syskey",SysKey,0,False
+				API_NewAsp.NodeValue "password",Request("repass"),0,False
+				API_NewAsp.SendHttpData
+				Set API_Newasp = Nothing
+			End If
+			'-----------------------------------------------------------------
+			Response.Write "<script>alert('您的密码成功激活，请登陆!');location.replace('./')</script>"
+		End If
+	End If
+	Rs.Close
+	Set Rs = Nothing
+End If
+NewAsp.PageEnd
+%>

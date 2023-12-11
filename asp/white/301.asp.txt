@@ -1,0 +1,165 @@
+<!-- #include file="../inc/conn.asp" -->
+<!-- #include file="inc/function.asp" -->
+<%call login_check()%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3c.org/TR/1999/REC-html401-19991224/loose.dtd">
+<HTML xmlns="http://www.w3.org/1999/xhtml">
+<HEAD>
+<TITLE>数据库管理--Erox系统</TITLE>
+<META http-equiv=Content-Type content="text/html; charset=gb2312">
+<LINK href="images/css_body.css" type=text/css rel=stylesheet>
+<META content="MSHTML 6.00.3790.4275" name=GENERATOR>
+</HEAD>
+<BODY>
+<DIV class=bodytitle>
+<DIV class=bodytitleleft></DIV>
+<DIV class=bodytitletxt>数据库管理</DIV>
+<DIV class=bodytitletxt2><a href="admin_dbback.asp?action=Restore">还原数据库</a> | <a href="admin_dbback.asp?action=BackupData">备份数据库</a> | <a href="admin_dbback.asp?action=Compact">压缩数据库</a></DIV>
+</DIV>
+<div style="width:100%; float:left">
+<%Action=Trim(request("action"))
+Select Case Action
+Case "BackupData"
+	Call AddLog("备份数据库")
+	call BackupData()
+Case "Compact"
+	call ShowCompact()
+Case "CompactData"
+	Call AddLog("压缩数据库")
+	call CompactData()
+Case "Restore"
+	call ShowRestore()
+Case "RestoreData"
+    Call AddLog("还原数据库")
+	call RestoreData()
+Case "delback"
+	Call AddLog("删除备份数据库")
+	call DelBackup()
+Case else
+	call ShowErr("错误参数","admin_dbback.asp?action=Backup")
+End Select
+Function TimeName(DataBackName)
+	DataBackName=Replace(DataBackName,"-","")
+	DataBackName=Replace(DataBackName,":","")
+	DataBackName=Replace(DataBackName," ","")
+	TimeName=DataBackName
+end Function
+sub BackupData()
+	dim DataBackName,DataBackDir,fso
+	DataBackDir="../dbback"
+	DataBackName=TimeName(Now())&"_bak.asa"
+	DataBackDir=server.MapPath(DataBackDir)
+	Set Fso=server.createobject("Scripting.FileSystemObject")
+	if fso.FileExists(server.mappath(".."&web_mdb)) then
+		If fso.FolderExists(DataBackDir)=false Then
+			fso.CreateFolder(DataBackDir)
+		end if
+		fso.copyfile server.mappath(".."&web_mdb),DataBackDir & "\" & DataBackName
+		call ShowErr("备份的数据库为"&DataBackName&"","admin_dbback.asp?action=Restore")
+	Else
+		call ShowErr("找不到源数据库文件，请检查inc/config.asp中的配置！","admin_dbback.asp?action=Restore")
+	End if
+	Set fso = Nothing
+end sub
+
+ sub CompactData()
+	Dim fso, Engine, strweb_dbdir
+	web_dbdirx=Server.mappath("../"&web_mdb)
+	strweb_dbdir = left(web_dbdirx,instrrev(web_dbdirx,"\"))
+	on error resume next
+	Set Conn = Nothing
+	Set Fso=server.createobject("Scripting.FileSystemObject")
+	If fso.FileExists(web_dbdirx) Then
+		Set Engine = CreateObject("JRO.JetEngine")
+		Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & web_dbdirx," Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strweb_dbdir & "temp.mdb"
+		fso.CopyFile strweb_dbdir & "temp.mdb",web_dbdirx
+		fso.DeleteFile(strweb_dbdir & "temp.mdb")
+		Set fso = Nothing
+		Set Engine = Nothing
+		call ShowErr("数据库压缩成功！","admin_dbback.asp?action=Compact")
+	Else
+		call ShowErr("没有找到数据库！","admin_dbback.asp?action=Compact")
+	End If
+end sub 
+
+sub RestoreData()
+	dim backpath,fso
+	backpath="../dbback/"&Request.QueryString("file")
+	if backpath="" then
+		FoundErr=True
+		call ShowErr("请指定原备份的数据库文件名！","admin_dbback.asp?action=Restore")
+		exit sub	
+	end if
+	backpath=server.mappath(backpath)
+	on error resume next
+	Set Conn = Nothing
+	Set Fso=server.createobject("Scripting.FileSystemObject")
+	if fso.fileexists(backpath) then  					
+		fso.copyfile Backpath,Server.mappath("../"&web_mdb)
+		call ShowErr("成功恢复数据！","admin_dbback.asp?action=Restore")
+	else
+		call ShowErr("找不到指定的备份文件！","admin_dbback.asp?action=Restore")
+	end if
+	Set Fso=Nothing
+end sub
+
+Sub DelBackup()
+	dim Document,fso
+	backpath="../dbback/"&Request.QueryString("file")
+	if backpath="" then
+		FoundErr=True
+		call ShowErr("请指定备份的数据库文件名！","admin_dbback.asp?action=Restore")
+		exit sub	
+	end if
+	Set Fso=server.createobject("Scripting.FileSystemObject")
+	fso.DeleteFile(server.mappath(backpath))
+	call ShowErr("删除备份数据库成功！","admin_dbback.asp?action=Restore")
+	Set Fso=Nothing
+End sub
+sub ShowRestore()%>
+<TABLE width="96%" border=0 align=center cellpadding="5" cellSpacing=1 class=tbtitle style="BACKGROUND: #cad9ea;">
+  <TBODY>
+    <TR bgColor=#f5fafe>
+      <TD align="center">备份文件名</TD>
+      <TD width="20%" align="center">备份时间</TD>
+      <TD width="15%" align="center">操作</TD>
+    </TR>
+    <% Dim Fso,i
+	Set Fso=server.createobject("Scripting.FileSystemObject")
+	dim theFolder,theFile,strFileType
+	if Not fso.FolderExists(Server.MapPath("../dbback")) then
+		response.write "找不到数据库备份文件夹"
+		response.end
+	end if
+	Set theFolder=fso.GetFolder(Server.MapPath("../dbback"))
+	For Each theFile In theFolder.Files%>
+    <TR bgcolor="#FFFFFF">
+      <TD align="center"><%=theFile.Name%></TD>
+      <TD align="center"><%=theFile.DateLastModified%></TD>
+      <TD align="center"><a href="admin_dbback.asp?action=RestoreData&file=<%=theFile.Name%>">还原</a> | <a href="admin_dbback.asp?action=delback&file=<%=theFile.Name%>">删除</a></TD>
+	</TR>
+	<%Next
+Set Fso=Nothing%>
+  </TBODY>
+</TABLE>
+<%end sub
+ sub ShowCompact()%>
+<TABLE width="96%" border=0 align=center cellpadding="4" cellSpacing=1 class=tbtitle style="BACKGROUND: #cad9ea;">
+  <form action="?action=CompactData" method="post">
+  <TBODY>
+    <TR>
+      <TD vAlign=center bgColor=#f5fafe><strong>压缩数据库</strong></TD>
+      </TR>
+    <TR>
+      <TD align="center" bgColor=#f5fafe>压缩前，建议先备份数据库，以免发生意外错误。 </TD>
+      </TR>
+    <TR align="center" bgcolor="#f8fbfb">
+      <TD><INPUT class=inputbut type=submit value=压缩数据库 name=Submit></TD>
+    </TR>
+  </TBODY>
+  </form>
+</TABLE>
+ <%end sub
+ call CloseConn()%>
+</div>
+</BODY>
+</HTML>

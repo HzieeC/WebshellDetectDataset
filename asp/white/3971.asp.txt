@@ -1,0 +1,147 @@
+<!--#include file="../conn.asp"-->
+<!--#include file="const.asp"-->
+<%
+Dim ChannelID
+
+ChannelID=NewAsp.ChkNumeric(Request("ChannelID"))
+If ChannelID=0 Then ChannelID=1
+NewAsp.ChannelID=ChannelID
+NewAsp.LoadChannel()
+
+If NewAsp.CheckStr(Request.Form("action"))="save" Then
+	Call savecomment()
+End If
+NewAsp.PageEnd()
+
+Sub AlertScript(str,history)
+	Response.Write "<script>alert('"&Replace(str, "'", "\'")&"');"
+	If history=0 Then Response.Write "history.go(-1);"
+	Response.Write "</script>"
+	Response.End
+End Sub
+
+Sub savecomment()
+	On Error Resume Next
+	Dim Rs,SQL,postid,history,ChkPostData
+	Dim commentid,strHtmlURL
+	history=NewAsp.ChkNumeric(Request.Form("history"))
+	postid=NewAsp.ChkNumeric(Request.Form("postid"))
+	If postid=0 Then
+		Call AlertScript("友情提示!\n\n错误的系统参数!",history):Exit Sub
+	End If
+	If CInt(NewAsp.AppearGrade) <> 0 Then
+		If CInt(NewAsp.AppearGrade) > CInt(NewAsp.membergrade) Then
+			Call AlertScript("友情提示!\n\n您没有发表评论的权限，如果您是会员请登陆后再参与评论。",history)
+			Exit Sub
+		End If
+	End If
+	If Len(Request.Form("username")) < 2 Then
+		Call AlertScript("友情提示!\n\n用户名不能小于两个字符!",history):Exit Sub
+	End If
+	If Not NewAsp.IsValidStr(Request.Form("username")) Then
+		Call AlertScript("友情提示!\n\n你的用户名中含有非法字符!",history):Exit Sub
+	End If
+	If NewAsp.strLength(Request.Form("content")) < NewAsp.LeastString Then
+		Call AlertScript("友情提示!\n\n评论内容不能小于" & NewAsp.LeastString & "字节！",history)
+		Exit Sub
+	End If
+	If NewAsp.strLength(Request.Form("content")) > NewAsp.MaxString Then
+		Call AlertScript("友情提示!\n\n评论内容不能大于" & NewAsp.MaxString & "字节！",history)
+		Exit Sub
+	End If
+	If NewAsp.ChkRefresh Then
+		Call AlertScript("友情提示!\n\n本页面起用了防刷新机制,请不要连续刷新本页面!",history):Exit Sub
+	End If
+	If CLng(NewAsp.MainSetting(24))=1 Then
+		If Not NewAsp.CodeIsTrue() Then
+			Call AlertScript("友情提示!\n\n验证码校验失败，请返回刷新验证码再试。",history):Exit Sub
+		End If
+	End If
+
+	Select Case NewAsp.ChkNumeric(Request.Form("modules"))
+		Case 1
+			Set Rs = NewAsp.Execute("SELECT ArticleID,ForbidEssay FROM NC_Article WHERE ChannelID="&ChannelID&" And isAccept>0 And ArticleID="&CLng(postid))
+			If Rs.BOF And Rs.EOF Then
+				Call AlertScript("友情提示!\n\n错误的系统参数!",history):Exit Sub
+			Else
+				If Rs(1)=1 Then
+					Call AlertScript("友情提示!\n\n禁止发表评论!",history):Exit Sub
+				End If
+			End If
+			Set Rs = Nothing
+			strHtmlURL="html_1.asp"
+		Case 2
+			Set Rs = NewAsp.Execute("SELECT softid,ForbidEssay FROM NC_SoftList WHERE ChannelID="&ChannelID&" And isAccept>0 And softid="&CLng(postid))
+			If Rs.BOF And Rs.EOF Then
+				Call AlertScript("友情提示!\n\n错误的系统参数!",history):Exit Sub
+			Else
+				If Rs(1)=1 Then
+					Call AlertScript("友情提示!\n\n禁止发表评论!",history):Exit Sub
+				End If
+			End If
+			Set Rs = Nothing
+			strHtmlURL="html_2.asp"
+		Case 5
+			Set Rs = NewAsp.Execute("SELECT flashid,ForbidEssay FROM NC_FlashList WHERE ChannelID="&ChannelID&" And isAccept>0 And flashid="&CLng(postid))
+			If Rs.BOF And Rs.EOF Then
+				Call AlertScript("友情提示!\n\n错误的系统参数!",history):Exit Sub
+			Else
+				If Rs(1)=1 Then
+					Call AlertScript("友情提示!\n\n禁止发表评论!",history):Exit Sub
+				End If
+			End If
+			Set Rs = Nothing
+			strHtmlURL="html_5.asp"
+	Case Else
+		Call AlertScript("友情提示!\n\n错误的频道参数。",history):Exit Sub
+	End Select
+	'--检查审核条件
+	ChkPostData = NewAsp.NeedIsAudit(Request.Form("content"), Request.Form("username"))
+	Set Rs = NewAsp.CreateAXObject("ADODB.RecordSet")
+	SQL = "SELECT * FROM NC_Comment WHERE (CommentID is null)"
+	Rs.Open SQL, Conn, 1, 3
+	Rs.AddNew
+		Rs("ChannelID") = ChannelID
+		Rs("postid") = postid
+		If NewAsp.membername<>"" Then
+			Rs("UserName") = NewAsp.RequestForm(NewAsp.membername,30)
+		Else
+			Rs("UserName") = NewAsp.RequestForm(Request.Form("username"),20)
+		End If
+		If NewAsp.ChkNumeric(Request.Form("grade"))>100 Then
+			Rs("Grade") = 100
+		Else
+			Rs("Grade") = NewAsp.ChkNumeric(Request.Form("grade"))
+		End If
+		Rs("content") = Server.HTMLEncode(Request.Form("content"))
+		Rs("postime") = Now()
+		Rs("postip") = NewAsp.UserTrueIP
+		If NewAsp.ChkNumeric(Request.Form("goodbad"))=0 Then
+			Rs("good") = 1:Rs("bad") = 0
+		Else
+			Rs("good") = 0:Rs("bad") = 1
+		End If
+		Rs("apprize") = NewAsp.ChkNumeric(Request.Form("apprize"))
+		If ChkPostData Then
+			Rs("Audit") = 1
+		Else
+			Rs("Audit") = 0
+		End If
+	Rs.Update
+	Rs.Close: Set Rs = Nothing
+	Set Rs=NewAsp.Execute("SELECT TOP 1 commentid FROM [NC_Comment] WHERE ChannelID="&ChannelID&" ORDER BY commentid DESC")
+	If Rs.EOF Then commentid=0 Else commentid=Rs(0)
+	Rs.Close: Set Rs = Nothing
+	If commentid>0 And ChkPostData=False And NewAsp.IsCreateHtml=1 Then
+		Session("CommentHtml")="1"
+		strHtmlURL=strHtmlURL&"?ChannelID="&ChannelID&"&commentid="&commentid&"&d="&ChkPostData
+		Response.Write "<script src="""&strHtmlURL&""" type=""text/javascript""></script>"
+		Response.Flush
+	End If
+	Response.Write "<script language=""JavaScript"">"
+	Response.Write "alert('恭喜您!评论提交成功');"
+	Response.Write "try{top.location.replace(document.referrer);"
+	Response.Write "}catch(e){}"
+	Response.Write "</script>"
+End Sub
+%>

@@ -1,0 +1,135 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.trade.ti_onlineasklog.*"%>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Hashtable Ti_onlineasklog = new Hashtable();
+	String s_current_qq = "";
+	if(request.getParameter("s_current_qq")!=null && !request.getParameter("s_current_qq").equals("")){
+		s_current_qq = request.getParameter("s_current_qq");
+		Ti_onlineasklog.put("current_qq",s_current_qq);
+	}
+
+	String iStart = "0";
+	int limit = 20;
+	Ti_onlineasklogInfo askInfo=new Ti_onlineasklogInfo();
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = askInfo.getListByPage(Ti_onlineasklog,Integer.parseInt(iStart),limit);
+	int counter = askInfo.getCountByObj(Ti_onlineasklog);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?iStart=",Integer.parseInt(iStart),limit);
+    
+	%>
+<html>
+  <head>
+    
+    <title>咨询日志管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/engine.js"></script>
+	<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/util.js"></script>
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="80%">
+				<h1>咨询日志管理</h1>
+			</td>
+			
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post"> 
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+			  QQ:<input name="s_current_qq" type="text" />
+				<input name="searchInfo" type="button" value="查询" onclick="search();"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+		  	<th>访问者域名</th>
+		  	<th>访问者IP</th>  
+		  	<th>请求地址</th>  		
+		  	<th>值班QQ</th>
+		  	<th>访问时间</th>
+			
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String trade_id="",req_dns="",user_ip="",req_path="",in_date="",current_qq="";
+		  			  	if(map.get("trade_id")!=null) trade_id = map.get("trade_id").toString();
+						if(map.get("req_dns")!=null) req_dns = map.get("req_dns").toString();
+						if(map.get("user_ip")!=null) user_ip = map.get("user_ip").toString();
+						if(map.get("req_path")!=null) req_path = map.get("req_path").toString();
+						if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+						if(map.get("current_qq")!=null) current_qq = map.get("current_qq").toString();
+						if(in_date.length()>19)in_date=in_date.substring(0,19);
+
+		  %>
+		
+		<tr>
+		  	<td><%=req_dns%></td>
+		  	<td><%=user_ip%></td>	
+		  	<td><%=req_path%></td>
+		  	<td><%=current_qq%></td>		  	
+		  	<td><%=in_date%></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="9892" />
+	  </form>
+</body>
+
+</html>

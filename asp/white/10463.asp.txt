@@ -1,0 +1,214 @@
+﻿<!--#include file="base.asp"-->
+<%
+''' SDCMS 消息
+''' ==================================================================
+''' 版权所有 http://www.sdcms.cn
+''' ------------------------------------------------------------------
+''' 这不是一个自由软件！您只能在不用于商业目的的前提下对程序代码进行修改和使用；
+''' 未经授权不允许对程序代码以任何形式任何目的的再发布。
+''' ==================================================================
+''' 编写: IT平民
+''' 修改：IT平民 in 2012.07
+
+	sub gettip()
+		dim q:q=sdcms.fget("q",0)
+		if sdcms.strlen(q)>0 then
+			dim data,i,str,wherekey
+			if datatype then
+				wherekey=" instr(lcase(username),lcase('"&q&"'))>0 "
+			else
+				wherekey=" username like '%"&q&"%'"
+			end if
+			data=sdcms.db.dbload(10,"username","sd_user",wherekey,"")
+			if ubound(data)>=0 then
+				for i=0 to ubound(data,2)
+					str=str&data(0,i)&chr(10)
+				next
+				sdcms.echo str
+			end if
+		end if
+	end sub
+	
+	sub adddb()
+		dim t0,t1,t2,t3,t4,t5
+		dim data,sqlwhere
+		t0=sdcms.getint(sdcms.fpost("t0",0),0)
+		t1=sdcms.enhtml(sdcms.fpost("t1",0))
+		t2=sdcms.enhtml(sdcms.fpost("t2",0))
+		t3=sdcms.enhtml(sdcms.fpost("t3",0))
+		t4=sdcms.enhtml(sdcms.fpost("t4",0))
+		t5=sdcms.getint(sdcms.fpost("t5",0),0)
+		sqlwhere=""
+		select case t0
+			case "1"
+			case "2"
+				if sdcms.strlen(t1)=0 then
+					sdcms.echo "0&#33267;&#23569;&#36873;&#25321;&#49;&#20010;&#20250;&#21592;&#32452;"
+					exit sub
+				end if
+				t1=replace(t1," ","")
+				sqlwhere=sqlwhere&"groupid in("&t1&")"
+			case "3"
+				if sdcms.strlen(t2)=0 then
+					sdcms.echo "0&#20250;&#21592;&#21517;&#19981;&#33021;&#20026;&#31354;"
+					exit sub
+				end if
+				if not(sdcms.checkstr(t2,"username")) then
+					sdcms.echo "0&#20250;&#21592;&#21517;&#38169;&#35823;"
+					exit sub
+				end if
+				data=sdcms.db.dbload(1,"id","sd_user","username='"&t2&"'","")
+				if ubound(data)<0 then
+					sdcms.echo "0&#20250;&#21592;&#21517;&#38169;&#35823;"
+					exit sub
+				end if
+					sqlwhere=sqlwhere&"username='"&t2&"'"
+			case else
+				sdcms.echo "0&#21442;&#25968;&#38169;&#35823;"
+				exit sub
+		end select
+		if sdcms.strlen(t3)=0 then
+			sdcms.echo "0&#26631;&#39064;&#19981;&#33021;&#20026;&#31354;"
+			exit sub
+		end if
+		if sdcms.strlen(t4)=0 then
+			sdcms.echo "0&#20869;&#23481;&#19981;&#33021;&#20026;&#31354;"
+			exit sub
+		end if
+		
+		data=sdcms.db.dbload("","id,islock,email","sd_user",sqlwhere,"id desc")
+		dim i:i=0
+		dim j:j=0
+		if ubound(data)>=0 then
+				sdcms.setsession "message_arr",data
+				sdcms.setsession "message_title",t3
+				sdcms.setsession "message_content",t4
+				dim total:total=ubound(data,2)+1
+				sdcms.echo "2"&total
+		else
+			sdcms.echo "1&#27809;&#26377;&#20449;&#24687;&#35201;&#21457;&#36865;"
+		end if
+	end sub
+	
+	sub sendmessage()
+		dim data:data=sdcms.loadsession("message_arr")
+		dim title:title=sdcms.loadsession("message_title")
+		dim content:content=sdcms.loadsession("message_content")
+		dim total:total=sdcms.getint(sdcms.fget("total",1),100)
+		dim thisid:thisid=sdcms.getint(sdcms.fget("thisid",1),0)
+		dim types:types=sdcms.getint(sdcms.fget("types",1),0)
+		dim i,j,steps
+		j=0
+		if types=1 then
+			steps=100
+		else
+			steps=1
+		end if
+		if thisid>=total then
+			sdcms.echo "&#21457;&#36865;&#23436;&#27605;"
+			exit sub
+		end if
+		for i=thisid to total-1
+			if data(1,i)=1 then
+				if types=1 then
+					sdcms.createusermessage array(array("title",title,255,1),array("fromid",-1,0,0),array("userid",data(0,i),0,0),array("content",content,0,1),array("createdate",now(),0,1),array("isread",0,0,0))
+				else
+					sdcms.sendmail data(2,i),title,content
+				end if
+				j=j+1
+				steps=steps-1
+				sdcms.echo "&#24635;&#35745;&#38656;&#35201;&#21457;&#36865;"&total&"&#26465;&#65292;&#27491;&#22312;&#21457;&#36865;&#31532;"&i+1&"&#26465;&#28040;&#24687;&#65292;<br>"
+				response.flush()
+				
+				if i=total-1 then
+					sdcms.echo "&#21457;&#36865;&#23436;&#27605;"
+					response.flush()
+					exit for
+				end if
+				
+				if steps=0 then
+					if total-i>0 then
+						sdcms.echo "<script>setTimeout(""location.href='?act=send&total="&total&"&types="&types&"&thisid="&i+1&"';"",""100"");</script>"
+						exit for
+					end if
+				end if
+				
+			end if
+		next
+		
+	end sub
+	
+	sub del()
+		dim id:id=sdcms.getint(sdcms.fget("id",0),0)
+		if id>0 then
+			sdcms.db.dbdel "sd_user_message","id="&id&""
+		end if
+		sdcms.echo "1"
+	end sub
+	
+	sub delall()
+		dim id:id=sdcms.enhtml(sdcms.fget("id",0))
+		dim idarr:idarr=split(id,",")
+		if ubound(idarr)<0 then
+			sdcms.echo "0&#33267;&#23569;&#36873;&#25321;&#19968;&#26465;&#20449;&#24687;"
+		else
+			dim i
+			for i=0 to ubound(idarr)
+				if not isnumeric(idarr(i)) then
+					sdcms.echo "0&#21442;&#25968;&#65306;"&id(i)&"&#19981;&#27491;&#30830;&#65292;&#35831;&#30830;&#35748;&#21518;&#20877;&#25805;&#20316;"
+					exit sub
+				end if
+			next
+			sdcms.db.dbdel "sd_user_message","id in("&id&")"
+			sdcms.echo "1"
+		end if
+	end sub
+	
+	sub delno()
+		sdcms.db.dbdel "sd_user_message","isread=0"
+		sdcms.echo "1"
+	end sub
+	
+	islogin
+	checkpagelever 28
+	dim act:act=lcase(sdcms.fget("act",0))
+	dim userid:userid=sdcms.getint(sdcms.fget("userid",0),0)
+	dim keyword:keyword=sdcms.enhtml(sdcms.fget("keyword",1))
+	dim sta:sta=trim(sdcms.fget("sta",1))
+	dim statitle
+	select case act
+		case "db":adddb
+		case "tip":gettip
+		case "add"
+			dim maildata:maildata=sdcms.db.dbload(1,"setvalue","sd_config","setname='sdcms.mail' and setkey='mailtype'","")
+		load eval("theme_user_message_add")
+		case "send":sendmessage
+		case "del":del
+		case "delall":delall
+		case "delno":delno
+		case "show"
+			dim id:id=sdcms.getint(sdcms.fget("id",0),0)
+			load eval("theme_user_message_show")
+		case else
+			dim sqlwhere,wherekey
+			if userid>0 then
+				sqlwhere="and fromid="&userid&""
+			end if
+			if sdcms.strlen(keyword)>0 then
+				if datatype then
+					wherekey=" and instr(lcase(title),lcase('"&keyword&"'))>0 "
+				else
+					wherekey=" and title like '%"&keyword&"%'"
+				end if
+			end if
+			select case sta
+				case "-1":sqlwhere=" and fromid="&sta:statitle="性质:系统通知"
+				case "-2":sqlwhere=" and fromid="&sta:statitle="性质:消费提醒"
+				case "-3":sqlwhere=" and fromid="&sta:statitle="性质:用户成长"
+				case "":statitle="按性质↓"
+				case else:sta=0:wherekey=" and fromid>0":statitle="性质:好友互动"
+			end select
+		load eval("theme_user_message")
+	end select
+	sdcms.db.dbclose
+%>

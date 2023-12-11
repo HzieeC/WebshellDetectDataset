@@ -1,0 +1,25 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@page import="com.bizoss.trade.ti_caseanswer.Ti_caseanswer"%>
+<%@page import="com.bizoss.trade.ti_caseanswer.Ti_caseanswerInfo"%> 
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page"/>
+
+<%
+	String _user_name = "";	
+	if( session.getAttribute("session_user_name") != null&&!"".equals( session.getAttribute("session_user_name")) ){
+		_user_name = session.getAttribute("session_user_name").toString();
+	}
+	String answer_id= bean.GenTradeId(); 
+	String content=request.getParameter("content"); 
+	String casepre_id=request.getParameter("casepre_id"); 
+	content=java.net.URLDecoder.decode(content,"UTF-8"); 
+	Ti_caseanswer  caseanswer=new Ti_caseanswer();
+	caseanswer.setAnswer_content(content);
+	caseanswer.setAnswer_id(answer_id);
+	caseanswer.setAnswer_user(_user_name);
+	caseanswer.setCasepre_id(casepre_id);
+	Ti_caseanswerInfo info =new Ti_caseanswerInfo();
+	String result=info.insert(caseanswer);
+	
+	out.print(result);
+ %>
+

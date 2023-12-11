@@ -1,0 +1,364 @@
+<!--#include file="setup.asp"-->
+<!--#include file="check.asp"-->
+<%
+Server.ScriptTimeOut = 99999
+'=====================================================================
+' 作者声明：转载请保留版权信息，鄙视不要脸的人
+'=====================================================================
+' 程序名称：逐鹿科技发布系统
+' 程序作者：嘬後dè選萚 QQ：63661063 嘬後dè選萚 QQ：63661063
+' 文件名称：Admin_Database.asp
+' 更新日期：2007-6-5
+'=====================================================================
+' 联系方式：Tel：15858171675，QQ：63661063，www.zhaosf3000ok.com
+' 程序开发：嘬後dè選萚,嘬後dè選萚
+' 官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=====================================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=====================================================================
+Dim bkfolder, bkdbname, fso, fso1, Dbpath
+Action = LCase(Request("action"))
+Select Case Action
+  Case "backupdata" '备份数据
+        If Not CheckAdmin("BackupData") Then
+           Server.Transfer("showerr.asp")
+           Request.End
+        End If
+        titlename="数据库备份"
+        Admin_header
+        If request("act") = "Backup" Then
+              Call BackupDatabase()
+        Else
+           Call BackupData()
+        End If
+        If FoundErr = True Then
+           ReturnError(ErrMsg)
+        End If
+        Admin_footer
+        CloseConn
+  Case "compressdata" '压缩数据
+        If Not CheckAdmin("CompressData") Then
+           Server.Transfer("showerr.asp")
+           Request.End
+        End If
+        titlename="数据库压缩"
+        Admin_header
+        If request("act") = "Compress" Then
+           Call CompressDatabase()
+        Else
+           Call CompressData()
+        End If
+        If FoundErr = True Then
+           ReturnError(ErrMsg)
+        End If
+        Admin_footer
+        CloseConn
+  Case "restoredata" '恢复数据
+        If Not CheckAdmin("RestoreData") Then
+           Server.Transfer("showerr.asp")
+           Request.End
+        End If
+        titlename="数据库恢复"
+        Admin_header
+        If request("act") = "Restore" Then
+              Call RestoreDatabase
+              Application.Contents.RemoveAll
+        Else
+           Call RestoreData()
+        End If
+        If FoundErr = True Then
+           ReturnError(ErrMsg)
+        End If
+        Admin_footer
+        CloseConn
+  Case Else
+        titlename="请选取相应的操作"
+        Admin_header
+        Errmsg = ErrMsg + "<BR><li>请选取相应的操作。</li>"
+        ReturnError(ErrMsg)
+        If FoundErr = True Then
+           ReturnError(ErrMsg)
+        End If
+        Admin_footer
+        CloseConn
+End Select
+'====================恢复数据库=========================
+Sub RestoreData()
+      Response.Write "<table align=center border=0 cellspacing=1 cellpadding=2 class=tableBorder>" & vbCrLf
+      Response.Write "<tr>" & vbCrLf
+      Response.Write "<th>恢复Access数据 ( 需要FSO支持，FSO相关帮助请看微软网站 )</th>" & vbCrLf
+      Response.Write "</tr>" & vbCrLf
+      Response.Write "<form method=post action=""?action=RestoreData&act=Restore"">" & vbCrLf
+      Response.Write "<tr>" & vbCrLf
+      Response.Write "<td " & LeftClass & ">" & vbCrLf
+      Response.Write "&nbsp;&nbsp;备份数据库路径(相对)：<input type=text size=45 name=DBpath value=""DataBackup\New_Backup.mdb""><BR>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;目标数据库路径(相对)：<input type=text size=45 name=backpath value=""" & Database & """><BR><BR>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;填写您当前使用的数据库路径，如不想覆盖当前文件，可自行命名（注意路径是否正确）<BR>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;然后修改conn.asp文件，如果目标文件名和当前使用数据库名一致的话，不需修改conn.asp文件<BR>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;<input type=submit value=""恢复数据库"" class=Button> <br>" & vbCrLf
+      Response.Write "-----------------------------------------------------------------------------------------<br>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;在上面填写本程序的数据库路径全名，本程序的默认备份数据库文件为DataBackup\NewCloud_Backup.MDB，请按照您的备份文件自行修改。<br>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;您可以用这个功能来备份您的法规数据，以保证您的数据安全！<br>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;<font color=red>注意：所有路径都是相对与程序空间根目录的相对路径</font>" & vbCrLf
+      Response.Write "</td>" & vbCrLf
+      Response.Write "</tr>" & vbCrLf
+      Response.Write "</form>" & vbCrLf
+      Response.Write "</table>" & vbCrLf
+End Sub
+'====================备份数据库=========================
+Sub BackupData()
+      Response.Write "<table align=center border=0 cellspacing=1 cellpadding=2 class=tableBorder>" & vbCrLf
+      Response.Write "<tr>" & vbCrLf
+      Response.Write "<th>备份Access数据 ( 需要FSO支持，FSO相关帮助请看微软网站 )</th>" & vbCrLf
+      Response.Write "</tr>" & vbCrLf
+      Response.Write "<form method=post action=""?action=BackupData&act=Backup"">" & vbCrLf
+      Response.Write "<tr>" & vbCrLf
+      Response.Write "<td " & LeftClass & ">" & vbCrLf
+      Response.Write "&nbsp;&nbsp;当前数据库路径(相对路径)：<input type=text size=45 name=DBpath size=45 value=""" & Database & """><BR>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;备份数据库目录(相对路径)：<input type=text size=20 name=bkfolder size=45 value=""Databackup"">&nbsp;如目录不存在，程序将自动创建<BR>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;备份数据库名称(填写名称)：<input type=text size=20 name=bkDBname size=45 value=""New_Backup.mdb"">&nbsp;如备份目录有该文件，将覆盖，如没有，将自动创建<BR>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;<input type=submit value=""备份数据库"" class=Button><br>" & vbCrLf
+      Response.Write "-----------------------------------------------------------------------------------------<br>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;在上面填写本程序的数据库路径全名，本程序的默认数据库文件为" & Database & "，<B>请一定不能用默认名称命名备份数据库</B><br>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;您可以用这个功能来备份您的法规数据，以保证您的数据安全！<br>" & vbCrLf
+      Response.Write "&nbsp;&nbsp;<font color=red>注意：所有路径都是相对与程序空间管理目录的相对路径</font>" & vbCrLf
+      Response.Write "</td>" & vbCrLf
+      Response.Write "</tr>" & vbCrLf
+      Response.Write "</form>" & vbCrLf
+      Response.Write "</table>" & vbCrLf
+End Sub
+'====================压缩数据库 =========================
+Sub CompressData()
+      Response.Write "<table align=center border=0 cellspacing=1 cellpadding=2 class=tableBorder>" & vbCrLf
+      Response.Write "<tr>" & vbCrLf
+      Response.Write "<th>压缩数据库 ( 需要FSO支持，FSO相关帮助请看微软网站 )</th>" & vbCrLf
+      Response.Write "</tr>" & vbCrLf
+      Response.Write "<form method=post action=""?action=CompressData&act=Compress"">" & vbCrLf
+      Response.Write "<tr>" & vbCrLf
+      Response.Write "<td " & LeftClass & "><b>注意：</b><br>输入数据库所在相对路径,并且输入数据库名称（正在使用中数据库不能压缩，请选择备份数据库进行压缩操作） </td>" & vbCrLf
+      Response.Write "</tr>" & vbCrLf
+      Response.Write "<tr>" & vbCrLf
+      Response.Write "<td " & LeftClass & ">压缩数据库："
+      Response.Write "<input type=text name=""dbpath"" size=45 value=" & Database & ">&nbsp;"
+      Response.Write "<input type=""submit"" value=""开始压缩"" class=Button></td>" & vbCrLf
+      Response.Write "</tr>" & vbCrLf
+      Response.Write "<tr>" & vbCrLf
+      Response.Write "<td " & LeftClass & ">"
+      Response.Write "<input type=""checkbox"" name=""boolIs97"" value=""True"">"
+      Response.Write " 如果使用 Access 97 数据库请选择"
+      Response.Write "(默认为 Access 2000 数据库)<br><br></td>" & vbCrLf
+      Response.Write "</tr>" & vbCrLf
+      Response.Write "<form>" & vbCrLf
+      Response.Write "</table>" & vbCrLf
+End Sub
+Sub BackupDatabase()
+      Dbpath = request.Form("Dbpath")
+      If InStr(Dbpath, ":") = 0 Then
+            Dbpath = Server.MapPath(Dbpath)
+      Else
+            Dbpath = Dbpath
+      End If
+      bkfolder = request.Form("bkfolder")
+      bkdbname = request.Form("bkdbname")
+      Set Fso = server.CreateObject(ServerObject(1))
+      If fso.FileExists(dbpath) Then
+            If CheckDir(bkfolder) = True Then
+                  fso.CopyFile dbpath, bkfolder& "\"& bkdbname
+            Else
+                  MakeNewsDir bkfolder
+                  fso.CopyFile dbpath, bkfolder& "\"& bkdbname
+            End If
+            Succeed("<li>备份数据库成功<li>您备份的数据库路径为：<br>&nbsp;&nbsp;&nbsp;" &bkfolder& "\"& bkdbname)
+      Else
+            FoundErr = True
+            ErrMsg = "找不到您所需要备份的文件。"
+            Exit Sub
+      End If
+End Sub
+Sub RestoreDatabase()
+      Dim backpath,Dbpath
+      Dbpath = request.Form("Dbpath")
+      backpath = request.Form("backpath")
+      If dbpath = "" Then
+            FoundErr = True
+            ErrMsg = "请输入您要恢复成的数据库全名"
+            Exit Sub
+      End If
+      If InStr(Dbpath, ":") = 0 Then
+            Dbpath = Server.MapPath(Dbpath)
+      Else
+            Dbpath = Dbpath
+      End If
+      If InStr(backpath, ":") = 0 Then
+            backpath = Server.MapPath(backpath)
+      Else
+            backpath = backpath
+      End If
+      Set Fso = server.CreateObject(ServerObject(1))
+      If fso.FileExists(dbpath) Then
+            fso.CopyFile Dbpath, Backpath
+            Succeed("成功恢复数据！")
+      Else
+            FoundErr = True
+            ErrMsg = "备份目录下并无您的备份文件！"
+            Exit Sub
+      End If
+End Sub
+'------------------检查某一目录是否存在-------------------
+Function CheckDir(FolderPath)
+      folderpath = Server.MapPath(".")&"\"&folderpath
+      Set fso1 = CreateObject(ServerObject(1))
+      If fso1.FolderExists(FolderPath) Then
+            '存在
+            CheckDir = True
+      Else
+            '不存在
+            CheckDir = False
+      End If
+      Set fso1 = Nothing
+End Function
+'-------------根据指定名称生成目录-----------------------
+Function MakeNewsDir(foldername)
+      Dim f
+      Set fso1 = CreateObject(ServerObject(1))
+      Set f = fso1.CreateFolder(foldername)
+      MakeNewsDir = True
+      Set fso1 = Nothing
+End Function
+Sub CompressDatabase()
+      Dim dbpath, boolIs97
+      dbpath = request("dbpath")
+      boolIs97 = request("boolIs97")
+
+      If dbpath <> "" Then
+            If InStr(Dbpath, ":") = 0 Then
+                  Dbpath = Server.MapPath(Dbpath)
+            Else
+                  Dbpath = Dbpath
+            End If
+            Response.Write(CompactDB(dbpath, boolIs97))
+      Else
+            FoundErr = True
+            ErrMsg = "请输入要压缩的数据库路径！"
+            Exit Sub
+      End If
+End Sub
+'=====================压缩参数=========================
+Function CompactDB(dbPath, boolIs97)
+      Dim fso, Engine, strDBPath, JET_3X
+      strDBPath = Left(dbPath, instrrev(DBPath, "\"))
+      Set fso = CreateObject(ServerObject(1))
+
+      If fso.FileExists(dbPath) Then
+            fso.CopyFile dbpath, strDBPath & "temp.mdb"
+            Set Engine = CreateObject("JRO.JetEngine")
+
+            If boolIs97 = "True" Then
+                  Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb", _
+                        "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp1.mdb;" _
+                        & "Jet OLEDB:Engine Type=" & JET_3X
+            Else
+                  Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb", _
+                        "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp1.mdb"
+            End If
+
+            fso.CopyFile strDBPath & "temp1.mdb", dbpath
+            fso.DeleteFile(strDBPath & "temp.mdb")
+            fso.DeleteFile(strDBPath & "temp1.mdb")
+            Set fso = Nothing
+            Set Engine = Nothing
+            Succeed("<li>压缩数据库成功 !<li>您压缩的数据库路径为：<br>&nbsp;&nbsp;&nbsp;" & dbpath & "")
+      Else
+            ReturnError("数据库名称或路径不正确. 请重试!")
+      End If
+
+End Function
+'=====================系统空间参数=========================
+Sub ShowSpaceInfo(drvpath)
+      Dim fso, d, Size, showsize
+      Set fso = server.CreateObject(ServerObject(1))
+      drvpath = server.mappath(drvpath)
+      Set d = fso.GetFolder(drvpath)
+      Size = d.Size
+      showsize = Size & "&nbsp;Byte"
+      If Size>1024 Then
+            Size = (Size / 1024)
+            showsize = FormatNumber(Size, 2) & "&nbsp;KB"
+      End If
+      If Size>1024 Then
+            Size = (Size / 1024)
+            showsize = FormatNumber(Size, 2) & "&nbsp;MB"
+      End If
+      If Size>1024 Then
+            Size = (Size / 1024)
+            showsize = FormatNumber(Size, 2) & "&nbsp;GB"
+      End If
+      response.Write "<font face=verdana>" & showsize & "</font>"
+End Sub
+
+Sub Showspecialspaceinfo(method)
+      Dim fso, d, fc, f1, Size, showsize, drvpath
+      Set fso = server.CreateObject(ServerObject(1))
+      drvpath = server.mappath("../")
+      'drvpath = Left(drvpath, (instrrev(drvpath, "\") -1))
+      Set d = fso.GetFolder(drvpath)
+
+      If method = "All" Then
+            Size = d.Size
+      ElseIf method = "Program" Then
+            Set fc = d.Files
+            For Each f1 in fc
+                  Size = Size + f1.Size
+            Next
+      End If
+
+      showsize = Size & "&nbsp;Byte"
+      If Size>1024 Then
+            Size = (Size / 1024)
+            showsize = FormatNumber(Size, 2) & "&nbsp;KB"
+      End If
+      If Size>1024 Then
+            Size = (Size / 1024)
+            showsize = FormatNumber(Size, 2) & "&nbsp;MB"
+      End If
+      If Size>1024 Then
+            Size = (Size / 1024)
+            showsize = FormatNumber(Size, 2) & "&nbsp;GB"
+      End If
+      response.Write "<font face=verdana>" & showsize & "</font>"
+End Sub
+
+Function Drawbar(drvpath)
+      Dim fso, drvpathroot, d, Size, TotalSize, barsize
+      Set fso = server.CreateObject(ServerObject(1))
+      drvpathroot = server.mappath("../pic")
+      drvpathroot = Left(drvpathroot, (instrrev(drvpathroot, "\") -1))
+      Set d = fso.GetFolder(drvpathroot)
+      TotalSize = d.Size
+
+      drvpath = server.mappath(drvpath)
+      Set d = fso.GetFolder(drvpath)
+      Size = d.Size
+
+      barsize = CDbl((Size / TotalSize) * 400)
+      Drawbar = barsize
+End Function
+
+Function Drawspecialbar()
+      Dim fso, drvpathroot, d, fc, f1, Size, TotalSize, barsize
+      Set fso = server.CreateObject(ServerObject(1))
+      drvpathroot = server.mappath("../pic")
+      drvpathroot = Left(drvpathroot, (instrrev(drvpathroot, "\") -1))
+      Set d = fso.GetFolder(drvpathroot)
+      TotalSize = d.Size
+
+      Set fc = d.Files
+      For Each f1 in fc
+            Size = Size + f1.Size
+      Next
+
+      barsize = CDbl((Size / TotalSize) * 400)
+      Drawspecialbar = barsize
+End Function
+%>
+

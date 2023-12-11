@@ -1,0 +1,35 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+  <%@ include file="/WEB-INF/views/common/base.jsp"%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title><fmt:message key='System.Role.Query' ></fmt:message> </title>
+</head>
+<body>
+<input type="hidden" value="${empty_path_variable}"  id="emptyPathVariable">
+<input type="hidden" value="${contextPath}<ifa:constant fieldName='ROLE_QUERY_URL' namespace='cim'/>" id="queryUrl" >
+<input type="hidden" value="${contextPath}<ifa:constant fieldName='ROLE_EDIT_URL'  namespace='cim'/>" id="editUrl" >
+<input type="hidden" value="${contextPath}<ifa:constant fieldName='ROLE_DELETE_URL' namespace='cim'/>" id="deleteUrl" >
+<input type="hidden" value="${contextPath}<ifa:constant fieldName='ROLE_FRESH_URL' namespace='cim'/>" id="freshUrl" >
+<div class="userInfo">
+	<h1><fmt:message key='System.Role.Manage' ></fmt:message> </h1>
+			<table class="yTable margintop">
+				<tr>
+					<th><fmt:message key='System.Role.Name' ></fmt:message> </th>
+					<td><input name="text" type="text" name="name" id="name" class="inputbox"/></td>
+				</tr>
+		</table> 
+		<div class="Btn">
+		<a href="#" class="bb" id="queryRole" ><div><span><fmt:message key='Entity.Operation.Query' ></fmt:message> </span></div></a>
+		<a href="#" class="bb" id="createRole"><div><span><fmt:message key='Entity.Operation.new' ></fmt:message> </span></div></a> 
+	    </div>
+	<br />           
+	<div id="roleList"></div>
+</div>
+<script type="text/javascript">
+seajs.use("${scriptBasePath}/cimjs/role/index.js");
+</script>
+</body>
+</html>

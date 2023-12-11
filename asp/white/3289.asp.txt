@@ -1,0 +1,246 @@
+<!--#include file="../inc/CheckAdmin.asp"-->
+<!--#include file="../inc/Config.asp"-->
+<!--#include file="../inc/Navtree.asp"-->
+<!--#include file="../inc/Conn.asp"-->
+<%
+Dim Language
+Language=formatStr(Request("Language"))
+table_behind="ProductSort_"
+table=Get_Table(table_behind,Language)
+if table="None" then
+   check_alert "语言版本错误",request.ServerVariables("HTTP_REFERER")
+end if    
+ 
+if request("update")=1 then
+   if request.form("Name")="" then
+      check_alert "分类名称不能为空",request.ServerVariables("HTTP_REFERER")
+   end if  
+   savetree table,request("sortid"),request("id"),request("Name"),request("address"),request.form("content1")
+   'closers
+   closeconn
+   response.redirect("Sort_Admin.asp?Language="&Language)
+   response.end
+end if
+
+sub savetree(table,sortid,id,PS_Name,pic,Memo)
+   Order=0
+   Oldaddress=""
+   PS_Id=""                                 '路径标志计算开始
+   S_address=getaddress(table,sortid)
+   Order=countorder(table,sortid)
+                                 
+   rs.open"select * from "&table&" where PS_Id="&id,conn,1,3
+	  if  rs.eof then
+          rs.addnew
+	  end if
+	  Oldaddress=rs("PS_Address")&","&rs("PS_Id")
+	  PS_Id=rs("PS_Id")
+      if cstr(sortid)<>cstr(rs("PS_Parentid")) then
+         rs("PS_Order")=Order
+      end if
+   
+      if rs("PS_Pic")<>request("address") and left(rs("PS_Pic"),4)=cstr(year(now())) then
+		 delsImg=trim(rs("PS_Pic"))
+		 delsImg=server.mappath("../../uploadfile/Product_Sort/"&delsImg)
+		 set delImg=createobject("scripting.filesystemobject")
+		     if delimg.fileexists(delsImg) then
+		        delImg.deletefile(delsImg)
+		     end if
+         set delImg=nothing 
+      end if       
+   
+   rs("PS_Pic")=pic
+   rs("PS_Address")=S_address
+   rs("PS_parentid")=Sortid
+   rs("PS_Name")=PS_Name
+   rs("PS_Memo")=Memo
+   rs.update
+   	
+   rs.close
+   updateundersideaddress table,Oldaddress,S_address,PS_Id
+end sub
+
+function getaddress(table,id)
+   '获取当前记录的路径
+   rs.open"select * from "&table&" where PS_Id="&id,conn,1,1
+   if not rs.eof then
+      if rs("PS_Address")<>"" then
+         getaddress=rs("PS_Address")&","&rs("PS_Id")
+      else
+         getaddress=rs("PS_Id") 
+	  end if
+   else
+      getaddress=""
+   end if
+   rs.close                                        '路径标志计算结束
+end function
+
+function countorder(table,id)
+   '计算排序值开始
+   rs.open"select top 1 * from "&table&" where PS_Parentid="&id&" order by PS_Order desc",conn,1,1
+   if not rs.eof then
+      countorder=rs("PS_Order")+1
+   else
+       countorder=0
+   end if
+   rs.close
+   '计算排序值结束
+end function
+
+sub updateundersideaddress(table,Oldaddress,addres,PS_Id)
+   '更改下面子类的路径开始
+   rs.open"select * from "&table&" where PS_Address like '"&Oldaddress&"%'",conn,1,3
+   if addres<>"" then
+      addres=addres&","&PS_Id
+   else
+      addres=PS_Id
+   end if
+   do while not rs.eof 
+       showaddress=replace(rs("PS_Address"),Oldaddress,addres)
+       rs("PS_Address")=showaddres
+	   rs.movenext   
+   loop
+   rs.close
+   '更改下面子类的路径结束
+end sub
+
+PS_Id=0
+id=0
+if request("id")<>"" then
+   id=request("id")
+   If id="" or not isnumeric(id) then Check_Alert "非法操作","Sort_admin.asp"
+   rs.open"select * from "&table&" where PS_Id="&request("id"),conn,1,1
+   if not rs.eof then
+      SortId=rs("PS_parentid")
+	  PS_Name=rs("PS_Name")
+	  addres=rs("PS_Pic")
+	  Memo=rs("PS_Memo")
+   end if 
+   rs.close
+else
+   id=0
+end if
+
+if left(addres,4)=cstr(year(now())) then
+   picpath="../../uploadfile/product_sort/"&addres 
+elseif addres<>"" then
+   picpath=addres
+end if    
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>网站管理系统</title>
+<link href="../Css_Main.css" rel="stylesheet" type="text/css">
+<style type="text/css">
+<!--
+.style1 {color: #CCCCCC}
+-->
+</style>
+</head>
+<script language="JavaScript">
+function  Check()
+{
+	 if (form.Name.value == "") 
+	 {alert("类别名称不能为空");
+	     form.Name.focus();
+		return false;
+		}
+		document.form.submit();
+		}
+</script>
+<body>
+<table width="98%"  border="0" align="center" cellpadding="0" cellspacing="1" class="border">
+  <tr>
+    <td class="title_dh"><div align="center">产品管理——修改分类</div></td>
+  </tr>
+</table>
+<table width="98%"  border="0" align="center" cellpadding="0" cellspacing="0">
+  <tr>
+    <td height="20"></td>
+  </tr>
+</table>
+<form name="form" method="post" action="">
+<table width="98%"  border="0" align="center" cellpadding="0" cellspacing="1" class="border">
+  <tr class="title_top">
+    <td colspan="2"><div align="center"></div>
+        <div align="center">修改分类</div></td>
+  </tr>
+  <tr class="tdbg">
+    <td width="20%">
+    <div align="right"><strong>版本：</strong></div></td>
+    <td><%= Check_Language(Language) %></td>
+  </tr>
+  <tr class="tdbg">
+    <td><div align="right"><strong>所属分类：</strong></div></td>
+    <td><select name="Sortid" id="select">
+      <option value='0'>顶级分类</option>
+      <%showtreefornav table,"PS_",0,"rs","",SortId,isadd %>
+    </select>
+      <input name="id" type="hidden" id="id" value="<%=id%>">
+      <input name="update" type="hidden" id="update" value="1">
+</td>
+  </tr>
+  <tr class="tdbg">
+    <td><div align="right"><strong>类别名称：</strong></div></td>
+    <td><input name="Name" type="text" id="Name" value="<%=PS_Name%>" size="16"></td>
+  </tr>
+  <tr class="tdbg">
+    <td><div align="right"><strong>类别图片：</strong></div></td>
+    <td><table width="100%"  border="0" cellpadding="0" cellspacing="0">
+       		       <tr>
+         		       <td id="hidpic" style="display:'<%if addres<>"" then%>none<%end if%>'" ><table width="100%" border="0" cellspacing="0" cellpadding="0">
+           		         <tr>
+            		          <td id="hiddenframe"><a style="cursor:hand" onclick="document.all.showframe.style.display='';document.all.hiddenframe.style.display='none';">&nbsp;上传图片</a>&nbsp;&nbsp;<a style="cursor:hand" onclick="document.all.adddz.style.display='';document.all.hiddenframe.style.display='none';">插入图片URL</a> 
+							  <input name="address" type="hidden" id="address" value="<%=addres%>"></td>
+           		         </tr>
+            		        <tr>
+              		        <td height="17" id="showframe" style="display:none"><table width="100%" border="0" cellspacing="0" cellpadding="0">
+                		          <tr>
+                		            <td width="245" height="15"><iframe src='../inc/uppic.asp?up=../../uploadfile/Product_Sort/&tup=address' frameborder=0 height=25 width="100%" scrolling="no"></iframe>             		               </td>
+             		               <td align="left" valign="baseline"><a style="cursor:hand" onclick="document.all.showframe.style.display='none';document.all.hiddenframe.style.display='';">取消</a></td>
+            		              </tr>
+             		         </table>
+						   </td>
+           		        </tr>
+         		        <tr>
+                             <td height="17" id="adddz" style="display:none">&nbsp;
+                               <input name="dz" type="text" id="dz" onChange="document.all.address.value=this.value" size="30" >&nbsp; <a style="cursor:hand" onclick="document.all.adddz.style.display='none';document.all.hiddenframe.style.display='';">取消</a> 
+							</td>
+           		         </tr>
+           		       </table>
+			        </td>
+         		    <td id="showpic" style="display:'<%if  len(addres)>0 then%><%else%>none<%end if%>'" >
+					  <table width="100%">
+       		              <tr>
+      		                <td valign="middle" width="21%" id="pic"><a href="<%=picpath%>" target="_blank"><img src="<%=picpath%>" width="120" height="50" id="image" border="0"></a></td>
+      		                <td valign="middle"><a style="cursor:'hand'" onClick="document.all.hidpic.style.display='';document.all.showpic.style.display='none';">&nbsp;&nbsp;更改图片</a>&nbsp;&nbsp;<a style="cursor:hand" onclick="document.all.address.value='';document.all.showpic.style.display='none';document.all.hidpic.style.display='';">删除图片</a></td>
+   		                </tr>
+      		          </table>
+					 </td>
+          </tr>
+      		      </table></td>
+  </tr>
+  <tr class="tdbg">
+    <td valign="top"><div align="right"><strong>类别说明：</strong></div></td>
+    <td><input type="hidden" name="content1" value="<%=Server.HTMLEncode(memo)%>">
+<iframe ID="eWebEditor1" src="../WebEditor/ewebeditor.asp?id=content1&style=SamYan" frameborder="0" scrolling="no" width="560" HEIGHT="350"></iframe>
+
+   </td>
+  </tr>
+</table>
+<table width="98%"  border="0" align="center" cellpadding="0" cellspacing="0">
+  <tr>
+    <td height="40">
+      <div align="center"><span class="style1">
+        <input type="button" name="Submit" value="修改" onClick="Check()">
+&nbsp;
+        <input type="reset" name="reset" value="取消">
+    </span> </div></td>
+  </tr>
+</table>
+</form>
+</body>
+</html>
+
+

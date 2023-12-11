@@ -1,0 +1,70 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+
+<html>
+<head>
+	<title>角色权限</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link href="${ctx}/styles/extremecomponents/extremecomponents.css" type="text/css" rel=stylesheet>
+	<link href="${ctx }/styles/skin.css" rel="stylesheet" type="text/css">	
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/system/SysRolePower/edit_SysRolePower.js"></script>
+</head>
+
+<body>
+<table width="100%" border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td width="17" valign="top" background="${ctx}/imgs/mail_leftbg.gif"><img src="${ctx}/imgs/left-top-right.gif" width="17" height="29" /></td>
+    <td valign="top" background="${ctx}/imgs/content-bg.gif">
+    	&nbsp;
+	</td>
+    <td width="16" valign="top" background="${ctx}/imgs/mail_rightbg.gif"><img src="${ctx}/imgs/nav-right-bg.gif" width="16" height="29" /></td>
+  </tr>
+  <tr>
+    <td valign="middle" background="${ctx}/imgs/mail_leftbg.gif">&nbsp;</td>
+    <td valign="top" bgcolor="#F7F8F9">
+    	<form id="saveForm" method="post" action="">
+    		<s:hidden name="sysRole.id" />
+	    	<table>
+				<tr>
+					<td><c:out value="${sysRole.name}"></c:out>：</td>
+					<td width="200px"> 
+						<table width="100%" border="1">
+							<thead>
+								<tr>
+									<td>角色名</td>
+									<td>操作</td>
+								</tr>
+							</thead>
+							<tbody id="sysRolePowerList">
+								<c:forEach items="${sysRolePowerList}" var="o">
+								<tr>
+									<td><c:out value="${o.powerName}" />&nbsp;<input type="hidden" name="powerIdArr" value="${o.powerId }" /></td>
+									<td><a href="javascript:void(0)" ><span onclick="deleteData(this)">删除</span></a></td>
+								</tr>					
+								</c:forEach>
+							</tbody>
+						</table>
+						<p />
+						<a href="javascript:void(0)" id="selectData" onclick="showPowerList()">选择权限</a>
+					</td>
+				</tr>				
+			</table>
+		</form>
+
+ </td>
+    <td background="${ctx}/imgs/mail_rightbg.gif">&nbsp;</td>
+  </tr>
+  <tr>
+    <td valign="bottom" background="${ctx}/imgs/mail_leftbg.gif"><img src="${ctx}/imgs/buttom_left2.gif" width="17" height="17" /></td>
+    <td background="${ctx}/imgs/buttom_bgs.gif"><img src="${ctx}/imgs/buttom_bgs.gif" width="17" height="17"></td>
+    <td valign="bottom" background="${ctx}/imgs/mail_rightbg.gif"><img src="${ctx}/imgs/buttom_right2.gif" width="16" height="17" /></td>
+  </tr>
+</table>
+</body>
+
+</html>
+

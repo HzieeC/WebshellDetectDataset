@@ -1,0 +1,424 @@
+<%
+Class Cls_Content
+
+	Dim vID
+	Dim vCid
+	Dim vSid
+	Dim vTitle
+	Dim vSubTitle
+	Dim vColor
+	Dim vStyle
+	Dim vAuthor
+	Dim vSource
+	Dim vJumpurl
+	Dim vKeywords
+	Dim vDescription
+	Dim vCommend
+	Dim vCommend1
+	Dim vCommend2
+	Dim vIndexpic
+	Dim vViews
+	Dim vComments
+	Dim vIsComment
+	Dim vFilepath
+	Dim vViewPath
+	Dim vDiyname
+	Dim vCreatetime
+	Dim vModifytime
+	Dim vDisplay
+	Dim vContent
+	Dim vModeIndex
+	Dim vPublishTime
+	Dim vDateDiff
+	Dim vFormID
+	Dim LastError
+
+	Private Sub Class_Initialize()
+		Call ChkLogin("login")
+		Call Initialize()
+	End Sub
+
+	Private Sub Class_Terminate()
+		Call Initialize()
+	End Sub
+
+	Public Function Initialize()
+		vID = 0
+		vCid = 0
+		vSid = 0
+		vTitle = ""
+		vSubTitle = ""
+		vColor = ""
+		vStyle = ""
+		vAuthor = Session("LastAuthor")
+		vSource = Session("LastSource")
+		vJumpurl = ""
+		vKeywords = ""
+		vDescription = ""
+		vCommend = 0
+		vCommend1 = 0
+		vCommend2 = 0
+		vIndexpic = ""
+		vViews = 0
+		vComments = 0
+		vIsComment = 1
+		vFilepath = ""
+		vDiyname = ""
+		vCreatetime = Now()
+		vModifytime = Now()
+		vModeIndex = ""
+		vDisplay = 1
+		vDateDiff = 0
+		vFormID = 0
+		vContent = ""
+		If Len(Session("LastCid")) > 0 Then vCid = Int(Session("LastCid"))
+		If Len(vAuthor) = 0 Then
+			vAuthor = getLogin("admin","username")
+			vAuthor = UCase(Left(vAuthor,1)) & Right(vAuthor,Len(vAuthor)-1)
+		End If
+	End Function
+
+	Public Function GetValue()
+		'vCid = Request.Form("oCid")
+		vSid = Request.Form("oSid")
+		vTitle = Trim(Request.Form("oTitle"))
+		vSubTitle = Request.Form("SubTitle")
+		vColor = Request.Form("oColor")
+		vStyle = Request.Form("oStyle")
+		vAuthor = Request.Form("oAuthor")
+		vSource = Request.Form("oSource")
+		vJumpurl = Request.Form("oJumpurl")
+		vKeywords = Request.Form("oKeywords")
+		vDescription = Request.Form("oDescription")
+		vCommend = Request.Form("oCommend")
+		vCommend1 = Request.Form("oCommend1")
+		vCommend2 = Request.Form("oCommend2")
+		vIndexpic = Request.Form("oIndexpic")
+		vViews = Request.Form("oViews")
+		vIsComment = Request.Form("oIsComment")
+		vDiyname = Request.Form("oDiyname")
+		vDisplay = Request.Form("oDisplay")
+		vFormID = Request.Form("oFormID")
+		vContent = Request.Form("oContent") '# 内容
+		vPublishTime = Request.Form("oPublishTime")
+		if len(vPublishTime) = 0 then vPublishTime = Now()
+		
+		If Len(vColor) = 0 Or Len(vColor) > 20 Then vColor = ""
+		If Len(vStyle) = 0 Or Len(vStyle) > 20 Then vStyle = ""
+		If Len(vAuthor) = 0 Or Len(vAuthor) > 100 Then vAuthor = ""
+		If Len(vSource) = 0 Or Len(vSource) > 250 Then vSource = ""
+		If Len(vCommend) = 0 Or Not IsNumeric(vCommend) Then vCommend = 0
+		If Len(vCommend1) = 0 Or Not IsNumeric(vCommend1) Then vCommend1 = 0
+		If Len(vCommend2) = 0 Or Not IsNumeric(vCommend2) Then vCommend2 = 0
+		If Len(vIsComment) = 0 Or Not IsNumeric(vIsComment) Then vIsComment = 0
+		If Len(vDisplay) = 0 Or Not IsNumeric(vDisplay) Then vDisplay = 0
+		If Len(vCid) = 0 Or Not IsNumeric(vCid) Or vCid < 1  Then LastError = "请选择正确的栏目" : GetValue = False : Exit Function
+		If Len(vSid) = 0 Or Not IsNumeric(vSid) Then vSid = 0
+		If vSid < 0 Then vSid = 0
+		If vSid = vCid Then vSid = 0
+		If Len(vTitle) < 1 Or Len(vTitle) > 250 Then LastError = "标题的长度请控制在 1 至 250 位" : GetValue = False : Exit Function
+		If Len(vJumpurl) > 200 Then LastError = "跳转地址的长度请控制在 0 至 200 位" : GetValue = False : Exit Function
+		If Len(vKeywords) = 0 Then vKeywords = ""
+		If Len(vKeywords) > 200 Then LastError = "关键字(标签)请不要超过200个字符" : GetValue = False : Exit Function
+		If Len(vIndexpic) > 250 Then LastError = "形象图的长度请控制在 0 至 250 位" : GetValue = False : Exit Function
+		If Len(vViews) = 0 Or Not IsNumeric(vViews) Then LastError = "浏览次数只能是数字" : GetValue = False : Exit Function
+		If Len(vJumpurl) = 0 And Len(vContent) = 0 Then LastError = "内容不能为空" : GetValue = False : Exit Function
+		
+		' 内容过滤
+		vContent = ReplaceX(vContent,"(http://" & Request.ServerVariables("server_name") & Installdir & "UploadFile)",Installdir & "UploadFile") '# 过滤下,实在郁闷的FckEditor
+		vContent = ReplaceX(vContent,"<div style=""page-break-after: always""><span style=""display: none"">&nbsp;</span></div>","#p##e#")
+		'vContent = AutoSplitPages(vContent,"#p##e#",MaxPageNum) ' 自动分页
+
+		' 分析描述
+		If Len(vDescription) = 0 Then vDescription = Left(GetDescription(vContent),250)
+		
+		'判断发布时间
+		vDateDiff = dateDiff("n",now(),vPublishTime)
+
+		' 远程抓图
+		If Request.Form("oRemotepic") = "Save" Then vContent = ReplaceRemoteUrl(vContent)
+
+		' 自定义文件名处理
+		If Len(vDiyname) > 0 Then vDiyname = Replace(vDiyname," ","-") : vDiyname = Replace(vDiyname,"?","") : vDiyname = Replace(vDiyname,"&","") : vDiyname = Replace(vDiyname,"=","") : vDiyname = Replace(vDiyname,"__","_") : vDiyname = Replace(vDiyname,"__","_") : vDiyname = Replace(vDiyname,"/","") : vDiyname = Replace(vDiyname,"\","") : vDiyname = Replace(vDiyname,"*","") : vDiyname = Replace(vDiyname,",","") : If Right(vDiyname,1) = "_" Then vDiyname = Left(vDiyname,Len(vDiyname)-1)
+		If Request.Form("oAutopinyin") = "Yes" And Len(vDiyname) = 0 Then vDiyname = Left(Pinyin(vTitle),200) '# 转换为拼音
+		If Len(vDiyname) > 0 And IsNumeric(vDiyname) Then vDiyname = "" '# 不可以是数字
+		
+		' 关键字处理
+		vKeywords = Replace(vKeywords,"'","") : vKeywords = Replace(vKeywords,"""","") : vKeywords = Replace(vKeywords,"$","") : vKeywords = Replace(vKeywords,Vbcrlf,"")
+		vKeywords = Replace(vKeywords,"，",",") : vKeywords = Replace(vKeywords,"|",",") : vKeywords = Replace(vKeywords,";",",") : vKeywords = Replace(vKeywords,"；",",")
+		
+		vAuthor = Replace(Replace(vAuthor,Vbcrlf,","),"""","")
+		vSource = Replace(Replace(vSource,Vbcrlf,","),"""","")
+
+		vTitle=Japan(vTitle)
+		vDescription=Japan(vDescription)
+		
+		vStyle = vStyle & "," & vColor
+		Dim Rs,ModeEXT,i,Modes,ModeField
+		Set rs=db("select [FieldName] from [{pre}FormField] where [FormID]=" & vFormID,1)
+		If not rs.eof then ModeEXT=rs(0) & "" Else ModeEXT=""
+		Do While Not rs.eof
+			ModeField = rs("FieldName")
+					vModeIndex=vModeIndex & "<" & ModeField & ">" & Replace(Replace(Replace(Replace(Replace(Request.Form("ext" & ModeField),"'",""),"<",""),">",""),"""",""),vbcrlf,"") & "</" & ModeField & ">"
+		rs.MoveNext
+		Loop
+			vModeIndex=vModeIndex
+		GetValue = True
+	End Function
+
+	Public Function SetValue()
+		Dim Rs,Ns
+		Set Rs = DB("Select * From [{pre}Content] Where [ID]=" & vID,1)
+		If Rs.Eof Then Rs.Close : Set Rs = Nothing : LastError = "你所需要查询的记录 " & vID & " 不存在!" : SetValue = False : Exit Function
+		vCid = Rs("Cid")
+		vSid = Rs("Sid")
+		vTitle = Rs("Title")
+		vSubTitle = Rs("SubTitle")
+		vStyle = Split(Rs("Style") & ",",",")(0)
+		vColor = Split(Rs("Style") & ",",",")(1)
+		vAuthor = Rs("Author")
+		vSource = Rs("Source")
+		vJumpurl = Rs("Jumpurl")
+		vKeywords = Rs("Keywords")
+		vDescription = Rs("Description")
+		vCommend = Rs("Commend")
+		vCommend1 = Rs("Commend1")
+		vCommend2 = Rs("Commend2")
+		vIndexpic = Rs("Indexpic")
+		vViews = Rs("Views")
+		vComments = Rs("Comments")
+		vIsComment = Rs("IsComment")
+		vFilepath = ""
+		vViewpath = ""
+		vDiyname = Rs("Diyname")
+		vCreatetime = Rs("Createtime")
+		vModifytime = Rs("Modifytime")
+		vDisplay = Rs("Display")
+		vPublishTime = Rs("PublishTime")
+		vFormID = Rs("FormID")
+		Set Ns = DB("Select [Content] From [" & GetChannel(vCid,"Table") & "] Where Aid=" & vID,1) '# 提取内容
+		If Ns.Eof Then vContent = "" Else vContent = Ns(0)
+		Ns.Close : Set Ns = Nothing
+		Rs.Close : Set Rs = Nothing
+		SetValue = True
+		vContent = ReplaceX(vContent,"#p##e#","<div style=""page-break-after: always""><span style=""display: none"">&nbsp;</span></div>") ' 分页
+	End Function
+
+	Public Function Create()
+	
+  		dim t1:t1=timer()
+	
+		Dim Rs,Aid
+		If Len(vDiyname) > 0 Then
+			Set Rs = DB("Select [ID] From [{pre}Content] Where [Diyname]='" & vDiyname & "'",1)
+			If Not Rs.Eof Then vDiyname = vDiyname & "_" & Mid(MD5(Now(),16),5,8)
+			Rs.Close
+		End If
+		
+		If Len(vIndexpic) = 0 And Indexpicmode = 1 Then vIndexpic = GetFirstPic(vContent)
+		
+		DB "insert into [{pre}content] (cid) values (" & vcid & ")",0 ' 插入一条记录
+		Aid = DB("Select Top 1 [ID] From [{pre}Content] Order By [ID] Desc",1)(0) '# 获取新添加的文章ID编号
+		
+		Set Rs = DB("Select * From [{pre}Content] Where [ID]=" & Aid,3)
+		
+		'Set Rs = DB("Select * From [{pre}Content]",3)
+		'rs.addnew
+		
+		Rs("Cid") = vCid
+		Rs("Sid") = vSid
+		Rs("Title") = vTitle
+		Rs("SubTitle") = vSubTitle
+		Rs("Style") = vStyle
+		Rs("Author") = vAuthor
+		Rs("Source") = vSource
+		Rs("Jumpurl") = vJumpurl
+		Rs("Keywords") = vKeywords
+		Rs("Description") = vDescription
+		Rs("Commend") = vCommend
+		Rs("Commend1") = vCommend1
+		Rs("Commend2") = vCommend2
+		Rs("Indexpic") = vIndexpic
+		Rs("Views") = vViews
+		Rs("IsComment") = vIsComment
+		Rs("Diyname") = vDiyname
+		Rs("Display") = vDisplay
+		Rs("Comments") = 0
+		Rs("Createtime") = Now()
+		Rs("Modifytime") = Now()
+		Rs("ModeIndex") = vModeIndex
+		Rs("PublishTime") = vPublishTime
+		Rs("FormID") = vFormID
+		Rs.Update : Rs.Close
+
+		'Aid = DB("Select Top 1 [ID] From [{pre}Content] Order By [ID] Desc",1)(0) '# 获取新添加的文章ID编号
+		
+		Set Rs = DB("Select [Aid],[Cid],[Content] From [" & GetChannel(vCid,"Table") & "]",3) '# 添加内容
+		Rs.AddNew : Rs("Aid") = Aid : Rs("Cid") = vCid : Rs("Content") = vContent
+		Rs.Update : Rs.Close
+		Call UpDateUploadFile(vContent ,Aid ,vCid) '# 更新图片数据
+		If Createhtml = 1 Then Call DB("Update [{pre}Channel] Set [NeedCreate]=1 Where [ID]=" & vCid ,0) '# 需要重建列表页
+		If Createhtml = 1 or createhtml=3 Then
+			If vDateDiff <1 Then
+			Call CreateContent(Aid,0) '# 创建文件
+			End If
+			If Prenextmode = 1 Then
+				Set Rs = DB("Select Top 1 [ID] From [{pre}Content] Where [ID]<" & AID & " And [Cid]=" & vCid & " Order By [ID] Desc",1)
+			Else
+				Set Rs = DB("Select Top 1 [ID] From [{pre}Content] Where [ID]<" & AID & " Order By [ID] Desc",1)
+			End If
+			If Not Rs.Eof Then Call CreateContent(Rs(0),0)
+		End If
+		Set Rs = Nothing
+
+		Session("LastCid") = vCid
+		Session("LastAuthor") = vAuthor
+		Session("LastSource") = vSource
+		Create = True
+		
+		'response.write formatnumber((timer()-t1),5)
+		'response.end
+	End Function
+
+	Public Function Modify()
+		Dim Rs,DelOldData,DelID,oKeywords
+		Set Rs = DB("Select * From [{pre}Content] Where [ID]=" & vID,3)
+		If Rs.Eof Then Rs.Close : Set Rs = Nothing : LastError = "你所需要更新的记录 " & vID & " 不存在!" : Modify = False : Exit Function
+		If Rs("Cid") <> vCid Then
+			DelID = Rs("Cid")
+			If LCase(GetChannel(vCid,"Table")) <> LCase(GetChannel(DelID,"Table")) Then DelOldData = True Else DelOldData = False '# 内容移表了,原表需要删除数据
+		Else 
+			DelOldData = False '# 不同栏目但为同一表
+		End If
+		oKeywords = Rs("Keywords")
+		Rs("Cid") = vCid
+		Rs("Sid") = vSid
+		Rs("Title") = vTitle
+		Rs("SubTitle") = vSubTitle
+		Rs("Style") = vStyle
+		Rs("Author") = vAuthor
+		Rs("Source") = vSource
+		Rs("Jumpurl") = vJumpurl
+		Rs("Keywords") = vKeywords
+		Rs("Description") = vDescription
+		Rs("Commend") = vCommend
+		Rs("Commend1") = vCommend1
+		Rs("Commend2") = vCommend2
+		Rs("Indexpic") = vIndexpic
+		Rs("Views") = vViews
+		Rs("IsComment") = vIsComment
+		Rs("Diyname") = vDiyname
+		Rs("Display") = vDisplay
+		Rs("PublishTime") = vPublishTime
+		Rs("FormID") = vFormID
+		Rs("Modifytime") = Now()
+		Rs("Viewpath") = ""
+		Rs("ModeIndex") = vModeIndex
+		Rs.Update : Rs.Close
+		Set Rs = DB("Select [Aid],[Cid],[Content] From [" & GetChannel(vCid,"Table") & "] Where [Aid]=" & vID,3) '# 保存内容
+		If Rs.Eof Then Rs.AddNew : Rs("Aid") = vID '# 不存在重建(适用于移表后)
+		Rs("Cid") = vCid : Rs("Content") = vContent
+		Rs.Update : Rs.Close : Set Rs = Nothing
+		Call UpDateUploadFile(vContent ,vID ,vCid) '# 更新图片数据
+		If Createhtml = 1 Then Call DB("Update [{pre}Channel] Set [NeedCreate]=1 Where [ID]=" & vCid ,0) '# 需要重建列表页
+		If DelOldData Then Call DB("Delete From [" & GetChannel(DelID,"Table") & "] Where [Aid]=" & vID,0) '# 删除原内容表里的数据
+		If Createhtml =1 or createhtml=3 Then
+		if(vDateDiff<1) then
+		Call CreateContent(vID,0) '# 创建文件
+		end if
+		end if
+		Modify = True
+	End Function
+
+	Public Function Delete()
+		Call SetValue()
+		vFilepath=DB("Select Filepath From [{pre}Content] Where [ID]=" & vID,1)(0)
+		If Len(vFilepath)>3 Then Call DeleteFile(vFilepath)
+		If Createhtml = 1 Then Call DB("Update [{pre}Channel] Set [NeedCreate]=1 Where [ID]=" & vCid ,0) '# 需要重建列表页
+		Call DB("Update [{pre}Upload] Set [Aid]=0 Where [Aid]=" & vID ,0) '# 图片需要清理
+		Call DB("Delete From [" & GetChannel(vCid,"Table") & "] Where [Aid]=" & vID ,0) '# 删除内容
+		Call DB("Delete From [{pre}Content] Where [ID]=" & vID ,0) '# 删除信息
+		if instr("/" & getplus,"/comment") > 0 then Call DB("Delete From [{pre}Comment] Where [AID]=" & vID ,0) '# 删除评论
+		Delete = True
+	End Function
+
+	Public Function Change()
+		Dim GetField
+		GetField = Request("Field")
+		If Instr(LCase("[Commend],[Display]"), LCase("[" & GetField & "]")) = 0 Then LastError = "参数出错,无法修改记录!" : Change = False : Exit Function
+		Dim Rs
+		Set Rs = DB("Select [" & GetField & "] From [{pre}Content] Where [ID]=" & vID,3)
+		If Rs.Eof Then
+			Rs.Close : Set Rs = Nothing : LastError ="所需要更新的记录不存在!" : Change = False : Exit Function
+		Else
+			If Rs(GetField) = 0 Then Rs(GetField) = 1 Else Rs(GetField) = 0
+			Rs.Update : Rs.Close : Set Rs = Nothing
+			Change = True
+		End If
+	End Function
+
+	Public Function DeleteAll(Byval ContentIDS)
+		Dim Rs
+		Set Rs = DB("Select [ID],[Cid],[Filepath] From [{pre}Content] Where ID In (" & ContentIDS & ")",1)
+		Do While Not Rs.Eof
+			Call DeleteFile(Rs(2))
+			If Createhtml = 1 Then Call DB("Update [{pre}Channel] Set [NeedCreate]=1 Where [ID]=" & Rs(0) ,0) '# 需要重建列表页
+			Call DB("Update [{pre}Upload] Set [Aid]=0 Where [Aid]=" & Rs(0) ,0) '# 图片需要清理
+			Call DB("Delete From [" & GetChannel(Rs(1),"Table") & "] Where [Aid]=" & Rs(0) ,0) '# 删除内容
+			Call DB("Delete From [{pre}Content] Where [ID]=" & Rs(0) ,0) '# 删除信息
+			Rs.MoveNext
+		Loop
+		Rs.Close
+	End Function
+
+	Public Function EchoMoveHtml(Byval ContentIDS)
+		Response.Write "<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>"
+		Response.Write "<tr class=css_menu>"
+		Response.Write "<td colspan=2><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>"
+		Response.Write "<tr>"
+		Response.Write "<td class=css_main><a href=#>文章移动</a></td>"
+		Response.Write "</tr>"
+		Response.Write "</table></td>"
+		Response.Write "</tr>"
+		Response.Write "<form name=frm method=post action=Admin_Content.Asp?Act=DOMoveit&ID=" & ContentIDS & ">"
+		Response.Write "<tr>"
+		Response.Write "<td width='200' class='css_list'><div align='right'>目标栏目：</div></td>"
+		Response.Write "<td class='css_list'><div align='left'>" & SelectChannel(0," class='css_select' name='Tocid' type='text' id='Tocid' ",getLogin("admin","managechannel")) & "</div></td>"
+		Response.Write "</tr>"
+		Response.Write "<tr>"
+		Response.Write "<td class='css_list'>&nbsp;</td>"
+		Response.Write "<td class='css_list'><div align='left'><input type='submit' name='Submit' value='移动'></div></td>"
+		Response.Write "</tr>"
+		Response.Write "<tr class=css_page_list>"
+		Response.Write "<td colspan=2>&nbsp;</td>"
+		Response.Write "</tr>"
+		Response.Write "</form>"
+		Response.Write "</table>"
+	End Function 
+
+	Public Function MoveContent(Byval NewCid,Byval ContentIDS)
+		If IsNumeric(NewCid) And Len(NewCid) > 0 And NewCid <> 0 Then
+			Dim Rs,Ns
+			Set Rs = DB("Select [ID],[Cid] From [{pre}Content] Where ID In (" & ContentIDS & ")",3)
+			Do While Not Rs.Eof
+				If LCase(GetChannel(NewCid,"Table")) <> LCase(GetChannel(Rs(1),"Table")) Then
+					Set Ns = DB("Select [Content] From [" & GetChannel(Rs(1),"Table") & "] Where [Aid]=" & Rs(0),1) '# 原表内容
+					If Not Ns.Eof Then Tmp = Ns(0) Else Tmp = "" '# 暂存
+					Ns.Close
+					Set Ns = DB("Select * From [" & GetChannel(NewCid,"Table") & "] Where [Aid]=" & Rs(0),3) '# 查新表
+					If Ns.Eof Then Ns.AddNew : Ns("Aid") = Rs(0) '# 转新表
+					Ns("Cid") = Tocid : Ns("Content") = Tmp : Ns.Update : Ns.Close '# 更新
+					Call DB("Delete From [" & GetChannel(Rs(1),"Table") & "] Where [Aid]=" & Rs(0),0) '# 原表删除
+				End If
+				Call DB("Update [" & GetChannel(Rs(1),"Table") & "] Set [Cid]=" & NewCid & " Where [Aid]=" & Rs(0),0) '# 更新内容表
+				Call DB("Update [{pre}Upload] Set [Cid]=" & NewCid & " Where [Aid]=" & Rs(0),0) '# 更新上传文件表
+				Call DB("Update [{pre}Comment] Set [Cid]=" & NewCid & " Where [Aid]=" & Rs(0),0) '# 更新上传文件表
+				Rs(1) = NewCid '# 更新
+				Rs.Update
+				Rs.MoveNext
+			Loop
+		End If
+	End Function
+	
+End Class
+%>

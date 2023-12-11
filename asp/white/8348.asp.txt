@@ -1,0 +1,151 @@
+﻿<%@LANGUAGE="VBSCRIPT" CODEPAGE="65001"%>
+<%Option Explicit
+Response.Buffer = True
+Server.ScriptTimeOut = 90
+
+Session.CodePage=65001
+
+If Trim(Request.QueryString("CP"))="GBK" Then Session.CodePage = 936
+
+'定义 Cookie,Application 域，必须修改，否则可能运行不正常
+Const CookieName="tuyabancom"
+
+'站点开关操作
+IF Not isNumeric(Application(CookieName & "_SiteEnable")) Then
+	Application.Lock
+	Application(CookieName & "_SiteEnable") = 1
+	Application(CookieName & "_SiteDisbleWhy") = ""
+	Application.UnLock
+End IF
+IF Application(CookieName & "_SiteEnable") = 0 AND Application(CookieName & "_SiteDisbleWhy")<>"" AND inStr(Replace(Lcase(Request.ServerVariables("URL")),"\","/"),"/admincp.asp") = 0  AND inStr(Replace(Lcase(Request.ServerVariables("URL")),"\","/"),"/logging.asp") = 0 Then
+	Response.Write(Application(CookieName & "_SiteDisbleWhy"))
+	Response.End
+End IF
+
+Dim StartTime
+StartTime=Timer()
+
+
+'定义数据库链接文件，根据自己的情况修改
+Const AccessPath="data"
+Const AccessFile="#hKJH@$#hgsd123@#$f.mdb" 
+
+'定义数据库连接
+Dim Conn
+On Error Resume Next
+Set Conn= Server.CreateObject("ADODB.Connection")
+Conn.ConnectionString="Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(AccessPath&"/"&AccessFile)
+Conn.Open
+If Err Then
+	'Err.Clear
+	Set Conn = Nothing
+	Response.Write("<head><meta http-equiv=""Content-Type"" content=""text/html; charset=utf-8"" /><title>数据库连接出错，请检查连接字串</title></head><body><div align=""center"" style=""width:400px;height:100px;padding: 8px;font-size:9pt;border: 1px solid ThreeDShadow;POSITION:absolute;top:expression((document.body.offsetHeight-100)/2);left:expression((document.body.offsetWidth-400)/2);""><table width=""100%"" height=""100%"" style=""font-size:12px;font-family:Tahoma;""><tr><td align=""center""><strong>数据库连接出错，请检查连接字串</strong></td></tr></table></div></body>")
+	Response.End
+End If
+
+Dim SQL,TempVar,siteTitle '定义常用变量
+
+Dim blog_Infos,SiteName,SiteUrl,blogPerPage,blog_LogNums,blog_CommNums,blog_MemNums,blog_VisitBaseNums,blog_VisitNums,blog_QuoteNums
+Set blog_Infos=Server.CreateObject("ADODB.Recordset")
+SQL="SELECT * FROM blog_Info"
+blog_Infos.Open SQL,Conn,1,1
+
+If blog_Infos.EOF And blog_Infos.BOF Then
+	Response.Write("站点出错，请检查数据库中的站点基本信息设置……")
+	Response.End
+Else
+	SiteName=blog_Infos("blog_Name")
+	SiteURL=blog_Infos("blog_URL")
+	blogPerPage=blog_Infos("blog_PerPage")
+	blog_LogNums=blog_Infos("blog_LogNums")
+	blog_CommNums=blog_Infos("blog_CommNums")
+	blog_MemNums=blog_Infos("blog_MemNums")
+	blog_QuoteNums=blog_Infos("blog_QuoteNums")
+	blog_VisitBaseNums=blog_Infos("blog_VisitBaseNums")
+	blog_VisitNums=blog_Infos("blog_VisitNums")+blog_VisitBaseNums
+End If
+blog_Infos.Close
+Set blog_Infos=Nothing
+
+Dim Guest_IP
+Guest_IP=Replace(Request.ServerVariables("HTTP_X_FORWARDED_FOR"),"'","")
+If Guest_IP=Empty Then Guest_IP=Replace(Request.ServerVariables("REMOTE_ADDR"),"'","")
+
+'站点统计代码
+IF Session("GuestIP")<>Guest_IP Then
+	Dim Guest_Agent,Guest_Refer
+	Guest_Agent=Trim(Request.ServerVariables("HTTP_USER_AGENT"))
+	Guest_Refer=Trim(Request.ServerVariables("HTTP_REFERER"))
+	Conn.ExeCute("UPDATE blog_Info SET blog_VisitNums=blog_VisitNums+1")
+
+	Session("GuestIP")=Guest_IP
+End IF
+
+Dim memName,memPassword,memStatus
+memName=CheckStr(Request.Cookies(CookieName)("memName"))
+memPassword=CheckStr(Request.Cookies(CookieName)("memPassword"))
+memStatus=CheckStr(Request.Cookies(CookieName)("memStatus"))
+
+IF memName<>Empty Then
+	Dim CheckCookie
+	Set CheckCookie=Server.CreateObject("ADODB.RecordSet")
+	SQL="SELECT mem_Name,mem_Password,mem_Status,mem_LastIP FROM blog_Member WHERE mem_Name='"&memName&"' AND mem_Password='"&memPassword&"' AND mem_Status='"&memStatus&"'"
+	CheckCookie.Open SQL,Conn,1,1
+	
+	If CheckCookie.EOF AND CheckCookie.BOF Then
+		Response.Cookies(CookieName)("memName")=""
+		memName=Empty
+		Response.Cookies(CookieName)("memPassword")=""
+		memPassword=Empty
+		Response.Cookies(CookieName)("memStatus")=""
+		memStatus=Empty
+	Else
+		If CheckCookie("mem_LastIP")<>Guest_IP Or isNull(CheckCookie("mem_LastIP")) Then
+			Response.Cookies(CookieName)("memName")=""
+			memName=Empty
+			Response.Cookies(CookieName)("memPassword")=""
+			memPassword=Empty
+			Response.Cookies(CookieName)("memStatus")=""
+			memStatus=Empty
+		End If
+	End IF
+	CheckCookie.Close
+	Set CheckCookie=Nothing
+Else
+	Response.Cookies(CookieName)("memName")=""
+	memName=Empty
+	Response.Cookies(CookieName)("memPassword")=""
+	memPassword=Empty
+	Response.Cookies(CookieName)("memStatus")=""
+	memStatus=Empty
+End If
+
+Dim NoSqlHack_AllStr,NoSqlHack_Str,NoSqlHack_ComeUrlGet,NoSqlHack_ComeUrlPost,NoSqlHack_Get,NoSqlHack_Post,NoSqlHack_i
+'On Error Resume Next
+NoSqlHack_AllStr="'|;| and |chr(|exec |insert |select |delete from|update |<|>|%|mid(|master."
+NoSqlHack_ComeUrlGet   = Request.QueryString
+NoSqlHack_ComeUrlPost  = Request.Form
+NoSqlHack_Str = Split(NoSqlHack_AllStr,"|")
+'Post
+If NoSqlHack_ComeUrlPost<>"" then
+	For Each NoSqlHack_Post In Request.Form
+		For NoSqlHack_i = 0 To Ubound(NoSqlHack_Str)
+			If Instr(LCase(Request.Form(NoSqlHack_Post)),NoSqlHack_Str(NoSqlHack_i))<>0 Then
+				Response.Write("<meta http-equiv=""Content-Type"" content=""text/html; charset=utf-8"" /><CENTER>请不要输入非法字符，谢谢合作<A HREF=""javascript:history.go(-1);"">点击返回</A></CENTER>")
+				Response.End
+			End if
+		Next
+	Next
+End if
+'Get
+If NoSqlHack_ComeUrlGet<>"" then 
+	For Each NoSqlHack_Get In Request.QueryString
+		For NoSqlHack_i = 0 To Ubound(NoSqlHack_Str)
+			If Instr(LCase(Request.QueryString(NoSqlHack_Get)),NoSqlHack_Str(NoSqlHack_i))<>0 Then
+				Response.Write("<meta http-equiv=""Content-Type"" content=""text/html; charset=utf-8"" /><CENTER>请不要输入非法字符，谢谢合作<A HREF=""javascript:history.go(-1);"">点击返回</A></CENTER>")
+				Response.End
+			End if
+		Next
+	Next
+End if
+%>

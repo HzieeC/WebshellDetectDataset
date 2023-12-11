@@ -1,0 +1,94 @@
+<!--#include file="const.asp"-->
+<!--#include file="../inc/md5.asp"-->
+<%
+Dim HtmlContent,listArray,Action
+
+If Newasp.CheckStr(LCase(Request("action"))) = "save" Then
+	Call FriendLinkSave()
+Else
+	Call Main()
+	Call TPL_Flush()
+End If
+NewAsp.PageEnd()
+
+Sub Main()
+	HtmlContent = NewAsp.LoadTemplate("link\apply")
+	HtmlContent = Replace(HtmlContent, "{$pagetitle}",  TPL_Config(5))
+	HtmlContent = Replace(HtmlContent, "{$classid}", 0)
+	TPL_Scan HtmlContent
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	'***
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	'***
+End Sub
+
+Sub FriendLinkSave()
+	Dim Rs,SQL,isLock
+	isLock=NewAsp.ChkNumeric(TPL_Config(12))   '设置申请连接默认状态。0=正常显示，1=锁定
+	If isLock>0 Then isLock=1
+	Call PreventRefresh
+	If CInt(NewAsp.MainSetting(40)) <> 0 Then
+		Call AlertScript("友情提示!\n\n"&TPL_Config(10)&"",0):Exit Sub
+	End If
+	If Not NewAsp.CodeIsTrue() Then
+		Call AlertScript("友情提示!\n\n验证码校验失败，请返回刷新验证码再试。",0):Exit Sub
+	End If
+	If Trim(Request.Form("LinkName")) = "" Then
+		Call AlertScript("友情提示!\n\n网站名称不能为空!",0):Exit Sub
+	End If
+	If Trim(Request.Form("LinkUrl")) = "" Then
+		Call AlertScript("友情提示!\n\n网站URL不能为空!",0):Exit Sub
+	End If
+	If Trim(Request.Form("Readme")) = "" Then
+		Call AlertScript("友情提示!\n\n网站简介不能为空!",0):Exit Sub
+	End If
+	If Trim(Request.Form("password1")) = "" Or Trim(Request.Form("password2")) = "" Then
+		Call AlertScript("友情提示!\n\n管理密码不能为空!",0):Exit Sub
+	End If
+	If NewAsp.IsValidStr(Request("password2")) = False Then
+		Call AlertScript("友情提示!\n\n管理密码中含有非法字符!",0):Exit Sub
+	End If
+	If Trim(Request.Form("password1")) <> Trim(Request.Form("password2")) Then
+		Call AlertScript("友情提示!\n\n管理密码和确认密码不一至，请重新输入管理密码!",0):Exit Sub
+	End If
+	If IsDate(Session("applytime")) Then
+		If Not IsNull(Session("applytime")) Or CLng(NewAsp.MainSetting(29)) > 0 Then
+			If DateDiff("s",Session("applytime"),Now()) < CLng(NewAsp.MainSetting(29)) Then
+				Call AlertScript("友情提示!\n\n本站限制每次申请距离时间为"&NewAsp.MainSetting(29)&"秒，请稍后申请!",0):Exit Sub
+			End If
+		End If
+	End If
+	Set Rs = NewAsp.Execute("SELECT LinkID FROM NC_Link WHERE LinkName='" & NewAsp.CheckBadstr(Request.Form("LinkName")) & "' And LinkUrl='" & NewAsp.CheckBadstr(Request.Form("LinkUrl")) & "'")
+	If Not (Rs.EOF And Rs.BOF) Then
+		Call AlertScript("友情提示!\n\n您申请的友情连接已经存在!",0):Exit Sub
+	End If
+	Set Rs = Nothing
+	If Founderr = True Then Exit Sub
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Link WHERE (LinkID is null)"
+	Rs.Open SQL,Conn,1,3
+	Rs.Addnew
+		Rs("LinkName") = NewAsp.RequestForm(Request.Form("LinkName"),50)
+		Rs("LinkUrl") = NewAsp.RequestForm(Request.Form("LinkUrl"),200)
+		Rs("LogoUrl") = NewAsp.RequestForm(Request.Form("LogoUrl"),200)
+		Rs("Readme") = NewAsp.RequestForm(Request.Form("Readme"),200)
+		Rs("LinkTime") = Now()
+		Rs("password") = md5(Request.Form("password2"),16)
+		Rs("LinkHist") = 0
+		Rs("isLogo") = NewAsp.ChkNumeric(Request.Form("isLogo"))
+		Rs("isIndex") = 0
+		Rs("isLock") = isLock
+	Rs.update
+	Rs.Close:Set Rs = Nothing
+	Session("applytime")=Now()
+	Response.Write "<script language=""JavaScript"">"
+	Response.Write "alert('"&TPL_Config(11)&"');"
+	Response.Write "try{top.location.replace(document.referrer);"
+	Response.Write "}catch(e){}"
+	Response.Write "</script>"
+End Sub
+%>

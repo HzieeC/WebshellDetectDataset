@@ -1,0 +1,385 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="65001"%>  
+<%Response.CodePage=65001%>  
+<%Response.Charset="utf-8"%><!--#include file="seeion.asp"--> 
+<%
+Server.ScriptTimeout	=500						
+URL= Request.ServerVariables("URL")
+Action= Request("Action")
+db="/OneFCMS_Data/OneFCMS$%#$#Data$%#2012#$11$$#7.mdb"		'记录数据库路径修改为你的数据库路径
+dim conn,connstr 
+'On Error Resume Next
+Set conn = Server.CreateObject("ADODB.Connection")
+connstr="Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(db)
+conn.Open connstr
+If Err Then
+	err.Clear
+	Set conn = Nothing
+	Response.Write "数据库连接出错，请检查连接字串。"
+	Response.End
+End If
+
+
+	Select Case Action
+		Case "Del"
+			Call Delip()
+		Case "lock"
+			Call lockIP()
+		Case "unlock"
+			Call UnLockip()
+		Case "Logout"
+			Call Logout()
+		Case "config"
+			Call config()
+		Case "saveconfig"
+			Call saveconfig()
+		Case Else 
+			Call Main()
+	end Select
+
+
+Sub Login()
+	%>
+
+<title>Sql防注入管理</title>
+<link href="images/style.css" type="text/css" rel="stylesheet" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<p>
+        <%
+End Sub
+
+Sub Main()
+	Call header()
+%>
+<script language="JavaScript">
+<!--
+function CheckAll(form)  {
+  for (var i=0;i<form.elements.length;i++)    {
+    var e = form.elements[i];
+    if (e.name != 'chkall')       e.checked = form.chkall.checked; 
+   }
+  }
+//-->
+</script> 
+<table width="99%" border="0" align="center" cellpadding="0" cellspacing="1" >
+  <tr>
+    <td height="30" background="images/bg_list.gif"><div  style="padding-left:10px; font-weight:bold; color:#0075a9">SQL注入管理</div> </td>
+  </tr>
+  <tr>
+    <td bgcolor="#FFFFFF"><table width="100%" border="0" align="center" cellpadding="4" cellspacing="0">
+      <tr align="center" bgcolor="#FFFFFF">
+        <%
+sql="select * from SqlIn order by id desc"
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,1
+if rs.eof and rs.bof then
+response.write ("<div style=""padding:10px;"">暂无注入记录!</div>")
+else
+'分页的实现 
+listnum=20
+Rs.pagesize=listnum
+page=Request("page")
+if (page-Rs.pagecount) > 0 then
+page=rs.pagecount
+elseif page = "" or page < 1 then
+page = 1
+end if
+rs.absolutepage=page
+'编号的实现
+j=rs.recordcount
+j=j-(page-1)*listnum
+i=0
+nn=request("page")
+if nn="" then
+n=0
+else
+nn=nn-1
+n=listnum*nn
+end if%>
+        <td height="30" bgcolor="#F1F5F8">编号</td>
+        <td height="30" bgcolor="#F1F5F8">攻击ＩＰ</td>
+        <td height="30" bgcolor="#F1F5F8">当前状态</td>
+        <td height="30" bgcolor="#F1F5F8">是否锁定</td>
+        <td height="30" bgcolor="#F1F5F8">操作页面</td>
+        <td height="30" bgcolor="#F1F5F8">操作时间</td>
+        <td height="30" bgcolor="#F1F5F8">提交方式</td>
+        <td height="30" bgcolor="#F1F5F8">提交参数</td>
+        <td height="30" bgcolor="#F1F5F8">提交数据</td>
+      </tr>
+      <%do while not rs.eof and i<listnum
+n=n+1%>
+      <form action="?del=ok" method="post" name="check" id="check">
+        <tr align="center" bgcolor="#FFFFFF" height="22">
+          <td height="30" class="td"><input name="ID" type="checkbox" id="ID" value="<%=rs("id")%>" />
+            <%=n%></td>
+          <td height="30" class="td"><%=rs("SqlIn_IP")%></td>
+          <td height="30" class="td"><%	if rs("Kill_ip")=true then 
+			response.write "<font color='red'>已锁定</font>"
+		else
+			response.write "<font color='green'>已解锁</font>"
+		end if
+	%></td>
+          <td height="30" class="td"><%	if rs("Kill_ip")=true then 
+			response.write "<a href="&URL&"?action=unlock&id="&rs("id")&" style=""color:#FF0000"">解锁IP</a>"
+		else
+			response.write "<a href="&URL&"?action=lock&id="&rs("id")&" style=""color:#006600"">锁定IP</a>"
+		end if
+	%>
+          </td>
+          <td height="30" class="td"><%=rs("SqlIn_WEB")%></td>
+          <td height="30" class="td"><%=rs("SqlIn_TIME")%></td>
+          <td height="30" class="td"><%=rs("SqlIn_FS")%></td>
+          <td height="30" class="td"><%=rs("SqlIn_CS")%></td>
+          <td height="30" class="td"><%=N_Replace(rs("SqlIn_SJ"))%></td>
+        </tr>
+        <%rs.movenext 
+i=i+1 
+j=j-1
+loop%>
+        <tr bgcolor="#FFFFFF">
+          <%filename=URL%>
+          <td height="30" colspan="9" align="right">共<%=Rs.recordcount%> 条记录&nbsp;&nbsp;<%=listnum%> 条记录/页&nbsp;&nbsp;共 <%=rs.pagecount%> 页
+            <% if page=1 then %>
+              <%else%>
+              <a href="<%=filename%>"><strong>|&lt;&lt;</strong></a> <a href="<%=filename%>?page=<%=page-1%>"><strong>&lt;&lt;</strong></a> <a href="<%=filename%>?page=<%=page-1%>"><b>[<%=page-1%>]</b></a>
+              <%end if%>
+            <% if rs.pagecount=1 then%>
+            <%else%>
+            <b>[<%=page%>]</b>
+            <%end if%>
+              <% if rs.pagecount-page <> 0 then %>
+              <a href="<%=filename%>?page=<%=page+1%>"><b>[<%=page+1%>]</b></a> <a href="<%=filename%>?page=<%=page+1%>"><strong>&gt;&gt;</strong></a> <a href="<%=filename%>?page=<%=rs.pagecount%>"><strong>&gt;&gt;|</strong></a>
+              <%end if%>
+              <input name="chkall" type="checkbox" id="chkall" value="select" onClick="CheckAll(this.form)" style="border:0" />
+            全选
+            <input type="submit" name="action" value="删除" style="font-size: 9pt;  color: #000000; background-color: #EAEAF4; solid #EAEAF4" class="btn"/>
+          </td>
+          <%end if%>
+        </tr>
+      </form>
+    </table></td>
+  </tr>
+</table>
+<%
+	Call footer()
+end Sub
+
+sub config()
+	Call header()
+	Set rsinfo=conn.execute("select * from sqlconfig")
+	N_In		= rsinfo("N_In")
+	Kill_IP		= rsinfo("Kill_IP")			
+	WriteSql	= rsinfo("WriteSql")		
+	alert_url	= rsinfo("alert_url")
+	alert_info	= rsinfo("alert_info")
+	kill_info	= rsinfo("kill_info")
+	N_type		= rsinfo("N_type")
+	Sec_Forms	= rsinfo("Sec_Forms")
+	Sec_Form_open = rsinfo("Sec_Form_open")
+	rsinfo.close
+	Set rsinfo=Nothing 
+
+%>
+<table width="99%" border="0" align="center" cellpadding="0" cellspacing="1" >
+  <tr>
+    <td height="30" background="images/bg_list.gif"><div  style="padding-left:10px; font-weight:bold; color:#0075a9">SQL防注入设置</div></td>
+  </tr>
+  <tr>
+    <td bgcolor="#FFFFFF"><table width="100%" border="0" align="center" cellpadding="0" cellspacing="0">
+      
+      <tr>
+        <td><%if session("qx")=2 then%><table width="100%" style="border-collapse:collapse; "  border="0" cellspacing="0" cellpadding="5">
+            <form name="form" method="post" action="<%=url%>?action=saveconfig">
+         <tr onmouseover="style.backgroundColor='#EEEEEE'" onmouseout="style.backgroundColor='#F1F5F8'" bgcolor="#F1F5F8" >
+                <td height="30"  align="left"  class="td">需要过滤的关键字：</td>
+                <td class="td">&nbsp;
+                    <input name="N_In" type="text" value="<%=N_In%>" id="r_str" style=" " size="50">
+                  用&quot;|&quot;分开</td>
+              </tr>
+              <tr onmouseover="style.backgroundColor='#EEEEEE'" onmouseout="style.backgroundColor='#FFFFFF'" bgcolor="#FFFFFF">
+                <td height="30" class="td">是否记录入侵者信息：</td>
+                <td class="td">&nbsp;
+                    <select name="WriteSql" id="r_kill">
+                      <option value="1" <%if WriteSql=1 Then response.write "selected"%>>是</option>
+                      <option value="0" <%if WriteSql=0 Then response.write "selected"%>>否</option>
+                  </select></td>
+              </tr>
+                <tr onmouseover="style.backgroundColor='#EEEEEE'" onmouseout="style.backgroundColor='#F1F5F8'" bgcolor="#F1F5F8" >
+                <td height="30" class="td">是否启用锁定IP：</td>
+                <td class="td">&nbsp;
+                    <select name="Kill_IP" id="r_kill">
+                      <option value="1" <%if Kill_IP=1 Then response.write "selected"%>>是</option>
+                      <option value="0" <%if Kill_IP=0 Then response.write "selected"%>>否</option>
+                  </select></td>
+              </tr>
+              <tr onmouseover="style.backgroundColor='#EEEEEE'" onmouseout="style.backgroundColor='#FFFFFF'" bgcolor="#FFFFFF">
+                <td height="30" class="td">是否启用安全页面：</td>
+                <td class="td">&nbsp;
+                    <select name="Sec_Form_open" id="r_kill">
+                      <option value="1" <%if Sec_Form_open=1 Then response.write "selected"%>>是</option>
+                      <option value="0" <%if Sec_Form_open=0 Then response.write "selected"%>>否</option>
+                    </select>
+                  慎用这个功能，除非你对确认此页面无需过滤，并确定对安全没影响！ </td>
+              </tr>
+                <tr onmouseover="style.backgroundColor='#EEEEEE'" onmouseout="style.backgroundColor='#F1F5F8'" bgcolor="#F1F5F8" >
+                <td height="30" class="td">您认为安全的页面：</td>
+                <td class="td">&nbsp;
+                    <input name="Sec_Forms" type="text" value="<%=Sec_Forms%>" id="r_str" style=" " size="50">
+                  用&quot;|&quot;分开</td>
+              </tr>
+              <tr onmouseover="style.backgroundColor='#EEEEEE'" onmouseout="style.backgroundColor='#FFFFFF'" bgcolor="#FFFFFF">
+                <td height="30" class="td">出错后的处理方式：</td>
+                <td class="td">&nbsp;
+                    <select name="N_type" id="r_kill">
+                      <option value="1" <%if N_type=1 Then response.write "selected"%>>直接关闭网页</option>
+                      <option value="2" <%if N_type=2 Then response.write "selected"%>>警告后关闭</option>
+                      <option value="3" <%if N_type=3 Then response.write "selected"%>>跳转到指定页面</option>
+                      <option value="4" <%if N_type=4 Then response.write "selected"%>>警告后跳转</option>
+                  </select></td>
+              </tr>
+                 <tr onmouseover="style.backgroundColor='#EEEEEE'" onmouseout="style.backgroundColor='#F1F5F8'" bgcolor="#F1F5F8" >
+                <td height="30" class="td">出错后跳转Url：</td>
+                <td class="td">&nbsp;
+                    <input name="alert_url" type="text" value="<%=alert_url%>" id="r_str" style=" " size="30"></td>
+              </tr>
+              <tr onmouseover="style.backgroundColor='#EEEEEE'" onmouseout="style.backgroundColor='#FFFFFF'" bgcolor="#FFFFFF">
+                <td height="30" class="td">警告提示信息：</td>
+                <td class="td">&nbsp;
+                  <textarea name="alert_info" cols="45" rows="4" id="alert_info" style=";  "><%=alert_info%></textarea>                  
+                  \n\n换行</td>
+              </tr>
+                 <tr onmouseover="style.backgroundColor='#EEEEEE'" onmouseout="style.backgroundColor='#F1F5F8'" bgcolor="#F1F5F8" >
+                <td height="30" class="td">阻止访问提示信息：</td>
+                <td class="td">&nbsp;
+                    <textarea name="kill_info" cols="45" rows="4" id="r_err2" style=";  "><%=kill_info%></textarea>
+                  \n\n换行 </td>
+              </tr>
+              <tr onmouseover="style.backgroundColor='#EEEEEE'" onmouseout="style.backgroundColor='#FFFFFF'" bgcolor="#FFFFFF">
+                <td height="30">&nbsp;</td>
+                <td><input name="enter_3" type="submit" id="enter_3" value="保存设置"  class="btn"></td>
+              </tr>
+            </form>
+        </table>    	<%else%>
+<div style=" padding:20px;font-size:14px; color:#990000; font-weight:bold; text-align:center">您没有权限操作！</div>
+	<%response.end
+	end if%></td>
+      </tr>
+    </table></td>
+  </tr>
+</table>
+<%
+	Call footer()
+end Sub
+
+Sub header()
+
+%>
+
+<title>Sql防注入系统</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link href="images/style.css" type="text/css" rel="stylesheet" />
+<style type="text/css">
+<!--
+body,td,th {
+	font-size: 12px;
+}
+a {
+	font-size: 12px;
+}
+body {
+	margin-left: 0px;
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+}
+a:link {
+	color: #333333;
+	text-decoration: none;
+}
+a:visited {
+	text-decoration: none;
+	color: #333333;
+}
+a:hover {
+	text-decoration: underline;
+	color: #FF3300;
+}
+a:active {
+	text-decoration: none;
+	color: #333333;
+}
+-->
+</style>
+
+<%
+
+End Sub 
+	sub footer()
+
+%>
+<%
+end Sub
+Sub Delip()
+dim id 
+conn.execute("delete from SqlIn where id in ( " & id & ")")
+Response.Redirect URL
+End sub
+
+Sub Lockip()
+id = clng(request("id"))
+conn.execute("update SqlIn set Kill_ip=true where id="&id)
+Response.Redirect URL
+End sub
+
+Sub UnLockip()
+id = clng(request("id"))
+conn.execute("update SqlIn set Kill_ip=False where id="&id)
+Response.Redirect URL
+End sub
+
+Sub Logout()
+	Session("AdminPassWord")="NUll"
+	Response.Redirect URL
+End Sub
+
+Sub saveconfig
+	N_In		=replace(request.form("N_In"),"'","''")
+	Kill_IP		=request.form("Kill_IP")			
+	WriteSql	=request.form("WriteSql")		
+	alert_url	=request.form("alert_url")
+	alert_info	=request.form("alert_info")
+	kill_info	=request.form("kill_info")
+	N_type		=request.form("N_type")
+	Sec_Forms	=request.form("Sec_Forms")
+	Sec_Form_open=request.form("Sec_Form_open")
+
+	sql="update sqlconfig set N_In='"&N_In&"',Kill_IP="&Kill_IP&",WriteSql="&WriteSql&",alert_url='"&alert_url&"',alert_info='"&alert_info&"',kill_info='"&kill_info&"',N_type="&N_type&",Sec_Forms='"&Sec_Forms&"',Sec_Form_open="&Sec_Form_open&""
+		Response.Write "<script language='javascript'>alert('保存成功！');document.location.href('admin_sql.asp?Action=config');</script>"
+	conn.execute(sql)
+	Application.Lock
+	set Application("Neeao_config_info")=nothing
+	Application.unlock
+	Call main()
+End Sub 
+
+Function N_Replace(N_urlString)
+	N_urlString = Replace(N_urlString,"'","''")
+    N_urlString = Replace(N_urlString, ">", "&gt;")
+    N_urlString = Replace(N_urlString, "<", "&lt;")
+    N_Replace = N_urlString
+End Function
+%>
+<%
+if Request.QueryString("del")="ok" then
+if Request("id")="" then
+Response.Write "<script>alert('请选择要删除的记录!');window.location.href='admin_sql.asp';</script>" 
+response.end()
+end if
+dim sql
+sql="delete from [SqlIn] where id in ("&Request("id")&")"
+conn.Execute ( sql )
+conn.close
+set conn=nothing
+Response.Write "<script>alert('批量删除成功!');window.location.href='admin_sql.asp';</script>" 
+end if
+%>

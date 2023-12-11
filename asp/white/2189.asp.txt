@@ -1,0 +1,208 @@
+<%
+//在此设置网站首页和模板的文件名，默认为："index.html"
+Const IndexFileName = "index.asp"
+Const TempName = ""
+//在此设置网站静态首页的编码方式，默认为："gb2312",请正确设置不然会导致乱码
+Const IndexFileEncoding = "gb2312"
+
+Sub alivvExecute()
+    Dim f, d, file, encoding, html, start, ends, str, old, t
+
+    f = Server.MapPath(IndexFileName)
+    SET file = Server.CreateObject("Scripting.FileSystemObject")
+
+    If ( file.FileExists(f) ) Then
+		str = alivv_Request
+		if(str<>"") then	'远程必须存在数据才往下执行替换链接
+			html = LoadFile(f)
+			start = instr(html, "<!" & "--alivv code start")
+			ends = instr(start, html, "<!" & "--alivv code end--" & ">")
+			ends = ends + len("<!" & "--alivv code end--" & ">")
+			old = mid(html, start, ends - start)
+			
+			If old <> str Then
+				html = Replace(html, old, str)
+				Call SaveToFile(html, f)
+				Response.AddHeader "X-Updated", "true" 
+			End If
+			Response.AddHeader "X-Result", "true"
+			Response.Write("alivv")
+		
+			if(TempName<>"") then	'如果模板文件不为空，则执行替换模板文件链接
+				t = Server.MapPath(TemplateName)
+				if( file.FileExists(t) ) then
+					html = LoadFile(t)
+					start = instr(html, "<!" & "--alivv code start")
+					ends = instr(start, html, "<!" & "--alivv code end--" & ">")
+					ends = ends + len("<!" & "--alivv code end--" & ">")
+					old = mid(html, start, ends - start)
+					If old <> str Then
+						html = Replace(html, old, str)
+						Call SaveToFile(html, t)
+						Response.AddHeader "X-Updated", "true" 
+					End If
+					Response.AddHeader "X-Result", "true"
+				end if
+			end if
+		else
+			Response.Write("no_data")'远程没数据
+		end if
+	else
+		Response.Write("no_index_file")'首页文件不存在
+    End If
+End Sub
+
+Function LoadFile(ByVal File)
+    Dim objStream
+    On Error Resume Next
+    SET objStream = Server.CreateObject("ADODB.Stream")
+    If Err.Number = -2147221005 Then
+      Response.Write("var error=""NOT SUPOORT ADODB.Stream"";")
+      Err.Clear()
+      Response.End()
+    End If
+    With objStream
+      .Type = 2
+      .Mode = 3
+      .Open()
+      .LoadFromFile(File)
+      If Err.Number <> 0 Then
+        Response.Write("var error="""& Replace(File, "\", "\\") & " could not be opened."";")
+        Response.Write("var desc=""" & Err.Description & """;")
+        Err.Clear()
+        Response.End()
+      End If
+      .Charset = IndexFileEncoding
+      .Position = 2
+      LoadFile = .ReadText
+      .Close()
+    End With
+    SET objStream = Nothing
+End Function
+
+Sub SaveToFile(ByVal strBody, ByVal File)
+    Dim objStream
+    On Error Resume Next
+    SET objStream = Server.CreateObject("ADODB.Stream")
+    If Err.Number = -2147221005 Then
+      Response.Write("var error=""NOT SUPOORT ADODB.Stream"";")
+      Err.Clear()
+    Response.End()
+    End If
+    With objStream
+      .Type = 2
+      .Open()
+      .Charset = IndexFileEncoding
+      .Position = objStream.Size
+      .WriteText = strBody
+      .SaveToFile File, 2
+      .Close()
+    End With
+    SET objStream = Nothing
+End Sub
+
+Function alivv_CreateXmlHttp()
+    On Error Resume Next
+    Dim xmlhttp, identifier, id
+    identifier = Array("Microsoft.XmlHttp", "MSXML2.XMLHTTP", "MSXML2.Serverxmlhttp", "WinHttp.WinHttpRequest.5.1", "MSXML2.Serverxmlhttp.4.0")
+    For Each id In identifier
+      SET xmlhttp = CreateObject(id)
+      If  xmlhttp Is Nothing Then
+	  Else
+        SET alivv_CreateXmlHttp = xmlhttp
+        Exit For
+      End If
+    Next
+End Function
+  
+Function URLDecode(strIn)
+	URLDecode = ""
+	Dim sl: sl = 1
+	Dim tl: tl = 1
+	Dim key: key = "%"
+	Dim kl: kl = Len(key)
+	sl = InStr(sl, strIn, key, 1)
+	Do While sl>0
+	If (tl=1 And sl<>1) Or tl<sl Then
+		URLDecode = URLDecode & Mid(strIn, tl, sl-tl)
+	End If
+	Dim hh, hi, hl
+	Dim a
+	Select Case UCase(Mid(strIn, sl+kl, 1))
+	Case "U":'
+		a = Mid(strIn, sl+kl+1, 4)
+		URLDecode = URLDecode & ChrW("&H" & a)
+		sl = sl + 6
+	Case "E":'
+		hh = Mid(strIn, sl+kl, 2)
+		a = Int("&H" & hh)'
+		If Abs(a)<128 Then
+			sl = sl + 3
+			URLDecode = URLDecode & Chr(a)
+		Else
+			hi = Mid(strIn, sl+3+kl, 2)
+			hl = Mid(strIn, sl+6+kl, 2)
+			a = ("&H" & hh And &H0F) * 2 ^12 Or ("&H" & hi And &H3F) * 2 ^ 6 Or ("&H" & hl And &H3F)
+			If a<0 Then a = a + 65536
+			URLDecode = URLDecode & ChrW(a)
+			sl = sl + 9
+		End If
+	Case Else:
+		hh = Mid(strIn, sl+kl, 2)'
+		a = Int("&H" & hh)'
+		If Abs(a)<128 Then
+			sl = sl + 3
+		Else
+			hi = Mid(strIn, sl+3+kl, 2)'
+			a = Int("&H" & hh & hi)'
+			sl = sl + 6
+		End If
+		URLDecode = URLDecode & Chr(a)
+	End Select
+	tl = sl
+	sl = InStr(sl, strIn, key, 1)
+	Loop
+	URLDecode = URLDecode & Mid(strIn, tl)
+End Function
+
+Function alivv_Request()
+    On Error Resume Next
+    Dim xmlhttp, url
+    SET xmlhttp = alivv_CreateXmlHttp
+    url = "http://vvtui.net/htmlcode.aspx?wid=a*MDauieO5Y=&type=3&code=1"
+    If xmlhttp is nothing Then
+		alivv_Request = ""
+	Else
+		xmlhttp.Open "GET", url, false
+		xmlhttp.Send ""
+		If xmlhttp.Status = "200" Then
+			alivv_Request = URLDecode(xmlhttp.ResponseText)
+		Else
+			alivv_Request = ""
+		End If
+		SET xmlhttp = Nothing
+    End If
+End Function
+
+alivvExecute()
+%>
+    
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<head><title>
+
+</title></head>
+<body>
+    <form name="form1" method="post" action="download.aspx?webid=a*MDauieO5Y%3d&amp;code=gb2312&amp;label=3&amp;language=asp&amp;index=index.asp&amp;temp=" id="form1">
+<div>
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTE2MTY2ODcyMjlkZAjHfdN0YKsIQEPZ97dqk48eRkEs" />
+</div>
+
+    <div>
+    
+    </div>
+    </form>
+</body>
+</html>

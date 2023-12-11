@@ -1,0 +1,261 @@
+<!--#include file="../../Inc/Const.asp"-->
+<!--#include file="Inc/_Manage.Class.asp"-->
+<%
+Dim Plus
+Set Plus = New Cls_Plus
+Plus.Open("comment") ' 打开配置文件
+Plus.CheckUser ' 权限检查
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=GB2312" />
+<title>管理</title>
+<link href="../../inc/Images/style.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript" src="../../inc/Images/func.js"></script>
+<script type="text/javascript" src="Inc/_Manage.js"></script>
+</head>
+<body>
+
+<%
+
+Dim U
+Set U = New Cls_Comment
+
+Dim Rs,Sql,Style
+Dim ID
+    ID = Request("ID")
+Dim URL
+	URL = "_Manage.Asp"
+Dim Key
+    Key = Request("Key")
+Dim Page
+    Page = Request("Page")
+Dim Orders
+    Orders = Request("Orders")
+Dim DFieldKey
+    DFieldKey = Request("DFieldKey")
+Dim DFieldOrders
+    DFieldOrders = Request("DFieldOrders")
+If len(ID) > 0 And Not IsNumeric(ID) Then : Response.Write "编号只能是数字!" : Conn.Close : Set Conn = Nothing : Set U = Nothing : Response.End '// 检测ID
+If Len(Page) = 0 Or Not IsNumeric(ID) Then Page = 1
+If Page < 1 Then Page = 1
+If LCase(Orders) <> "asc" Then Orders = "Desc"
+If Len(DFieldKey) = 0 Then DFieldKey = "content"
+If Len(DFieldOrders) = 0 Then DFieldOrders = "ID"
+If Instr("[id],[aid],[cid],[user],[ip],[time],[state],[content]" , "[" & Lcase(DFieldKey) & "]") = 0 Then Key = ""
+If Instr("[id],[aid],[cid],[user],[ip],[time],[state]" , "[" & Lcase(DFieldOrders) & "]") = 0 Then DFieldOrders = "ID"
+Dim DFieldKey1 : If LCase(DFieldKey) = "aid" Then DFieldKey1 = "{pre}Content].[Title" Else DFieldKey1 = "{pre}Comment].[" & DFieldKey
+Page = Int(Page) : Key = Replace(Key,"'","")
+Dim JumpUrl
+    JumpUrl = "&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders
+	
+Select Case Request("Act")
+Case "Guide"
+	If Len(ID) = 0 Then
+		Call U.Initialize()
+		Call Main_Guide(0)
+	Else
+		U.vID = ID
+		Call U.SetValue()
+		Call Main_Guide(1)
+	End If
+Case "UpDate"
+	If U.GetValue() Then
+		If Len(ID) = 0 Then
+			Alert "参数出错！",URL & "?Page=" & Page & JumpUrl
+		Else
+			U.vID = ID
+			If Not U.Modify() Then
+				Alert U.LastError,URL & "?Page=" & Page & JumpUrl
+			Else
+				Alert "",URL & "?Page=" & Page & JumpUrl
+			End If
+		End If
+	Else
+		Alert U.LastError,URL & "?Page=" & Page & JumpUrl
+	End If
+Case "Delete"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Delete() Then
+			Alert U.LastError,URL & "?Page=" & Page & JumpUrl
+		Else
+			Alert "",URL & "?Page=" & Page & JumpUrl
+		End If
+	Else
+		Call Main()
+	End If
+Case "Change"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Change() Then
+			Alert U.LastError,""
+		End If
+	End If
+	Call Main()
+Case Else
+	Call Main()
+End Select
+Set U = Nothing
+If IsObject(Conn) Then Conn.Close : Set Conn = Nothing
+
+Sub Main()
+	Sql = "Select [{pre}Comment].[ID],[Title],[User],[Ip],[Time],[State],[Content],[Recomment],[Aid] From [{pre}Comment],[{pre}Content]"
+	If Len(Key) > 0 Then
+		If Instr(",ID,Cid,State,","," & DFieldKey & ",") > 0 Then
+			If Len(Key) > 0 And IsNumeric(Key) Then
+				Sql = Sql & " Where [" & DFieldKey1 & "]=" & Key & ""
+			End If
+		Else
+			Sql = Sql & " Where [" & DFieldKey1 & "] Like '%" & Key & "%'"
+		End If
+	End If
+	If Instr(LCase(Sql)," where [") > 0 Then
+		Sql = Sql & " And [{pre}Content].[ID]=[{pre}Comment].[AID] Order By [{pre}Comment].[" & DFieldOrders & "] " & Orders & ""
+	Else
+		Sql = Sql & " Where [{pre}Content].[ID]=[{pre}Comment].[AID] Order By [{pre}Comment].[" & DFieldOrders & "] " & Orders & ""
+	End If
+	Set Rs = DB(Sql,2)
+	%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+		<td colspan=7><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<form name=frmSearch method=post action=<%=Url%>>
+					<tr>
+						<td class=css_main><a href=<%=Url%>>评论管理</a></td>
+						<td class=css_search><select name=DFieldKey id=DFieldKey>
+								<option value="ID" <%If Lcase(DFieldKey) = "id" Then Response.Write "selected='selecte'" %>>编号</option>
+								<option value="Aid" <%If Lcase(DFieldKey) = "aid" Then Response.Write "selected='selected'" %>>文章标题</option>
+								<option value="Cid" <%If Lcase(DFieldKey) = "cid" Then Response.Write "selected='selected'" %>>栏目编号</option>
+								<option value="User" <%If Lcase(DFieldKey) = "user" Then Response.Write "selected='selected'" %>>评论者</option>
+								<option value="Content" <%If Lcase(DFieldKey) = "content" Then Response.Write "selected='selected'" %>>评论内容</option>
+								<option value="Ip" <%If Lcase(DFieldKey) = "ip" Then Response.Write "selected='selected'" %>>评论IP</option>
+								<option value="Time" <%If Lcase(DFieldKey) = "time" Then Response.Write "selected='selected'" %>>评论时间</option>
+								<option value="State" <%If Lcase(DFieldKey) = "state" Then Response.Write "selected='selected'" %>>审核状态</option>
+							</select>
+							<input name=Key type=text id=Key size=10 value="<%=Key%>"> <input type=submit name=Submit value=搜> </td>
+					</tr>
+				</form>
+			</table></td>
+	</tr>
+	<tr>
+		<td class='css_top'>编号</td>
+		<td class='css_top'><a href='<%=Url%>?Page=<%=Page%>&DFieldOrders=Aid&Orders=<%If Lcase(DFieldOrders) = Lcase("Aid") And Orders = "Desc" Then Response.Write "Asc" Else Response.Write "Desc" %>'>文章编号</a></td>
+		<td class='css_top'>评论者</td>
+		<td class='css_top'>评论IP</td>
+		<td class='css_top'>时间</td>
+		<td class='css_top'><a href='<%=Url%>?Page=<%=Page%>&DFieldOrders=State&Orders=<%If Lcase(DFieldOrders) = Lcase("State") And Orders = "Desc" Then Response.Write "Asc" Else Response.Write "Desc" %>'>状态</a></td>
+		<td class='css_top'>管理</td>
+	</tr>
+	<%
+	  If Rs.Eof Then
+	  %>
+	<tr class=css_norecord>
+		<td colspan=7>没有任何记录！</td>
+	</tr>
+	<%
+	  Else
+	  Dim i
+	  Rs.PageSize = 9
+	  Rs.AbsolutePage = Page
+	  For i = 1 To Rs.PageSize
+	  If Rs.Eof Then Exit For
+	  %>
+	<tr>
+		<td class='css_list'><%=Rs("ID")%></td>
+		<td class='css_list'><div align="left" style='color:#999'><a href=../../redirect.asp?<%=Rs("Aid")%> target=_blank><%=Rs("Title")%></a></div></td>
+		<td class='css_list'><%=Rs("User")%></td>
+		<td class='css_list'><%=Rs("Ip")%></td>
+		<td class='css_list'><%=Rs("Time")%></td>
+		<td class='css_list'><span id="CommentState<%=Rs("ID")%>" style="cursor:hand;" onclick="CommentState(<%=Rs("ID")%>);"> <%
+	    Select Case Cstr(LCase(Rs("State")))
+	    Case "0" Response.Write "<font color=blue>待审</font>"
+	    Case "1" Response.Write "已审"
+	    Case Else Response.Write Rs("State")
+	    End Select
+	    %></span></td>
+		<td class='css_list'><input name=modify type=button onclick="location.href='<%=Url%>?Act=Guide&ID=<%=Rs("ID")%>&Page=<%=Page%><%=JumpUrl%>';" value=修改> <input name=delete type=button onclick="if(confirm('您确定要删除这条记录吗?')){location.href='<%=Url%>?Act=Delete&ID=<%=Rs("ID")%>&Page=<%=Page%><%=JumpUrl%>';}" value=删除></td>
+	</tr>
+	<tr>
+		<td colspan="7" class='css_comment_list'><span title="回复评论" style="cursor:hand;" onclick="ReComment(<%=Rs("ID")%>);"><%=Rs("Content")%></span><span id="ReComment<%=Rs("ID")%>"><%If Len(Rs("Recomment"))>0 Then Response.Write "<font color=red>回复: " & Rs("Recomment") & "</font>"%></span><span id="ReCommentState<%=Rs("ID")%>" style='display:none;'></span></td>
+	</tr>
+	<%
+	  Rs.MoveNext
+	  Next
+	  End If
+	  %>
+	<tr class=css_page_list>
+		<td colspan=7><%=PageList(Rs.PageCount,Page,Rs.RecordCount,15,URL & "?Page={p}&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders)%></td>
+	</tr>
+</table>
+<%
+	Rs.Close
+End Sub
+
+Sub Main_Guide(T)
+	%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+		<td colspan=2><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<tr>
+					<td class=css_main><a href=<%=Url%>>评论管理</a></td>
+				</tr>
+			</table></td>
+	</tr>
+	<form name='frm' method='post' action='<%=Url%>?Act=UpDate&ID=<%=ID%>&Page=<%=Page%><%=JumpUrl%>'>
+		<%If T = 0 Then Style=" style='display:none;'" Else Style=" style='display:none;'"%>
+		<tr<%=Style%>>
+			<td class=css_col11>文章编号：<span id='hAid' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col21><input class='css_input' name="oAid" type="text" id="oAid" onfocus="hAid.style.color='red';" onblur="hAid.style.color='#ccc';" value="<%=U.vAid%>"  > </td>
+		</tr>
+		<%If T = 0 Then Style=" style='display:none;'" Else Style=" style='display:none;'"%>
+		<tr<%=Style%>>
+			<td class=css_col12>栏目编号：<span id='hCid' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col22><input class='css_input' name="oCid" type="text" id="oCid" onfocus="hCid.style.color='red';" onblur="hCid.style.color='#ccc';" value="<%=U.vCid%>"  > </td>
+		</tr>
+		<%If T = 0 Then Style=" style='display:none;'" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col11>评论者：<span id='hUser' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col21><input class='css_input' name="oUser" type="text" id="oUser" onfocus="hUser.style.color='red';" onblur="hUser.style.color='#ccc';" value="<%=U.vUser%>" size=10 > </td>
+		</tr>
+		<%If T = 0 Then Style=" style='display:none;'" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col12>评论内容：<span id='hContent' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col22><textarea class='css_textarea' name="oContent" type="text" id="oContent" onfocus="hContent.style.color='red';" onblur="hContent.style.color='#ccc';" cols="60" rows="6" ><%=Server.HtmlEnCode(U.vContent&"")%></textarea>
+			</td>
+		</tr>
+		<%If T = 0 Then Style=" style='display:none;'" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col11>管理回复：<span id='hRecomment' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col21><textarea class='css_textarea' name="oRecomment" type="text" id="oRecomment" onfocus="hRecomment.style.color='red';" onblur="hRecomment.style.color='#ccc';" cols="60" rows="6" ><%=Server.HtmlEnCode(U.vRecomment&"")%></textarea>
+			</td>
+		</tr>
+		<%If T = 0 Then Style=" style='display:none;'" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col12>评论IP：<span id='hIp' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col22><input class='css_input' name="oIp" type="text" id="oIp" onfocus="hIp.style.color='red';" onblur="hIp.style.color='#ccc';" value="<%=U.vIp%>" size=40 > </td>
+		</tr>
+		<%If T = 0 Then Style=" style='display:none;'" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col11>评论时间：<span id='hTime' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col21><input class='css_input' name="oTime" type="text" id="oTime" onfocus="hTime.style.color='red';" onblur="hTime.style.color='#ccc';" value="<%=U.vTime%>" size=40 > </td>
+		</tr>
+		<%If T = 0 Then Style=" style='display:none;'" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col12>审核状态：<span id='hState' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col22><%If IsNull(U.vState) Then U.vState=""%> <span style="width: 100px;"><input <%If  U.vState = 0 Then Response.Write "checked='checked'"%> class='css_input' name="oState" type="radio" id="oState" onfocus="hState.style.color='red';" onblur="hState.style.color='#ccc';" value="0"  >待审</span> <span style="width: 100px;"><input <%If  U.vState = 1 Then Response.Write "checked='checked'"%> class='css_input' name="oState" type="radio" id="oState" onfocus="hState.style.color='red';" onblur="hState.style.color='#ccc';" value="1"  >已审</span> </td>
+		</tr>
+		<tr class=css_page_list>
+			<td colspan=2><input type='submit' name='Submit' value='保存'></td>
+		</tr>
+	</form>
+</table>
+<%
+End Sub
+%>
+</body>
+</html>
+<%
+Set Plus = Nothing
+%>

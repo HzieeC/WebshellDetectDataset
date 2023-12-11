@@ -1,0 +1,315 @@
+<!--#Include File="Conn.asp" -->
+<!--#Include File="Inc/Const.asp" -->
+<!--#Include File="Inc/Dv_ClsOther.asp" -->
+<%
+Dvbbs.LoadTemplates("usermanager")
+Dvbbs.Stats = "评论管理"
+Dvbbs.ErrType = 1
+Dvbbs.mainsetting(0)="80%"
+Dvbbs.Name = "DvTalk"
+Dvbbs.Nav()
+Dvbbs.Head_Var 0,1,"帖子评论",""
+Dvbbs.Head()
+Dvbbs.ShowSQL=0
+
+
+
+Dim DT_Sql,HTML,DT_TopicId,DT_AnnounceId,DT_ErrFlag,DT_Save,DT_Table,DT_DelNum,DT_Content
+Dim DT_RS,DT_RS2
+
+DT_Content = ""
+DT_ErrFlag = False
+DT_TopicId = Dvbbs.CheckNumeric(Request.QueryString("TopicId"))
+DT_AnnounceId = Dvbbs.CheckNumeric(Request.QueryString("AnnounceId"))
+DT_Save = Dvbbs.CheckNumeric(Request.QueryString("DT_Save"))
+
+Call main
+Set DT_RS = Nothing '再次释放，防止出错
+
+Function main()
+    Call CheckIsErr
+
+    If DT_ErrFlag = True Then
+        Exit Function
+    End If
+
+    If DT_Save = 0 Then
+        Call ShowForm
+    Else
+        Call SaveDel
+        If DT_ErrFlag = True Then
+            Exit Function
+        Else
+            Response.redirect("DvTalk_del.asp?TopicId="& DT_TopicId &"&AnnounceId="& DT_AnnounceId)
+        End If
+    End If
+    Response.Write HTML
+End Function
+
+Function CheckIsErr() '检测权限及相关数据
+
+    '检查访问权限
+    If Not (Dvbbs.Master Or Dvbbs.Boardmaster Or Dvbbs.Superboardmaster) Then
+        Dvbbs.AddErrcode(28)
+        Dvbbs.ShowErr()
+    End If
+
+    '主题ID是否正确
+	If DT_TopicId = 0 Then
+		Dvbbs.AddErrcode(30)
+        Dvbbs.ShowErr()
+	End If
+
+    '帖子ID是否正确
+	If DT_AnnounceId = 0 Then
+		Dvbbs.AddErrcode(30)
+        Dvbbs.ShowErr()
+	End If
+
+End Function
+
+Function ShowForm()
+
+    '取出当前帖子所在的表
+    On Error Resume Next
+    DT_Sql = "select [PostTable] from [Dv_Topic] where TopicID=" & DT_TopicId
+    Set DT_RS = Dvbbs.Execute(DT_Sql)
+
+    If Err.Number <> 0 Then
+
+        HTML = "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+		HTML = HTML & "<td><ul><li><font color=red>查询数据库发生错误："&Err.Description&"！(Code:001)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		Err.Clear
+		DT_RS.Close
+		Set DT_RS = Nothing
+		DT_ErrFlag = True
+		Exit Function
+
+	Else
+
+		If DT_RS.BOF And DT_RS.EOF Then
+
+			HTML = "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+            HTML = HTML & "<td><ul><li><font color=red>主题ID参数错误或本主题已经被删除，请不要提交非法参数！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+			DT_RS.Close
+			Set DT_RS = Nothing
+			DT_ErrFlag = True
+			Exit Function
+
+		Else
+
+			DT_Table = DT_RS(0)
+			DT_RS.Close
+			Set DT_RS = Nothing
+
+		End If
+
+	End If
+
+    '取出帖子评论内容，存入数组DT_RS2中
+    On Error Resume Next
+    DT_Sql = "select [Dv_Talk] from ["&DT_Table&"] where AnnounceId=" & DT_AnnounceId
+    Set DT_RS = Dvbbs.Execute(DT_Sql)
+
+    If Err.Number <> 0 Then
+
+        HTML = "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+		HTML = HTML & "<td><ul><li><font color=red>查询数据库发生错误："&Err.Description&"！(Code:002)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		Err.Clear
+		DT_RS.Close
+		Set DT_RS = Nothing
+		DT_ErrFlag = True
+		Exit Function
+
+	Else
+
+		If DT_RS.BOF And DT_RS.EOF Then
+
+            HTML = "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+			HTML = HTML & "<td><ul><li><font color=red>主题ID参数错误，请不要提交非法参数！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+			DT_RS.Close
+			Set DT_RS = Nothing
+			DT_ErrFlag = True
+			Exit Function
+
+		Else
+
+            DT_RS2 = Split(DT_RS(0),"</talk>")
+			DT_RS.Close
+			Set DT_RS = Nothing
+
+        End If
+
+	End If
+
+    HTML = "<form action='DvTalk_del.asp?TopicId=" & DT_TopicId & "&AnnounceId="& DT_AnnounceId &"&DT_Save=1' method='post'><table class='tableborder1' cellspacing='1'><tr class='tablebody1'>"
+    HTML = HTML & "<th><ul><li><input type='checkbox' name='allcheck' id='allcheck' onclick='checkAll();'>全选</input></li></ul></font></th></tr>"
+    HTML = HTML & "<tr class='tablebody1'><td><ul>"
+    Dim Temp,DT_Temp '临时变量，循环用
+    Temp=0
+    For Temp = 0 To UBound(DT_RS2,1)-1
+        DT_Temp = DT_RS2(Temp)
+        DT_Temp = Replace(DT_Temp,"<talk>","")
+        DT_Temp = Replace(DT_Temp,"</talk>","")
+        DT_Temp = Replace(DT_Temp,"<name>","")
+        DT_Temp = Replace(DT_Temp,"</name>","&nbsp;&nbsp;&nbsp;&nbsp;")
+        DT_Temp = Replace(DT_Temp,"<give>","<span style='color:black;'>")
+        DT_Temp = Replace(DT_Temp,"</give>","</span>")
+        DT_Temp = Replace(DT_Temp,"<count type=""more"">","<b style='color:red;'>")
+        DT_Temp = Replace(DT_Temp,"<count type=""less"">","<b style='color:green;'>")
+        DT_Temp = Replace(DT_Temp,"</count>","</b>")
+        DT_Temp = Replace(DT_Temp,"<content>","&nbsp;&nbsp;&nbsp;&nbsp;")
+        DT_Temp = Replace(DT_Temp,"</content>","&nbsp;&nbsp;&nbsp;&nbsp;")
+        DT_Temp = Replace(DT_Temp,"<time>","")
+        DT_Temp = Replace(DT_Temp,"</time>","")
+        HTML = HTML & "<li><input type='checkbox' value='" & Temp & "' name='delnum' id='delnum' />" & DT_Temp & "</li>" & vbCrLf
+    Next
+    HTML = HTML & "</ul></td></tr><tr class='tablebody1'><td style=""text-align:center;""><input type='submit' value=""删除所选""/></td>"
+
+End Function
+
+Function SaveDel()
+    DT_DelNum = Dvbbs.CheckStr(Request.Form("delnum"))
+    DT_DelNum = Split(DT_DelNum,", ")
+
+    '取出当前帖子所在的表
+    On Error Resume Next
+    DT_Sql = "select [PostTable] from [Dv_Topic] where TopicID=" & DT_TopicId
+    Set DT_RS = Dvbbs.Execute(DT_Sql)
+
+    If Err.Number <> 0 Then
+
+        HTML = "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+		HTML = HTML & "<td><ul><li><font color=red>查询数据库发生错误："&Err.Description&"！(Code:003)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		Err.Clear
+		DT_RS.Close
+		Set DT_RS = Nothing
+		DT_ErrFlag = True
+		Exit Function
+
+	Else
+
+		If DT_RS.BOF And DT_RS.EOF Then
+
+			HTML = "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+            HTML = HTML & "<td><ul><li><font color=red>主题ID参数错误或本主题已经被删除，请不要提交非法参数！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+			DT_RS.Close
+			Set DT_RS = Nothing
+			DT_ErrFlag = True
+			Exit Function
+
+		Else
+
+			DT_Table = DT_RS(0)
+			DT_RS.Close
+			Set DT_RS = Nothing
+
+		End If
+
+	End If
+
+    '取出帖子评论内容，存入数组DT_RS2中
+    On Error Resume Next
+    DT_Sql = "select [Dv_Talk] from ["&DT_Table&"] where AnnounceId=" & DT_AnnounceId
+    Set DT_RS = Dvbbs.Execute(DT_Sql)
+
+    If Err.Number <> 0 Then
+
+        HTML = "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+		HTML = HTML & "<td><ul><li><font color=red>查询数据库发生错误："&Err.Description&"！(Code:004)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		Err.Clear
+		DT_RS.Close
+		Set DT_RS = Nothing
+		DT_ErrFlag = True
+		Exit Function
+
+	Else
+
+		If DT_RS.BOF And DT_RS.EOF Then
+
+            HTML = "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+			HTML = HTML & "<td><ul><li><font color=red>主题ID参数错误，请不要提交非法参数！</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+			DT_RS.Close
+			Set DT_RS = Nothing
+			DT_ErrFlag = True
+			Exit Function
+
+		Else
+
+            DT_RS2 = Split(DT_RS(0),"</talk>")
+			DT_RS.Close
+			Set DT_RS = Nothing
+
+        End If
+
+	End If
+
+    Dim Temp '定义临时循环变量
+    For Each Temp In DT_DelNum
+        DT_RS2(Temp)=""
+    Next
+
+    For Each Temp In DT_RS2
+        If Temp <> "" And Temp <> vbCrLf Then
+            DT_Content = DT_Content & Temp &"</talk>"
+        End If
+    Next
+
+    '把处理完的数据存回数据库
+    On Error Resume Next
+    DT_Sql = "Update ["&DT_Table&"] Set Dv_Talk='"& DT_Content &"' where AnnounceId=" & DT_AnnounceId
+    Dvbbs.Execute(DT_Sql)
+
+    If Err.Number <> 0 Then
+
+        HTML = "<table class='tableborder1' cellspacing='1' ><tr class='tablebody1'>"
+		HTML = HTML & "<td><ul><li><font color=red>写入数据库发生错误："&Err.Description&"！(Code:005)</font></li></ul></tr></td><tr class='tablebody1'><td style='text-align:center;'><INPUT class='input0' onclick='wndClose()'; type='button' value='关闭' name='close'></td></tr></table>"
+		Err.Clear
+		DT_RS.Close
+		Set DT_RS = Nothing
+		DT_ErrFlag = True
+		Exit Function
+
+	End If
+
+End Function
+%>
+
+<script language="JavaScript" type="text/javascript">
+<!--
+function wndClose(){
+	try{
+		parent.DvWnd.close();
+	}
+	catch(e){
+		window.close()
+	}
+}
+function wndpost(){
+    try
+    {
+        parent.location.reload();
+    }
+    catch (e)
+    {
+        wndClose();
+    }
+}
+function checkAll(){
+    var a = document.getElementsByName("delnum");
+    var alen=a.length;
+    var b = document.getElementsByName("allcheck");
+    for (i=0;i<alen;i++)
+    {
+        if (b[0].checked == true)
+        {
+            a[i].checked = true;
+        }
+        else
+        {
+            a[i].checked = false;
+        }
+    }
+}
+//-->
+</script>

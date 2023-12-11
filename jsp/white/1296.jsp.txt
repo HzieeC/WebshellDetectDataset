@@ -1,0 +1,74 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="java.util.*" %>
+<%@ page import="com.bizoss.updateHtml.updateHtml.UpdateCustIndexHtml" %>
+
+<%@ page import="com.bizoss.frame.util.FileIO" %>
+<%@ page import="com.bizoss.updateHtml.parseXml.Config" %>
+<%@ page import="com.bizoss.trade.ti_company.*" %>
+<%@ page import="com.bizoss.trade.ts_nav.*" %>
+
+<%
+	request.setCharacterEncoding("UTF-8");
+	
+	UpdateCustIndexHtml update = new UpdateCustIndexHtml();
+	Ti_companyInfo company = new Ti_companyInfo();
+	Ts_navInfo navInfo = new Ts_navInfo();
+	FileIO fileIO = new FileIO();
+	Config  configfile = new Config();
+	configfile.init();
+	String rootpath = configfile.getString("rootpath");	
+	String companyTempath = configfile.getString("companyTempath");	
+	String companySavepath = configfile.getString("companySavepath");	
+	String default_page = "index.html";
+	Map paramap =new Hashtable();
+	paramap.put("state_code","c");
+	int limit = 0;
+	String paramAttr="76",param_attr="27";
+	String cust_id="",create_templets="/templets/company/templets/default/";
+	
+	if( request.getParameter("cust_id") != null && !request.getParameter("cust_id").trim().equals("")){
+		cust_id =request.getParameter("cust_id");
+		paramap.put("cust_id",cust_id);
+	}
+	if( request.getParameter("create_templets") != null && !request.getParameter("create_templets").trim().equals("")){
+		create_templets =request.getParameter("create_templets");
+		if(create_templets.indexOf("c2c")!=-1){
+			paramAttr="112";
+			param_attr="113";
+		}
+	}	
+	if( request.getParameter("limit") != null && !request.getParameter("limit").trim().equals("")){
+		limit = Integer.parseInt(request.getParameter("limit").trim());
+	}
+	
+	if(limit == 0) limit = company.getCountByObj(paramap);
+	List list = company.getListByPage(paramap,0,limit);
+   try{
+		if(list != null && list.size() > 0){
+			Hashtable map = new Hashtable();
+			for(int i = 0;i < list.size();i++){
+				map = (Hashtable)list.get(i);
+				
+				if(map.get("cust_id")!=null){				
+					cust_id = map.get("cust_id").toString();
+					navInfo.insertCustNav(cust_id,paramAttr);
+					String tem_path = rootpath + create_templets;
+					String to_path = rootpath + companyTempath + cust_id + "/";
+					String index_path = companyTempath + cust_id + "/" + default_page;
+					String saveDir = companySavepath + cust_id + "/";
+					
+ 
+
+					fileIO.copyFolder(tem_path, to_path);
+          update.updateCustPartIndexHtml(cust_id,"",param_attr);			
+					out.println("更新成功。<a href='/"+saveDir+"' target='_blank'>浏览</a>");
+				}
+			}
+			out.println("更新成功。");
+		}
+	}catch(Exception e){
+	e.printStackTrace();
+		out.println("更新失败。");
+	}
+%>

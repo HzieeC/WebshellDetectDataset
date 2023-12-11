@@ -1,0 +1,402 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="inc/conndb.asa"-->
+<!--#include file="inc/function.asp"-->
+<%
+set getTemplate = new Cls_Template
+html_tie_show=getTemplate("ddp_tie_show")
+
+
+MyPageSize=Sys_Show_Num
+PageShowSize=5
+ID = CheckNum(Request.QueryString("id"))
+extra = CheckStr(Request.QueryString("extra"))
+If extra<>"" Then
+	isextra="&extra="&extra
+	extraArray=Split(extra,"-")
+	backboardid=CheckNum(extraArray(0))
+	backpage=CheckNum(extraArray(1))
+	If Int(backpage)<>1 Then isbackpage="&CurPage="&backpage
+End If 
+
+If Request("CurPage") = "" or Request("CurPage") = 0 then
+	CurPage = 1
+Else
+	CurPage = CheckNum(Request("CurPage"))
+End If
+Set rs1 = Server.CreateObject("ADODB.Recordset") 
+sql = "SELECT "&bbsTable&".*,"&userTable&".umoney,"&userTable&".id as uid,"&userTable&".logintimes,"&userTable&".lastlogin,"&userTable&".user_show,"&userTable&".user_mod FROM "&bbsTable&" left join "&userTable&" on "&bbsTable&".username="&userTable&".username where "&bbsTable&".id="&id
+rs1.Open sql, conn,3,3 
+If rs1.eof and rs1.bof Then 
+	response.write "您要找的信息已经被删除或者输入了错误的网址，请查实！【<a href='"&list_page_name&"'>返回！</a>】"
+	response.End 
+End If 
+SQLQueryNums=SQLQueryNums+1
+'是否需要记录点击session
+If HitsSession>0 Then
+	Randomize '随机数初始化
+	ck=Int(HitsSession*rnd) 
+	If ck=0 Then ck=1'安全保护，防止随机为0不增加了，最少也是个1。
+	if session("refresh_"&id)="" then session("refresh_"&id)="0"
+		if cLng(session("refresh_"&id)) <> cLng(id) then 
+			session("refresh_"&id)=id''--将session更新为当前的id号
+			rs1("hits")=rs1("hits")+ck 
+		end If
+Else
+	rs1("hits")=rs1("hits")+1 
+End If 
+rs1.update
+
+nowhits=rs1("hits") 
+title=rs1("title")
+recount=rs1("recount")
+istop=rs1("istop")
+isgood=rs1("isgood")
+username=rs1("username")
+addtime=rs1("addtime")
+image=rs1("picurl")
+tieContent=UBBs(rs1("content"))
+BoardID=CInt(rs1("boardid"))
+BoardFather=CInt(GetBoardFather(rs1("boardid")))
+BoardName=GetBoardName(BoardID)
+IsRe = CInt(rs1("IsRe")) 'Add For V1.5
+IsCheck =Cint(rs1("IsCheck")) 'Add For V1.5
+user_mod=rs1("user_mod")
+ip=rs1("ip")
+IsAdmin=CheckAdmin(BoardID)
+BoardListStr=BoardList(BoardID)
+NavRight=BoardListSon(BoardID)
+
+Page_WebTitle=title&"-" &BoardName& "-" & TieBa_Name
+Page_Description=TitleLeft(RemoveUBB(rs1("content")),320)
+Page_Keywords=title&"," &BoardName& "," & TieBa_Name&","&Page_Keywords
+
+now_where="<a href="""&list_page_name&"?boardid="&BoardID&isbackpage&""">"&BoardName&"</a>"
+If BoardFather<>0 Then now_where="<a href="""&list_page_name&"?BoardID="&BoardFather&""">"&GetBoardName(BoardFather)&"</a> &raquo; "& now_where
+now_where=now_where & " &raquo; "  & TitleLeft(title,60)
+
+
+If Left(Sys_close,1)=1 Then response.write "<BR>"&ShowTable("提示信息","<CENTER>本站暂时关闭，原因："&Right(Sys_close,Len(Sys_close)-1)&"</CENTER>",""): response.End : End If 
+
+user_mod=rs1("user_mod")
+'心情插件
+XQID=rs1("id")
+XQCLASS="bbs"
+
+XinQing="<iframe width=600 height=220 src=""XingqingShow.asp?id="&XQID&"&CLASS="&XQCLASS&""" marginWidth=0 marginHeight=0 frameborder=0 scrolling=no></iframe>"
+
+ip=rs1("ip")
+
+
+
+'广告信息
+gap_arr = Split(TieBa_AD_Tie,"|@|")
+if ubound(gap_arr)>=2 then
+	TieBa_AD_Tie1 = gap_arr(0)
+	TieBa_AD_Tie2 = gap_arr(1)
+	TieBa_AD_Tie3 = gap_arr(2)
+end if
+If TieBa_AD_Tie1<>"" Then TieBa_AD_Tie1="<div class=tieAD>"&TieBa_AD_Tie1&"</div>"
+If TieBa_AD_Tie2<>"" Then TieBa_AD_Tie2="<div class=tieAD>"&TieBa_AD_Tie2&"</div>"
+If TieBa_AD_Tie3<>"" Then TieBa_AD_Tie3="<div class=tieAD>"&TieBa_AD_Tie3&"</div>"
+
+If IsRe>0 Then '如果该帖子允许回复
+	If Sys_Guest_Re=1 Or (Sys_Guest_Re=0 And Dreamsun_Name<>"") Then 
+		rePost=True
+	Else
+		rePost=False
+		shuoming="<CENTER>目前不允许游客回复，请 <A href='UserMng.asp'>登录</A> <A href='UserMng.asp?Action=reg'>注册</A> 发表言论。</CENTER>"
+	End If
+Else
+		rePost=False
+		shuoming="<CENTER>该帖子目前已经锁定，不允许回复！</CENTER>"
+End If
+
+'本来在下面的调用回复的主sql语句，提前到这里来，为的是少一次读取数据库，给回复可见让路。
+Set rs2 = Server.CreateObject("ADODB.Recordset")
+sql2 = "SELECT "&rebbsTable&".*,"&userTable&".umoney,"&userTable&".id as uid,"&userTable&".logintimes,"&userTable&".lastlogin,"&userTable&".user_show,"&userTable&".user_mod FROM "&rebbsTable&" left join "&userTable&" on "&rebbsTable&".username="&userTable&".username where "&rebbsTable&".[ischeck]>-1 and "&rebbsTable&".re="&id&" ORDER BY "&rebbsTable&".addtime asc,"&rebbsTable&".id DESC"
+rs2.open sql2,conn,1,1
+SQLQueryNums=SQLQueryNums+1
+If rs2.eof and rs2.bof Then
+Else
+	For hfji=1 To recount
+	if rs2.eof then exit for 
+		reArray=reArray&"|"&rs2("username")
+	rs2.movenext
+	Next 
+	reArray=reArray&"|"
+End If
+
+tie_ip=""
+tie_cz=""
+tie_isgood=""
+tie_relink=""
+tie_sigline=""
+
+if CurPage<=1 Then
+	If Rs1("uid")>0 Then
+		If user_mod="" Or IsNull(user_mod) Then user_mod="images/mod/000.png"
+		tie_username="作者：<a href=UserMng.asp?Action=infoshow&username="&Rs1("username")&">"&DropFuckWords(Rs1("username"))&"</a>"
+		tie_userlevel="等级:"&ShowUserLevel(Rs1("umoney"))&""
+		tie_umoney="积分:"&Rs1("umoney")
+		tie_logintimes="登陆次数:"&Rs1("logintimes")
+		tie_lastlogin="最后登录:"&DateToStr(Rs1("lastlogin"),"Y-m-d")
+		Dim fatie:fatie="发贴："& conn.execute("Select Count(id) from bbs where username='"&rs1("username")&"' and ischeck=1")(0) & " 篇" 
+Dim huifu:huifu="回复："&conn.execute("Select Count(id) from rebbs where username='"&rs1("username")&"' and ischeck=1")(0)& " 篇"
+
+	Else
+		user_mod="images/mod/000.png"
+		tie_username="作者："&DropFuckWords(Rs1("username"))&""
+	End If
+	tie_addtime="发表于 "&GetTimeFormat(addtime)
+	If IsAdmin>0 Then tie_ip="IP:"&ip
+	tie_zhiwu=AdminLevel(Rs1("username"))
+	If tie_zhiwu=9 Then 
+  tie_zhiwu="职务：<font color=red>管理员</font>"
+ElseIf tie_zhiwu=1 Then 
+  tie_zhiwu="职务：<font color=blue>版主</font>"
+Elseif tie_umoney<>"" then
+  tie_zhiwu="身份：普通会员" 
+  else 
+  tie_zhiwu="身份：游客" 
+End If
+
+	If Rs1("user_show")<>"" Then tie_sigline="<div class=""sigline"">"&DropFuckWords(ubbs(Rs1("user_show")))&"</div>"
+
+	'2010-3-8新增加回复可见标签。采用正则。
+	If Sys_isReView=1 Then '允许回复可见功能。
+		If InStr(tieContent,"[replyview]")>0 And InStr(tieContent,"[/replyview]")>0 Then 
+			set cy=new Regexp
+			cy.IgnoreCase = True
+			cy.Global=true
+			cy.Pattern=SPAM
+			cy.Pattern="\[replyview](.*?)\[\/replyview]"
+			If IsAdmin>0 Or InStr(reArray,"|"&Dreamsun_name&"|") Or Rs1("username")=Dreamsun_name Then 
+				tieContent= cy.Replace(tieContent,"<hr /><span class=hot>显示回复可见内容:</span><br/>$1<hr />")
+			Else
+				tieContent= cy.Replace(tieContent,"<hr /><CENTER class=hot>该内容回复可见，请回复后查阅</CENTER><hr />")
+			End If 
+		End If
+	Else
+	
+	End If 
+	'回复可见结束
+
+	If IsCheck=1 Then
+		content=DropFuckWords(tieContent)
+	Else
+		content= "<BR><BR><center class=hot>-------------下面的信息尚未审核，普通会员以及游客无权查看该信息-------------</center><BR>"
+	End If
+
+	If Int(IsAdmin)>0 Or Dreamsun_Name=Rs1("username") Then '判断管理权限,管理员或者作者。
+		tie_cz="<a href='edit.asp?tn=bbs&id="&Rs1("id")&"'>编辑</a> | "
+		If IsCheck=0 Then content=content & DropFuckWords(tieContent)
+		If Int(IsAdmin)>0 Then
+			if IsCheck=0 then
+				tie_cz=tie_cz & "<a href='tzsave.asp?cz=TieCheck&id="&Rs1("id")&"' class=hot>审核帖子</a> | "
+			ElseIf IsCheck = 1 then
+				tie_cz=tie_cz & "<a href='tzsave.asp?cz=TieNoCheck&id="&Rs1("id")&"'>屏蔽帖子</a> | "
+			end If
+			if isgood=0 then
+				tie_cz= tie_cz & "<a href='tzsave.asp?cz=isgood&id="&id&"'>设精华</a> | "
+			else
+				tie_cz= tie_cz &  "<a href='tzsave.asp?cz=isgood&id="&id&"'>取精华</a> | "
+			end If
+			tie_cz=tie_cz &"<a href='tzsave.asp?cz=Del&id="&Rs1("id")&"'>删除</a> | "
+			tie_cz=tie_cz &"<a href='tzsave.asp?cz=UpTime&id="&Rs1("id")&"'>提升</a> | "
+		End If
+	End If
+	If isgood=1 Then tie_isgood=" good"
+	If rePost Then tie_relink="<a href=""javascript:;"" onclick=""editor.appendHTML('<strong>回复：楼主</strong><br>');"">回复</a>"
+	html_tie_topic=replace(html_tie_show,"$tie_mod$",user_mod&"")
+	html_tie_topic=replace(html_tie_topic,"$tie_username$",tie_username)
+	html_tie_topic=replace(html_tie_topic,"$tie_umoney$",tie_umoney)
+	html_tie_topic=replace(html_tie_topic,"$tie_userlevel$",tie_userlevel)
+	html_tie_topic=replace(html_tie_topic,"$tie_zhiwu$",tie_zhiwu)
+
+	html_tie_topic=replace(html_tie_topic,"$tie_lastlogin$",tie_lastlogin)
+	html_tie_topic=replace(html_tie_topic,"$tie_logintimes$",tie_logintimes)
+	html_tie_topic=replace(html_tie_topic,"$tie_addtime$",tie_addtime)
+	html_tie_topic=replace(html_tie_topic,"$tie_ip$",tie_ip)
+	html_tie_topic=replace(html_tie_topic,"$tie_lou$","楼主(阅："&nowhits&"/回："&recount&")")
+    html_tie_topic=replace(html_tie_topic,"$fatie$",fatie)
+    html_tie_topic=replace(html_tie_topic,"$huifu$",huifu)
+	html_tie_topic=replace(html_tie_topic,"$tie_title$",titleleft(title,60))
+	html_tie_topic=replace(html_tie_topic,"$tie_content$",content)
+	html_tie_topic=replace(html_tie_topic,"$tie_isgood$",tie_isgood)
+	html_tie_topic=replace(html_tie_topic,"$tie_sigline$",tie_sigline)
+	html_tie_topic=replace(html_tie_topic,"$TieBa_AD_Tie$",TieBa_AD_Tie1)
+'增加心情插件
+	html_tie_topic=replace(html_tie_topic,"$XinQing$",XinQing)
+	html_tie_topic=replace(html_tie_topic,"$tie_relink$",tie_relink)
+	html_tie_topic=replace(html_tie_topic,"$tie_cz$",tie_cz)
+
+	html_tie_topic=replace(html_tie_topic,"<li></li>","")
+End If
+rs1.close
+set rs1=Nothing
+'sql语句在前面。
+If rs2.eof and rs2.bof Then
+	Else
+		html_tie_re=""
+		rs2.PageSize     = MyPageSize
+		MaxPages         = rs2.PageCount
+		If CurPage>=MaxPages Then CurPage=MaxPages
+		rs2.absolutepage = CurPage
+		Totalcount       = rs2.RecordCount
+		for i=1 to rs2.PageSize
+			If not rs2.eof Then
+			If i Mod 2=0 Then 
+				TieBa_AD_RE=TieBa_AD_Tie3
+			Else
+				TieBa_AD_RE=TieBa_AD_Tie2
+			End If 
+
+			tie_ip=""
+			tie_cz=""
+			tie_isgood=""
+			tie_relink=""
+			tie_sigline=""
+			tie_sigline=""
+			user_mod=""
+			tie_zhiwu=""
+
+			tie_username=""
+			tie_userlevel=""
+			tie_umoney=""
+			tie_logintimes=""
+			tie_lastlogin=""
+			tie_zhiwu=""
+
+
+			If Rs2("uid")>0 Then
+			tie_zhiwu=""
+            fatie=""
+            huifu=""
+
+				user_mod=rs2("user_mod")
+				If user_mod="" Or IsNull(user_mod) Then user_mod="images/mod/000.png"
+				tie_username="作者：<a href=UserMng.asp?Action=infoshow&username="&Rs2("username")&">"&DropFuckWords(Rs2("username"))&"</a>"
+				tie_userlevel="等级:"&ShowUserLevel(Rs2("umoney"))&""
+				tie_umoney="积分:"&Rs2("umoney")
+				tie_logintimes="登陆次数:"&Rs2("logintimes")
+				tie_lastlogin="最后登录:"&DateToStr(Rs2("lastlogin"),"Y-m-d")
+				tie_zhiwu=AdminLevel(Rs2("username"))
+				If tie_zhiwu=9 Then 
+  tie_zhiwu="职务：<font color=red>管理员</font>"
+ElseIf tie_zhiwu=1 Then 
+  tie_zhiwu="职务：<font color=blue>版主</font>"
+Elseif tie_umoney<>"" then
+  tie_zhiwu="身份：普通会员" 
+  else 
+  tie_zhiwu="身份：游客" 
+End If
+
+			Else
+				user_mod="images/mod/000.png"
+				tie_username="作者："&DropFuckWords(Rs2("username"))&""
+			End If
+			If IsAdmin>0 Then tie_ip="IP:"&Rs2("ip")
+
+			If Rs2("user_show")<>"" Then tie_sigline="<div class=""sigline"">"&DropFuckWords(ubbs(Rs2("user_show")))&"</div>"
+
+				If Rs2("IsCheck")=1 Then
+					content= DropFuckWords(UBBs(Rs2("content")))
+				Else
+					content= "<BR><BR><center class=hot>-------------下面的信息尚未审核，普通会员以及游客无权查看该信息-------------</center><BR>"
+				End If
+				
+				If Int(IsAdmin)>0 Or Dreamsun_Name=Rs2("username") Then '判断管理权限,管理员或者作者。
+					tie_cz=tie_cz &"<a href='edit.asp?tn=rebbs&id="&Rs2("id")&"'>编辑</a> | "
+					If Rs2("IsCheck")=0 Then content=content & DropFuckWords(UBBs(Rs2("content")))
+
+					If Int(IsAdmin)>0 Then
+						if Rs2("IsCheck")=0 then
+							tie_cz=tie_cz & "<a href='tzsave.asp?cz=ReCheck&id="&Rs2("id")&"' class=hot>审核帖子</a> | "
+						elseif Rs2("IsCheck") = 1 then
+							tie_cz=tie_cz & "<a href='tzsave.asp?cz=ReNoCheck&id="&Rs2("id")&"'>屏蔽帖子</a> | "
+						end If
+						tie_cz=tie_cz &"<a href='tzsave.asp?cz=ReDel&id="&Rs2("id")&"'>删除</a> | "
+					End If 
+				End If
+				
+	If rePost Then
+		tie_relink="<a href=""javascript:;"" onclick=""editor.appendHTML('<strong>回复："&rs2("lou")&"楼</strong><br>');"">回复"&rs2("lou")&"楼</a>"
+	Else
+		tie_relink="回复"&rs2("lou")&"楼"
+	End If 
+	
+	html_tie_review=replace(html_tie_show,"$tie_mod$",user_mod&"")
+	html_tie_review=replace(html_tie_review,"$tie_username$",tie_username)
+	html_tie_review=replace(html_tie_review,"$fatie$","")
+     html_tie_review=replace(html_tie_review,"$huifu$","")
+
+	html_tie_review=replace(html_tie_review,"$tie_umoney$",tie_umoney)
+	html_tie_review=replace(html_tie_review,"$tie_zhiwu$",tie_zhiwu)
+
+	html_tie_review=replace(html_tie_review,"$tie_userlevel$",tie_userlevel)
+	html_tie_review=replace(html_tie_review,"$tie_lastlogin$",tie_lastlogin)
+	html_tie_review=replace(html_tie_review,"$tie_logintimes$",tie_logintimes)
+	html_tie_review=replace(html_tie_review,"$tie_addtime$",Rs2("addtime"))
+	html_tie_review=replace(html_tie_review,"$tie_ip$",tie_ip)
+    html_tie_review=replace(html_tie_review,"$XinQing$","")
+	html_tie_review=replace(html_tie_review,"$tie_content$",content)
+	html_tie_review=replace(html_tie_review,"$tie_isgood$","")
+	html_tie_review=replace(html_tie_review,"$tie_sigline$",tie_sigline)
+	html_tie_review=replace(html_tie_review,"$TieBa_AD_Tie$",TieBa_AD_RE)
+
+	html_tie_review=replace(html_tie_review,"$tie_relink$",tie_relink)
+	html_tie_review=replace(html_tie_review,"$tie_cz$",tie_cz)
+
+	html_tie_review=replace(html_tie_review,"<h2><span>$tie_lou$</span>$tie_title$</h2>","")
+	html_tie_review=replace(html_tie_review,"<li></li>","")
+
+	'response.write html_tie_review
+	html_tie_re=html_tie_re & html_tie_review
+	rs2.MoveNext
+			end if
+		Next
+		pagecut=viewpage(Totalcount,MyPageSize,PageShowSize,CurPage,"id="&id&isextra,"当前""总数:","ShowInfo.asp")
+	End if
+rs2.close
+set rs2=Nothing
+
+html_tie_re= html_tie_re &"<table width=""100%"" border=""0"" cellspacing=""0"" class=""showTie""><TR><TD class=""cc"" valign=middel><BR><BR></TD><TD class=""dd"" align=right >"&pagecut&"<div class=""meneame""><a href=""tzsave.asp?cz=nextOld&id="&ID&""">上一条</a> <a href=""tzsave.asp?cz=nextNew&id="&ID&""">下一条</a><a href="""&list_page_name&"?boardid="&BoardID&isbackpage&""">返回列表</a></div></TD></TR></TABLE>"%>
+<!--#include file="inc/postarea.asp"-->
+<%
+If rePost Then 
+	html_postform=getPostForm(0)
+Else
+	html_postform="<div id=postform class=hot>"&shuoming&"</div>"
+End If 
+
+currWZ="帖子:"&title
+
+'页面主体三大变量区域替换
+shtml=getTemplate("ddp_head") & html_tie_topic & html_tie_re & html_postform & getTemplate("ddp_foot")
+
+'页面全局变量、普通变量替换
+shtml=replace(shtml,"$Page_WebTitle$",Page_WebTitle)
+shtml=replace(shtml,"$Page_Author$",Page_Author)
+shtml=replace(shtml,"$Page_Keywords$",Page_Keywords)
+shtml=replace(shtml,"$Page_Description$",Page_Description)
+shtml=replace(shtml,"$BoardListStr$",BoardListStr)
+shtml=replace(shtml,"$now_where$",now_where)
+shtml=replace(shtml,"$NavRight$",NavRight)
+shtml=replace(shtml,"$kdhLink$",dhLink())
+shtml=replace(shtml,"$topmenu$",topmenu())
+shtml=replace(shtml,"$bar_FriendLink$",FriendLink())
+shtml=replace(shtml,"$SQLQueryNums$",SQLQueryNums)
+shtml=replace(shtml,"$runTime$",runTime)
+'输出总变量，搞定！
+response.write shtml
+%>
+<script type="text/javascript">
+document.body.oncopy = function () { 
+setTimeout( function () { 
+  var text = clipboardData.getData("text");
+  if (text) { 
+   text = text + "\r\n文章来源："+location.href; clipboardData.setData("text", text);
+  } 
+    }, 100 ) 
+}
+</script>

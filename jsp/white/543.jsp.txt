@@ -1,0 +1,121 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>帮助中心</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<script type="text/javascript" src="${ctx }/scripts/js/jquery-1.3.2.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+
+
+<link href="${ctx }/styles/css/hyzx.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/tt.css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+<!--
+.STYLE30 {
+	font-size: 16px;
+	font-family: "微软雅黑";
+	color: #FF0000;
+}
+.STYLE31 {
+	color: #0000FF
+}
+.STYLE33 {
+	color: #FF7000;
+	font-weight: bold;
+}
+-->
+</style>
+
+</head>
+<body>
+<div class="kuang_da">
+    <%@ include file="/WEB-INF/page/front/head.jsp" %>
+  <div class="dht0">
+    <div class="dizhilanda">您现在的位置：<a href="${ctx }/index.do">首页</a>&gt; <a href="#"><strong>关于我们</strong></a></div>
+    <div class="kkda">
+      <div class="xcym_zc">
+        <div class="xcymda">
+          <div class="zxym_ph_bt">会员中心</div>
+          <div class="xcym_xl">
+            <div class="xcym_bt"><a class="" href="#">关于我们</a></div>
+            <div class="xcym_db">
+            	<c:forEach items="${informationList}" var="infor">
+            		<a href="${ctx }/about.do?information.id=${infor.id }">${infor.title }</a><br />
+            	</c:forEach>
+              <!-- 
+              	  <a href="#">企业文化</a><br />
+	              <a href="#">合作伙伴</a><br />
+	              <a href="#">人才招聘</a><br />
+	              <a href="#">联系我们</a><br />
+               -->
+            </div>
+          </div>
+          <div class="xcym_xl" style="display:none;">
+            <div class="xcym_bt"><a class="" href="#">购物指南</a></div>
+            <div class="xcym_db"><a href="#">购物流程</a><br />
+              <a href="#">会员介绍</a><br />
+              <a href="#">团购/机票/充值/点卡</a><br />
+              <a href="#">常见问题</a><br />
+              <a href="#">联系客服</a></div>
+          </div>
+          <div class="xcym_xl" style="display:none;">
+            <div class="xcym_bt"><a href="#">配送方式</a></div>
+            <div class="xcym_db">上门自提<br />
+              <a href="#">快递运输</a><br />
+              <a href="#">特快专递（EMS）</a><br />
+              如何送礼 <br />
+              <a href="#">海外购物</a></div>
+          </div>
+          <div class="xcym_xl" style="display:none;">
+            <div class="xcym_bt"><a class="" href="#">支付方式<br />
+              </a></div>
+            <div class="xcym_db">货到付款<br />
+              <a href="#">在线支付</a><br />
+              <a href="#">分期付款</a><br />
+              <a href="#">邮局汇款</a><br />
+              公司转账 </div>
+          </div>
+          <div class="xcym_xl" style="display:none;">
+            <div class="xcym_bt"><a class="" href="#">售后服务</a></div>
+            <div class="xcym_db"><a href="#">退换货政策</a><br/>
+              <a href="#">退换货流程</a><br/>
+              <a href="#">价格保护</a><br/>
+              <a href="#">退款说明</a><br/>
+              <a href="#">返修/退换货</a><br/>
+              <a href="#">退款申请</a></div>
+          </div>
+          <div class="xcym_xl" style="display:none;">
+            <div class="xcym_bt"><a class="" href="#">特色服务</a></div>
+            <div class="xcym_db"> <a href="#">夺宝岛</a><br/>
+              <a href="#">贴心服务</a><br/>
+              <a href="#">礼品卡</a><br/>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="zxym_yc">
+        <div class="gdttda">
+          <div class="hyzx_bt">
+            <div class="zxyc_dh">
+              <div class="zxyc_zz">${information.title }</div>
+              <div class="sr3_t_right right"></div>
+            </div>
+            <div class="gywm_da" style="table-layout:fixed; word-break: break-all; overflow:hidden;">
+               ${information.content }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <%@ include file="/WEB-INF/page/front/footer.jsp" %>
+</div>
+</body>
+</html>

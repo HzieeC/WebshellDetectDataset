@@ -1,0 +1,251 @@
+<%
+'======================
+'====循环语句
+'======================
+dim page_size,page_count,record_count,page,rsl,iRow
+set rs =Server.CreateObject("adodb.Recordset")
+set rsl=Server.CreateObject("adodb.Recordset")
+page=Request.QueryString("page")
+
+sub list_sql(fun,sqlstr)
+	rsl.open sqlstr,conn,1,1
+	if not rsl.eof then
+		iRow=0
+		do while not rsl.eof
+			fc=rsl.fields.count-1
+			for i=0 to fc
+				fn=rsl.fields(i).name
+				fv=rsl.fields(i).value
+				execute(fn & "=fv")
+			next
+			Execute("call " & fun & "()")
+			rsl.movenext
+			iRow=iRow+1
+		loop
+	end if
+	rsl.close
+end sub
+
+sub list_page(fun,sqlstr)
+	rsl.open sqlstr,conn,1,1
+	iRow=0
+	if page_size="" then page_size=12  end if
+	rsl.pagesize=page_size 
+	record_count=rsl.recordcount
+	page_count=rsl.pagecount
+	if page="" then page=1 end if
+	if not rsl.eof then
+		rsl.absolutepage=page
+		do while not rsl.eof and cint(iRow)<cint(page_size)
+			fc=rsl.fields.count-1
+			for i=0 to fc
+				fn=rsl.fields(i).name
+				fv=rsl.fields(i).value
+				execute(fn & "=fv")
+			next
+			Execute("call " & fun & "()")
+			iRow=iRow+1
+			rsl.movenext
+		loop
+	end if
+	rsl.close
+end sub
+
+'======================
+'====获取网址
+'======================
+function GetUrl(flag)
+	Dim strHostName,strScriptName,strSubUrl,strRequestItem
+	strHostName=CStr(Request.ServerVariables("LOCAL_ADDR"))
+	strScriptName=CStr(Request.ServerVariables("SCRIPT_NAME"))
+	strSubUrl=""
+	If Request.QueryString<>"" Then
+		strScriptName=strScriptName&"?"
+		For Each strRequestItem In Request.QueryString
+			If InStr(strScriptName,strRequestItem)=0 Then
+				If strSubUrl="" Then
+				  	strSubUrl=strSubUrl&strRequestItem&"="&Server.URLEncode(Request.QueryString(""&strRequestItem&""))
+				Else
+				  	strSubUrl=strSubUrl&"&"&strRequestItem&"="&Server.URLEncode(Request.QueryString(""&strRequestItem&""))
+				End If
+			End If
+		Next
+	End If
+	select case flag
+		case 0:UrlTemp="http://"&strHostName&strScriptName&strSubUrl
+		case 1:UrlTemp=strScriptName
+	end select
+	GetUrl=UrlTemp
+end function
+
+function get_dir()
+	curr_url=GetUrl(1)
+	dir_temp=""
+	if instr(curr_url,"do/") then dir_temp="../" end if
+	if instr(curr_url,"manage/") then dir_temp="../" end if
+	if instr(curr_url,"manage/do/") then dir_temp="../../" end if
+	get_dir=dir_temp
+end function
+
+function get_dir_message()
+	curr_url=GetUrl(1)
+	dir_temp="manage/"
+	if instr(curr_url,"do/") then dir_temp="../manage/" end if
+	if instr(curr_url,"manage/") then dir_temp="" end if
+	if instr(curr_url,"manage/do/") then dir_temp="../" end if
+	get_dir_message=dir_temp
+end function
+
+function get_dir_file()
+	curr_url=GetUrl(1)
+	dir_temp=""
+	if instr(curr_url,"manage/") then dir_temp="../" end if
+	get_dir_file=dir_temp
+end function
+
+'======================
+'====取得上一条、下一条
+'======================
+function page_prev_next(dbs,id,ptitle,links,steg)
+	dim tep:tep=""
+	links1=links
+	if not instr(links,"?")>0 then
+		links1=links&"?"
+	end if
+	if steg=1 then
+		sqlstr="select * from " & dbs & " where id<" & id & " and fullpath = '" & fullpath & "' order by id desc"
+	else
+		sqlstr="select * from " & dbs & " where id>" & id & " and fullpath = '" & fullpath & "' order by id asc"
+	end if
+	set rst=conn.execute(sqlstr)
+	if not rst.bof and not rst.eof then
+		tep=tep&ptitle&"：<a href="""&links1&"id="&rst("id")&""">"&rst("title")&"</a>"
+	else
+		tep=ptitle&"：没有"&ptitle
+	end if
+	tep=tep&" "
+	rst.close:set rst=nothing
+	page_prev_next=tep
+end function
+
+'======================
+'====获取参数值
+'======================
+Function getForm(element,ftype)
+	Select case ftype
+		case "get"
+			getForm=trim(request.QueryString(element))
+		case "post"
+			getForm=trim(request.Form(element))
+		case "both"
+			if isNull(request.QueryString(element)) then getForm=trim(request.Form(element)) else getForm=trim(request.QueryString(element))
+	End Select	
+	getForm=replace(getForm,CHR(34),"&quot;")
+	getForm=replace(getForm,CHR(39),"&apos;")
+End Function
+
+'======================
+'====获取一条记录
+'======================
+function get_one(sqlstr,default)
+	rs.open sqlstr,conn,1,1
+	if rs.eof then
+		get_one=default
+	else
+		get_one=rs.fields(0).value
+	end if
+	rs.close
+end function
+
+function getone(sqlstr)
+	rs.open sqlstr,conn,1,1
+	if rs.eof then
+		getone=""
+	else
+		getone=rs.fields(0).value
+	end if
+	rs.close
+end function
+
+'======================
+'====获取IP地址
+'======================
+Function getIp()
+	dim forwardFor
+	getIp=request.servervariables("Http_X_Forwarded_For")
+	if getIp="" then getIp=request.servervariables("Remote_Addr") end if	
+	getIp=replace(getIp, chr(39), "")
+End Function
+
+'======================
+'====是否已登录
+'======================
+function is_login()
+	if session("isLogin")=true then
+		is_login=true
+	else
+		is_login=false
+	end if
+end function
+
+'======================
+'====是否为已安装对象
+'======================
+Function isInstallObj(objname)
+	dim isInstall,obj
+	On Error Resume Next
+	set obj=server.CreateObject(objname)
+	if Err then 
+		isInstallObj=false : err.clear 
+	else 
+		isInstallObj=true:set obj=nothing
+	end if
+End Function
+
+'======================
+'====显示提示信息并返回
+'======================
+sub showMessage(time_refresh,message,url_return)
+	sql="select * from showmessage order by id asc"
+	rs.open sql,conn,3,2
+	if rs.eof then
+		rs.addnew
+		rs("message")=message
+		rs("url_return")=url_return
+		rs("time_refresh")=time_refresh
+		rs.update
+	else
+		rs("message")=message
+		rs("url_return")=url_return
+		rs("time_refresh")=time_refresh
+		rs.update
+	end if
+	rs.close
+	link_return=get_dir_message() & "showmessage.asp"
+	Response.Redirect(link_return)
+end sub
+
+sub set_return_page(url_return)
+	sql="select * from showmessage where id=2"
+	rs.open sql,conn,3,2
+	rs("url_return")=url_return
+	rs.update
+	rs.close
+end sub
+
+'======================
+'====取得类别路径
+'======================
+function getpath(classname)
+	sql="select fullpath from " & dbs_class & " where classname='" & classname & "'"
+	getpath=getone(sql)
+end function
+
+'======================
+'====信息
+'======================
+function getInfoId(title)
+	sql="select id from " & dbs_info & " where title='" & title & "'"
+	getInfoId=getone(sql)
+end function
+%>

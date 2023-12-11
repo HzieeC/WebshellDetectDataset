@@ -1,0 +1,153 @@
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<%
+If Not FRAdminLevel(803) Then
+	Call ErrorMsg()
+End If
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>后台管理LOG日志</title> 
+<LINK href="../css/style.css" rel="stylesheet" type="text/css">
+</head>
+<SCRIPT language=javascript>
+function unselectall(){
+    if(document.myform.chkAll.checked){
+ document.myform.chkAll.checked = document.myform.chkAll.checked&0;
+    }
+}
+function CheckAll(form){
+  for (var i=0;i<form.elements.length;i++){
+    var e = form.elements[i];
+    if (e.Name != 'chkAll'&&e.disabled==false)
+       e.checked = form.chkAll.checked;
+    }
+  }
+</script>
+<body>
+<% 
+if not isempty(request("selAnnounce")) then
+idlist=request("selAnnounce")
+	if instr(idlist,",")>0 then
+	dim idarr
+	idArr=split(idlist)
+	dim log_id
+	for i = 0 to ubound(idarr)
+	log_id=clng(idarr(i))
+	call deleteannounce(log_id)
+	next
+	else
+	call deleteannounce(clng(idlist))
+	end if
+end if 
+
+page3=request("pag") 
+if page3="" then page3=session("contpag") end if'分页数，当前分页 
+if page3="" then page3="1" end if 
+
+pa=request("pa") 
+if pa="" then pa=session("contpa") end if'每页显示数 
+if pa="" then pa=20 end if'默认每页显示15条，可任意改 
+session("contpag")=page3 
+session("contpa")=pa 
+pages=pa '每页显示数量***************以上一段程序用于实现分页功能 
+
+SQL="SELECT * FROM job_manage_log order by log_id desc" 
+dim rs 
+Set rs=Server.CreateObject("ADODB.RecordSet") 
+rs.Open sql,conn,1,1 
+csi=0 
+cs1=0 
+cs100=0 
+csdat1=0 
+do while not rs.eof 
+csi=csi+rs("cs") 
+if rs("cs")=1 then cs1=cs1+1 
+if rs("cs")>=100 then cs100=cs100+1 
+if datevalue(rs("dat"))=date then 
+csdat1=csdat1+1 
+end if 
+rs.movenext 
+loop 
+ZS=RS.RECORDCOUNT 
+If not RS.bof then
+RS.movefirst
+end if
+If Not RS.Eof Then
+'*****************************************************以下一段程序用于分页显示 
+%>
+<table width="100%" border="0" cellspacing="1" cellpadding="2" align="center" class="tableBorder">
+	<tr>
+		<th colspan="7">网站后台日志管理</th>
+	</tr>
+	<tr>
+    <td colspan="7">共有 
+  <%Response.Write zs%>
+  条记录，现在是第 
+  <%Response.Write page3%>
+  页 [<a href="dispcont.asp">刷新] </a>
+   页码<%page2=1 
+for i=1 to zs step pages 
+if page3=cstr(page2) then 
+%>[<%Response.Write page2%>] 
+<% else %> 
+<a href="dispcont.asp?pag=<%Response.Write page2%>">[<%Response.Write page2%>]</a>
+<% end if 
+page2=page2+1 
+next 
+sn=pages*(page3-1) '当前记录号=每页显示数*页数-每页显示数 
+if sn>zs then sn=0 
+rs.move sn,1 
+'**********************************以上一段用于分页 
+%>
+</td>
+</tr>
+ <Form name="form" method="POST" action="dispcont.asp"> 
+ <tr>
+    <td width="8%" align="center">选中</td>
+    <td width="10%" align="center">编号</td>
+    <td width="23%" align="center">最后登陆后台时间</td>
+    <td width="20%" align="center">最后登陆IP</td>
+    <td width="12%" align="center">登陆后台次数</td>
+    <td width="17%" align="center">首次登陆后台日期</td>
+    <td width="10%" align="center">登陆用户</td>
+  </tr><% 
+for i=1 to pages 
+Response.Write "<tr align='center'>"
+Response.Write "<td><input name='selAnnounce' type='checkbox' value='"&cstr(rs("log_id"))&"' class=checkbox></td>" 
+Response.Write "<td>"&rs("log_id")&"</td>" 
+Response.Write "<td>"&rs("dat")&"</td>" 
+Response.Write "<td>"&rs("IP")&"</td>" 
+Response.Write "<td>&nbsp;"&rs("CS")&"</td>" 
+Response.Write "<td>"&rs("DAT1")&" </td>"
+Response.Write "<td>"&rs("admin_username")&" </td>"
+Response.Write "</tr>" 
+rs.movenext 
+if rs.eof then exit for 
+next 
+%> 
+<tr><td colspan="7">合计<%=zs%> 登陆后台次数为100次以上的有<%=cs100%> 登陆后台次数为1的有：<%=cs1%> 总登陆<%=csi%>次 今天登陆：<%=csdat1%>次</td>
+    </tr>
+	<tr><td colspan=9>请选择要删除的事件，
+	  <input name='chkAll' type='checkbox' class="checkbox" id='chkAll' onclick='CheckAll(this.form)' value='checkbox'>
+	  全选 <input name=act type=submit class="inputs"  onclick="{if(confirm('您确定执行的操作吗?')){this.document.even.submit();return true;}return false;}" value=删除日志>　
+	</td>
+	</tr>
+  </form> 
+</table>
+<%
+End If
+rs.close 
+%>
+<% 
+sub deleteannounce(log_id)
+	dim rs,sql
+	set rs=server.createobject("adodb.recordset")
+	sql="delete from [job_manage_log] where log_id="&log_id
+	conn.execute sql
+End sub
+%>
+<!--#include file="../inc/copy.asp"-->

@@ -1,0 +1,303 @@
+<!--#include file="../ACT.Function.asp"-->
+<!--#include file="../../ACT_inc/cls_pageview.asp"-->
+<!--#include file="../include/ACT.F.asp"-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>1</title>
+<link href="../Images/style.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+<% 
+Dim ShowErr,ModeID,Rsp,Rsd
+ ModeID = ChkNumeric(Request("ModeID"))
+ if ModeID=0 or ModeID="" Then ModeID=1
+		If Not ACTCMS.ACTCMS_QXYZ(ModeID,"","") Then   Call Actcms.Alert("对不起，您没有"&ACTCMS.ACT_C(ModeID,1)&"系该项操作权限！","")
+
+	IF Request.QueryString("Action") = "hf" Then
+		Dim ID:ID =Request.Form("ID")
+		IF ID = "" Then
+			Call Actcms.ActErr("请先选定文章！","","1")
+			Response.End
+		End IF		
+			Conn.execute("Update  "&ACTCMS.ACT_C(ModeID,2)&"  set delif=0 where ID in ("&ID&")")
+			set conn=nothing
+			ShowErr = "<li>批量恢复成功！</li>"
+ 	 	 Call Actcms.ActErr(ShowErr,"ACT_Mode/ACT.Recyle.asp?ModeID="&ModeID&"&Type=New","")
+	End IF
+	
+	
+	
+	IF Request.QueryString("Action") = "hf1" Then
+		ID = ChkNumeric(Request.QueryString("ID"))
+		Conn.execute("Update  "&ACTCMS.ACT_C(ModeID,2)&"  set delif=0 where ID ="&ID&"")
+		set conn=nothing
+		ShowErr = "<li>文章恢复成功 </li>"
+ 	 	 Call Actcms.ActErr(ShowErr,"ACT_Mode/ACT.Recyle.asp?ModeID="&ModeID&"&Type=New","")
+		Response.end
+	End IF
+	
+	
+	IF Request.QueryString("Action") = "dels" Then
+		ID = ChkNumeric(Request.QueryString("ID"))
+			Conn.Execute ("Delete From  "&ACTCMS.ACT_C(ModeID,2)&"  Where ID=" & ID)		
+			ShowErr = "<li>文章已经彻底删除</li>"
+			set conn=nothing
+ 	 	 Call Actcms.ActErr(ShowErr,"ACT_Mode/ACT.Recyle.asp?ModeID="&ModeID&"&Type=New","")
+		Response.end
+	End IF
+
+		IF Request.QueryString("Action") = "del" Then
+			ID =Request.Form("ID")
+			IF ID = "" Then
+				Call Actcms.ActErr("请先选定文章！","","1")
+				Response.End
+			End IF		
+			ID = Split(ID,",")
+		
+			 For I = LBound(ID) To UBound(ID)
+				set Rsd=ACTCMS.ActExe("Select * from "&ACTCMS.ACT_C(ModeID,2)&"  Where ID=" & ID(I) & "")
+				If rsd.eof And rsd.bof Then
+					Call Actcms.ActErr("参数错误","","1")
+ 				Else
+					If  ACTCMS.ACTCMS_QXYZ(ModeID,"4",Rsd("classid")) Then  
+						Set Rsp = server.CreateObject("adodb.recordset")'删除图片
+						Rsp.open "Select * from Upload_Act Where ArtileID=" & ID(I) & " and modeid="&ModeID&"", conn, 1, 3
+						If Not  rsp.eof  Then
+							Do While Not rsp.eof
+							Call ACTCMS.DeleteFile(Rsp("UpfileDir"))
+							Conn.execute("Delete from Upload_Act  Where id= "&Rsp("id"))
+							rsp.movenext
+							loop
+						End If 
+						Dim Tmps,TmpUs 
+						If Right(ACTCMS.ACT_C(ModeID,10),1)<>"/" Then 
+								Call ACTCMS.DeleteFile(ACTCMS.ActSys&ACTCMS.ACT_C(ModeID,6)&Rsd("FileName")&ACTCMS.ACT_C(ModeID,11))
+						Else
+								Call ACTCMS.DeleteFile(ACTCMS.ActSys&ACTCMS.ACT_C(ModeID,6)&Rsd("FileName")&"/Index"&ACTCMS.ACT_C(ModeID,11))
+						End If 
+						Conn.execute("Delete from "&ACTCMS.ACT_C(ModeID,2)&"  Where ID=" & ID(I) & "")
+						Conn.execute("Delete from Comment_Act  Where ID=" & ID(I) & " and ModeID="&ModeID&"")
+						Conn.execute("Delete from Digg_ACT  Where NewsID=" & ID(I) & " and ModeID="&ModeID&"")
+					End If 
+				End If 
+		 	 Next
+				set conn=nothing	
+				ShowErr = "<li>文章已经彻底删除！</li>"
+ 	 	 Call Actcms.ActErr(ShowErr,"ACT_Mode/ACT.Recyle.asp?ModeID="&ModeID&"&Type=New","")
+	  End IF
+
+	
+
+	
+	
+	
+	
+	Dim strLocalUrl
+	strLocalUrl = request.ServerVariables("SCRIPT_NAME")
+	
+	Dim intPageNow
+	intPageNow = request.QueryString("page")
+	
+	Dim intPageSize, strPageInfo
+	intPageSize = 30
+	
+	Dim arrRecordInfo, i
+	Dim sql, sqlCount,Sqls
+	Select Case Request.QueryString("Action")
+		Case "ListID"
+			Sqls = " where classid='"&Request.QueryString("ClassID")&"' and delif=1  "
+		Case "ListisAccept"
+			Sqls = "  where isAccept=0 and delif=1 "
+		Case "ListNoAccept"
+			Sqls = "  where isAccept=2 and delif=1 "
+		Case "Listcg"
+			Sqls = "  where isAccept=1 and delif=1 "
+		Case "Listtg"
+			Sqls = "  where isAccept=3 and delif=1 "
+		Case "Listpic"
+			Sqls = "  where ArticlePic=1 and delif=0 "
+		Case Else
+			Sqls = " where delif=1 "
+	End Select
+	sql = "SELECT [ID], [Title], [ArticleInput], [Hits], [isAccept], [IsTop],  [ClassID], [FileName]" & _
+		" FROM ["&ACTCMS.ACT_C(ModeID,2)&"]" &Sqls& _
+		"ORDER BY [ID] DESC"
+ 	sqlCount = "SELECT Count([ID])" & _
+			" FROM ["&ACTCMS.ACT_C(ModeID,2)&"]"&Sqls
+
+		Dim clsRecordInfo
+		Set clsRecordInfo = New Cls_PageView
+		
+		Rem 记录集总数取值优先顺序: strSqlCount >>  intRecordCount
+		Rem 即当 strSqlCount 有值时, intRecordCount 无作用
+		Rem 因此, 若要手工设置记录总数, 请设置 intRecordCount, strSqlCount 留空
+		Rem 若以上两者都没有设置, 则取 strSql 执行后的 RecordCount 属性.
+			clsRecordInfo.intRecordCount = 2816
+			clsRecordInfo.strSqlCount = sqlCount
+		Rem 此处因设置了 strSqlCount, 则记录总数将由此语句计算得出.
+		
+		Rem 设置 SQL 查询语句
+			clsRecordInfo.strSql = sql
+		
+		Rem 设置每页显示数
+			clsRecordInfo.intPageSize = intPageSize
+		
+		Rem 设置当前显示页
+			clsRecordInfo.intPageNow = intPageNow
+		
+		Rem 设置转向页面
+			clsRecordInfo.strPageUrl = strLocalUrl
+		
+		Rem 设置页面转向参数
+			clsRecordInfo.strPageVar = "page"
+
+		clsRecordInfo.objConn = Conn		
+		arrRecordInfo = clsRecordInfo.arrRecordInfo
+		strPageInfo = clsRecordInfo.strPageInfo
+		Set clsRecordInfo = nothing
+	 %><form name="Article" method="post" action="?Action=">
+  <table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+    <tr>
+      <td colspan="6" class="bg_tr">您现在的位置：文章中心 &gt;&gt; <a href="?"  ><font class="bg_tr">回收站管理</font></a>
+      
+      选择模型:<select name='ModeID' style='width:110px' onChange="location=this.value;">
+  <%=AF.ACT_URL_Mode(ModeID,"&ClassID="&request("ClassID"))%>
+  </select></td>
+    </tr>
+    <tr>
+      <td width="30" align="center" class="td_bg">选中 </td>
+      <td width="50" align="center" class="td_bg">ID</td>
+      <td width="526" align="center" class="td_bg">文章标题</td>
+      <td width="200" align="center" class="td_bg">栏目</td>
+      <td width="141" colspan="2" align="center" class="td_bg">常规管理操作</td>
+    </tr>
+	 <%
+		Dim bgColor
+		If IsArray(arrRecordInfo) Then
+			For i = 0 to UBound(arrRecordInfo, 2)
+			bgColor="#FFFFFF"
+			if i mod 2=0 then bgColor="#DFEFFF"
+			Dim Rs ,ClassName,ClasseName
+			  Set Rs = server.CreateObject("adodb.recordset")
+					Rs.Open "select ClassName,ClasseName from Class_ACT where ClassID="& arrRecordInfo(6,i) &"",Conn,1,1
+					if  Not Rs.bof then
+							ClassName =Rs("ClassName")
+							ClasseName =Rs("ClasseName")
+					Else
+
+							ClassName ="<font color=red>程序出现错误</font>"
+							ClasseName ="<font color=red>意外错误</font>"
+					End if 
+	%>
+    <tr onMouseOver=overColor(this) onMouseOut=outColor(this)>
+      <td align="center" class="td_bg" >
+	  <input type="checkbox" name="ID" value="<%= arrRecordInfo(0,i) %>">	  </td>
+      <td align="center" class="td_bg" ><%= arrRecordInfo(0,i) %></td>
+      <td class="td_bg" >&nbsp;<a target="_blank" href="<%=ACTCMS.actsys&"List.asp?C-"&ModeID&"-"&arrRecordInfo(0,i)&".Html" %>"><%= arrRecordInfo(1,i) %></a></td>
+      <td align="center" class="td_bg" >
+	 <a href="?Action=ListID&ClassID=<%= arrRecordInfo(6,i) %>&ModeID=<%=ModeID%>"><%= classname %></a>	  </td>
+      <td colspan="2" align="center" class="td_bg">
+	  <a href="?Action=dels&ID=<%= arrRecordInfo(0,i) %>&ModeID=<%=ModeID%>" onClick="return confirm('确认删除此文章吗?删除后您可以从回收站还原!')">删除</a>┆
+	  <a href="?Action=hf1&ID=<%= arrRecordInfo(0,i) %>&ModeID=<%=ModeID%>">恢复</a> 
+   
+	  </td>
+    </tr>
+	<% 
+	Next
+	End If
+	%>
+    <tr >
+      <td height="30" colspan="6" class="td_bg">
+	 <label for=chk>
+		<input id="chk" type="checkbox" name="chkall" value="checkbox" onClick="CheckAll(this.form)">选择全部文章</label>
+	  <input type="button" class="act_btn" name="Submit" value="批量恢复"  onClick="hfpost()"> 
+	  <input type="button" class="act_btn" name="yd" value="批量删除" onClick="delpost()"></td>
+    </tr>
+    <tr >
+      <td height="25" colspan="6" align="center" class="td_bg"><%= strPageInfo%></td>
+    </tr>
+  </table>
+</form>
+<script language="javascript">
+function CheckAll(form)  
+  {  
+ for (var i=0;i<form.elements.length;i++)  
+    {  
+    var e = Article.elements[i];  
+   if (e.name != 'chkall')  
+      e.checked = Article.chkall.checked;  
+   }  
+  }
+//CSS背景控制
+function overColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg1"
+		Obj.bgColor="";
+	}
+	
+}
+function outColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg";
+		Obj.bgColor="";
+	}
+}
+ 
+
+
+function delpost(){
+    document.Article.method="post";
+    document.Article.action="?ModeID=<%=ModeID%>&Action=del";
+{
+	if(confirm('确认要删除选中的文章吗?此操作不可恢复!')){
+	this.document.Article.submit();
+	return true;}return false;
+}
+	}
+
+
+
+	
+function hfpost(){
+    document.Article.method="post";
+    document.Article.action="?ModeID=<%=ModeID%>&Action=hf";
+{
+	if(confirm('确认要恢复选中的文章吗?本操作将选中的文章移到回收站当中.必要时您可以从回收站恢复!')){
+	this.document.Article.submit();
+	return true;}return false;
+}
+	}
+
+
+
+
+</script>
+<%
+	Public Function DeleteFile(FileStr)
+	   Dim FSO
+	   On Error Resume Next
+	   Set FSO = CreateObject("scripting.FileSystemObject")
+		If FSO.FileExists(Server.MapPath(FileStr)) Then
+			FSO.DeleteFile Server.MapPath(FileStr), True
+		Else
+		DeleteFile = True
+		End If
+	   Set FSO = Nothing
+	   If Err.Number <> 0 Then
+	   Err.Clear:DeleteFile = False
+	   Else
+	   DeleteFile = True
+	   End If
+	End Function
+
+CloseConn %>
+</body>
+</html>

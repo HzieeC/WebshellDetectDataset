@@ -1,0 +1,209 @@
+<!--#include file="Include/Class_Main.asp" -->
+<!--#include file="Web_Session.asp" -->
+<% 
+txtname  = "数据备份"
+
+
+
+
+
+dim rss,sqls
+'//检测是否跨站
+Call Check_url()
+'//检测管理员是否有权限操作该页面
+'If Instr(1,request.cookies("Web")("Web_Power"),"104") <= 0 Then 
+'  Call CloseDB()
+'  Response.write "对不起!您没有访问该页面的权限..."
+'  Response.End()
+'End If
+
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>数据备份</title>
+<link href="CSS/css_offices.css" rel="stylesheet" type="text/css">
+</head>
+
+<body leftmargin="0" topmargin="0">
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td height="4"></td>
+  </tr>
+</table>
+<table width="99%" border="0" align="center" cellpadding="0" cellspacing="0">
+  <tr>
+    <td width="25" height="25" align="left" valign="middle" class="font1"><img src="Images/green_arrow.gif" width="17" height="17"></td>
+    <td align="left" valign="middle" class="font1"><%=txtname%></td>
+  </tr>
+</table>
+<table width="99%" border="0" align="center" cellspacing="0">
+  <tr>
+    <td height="4"></td>
+  </tr>
+</table>
+
+<table width="99%" border="1" align="center" cellpadding="5" cellspacing="0" bordercolor="#DEE0D8" bgcolor="#ffffff" style="border-collapse:collapse">
+<form method="post" name="myform" action="?action=backupdatabase">
+  <tr>
+    <td>选择备份：
+      <input name="act" type="radio" id="act_backup"value="backup" checked />
+      <label for=act_backup>备份
+	  文件名称：
+      <input name="bak_filename1" type="text" class="input1" id="bak_filename1" value="<% ="DB_BingSNS_"&Conidfilename(1)&".bak"%>" size="40" />
+(备份的文件名称)</label>      </td>
+  </tr>
+  <tr>
+    <td><label>SQL服务器:
+        <input name="sqlserver" type="text" class="input1" value="<%=Sql_Data_Source%>" />
+    </label></td>
+  </tr>
+  <tr>
+    <td><label>用户名:
+        <input name="sqlname" type="text" class="input1" value="<%=Sql_User_ID%>" size="10" />
+    密码:
+    <input name="sqlpassword" type="password" class="input1" />
+</label></td>
+  </tr>
+  <tr>
+    <td><label>数据库名：
+        <input name="databasename" type="text" class="input1" value="<%=Sqldatabase%>" />
+    </label></td>
+  </tr>
+  <tr>
+    <td>文件路径：
+      <input name="bak_file" type="text" class="input1" value="<% =server.MapPath("\")&"\System\DB_Bak\"%>" size="60" />
+(备份或恢复的文件路径)</td>
+  </tr>
+<!--  <tr>
+    <td><% Response.write "本文件绝对路径:" %>
+      <font color="#FF0000">
+      <% =server.mappath(Request.ServerVariables("SCRIPT_NAME")) %>
+      </font></td>
+  </tr>-->
+  <tr>
+    <td><input name=submit1 type="submit" class="button2" id=submit1 size="10" value="确定" />
+      &nbsp;&nbsp; <input name="Submit" type="reset" class="button2" size="10" value="重置" /></td>
+  </tr>
+  </form>
+</table>
+ 
+<br>
+<table width="99%" border="1" align="center" cellpadding="5" cellspacing="0" bordercolor="#83ACCF" bgcolor="#DEF1F1" style="border-collapse:collapse">
+  <tr>
+    <td>提示信息:<% 
+if request("action")="" then	
+  response.write "<font color=#ff0000>请慎重操作！</font>"
+end if
+'SQL Server 数据库的备份与恢复! 
+if request("action")="backupdatabase" Then 
+dim sqlserver,sqlname,sqlpassword,sqlLoginTimeout,databasename,bak_file,act 
+sqlserver = trim(request("sqlserver"))
+sqlname = trim(request("sqlname"))
+sqlpassword =trim(request("sqlpassword"))
+sqlLoginTimeout = 15
+databasename = trim(request("databasename")) 
+bak_file = trim(request("bak_file"))
+bak_filename1 =  trim(request("bak_filename1"))
+bak_filename2 =  trim(request("bak_filename2"))
+bak_file1 = replace(bak_file&bak_filename1,"$1",databasename)
+bak_file2 = replace(bak_file&bak_filename2,"$1",databasename)
+act = lcase(request("act"))
+if sqlpassword = "" then
+response.write "<font color=#ff0000>没有输入数据库密码!</font>"
+else
+if act = "backup" then
+
+
+if Data_Type = 0 then
+Conn.Execute("insert into [OUCCS_DB_Bak] (DB_NAME,DB_URL,DB_DATE) values ('"&bak_filename1&"','"&bak_file&"',now())") 
+else
+Conn.Execute("insert into [OUCCS_DB_Bak] (DB_NAME,DB_URL,DB_DATE) values ('"&bak_filename1&"','"&bak_file&"',Getdate())") 
+end if
+
+
+ 
+Set srv=Server.CreateObject("SQLDMO.SQLServer")
+srv.LoginTimeout = sqlLoginTimeout
+srv.Connect sqlserver,sqlname, sqlpassword
+Set bak = Server.CreateObject("SQLDMO.Backup")
+bak.Database=databasename
+bak.Devices=Files 
+bak.Action   = 0
+bak.Initialize   = 1
+'bak.Replace        = True
+bak.Files=bak_file1 
+bak.SQLBackup srv
+if err.number>0 then 
+response.write err.number&"<font color=red><br>" 
+response.write err.description&"</font>" 
+end if
+Response.write "<font color=green>备份成功!</font>" 
+elseif act="restore" then
+'恢复时要在没有使用数据库时进行！ 
+Set srv=Server.CreateObject("SQLDMO.SQLServer")
+srv.LoginTimeout = sqlLoginTimeout
+srv.Connect sqlserver,sqlname, sqlpassword
+Set rest=Server.CreateObject("SQLDMO.Restore")
+rest.Action=0 ' full db restore 
+rest.Database=databasename 
+rest.Devices=Files 
+rest.Files=bak_file2 
+rest.ReplaceDatabase=True 'Force restore over existing database 
+if err.number>0 then
+response.write err.number&"<font color=red><br>"
+response.write err.description&"</font>"
+end if
+rest.SQLRestore srv
+Response.write "<font color=green>恢复成功!</font>"
+else 
+Response.write "<font color=red>请选择备份或恢复!</font>"
+end if 
+end if 
+end if
+%></td>
+  </tr>
+</table>
+
+
+<br>
+<table width="99%" border="1" align="center" cellpadding="5" cellspacing="0" bordercolor="#DEE0D8" bgcolor="#FFFFFF" style="border-collapse:collapse">
+  <tr>
+    <td>备份记录：</td>
+  </tr>
+<%
+Set rss=Server.CreateObject("ADODB.Recordset")
+sqls="Select * From OUCCS_DB_Bak Order By DB_DATE Asc"
+rss.open sqls,Conn,1,1
+while not rss.eof
+DB_ID   = rss("DB_ID")
+DB_NAME = rss("DB_NAME")
+DB_TIME = rss("DB_DATE")
+%>
+  <tr>
+    <td>[<FONT color="#FF0000"><%=DB_TIME%></FONT>]&nbsp;&nbsp;&nbsp;&nbsp;<%=DB_NAME%>&nbsp;&nbsp;&nbsp;&nbsp;<a href="DB_bak/<%=DB_NAME%>">下载</a> <a href="?BA=DEL&Bid=<%=DB_ID%>&Bname=<%=DB_NAME%>">删除</a></td>
+  </tr>
+<%
+rss.movenext
+wend
+rss.Close
+%>
+</table>
+<%
+BA    = trim(request("BA"))
+Bid   = trim(request("Bid"))
+Bname = trim(request("Bname"))
+
+IF BA="DEL" AND Bid<>"" AND Bname<>"" THEN
+
+Set Fso = Server.CreateObject("Scripting.FileSystemObject")
+If Fso.FileExists(Server.Mappath("DB_bak/"&Bname)) Then
+ Fso.DeleteFile(Server.Mappath("DB_bak/"&Bname))
+End if
+
+Conn.Execute("Delete From OUCCS_DB_Bak Where DB_ID="&Bid&"")
+Response.Redirect "Web_Master_Bak.asp"
+END IF
+%>
+</body>
+</html>

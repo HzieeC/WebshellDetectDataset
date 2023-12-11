@@ -1,0 +1,48 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="javaBean.BeanGuestBook,java.util.ArrayList,connections.DaoGuestBook"%>
+<HTML>
+ <HEAD>
+  <TITLE>留言信息 - MianFeiZhe内容管理系统</TITLE>
+  <META NAME="Generator" CONTENT="EditPlus">
+  <META NAME="Author" CONTENT="MianFeiZhe">
+  <META NAME="Keywords" CONTENT="MianFeiZhe内容管理系统">
+  <META NAME="Description" CONTENT="MianFeiZhe内容管理系统 Beta1.0 SQL版">
+
+ </HEAD>
+ <BODY>
+	<%
+		int id=Integer.parseInt(request.getParameter("id"));
+		DaoGuestBook dao=new DaoGuestBook();
+		String sql="select * from GuestBook where id="+id;
+		ArrayList alist=dao.getGBook(sql);
+		BeanGuestBook bean=(BeanGuestBook)alist.get(0);
+		String url=request.getContextPath();
+	%>
+	<form name="myform" method="post" action="<%=url%>/servletsguestbook">
+	<input type="hidden" name="id" value="<%=id%>">
+	<table align="center"><tr><td>留言标题:</td><td><input type="text" name="title" value="<%=bean.getTitle()%>" size="30"></td></tr>
+	<br>
+	<tr><td>留言内容:</td><td><textarea name="content" rows="7" cols="30"><%=bean.getContent()%></textarea></td></tr>
+	<br>
+	<tr><td>审核状态:</td><td><%if(bean.getAuditing()==0){%>
+	未审核:<input type="radio" name="auditing" value="0" checked>
+	已审核:<input type="radio" name="auditing" value="1">
+	</td></tr>
+	<%}else{%>
+	未审核:<input type="radio" name="auditing" value="0">
+	已审核:<input type="radio" name="auditing" value="1" checked>
+	</td></tr>
+	<%}%>
+	<tr>
+		<td>回复留言<br/>(如果不回<br>复请留空):</td>
+		<td><textarea name="restore" rows="5" cols="30"></textarea></td>
+	</tr>
+	<tr>
+		<td colspan="2" align="right"><input type="submit" value="确认" name="update"></td>
+		<input type="hidden" name="action" value="update">
+	</tr>
+	</table>
+	</form>
+ </BODY>
+</HTML>

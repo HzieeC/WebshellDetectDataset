@@ -1,0 +1,92 @@
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>客户列表</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/customer/list_customer.js"></script>
+
+</head> 
+
+<body>
+	<input type="hidden" id="loginManRole" value="${loginUser.roleCode }" />
+	<div style="margin-top: 10px; margin-bottom: 5px;">
+		<table id="search" border="0" cellpadding="0"  cellspacing="1" class="gdcn-table-bgcolor" width="100%" style="font-size: 12px;">
+			<tr>
+				<td class='gridtitle'><s:text name="listcustomer.Operator"/>：</td>
+				<td class='gridbody'><input type="text" id="operatorName" onclick="selectOperator()" onkeydown="checkKey()"/></td>
+				<td class='gridtitle'><s:text name="listcustomer.CustomerCode"/>：</td>
+				<td class='gridbody'><input type="text" id="code"  onkeydown="checkKey()"/></td>
+				<td class='gridtitle'><s:text name="listcustomer.CompanyName"/>：</td>
+				<td class='gridbody'><input type="text" id="companyName"  onkeydown="checkKey()"/></td>
+				<td class='gridtitle'><s:text name="listcustomer.MemberLevel"/>：</td>
+				<td class='gridbody'>
+					<s:select list="vipLevelList"  listValue="name" listKey="id" name="customer.vipLevelId" id="vipLevelId"
+             							headerKey="" headerValue="" value="customer.vipLevelId" onkeydown="checkKey()"></s:select> 
+				</td>
+				<c:if test="${todo == '' }">
+					<td class='gridtitle'><s:text name="listcustomer.Status"/>：</td>
+					<td class='gridbody'>
+						<select id="state" onkeydown="checkKey()" style="width:120px">
+							<option value=""><s:text name="listcustomer.PleaseSelect"/></option>
+							<option value="c"><s:text name="listcustomer.NotAudit"/></option>
+							<option value="s"><s:text name="listcustomer.Exercise"/></option>
+							<option value="d"><s:text name="listcustomer.Freeze"/></option>
+						</select>
+					</td>
+				</c:if>
+				<td class='gridtitle'>
+					<a href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-search" onclick="searchData()"><s:text name="Search"/></a>&nbsp;&nbsp;&nbsp;
+	  				<a id="btnAudit" href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-reload" onclick="cancelSearch()"><s:text name="Empty"/></a>
+				</td>
+			</tr>
+		</table>
+	</div>
+	<table id="dataGrid"></table>
+	<div id="edit">
+		<iframe frameborder="0" id="editDataPage" width="660px" height="350px"></iframe>
+	</div>
+<!-- 语言设置-->
+<input type="hidden" id="CustomerCode" value="<s:text name="listcustomer.CustomerCode"/>"/>
+<input type="hidden" id="Name" value="<s:text name="listcustomer.Name"/>"/>
+<input type="hidden" id="CompanyName" value="<s:text name="listcustomer.CompanyName"/>"/>
+<input type="hidden" id="Linkman" value="<s:text name="listcustomer.Linkman"/>"/>
+<input type="hidden" id="Mobile" value="<s:text name="listcustomer.Mobile"/>"/>
+<input type="hidden" id="Telephone" value="<s:text name="listcustomer.Telephone"/>"/>
+<input type="hidden" id="RegistrationDate" value="<s:text name="listcustomer.RegistrationDate"/>"/>
+<input type="hidden" id="Status" value="<s:text name="listcustomer.Status"/>"/>
+<input type="hidden" id="CustomerInformation" value="<s:text name="listcustomer.CustomerInformation"/>"/>
+<input type="hidden" id="Operation" value="<s:text name="Operation"/>"/>
+<input type="hidden" id="Edit" value="<s:text name="Edit"/>"/>
+<input type="hidden" id="Freeze" value="<s:text name="listcustomer.Freeze"/>"/>
+<input type="hidden" id="Defrost" value="<s:text name="listcustomer.Defrost"/>"/>
+<input type="hidden" id="Delete" value="<s:text name="Delete"/>"/>
+<input type="hidden" id="Exercise" value="<s:text name="listcustomer.Exercise"/>"/>
+<input type="hidden" id="NotAudit" value="<s:text name="listcustomer.NotAudit"/>"/>
+<input type="hidden" id="AddCustomers" value="<s:text name="listcustomer.AddCustomers"/>"/>
+<input type="hidden" id="Select" value="<s:text name="Select"/>"/>
+<input type="hidden" id="PleaseSelect" value="<s:text name="listcustomer.PleaseSelect"/>"/>
+<input type="hidden" id="Save" value="<s:text name="Save"/>"/>
+<input type="hidden" id="Audit" value="<s:text name="listcustomer.Audit"/>"/>
+<input type="hidden" id="Areyousuretofreeze" value="<s:text name="listcustomer.Areyousuretofreeze"/>"/>
+<input type="hidden" id="FrozenSuccess" value="<s:text name="listcustomer.FrozenSuccess"/>"/>
+<input type="hidden" id="FrozenFailure" value="<s:text name="listcustomer.FrozenFailure"/>"/>
+<input type="hidden" id="Areyousure" value="<s:text name="listcustomer.Areyousure"/>"/>
+<input type="hidden" id="ThawSuccess" value="<s:text name="listcustomer.ThawSuccess"/>"/>
+<input type="hidden" id="ThawFailure" value="<s:text name="listcustomer.ThawFailure"/>"/>
+<input type="hidden" id="SystemError" value="<s:text name="SystemError"/>"/>
+<input type="hidden" id="Canchoose" value="<s:text name="listcustomer.Canchoose"/>"/>
+<input type="hidden" id="Wanttodelete" value="<s:text name="Wanttodelete"/>"/>
+<input type="hidden" id="DeletedSuccessful" value="<s:text name="DeletedSuccessful"/>"/>
+<input type="hidden" id="DeleteFailed" value="<s:text name="DeleteFailed"/>"/>	
+</body>
+
+</html>

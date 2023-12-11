@@ -1,0 +1,103 @@
+<!--#include file="../../inc/const.asp"-->
+<%
+dim plus
+set plus = new cls_plus
+plus.open("search")
+plus.state
+plus.newtpl("plus_search.html")
+
+dim key,Ktype
+key = Request("keyword")
+Ktype = LCase(Request("searchtype"))
+if Len(Ktype) = 0 then Ktype = plus.Config("mode")
+if Ktype <> "title" then
+	Ktype = "titlekeywords"
+	call plus.settpl("{tkc}"," selected ")
+	call plus.settpl("{tc}"," ")
+else
+	call plus.settpl("{tkc}"," ")
+	call plus.settpl("{tc}"," selected ")
+end if
+
+if Len(key) > 0 then
+	'On Error Resume Next
+	dim html
+	dim P : P = Request("P")
+	if P = "" or Not IsNumeric(P) then P = 1
+	if P < 1 then P = 1
+	P = Cint(P)
+	if Len(key) < 2 then
+		html = plus.Lang("short")
+	else
+		dim SQL,Rs,i,j,Searchstr,aTitle,aDescription,aUrl,aDateTime,aAuthor
+		key = Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(key,"'",""),"%",""),"<",""),">",""),"(",""),")",""),"""",""),"|",",")," ",""),"?",""),"*","")
+		key = Left(key,10) : key = LCase(key)
+
+		if Ktype = "title" then
+			Searchstr = "Where [Title] Like '%" & key & "%'"
+		else
+			Searchstr = "Where [Title] Like '%" & key & "%' Or [Description] Like '%" & key & "%'"
+		end if
+
+		if Len(Searchstr) = 0 then
+			html = plus.Lang("needkey")
+		else
+			SQL = "Select Top " & plus.Config("maxsize") & " [ID],[Cid],[Title],[Author],[Description],[Diyname],[Createtime],[Viewpath] From [{pre}Content] " & Searchstr & " Order BY [ID] Desc"
+			Set Rs = DB(SQL,2)
+			if Rs.eof then
+				html = plus.Lang("norecords")
+			else
+				if Instr(Session("user_search"), "'" & key & "'") = 0 then
+					dim Ns
+					Set Ns = DB("Select [Name],[Count],[Modifytime] From [{pre}Tags] Where [Name]='" & key & "'",3)
+					if Ns.Eof then Ns.AddNew
+					Ns(0) = key
+					if Len(Ns(1)) = 0  Or IsNull(Ns(1)) then Ns(1) = 1 else Ns(1) = Ns(1) + 1
+					Ns(2) = Now()
+					Ns.Update : Ns.CLose : Set Ns = Nothing
+					Session("user_search") = Session("user_search") & "'" & key & "'" : Session("user_search") = Replace(Session("user_search"),"''","'")
+				end if
+			
+				dim TempRule,TempNow
+				html = html & Vbcrlf & plus.skin("top")
+				TempRule = plus.skin("list")
+				Rs.PageSize = plus.Config("pagesize")
+				Rs.AbsolutePage = P
+				For i = 1 To Rs.pagesize
+					if Rs.Eof then Exit For
+					aUrl = BuildViewPath(Rs("ID"),Rs("Cid"),Rs("Diyname"),Rs("Createtime"),Rs("Viewpath"))
+					aTitle = Rs("Title")
+					aAuthor = Rs("Author")
+					aDescription = Left(Rs("Description"),160)
+					aDateTime = Year(Rs("createtime")) & "-" & Month(Rs("createtime")) & "-" & Day(Rs("createtime"))
+					aTitle = Replace(aTitle,key,"<font color=red>" & key & "</font>",1,-1,1)	
+					aDescription = Replacex(aDescription,key,"<font color=red>" & key & "</font>")					
+					TempNow = TempRule
+					html = html & Vbcrlf & Replace(Replace(Replace(Replace(Replace(TempNow,"$aurl", aUrl),"$atitle", atitle),"$adescription", adescription),"$adatetime", adatetime),"$aauthor", aAuthor)	
+					Rs.MoveNext
+				Next
+				html = html & Vbcrlf & plus.skin("page")
+				
+				For i=1 To Rs.PageCount
+					if i = P then
+						html = html & " <a href=""?keyword=" & Server.Urlencode(key) & "&searchtype=" & Ktype & "&p=" & i & """ class=""current"">" & i & "</a> "
+					else
+						html = html & " <a href=""?keyword=" & Server.Urlencode(key) & "&searchtype=" & Ktype & "&p=" & i & """ >" & i & "</a> "
+					end if
+				Next
+				html = html & Vbcrlf & plus.skin("end")
+				html = RewriteRule(html)
+			end if	
+			Rs.Close : Conn.CLose
+		end if
+	end if
+	call plus.settpl("{searchback}",html)
+	if err then response.write "<br /><br/>" & plus.lang("scripterror") & "£º" & err.description
+else
+	call plus.settpl("{searchback}","")
+end if
+
+call plus.settpl("{keyword}",key)
+response.write plus.gettpl
+set plus = nothing
+%>

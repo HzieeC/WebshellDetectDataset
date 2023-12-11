@@ -1,0 +1,151 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<script src="${contextPath}/js/plugins/jquery/jquery-1.9.1.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script src="${contextPath}/js/plugins/jquery/jquery-ui.js"></script>
+	<link href="${contextPath}/js/plugins/jquery/jquery-ui.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+	<title></title> 
+		
+<script src="${contextPath}/js/common/flex_table.js"></script>
+</head>
+<body>
+
+	<input type="hidden" value="${contextPath}" id="contextPath" />
+
+	<div class="userInfo" id="searchCon">
+		<h1><fmt:message key="new.paper"/></h1>
+		<form:form id="resultForm" name="resultForm" commandName="role">
+		<input type="hidden" id="singleQuestion" name="singleQuestion"/>
+			<div class="title"><fmt:message key="papersetting"/></div>
+			<table class="yTable margintop">
+				<tr>
+					<th align="right" width="60"><span>*</span><fmt:message key="paperName"/></th>
+					<td align="left" colspan="3"><input name="name" id="name"
+						type="text"size="80" class="inputbox" /><span></span>
+					</td>
+
+				</tr>
+				<tr>
+					<th align="center !important" width="120"
+						style="vertical-align:middle !important"><span></span><fmt:message key="description"/></th>
+					<td align="left"><textarea name="describe" id="describe"
+							style="width:800px;height:120px;"></textarea></td>
+
+				</tr>
+				<tr>
+					<th align="right" width="120"><span>*</span><fmt:message key="paperscores"/></th>
+					<td align="left" width="120" colspan="2"><input name="point"
+						id="point" type="text" class="inputbox" />
+				</tr>
+				<tr>
+					<th align="right" width="120">&nbsp;&nbsp;&nbsp;&nbsp;<fmt:message key="category"/></th>
+					<td align="left" width="120" colspan="2"><input name="category"
+						id="category" type="text" class="inputbox" />
+				</tr>
+			</table>
+			<div style="margin-top:20px;">
+				<span class="title"><fmt:message key="addquestion"/></span>
+			</div>
+			<div class="sp-blue mb10">&nbsp;</div>
+			<div class="Btn1 Btn_new" id="buttonTitleShow">
+			
+				<a href="#" class="bb" id="newSingleChoice"><div>
+						<span>添加单选题</span>
+					</div> </a> <a href="#a3Show" class="bb"><div>
+						<span>添加多选题</span>
+					</div> </a> <a href='#a2Show' class="bb"><div>
+						<span>添加填空题</span>
+					</div> </a> <a href='#a4Show' class="bb"><div>
+						<span>添加计算题</span>
+					</div> </a> <a href="#a5Show" class="bb"><div>
+						<span>添加综合题</span>
+					</div> </a>
+
+			</div>
+			<div class="sp-blue mb10">&nbsp;</div>
+			<div id="accordion">
+  <h3>单选题列表</h3>
+  <div>
+    	<table name="table" width="100%" border="0" cellpadding="0"
+				cellspacing="0" class="tableRes" >
+				<tr>
+					<th style="width: 100%">
+						<table class="xTable " id="flextb" >
+							<tr>
+								<th style="width: 10%">试题序号</th>
+								<th style="width: 30%"><span>试题内容 </span></th>
+								<th style="width: 30%"><span>试题解析</span></th>
+								<th style="width: 10%"><span>分数</span></th>
+								<th style="width: 10%"><span>操作</span></th>
+
+							</tr>
+
+							
+						</table>
+						<center>
+							<table style="text-align:center !important">
+								<tr>
+									<td><span>试题排序：</span><span name="button" onclick="upLine('flextb')"
+										type="button" class="button  small" value="" >上移</span> <span
+										name="button" onclick="downLine('flextb')" type="button"
+										class="button  small" value="下移">下移</span><lable>每题分值：</lable><input name="singlePoint"  id="singlePoint" size="10" noadd="yes"
+										type="text"  />
+										</td>
+										
+								</tr>
+								
+							</table>
+						</center>
+						</div>
+				</th>
+
+				</tr>
+
+			</table>
+  </div>
+  <h3>多选题列表</h3>
+  <div>
+   无试题
+  </div>
+  <h3>判断题列表</h3>
+  <div>
+    无试题
+  </div>
+  </div>
+			
+
+			<div class="Btn">
+			<input  id="saveRole" value="<fmt:message key="save"/>" type="button"/> 
+			
+		<input  id="cancel" value="<fmt:message key="cancel"/>" type="button"/>
+				
+			</div>
+		</form:form>
+
+	</div>
+	<script type="text/javascript">
+	$( "#accordion" ).accordion({
+      collapsible: true
+    });
+		seajs.use("${scriptBasePath}/paper/new.js");
+		
+	</script>
+</body>
+</html>

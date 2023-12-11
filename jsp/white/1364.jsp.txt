@@ -1,0 +1,208 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@page import="com.bizoss.trade.ts_category.*" %>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" />  
+<%
+    String down_id = randomId.GenTradeId();
+	
+	String cust_id="",publish_user_id="";
+	if(session.getAttribute("session_cust_id")!=null){
+	     cust_id  =session.getAttribute("session_cust_id").toString();
+	}
+    if(session.getAttribute("session_user_id")!=null){
+	     publish_user_id  =session.getAttribute("session_user_id").toString();
+	}
+	
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+	String selecttree = ts_categoryInfo.getCategoryTree("000000000000000","8","");
+	
+	 Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	 String language = tb_commparaInfo.getSelectItem("60","");  
+
+%> 
+
+<html>
+  <head>
+    <title>新增下载信息</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css" />
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+    
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/jquery.js"></script>
+    <script type="text/javascript" src="/js/thickbox.js"></script>
+	<script type="text/javascript" src="js_download.js"></script>
+	
+	
+ </head>
+
+<body>
+	<h1>新增下载信息</h1>
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="20%">
+				软件名称<font color="red">*</font>
+			</td>
+			<td  colspan="3">
+			  <input name="title" id="title" type="text" size="60" maxlength ="200"/>
+		    </td>
+		</tr>
+		
+		  <tr>
+			<td align="right" width="20%">
+				上传软件:			
+			</td>
+			<td colspan="3">
+			 <jsp:include page="/program/inc/uploadSoftInc.jsp">
+					<jsp:param name="attach_root_id" value="<%=down_id%>" />
+			 </jsp:include>
+			</td>
+		</tr> 
+		
+		
+		<tr>
+			<td align="right" width="20%">
+				软件类别<font color="red">*</font>
+			</td>
+			<td  colspan="3">
+			   <select name="cat_attr" id="cat_attr">
+				    <option value="">请选择...</option>
+					<%=selecttree%>
+			   </select>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				软件大小<font color="red">*</font>
+			</td>
+			<td  width="18%">
+			   <input name="size" id="size" type="text" size="6"  maxlength ="10"  onKeyUp="if(isNaN(value))this.value=''" /> &nbsp;&nbsp;M
+			</td>
+			<td width="12%" align="right">软件性质:</td>
+			<td width="60%">
+			    <input name="type" id="type" type="radio" value="0" checked />免费软件
+			    <input name="type" id="type" type="radio" value="1"/>收费软件
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				软件语言:
+			</td>
+			<td  width="18%">
+			  
+	        <select name="language" id="language">
+               <option value="">请选择...</option>
+               <%=language%>           
+            </select>   
+			</td>
+			<td width="12%" align="right">应用平台<font color="red">*</font></td>
+			<td width="60%">
+			   <input name="platform" id="platform" type="text" maxlength ="600"/>
+			</td>
+			
+		</tr>
+		
+	
+		<tr>
+			<td align="right" width="20%">
+				更新时间<font color="red">*</font>
+			</td>
+			<td  width="18%">
+			  <input name="update_date" id="update_date" class="Wdate" type="text" onfocus="WdatePicker({readOnly:true})" />
+			</td>
+			<td width="12%" align="right">下载次数<font color="red">*</font></td>
+			<td width="60%">
+			   <input name="download_num" id="download_num" type="text"  onKeyUp="if(!/^[1-9][0-9]*$/.test(this.value))this.value=''" />
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				联系人<font color="red">*</font>
+			</td>
+			<td  width="18%">
+			<input name="contact" id="contact" type="text"  maxlength ="20"/>
+			</td>
+			<td width="12%" align="right">开发商:</td>
+			<td width="60%">
+			    <input name="developer" id="developer" type="text" maxlength ="30"/>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				开发商链接:
+			</td>
+			<td   colspan="3">
+		 <input name="dev_link" id="dev_link" type="text" size="60" maxlength ="200"/>
+			</td>
+		</tr>
+		
+	
+		<tr>
+			<td align="right" width="20%">
+				软件介绍:
+			</td>
+			<td  colspan="3">
+	
+			<textarea name="content" id="content"></textarea>
+			<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+			<script type="text/javascript">
+			   CKEDITOR.replace( 'content',{
+			   	filebrowserUploadUrl : '/program/inc/upload.jsp?type=file&attach_root_id=<%=down_id%>',      
+                filebrowserImageUploadUrl : '/program/inc/upload.jsp?type=img&attach_root_id=<%=down_id%>',      
+                filebrowserFlashUploadUrl : '/program/inc/upload.jsp?type=flash&attach_root_id=<%=down_id%>'     
+            });  
+			</script>
+			
+			</td>
+		</tr>
+		
+		
+		<tr>
+			<td align="right" width="20%">
+				相关软件:
+			</td>
+			<td  colspan="3">
+			
+			<select name="g_cat_id" id="g_cat_id">
+               <option value="">所有分类</option>
+              <%=selecttree%>								  
+            </select>
+		
+			<input type="text" name="g_keyword" id="g_keyword"/>
+			
+			<input type="button" class="button_s_css" value=" 搜索 "  onclick="showLinkSoft()" />
+			  
+            <span id="g_soft_table"></span>       
+			
+			</td>
+		</tr>
+		
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="1311" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="subForm()"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	  
+	  <input type="hidden" name="down_id" id="down_id" value="<%=down_id%>">
+	  <input type="hidden" name="cust_id" id="cust_id" value="<%=cust_id%>">
+	  <input type="hidden" name="state_code" id="state_code" value="c">
+	  <input type="hidden" name="user_id" id="user_id" value="<%=publish_user_id%>">
+	  <input name="link_sw" id="link_sw" type="hidden" value=""/>
+	  
+	</form>
+</body>
+
+</html>

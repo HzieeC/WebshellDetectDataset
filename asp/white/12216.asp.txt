@@ -1,0 +1,227 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="inc/file_memberLog.asp" -->
+
+<%
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 ****
+
+
+Call OpenMemberexe("","login",10)
+Call CloseMemberexe()
+
+
+
+Select Case mudi
+	Case "rev","add"
+		Call AddOrRev()
+
+	Case "del"
+		menuFileID = 188
+		Call IsSecMenuRight("alert",menuFileID,dataType)
+		Call del()
+
+	Case "moreDel"
+		menuFileID = 188
+		Call IsSecMenuRight("alert",menuFileID,dataType)
+		Call MoreDel()
+
+	case "setRight":
+		menuFileID = 187
+		Call IsSecMenuRight("alert",menuFileID,dataType)
+		Call SetRight()
+
+End Select
+
+
+Call CloseConobj()
+
+
+
+
+
+
+
+'修改会员信息
+Private Sub AddOrRev()
+	backURL		= ToPostStr("backURL")
+	dataType	= ToPostStr("dataType")
+	dataTypeCN	= ToPostStr("dataTypeCN")
+	dataID		= ToPostInt("dataID")
+
+	username	= ToPostRegExpStr("username","sql")
+	userpwd		= ToPostStr("userpwd")
+	mail		= ToPostStr("mail")
+	question	= ToPostStr("question")
+	answer		= ToPostStr("answer")
+	realname	= ToPostStr("realname")
+	sex			= ToPostStr("sex")
+	phone		= ToPostStr("phone")
+	fax			= ToPostStr("fax")
+	qq			= ToPostStr("qq")
+	web			= ToPostStr("web")
+	note		= ToPostStr("note")
+	score1		= ToPostInt("score1")
+	score2		= ToPostInt("score2")
+	score3		= ToPostInt("score3")
+	score4		= ToPostInt("score4")
+	score5		= ToPostInt("score5")
+	state		= ToPostInt("state")
+
+	If username="" Or mail="" Then
+		Call JS_AlertBackEnd("表单数据接收不全")
+	End If
+
+
+	application.lock
+		Set addrec=server.CreateObject("ADODB.recordset")
+		addrec.open "select * from OT_users where UE_ID="& dataID,conobj,0,2
+			If addrec.EOF Then
+				menuFileID = 184
+				Call IsSecMenuRight("alert",menuFileID,dataType)
+
+				Set checkexe = conobj.execute("select top 1 UE_ID from OT_users where UE_username='"& username &"'")
+					If Not checkexe.EOF Then
+						Call JS_AlertBackEnd("该用户名已存在，请更换.")
+					End If
+				checkexe.close
+				Set checkexe=Nothing
+
+				addrec.addnew
+				alertMode="新增"
+				addrec("UE_time")=Now()
+				addrec("UE_loginTime")=Now()
+				addrec("UE_regIP")="0.0.0.0"
+			Else
+				menuFileID = 187
+				Call IsSecMenuRight("alert",menuFileID,dataType)
+				alertMode="修改"
+			End If
+		addrec("UE_username")=username
+		If userpwd<>"" Then
+			userKey = RndChar(5)
+			addrec("UE_userpwd")=md5(md5(userpwd) & userKey)
+			addrec("UE_userKey")=userKey
+		End If
+		addrec("UE_question")=question
+		If answer<>"" Then
+			answerKey = RndChar(5)
+			addrec("UE_answer")=md5(md5(answer) & answerKey)
+			addrec("UE_answerKey")=answerKey
+		End If
+		addrec("UE_mail")		= mail
+		addrec("UE_realname")	= realname
+		addrec("UE_sex")		= sex
+		addrec("UE_phone")		= phone
+		addrec("UE_fax")		= fax
+		addrec("UE_qq")			= qq
+		addrec("UE_web")		= web
+		addrec("UE_note")		= note
+		addrec("UE_score1")		= score1
+		addrec("UE_score2")		= score2
+		addrec("UE_score3")		= score3
+		addrec("UE_score4")		= score4
+		addrec("UE_score5")		= score5
+		addrec("UE_state")		= state
+
+		addrec.update
+		addrec.close
+		Set addrec=Nothing
+	application.unlock
+
+
+	alertResult = "成功"
+	Call MemberLog_Deal(0,"","用户名",username,"【"& dataTypeCN &"】"& alertMode & alertResult &"！")
+
+
+	response.write(_
+	"<script language='javascript' type='text/javascript'>"&_
+	"alert('"& alertMode &"成功');document.location.href='"& backURL &"';"&_
+	"</script>"&_
+	"")
+End Sub
+
+
+
+
+
+
+
+'删除成员
+Private Sub del()
+	dataID	= ToGetInt("dataID")
+	theme	= ToGetStr("theme")
+
+	If dataID<=0 Then
+		Call JS_AlertEnd("指定ID错误")
+	End If
+
+	conobj.execute("delete from OT_users where UE_ID="& dataID)
+
+	alertResult = "成功"
+	Call MemberLog_Deal(0,"","用户名",theme,"【"& dataTypeCN &"】删除"& alertResult &"！")
+
+	response.write "<script language='javascript' type='text/javascript'>parent.$id('closeData"& dataID &"').style.display='none';</script>"
+End Sub
+
+
+
+
+
+'批量删除成员
+Private Sub MoreDel()
+	URL			= ToPostStr("URL")
+	dataType	= ToPostStr("dataType")
+	dataTypeCN	= ToPostStr("dataTypeCN")
+
+	If request.Form("selDataID").count <=0 Then
+		Call JS_AlertBackEnd("请先选择要删除的记录.")
+	End If
+
+	whereStr=""
+		For i=1 To request.Form("selDataID").count
+			whereStr=whereStr &" or UE_ID="& CLng(request.Form("selDataID")(i))
+		Next
+
+
+	conobj.execute("delete from OT_users where UE_ID=0"& whereStr)
+	
+	alertResult = "成功"
+	Call MemberLog_Deal(0,"","","","【"& dataTypeCN &"】批量删除"& alertResult &"！")
+
+	Call JS_AlertHrefEnd("批量删除成功.",URL)
+End Sub
+
+
+
+
+
+
+'设置权限
+Private Sub SetRight()
+	userID		= ToGetInt("userID")
+	theme		= ToGetStr("theme")
+	userRight	= ToGetInt("userRight")
+		If userRight=0 Then userRightCN="待审核" Else userRightCN="已审核"
+
+	conobj.execute("update OT_users set UE_state="& userRight &" where UE_ID="& userID)
+
+
+	Call MemberLog_Deal(0,"","用户名",theme,"【"& dataTypeCN &"】设置状态{"& userRightCN &"}成功！")
+
+
+	response.write(_
+	"<script language='javascript' type='text/javascript'>"&_
+	"alert('设置成功');"&_
+	"</script>"&_
+	"")
+End Sub
+
+%>

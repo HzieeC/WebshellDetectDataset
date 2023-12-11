@@ -1,0 +1,135 @@
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/check.asp"-->
+<!--#include file="inc/head.inc"-->
+<%
+Call InnerLocation("我的下载记录")
+If ChannelID = 0 Then ChannelID = 2
+
+Dim Action
+
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+	Case "del"
+		Call delDownlog
+	Case Else
+		Call showmain
+End Select
+If Founderr = True Then
+	Call ToErrors(ErrMsg)
+End If
+Sub showmain()
+	If Founderr = True Then Exit Sub
+	Dim maxdaynum,maxdownum,todaynum,m_strstate,isdown,ChannelPath
+	maxdaynum = NewAsp.CheckNumeric(GroupSetting(43))
+	todaynum = NewAsp.ChkNumeric(UserToday(0))
+	'If NewAsp.ChkNumeric(NewAsp.BindDomain) = 0 Then
+	'	ChannelPath = Trim(NewAsp.InstallDir & NewAsp.ChannelDir)
+	'Else
+	'	ChannelPath = Trim(NewAsp.DomainName) & "/"
+	'End If
+	ChannelPath=NewAsp.ChannelUrl
+%>
+<table width="100%" cellspacing="1" align="center" cellpadding="3" border="0" class="Usertableborder">
+	<tr height="20">
+		<th width="5%" noWrap>状态</th>
+		<th width="70%">标题</th>
+		<th width="18%" noWrap>最后下载时间</th>
+		<th width="7%" noWrap>删 除</th>
+	</tr>
+<%
+	Response.Write "<tr><td class=""Usertablerow1"" colspan=""4"" align=""left""><b>今日下载：</b><b style=""color:red;"">"
+	Response.Write todaynum & "</b>&nbsp;&nbsp;&nbsp;&nbsp;<b>每日下载：</b><b style=""color:red;"">"
+	If CInt(NewAsp.memberclass) > 0 Then
+		maxdownum = NewAsp.ChkNumeric(GroupSetting(45))
+		If maxdownum = 0 Then
+			Response.Write "无限"
+		Else
+			Response.Write GroupSetting(45)
+		End If
+	Else
+		maxdownum = NewAsp.ChkNumeric(GroupSetting(44))
+		If maxdownum = 0 Then
+			Response.Write "无限"
+		Else
+			Response.Write GroupSetting(44)
+		End If
+	End If
+	Response.Write "</b></td></tr>" & vbNewLine
+	Dim CurrentPage,page_count,totalrec,Pcount,maxperpage
+	Dim Rs,SQL,i,s,j
+	maxperpage = 30 '###每页显示数
+	CurrentPage = NewAsp.ChkNumeric(Request("page"))
+	If CurrentPage = 0 Then CurrentPage = 1
+	totalrec = NewAsp.Execute("SELECT COUNT(softid) FROM NC_UserDown WHERE ChannelID=" & ChannelID & " And isdel=0 And userid=" & memberid)(0)
+	Pcount = CLng(totalrec / maxperpage)  '得到总页数
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If CurrentPage > Pcount Then CurrentPage = Pcount
+	page_count = 0
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT id,softid,title,lasttime,isdown1,isdown2 FROM [NC_UserDown] WHERE ChannelID=" & ChannelID & " And isdel=0 And userid=" & memberid & " ORDER BY lasttime DESC ,id DESC"
+	If IsSqlDataBase = 1 Then
+		Set Rs = NewAsp.Execute(SQL)
+	Else
+		Rs.Open SQL, Conn, 1, 1
+	End If
+	If Not (Rs.EOF And Rs.BOF) Then
+		If Pcount > 1 then Rs.Move (CurrentPage - 1) * maxperpage
+		j = (CurrentPage - 1) * maxperpage + 1
+		SQL = Rs.GetRows(maxperpage)
+		For i=0 To Ubound(SQL,2)
+			If (i mod 2) = 0 Then
+				s = 2
+			Else
+				s = 1
+			End If
+			isdown = NewAsp.ChkNumeric(SQL(4,i) + SQL(5,i))
+			'If DateDiff("D", SQL(3,i), Now()) < maxdaynum And isdown > 0 Then
+			'	m_strstate = "<b style=""color:blue;""  title=""已下载"">√</b>"
+			'Else
+			'	If maxdaynum <= 0 Or maxdownum = 0 Then
+			'		m_strstate = "<b style=""color:blue;""  title=""已下载"">√</b>"
+			'	Else
+			'		If todaynum < maxdownum Then
+			'			m_strstate = "<b style=""color:blue;""  title=""已下载"">√</b>"
+			'		Else
+			'			m_strstate = "<b style=""color:red;"" title=""未下载"">×</b>"
+			'		End If
+			'	End If
+			'End If
+			If isdown > 0 Then
+				m_strstate = "<b style=""color:blue;""  title=""已下载"">√</b>"
+			Else
+				m_strstate = "<b style=""color:red;"" title=""未下载"">×</b>"
+			End If
+			Response.Write "<tr>"
+			Response.Write "<td align=""center"" class=""Usertablerow" & s & """>" & m_strstate & "</td>"
+			Response.Write "<td class=""Usertablerow" & s & """><a target=""_blank"" href="""
+			Response.Write ChannelPath
+			Response.Write "softdown.asp?softid=" & SQL(1,i) & """>"
+			Response.Write SQL(2,i) & "</a></td>"
+			Response.Write "<td align=""center"" class=""Usertablerow" & s & """ noWrap>" & FormatshowTime(SQL(3,i)) & "</td>"
+			Response.Write "<td align=""center"" class=""Usertablerow" & s & """><a href=""?action=del&id=" & SQL(0,i) & "&ChannelID=" & ChannelID & """ onClick=""return confirm('确定要删除吗？')"">删 除</a></td>"
+			Response.Write "</tr>"
+			page_count = page_count + 1
+			j = j + 1
+		Next
+		SQL=Null
+	End If
+	Rs.Close:Set Rs = Nothing
+	Response.Write "<tr><td class=""Usertablerow2"" colspan=""4"" align=""right"">"
+	Response.Write ShowPages(CurrentPage,Pcount,totalrec,maxperpage,"&ChannelID="& ChannelID)
+	Response.Write "</td></tr>" & vbNewLine
+	Response.Write "</table>"
+End Sub
+
+Sub delDownlog()
+	Dim id
+	id = NewAsp.ChkNumeric(Request("id"))
+	If id > 0 Then
+		NewAsp.Execute ("UPDATE NC_UserDown SET isdel=1 WHERE id=" & id)
+	End If
+	Response.Redirect Request.ServerVariables("HTTP_REFERER")
+End Sub
+%>
+
+<!--#include file="inc/foot.inc"-->

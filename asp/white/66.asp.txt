@@ -1,0 +1,91 @@
+<%Server.ScriptTimeOut = 900 %>
+<!--#include file="Adn_Conn.asp"-->
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=gb2312" />
+<TITLE>清理垃圾</TITLE>
+<style type="text/css">body {background-color:#E4EDF9; line-height:20px; font-size:12px; color:#135294; padding:2px;}</style>
+</head>
+<body>
+<%
+Dim action:action=Trim(Request.QueryString("action"))
+Call OpenConn()
+If action="Cache" Then'清空缓存
+    Call RemoveAllCache()
+Else
+	Set ds= Server.CreateObject("adodb.recordset")
+	sql = "select url_id,server_id,data_id from adnim_url order by url_id desc"
+	Ds.Open sql, Conn, 1, 1
+	If Not (ds.bof And ds.eof) Then
+		Response.Write("<b>正在遍历所有地址库……请稍候！<font color='red'>在此过程中请勿刷新此页面！！！</font></b><br>")
+		Response.Write("总共查询到 <font color='red'><b>"&ds.recordcount&"</b></font> 个数据，正在逐一进行检查中....<br>")	
+		Do while not ds.eof
+			Response.Write(ds("url_id")&"--"&ds("data_id")&"--")
+			Call Laji()
+		ds.movenext
+		Loop 
+	Else
+		Response.Write("没有数据不用清理垃圾!")
+	End If
+	ds.close
+	Set ds=nothing
+End If
+
+Sub Laji()
+	set rs= Server.CreateObject("adodb.recordset")
+	sql = "select data_id,server_id,data_name from adnim_data where data_id="&ds("data_id")&" order by data_id desc"
+	rs.Open sql, Conn, 1, 1
+	If Not (rs.bof And rs.eof) Then
+	    If instr(rs("server_id"),ds("server_id")&"|")>0 Then
+		    Response.Write("经查询该UrlId对应的影片地址属于第<font color='red'>"&ds("server_id")&"</font>组服务器的，不是垃圾不需要处理！<br>")
+		Else
+		    Response.Write("<font color='red'>经查询该UrlId对应的影片没有加该地址，所以是垃圾数据，马上删除！</font><br>")
+			Conn.execute(" delete from adnim_url where url_id="&ds("url_id")&" ")'删除地址
+		End If
+		Response.Flush	
+	Else
+		Response.Write("<font color='red'>没有找到影片(DataId)数据,百分百的垃圾数据，马上删除！</font><br>")
+		Conn.execute(" delete from adnim_url where url_id="&ds("url_id")&" ")'删除地址
+		Response.Flush
+	End If
+	rs.close
+	Set rs=nothing
+End Sub
+
+Sub RemoveAllCache()
+	Dim cachelist,i
+	Call InnerHtml("UpdateInfo","<b>开始执行清理当前站点缓存</b>：")
+	Cachelist=split(GetallCache(),",")
+	If UBound(cachelist)>1 Then
+		For i=0 to UBound(cachelist)-1
+		DelCahe Cachelist(i)
+		Call InnerHtml("UpdateInfo","更新 <b>"&cachelist(i)&"</b> 完成")
+		Next
+	    Call InnerHtml("UpdateInfo","更新了"& UBound(cachelist)-1 &"个缓存对象<br>")
+	Else
+	    Call InnerHtml("UpdateInfo","<b>当前站点全部缓存清理完成。</b>。")
+	End If
+End Sub
+
+Function GetallCache()
+	Dim Cacheobj
+	For Each Cacheobj in Application.Contents
+	GetallCache = GetallCache & Cacheobj & ","
+	Next
+End Function
+
+Sub DelCahe(MyCaheName)
+	Application.Lock
+	Application.Contents.Remove(MyCaheName)
+	Application.unLock
+End Sub
+
+Sub InnerHtml(obj,msg)
+	Response.Write "<li>"&msg&"</li>"
+	Response.Flush
+End Sub
+'
+Call CloseConn()
+%>
+</body>
+</html>

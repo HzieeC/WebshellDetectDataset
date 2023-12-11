@@ -1,0 +1,119 @@
+<!-- #include file="config.asp" -->
+<!-- #include file="base64.asp" -->
+<%'SMS.API
+Function bytes2BSTR(vIn) '二进制转字符串（解决编码函数）
+	Dim strReturn 
+	Dim i1,ThisCharCode,NextCharCode 
+	strReturn = "" 
+	For i1 = 1 To LenB(vIn) 
+		ThisCharCode = AscB(MidB(vIn,i1,1)) 
+		If ThisCharCode < &H80 Then 
+			strReturn = strReturn & Chr(ThisCharCode) 
+		Else 
+			NextCharCode = AscB(MidB(vIn,i1+1,1)) 
+			strReturn = strReturn & Chr(CLng(ThisCharCode) * &H100 + CInt(NextCharCode)) 
+			i1 = i1 + 1 
+		End If 
+	Next 
+	bytes2BSTR = strReturn
+End Function
+'================================== XML异步提交并返回结果函数
+Function getHTTPPage(url) 
+	On Error Resume Next 
+	Dim objXML 
+	Set objXML=Server.createobject("Microsoft.XMLHTTP") 
+	objXML.Open "GET",url,False   'true 为异步速度快不返回内容  false 为同步返回内容但速度慢些 建议用 true
+	objXML.send()
+	If objXML.readystate<>4 Then
+		Exit Function 
+	End If 
+	   getHTTPPage= bytes2BSTR(objXML.responseBody) '返回状态
+	Set objXML=Nothing
+	If Err.number<>0 Then Err.Clear
+End Function
+Class SMS
+	private responseXML
+	private serverURL
+	Private VCPU
+	private VCPPsword
+	private VCPApkey
+	
+	public function SMS()
+		serverURL = session("vcpserver")
+		VCPU = session("vcpuser")
+		VCPPsword = session("vcppassword")
+		VCPApkey = session("vcpapikey")
+	end function
+	
+	Private Function HTTPResponse(ByVal toHTTPResponse, ByVal whichHTTPResponse)
+		On Error Resume Next
+		Dim HTTPResponseDelimiter
+		HTTPResponseDelimiter = Chr(13) & Chr(10) & Chr(13) & Chr(10)
+		If (InStr(1, toHTTPResponse, HTTPResponseDelimiter, vbBinaryCompare) <> 0) Then
+			Select Case whichHTTPResponse
+			Case 0 'Header
+			HTTPResponse = Mid(toHTTPResponse, 1, (InStr(1, toHTTPResponse, HTTPResponseDelimiter, vbBinaryCompare) - 1))
+			Case 1 'Body
+			HTTPResponse = Mid(toHTTPResponse, (InStr(1, toHTTPResponse, HTTPResponseDelimiter, vbBinaryCompare) + Len(HTTPResponseDelimiter)), (Len(toHTTPResponse) - (InStr(1, toHTTPResponse, HTTPResponseDelimiter, vbBinaryCompare) - 1)))
+			End Select
+		End If
+	End Function
+	
+	'***************SOCTET与服务器建立通信
+	public Function whois(out,paraHost,paraPort,paraTimeout)
+		On Error Resume Next
+		responseXML=""
+		Set sock = CreateObject("Socket.TCP")
+		sock.Host = paraHost&":"&paraPort
+		sock.Timeout = paraTimeout
+		sock.Open()
+		If Err.Number <> 0 Then Err.Clear
+		sock.SendLine "GET "& out & " HTTP/1.0"
+		sock.SendLine "HOST: " & paraHost
+		sock.SendLine ""
+		sock.WaitForDisconnect()
+		If Err.Number <> 0 Then
+			responseXML=Chr(13)&"unable to connect to "&paraHost&paraPort & " -- " & Err.Number & " -- " & Err.Description
+			whois=responseXML
+			Err.Clear
+		Else
+			responseXML = HTTPResponse(sock.Buffer, 1)
+			whois=responseXML
+		End If
+		sock.Close()
+		Set sock = Nothing
+	End Function
+	'提交数据并返回
+	public Function sendSMS(t_pho,t_msg,t_time)
+		call SMS()
+		responseXML=""
+		't_msg = strAnsi2Unicode(Base64encode(strUnicode2Ansi(t_msg)))  '短信内容数据进行加密
+		If SmsApiType="XMLHTTP" then
+		strurl=serverURL&"?id="&VCPU&"&pwd="&MD5(VCPPsword,32)&"&syskey="&MD5(VCPU&VCPApkey,32)&"&to="&t_pho&"&content="&t_msg&"&time="&t_time&""
+		responseXML=getHTTPPage(strurl)
+		sendSMS = responseXML
+		Else
+		strurl="/gateway/index.asp?id="&VCPU&"&pwd="&MD5(VCPPsword,32)&"&syskey="&MD5(VCPU&VCPApkey,32)&"&to="&t_pho&"&content="&t_msg&"&time="&t_time&""
+		sendSMS = whois(strurl,serverURL,80,5000)
+		End If
+	End Function
+	public function getCode()
+		start_pos = Len(responseXML)
+		if start_pos>0 then
+			getCode = trim(Mid(responseXML,1,3))
+		end if
+	end function
+	public function infoSMSAccount()
+		call SMS()
+		responseXML=""
+		If SmsApiType="XMLHTTP" then
+		strurl=serverURL&"info.asp?action=infoSMSAccount&id="&VCPU&"&pwd="&MD5(VCPPsword,32)&"&syskey="&MD5(VCPU&VCPApkey,32)&""
+		responseXML=getHTTPPage(strurl)
+		infoSMSAccount = responseXML
+		Else
+		strurl="/gateway/info.asp?action=infoSMSAccount&id="&VCPU&"&pwd="&MD5(VCPPsword,32)&"&syskey="&MD5(VCPU&VCPApkey,32)&""
+		infoSMSAccount = whois(strurl,serverURL,80,5000)
+		End If
+	END Function
+End Class
+%>

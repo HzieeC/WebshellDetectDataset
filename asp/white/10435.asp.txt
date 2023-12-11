@@ -1,0 +1,206 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="inc/conndb.asa"-->
+<!--#include file="inc/function.asp"-->
+<%
+call checkuser()
+id=CheckNum(Request.QueryString("id"))
+tn=CheckStr(Request.QueryString("tn"))'判断是哪个表 TableName
+If tn="bbs" Then'判断是哪个表 TableName=bbs
+tname="主题"
+	Set rs1 = Server.CreateObject("ADODB.Recordset") 
+	rs1.Open "Select * From "&bbstable&" where id="&id, conn,1,1 
+	SQLQueryNums=SQLQueryNums+1
+		nowhits=rs1("hits") 
+		title=rs1("title")
+		recount=rs1("recount")
+		istop=rs1("istop")
+		isgood=rs1("isgood")
+		username=rs1("username")
+		addtime=rs1("addtime")
+		content=rs1("content")
+		lou=rs1("lou")
+		re=rs1("re")
+		BoardID=rs1("boardid")
+		recount=rs1("recount")
+		titlecolor=rs1("titlecolor")
+		picurl=rs1("picurl")
+		titleBold = rs1("titleBold")
+		hits=rs1("hits")
+		IsRe = rs1("IsRe") '是否允许回复 Add For V1.5
+	rs1.close
+	set rs1=nothing
+Else'判断是哪个表 TableName=rebbs
+tname="回复"
+	Set rs1 = Server.CreateObject("ADODB.Recordset") 
+	rs1.Open "Select "&rebbstable&".*, "&bbstable&".boardid as boardid from "&rebbstable&","&bbstable&" where "&rebbstable&".re="&bbstable&".id and "&rebbstable&".id="&id, conn,1,1 
+	SQLQueryNums=SQLQueryNums+1
+		username=rs1("username")
+		addtime=rs1("addtime")
+		content=rs1("content")
+		BoardID=rs1("boardid")
+		lou=rs1("lou")
+		re=rs1("re")
+	rs1.close
+	set rs1=nothing
+End If 
+
+
+canmodify=False
+IsAdmin=CheckAdmin(BoardID)
+If CInt(IsAdmin)=9 Then 
+	canmodify=True
+	ALevel="管理员"
+ElseIf CInt(IsAdmin)=1 Then 
+	canmodify=True
+	ALevel="版主"
+ElseIf username=Dreamsun_name Then 
+	canmodify=True
+	ALevel="作者本人"
+	u="u"
+Else
+	canmodify=False
+	ALevel="谁？"
+End If 
+
+
+If canmodify=False Then Call backmsg("您不符合进入条件，请检查。","")
+
+Page_WebTitle="编辑："&title&"-"&TieBa_Name
+now_where=" 编辑"&tname&"帖子"
+navright=""
+
+'启用模板类
+BoardListStr=BoardList(BoardID)
+set getTemplate = new Cls_Template
+shtml=getTemplate("ddp_head")
+'页面全局变量、普通变量替换
+shtml=replace(shtml,"$Page_WebTitle$",Page_WebTitle)
+shtml=replace(shtml,"$Page_Author$",Page_Author)
+shtml=replace(shtml,"$Page_Keywords$",Page_Keywords)
+shtml=replace(shtml,"$Page_Description$",Page_Description)
+shtml=replace(shtml,"$kdhLink$",dhLink())
+shtml=replace(shtml,"$topmenu$",topmenu())
+shtml=replace(shtml,"$BoardListStr$",BoardListStr)
+shtml=replace(shtml,"$now_where$",now_where)
+shtml=replace(shtml,"$NavRight$",NavRight)
+response.write shtml
+response.write ("<br><br><br>")
+%>
+<form name="save" method="post" id="save" action="tzsave.asp?cz=<%=u%>editsave&tn=<%=tn%>"  onSubmit="return regcheck(this);">
+<table width="760" align="center" cellSpacing=2 cellPadding=0 border=0>
+	<tr class="zd_td" height="34">
+		<td align="center" colspan=2>尊敬的<span class=hot><%=Dreamsun_Name%></span>,您的身份是<span class=hot><%=ALevel&"</span>,您正在"&now_where%></td>
+	</tr>
+<%If tn="bbs" Then %><tr class="zd_td"><td width="10%" align="right" height="26"><strong>标 题：</strong></td><td><input name="title" type="text" id="title" size="50" value="<%=title%>">
+	<%If IsAdmin>0 Then %>&nbsp;<select name="titlecolor">
+    	<option value=""<%If titlecolor="" Then response.write " selected"%>>标题醒目</option><%
+	For i=0 To UBound(TitleColorArray)
+		response.write "<option style=""COLOR: "&TitleColorArray(i)&""" value="""&TitleColorArray(i)&""" "
+		If titlecolor=TitleColorArray(i) Then response.write " selected"
+		response.write ">"&TitleColorArray(i)&"</option>"
+	Next%></select>
+		<input type="radio" name="titleBold" value="0" <%If titleBold<>1 Then %>checked<%End If%> id="titleBold1"><label for="titleBold1">正常</label><input type="radio" name="titleBold" value="1" <%If titleBold=1 Then %>checked<%End If%> id="titleBold2"><label for="titleBold2">粗体</label> &nbsp;回复：<input name="isRe" type="radio" id="isRe1" value="1" <%if CInt(IsRe)=1 then Response.Write("checked")%>><label for="isRe1">允许</label><input name="isRe" type="radio" id="isRe2" value="0" <%if CInt(IsRe)=0 then Response.Write("checked")%> ><label for="isRe2">不允许</label>
+	<% End If %></td></tr>
+<%else%><input name="title" type="hidden">
+<%End If %>
+			<tr class="zd_td">
+              <td align="right"><strong>内容：</strong></td>
+              <td align="left" height=290 valign="center"><textarea id="content" name="content" rows="16" cols="100"  class="ubbeditor"><%=content%></textarea></td>
+           </tr>
+<%If tn="bbs" And IsAdmin>0 Then%>
+ 			<tr class="zd_td">
+              <td width="10%" align="right" valign="top"><strong>幻灯图：</strong></td>
+              <td><input name="picurl" type="text" id="picurl" size="40" value="<%=picurl%>">  &nbsp;
+	<%If istop=2 And IsAdmin<>9 Then'普通管理员无权管理总置顶的帖子。
+		%><input name="istop" type="text" id="istop" size="50" value="<%=istop%>"><%
+	Else
+	%>		  
+			  <B>置顶：</B>
+			<select name="istop">
+			  <option value='0'<%If istop=0 Then response.write " selected"%>>不置顶</option>
+			  <option value='1'<%If istop=1 Then response.write " selected"%>>板置顶</option>
+		<%If IsAdmin=9 Then%>			
+			  <option value='2'<%If istop=2 Then response.write " selected"%>>总置顶</option>
+		<%End If%>
+			  <option value='-1'<%If istop=-1 Then response.write " selected"%>>沉底</option>
+			</select>
+	<%End If%>		
+			</td>
+            </tr>
+<%End If
+If tn="bbs" Then
+%>
+			<tr class="zd_td"  height="24">
+              <td align="right"><strong>分类版块：</strong></td>
+              <td><%=BoardSelect(BoardID)%> *版主移动到别的版块，将无法管理该帖子
+              </td>
+            </tr>
+<%End If 
+If IsAdmin=9 Then 
+%>
+            <tr class="zd_td"  height="24">
+              <td align="right"><strong>作 者：</strong></td>
+              <td><input name="username" type="text" id="username" size="30" value="<%=username%>"> <input name="isRemote" id="isRemote" type="checkbox" value="1" /><label for="isRemote">远程存图</label></td>
+            </tr>
+            <tr class="zd_td" height="24">
+              <td align="right"><strong>注意：</strong></td>
+              <td><font color=red>如果不知道以下参数的作用，请不要修改。</font></td>
+            </tr>
+            <tr class="zd_td" height="26">
+              <td align="right"><strong>参 数：</strong></td>
+              <td>
+			  <%If tn="bbs" Then'判断是哪个表 %>
+			 点击：<input name="hits" type="text" id="hits" size="6" value="<%=hits%>"> 回数：<input name="recount" type="text" id="re" size="6" value="<%=recount%>">
+			  <% End If %>
+			   关联：<input name="re" type="text" id="re" size="10" value="<%=re%>"> 楼层：<input name="lou" type="text" id="lou" size="6" value="<%=lou%>">
+			</td>
+            </tr>
+			<%End If %>
+			<tr class="zd_td"  height="84">
+              <td align="right">&nbsp;</td>
+              <td align="center"><input type="submit" name="Submit" id="Submit" value="<%=now_where%>">&nbsp;&nbsp;<input type="reset" name="Submit2" value="重新填写">
+			  <%
+			  If Sys_IsCheck=0 And isadmin<1 Then 
+				  response.write "<br><font class=hot><BR>该系统开启了帖子审核机制，您修改后需要重新审核！<font>"
+			  End If 
+			  
+			  %>
+			  </td>
+            </tr>
+        </table><input name="ycid" type="hidden" id="ycid" value="<%=id%>">
+		<input name="comurl" type="hidden" id="comurl" value="<%=Cstr(Request.ServerVariables("HTTP_REFERER"))%>">
+</form> 
+
+<script type="text/javascript" src="images/jquery-1.3.2.min.js"></script><script type="text/javascript"  charset="utf-8" src="images/xheditor-zh-cn.js"></script><script type="text/javascript" src="images/ubb.js"></script>
+<script type="text/javascript">
+$(pageInit);
+var editor
+function pageInit()
+{
+$('#content').xheditor(true,{tools:'mini',forcePtag:false,showBlocktag:false,beforeSetSource:ubb2html,beforeGetSource:html2ubb<%=ubbupload%>});
+	editor=$('#content').xheditor(true)[0].xheditor;
+}
+function regcheck(formct){
+	if (formct.BoardId.value=='' ){
+		alert('分类不能为空.');
+		formct.BoardId.focus();
+		return false; 
+	}
+	if (formct.title.value=='' ){
+		alert('标题不能为空,请填写.');
+		formct.title.focus();
+		return false; 
+	}
+	formct.Submit.disabled=true;
+	return true;
+}
+
+</script>
+<%
+currWZ="编辑帖子"
+shtml=getTemplate("ddp_foot")
+shtml=replace(shtml,"$SQLQueryNums$",SQLQueryNums)
+shtml=replace(shtml,"$runTime$",runTime)
+response.write shtml
+%>
+

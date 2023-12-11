@@ -1,0 +1,336 @@
+<%Server.ScriptTimeout=900%>
+<!--#include file="Adn_Conn.asp"-->
+<!--#include file="../Cache/AdnCms.Admin.asp"-->
+<!--#include file="../Cache/AdnCms.Collect.asp"-->
+<!--#include file="../Include/AdnCms.XmlHttp.asp"-->
+<!--#include file="CaiJi/Cai_Config_New.asp" --><html>
+<head><meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<TITLE>Adn Video Cms 数据库</TITLE>
+<style type="text/css">
+a{color: #000000;}
+.td2 td{ background:#FFF;text-align:center;height:28px;} 
+.td2 .left{text-align:left;padding-left:5px;}
+.td2 sup{color:#FF0000;font-weight:bold;cursor:pointer;}
+.td3 td{background:#e4edf9; text-align:center}
+.td2 td input,.td3 td input{ border:none}
+</style>
+<link href="skins/css/adn_main.css" rel="stylesheet" type="text/css" />
+<script language="javascript">
+function CheckAll(form){
+	for (var i=0;i<form.elements.length-4;i++){
+		var e = form.elements[i];
+		if (e.checked==false){
+			e.checked = true;
+		}else{
+			e.checked = false;
+		}
+	}
+}
+</script> 
+</head>
+<body>
+<script language="javascript" runat="server"> 
+function  GG2UTF8(str) { 
+    return  encodeURIComponent(str) 
+} 
+</script> 
+<%
+Dim Action,ListUrl,ListPic,ListOid,ListPid,ListLid,Page,Keyword,repage,dataid
+Dim data_id,class_id,server_id,data_name,data_actor,data_director,data_erea,data_elite,data_hits,data_status,data_picurl,data_intro,data_inputer,url_intro,data_reurl,data_continu
+Dim ida,idb,i,j
+repage=Request.ServerVariables("Http_Referer")
+Action=Trim(Request.QueryString("Action"))
+ListUrl=Request.QueryString("url")'站点
+ListPid=Request.QueryString("play")'播放器
+ListLid=Trim(Request.QueryString("lid"))'频道分类
+ListPic=Adn_Clng(Request("pic"))'强制图片
+ListOid=Adn_Clng(Request("oid"))'强制倒序
+Page=Adn_Clng(Request.QueryString("page"))'分页
+'
+Keyword=GG2UTF8(trim(Request.QueryString("k")))'数据搜索
+Dataid=Trim(Request("data_id"))'全选/反选ID
+'
+If ListUrl<>"" Then
+    Call OpenConn()
+	If Action="update" Then'勾选ID
+	    Response.Write("<div style='font-size:12px'>")
+		If dataid="" Then
+			Response.Write("请至少选择一个您要采集的影片!")
+			Response.End
+		ElseIf Instr(dataid,",")>0 Then '多个影片ID
+			ida=split(dataid,", ")
+			idb=ubound(ida)
+			Response.Write "本次共需要采集影片<span style='font-size:21px;font-weight:bold;color:#FF0000'>"&(idb+1)&"</span>个 <a href='"&repage&"'>返回上一页</a><br>"
+			Response.Flush()
+			For i=0 to idb
+			    Call ReadData(ida(i))
+			Next
+			Response.Write("<p style='font-size:14px; color:#FF0000'>已经采集完所有数据！</p>")
+		Else
+		    Response.Write "本次共需要采集影片<span style='font-size:21px;font-weight:bold;color:#FF0000'>1</span>个 <a href='"&repage&"'>返回上一页</a><br>"
+			Call ReadData(dataid)
+		End If
+		Response.Write("</div>")
+	ElseIf Action="uppage" Then'采集所有
+		Call ReadPage()
+	ElseIf Action="upday" Then '今日更新
+		Call ReadDay()
+	ElseIf Action="search" Then '电影搜索
+		Call ReadList()		
+	Else
+		Call ReadList()
+	End If
+	Call CloseConn()	
+Else
+%>
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr><th style="text-align:center; font-size:21px; height:50px; color:#FF0000;" id="listtitle">FeiFeiCms数据资源库收集于互联网</th></tr>
+  <form action="Adn_Data_Caiji.asp" method="get">
+  <tr><td class="td1" style='padding-left:50px;font-size:14px;line-height:30px; color:#006600; font-weight:bold'>电影搜索：<input name="action" type="hidden" value="search"><input name="url" type="hidden" value="search"> <input name="k" type="text" onFocus="this.value='';" value="影片名称或演员名称" style="height:21px; color:#999"> <input type="submit" name="Submit" value="提交"></td></tr></form>
+  <tr><td class="td1" style='padding-left:50px;font-size:14px;line-height:30px;'><script language='javascript' src='http://union.feifeicms.com/xml/adn_5.0.js' charset="utf-8"></script></td></tr> 
+</table>
+<%
+End If
+Sub ReadPage()'处理分页采集
+    dim sid,eid
+    Response.Write("<div style='font-size:12px'>")
+	sid=Adn_Clng(Request.QueryString("sid"))
+	eid=Adn_Clng(Request.QueryString("eid"))
+	If sid<1 Then sid=1:If eid<1 Then eid=1
+	If ListOid=0 Then
+	    Gourl="?Action=uppage&url="&ListUrl&"&lid="&ListLid&"&pic="&ListPic&"&oid="&ListOid&"&sid="&sid+1&"&eid="&eid
+		ListHtml=GetPage("http://dataasp.adnim5.cn/index.php?s=server-show-id-"&ListUrl&"-lid-"&ListLid&"-pic-"&ListPic&"-play-"&ListPid&"-p-"&sid,"utf-8")
+	Else
+		Gourl="?Action=uppage&url="&ListUrl&"&lid="&ListLid&"&pic="&ListPic&"&oid="&ListOid&"&sid="&sid&"&eid="&eid-1
+		ListHtml=GetPage("http://dataasp.adnim5.cn/index.php?s=server-show-id-"&ListUrl&"-lid-"&ListLid&"-pic-"&ListPic&"-play-"&ListPid&"-p-"&eid,"utf-8")
+	End If
+	Call CollectNext(Gourl)'生成断点
+	ida=Split(ListHtml,"<video>"):idb=ubound(ida)
+	Response.Write "正在采集第<span style='font-size:21px;font-weight:bold;color:#FF0000'>"&sid&"/"&eid&"</span>页 该页影片需要处理影片<span style='font-size:21px;font-weight:bold;color:#009900'>"&(idb)&"</span>个 <br>"
+	Response.Flush()
+	For i=1 to idb
+	    'response.Write GetContent(ida(i),"<videourl>","</videourl>",0)
+		Call ReadData(GetContent(ida(i),"<videourl>","</videourl>",0))
+	Next
+	Response.Write("</div>")
+	If sid>=eid Then
+	    Call CollectNext("")'清空断点
+        Response.Write("<p align='center' style='font-size:14px; color:#FF0000'>已经采集完所有数据！</p>")
+    Else
+        Response.Write("<p style='font-size:14px; color:#FF0000'>"&AdminId(11)&"秒后将自动采集下一页！</p><meta http-equiv='refresh' content="&AdminId(11)&";url='"&Gourl&"'>")
+    End If
+End Sub
+
+Sub ReadDay()'处理今日更新
+	ListHtml=GetPage("http://dataasp.adnim5.cn/index.php?s=server-day-id-"&ListUrl&"-play-"&ListPid,"utf-8")
+    Response.Write("<div style='font-size:12px'>")
+    ida=split(ListHtml,"<video>")
+	idb=ubound(ida)
+	If idb>0 Then
+	Response.Write "本次共需要采集影片<span style='font-size:21px;font-weight:bold;color:#FF0000'>"&(idb)&"</span>个 <a href='"&repage&"'>返回上一页</a><br>"
+	Else
+	Response.Write "今日暂无影片更新 <a href='"&repage&"'>返回上一页</a><br>"
+	End If
+	Response.Flush()
+	For i=1 to idb
+		Call ReadData(GetContent(ida(i),"<videourl>","</videourl>",0))
+	Next
+	Response.Write("<p style='font-size:14px; color:#FF0000'>已经采集完所有数据！</p>")
+	Response.Write("</div>")
+End Sub
+
+Sub ReadList()'获取分页列表源码
+    'On Error Resume Next
+    Dim PageLink,ListHtml,m,n,z,Lista,Listb
+	If Action="search" Then
+	PageLink="Adn_Data_Caiji.asp?action=search&url=search&k="&keyword&""
+	ListHtml=GetPage("http://dataasp.adnim5.cn/index.php?s=server-search-id-"&keyword,"utf-8")	
+	Else
+	PageLink="Adn_Data_Caiji.asp?url="&ListUrl&"&play="&ListPid&"&lid="&ListLid&""
+	ListHtml=GetPage("http://dataasp.adnim5.cn/index.php?s=server-show-id-"&ListUrl&"-lid-"&ListLid&"-play-"&ListPid&"-p-"&Page,"utf-8")
+	End If
+	If len(ListHtml)<1 then response.Write("获取资源列表超时 请刷新！"):response.end
+	m=GetContent(ListHtml,"<recordcount>","</recordcount> ",0)'总记录
+	n=GetContent(ListHtml,"<pagecount>","</pagecount>",0)'总页数
+	z=GetContent(ListHtml,"<pagesize>","</pagesize>",0)'每页数量
+	Lista=split(ListHtml,"<video>"):Listb=ubound(Lista)
+%>
+<table width="100%" height="180" border="0" align="center" cellpadding="2" cellspacing="1" style="font-size:12px">
+<form name="myform" action="?Action=update&Url=<%=ListUrl%>" method="post">
+<tr bgcolor="#e4edf9"><td colspan=5 style="color:blue">请做好官方友情链接 以支持发展<%If CollectCai<>"" Then response.Write("<a href="&CollectCai&"><font color=red>检测到该项目有未完成的采集任务，请点击这里续采!</font></a>")%></td></tr>
+<tr class="td2"><td colspan=5><a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=3">动漫</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=4">综艺</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=5">体育</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=6">游戏</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=7">音乐</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=22">纪录片</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=8">动作</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=9">喜剧</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=10">爱情</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=11">科幻</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=12">恐怖</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=13">战争</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=14">故事</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=15">国产剧</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=16">香港剧</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=17">台湾剧</a>　<a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=25">欧美剧</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=18">日本剧</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=19">韩国剧</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=19">海外剧</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=23">泰国剧</a> <a href="?url=<%=ListUrl%>&play=<%=ListPid%>&lid=24">新加坡</a></td></tr>
+<%for i=1 to listb%>
+<tr class="td3">
+<td width="70%" style="text-align:left"><input type="checkbox" name="data_id" value="<%=replace(GetContent(lista(i),"<videourl>","</videourl>",0),"http://dataasp.adnim5.cn/index.php?s=server-read-id-","")%>"/><label><%=GetContent(lista(i),"<videoname>","</videoname>",0)%>&nbsp;<%=GetContent(lista(i),"<videostate>","</videostate>",0)%></label></td>
+<%cc=GetContent(Lista(i),"<videostate>","</videostate>",0)%>
+<td width="5%" ><%if cc<>0 then Response.Write cc else Response.Write "完结"%></td>
+<td width="5%" ><%=GetContent(Lista(i),"<videoclass>","</videoclass>",0)%></td>
+<td width="10%" ><%=GetContent(Lista(i),"<play>","</play>",0)%></td>
+<td width="10%" ><%=GetContent(Lista(i),"<addtime>","</addtime>",0)%></td>
+</tr> 
+<%next'if i mod 2=0 then response.write "</tr>"%>
+<tr class="td2"><td colspan="5"><input class="mininput" type="button" value="全/反选" onClick="CheckAll(this.form)" /> <input class="mininput" type="submit" value="采集入库" /> <input class="mininput" type='submit' value='一键采集今日更新' onClick="document.myform.action='?Action=upday&url=<%=ListUrl%>&play=<%=ListPid%>'"> <input class="mininput" type='submit' value='一键采集所有数据' onClick="document.myform.action='?Action=uppage&url=<%=ListUrl%>&play=<%=ListPid%>&lid=<%=ListLid%>&sid=1&eid=<%=n%>'"> <input type="checkbox" name="pic" value="1" />更新地址的时候强制更换图片 <input name="oid" type="checkbox" value="1" />是否倒序采集</td>
+</tr> 
+<%If Action<>"search" Then%> 
+<tr class="td2"><td colspan="5"><%=ShowPage(pagelink, m, z, page, True, True, "条", False)%></td></tr> 
+<%End If%> 
+</form>
+</table>
+<%End Sub
+
+Sub ReadData(dataid)'获取单个数据源码
+	On Error Resume Next
+    Dim DataHtml
+	'dataid=replace(dataid,"data.pp023.com","dataasp.adnim5.cn")
+	'dataid=replace(dataid,"http://dataasp.adnim5.cn/index.php?s=server-read-id-","")
+	DataHtml=GetPage("http://dataasp.adnim5.cn/index.php?s=server-read-id-"&dataid,"utf-8")
+	If Instr(DataHtml,"<title>飞飞影视系统ASP版</title>") Then
+		Response.Write("该片"&dataid&"已经过期或失效，服务器已将其删除，自动更新下一部..<br>")	
+	Else
+		class_id=GetListId(GetContent(DataHtml,"<videocid>","</videocid>",0))
+		data_name=Left(GetContent(DataHtml,"<videoname>","</videoname>",0),250)
+		data_actor=Left(GetContent(DataHtml,"<star>","</star>",0),250)
+		data_director=Left(GetContent(DataHtml,"<director>","</director>",0),250)
+		data_erea=GetContent(DataHtml,"<area>","</area>",0)
+		data_picurl=GetContent(DataHtml,"<pic>","</pic>",0)
+		data_intro=GetContent(DataHtml,"<![CDATA[","]]>",0)
+		data_inputer=GetContent(DataHtml,"<inputer>","</inputer>",0)
+		'data_year=GetContent(DataHtml,"<year>","</year>",0)
+		data_language=GetContent(DataHtml,"<language>","</language>",0)
+		data_continu=GetContent(DataHtml,"<videostate>","</videostate>",0)
+		data_reurl=GetContent(DataHtml,"<reurl>","</reurl>",0)
+		If data_year="" Then data_year=2010
+		If data_language="" Then data_language="不详"
+		If data_continu="" Then data_continu=0
+		playida=split(DataHtml,"<play"):playidb=ubound(playida):playidc=split(DataHtml,"<videourl")
+	    Response.Write("<span style='font-size:21px;font-weight:bold;color:#FF0000'>"&i&"</span> 影片名称:<font color=red>"&data_name&" "&class_id&"</font> 共有<font color='green'>"&playidb&"</font>组播放地址<br>")
+	    Response.Flush()
+		For u=1 to playidb
+		    url_intro=""
+			server_id=GetPlayid(GetContent(playida(u),">","</play>",0))
+			playurl=GetContent(playidc(u),">","</videourl>",0)
+			playurla=split(playurl,"<url"):playurlb=ubound(playurla)
+			For uu=1 to playurlb
+				movurl=GetContent(playurla(uu),">","</url>",0)
+				If uu>1 Then movurl="$$$"&movurl End If
+				url_intro=url_intro&movurl
+			Next
+			'调用检查影片入库检查程序
+			Call InsertData(u)
+		Next 		
+	End If
+End Sub
+
+Sub CollectNext(caiurl)'生成断点续采
+	html="<%"&vbcrlf
+	html=html&"Dim CollectCai"&vbcrlf
+	html=html&"CollectCai="""&caiurl&""""&vbcrlf
+	html=html&"%"&">"
+	Call MakeHtml("../Cache/AdnCms.Collect.asp",html)
+End Sub
+
+Function InsertData(str)'数据入库
+    If data_name="" Then Exit Function
+	If url_intro="" Then Exit Function
+    Set rs = Server.CreateObject("adodb.recordset")
+	sql = " Select * from adnim_data where data_reurl='"&data_reurl&"' "
+	rs.Open sql, Conn, 1, 3
+	If Not(rs.bof or rs.eof) Then
+	   '有来源.编辑影片与地址
+		If ListPic=1 Then rs("data_picurl")=GetPicurl(data_picurl,"../"&AdminId(28))
+		rs("class_id")=Adn_Clng(class_id)
+		rs("data_name")=data_name
+		rs("data_continu")=Adn_Clng(data_continu)
+		rs("data_reurl")=data_reurl
+		rs.update	   
+	    Call Edit_Data_Url(str)
+	Else
+		'无来源.智能判断,是否存在同名电影
+		rs.close:set rs=nothing
+		Set rs = Server.CreateObject("adodb.recordset")
+		sql = " Select * from adnim_data where data_name='"&data_name&"' "
+		rs.Open sql, Conn, 1, 3
+		If Not(rs.bof or rs.eof) Then
+			'无来源有同名,编辑影片与地址
+			Call Edit_Data_Url(str)
+		Else
+			'无来源无同名,新加影片与地址
+			Call Add_Data_Url(str)
+		End If
+	End If
+	rs.Close
+	Set rs=Nothing
+End Function
+
+Function Edit_Data_Url(str)'编辑影片地址
+    If rs("data_inputer")="adncms" Then Response.Write "本片为强制不更新地址的影片,不需要进行下一步操作!":Exit Function
+	Set rs_u=Server.CreateObject("adodb.recordset")
+	sql = " Select url_id,data_id,server_id,url_intro from adnim_url where data_id="&rs("data_id")&" and server_id="&server_id&" "
+	rs_u.Open sql, Conn, 1, 3
+	If Not(rs_u.bof or rs_u.eof) Then'判断强制更新地址及智能判断是否更新地址
+		If rs_u("url_intro")<>url_intro or Instr(qiangzi,"dz")>0 Then
+		    rs_u("url_intro")=url_intro	
+			rs_u.update
+			'并修改影片录入时间
+			rs("data_lastdate")=now()
+			rs.update
+			Response.Write("成功修改第"&str&"组播放地址(连载/强制更新地址)！<br>")
+		Else
+		    Response.Write("第"&str&"组播放地址未发生任何改变, 不做更新处理!<br>")	
+		End If	  
+	Else'新加地址+更新服务器ID与时间
+		rs_u.AddNew
+		rs_u("url_id")=Adn_MaxId("url")
+		rs_u("data_id")=rs("data_id")'影片ID
+		rs_u("server_id")=server_id'服务器组ID
+		rs_u("url_intro")=url_intro'影片地址
+		rs_u.update
+		'修改服务器组信息与影片录入时间
+		If Instr(rs("server_id"),server_id)<1 Then
+			If rs("server_id")="|" Then 
+				rs("server_id")=server_id&"|"
+			Else
+				rs("server_id")=rs("server_id")&server_id&"|"
+			End If
+		End If
+		rs("data_lastdate")=now()
+		rs.update
+		Response.Write("新加第"&str&"组播放地址并更新时间!<br>")
+	End If
+	rs_u.Close
+	Set rs_u=Nothing	
+End Function
+
+Function Add_Data_Url(str)'新加影片与地址
+	Dim maxid_data
+	maxid_data=Adn_MaxId("data")
+	rs.AddNew
+	rs("data_id")=maxid_data
+	rs("class_id")=Adn_Clng(class_id)
+	rs("server_id")=server_id&"|"
+	rs("data_name")=data_name
+	rs("data_actor")=data_actor
+	rs("data_director")=data_director
+	rs("data_erea")=data_erea
+	If AdminId(15)>0 Then
+	rs("data_picurl")=GetPicurl(data_picurl,"../"&AdminId(28))
+	Else
+	rs("data_picurl")=data_picurl
+	End If	
+	rs("data_intro")=data_intro
+	rs("data_lastdate")=now()
+	rs("data_hits")=Adn_Clng(AdminId(31))
+	rs("data_elite")=0
+	rs("data_status")=1
+	rs("data_inputer")=data_inputer
+	rs("data_year")=data_year
+	rs("data_language")=data_language
+	rs("data_continu")=Adn_Clng(data_continu)
+	rs("data_reurl")=data_reurl
+	rs.update
+	Conn.Execute("Insert into adnim_url (url_id,data_id,server_id,url_intro) values("&Adn_MaxId("url")&","&maxid_data&","&server_id&",'"&url_intro&"')")
+	Response.Write("新加第"&str&"组播放地址并更新时间!<br>")	
+End Function
+%>
+</body>
+</html>

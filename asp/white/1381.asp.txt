@@ -1,0 +1,185 @@
+<!--#include file="../inc/mdb.asp"-->
+<!--#include file="../inc/config.asp"-->
+<!--#include file="../inc/cmsprivate.asp"-->
+<%
+'****************************************************
+' 零柒。蜀工作室网站管理系统 Power by 07ing.com
+' Web: http://www.07ing.net, http://www.07ing.com
+' Copyright (C) 2006 零柒。蜀工作室 All Rights Reserved.
+'****************************************************
+Response.Buffer = True
+Response.ExpiresAbsolute = Now() - 1
+Response.Expires = 0
+Response.CacheControl = "no-cache" 
+function checkForm(Str)
+   Str=decode(Str)
+   Str = replace(Str, ">", "&gt;")
+   Str = replace(Str, "<", "&lt;")
+   Str = Replace(Str, CHR(32), "&nbsp;")
+   Str = Replace(Str, CHR(9), "&nbsp;")
+   Str = Replace(Str, CHR(9), "&#160;&#160;&#160;&#160;")
+   Str = Replace(Str, CHR(34), "&quot;")
+   Str = Replace(Str, CHR(39), "&#39;")
+   Str = Replace(Str, CHR(13), "")
+   'Str = Replace(Str, CHR(10), "<br>")
+   checkForm=Str
+end function 
+sub checkadmin()
+if session("adminlogin")<>sessionvar then
+   Response.Write(escape("没有权限"))           
+   Response.End
+end if
+end sub 
+dim formsend,action
+action = request("a")
+select case action
+	case "addform"
+		call addform()
+	case "add"
+		call add()
+	case "replyerform"
+                call checkadmin()
+                dim id
+                id=clng(request("b"))
+		call replyerform(id)
+	case "replyer"
+                call checkadmin()
+		call replyer()
+	case "dels"
+                call checkadmin()
+		call delete()
+end select
+sub add()
+	Dim username,sex,qq,email,webs,admins,types,title,uc,content
+        Dim founderr:founderr=False
+	username=checkForm(request.Form("usernames"))
+        title=checkForm(request.Form("title"))
+	sex=checkForm(request.Form("sex"))
+	qq=checkForm(request.Form("qq"))
+	email=checkForm(request.Form("email"))
+	webs=checkForm(request.Form("web"))
+	admins=checkForm(request.Form("admins"))
+        types=checkForm(request.Form("types"))
+	uc=checkForm(request.Form("uc"))
+	content=checkForm(request.Form("contents"))
+	if UserLogined=True then
+           if Hx66_name=username then
+              username=Hx66_name
+           else
+              username="[匿名]"&username
+           end if
+        else
+           username="[匿名]"&username
+        end if
+        if bookpass="yes" then admins=2
+        if hx_In<>"" then
+           badwords=split(hx_In,"|")
+           for z=0 to ubound(badwords)
+               if instr(Lcase(title),badwords(z))>0 or instr(Lcase(content),badwords(z))>0 then
+                  founderr=true
+               exit for
+               end if
+           next
+        end if
+        if founderr=true then
+                Response.write(escape("你发表的内容中包含系统禁止字符！"))
+        elseif username="" or title="" or content="" then
+		Response.write(escape("请将带 * 号的项填写完整。"))
+	else
+       	   if len(username)>20 or len(title)>30 or len(content)>1000 then
+		Response.write(escape("非法操作."))
+           else
+		Dim rs
+		Set rs=Server.CreateObject("Adodb.RecordSet")
+		rs.open "words",conn,3,3
+		rs.addnew
+                rs("zt")=title
+		rs("name")=username
+		rs("uc")=uc
+		rs("sex")=sex
+		rs("qq")=qq
+		rs("email")=email
+		rs("web")=webs
+		rs("ip")=userip
+		rs("admin")=admins
+		rs("title")=types
+		rs("words")=content
+                rs("date")=now()
+		rs.update
+		rs.close
+		Set rs=nothing
+		Response.Write(escape("留言成功。"))
+	   end if
+	end if
+end sub
+sub replyer()
+	Dim admins,content,rid
+        if request.Form("rid")="" or not IsNumeric(request.Form("rid")) then exit sub
+	rid=clng(request.Form("rid"))
+	admins=checkForm(request.Form("admins"))
+        content=checkForm(request.Form("contents"))
+	if content="" then
+		Response.write("回复内容不能为空")
+	else
+		Dim rs
+		Set rs=Server.CreateObject("Adodb.RecordSet")
+		sql="select * from words where id="&rid
+                rs.Open sql,conn,1,3
+		rs("admin")=admins
+		rs("reply")=content
+                rs("redate")=now()
+		rs.update
+		rs.close
+		Set rs=nothing
+		Response.Write(escape("留言回复成功。"))
+	end if
+end sub
+sub delete()
+	Dim rid
+        if request("rid")="" or not IsNumeric(request("rid")) then exit sub
+	rid=clng(request("rid"))
+	Conn.Execute("Delete From words Where id="&rid)
+	'Response.Write(escape("留言删除成功。"))
+end sub
+sub addform()
+if Commentbook="会员" and UserLogined<>True then
+  formsend="<ul><li><br />系统开启了会员留言模式，请注册或登陆后发表留言。</li></ul>"
+else
+formsend="<table width=""500"" align=""center"" cellspacing=""6"" cellpadding=""0"" border=""0"">"
+formsend=formsend&"<tr><td colspan='2'>昵称：<input type=""text"" maxlength=""20"" id=""usernames"" size=""30"" /> <span class=""red"">*</span></td></tr>"
+formsend=formsend&"<tr><td width=""50%"">性别：<select id=""sex""><option value=""1"">男</option><option value=""2"">女</option></select>&nbsp;&nbsp;&nbsp;&nbsp;头像：<select id=""uc"" onChange=""document.all.idface.src='../'+options[selectedIndex].value;"">"
+formsend=formsend&"<option value=""img/face/01.gif"">01</option><option value=""img/face/02.gif"">02</option><option value=""img/face/03.gif"">03</option><option value=""img/face/04.gif"">04</option><option value=""img/face/05.gif"">05</option><option value=""img/face/06.gif"">06</option><option value=""img/face/07.gif"">07</option><option value=""img/face/08.gif"">08</option><option value=""img/face/09.gif"" selected>09</option><option value=""img/face/10.gif"">10</option><option value=""img/face/11.gif"">11</option><option value=""img/face/12.gif"">12</option><option value=""img/face/13.gif"">13</option><option value=""img/face/14.gif"">14</option><option value=""img/face/15.gif"">15</option><option value=""img/face/16.gif"">16</option></select></td><td rowspan=""3"" width=""50%""><img src=""../img/face/09.gif"" id=""idface"" alt="""" /></td></tr>"
+formsend=formsend&"<tr><td>&nbsp;Q&nbsp;Q：<input type='text' maxlength='10' id='qq' size='30' /></span></td></tr>"
+formsend=formsend&"<tr><td>信箱：<input type='text' id=""email"" size=""30"" /></td></tr>"
+formsend=formsend&"<tr><td colspan='2'>主页：<input type=""text"" id=""web"" size=""40"" /></td></tr>"
+formsend=formsend&"<tr><td colspan='2'>主题：<input type=""text"" maxlength=""50"" id=""title"" size=""40"" /> <span class=""red"">*</span></td></tr>"
+formsend=formsend&"<tr><td colspan='2'>类别：<select id=""types""><option value=""1"">留言</option><option value=""2"">建议</option><option value=""3"">报错</option><option value=""4"">连接</option><option value=""5"">其它</option></select>"
+if bookpass<>"yes" then
+   formsend=formsend&"是否隐藏：<select id=""admins""><option value=""0"">公开</option><option value=""1"">隐藏</option></select>"
+Else
+   formsend=formsend&"<input type=""hidden"" id=""admins"" value=""0"">"
+end if
+formsend=formsend&"</td></tr><tr><td colspan=""2"">内容：<span class=""red"">* <=1000字</span></td></tr>"
+formsend=formsend&"<tr><td colspan=""2""><textarea id=""contents"" rows=""10"" style=""width:500px;""></textarea></td></tr>"
+formsend=formsend&"<tr><td colspan=""2""><input type=""button"" onclick=""javascript:sendword('usernames','types','admins','title','uc','sex','qq','email','web','contents');"" value=""提 交"" id=""submit"" />&nbsp;&nbsp;&nbsp;&nbsp;<input type=""reset""  value=""重 写"" /></td></tr></table>"
+end if
+Response.Write(escape(formsend))
+end sub
+sub replyerform(id)
+if id="" or not IsNumeric(id) then exit sub
+set rs=conn.execute("select reply from [words] where id="&id)
+formsend="<table width=""500"" align=""center"" cellspacing='6' cellpadding='0' style='border:1px dashed #808080;padding:20px'>"
+formsend=formsend&"<tr><td>内容：<textarea id=""contents"" rows=""5"" style=""width:430px;"">"&rs(0)&"</textarea></td></tr>"
+formsend=formsend&"<tr><td>是否隐藏 <select id=""admins""><option value='0'>公开</option><option value='1'>隐藏</option></select><input type=""hidden"" id=""rid"" value='"&id&"'>&nbsp;&nbsp;&nbsp;&nbsp;<input type=""button"" onclick=""javascript:sendreplyer('admins','contents','rid');"" value=""提 交"" id=""submit"" />&nbsp;&nbsp;&nbsp;&nbsp;<input type=""reset""  value=""重 写"" /></td></tr></table>"
+Response.Write(escape(formsend))
+rs.close
+Set rs=nothing
+end sub
+conn.close
+set conn=nothing
+'****************************************************
+' 零柒。蜀工作室 网站管理系统07ing V8.0 Power by 07ing.Net
+' Web: http://www.07ing.net, http://www.07ing.com
+' Copyright (C) 2006 07ing.Net All Rights Reserved.
+'****************************************************
+%>

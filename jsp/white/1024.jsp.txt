@@ -1,0 +1,71 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+
+<table class="TableBorder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th>文章评论管理</th>
+	</tr>
+	<tr>
+		<td class="TableRow2" colspan="2"><strong>操作选项：</strong> <a href="admin_comment.asp?ChannelID=1">管理首页</a> | 
+		<a href="?ChannelID=1&audit=0">已审核评论</a> | 
+		<a href="?ChannelID=1&audit=1"><font color="red">未审核评论</font></a></td>
+	</tr>
+</table>
+<br />
+<table cellspacing="1" align="center" cellpadding="3" border="0" class="tableborder">	<tr>		<th width='5%'>选择</th>		<th width='50%'>评论主题</th>		<th width='5%'>状态</th>		<th width='11%'>用户名称</th>		<th width='5%'>打分</th>		<th width='12%'>评论时间</th>		<th width='12%'>用户IP</th>	</tr>	<form name="selform" method="post" action="admin_comment.asp">	<input type="hidden" name="action" value="del">	<input type="hidden" name="ChannelID" value="1"><tr><td align="center" colspan="7" class="TableRow1">没有文章评论！</td></tr>	<tr>		<td class="tablerow1" colspan="7"><span class="HighLightR" onClick="CheckAll(document.selform)">全选</span><span class="HighLightR" onClick="ContraSel(document.selform)">反选</span><span class="HighLightR" onClick="document.selform.action.value='audit';{if(confirm('您确定要批量审核评论吗?')){document.selform.submit();}return false;}">批量审核</span><span class="HighLightR" onClick="document.selform.action.value='del';{if(confirm('您确定要删除此评论吗?')){document.selform.submit();}return false;}">删除评论</span><span class="HighLightR" onClick="document.selform.action.value='delall';{if(confirm('您确定要删除所有评论吗?')){document.selform.submit();}return false;}">全部删除</span></td>	</tr>	</form>	<tr align="center">		<td class="tablerow2" colspan="7"><table border=0 cellpadding=0 cellspacing=3 width="100%" align=center>
+<tr><td valign=middle nowrap>
+页次：<b><font color=red>0</font></b>/<b>0</b>页&nbsp;
+每页<b>30</b> 总数<b>0</b></td>
+<td valign=middle nowrap align=right>分页：
+<script language="JavaScript">
+<!--
+var CurrentPage=0;
+var Pcount=0;
+var Endpage=0;
+if (CurrentPage > 4){
+	document.write ('<a href="?page=1&ChannelID=1&Audit=">[1]</a> ...');
+}
+if (Pcount>CurrentPage+3)
+{
+	Endpage=CurrentPage+3
+}
+else{
+	Endpage=Pcount
+}
+for (var i=CurrentPage-3;i<=Endpage;i++)
+{
+	if (i>=1){
+		if (i == CurrentPage)
+		{
+			document.write ('<font color="#FF0000">['+i+']</font>');
+			}
+		else{
+			document.write ('<a href="?page='+i+'&ChannelID=1&Audit=">['+i+']</a>');
+		}
+	}
+}
+if (CurrentPage+3 < Pcount){
+	document.write ('...<a href="?page='+Pcount+'&ChannelID=1&Audit=">['+Pcount+']</a>');
+}
+if (Endpage == 0){ 
+	document.write ('...');
+}
+//-->
+</script>
+</td></tr></table></td>	</tr></table><br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

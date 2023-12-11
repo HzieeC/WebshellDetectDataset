@@ -1,0 +1,148 @@
+<%
+
+Class Cls_Diypage
+
+	Dim vID
+	Dim vDir
+	Dim vHtml
+	Dim vTpl
+	Dim vTitle
+	Dim vKeywords
+	Dim vDescription
+	Dim LastError
+
+	Private Sub Class_Initialize()
+		Call ChkLogin("diypage")
+		Call Initialize()
+	End Sub
+
+	Private Sub Class_Terminate()
+		Call Initialize()
+	End Sub
+
+	Public Function Initialize()
+		vID = 0
+		vDir = "/"
+		vTPL = "common.html"
+		vHtml = ""
+	End Function
+
+	Public Function GetValue()
+		vDir = Request.Form("oDir")
+		vTpl = Request.Form("oTpl")
+		vTitle = Request.Form("oTitle")
+		vKeywords = Request.Form("oKeywords")
+		vDescription = Request.Form("oDescription")
+		vHtml = Request.Form("oHtml")
+		vDir = Replace(vDir,"\","/")
+		vDir = Replace(vDir,"//","/")
+		vTpl = Replace(vTpl,"\","/")
+		if Left(vTpl,1) = "/" Then vTpl = Right(vTpl,Len(vTpl)-1)
+		if right(vtpl,1) = "/" then vtpl = left(vtpl,len(vtpl)-1)
+		vtitle = replace(vtitle,vbcrlf,"")
+		vkeywords = replace(vkeywords,vbcrlf,"")
+		vdescription = replace(vdescription,vbcrlf,"")
+		if instr(vtpl,".") = 0 then vtpl =""
+		if len(vtpl)< 2 then vtpl=""
+		if len(vtpl)>100 then vtpl = ""
+		vtitle = left(vtitle,200)
+		vkeywords = left(vkeywords,200)
+		vdescription = left(vdescription,250)
+		If Left(vDir,1) <> "/" Then LastError = "完整路径要以/开头" : GetValue = False : Exit Function
+		If Len(vDir) < 3 Or Len(vDir) > 200 Then LastError = "完整路径的长度请控制在 3 至 200 位" : GetValue = False : Exit Function
+		GetValue = True
+	End Function
+
+	Public Function SetValue()
+		Dim Rs
+		Set Rs = DB("Select * From [{pre}Diypage] Where [ID]=" & vID,1)
+		If Rs.Eof Then Rs.Close : Set Rs = Nothing : LastError = "你所需要查询的记录 " & vID & " 不存在!" : SetValue = False : Exit Function
+		vDir = Rs("Dir")
+		vTpl = Rs("Tpl")
+		vTitle = Rs("Title")
+		vKeywords = Rs("Keywords")
+		vDescription = Rs("Description")
+		vHtml = Rs("Html")
+		Rs.Close
+		Set Rs = Nothing
+		SetValue = True
+	End Function
+
+	Public Function Create()
+		Dim Rs
+		If Right(vDir,1) <> "/" And Instr(Split(vDir,"/")(Ubound(Split(vDir,"/"))),".") = 0 Then vDir = vDir & "." & Defaultext
+		Set Rs = DB("Select [ID] From [{pre}Diypage] Where [Dir]='" & vDir & "'",1)
+		If Not Rs.Eof Then Rs.Close : Set Rs = Nothing : LastError = "完整路径 的值 " & vDir & " 已存在!" : Create = False : Exit Function
+		Set Rs = DB("Select * From [{pre}Diypage]",3)
+		Rs.AddNew
+		Rs("Dir") = vDir
+		Rs("Tpl") = vTpl
+		Rs("Title") = vTitle
+		Rs("Keywords") = vKeywords
+		Rs("Description") = vDescription
+		Rs("Html") = vHtml
+		Rs.Update
+		Rs.Close
+		Set Rs = Nothing
+		Create = True
+		call build()
+	End Function
+
+	Public Function Modify()
+		Dim Rs
+		Set Rs = DB("Select * From [{pre}Diypage] Where [ID]=" & vID,3)
+		If Rs.Eof Then Rs.Close : Set Rs = Nothing : LastError = "你所需要更新的记录 " & vID & " 不存在!" : Modify = False : Exit Function
+		Rs("Dir") = vDir
+		Rs("Tpl") = vTpl
+		Rs("Title") = vTitle
+		Rs("Keywords") = vKeywords
+		Rs("Description") = vDescription
+		Rs("Html") = vHtml
+		Rs.Update
+		Rs.Close
+		Set Rs = Nothing
+		Modify = True
+		call build()
+	End Function
+
+	Public Function Delete()
+		Call SetValue()
+		DeleteFile vDir
+		DB "Delete From [{pre}Diypage] Where [ID]=" & vID ,0
+		Delete = True
+	End Function
+	
+	' 创建自定义页面
+	public function build()
+		cachetime = -1 ' 取消缓存
+		dim tpl,txt
+		set tpl = New cls_template
+		if len(vtpl) > 0 then
+			' 使用模板
+			tpl.load installdir & templatedir & "/" & vtpl
+			txt = tpl.content
+			txt = replacex(txt,"{tag:sitepath}",getsitepathbytitle(vtitle))
+			txt = replacex(txt,"{field:title}",vtitle)
+			txt = replacex(txt,"{field:keywords}",vkeywords)
+			txt = replacex(txt,"{field:description}",vdescription)
+			txt = replacex(txt,"{tag:inside}",vhtml)
+		else
+			' 直接创建滴
+			txt = vhtml
+		end if
+		tpl.content = txt
+		tpl.parser ' 解析
+		createfile rewriterule(tpl.content),vdir ' 创建文件
+		set tpl = nothing
+	end function
+	
+	Public Function Rebuild()
+		If Not SetValue() Then
+			Rebuild = False
+		Else
+			call build()
+		End If
+	End Function
+
+End Class
+%>

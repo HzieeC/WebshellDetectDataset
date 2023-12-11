@@ -1,0 +1,296 @@
+<!--#include file="../../Conn.asp" -->
+<!--#include file="../../Comm/Site_Class.asp" -->
+<%
+PagePath = "../../"
+
+Set Qsite = New Site_Class
+
+Qsite.SiteConfig_Master()
+%>
+<!--#include file="../Check_Login.asp" -->
+<%
+Qsite.Check_AdminFlag(arrAdminFlag(0 , 7))
+
+If Request.Form <> "" Then
+	If Request.Form("CompanyNatureId") = 0 Then
+		SaveNewCompanyNature()
+	Else
+		SaveEditCompanyNature()
+	End If
+End If
+
+If Request.QueryString("action") = "del" Then
+	DelCompanyNature(Qsite.chgStr(Trim(Request.QueryString("CompanyNatureId"))))
+ElseIf Request.QueryString("action") = "up" Then
+	UpPx(Qsite.chgStr(Trim(Request.QueryString("CompanyNatureId"))))
+ElseIf Request.QueryString("action") = "down" Then
+	DownPx(Qsite.chgStr(Trim(Request.QueryString("CompanyNatureId"))))
+End If
+
+Sub SaveNewCompanyNature()
+	
+	Dim CompanyNatureName,Px
+	CompanyNatureName = Qsite.chgStr(Trim(Request.Form("CompanyNatureName")))
+	Px = Qsite.chgStr(Trim(Request.Form("Px")))
+	
+	If CompanyNatureName = "" Or IsNull(CompanyNatureName) Then
+		Qsite.ShowMsg "请输入公司性质名称" , ""
+	End If
+
+	If Px = "" Or IsNull(Px) Or Not IsNumeric(Px) Then Px = 1
+	
+	Set Rs = Conn.Execute("select CompanyNatureName from CompanyNatureTbl where CompanyNatureName = '"& CompanyNatureName &"'")
+	If Not Rs.Eof Then
+		Qsite.ShowMsg "公司性质已经存在，请返回重新输入" , ""
+	End If
+	Set Rs = Nothing
+	
+	Conn.Execute("update CompanyNatureTbl set Px = Px + 1 where Px >= "& Px)
+	
+	Conn.Execute("insert into CompanyNatureTbl (CompanyNatureName , Px) values ('"& CompanyNatureName &"' , "& Px &")")
+	
+	Qsite.ShowMsg "公司性质添加成功" , "Admin_CompanyNature.asp"
+End Sub
+
+Sub SaveEditCompanyNature()
+	Dim CompanyNatureId,CompanyNatureName,Px
+	Dim OldPx
+	CompanyNatureId = Qsite.chgStr(Trim(Request.Form("CompanyNatureId")))
+	CompanyNatureName = Qsite.chgStr(Trim(Request.Form("CompanyNatureName")))
+	Px = Qsite.chgStr(Trim(Request.Form("Px")))
+	
+	If CompanyNatureId = "" Or IsNull(CompanyNatureId) Or Not IsNumeric(CompanyNatureId) Then CompanyNatureId = 0
+	
+	If CompanyNatureName = "" Or IsNull(CompanyNatureName) Then
+		Qsite.ShowMsg "请输入公司性质名称" , ""
+	End If
+	
+	If Px = "" Or IsNull(Px) Or Not IsNumeric(Px) Then Px = 1
+	
+	Set Rs = Conn.Execute("select CompanyNatureName from CompanyNatureTbl where CompanyNatureName = '"& CompanyNatureName &"' and CompanyNatureId <> "& CompanyNatureId)
+	If Not Rs.Eof Then
+		Qsite.ShowMsg "公司性质已经存在，请返回重新输入" , ""
+	End If
+	Set Rs = Nothing
+	
+	Set Rs = Conn.Execute("select Px from CompanyNatureTbl where CompanyNatureId = "& CompanyNatureId)
+	If Rs.Eof Then
+		OldPx = Px
+	Else
+		OldPx = Rs("Px")
+	End If
+	
+	If Cint(Px) > Cint(OldPx) Then
+		Conn.Execute("update CompanyNatureTbl set Px = Px - 1 where Px > "& OldPx &" and Px <= "& Px)
+	ElseIf Cint(Px) < Cint(OldPx) Then
+		Conn.Execute("update CompanyNatureTbl set Px = Px + 1 where Px >= "& Px &" and Px < "& OldPx)
+	End If
+	
+	Conn.Execute("update CompanyNatureTbl set CompanyNatureName = '"& CompanyNatureName &"' , Px = "& Px &" where CompanyNatureId = "& CompanyNatureId)
+	
+	Qsite.ShowMsg "公司性质修改成功" , "Admin_CompanyNature.asp"
+End Sub
+
+Sub DelCompanyNature(CompanyNatureId)
+	Dim OldPx,Rs,dKey
+	Dim IncludeCompanyNatureId
+	
+	If CompanyNatureId = "" Or IsNull(CompanyNatureId) Or Not IsNumeric(CompanyNatureId) Then CompanyNatureId = 0
+	
+	Set Rs = Conn.Execute("select Px from CompanyNatureTbl where CompanyNatureId = "& CompanyNatureId)
+	If Rs.Eof Then
+		OldPx = 9999
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	Conn.Execute("delete from CompanyNatureTbl where CompanyNatureId =" & CompanyNatureId)
+	
+	Conn.Execute("update CompanyNatureTbl set Px = Px - 1 where Px > "& OldPx)
+	
+	Qsite.ShowMsg "公司性质删除成功" , "Admin_CompanyNature.asp"
+End Sub
+
+Sub UpPx(CompanyNatureId)
+	Dim OldPx
+	
+	If CompanyNatureId = "" Or IsNull(CompanyNatureId) Or Not IsNumeric(CompanyNatureId) Then CompanyNatureId = 0
+	
+	Set Rs = Conn.Execute("select Px from CompanyNatureTbl where CompanyNatureId = "& CompanyNatureId)
+	If Rs.Eof Then
+		OldPx = 1
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	If Cint(OldPx) > 1 Then
+		Conn.Execute("update CompanyNatureTbl set Px = Px + 1 where Px = "& OldPx - 1)
+		Conn.Execute("update CompanyNatureTbl set Px = Px - 1 where CompanyNatureId = "& CompanyNatureId)
+	End If
+	
+	Response.Redirect("Admin_CompanyNature.asp")
+	Response.End()
+End Sub
+
+Sub DownPx(CompanyNatureId)
+	Dim maxPx,OldPx
+	
+	If CompanyNatureId = "" Or IsNull(CompanyNatureId) Or Not IsNumeric(CompanyNatureId) Then CompanyNatureId = 0
+	
+	Set Rs = Conn.Execute("select Px from CompanyNatureTbl where CompanyNatureId = "& CompanyNatureId)
+	If Rs.Eof Then
+		OldPx = 9999
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	Set Rs = Conn.Execute("select top 1 Px from CompanyNatureTbl order by Px desc")
+	If Rs.Eof Then
+		maxPx = 9999
+	Else
+		maxPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	If Cint(OldPx) < Cint(maxPx) Then
+		Conn.Execute("update CompanyNatureTbl set Px = Px - 1 where Px = "& OldPx + 1)
+		Conn.Execute("update CompanyNatureTbl set Px = Px + 1 where CompanyNatureId = "& CompanyNatureId)
+	End If
+	
+	Response.Redirect("Admin_CompanyNature.asp")
+	Response.End()
+End Sub
+
+Dim CompanyNatureId,CompanyNatureName,CompanyNatureKey,Px,contPx
+Dim strTitle,strSubmit
+
+Set Rs = server.createobject("ADODB.Recordset")
+
+Sql = "select * from CompanyNatureTbl order by Px asc"
+
+Rs.Open "select top 1 * from CompanyNatureTbl order by Px desc" , Conn ,1 , 1
+If Rs.Eof Then
+	contPx = 1
+Else
+	contPx = Rs("Px") + 1
+End If
+Rs.Close
+%>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>公司性质管理</title>
+<link href="../skins/css/main.css" rel="stylesheet" type="text/css">
+<script language="javascript">
+function PosDel(CompanyNatureId)
+{
+	var question = confirm("你确定要删除此条记录吗？");
+	if (question !="0")
+	{
+		location.href = "Admin_CompanyNature.asp?action=del&CompanyNatureId=" + CompanyNatureId;
+	}
+}
+</script>
+</head>
+
+<body>
+<%
+CompanyNatureId = Qsite.chgStr(Trim(Request.QueryString("CompanyNatureId")))
+
+If CompanyNatureId = "" Or IsNull(CompanyNatureId) Or Not IsNumeric(CompanyNatureId) Then CompanyNatureId = 0
+
+If CompanyNatureId = 0 Then
+	CompanyNatureName = ""
+	Px = contPx
+	strTitle = "添加公司性质"
+	strSubmit = "添加"
+Else
+	Rs.Open "select * from CompanyNatureTbl where CompanyNatureId = "& CompanyNatureId , Conn , 1 , 1
+	If Rs.Eof Then
+		CompanyNatureId = 0
+		CompanyNatureName = ""
+		Px = contPx
+		strTitle = "添加公司性质"
+		strSubmit = "添加"
+	Else
+		CompanyNatureName = Rs("CompanyNatureName")
+		Px = Rs("Px")
+		strTitle = "修改公司性质"
+		strSubmit = "修改"
+	End If
+End If
+%>
+<form name="PosForm" method="post" action="Admin_CompanyNature.asp" style="margin:0">
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" class="td_title"><%=strTitle%></td>
+		</tr>
+		<tr>
+			<td height="23" class="td_content">公司性质名称：
+				<input name="CompanyNatureName" type="text" class="input_1" id="CompanyNatureName" size="50" value="<%=CompanyNatureName%>">
+排序
+<input name="Px" type="text" class="input_1" id="Px" size="20" value="<%=Px%>">			
+	<input name="Submit" type="submit" class="input_1" value="<%=strSubmit%>">
+	<%
+	If CompanyNatureId <> 0 Then
+	%>
+	<input name="Submit" type="button" class="input_1" value="返回" onClick="javascript:history.back();">
+	<%
+	End If
+	%>
+	<input name="CompanyNatureId" type="hidden" id="CompanyNatureId" value="<%=CompanyNatureId%>"></td>
+		</tr>
+	</table>
+	<br>
+</form>
+<%
+If CompanyNatureId = 0 Then
+%>
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" colspan="2" class="td_title">公司性质列表</td>
+		</tr>
+<%
+Rs.Open Sql , Conn , 1 , 1
+If Rs.Eof Then
+%>
+		<tr>
+			<td height="23" colspan="2" class="td_content">暂无公司性质信息</td>
+		</tr>
+<%
+Else
+%>
+		<tr>
+<%
+	i = 0
+	Do While Not Rs.Eof
+%>
+			<td width="50%" height="23" class="td_content"><%=Rs("CompanyNatureName")%> &nbsp;&nbsp;&nbsp;[<a href="Admin_CompanyNature.asp?action=up&CompanyNatureId=<%=Rs("CompanyNatureId")%>">前移</a> | <a href="Admin_CompanyNature.asp?action=down&CompanyNatureId=<%=Rs("CompanyNatureId")%>">后移</a> | <a href="Admin_CompanyNature.asp?CompanyNatureId=<%=Rs("CompanyNatureId")%>">修改</a> | <a href="#" onClick="PosDel('<%=Rs("CompanyNatureId")%>');return false;">删除</a>]</td>
+<%
+	Rs.MoveNext
+	i = i + 1
+	If i Mod 2 = 0 And Not Rs.Eof Then
+		Response.Write("</tr></tr>")
+	End If
+	If i Mod 2 > 0 And Rs.Eof Then
+		Response.Write("<td width=""50%"" class=""td_content"">&nbsp;</td>")
+	End If
+	Loop
+%>
+			
+		</tr>
+<%
+End If
+Rs.Close
+
+Set Rs = Nothing
+%>
+</table>
+<%
+End If
+%>
+</body>
+</html>

@@ -1,0 +1,414 @@
+<%
+'****************************************************
+' 07ing Ver8.0       Power by 07ing.net
+' Web: http://www.07ing.net,http://www.07ing.com
+' Copyright (C) 2006 07ing.net All Rights Reserved.
+'****************************************************
+dim msg,messages_id
+if UserLogined<>True then
+   Call HxErrMsg("请 登 陆 后 操 作  ，请 返 回 ！","back")
+end if
+if request.querystring("id")<>"" then
+  if not isInteger(request.querystring("id")) then
+     Call HxErrMsg("传值参数非法!！","back")
+  end if
+  messages_id=CLng(request("id"))
+else
+  messages_id=0
+end if
+start="短信管理"
+'=================================================
+'过程名：content_messages
+'作  用：显示内容、表单
+'参  数：无
+'Web:    http://www.07ing.net
+'=================================================
+sub content_messages()
+action=request("action")
+select case action
+case "inbox"
+    call inbox()
+case "outbox"
+    call outbox()
+case "new"
+    call sendmsg()
+case "read"
+    call read()
+case "outread"
+    call read()
+case "delete"
+    call delete()
+case "deleteall"
+    call deleteall()
+case "send"
+    call savemsg()
+case else
+conn.close
+set conn=nothing
+Call HxErrMsg("操作错误或服务器出错，请与程序作者联系！","back")
+end select
+end sub
+
+'=================================================
+'过程名：inbox
+'作  用：短消息收件箱
+'参  数：无
+'Web:    http://www.07ing.net
+'=================================================
+sub inbox()
+Dim CurPage,Url_Add
+Url_Add="?action=inbox&"
+If Request.QueryString("Page")<>"" Then
+   Curpage=Request.QueryString("Page")
+   If IsInteger(Curpage)=False Then Curpage=1
+Else
+   Curpage=1
+End If
+Response.write "<table bgcolor='#ffffff' borderColor='#f0f0f0' Border='1' Cellspacing='0' Cellpadding='5' width='100%' align='Center' style=""border-collapse: collapse"">"
+Response.write "<tr>" 
+Response.write "<td align=center colspan=4><b>欢迎使用您的收件箱，"&Hx66_name&"</b></td>"
+Response.write "</tr>"
+Response.write "<tr>"
+Response.write "<td align=center colspan=4><a href='messager.asp?action=inbox'><img src='"&InstallDir&"img/inboxpm.gif' border=0 alt='收件箱'></a> &nbsp; <a href='messager.asp?action=outbox'><img src='"&InstallDir&"img/outboxpm.gif' border=0 alt='发件箱'></a> &nbsp; <a href='messager.asp?action=new'><img src='"&InstallDir&"img/newpm.gif' border=0 alt='发送消息'></a><a onfocus=""this.blur()"" href=""javascript:this.location.reload()""><img height='12' src='"&InstallDir&"img/refresh.gif' border='0' alt='如果看不到信就刷新一下!'></a></td>"
+Response.write "</tr>"
+Response.write "<tr>"
+Response.write "<td align=center width='20%'><b>发件人</b></td>"
+Response.write "<td align=center width='47%'><b>短信主题</b></td>"
+Response.write "<td align=center width='25%'><b>发送日期</b></td>"
+Response.write "<td align=center width='8%'><b>已读</b></td>"
+Response.write "</tr>"
+set rs=server.createobject("adodb.recordset")
+  sql="select * from message where incept='"&Hx66_name&"' order by flag ASC,id DESC"
+  rs.open sql,conn,1,1
+  if rs.eof and rs.bof then
+Response.write "<tr>"
+Response.write "<td align=center valign=middle colspan=4>您还没有新留言噢：）</td>"
+Response.write "</tr>"
+else
+   Dim Hx_Nums,MultiPages,i
+   Hxperpage=15
+   Rs.PageSize=Hxperpage
+   Rs.AbsolutePage=CurPage
+   Hx_Nums=Rs.RecordCount
+   MultiPages="<tr><td colspan=""4"" height='28' align=""center"">"&MultiPage(Hx_Nums,Hxperpage,CurPage,Url_Add)&"</td></tr>"
+Do Until Rs.EOF OR i=Hxperpage
+Response.write "<tr>"
+Response.write "<td align=center valign=middle>"&rs("sender")&"</td>"
+Response.write "<td align=left valign=middle><a href='messager.asp?action=read&id="&rs("id")&"'>"&FormatStr(rs("title"))&"</a></td>"
+Response.write "<td align=center>"&rs("sendtime")&"</td>"
+Response.write "<td align=center valign=middle>"
+if rs("flag")=0 then
+Response.write "<font color=red><b>否</b></font>"
+else
+Response.write "是"
+end if
+Response.write "</td></tr>"
+i=i+1
+rs.movenext
+loop
+end if
+rs.close
+set rs=nothing
+Response.write "<tr>" 
+Response.write "<td align=center colspan=4>您的收信箱总共可以储存<font color=red>"&Messagesum&"</font>条短信，目前已有<font color=red>"&Hx_Nums&"</font>条短信。</td>"
+Response.write "</tr>"
+Response.write "<tr> "
+Response.write "<td align=center colspan=4>为了节省空间，请及时删除无用信息，谢谢！&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-=> <a href='messager.asp?action=deleteall'>清空收信箱</a></td>"
+Response.write "</tr>"
+Response.Write(MultiPages)
+Response.write "</table>"
+end sub
+
+'=================================================
+'过程名：outbox
+'作  用：短消息发件箱
+'参  数：无
+'Web:    http://www.07ing.net
+'=================================================
+sub outbox()
+Dim CurPage,Url_Add
+Url_Add="?action=outbox&"
+If Request.QueryString("Page")<>"" Then
+   Curpage=Request.QueryString("Page")
+   If IsInteger(Curpage)=False Then Curpage=1
+Else
+   Curpage=1
+End If
+Response.write "<table bgcolor='#ffffff' borderColor='#e6e6e6' Border='1' Cellspacing='0' Cellpadding='5' width='100%' align='Center' style=""border-collapse: collapse"">"
+Response.write "<tr>"
+Response.write "<td align=center colspan=3><b>"&Hx66_name&"，这是你的短消息发件箱</b></td>"
+Response.write "</tr>"
+Response.write "<tr>"
+Response.write "<td align=center colspan=3><a href='messager.asp?action=inbox'><img src='"&InstallDir&"img/inboxpm.gif' border=0 alt='收件箱'></a> &nbsp; <a href='messager.asp?action=outbox'><img src='"&InstallDir&"img/outboxpm.gif' border=0 alt='发件箱'></a> &nbsp; <a href='messager.asp?action=new'><img src='"&InstallDir&"img/newpm.gif' border=0 alt='发送消息'></a><a onfocus=""this.blur()"" href=""javascript:this.location.reload()""><img height='12' src='"&InstallDir&"img/refresh.gif' border='0' alt=""如果看不到信就刷新一下!""></a></td>"
+Response.write "</tr>"
+Response.write "<tr>"
+Response.write "<td align=center width='25%'><b>收件人</b></td>"
+Response.write "<td align=center><b>短信标题</b></td>"
+Response.write "<td align=center width='25%'><b>发送日期</b></td>"
+Response.write "</tr>"
+set rs=server.createobject("adodb.recordset")
+ sql="select * from message where sender='"&Hx66_name&"' order by id DESC"
+ rs.open sql,conn,1,1
+ if rs.eof and rs.bof then
+Response.write "<tr>"
+Response.write "<td align=center colspan=3>您还没有给别人发过信息呢~~</td>"
+Response.write "</tr>"
+else
+   Dim Hx_Nums,MultiPages,i
+   Hxperpage=20
+   Rs.PageSize=Hxperpage
+   Rs.AbsolutePage=CurPage
+   Hx_Nums=Rs.RecordCount
+   MultiPages="<tr><td colspan=""4"" height='28' align=""center"">"&MultiPage(Hx_Nums,Hxperpage,CurPage,Url_Add)&"</td></tr>"
+Do Until Rs.EOF OR i=Hxperpage
+Response.write "<tr>"
+Response.write "<td align=center width='25%'>"&rs("incept")&"</td>"
+Response.write "<td align=left>&nbsp;<a href='messager.asp?action=outread&id="&rs("id")&"'>"&FormatStr(rs("title"))&"</a></td>"
+Response.write "<td align=center>"&rs("sendtime")&"</td>"
+Response.write "</tr>"
+i=i+1
+rs.movenext
+loop
+end if
+rs.close
+set rs=nothing
+Response.Write(MultiPages)
+Response.write "</table>"
+end sub
+
+'=================================================
+'过程名：sendmsg
+'作  用：发送信息表单
+'参  数：无
+'Web:    http://www.07ing.net
+'=================================================
+sub sendmsg()
+session("Hx_cms")=false
+Response.write "<form action='messager.asp' method=post name=messager>"
+Response.write "<table bgcolor='#ffffff' borderColor='#f0f0f0' Border='1' Cellspacing='0' Cellpadding='5' width='100%' align='Center' style=""border-collapse: collapse"">"
+Response.write "<tr> "
+Response.write "<td align=center colspan=2><b>发送短消息</b></td>"
+Response.write "</tr>"
+Response.write "<tr> "
+Response.write "<td valign=middle align=center colspan=2><a href='messager.asp?action=inbox'><img src='"&InstallDir&"img/inboxpm.gif' border=0 alt='收件箱'></a>" 
+Response.write "&nbsp; <a href='messager.asp?action=outbox'><img src='"&InstallDir&"img/outboxpm.gif' border=0 alt='发件箱'></a> "
+Response.write "&nbsp; <a href='messager.asp?action=new'><img src='"&InstallDir&"img/newpm.gif' border=0 alt='发送消息'></a>"
+Response.write "<a onfocus=""this.blur()"" href=""javascript:this.location.reload()""><img height='12' src='"&InstallDir&"img/refresh.gif' border='0' alt='如果看不到信就刷新一下!'></a></td>"
+Response.write "</tr>"
+Response.write "<tr> "
+Response.write "<td colspan=2 align=center><input type=hidden name='action' value='send'><b>请完整输入下列信息</b></td>"
+Response.write "</tr>"
+Response.write "<tr> "
+Response.write "<td valign=middle align=right><b>收件人：</b></td>"
+Response.write "<td valign=middle><input type=text name='touser' value='"&request("touser")&"' size='20' class='input'>"
+response.write friend_select()
+Response.write "</td>"
+Response.write "</tr>"
+Response.write "<tr>" 
+Response.write "<td valign=top width='20%' align=right><b>标题：<=30</b></td>"
+Response.write "<td valign=middle><input type=text name='title' value='"&request("title")&"' size=36 class='input'></td>"
+Response.write "</tr>"
+Response.write "<tr>" 
+Response.write "<td valign=top align=right><b>内容：<=999</b></td>"
+Response.write "<td valign=middle><textarea cols=45 rows=10 name='message' class='input'></textarea></td>"
+Response.write "</tr>"
+Response.write "<tr>" 
+Response.write "<td colspan=2 align=center>"
+dim inboxsum:inboxsum=conn.execute("select count(*) from message where incept='"&Hx66_name&"'")(0)
+if inboxsum>=Messagesum then
+response.write "<font color=red>您的收信箱可以储存"&Messagesum&"条短信已满，请先删除无用信息后发送。谢谢！</font>"
+else
+response.write "<input type=Submit value='发 送' name=Submit>&nbsp;<input type='reset' name='Clear' value='清 除'>"
+end if
+Response.write "</td>"
+Response.write "</tr>"
+Response.write "<tr> "
+Response.write "<td colspan=2 align=center>"
+Response.write "<< <a href=""javascript:history.go(-1)"">返回上一页</a> >></a></td>"
+Response.write "</tr>"
+Response.write "</form></table>"
+end sub
+
+'=================================================
+'过程名：friend_select
+'作  用：显示我的好友
+'参  数：无
+'Web:    http://www.07ing.net
+'=================================================
+function friend_select()
+dim temp,temp1,Hx66friend
+temp1=vbcrlf&"<select name=friend_select size=1 onchange=""javascript:Hx_accept(this.options[this.selectedIndex].value);"" class='input'>" & _
+  vbcrlf&"<option value=''>选择我的好友</option>"
+IF Hx66_friend<>"" Then 
+Hx66friend=Hx66_friend
+else
+Hx66friend="|"
+End IF
+temp=split(Hx66friend,"|")
+for j = 1 to ubound(temp)
+  temp1=temp1&vbcrlf&"<option value='"&temp(j)&"'>"&temp(j)&"</option>"
+next
+  temp1=temp1&vbcrlf&"</select>"
+  friend_select=temp1
+end function
+
+'=================================================
+'过程名：read
+'作  用：读取信息
+'参  数：无
+'Web:    http://www.07ing.net
+'=================================================
+sub read()
+set rs=server.createobject("adodb.recordset")
+sql="select * from message where (incept='"&Hx66_name&"' or sender='"&Hx66_name&"') and id="&messages_id
+rs.open sql,conn,1,1
+if rs.eof and rs.bof then
+Call HxErrMsg("如果您不是跑到别人的信箱里了，那就请确定后再次刷新本页！","back")
+else
+Conn.execute("update message set flag=1 where incept='"&Hx66_name&"' and ID="&messages_id&"")
+Response.write "<table bgcolor='#ffffff' borderColor='#e6e6e6' Border='1' Cellspacing='0' Cellpadding='5' width='100%' align='Center' style=""border-collapse: collapse"">"
+Response.write "<tr>"
+Response.write "<td align=center><b>欢迎使用短消息接收，"&Hx66_name&"</b></td>"
+Response.write "</tr>"
+Response.write "<tr>"
+Response.write "<td valign=middle align=center>"
+if request("action")="read" then
+Response.write "<a href='messager.asp?action=delete&id="&rs("id")&"'><img src='"&InstallDir&"img/deletepm.gif' border=0 alt='删除消息'></a> &nbsp; "
+end if
+Response.write "<a href='messager.asp?action=inbox'><img src='"&InstallDir&"img/inboxpm.gif' border=0 alt='收件箱'></a> &nbsp;"
+Response.write "<a href='messager.asp?action=outbox'><img src='"&InstallDir&"img/outboxpm.gif' border=0 alt='发件箱'></a> &nbsp;"
+Response.write "<a href='messager.asp?action=new'><img src='"&InstallDir&"img/newpm.gif' border=0 alt='发送消息'></a> &nbsp;"
+Response.write "<a href='messager.asp?action=new&touser="&rs("sender")&"'><img src='"&InstallDir&"img/replypm.gif' border=0 alt='回复消息'></a>"
+Response.write "<a onfocus=""this.blur()"" href=""javascript:this.location.reload()""><img height='12' src='"&InstallDir&"img/refresh.gif' border='0' alt='如果看不到信就刷新一下!'></a></td>"
+Response.write "</tr>"
+Response.write "<tr>"
+Response.write "<td valign=middle align=center>"
+if request("action")="outread" then
+Response.write "在<b>"&rs("sendtime")&"</b>，您发送此消息给<b>"&rs("incept")&"</b>！"
+else
+Response.write "在<b>"&rs("sendtime")&"</b>，<b>"&rs("sender")&"</b>给您发送的消息！"
+end if
+Response.write "</font></td>"
+Response.write "</tr>"
+Response.write "<tr>"
+Response.write "<td valign=top align=left><b>消息标题："&FormatStr(rs("title"))&"</b><BR>"&UBB(rs("content"))&"</td>"
+Response.write "</tr>"
+Response.write "</table>"
+end if
+rs.Close
+set rs=nothing
+end sub
+
+'=================================================
+'过程名：savemsg
+'作  用：短信息发表
+'参  数：无
+'Web:    http://www.07ing.net
+'=================================================
+sub savemsg()
+        if session("Hx_cms")=true then
+           Call HxErrMsg("对不起，请不要刷新操作！","back")
+        end if
+        touser=CheckStr(request.form("touser"))
+        title=CheckStr(request.form("title"))
+        message=CheckStr(request.form("message"))
+        if touser="" or strLength(touser)>12 then
+                Call HxErrMsg("你填写的发送对象为空或错误,快回去重写！","back")
+	end if
+	if strLength(title)<2 or strLength(title)>30 then
+                Call HxErrMsg("你忘了写标题或标题超过30个字符！","back")
+	end if
+	if strLength(message)<4 or strLength(message)>1000 then
+           Call HxErrMsg("你忘了写内容或内容超过1000个字符！","back")
+	end if
+	set rs=server.createobject("adodb.recordset")
+	sql="select * from [user] where username='"&touser&"'"
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+                Call HxErrMsg("对不起，本站没有这个用户，看看你的发送对象写对了吗？","back")
+	else
+		rs.Close 
+                set rs=server.createobject("adodb.recordset")
+		sql="select * from message"
+		rs.open sql,conn,1,3
+		rs.addnew
+		rs("incept")=touser
+		rs("sender")=Hx66_name
+                rs("title")=title
+                rs("content")=message
+		rs("sendtime")=now()
+		rs("flag")=0
+		rs.update
+                msg=msg+"<br>"+"<li><b>恭喜您，发送短信息成功。</b><br>发送的消息同时保存在您的发件箱。"
+		call success()
+		rs.close
+                set rs=nothing
+	end if
+end sub
+
+'=================================================
+'过程名：delete
+'作  用：短信息单个删除
+'参  数：无
+'Web:    http://www.07ing.net
+'=================================================
+sub delete()
+	sql="delete from message where incept='"&Hx66_name&"' and id="&messages_id
+	conn.execute sql
+	if err.Number<>0 then
+		err.clear
+		conn.close
+		set conn=nothing
+                Call HxErrMsg("对不起，短信息删除失败！已发给朋友的短信息你不能删除！！","back")
+	else
+		msg=msg+"<br>"+"<li>短信息成功删除！"
+		call success()
+	end if
+end sub
+
+'=================================================
+'过程名：deleteall
+'作  用：短信息批量删除
+'参  数：无
+'Web:    http://www.07ing.net
+'=================================================
+sub deleteall()
+	sql="delete from message where incept='"&Hx66_name&"'"
+	conn.execute sql
+	if err.Number<>0 then
+		err.clear
+		conn.close
+		set conn=nothing
+                Call HxErrMsg("对不起，短信息删除失败！","back")
+	else
+		msg=msg+"<br>"+"<li>短信息全部成功删除！"
+		call success()
+	end if
+end sub
+
+'=================================================
+'过程名：success
+'作  用：短信息操作提示
+'参  数：无
+'Web:    http://www.07ing.net
+'=================================================
+sub success()
+session("Hx_cms")=true
+Response.write "<table cellpadding=5 cellspacing=0 border=1 width='100%' style=""border-collapse: collapse"" bordercolor='#f0f0f0' align='center'>"
+Response.write "<tr align='center'>" 
+Response.write "<td>短信息提示</td>"
+Response.write "</tr>"
+Response.write "<tr> "
+Response.write "<td align='center'>"&msg&"<BR></td>"
+Response.write "</tr>"
+Response.write "<tr align='center'><td><a href='messager.asp?action=inbox'> << 返回收件箱</a></td>"
+Response.write "</tr>"  
+Response.write "</table>"
+end sub
+'****************************************************
+' 07ing Ver8.0       Power by 07ing.net
+' Web: http://www.07ing.net,http://www.07ing.com
+' Copyright (C) 2006 07ing.net All Rights Reserved.
+'****************************************************
+%>
+

@@ -1,0 +1,235 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_custcomment.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+                              
+	String search_title="",search_StartDate="",search_EndDate="",isReplay_s="";	
+	Hashtable params = new Hashtable();	
+	if(request.getParameter("search_title")!=null && !request.getParameter("search_title").equals("")){
+		 search_title = request.getParameter("search_title");
+		 params.put("title",search_title);
+	}
+	
+	if(request.getParameter("isReplay")!=null && !request.getParameter("isReplay").equals("")){
+		 isReplay_s = request.getParameter("isReplay");
+		 params.put("isReplay",isReplay_s);
+	}	
+	
+	if(request.getParameter("search_StartDate")!=null && !request.getParameter("search_StartDate").equals("")){
+		 search_StartDate = request.getParameter("search_StartDate");
+		 params.put("start_date",search_StartDate);
+	}
+	
+	if(request.getParameter("search_EndDate")!=null && !request.getParameter("search_EndDate").equals("")){
+		 search_EndDate = request.getParameter("search_EndDate");
+		 params.put("end_date",search_EndDate);
+	}
+                                 
+      
+                                      
+   	Ti_custcommentInfo ti_custcommentInfo = new Ti_custcommentInfo();
+	String user_id = "";
+	if(session.getAttribute("session_user_id")!=null){
+		user_id = session.getAttribute("session_user_id").toString();
+		if(!user_id.equals("f1k0qss6RC6jL82"))
+			params.put("user_id",user_id);
+	}                                   
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	
+	List list = ti_custcommentInfo.getTeambuyTi_custcomment(params,Integer.parseInt(iStart),limit);
+	int counter = ti_custcommentInfo.getTeambuyTi_custcommentCount(params);
+	
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?search_title="+search_title+"&isReplay="+isReplay_s+"&search_EndDate="+search_EndDate+"&iStart=",Integer.parseInt(iStart),limit);
+    String para ="search_title="+search_title+"&isReplay="+isReplay_s+"&search_EndDate="+search_EndDate+"&iStart="+Integer.parseInt(iStart);
+%>
+<html>
+  <head>
+    
+   <title>用户评价管理</title>
+	 <link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	 <script type="text/javascript" src="/js/commen.js"></script>
+   <script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+  
+   <script src='rating/jquery.js' type="text/javascript"></script>
+	 <script src='rating/documentation.js' type="text/javascript"></script>
+ 
+  <!--// plugin-specific resources //-->
+	
+	<script src='rating/jquery.MetaData.js' type="text/javascript" language="javascript"></script>
+  <script src='rating/jquery.rating.js' type="text/javascript" language="javascript"></script>
+  <link href='rating/jquery.rating.css' type="text/css" rel="stylesheet"/>	
+
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>用户评价管理</h1>
+			</td>
+			<td>
+				
+			</td>
+		</tr>
+	</table>
+	
+	
+ <form action="index.jsp" name="indexForm" method="post">
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+			团购标题:<input type="text" class="input" name = "search_title" id= "search_title" maxlength="50">
+
+      按评论时间:
+      <input name="search_StartDate" type="text" id="search_StartDate" class="Wdate" value="" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'search_EndDate\',{d:-1})}',readOnly:true})" size="15"  width="150px"/>
+        -
+	    <input name="search_EndDate" id="search_EndDate" type="text" class="Wdate" value="" onclick="WdatePicker({minDate:'#F{$dp.$D(\'search_StartDate\',{d:1})}',readOnly:true})" size="15" width="150px"/>
+		  
+		 
+		是否回复:
+		<select name="isReplay" id="isReplay">
+		<option value="">--请选择--</option>
+		<option value="1">是</option>
+		<option value="0">否</option>
+		</select>
+		
+		 <input name="searchInfo" type="button" value="查询" onclick="javascript:document.indexForm.submit();"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				 总计:<%=counter %>条
+ 			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			
+		  	<th width="20%">团购标题</th>
+
+			<th width="30%">评价内容</th>
+		 
+		  	<th  width="10%">评价星级</th>
+		  	
+		  	<th  width="10%">评价时间</th>
+
+			<th width="10%">是否回复</th>
+		  	
+		  	<th width="10%">回复/查看</th>
+			
+			
+		  		  	
+			  <th width="5%">删除</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String info_id="",goods_id="",com_type="",content="",in_date="",info_level="";
+		  			String up_num="",down_num="",reply_content="",reply_date="",reply_user_id="",goods_name="";
+					String isReplay = "否";
+		  			if(map.get("info_id")!=null) info_id = map.get("info_id").toString();
+				  	if(map.get("goods_id")!=null) goods_id = map.get("goods_id").toString();
+				  	if(map.get("com_type")!=null) com_type = map.get("com_type").toString();
+				  	if(map.get("content")!=null) content = map.get("content").toString();
+				  	if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+				    if(in_date.length()>19)in_date=in_date.substring(0,19);
+				  	if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+				  	if(map.get("info_level")!=null) info_level = map.get("info_level").toString();
+				  	if(map.get("reply_content")!=null) reply_content = map.get("reply_content").toString();
+
+					if(content.length()>50)content=content.substring(0,50)+"...";
+
+					if(map.get("title")!=null) goods_name = map.get("title").toString();
+					if(!reply_content.trim().equals("")){
+						isReplay = "是";
+					}
+             				  
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=info_id %>" /></td>
+			
+		  	<td><%=goods_name%></td>
+
+			<td><a href="updateInfo.jsp?info_id=<%=info_id %>&<%=para%>"><%=content%></a></td>
+		  		  	
+	       
+        <td>
+        	
+        <div class="Clear">
+				  <input name="info_level_<%=info_id%>" type="radio" value='1' <%if(info_level.equals("1")){%>checked<%}%> disabled="disabled" class="star"/>
+				  <input name="info_level_<%=info_id%>" type="radio" value='2' <%if(info_level.equals("2")){%>checked<%}%> disabled="disabled" class="star"/>
+				  <input name="info_level_<%=info_id%>" type="radio" value='3' <%if(info_level.equals("3")){%>checked<%}%> disabled="disabled" class="star"/>
+				  <input name="info_level_<%=info_id%>" type="radio" value='4' <%if(info_level.equals("4")){%>checked<%}%> disabled="disabled" class="star"/>
+				  <input name="info_level_<%=info_id%>" type="radio" value='5' <%if(info_level.equals("5")){%>checked<%}%> disabled="disabled"  class="star"/>
+			  </div>
+        	
+        	</td>
+		  			  	
+		  	<td><%=in_date%></td>
+
+			<td><%=isReplay%></td>
+		 		  	
+			<td><a href="updateInfo.jsp?info_id=<%=info_id %>&<%=para%>"><img src="/program/admin/images/edit.gif" title="修改" /></a></td>
+	  		
+			
+			
+	  		<td><a href="javascript:deleteOneInfo('<%=info_id%>','3235');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="3235" />
+	  </form>
+</body>
+
+</html>

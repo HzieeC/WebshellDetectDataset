@@ -1,0 +1,91 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_onlinegroup.*" %>
+<%@page import="java.util.*" %>
+<html>
+  <head>
+    
+    <title>客服组管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+
+  <% 
+  	String group_id="";
+  	if(request.getParameter("group_id")!=null) group_id = request.getParameter("group_id");
+  	Ti_onlinegroupInfo ti_onlineserviceInfo = new Ti_onlinegroupInfo();
+  	List list = ti_onlineserviceInfo.getListByPk(group_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String group_name="",group_type="",remark="",enabled="";
+  	if(map.get("group_name")!=null) group_name = map.get("group_name").toString();
+  	if(map.get("group_type")!=null) group_type = map.get("group_type").toString();
+  	if(map.get("remark")!=null) remark = map.get("remark").toString();
+  	if(map.get("enabled")!=null) enabled = map.get("enabled").toString();
+  %>
+	
+	<h1>修改客服组</h1>
+
+	<form action="/doTradeReg.do" method="post" name="updateForm">
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="10%">
+				新组名<font color="red">*</font>
+			</td>
+			<td><input name="group_name" id="group_name" size="20" value ="<%=group_name %>" maxlength="" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				新组类型<font color="red">*</font>
+			</td>
+			
+			<td  align="left">
+					<select name="group_type" id="group_type" >
+						<option value="1" <%if(group_type.equals("1"))out.print("selected"); %>>客服组</option>
+						<option value="2" <%if(group_type.equals("2"))out.print("selected"); %>>律师组</option>
+						<option value="3" <%if(group_type.equals("3"))out.print("selected"); %>>律所组</option>
+					</select>
+					
+			</td>
+		</tr>
+   	
+		<tr>
+			<td align="right" width="15%">
+				备注:
+			</td>
+			<td  colspan="5" >
+			<textarea name="remark" rows="5" cols="56" value="<%=remark %>"></textarea> 
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="15%">
+				状态:
+			</td>
+			<td  colspan="5" >
+				<input type="radio" name="enabled" value="1" <%if(enabled.equals("1"))out.print("checked"); %>> 可用
+				<input type="radio" name="enabled" value="0" <%if(enabled.equals("0"))out.print("checked"); %>> 不可用
+			</td>
+		</tr>
+	
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="9896" /><!-- 9548 -->
+	  			<input type="hidden" name="group_id" value="<%=group_id %>" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="return checkSub('updateForm');"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

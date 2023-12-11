@@ -1,0 +1,38 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<c:set var="contextPath" value="${pageContext.request.contextPath}" />
+<%
+String path = request.getContextPath();
+String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
+%>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <base href="<%=basePath%>">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+    <!--[if gt IE 8]>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <![endif]-->
+    
+    <title>exam</title>
+
+    
+    
+    <link href="${contextPath}/base/css/stylesheets.css" rel="stylesheet" type="text/css" />
+    <!--[if lt IE 8]>
+        <link href="./base/css/ie7.css" rel="stylesheet" type="text/css" />
+    <![endif]-->    
+    
+</head>
+<body>
+        
+    <div class="errorPage">        
+        <p class="name">403</p>
+        <p class="description">访问被禁止或者禁止访问该资源</p>        
+        <p><button class="btn btn-danger" onClick="document.location.href = 'test.do';">首页</button> <button class="btn btn-warning" onClick="history.back();">后退</button></p>        
+    </div>
+    
+</body>
+</html>

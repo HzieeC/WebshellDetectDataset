@@ -1,0 +1,191 @@
+<!--#include file="../inc/access.asp"  -->
+<!-- #include file="inc/functions.asp" -->
+<!-- #include file="../inc/x_to_html/index_to_html.asp" -->
+<!-- #include file="../inc/x_to_html/Model_to_html.asp" -->
+<!-- #include file="page_next.asp" -->
+
+<% '搜索模块
+act=request.querystring("act")
+keywords=trim(request.form("keywords"))
+cid=request("cid")
+
+
+if act="search" then
+s_sql="select * from web_theme where [name]  like '%"&keywords&"%'  order by [time] desc"
+else
+s_sql="select * from web_theme order by [time] desc"
+end if
+
+%>
+
+<% '主题激活模块
+action1=request.querystring("action")
+ThemeFolder=request.querystring("ThemeFolder")
+ThemeID=request.querystring("ThemeID")
+if action1="Edit" then
+set rs1=server.createobject("adodb.recordset")
+sql="select web_theme,web_ThemeID from web_settings "
+rs1.open(sql),cn,1,3
+rs1("web_theme")=ThemeFolder
+rs1("web_ThemeID")=ThemeID
+rs1.update
+rs1.close
+set rs1=nothing
+
+'生成该主题模板文件
+set rs_create=server.createobject("adodb.recordset")
+sql="select [id],ModelType,ModelTheme from web_models where  ModelTheme="&ThemeID
+rs_create.open(sql),cn,1,1
+Do While not rs_create.eof 
+l_id=rs_create("id")
+ModelType=rs_create("ModelType")
+ModelTheme=rs_create("ModelTheme")
+Call Model_to_html(l_id)
+rs_create.movenext
+loop
+rs_create.close
+set rs_create=nothing
+
+'先生成首页效果
+call index_to_html()
+
+response.redirect "html_all.asp"
+
+end if
+%>
+<script language="JavaScript">
+<!--
+function ask(msg) {
+	if( msg=='' ) {
+		msg='警告：删除后将不可恢复，可能造成意想不到后果？';
+	}
+	if (confirm(msg)) {
+		return true;
+	} else {
+		return false;
+	}
+}
+//-->
+</script>
+	<%
+Call header()
+%>
+
+	<table cellpadding='3' cellspacing='1' border='0' class='tableBorder' align=center>
+	<tr>
+	  <th width="100%" height=25 class='tableHeaderText'>主题列表</th>
+	
+	<tr><td height="400" valign="top"  class='forumRow'><br>
+	    <table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td height="25" class='TipTitle'>&nbsp;√ 操作提示</td>
+          </tr>
+          <tr>
+            <td height="30" valign="top" class="TipWords"><p>1、“网站主题”的意思是一个网页在整体内容不变的情况下，页面颜色、布局的变化，一种变化即一个主题。比如大家熟悉的新浪博客就可能设置多种主题。</p>
+
+            <p>2、如果主题无法更新，可有有以下原因：(1)你的空间写入权限未打开;(2)浏览器缓存问题，页面需要多刷新下才会看到;(3)启用主题后，你没有到生成管理处生成其它页面。</p>
+			 <p>3、系统自带了多款主题，还有更多主题在逐步开发中，请随时关注海纳个人博客官方网站(www.hitux.com)。</p></td>
+          </tr>
+          <tr>
+            <td height="10" ></td>
+          </tr>
+        </table>
+	    <table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td height="25" class='forumRowHighLight'>&nbsp;| <a href="Theme_add.asp">添加新的主题</a></td>
+          </tr>
+          <tr>
+            <td height="30"></td>
+          </tr>
+        </table>
+	    <table width="95%" border="0" align="center" cellpadding="0" cellspacing="2">
+          <tr>
+            <td width="5%" height="30" class="TitleHighlight"><div align="center" style="font-weight: bold;color:#ffffff">编号</div></td>
+            <td width="14%" height="30" class="TitleHighlight"><div align="center" style="font-weight: bold;color:#ffffff">主题名称<br>(主题所在文件夹)</div></td>
+            <td width="26%" class="TitleHighlight"><div align="center" style="font-weight: bold;color:#ffffff">主题预览</div></td>
+            <td width="18%" class="TitleHighlight"><div align="center" style="font-weight: bold;color:#ffffff">预览首页<br>(请“启用”后再预览)</div></td>
+            <td width="10%" class="TitleHighlight"><div align="center" style="font-weight: bold;color:#ffffff">是否启用</div></td>
+            <td width="18%" class="TitleHighlight"><div align="center" style="font-weight: bold;color:#ffffff">添加时间</div></td>
+            <td width="9%" class="TitleHighlight"><div align="center" style="font-weight: bold;color:#ffffff">操作</div></td>
+          </tr>
+<% '文章列表模块
+strFileName="ThemeSetting.asp" 
+pageno=5
+set rs = server.CreateObject("adodb.recordset")
+rs.Open (s_sql),cn,1,1
+rscount=rs.recordcount
+if not rs.eof and not rs.bof then
+call showsql(pageno)
+rs.move(rsno)
+for p_i=1 to loopno
+%>
+<% if p_i mod 2 =0 then
+class_style="forumRow"
+else
+class_style="forumRowHighLight"
+end if%>
+            <form name="form1" method="post" action="?action=edit&id=<%=rs("id")%>">
+          <tr >
+            <td   height="176" class='<%=class_style%>'><div align="center"><%=rs("id")%></div></td>
+           <td class='<%=class_style%>' ><div align="center"><%=rs("name")%><br>(<%=rs("folder")%>)</div></td>
+            <td height="176" class='<%=class_style%>' ><div align="center"><img src="/images/up_images/<%=rs("image")%>" width="200" height="143" border="0"></div></td>
+
+            <td class='<%=class_style%>' ><div align="center"><a href="/" target="_blank"><br />
+            预览首页</a></div></td>
+            <td class='<%=class_style%>' ><div align="center">
+<%
+set rs_theme=server.createobject("adodb.recordset")
+sql="select web_theme from web_settings"
+rs_theme.open(sql),cn,1,1
+if  rs_theme("web_theme")=rs("folder") then
+response.write "<img src='images/use_no.jpg' border='0' title='该主题已经启用成功'>"
+else
+response.write "<a href='?Action=Edit&ThemeFolder="&rs("folder")&"&ThemeID="&rs("id")&"' title='点击启用该主题'><img src='images/use_yes.jpg' border='0'></a>"
+end if
+rs_theme.close
+set rs_theme=nothing
+%></div></td>
+            <td class='<%=class_style%>' ><div align="center"><%=rs("time")%></div></td>
+            <td class='<%=class_style%>' ><div align="center"><a href="Theme_edit.asp?id=<%=rs("id")%>&amp;page=<%=page%>&amp;act=<%=act%>&amp;keywords=<%=keywords%>">修改</a> | <a href="javascript:if(ask('警告：删除后将不可恢复，可能造成意想不到后果？')) location.href='Theme_del.asp?id=<%=rs("id")%>&amp;page=<%=page%>&amp;act=<%=act%>&amp;keywords=<%=keywords%>';">删除</a> </div></td>
+          </tr></form>
+		  		  <%
+		  rs.movenext
+		  next
+		  else
+response.write "<div align='center'><span style='color: #FF0000'>暂无链接！</span></div>"
+		  end if 
+		  rs.close
+		  set rs=nothing
+		  %>
+		    <tr  >
+              <td height="35"  colspan="9" ><div align="center">
+                <%call showpage(strFileName,rscount,pageno,false,true,"")%>
+           </div></td>
+		    </tr>
+      </table>
+	    <table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+          <tr>
+            <td height="20" class='forumRow'>&nbsp;</td>
+          </tr>
+          <tr>
+            <td height="25" class='forumRowHighLight'>&nbsp;| 主题搜索</td>
+          </tr>
+          <tr>
+            <td height="70"><form name="form1" method="post" action="?act=search"><div align="center">
+<input name="keywords" type="text"  size="35" maxlength="40">
+                <label>
+                       &nbsp;
+                       <input type="submit" name="Submit" value="搜 索">
+                </label>
+              </div>
+            </form>
+            </td>
+          </tr>
+      </table>
+	    <br></td>
+	</tr>
+	</table>
+
+<%
+Call DbconnEnd()
+ %>

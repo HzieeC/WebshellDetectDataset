@@ -1,0 +1,12 @@
+<html>
+<head>
+	<title>退出登陆</title>
+</head>
+<body>
+退出成功!
+<%
+	request.getSession().invalidate();
+	response.addHeader("refresh","1;url=../index.html");
+%>
+</body>
+</html>

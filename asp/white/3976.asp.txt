@@ -1,0 +1,219 @@
+<!--#include file="const.asp"-->
+<%
+Dim maxperpage,totalrec,Pcount,pagenow,count
+Dim m_strTitle,m_intOrder,m_strOrder,SQLQuery
+Dim XMLDom,dataNode,i,n,m,im,j,ii,m_strLinks
+Dim HtmlContent,listArray,Action
+
+
+Call Main()
+Call TPL_Flush()
+NewAsp.PageEnd()
+
+Sub Main()
+	maxperpage=NewAsp.ChkNumeric(TPL_Config(1))
+	If maxperpage<1 Then maxperpage=20
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+	count=NewAsp.ChkNumeric(Request("count"))
+	Action=NewAsp.ChkNumeric(Request("action"))
+	Select Case Action
+		Case 1
+			m_strLinks=TPL_Config(3) : SQLQuery="And isLogo=1"
+		Case 2
+			m_strLinks=TPL_Config(4) : SQLQuery="And isLogo=0"
+		Case Else
+			m_strLinks=TPL_Config(2) : SQLQuery=""
+	End Select
+	If Not IsObject(Conn) Then ConnectionDatabase
+	HtmlContent = NewAsp.LoadTemplate("link\index")
+	HtmlContent = Replace(HtmlContent, "{$pagetitle}",  m_strLinks)
+	HtmlContent = Replace(HtmlContent, "{$classid}", 0)
+	TPL_Scan HtmlContent
+	listArray=Null
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+		Case "list","topiclist","linklist"
+			ParseLinklistNode		sTokenName
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Select Case sToken
+		Case "totalrec"		:	TPL_Echo totalrec
+		Case "title"		:	TPL_Echo m_strTitle
+	End Select
+	If Err Then Err.Clear
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	Select Case sTokenName
+		Case "list","topiclist","linklist"
+			Call showLinklist()
+			If IsArray(listArray) Then
+				j=totalrec-((pagenow - 1)*maxperpage)
+				ii=maxperpage*pagenow-maxperpage
+				For i=0 To UBound(listArray,2)
+					ii=ii+1:n=n+1:If (n Mod 2) = 0 Then im=2 Else im=1
+					If (i Mod 2) = 0 Then m=1 Else m=2
+					TPL_Scan sTemplate
+					j=j-1
+				Next
+			End If
+	End Select
+End Sub
+
+Function XmlDatalistNode(iXMLDom,sTokenAttrib)
+	Select Case sTokenAttrib
+		Case "showpage"		: Set XmlDatalistNode=showPageNode(iXMLDom)
+		Case Else
+			Set XmlDatalistNode=showPageNode(iXMLDom)
+	End Select
+End Function
+
+Sub showLinklist()
+	Dim Rs,SQL,i
+	If count=0 Then
+		totalrec=NewAsp.Execute("SELECT COUNT(*) FROM [NC_link] WHERE isLock=0 "&SQLQuery)(0)
+	Else
+		totalrec=count
+	End If
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT Linkid,LinkName,readme,LinkUrl,LogoUrl,LinkTime,LinkHist,isLogo,isIndex,isLock FROM [NC_link] WHERE isLock=0 "&SQLQuery&" ORDER BY LinkID DESC"
+	Rs.Open SQL,Conn,1,1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum+1
+	If Not Rs.EOF Then
+		Rs.MoveFirst
+		If pagenow >1 Then
+			Rs.Move (pagenow-1) * maxperpage
+		End If
+		listArray=Rs.GetRows(maxperpage)
+	Else
+		totalrec=0
+		listArray=Null
+	End If
+	Rs.close():Set Rs=Nothing
+	m_strLinks="?action="&Action&"&count="&totalrec&"&"
+End Sub
+
+Sub ParseLinklistNode(sToken)
+	Dim strTitle,strLinkName,strLinks,strLink2,strLinkLogo,strLogo
+	strLinkName=NewAsp.HTMLEncode(listArray(1,i))
+	strLinks=Replace(Replace(listArray(3,i), "<", ""), ">", "")
+	strLink2="link.asp?id="&listArray(0,i)
+	strTitle="<a href=""" &strLinks& """ target=""_blank"">" & strLinkName & "</a>"
+
+	If CLng(listArray(7,i)) <> 0 Then
+		If Not IsNull(listArray(4,i)) And Trim(listArray(4,i)) <> "" And Trim(LCase(listArray(4,i))) <> "http://" Then
+			strLogo = "<a href=""" & strLink2 & """ target=""_blank""><img src=""" & NewAsp.CheckLinksUrl(listArray(4,i)) & """ width=""88"" height=""31"" border=""0""/></a>"
+			strLinkLogo = "<img src=""" & NewAsp.CheckLinksUrl(listArray(4,i)) & """ width=""88"" height=""31"" border=""0""/>"
+		Else
+			strLogo = "<a href=""" & strLink2 & """ target=""_blank"">"&TPL_Config(8)&"</a>"
+			strLinkLogo = TPL_Config(8)
+		End If
+	Else
+		strLogo = "<a href=""" & strLink2 & """ target=""_blank"">"&TPL_Config(9)&"</a>"
+		strLinkLogo = TPL_Config(9)
+	End If
+
+	Select Case sToken
+		Case "i"				:	TPL_Echo i
+		Case "i+"				:	TPL_Echo ii
+		Case "i-"				:	TPL_Echo j
+		Case "n"				:	TPL_Echo n
+		Case "m"				:	TPL_Echo m
+		Case "title"			:	TPL_Echo strTitle
+		Case "link"				:	TPL_Echo strLinks
+		Case "link2"			:	TPL_Echo strLink2
+		Case "logo"				:	TPL_Echo strLogo
+		Case "linklogo"			:	TPL_Echo strLinkLogo
+		Case "id","linkid"		:	TPL_Echo listArray(0,i)
+		Case "linkname","topic"	:	TPL_Echo strLinkName
+		Case "readme","content"	:	TPL_Echo NewAsp.HTMLEncode(listArray(2,i))
+		Case "linkurl"			:	TPL_Echo Server.URLEncode(Replace(Replace(listArray(3,i), "<", ""), ">", ""))
+		Case "linktime"			:	TPL_Echo listArray(5,i)
+		Case "linkhist","hits"	:	TPL_Echo listArray(6,i)
+	End Select
+End Sub
+
+Function showPageNode(iXMLDom)
+	Dim datalist,Node,i,n,m,max,stype,s
+	iXMLDom.documentElement.setAttribute "pagenow",pagenow
+	iXMLDom.documentElement.setAttribute "pagesize",maxperpage
+	iXMLDom.documentElement.setAttribute "pagecount",Pcount
+	iXMLDom.documentElement.setAttribute "totalrec",totalrec
+	iXMLDom.documentElement.setAttribute "topcount",0
+	iXMLDom.documentElement.setAttribute "link",m_strLinks
+	iXMLDom.documentElement.setAttribute "titles","ÓÑÇéÁ´½Ó"
+
+	max		= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("max"))
+	stype	= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("type"))
+	If max=0 Then max=10
+	m = max-2
+
+	If Pcount > m And pagenow > (m\2) Then
+		If Pcount-pagenow <= (m\2) Then
+			n = Pcount-(m+1)
+		Else
+			n = pagenow-(m\2)
+		End If
+	Else
+		n = 2
+	End If
+
+	If n<2 Then n=2
+
+	iXMLDom.documentElement.setAttribute "n",n
+	iXMLDom.documentElement.setAttribute "m",max\2
+	If IsNull(iXMLDom.documentElement.getAttribute("max")) Then iXMLDom.documentElement.setAttribute "max",max
+	If IsNull(iXMLDom.documentElement.getAttribute("channelid")) Then iXMLDom.documentElement.setAttribute "channelid",ChannelID
+	If IsNull(iXMLDom.documentElement.getAttribute("action")) Then iXMLDom.documentElement.setAttribute "action","0"
+	'If IsURLRewrite Then
+	'	iXMLDom.documentElement.setAttribute "action","1"
+	'End If
+
+	Set datalist=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+	datalist.appendChild(datalist.createElement("datalist"))
+
+	If Pcount >= max Then
+		For i = n To n + m
+			Set Node=datalist.createNode(1,"row","")
+			Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+			Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=1
+			datalist.documentElement.appendChild(Node)
+			Set Node=Nothing
+			If i => Pcount Then Exit For
+		Next
+	Else
+		For i = 2 To max
+			If i > Pcount Then
+				Set Node=datalist.createNode(1,"row","")
+				Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+				Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=0
+				datalist.documentElement.appendChild(Node)
+				Set Node=Nothing
+			Else
+				Set Node=datalist.createNode(1,"row","")
+				Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+				Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=1
+				datalist.documentElement.appendChild(Node)
+				Set Node=Nothing
+			End If
+		Next
+	End If
+	iXMLDom.documentElement.setAttribute "i",i
+
+	Set showPageNode=datalist
+	Set datalist=Nothing
+End Function
+%>

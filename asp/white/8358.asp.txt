@@ -1,0 +1,514 @@
+﻿<!--#include file="commond.asp" -->
+<!--#include file="include/function.asp" -->
+<!--#include file="include/md5code.asp" -->
+<!--#include file="include/library.asp" -->
+<%
+Dim log_Year,log_Month,log_Day,logID,cateID
+log_Year=CheckStr(Trim(Request.QueryString("log_Year")))
+log_Month=CheckStr(Trim(Request.QueryString("log_Month")))
+log_Day=CheckStr(Trim(Request.QueryString("log_Day")))
+logID=CheckStr(Trim(Request.QueryString("logID")))
+cateID=CheckStr(Trim(Request.QueryString("cateID")))
+%><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<META http-equiv=Content-Type content="text/html; charset=utf-8">
+<title><%=siteName%>_Design by Colin</title>
+<META content="opeasy" name=Keywords>
+<META content="open easy,opration easy" name=Description>
+<LINK href="images/style.css" type=text/css rel=stylesheet>
+<script type="text/javascript" language="javascript" src="common.js"></script>
+
+</head>
+<body>
+<!--头部开始-->
+<!--#include file="header.asp" -->
+<!--主体开始-->
+<div id="item">
+	  <div align="center"><a href="admincp.asp">管理首页</a>
+	    <%If Session("Admin")<>Empty Then%>
+	    <a href="admincp.asp?action=setting">一般设置</a>
+	    <a href="admincp.asp?action=category"></a>
+	    <a href="admincp.asp?action=member">会员管理</a>
+	    <a href="admincp.asp?action=database">数据管理</a>
+	    <a href="admincp.asp?action=pic">附件管理</a>
+	    <a href="admincp.asp?action=logout">退出登录</a>
+	    <%End If%>
+      </div>
+</div>
+<div id="item">
+  <%If memStatus<>"SupAdmin" Then%>
+  <div class="msgtop">对不起，你没有权限进入系统管理面板</div>
+    <div class="msg"><a href="default.asp">点击返回主页</a></div>
+    <%Else%>
+<%If Session("Admin")=Empty Then%>
+    <div id="content">
+      <table width="100%" border="0" align="center" cellpadding="4" cellspacing="1" bgcolor="#CCCCCC">
+        <tr>
+          <td align="center" bgcolor="#F9FCFE" class="siderbar_head">请输入管理员密码：</td>
+        </tr>
+        <tr>
+          <td height="60" align="center" bgcolor="#FFFFFF"><form action="admincp.asp?action=login" method="post" name="adminlogin" id="adminlogin">
+                <input type="password" id="adminpassword" name="adminpassword" />
+                &nbsp;
+                <input type="submit" id="submit" name="submit" value=" 确定登陆 " />
+          </form></td>
+        </tr>
+      </table>
+    </div>
+    <%
+	If Request.QueryString("action")="login" Then
+		Dim AdminLogin,AdminLogin_OK
+		Set AdminLogin=Conn.ExeCute("SELECT mem_PassWord,mem_Name FROM blog_Member WHERE mem_Name='"&memName&"' AND mem_PassWord='"&md5(CheckStr(Request.Form("adminpassword")))&"'")
+		
+		If AdminLogin.EOF And AdminLogin.BOF Then
+			Session("Admin")=""
+		Else
+			Session("Admin")=memName
+		End If
+		Set AdminLogin=Nothing
+		Response.Redirect("admincp.asp")
+	End If
+Else
+	If Request.QueryString("action")="logout" Then
+		Session("Admin")=""
+		Response.ReDirect("default.asp")
+	ElseIf Request.QueryString("action")="database" Then%>
+    <table width="100%" border="0" align="center" cellpadding="6" cellspacing="1" bgcolor="#CCCCCC">
+      <tr>
+        <td height="25" bgcolor="#F9FCFE" class="siderbar_head"><%=SiteName%> 数据管理</td>
+      </tr>
+      <tr>
+        <td bgcolor="#FFFFFF">数据库文件路径：<%=Request.ServerVariables("APPL_PHYSICAL_PATH")&AccessPath&"\"&AccessFile%></td>
+      </tr>
+      <tr>
+        <td bgcolor="#FFFFFF">数据库文件空间占用：<%=GetTotalSize(Server.Mappath(AccessPath&"/"&AccessFile),"File")%></td>
+      </tr>
+      <tr>
+        <form action="admincp.asp?action=database&amp;type=sqlquery" method="post">
+          <td bgcolor="#FFFFFF">SQL 查询执行(一次执行一个查询)：
+              <input name="SQL_Query" value="" type="text" size="58" />
+              <input name="submit" type="submit" value=" 执行 " /></td>
+        </form>
+      </tr>
+      <tr>
+        <td bgcolor="#FFFFFF">数据库文件操作：<b>&nbsp;<a href="admincp.asp?action=database&amp;type=Compact">压缩</a></b>(压缩前最好备份一次)&nbsp;&nbsp;|&nbsp;&nbsp;<b><a href="admincp.asp?action=database&amp;type=Backup">备份</a></b>(强烈推荐每日备份一次)</td>
+      </tr>
+      <tr>
+        <td bgcolor="#FFFFFF" style="padding-left:18px;"><%If Request.QueryString("type")="sqlquery" Then
+	Dim SQL_Query
+	SQL_Query=Request.Form("SQL_Query")
+	Conn.ExeCute(SQL_Query)
+	
+	Response.Write("<a href=""admincp.asp?action=database"">SQL语句执行成功，请点击返回</a>")
+ElseIf Request.QueryString("type")="Compact" Then
+	Dim FSO,Engine
+	Set FSO=Server.CreateObject("Scripting.FileSystemObject")
+	If Err<>0 Then
+		Err.Clear
+		Response.Write("服务器关闭FSO，无法压缩数据库")
+	Else
+		If FSO.FileExists(Server.Mappath(AccessPath&"/"&AccessFile)) Then
+			Response.Write "压缩数据库开始，网站暂停一切用户的前台操作......<br>"
+			Conn.Close
+			Set Conn=Nothing
+			Application.Lock
+			FreeApplicationMemory
+			Application(CookieName & "_SiteEnable") = 0
+			Application(CookieName & "_SiteDisbleWhy") = "网站暂停中，请稍候几分钟后再来..."
+			Application.UnLock
+			Set Engine = CreateObject("JRO.JetEngine")
+			Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(AccessPath&"/"&AccessFile), "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.Mappath(AccessPath&"/"&AccessFile&".temp")
+			FSO.CopyFile Server.Mappath(AccessPath&"/"&AccessFile&".temp"),Server.Mappath(AccessPath&"/"&AccessFile)
+			FSO.DeleteFile(Server.Mappath(AccessPath&"/"&AccessFile&".temp"))
+			Set FSO = Nothing
+			Set Engine = Nothing
+			Response.write "压缩数据库完成..."
+			Application.Lock
+			Application(CookieName & "_SiteEnable") = 1
+			Application(CookieName & "_SiteDisbleWhy") = ""
+			Application.UnLock
+			Response.Write "<br>网站恢复正常访问..."
+			Response.Write("<br><a href=""admincp.asp?action=database"">请点击返回</a>")
+		End If
+	End If
+	Set FSO=Nothing
+ElseIf Request.QueryString("type")="Backup" Then
+	Response.Write "备份数据库开始，网站暂停一切用户的前台操作......<br>"
+	Conn.Close
+	Set Conn=Nothing
+	Application.Lock
+	Application(CookieName & "_SiteEnable") = 0
+	application(CookieName & "_SiteDisbleWhy") = "网站暂停中，请稍候几分钟后再来..."
+	Application.UnLock
+	CopyFiles Server.Mappath(AccessPath&"/"&AccessFile),Server.Mappath(AccessPath&"/"&AccessFile & "_" & DateToStr(Now(),"YmdHIS") &".BAK")
+	Response.write "<br>备份完成..."
+	Application.Lock
+	Application(CookieName & "_SiteEnable") = 1
+	Application(CookieName & "_SiteDisbleWhy") = ""
+	Application.UnLock
+	Response.write "<br>网站恢复正常访问..."
+	Response.Write("<br><a href=""admincp.asp?action=database"">请点击返回</a>")
+ElseIf Request.QueryString("type")="Restore" Then
+
+ElseIf Request.QueryString("type")="DeleFile" Then
+	If Request.QueryString("filename")=Empty Then
+		Response.Write("<a href=""admincp.asp?action=database"">要删除的文件名不能为空，请点击返回</a>")
+	Else
+		If DeleteFiles(Server.MapPath(AccessPath&"/"&Request.QueryString("filename")))=1 Then
+			Response.Write("<a href=""admincp.asp?action=database"">文件删除成功，请点击返回</a>")
+		Else
+			Response.Write("<a href=""admincp.asp?action=database"">文件删除失败，请点击返回</a>")
+		End If
+	End If
+Else
+	Response.Write("<b>备份文件列表</b><br>")
+	Dim DataFolder,DataFileList,DataFile,DataFileName
+	Set FSO=Server.CreateObject("Scripting.FileSystemObject")
+	If Err<>0 Then
+		Err.Clear
+		Response.Write("服务器关闭FSO，无法查看备份文件列表")
+	Else
+		Set DataFolder=FSO.GetFolder(Server.MapPath(AccessPath))
+		Set DataFileList=DataFolder.Files
+		For Each DataFile IN DataFileList
+			If Ubound(Split(DataFile,"."))>=2 Then
+				DataFileName=DataFile.Name
+				Response.Write("<font color=""#FF0000"">"&DataFileName&"</font>&nbsp;&nbsp;|&nbsp;&nbsp;<b><a href=""blogdata/"&DataFileName&""">下载此文件</a></b>&nbsp;&nbsp;|&nbsp;&nbsp;<b><a href=""admincp.asp?action=database&type=DeleFile&filename="&DataFileName&""">删除此文件</a></b>&nbsp;&nbsp;|&nbsp;&nbsp;<b><a href=""admincp.asp?action=database&type=Restore&filename="&DataFileName&""">从此文件还原数据</a></b><br>")
+			End If
+		Next
+	End If
+	Set FSO=Nothing
+End If
+
+Function CopyFiles(TempSource,TempEnd)
+    Dim FSO
+    Set FSO = Server.CreateObject("Scripting.FileSystemObject")
+	If Err<>0 Then
+		Err.Clear
+		Response.Write("服务器关闭FSO，无法复制文件")
+	Else
+		If FSO.FileExists(TempEnd) then
+		   Response.Write "目标备份文件 <b>" & TempEnd & "</b> 已存在，请先删除!"
+		   Set FSO=Nothing
+		   Exit Function
+		End If
+		If FSO.FileExists(TempSource) Then
+		Else
+		   Response.Write "要复制的源数据库文件 <b>"&TempSource&"</b> 不存在!"
+		   Set FSO=Nothing
+		   Exit Function
+		End If
+		FSO.CopyFile TempSource,TempEnd
+		Response.Write "已经成功复制文件 <b>"&TempSource&"</b> 到 <b>"&TempEnd&"</b>"
+	End If
+    Set FSO = Nothing
+End Function
+%></td>
+      </tr>
+    </table>
+    <%ElseIF Request.QueryString("action")="setting" Then%>
+    <br />
+    <table width="100%" border="0" align="center" cellpadding="6" cellspacing="1" bgcolor="#CCCCCC">
+      <tr>
+        <td bgcolor="#FFFFFF" class="siderbar_head"><%=SiteName%> 一般设置</td>
+      </tr>
+      <tr>
+        <td bgcolor="#FFFFFF" align="center" height="48"><%If Request.QueryString("type")="EnableSite" Then
+		Application.Lock()
+		Application(CookieName & "_SiteEnable") = 1
+		Application(CookieName & "_SiteDisbleWhy") = ""
+		Application.UnLock()
+		Response.Write("<a href=""admincp.asp?action=setting"">开启站点成功，请点击返回</a>")
+	ElseIF Request.QueryString("type")="DisableSite" Then
+		Set Conn=Nothing
+		FreeApplicationMemory
+		Application.Lock()
+		Application(CookieName & "_SiteEnable") = 0
+		Application(CookieName & "_SiteDisbleWhy")="站点维护中，请稍候再来..."
+		Application.UnLock()
+		Response.Write("<br><a href=""admincp.asp?action=setting"">关闭站点成功</a>")
+	Else
+		If Application(CookieName & "_SiteEnable") = 0 AND Application(CookieName & "_SiteDisbleWhy")<>"" Then
+			Response.Write("<b>站点已关闭</b>&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;<a href=""admincp.asp?action=setting&type=EnableSite"">点击开启站点</a>")
+		Else
+			Response.Write("<b>站点已开启</b>&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;<a href=""admincp.asp?action=setting&type=DisableSite"">点击关闭站点</a>")
+		End If
+	End If%></td>
+      </tr>
+    </table>
+    <br />
+    <table width="100%" border="0" align="center" cellpadding="6" cellspacing="1" bgcolor="#CCCCCC">
+      <tr>
+        <td bgcolor="#FFFFFF" class="siderbar_head"><%=SiteName%> 基本信息</td>
+      </tr>
+      <tr>
+        <%If Request.QueryString("type")="baseInfo" Then
+		Dim edit_blogName,edit_blogURL,edit_blogPerpage
+		edit_blogName=CheckStr(Request.Form("blog_Name"))
+		edit_blogURL=CheckStr(Request.Form("blog_URL"))
+		edit_blogPerpage=CheckStr(Request.Form("blog_PerPage"))
+		If edit_blogName<>Empty OR edit_blogURL<>Empty OR IsInteger(edit_blogPerpage)=True Then
+			Conn.ExeCute("UPDATE blog_Info SET blog_Name='"&edit_blogName&"',blog_URL='"&edit_blogURL&"',blog_PerPage="&edit_blogPerpage&"")
+			
+			Response.Write("<td bgcolor=""#FFFFFF"" align=""center"" height=""48""><a href=""admincp.asp?action=setting"">基本信息修改成功，请点击返回</a></td>")
+		Else
+			Response.Write("<td bgcolor=""#FFFFFF"" align=""center"" height=""48""><a href=""admincp.asp?action=setting"">基本信息修改失败，请点击返回</a></td>")
+		End If
+	Else
+		Response.Write("<form name=""blogInfo"" action=""admincp.asp?action=setting&type=baseInfo"" method=""post""><td bgcolor=""#FFFFFF"" align=""center"" height=""48"">BLOG 名称：<input name=""blog_Name"" value="""&siteName&""" type=""text"">&nbsp;&nbsp;&nbsp;BLOG 地址：<input name=""blog_URL"" value="""&siteURL&""" type=""text"" size=""25"">&nbsp;&nbsp;&nbsp;每页涂鸦：<input name=""blog_PerPage"" size=""2"" type=""text"" value="""&blogPerPage&""">&nbsp;&nbsp;&nbsp;<input type=""submit"" value="" 确定 ""></td></form>")
+	End If%>
+      </tr>
+    </table>
+    <%ElseIF Request.QueryString("action")="pic" Then%>
+    <br />
+    <table width="100%" border="0" align="center" cellpadding="6" cellspacing="1" bgcolor="#CCCCCC">
+      <tr>
+        <td bgcolor="#FFFFFF" class="siderbar_head"><%=SiteName%> 附件管理</td>
+      </tr>
+      <tr>
+        <td bgcolor="#FFFFFF"><%If Request.QueryString("type")="DeleFile" Then
+		If Request.QueryString("filename")=Empty Then
+			Response.Write("<a href=""admincp.asp?action=pic"">没有选择要删除的文件，请点击返回</a>")
+		Else
+			If DeleteFiles(Server.MapPath("pic/"&Request.QueryString("filename")))=1 Then
+				Response.Write("<a href=""admincp.asp?action=pic"">文件删除成功，请点击返回</a>")
+			Else
+				Response.Write("<a href=""admincp.asp?action=pic"">文件删除失败，请点击返回</a>")
+			End If
+		End If
+	Else
+		Dim picFolder
+		Set FSO=Server.CreateObject("Scripting.FileSystemObject")
+		If Err<>0 Then
+			Err.Clear
+			Response.Write("服务器关闭FSO，无法查看附件")
+		Else
+			Set picFolder=FSO.GetFolder(Server.MapPath("pic/"&Request.QueryString("FolderName")))
+			Dim picFileList
+			Set picFileList=picFolder.Files
+			Dim picFileName,picFileEvery
+			For Each picFileEvery IN picFileList
+				picFileName=picFileEvery.Name
+				Response.Write("浏览附件 <a href=""pic/"&Request.QueryString("FolderName")&"/"&picFileName&""" target=""_blank"">"&picFileName&"</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href=""admincp.asp?action=pic&type=DeleFile&filename="&Request.QueryString("FolderName")&picFileName&"""><b>删除文件</b></a><br><img name=""HideImage"" src="""" width=""2"" height=""5"" alt="""" style=""background-color: #FFFFFF""><br>")
+			Next
+			Set picFileList=Nothing
+			Set picFolder=Nothing
+		End If
+		Set FSO=Nothing
+	End If%></td>
+      </tr>
+    </table>
+    <%ElseIF Request.QueryString("action")="member" Then%>
+    <table width="100%" border="0" align="center" cellpadding="6" cellspacing="1" bgcolor="#CCCCCC">
+      <tr>
+        <td bgcolor="#FFFFFF" class="siderbar_head"><%=SiteName%> 会员管理</td>
+      </tr>
+      <tr>
+        <td bgcolor="#FFFFFF"><%If Request.QueryString("type")="editmem" Then
+		If CheckStr(Request.QueryString("memID"))=Empty AND CheckStr(Request.QueryString("memType"))<>"Member" AND CheckStr(Request.QueryString("memType"))<>"Admin" AND CheckStr(Request.QueryString("memType"))<>"SupAdmin" Then
+			Response.Write("<a href=""admincp.asp?action=member"">对不起，参数错误，点击返回会员管理</a>")
+		Else
+			Conn.ExeCute("UPDATE blog_Member SET mem_Status='"&CheckStr(Request.QueryString("memType"))&"' WHERE mem_ID="&CheckStr(Request.QueryString("memID")))
+			
+			Response.Write("<a href=""admincp.asp?action=member"">编辑会员成功，点击返回会员管理</a>")
+		End If
+	ElseIF Request.QueryString("type")="delemem" Then
+		If CheckStr(Request.QueryString("memID"))=Empty Then
+			Response.Write("<a href=""admincp.asp?action=member"">对不起，参数错误，点击返回会员管理</a>")
+		Else
+			Conn.ExeCute("DELETE * FROM blog_Member WHERE mem_ID="&CheckStr(Request.QueryString("memID")))
+			Conn.ExeCute("UPDATE blog_Info SET blog_MemNums=blog_MemNums-1")
+		
+			Response.Write("<a href=""admincp.asp?action=member"">删除会员成功，点击返回会员管理</a>")
+		End If
+	Else
+		Dim adm_MemList
+		Set adm_MemList=Server.CreateObject("Adodb.RecordSet")
+		SQL="SELECT mem_ID,mem_Name,mem_Regtime,mem_Status FROM blog_Member ORDER BY mem_Regtime DESC"
+		adm_MemList.Open SQL,Conn,1,1
+		
+		If adm_MemList.EOF AND adm_MemList.BOF Then
+			Response.Write("暂时没有会员")
+		Else
+			Dim CurPage,Url_Add
+			If CheckStr(Request.QueryString("Page"))<>Empty Then
+				Curpage=Cint(CheckStr(Request.QueryString("Page")))
+				If Curpage<0 Then Curpage=1
+			Else
+				Curpage=1
+			End If
+			Url_Add="?action=member&"
+			adm_MemList.PageSize=15
+			adm_MemList.AbsolutePage=CurPage
+			Dim adm_MemNums
+			adm_MemNums=adm_MemList.RecordCount
+			Dim MultiPages,PageCount
+			MultiPages="<span class=""smalltxt"">"&MultiPage(adm_MemNums,15,CurPage,Url_Add)&"</span>"
+			Response.Write(MultiPages)
+			Response.Write("<table width=""100%"" border=""0"" align=""center"" cellpadding=""4"" cellspacing=""1"" bgcolor=""#CCCCCC""><tr bgcolor=""#EFEFEF""><td>编号</td><td>会员名称</td><td>会员身份</td><td>注册时间</td><td>会员操作</td></tr>")
+			Do Until adm_MemList.EOF OR PageCount=15
+				Dim adm_MemStatus,adm_MemStatusAct
+				Select Case adm_MemList("mem_Status")
+				Case "SupAdmin"
+					adm_MemStatus="超管"
+					adm_MemStatusAct="<a href=""admincp.asp?action=member&type=editmem&memID="&adm_MemList("mem_ID")&"&memType=Member"">设为一般会员</a> | <a href=""admincp.asp?action=member&type=editmem&memID="&adm_MemList("mem_ID")&"&memType=Admin"">一般管理员</a>"
+				Case "Admin"
+					adm_MemStatus="管理员"
+					adm_MemStatusAct="<a href=""admincp.asp?action=member&type=editmem&memID="&adm_MemList("mem_ID")&"&memType=Member"">设为一般会员</a> | <a href=""admincp.asp?action=member&type=editmem&memID="&adm_MemList("mem_ID")&"&memType=SupAdmin"">设为超管</a>"
+				Case "Member"
+					adm_MemStatus="会员"
+					adm_MemStatusAct="<a href=""admincp.asp?action=member&type=editmem&memID="&adm_MemList("mem_ID")&"&memType=Admin"">设为一般管理员</a> | <a href=""admincp.asp?action=member&type=editmem&memID="&adm_MemList("mem_ID")&"&memType=SupAdmin"">设为超管</a>"
+				End Select
+				Response.Write("<tr bgcolor=""#FFFFFF""><td>"&adm_MemList("mem_ID")&"</td><td><a href=""member.asp?action=view&memName="&Server.URLEncode(adm_MemList("mem_Name"))&""" target=""_blank"" alt=""点击查看会员资料"">"&adm_MemList("mem_Name")&"</td><td>"&adm_MemStatus&"</td><td>"&DateToStr(adm_MemList("mem_RegTime"),"Y-m-d")&"</td><td><a href=""admincp.asp?action=member&type=delemem&memID="&adm_MemList("mem_ID")&""">删除</a> | "&adm_MemStatusAct&"</td></tr>")
+				adm_MemList.MoveNext
+				PageCount=PageCount+1
+			Loop
+			Response.Write("</table>")
+			Response.Write(MultiPages)
+		End If
+		adm_MemList.Close
+		Set adm_MemList=Nothing
+	End If%></td>
+      </tr>
+    </table>
+    <%Else%>
+    <div class="msg_head"><strong><%=SiteName%> 系统信息</strong></div>
+  <div class="msg_main"><span class="smalltxt">Powered by OpEasy &copy;2007 With <a href="mailto:jlcom@126.com">Colin</a> Program</span></div>
+    <br />
+    <table width="92%" border="0" align="center" cellpadding="6" cellspacing="1" bgcolor="#CCCCCC">
+      <tr>
+        <td colspan="2" class="msg_head"><%=SiteName%> 服务器基本信息</td>
+      </tr>
+      <tr>
+        <td bgcolor="#FFFFFF" width="40%" nowrap="nowrap">&nbsp;服务器时间：<%=DateToStr(Now(),"Y-m-d H:I A")%></td>
+        <td bgcolor="#FFFFFF" width="60%">&nbsp;服务器IP地址：<%=Request.ServerVariables("LOCAL_ADDR")%></td>
+      </tr>
+      <tr>
+        <td bgcolor="#FFFFFF">&nbsp;服务器IIS版本：<%=Request.ServerVariables("SERVER_SOFTWARE")%></td>
+        <td bgcolor="#FFFFFF">&nbsp;脚本解释引擎：<%=ScriptEngine & "/"& ScriptEngineMajorVersion &"."&ScriptEngineMinorVersion&"."& ScriptEngineBuildVersion %></td>
+      </tr>
+      <tr>
+        <td bgcolor="#FFFFFF">&nbsp;服务器空间占用：<%=GetTotalSize(Request.ServerVariables("APPL_PHYSICAL_PATH"),"Folder")%></td>
+        <td bgcolor="#FFFFFF">&nbsp;站点物理路径：<%=Request.ServerVariables("APPL_PHYSICAL_PATH")%></td>
+      </tr>
+      <tr>
+        <td bgcolor="#FFFFFF">&nbsp;服务器CPU数量：<%=GetSysInfo("CPUNums")%></td>
+        <td bgcolor="#FFFFFF">&nbsp;脚本超时设置：<%=Server.ScriptTimeout%></td>
+      </tr>
+      <tr>
+        <td colspan="2" bgcolor="#FFFFFF">&nbsp;服务器操作系统：<%=GetSysInfo("OSInfo")%></td>
+      </tr>
+      <tr>
+        <td colspan="2" bgcolor="#FFFFFF">&nbsp;服务器CPU信息：<%=GetSysInfo("CPUInfo")%></td>
+      </tr>
+    </table>
+    <%
+Function GetSysInfo(InfoType)
+  Dim WshShell,WshSysEnv
+  Set WshShell = Server.CreateObject("WScript.Shell")
+  Set WshSysEnv = WshShell.Environment("SYSTEM")
+  If InfoType="CPUNums" Then
+		GetSysInfo=Cstr(WshSysEnv("NUMBER_OF_PROCESSORS"))
+		If IsNull(GetSysInfo) Then
+			GetSysInfo = Request.ServerVariables("NUMBER_OF_PROCESSORS")
+		ElseIf GetSysInfo="" Then
+			GetSysInfo = Request.ServerVariables("NUMBER_OF_PROCESSORS")
+		End If
+	ElseIf InfoType="CPUInfo" Then
+		GetSysInfo = Cstr(WshSysEnv("PROCESSOR_IDENTIFIER"))
+	ElseIf InfoType="OSInfo" Then
+		GetSysInfo = Cstr(WshSysEnv("OS"))
+		If Request.ServerVariables("OS")="" Then GetSysInfo=GetSysInfo & "(可能是 Windows Server 2003)"
+	End If 
+End Function
+
+Function CheckObjInstalled(strClassString)
+	On Error Resume Next
+	Dim TmpObj
+	Set TmpObj = Server.CreateObject(strClassString)
+	If Err = 0 OR Err = -2147221477 Then
+		CheckObjInstalled= "<font color=""#00FF00""><b>√</b></font>"
+	ElseIF Err = 1 OR Err = -2147221005 Then
+		CheckObjInstalled="<font color=""#FF0000""><b>×</b></font>"
+	End If
+	Err.Clear
+	Set TmpObj = Nothing
+End Function
+
+Function GetTotalSize(GetLocal,GetType)
+	Dim FSO
+	Set FSO=Server.CreateObject("Scripting.FileSystemObject")
+	If Err<>0 Then
+		Err.Clear
+		GetTotalSize="服务器关闭FSO，查看占用空间失败"
+	Else
+		Dim SiteFolder
+		If GetType="Folder" Then
+			Set SiteFolder=FSO.GetFolder(GetLocal) 
+		Else
+			Set SiteFolder=FSO.GetFile(GetLocal) 
+		End If
+		GetTotalSize=SiteFolder.Size
+		If GetTotalSize>1024*1024 Then
+		GetTotalSize=GetTotalSize/1024/1024
+		If inStr(GetTotalSize,".") Then GetTotalSize = Left(GetTotalSize,inStr(GetTotalSize,".")+2)
+			GetTotalSize=GetTotalSize&" MB"
+		Else
+			GetTotalSize=Fix(GetTotalSize/1024)&" KB"
+		End If
+		Set SiteFolder=Nothing
+	End If
+	Set FSO=Nothing
+End Function
+
+End If
+End If
+
+Function DeleteFiles(FilePath)
+    Dim FSO
+    Set FSO=Server.CreateObject("Scripting.FileSystemObject")
+	If Err<>0 Then
+		Err.Clear
+		Response.Write("服务器关闭FSO，无法删除文件")
+	Else
+		If FSO.FileExists(FilePath) Then
+			FSO.DeleteFile FilePath,True
+			DeleteFiles = 1
+		Else
+			DeleteFiles = 0
+		End If
+	End If
+    Set FSO = Nothing
+End Function
+
+Function FreeApplicationMemory
+	Response.Write "<b>释放网站数据列表：</b>" & VbCrLf
+	Dim Thing
+	For Each Thing IN Application.Contents
+		If Left(Thing,Len(CookieName)) = CookieName Then
+			Response.Write "<font color=""gray"">" & thing & "</font><br>"
+			If isObject(Application.Contents(Thing)) Then
+				Application.Contents(Thing).Close
+				Set Application.Contents(Thing) = Nothing
+				Application.Contents(Thing) = Null
+				Response.Write "成功关闭对象"
+			ElseIF isArray(Application.Contents(Thing)) Then
+				Set Application.Contents(Thing) = Nothing
+				Application.Contents(Thing) = Null
+				Response.Write "成功释放数组"
+			Else
+				Response.Write(HtmlEncode(Application.Contents(Thing)))
+				Application.Contents(Thing) = Null
+			End If
+			Response.Write("&nbsp;&nbsp;")
+		End If
+	Next
+End Function%>
+    <%End If%>
+</div>
+<div class="blank10"></div>
+<!--footer-->
+<!--#include file="footer.asp" -->
+</body>
+</html>

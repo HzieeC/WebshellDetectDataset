@@ -1,0 +1,174 @@
+<!--#include file="conn.asp"-->
+<!--#include file="Include/AdnCms.Security.asp"-->
+<!--#include file="Include/AdnCms.Function.asp"-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>请将不能观看的电影反馈给我们！</title>
+<style type="text/css">
+*{margin:0px auto; padding:0px; text-align:center;}
+body,td,th {font-size: 14px;color: #000000;background-color: #EEEEEE;}
+li{margin-left:15px; text-align:left; line-height:21px; float:left; width:110px!important; width:95px;}
+</style>
+<script language="JavaScript" type="text/javascript">
+function CheckOthers(form){
+	for (var i=0;i<form.elements.length;i++){
+		var e = form.elements[i];
+		if (e.checked==false){
+			e.checked = true;// form.chkall.checked;
+		}else{
+				e.checked = false;
+		}
+	}
+}
+</script>
+</head>
+<body>
+<%
+Dim action,url_id,ji_id,data_id,urlnameid
+url_id=Adn_CLng(request.QueryString("u"))
+ji_id=Adn_CLng(request.QueryString("j")) 
+data_id=Adn_CLng(request.QueryString("d"))
+action=Trim(request.QueryString("action"))
+Call OpenConn()
+If action="ok" Then
+    dim overname,overid
+    e_id=trim(NoSqlHack(request.form("e")))
+	e_id=replace(e_id,", ",",")
+	If e_id="" Then Call Adn_Err("请指定播放错误信息ID!")		
+	overname=split(e_id,",")
+	overid=ubound(overname)
+	For i=0 to overid
+	'Response.Write(overname(i))&url_id&"<br>"
+		Set rs = Server.CreateObject("adodb.recordset")
+		sql = " select * from adnim_err where err_urlid="&url_id&" and err_jiid="&overname(i)&" "
+		rs.Open sql, Conn, 1, 3
+		If Not(rs.bof and rs.eof) Then
+			rs("err_times")=rs("err_times")+1
+			rs.update
+		Else
+			rs.addnew
+			rs("err_id")=Adn_MaxId("err")
+			rs("err_urlid")=url_id
+			rs("err_jiid")=overname(i)
+			rs("err_times")=1
+			rs.update
+		End If
+		rs.close
+		set rs=nothing
+	Next
+	Response.Write("<script>confirm('您的错误报告已经提交成功！非常感谢您的热心报错，我们会尽快处理！');window.close();</script>")
+Else
+    If data_id>0 and u<1 Then
+	    Call ErrList_Data
+	Else
+        Call ErrList_Url
+	End If
+End If
+Call CloseConn()
+%>
+</body>
+</html>
+<%
+Sub ErrList_Url()
+Set rs=Conn.Execute(" select url_id,data_id,server_id,url_intro from adnim_url where url_id="&url_id&" ")
+If Not(rs.bof And rs.eof) Then        
+	url_id=rs("url_id")       '地址ID
+	url_intro=rs("url_intro") '地址组
+	If instr(url_intro,"$$$")>0 Then
+		ji_name=split(url_intro,"$$$")     '该组多集
+		ji_overid=ubound(ji_name)
+		For i=0 to ji_overid
+		    If i=ji_id Then 
+			    intype="checked='checked'"
+			Else
+			    intype=""
+			End If
+			if instr(url_intro,"|")>0 then
+				url_name=split(ji_name(i),"|")
+				urlnameid=urlnameid&"<li><input type='checkbox' name='e' value='"&i&"' "&intype&"/>"&url_name(0)&"</li>"'多集自定义名称——地址ID值
+			else
+				urlnameid=urlnameid&"<li><input type='checkbox' name='e' value='"&i&"' "&intype&"/> 第"&i+1&"集</li>"'多集无自定义名称——地址ID值
+			end if
+		Next
+	Else                                    '只有一集
+		urlnameid="<li><input type='checkbox' name='e' value=0 checked='checked'/> 全集</li>"        	
+	End If
+%>		
+<div style="width:760px; border:1px solid #CCCCCC; padding-bottom:5px; background:#FFFFFF">
+<form method='post' action='?action=ok&u=<%=url_id%>' onSubmit='javascript:return CheckForm()'>
+<h1 style=" width:100%; border-bottom:1px solid #CCCCCC; font-size:21px; height:30px; line-height:30px;">将不能观看的地址反馈给管理员</h1>
+<h2 style="border-bottom:1px dashed #CCCCCC; font-size:14px; padding:5px 2px; text-align:left; margin-bottom:5px; color:#666666"><%=Get_DataName(rs("data_id"))%> >> <span style="color:#FF0000; font-size:12px; font-weight:normal;"><%=Get_ServerName(rs("server_id"))%></span></h2>
+<ul style="text-align:left; list-style:none; overflow: hidden;"><%=urlnameid%></ul>
+<div style="clear:both; margin-top:10px;"><input type='button' value='全/反选' onClick=CheckOthers(this.form) /> <input type='submit' value='提交选项'/></div>
+</form>
+</div>
+<%	
+Else                                  '没有数据
+	Response.Write("该片暂时没有播放地址,不需要报错,谢谢!")
+End If
+Set rs=nothing
+End Sub
+
+Sub ErrList_Data()
+Set rs=Conn.Execute(" Select url_id,data_id,server_id,url_intro from adnim_url where data_id="&data_id&" ")
+If Not(rs.bof And rs.eof) Then
+%>
+<div style=" width:760px; border:1px solid #CCCCCC; padding-bottom:5px; background:#FFFFFF"">
+<h1 style=" width:100%; border-bottom:1px solid #CCCCCC; font-size:21px; height:30px; line-height:30px;">将不能观看的地址反馈给管理员</h1>
+<%
+    Do while not rs.eof
+	url_id=rs("url_id")       '地址ID
+	Call Get_ListUrl(rs("url_intro"),rs("server_id"))
+%>
+<form name="<%=url_id%>" method='post' action='?action=ok&u=<%=url_id%>' onSubmit='javascript:return CheckForm()'>
+<h2 style="border-bottom:1px dashed #CCCCCC; font-size:14px; padding:5px 2px; text-align:left; margin-bottom:5px; color:#666666"><%=Get_DataName(data_id)%> >> <span style="color:#FF0000; font-size:12px; font-weight:normal;"><%=Get_ServerName(rs("server_id"))%></span></h2>
+<ul style="text-align:left; list-style:none; overflow: hidden;"><%=urlnameid%></ul>
+<div style="clear:both; margin-top:10px;"><input type='button' value='全/反选' onClick=CheckOthers(this.form) /> <input type='submit' value='提交选项'/></div>
+</form>
+<%rs.movenext:Loop%>
+</div>	
+<%Else                                  '没有数据
+	Response.Write("该片暂时没有播放地址,不需要报错,谢谢!")
+End If
+Set rs=nothing
+End Sub
+Function Get_ListUrl(strurl,serverid)
+    urlnameid=""
+	If instr(strurl,"$$$")>0 Then
+		ji_name=split(strurl,"$$$")     '该组多集
+		ji_overid=ubound(ji_name)
+		For i=0 to ji_overid
+			if instr(url_intro,"|")>0 then
+				url_name=split(ji_name(i),"|")
+				urlnameid=urlnameid&"<li><input type='checkbox' name='e' value='"&i&"'/>"&url_name(0)&"</li>"'多集自定义名称——地址ID值
+			else
+				urlnameid=urlnameid&"<li><input type='checkbox' name='e' value='"&i&"'/> 第"&i+1&"集</li>"'多集无自定义名称——地址ID值
+			end if
+		Next
+	Else                                    '只有一集
+		urlnameid="<li><input type='checkbox' name='e' value=0 checked='checked'/> 全集</li>"        	
+	End If
+End Function
+
+Function Get_DataName(dataid)
+	Set drs=Conn.Execute(" select data_id,data_name from adnim_data where data_id="&dataid&" ")
+	If Not(drs.bof And drs.eof) Then
+	    Get_DataName=drs("data_name")
+	Else
+	    Get_DataName="该影片不存在或已被删除"
+	End If
+	Set drs=nothing
+End Function
+
+Function Get_ServerName(serid)
+    Set rss = Conn.Execute(" select top 1 server_id,server_name from adnim_server where server_id = "&serid&" ")
+	If not(rss.bof and rss.eof) Then
+	    Get_ServerName=rss("server_name")
+	Else
+	    Get_ServerName="未知服务组"
+	End If
+	Set rss=nothing
+End Function
+%>

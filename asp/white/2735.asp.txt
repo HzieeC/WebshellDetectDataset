@@ -1,0 +1,258 @@
+<!--#include file="userfunc.asp"-->
+<%
+sub addtocart() 
+
+ProductList = Session("ProductList")
+Products = Split(Request("Prodid"), ",")
+For I=0 To UBound(Products)
+   PutToShopBag Products(I), ProductList
+Next
+Session("ProductList") = ProductList
+
+if request("payment")="去收银台" then
+
+response.redirect "shoporders.asp?action=1"
+
+
+end if
+
+If Request("cmdShow") = "Yes" Then
+   ProductList = ""
+   Products = Split(Request("ProdId"), ", ")
+   For I=0 To UBound(Products)
+      PutToShopBag Products(I), ProductList
+   Next
+   Session("ProductList") = ProductList
+End If
+If Len(Session("ProductList")) = 0 Then
+Response.write "<table  height=100% width=100%  ><tr><td align=center>您的购物车为空，<a href=index.asp><b>继续购物</b></a>&nbsp;</td></tr></table>"
+Response.end
+end if
+%>
+<table width="600" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor=<%=bgclr2%>>
+<tr> 
+    <td><br>&nbsp;&nbsp;<font color="#FF3333"><b>以下是您购物车中的商品信息，请核对正确无误后下单，非注册用户请牢记你的订单号以便日后查询！<br> &nbsp; </b></font></td>
+ </tr>
+<%
+Set rsshop=Server.CreateObject("ADODB.RecordSet") 
+strsql="select ID,proName,Score,Price2,price1,price3,amount,VipPrice,Stock from sdx_Product where ID in ("&Session("ProductList")&") order by ID"
+rsshop.open strsql,conn,1,1
+%>
+<tr> <td>
+<form action="shop.asp" method="POST" name="check">
+      <table border="0" cellspacing="1" cellpadding="4" align="center" width="100%" bgcolor="#cccccc">
+            <tr bgcolor="#FFFFFF" height="25" align="center"> 
+             <td width="80">选中/清除</td>
+             <td width="300">商 品 名 称</td>
+             <td width="40">数量</td>
+	     <td width="40">积分</td>
+	     <td width="60">商城价</td>
+	     <td width="40">邮费</td>
+             <td width="60">成交价</td>
+	      <td width="70">总 计</td>
+             
+          </tr>
+<%
+Sum = 0
+SumS = 0
+Quatity = 1
+Do While Not rsshop.EOF
+     Quatity = CInt( Request.Form( "Q_" & rsshop("ID")) )
+     If Quatity <= 0 Then 
+        Quatity = CInt( Session(rsshop("ID")) )
+        If Quatity <= 0 Then Quatity = 1
+     End If
+Session(rsshop("ID")) = Quatity
+
+IF rsshop("Stock") <= Quatity Then
+Quatity = 1
+Session(rsshop("ID")) = 1
+response.write "<script language=javascript>alert('对不起，"&rsshop("Name")&"暂时库存不足，请过段时间再来购买该商品！');window.close();</script>" 
+Conn.Close
+Set Conn = Nothing
+response.End()
+End IF
+
+If rsshop("amount") = 0 or LngUserID=0 or Lnggrpid = 4 Then 
+ if rsshop("price1")<1 then 
+myprice=0&rsshop("price1")
+ else 
+myprice=rsshop("price1")
+ end if
+
+ Elseif Lnggrpid = 5  then 
+             
+ if rsshop("price2")<1 then 
+myprice=0&rsshop("price2")
+ else 
+myprice=rsshop("price2")
+ end if 
+
+ Else 
+
+ if Round(trim(rsshop("price3")*LngDiscount),2)<1 then 
+myprice=0&Round(trim(rsshop("price3")*LngDiscount),2)
+else 
+myprice=Round(trim(rsshop("price3")*LngDiscount),2)
+end if
+
+end if
+
+Dim YourPrice,strprice2,strvipprice,ProScore,strprice3,YourPricex
+strprice1   =   myprice
+strprice2   =   myprice
+strprice3   =   myprice
+strvipprice =   rsshop("VipPrice")
+ProScore    =   rsshop("Score")
+YourPrice1  =   strprice1 
+YourPrice2  =   strprice2 
+YourPrice3  =   strprice3
+if  LngUserID=0 or Lnggrpid = 4 or rsshop("amount") = 0 Then
+YourPricex  =   YourPrice1
+Elseif Lnggrpid = 5  then
+YourPricex =    YourPrice2
+else
+YourPricex =    YourPrice3
+end if
+Sum = Sum + (YourPricex + strvipprice)*Quatity
+Sum=Round(Sum,2) 
+SumS = SumS + ProScore*Quatity
+%> 
+     <tr bgcolor="#FFFFFF" height="25"align="center"> 
+            <td><input class=shopinput2 type="CheckBox" name="pid" value="<%=rsshop("ID")%>" Checked></td>
+			 
+            <td align="left">&nbsp;<a href="pro_show.asp?ID=<%=rsshop("ID")%>" target="_blank"><%=rsshop("proName")%></a></td>
+            <td><input class=shopinput1 type="Text" name="<%="Q_" & rsshop("ID")%>" value="<%=Quatity%>" onchange='javascript:this.form.submit();name="cmdShow"' size="3" ></td>
+	    <td><%=ProScore %>分</td>
+	    <td><%=rsshop("price0") %>元</td>
+             <td><%=strvipprice %>元</td>
+              <td><%=YourPricex %>元</td>
+	     <td><%=Round((YourPricex + strvipprice)*Quatity,2) %>元</td>
+               <td><input class=shopinput2   type=button   value="修改数量"  onclick="location.href='shopcart.asp'"></td>
+             
+          </tr>
+          <%
+     rsshop.MoveNext
+     Loop
+
+rsshop.close
+set rsshop=nothing
+
+%> 
+<tr bgcolor="#FFFFFF">
+     <td  colspan="10" STYLE="PADDING-LEFT: 60px;"> 
+  您现在是：<font color="#FF6600"><%= strTitle %></font>&nbsp;
+
+  折后总计：<font color="#FF6600"><%=FormatNumber(Round(Sum,2)) %></font>&nbsp;元,
+		
+  获得积分：<font color="#FF6600"><%=SumS %></font>&nbsp;分
+  
+    </td>
+ </tr>
+<tr bgcolor="#FFFFFF"> 
+ <td colspan="11" align="center" valign="middle" >             
+                <input class=shopinput2 type="submit" name="order" value="更新清除不选商品"> &nbsp;
+                <input class=shopinput2 type="submit" name="payment" value="去收银台"> &nbsp;
+                <input class=shopinput2 type="button" value="继续购物" language=javascript onClick="javascript:window.close()" name="button">&nbsp;
+                <input class=shopinput2 type="hidden" name="shopShow" value="Yes">&nbsp;
+               <input class=shopinput2 type="submit" name="qingkong" value="清空购物车"  > 
+                </td>
+
+          </tr>
+
+          <tr bgcolor="#FFFFFF">
+     <td  colspan="10" STYLE="PADDING-LEFT: 60px;PADDING-top: 20px;PADDING-bottom: 20px"> 
+   · 如果您想继续购物，请点选继续购物<br>
+   · 如果您想更新已在购物车内的产品，请先修改，然后点选修改数量<br>
+   · 如果您想全部取消已订购在购物车中的产品，请点选清空购物车<br>
+   · 如果您满意您所购买的产品，请点选去收银台<br>   
+   · 以上是您购物车中的商品信息，请核对正确无误后下单，如果你使用非注册用户下单请牢记你的订单号以便日后查询！
+    </td>
+ </tr>
+      </table>
+	          </form>
+ </td>
+</tr>
+      </table>
+
+<%
+end sub
+sub addtofav()
+if request.cookies("sundxshop")("username")="" then
+response.Write "<script language='javascript'>alert('请先登陆！');location.href='user_login.asp' ;</script>"
+response.End
+end if
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select sdx_orders.actionid,sdx_orders.id,sdx_product.proname,sdx_product.price1,sdx_product.price2,sdx_product.discount,sdx_product.amount from sdx_product inner join sdx_orders on sdx_product.id=sdx_orders.id where sdx_orders.username='"& strUserName&"' and sdx_orders.state=6",conn,1,1 
+%>
+<table width=96% border=0 align=center cellpadding=0 cellspacing=1 bgcolor=#9A9A9A>
+<%
+response.write "<form name='form1' method='post' action=shopcol.asp>"
+ %>
+ <tr BGCOLOR=#ffffff align="center" height="20">
+        <td ><font color="#000000">选择</font></td> 
+      <td ><font color="#000000">商品名称</font></td>
+      <td width="8%"><font color="#000000">商城价</font></td>
+      <td width="8%"><FONT COLOR="#000000">成交价</FONT></td>   
+      <td width="7%"> <font color="#000000">数量</font></td>
+      <td width="6%"><font color="#000000">积分</font></td>
+      <td width="9%"> <font color="#000000">小计</font></td>
+      
+    </tr>
+<%  do while not rs.eof 
+If rs("amount") = 0 or LngUserID=0 or Lnggrpid = 4 Then 
+ if rs("price1")<1 then 
+myprice=0&rs("price1")
+ else 
+myprice=rs("price1")
+ end if
+
+ Elseif Lnggrpid = 5  then 
+             
+ if rs("price2")<1 then 
+myprice=0&rs("price2")
+ else 
+myprice=rs("price2")
+ end if 
+
+ Else 
+
+ if Round(trim(rs("price3")*LngDiscount),2)<1 then 
+myprice=0&Round(trim(rs("price3")*LngDiscount),2)
+else 
+myprice=Round(trim(rs("price3")*LngDiscount),2)
+end if
+
+end if
+ %>
+<tr bgcolor=#ffffff align=center>
+<td STYLE='PADDING-LEFT: 5px' align=left><a href=pro_show.asp?id=<% = rs("id") %> target=_blank><% = rs("proname") %></a></td>
+<td><% = rs("price0") %>元</td>
+<td><font color=#FF0000><% = myprice %>元</font></td>
+<td>
+<%
+if action<>"addtofav" then
+response.Write "<a href=addfav.asp?action=del&actionid="&rs("actionid")&">"
+else
+response.Write "<a href=addfav.asp?action=del&actionid="&rs("actionid")&"&ll=22>" 
+end if
+
+response.Write "<img src=images/trash.gif width=15 height=17 border=0></a></td></tr>"
+rs.movenext
+loop
+rs.close
+set rs=nothing
+response.write "<tr><td height=36 colspan=6 bgcolor=#FFFFFF><div align=center><input type=submit name=Submit  value=去下订单 >&nbsp;&nbsp;&nbsp;&nbsp;"
+if action<>"addtofav" then
+response.write "<input type=button name=Submit2 value=继续采购 onclick=javascript:window.close()>"
+end if
+%>
+</div></td></tr></form></table>
+	  
+
+
+<%
+
+end sub
+%>
+ 

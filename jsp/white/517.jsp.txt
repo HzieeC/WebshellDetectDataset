@@ -1,0 +1,50 @@
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>组织架构</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">	
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/baseInfo/area/list_area.js"></script>
+
+</head> 
+
+<body>
+	<!-- 最大级别 -->
+	<input id="maxLevel" type="hidden" name="maxLevel" value="${maxLevel }">
+	<table id="dataGrid"></table>
+	
+	<div id="edit" closed="true">
+		<iframe frameborder="0" id="editDataPage" width="450px" height="300px"></iframe>
+	</div>		
+	
+<!-- 语言设置 -->
+<input type="hidden" id="AreaName" value="<s:text name="list.area.AreaName"/>"/>
+<input type="hidden" id="AreaNumber" value="<s:text name="list.area.AreaNumber"/>"/>
+<input type="hidden" id="Level" value="<s:text name="list.area.Level"/>"/>
+<input type="hidden" id="Level1area" value="<s:text name="list.area.Level1area"/>"/>
+<input type="hidden" id="Level2area" value="<s:text name="list.area.Level2area"/>"/>
+<input type="hidden" id="Level3area" value="<s:text name="list.area.Level3area"/>"/>
+<input type="hidden" id="Level4area" value="<s:text name="list.area.Level4area"/>"/>
+<input type="hidden" id="Addsonarea" value="<s:text name="list.area.Addsonarea"/>"/>
+<input type="hidden" id="Addlevel1area" value="<s:text name="list.area.Addlevel1area"/>"/>
+<input type="hidden" id="AreaInfo" value="<s:text name="list.area.AreaInfo"/>"/>
+<input type="hidden" id="BasicInformation" value="<s:text name="BasicInformation"/>"/>
+<input type="hidden" id="Operation" value="<s:text name="Operation"/>"/>
+<input type="hidden" id="Edit" value="<s:text name="Edit"/>"/>
+<input type="hidden" id="Delete" value="<s:text name="Delete"/>"/>
+<input type="hidden" id="Save" value="<s:text name="Save"/>"/>
+	
+</body>
+
+
+
+
+
+</html>

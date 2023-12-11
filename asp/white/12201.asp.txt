@@ -1,0 +1,240 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="inc/file_memberLog.asp" -->
+<%
+Call CheckIframe()
+
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 ****
+
+
+Call OpenMemberexe("","login",2)
+Call CloseMemberexe()
+
+
+
+
+Select Case mudi
+	Case "add","rev"
+		Call AddOrRev()
+
+	Case "addBad"
+		Call AddBad()
+
+	Case "send"
+		menuFileID = 200
+		Call IsSecMenuRight("alert",menuFileID,dataType)
+		Call Send()
+
+	Case "del"
+		menuFileID = 200
+		Call IsSecMenuRight("alert",menuFileID,dataType)
+		Call del()
+
+	Case "moreDel":
+		menuFileID = 200
+		Call IsSecMenuRight("alert",menuFileID,dataType)
+		Call MoreDel()
+
+End Select
+
+
+Call CloseConobj()
+
+
+
+
+
+
+
+
+
+'添加与修改
+Private Sub AddOrRev()
+	URL			= ToPostStr("URL")
+	dataType	= ToPostStr("dataType")
+	dataTypeCN	= ToPostStr("dataTypeCN")
+
+	webType		= ToPostStr("webType")
+	dataID		= ToPostInt("dataID")
+	ip			= ToPostStr("ip")
+	note		= ToPostStr("note")
+
+	
+	If webType="" Or ip="" Then
+		response.write "<script language='javascript' type='text/javascript'>alert('表单内容接收不全');history.back(-1)</script>"
+		response.end
+	End If
+	
+	application.lock
+		Set dealrec=server.CreateObject("ADODB.recordset")
+		dealrec.open "select top 1 * from OT_userIp where UI_ID="& dataID,conobj,0,2
+			If dealrec.EOF Then
+				menuFileID = 200
+				Call IsSecMenuRight("alertBack",menuFileID,dataType)
+				dealrec.addnew
+				alertMode="添加"
+				dealrec("UI_type")=webType
+				dealrec("UI_time")=Now()
+				dealrec("UI_date")=Date()
+			Else
+				menuFileID = 200
+				Call IsSecMenuRight("alertBack",menuFileID,dataType)
+				alertMode="修改"
+			End If
+		dealrec("UI_ip")=ip
+		dealrec("UI_note")=note
+		dealrec.update
+		dealrec.close
+		Set dealrec=Nothing
+	application.unlock
+
+
+	alertResult = "成功"
+	Call MemberLog_Deal(0,"","",theme,"【"& dataTypeCN &"】"& alertMode & alertResult &"！")
+
+
+	Call JS_AlertHref(""& alertMode &"成功！",URL)
+End Sub
+
+
+
+
+
+'加入黑名单
+Private Sub AddBad()
+	dataType	= ToGetStr("dataType")
+	dataTypeCN	= ToGetStr("dataTypeCN")
+	theme		= ToGetStr("theme")
+
+	ipStr		= ToGetRegExpStr("ipStr","sql+.")
+	userID		= ToGetInt("userID")
+
+	
+	If ipStr="" Then
+		response.write "<script language='javascript' type='text/javascript'>alert('表单内容接收不全');</script>"
+		response.end
+	End If
+	
+	application.lock
+		Set dealrec=server.CreateObject("ADODB.recordset")
+		dealrec.open "select top 1 * from OT_userIp where UI_type='bad' and UI_ip='"& ipStr &"'",conobj,0,2
+			If Not dealrec.EOF Then
+				response.write "<script language='javascript' type='text/javascript'>alert('黑名单里已存在该IP');</script>"
+				response.end
+			Else
+				menuFileID = 200
+				Call IsSecMenuRight("alertBack",menuFileID,dataType)
+				dealrec.addnew
+				dealrec("UI_type")="bad"
+				dealrec("UI_time")=Now()
+				dealrec("UI_ip")=ipStr
+				dealrec("UI_note")="来至用户注册（"& theme &"）"
+				dealrec.update
+			End If
+		dealrec.close
+		Set dealrec=Nothing
+	application.unlock
+
+
+	alertResult = "成功"
+	Call MemberLog_Deal(0,"","",theme,"【"& dataTypeCN &"】加入黑名单"& alertResult &"！")
+
+
+	Call JS_AlertHref("加入黑名单成功！",URL)
+End Sub
+
+
+
+
+
+
+'数据发送
+Private Sub Send()
+	numID		= ToGetInt("typeNum")
+	dataID		= ToGetInt("dataID")
+	dataMode	= ToGetStr("dataMode")
+	dataModeStr	= ToGetStr("dataModeStr")
+
+	Set sendexe=conobj.execute("select top 1 * from OT_userIp where UI_ID="& dataID)
+		If sendexe.EOF Then
+			JS_AlertEnd("搜索不到指定记录")
+		End If
+	response.write(_
+	"<script language='javascript' type='text/javascript'>"&_
+	"parent.$id('numID').innerHTML='"& numID &"';"&_
+	"parent.$id('dataID').value='"& sendexe("UI_ID") &"';"&_
+	"parent.$id('webType').value="""& sendexe("UI_type") &""";"&_
+	"parent.$id('ip').value="""& sendexe("UI_ip") &""";"&_
+	"parent.$id('note').value='"& sendexe("UI_note") &"';"&_
+	"parent.$id('subButton').src='images/button_rev.gif';"&_
+	"</script>")
+	sendexe.close
+	Set sendexe=Nothing
+End Sub
+
+
+
+
+
+
+
+'删除
+Private Sub del()
+	dataID	= ToGetInt("dataID")
+	theme	= ToGetStr("theme")
+
+	If dataID<=0 Then
+		response.write "<script language='javascript' type='text/javascript'>alert('指定ID错误！');</script>"
+		response.End
+	End If
+
+	conobj.execute("delete from OT_userIp where UI_ID="& dataID)
+
+
+	alertResult = "成功"
+	Call MemberLog_Deal(0,"","",theme,"【"& dataTypeCN &"】删除"& alertResult &"！")
+
+
+	response.write("<script language='javascript' type='text/javascript'>parent.$id('closeData"& dataID &"').style.display='none'</script>")
+End Sub
+
+
+
+
+
+
+' 批量删除
+Function MoreDel()
+	URL			= ToPostStr("URL")
+	selDataID	= ToPost("selDataID")
+
+	If request.Form("selDataID").count <=0 Then
+		Call JS_AlertBackEnd("请先选择要删除的记录.")
+	End If
+
+	whereStr=""
+		For i=1 To request.Form("selDataID").count
+			whereStr=whereStr &" or UI_ID="& request.Form("selDataID")(i)
+		Next
+
+
+	conobj.execute("delete from OT_userIp where UI_ID=0"& whereStr)
+
+	response.write(_
+	"<script language='javascript' type='text/javascript'>"&_
+	"alert('批量删除成功.');document.location.href='"& URL &"';"&_
+	"</script>"&_
+	"")
+
+End Function
+
+
+%>

@@ -1,0 +1,474 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../inc/setup.asp"-->
+<!--#include file="../inc/const.asp"-->
+<!--#include file="../inc/check.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_group.asp
+' 更新日期：2008-09-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="100" align="left">用户组管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_index.asp">管理首页</a>
+			 - <a href="admin_group.asp">用户组管理</a>
+			 - <a href="admin_group.asp?action=add">添加用户组</a>
+			 - <a href="admin_list.asp">用户列表</a>
+			 - <a href="admin_user.asp?action=add">添加会员</a>
+			 - <a href="admin_list.asp?showmode=1">等待验证的会员</a>
+			 - <a href="admin_master.asp">管理员列表</a>
+			 - <a href="admin_password.asp">修改密码</a>
+		</td>
+	</tr>
+</table>
+<%
+Dim Action,m_strUserGroup
+If Not ChkAdmin("UserGroup") Then
+	Call Transfer_error()
+End If
+Action=LCase(Request("action"))
+Select Case Trim(Action)
+Case "add"
+	Call addUserGroup()
+Case "edit"
+	Call editUserGroup()
+Case "savedit"
+	Call savedit()
+Case "savenew"
+	Call savenew()
+Case "del"
+	Call delUserGroup()
+Case Else
+	Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+%>
+<table border="0" cellspacing="1" cellpadding="3" align="center" class="tableborder">
+	<tr> 
+		<th colspan="4" >用户组管理&nbsp;&nbsp;|&nbsp;&nbsp;<a href="?action=add"><font color="#FFFFFF"><strong>[添加新用户组]</strong></font></a></th>
+	</tr>
+	<tr>
+		<td colspan="4" class="tablerow2"><B>说明</B>：<br/>
+		①在这里您可以设置各个用户组在系统中的默认权限，系统默认用户组不能删除和编辑用户等级;<br/>
+		②可以进行添加用户组操作并设置其权限，可以将其他组用户转移到该组，请到用户管理中进行相关操作;<br/>
+		③可以删除和编辑新添加的用户组，添加组时请填相应用户等级。<br/>
+		</td>
+	</tr>
+	<tr align="center">
+		<td width="30%" class="tablerow1"><B>用户组</B></td>
+		<td width="20%" class="tablerow1"><B>用户数量</B></td>
+		<td width="20%" class="tablerow1"><B>编辑</B></td>
+		<td width="30%" class="tablerow1"><B>用户等级</B></td>
+	</tr>
+<%
+	Dim Rs,i,trs,iCount
+	Set Rs=NewAsp.Execute("SELECT * FROM NC_UserGroup ORDER BY groupid")
+	i = 0:iCount=1
+	Do While Not Rs.EOF
+	Set trs=NewAsp.Execute("SELECT COUNT(userid) FROM [NC_user] WHERE UserGrade="&Rs("Grades"))
+		If (i mod 2) = 0 Then iCount=2 Else iCount=1
+%>
+	<tr align="center">
+		<td class="tablerow<%=iCount%>"><%=rs("GroupName")%></td>
+		<td class="tablerow<%=iCount%>"><%if rs("Grades") = 0 Then%>匿名用户<%Else%><%=trs(0)%><%End If%></td>
+		<td class="tablerow<%=iCount%>"><a href="?action=edit&groupid=<%=rs("groupid")%>">用户组设置</a><%if rs("groupid") => 6 then%> | <a href="?action=del&groupid=<%=rs("groupid")%>&Grade=<%=rs("Grades")%>" onclick="{if(confirm('此操作将删除本用户组\n 您确定执行的操作吗?')){return true;}return false;}">删除</a><%end if%></td>
+		<td class="tablerow<%=iCount%>"><%=rs("Grades")%></td>
+	</tr>
+<%
+	Rs.Movenext
+	i = i + 1
+	Loop
+	Rs.Close
+	Set Rs=Nothing
+%>
+</table>
+<%
+End Sub
+
+Sub addUserGroup()
+	Dim Rs,SQL,GroupNum
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT MAX(groupid) FROM NC_UserGroup"
+	Rs.Open SQL, Conn, 1, 1
+	If Rs.EOF And Rs.BOF Then
+		GroupNum = 1
+	Else
+		GroupNum = Rs(0) + 1
+	End If
+	If IsNull(GroupNum) Then GroupNum = 1
+	Rs.Close:Set Rs=Nothing
+%>
+<form action="admin_group.asp?action=savenew" method="post">
+<input type="hidden" name="newgroupid" value="<% = GroupNum %>"/>
+<table class="tableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="2">添加新的用户组</th>
+	</tr>
+	<tr>
+		<td class="tablerow2" colspan="2"><b>说明</b>：<br />
+		①可以进行添加用户组操作并设置其权限，可以将其他组用户转移到该组，请到用户管理中进行相关操作；<br />
+		②可以删除和编辑新添加的用户组，添加是请填写相应用户等级。</td>
+	</tr>
+	<tr>
+		<td colspan="2" class="tablerow1"><b>添加新的用户组</b></td>
+	</tr>
+	<tr>
+		<td class="tablerow2" width="60%">用户组名称</td>
+		<td class="tablerow2" width="40%"><input size="35" name="GroupName" type="text" /></td>
+	</tr>
+	<script>function checkclick(msg){if(confirm(msg)){event.returnValue=true;}else{event.returnValue=false;}}</script>
+	<tr>
+		<td class="tablerow1">用户组等级；请输入数字(数字越大级别越高)</td>
+		<td class="tablerow1"><input size="10" name="Grades" value="<%=NewAsp.Execute("SELECT MAX(Grades) FROM NC_UserGroup WHERE Grades <> 999")(0)+1%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">&nbsp;</td>
+		<td class="tablerow2"><input class="button" type="button" onclick="javascript:history.go(-1)" name="go_button" value="返回上一页" />　 
+		<input class="button" type="submit" name="submit_button" value="添加用户组" /></td>
+	</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub editUserGroup()
+	Dim Rs,SQL
+	Dim GroupSet
+	SQL = "SELECT groupid,GroupName,GroupSet,Grades FROM NC_UserGroup WHERE groupid = " & CLng(Request("groupid"))
+	Set Rs = Newasp.Execute(SQL)
+	GroupSet = Split(Replace(Rs("GroupSet"), "|||", "|") & "0|0|0|0|0|0|0|0|0|0|","|")
+%>
+<form action="admin_group.asp?action=savedit" method="post">
+<input type="hidden" value="<%=Request("groupid")%>" name="groupid" />
+<table class="tableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="2">修改用户组</th>
+	</tr>
+	<tr>
+		<td class="tablerow1" colspan="2" height="25"><strong>说明</strong>：<br />
+		①可以进行修改用户组操作并设置其权限，可以将其他组用户转移到该组，请到用户管理中进行相关操作；</td>
+	</tr>
+	<tr>
+		<th colspan="2">用户组设置</th>
+	</tr>
+	<tr>
+		<td class="tablerow1" width="60%">用户组名称</td>
+		<td class="tablerow1" width="40%"><input size="35" name="GroupName" value="<%=Rs("GroupName")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">用户组等级；请输入数字(<font color="#0000ff">数字越大级别越高</font>)</td>
+		<td class="tablerow2"><input disabled="disabled" size="10" value="<%=Rs("Grades")%>" type="text" /> 
+		<input type="hidden" size="10" name="Grades" value="<%=Rs("Grades")%>" />&nbsp;&nbsp;&nbsp;&nbsp; 
+		<a href="admin_group.asp">返回用户组首页</a></td>
+	</tr>
+	<tr>
+		<th align="left" colspan="2">＝＝用户基本使用设置</th>
+	</tr>
+	<tr>
+		<td class="tablerow1">用户是否可以修改密码</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(0)" value="0"<%If Newasp.ChkNumeric(GroupSet(0)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(0)" value="1"<%If Newasp.ChkNumeric(GroupSet(0)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">用户是否可以修改资料</td>
+		<td class="tablerow2"><input type="radio" name="GroupSet(1)" value="0"<%If Newasp.ChkNumeric(GroupSet(1)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(1)" value="1"<%If Newasp.ChkNumeric(GroupSet(1)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">发布内容信息是否使用验证码</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(2)" value="0"<%If Newasp.ChkNumeric(GroupSet(2)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(2)" value="1"<%If Newasp.ChkNumeric(GroupSet(2)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">是否可以使用收藏夹</td>
+		<td class="tablerow2"><input type="radio" name="GroupSet(3)" value="0"<%If Newasp.ChkNumeric(GroupSet(3)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp;
+		<input type="radio" name="GroupSet(3)" value="1"<%If Newasp.ChkNumeric(GroupSet(3)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">是否可以添加好友</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(4)" value="0"<%If Newasp.ChkNumeric(GroupSet(4)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(4)" value="1"<%If Newasp.ChkNumeric(GroupSet(4)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">最多收藏多少条信息 -- 不限制请设置为0</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(5)" value="<%=GroupSet(5)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">最多添加多少好友 -- 不限制请设置为0</td>
+		<td class="tablerow1"><input size="10" name="GroupSet(6)" value="<%=GroupSet(6)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">是否限制用户IP登陆 -- 注：限制后只有注册时的IP才能登陆</td>
+		<td class="tablerow2"><input type="radio" name="GroupSet(41)" value="0"<%If Newasp.ChkNumeric(GroupSet(41)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(41)" value="1"<%If Newasp.ChkNumeric(GroupSet(41)) = 1 Then Response.Write " checked=""checked"""%> /> 是&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(41)" value="2"<%If Newasp.ChkNumeric(GroupSet(41)) = 2 Then Response.Write " checked=""checked"""%> /> 禁止同时登录</td>
+	</tr>
+	<tr>
+		<th align="left" colspan="2">＝＝发布权限设置</th>
+	</tr>
+	<tr>
+		<td class="tablerow1">可以发布文章</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(7)" value="0"<%If Newasp.ChkNumeric(GroupSet(7)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(7)" value="1"<%If Newasp.ChkNumeric(GroupSet(7)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">可以管理自己发布的文章</td>
+		<td class="tablerow2"><input type="radio" name="GroupSet(8)" value="0"<%If Newasp.ChkNumeric(GroupSet(8)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(8)" value="1" <%If Newasp.ChkNumeric(GroupSet(8)) = 1 Then Response.Write " checked=""checked"""%>/> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">发布文章增加的点数</td>
+		<td class="tablerow1"><input size="10" name="GroupSet(9)" value="<%=GroupSet(9)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">每天可以发布多少篇文章</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(10)" value="<%=GroupSet(10)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">可以发布软件</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(11)" value="0"<%If Newasp.ChkNumeric(GroupSet(11)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(11)" value="1"<%If Newasp.ChkNumeric(GroupSet(11)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">可以管理自己发布的软件</td>
+		<td class="tablerow2"><input type="radio" name="GroupSet(12)" value="0"<%If Newasp.ChkNumeric(GroupSet(12)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(12)" value="1"<%If Newasp.ChkNumeric(GroupSet(12)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">发布软件增加的点数</td>
+		<td class="tablerow1"><input size="10" name="GroupSet(13)" value="<%=GroupSet(13)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">每天可以发布多少个软件</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(14)" value="<%=GroupSet(14)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">可以发布动画</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(35)" value="0"<%If Newasp.ChkNumeric(GroupSet(35)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(35)" value="1"<%If Newasp.ChkNumeric(GroupSet(35)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">可以管理自己发布的动画</td>
+		<td class="tablerow2"><input type="radio" name="GroupSet(36)" value="0"<%If Newasp.ChkNumeric(GroupSet(36)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(36)" value="1"<%If Newasp.ChkNumeric(GroupSet(36)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">发布动画增加的点数</td>
+		<td class="tablerow1"><input size="10" name="GroupSet(37)" value="<%=Newasp.ChkNumeric(GroupSet(37))%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">每天可以发布多少个动画</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(38)" value="<%=Newasp.ChkNumeric(GroupSet(38))%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">发布以上信息需要管理员审核</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(15)" value="0"<%If Newasp.ChkNumeric(GroupSet(15)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(15)" value="1"<%If Newasp.ChkNumeric(GroupSet(15)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">发布文章内容的最多字节</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(16)" value="<%=GroupSet(16)%>" type="text" /> byte</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">发布软件简介的最多字节</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(17)" value="<%=GroupSet(17)%>" type="text" /> byte</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">发布动画简介的最多字节</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(39)" value="<%=Newasp.ChkNumeric(GroupSet(39))%>" type="text" /> byte</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">删除文章扣除的点数</td>
+		<td class="tablerow1"><input size="10" name="GroupSet(18)" value="<%=GroupSet(18)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">删除软件扣除的点数</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(19)" value="<%=GroupSet(19)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">删除动画扣除的点数</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(40)" value="<%=Newasp.ChkNumeric(GroupSet(40))%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">是否可以上传文件</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(20)" value="0"<%If Newasp.ChkNumeric(GroupSet(20)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(20)" value="1"<%If Newasp.ChkNumeric(GroupSet(20)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">每天可以上传文件数</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(21)" value="<%=GroupSet(21)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<th align="left" colspan="2">＝＝站内短信设置</th>
+	</tr>
+	<tr>
+		<td class="tablerow1">是否可以发送短信</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(22)" value="0"<%If Newasp.ChkNumeric(GroupSet(22)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(22)" value="1"<%If Newasp.ChkNumeric(GroupSet(22)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">发送短信内容限制</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(23)" value="<%=GroupSet(23)%>" type="text" /> byte</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">信箱大小限制 -- 不限制请设置为0</td>
+		<td class="tablerow1"><input size="10" name="GroupSet(24)" value="<%=GroupSet(24)%>" type="text" /> 条</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">每天可以发送多少条短信</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(29)" value="<%=GroupSet(29)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<th align="left" colspan="2">＝＝用户下载设置</th>
+	</tr>
+	<tr>
+		<td class="tablerow1">是否打开用户下载日志</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(42)" value="0"<%If Newasp.ChkNumeric(GroupSet(42)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(42)" value="1"<%If Newasp.ChkNumeric(GroupSet(42)) = 1 Then Response.Write " checked=""checked"""%> /> 是(计点)&nbsp;&nbsp;
+		<input type="radio" name="GroupSet(42)" value="2"<%If Newasp.ChkNumeric(GroupSet(42)) = 2 Then Response.Write " checked=""checked"""%> /> 记录所有</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">重复下载的时间限制（天） -- 限制时段内不重复扣点</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(43)" value="<%=GroupSet(43)%>" type="text" /> 天</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">每天下载软件数 -- 不限制请设置为0</td>
+		<td class="tablerow1"><input size="10" name="GroupSet(44)" value="<%=GroupSet(44)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">包月用户每天下载软件数 -- 不限制请设置为0</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(45)" value="<%=GroupSet(45)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<th align="left" colspan="2">＝＝其它设置</th>
+	</tr>
+	<tr>
+		<td class="tablerow1">每次登陆增加的点数</td>
+		<td class="tablerow1"><input size="10" name="GroupSet(25)" value="<%=GroupSet(25)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">每次登陆增加经验值</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(32)" value="<%=GroupSet(32)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">每次登陆增加的魅力值</td>
+		<td class="tablerow1"><input size="10" name="GroupSet(33)" value="<%=GroupSet(33)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">发布信息增加的点数</td>
+		<td class="tablerow2"><input size="10" name="GroupSet(26)" value="<%=GroupSet(26)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">回复留言增加的点数</td>
+		<td class="tablerow1"><input size="10" name="GroupSet(27)" value="<%=GroupSet(27)%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">购物所享受的折扣</td>
+		<td class="tablerow2"><input size="5" name="GroupSet(28)" value="<%=GroupSet(28)%>" type="text" /> 折</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">是否可以购物</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(30)" value="0"<%If Newasp.ChkNumeric(GroupSet(30)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(30)" value="1"<%If Newasp.ChkNumeric(GroupSet(30)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">是否可以下载软件</td>
+		<td class="tablerow2"><input type="radio" name="GroupSet(31)" value="0"<%If Newasp.ChkNumeric(GroupSet(31)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(31)" value="1"<%If Newasp.ChkNumeric(GroupSet(31)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">下载软件是否直接显示下载地址(供会员使用工具下载)</td>
+		<td class="tablerow1"><input type="radio" name="GroupSet(34)" value="0"<%If Newasp.ChkNumeric(GroupSet(34)) = 0 Then Response.Write " checked=""checked"""%> /> 否&nbsp;&nbsp; 
+		<input type="radio" name="GroupSet(34)" value="1"<%If Newasp.ChkNumeric(GroupSet(34)) = 1 Then Response.Write " checked=""checked"""%> /> 是</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">&nbsp;</td>
+		<td class="tablerow2">&nbsp; <input class="button" type="button" onclick="javascript:history.go(-1)" name="go_button" value="返回上一页" />　 
+		<input class="button" type="submit" name="submit_button" value="保存修改" /></td>
+	</tr>
+</table>
+</form>
+<%
+	   Rs.Close:Set Rs=Nothing
+End Sub
+
+Sub savenew()
+	Dim Rs,SQL,Groupsetting
+	If Len(Request.Form("GroupName")) = 0 Then
+  		founderr=true
+  		ErrMsg=ErrMsg+"<li>用户组不能为空！</li>"
+		Exit Sub
+	End If
+	If Trim(request.form("Grades")) = "" Then
+  		Founderr = true
+  		ErrMsg = ErrMsg+"<li>用户等级不能为空！</li>"
+		Exit Sub
+	End If
+	Set Rs = NewAsp.Execute("SELECT Grades FROM [NC_UserGroup] WHERE Grades=" & NewAsp.ChkNumeric(Request("Grades")))
+	If Not (Rs.Bof And Rs.EOF) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！有相同的等级存在,请重新输入用户等级再试！</li>"
+		Exit Sub
+	End If
+	Set Rs = NewAsp.Execute("SELECT Groupset FROM [NC_UserGroup] WHERE Grades=1")
+	Groupsetting = NewAsp.CheckStr(Replace(Rs("Groupset"), "|||", "|"))
+	Rs.Close:Set Rs = Nothing
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM [NC_UserGroup] WHERE (groupid is null)"
+	Rs.Open SQL,Conn,1,3
+	Rs.Addnew
+		Rs("Groupid") = NewAsp.ChkNumeric(Request.Form("Newgroupid"))
+		Rs("Groupname") = Trim(Request.Form("Groupname"))
+		Rs("Grades") = NewAsp.ChkNumeric(Request.Form("Grades"))
+		Rs("Groupset") = Groupsetting
+	Rs.Update
+	Rs.Close:Set Rs=Nothing
+	Succeed("<li>添加用户组 "& Request.Form("GroupName") &" 成功!</li>")
+End Sub
+
+Sub savedit()
+	Dim Rs,SQL,i
+	If Len(request.form("GroupName")) = 0 Then
+  		founderr=true
+  		ErrMsg=ErrMsg+"<li>用户组不能为空！</li>"
+		Exit Sub
+	End If
+	Dim Group_Setting
+	For i = 0 To 45
+		Group_Setting = Group_Setting & Request.Form("GroupSet(" & i & ")") & "|"
+	Next
+	Group_Setting = Group_Setting
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM [NC_UserGroup] WHERE groupid=" & NewAsp.ChkNumeric(Request.Form("groupid"))
+	Rs.Open SQL,Conn,1,3
+		Rs("Groupname") = Trim(Request.Form("Groupname"))
+		Rs("Grades") = NewAsp.ChkNumeric(Request.Form("Grades"))
+		Rs("Groupset") = NewAsp.Checkstr(Group_setting)
+	Rs.Update
+	Rs.Close:Set Rs=Nothing
+	NewAsp.DelCache "GroupSetting" & Request.Form("Grades")
+	Succeed("<li>修改用户组 "& Request.Form("GroupName") &" 成功!</li>")
+End Sub
+
+Sub delUserGroup()
+	NewAsp.DelCache "GroupSetting" & Request.Form("Grade")
+	NewAsp.Execute("DELETE FROM NC_UserGroup WHERE groupid="&NewAsp.ChkNumeric(Request("groupid")))
+	NewAsp.Execute("UPDATE NC_User set UserGrade=1 WHERE UserGrade="&NewAsp.ChkNumeric(Request("Grade")))
+	Response.Redirect("admin_group.asp")
+End Sub
+%>

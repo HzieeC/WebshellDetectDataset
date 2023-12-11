@@ -1,0 +1,438 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>e购订货系统</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+
+<script type="text/javascript" src="${ctx }/scripts/js/jquery-1.3.2.min.js"></script>
+<script  type="text/javascript" src="${ctx }/scripts/js/new_zzjs.js"></script>
+<script src="${ctx }/scripts/js/jquery.KinSlideshow-1.2.1.min.js" type="text/javascript"></script>
+<link href="${ctx }/styles/css/dh.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/tj_index.css" rel="stylesheet" type="text/css" />
+
+<script language="Javascript" type="text/javascript" src="${ctx}/scripts/front/purchase.js"></script>
+<!--首页添加修改的文件-->
+<style type="text/css">
+<!--
+.STYLE1 {
+	font-size: 16px;
+	font-weight: bold;
+}
+.STYLE3 {
+	font-size: 14px;
+	font-weight: bold;
+	color: #FFFFFF;
+	line-height: 20px;
+}
+-->
+</style>
+<script type="text/javascript">
+$(function(){
+	$("#KinSlideshow").KinSlideshow({
+			moveStyle:"right",
+			titleBar:{titleBar_height:27,titleBar_bgColor:"#000000",titleBar_alpha:0},
+			titleFont:{TitleFont_size:12,TitleFont_color:"#000000",TitleFont_weight:"normal"},
+			btn:{btn_bgColor:"#FFFFFF",btn_bgHoverColor:"#FF7000",btn_fontColor:"#000000",btn_fontHoverColor:"#FFFFFF",btn_borderColor:"#FF7000",btn_borderHoverColor:"#FFFFFF",btn_borderWidth:2}
+	});
+})
+</script>
+</head>
+<body>
+<div class="kuang_da">
+ <!--  <iframe src="head.html"  scrolling="No" frameborder="no" width="980px" height="146px"></iframe> -->
+ <%@ include file="/WEB-INF/page/front/head.jsp" %>
+  <div style="width:100%; height:10px; float:left;"></div>
+  <!--tab结束-->
+  <div class="fenleida">
+    <div class="fenlei_fl">
+      <div id="spfl">
+        <div id="spfl1">
+          <div class="spf_l"></div>
+          <div class="spf_z">
+          	<c:if test="${loginCustomer!=null}"><a href="${ctx }/customerManager.do?customer.id=${loginCustomer.id }">账户信息</a></c:if>
+          	<c:if test="${loginCustomer==null}">账户信息</c:if>
+          </div>
+          <div class="spf_r"></div>
+        </div>
+        <div id="spfl2">
+          <dl>
+            <dt>
+              <p>公司名称：</p>
+              <p>用户名：</p>
+              <p>会员等级：</p>
+              <p>姓名：</p>
+              <p>待收货订单：</p>
+              <p>待付款订单：</p>
+            </dt>
+            <dd>
+              <p>
+	              <c:if test="${fn:length(loginCustomer.companyName) >7}">${fn:substring(loginCustomer.companyName,0,7) }</c:if>
+	              <c:if test="${fn:length(loginCustomer.companyName) <7}">${loginCustomer.companyName }</c:if>
+              </p>
+              <p>${loginCustomer.account }
+              	 <c:if test="${fn:length(loginCustomer.account) >7}">${fn:substring(loginCustomer.account,0,7) }</c:if>
+              	 <c:if test="${fn:length(loginCustomer.account) <7}">${loginCustomer.account }</c:if>
+              </p>
+              <p>
+              	<c:if test="${fn:length(loginCustomer.vipLevelName) >7}">${fn:substring(loginCustomer.vipLevelName,0,7) }</c:if>
+              	<c:if test="${fn:length(loginCustomer.vipLevelName) <7}">${loginCustomer.vipLevelName}</c:if>
+              </p>
+              <p>${loginCustomer.name }</p>
+              <p>${Receiving }</p>
+              <p>${PaymentOrder }</p>
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="fenlei_gg">
+      <div class="fenlei_gg_gd">
+        <div class="fenlei_gg_gd1">
+          <div id="KinSlideshow" style="visibility:hidden; float:left; z-index:1">
+          <c:forEach items="${advertiseList}" var="a" >
+          <c:if test="${a.place == '首页方块一'}">
+          <c:set value="${num1+1 }" var="num1"/>
+          <c:if test="${num1 == 1}">
+           <a href="${a.url }"><img src="${ctx }${a.pic }" width="510" height="178" /></a>
+           </c:if>
+           </c:if>
+           <c:if test="${a.place == '首页方块二'}">
+           <c:set value="${num2+1 }" var="num2"/>
+             <c:if test="${num2 == 1}">
+           <a href="${a.url }"><img src="${ctx }${a.pic }" width="510" height="178" /></a>
+           </c:if>
+           </c:if>
+           <c:if test="${a.place == '首页方块三'}">
+               <c:set value="${num3+1 }" var="num3"/>
+             <c:if test="${num3 == 1}">
+           <a href="${a.url }"><img src="${ctx }${a.pic }" width="510" height="178" /></a>
+           </c:if>
+           </c:if>
+           <c:if test="${a.place == '首页方块四'}">
+               <c:set value="${num4+1 }" var="num4"/>
+             <c:if test="${num4 == 1}">
+           <a href="${a.url }"><img src="${ctx }${a.pic }" width="510" height="178" /></a>
+           </c:if>
+           </c:if>
+           <c:if test="${a.place == '首页方块五'}">
+               <c:set value="${num5+1 }" var="num"/>
+             <c:if test="${num4 == 1}">
+           <a href="${a.url }"><img src="${ctx }${a.pic }" width="510" height="178" /></a>
+           </c:if>
+           </c:if>
+           </c:forEach>
+           </div>
+        </div>
+      </div>
+    </div>
+    <div class="fenlei_xw">
+      <div class="fenlei_wz">
+        <div class="fenlei_wz_bt">公司新闻</div>
+        <div class="fenlei_wz_xb">
+          <ul>
+            <c:forEach items="${informationList}" var="information" begin="0" end="6">
+            <li ><a href="${ctx }/zxxq.do?information.id=${information.id }&information.type=1">${information.title }</a></li>
+            </c:forEach>
+ <!--            <li ><a href="news/zxxw.html">东晟五金网站升级试运行公告</a></li>
+            <li ><a href="news/zxxw.html">东晟五金库柏安防培训及产品展</a></li>
+            <li ><a href="news/zxxw.html">东晟五金&quot;跨国企业安全管理模</a></li>
+            <li ><a href="news/zxxw.html">东晟五金应邀赴第一财经为世博</a></li>
+            <li ><a href="news/zxxw.html">东晟五金&quot;跨国企业安全管理模</a></li>
+            <li ><a href="news/zxxw.html">东晟五金&quot;跨国企业安全管理模</a></li> -->
+
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="fenlei_xbda">
+    <div class="fenlei_xb_cp">
+      <div class="tabbox">
+        <div class="tabmenu">
+          <ul>
+          <c:forEach items="${goodtypeList}" var="goodtype" begin="0" end="0">
+          <li onmouseover="tabChange(this,'tabcontent')" class="cli">${goodtype.name }</li>
+          </c:forEach>
+            <c:forEach items="${goodtypeList}" var="goodtype" begin="1" end="6">
+          <li onmouseover="tabChange(this,'tabcontent')" >${goodtype.name }</li>
+          </c:forEach>
+         <!--    <li onmouseover="tabChange(this,'tabcontent')">动力工具</li>
+            <li onmouseover="tabChange(this,'tabcontent')">个人防护</li>
+            <li onmouseover="tabChange(this,'tabcontent')">电气电机</li>
+            <li onmouseover="tabChange(this,'tabcontent')">测试仪器</li>
+            <li onmouseover="tabChange(this,'tabcontent')">测试仪器</li>
+            <li onmouseover="tabChange(this,'tabcontent')">测试仪器</li> -->
+          </ul>
+          <p class="ty" style="float:right; line-height:30px; padding-right:20px; color:#FFFFFF"><a class="white" href="${ctx }/spfl.do">更多</a></p>
+        </div>
+        <div id="tabcontent">
+          <ul >
+          
+          
+            <div class="tabmenu_kuan">
+            
+            <c:forEach items="${goodList1}" var="good" begin="0" end="9">
+              <div class="kuan_w">
+                <div class="kuan_tp" onmouseout="this.className='kuan_tp'" onmouseover="this.className='kuan_tp2'"><a href="${ctx }/spxq.do?good.id=${good.id }"><img src="${ctx }${good.pic }" width="160" height="161"/></a></div>
+                <div class="kuan_wz">
+                  <div style="height: 40px;">
+	                  <a href="${ctx }/spxq.do?good.id=${good.id }">
+	                  	<c:if test="${fn:length(good.name ) >30}">${fn:substring(good.name ,0,30) }......</c:if>
+              	 		<c:if test="${fn:length(good.name ) <30}">${good.name  }</c:if>
+	                  </a></div>
+                  <div style="font-size:14px; font-weight:bold; color:#FF0000;">￥${good.weight }</div>
+                  <div style="line-height:24px;">
+                    <p style="line-height:24px; font-weight:bold;">订购数：</p>
+                    <p style="padding-top:2px;">
+                      <input style="text-align:center; width:30px;" id="changeNumber${good.id }" type="text" value="1"  />
+                      
+                    </p>
+                    <p>
+                      <input onclick="addGoodToOrderPage('${good.id }')" style="font-size:12px; text-align:center; padding:0px; line-height:18px; margin:0px;  height:24px; width:50px;" name="" type="button" value="购买" />
+                    </p>
+                  </div>
+                </div>
+              </div>
+              </c:forEach>
+         
+              
+            </div>
+    
+          </ul>
+          
+          
+          
+          
+          <ul class="hidden">
+            <div class="tabmenu_kuan">
+            
+            
+            
+                 <c:forEach items="${goodList2}" var="good" begin="0" end="9">
+              <div class="kuan_w">
+                <div class="kuan_tp" onmouseout="this.className='kuan_tp'" onmouseover="this.className='kuan_tp2'"><a href="${ctx }/spxq.do?good.id=${good.id }"><img src="${ctx }${good.pic }" width="160" /></a></div>
+                <div class="kuan_wz">
+                  <div style="height: 40px;">
+	                  <a href="${ctx }/spxq.do?good.id=${good.id }">
+	                  	<c:if test="${fn:length(good.name ) >30}">${fn:substring(good.name ,0,30) }......</c:if>
+              	 		<c:if test="${fn:length(good.name ) <30}">${good.name  }</c:if>
+	                  </a></div>
+                  <div style="font-size:14px; font-weight:bold; color:#FF0000;">￥${good.weight }</div>
+                  <div style="line-height:24px;">
+                    <p style="line-height:24px; font-weight:bold;">订购数：</p>
+                    <p style="padding-top:2px;">
+                      <input style="text-align:center; width:30px;" id="changeNumber${good.id }" type="text" value="1"  />
+                    </p>
+                    <p>
+                      <input onclick="addGoodToOrderPage('${good.id }')" style="font-size:12px; text-align:center; padding:0px; line-height:18px; margin:0px;  height:24px; width:50px;" name="" type="button" value="购买" />
+                    </p>
+                  </div>
+                </div>
+              </div>
+              </c:forEach>
+
+            </div>
+          </ul>
+          
+          
+          
+          
+          
+             <ul class="hidden">
+            <div class="tabmenu_kuan">
+            
+            
+            
+                 <c:forEach items="${goodList3}" var="good" begin="0" end="9">
+              <div class="kuan_w">
+                <div class="kuan_tp" onmouseout="this.className='kuan_tp'" onmouseover="this.className='kuan_tp2'"><a href="${ctx }/spxq.do?good.id=${good.id }"><img src="${ctx }${good.pic }" width="160" /></a></div>
+                <div class="kuan_wz">
+                   <div style="height: 40px;">
+	                  <a href="${ctx }/spxq.do?good.id=${good.id }">
+	                  	<c:if test="${fn:length(good.name ) >30}">${fn:substring(good.name ,0,30) }......</c:if>
+              	 		<c:if test="${fn:length(good.name ) <30}">${good.name  }</c:if>
+	                  </a></div>
+                  <div style="font-size:14px; font-weight:bold; color:#FF0000;">￥${good.weight }</div>
+                  <div style="line-height:24px;">
+                    <p style="line-height:24px; font-weight:bold;">订购数：</p>
+                    <p style="padding-top:2px;">
+                      <input style="text-align:center; width:30px;" id="changeNumber${good.id }" type="text" value="1"  />
+                    </p>
+                    <p>
+                      <input onclick="addGoodToOrderPage('${good.id }')" style="font-size:12px; text-align:center; padding:0px; line-height:18px; margin:0px;  height:24px; width:50px;" name="" type="button" value="购买" />
+                    </p>
+                  </div>
+                </div>
+              </div>
+              </c:forEach>
+
+            </div>
+          </ul>
+          
+          
+          
+              <ul class="hidden">
+            <div class="tabmenu_kuan">
+            
+            
+            
+                 <c:forEach items="${goodList4}" var="good" begin="0" end="9">
+              <div class="kuan_w">
+                <div class="kuan_tp" onmouseout="this.className='kuan_tp'" onmouseover="this.className='kuan_tp2'"><a href="${ctx }/spxq.do?good.id=${good.id }"><img src="${ctx }${good.pic }" width="160" /></a></div>
+                <div class="kuan_wz">
+                   <div style="height: 40px;">
+	                  <a href="${ctx }/spxq.do?good.id=${good.id }">
+	                  	<c:if test="${fn:length(good.name ) >30}">${fn:substring(good.name ,0,30) }......</c:if>
+              	 		<c:if test="${fn:length(good.name ) <30}">${good.name  }</c:if>
+	                  </a></div>
+                  <div style="font-size:14px; font-weight:bold; color:#FF0000;">￥${good.weight }</div>
+                  <div style="line-height:24px;">
+                    <p style="line-height:24px; font-weight:bold;">订购数：</p>
+                    <p style="padding-top:2px;">
+                      <input style="text-align:center; width:30px;" id="changeNumber${good.id }" type="text" value="1"  />
+                    </p>
+                    <p>
+                      <input onclick="addGoodToOrderPage('${good.id }')" style="font-size:12px; text-align:center; padding:0px; line-height:18px; margin:0px;  height:24px; width:50px;" name="" type="button" value="购买" />
+                    </p>
+                  </div>
+                </div>
+              </div>
+              </c:forEach>
+
+            </div>
+          </ul>
+          
+          
+          
+              <ul class="hidden">
+            <div class="tabmenu_kuan">
+            
+            
+            
+                 <c:forEach items="${goodList5}" var="good" begin="0" end="9">
+              <div class="kuan_w">
+                <div class="kuan_tp" onmouseout="this.className='kuan_tp'" onmouseover="this.className='kuan_tp2'"><a href="${ctx }/spxq.do?good.id=${good.id }"><img src="${ctx }${good.pic }" width="160" /></a></div>
+                <div class="kuan_wz">
+                 <div style="height: 40px;">
+	                  <a href="${ctx }/spxq.do?good.id=${good.id }">
+	                  	<c:if test="${fn:length(good.name ) >30}">${fn:substring(good.name ,0,30) }......</c:if>
+              	 		<c:if test="${fn:length(good.name ) <30}">${good.name  }</c:if>
+	                  </a></div>
+                  <div style="font-size:14px; font-weight:bold; color:#FF0000;">￥${good.weight }</div>
+                  <div style="line-height:24px;">
+                    <p style="line-height:24px; font-weight:bold;">订购数：</p>
+                    <p style="padding-top:2px;">
+                      <input style="text-align:center; width:30px;" id="changeNumber${good.id }" type="text" value="1"  />
+                    </p>
+                    <p>
+                      <input onclick="addGoodToOrderPage('${good.id }')" style="font-size:12px; text-align:center; padding:0px; line-height:18px; margin:0px;  height:24px; width:50px;" name="" type="button" value="购买" />
+                    </p>
+                  </div>
+                </div>
+              </div>
+              </c:forEach>
+
+            </div>
+          </ul>
+          
+          
+                <ul class="hidden">
+            <div class="tabmenu_kuan">
+            
+            
+            
+                 <c:forEach items="${goodList6}" var="good" begin="0" end="9">
+              <div class="kuan_w">
+                <div class="kuan_tp" onmouseout="this.className='kuan_tp'" onmouseover="this.className='kuan_tp2'"><a href="${ctx }/spxq.do?good.id=${good.id }"><img src="${ctx }${good.pic }" width="160" /></a></div>
+                <div class="kuan_wz">
+                  <div style="height: 40px;">
+	                  <a href="${ctx }/spxq.do?good.id=${good.id }">
+	                  	<c:if test="${fn:length(good.name ) >30}">${fn:substring(good.name ,0,30) }......</c:if>
+              	 		<c:if test="${fn:length(good.name ) <30}">${good.name  }</c:if>
+	                  </a></div>
+                  <div style="font-size:14px; font-weight:bold; color:#FF0000;">￥${good.weight }</div>
+                  <div style="line-height:24px;">
+                    <p style="line-height:24px; font-weight:bold;">订购数：</p>
+                    <p style="padding-top:2px;">
+                      <input style="text-align:center; width:30px;" type="text" value="1" id="changeNumber${good.id }" />
+                    </p>
+                    <p>
+                      <input onclick="addGoodToOrderPage('${good.id }')" style="font-size:12px; text-align:center; padding:0px; line-height:18px; margin:0px;  height:24px; width:50px;" name="" type="button" value="购买" />
+                    </p>
+                  </div>
+                </div>
+              </div>
+              </c:forEach>
+
+            </div>
+          </ul>
+          
+          
+                <ul class="hidden">
+            <div class="tabmenu_kuan">
+            
+            
+            
+                 <c:forEach items="${goodList7}" var="good" begin="0" end="9">
+              <div class="kuan_w">
+                <div class="kuan_tp" onmouseout="this.className='kuan_tp'" onmouseover="this.className='kuan_tp2'"><a href="${ctx }/spxq.do?good.id=${good.id }"><img src="${ctx }${good.pic }" width="160" /></a></div>
+                <div class="kuan_wz">
+                  <div style="height: 40px;">
+	                  <a href="${ctx }/spxq.do?good.id=${good.id }">
+	                  	<c:if test="${fn:length(good.name ) >30}">${fn:substring(good.name ,0,30) }......</c:if>
+              	 		<c:if test="${fn:length(good.name ) <30}">${good.name  }</c:if>
+	                  </a></div>
+                  <div style="font-size:14px; font-weight:bold; color:#FF0000;">￥${good.weight }</div>
+                  <div style="line-height:24px;">
+                    <p style="line-height:24px; font-weight:bold;">订购数：</p>
+                    <p style="padding-top:2px;">
+                      <input style="text-align:center; width:30px;" type="text" value="1" id="changeNumber${good.id }" />
+                    </p>
+                    <p>
+                      <input onclick="addGoodToOrderPage('${good.id }')" style="font-size:12px; text-align:center; padding:0px; line-height:18px; margin:0px;  height:24px; width:50px;" name="" type="button" value="购买" />
+                    </p>
+                  </div>
+                </div>
+              </div>
+              </c:forEach>
+
+            </div>
+          </ul>
+          
+          
+          
+          
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="width:100%; height:10px; float:left;"> </div>
+  <!-- <iframe src="footer.html" scrolling="No" frameborder="no"  width="980px" height="50px" ></iframe> -->
+   <%@ include file="/WEB-INF/page/front/footer.jsp" %>
+</div>
+<script language="JavaScript" type="text/javascript">
+function tabChange(obj,id)
+{
+ var arrayli = obj.parentNode.getElementsByTagName("li"); //获取li数组
+ var arrayul = document.getElementById(id).getElementsByTagName("ul"); //获取ul数组
+ for(i=0;i<arrayul.length;i++)
+ {
+  if(obj==arrayli[i])
+  {
+   arrayli[i].className = "cli";
+   arrayul[i].className = "";
+  }
+  else
+  {
+   arrayli[i].className = "";
+   arrayul[i].className = "hidden";
+  }
+ }
+}
+</script>
+</body>
+</html>

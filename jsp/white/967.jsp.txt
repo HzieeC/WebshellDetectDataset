@@ -1,0 +1,128 @@
+<%@ page language="java" import="java.util.*"  contentType="text/html;charset=gb2312"%> 
+<%@ page import="com.shuangyulin.domain.Teacher_QQ287307421" %>
+<%@ page import="java.text.DateFormat" %>
+<%@ page import="java.text.SimpleDateFormat" %>
+<%@ taglib prefix="s" uri="/struts-tags"%>
+<%
+    String path = request.getContextPath();
+    String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
+    Teacher_QQ287307421 teacher_QQ287307421 = (Teacher_QQ287307421)request.getAttribute("teacher_QQ287307421");
+
+    String username=(String)session.getAttribute("username");
+    if(username==null){
+        response.getWriter().println("<script>top.location.href='" + basePath + "login/login_view.action';</script>");
+    }
+%>
+<HTML><HEAD><TITLE>修改教师信息</TITLE>
+<STYLE type=text/css>
+BODY {
+	MARGIN-LEFT: 0px; BACKGROUND-COLOR: #ffffff
+}
+.STYLE1 {color: #ECE9D8}
+.label {font-style.:italic; }
+.errorLabel {font-style.:italic;  color:red; }
+.errorMessage {font-weight:bold; color:red; }
+</STYLE>
+ <script src="<%=basePath %>calendar.js"></script>
+<script language="javascript">
+/*验证表单*/
+function checkForm() {
+    var teacherNumber = document.getElementById("teacher_QQ287307421.teacherNumber").value;
+    if(teacherNumber=="") {
+        alert('请输入教师编号!');
+        return false;
+    }
+    var teacherName = document.getElementById("teacher_QQ287307421.teacherName").value;
+    if(teacherName=="") {
+        alert('请输入教师姓名!');
+        return false;
+    }
+    var teacherSex = document.getElementById("teacher_QQ287307421.teacherSex").value;
+    if(teacherSex=="") {
+        alert('请输入性别!');
+        return false;
+    }
+    return true; 
+}
+ </script>
+</HEAD>
+<BODY background="<%=basePath %>images/adminBg.jpg">
+<s:fielderror cssStyle="color:red" />
+<TABLE align="center" height="100%" cellSpacing=0 cellPadding=0 width="80%" border=0>
+  <TBODY>
+  <TR>
+    <TD align="left" vAlign=top ><s:form action="Teacher_QQ287307421/Teacher_QQ287307421_ModifyTeacher_QQ287307421.action" method="post" onsubmit="return checkForm();" enctype="multipart/form-data" name="form1">
+<table width='100%' cellspacing='1' cellpadding='3' class="tablewidth">
+  <tr>
+    <td width=30%>教师编号:</td>
+    <td width=70%><input id="teacher_QQ287307421.teacherNumber" name="teacher_QQ287307421.teacherNumber" type="text" value="<%=teacher_QQ287307421.getTeacherNumber() %>" readOnly /></td>
+  </tr>
+
+  <tr>
+    <td width=30%>教师姓名:</td>
+    <td width=70%><input id="teacher_QQ287307421.teacherName" name="teacher_QQ287307421.teacherName" type="text" size="12" value='<%=teacher_QQ287307421.getTeacherName() %>'/></td>
+  </tr>
+
+  <tr>
+    <td width=30%>登录密码:</td>
+    <td width=70%><input id="teacher_QQ287307421.teacherPassword" name="teacher_QQ287307421.teacherPassword" type="text" size="30" value='<%=teacher_QQ287307421.getTeacherPassword() %>'/></td>
+  </tr>
+
+  <tr>
+    <td width=30%>性别:</td>
+    <td width=70%><input id="teacher_QQ287307421.teacherSex" name="teacher_QQ287307421.teacherSex" type="text" size="2" value='<%=teacher_QQ287307421.getTeacherSex() %>'/></td>
+  </tr>
+
+  <tr>
+    <td width=30%>出生日期:</td>
+    <% DateFormat teacherBirthdaySDF = new SimpleDateFormat("yyyy-MM-dd");  %>
+    <td width=70%><input type="text" readonly  id="teacher_QQ287307421.teacherBirthday"  name="teacher_QQ287307421.teacherBirthday" onclick="setDay(this);" value='<%=teacherBirthdaySDF.format(teacher_QQ287307421.getTeacherBirthday()) %>'/></td>
+  </tr>
+
+  <tr>
+    <td width=30%>入职日期:</td>
+    <% DateFormat teacherArriveDateSDF = new SimpleDateFormat("yyyy-MM-dd");  %>
+    <td width=70%><input type="text" readonly  id="teacher_QQ287307421.teacherArriveDate"  name="teacher_QQ287307421.teacherArriveDate" onclick="setDay(this);" value='<%=teacherArriveDateSDF.format(teacher_QQ287307421.getTeacherArriveDate()) %>'/></td>
+  </tr>
+
+  <tr>
+    <td width=30%>身份证号:</td>
+    <td width=70%><input id="teacher_QQ287307421.teacherCardNumber" name="teacher_QQ287307421.teacherCardNumber" type="text" size="20" value='<%=teacher_QQ287307421.getTeacherCardNumber() %>'/></td>
+  </tr>
+
+  <tr>
+    <td width=30%>联系电话:</td>
+    <td width=70%><input id="teacher_QQ287307421.teacherPhone" name="teacher_QQ287307421.teacherPhone" type="text" size="20" value='<%=teacher_QQ287307421.getTeacherPhone() %>'/></td>
+  </tr>
+
+  <tr>
+    <td width=30%>教师照片:</td>
+    <td width=70%><img src="<%=basePath %><%=teacher_QQ287307421.getTeacherPhoto() %>" width="200px" border="0px"/><br/>
+    <input type=hidden name="teacher_QQ287307421.teacherPhoto" value="<%=teacher_QQ287307421.getTeacherPhoto() %>" />
+    <input id="teacherPhotoFile" name="teacherPhotoFile" type="file" size="50" /></td>
+  </tr>
+  <tr>
+    <td width=30%>家庭地址:</td>
+    <td width=70%><textarea id="teacher_QQ287307421.teacherAddress" name="teacher_QQ287307421.teacherAddress" rows=5 cols=50><%=teacher_QQ287307421.getTeacherAddress() %></textarea></td>
+  </tr>
+
+  <tr>
+    <td width=30%>附加信息:</td>
+    <td width=70%><textarea id="teacher_QQ287307421.teacherMemo" name="teacher_QQ287307421.teacherMemo" rows=5 cols=50><%=teacher_QQ287307421.getTeacherMemo() %></textarea></td>
+  </tr>
+
+  <tr bgcolor='#FFFFFF'>
+      <td colspan="4" align="center">
+        <input type='submit' name='button' value='保存' >
+        &nbsp;&nbsp;
+        <input type="reset" value='重写' />
+      </td>
+    </tr>
+
+</table>
+</s:form>
+   </TD></TR>
+  </TBODY>
+</TABLE>
+</BODY>
+</HTML>

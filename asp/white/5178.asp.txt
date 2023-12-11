@@ -1,0 +1,479 @@
+<%
+'=============================
+' Function DoStr
+'=============================
+function DoStr(str)
+	Dim dsStr
+	dsStr = str
+	if dsStr <> "" then
+		dsStr = replace(dsStr,"'","''")
+	end if 
+	DoStr = dsStr
+end function
+
+'=============================
+' Function DoStrRev
+'=============================
+function DoStrRev(str)
+	Dim dsrStr
+	dsrStr = str
+	if dsrStr <> "" then
+		dsrStr = replace(dsrStr,chr(9),"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
+		dsrStr = replace(dsrStr,"<","&lt;")
+		dsrStr = replace(dsrStr,">","&gt;")
+		dsrStr = replace(dsrStr," ","&nbsp;")
+		dsrStr = replace(dsrStr,vbcrlf,"<br>")
+		dsrStr = replace(dsrStr,"''","'")
+	end if 
+	DoStrRev = dsrStr
+end function
+
+'=============================
+' Function PageList
+'=============================
+function PageList(url,curPage,totalPage,totalRecords,psize)
+	Dim plStr,pli,plCp,plBegin,plEnd,plUrl,plSel,plNext,plPre
+	const plSize = 6
+	if url <> "" and curPage <> "" and totalPage <> "" then
+		if curPage > totalPage then
+			exit function
+		end if 
+		
+		if instr(url,"?") > 0 then
+			plUrl = url & "&page"
+		else
+			plUrl = url & "?page"
+		end if 
+		plCp = int((curPage-1) / plSize)
+
+		plBegin = plCp * plSize + 1
+		plEnd = (plCp + 1) * plSize
+		
+		if plBegin > plSize then
+			plPre = " <a href='"&plUrl&"="&plBegin-1&"' title='上一批'><span class='font8pt'>...</span></a> "
+		end if 
+
+		if plEnd >= totalPage  then
+			plEnd = totalPage
+		else
+			plNext = " <a href='"&plUrl&"="&plEnd+1&"' title='下一批'><span class='font8pt'>...</span></a> "
+		end if 
+
+		for pli = plBegin to plEnd
+			if curPage = pli then
+				plStr = plStr & " <span class='font8pt'><font color='#8E1D09'>" & pli &"</span></span>"
+			else
+				plStr = plStr & " <a href='"&plUrl&"="&pli&"'><span class='font8pt'>" & pli & "</span></a>" 
+			end if 
+		next
+	end if 
+	PageList = "共<span class='font8pt'>" &totalRecords& "</span>项 "&_
+	" <span class='font8pt'>"&psize&"</span>项/页"&_
+	" 共<span class='font8pt'>"&totalPage&"</span>页 " &_
+	""& plPre & plStr & plNext &"&nbsp;"
+end function
+
+
+
+function GetUserStr(uid)
+	dim guRs,guSql,guStr
+	set guRs = server.createobject("adodb.recordset")
+	guSql = "select u_name,u_account from ip_user where u_id="&uid
+	guRs.open guSql,con,1,1
+	if not guRs.eof then
+		guStr = guRs(1) & "("&guRs(0)&")"
+	else
+		guStr = "己注销"
+	end if 
+	guRs.close
+	set guRs = nothing
+	GetUserStr = guStr
+end function
+
+function GetCategory(icid)
+	dim gcStr,gcRs,gcSql
+	set gcRs = server.CreateObject("adodb.recordset")
+	gcSql = "select ic_parent_id,ic_name,ic_serial from ip_info_category where ic_id="&icid
+	gcRs.open gcSql,con,1,1
+	if not gcRs.eof then
+		gcParentId = gcRs(0)
+		gcName = gcRs(1)
+	else
+		gcParentId = -1
+	end if 
+	gcRs.close
+	gcStr = "<a href='InfoList.asp?icid="&icid&"'  target='_blank'>"&gcName&"</a>"
+	if gcParentId > 0 then
+		gcSql = "select ic_id,ic_name from ip_info_category where ic_id="&gcParentId
+		gcRs.open gcSql,con,1,1
+		if not gcRs.eof then
+			gcSubId = gcRs(0)
+			gcSubName = gcRs(1)
+			gcStr =  "<a href='InfoList.asp?icid="&gcSubId&"' target='_blank'>"&gcSubName&"</a>" & "/" & gcStr 
+		end if 
+		gcRs.close
+	end if 
+	set gcRs = nothing
+	GetCategory = gcStr
+end function
+
+function GetIsCanMng(icid)
+	GetIsCanMng = false
+	if CanMngInfo then
+		GetIsCanMng = true
+	else
+		if Session("UserId") <> "" then
+			Dim giSql,giRs,giStr
+			Set giRs = server.createobject("adodb.recordset")
+			giSql = "select ic_admin_user from ip_info_category where ic_id="&icid
+			giRs.open giSql,con,1,1
+			if not giRs.eof then
+				giStr = giRs("ic_admin_user")
+				if giStr <> "" then
+					if instr(giStr,session("USerAccount")) > 0 then
+						GetIsCanMng = true
+					end if 
+				end if 
+			end if 
+			giRs.close
+
+			if not GetIsCanMng then
+				giSql = "select ic_admin_user from ip_info_category where ic_serial="&_
+				"(select left(ic_serial,4) from ip_info_category where ic_id="&icid&")"
+				giRs.open giSql,con,1,1
+				if not giRs.eof then
+					giStr = giRs("ic_admin_user")
+					if giStr <> "" then
+						if instr(giStr,session("USerAccount")) > 0 then
+							GetIsCanMng = true
+						end if 
+					end if 
+				end if 
+				giRs.close
+			end if 
+			set giRs = nothing
+		end if 
+	end if 
+end function
+
+function SubString(str,n)
+	dim ssStr,ssi,sslen
+	if str <> "" then
+		for ssi = 1 to len(str)
+			if (Asc(Mid(str,ssi,1)) > 255) or (Asc(Mid(str,ssi,1)) < 0)  then
+				sslen = sslen + 1.5
+			else
+				sslen = sslen + 1
+			end if 
+
+			if sslen < n then
+				ssStr = ssStr & chr(Asc(Mid(str,ssi,1)))
+			else
+				ssStr = ssStr & "..."
+				exit for
+			end if
+			
+		next
+		
+		SubString = ssStr
+	end if 
+end function
+
+function Num2Str(num,n)
+	if num <> "" and n <> "" then
+		dim nsLen,nsi,nsStr,nsTmp
+		nsLen = len(num)
+		for nsi = 1 to n-nsLen
+			nsTmp = nsTmp&"0"
+		next
+
+		nsStr = nsTmp & "" & num
+	end if 
+	Num2Str = nsStr
+end function
+
+
+function DoBulletin(str)
+	if str <> "" then
+		Dim dbStr
+		dbStr = str
+
+		DoBulletin = dbStr
+	end if 
+end function
+
+function GetCategoryList(sgclIcid)
+	dim gclStr,gclRs,gclRs2,gclSql,gclI
+	set gclRs = server.createobject("adodb.recordset")
+	set gclRs2 = server.createobject("adodb.recordset")
+	Response.write "<table width='100%' border=0 cellspacing=0 cellpadding=0>"
+	gclSql = "select ic_id,ic_name from ip_info_category where ic_parent_id=0 order by ic_index asc"
+	gclRs.open gclSql,con,1,1
+	if not gclRs.eof then
+		do while not gclRs.eof 
+			gclMicid = gclRs("ic_id")
+			gclMicname = gclRs("ic_name")
+			Response.Write "<tr><td colspan=6 height=22 style='padding-left:5px'>"&_
+			" <font color='#1B5596'>"&gclMicname&"</font></td></tr>"
+			gclSql = "select ic_id,ic_name from ip_info_category where ic_parent_id="&gclMicid&" order by ic_index asc"
+			gclRs2.open gclSql,con,1,1
+			if not gclRs2.eof then
+				gclStr = ""
+				gclI = 0
+				do while not gclRs2.eof
+					gclSubIcid = gclRs2(0)
+					gclSubIcname = gclRs2(1)
+					if sgclIcid = gclSubIcid then
+						gclSel = "checked"
+					else
+						gclSel = ""
+					end if 
+					if gclStr = "" then
+						gclStr = "<tr><td width='20'  height='18'>&nbsp;</td><td><input type='radio' name='radicid' value="&gclSubicid&" "&gclSel&">"&gclSubIcname&"</td>"
+					else
+						gclStr = gclStr & "<td><input type='radio' name='radicid' value="&gclSubicid&" "&gclSel&">"&gclSubIcname&"</td>"
+					end if 
+					if (gclI mod 5 = 4) or (gclI = gclRs2.recordcount-1) then
+						Response.write gclStr & "</tr>"
+						gclStr = ""
+					end if 
+
+				gclRs2.movenext
+				gclI = gclI + 1
+				loop
+			end if 
+			gclRs2.close
+
+		gclRs.movenext
+		loop
+	end if 
+	gclRs.close
+	set gclRs2 = nothing
+	set gclRs = nothing
+	Response.write "</table>"
+
+end function
+
+
+Function WriteLog()
+
+End function
+
+function DoOnline()
+	dim dStr,dRs,dSql
+
+	dSql = "delete from ip_online where datediff(""n"",o_date,'"&now&"') > 10"
+	con.execute dSql
+
+	dIP = Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+	if dIP =  "" then
+		dIP =  Request.ServerVariables("Remote_addr")
+	end if 
+	dUserid = Session("UserId")
+	if dUserId = "" then
+		dUserId = 0
+	end if 
+	dSessId = session.sessionid
+	dsql = "select top 1 * from ip_online where o_session_id='"&dSessId&"' and "&_
+	" datediff(""n"",o_date,'"&now&"') < 10 and o_ip ='"&dIp&"'"
+	set dRs = server.createobject("adodb.recordset")
+	dRs.open dSql,con,1,1
+	if not dRs.eof then
+		dSql = "update ip_online set o_date = #"&now&"#,o_user_id="&DUserId&_
+		" where o_session_id='"&dSessId&"'"
+		con.execute dSql
+	else
+		dSql = "insert into ip_online (o_date,o_user_id,o_session_id,o_ip) values "&_
+		" (#"&now()&"#,"&dUserId&",'"&dSessId&"','"&dIp&"') "
+		con.execute dSql
+	end if 
+	dRs.close
+	set dRs = nothing
+
+end function
+
+function ShowOnline()
+	Dim soRs,soSql,soStr,soRUser,soNUser
+	set soRs = server.createobject("adodb.recordset")
+	soSql = "select count(o_id) from ip_online where o_user_id <> 0 "
+	soRs.open soSql,con,1,1
+	if not soRs.eof then
+		soRuser = soRs(0)
+	else
+		soRuser = 0
+	end if 
+	soRs.close
+
+	soSql = "select count(o_id) from ip_online where o_user_id = 0 "
+	soRs.open soSql,con,1,1
+	if not soRs.eof then
+		soNuser = soRs(0)
+	else
+		soNuser = 0
+	end if 
+	soRs.close
+	set soRs = nothing
+
+	ShowOnline = "当前本站共有在线用户<font color=red>"&soRuser + soNUser& "</font>名 , 其中注册用户<font color=red>"&soRUser&"</font>名 , 游客<font color=red>"&soNUser&"</font>名"
+end function
+
+function GetTotalCount()
+	dim gtRs,gtSql,gtStr,gtLogCount,gtViewInfoCount
+	set gtRs = server.createobject("adodb.recordset")
+	gtSql = "select si_value from ip_site_info where si_key='si_visit_count' "
+	gtRs.open gtSql,con,1,1
+	if not gtRs.eof then
+		gtLogCount = gtRs(0)
+	else
+		gtSql = "insert into ip_site_info (si_key,si_value) values ('si_visit_count','0')"
+		con.execute gtSql
+		gtLogCount = 0
+	end if 
+	gtRs.close
+
+	set gtRs = nothing
+	gtStr = "从 <font color=red>2005-4-25</font> 起本站页面共被浏览 "&formatnumber(gtLogCount,0,true)&" 次"
+	GetTotalCount = gtStr
+end function
+
+function ShortDate(strdate)
+	if strdate <> "" then
+		strdate = formatdatetime(strdate,2)
+		sdY = year(strdate)
+		sdM = month(strdate)
+		sdD = day(strdate)
+		sdY = right(sdY,2)
+		if len(sdM) = 1 then
+			sdM = "0"&sdM
+		end if 
+		if len(sdD) = 1 then
+			sdD = "0"&sdD
+		end if
+		ShortDate = sdY&"-"&sdM&"-"&sdD
+	end if 
+end function
+
+
+
+
+function ShowInfoType(itype)
+
+end function
+
+'///////////////////////////////////////////////////////////////////////
+'///////////////////////////////////////////////////////////////////////
+'===========User Permit============
+function CanLogin()
+	if Session("UserId") = "" then
+		CanLogin = false
+	else
+		if Session("UserPermit") and per_login then
+			CanLogin = true
+		else
+			CanLogin = false
+		end if 
+	end if 
+end function
+
+function CanModify()
+	if Session("UserId") = "" then
+		CanModify = false
+	else
+		if Session("UserPermit") and per_modify then
+			CanModify = true
+		else
+			CanModify = false
+		end if 
+	end if 
+end function
+
+function CanComplain()
+	if Session("UserPermit") and per_complain then
+		CanComplain = true
+	else
+		CanComplain = false
+	end if 
+end function
+
+function CanPublishInfo()
+	if Session("UserPermit") and per_publishinfo then
+		CanPublishInfo = true
+	else
+		CanPublishInfo = false
+	end if 
+end function
+
+'=========Admin==============
+
+function CanMngUser()
+	if Session("UserPermit") and per_mng_user then
+		CanMngUser = true
+	else
+		CanMngUser = false
+	end if 
+end function
+
+function CanMngInfo()
+	if Session("UserPermit") and per_mng_info then
+		CanMngInfo = true
+	else
+		CanMngInfo = false
+	end if 
+end function
+function CanMngInfoCate()
+	if Session("UserPermit") and per_mng_info_catelog then
+		CanMngInfoCate = true
+	else
+		CanMngInfoCate = false
+	end if 
+end function
+
+function CanMngComplain()
+	if Session("UserPermit") and per_mng_complain then
+		CanMngComplain = true
+	else
+		CanMngComplain = false
+	end if 	
+end function	
+
+function CanMngUserCredit()
+	if Session("UserPermit") and per_mng_user_credit then
+		CanMngUserCredit = true
+	else
+		CanMngUserCredit = false
+	end if 	
+end function
+
+
+function CanMngMessage()
+	if Session("UserPermit") and per_mng_message then
+		CanMngMessage = true
+	else
+		CanMngMessage = false
+	end if 	
+end function
+
+function CanMngSuggest()
+	if Session("UserPermit") and per_mng_suggest then
+		CanMngSuggest = true
+	else
+		CanMngSuggest = false
+	end if 	
+end function
+
+function CanMngBulletin()
+	if Session("UserPermit") and per_mng_bulletin then
+		CanMngBulletin = true
+	else
+		CanMngBulletin = false
+	end if 
+end function
+
+function CanMngLog()
+	if Session("UserPermit") and per_mng_log then
+		CanMngLog = true
+	else
+		CanMngLog = false
+	end if 	
+end function
+%>

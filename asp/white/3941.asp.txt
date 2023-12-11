@@ -1,0 +1,346 @@
+<!--#include file="const.asp"-->
+<%
+Dim HtmlContent,XMLDom,dataNode,i,n,m,im,j,ii
+Dim maxperpage,totalrec,Pcount,pagenow,topcount
+Dim flashid,classid,Topiclist,m_strTitle,m_strDateTime
+Dim goodnum,badnum,totalscore,maxwidth,goodwidth,badwidth
+Dim Taglist,TotalComment,AverageGrade,TotalGrade
+Dim m_strLink,m_strLinks
+
+Sub main()
+	flashid=NewAsp.ChkNumeric(Request("id"))
+	If flashid=0 Then flashid=NewAsp.ChkNumeric(Request("flashid"))
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+	maxperpage=10
+	Call LoadMainData()
+
+	TPL_FileName=Check_TPL_File(TPL_FilePath,"comment",flashid,classid)
+	HtmlContent = NewAsp.LoadTemplate(TPL_FilePath&"\"&TPL_FileName)
+	HtmlContent = Replace(HtmlContent, "{$pagetitle}", "评论："&m_strTitle)
+	HtmlContent = Replace(HtmlContent, "{$channelid}", ChannelID)
+	HtmlContent = Replace(HtmlContent, "{$classid}", classid)
+	HtmlContent = Replace(HtmlContent, "{$flashid}", flashid)
+	HtmlContent = Replace(HtmlContent, "{$postid}", flashid)
+	HtmlContent = Replace(HtmlContent, "{$channeldir}", NewAsp.ChannelPath)
+	TPL_Scan HtmlContent
+End Sub
+
+Sub LoadMainData()
+	Dim Rs,SQL
+	SQL = "SELECT A.flashid,A.ChannelID,A.classid,A.title,A.subtitle,A.Author,A.ComeFrom,A.[filesize],A.star,A.addtime,A.AllHits,A.isBest,A.HtmlFileDate,A.good,A.bad,A.Taglist,C.ClassName,C.ParentID,C.ParentStr,C.HtmlFileDir,C.ChildStr FROM [NC_FlashList] A INNER JOIN [NC_Classify] C On A.classid=C.classid WHERE A.ChannelID="&CLng(ChannelID)&" And A.isAccept>0 And A.flashid="&CLng(flashid)
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		Set Rs = Nothing
+		Response.Write "<meta http-equiv=""refresh"" content=""2;url=/"" />" & vbNewLine
+		Response.Write "<p align=""center"" style=""font-size: 16px;color: red;"">对不起，该页面发生了错误，无法访问! 系统两秒后自动转到网站首页......</p>" & vbNewLine
+		Response.End
+	End If
+
+	Set XMLDom = NewAsp.RecordsetToxml(Rs,"row","xml")
+	Rs.Close:Set Rs = Nothing
+	If Not XMLDom Is Nothing Then
+		Set dataNode = XMLDom.documentElement.selectSingleNode("row")
+		flashid=CLng(dataNode.selectSingleNode("@flashid").text)
+		classid=CLng(dataNode.selectSingleNode("@classid").text)
+		Taglist=NewAsp.CheckStr(dataNode.selectSingleNode("@taglist").text)
+		m_strTitle=Trim(NewAsp.RemoveHtml(dataNode.selectSingleNode("@title").text))
+		dataNode.selectSingleNode("@title").text=m_strTitle
+		m_strDateTime=NewAsp.FormatToDate(dataNode.selectSingleNode("@addtime").text,TPL_Config(11))
+		dataNode.selectSingleNode("@addtime").text=m_strDateTime
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"datetime","")).text=m_strDateTime
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"size","")).text=NewAsp.BytesToString(CLng(dataNode.selectSingleNode("@filesize").text)*1024)
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"supflashid","")).text=NewAsp.Supplemental(flashid,6)
+
+		goodnum=CLng(dataNode.selectSingleNode("@good").text)
+		badnum=CLng(dataNode.selectSingleNode("@bad").text)
+		totalscore=goodnum+badnum
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"totalscore","")).text=totalscore
+		If totalscore>0 Then
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"goodpercent","")).text=FormatPercent(goodnum/totalscore,0,-1)
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"badpercent","")).text=FormatPercent(badnum/totalscore,0,-1)
+		Else
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"goodpercent","")).text="0%"
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"badpercent","")).text="0%"
+		End If
+		
+		Dim strChannDir
+		If NewAsp.IsCreateHtml=0 Then
+			If IsURLRewrite Then
+				m_strLink=CheckURLRewrite(NewAsp.ChannelPath,flashid&NewAsp.HtmlExtName)
+			Else
+				m_strLink=NewAsp.ChannelPath&"show.asp?id="&flashid
+			End If
+		Else
+			If NewAsp.BindDomain=0 Then
+				strChannDir=NewAsp.ChannelDir
+			End If
+			m_strLink=NewAsp.HtmlDestination(NewAsp.InfoDestination, strChannDir,dataNode.selectSingleNode("@htmlfiledate").text,dataNode.selectSingleNode("@htmlfiledir").text,classid,flashid,1,"")
+		End If
+		If IsURLRewrite Then
+			m_strLinks=CheckURLRewrite(NewAsp.ChannelPath,"comment-"&flashid&"-[page]"&NewAsp.HtmlExtName)
+		Else
+			m_strLinks="comment.asp?id="&flashid&"&"
+		End If
+		SQL="SELECT COUNT(CommentID) As TotalComment, AVG(Grade) As avgGrade,SUM(Grade) As TotalGrade FROM NC_Comment WHERE ChannelID=" & ChannelID & " And Audit=0 And postid=" & CLng(flashid)
+		Set Rs=NewAsp.Execute(SQL)
+		TotalComment = Rs("TotalComment")
+		AverageGrade = Rs("avgGrade")
+		TotalGrade = Rs("TotalGrade")
+		If IsNull(TotalComment) Then TotalComment = 0
+		If IsNull(AverageGrade) Then AverageGrade = 0
+		If IsNull(TotalGrade) Then TotalGrade = 0
+		AverageGrade = Round(AverageGrade)
+		Rs.Close: Set Rs = Nothing
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"totalrec","")).text=TotalComment
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"totalcomment","")).text=TotalComment
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"averagegrade","")).text=AverageGrade
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"totalgrade","")).text=TotalGrade
+	End If
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+		Case "topiclist"
+			ParseTopiclistNode		sTokenName
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Dim Node
+	Select Case sToken
+		Case "link"			:	TPL_Echo m_strLink
+		Case "links"		:	TPL_Echo m_strLinks
+		Case "hits"			:	TPL_Echo dataNode.selectSingleNode("@allhits").text
+		Case "positions"	:	TPL_Echo CurrentPosition(dataNode.selectSingleNode("@classid").text,dataNode.selectSingleNode("@parentstr").text,sVariant)
+		Case "currentclass"	:	TPL_Echo CurrentClass
+		Case "moremenu"		:	TPL_Echo moremenu(sVariant)
+		Case "commentlinks"	:	TPL_Echo CommentsLinks
+		Case "classlinks"	:	TPL_Echo ThisClassLinks
+		Case "classtitle"	:	TPL_Echo ClassTitleLinks
+		Case "tagstring"	:	TPL_Echo ParseTagstring(Taglist)
+		Case "taglinks"		:	TPL_Echo ParseTaglinks(Taglist)
+		Case "goodwidth"	:	TPL_Echo GetGoodWidth(sVariant)
+		Case "badwidth"		:	TPL_Echo GetBadWidth(sVariant)
+		Case Else
+			If Not IsObject(dataNode) Then Exit Sub
+			Set Node = dataNode.selectSingleNode("@"&sToken&"")
+			If Not (Node Is Nothing) Then
+				TPL_Echo Node.text
+			End If
+	End Select
+	Set Node = Nothing
+	If Err Then Err.Clear
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	Select Case sTokenName
+		Case "topiclist","list"
+			Call showTopiclist()
+			If IsArray(Topiclist) Then
+				j=totalrec-((pagenow - 1)*maxperpage)
+				ii=maxperpage*pagenow-maxperpage
+				For i=0 To UBound(Topiclist,2)
+					ii=ii+1:n=n+1:If (n Mod 2) = 0 Then im=2 Else im=1
+					If (i Mod 2) = 0 Then m=1 Else m=2
+					TPL_Scan sTemplate
+					j=j-1
+				Next
+			End If
+	End Select
+End Sub
+
+Sub showTopiclist()
+	Dim Rs,SQL
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT commentid,ChannelID,postid,[content],Grade,username,postime,postip,good,bad FROM NC_Comment WHERE ChannelID="&ChannelID&" And Audit=0 And postid="&flashid&" ORDER BY commentid DESC"
+	Rs.Open SQL,Conn,1,1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum+1
+	If Not Rs.EOF Then
+		totalrec=TotalComment
+		'totalrec=Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If pagenow>Pcount Then pagenow=1
+		Rs.MoveFirst
+		If pagenow >1 Then
+			Rs.Move (pagenow-1) * maxperpage
+		End If
+		Topiclist=Rs.GetRows(maxperpage)
+	Else
+		totalrec=0
+		Topiclist=Null
+	End If
+	Rs.close():Set Rs=Nothing
+End Sub
+
+Sub ParseTopiclistNode(sToken)
+	Select Case sToken
+		Case "i"			:	TPL_Echo i
+		Case "i+"			:	TPL_Echo ii
+		Case "i-"			:	TPL_Echo j
+		Case "n"			:	TPL_Echo n
+		Case "m"			:	TPL_Echo m
+		Case "flashid"		:	TPL_Echo flashid
+		Case "title"		:	TPL_Echo m_strTitle
+		Case "classid"		:	TPL_Echo classid
+		Case "commentid"	:	TPL_Echo Topiclist(0,i)
+		Case "channelid"	:	TPL_Echo Topiclist(1,i)
+		Case "postid"		:	TPL_Echo Topiclist(2,i)
+		Case "content"		:	TPL_Echo NewAsp.HTMLEncodes(Topiclist(3,i))
+		Case "grade"		:	TPL_Echo Topiclist(4,i)
+		Case "username"		:	TPL_Echo Topiclist(5,i)
+		Case "postime"		:	TPL_Echo Topiclist(6,i)
+		Case "datetime"		:	TPL_Echo NewAsp.FormatToDate(Topiclist(6,i),"yyyy-MM-dd hh:mm:ss")
+		Case "postip"		:	TPL_Echo Topiclist(7,i)
+		Case "good"			:	TPL_Echo Topiclist(8,i)
+		Case "bad"			:	TPL_Echo Topiclist(9,i)
+	End Select
+End Sub
+
+Function XmlDatalistNode(iXMLDom,sTokenAttrib)
+	Select Case sTokenAttrib
+		Case "showpage"		: Set XmlDatalistNode=showPageNode(iXMLDom)
+		Case Else
+			Set XmlDatalistNode=showPageNode(iXMLDom)
+	End Select
+End Function
+
+Function ThisClassLinks()
+	Dim strLink,strChannDir
+	If NewAsp.IsCreateHtml=0 Then
+		If IsURLRewrite Then
+			strLink=CheckURLRewrite(NewAsp.ChannelPath,"list_1_"&classid&NewAsp.HtmlExtName)
+		Else
+			strLink="list.asp?classid="&classid
+		End If
+	Else
+		If NewAsp.BindDomain=0 Then
+			strChannDir=NewAsp.ChannelDir
+		End If
+		strLink=NewAsp.HtmlDestination(NewAsp.sortDestination, strChannDir,dataNode.selectSingleNode("@htmlfiledate").text,dataNode.selectSingleNode("@htmlfiledir").text,classid,flashid,1,"")
+	End If
+	ThisClassLinks=strLink
+End Function
+
+Function ClassTitleLinks()
+	ClassTitleLinks="<a href="""&ThisClassLinks&""">"&dataNode.selectSingleNode("@classname").text&"</a>"
+End Function
+
+Function CommentsLinks()
+	If IsURLRewrite Then
+		CommentsLinks=CheckURLRewrite(NewAsp.ChannelPath,"comment-"&softid&"-1"&NewAsp.HtmlExtName)
+	Else
+		CommentsLinks=NewAsp.ChannelPath& "comment.asp?id="&softid
+	End If
+End Function
+
+Function GetGoodWidth(sVariant)
+	Dim w
+	sVariant=NewAsp.ChkNumeric(sVariant)
+	If sVariant=0 Then sVariant=100
+	If totalscore>0 Then
+		w=NewAsp.ChkNumeric(Fix((goodnum/totalscore)*sVariant))
+	Else
+		w=1
+	End If
+	If w<1 Then w=1
+	GetGoodWidth=w
+End Function
+
+Function GetBadWidth(sVariant)
+	Dim w
+	sVariant=NewAsp.ChkNumeric(sVariant)
+	If sVariant=0 Then sVariant=100
+	If totalscore>0 Then
+		w=NewAsp.ChkNumeric(Fix((badnum/totalscore)*sVariant))
+	Else
+		w=1
+	End If
+	If w<1 Then w=1
+	GetBadWidth=w
+End Function
+
+Function XmlDatalistNode(iXMLDom,sTokenAttrib)
+	Select Case sTokenAttrib
+		Case "showpage"		: Set XmlDatalistNode=showPageNode(iXMLDom)
+		Case Else
+			Set XmlDatalistNode=showPageNode(iXMLDom)
+	End Select
+End Function
+
+Function showPageNode(iXMLDom)
+	Dim datalist,Node,i,n,m,max,stype,s
+	iXMLDom.documentElement.setAttribute "pagenow",pagenow
+	iXMLDom.documentElement.setAttribute "pagesize",maxperpage
+	iXMLDom.documentElement.setAttribute "pagecount",Pcount
+	iXMLDom.documentElement.setAttribute "totalrec",totalrec
+	iXMLDom.documentElement.setAttribute "topcount",0
+	iXMLDom.documentElement.setAttribute "link",m_strLinks
+	iXMLDom.documentElement.setAttribute "titles","评论"
+
+	max		= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("max"))
+	stype	= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("type"))
+	If max=0 Then max=10
+	m = max-2
+
+	If Pcount > m And pagenow > (m\2) Then
+		If Pcount-pagenow <= (m\2) Then
+			n = Pcount-(m+1)
+		Else
+			n = pagenow-(m\2)
+		End If
+	Else
+		n = 2
+	End If
+
+	If n<2 Then n=2
+
+	iXMLDom.documentElement.setAttribute "n",n
+	iXMLDom.documentElement.setAttribute "m",max\2
+	If IsNull(iXMLDom.documentElement.getAttribute("max")) Then iXMLDom.documentElement.setAttribute "max",max
+	If IsNull(iXMLDom.documentElement.getAttribute("channelid")) Then iXMLDom.documentElement.setAttribute "channelid",ChannelID
+	If IsNull(iXMLDom.documentElement.getAttribute("action")) Then iXMLDom.documentElement.setAttribute "action","0"
+	If IsURLRewrite Then
+		iXMLDom.documentElement.setAttribute "action","1"
+	End If
+
+	Set datalist=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+	datalist.appendChild(datalist.createElement("datalist"))
+
+	If Pcount >= max Then
+		For i = n To n + m
+			Set Node=datalist.createNode(1,"row","")
+			Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+			Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=1
+			datalist.documentElement.appendChild(Node)
+			Set Node=Nothing
+			If i => Pcount Then Exit For
+		Next
+	Else
+		For i = 2 To max
+			If i > Pcount Then
+				Set Node=datalist.createNode(1,"row","")
+				Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+				Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=0
+				datalist.documentElement.appendChild(Node)
+				Set Node=Nothing
+			Else
+				Set Node=datalist.createNode(1,"row","")
+				Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+				Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=1
+				datalist.documentElement.appendChild(Node)
+				Set Node=Nothing
+			End If
+		Next
+	End If
+	iXMLDom.documentElement.setAttribute "i",i
+
+	Set showPageNode=datalist
+	Set datalist=Nothing
+End Function
+%>

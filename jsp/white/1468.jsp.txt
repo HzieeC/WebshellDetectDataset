@@ -1,0 +1,304 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_personal.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.trade.tb_commpara.*" %>
+<%@page import="com.bizoss.trade.ts_custclass.*" %>
+<%@page import="com.bizoss.trade.ts_area.*" %>
+<%@page import="com.bizoss.trade.ti_custlevel.*" %>
+<%@page import="com.bizoss.trade.ti_lawyer.*" %>
+<html>
+  <head>
+    
+    <title>会员管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_categoryInfo.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Tb_commparaInfo.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	<script type='text/javascript' src='js_personal.js'></script>	
+</head>
+
+<body>
+
+  <% 
+  	String cust_id="";
+	Ts_areaInfo areaBean = new Ts_areaInfo();
+  	if(request.getParameter("cust_id")!=null) cust_id = request.getParameter("cust_id");
+
+	Ti_custlevelInfo custLevelInfo = new Ti_custlevelInfo();
+	List custLevel_list = custLevelInfo.getListByPk(cust_id);
+	Hashtable custLevel_map = new Hashtable();	
+	if(custLevel_list!=null && custLevel_list.size()>0) custLevel_map = (Hashtable)custLevel_list.get(0);
+	
+	String cust_start_date = "";
+	if(custLevel_map.get("cust_start_date")!=null){
+	cust_start_date = custLevel_map.get("cust_start_date").toString();
+	if(cust_start_date.length()>10)cust_start_date=cust_start_date.substring(0,10);
+	}
+	String cust_end_date = "";
+	if(custLevel_map.get("cust_end_date")!=null){
+	cust_end_date = custLevel_map.get("cust_end_date").toString();
+	if(cust_end_date.length()>10)cust_end_date=cust_end_date.substring(0,10);
+	}	
+	String user_class = "";
+	if(custLevel_map.get("cust_class")!=null){
+	user_class = custLevel_map.get("cust_class").toString();
+	}		
+	
+	Tb_commparaInfo tb_commparaInfo=new Tb_commparaInfo();
+	String _income = tb_commparaInfo.getSelectItem("20","");	
+  	Ti_LawyerInfo Ti_lawyerInfo = new Ti_LawyerInfo();
+  	List list = Ti_lawyerInfo.getListByPk(cust_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String user_name="",password="",nike_name="",phone="",email="",cellphone="",license_no="",qq="",company_name="",postcode="",address="",sex="",professional="",area_attr="",marry="",blood_type="",career="",job="",hobby="",income="",in_date="",pub_user_id="",cust_desc="";
+  	String state_code = "",cust_name="",user_type="";
+  	if(map.get("user_name")!=null) user_name = map.get("user_name").toString();
+  	if(map.get("password")!=null) password = map.get("password").toString();
+	if(map.get("state_code")!=null) state_code = map.get("state_code").toString();
+	if(map.get("user_type")!=null) user_type = map.get("user_type").toString();
+	if(map.get("cust_name")!=null) cust_name = map.get("cust_name").toString();
+	if(map.get("nike_name")!=null) nike_name = map.get("nike_name").toString();
+  	if(map.get("phone")!=null) phone = map.get("phone").toString();
+  	if(map.get("email")!=null) email = map.get("email").toString();
+  	if(map.get("cellphone")!=null) cellphone = map.get("cellphone").toString();
+  	if(map.get("license_no")!=null) license_no = map.get("license_no").toString();
+  	if(map.get("qq")!=null) qq = map.get("qq").toString();
+  	if(map.get("company_name")!=null) company_name = map.get("company_name").toString();
+  	if(map.get("postcode")!=null) postcode = map.get("postcode").toString();
+  	if(map.get("address")!=null) address = map.get("address").toString();
+  	if(map.get("sex")!=null) sex = map.get("sex").toString();
+  	if(map.get("professional")!=null) professional = map.get("professional").toString();
+  	if(map.get("area_attr")!=null) area_attr = map.get("area_attr").toString();
+  	if(map.get("marry")!=null) marry = map.get("marry").toString();
+  	if(map.get("blood_type")!=null) blood_type = map.get("blood_type").toString();
+  	if(map.get("career")!=null) career = map.get("career").toString();
+  	if(map.get("job")!=null) job = map.get("job").toString();
+  	if(map.get("hobby")!=null) hobby = map.get("hobby").toString();
+  	if(map.get("income")!=null) income = map.get("income").toString();
+  	if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+  	if(map.get("pub_user_id")!=null) pub_user_id = map.get("pub_user_id").toString();
+  	if(map.get("cust_desc")!=null) cust_desc = map.get("cust_desc").toString();
+	
+	Map custclassinfoMap = new Hashtable();
+	custclassinfoMap.put("class_type","1");	
+	Ts_custclassInfo custclassinfo = new Ts_custclassInfo();
+	String custclass_select =  custclassinfo.getSelectString(custclassinfoMap,user_class);
+	
+		String areaAttr = "",classAttr = "";
+			
+		if (map.get("area_attr") != null) {
+		area_attr = map.get("area_attr").toString();
+		String areaArr[] = area_attr.split("\\|");
+		for( int k = 0; k < areaArr.length; k++ ){
+			areaAttr = areaAttr + " &nbsp; " + areaBean.getAreaNameById( areaArr[k]);
+		}
+	}	
+
+  %>
+	
+	<h1>修改个人会员信息</h1>
+	
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+
+			<tr>
+			<td colspan="4">
+			   <img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">个人基本信息</span>			</td>
+		    </tr>
+			
+			<tr>
+				<td align="right" width="10%">
+					登陆账号<font color="red">*</font>
+				</td>
+			<td  width="30%"><input name="user_name" value="<%=user_name %>" id="user_name" type="text" maxlength="20"  /></td>
+			<td align="right" width="10%">
+				个人相片:
+			</td>
+			<td  colspan="3">
+				<jsp:include page="/program/inc/uploadImgInc.jsp">
+					<jsp:param name="attach_root_id" value="<%=cust_id%>" />
+				</jsp:include>
+			</td>
+			<!-- 
+			<td align="right" width="10%">
+				登陆密码<font color="red">*</font>
+			</td>
+			<td >
+			<input name="passwd" id="passwd"  type="password" maxlength="20" readonly="readonly" />
+			</td>
+			 -->
+			</tr>
+			
+			<tr>
+			<td align="right" width="10%">
+					真实姓名<font color="red">*</font>
+				</td>
+			<td  width="30%"><input name="cust_name" id="cust_name" value="<%=cust_name %>" type="text" maxlength="20"  /></td>
+			<input name="real_name" id="real_name" type="hidden" maxlength="20"  />
+			<td align="right" width="10%">
+					执业证号<font color="red">*</font>
+				</td>
+			<td  width="30%"><input name="license_no" id="license_no" type="text" value="<%=license_no %>" maxlength="20"  /></td>
+			</tr>
+			
+
+			<input name="org_id" id="org_id" type="hidden" maxlength="20" />
+			<input name="role_code" id="role_code" type="hidden" maxlength="20"  />
+			<input name="user_state" id="user_state" type="hidden" value="0"/>
+			
+
+			
+		<tr>
+			<td align="right" width="10%">
+				律所名称:
+			</td>
+			<td width="30%"><input name="company_name" id="company_name" value="<%=company_name %>" type="text" maxlength="20"/></td>
+
+			<td align="right" width="10%">
+				会员级别<font color="red">*</font>
+			</td>
+			<td>
+			<select name="user_class" style="width:145px" id="user_class">
+					<%=custclass_select%>
+			</select>
+			<input type="hidden" name="cust_class" id="cust_class" value="" />
+		</tr>
+		
+		
+
+			<tr>
+				<td colspan="4">
+			   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">个人详细信息</span>			</td>
+		    </tr>
+			
+		<tr>
+			<td align="right" width="10%">
+				固话:
+			</td>
+			<td width="30%"><input name="phone" id="phone" type="text" value="<%=phone %>" maxlength="20"/></td>
+			<td align="right" width="10%">
+				手机:
+			</td>
+			<td><input name="cellphone" id="cellphone" type="text" value="<%=cellphone %>" maxlength="20"/></td>			
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				Email:
+			</td>
+			<td><input name="email" id="email" type="text" value="<%=email %>"/></td>
+			<td align="right" width="10%">
+				擅长的专业:
+			</td>
+			<td><input name="professional" id="professional" type="text" value="<%=professional %>" maxlength="20"/></td>
+		</tr>
+
+		
+		<tr>
+			<td align="right" width="10%">
+				QQ:
+			</td>
+			<td><input name="qq" id="qq" type="text" value="<%=qq %>" maxlength="20"/></td>
+			<td align="right" width="10%">
+				邮政编码:
+				</td>
+			<td><input name="postcode" id="postcode" type="text" value="<%=postcode %>" maxlength="10"/></td>
+		</tr>
+		<tr>
+	
+
+		<td align="right" width="10%">
+				所在地区:
+			</td>
+			<td width="40%">
+							<p><%=areaAttr %>
+							<input type="button" class="buttoncss" name="" value="修改"
+								onclick="showDiv(1)" />
+							</p>
+							<div id="area_div" style="display: none;">
+								<select name="province" id="province"
+								onchange="setCitys(this.value,'')">
+								<option value="">
+									省份
+								</option>
+							</select>
+							<select name="eparchy_code" id="eparchy_code"
+								onchange="setAreas(this.value,'')">
+								<option value="">
+									地级市
+								</option>
+							</select>
+							<select name="city_code" id="city_code" style="display: inline">
+								<option value="">
+									市、县级市、县
+								</option>
+							</select>
+							</div>
+							
+							<input type="hidden" name="area_attr_bak" id="area_attr_bak"
+								value="" />
+							<input type="hidden" name="area_attr" id="area_attr" value="<%=area_attr %>" />
+						</td>
+
+			<td align="right" width="10%">
+				地址:
+			</td>
+			<td><input name="address" id="address" type="text" size="30" value="<%=address %>" maxlength="100"/></td>
+						
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				性别:
+			</td>
+			<td>
+			<input name="sex" id="sex" value="0" checked type="radio" />男
+			<input name="sex" id="sex" value="1"  type="radio" />女</td>
+			<td></td>
+			<td></td>
+		</tr>
+		
+		<tr>
+			<td>
+				个人评价:
+			</td>
+			<td colspan="3">
+			 <textarea name="lawyer_desc"><%=cust_desc %></textarea>
+			<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+			<script type="text/javascript">
+			   CKEDITOR.replace( 'lawyer_desc',{});  
+			</script></td>
+		</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="8240" />
+	  			<input type="hidden" name="cust_id" value="<%=cust_id %>" />
+				<input type="hidden" name="cust_type" value="1" />
+				<input type="hidden" name="user_type" id="user_type" value="<%=user_type%>" />
+				<input type="hidden" name="state_code" value="<%=state_code%>" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="subForm();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+<script type="text/javascript">
+		var area_attr = '<%=area_attr%>';
+		if(area_attr == ""){
+			document.getElementById("area_attr").style.display="block";
+			document.getElementById("sele").style.display="none";
+		}
+	</script>
+</html>
+<script>setProvince();</script>

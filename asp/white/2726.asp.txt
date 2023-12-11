@@ -1,0 +1,122 @@
+﻿<!--#include file="inc/inc_sys.asp"-->
+<!--#include file="opay/tenpay/asp_md5.asp"-->
+<title><%=webname%>--财付通支付</title> 
+<link href="skin/skin01.css" rel="stylesheet" type="text/css">
+
+<% dim  opayid
+
+opayid=5
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select opayid,opayname,opaypassword,opayrturl,opayparter from sdx_opay where opayid="&opayid,conn,1,1
+payid=rs("opayname")
+paypwd=rs("opaypassword")
+payurl=rs("opayrturl")
+payparter=rs("opayparter")
+rs.close
+set rs=nothing
+
+%> 
+<% Response.Buffer = true %>
+<meta name="TENCENT_ONELINE_PAYMENT" content="China TENCENT">
+<html>
+<%
+'取返回参数
+cmdno			= Request("cmdno")
+pay_result	        = Request("pay_result")
+pay_info		= Request("pay_info")
+bill_date		= Request("date")
+bargainor_id	        = Request("bargainor_id")
+transaction_id	        = Request("transaction_id")
+sp_billno		= Request("sp_billno")
+total_fee		= Request("total_fee")
+fee_type		= Request("fee_type")
+attach			= Request("attach")
+md5_sign		= Request("sign")
+
+'本地参数
+spid	= payid	' 这里替换为您的实际商户号
+sp_key = paypwd		' sp_key是32位商户密钥, 请替换为您的实际密钥
+
+'返回值定义
+Private Const retOK = 0					' 成功					
+Private Const invalidSpid = 1			' 商户号错误
+Private Const invalidSign = 2			' 签名错误
+Private Const tenpayErr	= 3				' 财付通返回支付失败
+
+'验签函数
+Function verifyMd5Sign
+
+	origText = "cmdno=" & cmdno & "&pay_result=" & pay_result &_ 
+		       "&date=" & bill_date & "&transaction_id=" & transaction_id &_
+			   "&sp_billno=" & sp_billno & "&total_fee=" & total_fee &_
+			   "&fee_type=" & fee_type & "&attach=" & attach &_
+			   "&key=" & sp_key
+	
+	localSignText = UCase(ASP_MD5(origText)) ' 转换为大写
+	verifyMd5Sign = (localSignText = md5_sign)
+	
+End Function
+
+'返回值
+Dim retValue
+retValue = retOK
+
+'判断商户号
+If bargainor_id <> spid Then
+	retValue = invalidSpid
+Else 
+' 验签
+	If verifyMd5Sign <> True Then
+		retValue = invalidSign
+	Else
+' 检查财付通返回值
+		If pay_result <> 0 Then
+			retValue = tenpayErr
+		End If
+	End If
+End If
+'返回订单处理
+
+
+set rs=server.CreateObject("adodb.recordset")
+rs.Open "select state,score,id,productnum from sdx_orders where goods='"&sp_billno&"'",conn,1,3
+do while not rs.EOF
+rs("state")=3
+strscore=rs("score")
+set rsscore=server.CreateObject("adodb.recordset")
+rsscore.open "select score from dv_user where username='"&rs("username")&"' ",conn,1,3
+rsscore("score") = rs("score") + rsscore("score")
+rsscore.update
+rsscore.close
+set rsscore = nothing
+set rspro=server.CreateObject("adodb.recordset")
+rspro.open "select sdx_orders.id,sdx_orders.goods,sdx_orders.productnum,sdx_orders.state,sdx_product.id,sdx_product.solded,sdx_product.stock from sdx_orders inner join sdx_product on sdx_orders.id=sdx_product.id where sdx_orders.goods='"&sp_billno&"' " ,conn,1,3
+do while not rspro.EOF
+rspro("solded")=rspro("solded")+rspro("productnum")
+rspro("stock")=rspro("stock")-rspro("productnum")
+rspro.Update
+rspro.MoveNext
+loop
+rspro.Close
+set rspro=nothing
+
+rs.Update
+rs.MoveNext
+loop
+rs.Close
+set rs=nothing
+
+'在这里处理业务逻辑 
+
+'输出信息
+Dim pay_msg
+Select Case retValue
+	Case retOK			pay_msg = "支付成功!"
+	Case invalidSpid	pay_msg = "错误的商户号!"	
+	Case invalidSign	pay_msg = "验证MD5签名失败!"
+	Case Else			pay_msg = "支付失败!"
+End Select
+
+response.write pay_msg
+%>
+</html>

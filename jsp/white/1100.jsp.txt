@@ -1,0 +1,205 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page import="com.bizoss.trade.ti_member.*"%>
+<%@ page import="com.bizoss.frame.dao.MenuInfo"%>
+	<%
+	response.setHeader("Pragma","No-cache");
+	response.setHeader("Cache-Control","no-cache");
+	response.setDateHeader("Expires", 0); 
+	 %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<META HTTP-EQUIV="Pragma" CONTENT="no-cache">
+<META HTTP-EQUIV="Cache-Control" CONTENT="no-cache">
+<META HTTP-EQUIV="Expires" CONTENT="0"> 
+<title>8点商铺-个人中心</title>
+<link href="/templets/html/8diansp/css/style.css" rel="stylesheet" type="text/css" />
+<link href="/templets/html/8diansp/css/grzx.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript" src="/js/jquery-1.4.4.min.js"></script>
+<script type="text/javascript" src="/js/jquery-1.4.4.js"></script>
+<script type="text/javascript" src="/templets/html/8diansp/js/menu_qiehuan.js"></script>
+</head>
+<%
+	
+	Map menuinfos = new Hashtable();
+	menuinfos.put("subsys_code", "B2B");
+	menuinfos.put("menu_class", "1");
+	String up_menu_id = "";
+	if (request.getParameter("menu_id") != null && !request.getParameter("menu_id").equals("")) {
+		up_menu_id = request.getParameter("menu_id");
+		menuinfos.put("up_menu_id", up_menu_id);
+	}
+
+	String role_code = "";
+	if (session.getAttribute("session_role_code") != null && !((String) session.getAttribute("session_role_code")).equals("")) {
+		role_code = (String) session.getAttribute("session_role_code");
+		menuinfos.put("role_code", role_code);
+	}
+	String user_type = "";
+	if (session.getAttribute("session_user_type") != null && !((String) session.getAttribute("session_user_type")).equals("")) {
+		user_type = (String) session.getAttribute("session_user_type");
+	}
+	
+	String cust_type = "";
+	if (session.getAttribute("session_cust_type") != null && !((String) session.getAttribute("session_cust_type")).equals("")) {
+		cust_type = (String) session.getAttribute("session_cust_type");
+	}
+
+	String user_id = "", user_name = "";
+	if (session.getAttribute("session_user_id") != null) {
+		user_id = session.getAttribute("session_user_id").toString();
+	}
+	if(user_id.equals("")){%>
+		
+		<script>
+			window.location.href="/";
+		</script>
+
+	<%}
+	String cust_id = "";
+	if (session.getAttribute("session_cust_id") != null) {
+		cust_id = session.getAttribute("session_cust_id").toString();
+	}
+	if (session.getAttribute("session_user_name") != null) {
+		user_name = session.getAttribute("session_user_name")
+				.toString();
+	}
+	Ti_memberInfo memberInfo = new Ti_memberInfo();
+
+	String cust_class = memberInfo.getCustClassByPk(cust_id);
+	if (cust_class != null && !cust_class.equals("")) {
+		menuinfos.put("cust_class", cust_class);
+	}
+	
+	MenuInfo menuInfo = new MenuInfo();
+	if (up_menu_id.equals("")) {
+		String first_menu_id = menuInfo.getOneLevelFirstMenu(menuinfos,user_type);
+	}
+
+	List menuList = null;
+	if (user_type.equals("2") || user_type.equals("0")) {
+		menuList = menuInfo.getMenuinfoByCustClass(menuinfos);
+	} else if (user_type.equals("1") || user_type.equals("3")) {
+		menuList = menuInfo.getMenuinfoByRole(menuinfos);
+	}
+	
+	String menuinit=request.getParameter("menuinit");
+	if(menuinit == null) menuinit = "";
+	
+%>
+<%
+	if (cust_type.equals("0")){	
+	%>
+	<script LANGUAGE="JavaScript">
+    <!--
+    window.location="/company_member.html";
+    // -->
+    </script>
+	<%
+	}
+%>
+
+<body>
+
+	<script> 
+		  document.write("<s" + "cript type='text/javascript' src='/templets/html/8diansp/top.jsp?" + Math.random() + "'></scr" + "ipt>");
+	</script>
+<div id="container">
+  <div class="breadcrumb">您现在的位置：<a href="/">8点商铺</a> &gt; 我的8点商铺 </div>
+  <div class="columnleft" id="myYihaodianLeftMenu" style="display: block; float: left;">
+   <%
+				if (menuList != null && menuList.size() > 0) {
+					Hashtable mMap = new Hashtable();
+					for (int i = 0; i < menuList.size(); i++) {
+						mMap = (Hashtable) menuList.get(i);
+						String menu_id = "", menu_name = "";
+						if (mMap.get("menu_id") != null)
+							menu_id = mMap.get("menu_id").toString();
+						if (mMap.get("menu_name") != null)
+							menu_name = mMap.get("menu_name").toString();
+						List children = new ArrayList();
+						if (!menu_id.equals("")) {
+							Map temMap = new Hashtable();
+							temMap.put("subsys_code","B2B");
+							temMap.put("up_menu_id", menu_id); //���⼶Ŀ¼��Ϊ�ϼ�Ŀ¼
+							temMap.put("cust_class", cust_class); //
+
+							children = menuInfo.getMenuinfoByUpIdClass(temMap);
+						}
+				%>
+				 <dl>
+				      <dt onClick="javascript:ShowMenu(this,<%=i%>)"><%=menu_name%></dt>
+				     
+					<%
+					if (children != null && children.size() > 0) {
+					Hashtable twoMenuMap = new Hashtable();
+					for (int j = 0; j < children.size(); j++) {
+						twoMenuMap = (Hashtable) children.get(j);
+						String c_name = "", c_id = "";
+						if (twoMenuMap.get("menu_id") != null)
+							c_id = twoMenuMap.get("menu_id").toString();
+						if (twoMenuMap.get("menu_name") != null)
+							c_name = twoMenuMap.get("menu_name").toString();
+	
+						List children3 = new ArrayList();
+						if (!c_id.equals("")) {
+							Map temMap3 = new Hashtable();
+							temMap3.put("up_menu_id", c_id); //���⼶Ŀ¼��Ϊ�ϼ�Ŀ¼
+							temMap3.put("cust_class", cust_class); //
+	
+							children3 = menuInfo.getMenuinfoByUpIdClass(temMap3);
+							if (children3 != null && children3.size() > 0) {
+								Hashtable twoMenuMap3 = new Hashtable();
+								for (int k = 0; k < children3.size(); k++) {
+									twoMenuMap3 = (Hashtable) children3.get(k);
+									String c_name3 = "", c_id3 = "";
+									if (twoMenuMap3.get("menu_id") != null) {
+										c_id3 = twoMenuMap3.get("menu_id").toString();
+									}
+									if (twoMenuMap3.get("menu_name") != null) {
+										c_name3 = twoMenuMap3.get("menu_name").toString();
+									}
+									String module_path = menuInfo.getModuleFile(c_id3);
+									module_path = module_path.replace("WebRoot/", "") + "?menu_id=" + c_id3;
+			 						if(module_path.indexOf("returnMoney.jsp")==-1&&module_path.indexOf("/forReturn/")==-1){
+			 						%>
+			 						 <dd>&gt; <a href="javascript:changeIFrameInfos('<%=module_path%>');"><%=c_name%></a></dd>
+									<%
+			 						}
+			 					}
+	 						} else {
+	 							String module_path = menuInfo.getModuleFile(c_id);
+	 							module_path = module_path.replace("WebRoot/", "") + "?menu_id=" + c_id;
+	 							if(module_path.indexOf("returnMoney.jsp")==-1&&module_path.indexOf("/forReturn/")==-1){
+			 						%>
+			 						 <dd>&gt; <a href="javascript:changeIFrameInfos('<%=module_path%>');"><%=c_name%></a></dd>
+									<%
+			 						}
+			 					}
+						}
+					}
+				}
+				%>
+						</dl>
+				<%
+					}
+				}
+				%>
+   
+    <img src="/templets/html/8diansp/images/leftfooter.gif"></div>
+	
+  <div class="columnright" >
+  	<iframe name="contentFrame" src="/program/member/index/8diansp/welcome.jsp" border=0 marginWidth=0 frameSpacing=0 marginHeight=0 frameBorder="0"   scrolling="no" width="780" height="100%" id="contentFrame"></iframe>
+  </div>
+</div>
+<!--底部开始-->
+  <jsp:include page="/templets/html/8diansp/small_footer.jsp"/>
+<!--底部结束-->
+
+</body>
+
+</html>
+
+

@@ -1,0 +1,279 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="inc/func_file.asp" -->
+
+<%
+Call CheckIframe()
+
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 ****
+
+
+Call OpenMemberexe("","login",10)
+Call IsAdminRight("alertBack")
+Call CloseMemberexe()
+
+
+	currDbPath	= server.mappath(dbPathPart & dbName)
+	backupPath	= server.mappath(dbPathPart & dbBackupDir)
+
+
+Select Case mudi
+	Case "backup"
+		Call backup()
+
+	Case "compress"
+		newFileSize=0
+		Call compress()
+
+	Case "restore"
+		Call restore()
+
+	Case "backupDel"
+		Call BackupDel()
+
+	Case "download"
+		Call download()
+
+End Select
+
+If conobj.state=1 Then conobj.close
+Set conobj=Nothing
+
+
+
+
+
+
+'数据库备份
+Private Sub backup()
+	URL			= ToPostStr("URL")
+	
+	backupName	= ToPostStr("backupName")
+	backupFile	= backupPath &"/"& backupName & dbBackupExt
+
+	If backupName="" Then
+		Call JS_AlertBackEnd("表单接收不全.")
+	End If
+
+	Set fso=server.createobject("scripting.filesystemobject")
+		If fso.fileexists(currDbPath) Then
+			Call File_CreateDir(backupPath)
+			fso.copyfile currDbPath,backupFile
+				Set fsoFile=fso.GetFile(backupFile)
+				Set addrec=server.CreateObject("ADODB.recordset")
+				addrec.open "select top 1 * from OT_backupDatabase where 1=2",conobj,0,2
+				addrec.addnew
+				addrec("BD_time")=Now()
+				addrec("BD_filePath")=backupName
+				addrec("BD_fileSize")=fsoFile.size
+				addrec.update
+				addrec.close
+				Set addrec=Nothing
+				Set fsoFile=Nothing
+			Call JS_AlertHref("备份数据库成功.",URL)
+		Else
+			Call JS_AlertHref("备份数据库失败，源数据库路径不存在.",URL)
+		End If
+	Set fso=Nothing
+End Sub
+
+
+
+
+
+'数据库压缩
+Private Sub compress()
+	Dim URL,backupFile,isAccess97
+	URL			= ToPostStr("URL")
+	backupFileID= ToPostInt2("backupFileID",0)
+	isAccess97	= ToPostInt("isAccess97")
+
+	If backupFileID<1 And backupFileID<>-99 Then
+		Call JS_AlertBackEnd("表单接收不全.")
+	End If
+
+	If backupFileID=-99 Then
+		backupFile = currDbPath
+		conobj.close
+
+		If CompactDB(backupFile,isAccess97)=True Then
+			Call JS_AlertHref("压缩成功!",URL)
+		Else
+			Call JS_AlertHref("数据库名称或路径不正确. 请重试!",URL)
+		End If
+	Else
+		Set pathexe=conobj.execute("select BD_ID,BD_filePath from OT_backupDatabase where BD_ID="& backupFileID)
+			If pathexe.EOF Then
+				Call JS_AlertBackEnd("该备份记录不存在.")
+			End If
+
+			backupFile = backupPath &"/"& pathexe("BD_filePath") & dbBackupExt
+		pathexe.close
+		Set pathexe=Nothing
+
+		newFileSize=0
+		If CompactDB(backupFile,isAccess97)=True Then
+			If newFileSize>0 Then
+				conobj.execute("update OT_backupDatabase set BD_fileSize="& newFileSize &" where BD_ID="& backupFileID)
+			End If
+			Call JS_AlertHref("压缩成功!",URL)
+		Else
+			Call JS_AlertHref("数据库名称或路径不正确. 请重试!",URL)
+		End If
+	End If
+
+End Sub
+
+
+
+
+
+'数据库恢复
+Private Sub restore()
+	Dim resBackupFile,resNowFile
+	URL			= ToPostStr("URL")
+	backupName	= ToPostStr("backupName")
+
+	If backupName="" Then
+		Call JS_AlertBackEnd("表单接收不全.")
+	End If
+
+	resBackupFile=backupPath &"/"& backupName & dbBackupExt
+
+	Set fso=server.createobject("scripting.filesystemobject")
+		If fso.fileexists(resBackupFile) Then
+			fso.copyfile resBackupFile,currDbPath
+			Call JS_AlertHref("恢复数据成功!",URL)
+		Else
+			Call JS_AlertHref("备份目录下并无您的备份文件!",URL)
+		End If
+	Set fso=Nothing
+End Sub
+
+
+
+
+Private Sub BackupDel()
+	dataID	= ToGetInt("dataID")
+		If dataID<=0 Then
+			Call JS_AlertEnd("指定ID错误！")
+		End If
+
+	application.lock
+		Set delrec=server.CreateObject("ADODB.recordset")
+		delrec.open "select BD_filePath from OT_backupDatabase where BD_ID="& dataID,conobj,0,2
+			If delrec.EOF Then
+				Call JS_AlertEnd("搜索不到相关数据！")
+			End If
+							
+			On Error Resume Next
+			Set fso=server.CreateObject("Scripting.FileSystemObject")
+				delFilePath=backupPath &"/"& delrec("BD_filePath") & dbBackupExt
+				If fso.fileexists(delFilePath) = True Then
+					fso.deletefile delFilePath,True
+				End If
+			fso.close
+			Set fso=Nothing
+
+		delrec.delete
+		delrec.update
+		delrec.close
+		Set delrec=Nothing
+	application.unlock
+
+	response.write "<script language='javascript' type='text/javascript'>parent.$id('closeData"& dataID &"').style.display='none';</script>"
+End Sub
+
+
+
+
+
+'下载备份数据库
+Private Sub download()
+	If OT_IsDownloadDB<>True Then
+		Call JS_AlertCloseEnd("配置文件中未开启备份数据库下载权限\n\n如想开启，请打开根目录下config.asp文件更改 OT_IsDownloadDB 常量的值为 true")
+	End If
+
+	dataID = ToGetInt("dataID")
+	Set dlexe=conobj.execute("select BD_time,BD_filePath from OT_backupDatabase where BD_ID="& dataID)
+		If dlexe.EOF Then
+			Call JS_AlertEnd("无该文件！")
+		Else
+			response.clear()
+			Call FileDownload(backupPath &"/"& dlexe("BD_filePath") & dbBackupExt,"备份于"& dlexe("BD_time") &".mdb")
+		End If
+	dlexe.close
+	Set dlexe=Nothing
+End Sub
+
+
+
+
+
+
+
+'压缩数据库函数
+Function CompactDB(dbPath, isAccess97)
+	Dim fso, Engine, dbPathStr, JET_3X
+	dbPathStr = Left(dbPath,InstrRev(dbPath,"\"))
+
+	Set fso = CreateObject("Scripting.FileSystemObject")
+	If fso.FileExists(dbPath) Then
+		Set Engine = CreateObject("JRO.JetEngine")
+			If isAccess97 = 1 Then
+				Engine.Compactdatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source="& dbPath, _
+				"Provider=Microsoft.Jet.OLEDB.4.0;Data Source="& dbPathStr &"temp.mdb;" _
+				& "Jet OLEDB:Engine Type="& JET_3X
+			Else
+				Engine.Compactdatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & dbPath, _
+				"Provider=Microsoft.Jet.OLEDB.4.0;Data Source="& dbPathStr &"temp.mdb"
+			End If
+		fso.CopyFile dbPathStr & "temp.mdb",dbPath
+		fso.DeleteFile(dbPathStr & "temp.mdb")
+			Set fsoFile=fso.GetFile(dbPath)
+				newFileSize = fsoFile.size
+			Set fsoFile=Nothing
+		Set fso = nothing
+		Set Engine = nothing
+
+		CompactDB = True
+	Else
+
+		CompactDB = False
+	End If
+End Function
+
+
+'下载
+Function FileDownload(f,n)
+	On Error Resume Next
+    Set S=CreateObject("Adodb.Stream")
+    S.Mode=3
+    S.Type=1
+    S.Open
+    S.LoadFromFile(f)
+    If Err.Number>0 Then
+		Response.Status="404"
+    Else
+		Response.ContentType="application/octet-stream"
+		Response.AddHeader "Content-Disposition:","attachment; filename="& n
+		Range=Mid(Request.ServerVariables("HTTP_RANGE"),7)
+		If Range="" then
+			Response.BinaryWrite(S.Read)
+		Else
+			S.position=Clng(Split(Range,"-")(0))
+			Response.BinaryWrite(S.Read)
+		End If
+	End If
+	Response.End
+End Function
+
+%>

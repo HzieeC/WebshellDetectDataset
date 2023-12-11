@@ -1,0 +1,379 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<%link="company_recycle.asp"%>
+<!--#include file="checkcmember.asp" -->
+<!--#include file="flagandexpend.asp"-->
+<%
+ hireid=trim(request("hireid"))
+Dim page,i
+Dim totalPut
+const MaxPerpage=10
+Const strFileName="company_recycle.asp"
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+ if trim(request("action"))<>"" then
+  action=trim(request("action"))
+  checks=trim(request("checks"))
+  set rs=Server.CreateObject("Adodb.Recordset")
+  comrecycle=split(checks,",")
+  select case action
+   case "renew"  '简历恢复
+    for i=0 to ubound(comrecycle)
+     id=trim(comrecycle(i))
+	 sql="select * from job_c_recycle where comrecycle_id="&id&"" '取出基本信息
+     rs.open sql,conn,1,1
+     resumeid=rs("comrecycle_resumeid")
+     name=rs("comrecycle_name")
+     sex=rs("comrecycle_sex") 
+     birth=rs("comrecycle_birth")
+     edu=rs("comrecycle_edu")
+	 hireid=rs("comrecycle_hireid")
+	 place=rs("comrecycle_place")
+	 pmember=rs("comrecycle_pmember")
+	 myreceive_date=rs("comrecycle_date")
+	 comrecycle_content=rs("comrecycle_content")
+     rs.close
+	 sql="select * from job_c_myreceive " '存入收到的应聘简历
+     rs.open sql,conn,3,3
+	 rs.addnew
+	  rs("myreceive_resumeid")=resumeid
+	  rs("myreceive_name")=name
+	  rs("myreceive_sex")=sex
+	  rs("myreceive_birth")=birth
+	  rs("myreceive_edu")=edu
+	  rs("myreceive_hireid")=hireid
+	  rs("myreceive_place")=place
+	  rs("myreceive_cmember")=cmember_login
+	  rs("myreceive_pmember")=pmember
+	  rs("myreceive_date")=myreceive_date
+	  rs("myreceive_content")=comrecycle_content
+	 rs.update
+	 rs.close
+	 '删除简历
+	 conn.execute("delete from job_c_recycle where comrecycle_id="&id)
+	next
+   case "myexpert"
+	If CheckCFlag("Climits",2)=False Then
+	Response.Write("<script language=JavaScript>{alert('您无权使用人才库！');location.href = 'javascript:history.go(-1)';}</script>")
+	End If
+    for i=0 to ubound(comrecycle)
+     id=trim(comrecycle(i))
+     sql="select * from job_c_recycle where comrecycle_id="&id '取出基本信息
+     rs.open sql,conn,1,1
+	 hireid=rs("comrecycle_hireid")
+     resumeid=rs("comrecycle_resumeid")
+     name=rs("comrecycle_name")
+     sex=rs("comrecycle_sex")
+     birth=rs("comrecycle_birth")
+     edu=rs("comrecycle_edu")
+	 pmember=rs("comrecycle_pmember")
+     rs.close
+	 sql="select * from job_c_myexpert where myexpert_pmember='"&pmember&"'" '存入人才库
+     rs.open sql,conn,1,3
+	 if rs.eof then
+		 If CheckCFlag("Climits",3)=False then
+			If CheckCFlag("Cdianshus",1)=False then
+				response.write "<script language=javascript>alert('恭喜您成功添加"&t&"个人才！\n由于您人才库的数量已达到上限（或无可用点数），暂不能继续收藏，如需继续扩大人才库容量请联系网站客服进行升级！');location.href='javascript:window.close()';</script>"
+				response.end()
+			else
+				Call PayLog(cmember_login,2,"将"&name&"的简历放入到人才库",Group_Cdianshus(1),0)
+			end if
+		else
+			Call PayLog(cmember_login,2,"将"&name&"的简历放入到人才库",0,0)
+		end if
+		 rs.addnew
+		  rs("myexpert_resumeid")=resumeid
+		  rs("myexpert_name")=name
+		  rs("myexpert_sex")=sex
+		  rs("myexpert_birth")=birth
+		  rs("myexpert_edu")=edu
+		  rs("myexpert_cmember")=cmember_login
+		  rs("myexpert_pmember")=pmember
+		  rs("myexpert_exp")=1
+		  rs.update
+		  '修改人才库人才数量
+		if CheckCFlag("Climits",3)=False Or Group_Climits(3)=0 then
+			conn.Execute("Update JOB_member set Member_expertnums=Member_expertnums+1 where Member_login = '"&cmember_login&"' and Member_typeid=2")
+		else
+			conn.Execute("Update JOB_member set Member_expertnums=Member_expertnums+1,Member_expertnum=Member_expertnum-1 where Member_login = '"&cmember_login&"' and Member_typeid=2")
+		end if
+		Call IncomeIntegral(cmember_login,2,-Group_Cintegrals(1))
+	 else
+	    if rs("myexpert_exp")<>1 then
+			If CheckCFlag("Climits",3)=False then
+				If CheckCFlag("Cdianshus",1)=False then
+					response.write "<script language=javascript>alert('恭喜您成功添加"&t&"个人才！\n由于您人才库的数量已达到上限（或无可用点数），暂不能继续收藏，如需继续扩大人才库容量请联系网站客服进行升级！');location.href='javascript:window.close()';</script>"
+					response.end()
+				else
+					Call PayLog(cmember_login,2,"将"&name&"的简历放入到人才库",Group_Cdianshus(1),0)
+				end if
+			else
+				Call PayLog(cmember_login,2,"将"&name&"的简历放入到人才库",0,0)
+			end if
+			rs("myexpert_date")=now()
+			rs("myexpert_exp")=1
+			rs.update
+			'修改人才库人才数量
+			if CheckCFlag("Climits",3)=False Or Group_Climits(3)=0 then
+				conn.Execute("Update JOB_member set Member_expertnums=Member_expertnums+1 where Member_login = '"&cmember_login&"' and Member_typeid=2")
+			else
+				conn.Execute("Update JOB_member set Member_expertnums=Member_expertnums+1,Member_expertnum=Member_expertnum-1 where Member_login = '"&cmember_login&"' and Member_typeid=2")
+			end if
+			Call IncomeIntegral(cmember_login,2,-Group_Cintegrals(1))
+		end if
+	 end if
+	 rs.close
+	 '把工作申请记录中相应信息的收藏标志置1
+	 conn.execute("update job_p_mysend set mysend_favorite=1 where mysend_hireid="&hireid&" and mysend_pmember='"&pmember&"'")
+	 '删除简历
+	 conn.execute("delete from job_c_recycle where comrecycle_id="&id)
+	next
+   case "delete"
+    for i=0 to ubound(comrecycle)
+     id=trim(comrecycle(i))
+	 conn.execute("delete from job_c_recycle where comrecycle_id="&id)
+	next
+   case "clean"
+	 conn.execute("delete from job_c_recycle where comrecycle_cmember='"&cmember_login&"'")
+  end select
+  response.redirect "company_recycle.asp?page="&page&""
+  response.end
+ end if%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>简历回收站-企业招聘管理中心-<%=SiteTitle%></title>
+<link href="../member/css.css" rel="stylesheet" type="text/css" />
+<script language="JavaScript">
+<!--
+  function CheckAll(form)
+  {
+  for (var i=0;i<form.elements.length;i++)
+    {
+    var e = form.elements[i];
+    if (e.name != 'chkall')
+       e.checked = form.chkall.checked;
+    }
+  }
+  function showconfirm(id,page)
+{
+	var flag=false; //是否有选择职位信息
+	var k=0;
+	var refid;
+	for(i=0;i<document.thisForm.elements.length;i++) 
+	{
+		if (document.thisForm.elements[i].name=="checks")
+		{		
+			if (document.thisForm.elements[i].checked==true) 
+			{
+				flag=true;
+				break;
+			}
+		}
+	}
+	if (flag==false)
+	{
+		alert("请先选择一个职位！");
+		return false;
+	}
+	//简历恢复
+	if (id==1)
+	{
+		if(confirm("您确定要恢复简历吗？")==true)
+		{
+			document.thisForm.action="company_recycle.asp?action=renew&page="+page+"";
+			thisForm.submit();
+		}
+	}
+	//发送面试邀请
+	if (id==2)
+	{
+	   if(confirm("您确定要发送面试邀请吗？")==true)
+		{
+			document.thisForm.action="company_interviewsend.asp?action=comrecycle";
+			//document.thisForm.target="_blank";
+			thisForm.submit();
+		}
+	}
+	//放入人才库
+	if (id==3)
+	{
+		if(confirm("您确定要放入人才库吗？")==true)
+		{
+			document.thisForm.action="company_recycle.asp?action=myexpert&page="+page+"";
+			thisForm.submit();
+		}
+	}
+	//删除
+	if (id==4)
+	{
+		if(confirm("您确定要彻底删除简历吗？")==true)
+		{
+			document.thisForm.action="company_recycle.asp?action=delete&page="+page+"";
+			thisForm.submit();
+		}
+	}		
+}
+  //-->
+</script>
+</head>
+<body>
+<div class="memmenul">
+<div class="leftmenutit"><span>简历回收站</span></div>
+<%
+Set rsw= Server.CreateObject(FR_HR_RS)
+'If CheckInfo(5)=False Then
+'sqlOther=" top "&OutInfo("JOB_C_cmembertype","type_id","meetnums",session("user_type"))
+'End If
+'sql="select "& sqlOther &" * from job_c_recycle where comrecycle_cmember='"&cmember_login&"'"
+sql="select * from job_c_recycle where comrecycle_cmember='"&cmember_login&"'"
+if hireid<>"" then
+hireid=clng(hireid)
+sql=sql&" and comrecycle_hireid="&hireid&""
+end if
+sql=sql&" order by comrecycle_date desc"
+	rsw.open sql,conn,1,1
+	if rsw.eof and rsw.bof then
+		response.Write("<center><br><br>暂无删除的简历！<br></center>")
+		response.Write("<center><br><br><a href=index.asp target=_blank>浏览人才</a>  <a href=company_searchresume.asp target=main>搜索人才</a><br><br><br><br></center>")
+		response.End()
+	else
+		totalPut=rsw.recordcount
+		if (page-1)*MaxPerpage>totalput then
+			if (totalPut mod MaxPerpage)=0 then
+				page= totalPut \ MaxPerpage
+			else
+				page= totalPut \ MaxPerpage + 1
+			end if
+		end if
+		if page=1 then
+			Call MainInfo()
+		else
+			if (page-1)*MaxPerpage<totalPut then
+				rsw.move  (page-1)*MaxPerpage
+				dim bookmark
+				bookmark=rsw.bookmark
+				Call MainInfo()
+			else
+				page=1
+				Call MainInfo()
+			end if
+		end if
+	end if
+	rsw.close
+	set rsw=nothing
+if FoundErr=True then
+	call Show_Err()
+end if
+%>
+<%Sub MainInfo()%>
+<table width="98%" border="0" align="center" cellpadding="0" cellspacing="0" class="mtable">
+  <tr>
+    <td colspan="7">查看应聘 
+<select onchange="javascript:window.location.href=this.value" name="select">
+<option value="comrecycle.asp">(全 部)</option>
+<%
+hireid=trim(request("hireid"))
+set rst=server.createobject("ADODB.Recordset")
+sql1="select hire_id,hire_place from job_c_hire where hire_cmember='"&cmember_login&"' order by hire_announcedate desc"
+rst.open sql1,conn,1,1
+for i=1 to rst.recordcount
+if hireid=rst("hire_id") then
+response.write "<OPTION value='company_recycle.asp?hireid="&rst("hire_id")&"' selected>"&rst("hire_place")&"</OPTION>"
+else
+response.write "<OPTION value='company_recycle.asp?hireid="&rst("hire_id")&"'>"&rst("hire_place")&"</OPTION>"
+end if
+rst.movenext
+next
+rst.close
+%>
+</select> 职位的求职人员信息</td>
+    </tr>
+  <tr>
+    <td align="center"><strong>姓名</strong></td>
+    <td align="center"><strong>性别</strong></td>
+    <td align="center"><strong>年龄</strong></td>
+    <td align="center"><strong>学历</strong></td>
+    <td align="center"><strong>应聘职位</strong></td>
+    <td align="center"><strong>发送时间</strong></td>
+    <td align="center"><img src="../images/sel_ico.gif" width="13" height="12" /> </td>
+  </tr>
+<form action="" method="post" name="thisForm" id="thisForm">
+<%do while not rsw.eof%>
+  <tr>
+    <td align="center"><a href="../person/cnresume_view.asp?rid=<%=rsw("comrecycle_resumeid")%>" target="_blank"><%=rsw("comrecycle_name")%></a></td>
+    <td align="center"><%=Hiresex(rsw("comrecycle_sex"))%></td>
+    <td align="center"><%=year(date())-year(rsw("comrecycle_birth"))%></td>
+    <td align="center"><%=Hireedu(rsw("comrecycle_edu"))%></td>
+    <td align="center"><%=rsw("comrecycle_place")%></td>
+    <td align="center"><%=rsw("comrecycle_date")%></td>
+    <td align="center"><input type="checkbox" name="checks" value="<%=rsw("comrecycle_id")%>"></td>
+  </tr>
+<%
+i=i+1
+if i>=MaxPerPage then exit do
+rsw.movenext
+loop
+%>
+  <tr>
+    <td colspan="7" align="right"><input name="chkall" onclick="CheckAll(this.form)" type="checkbox" value="on" />选中所有简历</td>
+    </tr>
+  <tr>
+    <td colspan="7" align="right">
+<input name="Submit2" type="button" class="inputs" value="简历恢复" onclick="javascript:showconfirm(1,<%=page%>)" />
+&nbsp;
+<!--面试邀请-->
+<input name="Submit2" type="button" class="inputs" value="发送面试邀请" onclick="javascrpt:showconfirm(2,<%=page%>)" />
+&nbsp;
+<!--放入人才库-->
+<input name="Submit3" type="button" class="inputs" value="放入人才库" onclick="javascript:showconfirm(3,<%=page%>)" />
+<!--删除简历-->&nbsp;
+<input name="Submit42" type="button" class="inputs" value="删　除" onclick="javascript:showconfirm(4,<%=page%>)" />
+<!--清空回收站-->
+&nbsp; <input name="Submit52" type="button" class="inputs" value="清空回收站" onclick="if (confirm('确定要清空回收站吗？')) window.location='company_recycle.asp?action=clean&amp;currentpage=<%=page%>'" />
+&nbsp; 	</td>
+    </tr>
+  <tr>
+    <td colspan="7">
+<%If totalput>0 Then
+Call Showpage(strFileName,totalput,MaxPerPage,false,true,"份简历")
+End If%>
+	</td>
+    </tr>
+</form>
+</table>
+<table width="98%" border="0" cellspacing="0" cellpadding="0" align="center" style="margin-top:10px; padding:6px;">
+  <tr>
+    <td class="tdcolor">说&nbsp;明</td>
+  </tr>
+  <tr>
+    <td><font color="#000000">“<strong>简历恢复</strong>”</font><font color="#333333">即将回收站中选中的简历恢复至收到应聘简历表中。</font></td>
+  </tr>
+  <tr>
+    <td><font color="#000000">“<strong>发送面试邀请</strong>”</font><font color="#333333">即邀请一个或多个满意的求职者面试。</font></td>
+  </tr>
+  <tr>
+    <td><font color="#000000">“<strong>放入人才库</strong>”</font>即整理收集有价值的求职者，以备日后使用。</td>
+  </tr>
+  <tr>
+    <td><font color="#000000">“<strong>删除</strong>”</font><font color="#333333">即彻底删除选中的简历。</font></td>
+  </tr>
+  <tr>
+    <td><font color="#000000">“<strong>清空回收站</strong>”</font>即删除回收站中的所有简历。</td>
+  </tr>
+</table>
+<%End Sub%>
+</div>
+<%
+conn.close:set conn=nothing%>

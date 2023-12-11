@@ -1,0 +1,535 @@
+<!--#include file="../Conn.asp"-->
+<!--#include file="Item_Conn.asp"-->
+<!-- #include file="inc/const.asp" -->
+<!--#include file="Item_Function.asp"-->
+<%
+Head()
+CheckAdmin(",")
+
+Dim Action,ItemID,CollecType
+Dim SqlItem,RsItem
+Dim SetAttribute
+Dim strChannelDir,ClassID,SpecialID,PaginationType,MaxCharPerPage,ReadLevel
+Dim Stars,ReadPoint,Hits,UpDateType,UpDateTime,IncludePicYn,DefaultPicYn,OnTop,Elite,Hot
+Dim Script_Iframe,Script_Object,Script_Script,Script_Div,Script_Class,Script_Span,Script_Img,Script_Font,Script_A,Script_Html,Script_Table,Script_Tr,Script_Td
+Dim CollecListNum,CollecNewsNum,Passed,SaveFiles,CollecOrder,LinkUrlYn,InputerType,Inputer,EditorType,Editor,ShowCommentLink
+Dim tClass,tSpecial
+
+Dim Arr_Item,Arr_Filters,Arr_Histrolys,CollecTest,Content_View
+Dim CacheTemp
+FoundErr=False
+
+CacheTemp=Lcase(Trim(request.ServerVariables("SCRIPT_NAME")))
+CacheTemp=left(CacheTemp,instrrev(CacheTemp,"/"))
+CacheTemp=replace(CacheTemp,"\","_")
+CacheTemp=replace(CacheTemp,"/","_")
+
+
+Call DelNews()
+Call CheckForm()
+If FoundErr<>True Then
+   Call SetCache()
+   If FoundErr<>True Then
+      If CollecType=0 Then
+         ErrMsg= "<meta http-equiv=""refresh"" content=""3;url=Item_CollecSteady.asp?ItemNum=1&ListNum=1&ListSuccesNum=0&ListFalseNum=0&NewsNumAll=0"">"
+      ElseIf CollecType=1 Then
+         ErrMsg="<meta http-equiv=""refresh"" content=""3;url=Item_CollecFast.asp?ItemNum=1&ListNum=1&NewsSuccesNum=0&NewsFalseNum=0&ImagesNumAll=0"">"
+      ElseIf CollecType=2 Then
+         ErrMsg="<meta http-equiv=""refresh"" content=""3;url=Item_CollecScreen.asp?Action=GetList"">"
+      End If
+   End If
+End If
+If FoundErr=True Then
+   Call dvbbs_error()
+Else
+   Call Page_Main()
+End If
+
+Footer()
+CloseConnItem()
+
+Sub Page_Main()
+%>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="border">
+  <tr class="title"> 
+    <td height="22" colspan="2" align="center" class="topbg"><strong>采 集 系 统 采 集 管 理</strong></td>
+  </tr>
+</table>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="border">
+  <tr class="tdbg"> 
+    <td width="80" height="30"><strong>管理导航：</strong></td>
+    <td width="892" height="30"><a href="Item_Start.asp">管理首页</a> >> 新闻采集 >> 初始化数据</td>         
+  </tr>         
+</table>
+<br>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="border" >
+    <tr> 
+      <td height="100" colspan="2" class="tdbg" align=center>
+
+      <br><br>
+      欢迎使用新闻采集系统，正在初始化数据，请稍后...
+      <br><br>
+<%=ErrMsg%>
+      </td>
+    </tr>
+</table>
+<%End Sub
+
+Sub CheckForm()
+
+   '提取表单
+   Action=Trim(Request.Form("Action"))
+   ItemID=Trim(Request.Form("ItemID"))
+   CollecType=Trim(Request.Form("CollecType"))
+   CollecTest=Trim(Request.Form("CollecTest"))
+   Content_View=Trim(Request.Form("Content_View"))
+   SetAttribute=Trim(Request.Form("SetAttribute"))
+   '检察表单
+   If Action<>"Start" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>参数不足!</li>"
+   End If
+   If ItemID="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请您选择项目!</li>"
+   Else
+      If Instr(ItemID,",")>0 Then
+         ItemID=Replace(ItemID," ","")
+      End If
+   End If 
+   If CollecType="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请您选择采集模式!</li>"
+   Else
+      CollecType=Clng(CollecType)
+      If CollecType<>0 And CollecType<>1 And CollecType<>2 Then
+         FoundErr=True
+         ErrMsg=ErrMsg & "<br><li>您选择的采集模式无效!</li>"
+      End If
+   End If
+   If CollecTest="yes" Then
+      CollecTest=True
+   Else
+      CollecTest=False
+   End If
+   If Content_View="yes" Then
+      Content_View=True
+   Else
+      Content_View=False
+   End If
+   if SetAttribute="Yes" then
+		NewAttribute
+   end if
+End Sub
+Sub SetCache()
+   '项目信息
+   SqlItem ="select * from Item where ItemID in(" & ItemID & ")"
+   Set RsItem=Server.CreateObject("adodb.recordset")
+   RsItem.Open SqlItem,ConnItem,1,1
+   If Not RsItem.Eof Then
+      Arr_Item=RsItem.GetRows()
+   End If
+   RsItem.Close
+   Set RsItem=Nothing
+
+   If IsArray(Arr_Item)=True Then
+   		Dvbbs.name=CacheTemp & "items"
+        Dvbbs.Value=Arr_Item
+   Else
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br>发生意外错误！"
+   End If
+
+   '过滤信息
+   SqlItem ="select * from Filters where Flag=True"
+   Set RsItem=Server.CreateObject("adodb.recordset")
+   RsItem.Open SqlItem,ConnItem,1,1
+   If Not RsItem.Eof Then
+      Arr_Filters=RsItem.GetRows()
+   End If
+   RsItem.Close
+   Set Rsitem=Nothing
+
+   If IsArray(Arr_Filters)=True Then
+   	  Dvbbs.name=CacheTemp & "filters"
+      Dvbbs.Value=Arr_Filters
+   End If
+
+   '历史记录
+   SqlItem ="select NewsUrl,Title,CollecDate,Result from Histroly"
+   Set RsItem=Server.CreateObject("adodb.recordset")
+   RsItem.Open SqlItem,ConnItem,1,1
+   If Not RsItem.Eof Then
+      Arr_Histrolys=RsItem.GetRows()
+   End If
+   RsItem.Close
+   Set RsItem=Nothing
+
+   If IsArray(Arr_Histrolys)=True Then
+   		Dvbbs.name=CacheTemp & "histrolys"
+        Dvbbs.Value=Arr_Histrolys
+   End If
+
+   '其它信息
+   Dvbbs.name=CacheTemp & "collectest"
+   Dvbbs.Value=CollecTest
+
+   Dvbbs.name=CacheTemp & "contentview"
+   Dvbbs.Value=Content_View
+End Sub
+Sub DelNews()
+   ConnItem.execute("delete * from [NewsList]")
+End Sub
+
+Sub NewAttribute()
+
+   ChannelID=Trim(Request.Form("ChannelID"))
+   ClassID=Trim(Request.Form("ClassID"))
+   SpecialID=Trim(Request.Form("SpecialID"))
+   PaginationType=Trim(Request.Form("PaginationType"))
+   MaxCharPerPage=Trim(Request.Form("MaxCharPerPage"))
+   ReadLevel=Trim(Request.Form("ReadLevel"))
+   Stars=Trim(Request.Form("Stars"))
+   ReadPoint=Trim(Request.Form("ReadPoint"))
+   Hits=Trim(Request.Form("Hits"))
+   UpdateType=Trim(Request.Form("UpdateType"))
+   UpDateTime=Trim(Request.Form("UpDateTime"))
+   IncludePicYn=Trim(Request.Form("IncludePicYn"))
+   DefaultPicYn=Trim(Request.Form("DefaultPicYn"))
+   OnTop=Trim(Request.Form("OnTop"))
+   Elite=Trim(Request.Form("Elite"))
+   Hot=Trim(Request.Form("Hot"))
+
+   Script_Iframe=Trim(Request.Form("Script_Iframe"))
+   Script_Object=Trim(Request.Form("Script_Object"))
+   Script_Script=Trim(Request.Form("Script_Script"))
+   Script_Div=Trim(Request.Form("Script_Div"))
+   Script_Class=Trim(Request.Form("Script_Class"))
+   Script_Span=Trim(Request.Form("Script_Span"))
+   Script_Img=Trim(Request.Form("Script_Img"))
+   Script_Font=Trim(Request.Form("Script_Font"))
+   Script_A=Trim(Request.Form("Script_A"))
+   Script_Html=Trim(Request.Form("Script_Html"))
+   CollecListNum=Trim(Request.Form("CollecListNum"))
+   CollecNewsNum=Trim(Request.Form("CollecNewsNum"))
+   Passed=Trim(Request.Form("Passed"))
+   SaveFiles=Trim(Request.Form("SaveFiles"))
+   CollecOrder=Trim(Request.Form("CollecOrder"))
+   LinkUrlYn=Trim(Request.Form("LinkUrlYn"))
+   InputerType=Trim(Request.Form("InputerType"))
+   Inputer=Trim(Request.Form("Inputer"))
+   EditorType=Trim(Request.Form("EditorType"))
+   Editor=Trim(Request.Form("Editor"))
+   ShowCommentLink=Trim(Request.Form("ShowCommentLink"))
+   Script_Table=Trim(Request.Form("Script_Table"))
+   Script_Tr=Trim(Request.Form("Script_Tr"))
+   Script_Td=Trim(Request.Form("Script_Td"))
+
+   If ChannelID="" or ChannelID=0 Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请选择项目所属频道！</li>"
+   Else
+      ChannelID=Clng(ChannelID)
+   End If
+   If ClassID="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请选择项目所属栏目！</li>"
+   Else
+      ClassID=CLng(ClassID)
+      If ClassID<=0 then
+         FoundErr=True
+         ErrMsg=ErrMsg & "<br><li>指定的栏目有下属子栏目或者非法的栏目（外部栏目或不存在的栏目）</li>"
+      Else
+         set tClass=Cl.Execute("select C.Child,C.LinkUrl,D.ChannelDir From Cl_Class C inner join Cl_Channel D on C.ChannelID=D.ChannelID Where C.ChannelID="  & ChannelID & " and C.ClassID=" & ClassID)
+         If tClass.bof and tClass.eof then
+            FoundErr=True
+            ErrMsg=ErrMsg & "<br><li>在本频道内找不到指定的栏目</li>"
+         Else
+            if tClass(0)>0 then
+               FoundErr=True
+               ErrMsg=ErrMsg & "<br><li>指定的栏目有下属子栏目</li>"
+            End if
+            If tClass(1)<>"" then
+               FoundErr=True
+               ErrMsg=ErrMsg & "<br><li>不能指定外部栏目</li>"
+            End if
+            strChannelDir=tClass(2)
+         End if
+         Set tClass=Nothing
+      End if
+   End If
+   If SpecialID="" Then
+      SpecialID=0
+   Else
+      SpecialID=Clng(SpecialID)
+      If SpecialID<>0 Then
+         set tSpecial=Cl.Execute("select SpecialID From Cl_Special Where ChannelID="  & ChannelID)
+         If tSpecial.bof and tSpecial.eof then
+            FoundErr=True
+            ErrMsg=ErrMsg & "<br><li>在本频道内找不到指定的专题</li>"
+         End If
+         Set tSpecial=Nothing
+      End If
+   End If
+
+   If PaginationType="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请选择分页类型！</li>"
+   Else
+      PaginationType=Clng(PaginationType)
+   End If
+   If MaxCharPerPage="" and PaginationType=1 Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请输入每页字符数！</li>"
+   Else
+      MaxCharPerPage=Clng(MaxCharPerPage)
+   End If
+   If ReadLevel="" then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请选择文章阅读等级！</li>"
+   Else
+      ReadLevel=Clng(ReadLevel)
+   End if
+   If Stars="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请选择文章评分等级！</li>"
+   Else
+      Stars=Clng(Stars)
+   End If
+   If ReadPoint="" Then
+      ReadPoint=0
+   Else
+      ReadPoint=Clng(ReadPoint)
+   End if
+   If Hits="" Then
+      Hits=0
+   Else
+      Hits=Clng(Hits)
+   End if
+   If UpdateType="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请选择文章录入时间类型！</li>"
+   Else
+      UpdateType=Clng(UpdateType)
+      If UpDateType=2 Then
+         If IsDate(UpdateTime)=False Then
+            FoundErr=True
+            ErrMsg=ErrMsg & "<br><li>文章录入时间格式不正确！</li>"
+         Else
+            UpDateTime=CDate(UpDateTime)
+         End If
+      End If
+   End if
+
+   If CollecListNum="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请填写新闻列表深度！</li>" 
+   Else
+      CollecListNum=Clng(CollecListNum)
+   End If
+   If CollecNewsNum="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请填写新闻采集数量！</li>" 
+   Else
+      CollecNewsNum=Clng(CollecNewsNum)
+   End If
+
+   If InputerType="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请选择新闻录入者类型！</li>" 
+   Else
+      InputerType=Clng(InputerType)
+      If InputerType=1 And Inputer="" Then
+         FoundErr=True
+         ErrMsg=ErrMsg & "<br><li>请填写新闻录入者！</li>" 
+      End If
+   End If
+
+   If EditorType="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请选择责任编辑类型！</li>" 
+   Else
+      EditorType=Clng(EditorType)
+      If EditorType=1 And Editor="" Then
+         FoundErr=True
+         ErrMsg=ErrMsg & "<br><li>请填写责任编辑！</li>" 
+      End If
+   End If
+   If ShowCommentLink="Yes" Then
+      ShowCommentLink=True
+   Else
+      ShowCommentLink=False
+   End If
+
+	If FoundErr=True Then
+		Call Admin_ShowErr(ErrMsg)
+		Response.end
+	end if
+	if Instr(ItemID,",")>0 then
+		Dim sTempID
+		sTempID=Split(ItemID,",")
+		for i=0 to Ubound(sTempID)
+			Call SaveAttribute(sTempID(i))
+		next
+	else
+		Call SaveAttribute(ItemID)
+	end if
+
+
+End Sub
+
+Sub SaveAttribute(sItemID)
+	if Not IsNumeric(sItemID) then Exit Sub
+   SqlItem="Select * from Item Where ItemID=" & Clng(sItemID)
+   Set RsItem=server.CreateObject("adodb.recordset")
+   RsItem.Open SqlItem,ConnItem,2,3
+   If RsItem.Eof And RsItem.Bof Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>参数错误，没有找该项目</li>"
+   Else
+      RsItem("ChannelID")=ChannelID
+      RsItem("ChannelDir")=strChannelDir
+      RsItem("ClassID")=ClassID
+      RsItem("SpecialID")=SpecialID
+      RsItem("PaginationType")=PaginationType
+      RsItem("MaxCharPerPage")=MaxCharPerPage
+      RsItem("ReadLevel")=ReadLevel
+      RsItem("Stars")=Stars
+      RsItem("ReadPoint")=ReadPoint
+      RsItem("Hits")=Hits
+      RsItem("UpdateType")=UpdateType
+      If UpdateType=2 Then
+         RsItem("UpDateTime")=UpDateTime
+      End If
+      If IncludePicYn="yes" Then
+         RsItem("IncludePicYn")=-1
+      Else
+         RsItem("IncludePicYn")=0
+      End If
+      If DefaultPicYn="yes" Then
+         RsItem("DefaultPicYn")=-1
+      Else
+         RsItem("DefaultPicYn")=0
+      End If
+      If OnTop="yes" Then
+         RsItem("OnTop")=-1
+      Else
+         RsItem("OnTop")=0
+      End If
+      If Elite="yes" Then
+         RsItem("Elite")=-1
+      Else
+         RsItem("Elite")=0
+      End If
+      If Hot="yes" Then
+         RsItem("Hot")=-1
+      Else
+         RsItem("Hot")=0
+      End If
+
+      If Script_Iframe="yes" Then
+         RsItem("Script_Iframe")=-1
+      Else
+         RsItem("Script_Iframe")=0
+      End If
+      If Script_Object="yes" Then
+         RsItem("Script_Object")=-1
+      Else
+         RsItem("Script_Object")=0
+      End If
+      If Script_Script="yes" Then
+         RsItem("Script_Script")=-1
+      Else
+         RsItem("Script_Script")=0
+      End If
+      If Script_Div="yes" Then
+         RsItem("Script_Div")=-1
+      Else
+         RsItem("Script_Div")=0
+      End If
+      If Script_Class="yes" Then
+         RsItem("Script_Class")=-1
+      Else
+         RsItem("Script_Class")=0
+      End If
+      If Script_Span="yes" Then
+         RsItem("Script_Span")=-1
+      Else
+         RsItem("Script_Span")=0
+      End If
+      If Script_Img="yes" Then
+         RsItem("Script_Img")=-1
+      Else
+         RsItem("Script_Img")=0
+      End If
+
+      If Script_Font="yes" Then
+         RsItem("Script_Font")=-1
+      Else
+         RsItem("Script_Font")=0
+      End If
+      If Script_A="yes" Then
+         RsItem("Script_A")=-1
+      Else
+         RsItem("Script_A")=0
+      End If
+
+      If Script_Html="yes" Then
+         RsItem("Script_Html")=-1
+      Else
+         RsItem("Script_Html")=0
+      End If
+      RsItem("CollecListNum")=CollecListNum
+      RsItem("CollecNewsNum")=CollecNewsNum
+
+      If Passed="yes" Then
+         RsItem("Passed")=-1
+      Else
+         RsItem("Passed")=0
+      End If
+      If SaveFiles="yes" Then
+         RsItem("SaveFiles")=-1
+      Else
+         RsItem("SaveFiles")=0
+      End If
+      If CollecOrder="yes" Then
+         RsItem("CollecOrder")=-1
+      Else
+         RsItem("CollecOrder")=0
+      End If
+      If LinkUrlYn="yes" Then
+         RsItem("LinkUrlYn")=-1
+      Else
+         RsItem("LinkUrlYn")=0
+      End If
+      RsItem("InputerType")=InputerType
+      If InputerType=1 Then
+         RsItem("Inputer")=Inputer
+      End If
+      RsItem("EditorType")=EditorType
+      If EditorType=1 Then
+         RsItem("Editor")=Editor
+      End If
+      RsItem("ShowCommentLink")=ShowCommentLink
+      RsItem("Flag")=True
+      If Script_Table="yes" Then
+         RsItem("Script_Table")=-1
+      Else
+         RsItem("Script_Table")=0
+      End If
+      If Script_Tr="yes" Then
+         RsItem("Script_Tr")=-1
+      Else
+         RsItem("Script_Tr")=0
+      End If
+      If Script_Td="yes" Then
+         RsItem("Script_Td")=-1
+      Else
+         RsItem("Script_Td")=0
+      End If
+   End If
+   RsItem.UpDate
+   RsItem.Close
+   Set RsItem=Nothing 
+end sub
+%>

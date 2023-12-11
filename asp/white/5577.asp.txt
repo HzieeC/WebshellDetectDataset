@@ -1,0 +1,825 @@
+﻿<%
+'///////////////////////////////////////////////////////////////////////////////
+'//              Z-Blog
+'// 作    者:    busfly-巴士飞扬
+'// 版权所有:    www.busfly.cn
+'// 技术支持:    janrn#163.com
+'// 程序名称:    文章排行
+'// 英文名称:    busfly_randomsort2
+'// 开始时间:    2007-12-20
+'// 最后修改:    
+'// 备    注:    only for zblog1.8
+'///////////////////////////////////////////////////////////////////////////////
+
+Const busfly_randomsort_isBuildnew=1
+	'<!--最新文章-->是否使用	
+Const busfly_randomsort_isBuildrand=1
+	'<!--随机文章-->是否使用	
+Const busfly_randomsort_isBuildallrand=1
+	'<!--完全随机文章-->是否使用	
+Const busfly_randomsort_isBuildcommonth=1
+	'<!--本月评论排行-->	是否使用
+Const busfly_randomsort_isBuildcomyear=1
+	'<!--本年评论排行-->是否使用
+Const busfly_randomsort_isBuildtopmonth=1
+	'<!--本月排行-->是否使用
+Const busfly_randomsort_isBuildtopyear=1
+	'<!--本年排行-->是否使用
+Const busfly_randomsort_isBuildtophot=1
+	'<!--热文排行-->	是否使用
+Const busfly_randomsort_isBuildCategory=1
+	'<!--分类文章-->	是否使用
+	
+Const busfly_randomsort_isBuildCategoryComments=1
+	'<!--分类最新回复-->	是否使用
+Const busfly_randomsort_isBuildCategoryTophot=1
+	'<!--分类热门文章-->	是否使用
+	
+Const busfly_randomsort_isBuildTags=1
+	'是否启用生成TAGS
+Const busfly_randomsort_isStatistics=1
+	'是否启用网站统计
+Const busfly_randomsort_isArchives=1
+	'是否启用归档
+Const busfly_randomsort_isComments=1
+	'是否启用评论回复
+Const busfly_randomsort_isGuestComments=1
+	'是否启用留言
+Const busfly_randomsort_isTrackBacks=1
+	'是否启用引用列表
+Const busfly_randomsort_isCatalogs=1
+	'是否启用分类目录
+Const busfly_randomsort_isAuthors=1
+	'是否启用用户列表
+
+
+Const busfly_randomsort_INTCUTLEN=32
+	'每条记录的标题字数
+Const busfly_randomsort_NUM_STRNEW=14
+	'最新文章 -设置显示多少条记录
+Const busfly_randomsort_NUM_STRTEMP=10
+	'随机文章 -设置显示多少条记录
+Const busfly_randomsort_NUM_BUSFLY_STRTEMP=10
+	'完全随机文章 -设置显示多少条记录
+Const busfly_randomsort_NUM_STRCOMMONTH=10
+	'本月评论排行 -设置显示多少条记录
+Const busfly_randomsort_NUM_STRCOMYEAR=10
+	'本年评论排行 -设置显示多少条记录
+Const busfly_randomsort_NUM_STRTOPMONTH=10
+	'本月排行 -设置显示多少条记录
+Const busfly_randomsort_NUM_STRTOPYEAR=10
+	'本年排行 -设置显示多少条记录
+Const busfly_randomsort_NUM_BUSFLY_TOPHOT=10
+	'热文排行 -设置显示多少条记录
+Const busfly_randomsort_NUM_Category=12
+	'分类文章 - 设置显示多少条记录
+	
+Const busfly_randomsort_NUM_CategoryComments=12
+	'分类文章 - 设置显示多少条记录	
+Const busfly_randomsort_NUM_CategoryTophot=12
+	'分类文章 - 设置显示多少条记录	
+	
+Const busfly_randomsort_NUM_Tags=10
+	'Tag的记录条数
+Const busfly_randomsort_NUM_Archives=10
+	'归档条数
+Const busfly_randomsort_NUM_Comments=10
+	'评论及回复条数
+Const busfly_randomsort_NUM_GuestComments=10
+	'留言条数
+Const busfly_randomsort_NUM_TrackBacks=10
+	'引用条数
+Const busfly_randomsort_NUM_Catalogs=10
+	'分类条数
+Const busfly_randomsort_NUM_Authors=10
+	'用户条数
+
+Const busfly_randomsort_chReplace="_"
+	'设置单引号和双引号的替换字符
+	
+	Dim busfly_randomsort_icount
+	Dim busfly_randomsort_objRS1
+	Dim busfly_randomsort_objArticle
+	dim busfly_randomsort_strSql
+	dim busfly_randomsort_lastid'下面的连续随机文章要用到
+	dim busfly_randomsort_tempid
+
+Call RegisterPlugin("busfly_randomsort","ActivePlugin_randomsort")
+
+Function ActivePlugin_randomsort()
+'ZC_BLOG_VERSION 版本号,检查是否带了Devo或者Spirit
+'if InStr(ZC_BLOG_VERSION,"Spirit")>0 then
+	Call Add_Action_Plugin("Action_Plugin_MakeBlogReBuild_Core_Begin","Call busfly_randomsort_BlogReBuild_RandomSort()")'在系统重建之前
+'else
+	Call Add_Action_Plugin("Action_Plugin_MakeBlogReBuild_Begin","Call busfly_randomsort_BlogReBuild_RandomSort()")'在系统重建之前
+'end if
+End Function
+'Action_Plugin_MakeBlogReBuild_Core_Begin  'Z-BLOG 1.8 S 使用这个接口
+'Action_Plugin_MakeBlogReBuild_Begin 'Z-BLOG 1.8 Devo 使用这个接口
+
+
+'*********************************************************
+' 目的：生成重建种类文章排行
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_RandomSort()
+		Set busfly_randomsort_objRS1=objConn.Execute("select top 10 * from blog_Article order by log_ID desc")
+		busfly_randomsort_lastid=busfly_randomsort_objRS1("log_ID")'下面的连续随机文章要用到
+		busfly_randomsort_objRS1.close
+		
+	busfly_randomsort_BlogReBuild_randomsortnew
+		'<!--最新文章-->
+	busfly_randomsort_BlogReBuild_randomsortrand
+		'<!--随机文章-->	
+	busfly_randomsort_BlogReBuild_randomsortallrand
+		'<!--完全随机文章-->
+	busfly_randomsort_BlogReBuild_randomsortcommonth
+		'<!--本月评论排行-->	
+	busfly_randomsort_BlogReBuild_randomsortcomyear
+		'<!--本年评论排行-->
+	busfly_randomsort_BlogReBuild_randomsorttopmonth
+		'<!--本月排行-->	
+	busfly_randomsort_BlogReBuild_randomsorttopyear
+		'<!--本年排行-->
+	busfly_randomsort_BlogReBuild_randomsorttophot
+		'<!--热文排行-->	
+	busfly_randomsort_BlogReBuild_Categorys
+		'<!--分类文章-->
+	busfly_randomsort_BlogReBuild_CategorysComments 
+		'<!--分类最新回复-->bf_comments_category_{id}
+	busfly_randomsort_BlogReBuild_CategorysTophot   
+		'<!--分类热门文章-->bf_tophot_category_{id}
+
+	busfly_randomsort_BlogReBuild_bfTags
+		' 生成标签列表
+	busfly_randomsort_BlogReBuild_Statistics
+
+	busfly_randomsort_BlogReBuild_Archives
+
+	busfly_randomsort_BlogReBuild_Comments
+
+	busfly_randomsort_BlogReBuild_GuestComments
+
+	busfly_randomsort_BlogReBuild_TrackBacks
+
+	busfly_randomsort_BlogReBuild_Catalogs
+
+	busfly_randomsort_BlogReBuild_Authors
+	'*********************************************************
+	
+	busfly_randomsort_BlogReBuild_RandomSort=True
+	
+End Function
+
+'*********************************************************
+'过滤单引号和双引号
+'*********************************************************
+Function busfly_randomsort_strReplace(ByVal source,ByVal para)
+		source=Replace(source,"""",para)
+		source=Replace(source,"'",para)		
+		busfly_randomsort_strReplace=source
+End Function
+
+'*********************************************************
+' 取字符串的前几个字,大于字数时,显示...
+'*********************************************************
+'Function busfly_randomsort_cutTitle(ByVal strtitle,ByVal counts)	
+'	if(len(strtitle)>counts) then
+'		busfly_randomsort_cutTitle=left(strtitle,counts)+"..."
+'	else
+'		busfly_randomsort_cutTitle=strtitle
+'	end if
+'End Function
+  function   busfly_randomsort_cutTitle(ByVal strtitle,ByVal counts)   
+	Dim RegExpObj,ReGCheck
+	Set RegExpObj=new RegExp 
+	RegExpObj.Pattern="^[\u4e00-\u9fa5]+$" 
+	Dim l,t,c,i
+	l=Len(strtitle)
+	t=0
+	For i=1 to l
+	c=Mid(strtitle,i,1)   
+	ReGCheck=RegExpObj.test(c)
+	If ReGCheck Then
+	  t=t+2
+	Else
+	  t=t+1
+	End If
+	If t>=counts Then
+	  busfly_randomsort_cutTitle=left(strtitle,i)&"..."
+	  Exit For
+	Else
+	  busfly_randomsort_cutTitle=strtitle
+	End If
+	Next
+	Set RegExpObj=nothing 
+	busfly_randomsort_cutTitle=Replace(busfly_randomsort_cutTitle,chr(10),"")
+	busfly_randomsort_cutTitle=Replace(busfly_randomsort_cutTitle,chr(13),"")
+end   function  
+	      
+'*********************************************************
+' 目的：    列表记录的数据
+' 参数说明: 
+' b_objRS => 数据集合
+' strOutName => 保存到include时的名字(不带后缀名)
+' out_count => 多少条记录
+'*********************************************************
+Function busfly_randomsort_outArticleHtml(ByVal b_objRS,ByVal strOutName,ByVal out_count)
+	dim i
+	dim strOut
+	strOut=" "
+	
+	If (Not b_objRS.bof) And (Not b_objRS.eof) Then
+		For i=1 to out_count
+			Set busfly_randomsort_objArticle=New TArticle
+			If busfly_randomsort_objArticle.LoadInfoByID(b_objRS("log_ID")) Then
+				strOut=strOut & "<li><a href="""& busfly_randomsort_objArticle.Url & """ title=""[" & busfly_randomsort_objArticle.PostTime & "] " & busfly_randomsort_strReplace(busfly_randomsort_objArticle.Title,busfly_randomsort_chReplace) & """>" & busfly_randomsort_cutTitle(busfly_randomsort_objArticle.Title,busfly_randomsort_INTCUTLEN) & "</a></li>" 
+			End If
+			Set busfly_randomsort_objArticle=Nothing
+			b_objRS.MoveNext
+			If b_objRS.eof Then Exit For
+		Next
+	End If
+	b_objRS.close
+
+	strOut=TransferHTML(strOut,"[no-asp]")
+
+	Call SaveToFile(BlogPath & "/include/"&strOutName&".asp",strOut,"utf-8",True)
+
+	strOut=""
+End Function
+'*********************************************************
+
+
+'*********************************************************
+' 目的：    生成标签列表
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_bfTags()
+if busfly_randomsort_isBuildTags=1 then
+	'Dim busfly_randomsort_objRS1
+	'Dim objStream
+	Dim i
+	'Authors
+	Dim strTag
+
+	Set busfly_randomsort_objRS1=objConn.Execute("SELECT top " & busfly_randomsort_NUM_Tags & " [tag_ID] FROM [blog_Tag] ORDER BY [tag_Order] DESC,[tag_Count] DESC,[tag_ID] ASC")
+	If (Not busfly_randomsort_objRS1.bof) And (Not busfly_randomsort_objRS1.eof) Then
+		Do While Not busfly_randomsort_objRS1.eof
+			strTag=strTag & "<li><a href="""& Tags(busfly_randomsort_objRS1("tag_ID")).Url & """>"+Tags(busfly_randomsort_objRS1("tag_ID")).Name + " (" & Tags(busfly_randomsort_objRS1("tag_ID")).Count & ")" +"</a></li>"
+			busfly_randomsort_objRS1.MoveNext
+		Loop
+	End If
+	busfly_randomsort_objRS1.Close
+	Set busfly_randomsort_objRS1=Nothing
+
+	strTag=TransferHTML(strTag,"[no-asp]")
+
+	Call SaveToFile(BlogPath & "/include/bftags.asp",strTag,"utf-8",True)
+
+	busfly_randomsort_BlogReBuild_bfTags=True
+end if
+End Function
+'*********************************************************
+			
+'*********************************************************
+' 目的：    生成分类文章列表
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_Categorys()
+	Dim i
+	Dim Category
+if busfly_randomsort_isBuildCategory=1 then
+	For Each Category in Categorys
+
+		If IsObject(Category) Then
+
+			Set busfly_randomsort_objRS1=objConn.Execute("SELECT [log_ID] FROM [blog_Article] WHERE ([log_ID]>0) AND ([log_Level]>1) AND ([log_CateID]="&Category.ID&") ORDER BY [log_PostTime] DESC")
+
+			call busfly_randomsort_outArticleHtml(busfly_randomsort_objRS1,"category_"&Category.ID,busfly_randomsort_NUM_Category)
+		End If
+	Next
+
+	busfly_randomsort_BlogReBuild_Categorys=True
+end if
+End Function
+			
+'*********************************************************
+' 目的：    分类最新回复列表
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_CategorysComments()
+	Dim i,s
+	Dim Category,strCategoryComments
+if busfly_randomsort_isBuildCategoryComments=1 then
+	For Each Category in Categorys
+	s=""
+	strCategoryComments=""
+		If IsObject(Category) Then   
+
+			Set busfly_randomsort_objRS1=objConn.Execute("SELECT blog_Comment.log_ID,[comm_ID],[comm_Content],[comm_PostTime],[comm_Author] FROM [blog_Article],[blog_Comment] WHERE blog_Article.log_ID>0 AND ([log_CateID]="&Category.ID&") and blog_Comment.log_ID=blog_Article.log_ID ORDER BY [comm_PostTime] DESC,[comm_ID] DESC")
+	
+			If (Not busfly_randomsort_objRS1.bof) And (Not busfly_randomsort_objRS1.eof) Then
+				For i=1 to busfly_randomsort_NUM_CategoryComments
+					s=busfly_randomsort_objRS1("comm_Content")
+					s=Replace(s,vbCrlf,"")
+					s=busfly_randomsort_cutTitle(s,busfly_randomsort_INTCUTLEN) 
+					Set busfly_randomsort_objArticle=New TArticle
+					If busfly_randomsort_objArticle.LoadInfoByID(busfly_randomsort_objRS1("log_ID")) Then
+						strCategoryComments=strCategoryComments & "<li><a href="""& busfly_randomsort_objArticle.Url & "#cmt" & busfly_randomsort_objRS1("comm_ID") & """ title=""" & busfly_randomsort_objRS1("comm_PostTime") & " post by " & busfly_randomsort_objRS1("comm_Author") & """>"+s+"</a></li>"
+					End If
+					Set busfly_randomsort_objArticle=Nothing
+					busfly_randomsort_objRS1.MoveNext
+					If busfly_randomsort_objRS1.eof Then Exit For
+				Next
+			End If
+		
+			busfly_randomsort_objRS1.close
+			Set busfly_randomsort_objRS1=Nothing
+
+			strCategoryComments=TransferHTML(strCategoryComments,"[no-asp]")
+
+			Call SaveToFile(BlogPath & "/include/bf_comments_category_"&Category.ID&".asp",strCategoryComments,"utf-8",True)
+	
+		End If
+	Next
+
+	busfly_randomsort_BlogReBuild_CategorysComments=True
+end if
+End Function
+			
+'*********************************************************
+' 目的：    生成分类热门文章列表
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_CategorysTophot()
+	Dim i
+	Dim Category
+if busfly_randomsort_isBuildCategoryTophot=1 then
+	For Each Category in Categorys
+
+		If IsObject(Category) Then
+
+			Set busfly_randomsort_objRS1=objConn.Execute("select top " & CStr(busfly_randomsort_NUM_CategoryTophot) & " [log_ID] from blog_Article WHERE ([log_Level]>2) AND (log_ID>0) AND ([log_CateID]="&Category.ID&") ORDER BY log_CommNums*100 + log_TrackBackNums*200 + sqr(log_ViewNums)*10 - (date()-Log_PostTime)*(date()-Log_PostTime) DESC")
+
+			call busfly_randomsort_outArticleHtml(busfly_randomsort_objRS1,"bf_tophot_category_"&Category.ID,busfly_randomsort_NUM_CategoryTophot)
+		End If
+	Next
+
+	busfly_randomsort_BlogReBuild_CategorysTophot=True
+end if
+End Function
+
+
+'*********************************************************
+	'<!--最新文章--> 	randomsortnew
+Function busfly_randomsort_BlogReBuild_randomsortnew()
+	if busfly_randomsort_isBuildnew=1 then
+		Set busfly_randomsort_objRS1=objConn.Execute("select top " & CStr(busfly_randomsort_NUM_STRNEW) & " [log_ID] from blog_Article WHERE ([log_ID]>0) AND ([log_Level]>2) order by log_ID desc")
+		call busfly_randomsort_outArticleHtml(busfly_randomsort_objRS1,"randomsortnew",busfly_randomsort_NUM_STRNEW)
+	end if
+End Function
+
+'*********************************************************
+	'<!--随机文章-->	
+Function busfly_randomsort_BlogReBuild_randomsortrand()
+	if busfly_randomsort_isBuildrand=1 then
+	'<!--随机文章-->	randomsortrand
+		randomize
+		busfly_randomsort_tempid=CStr(CInt(Rnd*CInt(busfly_randomsort_lastid))+busfly_randomsort_NUM_STRTEMP)
+		Set busfly_randomsort_objRS1=objConn.Execute("select top " & CStr(busfly_randomsort_NUM_STRTEMP) & " [log_ID] from blog_Article WHERE ([log_Level]>2) AND  log_ID>" & busfly_randomsort_tempid & " order by log_ID")
+		call busfly_randomsort_outArticleHtml(busfly_randomsort_objRS1,"randomsortrand",busfly_randomsort_NUM_STRTEMP)
+	end if
+End Function
+
+'*********************************************************
+	'<!--完全随机文章-->	randomsortallrand
+Function busfly_randomsort_BlogReBuild_randomsortallrand()
+	if busfly_randomsort_isBuildallrand=1 then
+		randomize
+		busfly_randomsort_tempid=CStr(CInt(Rnd*CInt(busfly_randomsort_lastid)))
+		busfly_randomsort_strSql = "select top " & CStr(busfly_randomsort_NUM_BUSFLY_STRTEMP) & " [log_ID] from blog_Article WHERE ([log_Level]>2) AND (log_ID=" & cstr(busfly_randomsort_tempid)
+		For busfly_randomsort_icount=1 To busfly_randomsort_NUM_BUSFLY_STRTEMP+4 '多设置几个,以免[log_Level]>2这个原因而丢失几个
+			'randomize
+			busfly_randomsort_tempid=CStr(CInt(Rnd*CInt(busfly_randomsort_lastid)))   
+			busfly_randomsort_strSql = busfly_randomsort_strSql & " or log_ID=" & cstr(busfly_randomsort_tempid) 
+		next
+		busfly_randomsort_strSql = busfly_randomsort_strSql & ")"  
+		'busfly_randomsort_strSql = busfly_randomsort_strSql & " ORDER BY [log_PostTime] DESC" 
+		'如果要排序,加上上面这行.去掉前面的单引号就可以
+	
+		Set busfly_randomsort_objRS1=objConn.Execute(busfly_randomsort_strSql)
+		call busfly_randomsort_outArticleHtml(busfly_randomsort_objRS1,"randomsortallrand",busfly_randomsort_NUM_BUSFLY_STRTEMP)
+	end if
+End Function
+
+'*********************************************************
+	'<!--本月评论排行-->	randomsortcommonth
+Function busfly_randomsort_BlogReBuild_randomsortcommonth()
+	if busfly_randomsort_isBuildcommonth=1 then
+		Set busfly_randomsort_objRS1=objConn.Execute("select top " & CStr(busfly_randomsort_NUM_STRCOMMONTH) & " [log_ID] from blog_Article WHERE ([log_Level]>2) AND (log_ID>0) AND  (log_PostTime>Now()-90) ORDER BY log_CommNums DESC")
+		call busfly_randomsort_outArticleHtml(busfly_randomsort_objRS1,"randomsortcommonth",busfly_randomsort_NUM_STRCOMMONTH)
+	end if
+End Function
+
+'*********************************************************
+	'<!--本年评论排行-->
+Function busfly_randomsort_BlogReBuild_randomsortcomyear()
+	if busfly_randomsort_isBuildcomyear=1 then
+		Set busfly_randomsort_objRS1=objConn.Execute("select top " & CStr(busfly_randomsort_NUM_STRCOMYEAR) & " [log_ID] from blog_Article WHERE ([log_Level]>2) AND (log_ID>0) AND  (log_PostTime>Now()-365) ORDER BY log_CommNums DESC ")
+		call busfly_randomsort_outArticleHtml(busfly_randomsort_objRS1,"randomsortcomyear",busfly_randomsort_NUM_STRCOMYEAR)
+	end if
+End Function
+
+'*********************************************************
+	'<!--本月排行-->		
+Function busfly_randomsort_BlogReBuild_randomsorttopmonth()
+	if busfly_randomsort_isBuildtopmonth=1 then
+		Set busfly_randomsort_objRS1=objConn.Execute("select top " & CStr(busfly_randomsort_NUM_STRTOPMONTH) & " [log_ID] from blog_Article WHERE ([log_Level]>2) AND (log_ID>0) AND  (log_PostTime>Now()-30) ORDER BY log_ViewNums DESC ")
+		call busfly_randomsort_outArticleHtml(busfly_randomsort_objRS1,"randomsorttopmonth",busfly_randomsort_NUM_STRTOPMONTH)
+	end if
+End Function
+
+'*********************************************************
+	'<!--本年排行-->
+Function busfly_randomsort_BlogReBuild_randomsorttopyear()
+	if busfly_randomsort_isBuildtopyear=1 then
+		Set busfly_randomsort_objRS1=objConn.Execute("select top " & CStr(busfly_randomsort_NUM_STRTOPYEAR) & " [log_ID] from blog_Article WHERE ([log_Level]>2) AND (log_ID>0) AND  (log_PostTime>Now()-365) ORDER BY log_ViewNums DESC ")
+		call busfly_randomsort_outArticleHtml(busfly_randomsort_objRS1,"randomsorttopyear",busfly_randomsort_NUM_STRTOPYEAR)
+	end if
+End Function
+
+'*********************************************************
+	'<!--热文排行-->	
+Function busfly_randomsort_BlogReBuild_randomsorttophot()	
+	if busfly_randomsort_isBuildtophot=1 then
+		Set busfly_randomsort_objRS1=objConn.Execute("select top " & CStr(busfly_randomsort_NUM_BUSFLY_TOPHOT) & " [log_ID] from blog_Article WHERE ([log_Level]>2) AND (log_ID>0) ORDER BY log_CommNums*100 + log_TrackBackNums*200 + sqr(log_ViewNums)*10 - (date()-Log_PostTime)*(date()-Log_PostTime) DESC ")
+		call busfly_randomsort_outArticleHtml(busfly_randomsort_objRS1,"randomsorttophot",busfly_randomsort_NUM_BUSFLY_TOPHOT)
+	end if
+End Function
+
+
+'*********************************************************
+' 目的：    最新评论及回复
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_Comments()
+if busfly_randomsort_isComments=1 then
+	'Dim busfly_randomsort_objRS1
+	'Dim objStream
+	'Dim busfly_randomsort_objArticle
+
+	'Comments
+	Dim strComments
+
+	Dim s
+	Dim i
+	Set busfly_randomsort_objRS1=objConn.Execute("SELECT [log_ID],[comm_ID],[comm_Content],[comm_PostTime],[comm_Author] FROM [blog_Comment] WHERE [log_ID]>0 ORDER BY [comm_PostTime] DESC,[comm_ID] DESC")
+	If (Not busfly_randomsort_objRS1.bof) And (Not busfly_randomsort_objRS1.eof) Then
+		For i=1 to busfly_randomsort_NUM_Comments
+			s=busfly_randomsort_objRS1("comm_Content")
+			s=Replace(s,vbCrlf,"")
+			s=busfly_randomsort_cutTitle(s,busfly_randomsort_INTCUTLEN) 
+			Set busfly_randomsort_objArticle=New TArticle
+			If busfly_randomsort_objArticle.LoadInfoByID(busfly_randomsort_objRS1("log_ID")) Then
+				strComments=strComments & "<li><a href="""& busfly_randomsort_objArticle.Url & "#cmt" & busfly_randomsort_objRS1("comm_ID") & """ title=""" & busfly_randomsort_objRS1("comm_PostTime") & " post by " & busfly_randomsort_objRS1("comm_Author") & """>"+s+"</a></li>"
+			End If
+			Set busfly_randomsort_objArticle=Nothing
+			busfly_randomsort_objRS1.MoveNext
+			If busfly_randomsort_objRS1.eof Then Exit For
+		Next
+	End If
+	busfly_randomsort_objRS1.close
+	Set busfly_randomsort_objRS1=Nothing
+
+	strComments=TransferHTML(strComments,"[no-asp]")
+
+	Call SaveToFile(BlogPath & "/include/bfcomments.asp",strComments,"utf-8",True)
+
+	busfly_randomsort_BlogReBuild_Comments=True
+end if
+End Function
+'*********************************************************
+
+
+
+
+'*********************************************************
+' 目的：    最新留言列表
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_GuestComments()
+if busfly_randomsort_isGuestComments=1 then
+	'Dim busfly_randomsort_objRS1
+	'Dim objStream
+	'Dim busfly_randomsort_objArticle
+
+	'Comments
+	Dim strComments
+
+	Dim s
+	Dim i
+	Set busfly_randomsort_objRS1=objConn.Execute("SELECT [log_ID],[comm_ID],[comm_Content],[comm_PostTime],[comm_Author] FROM [blog_Comment] WHERE [log_ID]=0 ORDER BY [comm_ID] DESC")
+	If (Not busfly_randomsort_objRS1.bof) And (Not busfly_randomsort_objRS1.eof) Then
+		For i=1 to busfly_randomsort_NUM_GuestComments
+			s=busfly_randomsort_objRS1("comm_Content")
+			s=Replace(s,vbCrlf,"")
+			s=busfly_randomsort_cutTitle(s,busfly_randomsort_INTCUTLEN) 
+
+			strComments=strComments & "<li><a href="""& ZC_BLOG_HOST & "guestbook.asp" & "#cmt" & busfly_randomsort_objRS1("comm_ID") & """ title=""" & busfly_randomsort_objRS1("comm_PostTime") & " post by " & busfly_randomsort_objRS1("comm_Author") & """>"+s+"</a></li>"
+
+			busfly_randomsort_objRS1.MoveNext
+			If busfly_randomsort_objRS1.eof Then Exit For
+		Next
+	End If
+	busfly_randomsort_objRS1.close
+	Set busfly_randomsort_objRS1=Nothing
+
+	strComments=TransferHTML(strComments,"[no-asp]")
+
+	Call SaveToFile(BlogPath & "/include/bfguestcomments.asp",strComments,"utf-8",True)
+
+	busfly_randomsort_BlogReBuild_GuestComments=True
+end if
+End Function
+'*********************************************************
+
+
+
+
+'*********************************************************
+' 目的：    引用列表
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_TrackBacks()
+if busfly_randomsort_isTrackBacks=1 then
+	'Dim busfly_randomsort_objRS1
+	'Dim objStream
+	'Dim busfly_randomsort_objArticle
+
+	'TrackBacks
+	Dim strTrackBacks
+
+	Dim s
+	Dim i
+	Set busfly_randomsort_objRS1=objConn.Execute("SELECT * FROM [blog_TrackBack] ORDER BY [tb_ID] DESC")
+	If (Not busfly_randomsort_objRS1.bof) And (Not busfly_randomsort_objRS1.eof) Then
+		For i=1 to busfly_randomsort_NUM_TrackBacks
+			s=busfly_randomsort_objRS1("tb_Title")
+			s=Replace(s,vbCrlf,"")
+			s=busfly_randomsort_cutTitle(s,busfly_randomsort_INTCUTLEN) 
+			Set busfly_randomsort_objArticle=New TArticle
+			If busfly_randomsort_objArticle.LoadInfoByID(busfly_randomsort_objRS1("log_ID")) Then
+				strTrackBacks=strTrackBacks & "<li><a href="""& busfly_randomsort_objArticle.Url & "#tb" & busfly_randomsort_objRS1("tb_ID") & """ title=""" & busfly_randomsort_objRS1("tb_PostTime") & " post by " & Replace(busfly_randomsort_objRS1("tb_Blog"),"""","") & """>"+s+"</a></li>"
+			End If
+			Set busfly_randomsort_objArticle=Nothing
+			busfly_randomsort_objRS1.MoveNext
+			If busfly_randomsort_objRS1.eof Then Exit For
+		Next
+	End If
+	busfly_randomsort_objRS1.close
+	Set busfly_randomsort_objRS1=Nothing
+
+	strTrackBacks=TransferHTML(strTrackBacks,"[no-asp]")
+
+	Call SaveToFile(BlogPath & "/include/bftrackbacks.asp",strTrackBacks,"utf-8",True)
+
+	busfly_randomsort_BlogReBuild_TrackBacks=True
+end if
+End Function
+'*********************************************************
+
+
+
+
+'*********************************************************
+' 目的：    网站统计
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_Statistics()
+
+	Dim i
+	'Dim busfly_randomsort_objRS1
+	'Dim objStream
+
+	'重新统计分类及用户的文章数、评论数
+	Dim Category
+	For Each Category in Categorys
+		If IsObject(Category) Then
+			Set busfly_randomsort_objRS1=objConn.Execute("SELECT COUNT([log_ID]) FROM [blog_Article] WHERE [log_Level]>1 AND [log_CateID]=" & Category.ID )
+			i=busfly_randomsort_objRS1(0)
+			objConn.Execute("UPDATE [blog_Category] SET [cate_Count]="&i&" WHERE [cate_ID] =" & Category.ID)
+			Set busfly_randomsort_objRS1=Nothing
+		End If
+	Next
+	Dim User
+	For Each User in Users
+		If IsObject(User) Then
+			Set busfly_randomsort_objRS1=objConn.Execute("SELECT COUNT([log_ID]) FROM [blog_Article] WHERE [log_Level]>1 AND [log_AuthorID]=" & User.ID )
+			i=busfly_randomsort_objRS1(0)
+			objConn.Execute("UPDATE [blog_Member] SET [mem_PostLogs]="&i&" WHERE [mem_ID] =" & User.ID)
+			Set busfly_randomsort_objRS1=Nothing
+
+			Set busfly_randomsort_objRS1=objConn.Execute("SELECT COUNT([comm_ID]) FROM [blog_Comment] WHERE [comm_AuthorID]=" & User.ID )
+			i=busfly_randomsort_objRS1(0)
+			objConn.Execute("UPDATE [blog_Member] SET [mem_PostComms]="&i&" WHERE [mem_ID] =" & User.ID)
+			Set busfly_randomsort_objRS1=Nothing
+		End If
+	Next
+	Dim Tag
+	For Each Tag in Tags
+		If IsObject(Tag) Then
+			Set busfly_randomsort_objRS1=objConn.Execute("SELECT COUNT([log_ID]) FROM [blog_Article] WHERE [log_Level]>1 AND [log_Tag] LIKE '%{" & Tag.ID & "}%'")
+			i=busfly_randomsort_objRS1(0)
+			objConn.Execute("UPDATE [blog_Tag] SET [tag_Count]="&i&" WHERE [tag_ID] =" & Tag.ID)
+			Set busfly_randomsort_objRS1=Nothing
+		End If
+	Next
+if busfly_randomsort_isStatistics=1 then
+	'Statistics
+	Dim strStatistics
+	Set busfly_randomsort_objRS1=Server.CreateObject("ADODB.Recordset")
+	busfly_randomsort_objRS1.CursorType = adOpenKeyset
+	busfly_randomsort_objRS1.LockType = adLockReadOnly
+	busfly_randomsort_objRS1.ActiveConnection=objConn
+	busfly_randomsort_objRS1.Source=""
+
+
+	busfly_randomsort_objRS1.Open("SELECT COUNT([log_ID])AS allArticle,SUM([log_CommNums]) AS allCommNums,SUM([log_ViewNums]) AS allViewNums,SUM([log_TrackBackNums]) AS allTrackBackNums FROM [blog_Article]")
+	If (Not busfly_randomsort_objRS1.bof) And (Not busfly_randomsort_objRS1.eof) Then
+		strStatistics=strStatistics & "<li>文章总数:" & busfly_randomsort_objRS1("allArticle") & "</li>"
+		strStatistics=strStatistics & "<li>评论总数:" & busfly_randomsort_objRS1("allCommNums") & "</li>"
+		strStatistics=strStatistics & "<li>引用总数:" & busfly_randomsort_objRS1("allTrackBackNums") & "</li>"
+		strStatistics=strStatistics & "<li>浏览总数:" & busfly_randomsort_objRS1("allViewNums") & "</li>"
+	End If
+	busfly_randomsort_objRS1.Close
+
+	busfly_randomsort_objRS1.Open("SELECT COUNT([comm_ID])AS allComment FROM [blog_Comment] WHERE [log_ID]=0")
+	If (Not busfly_randomsort_objRS1.bof) And (Not busfly_randomsort_objRS1.eof) Then
+		strStatistics=strStatistics & "<li>留言总数:" & busfly_randomsort_objRS1("allComment") & "</li>"
+	End If
+	busfly_randomsort_objRS1.Close
+
+	strStatistics=strStatistics & "<li>当前主题:" & ZC_BLOG_THEME & "</li>"
+	strStatistics=strStatistics & "<li>当前样式:" & ZC_BLOG_CSS & "</li>"
+	'strStatistics=strStatistics & "<li>当前语言:" & ZC_BLOG_LANGUAGE & "</li>"
+
+	Set busfly_randomsort_objRS1=Nothing
+
+	strStatistics=TransferHTML(strStatistics,"[no-asp]")
+
+	Call SaveToFile(BlogPath & "/include/bfstatistics.asp",strStatistics,"utf-8",False)
+
+
+	'Call GetCategory()
+	'Call GetUser()
+	'Call GetTags()
+	'Call GetKeyWords()
+
+	busfly_randomsort_BlogReBuild_Statistics=True
+end if
+End Function
+'*********************************************************
+
+
+'*********************************************************
+' 目的：    用户列表
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_Authors()
+if busfly_randomsort_isAuthors=1 then
+	'Dim busfly_randomsort_objRS1
+	'Dim objStream
+	dim i
+	i=0
+	'Authors
+	Dim strAuthor
+	Dim User
+	For Each User in Users
+		If IsObject(User) Then
+				strAuthor=strAuthor & "<li><a href="""& User.Url & """>"+User.Name + " (" & User.Count & ")" +"</a></li>"
+				i=i+1
+				if i>=busfly_randomsort_NUM_Authors then
+					exit for
+				end if
+		End If
+	Next
+
+	strAuthor=TransferHTML(strAuthor,"[no-asp]")
+
+	Call SaveToFile(BlogPath & "/include/bfauthors.asp",strAuthor,"utf-8",True)
+
+	busfly_randomsort_BlogReBuild_Authors=True
+end if
+End Function
+'*********************************************************
+
+
+
+'*********************************************************
+' 目的：    网站分类
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_Catalogs()
+if busfly_randomsort_isCatalogs=1 then
+	'Dim busfly_randomsort_objRS1
+	'Dim objStream
+
+	Dim ArtList
+	dim i
+	i=0
+	
+	'Catalogs
+	Dim strCatalog
+	Set busfly_randomsort_objRS1=objConn.Execute("SELECT * FROM [blog_Category] ORDER BY [cate_Order] ASC,[cate_Count] DESC,[cate_ID] ASC")
+	If (Not busfly_randomsort_objRS1.bof) And (Not busfly_randomsort_objRS1.eof) Then
+		Do While (i<busfly_randomsort_NUM_Catalogs) and (Not busfly_randomsort_objRS1.eof)
+			i=i+1
+			strCatalog=strCatalog & "<li><span class=""feed-icon""><a href="""& Categorys(busfly_randomsort_objRS1("cate_ID")).RssUrl &""" title=""订阅此类文章"" target=""_blank""><img  width=""20"" height=""12"" src="""&ZC_BLOG_HOST&"IMAGE/LOGO/rss.png"" border=""0"" alt=""订阅此类文章"" /></a>&nbsp;</span><a href="""& Categorys(busfly_randomsort_objRS1("cate_ID")).Url & """>"+Categorys(busfly_randomsort_objRS1("cate_ID")).Name + "<span class=""article-nums""> (" & Categorys(busfly_randomsort_objRS1("cate_ID")).Count & ")</span>" +"</a></li>"
+
+
+			If ZC_MOONSOFT_PLUGIN_ENABLE=True Then
+				Call BuildCategory(Empty,Categorys(busfly_randomsort_objRS1("cate_ID")).ID,Empty,Empty,Empty,ZC_DISPLAY_MODE_ALL,Categorys(busfly_randomsort_objRS1("cate_ID")).Directory,Categorys(busfly_randomsort_objRS1("cate_ID")).FileName)
+			End If
+
+			busfly_randomsort_objRS1.MoveNext
+
+		Loop
+	End If
+	busfly_randomsort_objRS1.Close
+	Set busfly_randomsort_objRS1=Nothing
+
+
+	strCatalog=TransferHTML(strCatalog,"[no-asp]")
+
+	Call SaveToFile(BlogPath & "/include/bfcatalog.asp",strCatalog,"utf-8",True)
+
+	busfly_randomsort_BlogReBuild_Catalogs=True
+end if
+End Function
+'*********************************************************
+
+
+'/////////////////////////////////////////////////////////////////////////////////////////
+'*********************************************************
+' 目的：    文章归档
+'*********************************************************
+Function busfly_randomsort_BlogReBuild_Archives()
+if busfly_randomsort_isArchives=1 then
+	Dim i
+	Dim j
+	Dim l
+	Dim n
+	'Dim busfly_randomsort_objRS1
+	'Dim objStream
+
+	Dim ArtList
+
+	'Archives
+	Dim strArchives
+	Set busfly_randomsort_objRS1=objConn.Execute("SELECT * FROM [blog_Article] WHERE ([log_Level]>1) ORDER BY [log_PostTime] DESC")
+	If (Not busfly_randomsort_objRS1.bof) And (Not busfly_randomsort_objRS1.eof) Then
+		Dim dtmYM()
+		i=0
+		j=0
+		ReDim Preserve dtmYM(0)
+		Do While (j<busfly_randomsort_NUM_Archives) and (Not busfly_randomsort_objRS1.eof)
+			j=UBound(dtmYM)
+			i=Year(busfly_randomsort_objRS1("log_PostTime")) & "-" & Month(busfly_randomsort_objRS1("log_PostTime"))
+			If i<>dtmYM(j) Then
+				ReDim Preserve dtmYM(j+1)
+				dtmYM(j+1)=i
+			End If
+			busfly_randomsort_objRS1.MoveNext
+		Loop
+	End If
+	busfly_randomsort_objRS1.Close
+	Set busfly_randomsort_objRS1=Nothing
+
+	If Not IsEmpty(dtmYM) Then
+		For i=1 to UBound(dtmYM)
+
+			l=Year(dtmYM(i))
+			n=Month(dtmYM(i))+1
+			IF n>12 Then l=l+1:n=1
+
+			Set busfly_randomsort_objRS1=objConn.Execute("SELECT COUNT([log_ID]) FROM [blog_Article] WHERE ([log_Level]>1) AND [log_PostTime] BETWEEN #"& Year(dtmYM(i)) &"-"& Month(dtmYM(i)) &"-1# AND #"& l &"-"& n &"-1#")
+
+			If (Not busfly_randomsort_objRS1.bof) And (Not busfly_randomsort_objRS1.eof) Then
+
+				If ZC_MOONSOFT_PLUGIN_ENABLE=True Then
+					strArchives=strArchives & "<li><a href="""& ZC_BLOG_HOST & ZC_STATIC_DIRECTORY & "/" & Year(dtmYM(i)) & "_" & Month(dtmYM(i)) & "." & ZC_STATIC_TYPE & """>" & Year(dtmYM(i)) & " " & ZVA_Month(Month(dtmYM(i))) & " (" & busfly_randomsort_objRS1(0) & ")" +"</a></li>"
+					Call BuildCategory(Empty,Empty,Empty,Year(dtmYM(i)) & "-" & Month(dtmYM(i)),Empty,ZC_DISPLAY_MODE_ALL,ZC_STATIC_DIRECTORY,Year(dtmYM(i)) & "_" & Month(dtmYM(i))& "." & ZC_STATIC_TYPE)
+				Else
+					strArchives=strArchives & "<li><a href="""& ZC_BLOG_HOST &"catalog.asp?date=" & Year(dtmYM(i)) & "-" & Month(dtmYM(i)) & """>" & Year(dtmYM(i)) & " " & ZVA_Month(Month(dtmYM(i))) & "<span class=""article-nums""> (" & busfly_randomsort_objRS1(0) & ")</span>" +"</a></li>"
+				End If
+
+				If ZC_ARCHIVE_COUNT>0 Then
+					If i=ZC_ARCHIVE_COUNT Then Exit For
+				End If
+			End If
+
+			busfly_randomsort_objRS1.Close
+			Set busfly_randomsort_objRS1=Nothing
+		Next
+	End If
+
+	strArchives=TransferHTML(strArchives,"[no-asp]")
+
+	Call SaveToFile(BlogPath & "/include/bfarchives.asp",strArchives,"utf-8",True)
+
+	busfly_randomsort_BlogReBuild_Archives=True
+end if
+End Function
+'*********************************************************
+
+%>

@@ -1,0 +1,883 @@
+<!--#include file="Conn.asp"-->
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/chkinput.asp"-->
+<!--#include file="inc/dv_clsother.asp"-->
+<!--#include file="inc/dv_ubbcode.asp"-->
+<!--#include file="inc/Email_Cls.asp"-->
+<%
+Dim ErrCodes,Rs,SQL,i
+Dim abgcolor,dv_ubb
+Dim announceid,replyid,username,rootid,topic,postbuyuser,bgcolor,EmotPath
+Dim MailBody,Email,TotalUseTable
+Dim T_GetMoneyType,replyid_a,AnnounceID_a,RootID_a
+Dim IsThisBoardMaster '确定当前用户是否本版版主，防止下面的操作影响到 Dvbbs.BoardMaster导致出错
+IsThisBoardMaster = Dvbbs.BoardMaster
+Select Case Request("t")
+Case "1"
+	'look_ip
+	Dim canlookip,canlockip,lockid
+	Look_Ip_Main()
+Case "2"
+	'pag
+	'Dim AnnounceID,UserName,RootID,Topic,UserEmail,TotalUseTable,PostBuyUser,ReplyID,EmotPath
+	'Pag_Main()
+Case "3"
+	'postagree
+	'PostAgree_Main()
+Case "4"
+	'postvote
+	PostVote_Main()
+Case "5"
+	'printpage
+	PrintPage_Main()
+Case "6"
+	'report
+	Report_Main()
+Case "7"
+	'sendpage
+	SendPage_Main()
+Case "8"
+	SaveFav_boards()
+
+Case Else
+	'go.asp
+	Go_Main()
+End Select
+Dvbbs.PageEnd()
+Sub Go_Main()
+
+End Sub
+
+
+Sub SaveFav_boards()
+	Dvbbs.LoadTemplates("")
+	If Dvbbs.Userid=0 Then
+		Dvbbs.AddErrCode(34)
+		Dvbbs.ShowErr()
+	End If
+	If Dvbbs.Boardid=0 Then
+		Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>请选取要收藏的版面&action=OtherErr"
+	End If
+	Dim Rs,Sql,Fav_boards
+	Set Rs = Dvbbs.Execute("Select Fav_boards From Dv_user Where userid="&Dvbbs.UserID)
+	If Not Rs.Eof Then
+		Fav_boards = Trim(Rs(0))
+	Else
+		Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>用户数据不存在。&action=OtherErr"
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	If Instr(","&Fav_boards&",",","&Dvbbs.Boardid&",") Then
+		Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>该版面已经添加到收藏。&action=OtherErr"
+	Else
+		If Fav_boards="" or IsNull(Fav_boards) Then
+			Fav_boards = Fav_boards & Dvbbs.Boardid
+		Else
+			Fav_boards = Fav_boards &","& Dvbbs.Boardid
+		End If
+	End If
+	If Len(Fav_boards)<250 Then
+		Dvbbs.stats="收藏版块操作"
+		Dvbbs.Nav()
+		Dvbbs.Execute("update dv_user Set Fav_boards='"&Dvbbs.Checkstr(Fav_boards)&"' Where Userid="&Dvbbs.UserID)
+		Dvbbs.Dvbbs_Suc("<li>该版块收藏成功！")
+	Else
+		Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>你收藏的版块过多超出限制。&action=OtherErr"
+	End If
+End Sub
+
+'================查看用户来源信息===================
+Sub Look_Ip_Main()
+	Dvbbs.LoadTemplates("dispuser")
+	CanLookIP=False
+	CanLockIP=False
+	If (Dvbbs.Master Or Dvbbs.SuperBoardMaster Or Dvbbs.BoardMaster) And Cint(Dvbbs.GroupSetting(30))=1 Then
+		CanLookIP=True
+	Else
+		CanLookIP=False
+	End If
+	If Dvbbs.UserGroupID>3 And CInt(Dvbbs.GroupSetting(30))=1 Then
+		CanLookIP=True
+	End If
+	If Dvbbs.FoundUserPer And  Cint(Dvbbs.GroupSetting(30))=1 Then
+		CanLookIP=True
+	ElseIf Dvbbs.FoundUserPer And  CInt(Dvbbs.GroupSetting(30))=0 Then
+		CanLookIP=False
+	End If
+
+	If (Dvbbs.Master or Dvbbs.SuperBoardMaster or Dvbbs.BoardMaster) and Cint(Dvbbs.GroupSetting(31))=1 Then
+		CanLockIP=True
+	Else
+		CanLockIP=False
+	End If
+	If Dvbbs.UserGroupID>3 And  Cint(Dvbbs.GroupSetting(31))=1 Then
+		CanLockIP=True
+	End If
+	If Dvbbs.FoundUserPer And CInt(Dvbbs.GroupSetting(31))=1 Then
+		CanLockIP=True
+	ElseIf Dvbbs.FoundUserPer and Cint(Dvbbs.GroupSetting(31))=0 Then
+		CanLockIP=False
+	End If
+	Dvbbs.stats=template.Strings(13)
+	Dvbbs.Nav()
+	Dvbbs.Head_var 0,0,Replace(template.Strings(0),"{$MemberName}",""),"dispuser.asp?Id="&CLng(Request("userid"))
+	If Not Dvbbs.ChkPost() And Request("action") <> "" Then
+		Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>您不要从外部提交数据&action=OtherErr"
+	End If
+	If Request("action")="setlockip" Then
+		Call Setlockip()
+	ElseIf Request("action")="unlock" Then
+		Call unlock()
+	Else
+		Call lookip()
+	End If
+	Showerr()
+	Dvbbs.Showerr()
+	Dvbbs.ActiveOnline()
+	Dvbbs.footer()
+End Sub
+Sub lookip()
+	If Not CanLookIP Then
+		ErrCodes=ErrCodes+"<li>"+template.Strings(7)
+		Exit sub
+	End If
+
+	Dim ip,useraddress,iGetLockIP
+	ip=Request("ip")
+	useraddress=lookaddress(replace(ip,"'",""))
+	iGetLockIP=GetLockIP(replace(ip,"'",""))
+	LockID=LockID
+%>
+<table class=tableborder1 cellspacing="1" cellpadding="3" align="center">
+<tr align=center>
+<th height=25>查看 <%=IP%>的来源</th>
+</tr>
+<tr><td height=25 class=tablebody1><blockquote><%=useraddress%></blockquote></td></tr>
+<%If CanLookIP Then%>
+	<tr><td height=25 class=tablebody2 align=center><B>管理操作</B>：
+	<%If iGetLockIP Then%>
+		<a href="?t=1&action=unlock&boardid=<%=Dvbbs.BoardID%>&id=<%=LockID%>">该用户IP已被锁定，解除锁定</a>
+	<%Else%>
+		<a href="?t=1&action=setlockip&ip=<%=IP%>&boardid=<%=Dvbbs.BoardID%>">限制该IP不允许访问</a>
+	<%End If%>
+	</td></tr>
+<%End If%>
+</table>
+<%
+End Sub
+
+Sub Setlockip()
+	If Not CanLockIP then
+		ErrCodes=ErrCodes+"<li>"+template.Strings(8)
+		Exit sub
+	End If
+	If request("reaction")="yes" Then
+		Dim sip
+		sip=cstr(request.form("ip1"))
+		If sip<>"" Then
+			If Instr(sip,"*.")>0 Then
+				ErrCodes=ErrCodes+"<li>前台最多只能限制四类IP，如218.1.2.*"
+				Exit Sub
+			End If
+			If Instr(sip,"*.*.")>0 Then
+				ErrCodes=ErrCodes+"<li>前台最多只能限制四类IP，如218.1.2.*"
+				Exit Sub
+			End If
+			If Instr(sip,"*.*.*.")>0 Then
+				ErrCodes=ErrCodes+"<li>前台最多只能限制四类IP，如218.1.2.*"
+				Exit Sub
+			End If
+			If Trim(Dvbbs.CacheData(25,0))<>"" Then
+				sip=Trim(Dvbbs.CacheData(25,0)) & "|" & Replace(sip,"|","")
+			End If
+		End If
+		If sip<>"" Then
+			dvbbs.execute("update dv_setup set Forum_LockIP='"&replace(sip,"'","''")&"'")
+			Dvbbs.loadSetup
+		End If
+		sql="insert into dv_log (l_touser,l_username,l_content,l_ip,l_type) values ('-','"&Dvbbs.membername&"','用户操作：限制IP"&Dvbbs.checkstr(Request.Form("ip1"))&"-"&Dvbbs.checkstr(Request.Form("ip2"))&"','"&Dvbbs.UserTrueIP&"',6)"
+		dvbbs.Execute(SQL)
+		Dvbbs.Dvbbs_Suc("<li>"+template.Strings(9))
+	Else
+		Dim userip,ips,GetIp1,useraddress,ip
+		If request("ip")<>"" then
+			userip=request("ip")
+			ips=Split(userIP,".")
+			GetIp1=ips(0)&"."&ips(1)&"."&ips(2)&".*"
+		Else
+			userip=""
+			GetIp1=""
+			GetIp2=""
+		End If
+		ip=Request("ip")
+		useraddress=lookaddress(replace(request("ip"),"'",""))
+%>
+<table class=tableborder1 cellspacing="1" cellpadding="3" align="center">
+<tr align=center>
+<th height=25>锁定 <%=IP%> 的来源</th>
+</tr>
+<tr><td height=25 class=tablebody1><blockquote><%=useraddress%></blockquote></td></tr>
+<FORM METHOD=POST ACTION="?t=1&action=setlockip&boardid=<%=Dvbbs.BoardID%>">
+<input type=hidden name="reaction" value="yes">
+<tr><td height=40 class=tablebody1>
+<B>说明</B>：您可以添加多个限制IP，每个IP用|号分隔，限制IP的书写方式如202.152.12.1就限制了202.152.12.1这个IP的访问，如202.152.12.*就限制了以202.152.12开头的IP访问，同理*.*.*.*则限制了所有IP的访问。在添加多个IP的时候，请注意最后一个IP的后面不要加|这个符号，<b>在前台只能做一个星号的四类IP限制</b>
+</td></tr>
+<tr><td height=40 class=tablebody1>
+<B>限制I&nbsp;P</B>：<input type="text" name="ip1" size="30" value="<%=GetIp1%>">&nbsp;&nbsp;<input type="submit" name="Submit" value="提 交">
+</td></tr>
+</FORM>
+</table>
+<%
+	End If
+End Sub
+
+sub unlock()
+	If Not CanLockIP Then
+		ErrCodes=ErrCodes+"<li>"+template.Strings(8)
+		Exit sub
+	End If
+	Dim locklist,unlockip
+	locklist=Trim(Dvbbs.CacheData(25,0))
+	If locklist<>"" Then
+		If Trim(request("id"))="" Then
+			ErrCodes=ErrCodes+"<li>"+template.Strings(10)
+			Exit sub
+		End If
+		locklist = "|" & locklist & "|"
+		unlockip = Replace(Replace(request("id"),"|",""),"'","")
+		unlockip = "|" & unlockip
+		locklist = Replace(locklist,unlockip,"")
+		unlockip = Split(request("id"),".")
+		If Ubound(unlockip)<>3 Then
+			ErrCodes=ErrCodes+"<li>"+template.Strings(10)
+			Exit sub
+		End If
+		locklist = Split(locklist,"|")
+		Dim i,ilocklist
+		For i = 1 To Ubound(locklist)-1
+			If i = 1 Then
+				ilocklist = locklist(i)
+			Else
+				ilocklist = ilocklist & "|" & locklist(i)
+			End If
+		Next
+		dvbbs.execute("update dv_setup set Forum_LockIP='"&replace(Trim(ilocklist),"'","")&"'")
+		Dvbbs.loadSetup
+	End If
+
+	sql="insert into dv_log (l_touser,l_username,l_content,l_ip,l_type) values ('-','"&Dvbbs.membername&"','用户操作：解除IP限制','"&Dvbbs.UserTrueIP&"',6)"
+	Dvbbs.Execute(SQL)
+	Dvbbs.Dvbbs_Suc("<li>"+template.Strings(11))
+End Sub
+
+Function lookaddress(sip)
+	Dim str1,str2,str3,str4
+	Dim num
+	Dim irs
+	If isnumeric(left(sip,2)) Then
+		If sip="127.0.0.1" Then sip="192.168.0.1"
+		str1=left(sip,instr(sip,".")-1)
+		sip=mid(sip,instr(sip,".")+1)
+		str2=left(sip,instr(sip,".")-1)
+		sip=mid(sip,instr(sip,".")+1)
+		str3=left(sip,instr(sip,".")-1)
+		str4=mid(sip,instr(sip,".")+1)
+		If isNumeric(str1)=0 Or isNumeric(str2)=0 Or isNumeric(str3)=0 Or isNumeric(str4)=0 Then
+
+		Else
+			num=cint(str1)*256*256*256+cint(str2)*256*256+cint(str3)*256+cint(str4)-1
+			Dim adb,aConnStr,AConn
+			adb = "aspdata/ipaddress.mdb"
+			aConnStr = "Provider = Microsoft.Jet.OLEDB.4.0;Data Source = " & Server.MapPath(adb)
+			Set AConn = Dvbbs.iCreateObject("ADODB.Connection")
+			aConn.Open aConnStr
+			sql="select country,city from dv_address where ip1 <="&num&" and ip2 >="&num
+			Set irs=AConn.Execute(sql)
+			If irs.eof And irs.bof Then
+				lookaddress=template.Strings(12)
+			Else
+				Do While Not irs.eof
+					lookaddress=lookaddress & "<br>" &irs(0) & irs(1)
+				irs.movenext
+				Loop
+			End If
+			irs.close
+			Set irs=nothing
+			AConn.Close
+			Set AConn=Nothing
+		End If
+	Else
+		lookaddress=template.Strings(12)
+	End If
+End Function
+
+Function getLockIP(sip)
+	getLockIP=False
+	Dim locklist
+	locklist=Trim(dvbbs.CacheData(25,0))
+	If locklist="" Then Exit Function
+	Dim i,StrUserIP,StrKillIP
+	StrUserIP=sip
+	locklist=Split(locklist,"|")
+	If StrUserIP="" Then Exit Function
+	StrUserIP=Split(StrUserIP,".")
+	If Ubound(StrUserIP)<>3 Then Exit Function
+	For i= 0 to UBound(locklist)
+		If locklist(i)<>"" Then
+			StrKillIP = Split(locklist(i),".")
+			If Ubound(StrKillIP)<>3 Then Exit For
+			getLockIP = True
+			If (StrUserIP(0) <> StrKillIP(0)) And Instr(StrKillIP(0),"*")=0 Then getLockIP=False
+			If (StrUserIP(1) <> StrKillIP(1)) And Instr(StrKillIP(1),"*")=0 Then getLockIP=False
+			If (StrUserIP(2) <> StrKillIP(2)) And Instr(StrKillIP(2),"*")=0 Then getLockIP=False
+			If (StrUserIP(3) <> StrKillIP(3)) And Instr(StrKillIP(3),"*")=0 Then getLockIP=False
+			If getLockIP Then
+				LockID=locklist(i)
+				Exit For
+			End If
+		End If
+	Next
+End Function
+
+'显示错误信息
+Sub Showerr()
+	Dim Show_Errmsg
+	If ErrCodes<>"" Then
+		Show_Errmsg=Dvbbs.mainhtml(14)
+		ErrCodes=Replace(ErrCodes,"{$color}",Dvbbs.mainSetting(1))
+		Show_Errmsg=Replace(Show_Errmsg,"{$color}",Dvbbs.mainSetting(1))
+		Show_Errmsg=Replace(Show_Errmsg,"{$errtitle}",Dvbbs.Forum_Info(0)&"-"&Dvbbs.Stats)
+		Show_Errmsg=Replace(Show_Errmsg,"{$action}",Dvbbs.Stats)
+		Show_Errmsg=Replace(Show_Errmsg,"{$ErrString}",ErrCodes)
+	End If
+	Response.write Show_Errmsg
+End Sub
+'================查看用户来源信息===================
+'================帖子投票===========================
+Sub PostVote_Main()
+	Dvbbs.Stats="参与投票"
+	Dim voteid
+	Dim announceid
+	If Dvbbs.IsReadonly() And Not Dvbbs.Master Then Response.Redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&action=readonly&boardid="&dvbbs.boardID
+	Dim action
+	Dim vote,votenum
+	Dim postvote(200)
+	Dim postvote1
+	Dim j,votenum_1,votenumlen
+	Dim vrs
+	Dim postnum,postoption
+
+	If Dvbbs.UserID=0 Then Dvbbs.AddErrCode(34)
+
+	If Request("id")="" Then
+		Dvbbs.AddErrCode(35)
+	ElseIf Not IsNumeric(Request("id")) Then
+		Dvbbs.AddErrCode(35)
+	Else
+		AnnounceID=Request("id")
+	End If
+	If Request("voteid")="" Then
+		Dvbbs.AddErrCode(35)
+	ElseIf not IsNumeric(Request("voteid")) Then
+		Dvbbs.AddErrCode(35)
+	Else
+		voteID=Request("voteid")
+	End If
+
+	If CInt(Dvbbs.GroupSetting(9))=0 then Dvbbs.AddErrCode(56)
+	Dvbbs.ShowErr
+	'主题已锁定，不能参与投票
+	Set Rs=Dvbbs.Execute("select locktopic from dv_topic where topicid="&AnnounceID)
+	If Not (Rs.Eof And Rs.Bof) then
+		If Rs(0)=1 Then
+			Dvbbs.AddErrCode(57)
+			Dvbbs.ShowErr
+			Exit Sub
+		End If
+	End If
+	'已投票用户不允许再次投票
+	Set Rs = Dvbbs.Execute("select userid from dv_voteuser where voteid="&voteID&" and userid="&Dvbbs.userid)
+	If Not(Rs.Eof And Rs.Bof) Then
+		Dvbbs.AddErrCode(58)
+		Dvbbs.ShowErr
+		Exit Sub
+	End If
+
+	Dim Votes,VoteChilds,VoteChildsEP_Item,VoteChildsType
+	Dim VoteForm,VoteForm_chkbox,VoteForm_Tempstr
+	Set Rs=Dvbbs.iCreateObject("Adodb.Recordset")
+	Sql="select * from dv_vote where voteid="&voteid
+	Rs.Open Sql,Conn,1,3
+	If Rs.Eof And Rs.Bof Then
+		Dvbbs.AddErrCode(32)
+		Dvbbs.ShowErr
+		Exit Sub
+	Else
+		'管理员，超版，版主不受投票限制
+		If Not (Dvbbs.Master Or Dvbbs.SuperBoardMaster Or Dvbbs.BoardMaster) Then
+		'文章
+		If Clng(Rs("UArticle"))>Clng(Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userpost").text) Then Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>本投票设置了用户发贴最少为 <B>"&Rs("UArticle")&"</B> 才能投票&action=OtherErr"
+		'金钱
+		If Clng(Rs("UWealth"))>Clng(Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userwealth").text) Then Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>本投票设置了用户金钱最少为 <B>"&Rs("UWealth")&"</B> 才能投票&action=OtherErr"
+		'积分
+		If Clng(Rs("UEP"))>Clng(Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userep").text) Then Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>本投票设置了用户积分最少为 <B>"&Rs("UEP")&"</B> 才能投票&action=OtherErr"
+		'魅力
+		If Clng(Rs("UCP"))>Clng(Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@usercp").text) Then Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>本投票设置了用户魅力最少为 <B>"&Rs("UCP")&"</B> 才能投票&action=OtherErr"
+		'威望
+		If Clng(Rs("UPower"))>Clng(Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userpower").text) Then Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>本投票设置了用户威望最少为 <B>"&Rs("UPower")&"</B> 才能投票&action=OtherErr"
+		End If
+		Dim votenum_temp,n,num_tempstr
+		If Rs("votetype")=2 Then
+			'调查投票
+			Votes = Split(Rs("vote"),"|")
+			votenum=Split(rs("votenum"),"|")
+			For i = 0 To Ubound(Votes)
+				VoteChilds  = Split(Votes(i),"@@")
+				VoteChildsType = VoteChilds(1)	'类型：0=单选，1=多选，2=文本
+
+				If VoteChildsType = "2" Then
+					'文本问答型式
+					VoteForm = Replace(Request.Form("postvote_"&i),"|","")
+					If Trim(VoteForm)="" Then
+					Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>请检查是否有答案未填写？</li>&action=OtherErr"
+					End If
+					postoption = postoption & VoteForm &"|"
+				Else
+					VoteChildsEP_Item = Split(VoteChilds(3),"$$")	'调查的积分
+					votenum_temp = Split(votenum(i),"$$")
+					num_tempstr = ""
+					If VoteChildsType="0" Then
+						'单选取出相应分数
+						VoteForm = Request.Form("postvote_"&i)
+						If Not Isnumeric(VoteForm) or VoteForm = "" Then
+							Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>请检查是否有漏选的项目？</li>&action=OtherErr"
+						Else
+							VoteForm = Cint(VoteForm)
+						End If
+						postoption = postoption & VoteForm &"|"
+
+						votenum_temp(VoteForm) = Cint(votenum_temp(VoteForm))+1
+
+
+						For n=0 to Ubound(votenum_temp)-1
+							num_tempstr = num_tempstr & votenum_temp(n) &"$$"
+						Next
+						votenum(i) = num_tempstr
+					Else
+						'多选
+						VoteForm_Tempstr = ""
+						For each VoteForm in Request.Form("postvote_"&i)
+							If Not Isnumeric(VoteForm) or VoteForm = "" Then
+								Response.redirect "showerr.asp?ShowErrType="&Dvbbs.ErrType&"&ErrCodes=<li>请检查是否有漏选的项目？</li>&action=OtherErr"
+							Else
+								VoteForm = Cint(VoteForm)
+							End If
+							VoteForm_Tempstr = VoteForm_Tempstr & VoteForm &"$$"
+							votenum_temp(VoteForm) = Cint(votenum_temp(VoteForm))+1
+						Next
+						For n=0 to Ubound(votenum_temp)-1
+							num_tempstr = num_tempstr & votenum_temp(n) &"$$"
+						Next
+						votenum(i) = num_tempstr
+						postoption = postoption & VoteForm_Tempstr &"|"
+					End If
+				End If
+				votenum_1 = votenum_1 &votenum(i)&"|"
+			Next
+
+
+			postnum=1
+		Else
+			'单选及多选投票
+			votenum=Split(rs("votenum"),"|")
+			If Rs("votetype")=1 Then
+				For i = 0 to UBound(votenum)
+					postvote(i)=request("postvote_"&i&"")
+				Next
+			End If
+			For j = 0 to UBound(votenum)
+				If rs("votetype")=0 Then
+					If cint(request("postvote"))=j Then
+						votenum(j)=votenum(j)+1
+						postoption=j
+					End If
+					votenum_1=""&votenum_1&""&votenum(j)&"|"
+					postnum=1
+				Else
+					If postvote(j)<>"" Then
+						If cint(postvote(j))=j Then
+							votenum(j)=votenum(j)+1
+							postnum=postnum+1
+							postoption=postoption & j & ","
+						End If
+					End If
+					votenum_1=""&votenum_1&""&votenum(j)&"|"
+				End If
+			Next
+			If postnum="" or isnull(postnum) then
+				Dvbbs.AddErrCode(59)
+				Dvbbs.ShowErr
+				Exit Sub
+			End If
+
+
+		End If
+		votenumlen=len(votenum_1)
+		votenum_1=left(votenum_1,votenumlen-1)
+		rs("votenum")=votenum_1
+		rs("voters")=rs("voters")+1
+		rs.update
+		postoption = Dvbbs.Checkstr(postoption)
+		Dvbbs.Execute("update dv_Topic set VoteTotal=voteTotal+"&postnum&" where topicid="&Announceid)
+		Dvbbs.Execute("insert into dv_voteuser (voteid,userid,voteoption) values ("&voteid&","&Dvbbs.userid&",'"&postoption&"')")
+	End If
+	Rs.Close
+	Set Rs=Nothing
+	If Dvbbs.Board_Setting(53)<>"0" Then
+		SQL="update dv_topic set LastPostTime="&SqlNowString&" where Topicid="&announceid&" and istop=0"
+		Dvbbs.Execute(SQL)
+	End If
+	Response.Redirect Request.ServerVariables("HTTP_REFERER")
+	Dvbbs.ShowErr
+End Sub
+'================帖子投票===========================
+'================打印帖子===========================
+Sub PrintPage_Main()
+	If Dvbbs.BoardID = 0 Then
+		Response.Write "参数错误"
+		Response.End
+	End If
+	Set dv_ubb=new Dvbbs_UbbCode
+	Dv_ubb.PostType=1
+	Dvbbs.LoadTemplates("postjob")
+	If request("id")="" Then
+		Dvbbs.AddErrCode(43)
+	ElseIf Not Isnumeric(request("id")) Then
+		Dvbbs.AddErrCode(30)
+	Else
+		AnnounceID=Clng(request("id"))
+	End If
+	If Dvbbs.GroupSetting(2)="0"  Then Dvbbs.AddErrcode(31)
+	Dvbbs.ShowErr()
+	EmotPath=Split(Dvbbs.Forum_emot,"|||")(0)		'em心情路径
+	abgcolor="tablebody1"
+	bgcolor="tablebody2"
+
+	Dim Tempwrite,Templist
+	Dim IsBest,Islock,IsDel,PostUserid
+    Set Rs=Dvbbs.Execute("select title,PostTable,isbest,locktopic,BoardID,PostUserid from Dv_topic where topicID="&AnnounceID)
+	If Not(Rs.Bof And Rs.Eof) Then
+		topic=Rs(0)
+		TotalUseTable=Rs(1)
+		IsBest = Rs(2)
+		Islock = Rs(3)
+		IsDel = Rs(4)
+		PostUserid = Rs(5)
+	Else
+		Dvbbs.AddErrCode(48)
+		Exit sub
+	End If
+
+	Rs.close:Set rs=Nothing
+	If IsBest=1 and Cint(Dvbbs.GroupSetting(41))=0 Then Dvbbs.AddErrCode(8) : Exit sub
+	If IsDel = 444  Then Dvbbs.AddErrCode(8) : Exit sub
+	If Dvbbs.Userid <> PostUserid And Cint(Dvbbs.GroupSetting(2)) = 0 Then Dvbbs.AddErrCode(31) : Exit Sub
+
+	Tempwrite=template.html(2)
+	Tempwrite=Replace(Tempwrite,"{$tablewidth}",Dvbbs.Mainsetting(0))
+	Tempwrite=Replace(Tempwrite,"{$forumname}",Dvbbs.Forum_info(0))
+	Tempwrite=Replace(Tempwrite,"{$forumurl}",Dvbbs.Get_ScriptNameUrl)
+	Tempwrite=Replace(Tempwrite,"{$boardtype}",Dvbbs.Boardtype)
+	Tempwrite=Replace(Tempwrite,"{$boardid}",Dvbbs.boardid)
+	Tempwrite=Replace(Tempwrite,"{$topic}",Dvbbs.HtmlEncode(Topic))
+	Tempwrite=Replace(Tempwrite,"{$announceid}",announceid)
+
+
+'
+	Dim Page,Record_Count,n,Searchstr
+	If request("page")<>"" and IsNumeric(request("page")) Then
+		page=Clng(request("page"))
+	Else
+		page=1
+	End If
+	Record_Count = 0
+	Searchstr = "t="&Request.QueryString("t")&"&BoardID="&Dvbbs.boardid&"&id="&Request.QueryString("id")
+
+	If Not IsObject(Conn) Then ConnectionDatabase
+	Dvbbs.SqlQueryNum = Dvbbs.SqlQueryNum + 1
+	Sql="Select b.UserName,b.Topic,b.dateandtime,b.body,u.UserGroupID,b.postbuyuser,b.Ubblist,B.isbest,B.locktopic,B.GetMoneyType,B.ParentID,b.AnnounceID,b.RootID,b.signflag from "&TotalUseTable&" b left outer Join [Dv_user] u on b.PostUserID=u.userid where b.boardid="&dvbbs.boardid&" and b.rootid="&Announceid&" and b.locktopic<>2 and b.locktopic<>3 and (u.lockuser=0 or u.lockuser is null) order by b.announceid"
+	'Set Rs=Dvbbs.Execute(Sql)
+	Set Rs=Dvbbs.iCreateObject("adodb.recordset")
+	Rs.Open Sql,Conn,1,1
+
+	If Rs.Eof And Rs.Bof Then
+		Dvbbs.AddErrCode(48)
+		Exit Sub
+	Else
+		Record_Count = Rs.RecordCount
+		If Record_Count Mod Cint(Dvbbs.Board_Setting(27))=0 Then
+			n = Record_Count \ Cint(Dvbbs.Board_Setting(27))
+		Else
+	     	n = Record_Count \ Cint(Dvbbs.Board_Setting(27))+1
+  		End If
+		Rs.MoveFirst
+		If page > n Then page = n
+		If page < 1 Then page = 1
+		If page > 1 Then
+			Rs.Move (page-1) * Clng(Dvbbs.Board_Setting(27))
+		End if
+		Sql = Rs.GetRows(Clng(Dvbbs.Board_Setting(27)))
+		'Sql=Rs.GetRows(-1)
+		Rs.Close:Set Rs=Nothing
+
+		For i=0 to Ubound(sql,2)
+			postbuyuser=Sql(5,i)
+			If Sql(9,i)=3 And Sql(10,i)=0 And Not Dvbbs.Boardmaster Then
+				If Instr(postbuyuser,"|||"&Dvbbs.MemberName&"|||")=0 Then Dvbbs.AddErrCode(8) : Exit Sub
+			End If
+			Ubblists=SQL(6,i)
+			If Sql(13,i)=2 Then
+				If Dvbbs.master Then
+					username=Sql(0,i)&" (匿名)"
+				Else
+					username="匿名用户"
+				End If
+			Else
+				username=Sql(0,i)
+			End If
+			ReplyID_a=Sql(11,i)
+			AnnounceID_a=Sql(11,i)
+			RootID_a=Sql(12,i)
+			Templist=Templist&template.html(3)
+			Templist=Replace(Templist,"{$username}",username)
+			Templist=Replace(Templist,"{$dateandtime}",Sql(2,i))
+			Templist=Replace(Templist,"{$topic}",Dvbbs.HtmlEncode(Sql(1,i)))
+			Templist=Replace(Templist,"{$body}",SimJsReplace(dv_ubb.Dv_UbbCode(SQL(3,i),SQL(4,i),1,1)))
+		Next
+
+		Tempwrite=Replace(Tempwrite,"{$bbslist}",Templist)
+		Dvbbs.stats=Dvbbs.HtmlEncode(Sql(1,0))
+		Dvbbs.head()
+		Response.write Tempwrite
+		Response.Write "<script language=""JavaScript"" src=""inc/Pagination.js""></script>"
+		Response.Write "<SCRIPT LANGUAGE=""JavaScript"">"
+		Response.Write "PageList("&page&",10,"&Dvbbs.Board_Setting(27)&","&Record_Count&",'"&Searchstr&"',2)</script>"
+	End if
+
+	Dvbbs.ShowErr()
+	Dvbbs.ActiveOnline
+	Dvbbs.Footer()
+End Sub
+Function SimJsReplace(str)
+	If IsNull(str) Or str="" Then Exit Function
+	str=Replace(str,"\","\\")
+	str=Replace(str,"'","\'")
+	SimJsReplace=str
+End Function
+'================打印帖子===========================
+'================报告帖子===========================
+Sub Report_Main()
+	Dvbbs.LoadTemplates("postjob")
+	Dvbbs.stats=template.Strings(0)
+	Dvbbs.Nav()
+	If Dvbbs.userid=0 Then
+		Dvbbs.AddErrCode(6)
+	End If
+	Dvbbs.ShowErr()
+	Dvbbs.head_var 1,Application(Dvbbs.CacheName&"_boardlist").documentElement.selectSingleNode("board[@boardid='"&Dvbbs.BoardID&"']/@depth").text,"",""
+	If Request("action")="send" then
+		Report_AnnounceInfo()
+	Else
+		Report_Pag()
+	End If
+
+End Sub
+Sub Report_AnnounceInfo()
+	Dim body,AnnounceID,writer,incept,topic,topic_1,Yrs
+	If Request("id")="" Or Not IsNumeric(Request("id")) Then
+		Dvbbs.AddErrCode(30)
+		Exit Sub
+	Else
+		AnnounceID=Clng(Request("id"))
+	End If
+	body=Dvbbs.checkStr(request.Form("content"))
+	writer=Dvbbs.membername
+	incept=Dvbbs.checkStr(Request.Form("boardmaster"))
+	Sql="select title from Dv_topic where TopicID="&AnnounceID
+	Set Yrs=Dvbbs.Execute(sql)
+	If not(Yrs.bof and Yrs.eof) Then
+		topic_1=Yrs(0)
+		topic=template.Strings(0)
+		body=body&template.Strings(2)
+		body=Replace(body,"{$dvbbsurl}",Dvbbs.Get_ScriptNameUrl)
+		body=Replace(body,"{$boardid}",Dvbbs.boardid)
+		body=Replace(body,"{$announceid}",Announceid)
+	Else
+		Dvbbs.AddErrCode(48)
+		Exit Sub
+	End If
+	Yrs.Close
+	Sql="insert into Dv_message (incept,sender,title,content,sendtime,flag,issend) values ('"&incept&"','"&Dvbbs.membername&"','"&topic&"','"&body&"',"&SqlNowString&",0,1)"
+	Dvbbs.Execute(Sql)
+	update_user_msg(incept)
+	Dvbbs.ActiveOnline
+	Dvbbs.Dvbbs_suc("<li>"&template.Strings(3))
+	Set Yrs=Nothing
+	Dvbbs.Footer()
+End sub
+Sub Report_Pag()
+	Dim MainTable,Boardmasterlist,Yrs
+	Dim Boardmasterl,Boardmastersp
+	Boardmasterlist=Template.Html(1)
+	Sql="select boardmaster from Dv_board where boardID="&cstr(Dvbbs.boardid)
+	Set Yrs=Dvbbs.Execute(Sql)
+	If Yrs.eof And Yrs.bof Then
+		Dvbbs.AddErrCode(29)
+		Exit Sub
+	ElseIf Yrs(0)="" Or isnull(Yrs(0)) Then
+		Boardmasterl=Replace(Boardmasterlist,"{$boardmaster}",template.Strings(1))
+	Else
+		Boardmastersp=Split(Yrs(0),"|")
+		For i=0 to Ubound(Boardmastersp)
+			Boardmasterl=Boardmasterl&Replace(Boardmasterlist,"{$boardmaster}",Boardmastersp(i))
+		Next
+	End if
+	MainTable=Template.Html(0)
+	MainTable=Replace(MainTable,"{$boardid}",Dvbbs.boardid)
+	MainTable=Replace(MainTable,"{$announceid}",Request("id"))
+	MainTable=Replace(MainTable,"{$boardmasterlist}",Boardmasterl)
+	Response.write MainTable
+	Dvbbs.ActiveOnline
+	Dvbbs.Footer()
+End Sub
+Function update_user_msg(username)
+	Dim msginfo
+	if newincept(username)>0 then
+		msginfo=newincept(username) & "||" & inceptid(1,username) & "||" & inceptid(2,username)
+	Else
+		msginfo="0||0||null"
+	End if
+	Dvbbs.execute("update [Dv_user] set UserMsg='"&dvbbs.CheckStr(msginfo)&"' where username='"&dvbbs.CheckStr(username)&"'")
+End Function
+'统计留言
+Function newincept(iusername)
+	Dim Yrs
+	Set Yrs=Dvbbs.execute("Select Count(id) From Dv_Message Where flag=0 and issend=1 and delR=0 And incept='"& iusername &"'")
+    newincept=Yrs(0)
+	set Yrs=nothing
+	if isnull(newincept) then newincept=0
+End Function
+Function inceptid(stype,iusername)
+	Dim Yrs
+	Set Yrs=Dvbbs.execute("Select top 1 id,sender From Dv_Message Where flag=0 and issend=1 and delR=0 And incept='"& iusername &"'")
+	If stype=1 then
+		inceptid=Yrs(0)
+	Else
+		inceptid=Yrs(1)
+	End if
+	set Yrs=nothing
+End Function
+'================报告帖子===========================
+'================发送页面===========================
+Sub SendPage_Main()
+	Dim announceid,topic,content,postname,incepts
+	Dvbbs.LoadTemplates("postjob")
+	Dvbbs.Stats=template.Strings(9)
+	Dvbbs.Nav()
+	Dvbbs.ShowErr()
+	If Cint(Dvbbs.Forum_Setting(2))=0 Then
+		Dvbbs.AddErrCode(51)
+	End If
+	If Cint(dvbbs.GroupSetting(15))=0 Then
+		Dvbbs.AddErrCode(65)
+	End If
+
+	If Request("id")="" Then
+		Dvbbs.AddErrCode(43)
+	ElseIf Not Isnumeric(Request("id")) Then
+		Dvbbs.AddErrCode(30)
+	Else
+		AnnounceID=Clng(Request("id"))
+	End If
+	Dvbbs.ShowErr()
+
+	Dvbbs.head_var 1,Application(Dvbbs.CacheName&"_boardlist").documentElement.selectSingleNode("board[@boardid='"&Dvbbs.BoardID&"']/@depth").text,"",""
+	If request("action")="sendmail" Then
+		If IsValidEmail(trim(Request.Form("mail")))=False Then
+			Dvbbs.AddErrCode(50)
+		Else
+			email=trim(Request.Form("mail"))
+		End If
+		If request("postname")="" Then
+			Dvbbs.AddErrCode(66)
+		Else
+			postname=request("postname")
+		End If
+		If request("incept")="" Then
+			Dvbbs.AddErrCode(67)
+		Else
+			incepts=request("incept")
+		End If
+		If request("content")="" Then
+			Dvbbs.AddErrCode(68)
+		Else
+			content=Dvbbs.HtmlEnCode(request("content"))
+		End If
+		Dvbbs.ShowErr()
+		Set Rs=Dvbbs.Execute("select title from Dv_topic where topicID="&AnnounceID)
+		If Not(Rs.Bof And Rs.Eof) Then
+			topic=Dvbbs.HtmlEnCode(Rs(0))
+			Rs.Close:Set Rs=Nothing
+		Else
+			Dvbbs.AddErrCode(48)
+		End If
+		Dvbbs.ShowErr()
+		mailbody=template.html(4)&template.html(6)
+		mailbody=Replace(mailbody,"{$incepts}",incepts)
+		mailbody=Replace(mailbody,"{$postname}",postname)
+		mailbody=Replace(mailbody,"{$bbsname}",Dvbbs.Forum_Info(0))
+		mailbody=Replace(mailbody,"{$boardtype}",Dvbbs.Boardtype)
+		mailbody=Replace(mailbody,"{$topic}",topic)
+		mailbody=Replace(mailbody,"{$content}",content)
+		mailbody=Replace(mailbody,"{$bbsurl}",Dvbbs.Get_ScriptNameUrl)
+		mailbody=Replace(mailbody,"{$boardid}",Dvbbs.Boardid)
+		mailbody=Replace(mailbody,"{$announceid}",announceid)
+		mailbody=Replace(mailbody,"{$copyright}",Dvbbs.Forum_Copyright)
+		mailbody=Replace(mailbody,"{$version}",Dvbbs.Forum_Version)
+		Dim DvEmail
+		Set DvEmail = New Dv_SendMail
+		DvEmail.SendObject = Cint(Dvbbs.Forum_Setting(2))	'设置选取组件 0=Jmail,1=Cdonts,2=Aspemail
+		DvEmail.ServerLoginName = Dvbbs.Forum_info(12)	'您的邮件服务器登录名
+		DvEmail.ServerLoginPass = Dvbbs.Forum_info(13)	'登录密码
+		DvEmail.SendSMTP = Dvbbs.Forum_info(4)			'SMTP地址
+		DvEmail.SendFromEmail = Dvbbs.Forum_info(5)		'发送来源地址
+		DvEmail.SendFromName = Dvbbs.Forum_info(0)		'发送人信息
+		If DvEmail.ErrCode = 0 Then
+			DvEmail.SendMail email,topic,mailbody	'执行发送邮件
+			If DvEmail.Count=0 Then
+				Dvbbs.AddErrCode(51)
+			End If
+		Else
+			Dvbbs.AddErrCode(51)
+		End If
+		'Response.write DvEmail.Description
+		Set DvEmail = Nothing
+		Dvbbs.ShowErr()
+		Dvbbs.Dvbbs_suc("<li>"&template.Strings(6))
+	Else
+		SendPage_Pag()
+	End If
+	Dvbbs.ActiveOnline
+	Dvbbs.Footer()
+End Sub
+Sub SendPage_Pag()
+	Dim Tempwrite
+	Tempwrite=template.html(7)
+	Tempwrite=Replace(Tempwrite,"{$bbsname}",Dvbbs.Forum_info(0))
+	Tempwrite=Replace(Tempwrite,"{$forumurl}",Dvbbs.Get_ScriptNameUrl)
+	Tempwrite=Replace(Tempwrite,"{$announceid}",Request("id"))
+	Tempwrite=Replace(Tempwrite,"{$boardid}",Dvbbs.boardid)
+	Response.write Tempwrite
+End Sub
+'================发送页面===========================
+%>

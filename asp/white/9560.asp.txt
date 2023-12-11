@@ -1,0 +1,132 @@
+<%
+Function code_jk(strer)
+  strer=strer
+  if strer="" or isnull(strer) then
+    code_jk="":exit function
+  end if
+
+  strer=replace(strer,"<","&lt;")
+  strer=replace(strer,">","&gt;")
+  strer=replace(strer,CHR(32),"&nbsp")    '空格
+  strer=replace(strer,CHR(9),"&nbsp")    'table
+  strer=replace(strer,CHR(39),"&#39;")    '单引号
+  strer=replace(strer,CHR(34),"&quot;")    '双引号
+  
+  dim re
+  Set re=new RegExp
+  re.IgnoreCase =True
+  re.Global=True
+  
+  re.Pattern="(javascript)"
+  strer=re.Replace(strer,"&#106avascript")
+  re.Pattern="(jscript:)"
+  strer=re.Replace(strer,"&#106script:")
+  re.Pattern="(js:)"
+  strer=re.Replace(strer,"&#106s:")
+  re.Pattern="(value)"
+  strer=re.Replace(strer,"&#118alue")
+  re.Pattern="(about:)"
+  strer=re.Replace(strer,"about&#58")
+  re.Pattern="(file:)"
+  strer=re.Replace(strer,"file&#58")
+  re.Pattern="(document.cookie)"
+  strer=re.Replace(strer,"documents&#46cookie")
+  re.Pattern="(vbscript:)"
+  strer=re.Replace(strer,"&#118bscript:")
+  re.Pattern="(vbs:)"
+  strer=re.Replace(strer,"&#118bs:")
+  re.Pattern="(on(mouse|exit|error|click|key))"
+  strer=re.Replace(strer,"&#111n$2")
+  
+  re.Pattern="\[IMG\](http|https|ftp):\/\/(.[^\[]*)\[\/IMG\]"
+  strer=re.Replace(strer,"<a href='http://$2' target=_blank><IMG SRC='http://$2' border=0 alt='按此在新窗口浏览图片' onload=""javascript:if(this.width>screen.width-430)this.width=screen.width-430""></a>")
+  re.Pattern="\[DIR=*([0-9]*),*([0-9]*)\](.[^\[]*)\[\/DIR]"
+  strer=re.Replace(strer,"<object classid=clsid:166B1BCA-3F9C-11CF-8075-444553540000 codebase=http://download.macromedia.com/pub/shockwave/cabs/director/sw.cab#version=7,0,2,0 width=$1 height=$2><param name=src value=$3><embed src=$3 pluginspage=http://www.macromedia.com/shockwave/download/ width=$1 height=$2></embed></object>")
+  re.Pattern="\[QT=*([0-9]*),*([0-9]*)\](.[^\[]*)\[\/QT]"
+  strer=re.Replace(strer,"<embed src=$3 width=$1 height=$2 autoplay=true loop=false controller=true playeveryframe=false cache=false scale=TOFIT bgcolor=#ededed kioskmode=false targetcache=false pluginspage=http://www.apple.com/quicktime/>")
+  re.Pattern="\[MP=*([0-9]*),*([0-9]*)\](.[^\[]*)\[\/MP]"
+  strer=re.Replace(strer,"<object align=middle classid=CLSID:22d6f312-b0f6-11d0-94ab-0080c74c7e95 class=OBJECT id=MediaPlayer width=$1 height=$2 ><param name=ShowStatusBar value=-1><param name=Filename value=$3><embed type=application/x-oleobject codebase=http://activex.microsoft.com/activex/controls/mplayer/en/nsmp2inf.cab#Version=5,1,52,701 flename=mp src=$3  width=$1 height=$2></embed></object>")
+  re.Pattern="\[RM=*([0-9]*),*([0-9]*)\](.[^\[]*)\[\/RM]"
+  strer=re.Replace(strer,"<OBJECT classid=clsid:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA class=OBJECT id=RAOCX width=$1 height=$2><PARAM NAME=SRC VALUE=$3><PARAM NAME=CONSOLE VALUE=Clip1><PARAM NAME=CONTROLS VALUE=imagewindow><PARAM NAME=AUTOSTART VALUE=true></OBJECT><br><OBJECT classid=CLSID:CFCDAA03-8BE4-11CF-B84B-0020AFBBCCFA height=32 id=video2 width=$1><PARAM NAME=SRC VALUE=$3><PARAM NAME=AUTOSTART VALUE=-1><PARAM NAME=CONTROLS VALUE=controlpanel><PARAM NAME=CONSOLE VALUE=Clip1></OBJECT>")
+  re.Pattern="(\[FLASH=*([0-9]*),*([0-9]*)\])(.[^\[]*)(\[\/FLASH\])"
+  strer= re.Replace(strer,"<a href='$4' TARGET=_blank><IMG SRC='http://cs.sohu.com/img/info/swf.gif' border=0 alt=点击开新窗口欣赏该FLASH动画! height=16 width=16>[全屏欣赏]</a><br><OBJECT codeBase=http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=4,0,2,0 classid=clsid:D27CDB6E-AE6D-11cf-96B8-444553540000 width=$2 height=$3><PARAM NAME=movie VALUE='$4'><PARAM NAME=quality VALUE=high><embed src='$4' quality=high pluginspage='http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash' type='application/x-shockwave-flash' width=$2 height=$3>$4</embed></OBJECT>")
+  re.Pattern="(\[FLASH\])(http://.[^\[]*(.swf))(\[\/FLASH\])"
+  strer= re.Replace(strer,"<a href=""$2"" TARGET=_blank><IMG SRC=http://cs.sohu.com/img/info/swf.gif border=0 alt='点击开新窗口欣赏该FLASH动画!' height=16 width=16>[全屏欣赏]</a><br><OBJECT codeBase=http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=4,0,2,0 classid=clsid:D27CDB6E-AE6D-11cf-96B8-444553540000 width=500 height=400><PARAM NAME=movie VALUE=""$2""><PARAM NAME=quality VALUE=high><embed src=""$2"" quality=high pluginspage='http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash' type='application/x-shockwave-flash' width=500 height=400>$2</embed></OBJECT>")
+  re.Pattern="(\[URL\])(.[^\[]*)(\[\/URL\])"
+  strer= re.Replace(strer,"<A HREF='$2' TARGET=_blank>$2</A>")
+  re.Pattern="(\[URL=(.[^\[]*)\])(.[^\[]*)(\[\/URL\])"
+  strer= re.Replace(strer,"<A HREF='$2' TARGET=_blank>$3</A>")
+  re.Pattern="(\[EMAIL\])(\S+\@.[^\[]*)(\[\/EMAIL\])"
+  strer= re.Replace(strer,"<img align=absmiddle src=http://cs.sohu.com/img/info/email.gif><A HREF=""mailto:$2"">$2</A>")
+  re.Pattern="(\[EMAIL=(\S+\@.[^\[]*)\])(.[^\[]*)(\[\/EMAIL\])"
+  strer= re.Replace(strer,"<img align=absmiddle src=http://cs.sohu.com/img/info/email.gif><A HREF=""mailto:$2"" TARGET=_blank>$3</A>")
+  re.Pattern = "^(http://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)"
+  strer = re.Replace(strer,"<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$1>$1</a>")
+  re.Pattern = "(http://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)$"
+  strer = re.Replace(strer,"<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$1>$1</a>")
+  re.Pattern = "([^>='])(http://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)"
+  strer = re.Replace(strer,"$1<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$2>$2</a>")
+  re.Pattern = "^(ftp://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)"
+  strer = re.Replace(strer,"<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$1>$1</a>")
+  re.Pattern = "(ftp://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)$"
+  strer = re.Replace(strer,"<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$1>$1</a>")
+  re.Pattern = "[^>='](ftp://[A-Za-z0-9\.\/=\?%\-&_~`@':+!]+)"
+  strer = re.Replace(strer,"<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$1>$1</a>")
+  re.Pattern = "^(rtsp://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)"
+  strer = re.Replace(strer,"<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$1>$1</a>")
+  re.Pattern = "(rtsp://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)$"
+  strer = re.Replace(strer,"<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$1>$1</a>")
+  re.Pattern = "[^>='](rtsp://[A-Za-z0-9\.\/=\?%\-&_~`@':+!]+)"
+  strer = re.Replace(strer,"<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$1>$1</a>")
+  re.Pattern = "^(mms://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)"
+  strer = re.Replace(strer,"<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$1>$1</a>")
+  re.Pattern = "(mms://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)$"
+  strer = re.Replace(strer,"<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$1>$1</a>")
+  re.Pattern = "[^>='](mms://[A-Za-z0-9\.\/=\?%\-&_~`@':+!]+)"
+  strer = re.Replace(strer,"<img align=absmiddle src='http://cs.sohu.com/img/info/url.gif'><a target=_blank href=$1>$1</a>")
+  re.Pattern="\[color=(.[^\[]*)\](.[^\[]*)\[\/color\]"
+  strer=re.Replace(strer,"<font color=$1>$2</font>")
+  re.Pattern="\[face=(.[^\[]*)\](.[^\[]*)\[\/face\]"
+  strer=re.Replace(strer,"<font face=$1>$2</font>")
+  re.Pattern="\[align=(.[^\[]*)\](.[^\[]*)\[\/align\]"
+  strer=re.Replace(strer,"<div align=$1>$2</div>")
+  re.Pattern="\[align=(.[^\[]*)\](.*)\[\/align\]"
+  strer=re.Replace(strer,"<div align=$1>$2</div>")
+  re.Pattern="\[center\](.[^\[]*)\[\/center\]"
+  strer=re.Replace(strer,"<div align=center>$1</div>")
+  re.Pattern="\[QUOTE\](.*)\[\/QUOTE\]"
+  strer=re.Replace(strer,"<table border=1 cellspacing=0 cellpadding=4 width='98%' bordercolorlight="&bg_color3&" bordercolordark=#FFFFFF bgcolor=#ffffff style=""TABLE-LAYOUT: fixed"" align=center><tr><td style=""WORD-WRAP: break-word"">$1</td></tr></table><br>")
+  re.Pattern="\[CODE\](.*)\[\/CODE\]"
+  strer=re.Replace(strer,"<table border=1 cellspacing=0 cellpadding=4 width='98%' bordercolorlight="&bg_color3&" bordercolordark=#FFFFFF bgcolor=#ffffff style=""TABLE-LAYOUT: fixed"" align=center><tr><td style=""WORD-WRAP: break-word"">$1</td></tr></table><br>")
+  re.Pattern="\[fly\](.[^\[]*)\[\/fly\]"
+  strer=re.Replace(strer,"<marquee width=90% behavior=alternate scrollamount=3>$1</marquee>")
+  re.Pattern="\[move\](.[^\[]*)\[\/move\]"
+  strer=re.Replace(strer,"<MARQUEE scrollamount=3>$1</marquee>")  
+  re.Pattern="\[GLOW=*([0-9]*),*(#*[a-z0-9]*),*([0-9]*)\](.[^\[]*)\[\/GLOW]"
+  strer=re.Replace(strer,"<table width=$1 style=""filter:glow(color=$2, strength=$3)"">$4</table>")
+  re.Pattern="\[SHADOW=*([0-9]*),*(#*[a-z0-9]*),*([0-9]*)\](.[^\[]*)\[\/SHADOW]"
+  strer=re.Replace(strer,"<table width=$1 style=""filter:shadow(color=$2, strength=$3)"">$4</table>")
+  re.Pattern="\[i\](.[^\[]*)\[\/i\]"
+  strer=re.Replace(strer,"<i>$1</i>")
+  re.Pattern="\[u\](.[^\[]*)(\[\/u\])"
+  strer=re.Replace(strer,"<u>$1</u>")
+  re.Pattern="\[b\](.[^\[]*)(\[\/b\])"
+  strer=re.Replace(strer,"<b>$1</b>")
+  re.Pattern="\[size=([1-4])\](.[^\[]*)\[\/size\]"
+  strer=re.Replace(strer,"<font size=$1>$2</font>")
+
+  set re=Nothing
+  
+  dim emci
+  for emci=1 to 16
+    strer=Replace(strer,"[em"&emci&"]","<image src='images/icon/em"&emci&".gif' border=0>&nbsp;")
+  next
+  for emci=1 to 13
+    strer=Replace(strer,"[emb"&emci&"]","<image src='images/icon/emb"&emci&".gif' border=0>&nbsp;")
+  next
+  strer=replace(strer,"[br]","<br>")
+  strer=replace(strer,"[BR]","<br>")
+  strer=replace(strer,vbCrLf,"<br>")
+  code_jk=strer
+End Function
+%>

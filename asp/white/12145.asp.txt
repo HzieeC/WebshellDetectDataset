@@ -1,0 +1,359 @@
+<%
+If OT_ISOTCMS<>True Then
+	response.write("非法访问")
+	response.End()
+End If
+
+
+collErrStr = ""
+
+
+' 获取网页源码（限制读取时间）
+' URL：网页地址；charset：编码
+Function Html_GetCode(URL, charset)
+	On Error Resume Next
+	Dim Http
+
+	If IsNull(URL)=True Or Len(URL)<18 Or URL="" Then
+		Html_GetCode="False"
+		collErrStr="网址错误"
+		Exit Function
+	End If
+	Set Http=server.createobject("MSXML2.ServerXMLHTTP")
+	' 解析DNS的超时时间,建立连接的超时时间,发送数据的超时时间,接收数据的超时时间
+	Http.setTimeouts 10000,10000,10000,30000 
+	Http.open "GET",URL,False
+	Http.Send()
+		If Http.Readystate<>4 then
+			Set Http=Nothing 
+			Html_GetCode="False"
+			collErrStr="获取不到源代码"
+			Exit function
+		End if
+	Html_GetCode=Html_ToStr(Http.responseBody,charset)
+	Set Http=Nothing
+
+	If Err.number<>0 then
+		If IsNull(URL)=True Or Len(URL)<18 Or URL="" Then
+			Html_GetCode="False"
+			collErrStr="网址错误"
+			Exit Function
+		End If
+		Set Http=server.createobject("MSXML2.ServerXMLHTTP")
+		'On Error Resume Next
+		' 解析DNS的超时时间,建立连接的超时时间,发送数据的超时时间,接收数据的超时时间
+		Http.setTimeouts 10000,10000,10000,30000 
+		Http.open "GET",URL,False
+		Http.Send()
+			If Http.Readystate<>4 or Http.Status > 300 then
+				Set Http=Nothing 
+				Html_GetCode="False"
+				collErrStr="获取不到源代码"
+				Exit function
+			End if
+		Html_GetCode=Html_ToStr(Http.responseBody,charset)
+		Set Http=Nothing
+		Err.Clear
+	End If
+
+End Function
+
+
+
+' 获取网页源码
+' URL：网页地址；charset：编码
+Function Html_GetCode2(URL, charset)
+	On Error Resume Next
+	Dim Http
+
+	If IsNull(URL)=True Or Len(URL)<18 Or URL="" Then
+		Html_GetCode2="False"
+		collErrStr="网址错误"
+		Exit Function
+	End If
+	Set Http=server.createobject("MSXML2.XMLHTTP")
+	Http.open "GET",URL,False
+	Http.Send()
+		If Http.Readystate<>4 then
+			Set Http=Nothing 
+			Html_GetCode2="False"
+			collErrStr="获取不到源代码"
+			Exit function
+		End if
+	Html_GetCode2=Html_ToStr(Http.responseBody,charset)
+	Set Http=Nothing
+
+	If Err.number<>0 then
+		If IsNull(URL)=True Or Len(URL)<18 Or URL="" Then
+			Html_GetCode2="False"
+			collErrStr="网址错误"
+			Exit Function
+		End If
+		Set Http=server.createobject("MSXML2.XMLHTTP")
+		'On Error Resume Next
+		Http.open "GET",URL,False
+		Http.Send()
+			If Http.Readystate<>4 or Http.Status > 300 then
+				Set Http=Nothing 
+				Html_GetCode2="False"
+				collErrStr="获取不到源代码"
+				Exit function
+			End if
+		Html_GetCode2=Html_ToStr(Http.responseBody,charset)
+		Set Http=Nothing
+		Err.Clear
+	End If
+
+End Function
+
+
+' 将获取的源码转换为中文
+' str：要转换的字符串；charset：要转换的类型
+Function Html_ToStr(str,charset)
+	Dim Objstream
+	Set Objstream = Server.CreateObject("adodb.stream")
+	objstream.Type = 1
+	objstream.Mode =3
+	objstream.Open
+	objstream.Write str
+	objstream.Position = 0
+	objstream.Type = 2
+	objstream.Charset = charset
+	Html_ToStr = objstream.ReadText 
+	objstream.Close
+	set objstream = nothing
+End Function
+
+
+' 截取字符串
+' contentStr：要截取的字符串；startCode：开始字符串；endCode：结束字符串；incStart：是否包含startCode；incEnd：是否包含endCode
+Function Html_GetStr(contentStr,startCode,endCode,incStart,incEnd)
+	If contentStr="False" or contentStr="" or IsNull(contentStr)=True Or startCode="" or IsNull(startCode)=True Or endCode="" or IsNull(endCode)=True Then
+		Html_GetStr="False"
+		collErrStr="源代码、开始标签、结束标签任意一个都不能为空"
+		Exit Function
+	End If
+	Dim contentTemp
+	Dim Start,Over
+	contentTemp=Lcase(contentStr)
+	startCode=Lcase(startCode)
+	endCode=Lcase(endCode)
+	Start = InStrB(1, contentTemp, startCode, vbBinaryCompare)
+	If Start<=0 then
+		Html_GetStr="False"
+		collErrStr="开始标签定位不到内容"
+		Exit Function
+	Else
+		If incStart=False Then
+			Start=Start+LenB(startCode)
+		End If
+	End If
+	Over=InStrB(Start,contentTemp,endCode,vbBinaryCompare)
+	If Over<=0 Or Over<=Start then
+		Html_GetStr="False"
+		collErrStr="结束标签定位不到内容"
+		Exit Function
+	Else
+		If incEnd=True Then
+			Over=Over+LenB(endCode)
+		End If
+	End If
+	Html_GetStr=MidB(contentStr,Start,Over-Start)
+End Function
+
+
+' 提取链接地址，以[OT]分隔
+' contentStr：提取地址的原字符；startCode：开始字符串；endCode：结束字符串；incStart：是否包含startCode；incEnd：是否包含endCode
+Function Html_GetArrStr(contentStr,startCode,endCode,incStart,incEnd)
+	On Error Resume Next
+	If contentStr="False" or contentStr="" Or IsNull(contentStr)=True or startCode="" Or endCode="" or  IsNull(startCode)=True Or IsNull(endCode)=True Then
+		Html_GetArrStr="False"
+		collErrStr="源代码、开始标签、结束标签任意一个都不能为空"
+		Exit Function
+	End If
+
+	Dim TempStr,TempStr2,objRegExp,Matches,Match,Templisturl
+	TempStr=""
+	Set objRegExp = New Regexp 
+	objRegExp.IgnoreCase = True 
+	objRegExp.Global = True
+	objRegExp.Pattern = "("& startCode &").+?("& endCode &")"
+	Set Matches =objRegExp.Execute(contentStr) 
+	For Each Match in Matches
+		If Templisturl<>Match.Value Then
+			If TempStr="" Then
+				TempStr=Match.Value
+			Else
+				TempStr=TempStr &"[OT]"& Match.Value
+			End If
+			Templisturl=Match.Value
+		End If
+	Next 
+	Set Matches=nothing
+
+	If TempStr="" Then
+		Html_GetArrStr="False"
+		collErrStr="获取数据集为空"
+		Exit Function
+	End If
+	If incStart=False then
+		objRegExp.Pattern =startCode
+		TempStr=objRegExp.Replace(TempStr,"")
+	End if
+	If incEnd=False then
+		objRegExp.Pattern =endCode
+		TempStr=objRegExp.Replace(TempStr,"")
+	End if
+	Set objRegExp=nothing
+	Set Matches=nothing
+
+	TempStr=Replace(TempStr,"""","")
+	TempStr=Replace(TempStr,"'","")
+	TempStr=Replace(TempStr," ","")
+	'TempStr=Replace(TempStr,"(","")
+	'TempStr=Replace(TempStr,")","")
+
+	If TempStr="" then
+		Html_GetArrStr="False"
+		collErrStr="获取数据集为空"
+	Else
+		Html_GetArrStr=TempStr
+	End if
+End Function
+
+
+' 将相对地址转换为绝对地址
+' getStrUrl:要转换的相对地址；currUrl:当前网页地址
+Function Html_RealUrl(ByVal getStrUrl,ByVal currUrl)
+	Dim Pi,Ci,getStrUrlArr,currUrlArr
+	If getStrUrl="" Or currUrl="" Or getStrUrl="False" Or currUrl="False" Then
+		Html_RealUrl=getStrUrl
+		Exit Function
+	End If
+	If Left(Lcase(currUrl),7)<>"http://" Then
+		currUrl= "http://"& currUrl
+	End If
+	currUrl		= Replace(currUrl,"\","/")
+	currUrl		= Replace(currUrl,"://",":\\")
+	getStrUrl	= Replace(getStrUrl,"\","/")
+
+	If Right(currUrl,1)<>"/" Then
+		If Instr(currUrl,"/")>0 Then
+			If Instr(Right(currUrl,Len(currUrl)-InstrRev(currUrl,"/")),".")>0 then   
+			Else
+				currUrl=currUrl &"/"
+			End If
+		Else
+			currUrl=currUrl &"/"
+		End If
+	End If
+	currUrlArr=Split(currUrl,"/")
+
+	If Left(LCase(getStrUrl),7) = "http://" then
+		Html_RealUrl=Replace(getStrUrl,"://",":\\")
+
+	ElseIf Left(getStrUrl,1) = "/" Then
+		Html_RealUrl=currUrlArr(0) & getStrUrl
+
+	ElseIf Left(getStrUrl,2)="./" Then
+		getStrUrl=Right(getStrUrl,Len(getStrUrl)-2)
+		If Right(currUrl,1)="/" Then   
+			Html_RealUrl=currUrl & getStrUrl
+		Else
+			Html_RealUrl=Left(currUrl,InstrRev(currUrl,"/")) & getStrUrl
+		End If
+
+	ElseIf Left(getStrUrl,3)="../" then
+		Do While Left(getStrUrl,3)="../"
+			getStrUrl=Right(getStrUrl,Len(getStrUrl)-3)
+			Pi=Pi+1
+		Loop            
+		For Ci=0 to (Ubound(currUrlArr)-1-Pi)
+			If Html_RealUrl<>"" Then
+				Html_RealUrl=Html_RealUrl &"/"& currUrlArr(Ci)
+			Else
+				Html_RealUrl=currUrlArr(Ci)
+			End If
+		Next
+		Html_RealUrl=Html_RealUrl &"/"& getStrUrl
+
+	ElseIf Left(getStrUrl,1)="?" then
+		If InStr(currUrl,"?")>0 Then   
+			Html_RealUrl=Left(currUrl,Instr(currUrl,"?")-1) & getStrUrl
+		Else
+			Html_RealUrl=currUrl & getStrUrl
+		End If
+
+	Else
+		If Instr(getStrUrl,"/")>0 Then
+			getStrUrlArr=Split(getStrUrl,"/")
+			If Instr(getStrUrlArr(0),".")>0 Then
+				If Right(getStrUrl,1)="/" Then
+					Html_RealUrl="http:\\" & getStrUrl
+				Else
+					If Instr(getStrUrlArr(Ubound(getStrUrlArr)-1),".")>0 Then 
+						Html_RealUrl="http:\\"& getStrUrl
+					Else
+						Html_RealUrl="http:\\"& getStrUrl &"/"
+					End If
+				End If      
+			Else
+				If Right(currUrl,1)="/" Then   
+					Html_RealUrl=currUrl & getStrUrl
+				Else
+					Html_RealUrl=Left(currUrl,InstrRev(currUrl,"/")) & getStrUrl
+				End If
+			End If
+		Else
+			If Instr(getStrUrl,".")>0 Then
+				If Right(currUrl,1)="/" Then
+					If right(LCase(getStrUrl),3)=".cn" or right(LCase(getStrUrl),3)="com" or right(LCase(getStrUrl),3)="net" or right(LCase(getStrUrl),3)="org" Then
+						Html_RealUrl="http:\\" & getStrUrl &"/"
+					Else
+						Html_RealUrl=currUrl & getStrUrl
+					End If
+				Else
+					If right(LCase(getStrUrl),3)=".cn" or right(LCase(getStrUrl),3)="com" or right(LCase(getStrUrl),3)="net" or right(LCase(getStrUrl),3)="org" Then
+						Html_RealUrl="http:\\" & getStrUrl &"/"
+					Else
+						Html_RealUrl=Left(currUrl,InstrRev(currUrl,"/")) &"/"& getStrUrl
+					End If
+				End If
+			Else
+				If Right(currUrl,1)="/" Then
+					Html_RealUrl=currUrl & getStrUrl &"/"
+				Else
+					Html_RealUrl=Left(currUrl,InstrRev(currUrl,"/")) &"/"& getStrUrl & "/"
+				End If         
+			End If
+		End If
+	End If
+	If Left(Html_RealUrl,1)="/" then
+		Html_RealUrl = Right(Html_RealUrl,Len(Html_RealUrl)-1)
+	End if
+	If Html_RealUrl<>"" Then
+		Html_RealUrl = Replace(Html_RealUrl,"//","/")
+		Html_RealUrl = Replace(Html_RealUrl,":\\","://")
+	Else
+		Html_RealUrl = getStrUrl
+	End If
+End Function
+
+
+' 过滤掉字符中所有的tab和回车和换行
+Public Function Html_ReplaceTrim(ByVal strContent,ByVal additionStr)
+	If InStr(""& additionStr,"|comp|")>0 Then
+		On Error Resume Next
+		Dim re
+		Set re = New RegExp
+		re.IgnoreCase = True
+		re.Global = True
+		re.Pattern = "(" & Chr(8) & "|" & Chr(9) & "|" & Chr(10) & "|" & Chr(13) & ")"
+		strContent = re.Replace(strContent, vbNullString)
+		Set re = Nothing
+	End If
+
+	Html_ReplaceTrim = strContent
+End Function
+
+%>

@@ -1,0 +1,243 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@include file="/websrc/page/common/jsloader.jsp"%>
+<%@page import="global.Constants"%>
+<%@page import="util.ServletHelp"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String openRegister = (String)request.getAttribute("openRegister");
+		if(!"true".equals(openRegister)){// 不允许开放注册是跳转到首页
+			response.sendRedirect(baseUrl);
+		}
+	%>
+	<title>Anynote</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			Ext.QuickTips.init();
+			Ext.state.Manager.setProvider(new Ext.state.CookieProvider());
+			// 设置主题
+			var theme = Ext.state.Manager.get('Anynote_theme');
+			if(theme && theme!=''){
+				Anynote.changeTheme(theme);
+			}else{
+				Anynote.changeTheme(Anynote.THEME_DEFAULT);
+			}
+	     	// 性别数据源
+	        var sexStore = new Ext.data.ArrayStore({  
+	            fields : ['sex', 'sexName'],  
+	            data : <%=ServletHelp.getArrayFromMap(Constants.SEX_MAP, null)%>,
+	            sortInfo: {field: "sex", direction: "ASC"}
+	        });
+
+	     	// 风格数据源
+	        var themeStore = new Ext.data.SimpleStore({  
+	            fields : ['theme', 'themeName'],  
+	            data : Anynote.THEME_DATA  
+	        });
+			
+			// 编辑用户Form
+			var registerFormPanel = new Ext.FormPanel({
+				id: 'registerFormPanel',
+		        labelWidth: 60,
+		        buttonAlign: 'center',
+		        border: false,
+		        bodyStyle: 'padding:10px;text-align:left;background-color:transparent;',
+		        url: '',
+	            items:[{// 账号
+		                xtype:'textfield',
+		                name: 'userId',
+		                fieldLabel: '账号',
+		                anchor:'98%',
+		                allowBlank:false,
+		                maxLength: 20
+		           },new Ext.form.TextField ({// 密码
+		        	   inputType: 'password',
+		               name:'password',
+		               fieldLabel:'密码',
+		               anchor:'98%',
+		               allowBlank:false,
+		               maxLength: 20
+		           }),new Ext.form.TextField ({// 确认密码
+	            	   inputType: 'password',
+		               name:'repassword',
+		               fieldLabel:'确认密码',
+		               anchor:'98%',
+		               allowBlank:false,
+		               maxLength: 20
+	                }),{// 姓名
+		               xtype:'textfield',
+		               id:'userName',
+		               name:'userName',
+		               fieldLabel:'姓名',
+		               anchor:'98%',
+		               allowBlank:false,
+		               maxLength: 20
+		           },{// 性别
+		                xtype:'combo',
+		                hiddenName: 'sex',
+		                fieldLabel: '性别',
+		                store: sexStore,
+		                mode : 'local',
+		                triggerAction: "all",
+		                valueField: 'sex',
+		                displayField: 'sexName',
+		                allowBlank:false,
+		                editable: false,
+		                width: 230,
+		                anchor:'98%'
+	                },{// 生日
+		                xtype:'datefield',
+		                name: 'birthdayStr',
+		                fieldLabel: '生日',
+		                format: 'Y-m-d',
+		                width: 230,
+		                anchor:'98%'
+	                },{// 邮箱
+		               xtype:'textfield',
+		               name:'email',
+		               fieldLabel:'邮箱',
+		               anchor:'98%',
+		               vtype:'email',
+		               allowBlank:false,
+		               maxLength: 50
+		           },{// 电话
+		               xtype:'textfield',
+		               name:'phone',
+		               fieldLabel:'电话',
+		               anchor:'98%',
+		               maxLength: 20
+		           },{// 风格
+	           		   xtype:'combo',
+		               hiddenName: 'theme',
+		               fieldLabel: '风格',
+		               store: themeStore,
+		               mode : 'local',
+		               triggerAction: "all",
+		               valueField: 'theme',
+		               displayField: 'themeName',
+		               value: 'ext-all.css',
+		               editable: false,
+		               allowBlank:false,
+		               width: 230,
+		               anchor:'98%'
+		           },{
+		               xtype: 'radiogroup',
+		               fieldLabel: '主页',
+		               itemCls: 'x-check-group-alt',
+		               columns: 3,
+		               items: [
+						   //{boxLabel: '空白', name: 'homePage', inputValue: 0},
+		                   {boxLabel: '任务', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_1_URL%>", checked: true},
+		                   {boxLabel: '笔记', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_2_URL%>"},
+		                   {boxLabel: '相册', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_3_URL%>"},
+		                   {boxLabel: '账目', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_4_URL%>"},
+		                   {boxLabel: '订阅', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_5_URL%>"},
+		                   {boxLabel: '文档', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_7_URL%>"}
+		               ]
+		           },{
+		               xtype: 'checkboxgroup',
+		               fieldLabel: '模块',
+		               itemCls: 'x-check-group-alt',
+		               columns: 3,
+		               items: [
+		                   {boxLabel: '任务', name: 'showTodo', checked: true},
+		                   {boxLabel: '笔记', name: 'showNote', checked: true},
+		                   {boxLabel: '相册', name: 'showPicture', checked: true},
+		                   {boxLabel: '账目', name: 'showAccount', checked: true},
+		                   {boxLabel: '订阅', name: 'showFeed', checked: true},
+		                   {boxLabel: '文档', name: 'showDocument', checked: true}
+		               ]
+		           },{// 验证码
+		               xtype:'textfield',
+		               id:'verifyCode',
+		               name:'verifyCode',
+		               fieldLabel:'验证码',
+		               anchor:'98%',
+		               allowBlank:false,
+		               maxLength: 20
+		           },{
+					   width: 110,
+					   border: false,
+					   style: 'margin-left:65px;line-height:20px;',
+					   bodyStyle: 'background-color:transparent;',
+					   html:'<img id="VerifyCodeImg" src="<%=baseUrl %>/loginAction.do?method=getVerifyCode" style="float:left;"/><span style="float:right;"><a href="javascript:changeVerifyCode();">换一张</a></span>'
+			       }],
+		        buttons: [{
+                    text:'提交',
+                    handler: function(){
+			        	var form = registerFormPanel.getForm();
+					    if(form.isValid()){
+					    	// 发送请求
+							Anynote.ajaxRequest({
+								baseUrl: '<%=baseUrl %>',
+								baseParams: form.getValues(),
+								action: '/loginAction.do?method=register',
+								callback: function(jsonResult){
+									// 转到登录页面
+									location.href="<%=baseUrl %>/websrc/page/login.jsp";
+								},
+								showWaiting: true,
+								showMsg: true,
+								successMsg: '注册成功，请登录！'
+							});
+						}
+                	}
+                },{
+                    text: '重置',
+                    handler: function(){
+                		registerFormPanel.getForm().reset();
+                    }
+                }]
+		    });
+			// 用户注册窗口
+			var registerWindow = new Ext.Window({
+				renderTo: 'register-win-div',
+				id: 'registerWindow',
+				title: '用户注册',
+				width: 330,
+				height: 500,
+				closeAction: 'hide',
+				maximizable: false,
+				resizable: false,
+				closable: false,
+				draggable: false,
+				layout:'fit',
+				plain: true,
+				items: [registerFormPanel],
+				bbar: new Ext.Panel({
+					html: "<a href='javascript:login();'>登录</a>",
+					border: false,
+					bodyStyle: 'background-color:transparent;padding:3px 10px;'
+				})
+			}).show();
+
+			// 窗口大小改变时，从新设置窗口位置
+		    window.onresize = function() {    
+				var left = ($(window).width() - registerWindow.getWidth())/2;
+				registerWindow.setPosition(left);
+			};
+		});
+
+		// 登录
+		function login(){
+			// 转到登录页面
+			location.href="<%=baseUrl %>/websrc/page/login.jsp";
+		}
+
+		// 更换验证码
+		function changeVerifyCode(){
+			$("#VerifyCodeImg").attr("src", "<%=baseUrl %>/loginAction.do?method=getVerifyCode&time="+new Date());
+		}
+	</script>
+</head>
+<body class="x-border-layout-ct" style="position:static;overflow:hidden;">
+	<table id="logo-table">
+		<tr>
+			<td align="center" height="40"><a href="<%=baseUrl %>"><img src="<%=baseUrl %>/websrc/image/Anynote.png"></img></a></td>
+		</tr>
+	</table>
+	<div id="register-win-div"></div>
+</body>
+</html>

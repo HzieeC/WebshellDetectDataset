@@ -1,0 +1,259 @@
+<!-- #include file="asp_md5.asp" -->
+<!-- #include file="tenpay.config.asp" -->
+<%
+
+Class TenPay
+	Dim strCmdNo, strBillDate, strBankType, strDesc, strBuyerId, strSaler, strSpBillNo, strTransactionId, strTotalFee, strFeeType, strRetUrl, strAttach
+	Dim strPayResult, strPayInfo
+	
+	'/* makePayRequestVars 函数功能：生成支付请求变量
+	'  参数：
+	'   billDate: 账单日期, 格式为yyyymmdd
+	'   billNo: 账单编号, 固定10数字
+	'   goodName: 商品名称
+	'   price: 应付价格*/
+	Function makePayRequestVars(billDate, billNo, goodName, price)
+		'/*财付通支付为"1" (当前只支持 cmdno=1)*/
+		strCmdNo = "1"
+
+		'/*交易日期 (yyyymmdd)*/
+		strBillDate = billDate
+
+		'/*银行类型: 0	财付通, ... */
+		strBankType = "0"
+
+		'/*商品名称*/
+		strDesc = goodName
+
+		'/*用户QQ号码, 现在置为空串*/
+		strBuyerId = ""
+
+		'/*商户号*/
+		strSaler = CONST_SPID
+
+		'/*商户生成的订单流水号(最多10位，不足前补零)*/
+		If Len(billNo) > 10 Then
+			strSpBillNo = Right(billNo, 10)
+		Else
+			strSpBillNo = String(10 - Len(billNo), "0") & billNo
+		End If
+
+		'/*交易单号*/
+		strTransactionId = getTransactionId
+
+		'/*总金额, 分为单位*/
+		strTotalFee = price
+
+		'/*货币类型: 1 – RMB(人民币) 2 - USD(美元) 3 - HKD(港币)*/
+		strFeeType  = CONST_RMB
+
+		'/*财付通回调页面地址, 推荐使用ip地址的方式(最长255个字符)*/
+		strRetUrl  = CONST_PAYMENT_DIR & "/notify_handler.asp"
+
+		'/*商户私有数据, 请求回调页面时原样返回*/
+		strAttach  = CONST_ATTACH
+
+		'/*生成MD5签名*/
+ 		strSign = getPayRequestSign
+%>
+		<input type=hidden name="cmdno"				value="<%=strCmdNo%>">
+		<input type=hidden name="date"			    value="<%=strBillDate%>">
+		<input type=hidden name="bank_type"			value="<%=strBankType%>">
+		<input type=hidden name="desc"				value="<%=strDesc%>">
+		<input type=hidden name="purchaser_id"		value="<%=strBuyerId%>">
+		<input type=hidden name="bargainor_id"		value="<%=strSaler%>">
+		<input type=hidden name="transaction_id"	value="<%=strTransactionId%>">
+		<input type=hidden name="sp_billno"			value="<%=strSpBillNo%>">
+		<input type=hidden name="total_fee"			value="<%=strTotalFee%>">
+		<input type=hidden name="fee_type"			value="<%=strFeeType%>">
+		<input type=hidden name="return_url"		value="<%=strRetUrl%>">
+		<input type=hidden name="attach"			value="<%=strAttach%>">
+		<input type=hidden name="sign"				value="<%=strSign%>">
+<%
+	End Function
+
+	'/* makePayQueryVars 函数功能：生成支付查询变量
+	'  参数：
+	'   billDate: 账单日期, 格式为yyyymmdd
+	'   billNo: 账单编号, 固定10数字
+	'*/
+	Function makePayQueryVars(billDate, billNo)
+		'/*订单查询业务为"2" */
+		strCmdNo = "2"
+
+		'/*需要查询的交易日期 (yyyymmdd)*/
+		strBillDate = billDate
+
+		'/*商户号*/
+		strSaler = CONST_SPID
+
+		'/*商户生成的订单流水号(最多10位, 不足前补零)*/
+		If (Len(billNo) > 10) Then
+			strSpBillNo = Right(billNo, 10)
+		Else
+			strSpBillNo = String(10 - Len(billNo), "0") & billNo
+		End If
+
+		'/*重要: 交易单号
+		'	交易单号(28位): 商户号(10位) + 日期(8位) + 流水号(10位), 必须按此格式生成, 且不能重复*/
+		strTransactionId = getTransactionId
+
+		'/*财付通回调页面地址, 推荐使用ip地址的方式(最长255个字符)*/
+		strRetUrl = CONST_PAYMENT_DIR & "query_result.asp"
+
+		'/*商户私有数据, 请求回调页面时原样返回*/
+		strAttach  = CONST_ATTACH
+
+		'/*生成MD5签名*/
+ 		strSign = getPayQuerySign
+%>
+		<input type=hidden name="cmdno"				value="<%=strCmdNo%>">
+		<input type=hidden name="date"			    value="<%=strBillDate%>">
+		<input type=hidden name="bargainor_id"		value="<%=strSaler%>">
+		<input type=hidden name="transaction_id"	value="<%=strTransactionId%>">
+		<input type=hidden name="sp_billno"			value="<%=strSpBillNo%>">
+		<input type=hidden name="return_url"		value="<%=strRetUrl%>">
+		<input type=hidden name="attach"			value="<%=strAttach%>">
+		<input type=hidden name="sign"				value="<%=strSign%>">
+<%
+	End Function
+
+	'/* makePayQueryVars 函数功能：校验财付通回调消息或校验支付查询结果消息*/
+	Function checkPayment
+		'/*取返回参数*/
+		strCmdno			= Request("cmdno")
+		strPayResult		= Request("pay_result")
+		strPayInfo			= Request("pay_info")
+		strBillDate			= Request("date")
+		strSaler			= Request("bargainor_id")
+		strTransactionId	= Request("transaction_id")
+		strSpBillno			= Request("sp_billno")
+		strTotalFee			= Request("total_fee")
+		strFeeType			= Request("fee_type")
+		strAttach			= Request("attach")
+		strMd5Sign			= Request("sign")
+
+		'/*这里替换为您的实际商户号*/
+		strSpid = CONST_SPID
+
+		'/*strSpkey是32位商户密钥, 请替换为您的实际密钥*/
+		strSpkey = CONST_SPKEY
+
+		'/*生成本地MD5签名*/
+		strLocalSign = getNotifySign
+
+		If (strLocalSign <> strMd5Sign) Then
+			checkPayment = "验证MD5签名失败."
+  		ElseIf (CONST_SPID <> strSaler) Then
+			checkPayment = "错误的商户号."
+  		ElseIf (strPayResult <> "0") Then
+			checkPayment = "支付失败或未支付."
+		Else
+			checkPayment = "支付成功."
+		End If
+	End Function
+
+	'// 生成PayRequest消息的签名
+	Function getPayRequestSign
+		strSignText = "cmdno=" & strCmdNo & "&date=" & strBillDate & "&bargainor_id=" & strSaler &_
+			"&transaction_id=" & strTransactionId & "&sp_billno=" & strSpBillNo &_
+			"&total_fee=" & strTotalFee & "&fee_type=" & strFeeType & "&return_url=" & strRetUrl &_
+			"&attach=" & strAttach & "&key=" & CONST_SPKEY
+
+		 getPayRequestSign = UCase(ASP_MD5(strSignText))
+	End Function
+
+	'// 生成PayQuery消息的签名
+	Function getPayQuerySign
+		strSignText = "cmdno=" & strCmdNo & "&date=" & strBillDate & "&bargainor_id=" & strSaler &_
+			"&transaction_id=" & strTransactionId & "&sp_billno=" & strSpBillNo &_
+			"&return_url=" & strRetUrl &_
+			"&attach=" & strAttach & "&key=" & CONST_SPKEY
+
+		 getPayQuerySign = UCase(ASP_MD5(strSignText))
+	End Function
+
+	'// 生成财付通回调/支付查询结果消息的签名
+	Function getNotifySign
+		strSignText = "cmdno=" & strCmdNo & "&pay_result=" & strPayResult &_
+					 "&date=" & strBillDate & "&transaction_id=" & strTransactionId &_
+					   "&sp_billno=" & strSpBillNo & "&total_fee=" & strTotalFee &_
+					   "&fee_type=" & strFeeType & "&attach=" & strAttach &_
+					   "&key=" & CONST_SPKEY
+
+		 getNotifySign = UCase(ASP_MD5(strSignText))
+	End Function
+
+	'/* 生成交易号TransactionId
+	'  交易单号(28位): 商户号(10位) + 日期(8位) + 流水号(10位), 必须按此格式生成, 且不能重复
+	'  如果sp_billno超过10位, 则截取其中的流水号部分加到transaction_id后部(不足10位左补0)
+	'  如果sp_billno不足10位, 则左补0, 加到transaction_id后部*/
+	Function getTransactionId
+		getTransactionId = CONST_SPID & strBillDate & strSpBillNo
+	End Function
+
+	'// 仅用于调试、测试, 输出各变量
+	Function getPayRequestMessage
+		getPayRequestMessage = "cmdno=" & strCmdNo & "&date=" & strBillDate & "&bargainor_id=" & strSaler &_
+			"&transaction_id=" & strTransactionId & "&sp_billno=" & strSpBillNo &_
+			"&total_fee=" & strTotalFee & "&fee_type=" & strFeeType & "&return_url=" & strRetUrl &_
+			"&attach=" & strAttach & "&sign=" & getPayRequestSign
+	End Function
+
+	'// 仅用于调试、测试, 输出各变量
+	Function getPayQueryMessage
+		getPayQueryMessage = "cmdno=" & strCmdNo & "&date=" & strBillDate & "&bargainor_id=" & strSaler &_
+			"&transaction_id=" & strTransactionId & "&sp_billno=" & strSpBillNo &_
+			"&return_url=" & strRetUrl &_
+			"&attach=" & strAttach & "&sign=" & getPayQuerySign
+	End Function
+End Class
+
+
+' 获取服务器日期，格式YYYYMMDD
+Function CFTGetServerDate 
+	Dim strTmp, iYear,iMonth,iDate 
+	iYear = Year(Date) 
+	iMonth = Month(Date) 
+	iDate = Day(Date) 
+
+	strTmp = CStr(iYear)
+	If iMonth < 10 Then 
+		strTmp = strTmp & "0" & Cstr(iMonth)
+	Else 
+		strTmp = strTmp & Cstr(iMonth)
+	End If 
+	If iDate < 10 Then 
+		strTmp = strTmp & "0" & Cstr(iDate) 
+	Else 
+		strTmp = strTmp & Cstr(iDate) 
+	End If 
+	CFTGetServerDate = strTmp 
+End Function
+
+Function GenBillNo
+	iHour = Hour(Now)
+	iMinute = Minute(Now)
+	iSecond = Second(Now) 
+
+	strBillNo = ""
+	If iHour < 10 Then 
+		strBillNo = strBillNo & "0" & Cstr(iHour)
+	Else 
+		strBillNo = strBillNo & Cstr(iHour)
+	End If 
+	If iMinute < 10 Then 
+		strBillNo = strBillNo & "0" & Cstr(iMinute) 
+	Else 
+		strBillNo = strBillNo & Cstr(iMinute) 
+	End If
+	If iSecond < 10 Then 
+		strBillNo = strBillNo & "0" & Cstr(iSecond) 
+	Else 
+		strBillNo = strBillNo & Cstr(iSecond) 
+	End If
+
+	GenBillNo = strBillNo & "123"
+End Function
+
+%>

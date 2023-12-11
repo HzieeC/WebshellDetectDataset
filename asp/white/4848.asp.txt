@@ -1,0 +1,727 @@
+<%
+if request.Cookies("shiwei_username")="" then
+%>
+<script language="javascript">
+top.location.href="../index.asp"
+</script>
+<%  
+  response.end
+end if
+%>
+<!-- #include file="../conn2.asp" -->
+<!-- #include file="../const.asp" -->
+
+<html>
+<head>
+<title><%=dianming%> - 产品入库</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link href="../style/style.css" rel="stylesheet" type="text/css">
+<style>
+body {
+	background-color:#FFFFFF;
+}
+</style>
+</HEAD>
+
+<BODY>
+<%
+if fla1="0" and request.Cookies("shiwei_id")<>"1" then
+%>
+<br><center><img src="../images/note.gif" align="absmiddle">&nbsp;<font color="#FF0000">你不具备此权限，请与管理员联系！</font></center>
+<%  
+  response.end
+end if
+%>
+
+<%
+if request("hid1")="ok" then
+nowselldate=request("selldate")
+nowbeizhu=request("beizhu")
+nowid_login=request("id_login")
+set rs_login=conn.execute("select * from login where id="&nowid_login)
+nowid_gys=request("id_gys")
+nowgys=""
+set rs_gys=conn.execute("select * from gys where id="&nowid_gys)
+if rs_gys.eof=false then nowgys=rs_gys("company")
+nowbianhao=replace(replace(replace(replace(replace(replace(FormatDateTime(now(),0),":","")," ",""),"-",""),"/",""),"上午",""),"下午","")
+
+for x=1 to maxproduit
+nowhuohao=request("huohao"&x)
+nowshulian=request("shulian"&x)
+if nowhuohao<>"单击选择产品" and nowshulian<>"" then
+set rs_produit=conn.execute("select * from produit where huohao='"&nowhuohao&"'")
+if rs_produit.eof then
+%>
+<script language="javascript">
+alert("没有货号 <%=nowhuohao%>！")
+window.history.go(-1)
+</script> 
+<%
+  response.end
+  exit for
+end if  
+end if
+next
+
+totalshulian=0
+totalprice2=0
+aaa=0
+for x=1 to maxproduit
+nowku=request("ku"&x)
+set rs_ku=conn.execute("select * from ku where id="&nowku)
+nowhuohao=request("huohao"&x)
+nowshulian=request("shulian"&x)
+nowprice2=request("price2"&x)
+if nowprice2="" then
+  nowprice2=0
+end if
+if nowhuohao<>"单击选择产品" and nowshulian<>"" then
+aaa=aaa+1
+set rs_produit=conn.execute("select * from produit where huohao='"&nowhuohao&"'")
+set rs_prix=conn.execute("select sum(shulian) from produit where huohao='"&nowhuohao&"'")
+if rs_prix(0)+nowshulian>0 then
+nowpinprice2=(rs_prix(0)*rs_produit("price2")+nowprice2*nowshulian)/(rs_prix(0)+nowshulian)
+else
+nowpinprice2=rs_produit("price2")
+end if
+set rs=server.createobject("ADODB.RecordSet")
+sql="select * from produit where huohao='"&nowhuohao&"' and id_ku="&nowku
+rs.open sql,conn,1,3
+if rs.eof then
+  rs.addnew
+  rs("id_bigclass")=rs_produit("id_bigclass")
+  rs("id_smallclass")=rs_produit("id_smallclass")
+  rs("title")=rs_produit("title")
+  rs("huohao")=rs_produit("huohao")
+  rs("id_ku")=nowku
+  rs("shulian")=nowshulian
+  rs("danwei")=rs_produit("danwei")
+  rs("price")=rs_produit("price")
+  rs("price2")=nowpinprice2
+  rs("guige")=rs_produit("guige")
+  rs("baojin")=rs_produit("baojin")
+  rs("class")=rs_produit("class")
+  rs("duihuan")=rs_produit("duihuan")
+  rs("tichen_type")=rs_produit("tichen_type")
+  rs("tichen")=rs_produit("tichen")
+  rs("photo")=rs_produit("photo")
+  rs("beizhu")=rs_produit("beizhu")
+else
+  rs("shulian")=rs("shulian")+nowshulian
+  rs("price2")=nowpinprice2 
+end if
+rs.update
+
+set rs2=server.createobject("ADODB.RecordSet")
+sql="select * from produit where huohao='"&nowhuohao&"'"
+rs2.open sql,conn,1,3
+do while rs2.eof=false
+rs2("price2")=nowpinprice2
+rs2.movenext
+loop
+
+sql="select bigclass from bigclass where id="&rs_produit("id_bigclass")
+set rs_bigclass=conn.execute(sql)
+sql="select smallclass from smallclass where id="&rs_produit("id_smallclass")
+set rs_smallclass=conn.execute(sql)
+if rs_smallclass.eof then
+  smallclass=""
+else
+  smallclass=rs_smallclass(0)
+end if
+totalshulian=totalshulian+nowshulian
+totalprice2=totalprice2+nowprice2*nowshulian
+sql="insert into buy(id_produit,bigclass,smallclass,title,huohao,id_ku,ku,shulian,guige,id_login,login,type,selldate,price2,photo,id_gys,gys,bianhao,beizhu) values("&rs_produit("id")&",'"&rs_bigclass(0)&"','"&smallclass&"','"&rs_produit("title")&"','"&nowhuohao&"',"&rs_ku("id")&",'"&rs_ku("ku")&"',"&nowshulian&",'"&rs_produit("guige")&"',"&nowid_login&",'"&rs_login("username")&"',0,#"&nowselldate&"#,"&nowprice2&",'"&rs_produit("photo")&"',"&nowid_gys&",'"&nowgys&"','"&nowbianhao&"','"&nowbeizhu&"')"
+conn.execute(sql)
+end if
+next
+if aaa>0 then
+sql="insert into buy(shulian,id_login,login,type,selldate,price2,id_gys,gys,bianhao,zu,beizhu) values("&totalshulian&","&nowid_login&",'"&rs_login("username")&"',0,#"&nowselldate&"#,"&totalprice2&","&nowid_gys&",'"&nowgys&"','"&nowbianhao&"',true,'"&nowbeizhu&"')"
+conn.execute(sql)
+end if
+%>
+<script language="javascript">
+alert("产品入库成功！")
+</script> 
+<%if dayin1="yes" then%>
+<script language="javascript">
+window.open('print_buy.asp?bianhao=<%=nowbianhao%>','打印','width=853,height=470,top=176,left=161,toolbar=no,location=no,directories=no,status=no,menubar=no,resizable=no,scrollbars=yes');
+</script>
+<%end if%>
+<script language="javascript">
+window.location.href="produit_add.asp"
+</script>
+<%
+end if
+%>
+
+<%
+if request("hid2")<>"" then
+nowbigclass=request("bigclass")
+nowsmallclass=request("smallclass")
+nowtitle=request("title")
+nowhuohao=request("huohao")
+nowku=request("ku")
+nowshulian=request("shulian")
+nowdanwei=request("danwei")
+nowprice=request("price")
+if nowprice="" then
+  nowprice=0
+end if
+nowprice2=request("price2")
+if nowprice2="" then
+  nowprice2=0
+end if
+nowguige=request("guige")
+nowbaojin=request("baojin")
+nowclass=request("class")
+nowduihuan=request("duihuan")
+nowtichen_type=request("tichen_type")
+nowtichen=request("tichen")
+nowphoto=request("photo")
+nowbeizhu=request("beizhu")
+nowid_login=request("id_login")
+nowid_gys=request("id_gys")
+nowgys=""
+set rs_login=conn.execute("select * from login where id="&nowid_login)
+set rs_gys=conn.execute("select * from gys where id="&nowid_gys)
+if rs_gys.eof=false then nowgys=rs_gys("company")
+sql="select * from produit where huohao='"&nowhuohao&"'"
+set rs=conn.execute(sql)
+if rs.eof=false then
+%>
+<script language="javascript">
+alert("您输入的产品货号已经存在，请使用已有产品入库进行添加！")
+window.history.go(-1)
+</script> 
+<%
+  response.end
+end if
+sql="insert into produit(id_bigclass,id_smallclass,title,huohao,id_ku,shulian,danwei,price,price2,guige,baojin,class,duihuan,tichen_type,tichen,photo,beizhu) values("&nowbigclass&","&nowsmallclass&",'"&nowtitle&"','"&nowhuohao&"',"&nowku&","&nowshulian&",'"&nowdanwei&"',"&nowprice&","&nowprice2&",'"&nowguige&"',"&nowbaojin&","&nowclass&","&nowduihuan&","&nowtichen_type&","&nowtichen&",'"&nowphoto&"','"&nowbeizhu&"')"
+conn.execute(sql)
+sql="select * from produit order by id desc"
+set rs_produit=conn.execute(sql)
+sql="select bigclass from bigclass where id="&nowbigclass
+set rs_bigclass=conn.execute(sql)
+sql="select smallclass from smallclass where id="&nowsmallclass
+set rs_smallclass=conn.execute(sql)
+if rs_smallclass.eof then
+  smallclass=""
+else
+  smallclass=rs_smallclass(0)
+end if
+sql="select * from ku where id="&nowku
+set rs_ku=conn.execute(sql)
+nowbianhao=replace(replace(replace(replace(replace(replace(FormatDateTime(now(),0),":","")," ",""),"-",""),"/",""),"上午",""),"下午","")
+sql="insert into buy(id_produit,bigclass,smallclass,title,huohao,id_ku,ku,shulian,guige,id_login,login,type,selldate,price2,photo,id_gys,gys,bianhao) values("&rs_produit("id")&",'"&rs_bigclass(0)&"','"&smallclass&"','"&nowtitle&"','"&nowhuohao&"',"&rs_ku("id")&",'"&rs_ku("ku")&"',"&nowshulian&",'"&nowguige&"',"&nowid_login&",'"&rs_login("username")&"',0,#"&date()&"#,"&nowprice2&",'"&nowphoto&"',"&nowid_gys&",'"&nowgys&"','"&nowbianhao&"')"
+conn.execute(sql)
+sql="insert into buy(shulian,id_login,login,type,selldate,price2,id_gys,gys,bianhao,zu) values("&nowshulian&","&nowid_login&",'"&rs_login("username")&"',0,#"&date()&"#,"&nowprice2*nowshulian&","&nowid_gys&",'"&nowgys&"','"&nowbianhao&"',true)"
+conn.execute(sql)
+%>
+<script language="javascript">
+alert("产品入库成功！")
+</script> 
+<%if dayin1="yes" then%>
+<script language="javascript">
+window.open('print_buy.asp?bianhao=<%=nowbianhao%>','打印','width=853,height=470,top=176,left=161,toolbar=no,location=no,directories=no,status=no,menubar=no,resizable=no,scrollbars=yes');
+</script>
+<%end if%>
+<script language="javascript">
+window.location.href="produit_add.asp"
+</script>
+<%
+end if
+%>
+<script language="javascript">
+function isNumberString (InString,RefString)
+{
+if(InString.length==0) return (false);
+for (Count=0; Count < InString.length; Count++)  {
+	TempChar= InString.substring (Count, Count+1);
+	if (RefString.indexOf (TempChar, 0)==-1)  
+	return (false);
+}
+return (true);
+}
+
+function check()
+{
+if (document.form2.title.value==""||document.form2.huohao.value==""||document.form2.shulian.value=="")
+{
+alert("有*号的必须填写！");
+return false;
+}
+if (isNumberString(document.form2.tichen.value,"1234567890.")!=1)
+{
+alert("价格只能为数字!");
+return false;
+}
+}
+
+function check1()
+{
+if (document.form1.huohao1.value=="单击选择产品")
+{
+alert("还没有选择产品！");
+return false;
+}
+if (document.form1.shulian1.value=="")
+{
+alert("请输入入库数量！");
+return false;
+}
+}
+
+function chg1(a)
+{
+if (a=="0") {document.all.bian1.innerHTML="%"}
+else {document.all.bian1.innerHTML="元"}
+}
+</script>
+<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#C4D8ED">
+<tr>
+<td><img src="../images/r_1.gif" alt="" /></td>
+<td width="100%" background="../images/r_0.gif">
+  <table cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+      <td>&nbsp;<strong style="color:#F00">已有</strong>产品入库(带*号的为必填项)</td>
+	  <td align="right">&nbsp;</td>
+    </tr>
+  </table>
+</td>
+<td><img src="../images/r_2.gif" alt="" /></td>
+</tr>
+<tr>
+<td></td>
+<td>
+<table align="center" cellpadding="4" cellspacing="1" class="toptable grid" border="1">
+	  <form name="form1" method="post">
+      <tr>
+        <td width="20%" align="right" height="30">选择产品：</td>
+        <td width="80%" class="category">
+          <table cellpadding="0" cellspacing="0" width="100%" border=0>
+		    <%for x=1 to maxproduit%>
+		    <tr id="cailiaohan<%=x%>"<%if x<>1 then%> style="display:none;"<%end if%>>
+			  <td>
+			    <input name="huohao<%=x%>" readonly onClick="JavaScript:window.open('produit1.asp?form=form1&field=huohao<%=x%>&field2=price2<%=x%>&span1=showshulian<%=x%>','','directorys=no,toolbar=no,status=no,menubar=no,scrollbars=yes,resizable=no,width=853,height=470,top=176,left=161');" style="width:80px" value="单击选择产品">
+				数量: <input type="text" name="shulian<%=x%>" style="width:30px" onKeyUp="value=value.replace(/[^\d.]/g,'')" onbeforepaste="clipboardData.setData('text',clipboardData.getData('text').replace(/[^\d.]/g,''))" value="1">
+				单价: <input type="text" name="price2<%=x%>" style="width:50px" onKeyUp="value=value.replace(/[^\d.]/g,'')" onbeforepaste="clipboardData.setData('text',clipboardData.getData('text').replace(/[^\d.]/g,''))">
+				<%
+				if request.Cookies("shiwei_id")="1" or fla88="1" then
+				  sql="select * from ku order by id"
+				  set rs_ku=conn.execute(sql)
+				else
+				  sql="select * from ku where instr(login,',"&request.Cookies("shiwei_id")&",')>0 order by id"
+				  set rs_ku=conn.execute(sql)	  
+				end if
+				if rs_ku.eof then
+				%>
+				<script language="javascript">
+				  alert("没有属于你管理的仓库,请先添加仓库！")
+				  window.location.href="../system/ku_add.asp"
+				</script>
+				<%
+				response.end
+				end if
+				%>
+				仓库: <select name="ku<%=x%>">
+				<%
+				do while rs_ku.eof=false
+				%>
+			      <option value="<%=rs_ku("id")%>"<%if rs_ku("moren") then%> selected="selected"<%end if%>><%=rs_ku("ku")%></option>
+				<%
+				  rs_ku.movenext
+				loop
+				%>
+				</select>								
+				<%if x<>maxproduit then%><img src="../images/jia.gif" alt="添加一条" onClick="cailiaohan<%=(x+1)%>.style.display=''" style="cursor:hand;" /><%end if%>
+				<%if x<>1 then%><input type="button" value="清除" onClick="huohao<%=x%>.value='单击选择产品';shulian<%=x%>.value='1';price2<%=x%>.value=''" class="button"><%end if%>
+				<%if x=1 then%><font color="#ff0000">*</font><%end if%>
+				<div id="showshulian<%=x%>"></div>
+		      </td>
+			</tr>		
+			<%next%>		
+		  </table>
+		</td>
+      </tr>
+	  <tr>
+        <td align="right" height="30">供应商：</td>
+        <td class="category">
+		  <%
+			    sql="select * from gys order by id"
+			    set rs_gys=conn.execute(sql)
+			    %>
+			    <select name="id_gys">
+				  <option value="0"></option>
+			    <%
+			    do while rs_gys.eof=false
+			    %>
+				  <option value="<%=rs_gys("id")%>"><%=rs_gys("company")%></option>
+			    <%
+				  rs_gys.movenext
+			    loop
+			    %>
+			    </select>		
+		</td>
+      </tr>
+	  <tr>
+	    <td align="right" height="30">入库时间：</td>
+        <td class="category">
+		  <input name="selldate" value="<%=date()%>" readonly style="width:150px">
+		  <img src="../images/date.gif" align="absmiddle" style="cursor:pointer;" onClick="JavaScript:window.open('day.asp?form=form1&field=selldate&oldDate='+selldate.value,'','directorys=no,toolbar=no,status=no,menubar=no,scrollbars=no,resizable=no,width=250,height=170,top=200,left=520');">
+		</td>
+      </tr>
+	  <tr>
+        <td align="right" height="30">经办人：</td>
+        <td class="category">
+		  <%
+		  if request.Cookies("shiwei_id")=1 then
+			sql="select * from login order by id_zu,id"
+			set rs_login=conn.execute(sql)
+		  else
+			sql="select * from login where id="&request.Cookies("shiwei_id")
+			set rs_login=conn.execute(sql)	  
+		  end if
+		  if rs_login.eof then
+		  %>
+	      <script language="javascript">
+	        alert("请先添加员工！")
+	        window.location.href="../system/user_add.asp"
+	      </script>
+		  <%
+		  response.end
+		  else
+		  %>
+		  <select name="id_login">
+		  <%
+		  do while rs_login.eof=false
+		  %>
+		    <option value="<%=rs_login("id")%>"<%if rs_login("username")=request.Cookies("shiwei_username") then%> selected="selected"<%end if%>><%=rs_login("username")%> (<%=rs_login("bianhao")%>)</option>
+		  <%
+		    rs_login.movenext
+		  loop
+		  %>
+		  </select>
+		  <%
+		  end if
+		  %>		
+		</td>
+      </tr>
+	  <tr>
+	    <td align="right" height="30">备注：</td>
+        <td class="category">
+		  <textarea name="beizhu" cols="60" rows="3"></textarea>
+		</td>
+      </tr>   
+      <tr>
+	    <td height="30">&nbsp;</td>
+        <td class="category">
+		  <input type="submit" value=" 确认添加 " onClick="return check1()" class="button">
+		  <input type="hidden" name="hid1" value="ok">
+		  <input type="reset" value=" 重新填写 " class="button">
+		  </td>
+      </tr>
+	  </form>
+</table>
+</td>
+<td></td>
+</tr>
+<tr>
+<td><img src="../images/r_4.gif" alt="" /></td>
+<td></td>
+<td><img src="../images/r_3.gif" alt="" /></td>
+</tr>
+</table>
+
+<table cellpadding=0 cellspacing=0 width="98%" align=center><tr><td height="5"></td></tr></table>
+
+<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#C4D8ED">
+<tr>
+<td><img src="../images/r_1.gif" alt="" /></td>
+<td width="100%" background="../images/r_0.gif">
+  <table cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+      <td>&nbsp;<strong style="color:#F00">新</strong>产品入库(带*号的为必填项)</td>
+	  <td align="right">&nbsp;</td>
+    </tr>
+  </table>
+</td>
+<td><img src="../images/r_2.gif" alt="" /></td>
+</tr>
+<tr>
+<td></td>
+<td>
+<table align="center" cellpadding="4" cellspacing="1" class="toptable grid" border="1">
+	  <form name="form3">
+      <tr>
+        <td align="right" height="30">所属大类：</td>
+        <td class="category">
+    <%
+	sql="select * from bigclass order by id"
+	set rs_bigclass=conn.execute(sql)
+	if rs_bigclass.eof then
+	%>
+	<script language="javascript">
+	  alert("请先添加产品大类！")
+	  window.location.href="../system/bigclass_add.asp"
+	</script>
+	<%	
+	response.end
+	end if
+	nowbigclass=request("bigclass")
+	if nowbigclass="" then
+	  nowbigclass=rs_bigclass("id")
+	end if
+	%>
+	  <select name="bigclass" onChange="form3.submit()">
+        <%
+	do while rs_bigclass.eof=false
+	%>
+        <option value="<%=rs_bigclass("id")%>"<%if trim(cstr(rs_bigclass("id")))=nowbigclass then%> selected="selected"<%end if%>><%=rs_bigclass("bigclass")%></option>
+        <%
+	  rs_bigclass.movenext
+	loop
+	%>
+      </select>		  
+		  </td>
+      </tr>	
+	  </form>
+	  <form name="form2"> 
+	  <input type="hidden" name="bigclass" value="<%=nowbigclass%>">
+      <tr>
+        <td align="right" height="30">所属小类：</td>
+        <td class="category">
+    <%
+	sql="select * from smallclass where id_bigclass="&nowbigclass&" order by id"
+	set rs_smallclass=conn.execute(sql)
+	%>
+	  <select name="smallclass">
+	    <option value="0"></option>
+        <%
+	do while rs_smallclass.eof=false
+	%>
+        <option value="<%=rs_smallclass("id")%>"<%if trim(cstr(rs_smallclass("id")))=nowsmallclass then%> selected="selected"<%end if%>><%=rs_smallclass("smallclass")%></option>
+        <%
+	  rs_smallclass.movenext
+	loop
+	%>
+      </select>  
+		  </td>
+      </tr>	   
+      <tr>
+        <td width="20%" height="30" align="right">对外销售名称：</td>
+        <td width="80%" class="category">
+		  <input name="title" type="text" style="width:200px;">&nbsp;<font color="#ff0000">*</font></td>
+      </tr>
+      <tr>
+        <td align="right" height="30">内部产品名称或货号：</td>
+        <td class="category">
+          <input type="text" name="huohao" style="width:200px">&nbsp;<font color="#ff0000">*</font></td>
+      </tr>
+      <tr>
+        <td align="right" height="30">加入仓库：</td>
+        <td class="category">
+    <%
+	if request.Cookies("shiwei_id")="1" or fla88="1" then
+	  sql="select * from ku order by id"
+	  set rs_ku=conn.execute(sql)
+	else
+	  sql="select * from ku where instr(login,',"&request.Cookies("shiwei_id")&",')>0 order by id"
+	  set rs_ku=conn.execute(sql)	  
+	end if
+	if rs_ku.eof then
+	%>
+	<script language="javascript">
+	  alert("没有属于你管理的仓库,请先添加仓库！")
+	  window.location.href="../system/ku_add.asp"
+	</script>
+	<%
+	response.end
+	end if
+	%>
+	  <select name="ku">
+        <%
+	do while rs_ku.eof=false
+	%>
+        <option value="<%=rs_ku("id")%>"<%if rs_ku("moren") then%> selected="selected"<%end if%>><%=rs_ku("ku")%></option>
+        <%
+	  rs_ku.movenext
+	loop
+	%>
+      </select>			  
+		  </td>
+      </tr>	  
+      <tr>
+        <td align="right" height="30">入库数量：</td>
+        <td class="category"><input type="text" name="shulian" style="width:100px" onKeyUp="value=value.replace(/[^\d.]/g,'')" onbeforepaste="clipboardData.setData('text',clipboardData.getData('text').replace(/[^\d.]/g,''))" value="1">
+          &nbsp;<font color="#ff0000">*</font></td>
+      </tr>
+      <tr>
+        <td align="right" height="30">产品单位：</td>
+        <td class="category">
+    <%
+	sql="select * from danwei order by id"
+	set rs_danwei=conn.execute(sql)
+	if rs_danwei.eof then
+	%>
+	<script language="javascript">
+	  alert("请先添加单位！")
+	  window.location.href="../system/danwei_add.asp"
+	</script>
+	<%
+	response.end
+	end if
+	%>
+	  <select name="danwei">
+        <%
+	do while rs_danwei.eof=false
+	%>
+        <option value="<%=rs_danwei("danwei")%>"><%=rs_danwei("danwei")%></option>
+        <%
+	  rs_danwei.movenext
+	loop
+	%>
+      </select>
+	  <font color="#666666">(只用于普通识别，不能换算)</font>		  </td>
+      </tr>		  
+      <tr>
+        <td align="right" height="30">产品价格：</td>
+        <td class="category">推荐销售价：<input type="text" name="price" style="width:100px" onKeyUp="value=value.replace(/[^\d.]/g,'')" onbeforepaste="clipboardData.setData('text',clipboardData.getData('text').replace(/[^\d.]/g,''))">
+		  <font color="#666666">元</font>
+		  进货价：<input type="text" name="price2" style="width:100px" onKeyUp="value=value.replace(/[^\d.]/g,'')" onbeforepaste="clipboardData.setData('text',clipboardData.getData('text').replace(/[^\d.]/g,''))">
+          <font color="#666666">元</font></td>
+      </tr>	  
+      <tr>
+        <td align="right" height="30">产品规格：</td>
+        <td class="category"><input type="text" name="guige" style="width:200px"></td>
+      </tr>
+      <tr>
+        <td align="right" height="30">最低库存报警数量：</td>
+        <td class="category"><input type="text" name="baojin" style="width:100px" onKeyUp="value=value.replace(/[^\d.]/g,'')" onbeforepaste="clipboardData.setData('text',clipboardData.getData('text').replace(/[^\d.]/g,''))" value="0"> 
+          <font color="#666666">(设为零将不会报警)</font></td>
+      </tr>	  
+      <tr>
+        <td align="right" height="30">经办人：</td>
+        <td class="category">
+		  <%
+		  if request.Cookies("shiwei_id")=1 then
+			sql="select * from login order by id_zu,id"
+			set rs_login=conn.execute(sql)
+		  else
+			sql="select * from login where id="&request.Cookies("shiwei_id")
+			set rs_login=conn.execute(sql)	  
+		  end if
+		  if rs_login.eof then
+		  %>
+	      <script language="javascript">
+	        alert("请先添加员工！")
+	        window.location.href="../system/user_add.asp"
+	      </script>
+		  <%
+		  response.end
+		  else
+		  %>
+		  <select name="id_login">
+		  <%
+		  do while rs_login.eof=false
+		  %>
+		    <option value="<%=rs_login("id")%>"<%if rs_login("username")=request.Cookies("shiwei_username") then%> selected="selected"<%end if%>><%=rs_login("username")%> (<%=rs_login("bianhao")%>)</option>
+		  <%
+		    rs_login.movenext
+		  loop
+		  %>
+		  </select>
+		  <%
+		  end if
+		  %>		</td>
+      </tr>	
+      <tr>
+        <td align="right" height="30">供应商：</td>
+        <td class="category">
+		  <%
+		  sql="select * from gys order by id"
+		  set rs_gys=conn.execute(sql)
+		  %>
+		  <select name="id_gys">
+		    <option value="0"></option>
+		  <%
+		  do while rs_gys.eof=false
+		  %>
+		    <option value="<%=rs_gys("id")%>"><%=rs_gys("company")%></option>
+		  <%
+		    rs_gys.movenext
+		  loop
+		  %>
+		  </select>
+		</td>
+      </tr>		  
+      <tr>
+        <td align="right" height="30">产品类型：</td>
+        <td class="category">
+		  <select name="class">
+		    <option value="0">正常产品</option>
+			<option value="1">公司赠品</option>
+		  </select>
+		  </td>
+      </tr>
+      <tr>
+        <td align="right" height="30">兑换所需积分：</td>
+        <td class="category">
+          <input type="text" name="duihuan" style="width:100px" onKeyUp="this.value=this.value.replace(/\D/g,'')"  onafterpaste="this.value=this.value.replace(/\D/g,'')" value="0">
+          <font color="#666666">(客户兑换此产品所需积分)</font></td>
+      </tr>	  	  
+      <tr>
+        <td align="right" height="30">提成类型：</td>
+        <td class="category">
+		  <select name="tichen_type" onChange="chg1(this.value)">
+		    <option value="0">按百分比提成</option>
+			<option value="1">固定提成</option>
+		  </select>
+		</td>
+      </tr>		    
+      <tr>
+        <td align="right" height="30">员工提成：</td>
+        <td class="category">
+		  销售一件提成：<input type="text" name="tichen" style="width:50px" value="0">
+		  <font color="#666666"><span id="bian1">%</span></font></td>
+      </tr>
+      <tr>
+        <td align="right" height="30">产品备注：</td>
+        <td class="category">
+          <textarea name="beizhu" cols="60" rows="3"></textarea>
+        </td>
+      </tr>	  
+	  <%if showpic="yes" then%>
+      <tr>
+        <td align="right" height="30">产品图片：</td>
+        <td class="category">
+		  <table cellpadding="3" cellspacing="0" width="100%"><tr><td width="20%" align="center">
+		  <div id=pic style="width:100;height:100;background-color:ffffff;border:solid 1 #FBA685"><br><br><br>&nbsp;&nbsp;&nbsp;暂无图片</div></td>
+		  <td width="80%">
+		  <font color="#ff0000">选择完图片后，请点击上传按钮上传图片！</font><br>
+          <iframe src="../uploadpic.asp" width=400 height=30 frameborder=none framespacing=0 scrolling=no noresize marginwidth=0 marginheight=0></iframe><br>
+          <font color=999999>所选图片都必须是 jpg 或 gif 格式</font>
+		  </td></tr></table>
+		</td>
+      </tr>	
+	  <%end if%>	  	  
+      <tr>
+	    <td height="30">&nbsp;</td>
+        <td class="category"><input type="submit" value=" 确认添加 " onClick="return check()" class="button">&nbsp;&nbsp;&nbsp;&nbsp;
+		  <input type="hidden" name="hid2" value="ok">
+		  <input type="hidden" name="photo" value="">
+		  <input type="reset" value=" 重新填写 " class="button">		</td>
+      </tr>
+	  </form>
+</table>	
+</td>
+<td></td>
+</tr>
+<tr>
+<td><img src="../images/r_4.gif" alt="" /></td>
+<td></td>
+<td><img src="../images/r_3.gif" alt="" /></td>
+</tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,615 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../checkvalid.asp"-->
+<!--#include file="../../inc/md5.asp"-->
+<%
+'#########################################################
+'
+' Software name: 智能招聘人才管理系统
+' 软件名称：智能招聘-仿中华英才网模板
+' 购买商业版联系方式QQ:2323449069
+' Web: http://www.tao128.com/znzp/
+' Copyright (C) IQhr Platform. All Rights Reserved.
+' 版权所有 未经智能招聘系统授权不得用于任何商业用途
+'
+'#########################################################
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+Dim Action
+Dim rs,sql,rs2,sql2
+Dim JOB_id,UserPass,UserPass2,UserLevel,UserPurview
+
+Dim page,i
+Dim totalPut
+const MaxPerpage=20
+Const strFileName="admin_admin.asp"
+
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<meta content="noindex,nofollow" name="robots" />
+<title>智能招聘人才管理系统 后台管理系统</title>
+<link href="../css/style.css" rel="stylesheet" type="text/css" />
+<script language="JavaScript" type="text/JavaScript">
+function ConfirmDel(JOB_id,UserName)
+{
+   if(confirm("您确定要删除用户【"+UserName+"】吗？\n\n警告：此操作不可恢复，请慎重操作！"))
+     location.href="<%=strFileName%>?Action=Del&JOB_id="+JOB_id
+}
+function unSelectAll()
+{
+    if(document.form1.chkAll.checked){
+	document.form1.chkAll.checked = document.form1.chkAll.checked&0;
+    } 	
+}
+function SelectAll(form)
+{
+  for (var i=0;i<form.elements.length;i++)
+    {
+    var e = form.elements[i];
+    if (e.Name != "chkAll"&&e.disabled==false)
+       e.checked = form.chkAll.checked;
+    }
+}
+</script>
+</head>
+<body>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <tr> 
+    <th height="22" colspan="2" align="center"><strong >后台用户管理</strong></th>
+  </tr>
+  <tr> 
+    <td width="70" height="30"><strong>管理导航：</strong></td>
+    <td height="30">&nbsp;<a href="<%=strFileName%>?Action=Add">添加后台用户</a> | <a href="<%=strFileName%>">管理后台用户</a></td>
+  </tr>
+</table>
+<%
+Action=trim(Request("Action"))
+Select Case Action
+	Case "Add"
+		If Not FRAdminLevel(205) Then
+			Call ErrorMsg()
+		End If
+		Call ShowData()
+	Case "Modify"
+		If Not FRAdminLevel(206) Then
+			Call ErrorMsg()
+		End If
+		Call ShowData()
+	Case "SaveData"
+		Call SaveData()
+	Case "Del"
+		If Not FRAdminLevel(206) Then
+			Call ErrorMsg()
+		End If
+		Call Del()
+	Case Else
+		If Not FRAdminLevel(206) Then
+			Call ErrorMsg()
+		End If
+		Call main()
+End Select
+
+if FoundErr=True then
+	call ShowErr()
+end if
+%>
+<!--#include file="../inc/copy.asp" -->
+<%
+Conn.Close
+Set Conn=Nothing
+%>
+
+<%
+sub main()
+	Set rs= Server.CreateObject("ADODB.Recordset")
+	sql="select * from JOB_admin order by JOB_id desc"
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>暂无任何用户，请添加后再进行管理！</li>"
+		exit sub
+	else
+		totalPut=rs.recordcount
+		if (page-1)*MaxPerpage>totalput then
+			if (totalPut mod MaxPerpage)=0 then
+				page= totalPut \ MaxPerpage
+			else
+				page= totalPut \ MaxPerpage + 1
+			end if
+		end if
+		if page=1 then
+			Call MainInfo()
+		else
+			if (page-1)*MaxPerpage<totalPut then
+				rs.move  (page-1)*MaxPerpage
+				dim bookmark
+				bookmark=rs.bookmark
+				Call MainInfo()
+			else
+				page=1
+				Call MainInfo()
+			end if
+		end if
+	end if
+	rs.close
+	set rs=nothing
+End Sub
+%>
+<%Sub MainInfo()%>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder mt6">
+<form name="form1" method="Post" action="<%=strFileName%>">
+<tr><th height="22" colspan="5" class=tableHeaderText><strong>管理员列表</strong></th>
+    </tr>
+  <tr>
+		<td width="5%" height="22" align="center"><strong>选中</strong></th>
+		<td width="6%" align="center"><strong>编号</strong></th> 
+		<td align="center"><strong>帐号</strong></th>
+		<td width="8%" align="center"><strong>属性</strong></th>
+		<td width="15%" align="center"><strong>操作选项</strong></th>
+    </tr>
+	<%
+		do while not rs.eof
+	%>
+	  <tr align="center">
+		<td><input name="JOB_id" type="checkbox" class="checkbox" value="<%=rs("JOB_id")%>"></td>
+		<td><%=rs("JOB_id")%></td> 
+		<td><%=rs("JOB_user")%></td>
+		<td><%If rs("JOB_type")="manage" Then Response.Write "<font color=""#FF0000"">超级</font>" Else Response.Write "普通"%></td>
+		<td><%If Request.Cookies("admin_type")="manage" Then%><a href="<%=strFileName%>?Action=Modify&JOB_id=<%=rs("JOB_id")%>">编辑</a> <%if rs("JOB_user")<>Request.Cookies("admin_name") then%>| <a href="javascript:ConfirmDel(<%=rs("JOB_id")%>,'<%=rs("JOB_user")%>');">删除</a><%end if%><%end if%></td>
+	  </tr>
+	<%
+		i=i+1
+		if i>=MaxPerPage then exit do
+		rs.movenext
+		loop
+	%>
+		  <tr>
+			<td width="50%" height="30" colspan="5">
+			<input name="chkAll" type="checkbox" class="checkbox" onClick="SelectAll(this.form)" value="checkbox">
+			<input name="Action" type="hidden" value="Del">
+			全选&nbsp;<input name="submit" type="submit" class="inputs" value="批量删除">			</td>
+		  </tr>
+		  <tr>
+		    <td height="30" colspan="5" align="right"><%If totalput>0 Then
+	call showpage(strFileName,totalput,MaxPerPage,false,true,"个管理员")
+End If
+%></td>
+    </tr>
+  </form>
+</table>
+<%End Sub%>
+
+<%
+Sub ShowData()
+	JOB_id=trim(request.QueryString("JOB_id"))
+	If JOB_id<>"" Then
+		If IsNumeric(JOB_id)=False Then
+			FoundErr=True
+			ErrMsg=ErrMsg & "<br><li>参数错误！</li>"
+			Exit Sub
+		End If
+		sql="select * from JOB_admin where JOB_id=" & JOB_id
+		set rs=server.CreateObject ("Adodb.recordset")
+		rs.open sql,conn,1,1
+		if rs.bof and rs.eof then
+			FoundErr=True
+			ErrMsg=ErrMsg & "<br><li>此用户不存在或者已经删除！</li>"
+			Exit Sub
+		else
+			UserName=rs("JOB_user")
+			UserLevel=rs("JOB_type")
+			UserPurview=rs("JOB_flag")
+		end if
+		rs.Close
+		Set rs=Nothing
+	End If
+%>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder mt6">
+	<form name="form1" method="post" action="<%=strFileName%>">
+		<tr class="title"> 
+			<th height="22" colspan="2" align="center" ><strong><%If JOB_id<>"" Then%> 修 改 <%Else%> 添 加 <%End If%>用 户</strong></th>
+		</tr>
+		<tr class="tdbg"> 
+			<td width="23%" align="right"><strong>帐号：</strong></td>
+			<td><input name="UserName" type="text" value="<%=UserName%>" style="width:150px"></td>
+		</tr>
+		<tr class="tdbg">
+			<td align="right"><strong>密码：</strong></td>
+			<td><input name="UserPass" type="password" style="width:150px"><%If JOB_id<>"" Then%> <font color="#0000FF">不修改密码此处请留空！</font><%End If%></td>
+		</tr>
+		<tr class="tdbg">
+			<td align="right"><strong>确认密码：</strong></td>
+			<td><input name="UserPass2" type="password" style="width:150px"><%If JOB_id<>"" Then%> <font color="#0000FF">不修改密码此处请留空！</font><%End If%></td>
+		</tr>
+		<tr class="tdbg"> 
+			<td align="right"><strong>权限设置：</strong></td>
+			<td><li style="list-style:none; float:left; width:100%;"><input name="UserLevel" type="radio" class="checkbox" onClick="PurviewDetail.style.display='none';SmallPurview.style.display='none';" value="manage" checked="checked"> 超级管理员：拥有所有权限</li>
+			<li style="list-style:none; float:left;"><input name="UserLevel" type="radio" class="checkbox" onClick="PurviewDetail.style.display='';SmallPurview.style.display='';" value="submanage" <%If UserLevel="submanage" Then Response.Write " checked"%>> 普通管理员：需要详细指定每一项管理权限</li>
+			</td>
+		</tr>
+		<tr id="PurviewDetail" style="display:">
+			<td colspan="2">
+				<div class="au">
+				<div class="aub">栏目权限</div>
+					<ul><!--  af-adminflag  更新于2007年5月13日 Mr.Hou -->
+						<li><input name="UserPurview" type="checkbox" class="checkbox" onClick="if (this.checked){af1.style.display=''}else{af1.style.display='none'}" value="1" <%=chkPurview("1")%>>
+						系统设置</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" onClick="if (this.checked){af2.style.display=''}else{af2.style.display='none'}" value="2" <%=chkPurview("2")%>>
+						会员管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" onClick="if (this.checked){af3.style.display=''}else{af3.style.display='none'}" value="3" <%=chkPurview("3")%>>
+						频道管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" onClick="if (this.checked){af4.style.display=''}else{af4.style.display='none'}" value="4" <%=chkPurview("4")%>>
+						模板风格</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" onClick="if (this.checked){af5.style.display=''}else{af5.style.display='none'}" value="5" <%=chkPurview("5")%>>
+						数据维护</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" onClick="if (this.checked){af6.style.display=''}else{af6.style.display='none'}" value="6" <%=chkPurview("6")%>>
+						文件管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" onClick="if (this.checked){af7.style.display=''}else{af7.style.display='none'}" value="7" <%=chkPurview("7")%>>
+						插件管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" onClick="if (this.checked){af8.style.display=''}else{af8.style.display='none'}" value="8" <%=chkPurview("8")%>>
+						系统相关</li>
+					</ul>
+				</div>
+		  </td>
+		</tr>
+		<tr id="SmallPurview" style="display:">
+			<td colspan="2">
+				<div class="au">
+					<div class="aub">详细权限</div>
+				</div>
+				<div class="au" id="af1" style="display:">
+					<ul>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="101" <%=chkPurview("101")%>>
+						网站信息配置</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="102" <%=chkPurview("102")%>>
+						系统区域设置</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="103" <%=chkPurview("103")%>>
+						系统行业设置</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="104" <%=chkPurview("104")%>>
+						系统专业设置</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="105" <%=chkPurview("105")%>>
+						系统岗位设置</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="106" <%=chkPurview("106")%>>
+						网站广告管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="107" <%=chkPurview("107")%>>
+						网站公告管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="108" <%=chkPurview("108")%>>
+						友情链接管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="109" <%=chkPurview("109")%>>
+						网站留言管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="110" <%=chkPurview("110")%>>
+						网站评论管理</li>
+					</ul>
+				</div>
+				<div class="au" id="af2" style="display:">
+					<ul>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="201" <%=chkPurview("201")%>>
+						用户资料管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="202" <%=chkPurview("202")%>>
+						审核新用户</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="203" <%=chkPurview("203")%>>
+						用户组管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="204" <%=chkPurview("204")%>>
+						用户等级管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="205" <%=chkPurview("205")%>>
+						管理员添加</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="206" <%=chkPurview("206")%>>
+						管理员管理</li>
+					</ul>
+				</div>
+				<div class="au" id="af3" style="display:">
+					<ul>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="301" <%=chkPurview("301")%>>
+						系统频道设置</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="302" <%=chkPurview("302")%>>
+						个人求职管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="303" <%=chkPurview("303")%>>
+						企业招聘管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="304" <%=chkPurview("304")%>>
+						高级人才管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="305" <%=chkPurview("305")%>>
+						兼职人才管理</li>
+						<%sql="select * from JOB_Channel where ModuleType=10"
+						set rsw=conn.execute(sql)
+						if not rsw.eof then
+						do while not rsw.eof%>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="307<%=rsw("ChannelID")%>" <%=chkPurview("307"&rsw("ChannelID")&"")%>>
+						<%=rsw("ChannelName")%>管理</li>
+						<%rsw.movenext
+						loop
+						rsw.close
+						set rsw=nothing
+						end if	%>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="309" <%=chkPurview("309")%>>
+						通用页面管理</li>
+					</ul>
+				</div>
+				<div class="au" id="af4" style="display:">
+					<ul>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="401" <%=chkPurview("401")%>>
+						模板方案管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="402" <%=chkPurview("402")%>>
+						网站模板管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="403" <%=chkPurview("403")%>>
+						风格样式管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="404" <%=chkPurview("404")%>>
+						通用标签管理</li>
+					</ul>
+				</div>
+				<div class="au" id="af5" style="display:">
+					<ul>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="501" <%=chkPurview("501")%>>
+						备份数据库</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="502" <%=chkPurview("502")%>>
+						恢复数据库</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="503" <%=chkPurview("503")%>>
+						压缩数据库</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="504" <%=chkPurview("504")%>>
+						执行SQL语句</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="505" <%=chkPurview("505")%>>
+						系统空间占用</li>
+					</ul>
+				</div>
+				<div class="au" id="af6" style="display:">
+					<ul>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="601" <%=chkPurview("601")%>>
+						HTML文件生成</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="602" <%=chkPurview("602")%>>
+						HTML文件管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="603" <%=chkPurview("603")%>>
+						企业LOGO管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="604" <%=chkPurview("604")%>>
+						上传文件管理</li>
+					</ul>
+				</div>
+				<div class="au" id="af7" style="display:">
+					<ul>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="701" <%=chkPurview("701")%>>
+						在线支付设置</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="703" <%=chkPurview("703")%>>
+						调查投票管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="704" <%=chkPurview("704")%>>
+						网站统计管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="706" <%=chkPurview("706")%>>
+						邮件群发管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="707" <%=chkPurview("707")%>>
+						手机短信管理</li>
+					</ul>
+				</div>
+				<div class="au" id="af8" style="display:">
+					<ul>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="801" <%=chkPurview("801")%>>
+						清除系统缓存</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="802" <%=chkPurview("802")%>>
+						前台日志管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="803" <%=chkPurview("803")%>>
+						后台日志管理</li>
+						<li><input name="UserPurview" type="checkbox" class="checkbox" value="804" <%=chkPurview("804")%>>
+						系统帮助管理</li>
+					</ul>
+				</div>
+		  </td>
+		</tr>
+		<tr class="tdbg"> 
+			<td height="40" colspan="2" align="center">
+				<input name="JOB_id" type="hidden" value="<%=JOB_id%>">
+				<input name="Action" type="hidden" value="SaveData">
+				<input name="btnSave" type="submit" class="inputs" style="cursor:pointer;" value="<%If JOB_id<>"" Then%> 修 改 <%Else%> 添 加 <%End If%>">
+				&nbsp; <input name="btnCancel" type="button" class="inputs" style="cursor:pointer;" onClick="window.location.href='<%=strFileName%>'" value=" 取 消 ">
+			</td>
+		</tr>
+	</form>
+</table>
+<%End Sub%>
+<script>
+<%If UserLevel="submanage" Then%>
+PurviewDetail.style.display=''
+SmallPurview.style.display=''
+if (document.form1.UserPurview(0).checked)
+{af1.style.display=''}
+else
+{af1.style.display='none'}
+
+if (document.form1.UserPurview(1).checked)
+{af2.style.display=''}
+else
+{af2.style.display='none'}
+
+if (document.form1.UserPurview(2).checked)
+{af3.style.display=''}
+else
+{af3.style.display='none'}
+
+if (document.form1.UserPurview(3).checked)
+{af4.style.display=''}
+else
+{af4.style.display='none'}
+
+if (document.form1.UserPurview(4).checked)
+{af5.style.display=''}
+else
+{af5.style.display='none'}
+
+if (document.form1.UserPurview(5).checked)
+{af6.style.display=''}
+else
+{af6.style.display='none'}
+
+if (document.form1.UserPurview(6).checked)
+{af7.style.display=''}
+else
+{af7.style.display='none'}
+
+if (document.form1.UserPurview(7).checked)
+{af8.style.display=''}
+else
+{af8.style.display='none'}
+<%
+ElseIf UserLevel="" Then
+%>
+PurviewDetail.style.display='none'
+SmallPurview.style.display='none'
+af1.style.display='none'
+af2.style.display='none'
+af3.style.display='none'
+af4.style.display='none'
+af5.style.display='none'
+af6.style.display='none'
+af7.style.display='none'
+af8.style.display='none'
+<%End If%>
+</script>
+</body>
+</html>
+<%
+sub SaveData()
+	JOB_id=trim(request("JOB_id"))
+	if JOB_id<>"" And IsNumeric(JOB_id)=False then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>参数错误！</li>"
+		Exit Sub
+		JOB_id=CLng(JOB_id)
+	end if
+	UserName=Trim(Request.Form("UserName"))
+	UserPass=Request.Form("UserPass")
+	UserPass2=Request.Form("UserPass2")
+	UserLevel=Trim(Request.Form("UserLevel"))
+	UserPurview=Trim(Request.Form("UserPurview"))
+	UserPurview=Replace(UserPurview," ","")
+	If UserName="" Then
+		ErrMsg=ErrMsg &"<br><li>帐号不能为空！</li>"
+		FoundErr=True
+	End If
+	If JOB_id="" Then
+		If UserPass="" Then
+			ErrMsg=ErrMsg &"<br><li>密码不能为空！</li>"
+			FoundErr=True
+		End If
+		If UserPass2="" Then
+			ErrMsg=ErrMsg &"<br><li>确认密码不能为空！</li>"
+			FoundErr=True
+		End If
+		If UserPass<>UserPass2 Then
+			ErrMsg=ErrMsg &"<br><li>密码和确认密码不一致！</li>"
+			FoundErr=True
+		End If
+	End If
+	If UserLevel="" Then
+		ErrMsg=ErrMsg &"<br><li>请选择管理员类型！</li>"
+		FoundErr=True
+	End If
+	If UserLevel="submanage" Then
+		If UserPurview="" Then
+			ErrMsg=ErrMsg &"<br><li>请至少选择一项用户权限！</li>"
+			FoundErr=True
+		End If
+	End If
+	
+	If FoundErr=True Then
+		Exit Sub
+	End If
+
+	set rs=Server.CreateObject("ADODB.RecordSet")
+	If JOB_id<>"" Then
+		sql="select * from JOB_admin Where JOB_id="&JOB_id
+	Else
+		sql="select * from JOB_admin"
+	End If
+	rs.open sql,conn,1,3
+	If JOB_id="" Then
+		rs.AddNew
+	End If
+	If UserPass<>"" Then
+		rs("JOB_pass")=md5(UserPass,32)
+	End If
+	rs("JOB_user")=UserName
+	rs("JOB_type")=UserLevel
+	rs("JOB_flag")=UserPurview
+	session("admin_flag")=UserPurview
+	rs.update
+	rs.close
+	set rs=nothing
+	If JOB_id="" Then
+		Call ShowOK("添加用户成功！")
+	Else
+		Call ShowOK("修改用户成功！")
+	End If
+end sub
+%>
+
+<%
+sub Del()
+	JOB_id=trim(Request("JOB_id"))
+	if JOB_id="" then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>参数不足！</li>"
+		exit sub
+	end if
+	sql="select * from JOB_admin where JOB_id In("& JOB_id &")"
+    set rs=server.CreateObject ("Adodb.recordset")
+	rs.open sql,conn,1,3
+	if rs.bof and rs.eof then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>用户不存在或者已被删除！</li>"
+		exit sub
+	else
+		Dim htmlFile,picFile
+		Do While Not(rs.Eof)
+			rs.delete
+			rs.update
+			rs.MoveNext
+		Loop
+	end if
+	rs.close
+	set rs=nothing
+    response.redirect strFileName
+	response.End()
+end sub
+%>
+<%
+Function chkPurview(sValue)
+	chkPurview=""
+	If UserPurview="" Or IsNull(UserPurview) Then Exit Function
+	sValue=Lcase(sValue)
+	If Instr(","&UserPurview&",",","&sValue&",")>0 Then
+		chkPurview="checked"
+	End If
+End Function
+%>
+
+<%
+Function ShowErr()
+	dim strErr
+	strErr=strErr & "<table cellpadding=2 cellspacing=1 border=0 width=100% class='tableBorder' align=center>" & vbcrlf
+	strErr=strErr & "  <tr align='center'><td height='22' class='title'><strong>错误信息</strong></td></tr>" & vbcrlf
+	strErr=strErr & "  <tr><td height='100' class='tdbg' valign='top'><b>产生错误的可能原因：</b><br>" & ErrMsg &"</td></tr>" & vbcrlf
+	strErr=strErr & "  <tr align='center' class='tdbg'><td><input name='goBack' type='button' class='inputs' value=' 返 回 ' onClick='javascript:history.back()'></td></tr>" & vbcrlf
+	strErr=strErr & "</table>" & vbcrlf
+	response.write strErr
+End Function
+
+Function ShowOK(SuccessMsg)
+	dim strSuccess
+	strSuccess=strSuccess & "<table cellpadding=2 cellspacing=1 border=0 width=100% class='tableBorder' align=center>" & vbcrlf
+	strSuccess=strSuccess & "  <tr align='center' class='title'><td height='22'><strong>恭喜你！</strong></td></tr>" & vbcrlf
+	strSuccess=strSuccess & "  <tr class='tdbg'><td height='100' valign='top' style='padding-left:10px;'><br>" & SuccessMsg &"</td></tr>" & vbcrlf
+	strSuccess=strSuccess & "  <tr align='center' class='tdbg'><td><input name='goBack' type='button' class='inputs' value=' 返 回 ' onClick='javascript:history.back()'></td></tr>" & vbcrlf
+	strSuccess=strSuccess & "</table>" & vbcrlf
+	response.write strSuccess
+End Function
+%>

@@ -1,0 +1,90 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>新增角色</title>
+<link href="${contextPath}/js/plugins/dtree/dtree.css" rel="stylesheet" type="text/css" media="all">
+<script src="${contextPath}/js/plugins/jquery/jquery.js"></script>
+
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+<script src="${contextPath}/js/plugins/dtree/dtree.js"></script> 
+
+
+</head>  
+<body>
+
+<input type="hidden" value="${contextPath}" id="contextPath"/>
+
+<div class="userInfo" id="divHide" >
+<form:form>
+
+<table class="yTable margintop">
+<tr>
+<td><h2><label>题目：</label><input name="content" id="name" type="text"
+						class="inputbox" size="50" value="${question.content }" style="height:23px" /></h2></td>
+</tr>
+<c:forEach var="option" items="${question.options}" varStatus="step">
+<tr><td><label>${ option.tag}</label><input name="content" id="name" type="text"
+						class="inputbox" size="40" value="${ option.content}" style="height:23px" /></td></tr>
+								
+											</c:forEach>
+
+ </table>
+ <table class="yTable margintop">											
+<tr>
+
+
+<td>
+<label><fmt:message key="category"/>：</label><select id="level" name="level"  class="inputbox" noadd="yes">
+					    <option selected="selected" value="" >财经</option>
+					      <option value="" >物理</option>
+					       <option value="" >化学</option>
+					 
+					</select>
+</td></tr>
+<tr>
+<td>
+<label><fmt:message key="type"/>：</label><select name="type" noadd="yes">  
+				 <option  selected="selected" value="1"noadd="yes">单选题</option>
+				 <option  value="2"noadd="yes">多选题</option>
+				  <option  value="3"noadd="yes">填空题</option>
+				
+				</select>
+</td></tr>
+<tr>
+<td>
+<label><fmt:message key="jsquestionanalyse"/>：</label><textarea></textarea>
+</td></tr>								</table>
+<center>
+<div class="Btn "style=" position:absolute;
+ bottom:0px;
+ padding:0px;
+ margin:0px;width:90%;overflow-x:hidden;">
+
+		<input  id="save" value="<fmt:message key="save"/>" type="button"/> 
+		<input  id="cancelEdit" value="<fmt:message key="cancel"/>" type="button" /> 
+
+			
+		</div>	</center>
+		</form:form>
+</div>
+
+<script type="text/javascript">
+seajs.use("${scriptBasePath}/question/detail.js");
+</script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<%
+Function GetRndPassword(PasswordLen)'生成随机
+    Dim Ran, i, strPassword
+    strPassword = ""
+    For i = 1 To PasswordLen
+        Randomize
+        Ran = CInt(Rnd * 2)
+        Randomize
+        If Ran = 0 Then
+            Ran = CInt(Rnd * 25) + 97
+            strPassword = strPassword & UCase(Chr(Ran))
+        ElseIf Ran = 1 Then
+            Ran = CInt(Rnd * 9)
+            strPassword = strPassword & Ran
+        ElseIf Ran = 2 Then
+            Ran = CInt(Rnd * 25) + 97
+            strPassword = strPassword & Chr(Ran)
+        End If
+    Next
+    GetRndPassword = strPassword
+End Function
+
+Function TongJiSpecial(str)'专题统计
+		Set Shu=Conn.Execute(" select count(data_id) from adnim_data where special_id="&str&" ")
+		TongJiSpecial=Shu(0)
+		Set Shu=Nothing
+End Function
+
+Function Adn_Radio(str1,str2)'判断显示radio
+    If str1=str2 Then Response.Write"checked"
+End Function
+
+Function Adn_Select(str1,str2)'判断显示radio
+    If str1=str2 Then
+	Adn_Select="selected"
+	Else
+	Adn_Select=""
+	End If
+End Function
+
+Function GetAdName(strid)'读出广告文件名
+    Set rs=Conn.Execute("select ad_id,ad_title from adnim_ad where ad_id="&strid&"")
+	If Not rs.eof Then
+		GetAdName=Trim(rs("ad_title"))
+	Else
+	    GetAdName="no"
+	End If		
+	Set rs=nothing
+End Function
+
+Function GetSpecialName(strid)'读出专题名
+    Set rs=Conn.Execute("select Special_id,Special_name from adnim_Special where Special_id="&strid&"")
+	If Not rs.eof Then
+		GetSpecialName=Trim(rs("Special_name"))
+	Else
+	    GetSpecialName="no"
+	End If		
+	Set rs=nothing
+End Function
+
+Function GetCountHttp'统计远程图片
+    Set rs = Conn.Execute("select Count(data_id) as pic from adnim_data where data_status=1 and Left(data_picurl,7)='http://'" )
+	Session("httpimg") = rs("pic")
+	rs.close
+	Set rs=nothing
+	GetCountHttp = Session("httpimg")
+End Function
+
+'作用：判断当前影片是否热门
+Sub DataHits(data_hits)
+    If Clng(data_hits)>=Clng(Config(10)) Then 
+	Response.Write("checked")
+	Config(10)=data_hits
+	End If
+End Sub
+
+Sub GetEreaName(strid)'作用：读出地区
+    dim bid,eid,j
+	bid=split(AdminId(0),",")
+	eid=ubound(bid)
+	For j=0 to eid
+	If bid(j)=strid Then
+	Response.Write"<option value="""&bid(j)&""" selected>"&bid(j)&"</option>"
+	Else
+    Response.Write"<option value="""&bid(j)&""">"&bid(j)&"</option>"
+	End If
+	Next
+End Sub
+
+Sub GetYearName(strid)'作用：读出年份
+    dim bid,eid,j
+	bid=split(AdminId(2),",")
+	eid=ubound(bid)
+	For j=0 to eid
+	If cint(bid(j))=strid Then
+	Response.Write"<option value="""&bid(j)&""" selected>"&bid(j)&"</option>"
+	Else
+    Response.Write"<option value="""&bid(j)&""">"&bid(j)&"</option>"
+	End If
+	Next
+End Sub
+
+Sub Language'作用：读出语言
+    dim bid,eid,j
+	bid=split(AdminId(1),",")
+	eid=ubound(bid)
+	For j=0 to eid
+    Response.Write"<a href='#' onClick=data_language.value='"&bid(j)&"'>"&bid(j)&"</a> "
+	Next
+End Sub
+
+Sub GetSpecial(strid)'作用：读出专题
+	Set rs = Server.CreateObject("adodb.recordset")
+	sql = "select special_id,special_name from adnim_special order by special_orderid asc"
+	rs.Open sql, Conn, 1, 1
+	If Not rs.eof Then
+	    Response.Write"<option value=""0"">请选择专题</option>"
+		Do while not rs.eof
+		If strid=rs("special_id") Then
+		Response.Write"<option value="""&rs("special_id")&""" selected>"&rs("special_name")&"</option>"
+		Else
+		Response.Write"<option value="""&rs("special_id")&""">"&rs("special_name")&"</option>"
+		End If
+		rs.movenext  
+		Loop 
+	Else
+		Response.Write"<option value=""0"">请先添加专题</option>"
+	End If
+	rs.Close
+	Set rs=nothing
+End Sub
+
+Sub GetDataColor(data_color)'作用：颜色
+%>
+<option value=''>颜色</option>                      
+<option value=''>默认</option>                      
+<option value='#000000' style='background-color:#000000' <%If data_color="#000000" Then Response.Write "selected"%>></option>
+<option value='#FFFFFF' style='background-color:#FFFFFF' <%If data_color="#FFFFFF" Then Response.Write "selected"%>></option>
+<option value='#008000' style='background-color:#008000' <%If data_color="#008000" Then Response.Write "selected"%>></option>
+<option value='#FFFF00' style='background-color:#FFFF00' <%If data_color="#FFFF00" Then Response.Write "selected"%>></option>
+<option value='#FF0000' style='background-color:#FF0000' <%If data_color="#FF0000" Then Response.Write "selected"%>></option>
+<option value='#0000FF' style='background-color:#0000FF' <%If data_color="#0000FF" Then Response.Write "selected"%>></option>                      
+<%End Sub
+'**************************************************
+'TypeID：大类ID
+'作  用：显示无级分类
+'Call Adn_Class_Name(0,"",classid)
+'**************************************************
+Function Adn_Class_Name(TypeID,CompatStr,ID)'递归查询分类
+		Dim RSclass,TempStr
+		Set RSclass = Conn.Execute("select class_id,class_name,class_dir,class_orderid,class_bigid from adnim_class where class_bigid="&TypeID&" and class_orderid>0 order by class_orderid asc" )
+		TempStr =CompatStr & "┄"
+		Do While Not RSclass.Eof
+		if RSclass("class_id")=ID then
+			Adn_Class_Name = Adn_Class_Name & "<option value="""& RSclass("class_id") &""" selected>"
+		else
+			Adn_Class_Name = Adn_Class_Name & "<option value="""& RSclass("class_id") &""">"
+		end if
+			Adn_Class_Name = Adn_Class_Name & "├" & TempStr &  RSclass("class_name")
+			Adn_Class_Name = Adn_Class_Name & "</option>" & Chr(13) & Chr(10)
+			Adn_Class_Name = Adn_Class_Name &Adn_Class_Name(RSclass("class_id"),TempStr,ID)
+		RSclass.MoveNext
+		loop
+		RSclass.Close
+		Set RSclass = Nothing
+End Function
+
+Function Adn_DelHtml(data_id)'删除数据的同时删掉图片与HTML文件
+    On Error Resume Next
+    Set rs_d=Conn.Execute(" Select class_id,data_id,data_picurl from adnim_data where data_id="&data_id&" ")
+	If Not rs_d.eof Then
+		If Not(Instr(rs_d("data_picurl"),"http://")>0 Or LCase(rs_d("data_picurl"))="images/nopic.gif") Then Call DelHtml ("../"&rs_d("data_picurl")&"")'删除图片
+		If Config(17)="html" Then
+		    StrPath=GetDataLink(rs_d("class_id"),data_id):If Config(0)<>"/" Then StrPath=Replace(StrPath,Config(0),"/")
+		    If Config(23)="3" Then Call DelFolder(".."&StrPath) Else Call DelHtml(".."&StrPath) End If
+		End If
+	End If
+    rs_d.close
+	Conn.Execute(" Delete from [adnim_url] where data_id="&data_id&" ")'删除地址
+    Conn.Execute(" Delete from [adnim_data] where data_id="&data_id&" ")'删除影片信息
+End Function
+
+Function Adn_Elite(data_id,elite_id)'推荐影片
+    If elite_id<>1 then elite_id=0 
+	Conn.Execute(" Update [adnim_data] Set data_elite="&elite_id&" Where data_id="&data_id&" ")
+End Function
+
+Function Adn_Status(data_id,elite_id)'审核影片
+    If elite_id<>1 then elite_id=0 
+	Conn.Execute(" Update [adnim_data] Set data_status="&elite_id&" Where data_id="&data_id&" ")
+End Function
+
+'作用:处理是否设为热门影片
+'**************************************************
+'函数名：Adn_Hits typeid:0/1 冷门/热门
+'作  用：处理是否设为热门影片
+'返回参数:处理后的点击数值
+'**************************************************
+Function Adn_Hits(typeid,hits)
+	If typeid>0 Then'热门
+		If hits<Clng(Config(10)) Then hits=hits+Clng(Config(10))
+	Else
+		If hits>Clng(Config(10)) Then hits=Clng(Config(10))-1
+	End If
+	Adn_Hits=hits
+End Function
+
+Function Adn_PlayUrl(server_id,data_id)'获取具体播放地址
+    Set Ru = Conn.Execute("select top 1 * from adnim_url where server_id="&server_id&" and data_id="&data_id&"" )
+	If Not(Ru.bof and Ru.eof) Then
+	Adn_PlayUrl=Trim(Replace(Ru("url_intro"),"$$$",chr(13)))
+	Else
+	Adn_PlayUrl=""
+	End If
+	Set Ru = nothing
+End Function
+
+Function htmltojs(content)
+    arrLines = Split(content, Chr(10) )
+    If IsArray(arrLines) then
+    For i=0 To UBound( arrLines )
+	sLine = Replace( arrLines(i) , "\" , "\\")
+	sLine = Replace( sLine , "/" , "\/")
+	sLine = Replace( sLine , "'" , "\'")
+	sLine = Replace( sLine , """" , "\""")
+    sLine = Replace( sLine , Chr(13) , "" )
+    strNew = strNew & "document.writeln('" & sLine  & "');" & Chr(10)
+    Next
+    End If
+    htmltojs=strNew
+End Function
+
+Function jstohtml(content)
+	content = Replace( content , "document.writeln('" , "")
+	content = Replace( content , "\'" , "'")
+	content = Replace( content , "\""" , """")
+	content = Replace( content , "\\" , "\")
+	content = Replace( content , "\/" , "/")
+	content = Replace( content , "');" , "")
+    jstohtml=content
+End Function
+
+Function trimOuterStr(Byval str,Byval flag)
+	dim vstr,m : vstr = str : m=len(flag)
+	if left(vstr,m) = flag then vstr = right(vstr,len(vstr)-m) 
+	if right(vstr,m) = flag then  vstr = left(vstr,len(vstr)-m)
+	trimOuterStr = vstr
+End Function
+%>

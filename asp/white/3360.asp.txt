@@ -1,0 +1,141 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<%Const dbdns="../"%>
+<!--#include file="../AppCode/Conn.asp"-->
+<!--#include file="../AppCode/fun/function.asp"-->
+<!--#include file="../AppCode/fun/md5.asp"-->
+<!--#include file="../AppCode/Class/Ok3w_User.asp"-->
+<!--#include file="../AppCode/Class/Ok3w_Guest.asp"-->
+<%
+Response.Charset = "gb2312"
+
+action = Request.Form("action")
+
+Select Case action		
+	Case "Message"
+		If Session("ValidCode") = "" Or Session("ValidCode")<>Ucase(Request.Form("ValidCode")) Then
+			Response.Write("Ok3w.Net--验证码输入错误，请重新输入。")
+		Else
+			Set Guest = New Ok3w_Guest
+			Call Guest.Add()
+			Set Guest = Nothing
+			Response.Write("-1")
+		End If
+		
+	Case "Reg"
+		If Session("ValidCode") = "" Or Session("ValidCode")<>Ucase(Request.Form("ValidCode")) Then
+			Response.Write("Ok3w.Net--验证码输入错误，请重新输入。")
+		Else
+			Set User = New Ok3w_User
+			Call User.UserReg()
+			Set User = Nothing
+			Response.Write("-1")
+		End If
+		
+	Case "Login"
+		If Session("ValidCode") = "" Or Session("ValidCode")<>Ucase(Request.Form("ValidCode")) Then
+			Response.Write("Ok3w.Net--验证码输入错误，请重新输入。")
+		Else
+			User_Name = Replace(Trim(Request.Form("User_Name")),"'","")
+			User_Password = Replace(Trim(Request.Form("User_Password")),"'","")
+			Set User = New Ok3w_User
+			If User.Login(User_Name,MD5(User_Password)) = -1 Then
+				Response.Write("-1")
+			Else
+				Response.Write("Ok3w.Net--用户名或是密码错误，请重新输入。")
+			End If
+		End If
+		
+	Case "Article_Hits"
+		ID = Cdbl(Request.Form("ID"))
+		mII = Request.Form("mood")
+		
+		If mII<>"" And InStr("," & Request.Cookies("Ok3w")("pMoodArticleID"),"," & ID & ",")>=1 Then
+			Response.Write("Ok3w.Net--谢谢！你已经表过态了。")
+			Set Rs = Nothing
+			Call CloseConn()
+			Response.End()
+		End If
+		
+		pMoodStr = "0,0,0,0,0,0,0,0"
+		Sql="select pMoodStr,Hits from Ok3w_Article where ID=" & ID
+		Rs.Open Sql,Conn,0,1
+		If Not IsNull(Rs("pMoodStr")) Then
+			pMoodStr = Rs("pMoodStr")
+		End If
+		Hits = Rs("Hits")
+		mTmp = Split(pMoodStr,",")
+		
+		
+		If mII<>"" Then		
+			mII = Cint(mII)
+			mTmp(mII-1) = mTmp(mII-1) + 1
+			pMoodStr = mTmp(0) & "," & mTmp(1) & "," & mTmp(2) & "," & mTmp(3) & "," & mTmp(4) & "," & mTmp(5) & "," & mTmp(6) & "," & mTmp(7)
+			
+			Sql="update  Ok3w_Article set pMoodStr='" & pMoodStr & "' where ID=" & ID
+			Conn.Execute Sql
+			
+			Response.Cookies("Ok3w")("pMoodArticleID") = Request.Cookies("Ok3w")("pMoodArticleID") & ID & ","
+		Else
+			Sql="update Ok3w_Article set Hits=Hits+1 where ID=" & ID
+			Conn.Execute Sql
+		End If
+
+		moodCount = Cint(mTmp(0)) + Cint(mTmp(1)) + Cint(mTmp(2)) + Cint(mTmp(3)) + Cint(mTmp(4)) + Cint(mTmp(5)) + Cint(mTmp(6)) + Cint(mTmp(7))
+		mHH = 60
+		If moodCount = 0 Then
+			moodImg = "1,1,1,1,1,1,1,1"
+		Else
+			moodImg = Int(mTmp(0)/moodCount*mHH) & "," &  Int(mTmp(1)/moodCount*mHH) & "," & Int(mTmp(2)/moodCount*mHH) & "," & Int(mTmp(3)/moodCount*mHH) & "," & Int(mTmp(4)/moodCount*mHH) & "," & Int(mTmp(5)/moodCount*mHH) & "," & Int(mTmp(6)/moodCount*mHH) & "," & Int(mTmp(7)/moodCount*mHH)
+		End If
+		
+		Response.Write(Hits & "|" & pMoodStr & "|" & moodImg & "|" & GetCommentsCount(2,ID))
+		
+	Case "Soft_Hits"
+		Dim id,Hits,Ding_Hits,Cai_Hits,Sp1,Sp2
+		id = Cdbl(Request.QueryString("id"))
+		Select Case Request.QueryString("type")
+			Case "display"
+				ac = Request.QueryString("ac")
+				If ac = "" Then
+				ElseIf ac="1" Then
+					If InStr(Request.Cookies("Ok3w")("VoteStrID"),"," & id & ",")>=1 Then
+						Response.Write("Ok3w.Net--谢谢！你已经投过票了。")
+						Set Rs = Nothing
+						Call CloseConn()
+						Response.End()
+					End If
+					Sql="update Ok3w_Soft set Ding_Hits=Ding_Hits+1 where Id=" & id
+					Conn.Execute Sql
+					Response.Cookies("Ok3w")("VoteStrID") = Request.Cookies("Ok3w")("VoteStrID") & "," & id & ","
+				ElseIf ac="2" Then
+					If InStr(Request.Cookies("Ok3w")("VoteStrID"),"," & id & ",")>=1 Then
+						Response.Write("Ok3w.Net--谢谢！你已经投过票了。")
+						Set Rs = Nothing
+						Call CloseConn()
+						Response.End()
+					End If
+					Sql="update Ok3w_Soft set Cai_Hits=Cai_Hits+1 where Id=" & id
+					Conn.Execute Sql
+					Response.Cookies("Ok3w")("VoteStrID") = Request.Cookies("Ok3w")("VoteStrID") & "," & id & ","
+				End If		
+				Sql="select Hits,Ding_Hits,Cai_Hits from Ok3w_Soft where Id=" & id
+				Rs.Open Sql,Conn,0,1
+				Hits = Rs(0)
+				Ding_Hits = Rs(1)
+				Cai_Hits = Rs(2)
+				If Ding_Hits=0 And Cai_Hits=0 Then
+					Sp1 = 0
+					Sp2 = 0
+					Else
+						Sp2 = Int(Cai_Hits/(Ding_Hits+Cai_Hits) * 100)
+						Sp1 = 100 - Sp2
+				End If
+				
+				Response.Write(Hits & "," & Ding_Hits & "," & Cai_Hits & "," & Sp1 & "," & Sp2 & "," & Int(Sp1/100*55) & "," & Int(Sp2/100*55) & "," & GetCommentsCount(3,id))
+		End Select
+		
+End Select
+
+Set Rs = Nothing
+Call CloseConn()
+%>

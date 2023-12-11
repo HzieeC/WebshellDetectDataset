@@ -1,0 +1,149 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String categoryId = request.getParameter("categoryId");
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 全局参数
+			var baseParams = {start:0, limit:<%=Constants.PAGE_SIZE %>, delflag:"<%=Constants.DEL_FLAG_2 %>"};
+
+			// 笔记数据源
+		    var rubNoteStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/noteAction.do?method=query',
+		        root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['noteId', 'categoryName', 'title', 'updateDateStr'],
+		        baseParams: baseParams,
+		        autoLoad: true
+		    });
+
+		    // 工具栏
+		    var rubNoteToolbar = new Ext.Toolbar({
+		    	renderTo: 'rubNoteToolBarDiv',
+		    	items: [
+					new Ext.Button({
+					    id: 'rubNote-delete-button',
+					    text: '删除',
+						iconCls: 'trash'
+					}),
+					new Ext.Button({
+					    id: 'rubNote-return-button',
+					    text: '还原',
+						iconCls: 'arrow_undo'
+					})
+				]
+			});
+
+			// 笔记数据表格
+			var sm = new Ext.grid.CheckboxSelectionModel();
+			var rubNoteGrid = new Ext.grid.GridPanel({
+				id: 'rubNoteGrid',
+				renderTo: 'rubNoteGridDiv',
+				border: false,
+				columnLines: true,
+				stateful: true,
+			    autoScroll: 'auto',
+		        store: rubNoteStore,
+		        loadMask: true,
+		        cm: new Ext.grid.ColumnModel({
+		            defaults: {
+		                width: 120,
+		                sortable: true
+		            },
+			        columns: [
+						sm,
+						new Ext.grid.RowNumberer({header:'№'}),
+			            {id:'noteId',header: 'ID', width: 100, sortable: true, dataIndex: 'noteId', hidden: true},
+			            {id:'categoryName',header: '类别', width: 150, sortable: true, dataIndex: 'categoryName'},
+			            {id:'title',header: '标题', width: 300, sortable: true, dataIndex: 'title'},
+			            {id:'date',header: '删除时间', width: 150, sortable: true, dataIndex: 'updateDateStr'}
+			        ]
+		        }),
+		        sm: sm,
+		        columnLines: true,
+		        bbar: new Ext.PagingToolbar({
+					pageSize: <%=Constants.PAGE_SIZE %>,
+					store: rubNoteStore,
+					displayInfo: true,
+					displayMsg: Anynote.PAGINGTOOLBAR_DISPLAYMSG,
+					emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+					doLoad: function(start){
+						baseParams.start = start;
+						this.store.load({params: baseParams});
+					}
+		        })
+		    });
+
+			// 设置Grid高度和宽度
+			Anynote.resizeGridTo("rubNoteGrid", 0, 56);
+
+			// 删除按钮
+			$("#rubNote-delete-button").click(function(){
+				var records = Ext.getCmp("rubNoteGrid").getSelectionModel().getSelections();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一条数据.");
+				}else{
+					Ext.Msg.confirm("警告", "确定要彻底删除吗？", function(btn){
+						if(btn=="yes"){
+							var noteIds = "";
+							for(var i=0;i<records.length;i++){
+								noteIds = noteIds + records[i].get("noteId") + ",";
+							}
+							// 发送请求
+							Anynote.ajaxRequest({
+								baseUrl: '<%=baseUrl %>',
+								baseParams: {noteIds:noteIds},
+								action: '/noteAction.do?method=clear',
+								callback: function(jsonResult){
+									Ext.getCmp("rubNoteGrid").getStore().reload();
+								},
+								showWaiting: true,
+								failureMsg: '删除失败.'
+							});
+						}
+					});
+				}
+			});
+
+			// 还原按钮
+			$("#rubNote-return-button").click(function(){
+				var records = Ext.getCmp("rubNoteGrid").getSelectionModel().getSelections();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一条数据.");
+				}else{
+					Ext.Msg.confirm("警告", "确定要还原吗？", function(btn){
+						if(btn=="yes"){
+							var noteIds = "";
+							for(var i=0;i<records.length;i++){
+								noteIds = noteIds + records[i].get("noteId") + ",";
+							}
+							// 发送请求
+							Anynote.ajaxRequest({
+								baseUrl: '<%=baseUrl %>',
+								baseParams: {noteIds:noteIds},
+								action: '/noteAction.do?method=returnNote',
+								callback: function(jsonResult){
+									Ext.getCmp("rubNoteGrid").getStore().reload();
+								},
+								showWaiting: true,
+								failureMsg: '还原失败.'
+							});
+						}
+					});
+				}
+			});
+		});
+	</script>
+</head>
+<body>
+<div id="rubbishNoteDiv">
+	<div id="rubNoteToolBarDiv"></div>
+	<div id="rubNoteGridDiv" style="width:100%;height:100%;"></div>
+</div>
+</body>
+</html>

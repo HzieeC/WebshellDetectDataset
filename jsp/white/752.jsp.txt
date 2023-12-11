@@ -1,0 +1,142 @@
+<%@page pageEncoding="GB2312" contentType="text/html; charset=gb2312" %>
+<%@ taglib prefix="s" uri="/struts-tags" %>  
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">     
+<html>      
+    <head>     
+    <title>康通购物网</title>   
+    <meta http-equiv="Content- Type" content="text/html; charset=gb2312"/>          
+    <meta http-equiv="pragma" content="no-cache">
+	<meta http-equiv="cache-control" content="no-cache">
+	<meta http-equiv="expires" content="0">    
+	<meta http-equiv="keywords" content="keyword1,keyword2,keyword3">     
+<link href="css/style.css" rel="stylesheet" type="text/css">
+<style type="text/css">
+body,td,th {
+	font-family: verdana;
+}
+body {
+	margin-top: 0px;
+}
+</style>
+<link href="css/163css.css" rel="stylesheet" type="text/css">	
+<script type="text/javascript" src="js/jquery.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.seatext').focus(function(){
+		var keyval=$('.seatext').val();
+		if(keyval=='请输入关键字'){
+			$('.seatext').val('');
+		}
+	})
+	$('.keyul li').hover(function(){$(this).addClass('on');},function(){$(this).removeClass('on');})
+	$('.seatext').focusout(function(){
+		var keyval=$('.seatext').val();
+		if(keyval==''){
+			$('.seatext').val('请输入关键字');
+		}
+	})
+	$('.mkey').click(function(){
+		$('.keyul').show();
+		$('.keyul li').click(function(){
+			var keyval=$(this).text();
+			$('.mkey').text(keyval);
+			$('.keyul').hide();
+		})		
+	})
+	$('.seabtn').click(function(){
+		var mval=$('.mkey').text();
+		var keyval=$('.seatext').val();
+		alert(mval+keyval)	
+	})
+	$(document).mouseup(function() {
+		$('.keyul').hide();
+	});
+})
+</script>
+    </head>   
+   
+    <body>     
+    <table width="1224" align="center" cellspacing="5">
+    <tr><td width="271" height="100"><s:a href="index.jsp"><img src="images/logo.gif" border="0"/></s:a></td><td width="760" align="center">
+<img src="images/banner.jpg" align="middle"/></td>
+      <td width="165" align="center"><img src="images/collect.gif" width="100" height="30"><br>
+      <br>
+      <img src="images/help.gif" width="100" height="32"></td>
+    </tr>
+    <tr><td height="21" colspan="3"> <table width="100%" height="25" align="center" cellspacing="0" \>
+  <tr>
+  <td align="center" background="./images/bg.jpg" ><s:a href="index.jsp">
+  <strong>首页</strong>
+  </s:a></td>  
+    <td align="center" background="./images/bg.jpg" ><s:a href="productsAction!list">
+      <strong>产品中心</strong>
+    </s:a></td>     
+    <td align="center" background="./images/bg.jpg" > <s:a href="cart/viewcart.jsp">
+      <strong>查看购物车</strong>
+    </s:a></td><td align="center" background="./images/bg.jpg" ><s:a href="order/order.jsp">
+      <strong>去收银台</strong>
+    </s:a></td>
+	  <td align="center" background="./images/bg.jpg" > <s:a href="newsAction!list">
+	    <strong>新闻</strong>
+    </s:a></td>
+</tr>
+</table>
+    </td></tr>
+    <tr><td valign="top" bgcolor="" align="center">
+      <table border="0" cellpadding="0" cellspacing="5" bgcolor="" align="center">
+        <tr><td height="150" align="center">
+          <s:set name="username" value="#session['username']" />
+          <s:if test="#username==null">
+            <table  height="108" width="217" align="center"><tr><td background="images/loginbg.jpg" align="center" width="220" rowspan="0" colspan="0">
+              <b>会员登录</b>
+              <s:form method="POST" action="loginAction!login">
+           <s:textfield  name="user.username" label="会员名"/>
+                <s:password  name="user.password"  label="密码"/> <br><div align="center"> <s:submit value="登录" align="center"/> <s:reset value="重置"/> </div></s:form>
+              </td></tr> </table>
+      </s:if>
+          <s:else>
+            <table align="center"><tr><td rowspan="0" colspan="0" align="center">
+              欢迎您<s:property value="#session.username"/>！<br>
+              <s:a href="cart/viewcart.jsp">查看购物车</s:a>
+              <s:form action="logoutAction!logout">
+                <s:submit value="注销"></s:submit>
+                </s:form>    
+               <a href="getUser!getUser1?username=<s:property value="#session.username"/>">修改用户资料 </a> 
+              </td></tr></table>
+      </s:else> 
+        </td></tr>
+        <tr>
+          <td height="33" align="center" valign="middle">
+<s:a href="user/adduser.jsp"><img src="images/regmember.gif"></s:a> 
+        </td></tr> 
+      </table>
+	   <s:action name="listBigtype" executeResult="true"></s:action></td>
+     <td colspan="2" valign="top">
+	 <table width="100%" border="0" cellspacing="10">
+      <tr>
+        <td width="76%" height="285">
+        <s:action name="listAd!list" executeResult="true"></s:action>
+        </td>
+        <td width="24%" valign="top"><s:action name="listNotice!list" executeResult="true"></s:action></td>
+      </tr>
+    </table>
+<div class="box_163css">
+	<div class="key">
+		<span class="mkey">搜索</span>
+		<ul class="keyul">
+			<li>产品</li>
+			<li>新闻</li>
+			<li><a href="#">更多>></a></li>
+		</ul>
+	</div>
+	<input type="text" class="seatext" value="请输入关键字" />
+	<input type="submit" class="seabtn" value="搜索">
+</div>
+    <s:action name="productsAction2!list" executeResult="true"></s:action>
+    </td>
+    </tr>   
+   </table>
+    <s:action name="productsAction3!list2" executeResult="true"></s:action>
+     <p align="center" class="STYLE1">Copyright&copy;2016康通购物网StShop版权所有</p>
+    </body>     
+</html>   

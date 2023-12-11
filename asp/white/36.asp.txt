@@ -1,0 +1,222 @@
+<!--#include file="Adn_Conn.asp"-->
+<!--#include file="../Cache/AdnCms.Admin.asp"-->
+<!--#include file="../Cache/AdnCms.Class.asp"-->
+<!--#include file="../Include/AdnCms.XmlHttp.asp"-->
+<%
+Dim action,del_server_id,reurl,elite_id,maxid
+Dim data_id,class_id,server_id,data_name,data_actor,data_director,data_erea,data_elite,data_hits,data_status,data_picurl,data_intro,data_inputer,data_lastdate,data_color,data_reurl
+Dim data_year,data_language,data_continu,data_lastdate_type,data_title,special_id
+action=Trim(Request.QueryString("action"))
+data_id=Clng(Request.QueryString("data_id"))'影片ID
+class_id=Cint(Request.Form("class_id")) '所属栏目
+server_id=Trim(Request.Form("server_id"))'所有服务器组
+data_name=Left(Trim(Request.Form("data_name")),255)'影片名称
+data_actor=Left(Trim(Request.Form("data_actor")),255)'领衔主演
+data_director=Left(Trim(Request.Form("data_director")),255)'影片导演
+data_erea=Trim(Request.Form("data_erea"))'影片产地
+data_elite=Cint(Request.Form("data_elite"))'影片推荐,0,1
+data_hits=Clng(Request.Form("data_hits"))'影片热门
+data_status=Cint(Request.Form("data_status"))'影片审核,0,1
+data_picurl=Trim(Request.Form("data_picurl"))'影片图片
+data_intro=Trim(Request.Form("data_intro"))'影片简介
+data_lastdate=Adn_CDate(Trim(Request.Form("data_lastdate")))'录入时间
+data_inputer=Trim(Request.Form("data_inputer"))'影片录入者
+data_year=Clng(Request.Form("data_year")) '影片年份
+data_continu2=Cint(Request.Form("data_continu2"))
+If data_continu2=1 Then data_continu=Clng(Request.Form("data_continu")) Else data_continu=0 End If
+data_language=Trim(Request.Form("data_language")) '影片语种
+data_color=Trim(Request.Form("data_color")) '标题颜色
+elite_id=Cint(Request.QueryString("elite_id")) '获取是否推荐或是否审核值1,0
+data_lastdate_type=Cint(Request.Form("data_lastdate_type"))'是否更新时间,0,1
+data_reurl=Trim(Request.Form("data_reurl")) '影片来源
+data_title=Trim(Request.Form("data_title"))
+special_id=Cint(Request.Form("special_id"))
+reurl=Trim(Request.Form("reurl")):If reurl="" or Instr(reurl,"Adn_Index.asp")>0 Then reurl="adn_data.asp"'来源地址
+'3.7(重新组合已输入地址的服务器组)
+Dim server_name,server_endid
+server_name=Split(server_id,"|")
+server_endid=Ubound(server_name)
+'开始处理事件
+Dim data_title2:data_title2=""
+Call OpenConn()
+Select Case action
+Case "add"
+    data_title2="录入"
+	Call Data_Add
+Case "edit"
+    data_title2="编辑"
+	Call Data_Edit
+Case "del"
+    Call Adn_DelHtml(data_id)
+	Response.Redirect Request.ServerVariables("Http_Referer")
+Case "elite"
+    Call Adn_Elite(data_id,elite_id)
+	Response.Redirect(reurl)
+Case "status"
+    Call Adn_Status(data_id,elite_id)
+	Response.Redirect(reurl)
+Case Else
+    Call Adn_Err("参数不正确！")	
+End Select
+Call CloseConn()
+%><html>
+<head>
+<title>影片信息储存</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link href="skins/css/adn_main.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr> 
+<th colspan=5 class="title"><%=data_title2%>影片信息成功</th>
+</tr>
+<tr ><td class="td2" style="line-height:30px;"><span style="float:left;height:150px;margin:0px 10px;"><img src="../<%=data_picurl%>" width="110" height="145" border="0"></span>
+<%Response.Write"影片名称："&data_name&"<br>"
+Response.Write"所属分类："&GetClassName(class_id)&"<br>"
+Response.Write"影片主演："&data_actor&"<br>"
+Response.Write"影片导演："&data_director&"<br>"
+Response.Write"影片年代："&data_year&"<br>"%>
+</td></tr>
+<%If Config(17)="html" Then%>
+<tr ><td class="td2"><iframe style="width:100%;height:40px;" frameborder=0 scrolling=no src="Adn_CreateHtml.asp?action=dataid&dataid=<%=data_id%>&ClassId=<%=class_id%>"></iframe></td></tr>
+<%End If%>
+<td class="td2" style="height:100px;text-align:center;font-size:16px;font-weight:bold"><%If action="edit" Then%>【<a href="javascript:history.go(-1)">重新修改该影片</a>】<%End If%>【<a href="adn_data_add.asp"><font color="#FF0000">继续添加新数据</font></a>】【<a href="<%=reurl%>">返回数据管理中心</a>】</td>
+</tr>
+</table>
+</body>
+</html><%
+'作用:入库新的影片信息
+Sub Data_Add 
+    If data_name=""  Then  Call Adn_Err("影片名称不能为空！")
+    If data_actor="" Then Call Adn_Err("主演不能为空！")
+	If data_intro="" Then Call Adn_Err("简介不能为空！")
+	Set rs = Server.CreateObject("adodb.recordset")
+	sql = " Select * from adnim_data "
+	rs.Open sql, Conn, 1, 3
+	rs.AddNew
+	rs("data_id")=Adn_MaxId("data")'通过调用函数得到当前最大ID
+	rs("class_id")=class_id
+	rs("server_id")=Server_list(server_id)
+	rs("data_name")=data_name
+	rs("data_actor")=data_actor
+	rs("data_director")=data_director
+	rs("data_erea")=data_erea
+	If Cint(AdminId(15))=1 And Instr(data_picurl,"http://")>0 Then'判断远程图片本地化
+		rs("data_picurl")=GetPicurl(data_picurl,"../"&AdminId(28))
+	Else
+	    rs("data_picurl")=data_picurl
+	End If
+	rs("data_intro")=data_intro
+	rs("data_lastdate")=data_lastdate
+	rs("data_hits")=Adn_Clng(AdminId(31))
+	rs("data_elite")=data_elite
+	rs("data_status")=data_status
+	rs("data_year")=data_year
+	rs("data_language")=data_language
+	rs("data_continu")=data_continu
+	rs("data_inputer")=data_inputer
+	rs("data_color")=data_color
+	rs("data_title")=data_title
+	rs("special_id")=special_id
+	rs("data_reurl")=data_reurl
+	rs.update
+	data_id=rs("data_id")
+	data_picurl=rs("data_picurl")
+	rs.Close
+	Set rs=nothing
+	'对播放地址进行处理
+	For i=0 to server_endid-1
+		url_intro=trimOuterStr(Request.Form("url_intro_"&i&""),vbcrlf)
+		If url_intro<>"" Then Call Server_Url(data_id,Cint(server_name(i)),Replace(url_intro,vbcrlf,"$$$"))
+	Next	
+End Sub
+'作用:编辑影片信息
+Sub Data_Edit
+    If data_name=""  Then  Call Adn_Err("影片名称不能为空！")
+    If data_actor="" Then Call Adn_Err("主演不能为空！")
+	If data_intro="" Then Call Adn_Err("简介不能为空！")
+    Set rs = Server.CreateObject("adodb.recordset")
+	sql = " Select * from adnim_data where data_id="&data_id&" "
+	rs.Open sql, Conn, 1, 3
+	If Not (rs.bof And rs.eof) Then 
+		rs("class_id")=class_id
+		rs("server_id")=Server_list(server_id)
+		rs("data_name")=data_name
+		rs("data_actor")=data_actor
+		rs("data_director")=data_director
+		rs("data_erea")=data_erea
+		If Cint(AdminId(15))=1 And Instr(data_picurl,"http://")>0 Then'判断远程图片本地化
+			rs("data_picurl")=GetPicurl(data_picurl,"../"&AdminId(28))
+		Else
+			rs("data_picurl")=data_picurl	
+		End If
+		rs("data_intro")=data_intro
+		If data_lastdate_type=1 Then 
+		    rs("data_lastdate")=now()
+		Else
+		    rs("data_lastdate")=data_lastdate
+		End If
+		rs("data_hits")=Adn_Hits(data_hits,rs("data_hits"))		
+		rs("data_elite")=data_elite
+		rs("data_status")=data_status
+		rs("data_year")=data_year
+		rs("data_language")=data_language
+		rs("data_continu")=data_continu		
+		rs("data_inputer")=data_inputer
+		rs("data_color")=data_color
+        rs("data_title")=data_title
+	    rs("special_id")=special_id	
+		rs("data_reurl")=data_reurl	
+		rs.update		
+		data_id=rs("data_id")
+		data_picurl=rs("data_picurl")
+	Else
+	    Call Adn_Err("没有查询到你要编辑的影片！")
+	End if
+	rs.Close
+	Set rs=nothing
+	'对播放地址进行处理
+	For i=0 to server_endid-1
+		'url_intro=Request.Form("url_intro_"&i&"")
+		url_intro=trimOuterStr(Request.Form("url_intro_"&i&""),vbcrlf)
+		If url_intro<>"" Then 
+		    Call Server_Url(data_id,Cint(server_name(i)),Replace(url_intro,vbcrlf,"$$$"))
+		Else
+		    Conn.Execute(" Delete from [adnim_url] where data_id="&data_id&" and server_id="&Cint(server_name(i))&" ")'删除地址
+		End If
+	Next	
+End Sub
+
+'作用:整理入adnim_data的服务器组列表
+Function Server_list(str)
+	For i=0 to server_endid-1
+		url_intro=Request.Form("url_intro_"&i&"")
+		If url_intro="" Then str=Replace(str,server_name(i)&"|","")'XX组地址为空则过滤掉
+	Next
+	If str="" Then str="|"
+	Server_list=str
+End Function
+
+'作用：对XX组地址进行入库或修改的判断
+Sub Server_Url(data_id,server_id,url_intro)
+	Set rs = Server.CreateObject("adodb.recordset")
+	sql = " Select * from adnim_url where data_id="&data_id&" and server_id="&server_id&" "
+	rs.Open sql, Conn, 1, 3
+	If Not(rs.bof And rs.eof) Then 
+	   '有数据则检查地址是否有变化，主要是检查连载
+		If rs("url_intro")<>url_intro Then
+			rs("url_intro")=url_intro
+			rs.update
+		End If
+	Else
+		rs.AddNew
+		rs("url_id")=Adn_MaxId("url")
+		rs("data_id")=data_id
+		rs("server_id")=server_id
+		rs("url_intro")=url_intro
+		rs.update
+	End If
+	rs.Close
+	Set rs=nothing
+End Sub
+%>

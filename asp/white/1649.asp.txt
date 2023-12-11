@@ -1,0 +1,266 @@
+<%
+'********************
+'检测是否外部提交数据过程
+'********************
+Sub Chk_Post()
+	Dim Server_V1,Server_V2		
+	Server_V1=Cstr(Request.ServerVariables("HTTP_REFERER"))
+	Server_V2=Cstr(Request.ServerVariables("SERVER_NAME"))
+	If Mid(Server_V1,8,Len(Server_V2))<>Server_V2 Then Call ShowErrMsg(9,1)	
+End Sub
+
+'**********************************
+'显示错误信息提示过程
+'输入参数：
+'	1、错误号
+'	2、显示类型
+'**********************************
+Sub ShowErrMsg(ErrNum,Types)
+	Response.Clear
+	Select Case CInt(Types)
+	Case 0
+		Response.Write "<font style='font-family:Verdana;font-size:12px'>"&ErrMsg&"</font>"
+	Case 1
+		Response.Redirect SystemRoot&"error.asp?errnum="&ErrNum
+	Case 2
+		Response.Write "<script language=""JavaScript"">"&vbcrlf
+		Response.Write "alert("""&ErrMsg&""");"&vbcrlf
+		Response.Write "history.go(-1);"&vbcrlf
+		Response.Write "</script>"&vbcrlf
+	Case 3
+		Response.Write "<script language=""JavaScript"">"&vbcrlf
+		Response.Write "alert("""&ErrMsg&""");"&vbcrlf
+		Response.Write "</script>"&vbcrlf
+	End Select
+	Response.End
+End Sub
+
+Function uSQLFilter(sInputStr)
+	Dim SQL_injdata,SQL_inj,SQL_Filter,SQL_flt,SQL_Data
+	SQL_injdata = ";|'|""|and|exec|insert|select|delete|update|count|*|%|chr|mid|left|len|master|truncate|char|declare"
+	SQL_Filter="；|&#39;|&quot;|Ａnd|Ｅxec|Ｉnsert|Ｓelect|Ｄelete|Ｕpdate|Ｃount|＊|％|Ｃhr|Ｍid|Ｌeft|Ｌen|Ｍaster|Ｔruncate|Ｃhar|Ｄeclare"
+	SQL_inj = Split(SQL_Injdata,"|")
+	SQL_flt= Split(SQL_Filter,"|")
+     For SQL_Data=0 To Ubound(SQL_flt)
+       	If Instr(sInputStr,SQL_flt(SQL_Data))>0 Then
+			sInputStr=Replace(sInputStr,SQL_flt(SQL_Data),SQL_inj(SQL_Data),1,-1,1)
+     	End If
+	Next
+	uSQLFilter=sInputStr
+End Function
+'***************************
+'获取来访用户IP函数
+'***************************
+Function Get_UserIp()
+	Dim Ip,Tmp
+	Dim i,IsErr
+	IsErr=False
+	Ip=Request.ServerVariables("REMOTE_ADDR")
+	If Len(Ip)<=0 Then Ip=Request.ServerVariables("HTTP_X_ForWARDED_For")
+	If Len(Ip)>15 Then 
+		IsErr=True
+	Else
+		Tmp=Split(Ip,".")
+		If Ubound(Tmp)=3 Then 
+			For i=0 To Ubound(Tmp)
+				If Len(Tmp(i))>3 Then IsErr=True
+			Next
+		Else
+			IsErr=True
+		End If
+	End If
+	If IsErr Then 
+		Get_UserIp="1.1.1.1"
+	Else
+		Get_UserIp=Ip
+	End If
+End Function
+
+'*************************************************************************************
+'全功能安全过滤函数
+'输入参数：
+'	1、请求方式
+'	2、请求名
+'	3、值类型
+'	4、默认值
+'	5、过滤类型
+'	6、值大小
+'*************************************************************************************
+Function SafeRequest(Requester,RequestName,RequestType,DefaultValue,FilterType,vSize)
+	Dim TempValue
+	'数据请求方式
+	Select Case Requester
+	Case 0
+		TempValue=RequestName
+	Case 1
+		TempValue=Request(RequestName)
+	Case 2
+		TempValue=Request.Form(RequestName)
+	Case 3
+		TempValue=Request.QueryString(RequestName)
+	Case 4
+		TempValue=Request.Cookies(RequestName)
+	End Select
+	'数据类型
+	Select Case RequestType
+	Case 0'数字
+		If Not isNumeric(TempValue) Or Len(TempValue)<=0 Then 
+			TempValue=CDbl(DefaultValue)
+		Else
+			TempValue=CDbl(TempValue)
+		End If
+	Case 1'字符串过滤
+		Select Case FilterType'过滤类型
+		Case 0	
+			Call Base_HTMLFilter(TempValue)
+			If TempValue="" OR Len(TempValue)<=0 Then TempValue=CStr(DefaultValue)
+		Case 1
+			Call SQLFilter(TempValue)
+			If TempValue="" OR Len(TempValue)<=0 Then TempValue=CStr(DefaultValue)
+		Case 2
+			Call SQLFilter(TempValue)
+			Call Full_HTMLFilter(TempValue)
+			If TempValue="" OR Len(TempValue)<=0 Then TempValue=CStr(DefaultValue)
+		End Select
+	Case 2'日期
+		If Not IsDate(TempValue) Or Len(TempValue)<=0 Then 
+			TempValue=CDate(DefaultValue)
+		Else
+			TempValue=CDate(TempValue)
+		End If
+	End Select
+	If vSize<>0 And Len(TempValue)>vSize Then TempValue=Left(TempValue,vSize)
+	SafeRequest=TempValue
+End function
+'****************
+'数字检测函数
+'输入参数：
+'1、待检测字符串
+'****************
+Function IsNum(num)
+   Dim regEx
+   Set regEx = New RegExp
+   regEx.Pattern = "^\d*$"
+   regEx.IgnoreCase = False
+   IsNum = regEx.Test(num)
+End Function
+'****************
+'日期检测函数(格式:2007-5-6 15:30:33)
+'输入参数：
+'1、待检测字符串
+'****************
+Function IsTime(ByVal DateStr)
+   Dim regEx
+   Set regEx = New RegExp
+   regEx.Pattern = "^(\d{4})-([1-9]|1[0-2])-([1-9]|1\d|2\d|3[0-1])(| ([1-9]|1[0-9]|2[0-3]):([0-5][0-9]|[0-9]):([0-5][0-9]|[0-9]))$"
+   regEx.IgnoreCase = False
+   IsTime = regEx.Test(DateStr)
+End Function
+'****************
+'SQL过滤函数
+'输入参数：
+'1、待过滤字符串
+'****************
+Function SQLFilter(sInputStr)
+	Dim SQL_injdata,SQL_inj,SQL_Filter,SQL_flt,SQL_Data
+	SQL_injdata = ";|'|""|and|exec|insert|select|delete|update|count|*|%|chr|mid|left|len|master|truncate|char|declare"
+	SQL_Filter="；|&#39;|&quot;|Ａnd|Ｅxec|Ｉnsert|Ｓelect|Ｄelete|Ｕpdate|Ｃount|＊|％|Ｃhr|Ｍid|Ｌeft|Ｌen|Ｍaster|Ｔruncate|Ｃhar|Ｄeclare"
+	SQL_inj = Split(SQL_Injdata,"|")
+	SQL_flt= Split(SQL_Filter,"|")
+     For SQL_Data=0 To Ubound(SQL_inj)
+       	If Instr(sInputStr,SQL_inj(SQL_Data))>0 Then
+			sInputStr=Replace(sInputStr,SQL_inj(SQL_Data),SQL_flt(SQL_Data),1,-1,1)
+     	End If
+	Next
+	SQLFilter=sInputStr
+End Function
+'*****************************************
+'全HTML代码过滤函数
+'输入参数：
+'	1、待过滤字符串
+'*****************************************
+Function Full_HTMLFilter(sInputStr)
+	If Len(sInputStr)>0 Then 
+		sInputStr=Replace(sInputStr,"'","&#39;")
+		sInputStr=Replace(sInputStr, ">", "&gt;")
+		sInputStr=Replace(sInputStr, "<", "&lt;")
+		sInputStr=Replace(sInputStr, """", "&quot;")
+		sInputStr=Replace(sInputStr, CHR(32), "&nbsp;")
+		sInputStr=Replace(sInputStr, CHR(9), "&nbsp;")
+		sInputStr=Replace(sInputStr, CHR(34), "&quot;")
+		sInputStr=Replace(sInputStr, CHR(39), "&#39;")
+		sInputStr=Replace(sInputStr, CHR(13), "")
+		sInputStr=Replace(sInputStr, CHR(10) & CHR(10), "</P><P> ")
+		sInputStr=Replace(sInputStr, CHR(10), "<BR>")
+		Dim re
+		Set re=new RegExp
+		re.IgnoreCase =true
+		re.Global=True
+		re.Pattern="(javascript)"
+		sInputStr=re.Replace(sInputStr,"<I>&#106avascript</I>")
+		re.Pattern="(jscript:)"
+		sInputStr=re.Replace(sInputStr,"<I>&#106script:</I>")
+		re.Pattern="(js:)"
+		sInputStr=re.Replace(sInputStr,"<I>&#106s:</I>")
+		re.Pattern="(value)"
+		sInputStr=re.Replace(sInputStr,"<I>&#118alue</I>")
+		re.Pattern="(about:)"
+		sInputStr=re.Replace(sInputStr,"<I>about&#58</I>")
+		re.Pattern="(file:)"
+		sInputStr=re.Replace(sInputStr,"<I>file&#58</I>")
+		re.Pattern="(document.cookie)"
+		sInputStr=re.Replace(sInputStr,"<I>documents&#46cookie</I>")
+		re.Pattern="(vbscript:)"
+		sInputStr=re.Replace(sInputStr,"<I>&#118bscript:</I>")
+		re.Pattern="(vbs:)"
+		sInputStr=re.Replace(sInputStr,"<I>&#118bs:</I>")
+		re.Pattern="(on(mouse|exit|error|click|key))"
+		sInputStr=re.Replace(sInputStr,"<I>&#111n$2</I>")
+		'sInputStr=BadWords_Filter(sInputStr)
+	End If
+	Full_HTMLFilter = sInputStr
+End Function
+'*****************************************
+'简单HTML代码过滤函数
+'输入参数：
+'	1、待过滤字符串
+'*****************************************
+Function Base_HTMLFilter(sInputStr)
+	If Len(sInputStr)>0 Then 
+		sInputStr=Replace(sInputStr,"'","&#39;")
+		sInputStr=Replace(sInputStr, ">", "&gt;")
+		sInputStr=Replace(sInputStr, "<", "&lt;")
+		sInputStr=Replace(sInputStr, """", "&quot;")
+		sInputStr=Replace(sInputStr, CHR(32), "&nbsp;")
+		sInputStr=Replace(sInputStr, CHR(9), "&nbsp;")
+		sInputStr=Replace(sInputStr, CHR(34), "&quot;")
+		sInputStr=Replace(sInputStr, CHR(39), "&#39;")
+		sInputStr=Replace(sInputStr, CHR(13), "")
+	End If	
+	Base_HTMLFilter=sInputStr
+End Function
+'***************************************
+'HTML过滤逆转换函数
+'输入参数：
+'	1、待转换字符串
+'***************************************
+Function Un_Base_HTMLFilter(sInputStr)
+	If Len(sInputStr)>0 Then 
+		sInputStr = Replace(sInputStr, "</P><P> ", "&nbsp;")
+		sInputStr = Replace(sInputStr, "<BR>", "&nbsp;")
+	End If
+	Un_Base_HTMLFilter = sInputStr
+End Function
+'***************************************
+'HTML过滤逆转换函数
+'输入参数：
+'	1、待转换字符串
+'***************************************
+Function Un_Full_HTMLFilter(sInputStr)
+	If Len(sInputStr)>0 Then 
+		sInputStr = Replace(sInputStr, "</P><P> ", CHR(10) & CHR(10))
+		sInputStr = Replace(sInputStr, "<BR>", CHR(10))
+	End If
+	Un_Full_HTMLFilter = sInputStr
+End Function
+%>

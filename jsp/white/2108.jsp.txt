@@ -1,0 +1,174 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String categoryId = request.getParameter("categoryId");
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 全局参数
+			var baseParams = {start:0, limit:<%=Constants.PAGE_SIZE %>};
+
+			// 笔记分类数据源
+		    var categoryListStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/noteCategoryAction.do?method=queryForPaging',
+		        root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['categoryId', 'categoryName'],
+		        baseParams: baseParams,
+		        pruneModifiedRecords: true,
+		        autoLoad: true
+		    });
+
+		    // 工具栏
+		    var categoryListToolbar = new Ext.Toolbar({
+		    	renderTo: 'categoryListToolBarDiv',
+		    	items: [
+				    new Ext.Button({
+					    id: 'categoryList-add-button',
+						text: '添加',
+						iconCls: 'page_add'
+					}),
+					new Ext.Button({
+					    id: 'categoryList-delete-button',
+					    text: '删除',
+						iconCls: 'page_delete'
+					}),
+					new Ext.Button({
+					    id: 'categoryList-save-button',
+					    text: '保存',
+						iconCls: 'page_save'
+					})
+				]
+			});
+
+			// 笔记数据表格
+			var sm = new Ext.grid.CheckboxSelectionModel();
+			var categoryListGrid = new Ext.grid.EditorGridPanel({
+				id: 'categoryListGrid',
+				renderTo: 'categoryListGridDiv',
+				border: false,
+				columnLines: true,
+				stateful: true,
+			    autoScroll: 'auto',
+		        store: categoryListStore,
+		        loadMask: true,
+		        cm: new Ext.grid.ColumnModel({
+		            defaults: {
+		                width: 120,
+		                sortable: true
+		            },
+			        columns: [
+						sm,
+						new Ext.grid.RowNumberer({header:'№'}),
+			            {id:'categoryId',header: 'ID', width: 100, sortable: true, dataIndex: 'categoryId', hidden:true},
+			            {id:'categoryName',header: '分类名称', width: 300, sortable: true, dataIndex: 'categoryName', editor: new Ext.form.TextField({allowBlank:false, maxLength: 20})}
+			        ]
+		        }),
+		        sm: sm,
+		        columnLines: true,
+		        bbar: new Ext.PagingToolbar({
+					pageSize: <%=Constants.PAGE_SIZE %>,
+					store: categoryListStore,
+					displayInfo: true,
+					displayMsg: Anynote.PAGINGTOOLBAR_DISPLAYMSG, 
+					emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+					doLoad: function(start){
+						baseParams.start = start;
+						this.store.load({params: baseParams});
+					}
+		        })
+		    });
+
+			// 设置Grid高度和宽度
+			Anynote.resizeGridTo("categoryListGrid", 0, 56);
+
+			// 添加按钮
+			$("#categoryList-add-button").click(function(){
+				var record = new Ext.data.Record({
+					categoryId: "",
+					categoryName: ""
+				});
+				categoryListStore.insert(0, record);
+				categoryListGrid.getView().refresh();
+				categoryListGrid.getSelectionModel().selectRow(0);
+
+			});
+
+			// 删除按钮
+			$("#categoryList-delete-button").click(function(){
+				var records = Ext.getCmp("categoryListGrid").getSelectionModel().getSelections();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一条数据.");
+				}else{
+					Ext.Msg.confirm("警告", "确定要删除吗？", function(btn){
+						if(btn=="yes"){
+							var categoryIds = "";
+							for(var i=0;i<records.length;i++){
+								var record = records[i];
+								if(record.get("categoryId")!=""){
+									categoryIds = categoryIds + record.get("categoryId") + ",";
+								}else{
+									categoryListStore.remove(record);
+								}
+							}
+							if(categoryIds!=""){
+								var params = {};
+								params.categoryIds = categoryIds;
+								// 发送请求
+								Anynote.ajaxRequest({
+									baseUrl: '<%=baseUrl %>',
+									baseParams: params,
+									action: '/noteCategoryAction.do?method=delete',
+									callback: function(jsonResult){
+										Ext.getCmp("categoryListGrid").getStore().reload();
+									},
+									showWaiting: true,
+									showMsg: true,
+									failureMsg: '删除失败.'
+								});
+							}
+						}
+					});
+				}
+			});
+
+			// 保存按钮
+			$("#categoryList-save-button").click(function(){
+				var records = categoryListStore.getModifiedRecords();
+				// 验证
+				for(var i=0;i<records.length;i++){
+					if(records[i].get("categoryName")==""){
+						Ext.Msg.alert("提示", "请输入分类名称.");
+						return;
+					}
+				}
+				if(records.length != 0){
+					var params = {};
+					params.jsonArr = Anynote.convertRecordsToJson(records);
+					// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: params,
+						action: '/noteCategoryAction.do?method=save',
+						callback: function(jsonResult){
+							Ext.getCmp("categoryListGrid").getStore().reload();
+						},
+						showWaiting: true,
+						failureMsg: '保存失败.'
+					});
+				}
+			});
+		});
+	</script>
+</head>
+<body>
+<div id="categoryListDiv">
+	<div id="categoryListToolBarDiv"></div>
+	<div id="categoryListGridDiv" style="width:100%;height:100%;"></div>
+</div>
+</body>
+</html>

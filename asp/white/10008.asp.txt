@@ -1,0 +1,92 @@
+<!--#include file="Inc/SysProduct.asp" -->
+<!-- #include file="Head.asp" -->
+<%
+Set rs = Server.CreateObject("ADODB.Recordset")
+sql="select OverseasMarket from Market"
+rs.open sql,conn,1,1
+%>
+<TABLE cellSpacing=0 cellPadding=0 width=1002 align=center border=0>
+  <TBODY>
+    <TR>
+      <TD vAlign=top width=210><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+          <TBODY>
+            <TR>
+              <TD><IMG height=40 src="imgbly/lt26.gif" width=210></TD>
+            </TR>
+            <TR>
+              <TD align=middle><TABLE 
+            style="BORDER-RIGHT: #e9e9e9 1px solid; BORDER-TOP: #e9e9e9 1px solid; BORDER-LEFT: #e9e9e9 1px solid; BORDER-BOTTOM: #e9e9e9 1px solid" 
+            cellSpacing=0 cellPadding=0 width=178 border=0>
+                  <TBODY>
+                    <TR>
+                      <TD height=15>&nbsp;</TD>
+                    </TR>
+                    <TR>
+                      <TD><TABLE cellSpacing=0 cellPadding=0 width=162 align=center 
+                  border=0>
+                          <TBODY>
+                            <TR>
+                              <TD class=lNav><a href="HomeMarket.asp">国内市场</a></TD>
+                            </TR>
+                            <TR>
+                              <TD class=lNav1><a href="OverseasMarket.asp">国外市场</a></TD>
+                            </TR>
+                          </TBODY>
+                      </TABLE></TD>
+                    </TR>
+                    <TR>
+                      <TD height=15>&nbsp;</TD>
+                    </TR>
+                  </TBODY>
+              </TABLE></TD>
+            </TR>
+          </TBODY>
+        </TABLE>
+          <!-- #include file="leftps.asp" --></TD>
+      <TD style="BACKGROUND: url(imgbly/bg_body.gif) repeat-y 50% top" vAlign=top><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+          <TBODY>
+            <TR>
+              <TD><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+                  <TBODY>
+                    <TR>
+                      <TD background=imgbly/bg_rt.gif><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+                          <TBODY>
+                            <TR>
+                              <TD><IMG src="imgbly/rt28.gif" width="209" height=41></TD>
+                              <TD>&nbsp;</TD>
+                              <TD class=loc 
+                      style="BACKGROUND: url(img/bg_rtjiao.gif) no-repeat right 50%; COLOR: #9f9f9f" 
+                      align=right>你现在的位置：<A href="index.asp">首页</A> &gt; <A href="about.asp">营销网络</A> &gt; <A 
+                        href="about.asp">国际贸易</A></TD>
+                            </TR>
+                          </TBODY>
+                      </TABLE></TD>
+                      <TD width=17>&nbsp;</TD>
+                    </TR>
+                  </TBODY>
+              </TABLE></TD>
+            </TR>
+          </TBODY>
+        </TABLE>
+          <table width="98%" border="0" align="center" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="3%" height="34" rowspan="3">&nbsp;</td>
+              <td width="94%">&nbsp;</td>
+              <td width="3%" rowspan="3">&nbsp;</td>
+            </tr>
+            <tr>
+              <td align="center"><%=rs("OverseasMarket")%></td>
+            </tr>
+            <tr>
+              <td>&nbsp;</td>
+            </tr>
+        </table></TD>
+    </TR>
+  </TBODY>
+</TABLE>
+<%
+rs.close
+set rs=nothing
+%>
+<!-- #include file="Inc/Foot.asp" -->
+</BODY></HTML>

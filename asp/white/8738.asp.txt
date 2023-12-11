@@ -1,0 +1,174 @@
+<!--#include file="Include/Class_Main.asp" -->
+<!--#include file="Include/Class_Page.asp" -->
+<!--#include file="Web_Session.asp" -->
+<%
+Dim Action
+
+'//检测是否跨站
+'Call Check_url()
+'//检测管理员是否有权限操作该页面
+'If Instr(1,request.cookies("Web")("Web_Power"),"211") <= 0 Then 
+'  Call CloseDB()
+'  Response.write "对不起!您没有访问该页面的权限..."
+'  Response.End()
+'End If
+
+
+
+'======================================================================
+Set Rs      = Server.Createobject("ADODB.recordset")
+Set Rs2     = Server.Createobject("ADODB.recordset")
+ID          = Replace_Text(Request("ID"))
+Ac          = Replace_Text(Request("Ac"))
+'======================================================================
+listcs      = 25
+selfhtml    = "Web_Mess_HF.asp?ID="&ID
+tablename   = "OUCCS_Messages"
+txtname     = GetNewsTitles(ID)
+'======================================================================
+strSql="Select * From OUCCS_NewsList Where n_id="&ID
+Rs2.open strSql,Conn,1,1
+nuid             = Rs2("n_uid")
+nid              = Rs2("n_id")
+ntitle           = Rs2("n_title")
+ncontent         = Rs2("n_content")
+ntime            = Rs2("n_time")
+npid             = Rs2("n_pid")
+Rs2.Close
+'======================================================================
+n_id          = Replace_Text(Request("n_id"))
+n_userid      = Replace_Text(Request("n_userid"))
+n_content     = Replace_Text(Request("n_content"))
+'======================================================================
+
+if Request.ServerVariables("REQUEST_METHOD")="POST" AND Ac="" then
+
+ IF n_content="" Then
+  ErrorMsgExit "内容不能为空！"
+ End if
+ 
+SQL="Update [OUCCS_NewsList] Set n_mess=n_mess+1 Where n_id="&Cstr(n_id)
+Conn.Execute(SQL) 
+
+sqltext="select * from OUCCS_Messages "
+Rs2.Open sqltext,Conn,1,2
+Rs2.AddNew
+
+	Rs2("me_flag")      = 1
+	Rs2("me_pid")       = 1
+	Rs2("me_ppid")      = n_id
+	Rs2("me_user")      = WebUserNameID(n_userid)
+	Rs2("me_userid")    = n_userid
+	Rs2("me_content")   = n_content
+	Rs2("me_ip")        = Request.serverVariables("REMOTE_ADDR")
+	Rs2("me_time")      = Now()
+	
+Rs2.Update 
+Rs2.Close 
+
+Response.Redirect "Web_Mess_HF.asp?ID="&n_id
+
+end if
+
+'======================================================================
+IF Ac="DEL" then
+ids           = Replace_Text(Request("ids")) 
+SQL="Update [OUCCS_NewsList] Set n_mess=n_mess-1 Where n_id="&Cstr(nid)
+Conn.Execute(SQL) 
+SQL="Delete From [OUCCS_Messages] Where me_id="&Cstr(ids)
+Conn.Execute(SQL) 
+Response.Redirect "Web_Mess_HF.asp?ID="&nid
+END IF
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>回复:<%=txtname%></title>
+<link href="CSS/css_offices.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td height="200" align="left" valign="top"><div class="chat1">
+	<div style="text-align:center; font-weight:bold;line-height: 25px;"><%=ntitle%></div>
+	<%if npid=10 or npid=11 then%>
+	<div style="padding:5px;border-bottom:1px solid #AEC6E3;line-height: 25px;"><%=ncontent%></div>
+	<%end if%>
+	
+<%m_Parameter = "ID="&nid
+strSql = "Select * From [OUCCS_Messages] where me_pid=1 and me_ppid="&nid&" "
+strSql = strSql&" Order By me_time desc"
+Rs.open strSql,Conn,1,1
+if not(rs.bof and rs.eof) then
+
+    'dim m_RecordCount,m_PageNo,m_Page
+    m_RecordCount=0 : m_PageNo=0 : m_Page=0
+	m_PageSize = 15
+    m_PageNo = Trim(Request.querystring("PageNo"))
+	m_RecordCount = rs.RecordCount
+    rs.PageSize = m_PageSize
+    m_Page = rs.PageCount
+	if m_PageNo = ""  then m_PageNo =1
+    if cint(m_PageNo) < 1 or cint(m_PageNo) > m_Page then m_PageNo = 1
+    rs.AbsolutePage = m_PageNo
+    rc = m_PageSize
+    re = 1
+	m_Count = 1
+	thePage = (m_PageNo-1)*m_PageSize+1
+	N=0
+
+For i=1 to m_PageSize
+If Rs.Eof Then Exit For
+user      = rs("me_user")
+userid    = rs("me_userid") 
+content   = rs("me_content")
+ip        = rs("me_ip")
+times     = rs("me_time")
+mids      = rs("me_id")
+%>
+
+<div style="padding-left:5px;padding-right:5px;line-height: 25px;"><a href="Web_Mess_HF.asp?ID=<%=nid%>&Ac=DEL&ids=<%=mids%>" title="删除"><font color="#FF0000">●</font></a>&nbsp;&nbsp;<a href="/Home/?ID=<%=userid%>" target="_blank"><b><%=user%></b></a> 说: <%=content%></div>
+<div style="padding-left:5px;padding-right:5px;color:#999999; font-size:9px">IP: <%=ip%>&nbsp;&nbsp;<%=times%></div>
+<%
+Rs.Movenext
+N=N+1
+Next
+else
+response.write "<br><p align='center'><font color=666666>Null!</font></p><br>"
+end if
+%>
+
+<div style="line-height: 25px;"><% Call ShowPage(m_Parameter)%></div></div>
+	</td>
+  </tr>
+  <tr>
+    <td height="100" align="center" valign="middle" bgcolor="#FFFFFF"><table width="98%" border="0" cellpadding="0" cellspacing="0" bgcolor="#FFFFFF">
+      <form action="" method="post" name="Form" id="Form">
+		<input type="hidden" name="n_id" value="<%=nid%>" />
+        <tr>
+          <td colspan="2" align="left" valign="top"><textarea name="n_content" class="input1" style="width:100%; height:65px;"></textarea></td>
+        </tr>
+        <tr>
+          <td align="left" valign="middle" height="25"><font class="ftitles">回复人:
+            <select name="n_userid" style="color:#1D578E;font-family:Verdana;font-size: 12px;">
+                  <% 
+
+sqlsroot="select * from [OUCCS_Supper] Where su_ID="&Request.cookies("Web")("Web_SupperID")
+rs2.Open sqlsroot,conn,1,1
+do while not rs2.EOF %>
+                  <option value="<%=rs2("su_ID")%>"><%= rs2("su_UserName") %></option>
+                  <%rs2.MoveNext
+loop
+rs2.close%>
+                </select>
+            回复时间: <%=Date()%></font></td>
+          <td align="right" valign="middle"><input type="image" src="Images/h_Sumbit.gif" name="Submit" value="提交" /></td>
+        </tr>
+      </form>
+    </table></td>
+  </tr>
+</table>
+</body>
+</html>

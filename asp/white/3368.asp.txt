@@ -1,0 +1,679 @@
+<%
+'Ok3w新闻系统内核文件 vbs.asp
+'作者：Ok3w.Net
+'演示：http://www.ok3w.net/
+'函数调用说明，请看演示网站的使用教程
+'====================================
+
+Private Sub Ok3w_Article_List(ClassID,TopN,LeftN,IsCommend,DisClass,DisTime,TimeFormat,DisHits,OrderType,LableID)
+	Sql="select top " & TopN & " Id,ClassID,Title,TitleColor,TitleURL,AddTime,Hits from Ok3w_Article where ChannelID=1 and IsPass=1 and IsDelete=0"
+	If ClassID<>"" Then Sql=Sql & " and SortPath like '%," & ClassID & ",%'"
+	If IsCommend Then Sql=Sql & " and IsCommend=1"
+	Select Case OrderType
+		Case "hot"
+			Sql = Sql & " order by Hits desc,AddTime desc,ID desc"
+		Case "rnd"
+			If Db_Type = "Sql" Then
+
+			Else
+				Randomize
+				Sql = Sql & " order by Rnd(-(ID+"&Rnd()&")),ID desc"
+			End If
+		Case "new"
+			Sql = Sql & " order by AddTime desc,ID desc"
+		Case Else
+			Sql = Sql & " order by IsTop desc,IsCommend desc,AddTime desc,ID desc"
+	End Select
+	Rs.Open Sql,Conn,0,1
+	Do While Not Rs.eof
+		Response.Write("<" & LableID & ">")
+		If DisClass Then
+			Response.Write("<span>[" & GetClassName(Rs("ClassID")) & "]</span>")
+		End If
+		Response.Write(Format_TitleURL(HTML_Article_Path,Rs("ID"),Rs("Title"),Rs("TitleColor"),Rs("TitleURL"),LeftN))
+		If DisHits Then
+			Response.Write("<font>" & "查看:" & Rs("Hits") & "</font>")
+		End If
+		If DisTime Then
+			Response.Write("<font>" & Format_Time(Rs("AddTime"),TimeFormat) & "</font>")
+		End If
+		Response.Write("</" & LableID & ">")
+		Rs.MoveNext
+	Loop
+	Rs.Close
+End Sub
+
+
+Private Sub Ok3w_Article_PreNext(ClassID,ID)
+	Sql="select ID,Title,TitleColor,TitleURL from Ok3w_Article where SortPath like '%," & ClassID & ",%' and IsPass=1 and IsDelete=0 and ID>" & ID & " order by ID asc"
+	Set oRs = Conn.Execute(Sql)
+	If oRs.Eof And oRs.bof Then
+		Response.Write("上一篇：没有了")
+		Else
+			Response.Write(Format_TitleURL(HTML_Article_Path,oRs("ID"),"上一篇：" & oRs("Title"),oRs("TitleColor"),oRs("TitleURL"),50))
+	End If
+	Response.Write("<br />")
+	Sql="select ID,Title,TitleColor,TitleURL from Ok3w_Article where SortPath like '%," & ClassID & ",%' and IsPass=1 and IsDelete=0 and ID<" & ID & " order by ID desc"
+	Set oRs = Conn.Execute(Sql)
+	If oRs.Eof And oRs.bof Then
+		Response.Write("下一篇：没有了")
+		Else
+			Response.Write(Format_TitleURL(HTML_Article_Path,oRs("ID"),"下一篇：" & oRs("Title"),oRs("TitleColor"),oRs("TitleURL"),50))
+	End If
+End Sub
+
+
+Private Sub Ok3w_Article_Gundong(ClassID,TopN,Width,Height,Speed)
+Randomize
+RndID = Int(Rnd()*10000)
+RndFun = "__Ok3w_Article_Gundong__00" & RndID
+Sql="select top " & TopN & " Id,Title,TitleColor,TitleURL from Ok3w_Article where ChannelID=1 and IsPass=1 and IsDelete=0 and IsMove=1"
+If ClassID<>"" Then Sql=Sql & " and SortPath like '%," & ClassID & ",%'"
+Sql=Sql & " order by IsTop desc,IsCommend desc,Id desc"
+Rs.Open Sql,Conn,0,1
+StrTmp = ""
+Do While Not Rs.Eof
+	StrTmp = StrTmp & "·" & Format_TitleURL(HTML_Article_Path,Rs("ID"),Rs("Title"),Rs("TitleColor"),Rs("TitleURL"),50) & "&nbsp;&nbsp;"
+	Rs.MoveNext
+Loop
+Rs.Close
+StrTmp = Replace(StrTmp,"'","\'")
+
+Response.Write("<script language=""javascript"">")
+Response.Write("function " & RndFun & "()")
+Response.Write("{")
+Response.Write("	var RndID = 'pro" & RndID & "';")
+Response.Write("	var StrGD = '" & StrTmp & "';")
+Response.Write("	Ok3w_Marquee(RndID,StrGD," & Width & "," & Height & "," & Speed & ");")
+Response.Write("}")
+Response.Write(RndFun & "();")
+Response.Write("</script>")
+End Sub
+
+
+Private Sub Ok3w_Article_ImgGD(ClassID,TopN,Width,Height,ImgW,ImgH,CharX,IsCommend,OrderType,Speed)
+Randomize
+RndID = Int(Rnd()*10000)
+RndFun = "__Ok3w_Article_ImgGD__00" & RndID
+Sql="select top " & TopN & " Id,Title,TitleColor,TitleURL,PicFile from Ok3w_Article where ChannelID=1 and IsPass=1 and IsDelete=0 and IsPic=1"
+If ClassID<>"" Then Sql=Sql & " and SortPath like '%," & ClassID & ",%'"
+If IsCommend Then Sql=Sql & " and IsCommend=1"
+Select Case OrderType
+	Case "hot"
+		Sql = Sql & " order by Hits desc,AddTime desc,ID desc"
+	Case "rnd"
+		If Db_Type = "Sql" Then
+
+		Else
+			Randomize
+			Sql = Sql & " order by Rnd(-(ID+"&Rnd()&")),ID desc"
+		End If
+	Case "new"
+		Sql = Sql & " order by AddTime desc,ID desc"
+	Case Else
+		Sql = Sql & " order by IsTop desc,IsCommend desc,AddTime desc,ID desc"
+End Select
+StrTmp = "<table border=""0"" cellspacing=""0"" cellpadding=""0""><tr>"
+Rs.Open Sql,Conn,0,1
+Do While Not Rs.Eof
+	If Rs("TitleURL")="" Then
+		uTmp = Page_URL(ChannelID,"",Rs("ID"))
+	Else
+		uTmp = Rs("TitleURL")
+	End If
+	StrTmp = StrTmp & "<td><a href=""" & uTmp & """ target=""_blank"">"
+	StrTmp = StrTmp & "<img src=""" & ReplaceUpFilePath(Rs("PicFile")) & """ width=""" & ImgW & """ height=""" & ImgH & """ alt=""" & Rs("Title") & """ border=""0"" /><br />" & LeftX(Rs("Title"),CharX*2)
+	StrTmp = StrTmp & "</a></td>"
+	Rs.MoveNext
+Loop
+Rs.Close 
+StrTmp = StrTmp & "</tr></table>"
+StrTmp = Replace(StrTmp,"'","\'")
+
+Response.Write("<script language=""javascript"">")
+Response.Write("function " & RndFun & "()")
+Response.Write("{")
+Response.Write "var RndID = 'pro" & RndID & "';"
+Response.Write "var StrGD = '" & StrTmp & "';"
+Response.Write "Ok3w_Marquee(RndID,StrGD," & Width & "," & Height & "," & Speed & ");"
+Response.Write "}"
+Response.Write RndFun & "();"
+Response.Write "</script>"
+End Sub
+
+
+Private Sub Ok3w_Article_ImgFlash(ClassID,Width,Height)
+	Response.Write("<script type=""text/javascript"">" & vbCrLf)
+	Response.Write("var pic_width=" & Width & ";//宽" & vbCrLf)
+	Response.Write("var pic_height=" & Height & ";//高" & vbCrLf)
+	Response.Write("var button_pos=4; //按扭位置 1左 2右 3上 4下" & vbCrLf)
+	Response.Write("var stop_time=4000; //图片停留时间(1000为1秒钟)" & vbCrLf)
+	Response.Write("var show_text=0; //是否显示文字标签 1显示 0不显示" & vbCrLf)
+	Response.Write("var txtcolor=""FF4A8C""; //文字色" & vbCrLf)
+	Response.Write("var bgcolor=""FFFFFF""; //背景色" & vbCrLf)
+	Response.Write("var imag=new Array();" & vbCrLf)
+	Response.Write("var link=new Array();" & vbCrLf)
+	Response.Write("var text=new Array();" & vbCrLf)
+	Response.Write("var flashdns=""" & Htmldns & """" & vbCrLf)
+
+	Sql="select top 5 Id,Title,PicFile,TitleColor,TitleURL from Ok3w_Article where ChannelID=1 and IsPass=1 and IsPlay=1 and IsDelete=0"
+	If ClassID<>"" Then Sql=Sql & " and SortPath like '%," & ClassID & ",%'"
+	Sql=Sql & " order by IsTop desc,IsCommend desc,Id desc"
+	Rs.Open Sql,Conn,0,1
+	i = 0
+	Do While Not Rs.Eof
+		i = i + 1
+		ID = Rs("ID")
+		Title = Rs("Title")
+		PicFile = ReplaceUpFilePath(Rs("PicFile"))
+		TitleURL = Rs("TitleURL")
+		If TitleURL = "" Then TitleURL = Page_URL(ChannelID,"",ID)
+		Response.Write("imag[" & i & "]=""" & PicFile & """;" & vbCrLf)
+		Response.Write("link[" & i & "]=""" & TitleURL & """;" & vbCrLf)
+		Response.Write("text[" & i & "]=""" & Title & """;" & vbCrLf)
+		Rs.MoveNext
+	Loop
+	Rs.Close
+	Response.Write("</script>" & vbCrLf)
+	Response.Write("<script type=""text/javascript"" src=""" & Htmldns & "js/flash.js""></script>")
+End Sub
+
+Private Sub Ok3w_Article_bList(ClassID,PageSize)
+	Sql="select Id,Title,Content,TitleColor,TitleURL,AddTime from Ok3w_Article where IsPass=1 and IsDelete=0 and SortPath like '%," & ClassID & ",%' order by AddTime desc,ID desc"
+	Call Page.GetRs(Conn,Rs,Sql,PageSize)
+	Do While Not Rs.Eof And Not Page.Eof
+		Response.Write("<div class=""list"">" & Format_TitleURL(HTML_Article_Path,Rs("ID"),Rs("Title"),Rs("TitleColor"),Rs("TitleURL"),50) & "<font> " & Format_Time(Rs("AddTime"),2) & "</font></div>")
+		Response.Write("<div class=""list_des"">" & Trim(LeftX(filterhtml(Rs("Content")),150)) & "...</div>")
+		Rs.MoveNext
+		Page.MoveNext
+	Loop
+	Rs.Close
+	
+	If IsHtml Then
+		Call Page.GetPageHtmlList(Htmldns & HTML_Article_Path & "list_" & ClassID)
+	Else
+		Call Page.GetPageList()
+	End If
+End Sub
+
+
+Private Sub Ok3w_Article_pList(ClassID,TopN,PageSize,Cels,ImgW,ImgH,CharX)
+	Response.Write("<table width=""100%"" border=""0"" align=""center"" cellpadding=""0"" cellspacing=""0"">")
+	Sql="select top " & TopN & " Id,Title,TitleColor,TitleURL,PicFile from Ok3w_Article where IsPass=1 and IsDelete=0 and SortPath like '%," & ClassID & ",%' order by AddTime desc,ID desc"
+	Call Page.GetRs(Conn,Rs,Sql,PageSize)
+	Do While Not Rs.Eof And Not Page.Eof
+	Response.Write("<tr>")
+	For iCount = 1 To Cels  
+	Response.Write("<td width=""" & 100\Cels & "%"" align=""center"">")
+	If Rs.Eof Or Page.Eof Then
+		Response.Write("&nbsp;")
+	Else
+		If Rs("TitleURL")="" Then
+			uTmp = Page_URL(ChannelID,"",Rs("ID"))
+		Else
+			uTmp = Rs("TitleURL")
+		End If
+		Response.Write("<a href=""" & uTmp & """ target=""_blank"">")
+		Response.Write("<img src=""" & ReplaceUpFilePath(Rs("PicFile")) & """ alt=""" & Rs("Title") & """ width=""" & ImgW & """ height=""" & ImgH & """ border=""0"" /><br />")
+		Response.Write(LeftX(Rs("Title"),CharX * 2) & "</a>")
+		Rs.MoveNext
+		Page.MoveNext
+	End If
+	Response.Write("</td>")
+	Next
+	Response.Write("</tr>")
+	Loop
+	Rs.Close
+	Response.Write("</table>")
+	If TopN = 10000000 Then
+		If IsHtml Then
+			Call Page.GetPageHtmlList(Htmldns & HTML_Article_Path & "list_" & ClassID)
+		Else
+			Call Page.GetPageList()
+		End If
+	End If
+End Sub
+
+
+Private Sub Ok3w_Article_Search(ClassID,sType,Keyword,PageSize)
+Sql="select Id,Title,TitleColor,TitleURL,Content,AddTime from Ok3w_Article where IsPass=1 and IsDelete=0 and ChannelID=1"
+Select Case sType
+	Case "2"
+		Sql = Sql & " and Content like '%" & Keyword & "%'"
+	Case Else
+		Sql = Sql & " and Title like '%" & Keyword & "%'"
+End Select
+Sql = Sql & " order by AddTime desc,ID desc"
+Call Page.GetRs(Conn,Rs,Sql,PageSize)
+If Not(Rs.Eof And Rs.Bof) Then
+Do While Not Rs.Eof And Not Page.Eof
+
+Response.Write("<div class=""list"">" & Format_TitleURL(HTML_Article_Path,Rs("ID"),Rs("Title"),Rs("TitleColor"),Rs("TitleURL"),50) & "<font> [" & Format_Time(Rs("AddTime"),2) & "]</font></div>")
+Response.Write("<div class=""list_des"">" & Trim(LeftX(filterhtml(Rs("Content")),150)) & "...</div>")
+
+Rs.MoveNext
+Page.MoveNext
+Loop
+Call Page.GetPageList()
+Else
+Response.Write("没有找到相关内容<br /><br />")
+End If
+Rs.Close
+End Sub
+
+
+Private Sub Ok3w_Article_Class_Nav(SortPath)
+cTmp = Left(SortPath,Len(SortPath)-1)
+Sql="select ID,SortName from Ok3w_Class where ID in(" & cTmp & ") order by ID"
+Set oRs = Conn.Execute(Sql)
+Do While Not oRs.Eof
+	Response.Write("<a href=""" & Page_URL(ChannelID,oRs("ID"),"") & """>" & oRs("SortName") & "</a>")
+	oRs.MoveNext
+	If Not oRs.Eof Then Response.Write(" &gt;&gt; ")
+Loop
+oRs.Close
+Set oRs = Nothing
+End Sub
+
+
+Private Sub Ok3w_Article_Class_PageTitle(SortPath)
+cTmp = Left(SortPath,Len(SortPath)-1)
+Sql="select ID,SortName from Ok3w_Class where ID in(" & cTmp & ") order by ID desc"
+Set oRs= Conn.Execute(Sql)
+Do While Not oRs.Eof
+	Response.Write(oRs("SortName"))
+	oRs.MoveNext
+	If Not oRs.Eof Then Response.Write(" - ")
+Loop
+oRs.Close
+Set oRs = Nothing
+End Sub
+
+Private Sub Ok3w_Article_IndexClassImg(ClassID,TopN,WW,HH)
+	Sql="select top " & TopN & " Id,Title,TitleColor,TitleURL,Description,PicFile from Ok3w_Article where ChannelID=1 and IsPass=1 and IsDelete=0 and IsIndexImg=1"
+	If ClassID<>"" Then Sql=Sql & " and SortPath like '%," & ClassID & ",%'"
+	Sql=Sql & " order by IsTop desc,IsCommend desc,AddTime desc,Id desc"
+	Rs.Open Sql,Conn,0,1
+	If Rs.Eof And Rs.Bof Then
+	Else
+		Do While Not Rs.Eof
+			If Rs("TitleURL")="" Then
+				TitleURL = Page_URL(ChannelID,"",Rs("ID"))
+			Else
+				TitleURL = Rs("TitleURL")
+			End If
+			Response.Write("<dd><a href=""" & TitleURL & """ target=""_blank""><img src=""" & ReplaceUpFilePath(Rs("PicFile")) & """ width=""" & WW & """ height=""" & HH & """ border=""0"" /></a></dd><span><dd><a href=""" & TitleURL & """ target=""_blank"">" & OutStr(Rs("Description")) & "</a></dd></span>")
+			Rs.MoveNext
+		Loop
+	End If
+	Rs.Close
+End Sub
+
+Private Sub Ok3w_Article_IndexTop()
+	Sql="select top 1 Id,Title,TitleColor,TitleURL,Description from Ok3w_Article where ChannelID=1 and IsPass=1 and IsDelete=0 and IsTop=1 order by AddTime desc,ID desc"
+	Rs.Open Sql,Conn,0,1
+	If Rs.Eof And Rs.Bof Then
+	Else
+		Response.Write("<dd><h3>" & Rs("Title") & "</h3>" & Rs("Description") & "……<a href=""" & Page_URL(ChannelID, "",Rs("ID")) & """ target=""_blank"">阅读全文&gt;&gt;</a></dd>")
+	End If
+	Rs.Close
+End Sub
+
+
+Private Sub Ok3w_Soft_List(ClassID,TopN,LeftN,IsCommend,DisClass,DisTime,TimeFormat,DisHits,OrderType,LableID)
+	Sql="select top " & TopN & " ID,SoftName,TitleColor,TitleURL,ClassID,Updatetime,Hits from Ok3w_Soft where ChannelID=3 and IsPass=1 and IsDelete=0"
+	If ClassID<>"" Then Sql=Sql & " and SortPath like '%," & ClassID & ",%'"
+	If IsCommend Then Sql=Sql & " and IsCommend=1"
+	Select Case OrderType
+		Case "hot"
+			Sql = Sql & " order by Hits desc,Updatetime desc,ID desc"
+		Case "rnd"
+			If Db_Type = "Sql" Then
+
+			Else
+				Randomize
+				Sql = Sql & " order by Rnd(-(ID+"&Rnd()&")),ID desc"
+			End If
+		Case "new"
+			Sql = Sql & " order by Updatetime desc,ID desc"
+		Case Else
+			Sql = Sql & " order by IsTop desc,IsCommend desc,Updatetime desc,ID desc"
+	End Select
+	Rs.Open Sql,Conn,0,1
+	Do While Not Rs.eof
+		Response.Write("<" & LableID & ">")
+		If DisClass Then
+			Response.Write("<span>[" & GetClassName(Rs("ClassID")) & "]</span>")
+		End If
+		Response.Write(Format_TitleURL(HTML_Soft_Path,Rs("ID"),Rs("SoftName"),Rs("TitleColor"),Rs("TitleURL"),LeftN))
+		If DisHits Then
+			Response.Write("<font>" & "下载:" & Rs("Hits") & "</font>")
+		End If
+		If DisTime Then
+			Response.Write("<font>" & Format_Time(Rs("Updatetime"),TimeFormat) & "</font>")
+		End If
+		Response.Write("</" & LableID & ">")
+		Rs.MoveNext
+	Loop
+	Rs.Close 
+End Sub
+
+Private Sub Ok3w_Soft_ImgGD(ClassID,TopN,Width,Height,ImgW,ImgH,CharX,IsCommend,OrderType,Speed)
+Randomize
+RndID = Int(Rnd()*10000)
+RndFun = "__Ok3w_Article_ImgGD__00" & RndID
+Sql="select top " & TopN & " ID,SoftName,TitleColor,TitleURL,Softimageurl from Ok3w_Soft where ChannelID=3 and IsPass=1 and IsDelete=0 and Softimageurl<>''"
+If ClassID<>"" Then Sql=Sql & " and SortPath like '%," & ClassID & ",%'"
+If IsCommend Then Sql=Sql & " and IsCommend=1"
+Select Case OrderType
+	Case "hot"
+		Sql = Sql & " order by Hits desc,Updatetime desc,ID desc"
+	Case "rnd"
+		If Db_Type = "Sql" Then
+
+		Else
+			Randomize
+			Sql = Sql & " order by Rnd(-(ID+"&Rnd()&")),ID desc"
+		End If
+	Case "new"
+		Sql = Sql & " order by Updatetime desc,ID desc"
+	Case Else
+		Sql = Sql & " order by IsTop desc,IsCommend desc,Updatetime desc,ID desc"
+End Select
+StrTmp = "<table border=""0"" cellspacing=""0"" cellpadding=""0""><tr>"
+Rs.Open Sql,Conn,0,1
+Do While Not Rs.Eof
+	If Rs("TitleURL")="" Then
+		uTmp = Page_URL(ChannelID,"",Rs("ID"))
+	Else
+		uTmp = Rs("TitleURL")
+	End If
+	StrTmp = StrTmp & "<td><a href=""" & uTmp & """ target=""_blank"">"
+	StrTmp = StrTmp & "<img src=""" & ReplaceUpFilePath(Rs("Softimageurl")) & """ width=""" & ImgW & """ height=""" & ImgH & """ alt=""" & Rs("SoftName") & """ border=""0"" /><br />" & LeftX(Rs("SoftName"),CharX*2)
+	StrTmp = StrTmp & "</a></td>"
+	Rs.MoveNext
+Loop
+Rs.Close 
+StrTmp = StrTmp & "</tr></table>"
+StrTmp = Replace(StrTmp,"'","\'")
+
+Response.Write("<script language=""javascript"">")
+Response.Write("function " & RndFun & "()")
+Response.Write("{")
+Response.Write "var RndID = 'pro" & RndID & "';"
+Response.Write "var StrGD = '" & StrTmp & "';"
+Response.Write "Ok3w_Marquee(RndID,StrGD," & Width & "," & Height & "," & Speed & ");"
+Response.Write "}"
+Response.Write RndFun & "();"
+Response.Write "</script>"
+End Sub
+
+
+Private Sub Ok3w_Soft_ImgFlash(ClassID,Width,Height)
+	Response.Write("<script type=""text/javascript"">" & vbCrLf)
+	Response.Write("var pic_width=" & Width & ";//宽" & vbCrLf)
+	Response.Write("var pic_height=" & Height & ";//高" & vbCrLf)
+	Response.Write("var button_pos=4; //按扭位置 1左 2右 3上 4下" & vbCrLf)
+	Response.Write("var stop_time=4000; //图片停留时间(1000为1秒钟)" & vbCrLf)
+	Response.Write("var show_text=0; //是否显示文字标签 1显示 0不显示" & vbCrLf)
+	Response.Write("var txtcolor=""FF4A8C""; //文字色" & vbCrLf)
+	Response.Write("var bgcolor=""FFFFFF""; //背景色" & vbCrLf)
+	Response.Write("var imag=new Array();" & vbCrLf)
+	Response.Write("var link=new Array();" & vbCrLf)
+	Response.Write("var text=new Array();" & vbCrLf)
+	Response.Write("var flashdns=""" & Htmldns & """" & vbCrLf)
+
+	Sql="select top 5 ID,SoftName,Softimageurl,TitleColor,TitleURL from Ok3w_Soft where ChannelID=3 and Softimageurl<>'' and IsPlay=1 and IsDelete=0"
+	If ClassID<>"" Then Sql=Sql & " and SortPath like '%," & ClassID & ",%'"
+	Sql=Sql & " order by IsTop desc,IsCommend desc,Id desc"
+	Rs.Open Sql,Conn,0,1
+	i = 0
+	Do While Not Rs.Eof
+		i = i + 1
+		ID = Rs("ID")
+		Title = Rs("SoftName")
+		PicFile = ReplaceUpFilePath(Rs("Softimageurl"))
+		TitleURL = Rs("TitleURL")
+		If TitleURL = "" Then TitleURL = Page_URL(ChannelID,"",ID)
+		Response.Write("imag[" & i & "]=""" & PicFile & """;" & vbCrLf)
+		Response.Write("link[" & i & "]=""" & TitleURL & """;" & vbCrLf)
+		Response.Write("text[" & i & "]=""" & Title & """;" & vbCrLf)
+		Rs.MoveNext
+	Loop
+	Rs.Close
+	Response.Write("</script>" & vbCrLf)
+	Response.Write("<script type=""text/javascript"" src=""" & Htmldns & "js/flash.js""></script>")
+End Sub
+
+
+Private Sub Ok3w_Soft_bList(ClassID,PageSize)
+	Sql="select * from Ok3w_Soft where IsPass=1 and IsDelete=0 and SortPath like '%," & ClassID & ",%' order by Updatetime desc,ID desc"
+	Call Page.GetRs(Conn,Rs,Sql,PageSize)
+	
+	Do While Not Rs.Eof And Not Page.Eof
+	
+	Response.Write("<div class=""list"">" & Format_TitleURL(HTML_Soft_Path,Rs("ID"),Rs("SoftName"),Rs("TitleColor"),Rs("TitleURL"),50) & "</div>")
+	Response.Write("<div class=""lists"">日期：" & Rs("Updatetime") & " 分类：" & GetClassName(Rs("ClassID")) & " 大小：" & Rs("Softsize") & Rs("Softsizeunit") & " 语言：" & Rs("Softlanguage") & " 授权：" & Rs("Softlicence") & "</div>")
+	Response.Write("<div class=""list_des"">" & LeftX(Trim(Replace(filterhtml(Rs("Softintro"))," ","")),150) & "...</div>")
+		
+		Rs.MoveNext
+		Page.MoveNext
+	Loop
+	Rs.Close
+	
+	If IsHtml Then
+		Call Page.GetPageHtmlList(Htmldns & HTML_Soft_Path & "list_" & ClassID)
+	Else
+		Call Page.GetPageList()
+	End If
+End Sub
+
+Private Sub Ok3w_Soft_pList(ClassID,TopN,PageSize,Cels,ImgW,ImgH,CharX)
+	Response.Write("<table width=""100%"" border=""0"" align=""center"" cellpadding=""0"" cellspacing=""0"">")
+	Sql="select ID,SoftName,Softimageurl,TitleColor,TitleURL from Ok3w_Soft where IsPass=1 and IsDelete=0 and SortPath like '%," & ClassID & ",%' order by Updatetime desc,ID desc"
+	Call Page.GetRs(Conn,Rs,Sql,PageSize)
+	Do While Not Rs.Eof And Not Page.Eof
+	Response.Write("<tr>")
+	For iCount = 1 To Cels  
+	Response.Write("<td width=""" & 100\Cels & "%"" align=""center"">")
+	If Rs.Eof Or Page.Eof Then
+		Response.Write("&nbsp;")
+	Else
+		If Rs("TitleURL")="" Then
+			uTmp = Page_URL(ChannelID,"",Rs("ID"))
+		Else
+			uTmp = Rs("TitleURL")
+		End If
+		Response.Write("<a href=""" & uTmp & """ target=""_blank"">")
+		Response.Write("<img src=""" & ReplaceUpFilePath(Rs("Softimageurl")) & """ alt=""" & Rs("SoftName") & """ width=""" & ImgW & """ height=""" & ImgH & """ border=""0"" /><br />")
+		Response.Write(LeftX(Rs("SoftName"),CharX * 2) & "</a>")
+		Rs.MoveNext
+		Page.MoveNext
+	End If
+	Response.Write("</td>")
+	Next
+	Response.Write("</tr>")
+	Loop
+	Rs.Close
+	Response.Write("</table>")
+	If TopN = 10000000 Then
+		If IsHtml Then
+			Call Page.GetPageHtmlList(Htmldns & HTML_Soft_Path & "list_" & ClassID)
+		Else
+			Call Page.GetPageList()
+		End If
+	End If
+End Sub
+
+
+Private Sub Ok3w_Soft_Search(ClassID,sType,Keyword,PageSize)
+Sql="select * from Ok3w_Soft where IsPass=1 and IsDelete=0 and ChannelID=3"
+Select Case sType
+	Case "2"
+		Sql = Sql & " and Softintro like '%" & Keyword & "%'"
+	Case Else
+		Sql = Sql & " and SoftName like '%" & Keyword & "%'"
+End Select
+Sql = Sql & " order by Updatetime desc,ID desc"
+Call Page.GetRs(Conn,Rs,Sql,PageSize)
+If Not(Rs.Eof And Rs.Bof) Then
+Do While Not Rs.Eof And Not Page.Eof
+
+Response.Write("<div class=""list"">" & Format_TitleURL(HTML_Soft_Path,Rs("ID"),Rs("SoftName"),Rs("TitleColor"),Rs("TitleURL"),50) & "</div>")
+Response.Write("<div class=""lists"">日期：" & Rs("Updatetime") & " 分类：" & GetClassName(Rs("ClassID")) & " 大小：" & Rs("Softsize") & Rs("Softsizeunit") & " 语言：" & Rs("Softlanguage") & " 授权：" & Rs("Softlicence") & "</div>")
+Response.Write("<div class=""list_des"">" & LeftX(Trim(Replace(filterhtml(Rs("Softintro"))," ","")),150) & "...</div>")
+
+	Rs.MoveNext
+	Page.MoveNext
+Loop
+Call Page.GetPageList()
+Else
+Response.Write("没有找到相关内容<br /><br />")
+End If
+Rs.Close
+End Sub
+
+
+Private Sub Ok3w_Soft_Class_Nav(SortPath)
+cTmp = Left(SortPath,Len(SortPath)-1)
+Sql="select ID,SortName from Ok3w_Class where ID in(" & cTmp & ") order by ID"
+Set oRs = Conn.Execute(Sql)
+Do While Not oRs.Eof
+	Response.Write("<a href=""" & Page_URL(ChannelID,oRs("ID"),"") & """>" & oRs("SortName") & "</a>")
+	oRs.MoveNext
+	If Not oRs.Eof Then Response.Write(" &gt;&gt; ")
+Loop
+oRs.Close
+Set oRs = Nothing
+End Sub
+
+
+Private Sub Ok3w_Soft_Class_PageTitle(SortPath)
+cTmp = Left(SortPath,Len(SortPath)-1)
+Sql="select ID,SortName from Ok3w_Class where ID in(" & cTmp & ") order by ID desc"
+Set oRs= Conn.Execute(Sql)
+Do While Not oRs.Eof
+	Response.Write(oRs("SortName"))
+	oRs.MoveNext
+	If Not oRs.Eof Then Response.Write(" - ")
+Loop
+oRs.Close
+Set oRs = Nothing
+End Sub
+
+Private Sub Ok3w_Soft_IndexClassImg(ClassID,TopN,WW,HH)
+	Sql="select top " & TopN & " ID,SoftName,TitleColor,TitleURL,Softintro,Softimageurl from Ok3w_Soft where ChannelID=3 and IsPass=1 and IsDelete=0 and Softimageurl<>''"
+	If ClassID<>"" Then Sql=Sql & " and SortPath like '%," & ClassID & ",%'"
+	Sql=Sql & " order by IsCommend desc,Updatetime desc,ID desc"
+	Rs.Open Sql,Conn,0,1
+	If Rs.Eof And Rs.Bof Then
+	Else
+		Do While Not Rs.Eof
+			If Rs("TitleURL")="" Then
+				TitleURL = Page_URL(ChannelID,"",Rs("ID"))
+			Else
+				TitleURL = Rs("TitleURL")
+			End If
+			Response.Write("<dd><a href=""" & TitleURL & """ target=""_blank""><img src=""" & ReplaceUpFilePath(Rs("Softimageurl")) & """ width=""" & WW & """ height=""" & HH & """ border=""0"" /></a></dd><span><dd><a href=""" & TitleURL & """ target=""_blank"">" & LeftX(Replace(filterhtml(Rs("Softintro"))," ",""),70) & "……</a></dd></span>")
+			Rs.MoveNext
+		Loop
+	End If
+	Rs.Close
+End Sub
+
+
+Private Sub Ok3w_Soft_IndexTop()
+	Sql="select top 1 ID,SoftName,TitleColor,TitleURL,Softintro from Ok3w_Soft where ChannelID=3 and IsPass=1 and IsDelete=0 and IsTop=1 order by Updatetime desc,ID desc"
+	Rs.Open Sql,Conn,0,1
+	If Rs.Eof And Rs.Bof Then
+	Else
+		Response.Write("<dd><h3>" & Rs("SoftName") & "</h3>" & LeftX(Replace(filterhtml(Rs("Softintro"))," ",""),100) & "……<a href=""" & Page_URL(ChannelID, "",Rs("ID")) & """ target=""_blank"">立即下载&gt;&gt;</a></dd>")
+	End If
+	Rs.Close
+End Sub
+
+
+Private Sub Ok3w_DisNextClass(ChannelID,ClassID)
+	Sql="select ID,SortName,gotoURL from Ok3w_Class where ChannelID=" & ChannelID & "and  ParentID=" & ClassID & " and IsNav=1 order by OrderID"
+	Rs.Open Sql,Conn,0,1
+	If Rs.Eof And Rs.Bof Then
+		Sql = "select ParentID from Ok3w_Class where ChannelID=" & ChannelID & " and ID=" & ClassId
+		a_ParentID = ExecSqlReturnOneValue(Sql)
+		Rs.Close
+		Sql="select ID,SortName,gotoURL from Ok3w_Class where ChannelID=" & ChannelID & " and ParentID=" & a_ParentID & " and IsNav=1 order by OrderID"
+		Rs.Open Sql,Conn,0,1
+	End If
+	Do While Not Rs.Eof
+		gotoURL = Rs("gotoURL")
+		If gotoURL = "" Then gotoURL = Page_URL(ChannelID,Rs("ID"),"")
+		Response.Write("<li><a href=""" & gotoURL & """>" & Rs("SortName") & "</a></li>")
+		Rs.MoveNext
+	Loop
+	Rs.Close
+End Sub
+
+Private Sub Ok3w_Site_Link(TopN,LeftN,oT,cT)
+StrTmp = ""
+If oT = 1 Then
+Sql = "select top " & TopN & " * from Ok3w_Link where Ltype=1 and Ctype=" & cT & " order by Lorder,Lid"
+Rs.Open Sql,Conn,0,1
+Do While Not Rs.Eof
+	StrTmp = StrTmp & "<a href=""" & Rs("Lurl") & """ target=""_blank""><img src=""" & Rs("Lpic") & """ alt=""" & Rs("Lname") & """ width=""88"" height=""31"" border=""0"" /></a> "
+	Rs.MoveNext
+Loop
+Rs.Close
+End If
+If oT=0 Then
+Sql = "select top " & TopN & " * from Ok3w_Link where Ltype=0 and Ctype=" & cT & "  order by Lorder,Lid"
+Rs.Open Sql,Conn,0,1
+Do While Not Rs.Eof
+	StrTmp = StrTmp & "<a href=""" & Rs("Lurl") & """ target=""_blank"">" & Rs("Lname") & "</a>"
+	Rs.MoveNext
+	If Not Rs.Eof Then StrTmp = StrTmp & "<span>|</span>"
+Loop
+Rs.Close
+End If
+Response.Write(StrTmp)
+End Sub
+
+Private Sub Ok3w_HearNav(ChannelID)
+	Sql="select ID,SortName,gotoURL from Ok3w_Class where ChannelID=" & ChannelID & " and ParentID=0 and IsNav=1 order by OrderID"
+	Rs.Open Sql,Conn,0,1
+	Do While Not Rs.Eof
+		If Rs("gotoURL") = "" Then
+			gotoURL = Page_URL(ChannelID,Rs("ID"),"")
+		Else
+			gotoURL = Rs("gotoURL")
+		End If
+		Nav_SortName = Rs("SortName")
+		Rs.MoveNext
+		If Rs.Eof Then Response.Write("<span>")
+		Response.Write("<li><a href=""" & gotoURL & """>" & Nav_SortName & "</a></li>")
+		If Rs.Eof Then Response.Write("</span>")
+	Loop
+	Rs.Close
+End Sub
+
+Private Sub Ok3w_Footer()
+	Sql="select ID,SortName,gotoURL from Ok3w_Class where ChannelID=2 and IsNav=1 order by OrderID"
+	Rs.Open Sql,Conn,0,1
+	Do While Not Rs.Eof
+	If Rs("gotoURL") = "" Then
+		MaxID = Conn.Execute("select max(ID) from Ok3w_Article where ClassID=" & Rs("ID"))(0)
+		pageURL = Page_URL(2,"",MaxID)
+	End If
+	If Rs("gotoURL") = "" Then
+		Response.Write("<a href=""" & pageURL & """>" & Rs("SortName") & "</a>")
+	Else
+		Response.Write("<a href=""" & Rs("gotoURL") & """ target=""_blank"">" & Rs("SortName") & "</a>")
+	End If
+	Rs.MoveNext
+	If Not Rs.Eof Then Response.Write(" - ")
+	Loop
+	Rs.Close
+End Sub
+
+Function Ok3w_Site_Tongji()
+	Response.Write(Application(SiteID & "_Ok3w_SiteTongji"))
+End Function
+%>

@@ -1,0 +1,216 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="java.text.SimpleDateFormat,java.util.Date"%>
+<%@ page import="javaBean.AddSortB,connections.Dao,java.util.Vector"%>
+<%@ page import="connections.DaoAritcle,javaBean.BeanAritcle"%>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>MianFeiZhe内容管理系统 - 用户管理中心</title>
+<meta name="description" content="Design By www.mianfeizhe.com,mianfeizhe.cn" />
+<link href="style.css" type="text/css" rel="stylesheet" />
+<script language="JavaScript" src="images/manage.js"></script>
+<script language="JavaScript" src="images/common.js"></script>
+<script language="JavaScript">
+<!--
+function preloadImg(src)
+{
+	var img=new Image();
+	img.src=src
+}
+preloadImg("images/manage_arrow_left.gif");
+var displayBar=true;
+function switchBar(obj)
+{
+	if (displayBar)
+	{
+		parent.frame.style.display="none"
+		displayBar=false;
+		obj.src="images/manage_arrow_right.gif";
+		obj.title="打开左边管理菜单";
+	}
+	else{
+		parent.frame.style.display=""
+		displayBar=true;
+		obj.src="images/manage_arrow_left.gif";
+		obj.title="关闭左边管理菜单";
+	}
+}
+//-->
+</script>
+</head>
+<%!
+	public String time(){
+		Date date=new Date();
+		SimpleDateFormat sim=new SimpleDateFormat("yyyy-MM-dd k:mm:ss");
+		String now=sim.format(date);
+		return now;
+	}
+%>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<table border="0" align="center" width="100%" cellspacing="0" cellpadding="0">
+	<tr>		
+		<td width="5%" height="22" background="images/manage_top_bg.gif"><img onclick="switchBar(this)" src="images/manage_arrow_right.gif" style="cursor:hand" title="关闭左边管理菜单" align="absMiddle"><td>
+		<td width="95%" background="images/manage_top_bg.gif">当前位置：<span class="shadow" id="locationid"></span></td>
+	</tr>
+</table>
+<table border="0" align="center" width="100%" cellspacing="0" cellpadding="0">
+	<tr>
+		<td height="6"></td>
+	</tr>
+</table><script language="JavaScript">locationid.innerHTML = "编辑文章";</script>
+<script language=JavaScript>
+var _maxCount = '10240';
+function doChange(objText, objDrop){
+	if (!objDrop) return;
+	if(document.myform.BriefTopic.selectedIndex<2){
+		document.myform.BriefTopic.selectedIndex+=1;
+	}
+	var str = objText.value;
+	var arr = str.split("|");
+	var nIndex = objDrop.selectedIndex;
+	objDrop.length=1;
+	for (var i=0; i<arr.length; i++){
+		objDrop.options[objDrop.length] = new Option(arr[i], arr[i]);
+	}
+	objDrop.selectedIndex = nIndex;
+}
+function doSubmit(){
+	var form1 = document.myform;
+	if (form1.title.value==""){
+		alert("文章标题不能为空！");
+		form1.title.focus();
+		return false;
+	}
+	if (form1.Author.value==""){
+		alert("文章作者不能为空！");
+		form1.Author.focus();
+		return false;
+	}
+	if (form1.ComeFrom.value==""){
+		alert("文章来源不能为空！");
+		form1.ComeFrom.focus();
+		return false;
+	}
+	if (form1.ClassID.value==""){
+		alert("该一级分类已经有下属分类，请选择其下属分类！");
+		form1.ClassID.focus();
+		return false;
+	}
+	if (form1.ClassID.value=="0"){
+		alert("该分类是外部连接，不能添加内容！");
+		form1.ClassID.focus();
+		return false;
+	}
+	
+	if (form1.codestr.value==""){
+		alert("请填写验证码！");
+		form1.codestr.focus();
+		return false;
+	}
+	
+	var strLen=0;
+	try{
+		strLen=GetContentLength();
+	}
+	catch(e){
+		strLen=form1.content.value.length;
+	}
+	if(strLen < 2){
+		alert("文章内容不能小于2个字符！");
+		return false;
+	}
+	if(strLen > _maxCount){
+		alert("文章的内容不能超过"+_maxCount+"个字符！");
+		return false;
+	}
+}
+</script>
+<div onkeydown="CtrlEnter()">
+<table class="Usertableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="2">&gt;&gt;编辑文章&lt;&lt;</th>
+	</tr>
+	<form action="<%=url%>/servletsuserarticle?action=uupdate" method="post" onsubmit="return doSubmit()" name="myform">
+	<input type="hidden" name="ChannelID" value="1"/>
+		<tr>
+			<td class="usertablerow2" nowrap="nowrap" align="right" width="15%"><strong>所属分类</strong></td>
+			<td class="usertablerow1" width="85%"><select name="listName" id="ClassID">
+			<%
+				Dao dao=new Dao();
+				Vector ve=dao.getClassName();
+				if(ve!=null){	
+					for(int i=0;i<ve.size();i++){
+						AddSortB model=(AddSortB)ve.get(i);
+						out.println("<option value='"+model.getClassId()+"'>"+model.getClassName()+"</option>");
+					}
+				}else{
+			%>
+			<option>没有添加分类</option>
+			<%}%>
+			</select></td>
+		</tr>
+		<%
+			DaoAritcle d=new DaoAritcle();
+			String name=(String)request.getSession().getAttribute("name");
+			int articleid=Integer.parseInt(request.getParameter("id"));
+			String sql="select * from aritcle where Author='"+name+"' and aritcleid="+articleid;
+			Vector veA=d.AritcleBind(sql);
+			BeanAritcle bean=(BeanAritcle)veA.get(0);
+		%>
+		<tr>
+		<input type="hidden" name="aritcleid" value="<%=articleid%>">
+			<td class="usertablerow2" nowrap="nowrap" align="right"><strong>文章标题</strong></td>
+			<td class="usertablerow1"><select id="BriefTopic" name="BriefTopic">
+			<option value="0" selected="selected">选择话题</option>
+			<option value="1">[图文]</option>
+			<option value="2">[组图]</option>
+			<option value="3">[新闻]</option>
+			<option value="4">[推荐]</option>
+			<option value="5">[注意]</option>
+			<option value="6">[转载]</option>
+			</select> <input id="title" size="60" name="title" type="text" value="<%=bean.getTitle()%>"/> <font color="#ff0000">*</font></td>
+		</tr>
+		<tr>
+			<td class="usertablerow2" align="right"><strong>相关文章</strong></td>
+			<td class="usertablerow1"><input id="Related" size="60" name="related" type="text" value="<%=bean.getInterfix()%>"/> <font color="#ff0000">*</font></td>
+		</tr>
+		<tr>
+			<td class="usertablerow2" align="right"><strong>文章作者</strong></td>
+			<td class="usertablerow1"><input size="30" name="author" value="<%=name%>" type="text" readonly/> </td>
+		</tr>
+		<tr>
+			<td class="usertablerow2" align="right"><strong>文章来源</strong></td>
+			<td class="usertablerow1"><input size="30" name="comeFrom" type="text" value="<%=bean.get_Source()%>"/> <select onChange="comeFrom.value=this.value;" name="font1">
+			<option value="" selected="selected">选择来源</option>
+			<option value="本站原创">本站原创</option>
+			<option value="本站整理">本站整理</option>
+			<option value="不详">不详</option>
+			<option value="转载">转载</option>
+			</select></td>
+		</tr>
+		<tr>
+			<td class="usertablerow1" colspan="2"><div><INPUT type="hidden" name="content1" value="<%=bean.getContent()%>"><IFRAME ID="eWebEditor1" src="<%=url%>/eWebEditor.jsp?id=content1&style=standard" frameborder="0" scrolling="no" width="580" height="350"></IFRAME></div></td>
+		</tr>
+		<tr>
+			<td class="usertablerow2" align="left"><strong>文章星级</strong>
+			<select name="star">
+			<option value="5">★★★★★</option>
+			<option value="4">★★★★</option>
+			<option value="3" selected="selected">★★★</option>
+			<option value="2">★★</option>
+			<option value="1">★</option>
+			</select></td>
+			<td class="usertablerow2">发布时间:<input type="text" name="nowtime" value="<%=bean.getUpdateTime()%>" readonly size="40"></td>
+		</tr>
+				<tr align="center">
+			<td class="usertablerow2" colspan="2"><input class="Button" type="button" onclick="javascript:history.go(-1)" name="Submit4" value="返回上一页" /> <input class="Button" type="submit" name="Submit1" value="确认修改" /></td>
+		</tr>
+	</form>
+</table>
+</div>
+</body>
+</html>

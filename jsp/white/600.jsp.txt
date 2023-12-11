@@ -1,0 +1,66 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<script src="${contextPath}/static/jqtrans/jquery.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+</head>
+<body>
+
+<div class="userInfo" style="width:100%;">
+	<h1><fmt:message key="paperexport"/></h1>
+	<form id="searchForm" method="post">
+		<table class="yTable margintop" style="width:100%;">
+		        <tr>
+		           <th><fmt:message key="category"/></th>
+		          
+		           <td><select name="cityId" class="inputbox">
+		              <option value="">不限</option>
+		           </select><!-- <input id="city" name="city" type="hidden" /> --></td>
+		           
+		        </tr>
+		        <tr>
+				   <th>创建人</th>
+				   <td><input id="customerName" name="customerName" type="text" class="inputbox"/> </td>
+				</tr>
+				<tr>
+				   <th>创建起始时间</th>
+				   <td><input id="startCreationDate" name="startCreationDate" type="text" class="inputbox" /><label>-</label><input id="endCreationDate" name="endCreationDate" type="text" class="inputbox" /></td>
+				   
+				</tr>
+				
+				
+		</table>
+		<div class="Btn">
+				<input id="exportBtn" type="button" value="<fmt:message key="export"/>" /> 
+				<input id="resetBtn" type="button" value="<fmt:message key="reset"/>" />
+				<input id="countBtn" type="button" value="计算数量" />
+				
+			</div>
+		</form>
+	<table>
+		<tr>
+			
+				<td><div id="countResult"></div></td>
+		</tr>
+	</table>
+</div>
+<script type="text/javascript">
+  seajs.use("");
+</script>
+</body>
+</html>

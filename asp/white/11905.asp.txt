@@ -1,0 +1,208 @@
+<!--#include file="Conn.asp" -->
+<!--#include file="Comm/Site_Class.asp" -->
+<!--#include file="Comm/md5.asp" -->
+<%
+Dim strMenu,PageTitle,PassWordd,fenzhanwz,fenzhanid,myrcwwfz1
+strMenu = ""
+
+Set Qsite = New Site_Class
+
+Qsite.SiteConfig()
+Qsite.GotoErrPage()
+
+PageTitle = Qsite.SiteName & " - 用户登录页面"
+
+
+Set Rs = server.createobject("ADODB.Recordset")
+
+If Request.Form <> "" Then
+
+	Dim UserName,PassWord,UserType
+	Dim FromIp,TodayDate
+	Dim strFromPage
+	
+	TodayDate = Qsite.FormatDate(Date())
+	
+	FromIp = Request.ServerVariables("REMOTE_ADDR")
+	
+	UserName = LCase(Qsite.chgStr(Trim(Request.Form("UserName"))))
+	PassWord = Request.Form("PassWord")
+	PassWordd = Request.Form("PassWord")
+	UserType = Qsite.chgStr(Trim(Request.Form("UserType")))
+	strFromPage = Qsite.chgStr(Trim(Request.Form("strFromPage")))
+	myrcwwfz1 = Request.Form("myrcwwfz1")
+	
+	If UserName = "" Or IsNull(UserName) Or PassWord = "" Or IsNull(PassWord) Then
+		Response.Redirect("Login.asp?msg=用户名或密码错误！")
+		Response.End()
+	End If
+	If UserType <> "Company" And UserType <> "Person" Then
+		Qsite.ShowMsg "请选择用户类型" , ""
+	End If
+	
+	PassWord = MD5(PassWord)
+	
+	If UserType = "Person" Then	'个人登录
+		Rs.Open "select * from PersonTbl where UserName = '"& UserName &"'" , Conn , 3 , 2
+		If Rs.Eof Or Rs.Bof Then
+			Session("PerId") = ""
+			Session("UserName") = ""
+			Session("PassWord") = ""
+			Session("RealName") = ""
+			Session("LoginQuantity") = ""
+			Session("IsLock") = ""
+			Session("UserType") = ""
+			Session("MemberType") = 0
+			Qsite.ShowMsg "用户名或密码错误，请返回重新输入" , ""
+		Else
+			If Rs("PassWord") <> PassWord Then
+				Session("PerId") = ""
+				Session("UserName") = ""
+				Session("PassWord") = ""
+				Session("RealName") = ""
+				Session("LoginQuantity") = ""
+				Session("IsLock") = ""
+				Session("UserType") = ""
+				Session("MemberType") = 0
+				Qsite.ShowMsg "用户名或密码错误，请返回重新输入" , ""
+			Else
+				If Rs("IsSh") = "1" Then
+					Session("PerId") = ""
+					Session("UserName") = ""
+					Session("PassWord") = ""
+					Session("RealName") = ""
+					Session("LoginQuantity") = ""
+					Session("IsLock") = ""
+					Session("UserType") = ""
+					Session("MemberType") = 0
+					Qsite.ShowMsg "您的帐号还处在审核期，请等待管理员审核" , "Login.asp"
+				Else
+					Session("PerId") = Rs("PerId")
+					Session("UserName") = Rs("UserName")
+					Session("PassWord") = Rs("PassWord")
+					Session("RealName") = Rs("RealName")
+					Session("IsLock") = Rs("IsLock")
+					Session("UserType") = "Person"
+					Session("MemberType") = 0
+					Rs("EditDate") = Qsite.FormatDate(Now())
+					Rs("LastLoginIp") = Rs("ThisLoginIp")
+					Rs("LastLoginDate") = Rs("ThisLoginDate")
+					Rs("ThisLoginIp") = FromIp
+					Rs("ThisLoginDate") = Qsite.FormatDate(Now())
+					Rs("LoginQuantity") = Rs("LoginQuantity") + 1
+					Session("LoginQuantity") = Rs("LoginQuantity")
+					Rs.Update
+				End If
+				If InStr(strFromPage , "Person_View.asp") > 0 Or InStr(strFromPage , "Company_View.asp") > 0 Or InStr(strFromPage , "Company_Job.asp") > 0 Then
+					Response.Redirect(strFromPage)
+				Else
+				End If
+			End If
+		End If
+		Rs.Close
+	ElseIf UserType = "Company" Then	'企业登录
+		Rs.Open "select * from CompanyTbl where UserName = '"& UserName &"'" , Conn , 3 , 2
+		If Rs.Eof Or Rs.Bof Then
+			Session("ComId") = ""
+			Session("UserName") = ""
+			Session("PassWord") = ""
+			Session("RealName") = ""
+			Session("LoginQuantity") = ""
+			Session("IsLock") = ""
+			Session("UserType") = ""
+			Session("MemberType") = ""
+			Qsite.ShowMsg "用户名或密码错误，请返回重新输入" , ""
+		Else
+			If Rs("PassWord") <> PassWord Then
+				Session("ComId") = ""
+				Session("UserName") = ""
+				Session("PassWord") = ""
+				Session("RealName") = ""
+				Session("LoginQuantity") = ""
+				Session("IsLock") = ""
+				Session("UserType") = ""
+				Session("MemberType") = ""
+				Qsite.ShowMsg "用户名或密码错误，请返回重新输入" , ""
+			Else
+				If Rs("IsSh") = "1" Then
+					Session("ComId") = ""
+					Session("UserName") = ""
+					Session("PassWord") = ""
+					Session("RealName") = ""
+					Session("LoginQuantity") = ""
+					Session("IsLock") = ""
+					Session("UserType") = ""
+					Session("MemberType") = ""
+					Qsite.ShowMsg "您的帐号还处在审核期，请等待管理员审核" , "Login.asp"
+				Else
+					Session("ComId") = Rs("ComId")
+					Session("UserName") = Rs("UserName")
+					Session("PassWord") = Rs("PassWord")
+					Session("RealName") = Rs("CompanyName")
+					Session("IsLock") = Rs("IsLock")
+					Session("UserType") = "Company"
+					Session("thisMemberType") = Rs("MemberType")
+					
+					If Rs("MemberBeginDate") > TodayDate Then
+						Session("MemberType") = 0
+						Session("MemberZt") = "(<font color=""#FF0000"">未开通</font>)"
+					ElseIf Rs("MemberEndDate") < TodayDate Then
+						Session("MemberType") = 0
+						Session("MemberZt") = "(<font color=""#FF0000"">已过期</font>)"
+					Else
+						Session("MemberType") = Rs("MemberType")
+					End If
+					
+					Session("MemberZt") = ""		'暂时屏蔽会员状态
+					
+					Rs("LastLoginIp") = Rs("ThisLoginIp")
+					Rs("LastLoginDate") = Rs("ThisLoginDate")
+					Rs("ThisLoginIp") = FromIp
+					Rs("ThisLoginDate") = Qsite.FormatDate(Now())
+					Rs("LoginQuantity") = Rs("LoginQuantity") + 1
+					Session("LoginQuantity") = Rs("LoginQuantity")
+					Rs.Update
+				End If
+				If InStr(strFromPage , "Person_View.asp") > 0 Or InStr(strFromPage , "Company_View.asp") > 0 Or InStr(strFromPage , "Company_Job.asp") > 0 Then
+					Response.Redirect(strFromPage)
+				Else
+				End If
+			End If
+		End If
+		Rs.Close
+	
+	Else
+		Qsite.ShowMsg "用户类型不正确" , ""
+	End If
+	
+End If
+%><body onLoad="jscript:Login.submit();">
+<div id="hidden" align="center" style="display:none;">
+<%
+set rs=server.createobject("adodb.recordset")                            
+sql="select top 1 fenzhanid,fenzhandq,fenzhanwz  FROM myrcwwfenzhan where fenzhankg='1'"
+rs.open sql,conn,1,1
+If Not Rs.Eof Then
+fenzhanid=rs("fenzhanid")
+fenzhanwz=rs("fenzhanwz")
+else
+Response.Redirect("http://"&myrcwwfz1&"/login_check.asp")
+end if
+
+%>
+<form name="Login" method="post" action="http://<%=fenzhanwz%>/Login_Check11.asp"><input name="UserName" type="text" id="UserName" value="<%=UserName%>" size="0" /><input name="PassWord" type="password" id="PassWord" value="<%=PassWordd%>" size="0" />
+                      <input name="UserType" type="radio" value="<%=UserType%>" checked="checked" />
+                      <input name="strFromPage" type="hidden" id="strFromPage" value="<%=strFromPage%>" />
+					  <input name="fenzhanid" type="hidden" id="fenzhanid" value="<%=fenzhanid%>" />
+					  <input name="myrcwwfz1" type="hidden" id="myrcwwfz1" value="<%=myrcwwfz1%>" />
+					  <input type="submit" name="login" value="">
+            </form>
+			<%
+rs.close() 
+Set rs=Nothing
+%>
+			</div>
+<script language="JavaScript" type="text/JavaScript"> 
+login.submit() 
+</script>
+</body>

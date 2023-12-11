@@ -1,0 +1,69 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="java.util.Properties,java.io.FileInputStream"%>
+<%
+	String url = request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<script language=JavaScript>
+function Juge(form1)
+{
+ if (form1.page_name.value == "")
+ {
+  alert("请输入模板名称!");
+  form1.page_name.focus();
+  return (false);
+ }
+ if (form1.TemplateDir.value == "")
+ {
+  alert("请输入模板目录!");
+  form1.TemplateDir.focus();
+  return (false);
+ }
+}
+</script>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="TableBorder"> <tr>   <th colspan="2">模板样式总管理</th> </tr> <tr>   <td colspan="2" class="TableRow1"><strong>注意：</strong><br> ①在这里，您可以修改模板；<br> ②当前正在使用的默认模板不能删除；<br> ③如果你想为每个页面设计不同的模板，请在自己选择进行修改</a>。</td> </tr></table><br><table border="0" align="center" cellpadding="3" cellspacing="1" class="TableBorder">
+
+
+<%
+	String dir="";
+	try{
+		Properties pop=System.getProperties();
+		pop.load(new FileInputStream("webapps/"+url+"/properties/b.properties"));
+		dir=(String)pop.getProperty("templet");
+	}catch(Exception ex){
+		ex.printStackTrace();
+	}
+%>
+<form name=myform method="post" action="?action=manage"> </form></tr><tr> 
+
+
+
+<th width="40%">模板名称</th> <th width="60%">模板相关设置</th></tr><tr> <td colspan=2 Class=BodyTitle>当前模板：<font color=blue>MianFeiZhe V1.0默认模板</font></td></tr>
+
+<tr  bgcolor="#EEEEE6" onmouseover="this.style.backgroundColor='#FFFF00';this.style.color='red'" onmouseout="this.style.backgroundColor='';this.style.color=''"> <td><li><font color=blue>站点首页模板</font></li></td> <td>编辑该模块： <a href='<%=url%>/admin/admin_templetEditor.jsp?dir=<%=dir%>&name=站点首页模板'>编辑模板界面风格</a> </td></tr>
+
+<tr  bgcolor="#EEEEE6" onmouseover="this.style.backgroundColor='#FFFF00';this.style.color='red'" onmouseout="this.style.backgroundColor='';this.style.color=''"> <td><li>文章首页模板</li></td> <td>编辑该模块： <a href='<%=url%>/admin/admin_templetEditor.jsp?dir=<%=dir%>&name=文章首页模板'>编辑模板界面风格</a> </td></tr>
+
+<tr  bgcolor="#EEEEE6" onmouseover="this.style.backgroundColor='#FFFF00';this.style.color='red'" onmouseout="this.style.backgroundColor='';this.style.color=''"> <td><li>文章列表页面模板</li></td> <td>编辑该模块： <a href='<%=url%>/admin/admin_templetEditor.jsp?dir=<%=dir%>&name=文章列表页面模板'>编辑模板界面风格</a> </td></tr>
+
+<tr  bgcolor="#EEEEE6" onmouseover="this.style.backgroundColor='#FFFF00';this.style.color='red'" onmouseout="this.style.backgroundColor='';this.style.color=''"> <td><li>文章内容页面模板</li></td> <td>编辑该模块： <a href='<%=url%>/admin/admin_templetEditor.jsp?dir=<%=dir%>&name=文章内容页面模板'>编辑模板界面风格</a> </td></tr>
+
+<tr  bgcolor="#EEEEE6" onmouseover="this.style.backgroundColor='#FFFF00';this.style.color='red'" onmouseout="this.style.backgroundColor='';this.style.color=''"> <td><li>文章搜索页面模板</li></td> <td>编辑该模块： <a href='<%=url%>/admin/admin_templetEditor.jsp?dir=<%=dir%>&name=文章搜索页面模板'>编辑模板界面风格</a> </td></tr>
+
+</form></table><br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

@@ -1,0 +1,76 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="java.text.SimpleDateFormat,java.util.Date"%>
+<%
+	String url=request.getContextPath();
+	Date date=new Date();
+	SimpleDateFormat sim=new SimpleDateFormat("yyyy-MM-dd k:mm:ss");
+	String now=sim.format(date);
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>MianFeiZhe内容管理系统 - 用户管理中心</title>
+<meta name="description" content="mianfeizhe内容管理系统" />
+<link href="<%=url%>/user/style.css" type="text/css" rel="stylesheet" />
+<script language="JavaScript" src="images/manage.js"></script>
+<script language="JavaScript" src="images/common.js"></script>
+<script language="JavaScript">
+<!--
+function preloadImg(src)
+{
+	var img=new Image();
+	img.src=src
+}
+preloadImg("images/manage_arrow_left.gif");
+var displayBar=true;
+function switchBar(obj)
+{
+	if (displayBar)
+	{
+		parent.frame.style.display="none"
+		displayBar=false;
+		obj.src="images/manage_arrow_right.gif";
+		obj.title="打开左边管理菜单";
+	}
+	else{
+		parent.frame.style.display=""
+		displayBar=true;
+		obj.src="images/manage_arrow_left.gif";
+		obj.title="关闭左边管理菜单";
+	}
+}
+//-->
+</script>
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<table border="0" align="center" width="100%" cellspacing="0" cellpadding="0">
+	<tr>		
+		<td width="5%" height="22" background="images/manage_top_bg.gif"><img onclick="switchBar(this)" src="images/manage_arrow_right.gif" style="cursor:hand" title="关闭左边管理菜单" align="absMiddle"><td>
+		<td width="95%" background="images/manage_top_bg.gif">当前位置：<span class="shadow" id="locationid"></span></td>
+	</tr>
+</table>
+<table border="0" align="center" width="100%" cellspacing="0" cellpadding="0">
+	<tr>
+		<td height="6"></td>
+	</tr>
+</table><script language="JavaScript">locationid.innerHTML = "会员管理首页 - 欢迎 <font color=red>luoba</font> 登录控制面板";</script>
+<table border=0 align=center cellpadding=3 cellspacing=1 class=Usertableborder>
+<tr>
+	<th colspan=2>用户控制面板 -- 首页</th>
+</tr>
+<tr>
+	<td width="50%" class=Usertablerow1><b class=userfont2>用户名称：</b><font color=red><%=request.getSession().getAttribute("name")%></font></td>
+	<td width="50%" class=Usertablerow1><b class=userfont2>用户身份：</b><font color=red>普通会员</font></td>
+</tr>
+<tr>
+	<td class=Usertablerow1><b class=userfont2>本次登录时间：<%=now%></b></td>
+	<td class=Usertablerow1><b class=userfont2>本次登录IP：<%=request.getRemoteAddr()%></b></td>
+</tr>
+<tr>
+	<td class=Usertablerow1><a href="changepwd.jsp">修改密码</a> | <a href="changeinfo.jsp">修改资料</a></td>
+</tr>
+
+</table>
+</body>
+</html>

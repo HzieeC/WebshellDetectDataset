@@ -1,0 +1,66 @@
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>投诉单列表</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/goodsComplaints/list_goodsComplaints.js"></script>
+
+</head> 
+
+<body>
+	<input type="hidden" id="type" name="type" value="${type}"/>
+	<input type="hidden" id="roleCode" name="roleCode" value="${loginUser.roleCode}"/>
+	<div style="margin-top: 10px; margin-bottom: 5px;">
+		<table border="0" cellpadding="0"  cellspacing="1" class="gdcn-table-bgcolor" width="100%" style="font-size: 12px;">
+			<tr>
+				<td class='gridtitle'><s:text name="listgoodsComplaints.Complaintsorder"/>：</td>
+				<td class='gridbody'><input type="text" id="code" onkeydown="checkKey()"/></td>
+				<td class='gridtitle'><s:text name="listgoodsComplaints.ContractNo"/>：</td>
+				<td class='gridbody'><input type="text" id="contractNumber" onkeydown="checkKey()"/></td>
+				<td class='gridtitle'><s:text name="listgoodsComplaints.Creater"/>：</td>
+				<td class='gridbody'><input type="text" id="creatorName" onkeydown="checkKey()"/></td>
+				<td class='gridtitle'>
+					<a href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-search" onclick="searchData()"><s:text name="Search"/></a>&nbsp;&nbsp;&nbsp;
+	  				<a id="btnAudit" href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-reload" onclick="cancelSearch()"><s:text name="Empty"/></a>
+				</td>
+			</tr>
+		</table>
+	</div>
+	<table id="dataGrid"></table>
+ <!-- 语言设置-->
+<input type="hidden" id="BasicInformation" value="<s:text name="BasicInformation"/>"/>
+<input type="hidden" id="Operation" value="<s:text name="Operation"/>"/>
+<input type="hidden" id="Lookup" value="<s:text name="Lookup"/>"/>
+<input type="hidden" id="Edit" value="<s:text name="Edit"/>"/>
+<input type="hidden" id="Dispose" value="<s:text name="listgoodsComplaints.Dispose"/>"/>
+<input type="hidden" id="Delete" value="<s:text name="Delete"/>"/>
+<input type="hidden" id="Complaintsorder" value="<s:text name="listgoodsComplaints.Complaintsorder"/>"/>
+<input type="hidden" id="ContractNo" value="<s:text name="listgoodsComplaints.ContractNo"/>"/>
+<input type="hidden" id="Creater" value="<s:text name="listgoodsComplaints.Creater"/>"/>
+<input type="hidden" id="Complaintsdate" value="<s:text name="listgoodsComplaints.Complaintsdate"/>"/>
+<input type="hidden" id="State" value="<s:text name="listgoodsComplaints.State"/>"/>
+<input type="hidden" id="Pending" value="<s:text name="listgoodsComplaints.Pending"/>"/>
+<input type="hidden" id="Beingprocessed" value="<s:text name="listgoodsComplaints.Beingprocessed"/>"/>
+<input type="hidden" id="Processed" value="<s:text name="listgoodsComplaints.Processed"/>"/>
+<input type="hidden" id="New" value="<s:text name="listgoodsComplaints.New"/>"/>
+<input type="hidden" id="Examineproduct" value="<s:text name="listgoodsComplaints.Examineproduct"/>"/>
+<input type="hidden" id="Newproductcomplaints" value="<s:text name="listgoodsComplaints.Newproductcomplaints"/>"/>
+<input type="hidden" id="Wanttodelete" value="<s:text name="Wanttodelete"/>"/>
+<input type="hidden" id="DeletedSuccessful" value="<s:text name="DeletedSuccessful"/>"/>
+<input type="hidden" id="DeleteFailed" value="<s:text name="DeleteFailed"/>"/>
+<input type="hidden" id="SystemError" value="<s:text name="SystemError"/>"/>
+	
+	
+</body>
+
+</html>

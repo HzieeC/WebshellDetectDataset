@@ -1,0 +1,319 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<%server.ScriptTimeout=999999999%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../../Inc/CommonFunction.asp" -->
+<!--#include file="../../Inc/sendmail.asp" -->
+<!--#include file="../../Inc/md5.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<%If Not FRAdminLevel(706) Then Call ErrorMsg()
+Buffer(True)%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head> 
+<title>邮件群发管理</title> 
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link href="../Css/style.css" rel="stylesheet" type="text/css">
+</head>
+<script language="javascript" src="../Inc/Admin.js"></script>
+<script language="javascript">
+function insertmailsubject(labelstr)
+{
+document.form.mailsubject.focus();
+var sel=document.selection;
+if (sel!=null) 
+   {
+   var mg=sel.createRange();
+   if (mg!=null)
+        {
+        mg.text=labelstr;
+        }
+   }
+}
+function insertText(labelstr)
+{
+document.form.mailbody.focus();
+var sel=document.selection;
+if (sel!=null) 
+   {
+   var mg=sel.createRange();
+   if (mg!=null)
+        {
+        mg.text=labelstr;
+        }
+   }
+}
+function getmembertype(typeid)
+{
+	document.frames["memberframe"].location.replace("admin_membertype.asp?typeid="+typeid);
+}
+function getMailTemp(mailid)
+{
+	window.location.href="Admin_Mail.asp?tempid="+mailid;
+}
+function check()
+{
+if (document.form.mailsubject.value=="")
+{
+	alert("请输入邮件主题!");
+	document.form.mailsubject.focus();
+	return false;
+}
+if (document.form.mailbody.value=="")
+{
+	alert("请输入邮件内容!");
+	document.form.mailbody.focus();
+	return false;
+}
+}
+</script>
+<script language="javascript">
+function shows(id)
+{
+document.getElementById("post1").style.display = "none";
+document.getElementById("post2").style.display = "none";
+document.getElementById("post"+id).style.display = "block";
+}
+</script>
+<%dim action
+action=request("action")
+member=trim(request("member"))
+mail_address=Request.Form("mail_address")
+if action="save" then
+Response.Write "<div id=""SearchDiv"" style=""position:absolute;z-index:9999;right:20px;FILTER: alpha(opacity=80);background-color:#FEFEE9; border:1px #CCCCCC solid; width:200px; height:20px; line-height:100%; text-align:center;padding-top:4px;""><img src=""/skin/Default/loing.gif"" align=""middle""> 正在发送，请稍后……</div>"
+response.flush
+mtype=request("mtype")
+mtypes=request("mtypes")
+mdate=request("mdate")
+mailsubject=CheckStr(trim(request("mailsubject")))
+mailsubject=CreateHTMLReplace(mailsubject)
+mailbody=request("mailbody")
+mailbody=CreateHTMLReplace(ReplaceLableFlag(ReplaceAllLabel(mailbody)))
+page=clng(request("page"))
+If page="" Or  IsNull(page) Or page<1 then page=1
+MaxPerPage=30
+if member="" and mail_address=1 then
+'	sql="select member_login,member_name,member_email,Member_pwd from JOB_Member where Member_sendemail=1"
+'	select case mdate
+'		case 1:sql=sql&" and (DateDiff("&FR_HR_d&",Member_logindate,"&FR_HR_Now&")>7 or Member_logindate is null)"
+'		case 2:sql=sql&" and (DateDiff("&FR_HR_d&",Member_logindate,"&FR_HR_Now&")>30 or Member_logindate is null)"
+'		case 3:sql=sql&" and DateDiff("&FR_HR_d&","&FR_HR_Now&",Member_enddate)>7"
+'		case 4:sql=sql&" and DateDiff("&FR_HR_d&","&FR_HR_Now&",Member_enddate)>30"
+'	end select
+'	if mtype<>0 then
+'		sql=sql&" and Member_typeid="&mtype&""
+'	end if
+'	if mtypes<>0 then
+'		sql=sql&" and Member_groupid="&mtypes&""
+'	end if
+'	sql=sql&" order by member_id desc"
+	sql="select top 30 Member_login,member_name,member_email,Member_pwd from job_member where Member_loginnum<1 and Member_typeid=2 order by Member_id asc"
+	set rs=Server.CreateObject(FR_HR_RS)
+	rs.open sql,conn,1,3
+	if not rs.eof then
+	rs.pagesize=MaxPerPage
+	mpage=rs.pagecount
+	rs.move (page-1)*MaxPerpage
+		v=0:j=0
+		do while not rs.eof		
+		v=v+1
+		
+		'初始化该会员的密码
+		newpass=Date()&Now()
+		newpass=Md5(newpass,32)
+		newpass=Left(Md5(newpass,32),6)
+		newpass=Md5(newpass,32)
+		newpass=Right(Md5(newpass,32),6)
+		newpass2=newpass
+		newpass=Md5(newpass,32)
+		rs("Member_pwd")=newpass	
+		rs.Update
+		
+		mailsubjects=replace(mailsubject,"{$FR_会员用户名}",""&rs("member_login")&"")
+		mailsubjectss=replace(mailsubjects,"{$FR_会员名称}",""&rs("member_name")&"")
+		mailbodys=replace(mailbody,"{$FR_会员用户名}",""&rs("member_login")&"")
+		mailbodyss=replace(mailbodys,"{$FR_会员名称}",""&rs("member_name")&"")		
+		mailbodysss=replace(mailbodyss,"{$FR_会员密码}",""&newpass2&"")
+		
+		Call SendMail(rs("Member_email"),mailsubjectss,mailbodysss)
+		j=j+1
+		if v>=MaxPerPage then exit do
+		rs.movenext
+		loop
+		if mpage=<page then
+		msg="<script language=""JavaScript"">document.getElementById(""SearchDiv"").style.display='none';</script>"&(page-1)*MaxPerpage&"-"&rs.recordcount&"封已发送完毕，成功"&j&"封，失败"&v-j&"封！<br>恭喜您，任务执行完毕！"
+		call Show_Suc(msg,"Admin_Mail.asp")
+		response.End()
+		else
+		msg=""&(page-1)*MaxPerpage&"-"&page*MaxPerpage&"封已发送完毕，成功"&j&"封，失败"&v-j&"封！<br>3秒后将继续发送……"
+		call Show_Suc(msg,"Admin_Mail.asp")
+		Response.Write "<meta http-equiv=Refresh content='3; URL=Admin_mail.asp?action=save&member="&replace(member,"'","")&"&mailsubject="&mailsubject&"&mailbody="&mailbody&"&page="&page+1&"&mtype="&mtype&"&mtypes="&mtypes&"&mdate="&mdate&"'>"
+		Response.End()
+		end if
+	else
+		Response.Write "<script language=""JavaScript"">document.getElementById(""SearchDiv"").style.display='none';alert('选择的会员类型下没有用户!');window.location='admin_mail.asp'</script>"
+		Response.End()
+	end if
+	rs.close
+	set rs=nothing
+else
+	member=replace(replace(member,",","','")," ","")
+	set rs=Server.CreateObject(FR_HR_RS)
+	sql="select member_login,member_name,member_email,Member_pwd from job_member where member_login in ('"&member&"') order by member_id desc"
+	rs.open sql,conn,1,3
+	if not rs.eof then
+		rs.pagesize=MaxPerPage
+		mpage=rs.pagecount
+		rs.move (page-1)*MaxPerpage
+		v=0:j=0
+		do while not rs.eof		
+		v=v+1
+		'初始化该会员的密码
+		'newpass=Date()&Now()
+'		newpass=Md5(newpass,32)
+'		newpass=Left(Md5(newpass,32),6)
+'		newpass=Md5(newpass,32)
+'		newpass=Right(Md5(newpass,32),6)
+'		newpass2=newpass
+'		newpass=Md5(newpass,32)
+'		rs("Member_pwd")=newpass	
+'		rs.Update
+		mailsubjects=replace(mailsubject,"{$FR_会员用户名}",""&rs("member_login")&"")
+		mailsubjectss=replace(mailsubjects,"{$FR_会员名称}",""&rs("member_name")&"")
+		mailbodys=replace(mailbody,"{$FR_会员用户名}",""&rs("member_login")&"")
+		mailbodyss=replace(mailbodys,"{$FR_会员名称}",""&rs("member_name")&"")		
+		'mailbodysss=replace(mailbodyss,"{$FR_会员密码}",""&newpass2&"")
+		
+		Call SendMail(rs("member_email"),mailsubjectss,mailbodysss)	
+		j=j+1
+		if v>=MaxPerPage then exit do
+		rs.movenext
+		loop
+		if mpage=<page then
+		msg="<script language=""JavaScript"">document.getElementById(""SearchDiv"").style.display='none';</script>"&(page-1)*MaxPerpage&"-"&rs.recordcount&"封已发送完毕，成功"&j&"封，失败"&v-j&"封！<br>恭喜您，任务执行完毕！"
+		call Show_Suc(msg,"Admin_Mail.asp")
+		response.End()
+		else
+		msg=""&(page-1)*MaxPerpage&"-"&page*MaxPerpage&"封已发送完毕，成功"&j&"封，失败"&v-j&"封！<br>3秒后将继续发送……"
+		call Show_Suc(msg,"Admin_Mail.asp")
+		Response.Write "<meta http-equiv=Refresh content='3; URL=Admin_mail.asp?action=save&member="&replace(member,"'","")&"&mailsubject="&mailsubject&"&mailbody="&mailbody&"&page="&page+1&"'>"
+		Response.End()
+		end if
+	else
+		if member<>"" then
+			members=split(member,",")
+			j=ubound(members)
+			for v=0 to j
+				Call SendMail(members(v),mailsubject,mailbody)
+				j=j+1
+			next
+			msg="<script language=""JavaScript"">document.getElementById(""SearchDiv"").style.display='none';</script>"&j&"封已发送完毕，成功"&j&"封，失败"&v-j&"封！<br>恭喜您，任务执行完毕！"
+			call Show_Suc(msg,"Admin_Mail.asp")
+			response.End()
+		else
+			Response.Write("<script>alert('邮件发送失败！');location.href('admin_mail.asp');</script>")
+			Response.End()
+		end if
+	end if
+	rs.close
+	set rs=nothing
+end if
+end if
+%>
+<body>
+<iframe height=0 width=0 src="" id="memberframe"></iframe>
+<%
+tempid=Request("tempid")
+dim mt_content
+mt_content=""
+if tempid<>"" then
+	sql="select mt_content from job_Mailtemplate where mt_id="&tempid&" order by MT_id desc"
+	set rs=Server.CreateObject(FR_HR_Rs)
+	rs.open sql,conn,1,1
+	if not rs.eof then
+		mt_content=rs("mt_content")
+	end if
+	rs.close
+	set rs=nothing
+end if
+%>
+<table cellpadding=2 cellspacing=1 border=0 width=98% class=tableBorder align=center>
+<form action="?action=save&tempid=<%=tempid%>" method="post" name="form" onsubmit="return check();">
+	<tr>
+		<th height=25 colspan="2" class="tableHeaderText">邮件群发管理</th>	
+	</tr>
+	<tr>
+	  <td align="right">收件人：</td>
+	  <td><input name="mail_address" type="radio" onclick="shows(2)" class="checkbox" checked="checked" value="1" />选择会员 <input name="mail_address" type="radio" onclick="shows(1)" class="checkbox" value="2" <%if member<>"" then%>checked="checked"<%end if%> />输入邮件地址</td>
+	</tr>
+	<tr id="post1" <%if member="" then%>style="display:none;"<%end if%>>
+	  <td align="right">&nbsp;</td>
+	  <td><input name="member" value="<%=replace(member," ","")%>" type="text" size="80" /> 多个邮件地址请用“,”分开</td>
+    </tr>
+	<tr id="post2" <%if member<>"" then%>style="display:none;"<%end if%>>
+		<td width="14%" align="right">&nbsp;</td>
+		<td width="86%"><select name="mtype" onChange=getmembertype(this.options[this.selectedIndex].value)>
+		<option value="0">全部会员</option>
+		<%for m=0 to ubound(Groupid)%>
+		<option value="<%=m+1%>"><%=Grouptype(m)%></option>
+		<%next%>
+	    </select>
+		<span id=load205></span><span id=membertype><select name="mtypes">
+		<option value="0" selected>全部会员</option>
+		</select>
+		</span>
+		<select name="mdate">
+	    <option value="0">所有会员</option>
+	    <option value="1">一周未登录</option>
+	    <option value="2">30天未登录</option>
+	    <option value="3">一周内到期</option>
+	    <option value="4">30天内到期</option>
+	    </select>
+	</td>
+	</tr>
+	<tr>
+	  <td align="right">邮件主题：</td>
+	  <td><input name="mailsubject" type="text" size="50" />
+	  可选标签：<a style="cursor:hand" onClick="javascript:insertmailsubject('{$FR_会员用户名}');">会员用户名</a> | <a style="cursor:hand" onClick="javascript:insertmailsubject('{$FR_会员名称}');">会员名称</a></td>
+    </tr>
+	<tr>
+	  <td align="right">可选模板：</td>
+	  <td><select name="select"  onChange=getMailTemp(this.options[this.selectedIndex].value)>
+	  <option>请选择邮件模板</option>
+	  <%
+	  	sql="select mt_id,mt_name,mt_content from job_Mailtemplate order by MT_id desc"
+		set rs=Server.CreateObject(FR_HR_Rs)
+		rs.open sql,conn,1,1
+		if not rs.eof then
+		for i=1 to rs.recordcount
+	  %>
+	  <option value="<%=rs("MT_id")%>"><%=rs("MT_name")%></option>
+	  <%
+	  	rs.movenext
+		next
+		end if
+		rs.close
+		set rs=nothing
+	  %>
+	    </select>
+	  </td>
+    </tr>
+	<tr>
+	  <td align="right">邮件内容：</td>
+	  <td valign="middle"><textarea name="mailbody" id="t1" cols="80" rows="15"><%=mt_content%></textarea><A href="javascript:admin_Size(-5,'t1')"><IMG 
+      src="../Images/minus.gif" width="20" height="20" border=0 unselectable="on"></A> <A 
+      href="javascript:admin_Size(5,'t1')"><IMG src="../Images/plus.gif" width="20" height="20" 
+      border=0 unselectable="on"></A> <IMG 
+      src="../Images/viewpic.gif" width="45" height="19" onclick='runEx("t1")'><br>可选标签：<a style="cursor:hand" onClick="javascript:insertText('{$FR_会员用户名}');">会员用户名</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_会员名称}');">会员名称</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_会员密码}');">会员密码</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站名称}');">网站名称</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站标题}')">网站标题</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站网址}')">网站网址</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_LOGO地址}')">LOGO地址</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站关键字}')">网站关键字</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站描述}')">网站描述</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_联系人}')">联系人</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_联系地址}')">联系地址</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_联系电话}')">联系电话</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_联系传真}')">联系传真</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_管理员名称}')">管理员名称</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_管理员邮箱}')">管理员邮箱</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_系统目录}')">系统目录</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_管理员目录}')">管理员目录</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_页尾导航}')">页尾导航</a> | <a style="cursor:hand" onClick="javascript:insertText('{$FR_网站版权}')">网站版权</a></td>
+    </tr>
+	<tr>
+		<td width="14%">　</td>
+	  <td width="86%">&nbsp;
+	    <input name="submit1" type="submit" class="inputs" value=" 发 送 ">
+      <input name="Submit" type="reset" class="inputs" value=" 重 置 " /></td>
+	</tr>
+</form>
+</table>
+<!--#include file="../inc/copy.asp"-->
+</body>
+</html>

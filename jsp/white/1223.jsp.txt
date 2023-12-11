@@ -1,0 +1,108 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_personal.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	
+%>
+<html>
+  <head>
+    
+    <title>短信群发</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link rel="stylesheet" href="/program/admin/sms/plugins/thickbox/thickbox.css" type="text/css" media="screen" />
+	<script type="text/javascript" src="/program/admin/sms/js/jquery-1.4.2.min.js"></script>
+	<script type="text/javascript" src="/program/admin/sms/sms.js"></script>
+	<script type="text/javascript" src="/program/admin/sms/plugins/thickbox/thickbox.js"></script>
+	
+
+
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>短信群发</h1>
+			</td>
+
+		</tr>
+	</table>
+
+		<form action="/doTradeReg.do" method="post" name="sendForm">
+		
+		<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+
+        <tr>
+			
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+
+          <td width="91%" align="left">
+
+		  <h4>关于短信群发</h4>
+
+		  <span>1、 用户可以在手机号码一栏输入您需要发送到号码，号码之间用 | 分隔</span><br/>
+		  <span>2、 在短信内容一栏输入您需要发送到短信内容。</span>
+
+		  </td>
+
+        </tr>
+
+      </table>
+
+      <br/>
+
+
+
+	
+
+
+		
+
+
+	<table width="100%" cellpadding="1" cellspacing="1" border="0" class="listtab" >
+		<tr>
+			<td align="right" width="15%">手机号码:</td>
+			<td  style="padding-left:15px;">
+		<textarea name = "all_trage_user" id="all_trage_user" style="width:400px;height:200px;margin:10px;"></textarea>	  
+      </td>
+	</tr>
+	<!--
+	<tr>
+		<td>
+		</td>
+		<td>
+			  已选中<span id="user_num">0</span>个用户
+			<a href="searchPersonal.jsp?TB_iframe=true&height=400&width=700&KeepThis=true" title="会员列表" class="thickbox">
+			<button class="buttoncss">查询会员</button>
+			</a>
+	</td>
+	</tr>
+	-->
+	  <tr>
+	  <td align="right" width="15%">短信内容:</td>
+	  <td colspan="2"  style="padding-left:15px;"><textarea name = "SMS_Content" id="SMS_Content" style="width:400px;height:100px;margin:10px;">您好</textarea></td>
+	  </tr>
+	  </table>
+	        <br/>
+			      <br/>
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" value="6605" name="bpm_id">
+				<!-- <input type="hidden" value="" name="all_trage_user" id="all_trage_user"> -->
+				<input type="button" onclick="submitForm();" value="提交" name="tradeSub" class="buttoncss">&nbsp;&nbsp;
+				<input type="button" onclick="window.location.href='index.jsp';" value="返回" name="tradeRut" class="buttoncss">
+			</td>
+		</tr>
+	</table>
+    </form>	
+
+	
+
+
+</body>
+
+</html>

@@ -1,0 +1,37 @@
+<%@ page language="java" import="java.util.*,com.bizoss.frame.util.*" pageEncoding="UTF-8"%>
+  <% 
+  	String table_name = "";
+  	StringBuffer fieldStr = new StringBuffer();
+  	List fieldList = null;
+  	if(request.getParameter("table_name")!=null){
+  		table_name = request.getParameter("table_name");
+  		DatebaseMgr dbMgr = new DatebaseMgr();
+  		fieldList = dbMgr.getTableDescList(table_name);
+  	}
+  	fieldStr.append("<table>");
+	fieldStr.append("<tr><td>Field Name</td><td>List Page Display</td><td>Chinese Name</td><td>Validate And Tip</td><td>Search</td><td>Size</td><td>Maxlength</td></tr>");
+	int listsize = 0;
+  	if(fieldList!=null && fieldList.size()>0){
+		listsize = fieldList.size();
+		Hashtable fieldMap = new Hashtable();
+		for(int i=0;i<fieldList.size();i++){
+			fieldMap = (Hashtable)fieldList.get(i);
+			String Field="";
+			if(fieldMap.get("Field")!=null) Field = fieldMap.get("Field").toString();
+			fieldStr.append("<tr>");
+
+			fieldStr.append("<td>"+Field+"</td>");
+			fieldStr.append("<td><input type='hidden' name='filedname"+i+"' id='filedname"+i+"' value='"+Field+"' />");
+			fieldStr.append("<input type='checkbox' name='display"+i+"' id='display"+i+"' checked /></td>");
+			fieldStr.append("<td><input type='text' name='filedCnName"+i+"' id='filedCnName"+i+"' value='' /></td>");
+			fieldStr.append("<td><input type='checkbox' name='validate"+i+"' id='validate"+i+"' checked />");
+			fieldStr.append("<input type='text' name='validatename"+i+"' id='validatename"+i+"' value='' /></td>");
+			fieldStr.append("<td><input type='checkbox' name='search"+i+"' id='search"+i+"' checked /></td>");
+			fieldStr.append("<td><input type='text' size='4' maxlength='5' name='fsize"+i+"' id='fsize"+i+"' value='20' /></td>");
+			fieldStr.append("<td><input type='text' size='4' maxlength='5' name='fmaxlength"+i+"' id='fmaxlength"+i+"' value='20' /></td>");
+			fieldStr.append("<tr/>");
+		}
+	}
+	fieldStr.append("<input type='hidden' name='fieldsize' id='fieldsize' value="+listsize+">");
+	out.println(fieldStr.toString());
+  %>

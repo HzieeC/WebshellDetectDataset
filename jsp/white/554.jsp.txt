@@ -1,0 +1,23 @@
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>组织架构</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">
+	
+	<script type="text/javascript" src="${ctx }/scripts/framework/jqModal.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/good/goodType/listTree_type.js"></script>
+</head> 
+
+<body>
+	<s:hidden id="typeId" name="goodType.id"/>
+	<table id="dataGrid"></table>
+ <!-- 语言设置-->
+	<input type="hidden" id="ShowAll" value="<s:text name="listTree.ShowAll"/>"/>
+</body>
+</html>

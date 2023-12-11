@@ -1,0 +1,498 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../inc/setup.asp"-->
+<!--#include file="../inc/const.asp"-->
+<!--#include file="../inc/check.asp"-->
+<!--#include file="../../inc/chkinput.asp"-->
+<!--#include file="../../inc/md5.asp"-->
+<!--#include file="../../api/cls_api.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_user.asp
+' 更新日期：2008-09-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="100" align="left">用户管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_index.asp">管理首页</a>
+			 - <a href="admin_list.asp">用户列表</a>
+			 - <a href="admin_user.asp?action=add">添加会员</a>
+			 - <a href="admin_list.asp?showmode=1">等待验证的会员</a>
+			 - <a href="admin_list.asp?UserGrade=999">管理员</a>
+			 - <a href="admin_list.asp?UserGrade=1">普通会员</a>
+			 - <a href="admin_list.asp?UserGrade=2">高级会员</a>
+			 - <a href="admin_list.asp?UserGrade=3">VIP会员</a>
+			 - <a href="admin_password.asp">修改密码</a>
+		</td>
+	</tr>
+</table>
+<%
+Dim Action,m_strUserGroup
+If Not ChkAdmin("AddUser") Then
+	Call Transfer_error()
+End If
+Action=LCase(Request("action"))
+Select Case Trim(Action)
+Case "edit"
+	Call editUsers()
+Case "savedit"
+	Call savedit()
+Case "savenew"
+	Call savenew()
+Case Else
+	Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+	Dim RsObj
+%>
+<table class="tableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="2">添加会员</th>
+	</tr>
+	<form name="myform" method="post" action="?action=savenew">
+		<tr>
+			<td class="tablerow1" align="right" width="30%"><b>登陆名称：</b></td>
+			<td class="tablerow1" width="70%"><input name="username" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow2" align="right"><b>用户密码：</b></td>
+			<td class="tablerow2"><input type="password" name="password1" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow1" align="right"><b>确认密码：</b></td>
+			<td class="tablerow1"><input type="password" name="password2" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow2" align="right"><b>用户昵称：</b></td>
+			<td class="tablerow2"><input name="nickname" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow1" align="right"><b>用户邮箱：</b></td>
+			<td class="tablerow1"><input size="30" name="usermail" value="<%=NewAsp.MainSetting(3)%>" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow2" align="right"><b>用户姓别：</b></td>
+			<td class="tablerow2"><select name="UserSex">
+			<option value="男" selected="selected">帅哥</option>
+			<option value="女">美女</option>
+			</select></td>
+		</tr>
+		<tr>
+			<td class="tablerow1" align="right"><b>所属用户组：</b></td>
+			<td class="tablerow1"><select name="UserGrade">
+<%
+	Set RsObj = NewAsp.Execute("SELECT GroupName,Grades FROM NC_UserGroup WHERE Grades<>0 ORDER BY Groupid")
+	Do While Not RsObj.EOF
+		Response.Write Chr(9) & Chr(9) & "<option value=""" & RsObj("Grades") & "," & RsObj("GroupName") & """"
+		If RsObj("Grades") = 1 Then Response.Write " selected"
+		Response.Write ">"
+		Response.Write RsObj("GroupName")
+		Response.Write "</option>" & vbCrLf
+		RsObj.movenext
+	Loop
+	Set RsObj = Nothing
+%>
+			</select></td>
+		</tr>
+		<tr>
+			<td class="tablerow2" align="right"><b>用户点数：</b></td>
+			<td class="tablerow2"><input size="10" name="userpoint" value="50" type="text" /></td>
+		</tr>
+		<tr align="center">
+			<td class="tablerow1" colspan="2"><input class="button" type="button" onclick="javascript:history.go(-1)" name="go_button" value="返回上一页" /> 
+			<input class="button" type="submit" name="submit_button" value="添加用户" /></td>
+		</tr>
+	</form>
+</table>
+<%
+End Sub
+
+Sub editUsers()
+	Dim Rs,SQL,RsObj
+	Dim userid,username
+	userid = NewAsp.ChkNumeric(Request("userid"))
+	username = Replace(Request("username"), "'", "")
+	If userid = 0 Then
+		SQL = "SELECT * FROM NC_user WHERE username='" & username & "'"
+	Else
+		SQL = "SELECT * FROM NC_user WHERE userid=" & userid
+	End If
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！没有找到任何会员。或者您选择了错误的系统参数!</li>"
+		Exit Sub
+	End If
+%>
+<form action="?action=savedit" method="post" name="myform">
+<table class="tableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="4">查看/修改会员资料</th>
+	</tr>
+	<tr>
+		<td class="tablerow1" width="10%">会员名称<input type="hidden" name="userid" value="<%=Rs("userid")%>" /></td>
+		<td class="tablerow1" width="40%"><input disabled="disabled" name="username" value="<%=NewAsp.HTMLEncodes(Rs("username"))%>" type="text" /></td>
+		<td class="tablerow1" width="10%">真实姓名</td>
+		<td class="tablerow1" width="40%"><input name="TrueName" value="<%=NewAsp.HTMLEncodes(Rs("TrueName"))%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">用户密码</td>
+		<td class="tablerow2"><input type="password" name="password" /> <font color="#0000ff">如果不修改密码请留空</font></td>
+		<td class="tablerow2">用户邮箱</td>
+		<td class="tablerow2"><input size="30" name="usermail" value="<%=NewAsp.HTMLEncodes(Rs("usermail"))%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">交易密码</td>
+		<td class="tablerow1"><input name="BuyCode" type="text" /> <font color="#0000ff">如果不修改密码请留空</font></td>
+		<td class="tablerow1">用户状态</td>
+		<td class="tablerow1"><input type="radio" name="UserLock" value="0"<%If Rs("UserLock") = 0 Then Response.Write " checked=""checked"""%> /> 激活&nbsp;&nbsp; 
+		<input type="radio" name="UserLock" value="1"<%If Rs("UserLock") = 1 Then Response.Write " checked=""checked"""%> /> 锁定&nbsp;&nbsp;</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">用户等级</td>
+		<td class="tablerow2"><select name="UserGrade">
+<%
+	Set RsObj = NewAsp.Execute("SELECT GroupName,Grades FROM NC_UserGroup WHERE Grades <> 0 ORDER BY Groupid")
+	Do While Not RsObj.EOF
+		Response.Write Chr(9) & Chr(9) & "	<option value=""" & RsObj("Grades") & "," & RsObj("GroupName") & """"
+		If RsObj("Grades") = Rs("UserGrade") Then Response.Write " selected=""selected"""
+		Response.Write ">"
+		Response.Write RsObj("GroupName")
+		Response.Write "</option>" & vbCrLf
+		RsObj.movenext
+	Loop
+	Set RsObj = Nothing
+%>			</select></td>
+		<td class="tablerow2">会员类型</td>
+		<td class="tablerow2"><select name="UserClass">
+		<option value="0"<%If Rs("UserClass") = 0 Then Response.Write " selected=""selected"""%>>计点会员</option>
+		<option value="1"<%If Rs("UserClass") = 1 Then Response.Write " selected=""selected"""%>>计时会员</option>
+		<option value="999"<%If Rs("UserClass") = 999 Then Response.Write " selected=""selected"""%>>到期会员</option>
+		</select></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">用户点数</td>
+		<td class="tablerow1"><input size="10" name="userpoint" value="<%=Rs("userpoint")%>" type="text" /></td>
+		<td class="tablerow1">账户余额</td>
+		<td class="tablerow1"><input size="10" name="usermoney" value="<%=Rs("usermoney")%>" type="text" /> 元</td>
+	</tr>
+	<tr>
+		<td class="tablerow2" nowrap="nowrap">用户经验值</td>
+		<td class="tablerow2"><input size="10" name="experience" value="<%=Rs("experience")%>" type="text" /></td>
+		<td class="tablerow2" nowrap="nowrap">用户魅力值</td>
+		<td class="tablerow2"><input size="10" name="charm" value="<%=Rs("charm")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">身分证号码</td>
+		<td class="tablerow1"><input size="35" name="UserIDCard" value="<%=NewAsp.HTMLEncodes(Rs("UserIDCard"))%>" type="text" /></td>
+		<td class="tablerow1">姓别</td>
+		<td class="tablerow1"><select name="UserSex">
+		<option value="男"<%If Rs("UserSex") = "男" Then Response.Write " selected=""selected"""%>>帅哥</option>
+		<option value="女"<%If Rs("UserSex") = "女" Then Response.Write " selected=""selected"""%>>美女</option>
+		</select></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">用户电话</td>
+		<td class="tablerow2"><input name="phone" value="<%=NewAsp.HTMLEncodes(Rs("phone"))%>" type="text" /></td>
+		<td class="tablerow2">用户QQ</td>
+		<td class="tablerow2"><input name="oicq" value="<%=NewAsp.HTMLEncodes(Rs("oicq"))%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">邮政编码</td>
+		<td class="tablerow1"><input name="postcode" value="<%=NewAsp.HTMLEncodes(Rs("postcode"))%>" type="text" /></td>
+		<td class="tablerow1">联系地址</td>
+		<td class="tablerow1"><input size="45" name="address" value="<%=NewAsp.HTMLEncodes(Rs("address"))%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">密码问题</td>
+		<td class="tablerow2"><input name="question" value="<%=NewAsp.HTMLEncodes(Rs("question"))%>" type="text" /></td>
+		<td class="tablerow2">密码答案</td>
+		<td class="tablerow2"><input name="answer" type="text" /> <font color="#0000ff">如果不修改答案请留空</font></td>
+	</tr>
+	<tr>
+		<td class="tablerow1" nowrap="nowrap">最后登陆时间</td>
+		<td class="tablerow1"><input size="30" name="LastTime" value="<%=Rs("LastTime")%>" type="text" /></td>
+		<td class="tablerow1">最后登陆IP</td>
+		<td class="tablerow1"><input size="30" name="userlastip" value="<%=Rs("userlastip")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">非法记录数</td>
+		<td class="tablerow2"><input size="10" name="Badness" value="<%=Rs("Badness")%>" type="text" /></td>
+		<td class="tablerow2">注册IP</td>
+		<td class="tablerow2"><input size="30" name="ip" value="<%=Rs("ip")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">注册时间</td>
+		<td class="tablerow1"><input size="30" name="JoinTime" value="<%=Rs("JoinTime")%>" type="text" /></td>
+		<td class="tablerow1">到期时间</td>
+		<td class="tablerow1"><input size="30" name="ExpireTime" value="<%=Rs("ExpireTime")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">用户图像</td>
+		<td class="tablerow2"><input size="30" name="UserFace" value="<%=NewAsp.HTMLEncodes(Rs("UserFace"))%>" type="text" /></td>
+		<td class="tablerow2">登陆次数</td>
+		<td class="tablerow2"><input size="10" name="userlogin" value="<%=Rs("userlogin")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">密码保护</td>
+		<td class="tablerow1"><input type="radio" name="Protect" value="0"<%If Rs("Protect") = 0 Then Response.Write " checked=""checked"""%> /> 未申请&nbsp;&nbsp; 
+		<input type="radio" name="Protect" value="1"<%If Rs("Protect") = 1 Then Response.Write " checked=""checked"""%> /> 已申请&nbsp;&nbsp;</td>
+		<td class="tablerow1">用户昵称</td>
+		<td class="tablerow1"><input name="nickname" value="<%=NewAsp.HTMLEncodes(Rs("nickname"))%>" type="text" /></td>
+	</tr>
+	<tr align="center">
+		<td class="tablerow2" colspan="4"><input class="button" type="button" onclick="javascript:history.go(-1)" name="go_button" value="返回上一页" /> <input class="button" type="submit" name="submit_button" value="确认修改" /></td>
+	</tr>
+</table>
+</form>
+<%
+	Set Rs = Nothing
+End Sub
+
+Sub savenew()
+	Call checkSave()
+	Dim Rs,SQL
+	Dim Password,Question,Answer,UserPassWord
+	Dim usersex,sex,username
+	If Trim(Request.Form("username")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>用户名不能为空！</li>"
+	End If
+	If NewAsp.IsValidStr(Request("username")) = False Then
+		ErrMsg = ErrMsg + "<li>用户名中含有非法字符。</li>"
+		Founderr = True
+	Else
+		username = NewAsp.CheckBadstr(Request("username"))
+	End If
+	If Trim(Request.Form("password1")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>用户密码不能为空！</li>"
+	End If
+	If Trim(Request.Form("password2")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>确认密码不能为空！</li>"
+	End If
+	If Request.Form("password1") <> Request.Form("password2") Then
+		ErrMsg = ErrMsg + "<li>您输入的密码和确认密码不一致。</li>"
+		FoundErr = True
+	Else
+		Password = Trim(Request.Form("password2"))
+		UserPassWord =  md5(Password,16)
+	End If
+	If Trim(Request.Form("usersex")) = "" Then
+		ErrMsg = ErrMsg + "<li>您的姓别不能为空！</li>"
+		Founderr = True
+	Else
+		usersex = NewAsp.CheckBadstr(Request.Form("usersex"))
+	End If
+	If usersex = "女" Then
+		sex = 0
+	Else
+		sex = 1
+	End If
+	Set Rs = NewAsp.Execute("SELECT username FROM NC_User WHERE username = '" & username & "'")
+	If Not (Rs.BOF And Rs.EOF) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！此用户已经存在,请换一个用户名再试！</li>"
+		Exit Sub
+	End If
+	Rs.Close:Set Rs = Nothing
+	Set Rs = NewAsp.Execute("SELECT username FROM NC_Admin WHERE username='" & UserName & "'")
+	If Not (Rs.BOF And Rs.EOF) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！此用户已经存在,请换一个用户名再试！</li>"
+		Exit Sub
+	End If
+	Rs.Close:Set Rs = Nothing
+	If Founderr = True Then Exit Sub
+	Question = Trim(Request.Form("question"))
+	Answer = Trim(Request.Form("answer"))
+	If Question = "" Then Question = NewAsp.GetRandomCode(16)
+	If Answer = "" Then Answer = NewAsp.GetRandomCode(16)
+	'-----------------------------------------------------------------
+	'系统整合
+	'-----------------------------------------------------------------
+	Dim API_NewAsp,API_SaveCookie,SysKey
+	If API_Enable Then
+		Set API_NewAsp = new API_Conformity
+		API_NewAsp.NodeValue "action","reguser",0,False
+		API_NewAsp.NodeValue "username",UserName,1,False
+		Md5OLD = 1
+		SysKey = Md5(API_NewAsp.XmlNode("username") & API_ConformKey,16)
+		Md5OLD = 0
+		API_NewAsp.NodeValue "syskey",SysKey,0,False
+		API_NewAsp.NodeValue "password",Password,0,False
+		API_NewAsp.NodeValue "email",NewAsp.CheckStr(Request.Form("usermail")),1,False
+		API_NewAsp.NodeValue "question",Question,1,False
+		API_NewAsp.NodeValue "answer",Answer,1,False
+		API_NewAsp.NodeValue "gender",sex,0,False
+		API_NewAsp.SendHttpData
+		If API_NewAsp.Status = "1" Then
+			Founderr = True
+			ErrMsg =  ErrMsg & API_NewAsp.Message
+			Exit Sub
+		End If
+		Set API_NewAsp = Nothing
+	End If
+	'-----------------------------------------------------------------
+	If Founderr = True Then Exit Sub
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_User WHERE (userid is null)"
+	Rs.Open SQL,Conn,1,3
+	Rs.Addnew
+		Rs("username") = username
+		Rs("password") = UserPassWord
+		Rs("nickname") = Trim(Request.Form("nickname"))
+		Rs("UserGrade") = NewAsp.ChkNumeric(m_strUserGroup(0))
+		Rs("UserGroup") = Trim(m_strUserGroup(1))
+		Rs("UserClass") = 0
+		Rs("UserLock") = 0
+		Rs("UserFace") = "face/1.gif"
+		Rs("userpoint") = Trim(Request.Form("userpoint"))
+		Rs("usermoney") = 0
+		Rs("savemoney") = 0
+		Rs("prepaid") = 0
+		Rs("experience") = 10
+		Rs("charm") = 10
+		Rs("TrueName") = Trim(Request.Form("username"))
+		Rs("usersex") = NewAsp.CheckStr(Request.Form("usersex"))
+		Rs("usermail") = NewAsp.CheckStr(Request.Form("usermail"))
+		Rs("oicq") = ""
+		Rs("question") = Question
+		Rs("answer") = md5(Answer,16)
+		Rs("JoinTime") = Now()
+		Rs("ExpireTime") = Now()
+		Rs("LastTime") = Now()
+		Rs("Protect") = 0
+		Rs("usermsg") = 0
+		Rs("userlastip") = ""
+		Rs("userlogin") = 0
+		Rs("UserToday") = "0,0,0,0,0,0,0,0,0,0,0"
+		Rs("usersetting") = ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"
+		Rs("ip") = NewAsp.UserTrueIP
+		Rs("Badness") = 0
+		Rs("isask") = 0
+		
+	Rs.update
+	Rs.Close:Set Rs = Nothing
+	Succeed("<li>恭喜您！添加会员[<font color=""blue"">" & Request("username") & "</font>]成功。</li>")
+End Sub
+
+Sub savedit()
+	Call checkSave()
+	Dim Rs,SQL
+	Dim sex,username
+	If Trim(Request.Form("usersex")) = "女" Then
+		sex = 0
+	Else
+		sex = 1
+	End If
+	If Not IsDate(Request.Form("JoinTime")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>注册时间参数错误！</li>"
+	End If
+	If Founderr = True Then Exit Sub
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_User WHERE userid=" & CLng(Request("userid"))
+	Rs.Open SQL,Conn,1,3
+		'Rs("username") = Trim(Request.Form("username"))
+		Rs("nickname") = Trim(Request.Form("nickname"))
+		If Trim(Request.Form("password")) <> "" Then Rs("password") = md5(Request.Form("password"),16)
+		If Trim(Request.Form("BuyCode")) <> "" Then Rs("BuyCode") = md5(Request.Form("BuyCode"),16)
+		Rs("UserGrade") = NewAsp.ChkNumeric(m_strUserGroup(0))
+		Rs("UserGroup") = Trim(m_strUserGroup(1))
+		Rs("UserClass") = Trim(Request.Form("UserClass"))
+		Rs("UserLock") = Trim(Request.Form("UserLock"))
+		Rs("UserFace") = Trim(Request.Form("UserFace"))
+		Rs("userpoint") = Trim(Request.Form("userpoint"))
+		Rs("usermoney") = Trim(Request.Form("usermoney"))
+		Rs("experience") = Trim(Request.Form("experience"))
+		Rs("charm") = Trim(Request.Form("charm"))
+		Rs("TrueName") = Trim(Request.Form("TrueName"))
+		Rs("UserIDCard") = Trim(Request.Form("UserIDCard"))
+		Rs("usersex") = Trim(Request.Form("usersex"))
+		Rs("usermail") = Trim(Request.Form("usermail"))
+		Rs("phone") = Trim(Request.Form("phone"))
+		Rs("oicq") = Trim(Request.Form("oicq"))
+		Rs("postcode") = Trim(Request.Form("postcode"))
+		Rs("address") = Trim(Request.Form("address"))
+		Rs("question") = Trim(Request.Form("question"))
+		If Trim(Request.Form("answer")) <> "" Then Rs("answer") = md5(Request.Form("answer"),16)
+		Rs("Protect") = Trim(Request.Form("Protect"))
+		Rs("JoinTime") = Trim(Request.Form("JoinTime"))
+		Rs("ExpireTime") = Trim(Request.Form("ExpireTime"))
+		Rs("LastTime") = Trim(Request.Form("LastTime"))
+		Rs("userlastip") = Trim(Request.Form("userlastip"))
+		Rs("userlogin") = Trim(Request.Form("userlogin"))
+		Rs("ip") = Trim(Request.Form("ip"))
+		Rs("Badness") = NewAsp.ChkNumeric(Request.Form("Badness"))
+	Rs.update
+	username = Rs("username")
+	Rs.Close:Set Rs = Nothing
+	If Founderr = False Then
+		'-----------------------------------------------------------------
+		'系统整合
+		'-----------------------------------------------------------------
+		Dim API_NewAsp,API_SaveCookie,SysKey
+		If API_Enable Then
+			Set API_NewAsp = New API_Conformity
+			API_NewAsp.NodeValue "action","update",0,False
+			API_NewAsp.NodeValue "username",UserName,1,False
+			Md5OLD = 1
+			SysKey = Md5(API_NewAsp.XmlNode("username") & API_ConformKey,16)
+			Md5OLD = 0
+			API_NewAsp.NodeValue "syskey",SysKey,0,False
+			API_NewAsp.NodeValue "password",Trim(Request.form("password")),1,False
+			API_NewAsp.NodeValue "answer",Trim(Request.Form("answer")),1,False
+			API_NewAsp.NodeValue "question",Trim(Request.Form("question")),1,False
+			API_NewAsp.NodeValue "email",Trim(Request.Form("usermail")),1,False
+			API_NewAsp.NodeValue "gender",sex,0,False
+			API_NewAsp.SendHttpData
+			If API_NewAsp.Status = "1" Then
+				ErrMsg = API_NewAsp.Message
+			End If
+			Set API_NewAsp = Nothing
+		End If
+		'-----------------------------------------------------------------
+	End If
+	Succeed("<li>恭喜您！修改会员[<font color=""blue"">" & username & "</font>]的资料成功。</li>" & ErrMsg)
+End Sub
+
+Sub checkSave()
+	If Trim(Request.Form("usermail")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>用户邮箱不能为空！</li>"
+	End If
+	If IsValidEmail(Trim(Request.Form("usermail"))) = False Then
+		ErrMsg = ErrMsg + "<li>您的Email有错误。</li>"
+		FoundErr = True
+	End If
+	If Not IsNumeric(Request.Form("userpoint")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>用户点数必需是数字！</li>"
+	End If
+	If Trim(Request.Form("nickname")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>用户昵称不能为空！</li>"
+	End If
+	If NewAsp.IsValidStr(Request("nickname")) = False Then
+		ErrMsg = ErrMsg + "<li>用户昵称中含有非法字符。</li>"
+		Founderr = True
+	End If
+	m_strUserGroup = Split(Request.Form("UserGrade"), ",")
+End Sub
+%>

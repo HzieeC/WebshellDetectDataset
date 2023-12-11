@@ -1,0 +1,381 @@
+<!--#include file="const.asp"-->
+<!--#include file="../../inc/chkinput.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_users.asp
+' 更新日期：2008-10-16
+' 官方网站：新云网络(www.newasp.net www.newasp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 newasp.net - All Rights Reserved.
+' newasp is a trademark of newasp.net
+'=====================================================================
+%>
+<form method="post" name="search_form" action="?ChannelID=<%=ChannelID%>">
+	<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="200" align="left">问吧用户管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_index.asp">管理首页</a>
+			 - <a href="admin_users.asp?ChannelID=<%=ChannelID%>">用户列表</a>
+			 - <a href="admin_users.asp?ChannelID=<%=ChannelID%>&showmode=1">锁定用户</a>
+			 - <a href="admin_list.asp?ChannelID=<%=ChannelID%>">问答列表</a>
+			 <b>用户名：</b><input size="15" type="text" name="word" value="" /> <input class="button" type="submit" name="search_button" value="查找" />
+		</td>
+	</tr>
+</table>
+</form>
+<%
+Dim maxperpage,totalrec,Pcount,pagelinks,showmode,pagenow,count
+Dim SQLQuery,SQLField,UserList,useridlist
+Dim Action
+Action=LCase(Request("action"))
+Select Case Trim(Action)
+Case "edit"
+	Call editUsers()
+Case "savedit"
+	Call savedit()
+Case "activation"
+	Call ActivationUser()
+Case "lock"
+	Call LockedUser()
+Case "del"
+	Call delUser()
+Case Else
+	Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+Ask_CloseConn
+
+Sub showmain()
+	Dim i,iCount,lCount
+	iCount=2:lCount=2
+	maxperpage = 30 '###每页显示数
+	count=NewAsp.ChkNumeric(Request("count"))
+	showmode=NewAsp.ChkNumeric(Request("showmode"))
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+%>
+<form name="selform" method="post" action="admin_users.asp?ChannelID=<%=ChannelID%>">
+<input type="hidden" name="action" value="del"/>
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th width="5%" nowrap>选择</th>
+	<th width="20%" nowrap>用户名</th>
+	<th width="10%" nowrap>会员类型</th>
+	<th width="5%" nowrap>邮箱</th>
+	<th width="15%" nowrap>操作选项</th>
+	<th width="20%" nowrap>最后登陆时间</th>
+	<th width="15%" nowrap>最后登陆IP</th>
+	<th width="5%" nowrap>登陆次数</th>
+	<th width="5%" nowrap>状态</th>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="9" align="left" id="showNextPage">&nbsp;</td>
+</tr>
+<%
+	Call showUserlist()
+	If IsArray(Userlist) Then
+		For i=0 To Ubound(Userlist,2)
+			If Not Response.IsClientConnected Then Response.End
+			If (i mod 2) = 0 Then
+				iCount=2:lCount=1
+			Else
+				iCount=1:lCount=2
+			End If
+%>
+<tr align="center">
+	<td class="tablerow<%=iCount%> hovered"><input type="checkbox" name="userid" value="<%=Userlist(0,i)%>"></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap><a href="?action=edit&userid=<%=Userlist(0,i)%>"><%=Userlist(1,i)%></a></td>
+	<td class="tablerow<%=iCount%> hovered"><%=Userlist(3,i)%></td>
+	<td class="tablerow<%=iCount%> hovered"><a href="../sys/admin_maillist.asp?action=mail&useremail=<%=Userlist(4,i)%>"><img src="../images/email.gif" border="0" alt="给用户发邮件"/></a></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap><a href="?action=edit&userid=<%=Userlist(0,i)%>">编辑</a> | <a href="?action=del&userid=<%=Userlist(0,i)%>" onclick="return confirm('您确定要删除吗?')">删除</a></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap><%=showDateTime(Userlist(8,i),"yyyy-MM-dd hh:mm:ss")%></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap><%=Userlist(9,i)%></td>
+	<td class="tablerow<%=iCount%> hovered"><%=Userlist(10,i)%></td>
+	<td class="tablerow<%=iCount%> hovered">
+	<%
+			If CLng(Userlist(6,i)) = 0 Then
+				Response.Write "<font color=""blue"">√</font>"
+			Else
+				Response.Write "<font color=""red"">×</font>"
+			End If
+	%>
+	</td>
+</tr>
+<%
+		Next
+	End If
+%>
+<tr>
+	<td class="tablerow<%=lCount%>" colspan="9">
+	<input class="button" type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class="button" type="button" name="chksel" value="反选" onClick="ContraSel(this.form)">
+	<input class="button" type="submit" name="submit_button1" value="删除用户" onclick="{if(confirm('您确定要删除所选择的用户吗?')){document.selform.action.value='del';return true;}return false;}">
+	<input class="button" type="submit" name="submit_button2" value="激活用户" onclick="{if(confirm('确定激活选定的用户吗?')){document.selform.action.value='activation';return true;}return false;}">
+	<input class="button" type="submit" name="submit_button3" value="锁定用户" onclick="{if(confirm('确定锁定选定的用户吗?')){document.selform.action.value='lock';return true;}return false;}">
+	</td>
+</tr>
+<tr>
+	<td class="tablerow<%=iCount%>" colspan="9" id="NextPageText"><var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+</table>
+</form>
+<script type="text/javascript">
+document.getElementById("showNextPage").innerHTML = document.getElementById("NextPageText").innerHTML;
+</script>
+<%
+End Sub
+
+Sub showUserlist()
+	Dim Rs,SQL,Cmd
+	Dim userlock,keyword
+	If showmode=1 Then userlock=1 Else userlock=0
+	SQLField="userid,username,UserClass,UserTitle,Useremail,UserSex,UserLock,addtime,lastime,lastIP,Enternum"
+	keyword=NewAsp.CheckStr(Request("word"))
+	If Len(keyword)>1 Then
+		If AskIsSqlDataBase=1 Then
+			SQLQuery="And (username like '%"&keyword&"%')"
+		Else
+			SQLQuery="And (InStr(1,LCase(username),LCase('"&keyword&"'),0)>0)"
+		End If
+	End If
+	If count=0 Then
+		totalrec=NewAsp.Ask_Execute("SELECT COUNT(*) FROM NC_Ask_Users WHERE UserLock="&userlock&" "&SQLQuery&"")(0)
+	Else
+		totalrec=count
+	End If
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT "& SQLField &" FROM [NC_Ask_Users] WHERE UserLock="&userlock&" "&SQLQuery&" ORDER BY userid DESC"
+	Rs.Open SQL,Ask_Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		Userlist=Rs.GetRows(maxperpage)
+	Else
+		Userlist=Null
+	End If
+	Rs.close()
+	Set Rs=Nothing
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	pagelinks="admin_users.asp?ChannelID="&ChannelID&"&showmode="&Request("showmode")&"&word="&Request("word")&"&count="&totalrec&"&"
+End Sub
+
+Sub editUsers()
+	Dim Rs,SQL
+	Dim userid,username
+	userid = NewAsp.ChkNumeric(Request("userid"))
+	username = Replace(Request("username"), "'", "''")
+	If userid = 0 Then
+		SQL = "SELECT * FROM NC_Ask_Users WHERE username='" & username & "'"
+	Else
+		SQL = "SELECT * FROM NC_Ask_Users WHERE userid=" & userid
+	End If
+	Set Rs = NewAsp.Ask_Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！没有找到任何会员。或者您选择了错误的系统参数!</li>"
+		Exit Sub
+	End If
+%>
+<form action="?action=savedit" method="post" name="myform">
+<table class="tableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="4">查看/修改会员资料</th>
+	</tr>
+	<tr>
+		<td class="tablerow1" width="10%">会员名称<input type="hidden" name="userid" value="<%=Rs("userid")%>" /></td>
+		<td class="tablerow1" width="40%"><input disabled="disabled" size="30" name="username" value="<%=Server.HTMLEncode(Rs("username"))%>" type="text" /></td>
+		<td class="tablerow1" width="10%">用户昵称</td>
+		<td class="tablerow1" width="40%"><input name="Nickname" size="30" value="<%=Server.HTMLEncode(Rs("Nickname")&"")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">用户密码</td>
+		<td class="tablerow2"><input type="password" size="30" name="password" /> <font color="#0000ff">如果不修改密码请留空</font></td>
+		<td class="tablerow2">用户邮箱</td>
+		<td class="tablerow2"><input size="30" name="Useremail" value="<%=Server.HTMLEncode(Rs("Useremail"))%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">用户头衔</td>
+		<td class="tablerow1"><input name="UserTitle" size="30" type="text" value="<%=Server.HTMLEncode(Rs("UserTitle")&"")%>" /></td>
+		<td class="tablerow1">用户状态</td>
+		<td class="tablerow1"><input type="radio" name="UserLock" value="0"<%If Rs("UserLock") = 0 Then Response.Write " checked=""checked"""%> /> 激活&nbsp;&nbsp; 
+		<input type="radio" name="UserLock" value="1"<%If Rs("UserLock") = 1 Then Response.Write " checked=""checked"""%> /> 锁定&nbsp;&nbsp;</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">用户QQ</td>
+		<td class="tablerow2"><input name="qq" size="30" value="<%=Server.HTMLEncode(Rs("qq")&"")%>" type="text" /></td>
+		<td class="tablerow2">MSN</td>
+		<td class="tablerow2"><input name="msn" size="30" value="<%=Server.HTMLEncode(Rs("msn")&"")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">主页地址</td>
+		<td class="tablerow1"><input size="30" name="Homepage" value="<%=Server.HTMLEncode(Rs("Homepage")&"")%>" type="text" /></td>
+		<td class="tablerow1">姓别</td>
+		<td class="tablerow1"><select name="usersex">
+		<option value="1"<%If Rs("usersex") = 1 Then Response.Write " selected=""selected"""%>>帅哥</option>
+		<option value="0"<%If Rs("usersex") = 0 Then Response.Write " selected=""selected"""%>>美女</option>
+		</select></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">密码问题</td>
+		<td class="tablerow2"><input size="30" name="question" value="<%=Server.HTMLEncode(Rs("question")&"")%>" type="text" /></td>
+		<td class="tablerow2">密码答案</td>
+		<td class="tablerow2"><input size="30" name="answer" type="text" /> <font color="#0000ff">如果不修改答案请留空</font></td>
+	</tr>
+	<tr>
+		<td class="tablerow1" nowrap="nowrap">最后登陆时间</td>
+		<td class="tablerow1"><input size="30" name="lastime" value="<%=Rs("lastime")%>" type="text" /></td>
+		<td class="tablerow1">最后登陆IP</td>
+		<td class="tablerow1"><input size="30" name="lastIP" value="<%=Rs("lastIP")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">用户点数</td>
+		<td class="tablerow2"><input size="15" name="Points" value="<%=Rs("Points")%>" type="text" /></td>
+		<td class="tablerow2">用户经验</td>
+		<td class="tablerow2"><input size="15" name="Experience" value="<%=Rs("Experience")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">回答所得积分</td>
+		<td class="tablerow1"><input size="15" name="AnswerPoint" value="<%=Rs("AnswerPoint")%>" type="text" /></td>
+		<td class="tablerow1">分享所得积分</td>
+		<td class="tablerow1"><input size="15" name="SharePoint" value="<%=Rs("SharePoint")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">悬赏付出积分</td>
+		<td class="tablerow2"><input size="15" name="RewardPoint" value="<%=Rs("RewardPoint")%>" type="text" /></td>
+		<td class="tablerow2">处罚积分</td>
+		<td class="tablerow2"><input size="15" name="PunishPoint" value="<%=Rs("PunishPoint")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">提问总数</td>
+		<td class="tablerow1"><input size="15" name="Asktotal" value="<%=Rs("Asktotal")%>" type="text" /></td>
+		<td class="tablerow1">未解决问题数</td>
+		<td class="tablerow1"><input size="15" name="Askpend" value="<%=Rs("Askpend")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">已解决问题数</td>
+		<td class="tablerow2"><input size="15" name="Askdone" value="<%=Rs("Askdone")%>" type="text" /></td>
+		<td class="tablerow2">投票问题数</td>
+		<td class="tablerow2"><input size="15" name="Askvote" value="<%=Rs("Askvote")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">分享问题数</td>
+		<td class="tablerow1"><input size="15" name="Askshare" value="<%=Rs("Askshare")%>" type="text" /></td>
+		<td class="tablerow1">关闭问题数</td>
+		<td class="tablerow1"><input size="15" name="Askstop" value="<%=Rs("Askstop")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">过期问题数</td>
+		<td class="tablerow2"><input size="15" name="Askoverdue" value="<%=Rs("Askoverdue")%>" type="text" /></td>
+		<td class="tablerow2">回答问题总数</td>
+		<td class="tablerow2"><input size="15" name="Answertotal" value="<%=Rs("Answertotal")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow1">被采纳问题数</td>
+		<td class="tablerow1"><input size="15" name="Adopted" value="<%=Rs("Adopted")%>" type="text" /></td>
+		<td class="tablerow1">登陆数</td>
+		<td class="tablerow1"><input size="15" name="Enternum" value="<%=Rs("Enternum")%>" type="text" /></td>
+	</tr>
+	<tr>
+		<td class="tablerow2">删除记录数</td>
+		<td class="tablerow2"><input size="15" name="delnum" value="<%=Rs("delnum")%>" type="text" /></td>
+		<td class="tablerow2">不良记录数</td>
+		<td class="tablerow2"><input size="15" name="Badness" value="<%=Rs("Badness")%>" type="text" /></td>
+	</tr>
+	<tr align="center">
+		<td class="tablerow1" colspan="4"><input class="button" type="button" onclick="javascript:history.go(-1)" name="go_button" value="返回上一页" /> <input class="button" type="submit" name="submit_button" value="确认修改" /></td>
+	</tr>
+</table>
+</form>
+<%
+	Set Rs = Nothing
+End Sub
+
+Sub savedit()
+	Dim Rs,SQL
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Ask_Users WHERE userid=" & CLng(Request("userid"))
+	Rs.Open SQL,Ask_Conn,1,3
+		If Trim(Request.Form("password")) <> "" Then Rs("password") = md5(Request.Form("password"),16)
+		Rs("nickname") = NewAsp.CheckBadstr(Request.Form("nickname"))
+		Rs("Useremail") = Trim(Request.Form("Useremail"))
+		Rs("qq") = Trim(Request.Form("qq"))
+		Rs("msn") = Trim(Request.Form("msn"))
+		Rs("Usersex") = NewAsp.ChkNumeric(Request.Form("Usersex"))
+		Rs("Homepage") = Trim(Request.Form("Homepage"))
+		Rs("question") = Trim(Request.Form("question"))
+		If Trim(Request.Form("answer")) <> "" Then Rs("answer") = md5(Request.Form("answer"),16)
+		'Rs("Intro") = strIntro
+		Rs("Userlock") = NewAsp.ChkNumeric(Request.Form("Userlock"))
+		Rs("Enternum") = NewAsp.CheckNumeric(Request.Form("Enternum"))
+		Rs("Points") = NewAsp.CheckNumeric(Request.Form("Points"))
+		Rs("Experience") = NewAsp.CheckNumeric(Request.Form("Experience"))
+		Rs("Delnum") = NewAsp.CheckNumeric(Request.Form("Delnum"))
+		Rs("Badness") = NewAsp.CheckNumeric(Request.Form("Badness"))
+	Rs.update
+	Rs.Close:Set Rs = Nothing
+	Succeed ("<li>修改用户资料成功！</li>")
+End Sub
+
+Sub delUser()
+	Dim Rs,SQL
+	Dim AllUserID
+	useridlist=NewAsp.CheckIDlist(Request("userid"))
+	If useridlist<>"0" And ""<>useridlist Then
+		Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+		SQL = "SELECT userid,username FROM [NC_Ask_Users] WHERE userid in (" & useridlist & ")"
+		Rs.Open SQL,Ask_Conn,1,1
+		If Not (Rs.BOF And Rs.EOF) Then
+			Do While Not Rs.EOF
+				AllUserID = AllUserID & Rs(0) & ","
+			Rs.movenext
+			Loop
+		End If
+		Rs.Close:Set Rs = Nothing
+		If AllUserID <> "" Then
+			If Right(AllUserID,1) = "," Then AllUserID = Left(AllUserID,Len(AllUserID)-1)
+			NewAsp.Ask_Execute ("DELETE FROM NC_Ask_Users WHERE userid in (" & AllUserID & ")")
+			NewAsp.Ask_Execute ("DELETE FROM NC_Ask_Favorite WHERE userid in (" & AllUserID & ")")
+			NewAsp.Ask_Execute ("DELETE FROM NC_Ask_Comment WHERE userid in (" & AllUserID & ")")
+		
+		End If
+		Succeed ("<li>删除用户成功！</li>")
+	Else
+		ErrMsg = "错误的系统参数，请选择正确的用户ID！"
+		Founderr = True
+	End If
+End Sub
+
+Sub ActivationUser()
+	Dim UserName
+	useridlist=NewAsp.CheckIDlist(Request("userid"))
+	If useridlist<>"0" And ""<>useridlist Then
+		NewAsp.Ask_Execute ("UPDATE NC_Ask_Users SET UserLock=0 WHERE userid in (" & useridlist & ")")
+		Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+	Else
+		ErrMsg = "错误的系统参数，请选择正确的用户ID！"
+		Founderr = True
+	End If
+End Sub
+
+Sub LockedUser()
+	Dim UserName
+	useridlist=NewAsp.CheckIDlist(Request("userid"))
+	If useridlist<>"0" And ""<>useridlist Then
+		NewAsp.Ask_Execute ("UPDATE NC_Ask_Users SET UserLock=1 WHERE userid in (" & useridlist & ")")
+		Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+	Else
+		ErrMsg = "错误的系统参数，请选择正确的用户ID！"
+		Founderr = True
+	End If
+End Sub
+%>

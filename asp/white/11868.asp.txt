@@ -1,0 +1,331 @@
+<!--#include file="../../Conn.asp" -->
+<!--#include file="../../Comm/Site_Class.asp" -->
+<%
+PagePath = "../../"
+
+Set Qsite = New Site_Class
+
+Qsite.SiteConfig_Master()
+%>
+<!--#include file="../Check_Login.asp" -->
+<%
+Qsite.Check_AdminFlag(arrAdminFlag(0 , 2))
+
+If Request.Form <> "" Then
+	If Request.Form("NewsTypeId") = 0 Then
+		SaveNewNewsType()
+	Else
+		SaveEditNewsType()
+	End If
+End If
+
+If Request.QueryString("action") = "del" Then
+	DelNewsType Qsite.chgStr(Trim(Request.QueryString("NewsTypeKey"))) , Qsite.chgStr(Trim(Request.QueryString("NewsTypeId")))
+ElseIf Request.QueryString("action") = "up" Then
+	UpPx Qsite.chgStr(Trim(Request.QueryString("NewsTypeKey"))) , Qsite.chgStr(Trim(Request.QueryString("NewsTypeId")))
+ElseIf Request.QueryString("action") = "down" Then
+	DownPx Qsite.chgStr(Trim(Request.QueryString("NewsTypeKey"))) , Qsite.chgStr(Trim(Request.QueryString("NewsTypeId")))
+End If
+
+Sub SaveNewNewsType()
+	
+	Dim NewsTypeName,NewsTypeKey,Px
+	NewsTypeName = Qsite.chgStr(Trim(Request.Form("NewsTypeName")))
+	NewsTypeKey = Qsite.chgStr(Trim(Request.Form("NewsTypeKey")))
+	Px = Qsite.chgStr(Trim(Request.Form("Px")))
+	
+	If NewsTypeName = "" Or IsNull(NewsTypeName) Then
+		Qsite.ShowMsg "请输入分类名称" , ""
+	End If
+	If NewsTypeKey = "" Or IsNull(NewsTypeKey) Or Not IsNumeric(NewsTypeKey) Then NewsTypeKey = 0
+	If Px = "" Or IsNull(Px) Or Not IsNumeric(Px) Then Px = 1
+	
+	Set Rs = Conn.Execute("select NewsTypeName from NewsTypeTbl where NewsTypeKey = "& NewsTypeKey &" and NewsTypeName = '"& NewsTypeName &"'")
+	If Not Rs.Eof Then
+		Qsite.ShowMsg "分类已经存在，请返回重新输入" , ""
+	End If
+	Set Rs = Nothing
+	
+	Conn.Execute("update NewsTypeTbl set Px = Px + 1 where NewsTypeKey = "& NewsTypeKey &" and Px >= "& Px)
+	
+	Conn.Execute("insert into NewsTypeTbl (NewsTypeName , NewsTypeKey , Px) values ('"& NewsTypeName &"' , "& NewsTypeKey &" , "& Px &")")
+	
+	Qsite.ShowMsg "分类添加成功" , "NewsType.asp?NewsTypeKey="& NewsTypeKey
+End Sub
+
+Sub SaveEditNewsType()
+	Dim NewsTypeId,NewsTypeName,NewsTypeKey,Px
+	Dim OldPx
+	NewsTypeId = Qsite.chgStr(Trim(Request.Form("NewsTypeId")))
+	NewsTypeName = Qsite.chgStr(Trim(Request.Form("NewsTypeName")))
+	NewsTypeKey = Qsite.chgStr(Trim(Request.Form("NewsTypeKey")))
+	Px = Qsite.chgStr(Trim(Request.Form("Px")))
+	
+	If NewsTypeId = "" Or IsNull(NewsTypeId) Or Not IsNumeric(NewsTypeId) Then NewsTypeId = 0
+	
+	If NewsTypeName = "" Or IsNull(NewsTypeName) Then
+		Qsite.ShowMsg "请输入分类名称" , ""
+	End If
+	If NewsTypeKey = "" Or IsNull(NewsTypeKey) Or Not IsNumeric(NewsTypeKey) Then NewsTypeKey = 0
+	If Px = "" Or IsNull(Px) Or Not IsNumeric(Px) Then Px = 1
+	
+	Set Rs = Conn.Execute("select NewsTypeKey from NewsTypeTbl where NewsTypeKey = "& NewsTypeKey &" and NewsTypeName = '"& NewsTypeName &"' and NewsTypeId <> "& NewsTypeId)
+	If Not Rs.Eof Then
+		Qsite.ShowMsg "分类已经存在，请返回重新输入" , ""
+	End If
+	Set Rs = Nothing
+	
+	Set Rs = Conn.Execute("select Px from NewsTypeTbl where NewsTypeId = "& NewsTypeId)
+	If Rs.Eof Then
+		OldPx = Px
+	Else
+		OldPx = Rs("Px")
+	End If
+	
+	If Cint(Px) > Cint(OldPx) Then
+		Conn.Execute("update NewsTypeTbl set Px = Px - 1 where NewsTypeKey = "& NewsTypeKey &" and Px > "& OldPx &" and Px <= "& Px)
+	ElseIf Cint(Px) < Cint(OldPx) Then
+		Conn.Execute("update NewsTypeTbl set Px = Px + 1 where NewsTypeKey = "& NewsTypeKey &" and Px >= "& Px &" and Px < "& OldPx)
+	End If
+	
+	Conn.Execute("update NewsTypeTbl set NewsTypeName = '"& NewsTypeName &"' , Px = "& Px &" where NewsTypeId = "& NewsTypeId)
+	
+	Qsite.ShowMsg "分类修改成功" , "NewsType.asp?NewsTypeKey="& NewsTypeKey
+End Sub
+
+Sub DelNewsType(NewsTypeKey , NewsTypeId)
+	Dim OldPx,Rs
+	
+	If NewsTypeId = "" Or IsNull(NewsTypeId) Or Not IsNumeric(NewsTypeId) Then NewsTypeId = 0
+	
+	Set Rs = Conn.Execute("select Px from NewsTypeTbl where NewsTypeId = "& NewsTypeId)
+	If Rs.Eof Then
+		OldPx = 9999
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	Conn.Execute("delete from NewsTbl where NewsTypeId = "& NewsTypeId)
+	
+	Conn.Execute("delete from NewsTypeTbl where NewsTypeKey = "& NewsTypeId)
+	
+	Conn.Execute("delete from NewsTypeTbl where NewsTypeId = "& NewsTypeId)
+	
+	Conn.Execute("update NewsTypeTbl set Px = Px - 1 where NewsTypeKey = "& NewsTypeKey &" and Px > "& OldPx)
+	
+	Qsite.ShowMsg "分类删除成功" , "NewsType.asp?NewsTypeKey="& NewsTypeKey
+End Sub
+
+Sub UpPx(NewsTypeKey , NewsTypeId)
+	Dim OldPx
+	
+	If NewsTypeId = "" Or IsNull(NewsTypeId) Or Not IsNumeric(NewsTypeId) Then NewsTypeId = 0
+	If NewsTypeKey = "" Or IsNull(NewsTypeKey) Or Not IsNumeric(NewsTypeKey) Then NewsTypeKey = 0
+	
+	Set Rs = Conn.Execute("select Px from NewsTypeTbl where NewsTypeId = "& NewsTypeId)
+	If Rs.Eof Then
+		OldPx = 1
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	If Cint(OldPx) > 1 Then
+		Conn.Execute("update NewsTypeTbl set Px = Px + 1 where NewsTypeKey = "& NewsTypeKey &" and Px = "& OldPx - 1)
+		Conn.Execute("update NewsTypeTbl set Px = Px - 1 where NewsTypeId = "& NewsTypeId)
+	End If
+	
+	Response.Redirect("NewsType.asp?NewsTypeKey="& NewsTypeKey)
+	Response.End()
+End Sub
+
+Sub DownPx(NewsTypeKey , NewsTypeId)
+	Dim maxPx,OldPx
+	
+	If NewsTypeId = "" Or IsNull(NewsTypeId) Or Not IsNumeric(NewsTypeId) Then NewsTypeId = 0
+	If NewsTypeKey = "" Or IsNull(NewsTypeKey) Or Not IsNumeric(NewsTypeKey) Then NewsTypeKey = 0
+	
+	Set Rs = Conn.Execute("select Px from NewsTypeTbl where NewsTypeId = "& NewsTypeId)
+	If Rs.Eof Then
+		OldPx = 9999
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	Set Rs = Conn.Execute("select top 1 Px from NewsTypeTbl where NewsTypeKey = "& NewsTypeKey &" order by Px desc")
+	If Rs.Eof Then
+		maxPx = 9999
+	Else
+		maxPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	If Cint(OldPx) < Cint(maxPx) Then
+		Conn.Execute("update NewsTypeTbl set Px = Px - 1 where NewsTypeKey = "& NewsTypeKey &" and Px = "& OldPx + 1)
+		Conn.Execute("update NewsTypeTbl set Px = Px + 1 where NewsTypeId = "& NewsTypeId)
+	End If
+	
+	Response.Redirect("NewsType.asp?NewsTypeKey="& NewsTypeKey)
+	Response.End()
+End Sub
+
+Dim NewsTypeId,NewsTypeName,NewsTypeKey,Px,contPx
+Dim strTitle,strSubmit
+Dim strTypeName,strTypeKey
+
+Set Rs = server.createobject("ADODB.Recordset")
+
+NewsTypeKey = Qsite.chgStr(Trim(Request.QueryString("NewsTypeKey")))
+
+If NewsTypeKey = "" Or IsNull(NewsTypeKey) Or Not IsNumeric(NewsTypeKey) Then NewsTypeKey = 0
+
+Sql = "select * from NewsTypeTbl where NewsTypeKey = "& NewsTypeKey &" order by Px asc"
+
+Rs.Open "select top 1 * from NewsTypeTbl where NewsTypeKey = "& NewsTypeKey &" order by Px desc" , Conn ,1 , 1
+If Rs.Eof Then
+	contPx = 1
+Else
+	contPx = Rs("Px") + 1
+End If
+Rs.Close
+
+Rs.Open "select * from NewsTypeTbl where NewsTypeId = "& NewsTypeKey , Conn , 1 , 1
+If Rs.Eof Then
+	strTypeName = ""
+	strTypeKey = 0
+Else
+	strTypeName = "[" & Rs("NewsTypeName") & "]"
+	strTypeKey = Rs("NewsTypeKey")
+End If
+Rs.Close
+%>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>职能职位管理</title>
+<link href="../skins/css/main.css" rel="stylesheet" type="text/css">
+<script language="javascript">
+function NewsTypeDel(NewsTypeKey , NewsTypeId)
+{
+	var question = confirm("你确定要删除此条记录吗？");
+	if (question !="0")
+	{
+		location.href = "NewsType.asp?action=del&NewsTypeKey=" + NewsTypeKey + "&NewsTypeId=" + NewsTypeId;
+	}
+}
+</script>
+</head>
+
+<body>
+<%
+NewsTypeId = Qsite.chgStr(Trim(Request.QueryString("NewsTypeId")))
+
+If NewsTypeId = "" Or IsNull(NewsTypeId) Or Not IsNumeric(NewsTypeId) Then NewsTypeId = 0
+
+If NewsTypeId = 0 Then
+	NewsTypeName = ""
+	Px = contPx
+	strTitle = "添加分类"
+	strSubmit = "添加"
+Else
+	Rs.Open "select * from NewsTypeTbl where NewsTypeId = "& NewsTypeId , Conn , 1 , 1
+	If Rs.Eof Then
+		NewsTypeId = 0
+		NewsTypeName = ""
+		Px = contPx
+		strTitle = "添加分类"
+		strSubmit = "添加"
+	Else
+		NewsTypeName = Rs("NewsTypeName")
+		Px = Rs("Px")
+		strTitle = "修改分类"
+		strSubmit = "修改"
+	End If
+End If
+%>
+<form name="PosForm" method="post" action="NewsType.asp" style="margin:0">
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" class="td_title"><%=strTitle%></td>
+		</tr>
+		<tr>
+			<td height="23" class="td_content">分类名称：
+				<input name="NewsTypeName" type="text" class="input_1" id="NewsTypeName" size="50" value="<%=NewsTypeName%>">
+排序
+<input name="Px" type="text" class="input_1" id="Px" size="20" value="<%=Px%>">			
+	<input name="Submit" type="submit" class="input_1" value="<%=strSubmit%>">
+	<%
+	If NewsTypeId <> 0 Then
+	%>
+	<input name="Submit" type="button" class="input_1" value="返回" onClick="javascript:history.back();">
+	<%
+	End If
+	%>
+	<input name="NewsTypeKey" type="hidden" id="NewsTypeKey" value="<%=NewsTypeKey%>">
+	<input name="NewsTypeId" type="hidden" id="NewsTypeId" value="<%=NewsTypeId%>"></td>
+		</tr>
+	</table>
+	<br>
+</form>
+<%
+If NewsTypeId = 0 Then
+%>
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" colspan="2" class="td_title"><%=strTypeName%>分类列表</td>
+		</tr>
+<%
+Rs.Open Sql , Conn , 1 , 1
+If Rs.Eof Then
+%>
+		<tr>
+			<td height="23" colspan="2" class="td_content">暂无资讯分类信息 [<a href="NewsType.asp?NewsTypeKey=<%=strTypeKey%>">返回</a>]</td>
+		</tr>
+<%
+Else
+%>
+		<tr>
+<%
+	i = 0
+	Do While Not Rs.Eof
+%>
+			<td width="50%" height="23" class="td_content"><%=Rs("NewsTypeName")%> &nbsp;&nbsp;&nbsp;[<a href="NewsType.asp?action=up&NewsTypeKey=<%=NewsTypeKey%>&NewsTypeId=<%=Rs("NewsTypeId")%>">前移</a> | <a href="NewsType.asp?action=down&NewsTypeKey=<%=NewsTypeKey%>&NewsTypeId=<%=Rs("NewsTypeId")%>">后移</a> | <a href="NewsType.asp?NewsTypeKey=<%=NewsTypeKey%>&NewsTypeId=<%=Rs("NewsTypeId")%>">修改</a> | <a href="#" onClick="NewsTypeDel('<%=NewsTypeKey%>' , '<%=Rs("NewsTypeId")%>');return false;">删除</a> 
+			<%
+			If NewsTypeKey = 0 Then
+			%>
+			| <a href="NewsType.asp?NewsTypeKey=<%=Rs("NewsTypeId")%>">查看</a> 
+			<%
+			Else
+			%>
+			| <a href="NewsType.asp?NewsTypeKey=0">返回</a> 
+			<%
+			End If
+			%>
+			]</td>
+			<%
+	Rs.MoveNext
+	i = i + 1
+	If i Mod 2 = 0 And Not Rs.Eof Then
+		Response.Write("</tr></tr>")
+	End If
+	If i Mod 2 > 0 And Rs.Eof Then
+		Response.Write("<td width=""50%"" class=""td_content"">&nbsp;</td>")
+	End If
+	Loop
+%>
+			
+		</tr>
+<%
+End If
+Rs.Close
+
+Set Rs = Nothing
+%>
+</table>
+<%
+End If
+%>
+</body>
+</html>

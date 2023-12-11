@@ -1,0 +1,34 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<head>
+<%@ include file="/commons/taglibs.jsp" %>
+<%@ include file="/commons/meta.jsp" %>
+<link href="${ctx}/styles/front/css/css.css" rel="stylesheet" type="text/css" />
+</head>
+<body >
+    <table align="center" width="500" border="0" cellpadding="0" cellspacing="0">
+     <tr>
+	     <td height="20" align="center" >
+	        <table width="460" height="26" border="0" cellpadding="0" cellspacing="0">
+	          <tr><td width="460" align="left" style="font-size:14px;color:red">查看信息</td></tr>
+	        </table>
+	     </td>
+     </tr>
+     <tr><td height="3" bgcolor="#c30000"></td></tr>
+     <tr><td height="10"></td></tr>
+     <tr>
+       <td align="center" class="huisexiaxuxian">
+         <table width="100%" border="0" cellpadding="0" cellspacing="0">
+         	<tr>
+	           <td align="left">${message.title }</td>
+	         </tr>
+	         <tr>
+	           <td align="left">${message.content }</td>
+	         </tr>
+         </table>
+         <br />
+       </td>
+     </tr>
+    </table>
+</body>
+</html>

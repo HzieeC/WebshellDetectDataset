@@ -1,0 +1,139 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@ page import="global.security.SessionUtils"%>
+<%@ page import="util.StringUtils"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		// 订阅ID
+		String feedId = request.getParameter("feedId");
+		// 订阅名称
+		String feedName = "";
+		// 订阅URL
+		String feedUrl = "";
+		if(StringUtils.isNotEmpty(feedId)){
+			feedName = request.getParameter("feedName");
+			feedUrl = request.getParameter("feedUrl");
+		}
+		// 订阅数量
+		String feedCount = request.getParameter("feedCount");
+		if(StringUtils.isEmpty(feedCount)){
+			feedCount = "0";
+		}
+		// 父节点ID
+		String parentId = request.getParameter("parentId");
+		// 是否为叶子节点
+		String isleaf = request.getParameter("isleaf");
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 工具栏
+		    var editFeedToolbar = new Ext.Toolbar({
+		    	renderTo: 'editFeedToolBarDiv',
+		    	items: [
+				    new Ext.Button({
+					    id: 'editFeed-save-button',
+						text: '保存',
+						iconCls: 'tick'
+					}),
+					new Ext.Button({
+					    id: 'editFeed-cancel-button',
+						text: '取消',
+						iconCls: 'cancel'
+					})
+				]
+			});
+
+		 	// 编辑用户Form
+			var editFeedFormPanel = new Ext.FormPanel({
+				renderTo: 'editFeedFormDiv',
+		        labelWidth: 60,
+		        border: false,
+		        bodyStyle: 'background-color:transparent;',
+		        url: '<%=baseUrl %>/feedAction.do?method=save',
+		        items: [{
+		            layout:'form',
+		            border: false,
+		            bodyStyle: 'padding:5px;background-color:transparent;',
+		            items:[new Ext.form.TextField ({// 订阅名称
+		                name: 'feedName',
+		                fieldLabel: '订阅名称',
+		                value: '<%=feedName%>',
+		                anchor:'95%',
+		                allowBlank:false,
+		                maxLength: 255
+		           }),new Ext.form.TextField ({// 订阅url
+		               name:'feedUrl',
+		               fieldLabel:'订阅地址',
+		               value: '<%=feedUrl%>',
+		               anchor:'95%',
+		               allowBlank:true,
+		               readOnly: true,
+		               maxLength: 255
+		           }),new Ext.form.NumberField ({// 订阅数量
+		               name:'feedCount',
+		               fieldLabel:'订阅数量',
+		               value: '<%=feedCount%>',
+		               anchor:'95%',
+		               allowBlank:true,
+		               readOnly: true,
+		               minValue: 0,
+		               maxValue: 1000,
+		               decimalPrecision: 0
+		           }),{// 订阅ID
+		               xtype:'hidden',
+		               name: 'feedId',
+		               value: '<%=feedId%>'
+		           },{// 父节点Id
+		               xtype:'hidden',
+		               name: 'parentId',
+		               value: '<%=parentId%>'
+		           },{// 是否为叶子
+		               xtype:'hidden',
+		               name: 'isleaf',
+		               value: '<%=isleaf%>'
+		           }]
+		        }]
+		    });
+		    // 叶子的场合
+		    if('<%=isleaf%>'==true){
+		    	editFeedFormPanel.getForm().findField('feedUrl').allowBlank = false;
+		    	editFeedFormPanel.getForm().findField('feedUrl').setReadOnly(false);
+		    	editFeedFormPanel.getForm().findField('feedCount').allowBlank = false;
+		    	editFeedFormPanel.getForm().findField('feedCount').setReadOnly(false);
+			}
+
+		    // 保存按钮
+		    $("#editFeed-save-button").click(function(){
+			    var form = editFeedFormPanel.getForm();
+			    if(form.isValid()){
+			    	// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: form.getValues(),
+						action: '/feedAction.do?method=save',
+						callback: function(jsonResult){
+							Anynote.reloadTreeNode(Ext.getCmp("feedTreePanel"), null, null);
+							editFeedWindow.close();
+						},
+						showWaiting: true,
+						failureMsg: '保存失败.'
+					});
+				}
+			});
+
+			// 取消按钮
+		    $("#editFeed-cancel-button").click(function(){
+		    	editFeedWindow.close();
+			});
+		});
+	</script>
+</head>
+<body>
+<div id="editFeedDiv" style="width:100%;height:100%;">
+	<div id="editFeedToolBarDiv"></div>
+	<div id="editFeedFormDiv""></div>
+</div>
+</body>
+</html>

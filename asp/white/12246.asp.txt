@@ -1,0 +1,865 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="cache/userSys.asp" -->
+<!-- #include file="cache/system.asp" -->
+<!-- #include file="file_users.asp" -->
+<!-- #include file="inc/yucmedia.asp" -->
+<%
+	response.charset="gb2312"
+
+	If mudi<>"" And mudi<>"exit" And mudi<>"onlineClear" Then
+		Call CheckIsOutSubmit("")	'检测是否外部提交
+	End If
+
+
+
+
+
+Select Case  mudi
+	case "reg"
+		Call reg()
+
+	case "login"
+		Call login()
+
+	case "missPwdSend"
+		Call MissPwdSend()
+
+	case "missPwd"
+		Call MissPwd()
+
+	case "missPwdMail"
+		Call MissPwdMail()
+
+	case "rev"
+		Call rev()
+
+	case "checkUserName"
+		Call CheckUserName("write",ToGetStr("userName"))
+
+	case "onlineClear"
+		Call OnlineClear()
+
+	Case Else
+		Call UserExit()
+
+End Select
+
+
+Call CloseConobj()
+
+
+
+
+
+' 注册
+Sub reg()
+	URL			= ToPostStr("URL")
+	username	= ToPostStr("username")
+	userpwd		= ToPostStr("userpwd")
+	mail		= ToPostStr("mail")
+	question	= ToPostReplaceStr("question","input")
+	othersQuestion	= ToPostReplaceStr("othersQuestion","input")
+		If question="others" Then question = othersQuestion
+	answer		= ToPostStr("answer")
+	realname	= ToPostReplaceStr("realname","input")
+	sex			= ToPostReplaceStr("sex","input")
+	phone		= ToPostReplaceStr("phone","input")
+	qq			= ToPostReplaceStr("qq","input")
+	web			= ToPostReplaceStr("web","input")
+	note		= ToPostReplaceStr("note","input")
+
+	verCode		= ToPostStr("verCode")
+	rndMd5		= ToPostStr("rndMd5")
+
+	If username="" Or userpwd="" Then
+		response.write("alert('表单接收不全');regWaitTime=0;")
+		response.End()
+	End If
+
+	If OT_OpenVerCode=True Then
+		If SYS_verCodeMode=2 Then
+			judYucmedia = yucmedia_deal("zasp",verCode)
+			If judYucmedia<>"true" Then
+				response.write("alert('验证码错误("& yucmedia_err &"),请重新输入.');")
+				response.End()
+			End If
+		Else
+			If verCode="" Or verCode<>session("VerCode") And OT_OpenVerCode=True Then
+				response.write("alert('验证码错误');PopupChangeCode();regWaitTime=0;")
+				response.End()
+			End If
+			session("VerCode")=""
+		End If
+	End If
+
+	if US_isUserSys=0 then
+		response.write("alert('会员系统已关闭');")
+		response.End()
+	end if
+	
+	if US_isReg=0 then
+		response.write("alert('会员注册已关闭');")
+		response.End()
+	end if
+
+	userpwdKey	= RndChar(5)
+	userpwd		= md5(md5(userpwd) & userpwdKey)
+	answerKey	= RndChar(5)
+	answer		= md5(md5(answer) & answerKey)
+
+
+	Call CheckUserName("ajax",username)
+
+	If US_regBadWord<>"" Then
+		username = LCase(username)
+		badWordArr = Split(LCase(US_regBadWord),"|")
+		For Each str In badWordArr
+			If Len(str)>0 And InStr(username,str)>0 Then
+				response.write("alert('用户名中含禁止注册关键词（"& str &"）');regWaitTime=0;")
+				response.End()
+			End If
+		Next
+	End If
+
+	If US_isRegMailOnly=1 Then
+		If IsMail(mail)=False Then
+			response.write("alert('邮箱格式错误');PopupChangeCode();regWaitTime=0;")
+			response.End()
+		End If
+		checkexe = conobj.execute("select top 1 UE_ID from OT_users where UE_mail="& SqlForStr(mail))
+		If Not checkexe.EOF Then
+			response.write("alert('该邮箱已存在，请更换一个。');PopupChangeCode();regWaitTime=0;")
+			response.End()
+		End If
+	End If
+
+	todayTime = Now()
+	OT_userIP	= GetUserIp()
+	OT_computerCode = GetComputerCode()
+
+	resultMd5 = md5(md5(OT_SiteID & session.sessionID) & OT_SiteID & OT_userIP)
+	If rndMd5<>resultMd5 Then
+		response.write("alert('用户跟随信息验证失败，请重新刷新页面后再操作.');GetVerCode('change');")
+		response.End()
+	End If
+
+
+	' IP黑名单
+	Set checkIpexe=conobj.execute("select UI_ID from OT_userIp where UI_type='bad' and UI_ip='"& OT_userIP &"'")
+		If Not checkIpexe.EOF Then
+			response.write("alert('该IP已被拉入黑名单，如有问题请与管理员联系。');regWaitTime=0;")
+			response.End()
+		End If
+	checkIpexe.close
+	Set checkIpexe=Nothing
+
+	allowRegTime = DateAdd("n",US_againRegMinute*(-1),todayTime)
+	If US_againRegMinute>0 Then
+		Set checkIpexe=conobj.execute("select UI_ID from OT_userIp where UI_type='reg' and UI_ip='"& OT_userIP &"' and UI_time>"& SqlForTime(allowRegTime) &"")
+			If Not checkIpexe.EOF Then
+				response.write("alert('每"& US_againRegMinute &"分钟内只能注册一次，请"& US_againRegMinute &"分钟后再注册。');regWaitTime=0;")
+				response.End()
+			End If
+		checkIpexe.close
+		Set checkIpexe=Nothing
+	End If
+	
+	If US_isRegAudit=1 Then
+		alertStr="\n您当前状态[待审核],需要管理员的审核。"
+	Else
+		alertStr=""
+	End If
+
+	If US_isRegAudit=1 Then userState=0 Else userState=1
+	Set userrec=server.CreateObject("ADODB.recordset")
+	userrec.open "select top 1 * from OT_users where 1=2",conobj,0,2
+	userrec.addnew()
+	userrec("UE_time")		= todayTime
+	userrec("UE_loginTime")	= todayTime
+	userrec("UE_regIP")		= OT_userIP
+	userrec("UE_username")	= username
+	userrec("UE_userpwd")	= userpwd
+	userrec("UE_mail")		= mail
+	userrec("UE_userKey")	= userpwdKey
+	userrec("UE_question")	= question
+	userrec("UE_answer")	= answer
+	userrec("UE_answerKey")	= answerKey
+	userrec("UE_face")		= ""
+	userrec("UE_realname")	= realname
+	userrec("UE_sex")		= sex
+	userrec("UE_phone")		= phone
+'	userrec("UE_fax")		= ""
+	userrec("UE_qq")		= qq
+	userrec("UE_web")		= web
+	userrec("UE_note")		= note
+	userrec("UE_score1")	= US_regScore1
+	userrec("UE_score2")	= US_regScore2
+	userrec("UE_score3")	= US_regScore3
+	userrec("UE_score4")	= US_regScore4
+	userrec("UE_score5")	= US_regScore5
+	userrec("UE_score1Day")		= US_regScore1
+	userrec("UE_score2Day")		= US_regScore2
+	userrec("UE_score3Day")		= US_regScore3
+	userrec("UE_score4Day")		= US_regScore4
+	userrec("UE_score5Day")		= US_regScore5
+	userrec("UE_score1Week")	= US_regScore1
+	userrec("UE_score2Week")	= US_regScore2
+	userrec("UE_score3Week")	= US_regScore3
+	userrec("UE_score4Week")	= US_regScore4
+	userrec("UE_score5Week")	= US_regScore5
+	userrec("UE_score1Month")	= US_regScore1
+	userrec("UE_score2Month")	= US_regScore2
+	userrec("UE_score3Month")	= US_regScore3
+	userrec("UE_score4Month")	= US_regScore4
+	userrec("UE_score5Month")	= US_regScore5
+	userrec("UE_score1Year")	= US_regScore1
+	userrec("UE_score2Year")	= US_regScore2
+	userrec("UE_score3Year")	= US_regScore3
+	userrec("UE_score4Year")	= US_regScore4
+	userrec("UE_score5Year")	= US_regScore5
+	userrec("UE_state")			= userState
+	userrec.update()
+	userrec.close()
+	Set userrec=Nothing
+
+	userID=conobj.execute("select max(UE_ID) from OT_users")(0)
+
+
+	If US_againRegMinute>0 Then
+		conobj.execute("delete from OT_userIp where UI_type='reg' and UI_time<"& SqlForTime(allowRegTime) &"")
+		conobj.execute("insert into OT_userIp (UI_type,UI_time,UI_date,UI_dataID,UI_userID,UI_ip,UI_computerCode) values('reg',"& SqlForTime(todayTime) &","& SqlForTime(Date()) &",0,"& userID &",'"& OT_userIP &"','"& OT_computerCode &"')")
+	End If
+	
+
+	session("userExitOldTime") = GetTimer()
+	session("userRegTime") = GetTimer()
+
+	' 把会员信息写入COOKIES
+	Call Users_Update(userID,username,userpwd,mail)
+
+	Call Users_AddOnline(todayTime,userID,OT_computerCode,OT_userIP)
+
+'	Mail_LockSend("reg",userID,username,mail)
+
+'document.location.href='"& URL &"';
+	response.write(_
+	"alert('注册成功"& alertStr &"');"&_
+	"document.location.reload();"&_
+	"")
+End Sub
+
+
+
+
+
+' 登录
+Sub login()
+	username	= ToPostRegExpStr("username","sql")
+	userpwd		= ToPostStr("userpwd")
+	verCode		= ToPostStr("verCode")
+
+	If username="" Or userpwd="" Then
+		response.write("alert('表单填写不全');")
+		response.End()
+	End If
+
+	If OT_OpenVerCode=True Then
+		If session("VerCodeNum")="" Then session("VerCodeNum")=0
+		session("VerCodeNum") = session("VerCodeNum") + 1
+		If session("VerCodeNum")>=0 Then
+			response.write("if ($id('verCodeK').style.display=='none'){ $id('verCodeK').style.display=''; }")
+	'		response.End()
+		End If
+		If session("VerCodeNum")>0 Then
+			If SYS_verCodeMode=2 Then
+				judYucmedia = yucmedia_deal("dasp",verCode)
+				If judYucmedia<>"true" Then
+					response.write("alert('验证码错误("& yucmedia_err &"),请重新输入.');")
+					response.End()
+				End If
+			Else
+				If verCode="" Or verCode<>session("VerCode") Then
+					response.write("alert('验证码错误.');PopupGetVerCode('change');")
+					response.End()
+				End If
+			End If
+		End If
+		session("VerCode")=""
+	End If
+
+
+	todayTime = Now()
+
+	' 检测用户
+	Set checkrec=server.CreateObject("ADODB.recordset")
+	checkrec.open "select top 1 UE_ID,UE_status,UE_statusTime,UE_username,UE_userpwd,UE_userKey,UE_mail,UE_fax,UE_loginTime,UE_loginIP,UE_loginNum,UE_score1,UE_score2,UE_score3,UE_score4,UE_score5,UE_score1Day,UE_score2Day,UE_score3Day,UE_score4Day,UE_score5Day,UE_score1Week,UE_score2Week,UE_score3Week,UE_score4Week,UE_score5Week,UE_score1Month,UE_score2Month,UE_score3Month,UE_score4Month,UE_score5Month,UE_score1Year,UE_score2Year,UE_score3Year,UE_score4Year,UE_score5Year from OT_users where UE_username='"& SqlForStr(username) &"'",conobj,0,2
+		If checkrec.EOF Then
+			response.write("alert('不存在该会员');PopupGetVerCode('change');")
+			response.End()
+		End If
+		username			= checkrec("UE_username")
+
+			If checkrec("UE_fax")="ok3w" Then
+		userpwdMd5			= MD5_ok3w(userpwd)
+			
+			ElseIf checkrec("UE_fax")="laoy" Then
+		userpwdMd5			= md5(userpwd)
+		userpwdMd5			= Left(Right(userpwdMd5,24),16)
+
+			Else
+		userpwdMd5			= md5(md5(userpwd) & checkrec("UE_userKey"))
+
+			End If
+
+		UE_ID				= checkrec("UE_ID")
+		UE_loginTime		= checkrec("UE_loginTime")
+		UE_mail				= checkrec("UE_mail")
+		If checkrec("UE_userpwd")<>userpwdMd5 Then
+			response.write("alert('用户名或密码错误.');PopupGetVerCode('change');")
+			response.End()
+		End If
+
+		OT_userIP	= GetUserIp()
+		OT_computerCode = GetComputerCode()
+		If checkrec("UE_fax")="ok3w" Or checkrec("UE_fax")="laoy" Then
+			UE_userKey = RndChar(5)
+			userpwd	= md5(md5(userpwd) & UE_userKey)
+			checkrec("UE_userpwd")	= userpwd
+			checkrec("UE_userKey")	= UE_userKey
+			checkrec("UE_fax")		= ""
+		Else
+			userpwd	= userpwdMd5
+		End If
+
+		checkrec("UE_loginTime")	= todayTime
+		checkrec("UE_loginIP")		= OT_userIP
+		checkrec("UE_loginNum")		= checkrec("UE_loginNum") + 1
+		If Len(""& UE_loginTime)<4 Then UE_loginTime="1988-8-8"
+		If DateValue(todayTime)<>DateValue(UE_loginTime) Then
+			checkrec("UE_score1")		= checkrec("UE_score1") + US_loginScore1
+			checkrec("UE_score2")		= checkrec("UE_score2") + US_loginScore2
+			checkrec("UE_score3")		= checkrec("UE_score3") + US_loginScore3
+			checkrec("UE_score4")		= checkrec("UE_score4") + US_loginScore4
+			checkrec("UE_score5")		= checkrec("UE_score5") + US_loginScore5
+			checkrec("UE_score1Day")		= checkrec("UE_score1Day") + US_loginScore1
+			checkrec("UE_score2Day")		= checkrec("UE_score2Day") + US_loginScore2
+			checkrec("UE_score3Day")		= checkrec("UE_score3Day") + US_loginScore3
+			checkrec("UE_score4Day")		= checkrec("UE_score4Day") + US_loginScore4
+			checkrec("UE_score5Day")		= checkrec("UE_score5Day") + US_loginScore5
+			checkrec("UE_score1Week")		= checkrec("UE_score1Week") + US_loginScore1
+			checkrec("UE_score2Week")		= checkrec("UE_score2Week") + US_loginScore2
+			checkrec("UE_score3Week")		= checkrec("UE_score3Week") + US_loginScore3
+			checkrec("UE_score4Week")		= checkrec("UE_score4Week") + US_loginScore4
+			checkrec("UE_score5Week")		= checkrec("UE_score5Week") + US_loginScore5
+			checkrec("UE_score1Month")		= checkrec("UE_score1Month") + US_loginScore1
+			checkrec("UE_score2Month")		= checkrec("UE_score2Month") + US_loginScore2
+			checkrec("UE_score3Month")		= checkrec("UE_score3Month") + US_loginScore3
+			checkrec("UE_score4Month")		= checkrec("UE_score4Month") + US_loginScore4
+			checkrec("UE_score5Month")		= checkrec("UE_score5Month") + US_loginScore5
+			checkrec("UE_score1Year")		= checkrec("UE_score1Year") + US_loginScore1
+			checkrec("UE_score2Year")		= checkrec("UE_score2Year") + US_loginScore2
+			checkrec("UE_score3Year")		= checkrec("UE_score3Year") + US_loginScore3
+			checkrec("UE_score4Year")		= checkrec("UE_score4Year") + US_loginScore4
+			checkrec("UE_score5Year")		= checkrec("UE_score5Year") + US_loginScore5
+		End If
+	checkrec.update()
+	checkrec.close()
+	Set checkrec=Nothing
+
+
+	session("userLastLoginTime")= UE_loginTime
+	session("userExitOldTime")	= GetTimer()
+
+
+	' 登录状态记录在线表
+	Call Users_UpdateOnline(todayTime,UE_ID,OT_computerCode,OT_userIP)
+
+	Call Users_Update(UE_ID,username,userpwd,UE_mail)
+
+	session("VerCodeNum") = 0
+
+	response.write(_
+	"document.location.reload();"&_
+	"")
+End Sub
+
+
+
+
+
+
+
+' 忘记密码--发送数据
+Sub MissPwdSend()
+	refType		= ToGetStr("refType")
+	userData	= ToGetStr("userData")
+
+	If refType="用户名" Then
+		dataField	= "username"
+		userData	= RegExpStr(userData,"sql")
+
+	ElseIf refType="邮箱" Then
+		If IsMail(userData)=False Then
+			response.write(_
+			"<br /><br /><center class='font2_2'>邮箱格式错误.</center>"&_
+			"")
+			response.End()
+		End If
+		dataField	= "mail"
+	
+	Else
+		response.write(_
+		"<br /><br /><center class='font2_2'>操作目的不明确.</center>"&_
+		"")
+		response.End()
+	End If
+
+	Set checkexe = conobj.execute("select UE_ID,UE_username,UE_question,UE_mail from OT_users where UE_"& dataField &"='"& userData &"'")
+		If checkexe.EOF Then
+			response.write(_
+			"<br /><br /><center class='font2_2'>不存在该用户。</center>"&_
+			"")
+			response.End()
+		End If
+		If Len(""& checkexe("UE_question"))<1 Then
+			response.write(_
+			"<div class='alertBox' style='width:85%;margin-top:10px;padding:5px;margin-left:20px;'>"&_
+			"该用户未设置密保，如有问题，请与管理员联系。"&_
+			"</div>"&_
+			"<div class='clear'></div>"&_
+			"")
+'			If IsMail(checkexe("UE_mail")) Then
+'				response.write(_
+'				"<div class='alertBox' style='width:85%;margin-top:6px;padding:5px;margin-left:20px;text-align:center;'>"&_
+'					"还未设置密保？重置密保发到你E-mail，<input type='button' value='发送' onclick=""SendMissMail("& checkexe("UE_ID") &");"" /><span id='loadingStr'></span>"&_
+'				"</div>"&_
+'				"")
+'			End If
+			response.End()
+		End If
+		response.write(_
+		"<input type='hidden' id='userID' name='userID' value='"& checkexe("UE_ID") &"' />"&_
+		"<dl>"&_
+			"<dt>密保问题：</dt>"&_
+			"<dd>"& checkexe("UE_question") &"</dd>"&_
+		"</dl>"&_
+		"<div class='clear'></div>"&_
+		"<dl>"&_
+			"<dt>密保答案：</dt>"&_
+			"<dd>"&_
+				"<input type='text' id='answer' name='answer' class='text' />"&_
+			"</dd>"&_
+		"</dl>"&_
+		"<div class='clear'></div>"&_
+		"<dl>"&_
+			"<dt>新密码：</dt>"&_
+			"<dd>"&_
+				"<input type='password' id='userpwd' name='userpwd' class='text' />"&_
+			"</dd>"&_
+		"</dl>"&_
+		"<div class='clear'></div>"&_
+		"<dl>"&_
+			"<dt>确认密码：</dt>"&_
+			"<dd>"&_
+				"<input type='password' id='userpwd2' name='userpwd2' class='text' />"&_
+			"</dd>"&_
+		"</dl>"&_
+		"<div class='clear'></div>"&_
+		"<dl>"&_
+			"<dt>验证码：</dt>"&_
+			"<dd>"&_
+				"<input type='text' id='popVerCode' name='verCode' maxlength='5' class='text' style='width:60px;' onclick='PopupGetVerCode()' onkeyup='PopupGetVerCode()' title='如看不清验证码，可以点击验证码进行更换' />&nbsp;&nbsp;<span id='popVerCodeStr' class='font2_2' onclick='PopupGetVerCode()' style='cursor:pointer;'>点击获取验证码</span>"&_
+			"</dd>"&_
+		"</dl>"&_
+		"<div class='clear'></div>"&_
+		"<center>"&_
+			"<input type='submit' value='提交' class='button1' />"&_
+		"</center>"&_
+		"")
+	checkexe.close()
+	Set checkexe=Nothing
+
+End Sub
+
+
+
+
+' 忘记密码--处理表单
+Sub MissPwd()
+	userID		= ToPostInt("userID")
+	answer		= ToPostStr("answer")
+	userpwd		= ToPostStr("userpwd")
+	verCode		= ToPostStr("verCode")
+
+
+	If answer="" Or userpwd="" Then
+		response.write("alert('表单接收不全.');")
+		response.End()
+	End If
+
+	If OT_OpenVerCode=True Then
+		If verCode="" Or verCode<>session("VerCode") Then
+			response.write("alert('验证码错误.');PopupChangeCode('change');")
+			response.End()
+		End If
+		session("VerCode")=""
+	End If
+
+
+	' 检测用户
+	Set checkrec=server.CreateObject("ADODB.recordset")
+	checkrec.open "select top 1 UE_ID,UE_userpwd,UE_userKey,UE_answer,UE_answerKey from OT_users where UE_ID="& userID &"",conobj,0,2
+		If checkrec.EOF Then
+			response.write("alert('不存在该用户.');PopupChangeCode('change');")
+			response.End()
+		End If
+		If checkrec("UE_answer")<>md5(md5(answer) & checkrec("UE_answerKey")) Then
+			response.write("alert('密保答案错误.');PopupChangeCode('change');")
+			response.End()
+		End If
+	UE_userKey	= RndChar(5)
+	userpwd		= md5(md5(userpwd) & UE_userKey)
+	checkrec("UE_userpwd")	= userpwd
+	checkrec("UE_userKey")	= UE_userKey
+	checkrec.update()
+	checkrec.close
+	Set checkrec=Nothing
+
+	response.write(_
+	"alert('重设密码成功！\n\n现在可以使用新密码进行登录.\n系统自动跳转到登陆窗口.');"&_
+	"OpenPopup('login');"&_
+	"")
+End Sub
+
+
+' 发送重置密保邮件
+Sub MissPwdMail()
+	userID = ToGetInt("userID")
+
+	judResult = Mail_LockSend("missPwd",userID)
+		If judResult Then
+			response.write("alert('发送成功，请到邮箱里查收。');MissPwdSend();")
+			response.End()
+		Else
+			response.write("alert('发送失败，请刷新页面后再重试下。');")
+			response.End()
+		End If
+End Sub
+
+
+' 修改
+Sub rev()
+	URL		= ToPostStr("URL")
+	revType	= ToPostStr("revType")
+
+	' 获取数据
+	Select Case revType
+		Case "info"
+			realname	= ToPostStr("realname")
+			sex			= ToPostStr("sex")
+			address		= ToPostStr("address")
+			postCode	= ToPostStr("postCode")
+			phone		= ToPostStr("phone")
+			qq			= ToPostStr("qq")
+			web			= ToPostStr("web")
+			note		= ToPostStr("note")
+			If realname="" Then
+				response.write("alert('表单接收不全.');")
+				response.End()
+			End If
+	
+
+		Case "face"
+	
+
+		Case "password"
+			userpwdOld	= ToPostStr("userpwdOld")
+			userpwd		= ToPostStr("userpwd")
+			If userpwdOld="" Or userpwd="" Then
+				response.write("alert('密码不能为空.');")
+				response.End()
+			End If
+	
+
+		Case "mail"
+			mail		= ToPostStr("mail")
+			mailPwd		= ToPostStr("mailPwd")
+			If IsMail(mail)=False Then
+				response.write("alert('邮箱格式错误.');")
+				response.End()
+			End If
+	
+
+		Case "question"
+			answerOld	= ToPostStr("answerOld")
+			question	= ToPostStr("question")
+			answer		= ToPostStr("answer")
+			If question<>FilterStr(question,"sql") Then
+				response.write("alert('密保问题含特殊符号。');")
+				response.End()
+			End If
+			If Len(question)<2 Or Len(question)>50 Then
+				response.write("alert('密保问题长度不在2~50字节范围内。');")
+				response.End()
+			End If
+	
+
+		Case Else
+			response.write("alert('操作不明确.');")
+			response.End()
+
+	End Select
+
+
+	' 获取用户信息
+	userInfoStr = Users_Get()
+		userArr		= Split(userInfoStr,Chr(9))
+		If UBound(userArr)>=3 Then
+			userID		= ToInt(userArr(0))
+		End If
+	Set userrec=server.CreateObject("ADODB.recordset")
+	userrec.open "select top 1 UE_ID,UE_username,UE_userpwd,UE_userKey,UE_mail,UE_question,UE_answer,UE_answerKey,UE_realname,UE_sex,UE_address,UE_postCode,UE_phone,UE_qq,UE_web,UE_note from OT_users where UE_ID="& userID,conobj,0,2
+		UE_ID			= userrec("UE_ID")
+		UE_username		= userrec("UE_username")
+		UE_userpwd		= userrec("UE_userpwd")
+		UE_userKey		= userrec("UE_userKey")
+		UE_mail			= userrec("UE_mail")
+		UE_question		= userrec("UE_question")
+		UE_answer		= userrec("UE_answer")
+		UE_answerKey	= userrec("UE_answerKey")
+
+
+	' 数据处理
+	Select Case revType
+		Case "info"
+			userrec("UE_realname")	= realname
+			userrec("UE_sex")		= sex
+			userrec("UE_phone")		= phone
+			userrec("UE_address")	= address
+			userrec("UE_postCode")	= postCode
+			userrec("UE_qq")		= qq
+			userrec("UE_web")		= web
+			userrec("UE_note")		= note
+
+
+		Case "face"
+
+
+		Case "password":
+			If md5(md5(userpwdOld) & UE_userKey) <> UE_userpwd Then
+				response.write("alert('原密码错误！');")
+				response.End()
+			End If
+			newUserKey = RndChar(5)
+			newUserpwd = md5(md5(userpwd) & newUserKey)
+			userrec("UE_userpwd")	= newUserpwd
+			userrec("UE_userKey")	= newUserKey
+	
+
+		Case "mail":
+			If md5(md5(mailPwd) & UE_userKey) <> UE_userpwd Then
+				response.write("alert('登录密码错误！');")
+				response.End()
+			End If
+			userrec("UE_mail")	= mail
+	
+
+		Case "question":
+			answerOld	= md5(md5(answerOld) & UE_answerKey)
+			If Len(""& UE_question)>0 And answerOld<>UE_answer Then
+				response.write("alert('旧答案错误！');")
+				response.End()
+			End If
+
+			newAnswerKey = RndChar(5)
+			userrec("UE_question")		= question
+			userrec("UE_answer")		= md5(md5(answer) & newAnswerKey)
+			userrec("UE_answerKey")		= newAnswerKey
+	
+	End Select
+	UE_userpwd		= Empty
+	UE_userKey		= Empty
+	UE_answer		= Empty
+	UE_answerKey	= Empty
+
+
+	userrec.update()
+	userrec.close()
+	Set userrec=Nothing
+
+	If revType="password" Then
+		Call Users_Update(UE_ID,UE_username,newUserpwd,UE_mail)
+
+	ElseIf revType="face" Then
+'		File_Del(UsersFileDir & UE_img)
+
+	End If
+
+	If revType="question" And UE_question<>"" Then
+		alertMode = "建立密保"
+	Else
+		alertMode = "修改"
+	End If
+
+	If revType="face" Then
+		response.write(_
+		"<script language='javascript' type='text/javascript'>"&_
+		"alert('"& alertMode &"成功.');parent.OpenPopup('revInfo');"&_
+		"</script>"&_
+		"")
+		response.End()
+
+	Else
+		response.write("alert('"& alertMode &"成功.');OpenPopup('userCenter');")
+		response.End()
+
+	End If
+
+End Sub
+
+
+
+
+
+
+
+' 在线状态清理
+Sub OnlineClear()
+'	DeleteSQL("OT_userOnline","UO_ip=". $DB->qstr(GetUserIP()));
+
+	Call UserExit()
+End Sub
+
+
+
+
+
+
+' 用户退出
+Sub UserExit()
+	Users_Delete()
+
+	response.write(_
+	"document.location.reload();"&_
+	"")
+End Sub
+
+
+
+
+' 检测用户名
+Function CheckUserName(method,username)
+	If Len(""& username)<>Len(""& RegExpStr(username,"sql")) Then
+		alertStr="用户名含特殊符号"
+			If method="send" Then
+		response.write "<script language=javascript>parent.usernameStr.innerHTML='<font class=font2_2>"& alertStr &"</font>';</script>"
+		response.End
+			ElseIf method="write" Then
+		response.write "<font color='red'>"& alertStr &"</font>"
+		response.End
+			ElseIf method="check" Then
+		response.write "<script language=javascript>alert('"& alertStr &"');history.back(-1);</script>"
+		response.End
+			ElseIf method="ajax" Then
+		response.write "alert('"& alertStr &"');regWaitTime=0;"
+		response.End
+			End If
+	End If
+	
+	nameNum=Len(""& RegExpStr(username,"bytes"))
+	If nameNum > 16 Or nameNum < 4 Then
+		alertStr="用户名长度在4到16字节!当前长度"& nameNum & "字节!一个汉字占2字节,其他1字节"
+			If method="send" Then
+		response.write "<script language=javascript>parent.usernameStr.innerHTML='<font class=font2_2>"& alertStr &"</font>';</script>"
+		response.End
+			ElseIf method="write" Then
+		response.write "<font color='red'>"& alertStr &"</font>"
+		response.End
+			ElseIf method="check" Then
+		response.write "<script language=javascript>alert('"& alertStr &"');history.back(-1);</script>"
+		response.End
+			ElseIf method="ajax" Then
+		response.write "alert('"& alertStr &"');regWaitTime=0;"
+		response.End
+			End If
+	End If
+
+	If US_regBadWord<>"" Then
+		username = LCase(username)
+		badWordArr = Split(LCase(US_regBadWord),"|")
+		For Each str In badWordArr
+			If str<>"" Then
+				alertStr="用户名中含禁止注册关键词（"& str &"）"
+				If InStr(username,str)>0 Then
+					If method="send" Then
+				response.write "<script language=javascript>parent.usernameStr.innerHTML='<font class=font2_2>"& alertStr &"</font>';</script>"
+				response.End
+					ElseIf method="write" Then
+				response.write "<font color='red'>"& alertStr &"</font>"
+				response.End
+					ElseIf method="check" Then
+				response.write "<script language=javascript>alert('"& alertStr &"');history.back(-1);</script>"
+				response.End
+					ElseIf method="ajax" Then
+				response.write "alert('"& alertStr &"');regWaitTime=0;"
+				response.End
+					End If
+				End If
+			End If
+		Next
+	End If
+
+	Set checkexe=conobj.execute("select UE_ID from OT_users where UE_username='"& username &"'")
+		If Not checkexe.eof Then
+			alertStr="该用户名已存在，请更换"
+			If method="send" Then
+				response.write "<script language=javascript>parent.usernameStr.innerHTML='<font class=font2_2>"& alertStr &"</font>';</script>"
+				response.End
+			ElseIf method="write" Then
+				response.write "<font color='red'>"& alertStr &"</font>"
+				response.End
+			ElseIf method="check" Then
+				response.write "<script language=javascript>alert('"& alertStr &"');history.back(-1);</script>"
+				response.End
+			ElseIf method="ajax" Then
+				response.write "alert('"& alertStr &"');regWaitTime=0;"
+				response.End
+			End If
+		Else
+			alertStr="恭喜！该用户名未被占用"
+			If method="send" Then
+				response.write "<script language=javascript>parent.usernameStr.innerHTML='<font class=font4_2>"& alertStr &"</font>'</script>"
+				response.End			
+			ElseIf method="write" Then
+				response.write "<font color='green'>"& alertStr &"</font>"
+				response.End
+			End If
+		End If
+	checkexe.close
+	Set checkexe=Nothing
+
+End Function
+
+
+' 针对ok3w加密方式
+Public Function MD5_ok3w(moStr)
+	If moStr="" Then MD5_ok3w="":Exit Function
+	Msg=StrReverse(moStr)
+	Msg_len=Len(Msg)
+	If Msg_len Mod 2 Then
+		Msg_len1=int(Msg_len/2)
+		Msg_len2=int(Msg_len/2)+1
+	Else
+		Msg_len1=int(Msg_len/2)
+		Msg_len2=int(msg_len/2)
+	End If
+	Msg1=left(Msg,Msg_len1)
+	Msg2=Right(Msg,Msg_len2)
+	Msg1=MD5(Msg1)
+	Msg2=MD5(Msg2)
+	Msg=MD5(Msg1 & Msg2)
+	MD5_ok3w=Msg
+End Function
+
+%>

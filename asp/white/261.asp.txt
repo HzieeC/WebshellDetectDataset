@@ -1,0 +1,290 @@
+<!-- #include file="../inc/conn.asp" -->
+<!-- #include file="inc/function.asp" -->
+<!--#include file="../inc/page.asp"-->
+<%call login_check()%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3c.org/TR/1999/REC-html401-19991224/loose.dtd">
+<HTML xmlns="http://www.w3.org/1999/xhtml">
+<HEAD>
+<TITLE>图片管理--Erox系统</TITLE>
+<META http-equiv=Content-Type content="text/html; charset=gb2312">
+<LINK href="images/css_body.css" type=text/css rel=stylesheet>
+<META content="MSHTML 6.00.3790.4275" name=GENERATOR>
+</HEAD>
+<body>
+<DIV class=bodytitle>
+<DIV class=bodytitleleft></DIV>
+<DIV class=bodytitletxt>图片管理</DIV>
+<DIV class=bodytitletxt2><a href="?action=add">添加图片</a></DIV>
+</DIV>
+<div style="width:100%; float:left">
+<% 
+Select Case Trim(Request.QueryString("action"))
+Case "add"
+	Call add()
+Case "sadd"
+	Call sadd()
+	Call addlog("图片添加成功")
+	Call ShowErr("图片添加成功","javascript:history.back(-1)")
+Case "makexml"
+	Call makexml()
+Case "edit"
+	Call edit()
+Case "sedit"
+	Call sedit()
+	Call addlog("图片修改成功")
+	Call ShowErr("图片修改成功","javascript:history.back(-1)")
+Case "pl"
+	Call pl()
+	Call addlog("图片排序成功")
+	Call ShowErr("图片排序成功","javascript:history.back(-1)")
+Case "del"
+	Call del()
+	Call addlog("图片删除成功")
+	Call ShowErr("图片删除成功","javascript:history.back(-1)")
+Case Else
+	Call main()
+End Select
+
+Sub sadd()
+Set rs = Server.CreateObject("Adodb.RecordSet")
+sql = "select * from "&web_dbtop&"ebook"
+rs.Open sql,conn,1,3
+rs.AddNew
+	rs("pic_b")				=	Request.Form("pic_b")
+	rs("pic_check")		=	Request.Form("pic_check")
+	rs("pic_pl")			=	Request.Form("pic_pl")
+	rs("pic_url")		=	Request.Form("pic_url")
+rs.Update
+rs.Close
+Set rs = Nothing
+Call makexml()
+End Sub
+
+Sub sedit()
+Set rs = Server.CreateObject("Adodb.RecordSet")
+sql = "select * from "&web_dbtop&"ebook where id="&Trim(Request.Form("id"))
+rs.Open sql,conn,1,3
+	rs("pic_b")				=	Request.Form("pic_b")
+	rs("pic_check")		=	Request.Form("pic_check")
+	rs("pic_pl")			=	Request.Form("pic_pl")
+	rs("pic_url")		=	Request.Form("pic_url")
+rs.Update
+rs.Close
+Set rs = Nothing
+Call makexml()
+End Sub
+
+sub pl()
+dim id,nid,eid,pic_pl,npic_pl,pic_check,npic_check
+id=Trim(Request.Form("id"))
+nid=split(id,",")
+pic_pl=request.form("pic_pl")
+npic_pl=split(pic_pl,",")
+pic_check=request.form("pic_check")
+npic_check=split(pic_check,",")
+eid=ubound(nid)
+for i=0 to eid
+	set rs=server.createobject("adodb.recordset")
+	sql="select pic_pl,pic_check from "&web_dbtop&"ebook where id="&nid(i)
+	rs.open sql,conn,1,3
+	rs("pic_pl")=npic_pl(i)
+	rs("pic_check")=npic_check(i)
+	rs.update
+	rs.close
+	set rs=nothing
+next
+Call makexml()
+End Sub
+
+sub del()
+conn.execute "delete from "&web_dbtop&"ebook where id="&Trim(Request.QueryString("id"))
+Call makexml()
+end sub
+
+'生成
+Sub makexml()
+ex_mxl=server.mappath("../inc/config.xml")
+Set fso = CreateObject("Scripting.FileSystemObject") 
+Set MyFile = fso.CreateTextFile(ex_mxl,True) 
+MyFile.WriteLine("<?xml version=""1.0"" encoding=""utf-8""?>") 
+MyFile.WriteLine("<playlist version=""1"" xmlns=""http://xspf.org/ns/0/"">") 
+MyFile.WriteLine("<trackList>") 
+
+Set rs = Server.CreateObject("Adodb.RecordSet")
+sql = "select * from "&web_dbtop&"ebook where pic_check = 1 order by pic_pl desc,id desc"
+rs.Open sql,conn,1,1
+Do While Not rs.EOF
+pic_b				=	rs("pic_b")
+pic_url		= rs("pic_url")
+pic_title				=	rs("pic_title")
+
+MyFile.WriteLine("<track>")
+MyFile.WriteLine("<title>OPEN!</title>")
+MyFile.WriteLine("<location>uppic/"&pic_b&"</location>")
+MyFile.WriteLine("<info>"&pic_url&"</info>")
+MyFile.WriteLine("</track>")
+
+rs.MoveNext
+Loop
+rs.Close
+Set rs = Nothing
+
+MyFile.WriteLine("</trackList>")
+MyFile.WriteLine("</playlist>")
+MyFile.Close
+End Sub
+
+Sub main()
+Set rs = Server.CreateObject("Adodb.RecordSet")
+sql = "select * from "&web_dbtop&"ebook order by pic_pl desc,id desc"
+rs.Open sql,conn,1,1
+%>
+<TABLE width="96%" border=0 align=center cellpadding="5" cellSpacing=1 class=tbtitle style="BACKGROUND: #cad9ea;">
+<form action="?action=pl" method="post" name="from" id="from" onSubmit="return Validator.Validate(this,3)">
+  <TBODY>
+    <TR  bgColor="#f5fafe">
+      <TD width="33%" align="center">图片</TD>
+      <TD width="35%" align="center">链接</TD>
+      <TD width="7%" align="center">排序</TD>
+      <TD width="10%" align="center">审核</TD>
+      <TD width="15%" align="center">操作</TD>
+    </TR>
+	<%if not rs.eof Then
+	rs.PageSize=5
+	page=Request.QueryString("page")
+	If page="" Then page = 1
+	If not isnumeric(page) Then page = 1
+	page = Clng(page)
+	If page>rs.PageCount Then page=rs.PageCount 
+	If page<=0 Then page=1
+	rs.AbsolutePage=page
+	for i=1 to 5
+	 if rs.eof Then exit For%>
+    <TR bgcolor="#FFFFFF">
+      <TD align="center"><input name="id" type="hidden" value="<%=rs("id")%>" /><img src="../uppic/<%=rs("pic_b")%>" width="286" height="91"></TD>
+      <TD align="center"><a href="<%=rs("pic_url")%>" target="_blank"><%=rs("pic_url")%></a></TD>
+      <TD align="center"><INPUT name="pic_pl" id="pic_pl" value="<%=rs("pic_pl")%>" size=4 style="text-align:center" dataType="Integer" msg="数字"></TD>
+      <TD align="center">
+      <select name="pic_check" id="pic_check">
+        <option value="1" <%if rs("pic_check") = 1 then Response.Write"selected"%> style="color:#009900">已通过</option>
+        <option value="0" <%if rs("pic_check") = 0 then Response.Write"selected"%> style="color:#FF0000">审核中</option>
+      </select>      </TD>
+      <TD align="center"><A href="?action=edit&id=<%=rs("id")%>">修改</a> | <A href="?action=del&id=<%=rs("id")%>&p_id=<%=p_id%>" onClick="return confirm('确定要删除吗?');">删除</a></TD>
+    </TR>
+	<%rs.MoveNext
+	next 
+	end if%>
+    <TR align="center" bgcolor="#f8fbfb">
+      <TD colspan="7" align="right"><input class=inputbut type="submit" name="Submit" value="批量操作" /></TD>
+    </TR>
+    <TR align="center" bgcolor="#f8fbfb">
+      <TD colspan="7"><%=show(rs.recordCount,5,page,4,"page","curr")%></TD>
+    </TR>
+  </TBODY>
+  </form>
+</TABLE>
+<%
+End Sub
+sub add()
+%>
+<TABLE width="96%" border=0 align=center cellpadding="4" cellSpacing=1 class=tbtitle style="BACKGROUND: #cad9ea;">
+<form action="?action=sadd" method="post" name="form" id="form" onSubmit="return Validator.Validate(this,3)">
+  <TBODY>
+    <TR>
+      <TD width="20%" rowspan="2" vAlign=center bgColor=#f5fafe>图片：</TD>
+      <TD bgColor=#ffffff><iframe src="admin_up.asp?check=pic_b" name="up" width="350" marginwidth="0" height="30" marginheight="0" align="middle" scrolling="No" frameborder="0" id="up"></iframe></TD>
+    </TR>
+    <TR>
+      <TD bgColor=#ffffff><input id="pic_b" size=50 value="" name="pic_b" dataType="Require" msg="不能为空">
+        比例:550*175(px)</TD>
+    </TR>
+    <TR>
+      <TD vAlign=center width="20%" bgColor=#f5fafe>链接：</TD>
+      <TD bgColor=#ffffff><INPUT id="pic_url" size=50 value="" name="pic_url" dataType="Url" msg=""></TD>
+    </TR>
+    <TR>
+      <TD vAlign=center width="20%" bgColor=#f5fafe>审核情况：</TD>
+      <TD bgColor=#ffffff>
+      <input name="pic_check" type="radio" id="radio" value="1" checked>
+        <font color="#009900">已通过</font>
+       <input name="pic_check" type="radio" id="radio" value="0">
+       <font color="#FF0000">审核中</font></TD>
+    </TR>
+	<TR>
+      <TD bgColor=#f5fafe>排序：</TD>
+      <TD bgColor=#ffffff>
+<%
+Set rs = server.CreateObject("Adodb.RecordSet")
+sql="Select pic_pl from "&web_dbtop&"ebook Order by pic_pl desc"
+rs.open sql,Conn,1,1
+if not rs.eof then
+	pic_pl = rs("pic_pl")
+	pic_pl2 = pic_pl+1
+else
+	pic_pl2 = 1
+end if
+rs.close
+set rs = nothing
+%>
+      <INPUT name="pic_pl" id="pic_pl" style="text-align:center" value="<%=pic_pl2%>" size=20  dataType="Integer" msg="数字">
+      数量越大越排前</TD>
+    </TR>
+    <TR align="center" bgcolor="#f8fbfb">
+      <TD colspan="2"><INPUT class=inputbut type=submit value=添加 name=Submit>
+      &nbsp;</TD>
+    </TR>
+  </TBODY>
+  </form>
+</TABLE>
+<%
+End Sub
+Sub edit()
+set rs=Server.CreateObject("Adodb.RecordSet")
+sql="select * from "&web_dbtop&"ebook where id="&Trim(Request.QueryString("id"))
+rs.open sql,Conn,1,1
+%>
+<TABLE width="96%" border=0 align=center cellpadding="4" cellSpacing=1 class=tbtitle style="BACKGROUND: #cad9ea;">
+<form action="?action=sedit" method="post" name="form" id="form" onSubmit="return Validator.Validate(this,3)">
+<input name="id" type="hidden" value="<%=rs("id")%>">
+  <TBODY>
+    <TR>
+      <TD width="20%" rowspan="2" vAlign=center bgColor=#f5fafe>图片：</TD>
+      <TD bgColor=#ffffff><iframe src="admin_up.asp?check=pic_b" name="up" width="350" marginwidth="0" height="30" marginheight="0" align="middle" scrolling="No" frameborder="0" id="up"></iframe></TD>
+    </TR>
+    <TR>
+      <TD bgColor=#ffffff><input id="pic_b" size=50 value="<%=rs("pic_b")%>" name="pic_b" dataType="Require" msg="不能为空">
+        比例:550*175(px)</TD>
+    </TR>
+    <TR>
+      <TD vAlign=center width="20%" bgColor=#f5fafe>链接：</TD>
+      <TD bgColor=#ffffff><INPUT id="pic_url" size=50 value="<%=rs("pic_url")%>" name="pic_url" dataType="Url" msg=""></TD>
+    </TR>
+    <TR>
+      <TD vAlign=center width="20%" bgColor=#f5fafe>审核情况：</TD>
+      <TD bgColor=#ffffff>
+      <input name="pic_check" type="radio" id="radio" value="1" <%if rs("pic_check") = 1 then Response.Write "checked"%>>
+        <font color="#009900">已通过</font>
+       <input name="pic_check" type="radio" id="radio" value="0" <%if rs("pic_check") = 0 then Response.Write "checked"%>>
+       <font color="#FF0000">审核中</font></TD>
+    </TR>
+	<TR>
+      <TD bgColor=#f5fafe>排序：</TD>
+      <TD bgColor=#ffffff>
+      <INPUT name="pic_pl" id="pic_pl" style="text-align:center" value="<%=rs("pic_pl")%>" size=20  dataType="Integer" msg="数字">
+      数量越大越排前</TD>
+    </TR>
+    <TR align="center" bgcolor="#f8fbfb">
+      <TD colspan="2"><INPUT class=inputbut type=submit value=修改 name=Submit>
+      &nbsp;</TD>
+    </TR>
+  </TBODY>
+  </form>
+</TABLE>
+<%
+End Sub
+call CloseConn()
+%>
+<script language="javascript" src="inc/js.js"></script>
+</div>
+</body>
+</html>

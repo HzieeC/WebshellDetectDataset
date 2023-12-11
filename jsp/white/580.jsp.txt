@@ -1,0 +1,139 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+
+<html>
+<head>
+	<title>我的资料</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/common/common.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/customer/edit_customer.js"></script>
+</head>
+
+<body>
+    <table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+					<form id="saveForm" method="post" action="">
+			    	    <s:hidden name="customer.id" id="id" />
+			    	    <s:hidden name="customer.creatorId" />
+			    		<s:hidden name="customer.creatorName" />
+			    		<s:hidden name="customer.createTime" />
+			    		<s:hidden name="customer.modifierId" />
+			    		<s:hidden name="customer.modifierName" />
+			    		<s:hidden name="customer.modifyTime" />
+			    		<s:hidden name="customer.account" id="account" />
+			    		<s:hidden name="customer.code" id="code" />
+			    		<s:hidden name="customer.vipLevelName" id="vipLevelName" />
+			    		<s:hidden name="customer.vipLevelId" id="vipLevelId" />
+						<s:hidden name="customer.state" id="state"/>
+			    		
+						<table width="50%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">						
+							<tr>
+								<td class='gridtitle' width="20%"><s:text name="material.serialnumber"/>：</td>
+								<td class='gridbody'>${customer.code}</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="material.Username"/>：</td>
+								<td class='gridbody'>${customer.account}</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="material.Memberlevel"/>：</td>
+								<td class='gridbody'>${customer.vipLevelName}</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="material.name"/>：</td>
+								<td class='gridbody'>
+									<s:textfield name="customer.name" id="name" maxlength="16" /> <font color="red">*</font>
+								</td>
+							</tr>	
+							<tr>
+								<td class='gridtitle'><s:text name="material.Linkman"/>：</td>
+								<td class='gridbody'><s:textfield maxlength="8" name="customer.linkman"/></td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="material.Telephone"/>：</td>
+								<td class='gridbody'>
+									<s:textfield name="customer.telephone" id="telephone" maxlength="13" />
+								</td>	
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="material.Mobile"/>：</td>
+								<td class='gridbody'>
+									<s:textfield name="customer.mobile" id="mobile" maxlength="11"/>
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="material.CompanyName"/>：</td>
+								<td class='gridbody'>
+									<s:textfield name="customer.companyName" id="companyName" maxlength="22"/> <font color="red">*</font>
+								</td>	
+							</tr>
+							<tr>
+								<td class='gridtitle'><s:text name="material.CompanyAddress"/>：</td>
+								<td class='gridbody'>
+									<s:textfield name="customer.companyAddress" id="companyAddress" maxlength="22" />
+								</td>
+							</tr>
+							<!-- 
+								<tr>
+								<td class='gridtitle'><s:text name="material.Machinebrand"/></td>
+								<td class='gridbody'>
+									<s:textfield name="customer.machineBrand" id="machineBrand" maxlength="16" />
+									<font color="red">*</font>
+								</td>
+								</tr>
+								<tr>	
+									<td class='gridtitle'><s:text name="material.Machinemodel"/></td>
+									<td class='gridbody'>
+										<s:textfield name="customer.machineModel" id="machineModel" maxlength="16" />
+										<font color="red">*</font>
+									</td>
+								</tr>
+							 -->
+							<tr>
+								<td class='gridtitle'><s:text name="material.Email"/>：</td>
+								<td class='gridbody'>
+									<s:textfield name="customer.email" id="email" onblur="checkEmail(this.value)" maxlength="22"/>
+									<font color="red">* <s:text name="material.Asaloginname"/></font><div>${mes }</div>
+								</td>
+							</tr>
+						</table>
+						<br />
+						<div style="margin-left: 20%;">
+							<a href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-ok" onclick="javascript:submitSaveForm()"><s:text name="Alert"/></a>
+						</div>
+					</form>
+				</div>
+	    	</td>
+	    </tr>
+	</table>
+	<!-- 语言设置-->
+<input type="hidden" id="Membersapprovedbythe" value="<s:text name="editcustomer.Membersapprovedbythe"/>"/>
+<input type="hidden" id="Auditsuccess" value="<s:text name="editcustomer.Auditsuccess"/>"/>
+<input type="hidden" id="Auditfailure" value="<s:text name="editcustomer.Auditfailure"/>"/>
+<input type="hidden" id="Pleaseinputaccount" value="<s:text name="editcustomer.Pleaseinputaccount"/>"/>
+<input type="hidden" id="AccountcanonlyusetheNumbers" value="<s:text name="editcustomer.AccountcanonlyusetheNumbers"/>"/>
+<input type="hidden" id="Pleaseenteryourpassword" value="<s:text name="editcustomer.Pleaseenteryourpassword"/>"/>
+<input type="hidden" id="Pleasefillinthemobile" value="<s:text name="editcustomer.Pleasefillinthemobile"/>"/>
+<input type="hidden" id="Yourcellularphonenumberisnotcorrect" value="<s:text name="editcustomer.Yourcellularphonenumberisnotcorrect"/>"/>
+<input type="hidden" id="Pleasefillintheemail" value="<s:text name="editcustomer.Pleasefillintheemail"/>"/>
+<input type="hidden" id="Theemailaddressformaterror" value="<s:text name="editcustomer.Theemailaddressformaterror"/>"/>
+<input type="hidden" id="SystemError" value="<s:text name="editcustomer.SystemError"/>"/>
+<input type="hidden" id="Pleasechoosetheclientbelongstooperate" value="<s:text name="editcustomer.Pleasechoosetheclientbelongstooperate"/>"/>
+<input type="hidden" id="Pleasechoosetheclientlevel" value="<s:text name="editcustomer.Pleasechoosetheclientlevel"/>"/>
+<input type="hidden" id="Pleasechoosetheclientspayment" value="<s:text name="editcustomer.Pleasechoosetheclientspayment"/>"/>
+<input type="hidden" id="Theaccounthasfound" value="<s:text name="editcustomer.Theaccounthasfound"/>"/>
+<input type="hidden" id="Canchooseonlyone" value="<s:text name="editcustomer.Canchooseonlyone"/>"/>
+<input type="hidden" id="Savedsuccessfully" value="<s:text name="Savedsuccessfully"/>"/>
+<input type="hidden" id="Savefailed" value="<s:text name="Savefailed"/>"/>
+</body>
+</html>
+

@@ -1,0 +1,82 @@
+<%@ page language="java" pageEncoding="gb2312"%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <title>苦丁香HTML编辑器</title>    
+</head>
+  <link rel="stylesheet" type="text/css" href="editor/comm.css" />
+  <script language="javascript" src="editor/all.js"></script>
+<script language="javascript" src="editor/editor.js"></script>
+<script language="javascript" src="editor/editor_toolbar.js"></script>
+<script language=javascript>
+ie4=(document.all)?true:false;
+ns4=(document.layers)?true:false;
+
+function toExit(){
+var args=toExit.arguments;
+var visible=args[0];
+if(ns4){
+        theObj=eval("document.layers[\'"+args[1]+"\']");
+        if(theObj)theObj.visibility=visible;
+        }
+else if(ie4){
+        if(visible=='show')visible='visible';
+        if(visible=='hide')visible='hidden';
+        theObj=eval("document.all[\'"+args[1]+"\']");
+        if(theObj)theObj.style.visibility=visible;
+        }
+
+}     
+
+</script>
+  <body>
+  <form name="form1" method="post" action="?action=saveadd" target="_blank" onSubmit="return checkform();">
+  <table width="751" border="0" cellpadding="2" cellspacing="3">
+    
+      <tr>
+        <td align="right">选择分类：</td>
+        <td width="634"><select name="type" id="type">
+          <option value="0">请选择分类</option>
+        </select>
+        </td>
+      </tr>
+      <tr>
+        <td width="100" align="right">标题：</td>
+        <td><input name="title" type="text" id="title" style="width:260px">
+            <span  id="editor_toolbar_btn_container" style="margin:0 0 0 10px"></span></td>
+      </tr>
+      <tr>
+        <td height="23" align="right" valign="middle">标题图片：</td>
+        <td valign="middle"><input name="img" type="text" id="img" style="width:200px"> <a href="javascript:toExit('show','upimg')">上传标题图片</a>&nbsp;&nbsp;&nbsp;&nbsp;<iframe width=280 height=20 src='editor/upapi/uploadtitlepic.jsp' scrolling='no' frameborder='0' id="upimg" style="visibility:hidden;"></iframe></td>
+      </tr>
+      <tr>
+        <td height="286" align="right" valign="top" style="padding-top:4px">内容：</td>
+        <td><textarea id="content" name="content" style="display:none;"></textarea>
+            <script language="javascript">
+		gFrame = 1;//1-在框架中使用编辑器
+		gContentId = "content";//要载入内容的content ID
+		OutputEditorLoading();
+		</script>
+            <iframe id="HtmlEditor" class="editor_frame" frameborder="0" marginheight="0" marginwidth="0" style="width:100%;height:300px;overflow:visible;" ></iframe></td>
+      </tr>
+      <tr>
+        <td align="right">来源：</td>
+        <td><input name="copyfrom" type="text" id="copyfrom" style="width:150px"></td>
+      </tr>
+      <tr>
+        <td align="right">作者：</td>
+        <td><input name="writer" type="text" id="writer" style="width:100px"></td>
+      </tr>
+      <tr>
+        <td align="right">&nbsp;</td>
+        <td><input name="submit" type="submit"  value="确定提交">
+            <input name="reset" type="reset" onClick="UnDoProcess();" value="清除重置" /></td>
+      </tr>
+      <tr>
+        <td align="right">&nbsp;</td>
+        <td>&nbsp;</td>
+      </tr>
+  </table> 
+  </form>
+  </body>
+</html>

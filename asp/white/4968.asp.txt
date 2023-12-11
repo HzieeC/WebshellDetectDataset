@@ -1,0 +1,156 @@
+<%
+' 网钛文章管理系统(OTCMS)QQ登录API接口修改于: 一曲小诗（www.hcbus.com），版权归其作者所有
+Class API_QQlogin
+	Private API_QQ_ID,API_QQ_KEY,API_QQ_URL
+
+	' 设置APP ID
+	Public Function SetApiId(str)
+		API_QQ_ID = str
+	End Function
+
+	' 设置APP KEY
+	Public Function SetApiKey(str)
+		API_QQ_KEY = str
+	End Function
+
+	' 设置返回路径
+	Public Function SetApiUrl(str)
+		API_QQ_URL = str
+	End Function
+
+	'生成数据数
+	Public Function MakeRandNum()
+		Randomize
+		Dim width : width = 6 '随机数长度,默认6位
+		width = 10 ^ (width - 1)
+		MakeRandNum = Int((width*10 - width) * Rnd() + width)
+	End Function
+	
+	'获取当前时间戳
+	Public Function Timestamp()
+		Timestamp = DateDiff("s", "1970-1-1 00:00:00", Now()) - 3600 * 8
+	End Function
+	
+	'url编码，只替换默认的字符串
+	Public Function UrlEncode(ByVal urlstr)
+		urlstr = Replace(urlstr, "+", "%2B")
+		urlstr = Replace(urlstr, " ", "+")
+		urlstr = Replace(urlstr, "=", "%3D")
+		urlstr = Replace(urlstr, "&", "%26")
+		urlstr = Replace(urlstr, ":", "%3A")
+		urlstr = Replace(urlstr, "/", "%2F")
+		UrlEncode = urlstr
+	End Function
+	
+	'生成签名
+	Public Function MakeSign(method, url, params, secret)
+		MakeSign = UrlEncode(OTCMS_b64_hmac_sha1(method & "&" & UrlEncode(url) & "&" & UrlEncode(params), API_QQ_KEY & "&" & secret))
+	End Function
+	
+	
+	'请求url,获取请求内容
+	Public Function RequestUrl(url)
+		Set XmlObj = Server.CreateObject("Microsoft.XMLHTTP")
+		XmlObj.open "GET", url, false
+		XmlObj.send
+		RequestUrl = XmlObj.responseText
+		Set XmlObj = nothing
+	End Function
+	
+	'获取临时token,返回一个数组Array(oauth_token, oauth_token_secret),用于生成调用地址
+	Public Function GetTempToken()
+		Dim url, params, result
+		Dim temp
+		result = Array("", "")
+		url = "http://openapi.qzone.qq.com/oauth/qzoneoauth_request_token"
+		params = "oauth_consumer_key=" & API_QQ_ID
+		params = params & "&oauth_nonce=" & MakeRandNum()
+		params = params & "&oauth_signature_method=HMAC-SHA1"
+		params = params & "&oauth_timestamp=" & Timestamp()
+		params = params & "&oauth_version=1.0"
+		params = params & "&oauth_signature=" & MakeSign("GET", url, params, "")
+		url = url & "?" & params
+		temp = RequestUrl(url)
+		temp = Split(temp, "&")
+		If UBound(temp)<1 Then
+			response.write("获取验证信息失败，请确保输入的APP ID和APP KEY是正确的。")
+			response.End
+		End If
+		result(0) = Split(temp(0), "=")(1)
+		result(1) = Split(temp(1), "=")(1)
+		Session("qq_oauth_token_secret") = result(1)
+		GetTempToken = result
+	End Function
+	
+	'生成登录地址
+	Public Function CreateLoginUrl()
+		Dim url, params, token
+		token = GetTempToken()
+		url = "http://openapi.qzone.qq.com/oauth/qzoneoauth_authorize"
+		params = "oauth_consumer_key=" & API_QQ_ID
+		params = params & "&oauth_token=" & token(0)
+		params = params & "&oauth_callback=" & UrlEncode(API_QQ_URL)
+		CreateLoginUrl = url & "?" & params
+	End Function
+	
+	'检测是否合法登录,如果合法，则返回用户信息
+	Public Function CheckLogin()
+		Dim oauth_token, openid, oauth_signature, oauth_vericode, timestamp
+		oauth_token = Trim(Request.QueryString("oauth_token"))
+		openid = Trim(Request.QueryString("openid"))
+		oauth_signature = Trim(Request.QueryString("oauth_signature"))
+		oauth_vericode = Trim(Request.QueryString("oauth_vericode"))
+		timestamp = Trim(Request.QueryString("timestamp"))
+		If UrlEncode(oauth_signature) = UrlEncode(OTCMS_b64_hmac_sha1(openid & timestamp, API_QQ_KEY)) Then
+			CheckLogin = Array(openid, oauth_token, oauth_vericode)
+		Else
+			CheckLogin = False
+		End If
+	End Function
+	
+	'获取存取token,返回一个数组Array(openid, oauth_token, oauth_token_secret),用于生成调用地址,传入参数为合法登录后的用户信息
+	Public Function GetAccessToken(token)
+		Dim url, params, result
+		Dim temp
+		result = Array("", "", "")
+		url = "http://openapi.qzone.qq.com/oauth/qzoneoauth_access_token"
+		params = "oauth_consumer_key=" & API_QQ_ID
+		params = params & "&oauth_nonce=" & MakeRandNum()
+		params = params & "&oauth_signature_method=HMAC-SHA1"
+		params = params & "&oauth_timestamp=" & Timestamp()
+		params = params & "&oauth_token=" & token(1)
+		params = params & "&oauth_vericode=" & token(2)
+		params = params & "&oauth_version=1.0"
+		params = params & "&oauth_signature=" & MakeSign("GET", url, params, Session("qq_oauth_token_secret"))
+		url = url & "?" & params
+		temp = RequestUrl(url)
+		temp = Split(temp, "&")
+		result(0) = Split(temp(3), "=")(1)
+		result(1) = Split(temp(1), "=")(1)
+		result(2) = Split(temp(2), "=")(1)
+		GetAccessToken = result
+	End Function
+	
+	'获取用户信息,得到一个json格式的字符串
+	Public Function GetUserInfo(token)
+		Dim url, params, result
+		url = "http://openapi.qzone.qq.com/user/get_user_info"
+		params = "oauth_consumer_key=" & API_QQ_ID
+		params = params & "&oauth_nonce=" & MakeRandNum()
+		params = params & "&oauth_signature_method=HMAC-SHA1"
+		params = params & "&oauth_timestamp=" & Timestamp()
+		params = params & "&oauth_token=" & token(1)
+		params = params & "&oauth_version=1.0"
+		params = params & "&openid=" & token(0)
+		params = params & "&oauth_signature=" & MakeSign("GET", url, params, token(2))
+		url = url & "?" & params
+		GetUserInfo = RequestUrl(url)
+	End Function
+	
+	'获取用户名字,从json字符串里截取相关字符
+	Public Function GetUserName(json)
+		json = Split(json, """nickname"":""")(1)
+		GetUserName = Split(json, """")(0)
+	End Function
+End Class
+%>

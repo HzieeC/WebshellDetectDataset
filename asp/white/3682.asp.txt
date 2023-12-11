@@ -1,0 +1,123 @@
+<!--#include file="../inc/MainClass.asp"-->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+Function GetPlayById(Byval vId)
+	dim i,rsObj,cacheName,vType,venname,vdatetime,contentLink,n,typeFlag,typeText,specialFlag,x,z,m_actor,m_director,m_des,cacheFlagPartStr,playORdownData,t
+	cacheFlagPartStr=getRndPlayerurlSpan(1):specialFlag=getRndPlayerurlSpan(2)
+	if isAlertWin=1 then z="openplay.html" else  z="play.html"
+	x = "/"&sitePath&"template/"&defaultTemplate&"/"&templateFileFolder&"/"&z
+	set rsObj = conn.db("select top 1 m_id,m_type,m_name,m_state,m_pic,m_hit,m_actor,m_des,m_topic,m_color,m_addtime,m_publishyear,m_publisharea,m_playdata,m_downdata,m_commend,m_note,m_keyword,m_digg,m_tread,m_enname,m_datetime,m_director,m_lang,m_score from {pre}data where m_id="&vId&" AND m_recycle=0","records1")
+	if rsObj.recordcount=0 then
+		rsObj.close:set rsObj = nothing:OutNotFound("play")
+	end if
+	vType = rsObj("m_type"):venname=rsObj("m_enname"):vdatetime=rsObj("m_datetime")
+	if InStr(" ,"&getHideTypeIDS()&",",","&vType&",")>0 then
+		rsObj.close:set rsObj = nothing:OutNotFound("play")
+	end if
+	contentLink = getContentLink(vType,vId,venname,vdatetime,"link")
+	typeText = getTypeTextOnCache(vType):currentTypeId=vType
+	typeFlag = "parse_play_":cacheName = typeFlag&vType
+	if cacheStart=1 then 
+		with templateObj
+			if cacheObj.chkCache(cacheName) then  
+				.content = cacheObj.getCache(cacheName)  
+			else 
+				parsePlayPart(x):cacheObj.setCache cacheName,.content
+			end if
+		end with
+	else
+		parsePlayPart(x)
+	end if
+	with templateObj
+		.paresPreNextVideo vid,"play",rsObj("m_type"):playORdownData=rsObj("m_playdata")
+		if IsFromSort=1 then playORdownData=ResetFromSort(playORdownData)
+		.content = replaceStr(.content,"{playpage:playurlinfo}","<script>var VideoListJson="&PlayData2Json(replaceStr(playORdownData,"播客CC","FLV高清"))&",urlinfo='http://'+document.domain+'"&getPlayLink2(vType,vId,venname,vdatetime,"<from>","<pos>")&"';</script>")
+		.content = replaceStr(.content,"{playpage:id}",rsObj("m_id"))
+		.content = replaceStr(.content,"{playpage:typeid}",rsObj("m_type"))
+		.content = replaceStr(.content,"{playpage:name}",rsObj("m_name"))
+		.content = replaceStr(.content,"{playpage:desktopurl}","/"&sitepath&"desktop.asp?name={playpage:encodename}&url="&server.urlencode(contentLink))
+		.content = replaceStr(.content,"{playpage:encodename}",server.URLEncode(rsObj("m_name")))
+		.content = replaceStr(.content,"{playpage:note}",rsObj("m_note"))
+		.content = replaceStr(.content,"{playpage:lang}",rsObj("m_lang"))
+		.content = replaceStr(.content,"{playpage:nolinkkeywords}",rsObj("m_keyword"))
+		if isExistStr(.content,"{playpage:keywords}") then .content = replaceStr(.content,"{playpage:keywords}",getKeywordsList(rsObj("m_keyword"),"&nbsp;&nbsp;"))
+		if isExistStr(.content,"{playpage:from}") OR isExistStr(.content,"{playpage:part}") then
+			t=getPartName(playORdownData,id,from)
+			.content = replaceStr(.content,"{playpage:from}",t(0))
+			.content = replaceStr(.content,"{playpage:part}",t(1))
+		end if
+		if not isNul(rsObj("m_pic")) then 
+			if instr(rsObj("m_pic"),"http://")>0 then  .content = replaceStr(.content,"{playpage:pic}",rsObj("m_pic")) else .content = replaceStr(.content,"{playpage:pic}","/"&sitePath&rsObj("m_pic"))
+		else
+			.content = replaceStr(.content,"{playpage:pic}","/"&sitePath&"pic/nopic.gif")
+		end if
+		m_actor=rsObj("m_actor"):m_director=rsObj("m_director"):m_des=filterStr(decodeHtml(rsObj("m_des")),"jsiframe")
+		.content = replaceStr(.content,"{playpage:actor}",getKeywordsList(m_actor,"&nbsp;&nbsp;"))
+		.content = replaceStr(.content,"{playpage:nolinkactor}",m_actor)
+		.content = replaceStr(.content,"{playpage:director}",getKeywordsList(m_director,"&nbsp;&nbsp;"))
+		.content = replaceStr(.content,"{playpage:nolinkdirector}",m_director)
+		.content = replaceStr(.content,"{playpage:publishtime}",rsObj("m_publishyear"))
+		.content = replaceStr(.content,"{playpage:publisharea}",rsObj("m_publisharea"))
+		.content = replaceStr(.content,"{playpage:addtime}",rsObj("m_addtime"))
+		.content = replaceStr(.content,"{playpage:state}",rsObj("m_state"))
+		.content = replaceStr(.content,"{playpage:diggnum}",rsObj("m_digg"))
+		.content = replaceStr(.content,"{playpage:treadnum}",rsObj("m_tread"))
+		.content = replaceStr(.content,"{playpage:scorenum}",rsObj("m_score"))
+		.content = replaceStr(.content,"{playpage:commend}",rsObj("m_commend"))
+		.content = replaceStr(.content,"{playpage:des}",m_des)
+		.content = replaceStr(.content,"{playpage:link}",contentLink)
+		.content = replaceStr(.content,"{playpage:url}","http://"&siteurl&contentLink)
+		.content = replaceStr(.content,"{playpage:textlink}",typeText&"&nbsp;&nbsp;&raquo;&nbsp;&nbsp;<a href='"&contentLink&"'>"&rsObj("m_name")&"</a>") : .content = replaceStr(.content,"{playpage:player}","<script>var param=getHtmlParas('"&fileSuffix&"');viewplay(param[0],param[1]);</script>") :.parsePlayList vType,vId,venname,vdatetime,playORdownData,"play" : .parsePlayList vType,vId,venname,vdatetime,rsObj("m_downdata"),"down": .parseIf()
+	end with
+	parseLabelHaveLen m_des,"des":parseLabelHaveLen m_actor,"actor":parseLabelHaveLen m_actor,"nolinkactor":parseLabelHaveLen rsObj("m_name"),"name":parseLabelHaveLen rsObj("m_note"),"note"
+	GetPlayById=templateObj.content
+	rsObj.close:set rsObj = nothing
+End Function
+
+Sub parsePlayPart(x)
+	with templateObj
+		.content=loadFile(x):.parsePlayPageSpecial:.parseTopAndFoot():.parseSelf():.parseGlobal()
+		.content = replaceStr(replaceStr(.content,"{maxcms:currenttypeid}",currentTypeId),"{playpage:typeid}",currentTypeId)
+		if isExistStr(.content,"{playpage:typename}") then .content = replaceStr(.content,"{playpage:typename}",split(getTypeNameTemplateArrayOnCache(currentTypeId),",")(0))
+		if isExistStr(.content,"{playpage:typelink}") then .content = replaceStr(.content,"{playpage:typelink}",getTypeLink(currentTypeId))
+		if isExistStr(.content,"{playpage:upid}") then .content = replaceStr(.content,"{playpage:upid}",getTypeUpid(currentTypeId))
+		.parseMenuList(""):.parseAreaList():.parseTopicList():.parseVideoList():.parseNewsList()
+	end with
+End Sub
+
+dim m_id,id,from
+if paramset=0 OR runmode="forgedStatic" then
+	dim paras,parasArray:paras=replaceStr(request.QueryString,fileSuffix,"")
+	if instr(paras,"-")>0 then
+		parasArray=split(paras,"-")
+		if ubound(parasArray)=2 then 
+			m_id=parasArray(0) : id=parasArray(1) : from=parasArray(2)
+		else
+			echoSaveStr "null"
+		end if
+	else
+		m_id=paras : id="" : from=""
+	end if
+else
+	m_id=getForm(paramid,"both") : id=getForm(parampage,"both") : from=replaceStr(getForm(paramindex,"both"),fileSuffix,"")
+end if
+
+if isNul(m_id) then
+	echoSaveStr "null"
+else
+	if isNum(m_id) then m_id=clng(m_id) else echoSaveStr "safe"
+end if
+if not isNul(id) then id=preventSqlin(id,"") : if not isNul(from) then from=preventSqlin(from,"")
+
+Dim flag:flag="#/"&id&"-"&from:tryDieCacheFile m_id,flag
+dim templateobj,temp:set templateobj = mainClassobj.createObject("MainClass.template"):temp=GetPlayById(m_id)
+WriteCacheFile m_id,flag,temp:echo replaceStr(temp,"{maxcms:runinfo}",getRunTime())
+set templateobj =nothing:terminateAllObjects
+%>

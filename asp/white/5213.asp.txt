@@ -1,0 +1,494 @@
+<%
+Function makeAbout(Byval sortID, Byval page, Byval isMakeHtml)
+	dim templateobj,templatePath : set templateobj=new TemplateClass
+	dim rsObj,rsObjSmalltype,rsObjBigtype,channelTemplateName,tempStr,tempArr,pageStr,content
+	dim templateFile
+	
+	set rsObj=conn.exec("select * from {prefix}Sort where SortID="&sortID, "exe")
+	if rsObj.eof then makeAbout="" : exit function
+
+	templateFile=rsObj("SortTemplate")
+	if isnul(templateFile) then templateFile="about.html"
+	templatePath=sitePath&"/"&"templates/"&setting.defaultTemplate&"/"&setting.htmlFilePath&"/"	&templateFile
+	
+	if not CheckTemplateFile(templatePath) then echo templateFile&err_16 : exit function 
+	if not isnul(rsObj("GroupID")) and isMakeHtml<>1 then	
+		if not ViewNoRight(rsObj("GroupID"),rsObj("Exclusive")) then 
+			echoErr err_17,"17",err_17
+			response.end()
+		end if		
+	end if	
+	
+
+	
+	'开始解析标签
+	templateObj.load(templatePath)
+	templateObj.parseHtml()
+	templateObj.content=replace(templateObj.content,"{aspcms:sortname}",rsObj("SortName"))
+	templateObj.content=replace(templateObj.content,"{aspcms:parentsortid}",rsObj("parentid"))		
+	templateObj.content=replace(templateObj.content,"{aspcms:sortid}",SortID)	
+	templateObj.content=replace(templateObj.content,"{aspcms:topsortid}",rsObj("topsortid"))
+	if isnul(rsObj("PageKeywords")) then 
+		templateObj.content=replace(templateObj.content,"[about:keyword]",setting.siteKeyWords)	
+	else
+		templateObj.content=replace(templateObj.content,"[about:keyword]",rsObj("PageKeywords"))	
+	end if
+	if isnul(rsObj("PageDesc")) then
+		templateObj.content=replace(templateObj.content,"[about:desc]",setting.sitedesc)
+	else
+		templateObj.content=replace(templateObj.content,"[about:desc]",rsObj("PageDesc"))
+	end if
+	if isnul(rsObj("PageTitle")) then 
+		templateObj.content=replace(templateObj.content,"[about:title]",rsObj("SortName"))	
+	else
+		templateObj.content=replace(templateObj.content,"[about:title]",rsObj("PageTitle"))
+	end if
+	templateObj.parsePosition(SortID)
+	templateObj.parseCommon
+
+	content=decodeHtml(rsObj("SortContent"))
+	
+	tempStr=templateObj.content
+	if isExistStr(content,"{aspcms:page}") then		
+		dim parr ,j
+		tempArr=split(content,"{aspcms:page}")
+		parr=ubound(tempArr)
+		if parr=-1 then parr=0
+		dim htmlfilename,htmlPath
+		htmlfilename="?"&sortID
+		if runMode=1 then htmlfilename=replace(rsObj("SortFolder"), "{sitepath}", sitePath)&replace(rsObj("SortFileName"), "{sortid}", sortID)
+		htmlPath=replace(rsObj("SortFolder"), "{sitepath}", sitePath)
+
+		for j=0 to parr						
+			Page=clng(Page)
+			pageStr=""
+			if Page<1 then Page=1 : end if
+			if Page>ubound(tempArr)+1 then Page=ubound(tempArr)+1 : end if			
+			
+			if Page>2 then					
+				pageStr=pageStr+"<div class='pages'><a href='"&htmlfilename&"_"&Page-1&FileExt&"'>上一页</a>"
+			else
+				pageStr=pageStr+"<div class='pages'><a href='"&htmlfilename&FileExt&"'>上一页</a>"
+			end if
+			
+			
+			pageStr=pageStr+makePageNumber(Page,10,ubound(tempArr)+1,"about",sortID,htmlfilename)
+		
+			if Page=ubound(tempArr)+1 then
+				pageStr=pageStr+"<a href='"&htmlfilename&"_"&ubound(tempArr)+1&FileExt&"'>下一页</a></div>"
+			else
+				pageStr=pageStr+"<a href='"&htmlfilename&"_"&Page+1&FileExt&"'>下一页</a></div>"
+			end if
+			
+			if runMode=1 and isMakeHtml=1 then	
+				templateObj.content=replace(tempStr,"[about:info]",tempArr(j)+pageStr)	
+				if j=0 then 
+					echo htmlfilename&FileExt&"<br>"
+					createTextFile  templateObj.content, htmlfilename&FileExt, ""
+				else
+					echo htmlfilename&"_"&j+1&FileExt&"<br>"
+					createTextFile  templateObj.content, htmlfilename&"_"&j+1&FileExt, ""				
+				end if		
+			else
+				templateObj.content=replace(templateObj.content,"[about:info]",tempArr(Page-1)+pageStr)
+				makeAbout=templateObj.content
+			end if
+			Page=Page+1
+		next
+	else 
+		templateObj.content=replace(templateObj.content,"[about:info]",content)
+		makeAbout=templateObj.content
+		if isMakeHtml then 
+			dim htmlfilepath
+			htmlfilepath=templateObj.getSortLink(rsObj("sortType"), rsObj("sortID"), rsObj("sortUrl"), rsObj("sortFolder"), rsObj("sortFileName"),rsObj("GroupID"),rsObj("Exclusive"))
+			echo htmlfilepath&"<br>"
+			createTextFile  templateObj.content,htmlfilepath,""
+		end if
+		
+	end if
+	
+	rsObj.close : set rsObj=nothing
+	
+	set templateobj=nothing
+End Function
+
+
+
+function makeContent(Byval contentID, Byval page, Byval isMakeHtml)	
+	dim str 	
+	dim templateFile
+	dim templateobj,TemplatePath : set templateobj=new TemplateClass
+	dim rsObj,rsObjSmalltype,rsObjBigtype,channelTemplateName,tempStr,tempArr,pageStr,sql,sperStr,sperStrs,content,contentLink
+	dim ParentID,SortName,topsortid
+	sperStrs=conn.exec("select SpecField from {prefix}SpecSet Order by SpecOrder Asc,SpecID", "arr")
+	dim spec	
+	if isarray(sperStrs) then
+		for each spec in sperStrs
+			sperStr=sperStr&","&spec
+		next
+	end if
+	set rsobj=conn.exec("select ContentID,a.SortID,a.GroupID,a.Exclusive,b.GroupID,b.Exclusive,Title,Title2,TitleColor,IsOutLink,OutLink,Author,ContentSource,ContentTag,Content,ContentStatus,IsTop,Isrecommend,IsImageNews,IsHeadline,IsFeatured,ContentOrder,IsGenerated,Visits,a.AddTime,ImagePath,IndexImage,DownURL,PageFileName,a.PageDesc,a.PageKeywords,SortType,SortURL,SortFolder,SortFileName,SortName,ContentFolder,ContentFileName,SortTemplate,ParentID,TopSortID,ContentTemplate,b.GroupID,b.Exclusive,b.GroupID,IsNoComment "&sperStr&" from {prefix}Content as a,{prefix}Sort as b where a.LanguageID="&setting.languageID&"and a.SortID=b.SortID and ContentStatus=1 and IsOutLink=0 and ContentID="&ContentID, "exe")							
+	if rsObj.eof then makeContent="" : exit function	
+	templateFile=rsObj("ContentTemplate")
+	if isnul(templateFile) then 
+		select case rsObj("SortType")
+			case "2"
+				templateFile="news.html"
+			case "3"
+				templateFile="product.html"
+			case "4"
+				templateFile="down.html"
+			case "5"
+				templateFile="job.html"
+			case "6"
+				templateFile="album.html"		
+		end select
+	end if
+	templatePath=sitePath&"/"&"templates/"&setting.defaultTemplate&"/"&setting.htmlFilePath&"/"	&templateFile	
+	'die templatePath
+	if not CheckTemplateFile(templatePath) then echo templateFile&err_16 : exit function
+	
+	if not isnul(rsObj("a.GroupID")) then	
+		if not ViewNoRight(rsObj("a.GroupID"),rsObj("a.Exclusive")) or not ViewNoRight(rsObj("b.GroupID"),rsObj("b.Exclusive")) then 
+			if isMakeHtml=1 then 
+				exit function
+			else
+				echoErr err_17,"17",err_17
+				response.end()
+			end if
+		end if		
+	end if	
+	templateObj.load(TemplatePath)
+	'加载评论模板
+'die sitePath&"plug/comment/comment.html"
+	if SwitchComments=1 and rsObj("IsNoComment")=0 then
+		templateObj.content=replace(templateObj.content,"{aspcms:comment}",loadFile(sitePath&"/plug/comment/comment.html"))	
+	else
+		templateObj.content=replace(templateObj.content,"{aspcms:comment}","")
+	end if
+	templateObj.parseHtml()
+	templateObj.content=replace(templateObj.content,"{aspcms:sortid}",rsObj("SortID"))
+	templateObj.content=replace(templateObj.content,"{aspcms:sortname}",rsObj("SortName"))
+	templateObj.content=replace(templateObj.content,"{aspcms:parentsortid}",rsObj("ParentID"))
+	templateObj.content=replace(templateObj.content,"{aspcms:topsortid}",rsObj("TopSortID"))
+	templateObj.parsePosition(rsObj("SortID")) 
+	templateObj.parseCommon() 		 
+	templateObj.parsePrevAndNext contentID, rsObj("SortID")	
+	
+	if isExistStr(templateObj.content,"[content:") then str="content"
+	if isExistStr(templateObj.content,"[news:") then str="news"
+	if isExistStr(templateObj.content,"[product:") then str="product"
+	if isExistStr(templateObj.content,"[down:") then str="down"
+	if isExistStr(templateObj.content,"[pic:") then str="pic"
+	
+'die isExistStr(templateObj.content,"[news:") &"AAAAAAAAAAA"&str
+	templateObj.content=replace(templateObj.content,"["&str&":id]",contentID)
+	
+	templateObj.content=replace(templateObj.content,"["&str&":title]",rsObj("Title"))
+	templateObj.content=replace(templateObj.content,"["&str&":titlecolor]",rsObj("TitleColor"))
+	templateObj.content=replace(templateObj.content,"["&str&":author]",repnull(rsObj("Author")))
+	templateObj.content=replace(templateObj.content,"["&str&":source]",repnull(rsObj("ContentSource")))
+	templateObj.content=replace(templateObj.content,"["&str&":sortname]",rsObj("SortName"))
+	templateObj.content=replace(templateObj.content,"["&str&":sortlink]",templateObj.getSortLink(rsObj("sortType"),rsObj("sortID"),rsObj("sortUrl"),rsObj("sortFolder"),rsObj("sortFileName"),rsObj("b.GroupID"),rsObj("b.Exclusive")))
+	templateObj.content=replace(templateObj.content,"["&str&":date]",rsObj("Addtime"))
+	templateObj.content=replace(templateObj.content,"["&str&":visits]","<script src=""/"&sitePath&"inc/AspCms_Visits.asp?id="&contentID&"""></script>")
+	templateObj.content=replace(templateObj.content,"["&str&":tag]",getTags(rsObj("ContentTag")))	
+	templateObj.content=replace(templateObj.content,"["&str&":linktag]",tagsLink(getTags(rsObj("ContentTag"))))	
+	templateObj.parseLoop("aboutcontent")
+	templateObj.content=replace(templateObj.content,"["&str&":istop]",rsObj("istop"))
+	templateObj.content=replace(templateObj.content,"["&str&":isrecommend]",rsObj("isrecommend"))
+	templateObj.content=replace(templateObj.content,"["&str&":isimage]",rsObj("IsImageNews"))
+	templateObj.content=replace(templateObj.content,"["&str&":isfeatured]",rsObj("isfeatured"))	
+	templateObj.content=replace(templateObj.content,"["&str&":isheadline]",rsObj("isheadline"))	
+	contentLink=templateObj.getContentLink(rsObj("SortID"),rsObj("ContentID"),rsObj("SortFolder"),rsObj("a.GroupID"),rsObj("ContentFolder"),rsObj("ContentFileName"),rsObj("AddTime"),rsobj("PageFileName"),rsObj("b.GroupID"))
+	templateObj.content=replace(templateObj.content,"["&str&":link]","http://"&setting.siteUrl&"/"&contentLink)	
+	templateObj.content=replace(templateObj.content,"["&str&":downurl]",repnull(rsObj("DownURL")))	
+	if isnul(rsObj("PageKeywords")) then 
+		templateObj.content=replace(templateObj.content,"["&str&":keyword]",setting.siteKeyWords)	
+	else
+		templateObj.content=replace(templateObj.content,"["&str&":keyword]",rsObj("PageKeywords"))	
+	end if
+	if isnul(rsObj("PageDesc")) then
+		templateObj.content=replace(templateObj.content,"["&str&":desc]",left(dropHtml(rsObj("Content")),100))
+	else
+		templateObj.content=replace(templateObj.content,"["&str&":desc]",rsObj("PageDesc"))
+	end if
+	if isnul(rsObj("IndexImage")) then
+		templateObj.content=replace(templateObj.content,"["&str&":pic]",sitePath&"/images/nopic.gif" )
+	else 
+		if instr(rsObj("IndexImage"),"http://")>0 then 
+			templateObj.content=replace(templateObj.content,"["&str&":pic]",rsObj("IndexImage"))
+		else
+			templateObj.content=replace(templateObj.content,"["&str&":pic]",rsObj("IndexImage"))
+		end if
+	end if
+	dim imagepath
+	if not isnul(rsObj("imagepath")) then 
+		dim i,images
+		images=split(rsObj("imagepath"),"|")
+		for i=0 to ubound(images)
+			if not isnul(images(i)) then
+				if instr(rsObj("IndexImage"),"http://")>0 then 			
+					imagepath=imagepath&"{showtit:'',showtxt:'',smallpic:'"&images(i)&"','bigpic':'"&images(i)&"'}"
+				else
+					imagepath=imagepath&"{showtit:'',showtxt:'',smallpic:'"&images(i)&"','bigpic':'"&images(i)&"'}"
+				end if	
+				if i<>ubound(images) then imagepath=imagepath&","
+			end if
+		next
+	end if
+
+	templateObj.content=replace(templateObj.content,"["&str&":pics]",imagepath)
+	if rsObj("SortType")="3" then
+		if isarray(sperStrs) then
+			for each spec in sperStrs			
+				templateObj.content=replace(templateObj.content,"["&str&":"&spec&"]",repnull(rsObj(spec)))
+			next
+		end if
+	end if		
+	templateobj.parseLoop("aboutart")	
+	content=decodeHtml(rsObj("Content"))	
+	tempStr=templateObj.content
+	
+	if isExistStr(content,"{aspcms:page}") then		
+		dim parr ,j
+		tempArr=split(content,"{aspcms:page}")
+		parr=ubound(tempArr)
+		if parr=-1 then parr=0
+		for j=0 to parr			
+			Page=clng(Page)
+			pageStr=""
+			if Page<1 then Page=1 : end if
+			if Page>ubound(tempArr)+1 then Page=ubound(tempArr)+1 : end if			
+			dim htmlfilename
+			htmlfilename="?"&contentID
+			if runMode=1 then htmlfilename= replace(contentLink,FileExt,"")
+	
+			if Page>2 then					
+				pageStr=pageStr+"<div class='pages'><a href='"&htmlfilename&"_"&Page-1&FileExt&"'>上一页</a>"
+			else
+				pageStr=pageStr+"<div class='pages'><a href='"&htmlfilename&FileExt&"'>上一页</a>"
+			end if			
+			
+			pageStr=pageStr+makePageNumber(Page,10,ubound(tempArr)+1,"about",contentID,htmlfilename)
+		
+			if Page=ubound(tempArr)+1 then
+				pageStr=pageStr+"<a href='"&htmlfilename&"_"&ubound(tempArr)+1&FileExt&"'>下一页</a></div>"
+			else
+				pageStr=pageStr+"<a href='"&htmlfilename&"_"&Page+1&FileExt&"'>下一页</a></div>"
+			end if
+			pageStr=pageStr&"<script src="""&sitePath&"/inc/AspCms_VisitsAdd.asp?id="&contentID&"""></script>"
+			if runMode=1 and isMakeHtml=1 then
+				templateObj.content=replace(tempStr,"["&str&":info]",tempArr(Page-1)+pageStr)
+				if j=0 then 
+					echo replace(contentLink,FileExt,"")&FileExt&"<br>"
+					createTextFile templateObj.content, replace(contentLink,FileExt,"")&FileExt, ""
+				else
+					echo replace(contentLink,FileExt,"")&"_"&j+1&FileExt&"<br>"
+					createTextFile templateObj.content, replace(contentLink,FileExt,"")&"_"&j+1&FileExt, ""				
+				end if	
+			else			
+				templateObj.content=replace(templateObj.content,"["&str&":info]",tempArr(Page-1)+pageStr)				
+				makeContent=templateObj.content
+			end if
+			Page=Page+1
+		next
+	else 
+		templateObj.content=replace(templateObj.content,"["&str&":info]",content&"<script src="""&sitePath&"/inc/AspCms_VisitsAdd.asp?id="&contentID&"""></script>")
+		makeContent=templateObj.content
+		if isMakeHtml then createTextFile  templateObj.content, contentLink, "" :echo contentLink&"<br>"
+	end if	
+	rsObj.close : set rsObj=nothing	
+	set templateobj=nothing 	
+End Function
+
+
+Function strList(Byval sortID, Byval page)
+	dim templateFile
+	dim templateobj,TemplatePath : set templateobj=new TemplateClass
+	dim rsObj,rsObjSmalltype,rsObjBigtype,channelTemplateName,tempStr,tempArr,pageStr,sql,sperStr,sperStrs,content,contentLink
+	
+	set rsobj=conn.exec("select * from {prefix}Sort where SortID="&sortID, "exe")							
+	if rsObj.eof then strList="" : exit function	
+	templateFile=rsObj("SortTemplate")
+	if isnul(templateFile) then 
+		select case rsObj("SortType")
+			case "2"
+				templateFile="newslist.html"
+			case "3"
+				templateFile="productlist.html"
+			case "4"
+				templateFile="downlist.html"
+			case "5"
+				templateFile="joblist.html"
+			case "6"
+				templateFile="albumlist.html"		
+		end select
+	end if
+	templatePath=sitePath&"/"&"templates/"&setting.defaultTemplate&"/"&setting.htmlFilePath&"/"	&templateFile	
+	'die templatePath
+	if not CheckTemplateFile(templatePath) then echo templateFile&err_16 : exit function
+	if not isnul(rsObj("GroupID")) then		
+		if not ViewNoRight(rsObj("GroupID"),rsObj("Exclusive")) then
+			echoErr err_17,"17",err_17
+			response.end()
+		end if		
+	end if	
+
+	
+	'开始解析标签
+	templateObj.load(templatePath)
+	templateObj.parseHtml()
+	templateObj.content=replace(templateObj.content,"{aspcms:sortname}",rsObj("SortName"))
+	templateObj.content=replace(templateObj.content,"{aspcms:parentsortid}",rsObj("parentid"))		
+	templateObj.content=replace(templateObj.content,"{aspcms:sortid}",sortID)	
+	templateObj.content=replace(templateObj.content,"{aspcms:topsortid}",rsObj("topsortid"))
+	if isnul(rsObj("PageKeywords")) then 
+		templateObj.content=replace(templateObj.content,"{aspcms:sortkeyword}",setting.siteKeyWords)	
+	else
+		templateObj.content=replace(templateObj.content,"{aspcms:sortkeyword}",rsObj("PageKeywords"))	
+	end if
+	if isnul(rsObj("PageDesc")) then
+		templateObj.content=replace(templateObj.content,"{aspcms:sortdesc}",setting.siteDesc)
+	else
+		templateObj.content=replace(templateObj.content,"{aspcms:sortdesc}",rsObj("PageDesc"))
+	end if
+	if isnul(rsObj("PageTitle")) then 
+		templateObj.content=replace(templateObj.content,"{aspcms:sorttitle}",rsObj("SortName"))	
+	else
+		templateObj.content=replace(templateObj.content,"{aspcms:sorttitle}",rsObj("PageTitle"))
+	end if
+	templateObj.parsePosition(sortID)
+	
+	dim sortFolder, sortFileName
+	sortFolder=rsObj("sortFolder")
+	sortFileName=rsObj("sortFileName")		
+	sortFolder=replace(sortFolder, "{sitepath}", sitePath)	
+	sortFileName=replace(sortFileName, "{sortid}", sortID)			
+	
+	templateObj.parseList sortID,page,"list","",sortFolder&sortFileName&fileExt	
+	templateObj.parseList sortID,page,"newslist","",sortFolder&sortFileName&fileExt	
+	templateObj.parseList sortID,page,"piclist","",sortFolder&sortFileName&fileExt	
+	templateObj.parseList sortID,page,"productlist","",sortFolder&sortFileName&fileExt	
+	templateObj.parseList sortID,page,"downlist","",sortFolder&sortFileName&fileExt	
+		
+	'templateObj.parseList sortID,page,"list","","ff"
+	templateObj.parseCommon		
+	strList=templateObj.content 	
+	rsObj.close : set rsObj=nothing
+	set templateobj=nothing
+End Function
+
+
+Function makeList(Byval sortID)
+	dim templateFile,page
+	dim templateobj,TemplatePath : set templateobj=new TemplateClass
+	dim rsObj,rsObjSmalltype,rsObjBigtype,channelTemplateName,tempStr,tempArr,pageStr,sql,sperStr,sperStrs,content,contentLink
+
+	
+	set rsobj=conn.exec("select * from {prefix}Sort where SortID="&sortID, "exe")							
+	if rsObj.eof then strList="" : exit function	
+	templateFile=rsObj("SortTemplate")
+	if isnul(templateFile) then 
+		select case rsObj("SortType")
+			case "2"
+				templateFile="newslist.html"
+			case "3"
+				templateFile="productlist.html"
+			case "4"
+				templateFile="downlist.html"
+			case "5"
+				templateFile="joblist.html"
+			case "6"
+				templateFile="albumlist.html"		
+		end select
+	end if
+	templatePath=sitePath&"/"&"templates/"&setting.defaultTemplate&"/"&setting.htmlFilePath&"/"	&templateFile	
+	'die templatePath
+	if not CheckTemplateFile(templatePath) then echo templateFile&err_16
+	
+	
+	if not isnul(rsObj("GroupID")) then	
+		if not ViewNoRight(rsObj("GroupID"),rsObj("Exclusive")) then exit function	
+	end if	
+	
+	'开始解析标签
+	templateObj.load(templatePath)
+	tempstr=templateObj.content
+	Dim objRegExp, Match, Matches, pages
+	Set objRegExp=new Regexp 
+	objRegExp.IgnoreCase=True 
+	objRegExp.Global=True 	
+	objRegExp.Pattern="{aspcms:list([\s\S]*?)}([\s\S]*?){/aspcms:list}"
+	'进行匹配	
+	set Matches=objRegExp.Execute(tempstr) 	
+	for each Match in Matches 
+		pages=templateObj.parseArr(Match.SubMatches(0))("size")
+	next 
+	'die pages
+	set objRegExp=Nothing 	
+	
+	templateObj.parseHtml()
+	templateObj.content=replace(templateObj.content,"{aspcms:sortname}",rsObj("SortName"))
+	templateObj.content=replace(templateObj.content,"{aspcms:parentsortid}",rsObj("parentid"))		
+	templateObj.content=replace(templateObj.content,"{aspcms:sortid}",sortID)	
+	templateObj.content=replace(templateObj.content,"{aspcms:topsortid}",rsObj("topsortid"))
+	if isnul(rsObj("PageKeywords")) then 
+		templateObj.content=replace(templateObj.content,"{aspcms:sortkeyword}",setting.siteKeyWords)	
+	else
+		templateObj.content=replace(templateObj.content,"{aspcms:sortkeyword}",rsObj("PageKeywords"))	
+	end if
+	if isnul(rsObj("PageDesc")) then
+		templateObj.content=replace(templateObj.content,"{aspcms:sortdesc}",setting.siteDesc)
+	else
+		templateObj.content=replace(templateObj.content,"{aspcms:sortdesc}",rsObj("PageDesc"))
+	end if
+	if isnul(rsObj("PageTitle")) then 
+		templateObj.content=replace(templateObj.content,"{aspcms:sorttitle}",rsObj("SortName"))	
+	else
+		templateObj.content=replace(templateObj.content,"{aspcms:sorttitle}",rsObj("PageTitle"))
+	end if
+	templateObj.parsePosition(sortID)
+	tempStr=templateObj.content 
+	dim rs
+	set rs =conn.exec("select * from {prefix}Content where ContentStatus=1 and SortID in ("&getSubSort(sortID, 1)&")","r1")
+	dim pcount
+	if isnul(pages) then 	
+		rs.pagesize=1
+		pcount=1
+	else
+		rs.pagesize=pages
+		pcount=rs.pagecount
+		if pcount=0 then pcount=1	
+	end if
+	'echo pages&"AA"&pcount&"<br>"
+	for page=1 to pcount	
+		templateObj.content=tempStr
+		'.parseList typeIds,page,str&"list","",str	
+		dim sortFolder, sortFileName
+		sortFolder=rsObj("sortFolder")
+		sortFileName=rsObj("sortFileName")		
+		sortFolder=replace(sortFolder, "{sitepath}", sitePath)	
+		sortFileName=replace(sortFileName, "{sortid}", sortID)			
+		
+		templateObj.parseList sortID,page,"list","",sortFolder&sortFileName&fileExt	
+		templateObj.parseList sortID,page,"newslist","",sortFolder&sortFileName&fileExt	
+		templateObj.parseList sortID,page,"piclist","",sortFolder&sortFileName&fileExt	
+		templateObj.parseList sortID,page,"productlist","",sortFolder&sortFileName&fileExt	
+		templateObj.parseList sortID,page,"downlist","",sortFolder&sortFileName&fileExt					
+		templateObj.parseCommon	
+	
+		sortFileName=replace(sortFileName, "{page}", page)
+		createTextFile templateObj.content, sortFolder&sortFileName&fileExt, ""
+		
+		echo sortFolder&sortFileName&fileExt&"<br>"
+	next
+		
+	'makeList=templateObj.content 	
+	rsObj.close : set rsObj=nothing
+	set templateobj=nothing
+End Function
+
+
+
+%>

@@ -1,0 +1,36 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="createhtml.CreateHTML,java.util.Properties,java.io.FileInputStream"%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<%
+	CreateHTML html=new CreateHTML();
+	String url=request.getContextPath();//web工程名字
+	String path="default";//获取到模板的存放目录
+    try{
+      		Properties pop=System.getProperties();
+      		pop.load(new FileInputStream(request.getSession().getServletContext().getRealPath("/")+"/properties/b.properties"));
+      		path=pop.getProperty("templet");
+      	}catch(Exception ex){
+      		ex.printStackTrace();	
+      }
+	html.CreateIndex(url+"/templet/"+path+"/index.html",url+"/index.html",url);
+%>
+<script type="text/javascript">
+	alert("生成首页成功!");
+</script>
+<br style="overflow: hidden; line-height: 3px" />
+<p align=center>生成首页（HTML）完成......<br><a href="<%=url%>/index.html" target=_blank>点击这里查看首页</a></p><br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

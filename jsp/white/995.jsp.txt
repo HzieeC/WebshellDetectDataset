@@ -1,0 +1,67 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="javaBean.BeanVote,java.util.ArrayList,connections.DaoVote"%>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<TABLE width="99%" border=0 cellpadding=3 cellspacing=1 align=center class=tableBorder>
+<TR>
+ <TH colspan=6>投票管理</TH>
+</TR>
+
+<TR>
+ <TH noWrap>选 择</TH>
+ <TH noWrap>投票主题　[<a href="<%=url%>/admin/admin_vote.jsp" Class=showtitle>添加投票</a>]</TH>
+ <TH noWrap>投 票 数</TH>
+ <TH noWrap>编辑投票</TH>
+ <TH noWrap>投票类型</TH>
+</TR>
+
+<form name="selform" method="post" action="<%=url%>/servletsvote?action=action">
+<%
+	DaoVote dao=new DaoVote();
+	String sql="select * from vote";
+	ArrayList alist=dao.allVote(sql);
+	
+	BeanVote bean=null;
+	for(int i=0;i<alist.size();i++){
+		bean=(BeanVote)alist.get(i);
+%>
+<TR>
+ <TD noWrap class=TableRow1 align=center><input type=checkbox name="id" value="<%=bean.getId()%>"></TD>
+ <TD noWrap class=TableRow1 width="70%"><%=bean.getTitle()%></TD>
+ <TD noWrap class=TableRow1 align=center><FONT COLOR=RED><B><%=(bean.getBallot_1()+bean.getBallot_2()+bean.getBallot_3()+bean.getBallot_4()+bean.getBallot_5())%></B></FONT></TD>
+ <TD noWrap class=TableRow1 align=center><a href="<%=url%>/admin/admin_voteUpdate.jsp?id=<%=bean.getId()%>">编辑投票</a></TD>
+ <%if(bean.getType().equals("0")){%>
+ <TD noWrap class=TableRow1 align=center>单选</TD>
+ <%}else{%>
+ <TD noWrap class=TableRow1 align=center>多选</TD>
+ <%}%>
+</TR>
+<%}%>
+<TR height="30">
+ <TD class=TableRow1>管理</TD>
+ <TD colspan=5 class=TableRow1><input class=Button type=button name=chkall value='全选' onClick="CheckAll(this.form)"><input class=Button type=button name=chksel value='反选' onClick="ContraSel(this.form)"> 
+ <input type="radio" name="type" value="del" title="管理选项：批量删除选中的新闻">批量删除 
+ <input type="radio" name="type" value="radio" title="管理选项：批量设置单选投票">单选 
+ <input type="radio" name="type" value="checkbox" title="管理选项：批量设置多选投票">多选 
+ <input type=submit name=Submit value="执行操作" class=button onclick="{if(confirm('您确定执行此操作吗?')){this.document.selform.submit();return true;}return false;}"></TD>
+</TR></form>
+</TABLE>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

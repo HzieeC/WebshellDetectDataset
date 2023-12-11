@@ -1,0 +1,573 @@
+<!--#include file="conn.asp"-->
+<!--#include file="inc/publicfun.asp"-->
+<!--#include file="inc/md5.asp"-->
+<!--#include file="bbsuser.asp"-->
+<!-- #include file="inc/htmlencode2.asp"-->
+<!--#include file="inc/ubbcode.asp"-->
+<!-- #include file="touxianfun.asp" -->
+<!--#include file="isboker.asp"-->
+<%
+clubuser_id_cookie=getcookie("clubuser_id")
+name_cookie=Checkstr(getcookie("name"))
+bbsuser_cookie=Checkstr(getcookie("bbsuser"))
+payuser_cookie=getcookie("payuser")
+userid=clubuser_id_cookie
+%>
+<!--#include file="memberinfo.asp"-->
+<%
+call FTBBS_HTML_MB(ft)
+url=Application("FTBBSMB")(10,0)
+upfiletype=Application("FTBBSMB")(12,0)
+upfilesize=Application("FTBBSMB")(13,0)
+getcodeoff=Application("FTBBSMB")(30,0)
+htm_ext=Application("FTBBSMB")(32,0)
+postget=Application("FTBBSMB")(48,0)
+if htm_ext="" then htm_ext=".htm"
+
+if request.form("act")="y" and chkpost then
+   blogtitle=Checkstr(htmlencode2(request.form("blogtitle")))
+   blogqs=request.form("blogqs")+0
+   blogtypeid=request.form("blogtypeid")+0
+   xinqin=Checkstr(request.form("DiaryHeart"))
+   writedate=Checkstr(request.form("writedate"))
+   remenu=Checkstr(trim(request.form("remenu")))
+   remenu = RegExReplace(remenu,ft,"f"&ft&"t")
+   blogtag=Checkstr(request.form("blogtag"))
+   bbstag=Checkstr(request.form("bbstag"))
+   abc=request.form("abc")+0
+   if session("c")<>abc then
+   call ftbbs_msg("随机问题答案错误！","blogcenter_add.asp")
+   end if
+   '++++++++++++++++++以下论坛要用的数据+++++++++++++++++++++
+   zhiye=1
+   ticon="0.gif"
+   BoardID_1 = Checkstr(request.form("BoardID_1"))
+   BoardID_2 = Checkstr(request.form("BoardID_2"))
+   '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   userip=request.servervariables("remote_addr")
+   userid=clubuser_id_cookie
+   plqs=cint(request.form("plqs"))
+   if datediff("s",session(FTBBS&"LastPT"),now())<=10 then
+	  call ftbbs_msg("连续发表间隔时间不能少于10秒!","blogcenter_add.asp")
+   else
+      session(FTBBS&"LastPT")=now()
+   end if 
+      call FTBBS_HTML_MB(ft)
+      htm_ext=Application("FTBBSMB")(32,0)
+      if htm_ext="" then htm_ext=".htm"
+      vfname = makefilename(now())
+      Randomize
+      Random=Int((1000 - 100 + 1) * Rnd + 100)
+      filename=vfname&"a"&Random&htm_ext
+	  bloghtm=vfname&"b"&Random&htm_ext
+      if Application("FTBBSMB")(7,0)="M" then
+         inFolder=year(date())&month(date())
+      else
+         inFolder=year(date())&month(date())&day(date())
+      end if
+	  bloghtmfile=inFolder&"/"&bloghtm
+   if bbstag=1 then
+      if BoardID_1="" or BoardID_2="" then
+	     response.write "<SCRIPT language=JavaScript>alert('请正确选择论坛类别！');window.location.href='blogcenter_add.asp';</script>"
+	     response.end
+      end if
+   end if
+   '阻止IP
+   Sql_arrest="select * from "&ft&"BBS_arrest where kind='IP' order by id asc"
+   set rs_arrest=server.createobject("adodb.recordset")
+   rs_arrest.open sql_arrest,conn,1,1
+   do while not rs_arrest.eof
+	  if rs_arrest("content")=ip then
+		response.write "<SCRIPT language=JavaScript>alert('对不起，你无权发布！');history.go(-1);</script>"        
+        response.end
+	  end if
+      rs_arrest.movenext
+   loop
+   rs_arrest.close
+   '阻止关键字
+   Sql_arrest="select * from "&ft&"BBS_arrest where kind='Keyword' order by id asc"
+   rs_arrest.open sql_arrest,conn,1,1
+   do while not rs_arrest.eof
+	  if (instr(remenu,rs_arrest("content"))<>0 or instr(title,rs_arrest("content"))<>0) then
+		title=replace(title,rs_arrest("content"),"*****")
+		remenu=replace(remenu,rs_arrest("content"),"*****")		
+	  end if
+      rs_arrest.movenext
+   loop
+   rs_arrest.close
+   set rs_arrest=nothing
+   if blogtypeid="" then
+	  response.write "<SCRIPT language=JavaScript>alert('你没有选择日志类型！');history.go(-1);</script>"        
+      response.end
+   end if  
+   if getcookie("payuser")=3 then
+      response.write "<SCRIPT language=JavaScript>alert('你的用户名被管理员封锁,请联系管理员！');history.go(-1);</script>"        
+      response.end
+   end if
+   if session(FTBBS&"LastPostTime")="" then
+      session(FTBBS&"LastPostTime")=now()
+   else
+      if datediff("s",session(FTBBS&"LastPostTime"),now())<=Application("FTBBSMB")(18,0) then
+	  response.write "<SCRIPT language=JavaScript>alert('连续发布时间隔时间不能少于"&Application("FTBBSMB")(18,0)&"秒！');history.go(-1);</script>"        
+      response.end
+      else
+      session(FTBBS&"LastPostTime")=now()
+      end if
+   end if
+   If getcodeoff=1 Then
+      codestr = Trim(request.form("codestr"))
+      codename = Trim(request.form("codename"))
+      If CStr(Session("GetCode"&codename)) <> CStr(codestr) Then
+      response.write "<script language='javascript'>alert('验证码错误，请刷新后重新输入！');window.location.href='blogcenter_add.asp';</script>"
+      response.end 
+      end if
+   End If
+   
+   remenu=htmlencode2(remenu)
+   remenu=ftHTMLCode(remenu)
+   remenu=ubbcode(remenu)
+   menu=remenu
+   menu=RegExReplace(menu,"\b(script)\b"," $1 ")
+   menu=RegExReplace(menu,"\b(iframe)\b"," $1 ")
+   myFolder = inFolder
+   'call makefolder(myFolder,fso) '生成文件夹
+   str="insert into "&ft&"ftblog(blogtitle,blogcontent,blogtypeid,blogqs,writedate,xinqin,userip,blogtag,userid,plqs,bloghtmfile) values('"&blogtitle&"','"&remenu&"','"&blogtypeid&"','"&blogqs&"','"&writedate&"','"&xinqin&"','"&userip&"','"&blogtag&"','"&userid&"','"&plqs&"','"&bloghtmfile&"')"
+   conn.execute(str)
+   str="update "&ft&"ftblog_type set totalnum=totalnum+1 where id="&blogtypeid&" and userid="&userid&""
+   conn.execute(str)
+   if bbstag=1 then
+      call FTBBS_BZ_NAME(BoardID_1,ft)
+      BBS_Cate_Name1=Application("BBS_Cate_Name1")
+      call FTBBS_BZ_NAME2(BoardID_1,BoardID_2,ft)
+      BBS_Cate_Name2=Application("BBS_Cate_Name2")
+      BBS_Cate_Manager_Name=Application("BBS_Cate_Manager_Name")
+
+      myFolder = inFolder
+      call makefolder(myFolder,fso) '生成文件夹
+	  rsql="update "&ft&"clubuser set jingyuan=jingyuan+"&postget&",postnum=postnum+1 where tili>0 and clubuser_id="&clubuser_id_cookie
+      conn.execute(rsql)
+      str="select * from "&ft&"clubuser where clubuser_id="&clubuser_id_cookie
+      set rs=server.createobject("adodb.recordset")
+      rs.open str,conn,3,1
+      '加入用户资料
+	  if not rs.eof then
+         clubuser_id=rs("clubuser_id")
+		 jingyuan=rs("jingyuan")
+         tili=rs("tili")
+		 clubuser_money=rs("clubuser_money")
+         img=rs("userimg")
+         clubuser_reg_date=formatdatetime(rs("clubuser_reg_date"),2)
+         if rs("signname")<>"" then
+            signname=ftbbsubbcode(rs("signname"))
+         else
+            signname="<a href=../moduserinfo.asp?postuser="&name_cookie&"><FONT color=#568ac2>个人签名档还未设置，请点击这里进行设置</font></a>"
+         end if
+            bz=rs("bbsmanager")
+        procity=rs("clubuser_province")&rs("clubuser_city")
+        clubuser_zip=rs("clubuser_zip")
+        xzstr=""
+        if clubuser_zip<>"" then
+          if instr(clubuser_zip,",")>0 then
+          xzarr=split(clubuser_zip,",")
+          for i=0 to UBound(xzarr)
+		  ar=xzarr(i)
+		  br=split(ar,"|")
+		  xzimg=br(0)
+		  xzms=br(1)
+          xzstr=xzstr&"<img src=../images/"&xzimg&" width=20 height=35 alt="&xzms&"> "
+          next
+	      else
+		  xzarr=split(clubuser_zip,"|")
+		  xzimg=xzarr(0)
+		  xzms=xzarr(1)
+	      xzstr=xzstr&"<img src=../images/"&xzimg&" width=20 height=35 alt="&xzms&">"
+          end if
+        else
+         xzstr=""
+        end if
+      else
+           jingyuan=0
+           tili=100
+           img="cache5.gif"
+           signname="<a href=../moduserinfo.asp?postuser="&name_cookie&"><FONT color=#568ac2>个人签名档还未设置，请点击这里进行设置</font></a>"
+           bz=0			     
+      end if
+'++++++++++++++++++++++++++++++++++++++
+      touxian=touxianvalue(jingyuan,ft)
+      jibie=jibievalue(jingyuan,ft)
+	  title=blogtitle
+	  indate=writedate
+	  ip=userip
+'++++++++++++++++++++++++++++++++++++++
+      htmfilename=inFolder&"/"&FileName
+      sql="select * from "&ft&"bbstitle where (id is null)"
+      set rsr=server.createobject("adodb.recordset")
+      rsr.open sql,conn,1,3
+      rsr.addnew
+      rsr("name")=rs("clubuser_name")
+      rsr("user_id")=rs("clubuser_nickname")
+      rsr("BoardID_1")=BoardID_1
+      rsr("BoardID_2")=BoardID_2
+      rsr("mail")=rs("clubuser_email")
+      rsr("title")=blogtitle
+      rsr("zhiye")=zhiye
+      rsr("menu")=remenu
+      rsr("ip")=ip
+      rsr("dateh")=indate
+      rsr("hit")=0
+      rsr("rep")=0
+      rsr("redate")=indate
+      rsr("img_url_display")=0
+      rsr("picture")=ticon
+      rsr("htmfilename")=htmfilename
+      rsr("titlecolor")=titlecolor
+      rsr.update
+      rsr.close
+      set rsr=nothing
+ 
+      sql="select top 1 id,dateh from "&ft&"bbstitle order by id desc"
+      set rsr=server.createobject("adodb.recordset")
+      rsr.open sql,conn,1,3
+      TitleID=rsr("id")
+      rsr.close
+      set rsr=nothing
+'++++++++++++++++++更新统计信息
+      strsql="update "&ft&"BBS_Cate set BBS_Cate_Topic=BBS_Cate_Topic+1 where BBS_Cate_ID='"&BoardID_1&"'"
+      conn.execute(strsql)
+
+      if BoardID_2<>"" then
+	     strsql="update "&ft&"BBS_Cate set BBS_Cate_Topic=BBS_Cate_Topic+1 where BBS_Cate_ID='"&BoardID_2&"'"
+	     conn.execute(strsql)
+      end if
+'+++++++++++++++++++++++++++++
+     page=1
+ 	 if Application("FTBBSMB")(8,0)=1 then
+	 home="default_list.asp"
+	 mainbbscate="main.asp"
+	 bbsfbht="fbht.asp"
+	 bbspoll="bbspoll.asp"
+	 end if
+	 
+     postmb=replace(replace(Application("FTBBSMB")(1,0),"$PostID$",TitleID),"$pagenav$",page)
+	 postmb=replace(postmb,"$page$",1)
+	 
+     postmb=replace(postmb,"$home$",home)
+	 postmb=replace(postmb,"$main$",mainbbscate)
+	 postmb=replace(postmb,"$fbht$",bbsfbht)
+	 postmb=replace(postmb,"$bbspoll$",bbspoll)
+	 
+	 postmb=replace(postmb,"$TitleID$",TitleID)
+	 postmb=replace(postmb,"$title$",title)
+	 postmb=replace(postmb,"$BoardID_1$",BoardID_1)
+	 postmb=replace(postmb,"$BoardID_2$",BoardID_2)
+	 postmb=replace(postmb,"$BBS_Cate_Name1$",BBS_Cate_Name1)
+	 postmb=replace(postmb,"$BBS_Cate_Name2$",BBS_Cate_Name2)
+	 postmb=replace(postmb,"$BBS_Cate_Manager_Name$",BBS_Cate_Manager_Name)
+	 postmb=replace(postmb,"$user_id$",bbsuser_cookie)
+	 postmb=replace(postmb,"$userid$",clubuser_id)
+	 postmb=replace(postmb,"$clubuser_money$",clubuser_money)
+	 postmb=replace(postmb,"$touxian$",touxian)
+	 postmb=replace(postmb,"$jibie$",jibie)
+	 postmb=replace(postmb,"$tili$",tili)
+	 postmb=replace(postmb,"$jingyuan$",jingyuan)
+	 postmb=replace(postmb,"$procity$",procity)
+	 postmb=replace(postmb,"$clubuser_reg_date$",clubuser_reg_date)
+	 postmb=replace(postmb,"$clubuser_zip$",xzstr)
+	 postmb=replace(postmb,"$name$",name_cookie)
+	 postmb=replace(postmb,"$menu$",menu)
+	 if BBS_Cate_QS2="" then BBS_Cate_QS2=0
+	 postmb=replace(postmb,"{qs}",BBS_Cate_QS2)
+	 postmb=replace(postmb,"$htmfilename$",htmfilename)
+	 postmb=replace(postmb,"$url$",url)
+	 postmb=replace(postmb,"$zhiye$",zhiye)
+	 postmb=replace(postmb,"$signname$",signname)
+	 postmb=replace(postmb,"$img$",img)
+	 postmb=replace(postmb,"$date$",indate)
+	 postmb=replace(postmb,"$YN$",YN)
+	 postmb=replace(postmb,"$img_url$","")
+	 
+	 if fd="Y" then
+	 postmb=replace(postmb,"$upfile$","<SCRIPT src=../bmform.asp?titleid="&TitleID&"></SCRIPT>")
+	 else
+	 postmb=replace(postmb,"$upfile$","")
+	 end if
+
+	 repostformmb=replace(replace(Application("FTBBSMB")(3,0),"$PostID$",TitleID),"$pagenav$",page)
+	 repostformmb=replace(repostformmb,"<script type=""text/javascript"" src=""../ftbbsdtnl.asp?titleid=$TitleID$""></script>","")
+	 repostformmb=replace(repostformmb,"$TitleID$",TitleID)
+	 repostformmb=replace(repostformmb,"$title$",title)
+	 repostformmb=replace(repostformmb,"$upfiletype$",upfiletype)
+	 repostformmb=replace(repostformmb,"$BoardID_1$",BoardID_1)
+	 repostformmb=replace(repostformmb,"$BoardID_2$",BoardID_2)
+	 repostformmb=replace(repostformmb,"$name$",name_cookie)
+	 repostformmb=replace(repostformmb,"$htmfilename$",htmfilename)
+	 repostformmb=replace(repostformmb,"$filename$",FileName)
+
+	 HtmlNLA=postmb&repostformmb
+	 mktohtm htmfilename,HtmlNLA,fso
+   end if
+   session("a")=""
+   session("b")=""
+   session("c")=""
+   response.redirect "blogcenter.asp"
+end if
+%>
+<html><head><meta http-equiv=content-type content="text/html; charset=gb2312">
+<script language=javascript src="inc/cookies.js"></script>
+</head>
+<body onLoad="addbbs();">
+<center>
+<title><%=username%>的日志管理中心</title>
+<link rel="stylesheet" type="text/css" href="<%=cssfile%>">
+<!--#include file="usernav.asp" -->
+<!--#include file="bokerhead.asp" -->
+<div class="stage">
+<table width="100%" border="0" cellspacing="0" cellpadding="0" id="layout">
+<tr>
+<td valign="top" class="c2t3">
+<div id="mod_profile" class="mod" rel="drag">
+<!--#include file="usercalog.asp" -->
+</div>
+</td>
+<td valign="top" class="c2t1">
+<div id="m_blog" class="modbox">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr> 
+                  <td height="50"><div class="opt"><strong><font color="#FF0000">&nbsp;&nbsp; 
+                    </font>&lt;&lt; 返回</strong>：<a href="blogcenter.asp">日记文集</a></div></td>
+                </tr>
+                <tr> 
+                  <td height="1" colspan="5" bgcolor="#336699" class=new14><spacer height="1" type="block"></td>
+                </tr>
+                <tr> 
+                  <td height="10" colspan="5"></td>
+                </tr>
+              </table>
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <form name="form1" method="POST" action="" onSubmit="return CheckBlogForm(this)">
+                  <tr> 
+                    <td width="16%" height="27"> 
+                      <div align="center">标题：</div></td>
+                    <td width="86%"> 
+                      <input name="blogtitle" type="text" id="blogtitle" size="40">
+                      是否公开发表？ 
+                      <select name="blogqs" id="blogqs">
+                        <option value="0" selected>是</option>
+                        <option value="1">否</option>
+                      </select></td>
+                  </tr>
+                  <tr> 
+                    <td height="28"> 
+                      <div align="center">分类：</div></td>
+                    <td><div class="opt">
+                      <select name="blogtypeid" id="blogtypeid">
+                        <%
+   sql="select * from "&ft&"ftblog_type where userid="&userid&" and blogphoto=0 order by id desc"
+   set rs=server.createobject("adodb.recordset")
+   rs.open sql,conn,1,3
+   do while not rs.eof
+%>
+                        <option value="<%=rs("id")%>" selected><%=rs("blogtype")%></option>
+                        <%
+rs.movenext
+loop
+rs.close
+%>
+                      </select>
+                      <a href="blog_group.asp?nav=b">创建日志分类</a> 心情： 
+                      <select name="select" id="postheart" Onchange="setHeart();">
+                        <option value="">无</option>
+                        <option value="一般">一般</option>
+                        <option value="开心">开心</option>
+                        <option value="伤心">伤心</option>
+                        <option value="郁闷">郁闷</option>
+                        <option value="茫然">茫然</option>
+                        <option value="说不清">说不清</option>
+                        <option value="selfHeart">自填心情</option>
+                      </select> &nbsp; <input name="DiaryHeart" id="myheart" style="display:none;" size="14" maxlength="10">
+					  </div>
+<script language="JavaScript">
+function setHeart()
+{
+if(document.getElementById("postheart").value == "selfHeart")
+{
+document.getElementById("myheart").style.display = "";
+document.getElementById("myheart").style.color = "#c0c0c0";
+document.getElementById("myheart").value = "请输入自填心情";
+}
+else
+{
+document.getElementById("myheart").style.display = "none";
+document.getElementById("myheart").value = document.getElementById("postheart").value;
+}
+}
+function isNum(theNum)
+{
+if (theNum =="")
+return false;
+for(var i=0;i<theNum.length;i++){
+oneNum=theNum.substring(i,i+1);
+if (oneNum<"0" || oneNum>"9")
+return false;
+}
+return true;
+}
+</script>
+         </td>
+       </tr>
+                  <tr> 
+                    <td height="28"> 
+                      <div align="center">时间：</div></td>
+                    <td> 
+                      <input name="writedate" type="text" id="writedate" value="<%=now()%>" size="26" readonly></td>
+                  </tr>
+                  <tr> 
+                    <td height=300></td>
+                    <td>
+<TEXTAREA type="hidden" rows=1 cols=1 name="remenu" style="position:absolute;left:0;visibility:hidden;"></textarea>
+<script type="text/javascript" src="fteditor/blogeditor.js"></script> 
+<script type="text/javascript">
+var editor = new FtEditor("editor");
+editor.hiddenName = "remenu";
+//editor.editorType = "simple";
+editor.editorWidth = "100%";
+editor.editorHeight = "250px";
+editor.show();
+</script>
+                    </td>
+                  </tr>
+                  <tr> 
+                    <td height="30"> 
+                      <div align="center">标签：</div></td>
+                    <td> 
+                      <input name="blogtag" type="text" id="blogtag" value="" size="28">
+                      多个标签用&quot;|&quot;线分开.</td>
+                  </tr>
+                  <tr> 
+                    <td height="30"> 
+                      <div align="center">评论：</div></td>
+                    <td> 
+                      <input name="plqs" type="radio" value="0" checked>
+                      允许 
+                      <input type="radio" name="plqs" value="1">
+                      禁止</td>
+                  </tr>
+                  <tr> 
+                    <td height="28" colspan="2"> 
+                      <div align="left"><font color="#FF0000"> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;  日志内容是否同时加入论坛？</font> 
+                        <select name="bbstag" id="bbstag" Onchange="addbbs();">
+                          <option value="1">是</option>
+                          <option value="0" selected>否</option>
+                        </select>
+                        主论坛： 
+<script language="javascript">
+<!--
+var onecount;
+onecount=0;
+var j;
+  
+subcat = new Array();
+<%
+strsql="select BBS_Cate_ID,BBS_Cate_PID,BBS_Cate_Name,Initial from "&ft&"BBS_Cate where BBS_Cate_PID<>'0' and deleted=0  order by totop asc"
+set rsr_BBS_Cate=server.createobject("adodb.recordset")
+rsr_BBS_Cate.open strsql,conn,3,1
+j=0
+do while not rsr_BBS_Cate.eof
+%>
+subcat[<%=j%>] = new Array("<%=rsr_BBS_Cate("Initial") & " " & rsr_BBS_Cate("BBS_Cate_Name")%>","<%=rsr_BBS_Cate("BBS_Cate_PID")%>","<%=rsr_BBS_Cate("BBS_Cate_ID")%>");
+<%
+j=j+1
+rsr_BBS_Cate.movenext
+loop
+rsr_BBS_Cate.close
+set rsr_BBS_Cate=nothing
+%>
+
+onecount=<%=j%>;
+
+function changelocation(locationid)
+    {
+    document.form1.BoardID_2.length = 0; 
+
+    var locationid=locationid;
+    var i;
+    document.form1.BoardID_2.options[0] = new Option('==请选择==','');
+    for (i=0;i < onecount; i++)
+        {
+            if (subcat[i][1] == locationid)
+            { 
+            document.form1.BoardID_2.options[document.form1.BoardID_2.length] = new Option(subcat[i][0], subcat[i][2]);
+            }        
+        }
+        
+    }
+	    
+function addbbs()
+{
+if(document.getElementById("bbstag").value == 0)
+{
+parent.document.form1.BoardID_1.disabled=true;
+parent.document.form1.BoardID_2.disabled=true;
+}
+else
+{
+parent.document.form1.BoardID_1.disabled=false;
+parent.document.form1.BoardID_2.disabled=false;
+}
+}
+//-->
+</script>
+                        <select name="BoardID_1" onChange="changelocation(document.form1.BoardID_1.options[document.form1.BoardID_1.selectedIndex].value)">
+                          <option value="">==请选择==</option>
+                          <%
+str="select BBS_Cate_ID,BBS_Cate_Name from "&ft&"BBS_CATE Where BBS_Cate_PID='0' and deleted=0 order by BBS_ID asc"
+set rs_BBS_Cate=server.createobject("adodb.recordset")
+rs_BBS_Cate.open str,conn,1,1
+do while not rs_BBS_Cate.eof
+%>
+                          <option value="<%=rs_BBS_Cate("BBS_Cate_ID")%>"><%=rs_BBS_Cate("BBS_Cate_Name")%></option>
+                          <%
+rs_BBS_Cate.movenext
+loop
+rs_BBS_Cate.close
+set rs_BBS_Cate=nothing
+%>
+                        </select>
+                        分论坛： 
+                        <select name="BoardID_2">
+                          <option value="">==请选择==</option>
+                        </select>
+                      </div></td>
+                  </tr>
+                  <%If getcodeoff=1 Then%>
+                  <TR class="maintbtr1"> 
+                    <TD width="16%" height="28"> 
+                      <div align="center"> &nbsp;&nbsp;&nbsp; 验证码：</div></TD>
+                    <TD width="84%"> 
+                      <input name="codestr" id="codestr" type="text" size=10 maxlength=4 onclick="getcode();"> 
+                      <span id="ftbbscodeimg" onclick="getcode();"></span>
+                    </TD>
+                  </TR>
+                  <%end if%>
+                  <tr> 
+                    <td height="40"> 
+                      <div align="right"></div></td>
+                    <td>
+                      <input name="act" type="hidden" id="act" value="y"> <INPUT type="hidden" name="FileName" value="<%=FileName%>">
+					  <input type="submit" value="提交" class="button" name="submit1"> 
+                    </td>
+                  </tr>
+                </form>
+              </table>
+            </div>
+</td>
+</tr></table>
+</div>
+</div>
+<br><center>
+    <!--#include file="tail.asp" -->
+  </center>
+</center>
+</body>
+</html>
+<%closedb%>

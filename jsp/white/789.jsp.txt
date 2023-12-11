@@ -1,0 +1,84 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>新增角色</title>
+<link href="${contextPath}/js/plugins/dtree/dtree.css" rel="stylesheet" type="text/css" media="all">
+<script src="${contextPath}/js/plugins/jquery/jquery.js"></script> 
+<script src="${contextPath}/js/plugins/dtree/dtree.js"></script> 
+</head>
+<body>
+<input type="hidden" value="${contextPath}" id="contextPath">
+
+<div class="userInfo" id="searchCon">
+<form:form id="resultForm" name="resultForm" commandName="role">
+         <h1>新增角色</h1>
+						<table class="yTable margintop">   
+			<tr>
+			    <th align="right" width="120"><span>*</span>角色名 </th>
+				<td align="left"><input name="name" id="name" type="text"  class="inputbox"/>
+				<select name="authCodeFlag" style="display: none;">  
+				 <option value="0" ><fmt:message key='System.Role.UnAvailable' ></fmt:message> </option>
+				 <option value="1" selected="selected"><fmt:message key='System.Role.Available' ></fmt:message> </option>
+				</select></td>
+			</tr>
+			<tr>
+			    <th align="right" width="120">&nbsp;&nbsp;&nbsp;&nbsp;角色等级</th>
+				<td align="left">
+				<select name="level">  
+				 <option value="1">管理员 </option>
+				 <option selected="selected" value="2">一般用户</option>
+				</select>
+				</td>
+			</tr>
+			<tr>
+				<th align="right" width="120"><span>*</span>角色别名</th>
+				<td align="left"><input name="alias" id="alias" type="text" class="inputbox"/></td>
+			</tr>
+			<tr>
+				<th align="right" width="120">备注</th>
+				<td align="left" ><textarea name="remark" id="remark" cols="45" rows="5"></textarea></td>
+			</tr>
+		</table>
+  		<input type="hidden" id="nodeIds" name="nodeIds">
+        <div >权限列表</div>
+        <div class="dtree">
+		<script type="text/javascript">
+		var tree = new dTree('tree','${contextPath}');
+		tree.config.useSelection=false;
+		tree.config.useCookies=false;
+		tree.config.check=true;
+		tree.add('0','-1','系统权限');
+		var url = "getAuthorityList.json";
+		jQuery.ajax( {
+			type:"get",
+			url : url,
+			timeout : 5000,
+			async:false,
+			success:function(response) {
+				$.each(response.authorityList ,function(i,node){
+					//将heard中的分类加到权限表中去,用type将其区分开
+					 tree.add(node.code,node.parentCode,node.name);//+" [ "+ node.remark +" ]"
+				});
+			},
+			error : function() {
+				$.msg.alert('系统提示','系统错误');
+			}
+		});
+		document.write(tree);
+		</script>
+		</div> 
+		<div class="Btn"> 
+				<a href="#" class="bb" id="saveRole"><div><span>保存</span></div></a> 
+				<a href="#" class="bb" id="cancelRole"><div><span>取消</span></div></a> 
+		</div>
+</form:form>
+</div>
+<script type="text/javascript">
+seajs.use("${scriptBasePath}/cimjs/role/new.js");
+</script>
+</body>
+</html>

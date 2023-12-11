@@ -1,0 +1,295 @@
+<%
+
+Function OTCMS_NewsList(areaName,showMode,showNum,typeStr,typeLevel)
+	If showMode=0 Then showMode=1
+	If showMode=4 Then
+		showModeClass=2
+	ElseIf showMode=7 Then
+		showModeClass=5
+	Else
+		showModeClass=showMode
+	End If
+	If showNum=0 Then showNum=10
+
+	If showMode=5 Or showMode=6 Then
+		If showMode=5 Then
+			itemBoxClass= "pageBoxMore"
+			itemBoxCol	= 1
+		Else
+			itemBoxClass= "itemBox"
+			itemBoxCol	= 2
+		End If
+		typeStr = ToInt(typeStr)
+		itemBoxNum=0
+		Set typeexe=conobj.execute("select IT_ID,IT_level,IT_theme from OT_infoType where IT_fatID="& typeStr &" order by IT_rank ASC")
+			If typeexe.EOF Then
+				Call OTCMS_NewsList(areaName,1,showNum,typeStr,typeLevel)
+			Else
+				Do Until typeexe.EOF
+					itemBoxNum = itemBoxNum + 1
+					newsMoreUrl = Url_NewsListID("",typeexe("IT_ID"),0)
+					response.write(_
+					"<div class='"& itemBoxClass &"'>"& vbcrlf &_
+					"<dl>"& vbcrlf &_
+						"<dt><div class='more'><a href='"& newsMoreUrl &"'></a></div><span class='pointer' onclick=""document.location.href='"& newsMoreUrl &"';"">"& typeexe("IT_theme") &"</span></dt>"& vbcrlf &_
+						"<dd class='listBox5'>"&_
+						"")
+							typeWhereStr = ""
+							If typeexe("IT_level")>=1 And typeexe("IT_level")<=3 Then
+								typeWhereStr = " and IF_type"& typeexe("IT_level") &"ID="& typeexe("IT_ID") &""
+							Else
+								typeWhereStr = " and IF_typeStr like '%,"& typeexe("IT_ID") &",%'"
+							End If
+							Set showexe=conobj.execute("select top "& showNum &" IF_ID,IF_time,IF_theme,IF_URL from OT_info where IF_state=1 and IF_isAudit=1"& typeWhereStr &" order by IF_time DESC,IF_ID")
+								If showexe.EOF Then
+									response.write(_
+									"<br /><center class='font1_1'>暂无内容</center><br />"&_
+									"")
+								Else
+									response.write(_
+									"<ul>"&_
+									"")
+									Do Until showexe.EOF
+										If itemBoxCol>1 Then
+											itemTime=Month(showexe("IF_time")) &"-"& Day(showexe("IF_time"))
+										Else
+											itemTime=showexe("IF_time")
+										End If
+										If showexe("IF_URL")<>"" Then hrefStr=showexe("IF_URL") Else hrefStr=Url_NewsShowID(showexe("IF_ID"),0)
+										response.write(_
+										"<li>"&_
+											"<div class='addi'>&nbsp;"& itemTime &"</div><a href='"& hrefStr &"' class='font1_2' target='_blank'>"& showexe("IF_theme") &"</a>"&_
+										"</li>"&_
+										"")
+									showexe.movenext
+									Loop
+
+									response.write(_
+									"</ul><div class='clear'></div>"&_
+									"")
+								End If
+							showexe.close
+							Set showexe=Nothing
+
+						response.write(_
+						"</dd>"&_
+					"</dl>"&_
+					"</div>"&_
+					"")
+					If itemBoxNum Mod itemBoxCol = 0 Then
+						response.write(_
+						"<div class='clear'></div>"& vbcrlf &_
+						"")
+					End If
+				typeexe.movenext
+				Loop
+			End If
+		typeexe.close
+		Set typeexe=Nothing
+
+	Else
+		response.write(_
+		"<div class='pageBox'>"&_
+		"<dl>"&_
+			"<dt>"& areaName &"</dt>"&_
+			"<dd class='listBox"& showModeClass &"'>"&_
+			"")
+				If typeStr="new" And SYS_homeNewMoreNum>0 Then
+					SQLstr = "select top "& SYS_homeNewMoreNum &" IF_ID,IF_URL,IF_isTop,IF_readNum,IF_replyNum,IF_img,IF_time,IF_theme,IF_themeKey,IF_contentKey from OT_info where IF_state=1 and IF_isAudit=1 and IF_isNew=1"
+				Else
+					SQLstr = "select IF_ID,IF_URL,IF_isTop,IF_readNum,IF_replyNum,IF_img,IF_time,IF_theme,IF_themeKey,IF_contentKey from OT_info where IF_state=1 and IF_isAudit=1"
+				End If
+				Select Case typeStr
+					Case "announ"
+						SQLstr = SQLstr &" and IF_type1ID=-1 order by IF_isTop DESC,IF_time DESC"
+						If SYS_homeAnnounListNum>0 Then showNum=SYS_homeAnnounListNum
+						
+					Case "refer"
+						refType		= ToGetStr("refType")
+						refContent	= ToGetRegExpStr("refContent","sql")
+						If refType="content" Then
+							SQLstr = SQLstr &" and IF_content like '%"& SqlForStr(refContent) &"%'"
+						ElseIf refType="source" Then
+							SQLstr = SQLstr &" and IF_source like '%"& SqlForStr(refContent) &"%'"
+						ElseIf refType="writer" Then
+							SQLstr = SQLstr &" and IF_writer like '%"& SqlForStr(refContent) &"%'"
+						Else
+							SQLstr = SQLstr &" and IF_theme like '%"& SqlForStr(refContent) &"%'"
+						End If
+						SQLstr = SQLstr &" order by IF_isTop DESC,IF_time DESC"
+						If SYS_searchListNum>0 Then showNum=SYS_searchListNum
+
+					Case "mark"
+						markName	= ToGetRegExpStr("markName","sql")
+						If markName<>"" Then
+							SQLstr = SQLstr &" and IF_themeKey like '%"& SqlForStr(markName) &"%'"
+						End If
+						SQLstr = SQLstr &" order by IF_time DESC"
+						If SYS_markListNum>0 Then showNum=SYS_markListNum
+
+					Case Else
+						typeStrID = ToInt(typeStr)
+						If typeStrID>0 Then
+							If typeLevel>=1 And typeLevel<=3 Then
+								SQLstr = SQLstr &" and IF_type"& typeLevel &"ID="& typeStrID &" order by IF_isTop DESC,IF_time DESC"
+							Else
+								SQLstr = SQLstr &" and IF_typeStr like '%,"& typeStrID &",%' order by IF_isTop DESC,IF_time DESC"
+							End If
+						Else
+							SQLstr = SQLstr &" order by IF_isTop DESC,IF_time DESC,IF_ID"
+							If SYS_homeNewListNum>0 Then showNum=SYS_homeNewListNum
+						End If
+				End Select
+
+				Set showrec=server.CreateObject("ADODB.recordset")
+				showrec.open SQLstr,conobj,3,1
+					If showrec.EOF Then
+						response.write(_
+						"<br /><center class='font1_1'>暂无内容</center><br />"&_
+						"")
+					Else
+						showPageSize=showNum		'每页条数
+						showrec.pagesize=showPageSize	
+						showPageCount=showrec.pagecount
+						showCount=showrec.recordcount
+'						page=ToGetInt("page")
+						page = ToInt(page)
+						If page=0 Then page=Url_GetListPageID()
+						if page < 1 Or page > showPageCount Then page=1
+						showrec.absolutepage=page
+
+						number=1+(page-1)*showPageSize
+						
+						response.write(_
+						"<ul>")
+						Select Case showMode
+							Case 2,4
+								For i=1 To showPageSize
+									If showrec.EOF Then Exit For
+									If showrec("IF_URL")<>"" Then hrefStr=showrec("IF_URL") Else hrefStr=Url_NewsShowID(showrec("IF_ID"),0)
+									If showrec("IF_isTop")=1 Then topImg="<img src='"& dbPathPart &"inc_img/share_top.gif' alt='置顶' style='margin-right:5px;' />" Else topImg=""
+									markStr = ""
+									If showrec("IF_themeKey")<>"" Then
+										markStr = "<span class='font2_2'>标签：</span>"
+										markArr = Split(showrec("IF_themeKey"),",")
+										For Each mark In markArr
+											markStr = markStr &"<a href='"& dbPathPart &"newsList.asp?typeStr=mark&markName="& server.URLEncode(mark) &"' class='font1_2d' target='_blank'>"& mark &"</a>&nbsp;"
+										Next
+									End If
+
+									If showrec("IF_img")<>"" Or showMode=4 Then 
+										response.write(_
+										"<li>"&_
+											"<div class='a'>"&_
+												"<div class='img'><a href='"& hrefStr &"' class='font1_1' target='_blank'><img src='"& InfoImgUrl(showrec("IF_img"),dbPathPart & InfoImgDir) &"' alt="""& ReplaceStr(showrec("IF_theme"),"input") &""" onerror=""if(this.value!='1'){this.value='1';this.src='"& dbPathPart &"inc_img/noPic.gif';}"" /></a></div>"&_
+											"</div>"&_
+											"<div class='b'>"&_
+												"<div class='addi'>&nbsp;"& showrec("IF_time") &"&nbsp;&nbsp;点击："& showrec("IF_readNum") &"&nbsp;&nbsp;评论："& showrec("IF_replyNum") &"</div><h4><a href='"& hrefStr &"' class='font1_1' target='_blank'>"& topImg & OTCMS_RefFontColor(showrec("IF_theme")) &"</a></h4>"&_
+												"<div class='clear'></div>"&_
+												"<div class='note'>"& OTCMS_RefFontColor(showrec("IF_contentKey")) &"&nbsp;<a href='"& hrefStr &"' class='font2_2' target='_blank'>阅读全文&gt;&gt;</a></div>"&_
+												"<div class='clear'></div><div class='mark'>"& markStr &"</div>"&_
+											"</div><div class='clear'></div>"&_
+										"</li><div class='clear'></div>"&_
+										"")
+									Else
+										response.write(_
+										"<li>"&_
+											"<div class='b' style='width:665px;'>"&_
+												"<div class='addi'>&nbsp;"& showrec("IF_time") &"&nbsp;&nbsp;点击："& showrec("IF_readNum") &"&nbsp;&nbsp;评论："& showrec("IF_replyNum") &"</div><h4><a href='"& hrefStr &"' class='font1_1' target='_blank'>"& topImg & OTCMS_RefFontColor(showrec("IF_theme")) &"</a></h4>"&_
+												"<div class='clear'></div>"&_
+												"<div class='note'>"& OTCMS_RefFontColor(showrec("IF_contentKey")) &"&nbsp;<a href='"& hrefStr &"' class='font2_2' target='_blank'>阅读全文&gt;&gt;</a></div>"&_
+												"<div class='clear'></div><div class='mark'>"& markStr &"</div>"&_
+											"</div><div class='clear'></div>"&_
+										"</li><div class='clear'></div>"&_
+										"")
+									End If
+								showrec.movenext
+								Next
+
+							Case 3
+								For i=1 To showPageSize
+									If showrec.EOF Then Exit For
+									If showrec("IF_URL")<>"" Then hrefStr=showrec("IF_URL") Else hrefStr=Url_NewsShowID(showrec("IF_ID"),0)
+									If showrec("IF_isTop")=1 Then topImg="<img src='"& dbPathPart &"inc_img/share_top.gif' alt='置顶' style='margin-right:5px;' />" Else topImg=""
+									response.write(_
+									"<li>"&_
+										"<div class='a'><a href='"& hrefStr &"' target='_blank'><img src='"& InfoImgUrl(showrec("IF_img"),dbPathPart & InfoImgDir) &"' alt="""& ReplaceStr(showrec("IF_theme"),"input") &""" onerror=""if(this.value!='1'){this.value='1';this.src='"& dbPathPart &"inc_img/noPic.gif';}"" /></a></div>"&_
+										"<div class='b'><a href='"& hrefStr &"' class='font1_2' target='_blank'>"& topImg & OTCMS_RefFontColor(showrec("IF_theme")) &"</a></div>"&_
+									"</li>"&_
+									"")
+								showrec.movenext
+								Next
+
+							Case 7
+								For i=1 To showPageSize
+									If showrec.EOF Then Exit For
+									If showrec("IF_URL")<>"" Then hrefStr=showrec("IF_URL") Else hrefStr=Url_NewsShowID(showrec("IF_ID"),0)
+									If showrec("IF_isTop")=1 Then topImg="<img src='"& dbPathPart &"inc_img/share_top.gif' alt='置顶' style='margin-right:5px;' />" Else topImg=""
+									response.write(_
+									"<li>"&_
+										"<div class='addi'>&nbsp;"& showrec("IF_time") &"</div>"&_
+										"<a href='"& hrefStr &"' class='font1_2' target='_blank'>"& topImg & showrec("IF_theme") &"</a>"&_
+									"</li>"&_
+									"")
+								showrec.movenext
+								Next
+
+							Case Else
+								For i=1 To showPageSize
+									If showrec.EOF Then Exit For
+									If showrec("IF_URL")<>"" Then hrefStr=showrec("IF_URL") Else hrefStr=Url_NewsShowID(showrec("IF_ID"),0)
+									If showrec("IF_isTop")=1 Then topImg="<img src='"& dbPathPart &"inc_img/share_top.gif' alt='置顶' style='margin-right:5px;' />" Else topImg=""
+
+									markStr = ""
+									If showrec("IF_themeKey")<>"" Then
+										markStr = "<span class='font2_2'>标签：</span>"
+										markArr = Split(showrec("IF_themeKey"),",")
+										For Each mark In markArr
+											markStr = markStr &"<a href='"& dbPathPart &"newsList.asp?typeStr=mark&markName="& server.URLEncode(mark) &"' class='font1_2d' target='_blank'>"& mark &"</a>&nbsp;"
+										Next
+									End If
+
+									response.write(_
+									"<li>"&_
+										"<div class='addi'>&nbsp;"& showrec("IF_time") &"&nbsp;&nbsp;点击："& showrec("IF_readNum") &"&nbsp;&nbsp;评论："& showrec("IF_replyNum") &"</div><h4><a href='"& hrefStr &"' class='font1_1' target='_blank'>"& topImg & OTCMS_RefFontColor(showrec("IF_theme")) &"</a></h4>"&_
+										"<div class='note'>"& OTCMS_RefFontColor(showrec("IF_contentKey")) &"&nbsp;<a href='"& hrefStr &"' class='font2_2' target='_blank'>阅读全文&gt;&gt;</a></div><div class='clear'></div>"&_
+										"<div class='mark'>"& markStr &"</div>"&_
+									"</li>"&_
+									"")
+								showrec.movenext
+								Next
+
+
+						End Select
+						response.write(_
+						"</ul><div class='clear'></div>"& vbcrlf &_
+
+						"<center>"&_
+						"")
+							Call NewsShowNavigation(typeStr,typeID,page,showPageCount,showCount,"img","")
+						response.write(_
+						"</center>"&_
+						"")
+					End If
+				showrec.close
+				Set showrec=Nothing
+
+			response.write(_
+			"</dd>"&_
+		"</dl>"&_
+		"</div>"&_
+		"<div class='clear'></div>"& vbcrlf &_
+		"")
+	End If
+End Function
+
+
+
+Function OTCMS_RefFontColor(str)
+	If refContent="" Then
+		OTCMS_RefFontColor = str
+	Else
+		OTCMS_RefFontColor = Replace(""& str,refContent,"<span style='color:red;'>"& refContent &"</span>")
+	End If
+End Function
+%>

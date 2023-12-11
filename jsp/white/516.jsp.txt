@@ -1,0 +1,74 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<head>
+	<title>站留言添加</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/message/edit_message.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/common/common.js"></script>
+</head>
+<body>
+	<input id="operatorId" name="operatorId" value="${loginUser.id}" type="hidden"></input>
+	<table border="0" width="450px" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+      <tr>
+   		<td class="gdcn-table-D">
+			<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+				<form id="messageForm" method="post" action="">
+					<s:hidden name="message.roleCode" id="roleCode" />
+		    	    <s:hidden name="message.id" id="id" />
+		    		<s:hidden name="message.creatorId" />
+		    		<s:hidden name="message.creatorName" />
+		    		<s:hidden name="message.createTime" />
+		    		<s:hidden name="message.state" id="state"/>
+		    		<s:hidden name="message.type" id="type"/>
+		    		<s:hidden id="recipientId" name="message.recipientId" />
+					<table width="96%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">						
+						<tr>
+							<td class='gridtitle'><s:text name="editMessage.Receivedby"/>:</td>
+							<!-- 客户 -->
+							<c:if test="${message.roleCode == 'customer'}">
+								<td class='gridbody'>
+							        <s:textfield id="recipientName" name="message.recipientName"  cssClass="inputTextBorder" readonly="true" />
+								</td>
+							</c:if>
+							<!-- 管理员 -->
+							<c:if test="${message.roleCode != 'customer'}">
+								<td class='gridbody'>
+							        <s:textfield id="recipientName" name="message.recipientName"  cssClass="inputTextBorder" readonly="true" onclick="selectRecipient()"/>
+								</td>
+							</c:if>
+						</tr>
+						<tr></tr>
+						<tr>
+							<td class='gridtitle'><s:text name="editMessage.Messagetheme"/>:</td>
+							<td class='gridbody'>
+								<input type="text" id="title" name="message.title" value="${message.title}" style="width=250px;"/>
+							</td>
+						</tr>
+						<tr></tr>
+						<tr>
+							<td class='gridtitle'><s:text name="editMessage.MessageContents"/>:</td>
+							<td class='gridbody'>
+								<s:textarea id="content" name="message.content" cols="45" rows="5"></s:textarea>
+							</td>
+						</tr>
+					</table>
+				</form>
+			</div>
+    	</td>
+    </tr>
+  </table>
+ <!-- 语言设置-->
+<input type="hidden" id="getOK" value="<s:text name="editMessage.getOK"/>"/>
+<input type="hidden" id="failurenotice" value="<s:text name="editMessage.failurenotice"/>"/>
+<input type="hidden" id="Pleaseinputs" value="<s:text name="editMessage.Pleaseinputs"/>"/>
+<input type="hidden" id="Pleaseinputc" value="<s:text name="editMessage.Pleaseinputc"/>"/>
+<input type="hidden" id="Savedsuccessfully" value="<s:text name="Savedsuccessfully"/>"/>
+<input type="hidden" id="Savefailed" value="<s:text name="Savefailed"/>"/>
+
+</body>
+</html>
+

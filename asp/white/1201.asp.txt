@@ -1,0 +1,1361 @@
+<!--#include file="mdb.asp"-->
+<!--#include file="inc/config.asp"-->
+<!--#include file="inc/md5.asp"-->
+<!--#include file="inc/inc.asp"-->
+
+<%dim adminname
+dim adminpwd
+
+if request.QueryString("action")="search" then
+	dim word,engine
+	word = request.Form("word")
+	engine = request.Form("search")
+	Select case engine
+		case "yahoo"
+			response.Redirect "http://search.cn.yahoo.com/search?ei=gbk&fr=fp-tab-web-ycn&pid=ysearch&source=yahoo_yhp_0706_search_button&p="&word
+			response.End()
+		case "google"
+			response.Redirect("http://www.google.com/search?q="&word&"&hl=zh-CN&lr=lang_zh-CN&ie=gb2312")
+			response.End()
+		case "baidu"
+			response.Redirect("http://www.baidu.com/baidu?word="&word)
+			response.End()
+		case "sina"
+			response.Redirect("http://search.sina.com.cn/cgi-bin/search/search.cgi?ss=sina&_searchkey="&word)
+			response.End()
+	end select
+end if
+
+if request("action")="adminlogin" then
+       s=Trim(Request.Form("s"))
+	   s2=Request.Form("s2")
+	   If s2<>s Then
+	   	   Response.Write("<script language=javascript>alert('请输入正确的认证码！');this.location.href='"&htdz&"';</script>")
+		   Response.End
+	   end if
+thesoft=Request.ServerVariables("HTTP_USER_AGENT")
+if instr(thesoft,"Windows NT 5.0") then
+	vOS="Win 2000"
+elseif instr(thesoft,"Windows NT 5.1") then
+	vOs="Win XP"
+elseif instr(thesoft,"Windows NT") then
+	vOs="Win NT"
+elseif instr(thesoft,"Windows 9") then
+	vOs="Win 9x"
+elseif instr(thesoft,"unix") or instr(thesoft,"linux") or instr(thesoft,"SunOS") or instr(thesoft,"BSD") then
+	vOs="类Unix"
+elseif instr(thesoft,"Mac") then
+	vOs="Mac"
+else
+	vOs="Other"
+end if
+server_v1=Cstr(Request.ServerVariables("HTTP_REFERER"))
+server_v2=Cstr(Request.ServerVariables("SERVER_NAME"))
+if mid(server_v1,8,len(server_v2))<>server_v2 then
+Response.Write("<script language=javascript>alert('小子!你找死啊!!！');this.location.href='"&htdz&"';</script>") 
+response.end
+end if
+Function ReplaceBadWord(g_word)
+  g_word=Replace(g_word,"'","")
+  g_word=Replace(g_word," ","")
+  g_word=Replace(g_word,"&","")
+  g_word=Replace(g_word,"(","")
+  g_word=Replace(g_word,"\","")
+  g_word=Replace(g_word,"/","")
+  g_word=Replace(g_word,"..","")
+  g_word=Replace(g_word,"^","")
+  g_word=Replace(g_word,"#","")
+  g_word=Replace(g_word,"%","")
+  g_word=Replace(g_word,"|","")
+  g_word=Replace(g_word,";","")
+  g_word=Trim(Replace(g_word,")",""))  
+  ReplaceBadWord=g_word
+End Function
+adminname=ReplaceBadWord(Request.form("adminname"))
+adminpwd=Md5(ReplaceBadWord(Request.form("adminpwd")))
+if adminname="" OR adminpwd="" then
+	   	   Response.Write("<script language=javascript>alert('请输入用户名或密码！');this.location.href='"&htdz&"';</script>")
+		   Response.End
+end if
+if Hx66_Grade<>3  then
+       Response.Write("<script language=javascript>alert('你没有登陆此页面的权限。');this.location.href='index.asp';</script>")
+end if
+sql="select * from admin where admin_name='"&adminname&"' and admin_password='"&adminpwd&"'"
+set rs=conn.execute(sql)
+if rs.eof and rs.bof then
+   rs.close
+   set rs=nothing
+	   	   Response.Write("<script language=javascript>alert('您输入的用户名和密码不正确!！');this.location.href='"&htdz&"';</script>")
+   set rs1=Server.Createobject("adodb.recordset")
+   sql1="Select * from Log"
+   rs1.open sql1,conn,3,3
+   rs1.addnew
+   rs1("Username")=adminname
+   rs1("LoginIP")=request.ServerVariables("Remote_Addr")
+   rs1("OS")=vOS
+   rs1("ErrorPas")=ReplaceBadWord(Request.form("adminpwd"))
+   rs1("Result")="Error"
+   rs1.update
+   rs1.close
+   set rs1=nothing
+   elseif rs("lock")=1 then
+		response.Write"<script language=javascript>alert(' 错误:帐号 "&rs("admin_name")&" 已被锁定,你不能登陆!请联系站长。');this.location.href='"&htdz&"';</script>"
+		   Response.End
+else
+   response.cookies("hxStudioUserName")=rs("admin_Name")
+   session("adminlogin")=sessionvar
+   session("issuper")=rs("admin_id")
+   session.timeout=500
+   Session("CheckCode")=""
+   Session("hxStudioAdminName")=rs("admin_Name")
+   Session("hxStudioAdminDj")=rs("dj")
+   Session("hxStudioAdminAdmin")=rs("admin")
+   Session("hxType")=rs("type")
+   set rs1=Server.Createobject("adodb.recordset")
+   sql1="Select * from Log"
+   rs1.open sql1,conn,3,3
+   rs1.addnew
+   rs1("Username")=adminname
+   rs1("LoginIP")=request.ServerVariables("Remote_Addr")
+   rs1("OS")=vOS
+   rs1.update
+   rs1.close
+   rs.close
+   set rs=nothing
+end if
+elseif request("action")="logout" then
+  Session("hxStudioAdminName")=""
+  Session("hxStudioAdminDj")=""
+  session("adminlogin")=""
+  session("issuper")=""
+  Response.write "<script>window.document.location.href='./"&htdz&"';</script>"
+end if
+
+if session("adminlogin")=sessionvar then
+frame=request("frame")
+if frame="" then
+%>
+<html>
+<head>
+<title><%=webname%> 管理中心 ∷</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<STYLE>.navPoint {
+	COLOR: white; CURSOR: hand; FONT-FAMILY: Webdings; FONT-SIZE: 9pt
+}
+P {
+	FONT-SIZE: 9pt
+}
+</STYLE>
+<SCRIPT>
+function switchSysBar(){
+	if (switchPoint.innerText==3){
+		switchPoint.innerText=4
+		document.all("frmTitle").style.display="none"
+	}
+	else{
+		switchPoint.innerText=3
+		document.all("frmTitle").style.display=""
+	}
+}
+</SCRIPT>
+</HEAD>
+<BODY scroll=no style="MARGIN: 0px">
+<frameset rows='*' id='Frame' cols='165,*' framespacing='0' frameborder='no' border='0'>
+<TABLE border=0 cellPadding=0 cellSpacing=0 height="100%" width="100%">
+  <TBODY>
+  <TR>
+    <TD align=middle id=frmTitle noWrap vAlign=center name="frmTitle">
+       <IFRAME scrolling=auto frameBorder=0 id='menu' name='menu' src='?frame=menu' style="HEIGHT: 100%; VISIBILITY: inherit; WIDTH: 175; Z-INDEX: 2"></IFRAME>
+    </TD>
+    <TD bgColor=#1B70C4 onclick=switchSysBar() style="WIDTH: 10pt">
+       <SPAN class=navPoint id=switchPoint title=关闭/打开左栏>3</SPAN>
+    </TD>
+    <TD style="WIDTH: 100%">
+       <IFRAME frameBorder=0 id='main' name='main' scrolling=yes src='?frame=main' style="HEIGHT: 100%; VISIBILITY: inherit; WIDTH: 100%; Z-INDEX: 1"></IFRAME>
+    </TD>
+  </TR>
+  </TBODY>
+</TABLE>
+</frameset>
+<noframes>
+　<body>
+　　<p>本页使用了框架结构，但是您的浏览器不支持它。请将您的浏览器升级为IE5.0或更高的版本！</p>
+　</body>
+</noframes>
+</BODY></HTML>
+<%elseif frame="menu" then%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>管理菜单</title>
+<style type="text/css"> 
+body{FONT-SIZE: 12px;COLOR: #000000; FONT-FAMILY: "宋体";background-color: #799AE1;SCROLLBAR-FACE-COLOR: #799AE1; SCROLLBAR-HIGHLIGHT-COLOR: #799AE1;SCROLLBAR-SHADOW-COLOR: #799AE1; SCROLLBAR-DARKSHADOW-COLOR: #799AE1;SCROLLBAR-3DLIGHT-COLOR: #799AE1; SCROLLBAR-ARROW-COLOR: #FFFFFF;SCROLLBAR-TRACK-COLOR: #AABFEC;}
+.menutitle{ cursor:pointer; margin-bottom: 0px; background-image=url(img/menu_1.gif);color:#FFFFFF; width:158px; padding:0px; text-align:center; font-weight:bold; border:0px ; }}
+.submenu{ margin-bottom: 0em; }
+.cn { FONT-SIZE: 9pt; COLOR: #006599; FONT-FAMILY: 宋体 }
+TD{ font-family:宋体; font-size: 12px; line-height: 15px;}
+a  { font:normal 12px 宋体; color:#000000; text-decoration:none; }
+a:hover  { color:#428EFF;text-decoration:underline; }
+</style>
+<script language="javascript" type="text/javascript">
+if (document.getElementById){ //DynamicDrive.com change
+document.write('<style type="text/css">\n')
+document.write('.submenu{display: none;}\n')
+document.write('</style>\n')
+}
+
+function SwitchMenu(obj){
+	if(document.getElementById){
+	var el = document.getElementById(obj);
+	var ar = document.getElementById("masterdiv").getElementsByTagName("span"); //DynamicDrive.com change
+		if(el.style.display != "block"){ //DynamicDrive.com change
+			for (var i=0; i<ar.length; i++){
+				if (ar[i].className=="submenu") //DynamicDrive.com change
+				ar[i].style.display = "none";
+			}
+			el.style.display = "block";
+		}else{
+			el.style.display = "none";
+		}
+	}
+}
+
+function killErrors() {
+return true;
+}
+window.onerror = killErrors;
+</script>
+</head>
+<BODY leftmargin="0" topmargin="0" marginheight="0" marginwidth="0">
+<div id="masterdiv">
+<TABLE width="158" cellSpacing="0" cellPadding="0" border="0" background="img/menu_1.gif" height=60>
+<tr>
+ <td colspan='2'><div align="center"><img src="img/toplogo.jpg" width="157" height="56"border="0"></div></td>
+</tr>
+<tr>
+ <td colspan='2'> </td>
+</tr>
+<tr>
+  <td><a href="?frame=main" target="main"><img src="img/left_fold1.gif" alt="" border="0"> 网站首页</a></td>
+  <td><a href="?action=logout" target="_top"><img src="img/left_fold1.gif" alt="" border="0"> 安全退出</a></td>
+</tr>
+</table>
+<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+<TR>
+   <TD bgColor="#ffffff" height="1"></TD>
+</TR>
+<TR>
+   <TD height="5" background="img/menu_1.gif"></TD>
+</TR>
+</TABLE>
+    <div class="menutitle" onclick="SwitchMenu('sub0')"><img src="img/left_fold1.gif" alt="" border="0"> 个人信息查看
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+	  <TR>
+	    <TD height="5"></TD>
+	  </TR>
+	  <TR>
+	     <TD bgColor="#ffffff" height="1"></TD>
+	  </TR>
+	 </TABLE>
+     </div>
+     <span class="submenu" id="sub0">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="15%"></td><TD height=25 width="85%"><img src="img/left_fold2.gif" alt="" border="0"> 帐号：<strong><%=Session("hxStudioAdminName")%></strong></TD>
+	  </TR>
+	  <TR>
+	     <td width="15%"></td><TD height=25 width="85%"><img src="img/left_fold2.gif" alt="" border="0"> 等级：<strong><font color="#FF0000"><%
+    if Session("hxStudioAdminDj")=1 then response.write "栏目管理员"
+    if Session("hxStudioAdminDj")=4 then response.write "超级管理员"
+    %></font></strong></TD>
+	  </TR>
+	  <TR>
+	     <td width="15%"></td><TD height=25 width="85%"><a target="main" href=admin_main.asp><img src="img/left_fold2.gif" alt="" border="0"> 查看权限\修改密码</a></TD>
+	  </TR>
+         </table>
+     </span>
+<%if Session("hxStudioAdminDj")=4 then%>
+        <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+	  <TR>
+	     <TD height="5" background="img/menu_1.gif"></TD>
+	 </TR>
+       </TABLE>
+
+    <div class="menutitle" onclick="SwitchMenu('sub1')"><img src="img/left_fold1.gif" alt="" border="0"> 网站基本设置
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+    </div>
+    <span class="submenu" id="sub1">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_config.asp><img src="img/left_fold2.gif" alt="" border="0"> 基本设置</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_admin.asp?action=recount><img src="img/left_fold2.gif" alt="" border="0"> 首页更新</a></TD>
+	  </TR>
+
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_cc.asp><img src="img/left_fold2.gif" alt="" border="0"> 防CC设置</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_count.asp" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 计数管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_email.asp><img src="img/left_fold2.gif" alt="" border="0"> 发送邮件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_book.asp" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 留言管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><td height="2" bgcolor="#4685CA"></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_diary.asp><img src="img/left_fold2.gif" alt="" border="0"> 公告管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_diary.asp?action=newdiary><img src="img/left_fold2.gif" alt="" border="0"> 新添公告</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><td height="2" bgcolor="#4685CA"></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_vote.asp?action=vote><img src="img/left_fold2.gif" alt="" border="0"> 投票管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_vote.asp?action=newvote><img src="img/left_fold2.gif" alt="" border="0"> 新添投票</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><td height="2" bgcolor="#4685CA"></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_menu.asp?action=adminmenu><img src="img/left_fold2.gif" alt="" border="0"> 导航管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_menu.asp><img src="img/left_fold2.gif" alt="" border="0"> 导航添加</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><td height="2" bgcolor="#4685CA"></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_copyright.asp><img src="img/left_fold2.gif" alt="" border="0"> 频道管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><td height="2" bgcolor="#4685CA"></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_ad.asp><img src="img/left_fold2.gif" alt="" border="0"> 广告管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=ad/index.asp><img src="img/left_fold2.gif" alt="" border="0"> JS广告管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=&_bjq/Style.asp><img src="img/left_fold2.gif" alt="" border="0"> 编辑器管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><td height="2" bgcolor="#4685CA"></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=QQ/admin_qq.asp><img src="img/left_fold2.gif" alt="" border="0"> QQ在线</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_google.asp><img src="img/left_fold2.gif" alt="" border="0">Google Sitemap</a></TD>
+	  </TR>
+
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_web_map.asp><img src="img/left_fold2.gif" alt="" border="0">生成地图</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_baidulink.asp><img src="img/left_fold2.gif" alt="" border="0">百度关键字</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="%23%23" href=%23%23><img src="img/left_fold2.gif" alt="" border="0">资源采集</a></TD>
+	  </TR>
+
+
+         </table>
+      </span>
+<%end if%>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+	  <TR>
+	     <TD height="5" background="img/menu_1.gif"></TD>
+	   </TR>
+	</TABLE>
+     <div class="menutitle" onclick="SwitchMenu('sub2')"><img src="img/left_fold1.gif" alt="" border="0"> 新闻动态管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub2">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_news.asp><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_news.asp?action=newnewcat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_news.asp?action=cat><img src="img/left_fold2.gif" alt="" border="0"> 新闻管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_news.asp?action=newnew" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 添加新闻</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_news.asp?action=cat&t=pass><img src="img/left_fold2.gif" alt="" border="0"> 待审新闻</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_newsgoogle.asp><img src="img/left_fold2.gif" alt="" border="0"> NEWS Sitemap</a></TD>
+	  </TR>
+         </table>
+      </span>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub3')"><img src="img/left_fold1.gif" alt="" border="0"> 技术文章管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub3">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_art.asp><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_art.asp?action=newartcat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_art.asp?action=cat><img src="img/left_fold2.gif" alt="" border="0"> 文章管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_art.asp?action=newart" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 添加文章</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_art.asp?action=cat&t=pass" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 待审文章</a></TD>
+	  </TR>
+         </table>
+      </span>
+
+
+<!----------------------------------------------------------------->
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub4')"><img src="img/left_fold1.gif" alt="" border="0"> 网文频道管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub4">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_wx.asp><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_wx.asp?action=newartcat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_wx.asp?action=cat><img src="img/left_fold2.gif" alt="" border="0"> 作品管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_wx.asp?action=newart" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 添加作品</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_wxzztj.asp" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 作者推荐</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_wx.asp?action=cat&t=pass" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 待审作品</a></TD>
+	  </TR>
+         </table>
+      </span>
+
+<!---------------------------------------------------------------->
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub5')"><img src="img/left_fold1.gif" alt="" border="0"> 精美图片管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub5">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_pic.asp?action=piccat><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_pic.asp?action=newpiccat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_pic.asp?action=pic><img src="img/left_fold2.gif" alt="" border="0"> 图片管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_pic.asp?action=newpic" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 添加图片</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_pic.asp?action=pic&t=pass><img src="img/left_fold2.gif" alt="" border="0"> 待审图片</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_config.xml.asp" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 图片水印设置</a></TD>
+	  </TR>
+         </table>
+      </span>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+
+     <div class="menutitle" onclick="SwitchMenu('sub6')"><img src="img/left_fold1.gif" alt="" border="0"> 软件资源管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub6">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_down.asp><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_down.asp?action=newcat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_down.asp?action=list><img src="img/left_fold2.gif" alt="" border="0"> 软件管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_down.asp?action=newsoft" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 添加软件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_down.asp?action=list&t=pass><img src="img/left_fold2.gif" alt="" border="0"> 待审软件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_donwlujin.asp><img src="img/left_fold2.gif" alt="" border="0"> 连接路径</a></TD>
+	  </TR>
+         </table>
+      </span>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub7')"><img src="img/left_fold1.gif" alt="" border="0"> 音乐舞曲管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub7">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_dj.asp?action=djcat><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_dj.asp?action=newdjcat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_dj.asp?action=dj><img src="img/left_fold2.gif" alt="" border="0"> 歌曲管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_dj.asp?action=newdj" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 添加歌曲</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_dj.asp?action=dj&t=pass><img src="img/left_fold2.gif" alt="" border="0"> 待审歌曲</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><td height="2" bgcolor="#4685CA"></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_djspecial.asp?action=dj><img src="img/left_fold2.gif" alt="" border="0"> 专集管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_djspecial.asp?action=newdj" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 添加专集</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_djhtm.asp><img src="img/left_fold2.gif" alt="" border="0"> 专集HTML管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_djpath.asp" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 音乐路径设置</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_dj.asp?action=djerror" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 错误连接管理</a></TD>
+	  </TR>
+         </table>
+      </span>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+     <div class="menutitle" onclick="SwitchMenu('sub8')"><img src="img/left_fold1.gif" alt="" border="0"> 动漫频道管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub8">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_flash.asp?action=cat><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_flash.asp?action=newcat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_flash.asp?action=sites><img src="img/left_fold2.gif" alt="" border="0"> 动漫管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href="admin_flash.asp?action=newswf"><img src="img/left_fold2.gif" alt="" border="0"> 添加动漫</a></TD>
+	  </TR>
+         </table>
+</span>
+     <!---------------------------------------------------------------------------------------------------------------------------->
+<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub9')"><img src="img/left_fold1.gif" alt="" border="0"> 视频教程管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub9">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_jc.asp?action=cat><img src="img/left_fold2.gif" alt="" border="0"> 教程分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_jc.asp?action=newcat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_jc.asp?action=sites><img src="img/left_fold2.gif" alt="" border="0"> 教程管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href="admin_jc.asp?action=newswf"><img src="img/left_fold2.gif" alt="" border="0"> 添加教程</a></TD>
+	  </TR>
+         </table>
+</span>
+     <!---------------------------------------------------------------------------------------------------------------------------->
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub10')"><img src="img/left_fold1.gif" alt="" border="0"> 电影影片管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub10">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_video.asp?action=vidcat><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_video.asp?action=newvidcat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_video.asp?action=vid><img src="img/left_fold2.gif" alt="" border="0"> 影片管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href="admin_video.asp?action=newvid"><img src="img/left_fold2.gif" alt="" border="0"> 添加影片</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a href="admin_vidpath.asp" target="main"><img src="img/left_fold2.gif" alt="" border="0"> 影片路径设置</a></TD>
+	  </TR>
+         </table>
+</span>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub11')"><img src="img/left_fold1.gif" alt="" border="0"> 网页特效管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub11">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_js.asp?action=jscat><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_js.asp?action=newjscat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_js.asp?action=js><img src="img/left_fold2.gif" alt="" border="0"> 特效管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href="admin_js.asp?action=newjs"><img src="img/left_fold2.gif" alt="" border="0"> 添加特效</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href="admin_jscj/txcj.asp"><img src="img/left_fold2.gif" alt="" border="0"> 特效采集</a></TD>
+	  </TR>
+         </table>
+</span>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub12')"><img src="img/left_fold1.gif" alt="" border="0"> 酷站推荐管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub12">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_web.asp?action=cscat><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_web.asp?action=newcscat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_web.asp?action=sites><img src="img/left_fold2.gif" alt="" border="0"> 酷站管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href="admin_web.asp?action=newcs"><img src="img/left_fold2.gif" alt="" border="0"> 添加酷站</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_web.asp?action=sites&t=pass><img src="img/left_fold2.gif" alt="" border="0"> 待审酷站</a></TD>
+	  </TR>
+         </table>
+</span>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub13')"><img src="img/left_fold1.gif" alt="" border="0"> 网络商城管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub13">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop.asp?action=scat><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop.asp?action=newscat><img src="img/left_fold2.gif" alt="" border="0"> 添加分类</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop.asp?action=sites><img src="img/left_fold2.gif" alt="" border="0"> 商品管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href="admin_shop.asp?action=news"><img src="img/left_fold2.gif" alt="" border="0"> 添加商品</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop.asp?action=sites&t=pass><img src="img/left_fold2.gif" alt="" border="0"> 待审商品</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><td height="2" bgcolor="#4685CA"></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop_list.asp><img src="img/left_fold2.gif" alt="" border="0"> 全部定单</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop_list.asp?hxcms=wcl><img src="img/left_fold2.gif" alt="" border="0"> 未处理定单</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop_list.asp?hxcms=zf><img src="img/left_fold2.gif" alt="" border="0">  已支付定单</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop_list.asp?hxcms=sk><img src="img/left_fold2.gif" alt="" border="0">  已收款定单</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop_list.asp?hxcms=zt><img src="img/left_fold2.gif" alt="" border="0">  已发货定单</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop_list.asp?hxcms=sh><img src="img/left_fold2.gif" alt="" border="0">  已收货定单</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop_list.asp?hxcms=cw><img src="img/left_fold2.gif" alt="" border="0">  无效的定单</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_shop_search.asp><img src="img/left_fold2.gif" alt="" border="0"> 订单查询</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_Hxcms_err.asp><img src="img/left_fold2.gif" alt="" border="0"> 归档订单</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><td height="2" bgcolor="#4685CA"></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_Hxcms_err.asp><img src="img/left_fold2.gif" alt="" border="0"> 销售统计管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><td height="2" bgcolor="#4685CA"></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_Hxcms_err.asp><img src="img/left_fold2.gif" alt="" border="0"> 购物车管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><td height="2" bgcolor="#4685CA"></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href="admin_shop_ps.asp"><img src="img/left_fold2.gif" alt="" border="0"> 配送费用设置</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href="admin_shop_pay.asp"><img src="img/left_fold2.gif" alt="" border="0"> 支付方式设置</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href="admin_Hxcms_err.asp"><img src="img/left_fold2.gif" alt="" border="0"> 在线支付设置</a></TD>
+	  </TR>
+         </table>
+</span>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+
+     <div class="menutitle" onclick="SwitchMenu('sub14')"><img src="img/left_fold1.gif" alt="" border="0"> BLOG日志管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub14">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_blog_cat.asp?action=cat><img src="img/left_fold2.gif" alt="" border="0"> 博客分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_blog_art.asp?action=sites><img src="img/left_fold2.gif" alt="" border="0"> 博客日志管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_blog_cat.asp?action=Keys><img src="img/left_fold2.gif" alt="" border="0"> 关键字管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_blog_cat.asp?action=Emot><img src="img/left_fold2.gif" alt="" border="0"> 表情图管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_blog_cat.asp?action=attachment><img src="img/left_fold2.gif" alt="" border="0"> 上传件管理</a></TD>
+	  </TR>
+         </table>
+      </span>
+
+      <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+     <div class="menutitle" onclick="SwitchMenu('sub22')"><img src="img/left_fold1.gif" alt="" border="0"> 论坛社区管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+            <span class="submenu" id="sub22">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=bbs/admin.asp?type=3><img src="img/left_fold2.gif" alt="" border="0"> 论坛系统设置</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=bbs/admin.asp?type=5><img src="img/left_fold2.gif" alt="" border="0"> 论坛公告管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=bbs/admin.asp?type=6><img src="img/left_fold2.gif" alt="" border="0"> 所属版区管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=bbs/admin.asp?type=1><img src="img/left_fold2.gif" alt="" border="0"> 论坛版块管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=bbs/admin.asp?type=2><img src="img/left_fold2.gif" alt="" border="0"> 论坛管理员管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=bbs/admin.asp?type=4><img src="img/left_fold2.gif" alt="" border="0"> 论坛的附件管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=bbs/admin.asp?type=8><img src="img/left_fold2.gif" alt="" border="0"> 论坛数据库管理</a></TD>
+	  </TR>
+         </table>
+      </span>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+
+     <div class="menutitle" onclick="SwitchMenu('sub15')"><img src="img/left_fold1.gif" alt="" border="0"> 上传文件管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub15">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_fsofile.asp?path=1><img src="img/left_fold2.gif" alt="" border="0"> 新闻文章附件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_fsofile.asp?path=2><img src="img/left_fold2.gif" alt="" border="0"> 音乐文件附件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_fsofile.asp?path=3><img src="img/left_fold2.gif" alt="" border="0"> 音乐图片附件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_fsofile.asp?path=4><img src="img/left_fold2.gif" alt="" border="0"> 影视图片附件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_fsofile.asp?path=5><img src="img/left_fold2.gif" alt="" border="0"> 下载软件附件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_fsofile.asp?path=6><img src="img/left_fold2.gif" alt="" border="0"> 下载图片附件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_fsofile.asp?path=7><img src="img/left_fold2.gif" alt="" border="0"> 图片大图附件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_fsofile.asp?path=8><img src="img/left_fold2.gif" alt="" border="0"> 图片小图附件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_fsofile.asp?path=9><img src="img/left_fold2.gif" alt="" border="0"> 特效频道附件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_fsofile.asp?path=10><img src="img/left_fold2.gif" alt="" border="0"> 酷站产品附件</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_fsofile.asp?path=11><img src="img/left_fold2.gif" alt="" border="0"> 会员上传头像</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_upload.asp><img src="img/left_fold2.gif" alt="" border="0"> 前台会员上传</a></TD>
+	  </TR>
+         </table>
+      </span>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub16')"><img src="img/left_fold1.gif" alt="" border="0"> 友情连接管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub16">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_link.asp><img src="img/left_fold2.gif" alt="" border="0"> 分类管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_link.asp?action=newfl><img src="img/left_fold2.gif" alt="" border="0"> 添加连接</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_link.asp?action=link><img src="img/left_fold2.gif" alt="" border="0"> 连接管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_link.asp?action=link&t=pass><img src="img/left_fold2.gif" alt="" border="0"> 待审核连接</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_link.asp?action=link&t=lk><img src="img/left_fold2.gif" alt="" border="0"> 黑名单连接</a></TD>
+	  </TR>
+         </table>
+      </span>
+<%'=================================================
+if Session("hxStudioAdminDj")=4 then%>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub17')"><img src="img/left_fold1.gif" alt="" border="0"> 前台会员管理
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub17">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_list.asp><img src="img/left_fold2.gif" alt="" border="0"> 管理员设置</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_reg.asp><img src="img/left_fold2.gif" alt="" border="0"> 添加管理员</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=logManage.asp><img src="img/left_fold2.gif" alt="" border="0"> 登陆日志管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_userlist.asp?hx66=ss><img src="img/left_fold2.gif" alt="" border="0"> 前台会员管理</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_sendmsg.asp><img src="img/left_fold2.gif" alt="" border="0"> 短消息管理</a></TD>
+	  </TR>
+         </table>
+</span>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+     <div class="menutitle" onclick="SwitchMenu('sub18')"><img src="img/left_fold1.gif" alt="" border="0"> 数据库操作
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+         <TR>
+           <TD height="5"></TD>
+         </TR>
+         <TR>
+           <TD bgColor="#ffffff" height="1"></TD>
+         </TR>
+       </TABLE>
+     </div>
+     <span class="submenu" id="sub18">
+	<TABLE cellSpacing="0" cellPadding="0" width="158" background="img/menu_2.gif" border="0">
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_other.asp?menu=circumstance><img src="img/left_fold2.gif" alt="" border="0"> 主机环境变量</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_other.asp?menu=discreteness><img src="img/left_fold2.gif" alt="" border="0"> 组件支持情况</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_data.asp?action=backdata><img src="img/left_fold2.gif" alt="" border="0"> 数据库备份</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_data.asp?action=godata><img src="img/left_fold2.gif" alt="" border="0"> 数据库压缩</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_data.asp?action=redata><img src="img/left_fold2.gif" alt="" border="0"> 数据库恢复</a></TD>
+	  </TR>
+	  <TR>
+	     <td width="25%"></td><TD height=25 width="75%"><a target="main" href=admin_sql.asp><img src="img/left_fold2.gif" alt="" border="0"> 数据库 SQL</a></TD>
+	  </TR>
+         </table>
+      </span>
+<%end if%>
+	<TABLE width="158" cellSpacing="0" cellPadding="0" border="0">
+		<TR>
+			<TD height="5" background="img/menu_1.gif"></TD>
+		</TR>
+	</TABLE>
+
+       <TABLE width="158" cellSpacing="0" cellPadding="0" border="0" background="img/menu_1.gif" height=70>
+          <tr>
+	    <TD height="20"><img src="img/left_fold1.gif" alt="" border="0"> 程序整理：伊星</TD>
+	  </TR>
+          <tr>
+	    <TD height="20"><img src="img/left_fold1.gif" alt="" border="0"> 星恋伊缘：<a href="http://2ey.cn" target="top">2ey.cn</a></TD>
+	  </TR>
+          <tr>
+	    <TD height="20"><img src="img/left_fold1.gif" alt="" border="0"> 当前版本：Ver7.6版</TD>
+	  </TR>
+	  <TR>
+	     <TD bgColor="#ffffff" height="1"></TD>
+	  </TR>
+       </TABLE>
+    </body>
+</html>
+<%elseif frame="main" then%>
+<HTML><HEAD>
+<META http-equiv=Content-Type content="text/html; charset=gb2312">
+<LINK href="inc/admin.css" type=text/css rel=stylesheet>
+<META content="MSHTML 6.00.2800.1126" name=GENERATOR>
+<TITLE><%=webname%>管理中心—首页</TITLE>
+<script>if(top==self)top.location="admin.asp" </script>
+</head><body>
+<table width="98%" align="center" border="1" cellspacing="0" cellpadding="4" class=Hxcmsbk style="border-collapse: collapse">
+  <tr class=Hxcmsss> 
+    <td align="center" colspan="2">欢迎『<%=Session("hxStudioAdminName")%>』来到星恋伊缘网站管理系统后台控制面板</td>
+  </tr>
+<%if Session("hxStudioAdminDj")=4 then%>
+  <tr class=Hxcmsqs> 
+   <td align="right" width="10%">花香公告：</td>
+   <td align="center" width="90%"><iframe scrolling="no" name="frampack" frameborder="0" marginheight="0" marginwidth="0" width="100%" height="20" allowTransparency src="http://www.hx66.com.cn/pack.html?site=<%=weburl%>"></iframe></td>
+  </tr>
+  <tr>
+    <td class="Hxcmsds" colspan="2">&nbsp;<a target="_blank" href="#">如果您发现<font color="#FF0000">BUG</font>，请点这里及时报告我们，以便我们为您及时解决。为了你使用程序更新方便，请不要删除此官方公告信息，谢谢！</a></td>
+  </tr>
+<%end if%>
+</table>
+<BR>
+<table width="98%" align="center" border="1" cellspacing="0" cellpadding="4" class=Hxcmsbk style="border-collapse: collapse">
+  <tr> 
+    <td class=Hxcmsss align="center" colspan="2">
+      管理公告</td>
+  </tr>
+ <tr>
+    <td class="Hxcmsds" align=center>您的前台用户名：&nbsp;<%=Hx66_name%>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;后台登陆用户名：&nbsp;<%=Session("hxStudioAdminName")%></td>
+  </tr>
+ <tr>
+    <td class="Hxcmsds" align=center width=90%>&nbsp;&nbsp;<%call Cms_diaryht(8)%>&nbsp;&nbsp;</td>
+  </tr>
+</table>
+<br>
+<table width="98%" align="center" border="1" cellspacing="0" cellpadding="4" class=Hxcmsbk style="border-collapse: collapse">
+  <tr> 
+    <td class=Hxcmsss align="center" colspan="2">
+      实用搜索</td>
+  </tr> <form action="<%=htdz%>?action=search" method="post" target="_blank">
+ <tr>
+    <td class="Hxcmsds">&nbsp;搜索关键字</td>
+    <td class="Hxcmsds"><input name="word" type="text" id="word" value="site:2ey.cn" class="lostfocus" gf="0" onmouseover='this.className="getfocus"' onmouseout='if (this.gf=="0") this.className="lostfocus"' onblur='this.className="lostfocus";this.gf="0"' onfocus='this.className="getfocus";this.gf="1"'></td>
+  </tr>
+  <tr>
+    <td width="24%" class="Hxcmsds">&nbsp;常用搜索引擎</td>
+    <td width="76%" class="Hxcmsds"><input name="search" type="radio" value="google" checked> 
+      Google&nbsp;&nbsp;<input type="radio" name="search" value="yahoo">YAHOO&nbsp;&nbsp;<input type="radio" name="search" value="baidu">百度&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="search" value="sina">新浪</td>
+  </tr>
+  <tr>
+    <td colspan="2" class="Hxcmsqs"><div align="center">
+      <input type="submit" name="Submit" value="搜索" class="button">
+    </div></td>
+  </tr>
+  </form>
+</table>
+<BR>
+<table width="98%" align="center" border="1" cellspacing="0" cellpadding="4" class=Hxcmsbk style="border-collapse: collapse">
+  <tr> 
+    <td class=Hxcmsss align="center" colspan="2">网站管理系统版本</td>
+  </tr>
+ <tr>
+ <td width="10%" class="Hxcmsds" height=23>目前版本</td>
+ <td width="90%" class="Hxcmsds">星恋伊缘网站管理系统 HxCms Ver7.6版本</td>
+  </tr>
+  <tr>
+ <td width="10%" class="Hxcmsds" height=23>版权声明</td>
+ <td width="90%" class="Hxcmsds" style="LINE-HEIGHT: 150%">　1、本软件为共享软件,未经书面授权，不得向任何第三方提供本软件系统;<BR>
+　2、用户自由选择是否使用,在使用中出现任何问题和由此造成的一切损失作者将不承担任何责任;<BR>
+　3、您可以对本系统进行修改和美化，但必须保留完整的版权信息; <BR>
+　4、本软件受中华人民共和国《著作权法》《计算机软件保护条例》等相关法律、法规保护，作者保留一切权利。　</td>
+  </tr>
+</table>
+<BR>
+<table width="98%" align="center" border="1" cellspacing="0" cellpadding="4" class=Hxcmsbk style="border-collapse: collapse">
+  <tr> 
+    <td class=Hxcmsss align="center" colspan="2">网站管理系统开发</td>
+  </tr>
+ <tr>
+ <td width="10%" class="Hxcmsds" height=23>程序修改</td>
+ <td width="90%" class="Hxcmsds"><a href="http://2ey.cn/" target="_blank"><b>星恋伊缘</b></a> 整理修改：伊星 </td>
+  </tr>
+  <tr>
+ <td width="10%" class="Hxcmsds" height=23>联系方式</td>
+ <td width="90%" class="Hxcmsds" style="LINE-HEIGHT: 150%">QQ:344166517</td>
+  </tr>
+  <tr>
+ <td width="10%" class="Hxcmsds" height=23>程序主页</td>
+ <td width="90%" class="Hxcmsds">www.2ey.cn </td>
+  </tr>
+</table>
+</body>
+</html>
+<%end if
+else
+dim s
+randomize timer
+s=Int((8999)*Rnd +1000)%>
+<HTML>
+<%if Hx66_Grade="3"  then%>
+<HEAD>
+<META http-equiv=Content-Type content="text/html; charset=gb2312">
+<LINK href="inc/admin.css" type=text/css rel=stylesheet>
+<META content="MSHTML 6.00.2800.1126" name=GENERATOR>
+<TITLE><%=webname%>管理中心—登录</TITLE>
+<script language=javascript>
+  function xxg()
+  {
+      if (document.form1.adminname.value==""){
+	      alert("请输入用户名？")
+		  document.form1.adminname.focus();
+		  return false
+		    }
+	  if (document.form1.adminpwd.value==""){
+	      alert("请输入密码？");
+		  document.form1.adminpwd.focus();
+		  return false
+		  } 
+          if (document.form1.CheckCode.value==""){
+	      alert("请输入验证码？");
+		  document.form1.CheckCode.focus();
+		  return false
+		  }
+		  return true
+  }
+  function reset_form()
+  {
+   document.form1.adminname.value="";
+   document.form1.adminpwd.value="";
+   document.form1.VerifyCode.value="";
+   document.form1.adminname.focus;
+  }
+</script>
+</HEAD>
+<body onkeydown=return(!(event.keyCode==78&&event.ctrlKey)) leftMargin=0 topMargin=0>
+<TABLE height=350 cellSpacing=0 cellPadding=0 width="100%" align=center border=0>
+  <TBODY>
+  <TR>
+    <TD align=middle>
+      <TABLE height=210 cellSpacing=0 cellPadding=0 width=307 align=center border=0>
+        <form name="form1" method="post" action="<%=htdz%>?action=adminlogin" onsubmit="return xxg()">
+        <TBODY>
+        <TR>
+          <TD background="img/dt2.gif">
+            <TABLE cellSpacing=0 cellPadding=0 width=300 border=0>
+              <TBODY>
+              <TR>
+                <TD colSpan=2 height=50></TD></TR>
+              <TR>
+                <TD align=right width="35%" height=20><STRONG>用户名：</STRONG> 
+</TD>
+                <TD width="65%" height=20><INPUT 
+                  style="BORDER-RIGHT: #004485 1px solid; BORDER-TOP: #004485 1px solid; FONT-SIZE: 10pt; BORDER-LEFT: #004485 1px solid; BORDER-BOTTOM: #004485 1px solid; BACKGROUND-COLOR: #d1ddeb" 
+                  maxLength=20 type="text" name="adminname" size="20" autocomplete="off"></TD></TR>
+              <TR>
+                <TD align=right height=20><STRONG>密　码：</STRONG></TD>
+                <TD height=20><INPUT 
+                  style="BORDER-RIGHT: #004485 1px solid; BORDER-TOP: #004485 1px solid; FONT-SIZE: 10pt; BORDER-LEFT: #004485 1px solid; BORDER-BOTTOM: #004485 1px solid; BACKGROUND-COLOR: #d1ddeb" 
+                  type=password maxLength=20 name="adminpwd" size="20"></TD></TR>
+              <TR>
+                <TD align=right height=20><STRONG>认证码：</STRONG></TD>
+                <TD height=20><INPUT 
+                  style="BORDER-RIGHT: #004485 1px solid; BORDER-TOP: #004485 1px solid; FONT-SIZE: 10pt; BORDER-LEFT: #004485 1px solid; BORDER-BOTTOM: #004485 1px solid; BACKGROUND-COLOR: #d1ddeb" 
+                  type="text" maxLength=20 name="s" autocomplete="off" size="12">&nbsp;<b><%=s%></b><input maxlength=20 name="s2" size=12 type=hidden value="<%=s%>"></TD></TR>
+              <TR>
+                <TD align=right height=10>&nbsp;</TD>
+                <TD height=10></TD></TR>
+              <TR align=middle>
+                <TD colSpan=2 height=16>
+                  <HR width=270 color=#0a4d99 noShade SIZE=1>
+                </TD></TR>
+              <TR vAlign=top align=middle>
+                <TD colSpan=2 height=25><INPUT type=image height=15 width=38 src="img/bgoffice_1.gif" border=0 name=imageField> &nbsp; <IMG onmouseover="this.style.cursor='hand';" onclick="form1.adminname.value='';form1.adminpwd.value='';form1.s.value='';" height=15 src="img/bgoffice_2.gif" width=38 border=0></TD></TR></TBODY></TABLE></TD></TR></FORM></TBODY></TABLE>
+</body>
+<%else 
+   Response.Write("<script language=javascript>alert('你没有登陆此页面的权限。');this.location.href='index.asp';</script>")
+end if%>
+</html>
+
+<%end if
+'=================================================
+'过程名：Cms_diaryht
+'作  用：首页公告
+'参  数：num--------------调用条数
+'web:    www.hx66.net-----Hxcms7.5
+'=================================================
+sub Cms_diaryht(num)
+sql="SELECT top "&num&" d_content,d_date FROM diary Where d_top=0 and (d_class=8) ORDER BY d_date DESC"   
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,1
+i=0
+do while not rs.eof
+i=i+1
+Response.Write "<tr><td><img src='img/user/sz2-"&i&".gif'>"
+if DateDiff("h",rs("d_date"),now())<=48 then Response.Write "<font color=red>"
+Response.Write "&nbsp; 亲爱的管理员：&nbsp;"&Session("hxStudioAdminName")&"&nbsp;欢迎使用星恋伊缘网站管理系统! &nbsp; "&rs("d_content")&""
+Response.Write "</td></tr><tr align=""right"" ><td>["&year(rs("d_date"))&"-"&month(rs("d_date"))&"-"&day(rs("d_date"))&"]</td></tr></font>" & vbCrLf
+rs.movenext
+loop
+if rs.eof and rs.bof then
+Response.Write "<font color=""#666666"">目前尚无公告！</font>"
+end if
+rs.close
+set rs=nothing
+end sub
+%>

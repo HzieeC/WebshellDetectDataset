@@ -1,0 +1,21 @@
+<?php
+
+$container->loadFromExtension('framework', [
+    'annotations' => false,
+    'http_method_override' => false,
+    'handle_all_throwables' => true,
+    'php_errors' => ['log' => true],
+    'serializer' => true,
+    'messenger' => [
+        'serializer' => [
+            'default_serializer' => 'messenger.transport.symfony_serializer',
+            'symfony_serializer' => [
+                'format' => 'csv',
+                'context' => ['enable_max_depth' => true],
+            ],
+        ],
+        'transports' => [
+            'default' => 'amqp://localhost/%2f/messages',
+        ],
+    ],
+]);

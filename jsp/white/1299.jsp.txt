@@ -1,0 +1,138 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.trade.ti_membercurrency.*" %>
+<%@ page import="com.bizoss.frame.util.PageTools" %>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID"
+	scope="page" />
+<%
+	Ti_membercurrencyInfo ti_membercurrencyInfo = new Ti_membercurrencyInfo();
+
+		Hashtable ts_link_group = new Hashtable();
+		String case_levelname="";
+		String case_id = randomId.GenTradeId();
+		String cust_id = "";
+		if (session.getAttribute("session_cust_id") != null) {
+			cust_id = session.getAttribute("session_cust_id").toString();
+		}
+		String selelctlist = ti_membercurrencyInfo.getSelectString("");
+		
+	Map ti_membercurrency = new Hashtable();
+	String case_level = "";
+
+	if(request.getParameter("case_levelname") != null && !request.getParameter("case_levelname").equals("")){
+		case_level = request.getParameter("case_levelname");
+		ti_membercurrency.put("case_levelname",case_level);
+	}
+	
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_membercurrencyInfo.getListByPage(ti_membercurrency,Integer.parseInt(iStart),limit);
+
+	int counter = ti_membercurrencyInfo.getCountByObj(ti_membercurrency);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?iStart=",Integer.parseInt(iStart),limit);
+%>
+<html>
+  <head>    
+    <title>等级策略管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="ti_membercurrency.js"></script>
+  </head>
+  
+  <body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>案源等级策略</h1>
+			</td>
+			<td>
+				<a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a>
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	  	<%
+		int listsize = 0;
+		if(list != null&& list.size() > 0){
+			listsize = list.size();
+		
+	 %>
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td></td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onClick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onClick="selectAll()"></th>
+			
+			<th>案源级别</th>
+
+			<th>扣除费用</th>
+			
+			<th>编辑权限</th>		  	
+			
+	  		<th width="10%">删除</th>
+		</tr>
+		<%
+			for(int i = 0; i < listsize; i++){
+				Hashtable fmap = (Hashtable)list.get(i);
+				String memberscurrency_id="",scase_levelname="",sdeductions="";
+				memberscurrency_id = fmap.get("memberscurrency_id").toString();
+				scase_levelname = fmap.get("case_levelname").toString();
+				sdeductions = fmap.get("deductions").toString();
+		 %>
+		 
+		 <tr>
+		 	<td width="5%" align="center"><input type="checkbox" name="checkone<%=i%>" id="checkone<%=i %>" value="<%=memberscurrency_id %>" /></td>
+		  	<td><%=scase_levelname%></td>
+			<td><%=sdeductions%></td>
+			<td width="10%"><a href="updateInfo.jsp?memberscurrency_id=<%=memberscurrency_id%>"><img src="/program/admin/images/edit.gif" title="修改" border="0"/></a></td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=memberscurrency_id%>','5798');"><img src="/program/admin/images/delete.gif" title="删除" /></a></td>
+		 </tr>
+		<%
+		}
+		 %>
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onClick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+			总计:<%=counter%>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr><tr><td valign="top"><br></td></tr>
+	</table>
+	<%
+	}
+	 %>
+	<input type="hidden" name="listsize" id="listsize" value="<%=listsize %>"/>
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="5798"/>
+	  </form>
+</body>
+
+</html>

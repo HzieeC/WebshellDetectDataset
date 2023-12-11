@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<script src="${contextPath}/static/jqtrans/jquery.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+<title></title>
+</head>
+<body>
+<div style="display:none">
+ <input id="deleteAuthority"  type="hidden" value="${deleteAuthority }"/>
+</div>
+<div class="userInfo">
+	<h1><fmt:message key="departmentManagement"/></h1>
+<form id="dispatcherSearchForm">
+		<table class="yTable margintop">
+				<tr >
+					<th ><fmt:message key="departmentName"/></th>
+					<td><input name="name" id="name" type="text" class="inputbox"/></td>
+					<th><fmt:message key="department.level"/></th>
+					<td><select id="level" name="level"  class="inputbox">
+					    <option selected="selected" value="" ><fmt:message key="jslevel1"/></option>
+					      <option value="" ><fmt:message key="jslevel2"/></option>
+					</select></td>
+					
+				</tr>
+				
+				
+		
+				<!-- <tr >
+					
+					<th><fmt:message key="Page.workOrder.returnLocation" /></th>
+					<td><input name="returnLocation" id="returnLocation" type="text"  class="inputbox"/></td>
+				    <th><fmt:message key="Page.workOrder.returnDateStart" /></th>
+					<td><input id="returnDateStart" name="returnDateStart" readonly="readonly"  type="text"  class="inputbox"/></td>
+					<th><fmt:message key="Page.workOrder.returnDateEnd" /></th>
+					<td><input id="returnDateEnd" name="returnDateEnd" readonly="readonly"  type="text"  class="inputbox"/></td>
+			   </tr> -->
+		</table>
+		<div class="Btn">
+				<input id="search" type="button" value="<fmt:message key="search"/>" /> 
+				<input id="new" type="button" value="<fmt:message key="new"/>" />
+				 <input id="reset" type="button" value="<fmt:message key="reset"/>" />
+			</div>
+</form>
+	
+	<br/>
+	<div id="searchResult" class="xTable" style="width:100%;"></div>
+</div>
+<script type="text/javascript">
+  seajs.use("${scriptBasePath}/department/index.js");
+</script>
+</body>
+</html>

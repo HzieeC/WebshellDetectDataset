@@ -1,0 +1,258 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_resume.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@ page import="com.bizoss.trade.ts_area.Ts_areaInfo" %>
+<%@ page import="com.bizoss.trade.ts_category.Ts_categoryInfo" %>
+<%@ page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Map ti_resume = new Hashtable();
+	String name_para = "",q_work_biz_para="",q_work_addr_para="",degree_para="",start_date_para="",end_date_para="";
+	if(request.getParameter("name_para")!=null && !request.getParameter("name_para").equals("")){
+		name_para = request.getParameter("name_para");
+		ti_resume.put("resume_title",name_para);
+	}
+	if(request.getParameter("q_work_biz_para")!=null && !request.getParameter("q_work_biz_para").equals("")){
+		q_work_biz_para = request.getParameter("q_work_biz_para");
+		ti_resume.put("q_work_biz",q_work_biz_para);
+	}
+	if(request.getParameter("q_work_addr_para")!=null && !request.getParameter("q_work_addr_para").equals("")){
+		q_work_addr_para = request.getParameter("q_work_addr_para");
+		ti_resume.put("q_work_addr",q_work_addr_para);
+	}
+	if(request.getParameter("degree_para")!=null && !request.getParameter("degree_para").equals("")){
+		degree_para = request.getParameter("degree_para");
+		ti_resume.put("degree",degree_para);
+	}
+	if(request.getParameter("start_date_para")!=null && !request.getParameter("start_date_para").equals("")){
+		start_date_para = request.getParameter("start_date_para");
+		ti_resume.put("start_date",start_date_para);
+	}
+	if(request.getParameter("end_date_para")!=null && !request.getParameter("end_date_para").equals("")){
+		end_date_para = request.getParameter("end_date_para");
+		ti_resume.put("end_date",end_date_para);
+	}
+	Ti_resumeInfo ti_resumeInfo = new Ti_resumeInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_resumeInfo.getListByPage(ti_resume,Integer.parseInt(iStart),limit);
+	int counter = ti_resumeInfo.getCountByObj(ti_resume);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?name_para="+name_para+"&q_work_biz_para="+q_work_biz_para+"&q_work_addr_para="+q_work_addr_para+"&degree_para="+degree_para+"&start_date_para="+start_date_para+"&end_date_para="+end_date_para+"&iStart=",Integer.parseInt(iStart),limit);
+
+
+	Ts_categoryInfo  ts_categoryInfo  = new Ts_categoryInfo();
+	Ts_areaInfo ts_areaInfo = new Ts_areaInfo();
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+
+	Map catMap = ts_categoryInfo.getCatClassMap("6");
+	Map areaMap = ts_areaInfo.getAreaClass();
+	Hashtable degreeMap = tb_commparaInfo.getMapByParaAttr("44"); //学历
+
+	String select = ts_categoryInfo.getSelCatByTLevel("6", "1");
+	String degreeSel = tb_commparaInfo.getSelectItem("44",""); 
+
+%>
+<html>
+  <head>
+    
+    <title>简历管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	 <script type="text/javascript" src="/js/thickbox.js"></script>
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_categoryInfo.js'></script> 
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js'></script>
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script type="text/javascript" src="biz.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>简历管理</h1>
+			</td>
+			<td>
+				<a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a>
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				简历名称:<input name="name_para" type="text" maxlength="20"/>
+				期望工作行业:
+				<select name="q_work_biz_para" id="q_work_biz_para">
+					<option value="">请选择</option>
+				    <%=select%>
+				</select>
+				期望工作地点:
+				<select name="q_province" id="q_province" onclick="set_Citys(this.value)">
+				  <option value="">省份</option> 
+				</select>
+				<select name="q_eparchy_code" id="q_eparchy_code">
+				  <option value="">城市</option>
+				 </select>
+				<input name="q_work_addr_para" id="q_work_addr_para" type="hidden" value="" />
+				学历:
+				<select name="degree_para" id="degree_para">
+					<option value="">请选择</option>
+				    <%=degreeSel%>
+				</select>
+				更新时间:
+				<input name="start_date_para" id="start_date_para" class="Wdate" type="text" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'end_date_para\',{d:-1})}',readOnly:true})" size="14"/>
+				-
+				<input name="end_date_para" id="end_date_para" class="Wdate" type="text" onclick="WdatePicker({minDate:'#F{$dp.$D(\'start_date_para\',{d:1})}',readOnly:true})" size="14"/>
+				<input name="searchInfo" type="button" value="搜索" onclick="listSearch()"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				共计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			
+		  	<th>简历名称</th>
+
+			<th>期望工作行业</th>
+		  	
+		  	<th>期望工作地点</th>
+		  	
+		  	<th>学历</th>
+		  	
+		  	<th>更新时间</th>
+		  	
+			<th width="5%">修改</th>
+	  		<th width="5%">删除</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String resume_id="",cust_id="",resume_title="",area_attr="",q_work_kind="",q_work_addr="",q_work_biz="",degree="",update_time="",user_id="";
+		  			if(map.get("resume_id")!=null) resume_id = map.get("resume_id").toString();
+					if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+					if(map.get("resume_title")!=null) resume_title = map.get("resume_title").toString();
+					if(map.get("area_attr")!=null) area_attr = map.get("area_attr").toString();
+					if(map.get("degree")!=null) degree = map.get("degree").toString();
+					if(map.get("q_work_addr")!=null) q_work_addr = map.get("q_work_addr").toString();
+					if(map.get("q_work_biz")!=null) q_work_biz = map.get("q_work_biz").toString();
+					if(map.get("update_time")!=null) update_time = map.get("update_time").toString();
+					if(update_time.length()>19)update_time=update_time.substring(0,19);
+					if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+
+					String degreeStr = "";
+					if(degreeMap!=null && degreeMap.get(degree)!=null){
+						degreeStr = "<a href='index.jsp?degree_para="+degree+"'>"+degreeMap.get(degree).toString()+"</a>";
+					}
+
+					StringBuffer catAttr = new StringBuffer();
+				    if(!q_work_biz.equals("")){
+					  String catIds[] =	q_work_biz.split("\\|");	
+					  for(String catId:catIds){
+						 if(catMap!=null){
+							if(catMap.get(catId)!=null){
+								catAttr.append("<a href='index.jsp?q_work_biz_para="+catId+"'>"+catMap.get(catId).toString()+"</a> ");                 
+							}
+						  }
+					   }
+				    }
+
+					StringBuffer areaAttr = new StringBuffer();
+					if(!q_work_addr.equals("")){
+					  String areaIds[] = q_work_addr.split("\\|");	
+					  for(String areaId:areaIds){
+						 if(areaMap!=null){
+							if(areaMap.get(areaId)!=null){
+								areaAttr.append("<a href='index.jsp?q_work_addr_para="+areaId+"'>"+areaMap.get(areaId).toString() + "</a> ");
+							}                  
+						  }                 
+					   }		    
+					}
+
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=resume_id %>" /></td>
+			
+		  	<td><a href="updateInfo.jsp?resume_id=<%=resume_id %>"><%=resume_title%></a></td>
+
+			<td><%=catAttr%></td>
+		  	
+		  	<td><%=areaAttr%></td>
+		  	
+		  	<td><%=degreeStr%></td>
+		  	
+		  	<td><%=update_time%></td>
+		  	
+			<td width="10%">
+			<a href="updateInfo.jsp?resume_id=<%=resume_id %>"><img src="/program/admin/images/edit.gif" title="修改" /></a>
+			<a id="updateThisInfo<%=i %>" href="#" onclick="updateOneInfo('<%=i%>','<%=resume_id%>','')">生成</a>
+			</td>
+	  		<td width="5%"><a href="javascript:deleteOneInfo('<%=resume_id%>','4335');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				共计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="4335" />
+	  </form>
+</body>
+
+</html>
+
+<script>set_Province();</script>

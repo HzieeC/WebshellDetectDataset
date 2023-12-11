@@ -1,0 +1,478 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<%@ page import="global.security.SessionUtils"%>
+<%@ page import="util.MessageUtils"%>
+<%@page import="util.StringUtils"%>
+<!DOCTYPE html>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String albumId = request.getParameter("albumId");
+		String albumName = request.getParameter("albumName");
+		if(StringUtils.isEmpty(albumName) || "null".equals(albumName)){
+			albumName = "所有图片";
+		}else{
+			albumName = java.net.URLDecoder.decode(albumName, "UTF-8");
+		}
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<link rel="stylesheet" type="text/css" href="<%=baseUrl %>/websrc/css/pictureList.css" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 全局参数
+			var baseParams = {start:0, limit:<%=Constants.PAGE_SIZE_PICTURE %>, albumId:"<%=albumId %>", delflag:"<%=Constants.DEL_FLAG_1 %>"};
+			// 选中的图片id
+			var pictureIds = '';
+			// 选中的图片uuid
+			var uuids = '';
+			var galleryWinWidth = $(document).width() * 0.8;
+			var galleryWinHeight = $(document).height() * 0.8;
+
+			var albumName = '<%=albumName%>';
+
+			// 图片数据源
+		    var pictureListStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/pictureAction.do?method=queryForPaging',
+		        root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['pictureId', 'pictureName', 'type', 'lpath', 'spath'],
+		        sortInfo: {
+		            field    : 'pictureId',
+		            direction: 'DESC'
+		        },
+		        baseParams: baseParams,
+		        pruneModifiedRecords: true,
+		        autoLoad: true
+		    });
+
+		    // 工具栏
+		    var pictureListToolbar = new Ext.Toolbar({
+		    	renderTo: 'pictureListToolBarDiv',
+		    	items: [
+					'当前：'+albumName,
+					'-',
+				    new Ext.Button({
+					    id: 'pictureList-upload-button',
+						text: '本地上传',
+						iconCls: 'upload'
+					}),
+					new Ext.Button({
+					    id: 'pictureList-grab-button',
+						text: '网络图片',
+						iconCls: 'picture_link'
+					}),
+					'-',
+					new Ext.Button({
+					    id: 'pictureList-save-button',
+					    text: '保存',
+						iconCls: 'picture_save'
+					}),
+					new Ext.Button({
+					    id: 'pictureList-delete-button',
+					    text: '删除',
+						iconCls: 'picture_delete'
+					}),
+					new Ext.Button({
+					    id: 'pictureList-move-button',
+					    text: '移动',
+						iconCls: 'picture_go'
+					}),
+					'-',
+					new Ext.Button({
+					    id: 'pictureList-view-button',
+					    text: '查看',
+						iconCls: 'picture'
+					}),
+					new Ext.Button({
+					    id: 'pictureList-gallery-button',
+					    text: '幻灯片',
+						iconCls: 'pictures'
+					}),
+					new Ext.ux.form.SearchField({
+		                store: pictureListStore,
+		                width: 200,
+		                paramName: 'pictureName',
+		                emptyText: '请输入图片名称...',
+		                style: 'margin-left: 10px;'
+		            })
+				]
+			});
+
+		 	// 分页工具栏
+			var pictureListBottomBar = new Ext.PagingToolbar({
+				pageSize: <%=Constants.PAGE_SIZE_PICTURE %>,
+				store: pictureListStore,
+				displayInfo: true,
+				displayMsg: Anynote.PAGINGTOOLBAR_DISPLAYMSG,
+				emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+				doLoad: function(start){
+					baseParams.start = start;
+					this.store.load({params: baseParams});
+				}
+	        });
+
+			// 图片显示模板
+			var tpl = new Ext.XTemplate(
+				'<tpl for=".">',
+		            '<div class="thumb-wrap" id="picture_{pictureId}">',
+			            '<div class="thumb-subwrap">',
+						    '<div class="thumb" id="{lpath}">',
+						    	'<img src="<%=baseUrl + MessageUtils.setParamMessage(Constants.UPLOAD_PICTURE_PATH, new String[]{SessionUtils.getCurrentUserId()}) + "/" + Constants.THUMBNAIL %>/{spath}" title="{pictureName}">',
+						    	'<span class="x-editable">{shortName}.{type}</span>',
+						    '</div>',
+						'</div>',
+				    '</div>',
+		        '</tpl>',
+		        '<div class="x-clear"></div>'
+			);
+			// 图片显示DataView
+			var pictureDataView = new Ext.DataView({
+				id: 'pictureDataView',
+	            store: pictureListStore,
+	            loadingText: '加载中...',
+	            tpl: tpl,
+	            multiSelect: true,
+	            autoScroll  : true,
+	            overClass:'x-view-over',
+	            itemSelector:'div.thumb-wrap',
+	            plugins: [
+	                new Ext.DataView.DragSelector(),
+	                new Ext.DataView.LabelEditor({dataIndex: 'pictureName'})
+	            ],
+	            prepareData: function(data){
+	                data.shortName = Ext.util.Format.ellipsis(data.pictureName, 12);
+	                return data;
+	            },
+	            listeners: {
+	            	selectionchange: function(dv,nodes){
+	            		pictureIds = '';
+	            		uuids = '';
+						for(i=0;i<nodes.length;i++){
+							var node = nodes[i];
+							var pictureId = node.id.substring(node.id.indexOf('_')+1);
+							pictureIds = pictureIds + pictureId + ',';
+							uuids = uuids + $('#'+node.id+' div.thumb')[0].id + ',';
+						}
+	            	},
+	            	dblclick: function(dv, index, node){
+		            	showGalleryWin(index);
+		            }
+	            }
+	        });
+			// 图片显示panel
+			var pictureListPanel = new Ext.Panel({
+				id: 'pictureListPanel',
+				renderTo: 'pictureListPanelDiv',
+				layout: 'fit',
+				border: false,
+				items: pictureDataView,
+				bbar: pictureListBottomBar
+		    });
+
+			// 设置Grid高度和宽度
+			Anynote.resizeGridTo("pictureListPanel", 0, 56);
+
+			// 上传按钮
+			$("#pictureList-upload-button").click(function(){
+				if('<%=albumId %>'==''){
+					Ext.Msg.alert("提示", "请选择相册目录上传图片.");
+				}else{
+					// 打开图片上传窗口
+					Anynote.uploadFile({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: {albumId:'<%=albumId %>',userId:"<%=SessionUtils.getCurrentUserId()%>"},
+						action: '/pictureAction.do?method=upload',
+						title: '图片上传 - '+albumName,
+						fileTypes: '<%=Constants.UPLOAD_PICTURE_TYPE_LIMIT%>',
+						fileSize: '<%=Constants.UPLOAD_PICTURE_SIZE_LIMIT%>',
+						fileCount: <%=Constants.UPLOAD_COUNT_LIMIT%>,
+						minTargetId: 'minUploadWinDiv',
+						callback: function(){
+							baseParams.albumId = '<%=albumId %>';
+							pictureListStore.reload({
+		    					params: baseParams
+			    			});
+						}
+					});
+				}
+			});
+
+			// 网络图片
+			$("#pictureList-grab-button").click(function(){
+				if('<%=albumId %>'==''){
+					Ext.Msg.alert("提示", "请选择相册目录上传图片.");
+				}else{
+					var emptyText = '请输入网络图片地址，用逗号分隔.';
+					var grabPicWindow = new Ext.Window({
+						title: '添加网络图片',
+						width: 350,
+						height: 180,
+						modal: true,
+						layout:'fit',
+						items: new Ext.form.TextArea({
+							emptyText: emptyText,
+							id: 'picUrls',
+							name: 'picUrls'
+						}),
+						buttons: [{
+		                    text:'确定',
+		                    handler: function(){
+		                    	var picUrls = "";
+		                    	var urlReg = new RegExp("[a-zA-z]+://[^\s]*");
+								// 空验证
+		                    	if($('#picUrls').val()==emptyText || $.trim($('#picUrls').val())==''){
+									Ext.Msg.alert("提示", "请输入图片URL.");
+									return;
+								}
+								// 数量验证
+								var picUrlArr = ($('#picUrls').val()).split(',');
+								if(picUrlArr.length>10){
+									Ext.Msg.alert("提示", "最多同时添加10张图片.");
+									return;
+								}
+								// 类型验证
+								for(i=0;i<picUrlArr.length;i++){
+									var value = $.trim(picUrlArr[i]);
+									var type = value.substring(value.lastIndexOf('.')+1);
+									if(!urlReg.test(value)){
+										Ext.Msg.alert("提示", "图片URL错误.");
+										return;
+									}
+									if(!Anynote.isPic(type)){
+										Ext.Msg.alert("提示", "图片类型错误.");
+										return;
+									}
+									picUrls = picUrls + value + ",";
+								}
+		                    	// 发送请求
+		        				Anynote.ajaxRequest({
+		        					baseUrl: '<%=baseUrl %>',
+		        					baseParams: {albumId:'<%=albumId %>', picUrls:picUrls},
+		        					action: '/pictureAction.do?method=grabWebPic',
+		        					callback: function(jsonResult){
+		        						grabPicWindow.close();
+		        						pictureListStore.reload();
+		        					},
+		        					showWaiting: true,
+		        					failureMsg: '保存失败，请检查图片URL.'
+		        				});
+		                    }
+		                },{
+		                    text: '取消',
+		                    handler: function(){
+		                		grabPicWindow.close();
+		                    }
+		                }]
+					}).show();
+				}
+			});
+
+			// 保存按钮
+			$("#pictureList-save-button").click(function(){
+				var records = pictureListStore.getModifiedRecords();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "没有修改的图片.");
+				}else{
+					var pictureIds = "";
+					var pictureNames = "";
+					for(i=0;i<records.length;i++){
+						var is = validateInput("maxlen=256",records[i].get("pictureName"),"图片名称长度不能大于256个字符.");
+						if(!is)  return;
+						pictureIds += records[i].get("pictureId") + ",";
+						pictureNames += records[i].get("pictureName") + ",";
+					}
+					if(pictureIds!="" && pictureNames!=""){
+						// 发送请求
+						Anynote.ajaxRequest({
+							baseUrl: '<%=baseUrl %>',
+							baseParams: {pictureIds:pictureIds, pictureNames:pictureNames},
+							action: '/pictureAction.do?method=update',
+							callback: function(jsonResult){
+								pictureListStore.reload();
+							},
+							showWaiting: true,
+							failureMsg: '保存失败.'
+						});
+					}
+				}
+			});
+
+			// 删除按钮
+			$("#pictureList-delete-button").click(function(){
+				if(pictureIds!='' && uuids!=''){
+					Ext.Msg.confirm("警告", "确定要删除吗？", function(btn){
+						if(btn=="yes"){
+							// 发送请求
+							Anynote.ajaxRequest({
+								baseUrl: '<%=baseUrl %>',
+								baseParams: {pictureIds:pictureIds, uuids:uuids},
+								action: '/pictureAction.do?method=delete',
+								callback: function(jsonResult){
+									pictureListStore.reload();
+								},
+								showWaiting: true,
+								failureMsg: '删除失败.'
+							});
+						}
+					});
+				}else{
+					Ext.Msg.alert("提示", "请选择图片.");
+				}
+			});
+
+			// 移动按钮
+			$("#pictureList-move-button").click(function(){
+				var records = pictureDataView.getSelectedRecords();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一条数据.");
+				}else{
+					// 文档树
+					var moveAlbumTree = new Ext.tree.TreePanel({
+						id: 'moveAlbumTreePanel',
+					    useArrows: true,
+					    autoScroll: true,
+					    animate: true,
+					    enableDD: true,
+					    containerScroll: true,
+					    border: false,
+					    rootVisible: true,
+					    loader: new Ext.tree.TreeLoader({
+						    dataUrl:'<%=baseUrl %>/albumAction.do?method=getAlbumTree',
+						    listeners: {
+								beforeload: function(loader,node){
+									this.baseParams.parentId = node.id;
+								},
+								load: function(loader,node,response){
+									var jsonResult = Ext.decode(response.responseText);
+									if(jsonResult && jsonResult.exceptionMsg && jsonResult.exceptionMsg!=''){
+										Anynote.exceptionWindow(jsonResult.message, jsonResult.exceptionMsg);
+									}
+								}
+							}
+						}),
+					    root: new Ext.tree.AsyncTreeNode({
+							nodeType: 'async',
+					        text: '我的相册',
+					        draggable: false,
+					        id: '0'
+				    	})
+					});
+					moveAlbumTree.getRootNode().expand();
+					var movePictureWindow = new Ext.Window({
+						title: '选择相册',
+						width: 300,
+						height: 300,
+						modal: true,
+						maximizable: false,
+						resizable: false,
+						layout:'fit',
+						plain: true,
+						items: moveAlbumTree,
+						tbar: new Ext.Toolbar({
+					    	items: [
+								new Ext.Button({
+								    text: '确定',
+									iconCls: 'tick',
+									handler: function(){
+										var selectNode = moveAlbumTree.getSelectionModel().getSelectedNode();
+										if(selectNode.isLeaf() && selectNode.id!="allPicture"){
+											var pictureIds = "";
+											for(var i=0;i<records.length;i++){
+												var record = records[i];
+												pictureIds = pictureIds + record.get("pictureId") + ",";
+											}
+											if(pictureIds!=""){
+												var params = {};
+												params.pictureIds = pictureIds;
+												params.albumId = selectNode.id;
+												// 发送请求
+												Anynote.ajaxRequest({
+													baseUrl: '<%=baseUrl %>',
+													baseParams: params,
+													action: '/pictureAction.do?method=move',
+													callback: function(jsonResult){
+														pictureListStore.reload();
+														movePictureWindow.close();
+													},
+													showWaiting: true,
+													failureMsg: '移动失败.'
+												});
+											}
+										}else{
+											Ext.Msg.alert('提示', '请选择相册.');
+										}
+									}
+								}),
+								new Ext.Button({
+								    text: '取消',
+									iconCls: 'cancel',
+									handler: function(){movePictureWindow.close();}
+								})
+							]
+						})
+					}).show();
+				}
+			});
+
+			// 查看原图按钮
+			$("#pictureList-view-button").click(function(){
+				if(pictureDataView.getSelectionCount()<1){
+					Ext.Msg.alert("提示", "请选择图片.");
+				}else if(pictureDataView.getSelectionCount()==1){
+					var index = pictureDataView.getSelectedIndexes()[0];
+	            	showGalleryWin(index);
+				}else{
+					Ext.Msg.alert("提示", "只能选择一张图片.");
+				}
+			});
+
+			// 幻灯片
+			$("#pictureList-gallery-button").click(function(){
+				if(pictureListStore.getCount()>0){
+	            	showGalleryWin(0);
+				}else{
+					Ext.Msg.alert("提示", "没有图片.");
+				}
+				
+			});
+
+			// 删除回调方法
+			function deleteCallBack(jsonResult){
+				if(jsonResult.success==true){
+					Ext.Msg.alert("提示", "操作成功.", function(){
+						pictureListStore.reload();
+					});
+				}else{
+					Ext.Msg.alert("错误", "操作失败.");
+				}
+			}
+			// 显示图片查看窗口
+			function showGalleryWin(index){
+				// 图片查看窗口
+				var galleryWindow = new Ext.Window({
+					id: 'galleryWindow',
+					title: '查看图片',
+					width: galleryWinWidth,
+					height: galleryWinHeight,
+					modal: true,
+					maximizable: true,
+					layout:'fit',
+					plain: false,
+					border:false,
+					bodyStyle: 'background:#000000;',
+					autoLoad:{url:'<%=baseUrl %>/websrc/page/picture/pictureGallery.jsp?index='+index,scripts:true,nocache:true}
+				});
+				galleryWindow.show();
+			}
+		});
+	</script>
+</head>
+<body>
+<div id="pictureListDiv">
+	<div id="pictureListToolBarDiv"></div>
+	<div id="pictureListPanelDiv" class="pictureDataViewDiv" style="width:100%;height:100%;">
+	</div>
+</div>
+</body>
+</html>

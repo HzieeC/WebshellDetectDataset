@@ -1,0 +1,1839 @@
+<%@LANGUAGE="JavaScript" CODEPAGE="936"%>
+<%
+var _DO = Request.queryString("do");
+var PAGE = ((begin = Request.ServerVariables("URL")(1).lastIndexOf("/")) == -1)? Request.ServerVariables("URL") : Request.ServerVariables("URL")(1).substring(begin+1);
+
+var AUTH_USER = new Array()
+AUTH_USER["username"] = "admin";
+AUTH_USER["password"] = "03df1bb148bb91181f34894cf9593ecd";
+AUTH_USER["email"] = "lvtao_baby@163.com";
+//END_AUTH_USER//END_AUTH_USER//END_AUTH_USER//END_AUTH_USER
+var CONFIG = new Array()
+CONFIG["version"] = "Version1.0/build050222";
+CONFIG["use_utf"] = "checked";
+CONFIG["nLayer"] = "1";
+CONFIG["auth_type"] = "cookie";
+CONFIG["cookie_life"] = "2592000";
+CONFIG["session_life"] = "54000";
+CONFIG["realm"] = "EditONE@{server_name}";
+CONFIG["start_dir"] = "/";
+CONFIG["expand_one"] = "";
+CONFIG["encoding"] = "gb2312";
+CONFIG["wrap_word"] = "checked";
+//END_CONFIG//END_CONFIG//END_CONFIG//END_CONFIG
+
+var realm = CONFIG["realm"].replace(/\{server_name\}/, Request.ServerVariables("SERVER_NAME")(1));
+var HTML_HEADER = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\r\n" +
+"<html>\r\n" +
+"<head>\r\n" +
+"<title>"+realm+" - Edit All in One Page!</title>\r\n" +
+"<meta content='text/html; charset=gb2312' http-equiv='Content-Type'>\r\n" +
+"<style>\r\n" +
+"body,td {font-size:12px; color:#000000; background-color:#F1F1F1; margin-left:0px; margin-top:0px; margin-right:0px; margin-bottom:0px;\r\n" +
+"scrollbar-face-color:#F1F1F1; scrollbar-highlight-color:#F1F1F1; scrollbar-shadow-color:#F1F1F1;\r\n" +
+"scrollbar-3dlight-color:#FFC080; scrollbar-arrow-color:#000000; scrollbar-track-color:#F1F1F1;\r\n" +
+"scrollbar-darkshadow-color:#FFC080; scrollbar-base-color:#F1F1F1; scrollbar-width:10px}\r\n" +
+"\r\n" +
+"input {font-size: 12px; border: solid 1px #000000; height:18px}\r\n" +
+"input.checkbox {font-size: 12px; border: solid 0px #000000; height:18px}\r\n" +
+"select {font-size:12px; border: solid 0px #000000; vertical-align:middle; line-height:12px; font-family:\"arial\"}\r\n" +
+"\r\n" +
+"a {color:#0000FF; text-decoration:none;}\r\n" +
+"a:hover {color:#FF3300; text-decoration:underline;}\r\n" +
+"a.gray {color:#999999; text-decoration:none}\r\n" +
+"a.gray:hover {color:#FF4C00; text-decoration:underline}\r\n" +
+"\r\n" +
+"p {margin-left:2em; font-size:12px; line-height:130%; margin-top:12px; margin-bottom:12px; text-align:center;}\r\n" +
+"</style>\r\n" +
+"</head>";
+
+if (_DO == "edit")
+	showEditFile();
+else if (_DO == "save")
+	responseSaveFile();
+else if (_DO == "login")
+	showLogin("");
+else if (_DO == "verify")
+	showVerify();
+else if (_DO == "logout")
+	showLogout();
+else if (_DO == "frame_set")
+	showFrameSet();
+else if (_DO == "file_list") {
+	var dir = (Request.queryString("dir")(1)!="")? Request.queryString("dir")(1) : CONFIG["start_dir"];
+	showFileList(dir, CONFIG["nLayer"]);
+}
+else if (_DO == "left_frame")
+	showLeftFrame();
+else if (_DO == "main_frame")
+	showMainFrame();
+else if (_DO == "image")
+	responseImageFile("");
+else if (_DO == "config")
+	showConfig();
+else if (_DO == "modify")
+	modifyConfig();
+else if (_DO == "xml")
+	responseXmlFile();
+else if (_DO == "debug") {
+	loadConvertTable();
+}
+else
+	showFrameSet();
+Response.end();
+
+function showAuthorize(fileType)
+{
+	if (CONFIG["auth_type"] == "none")
+		return;
+	else if (CONFIG["auth_type"] == "HTTP") {
+		if (Session.contents("auth") == true)
+			return;
+		else if (fileType == "HTML")
+			if (Request.ServerVariables("AUTH_USER") == "") {
+				Response.addHeader('WWW-Authenticate", "Basic realm="'+realm+'"');
+				Response.addHeader('HTTP/1.0 401 Unauthorized');
+				Response.write("<a href='mailto:" + AUTH_USER["email"] + "'>" + AUTH_USER["email"] + "</a>");
+				Response.end();
+			}
+			else {
+				if (AUTH_USER["password"]==MD5(Request.ServerVariables('AUTH_PW')) && AUTH_USER["username"]==Request.ServerVariables("AUTH_USER"))
+					Session.contents("auth") = true;
+				else {
+					Response.addHeader('WWW-Authenticate", "Basic realm="'+realm+'"');
+					Response.addHeader('HTTP/1.0 401 Unauthorized');
+					Response.write("<a href='mailto:" + AUTH_USER["email"] + "'>" + AUTH_USER["email"] + "</a>");
+					Response.end();
+				}
+			}
+		else if (fileType == "XMLHTTP") {
+			Response.ContentType = "text/xml";
+			Response.write("<?xml version='1.0' encoding='gb2312'?>\r\n<Error level='warning' message='未授权访问或会话超时，请重新登录'/>\r\n");
+		}
+	}
+	else if (CONFIG["auth_type"] == "cookie") {
+		if (AUTH_USER["password"]==Request.Cookies("_editone_asp_hash") && AUTH_USER["username"]==Request.Cookies("_editone_asp_user"))
+			return;
+		else if (fileType == "HTML") {
+			Response.write("<script>if (top != self) top.location = '"+PAGE+"';</script>");
+			showLogin("");
+			//序列化$_REQUEST, set_cookie(Request.ServerVariables("URI"))
+		}
+		else if (fileType == "XMLHTTP") {
+			Response.ContentType = "text/xml";
+			Response.write("<?xml version='1.0' encoding='gb2312'?>\r\n<Error level='warning' message='未授权访问或会话超时，请重新登录'/>\r\n");
+		}
+	}
+	Response.end();
+}
+
+function showLogin(message)
+{
+	Response.write(HTML_HEADER);
+%>
+<body onLoad='document.F.username.focus()'>
+<p align='center'>
+<form name='F' action='<%=PAGE%>?do=verify' method='post'>
+<table border='0' width='95%'>
+	<tr>
+		<td width='100'>　</td>
+		<td><font color='#FFC080' style='font-size:14px; font-family:arial black'>Qsm888.Com</font> - How a you! &nbsp;<br><%=CONFIG["version"]%>. <a class='gray' href='http://www.qsm888.com' target='_blank'>wellcom</a>&nbsp; <a class='gray' href='mailto:lvtao_baby@163.com' target='_blank'>建议或Bug报告</a>&nbsp; <a class='gray' href='http://www.qsm888.com' target='_blank'>IT</a><font color='#999999' style='font-size:12px'>, Copyright Qsm888.Com.</font></td>
+	</tr>
+	<tr>
+		<td>　</td>
+		<td>　</td>
+	</tr>
+	<tr>
+		<td>　</td>
+		<td><p style='color:red'><%=message%></p></td>
+	</tr>
+	<tr>
+		<td align='right'>用户名：</td>
+		<td><input type='text' name='username' style='width:120px'> 由中英文字符构成，长度不大于16个汉字。</td>
+	</tr>
+	<tr>
+		<td align='right'>密码：</td>
+		<td><input type='password' name='password' style='width:120px'> 长度不小于5、不大于20。</td>
+	</tr>
+	<tr>
+		<td>　</td>
+		<td>　</td>
+	</tr>
+	<tr>
+		<td>　</td>
+		<td><input type='submit' value='登 录' onClick='return checkForm()'></td>
+	</tr>
+	<tr>
+		<td>　</td>
+		<td>　</td>
+	</tr>
+</table>
+</form>
+</p>
+</body>
+</html>
+<%
+}
+
+function showVerify()
+{
+	if (AUTH_USER["password"]==MD5(Request.form("password")) && AUTH_USER["username"]==Request.form("username"))
+	{
+		Response.cookies("_editone_asp_user") = AUTH_USER["username"]; // time()+CONFIG["cookie_life"]);
+		Response.cookies("_editone_asp_hash") = AUTH_USER["password"]; // time()+CONFIG["cookie_life"]);
+		Response.write("<script>this.location.replace('"+PAGE+"');</script>");
+	}
+	else
+		showLogin("密码不正确。请重新输入。"); // "" => d41d8cd98f00b204e9800998ecf8427e
+}
+
+function showLogout()
+{
+	if (CONFIG["auth_type"] == "cookie")
+	{
+		Response.cookies("_editone_asp_user") = ""; // time()-3600);
+		Response.cookies("_editone_asp_hash") = ""; // time()-3600);
+	}
+	else if (CONFIG["auth_type"] == "HTTP")
+		Session.contents("auth");
+	showLogin("正常退出。Cookie被清除。会话已中止。感谢您的使用。");
+}
+
+function showFrameSet()
+{
+	showAuthorize("HTML");
+	Response.write(HTML_HEADER);
+%>
+<frameset name='FrameSet' cols='180,*' frameborder='YES' border='0' bordercolor='#DDDDDD' framespacing='3' onfocus='this.mainFrame.window.focus()'>
+  <frame src='<%=PAGE%>?do=left_frame' name='leftFrame'>
+  <frame src='<%=PAGE%>?do=main_frame' name='mainFrame' scrolling='no'>
+</frameset>
+<noframes><body bgcolor='#FFFFFF' text='#000000'>
+请使用支持Frame的浏览器。
+</body></noframes>
+</html>
+<%;
+}
+
+function showLeftFrame()
+{
+	showAuthorize("HTML");
+	var START_DIR = CONFIG["start_dir"];
+	var useUTF = CONFIG["use_utf"]=="checked"? 1 : 0;
+	var CURRENT_DIR = Request.ServerVariables("SERVER_NAME")(1)+Request.ServerVariables("SCRIPT_NAME")(1).substring(0, Request.ServerVariables("SCRIPT_NAME")(1).lastIndexOf("/")+1);
+	Response.write(HTML_HEADER);
+%>
+<style>
+div.body {color:#000000; background-color:#F1F1F1; font-size:12px; margin-left:6px; margin-top:6px; margin-right:0px; margin-bottom:5px;}
+#menuSwitch {overflow:hidden; height:17px; font-family:Webdings; text-align:center; background-color:#DDDDDD; margin-left:-4px; margin-top:-5px; vertical-align:bottom; font-size:16px; color:#000000; cursor:hand;}
+
+.xtree {padding:0px; }
+.TreeNode {width:0px; height:20px;}
+.TreeNode img {cursor:hand; margin-left:2px;}
+.TreeNode span {font-family:Verdana; font-size:12px; height:17px; border:0px solid #E0E0E0; padding:2; cursor:hand}
+.TreeNode span a {color:#000000;text-decoration:none}
+span.MouseOver {background-color:#AAAAAA;border:1px solid #888888;}
+span.HighLight {background-color:#FFFFFF;border:1px solid #888888;}
+span.load {margin:-3px -4px;color:#000000;background-color:#E0E0E0;filter:alpha(opacity=50)}
+.container {padding-left:15;height:22;}
+</style>
+<script language="VBScript">
+Function charCode(char)
+	v = Asc(char)
+	If v < 0 Then
+		v = v + &H10000
+	End If
+	charCode = v
+End Function
+
+Function replaceStr(str, find, rep)
+	replaceStr = Replace(str, find, rep)
+End Function
+
+Function vbEncodeCHN(s)
+	Dim i, str, lStr
+	str = ""
+	lStr = Len(s)
+	For i = 1 To lStr
+		theChr = Mid(s, i, 1)
+		code = Asc(theChr)
+		If code=38 or code=37 or code=43 or code=32 Then
+			str = str & "%" & Hex(code)
+		Elseif code>0 and code<16 Then
+			str = str & "%0" & Hex(code)
+		Elseif Abs(code) < &HFF Then
+			uniCode = AscW(theChr)
+			If uniCode > 255 or uniCode < 0 Then
+				str = str & "%u" & uniCode & ";"
+			Else
+				str = str & theChr
+			End If
+		Else
+			If code < 0 Then
+				code = code + &H10000
+			End If
+			H8 = (code And &HFF00)\ &HFF
+			L8 = code And &HFF
+			str = str & "%" & Hex(H8) &  "%" & Hex(L8)
+		End If
+	Next
+	vbEncodeCHN = str
+End Function
+</script>
+<script language="javascript">
+var panelOpened = true;
+var curColumns = parent.FrameSet.cols;
+function switch_menu()
+{
+	if (panelOpened)
+	{
+		curColumns = parent.FrameSet.cols;
+		parent.FrameSet.cols = "10,*";
+		document.all.menuSwitch.innerHTML="4";
+		document.all.menuPanel.style.display = "none";
+		document.all.menuSwitch.style.height = document.body.clientHeight+5+"px";
+		panelOpened = false;
+	}
+	else
+	{
+		document.all.menuSwitch.style.height = "17px";
+		document.all.menuSwitch.innerHTML="3<font style='font-size:12px; font-family:宋体'>关闭面板</font>";
+		parent.FrameSet.cols = curColumns;
+		document.all.menuPanel.style.display = "block";
+		panelOpened = true;
+	}
+}
+
+parent.document.onkeydown = function(){return keyHandler(parent.window.event);}
+document.onkeydown = function(){return keyHandler(window.event);}
+function keyHandler(event)
+{
+	if (!event) return true;
+	if (event.ctrlKey && event.keyCode==83)
+	{ // Ctrl+S
+		parent.mainFrame.document.M.save.disabled = true;
+		flag = saveFile();
+		//    parent.mainFrame.editor.blur();
+		parent.mainFrame.document.M.save.disabled = false;
+		return false;
+	}
+	if (event.keyCode==114)
+	{ // F3
+		parent.mainFrame.findNext();
+		event.keyCode += 1000;
+		return false;
+	}
+	if (event.ctrlKey && event.keyCode==70)
+	{ // Ctrl+F
+		parent.mainFrame.document.M.word_find.focus();
+		event.keyCode += 1000;
+		return false;
+	}
+	if (event.ctrlKey && event.keyCode==82)
+	{ // Ctrl+R
+		parent.mainFrame.document.M.word_replace.focus();
+		event.keyCode += 1000;
+		return false;
+	}
+	return true;
+}
+
+// Modified the code from Fason(lvtao_baby@hotmail.com)
+// XmlHttpRequest Class
+function XmlHttpRequest(URL)
+{
+	this.remoteFile = URL;
+	this.readyState = 0;
+	this.XmlHttp = null;
+	this.XmlDom = null;
+	this.TextContent = null;
+	this.isXML = true;
+	this.Error = false;
+}
+XmlHttpRequest.prototype.get=function()
+{
+	var o=this;
+	this.initialize();
+	var xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+	this.XmlHttp=xmlhttp;
+	try{
+		with(xmlhttp)
+		{
+			onreadystatechange=function(){ o.ReadyStateChange();}
+			open("get",this.remoteFile+(/\?/g.test(this.remoteFile)?"&":"?")+"tmp="+Math.random(),true);
+			send();
+		}
+	} catch(ex)
+	{
+		this.Error = true;
+		this.onload();
+		this.dispose();
+	}
+}
+XmlHttpRequest.prototype.post=function(str)
+{
+	var o=this;
+	this.initialize();
+	var xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+	this.XmlHttp=xmlhttp;
+	try{
+		with(xmlhttp)
+		{
+			onreadystatechange=function(){ o.ReadyStateChange();}
+			open("post",this.remoteFile+(/\?/g.test(this.remoteFile)?"&":"?")+"tmp="+Math.random(),false);
+			setRequestHeader("Content-Length", str.length);
+			setRequestHeader("CONTENT-TYPE", "application/x-www-form-urlencoded");
+			send(str);
+		}
+	} catch(ex)
+	{
+		this.Error = true;
+		this.onload();
+		this.dispose();
+	}
+}
+XmlHttpRequest.prototype.ReadyStateChange=function()
+{
+	var xmlhttp=this.XmlHttp;
+	var _readystate=xmlhttp.readyState;
+	this.readyState=_readystate;
+	if(_readystate==4)
+	{
+		if(xmlhttp.status==200)
+		{
+			this.XmlDom=xmlhttp.responseXML;
+			if(this.XmlDom.xml=="")
+			{
+				this.isXML = false;
+				this.TextContent = xmlhttp.responseText;
+			}
+		}
+		else
+			this.Error = true;
+		this.onload();
+		this.dispose();
+	}
+}
+XmlHttpRequest.prototype.dispose=function()
+{
+	this.XmlDom=null;
+	this.XmlHttp=null;
+}
+XmlHttpRequest.prototype.initialize=function()
+{
+	//do something
+}
+
+// Globe Variables
+var imgFile=new Image();imgFile.src='<%=PAGE%>?do=image&file=endnode.gif';
+var imgClose=new Image();imgClose.src='<%=PAGE%>?do=image&file=collapsed.gif';
+var imgOpen=new Image();imgOpen.src='<%=PAGE%>?do=image&file=expanded.gif';
+
+var showButton;
+var loading = "正在加载...";
+var unavaible = "加载失败";
+var responseNull = "目录为空，或权限不够。";
+var XX=new ActiveXObject("Microsoft.XMLDOM");
+XX.async=false;
+XX.load("<%=PAGE%>?do=xml&file=xtree.xsl");
+
+function initialize()
+{
+	element.selectedNode=null;
+	showButton = element.showButton ? true : false;
+	loadChildren(element);
+	parent.leftFrame.window.focus();
+}
+
+function getElement(el,T)
+{
+	var ol=null;
+	var Children=el.children;
+	for(var i=0;i<Children.length;i++)
+	{ if(Children[i].tagName.toUpperCase()==T.toUpperCase()){ ol=Children[i];break;} }
+	return ol;
+}
+
+function mouseclick()
+{
+	var e=window.event.srcElement;
+	if(e.tagName.toUpperCase()=="A")
+	{
+		var E=e.parentNode;
+		if(E.type=="label"){
+			E=E.parentNode;
+			select(E,false,true)
+			toggle(E)
+			e.blur();
+		}
+	}
+	else if(e.type=='label')
+	{
+		e=e.parentNode;
+		//select(e,true,true);
+		toggle(e);
+	}
+	else if(e.type=='img')
+	{
+		e=e.parentNode;
+		toggle(e);
+		if(e.type=='leaf')
+		{ select(e,true,true);}
+	}
+	else if(e.type=="checkbox")
+	{
+		e = e.parentNode;
+		checkedChildren(e);
+		checkedParent(e);
+		//select(e,true,true);
+	}
+}
+
+function toggle(el)
+{
+	if(el.type=='parent')
+	{
+		if(el.open=='true')
+			collapse(el);
+		else
+			expand(el);
+	}
+}
+
+function collapse(el)
+{
+	var tmp = getElement(el,"div");
+	if(tmp) { tmp.style.display='none';}
+	getElement(el,'img').src=imgClose.src;
+	el.open='false';
+	delCookie(el.uid);
+}
+
+function expand(el)
+{
+	var tmp = getElement(el,"div");
+	if(tmp) { tmp.style.display='';}
+	el.open='true';
+	setCookie(el.uid,1);
+	getElement(el,'img').src=imgOpen.src;
+	if(tmp&&tmp.send=='false'){ loadChildren(tmp);}
+	else{
+		var Children = getChildren(el);
+		for(var i=0;i<Children.length;i++)
+		{
+			var ck = parseInt(getCookie(Children[i].uid))
+			if( ck == 1 && Children[i].type == "parent")
+			{
+				expand(Children[i]);
+			}
+			if(Children[i].uid == getCookie("selected"))
+				select(Children[i],1,false);
+		}
+		if(showButton)
+		{
+			checkedChildren(el);
+		}
+	}
+}
+
+function select(el,flag,iScroll)
+{
+	if(element.selectedNode){ getElement(element.selectedNode,'span').className=''};
+	getElement(el,'span').className='HighLight';
+	element.selectedNode=el;
+	setCookie("selected",el.uid);
+	//if(flag)  openURL(el);
+	if(!iScroll){ ScrollIntoView(el);}
+}
+
+function openURL(el)
+{
+	var oA = getElement(getElement(el,'span'),'a');
+	if(oA)
+		window.open(oA.href,oA.target);
+}
+
+function getPosition(el)
+{
+	var ex = el.offsetLeft;
+	var ey = el.offsetTop;
+	while(el = el.offsetParent)
+	{
+		ex += el.offsetLeft;
+		ey += el.offsetTop;
+	}
+	return{ left:ex,top:ey };
+}
+
+function ScrollIntoView(el)
+{
+	var objOffset = getPosition(el);
+	var iY = objOffset.top - window.document.body.clientHeight/2;
+	var iX = objOffset.left - 15;
+	window.scrollTo( iX , iY );
+}
+
+function loadChildren(oDiv)
+{
+	oDiv.send="true";
+	var x = new XmlHttpRequest(oDiv.XmlSrc);
+	var ick = getCookie(oDiv.parentElement.uid);
+	if(!ick) setCookie(oDiv.parentElement.uid,1);
+	x.initialize=function()
+	{
+		oDiv.innerHTML='<div type="leaf" class="TreeNode"><img type="img" align="absmiddle" src="'+imgFile.src+'"><span type="label"><span class="loading">'+loading+'</span></span></div>';
+	}
+	x.onload=function()
+	{
+		var load=getElement(oDiv.firstChild,'span');
+		if (x.Error || !x.isXML)
+			load.firstChild.innerHTML = unavaible;
+		else
+		{
+			var dom=x.XmlDom.documentElement.selectSingleNode("/TreeNode");
+			if (dom.hasChildNodes())
+			{
+				var iSelected=false;
+				if(element.selectedNode==load.parentNode)iSelected=true;
+				oDiv.innerHTML=dom.transformNode(XX);
+				if(iSelected)
+				{
+					element.selectedNode=null;
+					select(oDiv.firstChild,true);
+				}
+				if(showButton)
+				{
+					checkedChildren(oDiv.parentElement);
+				}
+				else
+				{
+					var cc = oDiv.getElementsByTagName("input");
+					for(var i=0;i<cc.length;i++)
+						cc[i].style.display="none";
+				}
+				var Children = oDiv.childNodes;
+				for(var i=0;i<Children.length;i++)
+				{
+					var ck = parseInt(getCookie(Children[i].uid));
+					if( ck == 1 && Children[i].type=="parent")
+						expand(Children[i]);
+					if(String(Children[i].uid) == String(getCookie("selected")))
+						select(Children[i],1,false);
+				}
+			}
+			else
+				load.firstChild.innerHTML = responseNull;
+		}
+	}
+	x.get();
+}
+
+function checkedButton(objNode)
+{
+	var button = getElement(objNode,"input");
+	if(button.checked)
+		return true;
+	else
+		return false;
+}
+
+function checkedChildren(objNode)
+{
+	var Children = getChildren(objNode);
+	var Button = getElement(objNode,"input");
+	if(Children && Button)
+	{
+		var isCheck = Button.checked;
+		for(var i=0;i<Children.length;i++)
+		{
+			var _button = getElement(Children[i],"input")
+			if(_button)
+			{
+				_button.checked = isCheck;
+				if(getElement(Children[i],"div"))
+					if(getElement(Children[i],"div").send=="true")
+						checkedChildren(Children[i]);
+			}
+		}
+	}
+}
+
+function checkedParent(objNode)
+{
+	var Parent = getParentNode(objNode);
+	var Button = getElement(objNode,"input");
+	if(Parent)
+	{
+		var Children = getChildren(Parent);
+		for(var i=0;i<Children.length;i++)
+			if(!getElement(Children[i],"input").checked)break;
+		getElement(Parent,"input").checked =(i==Children.length);
+		checkedParent(Parent);
+	}
+}
+
+function getChildren(el){
+	var Ctmp=getElement(el,"div");
+	if(Ctmp){ return Ctmp.children;}
+	return null;
+}
+
+function getParentNode(el){
+	var tmp = el.parentElement;
+	if(tmp.type=="container")return tmp.parentElement;
+	return null;
+}
+
+function setCookie(name,value)
+{
+	var Days = 30;
+	var exp  = new Date();
+	exp.setTime(exp.getTime() + Days*24*60*60*1000);
+	element.document.cookie = name + "="+ escape (value) + ";expires=" + exp.toGMTString();
+}
+function getCookie(name)
+{
+	var arr = element.document.cookie.split("; ");
+	for(i=0;i<arr.length;i++)
+		if (arr[i].split("=")[0] == name)
+			return unescape(arr[i].split("=")[1]);
+	return null;
+}
+function delCookie(name)
+{
+	var exp = new Date();
+	exp.setTime(exp.getTime() - 1);
+	var cval=getCookie(name);
+	if(cval!=null) element.document.cookie= name + "="+cval+";expires="+exp.toGMTString();
+}
+
+var fileName = "";
+var closeTag = "";
+function act(obj)
+{
+	fileName = obj.file;
+	var x = new XmlHttpRequest("<%=PAGE%>?do=edit&file="+fileName);
+	x.onload=function()
+	{
+		if (x.Error || !x.isXML || getNode(x, "CloseTag")==0)
+		{
+			if (x.Error)
+				alert("加载出错。\n\n没有返回信息。");
+			else
+			{
+				if (!x.isXML)
+					alert("加载出错。\n\n返回未格式化信息：\n"+x.responseText);
+				else
+					alert("加载出错。\n\n原因：\n"+getNode(x, "Reason")+"\n建议："+getNode(x, "Advice"));
+			}
+			setStatus("加载文件出错。", "AUTO");
+		}
+		else
+		{
+			setStatus("加载文件“"+fileName+"”成功。", "AUTO");
+			parent.mainFrame.gotoEditMode();
+			parent.mainFrame.document.M.editor.innerText = getNode(x, "Content");
+		}
+	}
+	x.get();
+	return false;
+}
+function getNode(x, node)
+{
+	var str = x.XmlDom.documentElement.selectSingleNode("/File/"+node).xml;
+	if (node == "Content")
+	{
+		str = str.substring(18, str.length-13);
+		closeTag = getNode(x, "CloseTag");
+		str = replaceStr(str, "]]"+closeTag, "]]>");
+	}
+	else
+		str = str.substring(node.length+2, str.length-node.length-3);
+	return str;
+}
+function saveFile()
+{
+	if (fileName == "")
+		return false;
+	setStatus("正在保存文件\""+fileName+"\"...", "WAIT");
+	var x = new XmlHttpRequest("<%=PAGE%>?do=save&unicode="+useUTF+"&file="+fileName);
+	var is_success = true;
+	x.onload=function()
+	{
+		if (x.Error || !x.isXML || getNode(x, "SaveStatus")!="true")
+		{
+			if (x.Error)
+				alert("保存失败。\n\n没有返回信息。");
+			else
+			{
+				if (!x.isXML)
+					alert("保存失败。\n\n返回未格式化信息：\n"+x.responseText);
+				else
+					alert("保存失败。\n\n原因：\n"+getNode(x, "Reason")+"\n建议："+getNode(x, "Advice"));
+			}
+			setStatus("保存文件失败。", "AUTO");
+			is_success = false;
+		}
+		else
+			setStatus("文件已保存。", "AUTO");
+	}
+	parent.mainFrame.gotoEditMode();
+	var content = encodeCHN(parent.mainFrame.document.M.editor.innerText);
+	x.post("content="+content);
+	return is_success;
+}
+
+var useUTF = <%=useUTF%>;
+function encodeCHN(s)
+{
+	var version = navigator.userAgent.match(/MSIE\s((\d)\.(\d))/i);
+	if (useUTF) {
+		if (version!=null && version[2]==5 && version[3]<5) //IE5.0x
+			return vbEncodeCHN(s);
+		else
+			return s.replace(/(.|\s)/g, function(s,n){c=n.charCodeAt(0); return c>255||c<0? "%u"+c.toString(16):((c==38||c==37||c==43||c==32)? '%'+c.toString(16):(c<16? "%0"+c.toString(16):n));});
+	}
+	else {
+		if (version!=null && version[2]==5 && version[3]<5)
+			return vbEncodeCHN(s);
+		else
+			return s.replace(/(.|\s)/g, function(s,n){c=charCode(n.charAt(0)); return c>127? '%'+c.toString(16).substring(0,2)+'%'+c.toString(16).substring(2,4):((c==38||c==37||c==43||c==32)? '%'+c.toString(16):(c<16? "%0"+c.toString(16):n));});
+	}
+}
+
+var intervalHandler=null;
+var timeoutHandler=null;
+var previousStatus=null;
+var alwaysHandler=null;
+function setStatus(message, type)
+{
+	if (intervalHandler != null)
+		 clearInterval(intervalHandler);
+	if (timeoutHandler != null)
+		 clearTimeout(timeoutHandler);
+	previousStatus = parent.window.status;
+	parent.window.status = message;
+	switch (type)
+	{
+		case "WAIT": intervalHandler = setInterval(function(){parent.window.status=parent.window.status+".";}, 500); break;
+		case "AUTO": timeoutHandler = setTimeout(function(){parent.window.status="";}, 5000); break;
+		case "ALWAYS": if (alwaysHandler != null) clearInterval(alwaysHandler);
+		alwaysHandler = setInterval(function(){parent.window.status+=message;}, 100); break;
+	}
+}
+</script>
+<body onLoad="initialize()">
+<div id="menuSwitch" onClick="switch_menu()">3<font style='font-size:12px; font-family:宋体'>关闭面板</font></div>
+<div id="menuPanel" class="body">
+<a class="gray" href="<%=PAGE%>?do=config" target="mainFrame">配置</a>&nbsp;
+<a class="gray" href="<%=PAGE%>?do=left_frame">刷新</a>&nbsp;
+<a class="gray" href="<%=PAGE%>?do=logout" target="_top">退出</a><br>
+当前位置：<%=CURRENT_DIR%>
+<div id="element" class="xtree" XmlSrc="<%=PAGE%>?do=file_list&dir=<%=START_DIR%>" onClick="mouseclick()" showButton="1"></div>
+</div>
+</body>
+</html><%
+}
+
+function showMainFrame()
+{
+	showAuthorize("HTML");
+	var wrap_word = (CONFIG["wrap_word"] != "checked")? " word-wrap:normal; overflow-x:auto;" : "";
+%><%=HTML_HEADER%>
+<script language="JavaScript">
+document.onkeydown = function(){return parent.leftFrame.keyHandler(window.event);}
+</script>
+<style>
+textarea {font-size: 14px; border: solid 1px #000000;
+scrollbar-face-color:#F1F1F1; scrollbar-highlight-color:#F1F1F1; scrollbar-shadow-color:#F1F1F1;
+scrollbar-3dlight-color:#FFC080; scrollbar-arrow-color:#000000; scrollbar-track-color:#F1F1F1;
+scrollbar-darkshadow-color:#FFC080; scrollbar-base-color:#F1F1F1; scrollbar-width:10px
+}
+iframe {font-size: 14px; border: solid 1px #000000;}
+</style>
+<body onLoad="initLayout()" onResize="initLayout()">
+<form name="M" method="POST" action="<%=PAGE%>">
+	<div id="INTRO">
+	&nbsp;&nbsp;&nbsp;&nbsp;<font color="#FFC080" style="font-size:14px; font-family:arial black">QSM888.COM</font> - How a you! <%=CONFIG["version"]%>. <a class="gray" href="http://www.qsm888.com" target="_blank">wellcom</a>&nbsp; <a class="gray" href="mailto:lvtao_baby@163.com" target="_blank">Bug</a>&nbsp; <a class="gray" href="http://www.qsm888.com" target="_blank">IT</a>
+	</div>
+	<div id="WorkArea" style="width:100%; margin-bottom:3px;">
+	<textarea name='editor' style='width:100%; height:400px;<%=wrap_word%> overflow-y:auto; margin-top:-1px; margin-bottom:-1px;'></textarea>
+	</div>
+	<table border="0" width="100%" id="WorkPanel" cellspacing="0" cellpadding="0">
+	<tr>
+		<td width="1%"></td>
+		<td width="38%"><input type="button" value="保存(Ctrl+S)" name="save" onClick="parent.leftFrame.saveFile()" style="width:180px"></td>
+		<td width="36%"><input type="checkbox" class="checkbox" name="show_html" value="1" onClick="switchMode()">HTML预览</td>
+		<td width="25%"><a class="gray" href="javascript:clearText()">清除</a> &nbsp; <a class="gray" href="<%=PAGE%>?do=main_frame">刷新</a></td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>查找： <input type="text" name="word_find" size="20"> <input type="button" name="findButton" value="查找下一个(F3)" onClick="findNext()"></td>
+		<td>替换： <input type="text" name="word_replace" size="20"> <input type="button" name="replaceButton" value="替换" onClick="replaceNext()"> <input type="button" name="replaceAllButton" value="替换所有" onClick="replaceAll()"></td>
+		<td><input type="checkbox" class="checkbox" name="match_case" value="1">区分大小写 <input type="checkbox" class="checkbox" name="match_whole_word" value="1">全字匹配</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>添加<a href="http://www.qsm888.com" target="_blank">qsm888.com</a>代码 - 站点号： <input type="text" name="gayastat_site" size="4"> <input type="button" name="InsertGayaStatButton" value="添加代码" onClick="insertGayaStatCode()"></td>
+		<td></td>
+		<td></td>
+	</tr>
+	</table>
+</form>
+<script>
+function FindXY(obj){
+	var x=0,y=0;
+	while (obj!=null){
+		x+=obj.offsetLeft-obj.scrollLeft;
+		y+=obj.offsetTop-obj.scrollTop;
+		obj=obj.offsetParent;
+	}
+	return {x:x,y:y};
+}
+
+function FindXYWH(obj){
+	var objXY = FindXY(obj);
+	return objXY?{ x:objXY.x, y:objXY.y, w:obj.offsetWidth, h:obj.offsetHeight }:{ x:0, y:0, w:0, h:0 };
+}
+
+function clearText()
+{
+	gotoEditMode();
+	document.M.editor.innerText = "";
+}
+
+var editorText = null;
+function switchMode()
+{
+	if (editorText == null) { // in edit mode
+		editorText = document.M.editor.innerText;
+		WorkArea.innerHTML = "<iframe id='previewer' style='width:100%; height:"+(WorkArea.style.pixelHeight-2)+"px;'></iframe>";
+		var editdoc = document.all("previewer").contentWindow.document;
+		editdoc.open();
+		editdoc.write(editorText);
+		editdoc.close();
+	}
+	else { // in HTML preview mode
+		WorkArea.innerHTML = "<textarea name='editor' style='width:100%; height:"+WorkArea.style.height+";<%=wrap_word%> overflow-y:auto; margin-top:-1px; margin-bottom:-1px;'>" + editorText + "</textarea>";
+		document.M.editor.focus();
+		editorText = null;
+	}
+}
+
+function initLayout()
+{
+	IN = FindXYWH(INTRO);
+	WP = FindXYWH(WorkPanel);
+	WorkArea.style.height = document.body.clientHeight - WP.h - IN.h - 5;
+	if (editorText == null)
+		document.M.editor.style.height = WorkArea.style.height;
+	else
+		document.all("previewer").style.height = WorkArea.style.pixelHeight-2;
+}
+
+function gotoEditMode()
+{
+	if (document.M.show_html.checked) {
+		switchMode();
+		document.M.show_html.checked = false;
+	}
+}
+
+function findNext()
+{
+	var word = document.M.word_find.value;
+	if (word.length == 0) return false;
+	gotoEditMode();
+	document.M.editor.focus();
+	with (document.selection.createRange())
+	{
+		collapse(false);
+		iFlag = 0;
+		iFlag += (document.M.match_whole_word.checked)? 2 : 0;
+		iFlag += (document.M.match_case.checked)? 4 : 0;
+		if (findText(word, 1, iFlag))
+			select();
+		else
+		{ // Search from the beginning, if still cann't find any, popup a message box.
+			moveStart("textedit", -1);
+			if (findText(word, 1, iFlag))
+				select();
+			else {
+				alert("文档搜索完毕。找不到下一处查找的字词。");
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+function replaceNext()
+{
+	with (document.selection.createRange())
+	{
+		if (text.length == 0)
+			findNext();
+		else {
+			text = document.M.word_replace.value;
+			move("character", text.length);
+			select();
+			findNext();
+		}
+	}
+}
+
+function replaceAll()
+{
+	gotoEditMode();
+	var word = document.M.word_find.value;
+	if (word.length == 0) return false;
+	document.M.editor.focus();
+	with (document.selection.createRange())
+	{
+		collapse(false);
+		iFlag = 0;
+		iFlag += (document.M.match_whole_word.checked)? 2 : 0;
+		iFlag += (document.M.match_case.checked)? 4 : 0;
+		n = 0;
+		while (findText(word, 1, iFlag)) {
+			text = document.M.word_replace.value;
+			n++;
+		}
+		parent.leftFrame.setStatus("已完成搜索并进行了 "+n+" 处替换。", "AUTO");
+	}
+	return true;
+}
+
+function getLine()
+{
+	n = 0;
+	document.M.editor.focus();
+	with (document.selection.createRange())
+	{
+		collapse(false);
+		moveStart("textedit", -1);
+		while (findText("center", 1)) {
+			collapse(false);
+			n++;
+		}
+	}
+	return n;
+}
+
+function insertGayaStatCode()
+{
+	document.M.editor.focus();
+	with (document.selection.createRange())
+	{
+		collapse(false);
+		moveStart("textedit", -1);
+		if (findText("<head>", 1))
+			text = "<head>\r\n<scr"+"ipt>_time_stamp = (new Date()).getTime(); _site = '"+document.M.gayastat_site.value+"';</scr"+"ipt>";
+		else {
+			moveStart("textedit", -1);
+			text = "<scr"+"ipt>_time_stamp = (new Date()).getTime(); _site = '"+document.M.gayastat_site.value+"';</scr"+"ipt>";
+		}
+		if (findText("</body>", 1))
+			text = "<scr"+"ipt language='javascript' src='http://stat.gaya.cn/file/stat_client.js'></scr"+"ipt>\r\n</body>";
+		else {
+			//moveEnd("textedit", -1);
+			//text = "<scr"+"ipt language='javascript' src='http://stat.gaya.cn/file/stat_client.js'></scr"+"ipt>";
+		}
+	}
+}
+</script>
+</body>
+</html>
+<%
+}
+
+function showFileList(dir, layer)
+{
+	showAuthorize("XMLHTTP");
+	var space = "";
+	for (i=0; i<layer; i++)
+		space += "  ";
+
+	if (layer == 1) {
+	   Response.ContentType = "text/xml";
+	   Response.write("<?xml version=\"1.0\" encoding=\"gb2312\"?>\r\n<TreeNode>\r\n");
+	}
+	var in_parent = dir.match(/^[\.\/]+$/)? true : false;
+	var abs_path = dir.charAt(0)=='/'&&dir.length>1? getRealPath("/")+"/"+dir.substring(1, dir.length) : getRealPath(dir);
+
+	try {
+		var oFso = Server.CreateObject("Scripting.FileSystemObject");
+		var oFolder = oFso.GetFolder(abs_path);
+		for (x=new Enumerator(oFolder.Files); !x.atEnd(); x.moveNext()) {
+			var oFile = x.item();
+			//time = date("Y-m-d H:i:s", filemtime(abs_path+sFile));
+			var lenFile = Math.floor(oFile.size/102.4) / 10;
+			response.write(space+"<TreeNode time='"+oFile.DateLastModified+"' length='"+lenFile+"' text='"+oFile.name+"' href='"+dir+oFile.name+"'/>\r\n");
+		}
+
+		if (in_parent)
+			Response.write(space+"<TreeNode time='"+"..."+"' text='..' id='"+dir+"../' Xml='"+PAGE+"?do=file_list&#38;dir="+dir+"../'/>\r\n");
+		for (x=new Enumerator(oFolder.SubFolders); !x.atEnd(); x.moveNext()) {
+			var oDir = x.item();
+			var sDir = oDir.name;
+			if (layer < 1)
+			{
+				//time = date("Y-m-d H:i:s", filemtime(abs_path.sFile));
+				Response.write(space+"<TreeNode time='"+oDir.DateLastModified+"' text='"+sDir+"' id='"+dir+sDir+"/'>\r\n");
+				layer++;
+				showFileList(abs_path+sDir+"/", 1);
+				layer--;
+				Response.write(space+"</TreeNode>\r\n");
+			}
+			else {
+				//time = date("Y-m-d H:i:s", filemtime(abs_path.sFile));
+				Response.write(space+"<TreeNode time='"+oDir.DateLastModified+"' text='"+sDir+"' id='"+dir+sDir+"/' Xml='"+PAGE+"?do=file_list&#38;dir="+dir+sDir+"/'/>\r\n");
+			}
+		}
+	}
+	catch (e) {}
+
+	if (layer == 1)
+		Response.write("</TreeNode>");
+}
+
+function showEditFile()
+{
+	showAuthorize("XMLHTTP");
+	abs_path = getRealPath(Request.queryString("file"));
+	if (!(fp = fopen(abs_path, "rb")))
+		return false;
+	var str = fread(fp, -1);
+	var rand_num = (new Date()).getTime();
+
+	str = str.replace(/(\]\]\>)/g, "]]"+rand_num);
+	fclose(fp);
+
+	Response.ContentType = "text/xml";
+%><?xml version="1.0" encoding="GBK"?>
+<File>
+<Content><![CDATA[<%=str%>]]></Content>
+<CloseTag><%=rand_num%></CloseTag>
+</File><%
+	return true;
+}
+
+function responseSaveFile()
+{
+	showAuthorize("XMLHTTP");
+	Response.ContentType = "text/xml";
+	Response.write("<?xml version=\"1.0\" encoding=\"GBK\"?>\r\n");
+
+	var str = Request.form("content")(1);
+	file = getRealPath(Request.queryString("file"));
+	if (!(fp = fopen(file, "wb")))
+	{
+		reason = "无法写文件“"+file+"”。";
+		advice = "请检查文件是否被锁定以及所在目录的读写性。";
+%>
+<File>
+<SaveStatus>false</SaveStatus>
+<Reason><%=reason%></Reason>
+<Advice><%=advice%></Advice>
+</File>
+<%
+		return;
+	}
+	var len = str.length;
+	fwrite(fp, str);
+	fclose(fp);
+%>
+<File>
+<SaveStatus>true</SaveStatus>
+<SaveBytes><%=len%></SaveBytes>
+</File><%
+}
+
+function showConfig()
+{
+	showAuthorize("HTML");
+%><%=HTML_HEADER%>
+<body>
+<br><br><br><br><br>
+<form method="POST" action="<%=PAGE%>?do=modify" name="F" onSubmit="return check()">
+	<table border="0" width="100%" id="table1">
+		<tr>
+			<td width="220" align="right">　</td>
+			<td><span lang="zh-cn"><b>参数设置</b></span></td>
+		</tr>
+		<tr>
+			<td width="220" align="right">　</td>
+			<td>　</td>
+		</tr>
+		<tr>
+			<td width="220" align="right"><span lang="zh-cn">登录用户名　：</span></td>
+			<td height="21"><input type="text" name="username" size="20" value="<%=AUTH_USER["username"]%>"></td>
+		</tr>
+		<tr>
+			<td width="220" align="right">登录密码　　：</td>
+			<td><input type="password" name="password" size="20"> 留空表示不作修改。</td>
+		</tr>
+		<tr>
+			<td width="220" align="right">再次确认密码：</td>
+			<td><input type="password" name="password_again" size="20"></td>
+		</tr>
+		<tr>
+			<td width="220" align="right">　</td>
+			<td height="20">　</td>
+		</tr>
+		<tr>
+			<td width="220" align="right">登录授权方式：</td>
+			<td><select size="1" name="auth_type">
+	<option value="cookie">Cookie认证</option>
+	<option value="HTTP">HTTP BSAIC认证</option>
+	<option value="session">Session会话</option>
+	<option value="none">无授权验证(不安全！)</option>
+	</select> 注意：以CGI方式安装的PHP不支持HTTP BASIC认证
+	<script>document.F.auth_type.value = "<%=CONFIG["auth_type"]%>";</script>
+			</td>
+		</tr>
+		<tr>
+			<td width="220" align="right">使用UTF编码 ：</td>
+			<td height="20"><input class="checkbox" type="checkbox" name="use_utf" value="checked" <%=CONFIG["use_utf"]%>> 如在英文操作系统上编辑中文文件，请选中此选项。其他情况下使用缺省方式可加快编辑内容的保存速度。</td>
+		</tr>
+		<tr>
+			<td width="220" align="right">本地编码　　：</td>
+			<td height="20"><input type="text" name="encoding" size="20" value="<%=CONFIG["encoding"]%>"></td>
+		</tr>
+		<tr>
+			<td width="220" align="right">用户电子邮件：</td>
+			<td><input type="text" name="email" size="20" value="<%=AUTH_USER["email"]%>"></td>
+		</tr>
+		<tr>
+			<td width="220" align="right">使用自动换行：</td>
+			<td height="20"><input class="checkbox" type="checkbox" name="wrap_word" value="checked" <%=CONFIG["wrap_word"]%>> 如一行超长，使用自动换行将自动折行显示，而不产生滚动条。</td>
+		</tr>
+		<tr>
+			<td width="220" align="right"></td>
+			<td>&nbsp;</td>
+		</tr>
+		<tr>
+			<td width="220" align="right">　</td>
+			<td>
+	<input type="submit" value="提交" name="B1">&nbsp;&nbsp;&nbsp; <input type="reset" value="重置" name="B2"></td>
+		</tr>
+	</table>
+</form>
+<script>
+function check()
+{
+	if (document.F.password.value != document.F.password_again.value) {
+	  alert("两次输入的密码不相同。请重设。");
+	  return false;
+  }
+  return true;
+}
+</script>
+</body>
+
+</html><%
+}
+
+function modifyConfig()
+{
+	showAuthorize("HTML");
+	AUTH_USER["username"] = Request.form("username");
+	if (Request.form("password") != "")
+		AUTH_USER["password"] = MD5(Request.form("password"));
+	AUTH_USER["email"] = Request.form("email");
+	CONFIG["auth_type"] = Request.form("auth_type");
+	CONFIG["encoding"] = Request.form("encoding");
+	CONFIG["use_utf"] = Request.form("use_utf");
+	CONFIG["wrap_word"] = Request.form("wrap_word");
+
+	fp = fopen(getRealPath(PAGE), "rb");
+	if (!fp) {
+%><%=HTML_HEADER%>
+<body>
+无法打开文件<%=PAGE%>。请确认是否有读写此文件的权限。
+<input type="button" name="返回上一页" onClick="history.back(-1)">
+</body>
+</html><%
+	}
+	var str = fread(fp, -1);
+	fclose(fp);
+	nB = str.indexOf("var AUTH_USER");
+	nE = str.indexOf("//END_AUTH_USER");
+	str = str.substring(0, nB) + serialArray("AUTH_USER") + str.substring(nE, str.length);
+	nB = str.indexOf("var CONFIG");
+	nE = str.indexOf("//END_CONFIG");
+	str = str.substring(0, nB) + serialArray("CONFIG") + str.substring(nE, str.length);
+	fp = fopen(getRealPath(PAGE), "wb");
+	if (!fp) {
+%><%=HTML_HEADER%>
+<body>
+无法打开文件<%=PAGE%>。请确认是否有读写此文件的权限。
+<input type="button" name="返回上一页" onClick="history.back(-1)">
+</body>
+</html><%
+	}
+	fwrite(fp, str);
+	fclose(fp);
+%><%=HTML_HEADER%>
+<body>
+<script>
+alert("设置已生效！");
+this.location = "<%=PAGE%>?do=main_frame";
+</script>
+</body>
+</html><%
+}
+
+function serialArray(name)
+{
+	var arr = eval(name);
+	var str = "var " + name + " = new Array()\r\n";
+	for (i in arr)
+		str += name + "[\"" + i + "\"] = \"" + arr[i]+ "\";\r\n";
+	str += "//END_" + name;
+	return str;
+}
+
+function responseImageFile()
+{
+	//header("Status: 304 Not Modified");
+	Response.ContentType = "image/gif";
+	Response.addHeader("Cache-Control", "max-age=2592000");
+
+	var name = Request.queryString("file");
+	var str;
+	if (name == "expanded.gif")
+		str = "GIF89a%0B%00%0B%00%B3%00%00%00%00%00%D6%D6%D6%CC%CC%CC%F7%F7%F7%1A%1A%1A%E6%E6%E6%0E%0E%0E%EF%EF%EF%FF%FF%FF%DD%DD%DD%21%21%21%08%08%08%FE%01%02%00%00%00%00%00%00%00%00%00%21%F9%04%01%00%00%0C%00%2C%00%00%00%00%0B%00%0B%00%00%04%22%10%C8I%25%BA%18%DB%9C7%BF%0B%F0a%86%88TW9%5E%849%2A%EE%07%AF%08%2C-%86A%28%3C%11%01%00%3B";
+	else if (name == "collapsed.gif") //对于PHP处理得到的字符串，需要把其中的"+"号改成"%20"
+		str = "GIF89a%0B%00%0B%00%B3%00%00%00%00%00%D6%D6%D6%FF%FF%FF%19%19%19%EF%EF%EF%DF%DF%DF%07%07%07%F8%F8%F8%21%21%21%E6%E6%E6%0F%0F%0F%FE%01%02%00%00%00%00%00%00%00%00%00%00%00%00%21%F9%04%01%00%00%0B%00%2C%00%00%00%00%0B%00%0B%00%00%04%24p%A09%EAP%CA%20%C1%7B%D7%5E%08v%80%07%0C%A6%89%0A%40%DBrgJ%AE%B0%A9%84%A6%81%93F%EF%FE%80%08%00%3B";
+	else if (name == "endnode.gif")
+		str = "GIF89a%0B%00%0B%00%B3%00%00%00%00%00%DF%DF%DF%D6%D6%D6%FF%FF%FF%19%19%19%EF%EF%EF%0F%0F%0F%F8%F8%F8%21%21%21%E6%E6%E6%07%07%07%FE%01%02%00%00%00%00%00%00%00%00%00%00%00%00%21%F9%04%01%00%00%0B%00%2C%00%00%00%00%0B%00%0B%00%00%04%22%90%A0I%2A1F%A1%C1%7B%D7%5E%08%86%1D%40%90%E5Yz%26%CA%B5.%60%B8%83L%03J%0E%EC%FC%1E%01%00%3B";
+	else if (name == "menu_folder_closed.gif")
+		str = "GIF89a%12%00%12%00%A2%00%00%FF%F8%CF%FF%F8%9F%F0%F0%F0%FF%C8%9F%CF%C8%60%9F%98%00%00%00%00%FF%FF%FF%21%F9%04%05%14%00%07%00%2C%00%00%00%00%12%00%12%00%00%03Lx%BA%DC%5D%10%1A%F7%04%00%21%94IO%21%60HD%11S%5Chz%05%04%E7aY%2C%0F%EDr%CA%F1%10%E8%B5r%E3%19%1D%CD%F5%CB%ED%8E%BD%17P%B8K%16%99%C2%A1%0D%00%3D%0E%AEN%91V%E4%3A%18%BE%E0p%B8C.%9B%CF%E8s%02%00%3B";
+	else if (name == "menu_link_default.gif")
+		str = "GIF89a%12%00%12%00%A2%00%00%FC%FE%D4%C6%C6%C6%84%84%84%00%00%00%FF%FF%FF%00%00%00%00%00%00%00%00%00%21%F9%04%05%14%00%04%00%2C%00%00%00%00%12%00%12%00%00%03HH%B2%DC%F4%F0%09%40%2B%15%23%C2%19%3A%F0S%A6MV%40%0D%A8%B8%7D%9EY%05%AAd%7D%F4%17%2B%AC%D9%B9%F08%CF%BD%08gG%B4%F9%7E%AF%DB%90%D8R%22%93%C7%D7%CE%28%7CR%82%1B%A6V%99%EAz5%E0%B0x%ACI%00%00%3B";
+
+	Response.BinaryWrite(getByteString(unescape(str)));
+}
+
+function responseXmlFile()
+{
+	showAuthorize("XMLHTTP");
+	Response.ContentType = "text/xml";
+%>
+<?xml version="1.0" encoding="GBK"?>
+
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/TR/WD-xsl">
+<xsl:template match="/">
+<xsl:apply-templates select="TreeNode" />
+</xsl:template>
+
+<xsl:template match="TreeNode">
+<xsl:for-each select="./TreeNode">
+<div class="TreeNode" nowrap="true">
+<xsl:attribute name="uid"><xsl:value-of select="@id" /></xsl:attribute>
+<xsl:if test=".[TreeNode or @Xml]">
+	<xsl:attribute name="open">false</xsl:attribute>
+</xsl:if>
+<xsl:attribute name="type">
+<xsl:choose>
+	<xsl:when test=".[TreeNode or @Xml]">parent</xsl:when>
+	<xsl:otherwise>leaf</xsl:otherwise></xsl:choose>
+</xsl:attribute>
+<!--input type="checkbox" name="xtreeInput">
+<xsl:attribute name="value"><xsl:value-of select="@text" /></xsl:attribute>
+</input-->
+<img type="img" align="absmiddle">
+<xsl:attribute name="src">
+<xsl:choose>
+<xsl:when test=".[TreeNode or @Xml]"><%=PAGE%>?do=image&amp;file=collapsed.gif</xsl:when>
+<xsl:otherwise><%=PAGE%>?do=image&amp;file=endnode.gif</xsl:otherwise></xsl:choose>
+</xsl:attribute>
+</img><img align="absmiddle">
+<xsl:attribute name="src">
+<xsl:choose>
+<xsl:when test=".[TreeNode or @Xml]"><%=PAGE%>?do=image&amp;file=menu_folder_closed.gif</xsl:when>
+<xsl:otherwise><%=PAGE%>?do=image&amp;file=menu_link_default.gif</xsl:otherwise>
+</xsl:choose>
+</xsl:attribute>
+</img><span type="label">
+<xsl:attribute name="title">
+<xsl:choose>
+<xsl:when test="@time">
+修改时间：
+<xsl:value-of select="@time" />
+<xsl:choose>
+<xsl:when test="@length">
+文件长度：
+<xsl:value-of select="@length" />KB
+</xsl:when>
+</xsl:choose>
+</xsl:when>
+<xsl:otherwise>
+<xsl:value-of select="@text" />
+</xsl:otherwise>
+</xsl:choose>
+</xsl:attribute>
+<xsl:choose>
+<xsl:when test="@href">
+<a>
+<xsl:choose>
+<xsl:when test="@target">
+<xsl:attribute name="target">
+<xsl:value-of select="@target" />
+</xsl:attribute>
+</xsl:when>
+<xsl:otherwise>
+<xsl:attribute name="target">mainFrame</xsl:attribute>
+</xsl:otherwise>
+</xsl:choose>
+<xsl:attribute name="tabindex">-1</xsl:attribute>
+<xsl:attribute name="href">
+<xsl:value-of select="@href" />
+</xsl:attribute>
+<xsl:attribute name="file">
+<xsl:value-of select="@href" />
+</xsl:attribute>
+<xsl:attribute name="onClick">javascript:return act(this)</xsl:attribute>
+<xsl:value-of select="@text" />
+</a>
+</xsl:when>
+<xsl:otherwise>
+<xsl:value-of select="@text" />
+</xsl:otherwise>
+</xsl:choose>
+</span>
+<xsl:if test=".[TreeNode or @Xml]">
+<div type="container" class="container" style="display:none">
+	<xsl:if test="@Xml">
+		<xsl:attribute name="XmlSrc"><xsl:value-of select="@Xml"/></xsl:attribute>
+	</xsl:if>
+	<xsl:choose>
+	<xsl:when test="./TreeNode">
+	<xsl:attribute name="send">true</xsl:attribute>
+	<xsl:apply-templates select="."/>
+	</xsl:when>
+	<xsl:otherwise><xsl:attribute name="send">false</xsl:attribute>&#160;</xsl:otherwise>
+	</xsl:choose>
+</div>
+</xsl:if>
+</div>
+</xsl:for-each>
+</xsl:template>
+
+</xsl:stylesheet><%
+}
+
+function getRealPath(file)
+{
+	return Server.MapPath(file);
+}
+
+function fopen(filename, mode)
+{
+	try {
+		var fso = Server.CreateObject("Scripting.FileSystemObject");
+		ioMode = (mode.charAt(0) == 'r')? 1 : ((mode.charAt(0) == 'w')? 2 : 8);
+		var f = fso.OpenTextFile(filename, ioMode, true);
+		return f;
+	}
+	catch (e) { return null; }
+}
+function fread(fp, size)
+{
+	if (size >= 0)
+		return fp.Read(size);
+	else
+		return fp.ReadAll();
+}
+function fwrite(fp, str)
+{
+	fp.Write(str);
+}
+function fclose(fp)
+{
+	fp.Close();
+}
+function file(filename)
+{
+	if (!(fp = fopen(filename, "rb")))
+		return null;
+	var lines = new Array();
+	while (!fp.AtEndOfStream)
+		lines[lines.length] = fp.ReadLine();
+	return lines;
+}
+%>
+<SCRIPT language="VBScript" runat="server">
+'Byte string to string conversion
+Function getString(StringBin)
+	getString = ""
+	For intCount = 1 to LenB(StringBin)
+		getString = getString & chr(AscB(MidB(StringBin,intCount,1)))
+	Next
+End Function
+
+'String to byte string conversion
+Function getByteString(StringStr)
+	For i = 1 to Len(StringStr)
+		char = Mid(StringStr,i,1)
+		getByteString = getByteString & chrB(AscB(char))
+	Next
+End Function
+
+'MD5 functions
+Private Const BITS_TO_A_BYTE = 8
+Private Const BYTES_TO_A_WORD = 4
+Private Const BITS_TO_A_WORD = 32
+
+Private m_lOnBits(30)
+Private m_l2Power(30)
+
+Private Function LShift(lValue, iShiftBits)
+	If iShiftBits = 0 Then
+		LShift = lValue
+		Exit Function
+	ElseIf iShiftBits = 31 Then
+		If lValue And 1 Then
+			LShift = &H80000000
+		Else
+			LShift = 0
+		End If
+		Exit Function
+	ElseIf iShiftBits < 0 Or iShiftBits > 31 Then
+		Err.Raise 6
+	End If
+
+	If (lValue And m_l2Power(31 - iShiftBits)) Then
+		LShift = ((lValue And m_lOnBits(31 - (iShiftBits + 1))) * m_l2Power(iShiftBits)) Or &H80000000
+	Else
+		LShift = ((lValue And m_lOnBits(31 - iShiftBits)) * m_l2Power(iShiftBits))
+	End If
+End Function
+
+Private Function RShift(lValue, iShiftBits)
+	If iShiftBits = 0 Then
+		RShift = lValue
+		Exit Function
+	ElseIf iShiftBits = 31 Then
+		If lValue And &H80000000 Then
+			RShift = 1
+		Else
+			RShift = 0
+		End If
+		Exit Function
+	ElseIf iShiftBits < 0 Or iShiftBits > 31 Then
+		Err.Raise 6
+	End If
+
+	RShift = (lValue And &H7FFFFFFE) \ m_l2Power(iShiftBits)
+
+	If (lValue And &H80000000) Then
+		RShift = (RShift Or (&H40000000 \ m_l2Power(iShiftBits - 1)))
+	End If
+End Function
+
+Private Function RotateLeft(lValue, iShiftBits)
+	RotateLeft = LShift(lValue, iShiftBits) Or RShift(lValue, (32 - iShiftBits))
+End Function
+
+Private Function AddUnsigned(lX, lY)
+	Dim lX4
+	Dim lY4
+	Dim lX8
+	Dim lY8
+	Dim lResult
+
+	lX8 = lX And &H80000000
+	lY8 = lY And &H80000000
+	lX4 = lX And &H40000000
+	lY4 = lY And &H40000000
+
+	lResult = (lX And &H3FFFFFFF) + (lY And &H3FFFFFFF)
+
+	If lX4 And lY4 Then
+		lResult = lResult Xor &H80000000 Xor lX8 Xor lY8
+	ElseIf lX4 Or lY4 Then
+		If lResult And &H40000000 Then
+			lResult = lResult Xor &HC0000000 Xor lX8 Xor lY8
+		Else
+			lResult = lResult Xor &H40000000 Xor lX8 Xor lY8
+		End If
+	Else
+		lResult = lResult Xor lX8 Xor lY8
+	End If
+
+	AddUnsigned = lResult
+End Function
+
+Private Function md5_F(x, y, z)
+	md5_F = (x And y) Or ((Not x) And z)
+End Function
+
+Private Function md5_G(x, y, z)
+	md5_G = (x And z) Or (y And (Not z))
+End Function
+
+Private Function md5_H(x, y, z)
+	md5_H = (x Xor y Xor z)
+End Function
+
+Private Function md5_I(x, y, z)
+	md5_I = (y Xor (x Or (Not z)))
+End Function
+
+Private Sub md5_FF(a, b, c, d, x, s, ac)
+	a = AddUnsigned(a, AddUnsigned(AddUnsigned(md5_F(b, c, d), x), ac))
+	a = RotateLeft(a, s)
+	a = AddUnsigned(a, b)
+End Sub
+
+Private Sub md5_GG(a, b, c, d, x, s, ac)
+	a = AddUnsigned(a, AddUnsigned(AddUnsigned(md5_G(b, c, d), x), ac))
+	a = RotateLeft(a, s)
+	a = AddUnsigned(a, b)
+End Sub
+
+Private Sub md5_HH(a, b, c, d, x, s, ac)
+	a = AddUnsigned(a, AddUnsigned(AddUnsigned(md5_H(b, c, d), x), ac))
+	a = RotateLeft(a, s)
+	a = AddUnsigned(a, b)
+End Sub
+
+Private Sub md5_II(a, b, c, d, x, s, ac)
+	a = AddUnsigned(a, AddUnsigned(AddUnsigned(md5_I(b, c, d), x), ac))
+	a = RotateLeft(a, s)
+	a = AddUnsigned(a, b)
+End Sub
+
+Private Function ConvertToWordArray(sMessage)
+	Dim lMessageLength
+	Dim lNumberOfWords
+	Dim lWordArray()
+	Dim lBytePosition
+	Dim lByteCount
+	Dim lWordCount
+
+	Const MODULUS_BITS = 512
+	Const CONGRUENT_BITS = 448
+
+	lMessageLength = Len(sMessage)
+
+	lNumberOfWords = (((lMessageLength + ((MODULUS_BITS - CONGRUENT_BITS) \ BITS_TO_A_BYTE)) \ (MODULUS_BITS \ BITS_TO_A_BYTE)) + 1) * (MODULUS_BITS \ BITS_TO_A_WORD)
+	ReDim lWordArray(lNumberOfWords - 1)
+
+	lBytePosition = 0
+	lByteCount = 0
+	Do Until lByteCount >= lMessageLength
+		lWordCount = lByteCount \ BYTES_TO_A_WORD
+		lBytePosition = (lByteCount Mod BYTES_TO_A_WORD) * BITS_TO_A_BYTE
+		lWordArray(lWordCount) = lWordArray(lWordCount) Or LShift(Asc(Mid(sMessage, lByteCount + 1, 1)), lBytePosition)
+		lByteCount = lByteCount + 1
+	Loop
+
+	lWordCount = lByteCount \ BYTES_TO_A_WORD
+	lBytePosition = (lByteCount Mod BYTES_TO_A_WORD) * BITS_TO_A_BYTE
+
+	lWordArray(lWordCount) = lWordArray(lWordCount) Or LShift(&H80, lBytePosition)
+
+	lWordArray(lNumberOfWords - 2) = LShift(lMessageLength, 3)
+	lWordArray(lNumberOfWords - 1) = RShift(lMessageLength, 29)
+
+	ConvertToWordArray = lWordArray
+End Function
+
+Private Function WordToHex(lValue)
+	Dim lByte
+	Dim lCount
+
+	For lCount = 0 To 3
+		lByte = RShift(lValue, lCount * BITS_TO_A_BYTE) And m_lOnBits(BITS_TO_A_BYTE - 1)
+		WordToHex = WordToHex & Right("0" & Hex(lByte), 2)
+	Next
+End Function
+
+Public Function MD5(sMessage)
+	m_lOnBits(0) = CLng(1)
+	m_lOnBits(1) = CLng(3)
+	m_lOnBits(2) = CLng(7)
+	m_lOnBits(3) = CLng(15)
+	m_lOnBits(4) = CLng(31)
+	m_lOnBits(5) = CLng(63)
+	m_lOnBits(6) = CLng(127)
+	m_lOnBits(7) = CLng(255)
+	m_lOnBits(8) = CLng(511)
+	m_lOnBits(9) = CLng(1023)
+	m_lOnBits(10) = CLng(2047)
+	m_lOnBits(11) = CLng(4095)
+	m_lOnBits(12) = CLng(8191)
+	m_lOnBits(13) = CLng(16383)
+	m_lOnBits(14) = CLng(32767)
+	m_lOnBits(15) = CLng(65535)
+	m_lOnBits(16) = CLng(131071)
+	m_lOnBits(17) = CLng(262143)
+	m_lOnBits(18) = CLng(524287)
+	m_lOnBits(19) = CLng(1048575)
+	m_lOnBits(20) = CLng(2097151)
+	m_lOnBits(21) = CLng(4194303)
+	m_lOnBits(22) = CLng(8388607)
+	m_lOnBits(23) = CLng(16777215)
+	m_lOnBits(24) = CLng(33554431)
+	m_lOnBits(25) = CLng(67108863)
+	m_lOnBits(26) = CLng(134217727)
+	m_lOnBits(27) = CLng(268435455)
+	m_lOnBits(28) = CLng(536870911)
+	m_lOnBits(29) = CLng(1073741823)
+	m_lOnBits(30) = CLng(2147483647)
+
+	m_l2Power(0) = CLng(1)
+	m_l2Power(1) = CLng(2)
+	m_l2Power(2) = CLng(4)
+	m_l2Power(3) = CLng(8)
+	m_l2Power(4) = CLng(16)
+	m_l2Power(5) = CLng(32)
+	m_l2Power(6) = CLng(64)
+	m_l2Power(7) = CLng(128)
+	m_l2Power(8) = CLng(256)
+	m_l2Power(9) = CLng(512)
+	m_l2Power(10) = CLng(1024)
+	m_l2Power(11) = CLng(2048)
+	m_l2Power(12) = CLng(4096)
+	m_l2Power(13) = CLng(8192)
+	m_l2Power(14) = CLng(16384)
+	m_l2Power(15) = CLng(32768)
+	m_l2Power(16) = CLng(65536)
+	m_l2Power(17) = CLng(131072)
+	m_l2Power(18) = CLng(262144)
+	m_l2Power(19) = CLng(524288)
+	m_l2Power(20) = CLng(1048576)
+	m_l2Power(21) = CLng(2097152)
+	m_l2Power(22) = CLng(4194304)
+	m_l2Power(23) = CLng(8388608)
+	m_l2Power(24) = CLng(16777216)
+	m_l2Power(25) = CLng(33554432)
+	m_l2Power(26) = CLng(67108864)
+	m_l2Power(27) = CLng(134217728)
+	m_l2Power(28) = CLng(268435456)
+	m_l2Power(29) = CLng(536870912)
+	m_l2Power(30) = CLng(1073741824)
+
+
+	Dim x
+	Dim k
+	Dim AA
+	Dim BB
+	Dim CC
+	Dim DD
+	Dim a
+	Dim b
+	Dim c
+	Dim d
+
+	Const S11 = 7
+	Const S12 = 12
+	Const S13 = 17
+	Const S14 = 22
+	Const S21 = 5
+	Const S22 = 9
+	Const S23 = 14
+	Const S24 = 20
+	Const S31 = 4
+	Const S32 = 11
+	Const S33 = 16
+	Const S34 = 23
+	Const S41 = 6
+	Const S42 = 10
+	Const S43 = 15
+	Const S44 = 21
+
+	x = ConvertToWordArray(sMessage)
+
+	a = &H67452301
+	b = &HEFCDAB89
+	c = &H98BADCFE
+	d = &H10325476
+
+	For k = 0 To UBound(x) Step 16
+		AA = a
+		BB = b
+		CC = c
+		DD = d
+
+		md5_FF a, b, c, d, x(k + 0), S11, &HD76AA478
+		md5_FF d, a, b, c, x(k + 1), S12, &HE8C7B756
+		md5_FF c, d, a, b, x(k + 2), S13, &H242070DB
+		md5_FF b, c, d, a, x(k + 3), S14, &HC1BDCEEE
+		md5_FF a, b, c, d, x(k + 4), S11, &HF57C0FAF
+		md5_FF d, a, b, c, x(k + 5), S12, &H4787C62A
+		md5_FF c, d, a, b, x(k + 6), S13, &HA8304613
+		md5_FF b, c, d, a, x(k + 7), S14, &HFD469501
+		md5_FF a, b, c, d, x(k + 8), S11, &H698098D8
+		md5_FF d, a, b, c, x(k + 9), S12, &H8B44F7AF
+		md5_FF c, d, a, b, x(k + 10), S13, &HFFFF5BB1
+		md5_FF b, c, d, a, x(k + 11), S14, &H895CD7BE
+		md5_FF a, b, c, d, x(k + 12), S11, &H6B901122
+		md5_FF d, a, b, c, x(k + 13), S12, &HFD987193
+		md5_FF c, d, a, b, x(k + 14), S13, &HA679438E
+		md5_FF b, c, d, a, x(k + 15), S14, &H49B40821
+
+		md5_GG a, b, c, d, x(k + 1), S21, &HF61E2562
+		md5_GG d, a, b, c, x(k + 6), S22, &HC040B340
+		md5_GG c, d, a, b, x(k + 11), S23, &H265E5A51
+		md5_GG b, c, d, a, x(k + 0), S24, &HE9B6C7AA
+		md5_GG a, b, c, d, x(k + 5), S21, &HD62F105D
+		md5_GG d, a, b, c, x(k + 10), S22, &H2441453
+		md5_GG c, d, a, b, x(k + 15), S23, &HD8A1E681
+		md5_GG b, c, d, a, x(k + 4), S24, &HE7D3FBC8
+		md5_GG a, b, c, d, x(k + 9), S21, &H21E1CDE6
+		md5_GG d, a, b, c, x(k + 14), S22, &HC33707D6
+		md5_GG c, d, a, b, x(k + 3), S23, &HF4D50D87
+		md5_GG b, c, d, a, x(k + 8), S24, &H455A14ED
+		md5_GG a, b, c, d, x(k + 13), S21, &HA9E3E905
+		md5_GG d, a, b, c, x(k + 2), S22, &HFCEFA3F8
+		md5_GG c, d, a, b, x(k + 7), S23, &H676F02D9
+		md5_GG b, c, d, a, x(k + 12), S24, &H8D2A4C8A
+
+		md5_HH a, b, c, d, x(k + 5), S31, &HFFFA3942
+		md5_HH d, a, b, c, x(k + 8), S32, &H8771F681
+		md5_HH c, d, a, b, x(k + 11), S33, &H6D9D6122
+		md5_HH b, c, d, a, x(k + 14), S34, &HFDE5380C
+		md5_HH a, b, c, d, x(k + 1), S31, &HA4BEEA44
+		md5_HH d, a, b, c, x(k + 4), S32, &H4BDECFA9
+		md5_HH c, d, a, b, x(k + 7), S33, &HF6BB4B60
+		md5_HH b, c, d, a, x(k + 10), S34, &HBEBFBC70
+		md5_HH a, b, c, d, x(k + 13), S31, &H289B7EC6
+		md5_HH d, a, b, c, x(k + 0), S32, &HEAA127FA
+		md5_HH c, d, a, b, x(k + 3), S33, &HD4EF3085
+		md5_HH b, c, d, a, x(k + 6), S34, &H4881D05
+		md5_HH a, b, c, d, x(k + 9), S31, &HD9D4D039
+		md5_HH d, a, b, c, x(k + 12), S32, &HE6DB99E5
+		md5_HH c, d, a, b, x(k + 15), S33, &H1FA27CF8
+		md5_HH b, c, d, a, x(k + 2), S34, &HC4AC5665
+
+		md5_II a, b, c, d, x(k + 0), S41, &HF4292244
+		md5_II d, a, b, c, x(k + 7), S42, &H432AFF97
+		md5_II c, d, a, b, x(k + 14), S43, &HAB9423A7
+		md5_II b, c, d, a, x(k + 5), S44, &HFC93A039
+		md5_II a, b, c, d, x(k + 12), S41, &H655B59C3
+		md5_II d, a, b, c, x(k + 3), S42, &H8F0CCC92
+		md5_II c, d, a, b, x(k + 10), S43, &HFFEFF47D
+		md5_II b, c, d, a, x(k + 1), S44, &H85845DD1
+		md5_II a, b, c, d, x(k + 8), S41, &H6FA87E4F
+		md5_II d, a, b, c, x(k + 15), S42, &HFE2CE6E0
+		md5_II c, d, a, b, x(k + 6), S43, &HA3014314
+		md5_II b, c, d, a, x(k + 13), S44, &H4E0811A1
+		md5_II a, b, c, d, x(k + 4), S41, &HF7537E82
+		md5_II d, a, b, c, x(k + 11), S42, &HBD3AF235
+		md5_II c, d, a, b, x(k + 2), S43, &H2AD7D2BB
+		md5_II b, c, d, a, x(k + 9), S44, &HEB86D391
+
+		a = AddUnsigned(a, AA)
+		b = AddUnsigned(b, BB)
+		c = AddUnsigned(c, CC)
+		d = AddUnsigned(d, DD)
+	Next
+
+	MD5 = LCase(WordToHex(a) & WordToHex(b) & WordToHex(c) & WordToHex(d))	'32byte
+	'MD5 = LCase(WordToHex(b) & WordToHex(c))  'I crop this to fit 16byte database password :D
+End Function
+</SCRIPT>

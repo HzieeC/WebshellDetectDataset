@@ -1,0 +1,3 @@
+﻿<%
+	Response.Redirect "backupdb.asp"
+%>

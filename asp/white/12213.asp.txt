@@ -1,0 +1,171 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<%
+Call CheckIframe()
+
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 ****
+
+
+'用户检测
+Call OpenMemberexe("","login",10)
+Call IsMenuRight("alertBack","用户管理")
+
+
+Select Case mudi
+	Case "add"
+		Call IsMenuRight("alertBack","用户维护")
+		Call AddOrRev()
+
+	Case "del"
+		Call IsMenuRight("alert","用户维护")
+		Call Del()
+
+	Case "send"
+		Call IsMenuRight("alert","用户维护")
+		Call Send()
+
+End Select
+
+
+Call CloseMemberexe()
+Call CloseConobj()
+
+
+
+
+
+
+
+
+
+
+Private Sub AddOrRev()
+	userMode	= ToPostStr("userMode")
+
+	userID		= ToPostInt("userID")
+	username	= ToPostStr("username")
+	userpwd		= ToPostStr("userpwd")
+	realname	= ToPostStr("realname")
+	userGroup	= ToPostInt("userGroup")
+	state		= ToPostInt("state")
+
+	If username="" Or realname="" Or userMode="" Then
+		Call JS_AlertBackEnd("表单内容接收不全")
+	End If
+
+	Set addrec=server.CreateObject("ADODB.recordset")
+	addrec.open "select top 1 MB_ID from OT_member where MB_username='"& SqlForStr(username) &"' and MB_ID<>"& userID,conobj,0,1
+		If Not addrec.EOF Then
+			Call JS_AlertBackEnd("该用户名已存在，请换个！")
+		End If
+	addrec.close
+
+	addrec.open "select * from OT_member where MB_ID="& userID &" and MB_rightStr<>'admin'",conobj,0,2
+		If userMode="rev" Then
+			If addrec.EOF Then
+				Call JS_AlertBackEnd("修改失败，不存在该用户")
+			End If
+			alertStr="修改"
+			If Len(userpwd)>=5 Then
+				newUserKey	= RndChar(5)
+				userpwd		= md5(md5(userpwd) & newUserKey)
+				addrec("MB_userKey")=newUserKey
+				addrec("MB_userpwd")=userpwd
+			End If
+		Else
+			alertStr="添加"
+	addrec.addnew
+	addrec("MB_time")=Now()
+	addrec("MB_loginTime")=Now()
+	addrec("MB_right")=0
+	addrec("MB_groupID")=0
+	addrec("MB_rightStr")="|"
+	newUserKey	= RndChar(5)
+	userpwd		= md5(md5(userpwd) & newUserKey)
+	addrec("MB_userKey")=newUserKey
+	addrec("MB_userpwd")=userpwd
+		End If
+	addrec("MB_username")=username
+	addrec("MB_realname")=realname
+	addrec("MB_groupID")=userGroup
+	addrec("MB_state")=state
+	addrec.update
+	addrec.close
+	Set addrec=Nothing
+
+	Call JS_AlertHref(""& alertStr &"用户成功！","member.asp?mudi=manage")
+End Sub
+
+
+
+
+
+
+
+
+Private Sub Del()
+	dataID=ToGetInt("dataID")
+
+	Set checkexe=conobj.execute("select MB_groupID from OT_member where MB_ID>1 and MB_ID="& dataID)
+		Set UGexe=conobj.execute("select MG_rightStr from OT_memberGroup where MG_ID="& checkexe("MB_groupID"))
+			If Not UGexe.EOF Then
+				If user_rightStr<>"admin" And InStr(UGexe("MG_rightStr"),"|用户管理|")<>0 Then
+					Call JS_AlertEnd("你无权删除该用户！\n可能对方跟你权限同级")
+				End If
+			End If
+		UGexe.close
+		Set UGexe=Nothing
+	checkexe.close
+	Set checkexe=Nothing
+
+	conobj.execute("delete from OT_member where MB_ID>1 and MB_ID="& dataID)
+
+	response.write("<script language='javascript' type='text/javascript'>parent.$id('closeData"& dataID &"').style.display='none'</script>")
+End Sub
+
+
+
+
+
+Private Sub Send()
+	userID=ToGetInt("dataID")
+
+	Set sendexe=conobj.execute("select MB_ID,MB_username,MB_realname,MB_groupID,MB_state from OT_member where MB_ID="& userID)
+		If sendexe.EOF Then
+			Call JS_AlertEnd("指定ID错误！")
+		Else
+			Set UGexe=conobj.execute("select MG_rightStr from OT_memberGroup where MG_ID="& sendexe("MB_groupID"))
+				If Not UGexe.EOF Then
+					If user_rightStr<>"admin" And InStr(UGexe("MG_rightStr"),"|用户管理|")<>0 Then
+						Call JS_AlertEnd("你无权修改该用户！\n可能对方跟你权限同级.")
+					End If
+				End If
+			UGexe.close
+			Set UGexe=Nothing
+			response.write(_
+			"<script language='javascript' type='text/javascript'>"&_
+			"parent.$id('formTitle').innerHTML = '修改用户';"&_
+			"parent.$id('formSubmit').innerHTML = ""<input type='image' src='images/button_rev.gif'>"";"&_
+			"parent.$id('userAlertStr').innerHTML = '<br>提示：如不想修改密码，密码框请留空！';"&_
+			"parent.$id('userMode').value = 'rev';"&_
+			"parent.$id('userID').value = '"& sendexe("MB_ID") &"';"&_
+			"parent.$id('username').value = """& sendexe("MB_username") &""";"&_
+			"parent.$id('realname').value = """& sendexe("MB_realname") &""";"&_
+			"parent.$id('userGroup').value = "& sendexe("MB_groupID") &";"&_
+			"parent.$id('state').value = "& sendexe("MB_state") &";"&_
+			"parent.WindowHeight(0);"&_
+			"</script>")
+		End If
+	sendexe.close
+	Set sendexe=Nothing
+End Sub
+
+%>

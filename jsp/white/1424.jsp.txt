@@ -1,0 +1,166 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_ask.*" %>
+<%@page import="com.bizoss.trade.ts_category.*" %>
+<%@page import="java.util.*" %>
+<html>
+  <head>
+    
+    <title>提问管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+
+  <% 
+  	String trade_id="";
+  	if(request.getParameter("trade_id")!=null) trade_id = request.getParameter("trade_id");
+  	Ti_askInfo ti_askInfo = new Ti_askInfo();
+  	List list = ti_askInfo.getListByPk(trade_id);
+	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String cust_id="",title="",contents="",state_code="",reply="",class_attr="",reply_num="",user_id="",user_name="",in_date="";
+  	if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+  	if(map.get("title")!=null) title = map.get("title").toString();
+  	if(map.get("contents")!=null) contents = map.get("contents").toString();
+  	if(map.get("state_code")!=null) state_code = map.get("state_code").toString();
+  	if(map.get("reply")!=null) reply = map.get("reply").toString();
+  	if(map.get("class_attr")!=null) class_attr = map.get("class_attr").toString();
+  	if(map.get("reply_num")!=null) reply_num = map.get("reply_num").toString();
+  	if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+  	if(map.get("user_name")!=null) user_name = map.get("user_name").toString();
+  	if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+	String selecttree = ts_categoryInfo.getCategoryTree("000000000000000","2","");
+	Map catMap  = ts_categoryInfo.getCatClassMap("2");
+	StringBuffer output =new StringBuffer();
+	if(!class_attr.equals(""))
+	{
+	   String chIds[] =	class_attr.split("\\|");	
+	   for(String chId:chIds)
+	   {
+			 if(catMap!=null)
+			 {
+				if(catMap.get(chId)!=null)
+				{
+				  output.append(catMap.get(chId).toString()+" ");   						  
+				}                  
+			 
+			  }                 
+	    }		    
+	}
+  %>
+	
+	<h1>修改提问</h1>
+	
+	<!--
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>-----------------</h4>
+		  <span>1----------------。</span><br/>
+		  <span>2----------------。</span>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+	  -->
+	
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	<input name="cust_id" id="cust_id" value="<%=cust_id %>" type="hidden" />
+	<input name="user_id" id="user_id"  value="<%=user_id %>" type="hidden" />
+	<input name="user_name" id="user_name"  value="<%=user_name %>" type="hidden" /></td>
+	<input name="in_date" id="in_date"  value="<%=in_date %>" type="hidden" />
+				
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="10%">
+				标题<font color="red">*</font>
+			</td>
+			<td colspan="3"><%=title %></td>
+		</tr>
+		
+		
+		
+		<tr>
+			<td align="right" width="10%">
+				状态:
+			</td>
+			<td>
+			<%if(state_code.equals("a")) out.print("未审核");%>
+			<%if(state_code.equals("b")) out.print("审核未通过");%>
+				  </td>
+		   <td align="right" width="10%">
+				是否回复：
+			</td>
+			<td><%if(reply.equals("0")) out.print("未回复 ");%>
+			<%if(reply.equals("1")) out.print("已回复 ");%></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				类型:
+			</td>
+			<td align="left" >
+			   <input name="class_attr" id="class_attr" value="<%=class_attr %>" type="hidden" />
+			    <input type="hidden" id="flag_code" name="flag_code" value="0" />
+				<div id="classId1" style="display:block;">
+					<font color="#335B64"><%=output%></font>
+					</div>
+				<div id="classId2" style="display:none;">
+					<table cellspacing="0" cellpadding="0" border="0" align="left" class="listtab1">
+								<tr>
+								  <td colspan="3">
+								    <select name="s_cat_attr" id="s_cat_attr">
+										  <option value="">请选择...</option>
+										  <%=selecttree%>
+									</select>
+								  </td>
+								</tr>
+				    </table>
+				  </div>
+			</td>
+			<td align="right" width="10%">
+				回答数量:
+			</td>
+			<td><%=reply_num %>
+			</td>
+		
+		</tr>
+		<tr>
+			<td align="right" width="10%">
+				问题内容：<font color="red">*</font>
+			</td>
+			<td colspan="3">
+			<%=contents%></td>
+		</tr>
+	</table>
+	<script language="javascript">
+		function failure(){
+			document.getElementById("state_code").value="b";
+			document.addForm.submit();
+		}
+	</script>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+			   <input type="hidden" name="pkid" value="<%=trade_id %>" />
+			   <input type="hidden" name="jumpurl" value="/program/admin/askaudit/index.jsp" />				
+				<input type="hidden" name="bpm_id" id="bpm_id" value="2588" />	  
+				<input type="hidden" name="state_code" id="state_code" value="c">										
+				<input type="submit" class="buttoncss" name="tradeSub" value="审核通过" />&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeSub" value="审核不通过" onClick="failure();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

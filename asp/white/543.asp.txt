@@ -1,0 +1,167 @@
+<!--#include file = "Startup.asp"-->
+<!-- #include file="Function.asp" -->
+<%
+call adminer()
+Call Header()
+Call ComeUrl()
+Call IfUserClass()
+%>
+<%
+dim Action
+Action=trim(request("Action"))
+dim dbpath,db
+dim ObjInstalled
+ObjInstalled=IsObjInstalled("Scripting.FileSystemObject")
+
+if Action="Backup" or Action="BackupData" then
+	call ShowBackup()
+elseif Action="Restore" or Action="RestoreData" then
+	call ShowRestore()
+else
+	Response.Write "<center>参数错误！！</center>"
+end if
+%>
+
+<%
+sub ShowBackup()
+%>
+<table width="600" border="0" align=center cellpadding="3" cellspacing="1" bgcolor="#DEDFDE">
+<form method="post" action="database.asp?action=BackupData">
+  <tr bgcolor="#F7F7F7">
+	<td colspan="3" align="center" class="title"><b>备 份 数 据 库</b></td>
+  </tr>
+<%    
+if request("action")="BackupData" then
+	call backupdata()
+else
+%>
+          <tr bgcolor="#FFFFFF"> 
+            <td width="100" height="30" align="right">当前数据库：</td>
+            <td><input name="db" type="text" size="20" value="../mydatazw/#mydatazw.mdb" class="input1"></td>
+            <td>相对路径目录</td>
+          </tr>
+          <tr bgcolor="#FFFFFF"> 
+            <td width="100" height="30" align="right">备份目录：</td>
+            <td><input type=text size=20 name=bkfolder value=../Databackup class="input1"></td>
+            <td>相对路径目录，如目录不存在，将自动创建</td>
+          </tr>
+          <tr bgcolor="#FFFFFF"> 
+            <td width="100" height="30" align="right">备份名称：</td>
+            <td height="34"><input type=text size=20 name=bkDBname value="<%=date()%>" class="input1"></td>
+            <td height="34">不用输入文件名后缀（默认为“.asa”）。如有同名文件，将覆盖</td>
+          </tr>
+          <tr bgcolor="#FFFFFF"> 
+            <td colspan="3" align="center"><input name="submit" type=submit value=" &nbsp;开始备份&nbsp; " <%If ObjInstalled=false Then response.Write "disabled"%>  class="input1"></td>
+    </tr>
+<%
+	If ObjInstalled=false Then
+		Response.Write "<b><font color=red>你的服务器不支持 FSO(Scripting.FileSystemObject)! 不能使用本功能</font></b>"
+	end if
+end if
+%>
+</form>
+</table>
+<%
+end sub
+
+
+
+sub ShowRestore()
+%>
+<table width="600" border="0" align=center cellpadding="3" cellspacing="1" bgcolor="#DEDFDE">
+<form method="post" action="database.asp?action=RestoreData">
+  <tr bgcolor="#F7F7F7">
+	<td colspan="2" align="center" class="title"><b>数据库恢复</b></td>
+  </tr>
+        <%
+if request("action")="RestoreData" then
+	call RestoreData()
+else
+%>
+        <tr bgcolor="#FFFFFF">
+            <td width="200" height="30" align="right">备份数据库路径（相对）：</td>
+          <td height="30"><input name=backpath type=text id="backpath" value="../Databackup/#mydatazw.mdb" size=50 maxlength="200" class="input1"></td>
+    </tr>
+          <tr bgcolor="#FFFFFF">
+            <td width="200" height="30" align="right">当前数据库路径（相对）：</td>
+            <td><input name="db" type="text" size="50" value="../mydatazw/#mydatazw.mdb" class="input1"></td>
+          </tr>
+          <tr align="center" bgcolor="#FFFFFF"> 
+            <td colspan="2"><input name="submit" type=submit value=" &nbsp;恢复数据&nbsp; " <%If ObjInstalled=false Then response.Write "disabled"%> class="input1"></td>
+          </tr>
+<%
+	If ObjInstalled=false Then
+		Response.Write "<b><font color=red>你的服务器不支持 FSO(Scripting.FileSystemObject)! 不能使用本功能</font></b>"
+	end if
+end if
+%>
+            
+</form>
+</table>
+<%
+end sub
+%>
+
+
+
+
+
+<%
+sub BackupData()
+	dim bkfolder,bkdbname,fso,FoundErr
+	db=trim(request.form("db"))
+	bkfolder=trim(request("bkfolder"))
+	bkdbname=trim(request("bkdbname"))
+	if db="" then
+		FoundErr=True
+		Response.Write "请指定当数据库位置！"
+	end if
+	if bkfolder="" then
+		FoundErr=True
+		Response.Write "请指定备份目录！"
+	end if
+	if bkdbname="" then
+		FoundErr=True
+		Response.Write "请指定备份文件名"
+	end if
+	if FoundErr=True then exit sub
+	dbpath = server.mappath(db)
+	bkfolder=server.MapPath(bkfolder)
+	Set Fso=server.createobject("scripting.filesystemobject")
+	if fso.FileExists(dbpath) then
+		If fso.FolderExists(bkfolder)=false Then
+			fso.CreateFolder(bkfolder)
+		end if
+		fso.copyfile dbpath,bkfolder & "\" & bkdbname & ".asa"
+		response.write "<center>备份数据库成功，备份的数据库为 " & bkfolder & "\" & bkdbname & ".asa</center>"
+	Else
+		response.write "<center>找不到源数据库文件，请检查Startup.asp中的配置。</center>"
+	End if
+end sub
+
+
+sub RestoreData() 
+	dim backpath,fso,FoundErr
+	backpath=request.form("backpath")
+	db=trim(request.form("db"))
+	if backpath="" then
+		FoundErr=True
+		Response.Write "<br><li>请指定原备份的数据库文件名！<li>"
+		exit sub	
+	end if
+	if db="" then
+		FoundErr=True
+		Response.Write "<br><li>请指定当前数据库文件名！<li>"
+		exit sub	
+	end if
+	backpath=server.mappath(backpath)
+	dbpath = server.mappath(db)
+	Set Fso=server.createobject("scripting.filesystemobject")
+	if fso.fileexists(backpath) then  					
+		fso.copyfile Backpath,dbpath
+		response.write "成功恢复数据！"
+	else
+		response.write "找不到指定的备份文件！"	
+	end if
+end sub
+%> 

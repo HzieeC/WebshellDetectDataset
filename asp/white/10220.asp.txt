@@ -1,0 +1,592 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../inc/Commoncode.asp"-->
+<!--#include file="../checkvalid.asp"-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<LINK href=../css/style.css rel=stylesheet type="text/css">
+</head>
+<body>
+<%If ChkPost=True then
+Select Case Request("Action")
+   Case "compress"
+   If Not FRAdminLevel(503) Then
+		Call ErrorMsg()
+   End If
+   If FR_HR_DataBaseType=1 then
+   FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>该版本数据库类型不支持在线压缩！</li>" 
+   Else
+   Compress()
+   End If
+   Case "BackUp"
+   If Not FRAdminLevel(501) Then
+		Call ErrorMsg()
+   End If
+   If FR_HR_DataBaseType=1 then
+   FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>该版本数据库类型不支持在线备份！</li>" 
+   Else
+   BackUp()
+   End If
+   Case "resume"
+   If Not FRAdminLevel(502) Then
+		Call ErrorMsg()
+   End If  
+   If FR_HR_DataBaseType=1 then
+   FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>该版本数据库类型不支持在线恢复！</li>" 
+   Else
+   wResume()
+   End If
+   Case "ExecSql"
+   If Not FRAdminLevel(504) Then
+		Call ErrorMsg()
+   End If
+   Db_ExecSQL()
+   Case "Space"
+   If Not FRAdminLevel(505) Then
+		Call ErrorMsg()
+   End If
+   GetSpaceInfo()
+   Case "CompressData":CompressData()
+   Case "BackUpData":BackUpData()
+   Case "wResumeData":wResumeData()
+End Select
+if FoundErr=True then
+	call Show_Err()
+end if
+Else
+Response.Write("<SCRIPT language=JavaScript>alert('禁止非法提交数据！');window.close();</script>")
+response.end()
+End If
+%>
+<%
+Sub GetSpaceInfo()
+Dim SysPath, FSO, F, FC, I, I2
+%>
+<table width='100%' border='0' align="center" cellpadding='2' cellspacing='1' class="tableBorder" oncontextmenu=""return false"">
+  <tr>
+    <th height='25'>系统空间使用情况</th>
+  </tr>
+</table>
+<table width='100%' border='0' align="center" cellpadding='2' cellspacing='1' class="tableBorder" oncontextmenu=""return false"">
+  <tr>
+    <td valign='top'>
+<br><table width=90% border=0 align='center' cellpadding=2 cellspacing=1 bgcolor='#C4D8ED'>
+<%    
+SysPath = Server.MapPath("\") & "\"
+Set FSO = Server.CreateObject(FR_HR_fso)
+Set F = FSO.GetFolder(SysPath)
+Set FC = F.SubFolders
+		I = 1
+		I2 = 1
+For Each F In FC
+%>
+        <tr>
+          <td height=25 bgcolor='#EEF8FE'><img src='../Images/folderclosed.gif' width='20' height='20' align='absmiddle'><b><%=F.name%></b>&nbsp; 占用空间：&nbsp;<img src='../Images/bar2.gif' width="<%=Drawbar(F.name)%>" height=10>&nbsp;
+<%ShowSpaceInfo (F.name)%>
+          </td>
+        </tr>
+<%
+I = I + 1
+	If I2 < 10 Then
+	I2 = I2 + 1
+	Else
+	I2 = 1
+	End If
+Next
+%>						  
+        <tr>
+          <td height='25' bgcolor='#EEF8FE'> 程序文件占用空间：&nbsp;<img src='../Images/bar2.gif' width="<%=Drawspecialbar%>" height=10>&nbsp;				
+<%Showspecialspaceinfo ("Program")%>				
+          </td>
+        </tr>
+      </table>
+      <table width=90% border=0 align='center' cellpadding=3 cellspacing=1 bgcolor="#C4D8ED">
+        <tr>
+          <td height='28' align='right' bgcolor='#FFFFFF'><font color='#FF0066'><strong><font color='#006666'>系统占用空间总计：</font></strong>
+<%Showspecialspaceinfo ("All")%>
+            </font> </td>
+        </tr>
+      </table></td>
+  </tr>
+</table>
+<!--#include file="../inc/copy.asp" -->
+<%		End Sub
+		Sub ShowSpaceInfo(drvpath)
+        Dim FSO, d, size, showsize
+        Set FSO = Server.CreateObject(FR_HR_fso)
+        Set d = FSO.GetFolder(Server.MapPath("/" & drvpath))
+        size = d.size
+        showsize = size & "&nbsp;Byte"
+        If size > 1024 Then
+           size = (size \ 1024)
+           showsize = size & "&nbsp;KB"
+        End If
+        If size > 1024 Then
+           size = (size / 1024)
+           showsize = size & "&nbsp;MB"
+        End If
+        If size > 1024 Then
+           size = (size / 1024)
+           showsize = size & "&nbsp;GB"
+        End If
+        Response.Write "<font face=verdana>" & showsize & "</font>"
+      End Sub
+	  Sub Showspecialspaceinfo(method)
+			Dim FSO, d, FC, f1, size, showsize, drvpath
+			Set FSO = Server.CreateObject(FR_HR_fso)
+			Set d = FSO.GetFolder(Server.MapPath("/"))
+			If method = "All" Then
+				size = d.size
+			ElseIf method = "Program" Then
+				Set FC = d.Files
+				For Each f1 In FC
+					size = size + f1.size
+				Next
+			End If
+			showsize = size & "&nbsp;Byte"
+			If size > 1024 Then
+			   size = (size \ 1024)
+			   showsize = size & "&nbsp;KB"
+			End If
+			If size > 1024 Then
+			   size = (size / 1024)
+			   showsize = size & "&nbsp;MB"
+			End If
+			If size > 1024 Then
+			   size = (size / 1024)
+			   showsize = size & "&nbsp;GB"
+			End If
+			Response.Write "<font face=verdana>" & showsize & "</font>"
+		End Sub
+		Function Drawbar(drvpath)
+			Dim FSO, drvpathroot, d, size, totalsize, barsize
+			Set FSO = Server.CreateObject(FR_HR_fso)
+			Set d = FSO.GetFolder(Server.MapPath("/"))
+			totalsize = d.size
+			Set d = FSO.GetFolder(Server.MapPath("/" & drvpath))
+			size = d.size
+			
+			barsize = CInt((size / totalsize) * 100)
+			Drawbar = barsize
+		End Function
+		Function Drawspecialbar()
+			Dim FSO, drvpathroot, d, FC, f1, size, totalsize, barsize
+			Set FSO = Server.CreateObject(FR_HR_fso)
+			Set d = FSO.GetFolder(Server.MapPath("/"))
+			totalsize = d.size
+			Set FC = d.Files
+			For Each f1 In FC
+				size = size + f1.size
+			Next
+			barsize = CInt((size / totalsize) * 100)
+			Drawspecialbar = barsize
+		End Function
+
+%>
+<% Sub Compress() %>
+<table width="100%" border="0" align=center cellpadding="2"  cellspacing="1" class="tableBorder">
+  <form action="?action=CompressData" method="post">
+    <tr>
+      <th height=25 class="tableHeaderText">压缩数据库</th>
+    </tr>
+    <tr> 
+      <td height=25 class="amtd"><b>注意：</b> 正在使用中数据库不能压缩，请选择备份数据库进行压缩操作</td>
+    </tr>
+    <tr> 
+      <td class="amtd">压缩数据库： 
+        <input type="text" name="dbpath" value="../BackUp/BackUp.Mdb"> 
+        &nbsp; <input name="submit" type="submit" value="开始压缩" class="inputs"></td>
+    </tr>
+    <tr> 
+      <td class="amtd">
+<input type="checkbox" class="checkbox" name="boolIs97" value="True">
+        如果使用 Access 97 数据库请选择 (默认为 Access 2000 数据库)<br> <br></td>
+    </tr>
+  </form>
+  <form>
+  </form>
+</table>
+<!--#include file="../inc/copy.asp" -->
+<% End Sub %>
+<% Sub BackUp() %>
+<table width="100%" border="0" align=center cellpadding="2"  cellspacing="1" class="tableBorder">
+  <tr> 
+    <th height=25 class="tableHeaderText"> &nbsp;&nbsp;<B>备份数据库</B></th>
+  </tr>
+  <form method="post" action="vip.asp">
+    <tr> 
+      <td height=25 class="amtd"><%If FR_HR_DataBaseType=1 then%>
+        &nbsp;&nbsp; 备份数据库目录(相对路径)：
+        <input type="text" size=30 name="bkfolder" value="../BackUp" readonly />
+        请登陆FTP进入备份目录下载并保存备份文件<BR>
+        &nbsp;&nbsp; 备份数据库名称(填写名称)：
+        <input type=text size=30 name="bkDBname" value="sql<%=datenum(now())%>.bak" readonly />
+        备份文件名称系统自动生成
+        <BR> 
+        &nbsp;&nbsp;
+        <input name="submit2" type=submit value="备份数据" class="inputs">
+        <br>
+	  <%else%>
+	   &nbsp;&nbsp; 当前数据库路径(相对路径)： 
+        <input type="text" size=30 name="DBpath" value="<%=Add_Root_Dir(Database)%>" readonly />
+        <BR>
+        &nbsp;&nbsp; 备份数据库目录(相对路径)：
+        <input type="text" size=30 name="bkfolder" value="../BackUp" readonly />
+        请登陆FTP进入备份目录下载并保存备份文件<BR>
+        &nbsp;&nbsp; 备份数据库名称(填写名称)：
+        <input type=text size=30 name="bkDBname" value="<%=datenum(now())%>.mdb.bak" readonly />
+        备份文件名称系统自动生成
+        <BR> 
+        &nbsp;&nbsp;
+        <input name="submit2" type=submit value="备份数据" class="inputs">
+        <br>
+		<%end if%>
+      </td>
+    </tr>
+  </form>
+</table>
+<!--#include file="../inc/copy.asp" -->
+<% End Sub %>
+<% Sub wResume() %>
+<table width="100%" border="0" align=center cellpadding="2"  cellspacing="1"  class="tableBorder">
+  <form method="post" action="vip.asp">
+    <tr> 
+      <th height=25 class="tableHeaderText">恢复数据库</th>
+    </tr>
+    <tr> 
+      <td height=25 class="amtd"> &nbsp;&nbsp;备份数据库路径(相对)： 
+        <input name=DBpath type=text id="DBpath" value="../Backup/Backup.Mdb" size=30> 
+        &nbsp;&nbsp;<BR><%if FR_HR_DataBaseType=0 then%> &nbsp;&nbsp;目标数据库路径(相对)： <input type=text size=30 name=backpath value="../../database/"> 
+        <BR><%end if%>
+        &nbsp;&nbsp; <input name="submit3" type=submit value="恢复数据" class="inputs">
+      </td>
+    </tr>
+  </form>
+</Table>
+<!--#include file="../inc/copy.asp" -->
+<% End Sub %>
+<%
+'在线执行SQL
+Sub Db_ExecSQL()
+Dim Flag:Flag=Trim(Request.QueryString("Flag"))
+IF Flag="Result" Then 
+ Call ExecuteSql
+Else
+%>
+<table width=100% border=0 align=center cellpadding=2  cellspacing=1 class=tableBorder>
+  <tr>
+    <th height=25 class=tableHeaderText>在线执行SQL语句</th>
+</tr>
+</table>
+<script language="javascript">
+<!--
+function CheckForm()
+{if (document.ExecuteForm.Sql.value=='')
+{
+alert('请输入SQL查询语句！');
+document.ExecuteForm.Sql.focus();
+return false;
+}
+ExecuteSQLFrame.location.href="Admin_Database.asp?Action=ExecSql&Flag=Result&SQL="+document.ExecuteForm.Sql.value;
+return false;
+}
+-->
+</script><table width="100%" height="100%" border=0 align=center cellpadding=2  cellspacing=1 class=tableBorder>
+<form name="ExecuteForm" method="post" Action="?Action=ExecSql" onSubmit="return CheckForm()">
+<tr>
+<td style="height:80px;" valign="top">
+<textarea name="Sql" rows="5" wrap="OFF" style="width:100%;"></textarea>
+<input type="hidden" name="Flag" value="Execute"></td>
+</tr>
+<tr>
+<td style="height:30px;" align="center">
+<input type="submit" name="submit1" class="inputs" value="立即执行"><span style="color:red">一次仅能执行一条SQL语句，如果您没有一定的SQL基础，建议不要使用！</span></td>
+</tr>
+</form>
+<tr> 
+<td valign="_top" style="height:70%;"><iframe id="ExecuteSQLFrame" scrolling="auto" src="Admin_Database.asp?Action=ExecSql&Flag=Result" style="width:100%;height:93%" frameborder=1></iframe></td>
+</tr>
+</table>
+<% End iF%>
+<%
+End Sub
+Sub ExecuteSQL()
+Dim SelectSQLTF,ExecSQLErrorTF,ExeResultNum,ExeResult,FiledObj
+Dim Sql:Sql =request.querystring("Sql")
+if SQL="" Then Exit Sub
+'If Instr(1,lcase(Sql),"delete from ks_log")<>0 then
+	'Call KSCMS.AlertHistory("对不起，不能删除日志表数据！",-1)
+		'Exit Sub
+'End If
+SelectSQLTF = (LCase(Left(Trim(Sql),6)) = "select")
+Conn.Errors.Clear
+On Error Resume Next
+if SelectSQLTF = True then
+	  Set ExeResult = Conn.Execute(Sql,ExeResultNum)
+else
+	  Conn.Execute Sql,ExeResultNum
+end if
+ 
+If Conn.Errors.Count<>0 Then
+	  ExecSQLErrorTF = True
+	  Set ExeResult = Conn.Errors
+Else
+	  ExecSQLErrorTF = False
+End If
+if ExecSQLErrorTF = True then
+%>
+<table width=100% border=0 align=center cellpadding=2  cellspacing=1 class=tableBorder>
+  <tr bgcolor="F4F4EA"> 
+	<td height="20" nowrap> 
+	  <div align="center">错误号</div></td>
+	<td height="20" nowrap> 
+	  <div align="center">来源</div></td>
+	<td height="20" nowrap> 
+	  <div align="center">描述</div></td>
+	<td height="20" nowrap> 
+	  <div align="center">帮助</div></td>
+	<td height="20" nowrap> 
+	  <div align="center">帮助文档</div></td>
+  </tr>
+  <tr height="20" bgcolor="#FFFFFF"> 
+	<td nowrap> 
+	  <% = Err.Number %> </td>
+	<td nowrap> 
+	  <% = Err.Description %> </td>
+	<td nowrap> 
+	  <% = Err.Source %> </td>
+	<td nowrap> 
+	  <% = Err.Helpcontext %> </td>
+	<td nowrap> 
+	  <% = Err.HelpFile %> </td>
+  </tr>
+</table>
+<%
+else
+%>
+<table width=100% border=0 align=center cellpadding=2  cellspacing=1 class=tableBorder>
+  <%
+	if SelectSQLTF = True then
+%>
+  <tr>
+<%
+		For Each FiledObj In ExeResult.Fields
+%>
+	<td nowrap bgcolor="F4F4EA" height="26"><div align="center">
+		<% = FiledObj.name %>
+	  </div></td>
+<%
+		next
+%>
+  </tr>
+<%
+		do while Not ExeResult.Eof
+%>
+  <tr height="20" nowrap bgcolor="#ffffff" onMouseOver="this.style.background='#F5f5f5'" onMouseOut="this.style.background='#FFFFFF'">
+<%
+			For Each FiledObj In ExeResult.Fields
+%>
+	<td> 
+	  <div align="center">
+		<%
+		 if IsNull(FiledObj.value) then
+			Response.Write("&nbsp;")
+		 else
+			Response.Write(FiledObj.value)
+		 end if
+		 %>
+	  </div></td>
+<%
+			next
+%>
+  </tr>
+<%
+			ExeResult.MoveNext
+		loop
+	else
+%>
+  <tr>
+	<td bgcolor="F4F4EA" height="26">
+<div align="center">执行结果</div></td>
+  </tr>
+  <tr>
+	<td height="20" bgcolor="#FFFFFF">
+<div align="center">
+		<% = ExeResultNum & "条纪录被影响"%>
+	  </div></td>
+  </tr>
+<%
+	end if
+%>
+</table>
+
+<%
+  end if
+%>
+
+<%
+ End Sub
+ %>
+<%
+'=====================压缩参数=========================
+Sub CompressData()
+Dim fso, Engine, strDBPath,JET_3X,dbpath,boolIs97,TempStr
+dbpath = Request("dbpath")
+boolIs97 =Request("boolIs97")
+
+If dbpath <> "" Then
+   dbpath = Server.MapPath(dbpath)
+Else
+    ErrMsg="压缩数据库相对路径不能为空"
+	Exit Sub
+End If
+
+strDBPath = left(dbPath,instrrev(DBPath,"\"))
+Set fso = CreateObject("Scripting.FileSystemObject")
+
+If fso.FileExists(dbPath) Then
+	fso.CopyFile dbpath,strDBPath & "temp.mdb"
+	Set Engine = CreateObject("JRO.JetEngine")
+
+	If boolIs97 = "True" Then
+		Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb", _
+		"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp1.mdb;" _
+		& "Jet OLEDB:Engine Type=" & JET_3X
+	Else
+		Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb", _
+		"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp1.mdb"
+	End If
+	
+	fso.CopyFile strDBPath & "temp1.mdb",dbpath
+	fso.DeleteFile(strDBPath & "temp.mdb")
+	fso.DeleteFile(strDBPath & "temp1.mdb")
+	Set fso = nothing:Set Engine = nothing
+	%>你的数据库, <% = dbpath%>, 已经压缩成功!<%
+Else
+	%>数据库名称或路径不正确. 请重试!<%
+End If
+End Sub
+
+sub BackUpData()
+Dim FileConnStr,Fileconn,Dbpath,bkfolder,bkdbname,Fso
+bkfolder=request.Form("bkfolder")
+bkdbname=request.Form("bkdbname")
+If FR_HR_DataBaseType=1 then
+	Set srv=Server.CreateObject("SQLDMO.SQLServer")
+	srv.LoginTimeout = 15 '登陆超时
+	srv.Connect HostIP,Username, Password
+	Set bak = Server.CreateObject("SQLDMO.Backup")
+	bak.Database=DatabaseName
+	bak.Devices=Files
+	If CheckDir(bkfolder) = True Then
+			bak.Files=bkfolder& "\"& bkdbname
+		else
+			MakeNewsDir bkfolder
+			bak.Files=bkfolder& "\"& bkdbname
+		end if
+	bak.SQLBackup srv
+	if err.number>0 then
+	response.write err.number&"<font color=red><br>"
+	response.write err.description&"</font>"
+	end if
+	Response.write "<font color=green>备份成功!</font>"
+Else
+Dbpath=request.Form("Dbpath")
+Dbpath=server.mappath(Dbpath)
+	Set Fso=server.createobject("scripting.filesystemobject")
+	If Fso.fileexists(dbpath) then
+		If CheckDir(bkfolder) = True Then
+			Fso.copyfile dbpath,bkfolder& "\"& bkdbname
+		else
+			MakeNewsDir bkfolder
+			Fso.copyfile dbpath,bkfolder& "\"& bkdbname
+		end if
+		%>备份数据库成功，您备份的数据库路径为<% 
+			response.Write bkfolder& "\"& bkdbname
+			'Response.Write("&nbsp;&nbsp;<a href="&bkfolder&"/"&bkdbname&"><span style='color:#FF0000;'>点击下载</span></a>")
+	Else
+		%>找不到您所需要备份的文件。<%
+	End if
+End If
+End sub
+
+Sub wResumeData()
+On Error Resume Next
+dim backpath,Fso
+Dbpath=request.form("dbpath")
+backpath=request.form("backpath")
+If FR_HR_DataBaseType=1 then
+	Set srv=Server.CreateObject("SQLDMO.SQLServer")
+	srv.LoginTimeout = 15
+	srv.Connect HostIP,Username, Password
+	Set rest=Server.CreateObject("SQLDMO.Restore")
+	rest.Action=0
+	rest.Database=DatabaseName
+	rest.Devices=Files
+	rest.Files=Dbpath
+	rest.ReplaceDatabase=True
+	if err.number>0 then
+	response.write err.number&"<font color=red><br>"
+	response.write err.description&"</font>"
+	end if
+	rest.SQLRestore srv
+	If Err Then
+        Err.Clear
+        Response.Write "<br><br><br><br><br><br><br><div align='center'>数据库异常，错误编号10010！</div>"
+        Response.End
+    End If
+	Response.write "<font color=green>恢复成功!</font>"
+Else
+	If Dbpath="" then
+	%>请输入您要恢复成的数据库全名<%
+	Else
+	Dbpath=server.mappath(Dbpath)
+	End If
+	If backpath="" then
+	response.Write "请输入数据路径"
+	End If
+	backpath=server.mappath(backpath)
+	Set Fso=server.createobject("Scripting.FilesyStemObject")
+	if fso.fileexists(dbpath) then  					
+	fso.copyfile Dbpath,Backpath
+	%>成功恢复数据！<%
+	else
+	%>备份目录下并无您的备份文件！<%	
+	end if
+End If	
+End Sub
+'------------------检查某一目录是否存在-------------------
+Function CheckDir(FolderPath)
+    dim fso1
+	folderpath=Server.MapPath(".")&"\"&folderpath
+    Set fso1 = CreateObject("Scripting.FileSystemObject")
+    If fso1.FolderExists(FolderPath) then
+       '存在
+       CheckDir = True
+    Else
+       '不存在
+       CheckDir = False
+    End if
+    Set fso1 = nothing
+End Function
+'-------------根据指定名称生成目录-----------------------
+Function MakeNewsDir(foldername)
+	dim f,fso1
+    Set fso1 = CreateObject("Scripting.FileSystemObject")
+        Set f = fso1.CreateFolder(foldername)
+        MakeNewsDir = True
+    Set fso1 = nothing
+End Function
+'-------------时间转换成数字-----------------------
+Function datenum(bkDBnamem)
+bkDBnamem =replace(bkDBnamem,":","")
+bkDBnamem=replace(bkDBnamem,"-","")
+bkDBnamem=replace(bkDBnamem," ","")
+datenum=bkDBnamem
+End Function
+Call CloseConn()
+%>

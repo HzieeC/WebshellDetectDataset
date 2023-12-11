@@ -1,0 +1,395 @@
+<!--#Include File="../Inc/Const.Asp"-->
+<!--#Include File="Inc/Class_Special.Asp"-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=GBK" />
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<title>专题管理</title>
+<script language="JavaScript" type="text/javascript" src="Images/ajax.js"></script>
+<link href="Images/Style.Css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<%
+
+If Len(Request.Form("oContent")) > 0 And Request("Act") = "UpDate" Then Session("Content_IN_Cache") = Request.Form("oContent")
+
+Dim U
+Set U = New Cls_Special
+
+Dim Rs,Ns,Sql,Style,i
+Dim ID
+    ID = Request("ID")
+Dim Key
+    Key = Request("Key")
+Dim Page
+    Page = Request("Page")
+Dim Orders
+    Orders = Request("Orders")
+Dim DFieldKey
+    DFieldKey = Request("DFieldKey")
+Dim DFieldOrders
+    DFieldOrders = Request("DFieldOrders")
+If len(ID) > 0 And Not IsNumeric(ID) Then : Response.Write "编号只能是数字!" : Conn.Close : Set Conn = Nothing : Set U = Nothing : Response.End '// 检测ID
+If Len(Page) = 0 Or Not IsNumeric(ID) Then Page = 1
+If Page < 1 Then Page = 1
+If LCase(Orders) <> "asc" Then Orders = "Desc"
+If Len(DFieldKey) = 0 Then DFieldKey = "SpecialName"
+If Len(DFieldOrders) = 0 Then DFieldOrders = "ID"
+If Instr("[ID],[SpecialName],[FileName],[Template],[Orders]" , "[" & Lcase(DFieldKey) & "]") = 0 Then Key = ""
+If Instr("[ID],[SpecialName],[FileName],[Template],[Orders]" , "[" & Lcase(DFieldOrders) & "]") = 0 Then DFieldOrders = "ID"
+Page = Int(Page) : Key = Replace(Key,"'","")
+Dim JumpUrl
+    JumpUrl = "&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders
+
+Select Case Request("Act")
+Case "Guide"
+	If Len(ID) = 0 Then
+		Call U.Initialize()
+		Call Main_Guide(0)
+	Else
+		U.vID = ID
+		Call U.SetValue()
+		Call Main_Guide(1)
+	End If
+Case "UpDate"
+	If U.GetValue() Then
+		If Len(ID) = 0 Then
+			If Not U.Create() Then
+				Alert U.LastError,"Admin_Special.Asp?Page=" & Page & JumpUrl
+			Else
+				Alert "","Admin_Special.Asp?Page=" & Page & JumpUrl
+			End If
+		Else
+			U.vID = ID
+			If Not U.Modify() Then
+				Alert U.LastError,"Admin_Special.Asp?Page=" & Page & JumpUrl
+			Else
+				Alert "","Admin_Special.Asp?Page=" & Page & JumpUrl
+			End If
+		End If
+	Else
+		Alert U.LastError,"Admin_Special.Asp?Page=" & Page & JumpUrl
+	End If
+Case "Delete"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Delete() Then
+			Alert U.LastError,"Admin_Special.Asp?Page=" & Page & JumpUrl
+		Else
+			Alert "","Admin_Special.Asp?Page=" & Page & JumpUrl
+		End If
+	Else
+		Call Main()
+	End If
+Case "Change"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Change() Then Alert U.LastError,""
+	End If
+	Call Main()
+Case "DOCreate"
+	ID = Split(Replace(Replace(Request("ids"),"'","")," ",""),",")
+	For i = 0 To Ubound(ID)
+		Call CreateContent(ID(i),0)
+	Next
+	Call Main()
+Case "DODelete"
+	ID = Replace(Replace(Request("ids"),"'","")," ","")
+	Call U.DeleteAll(ID)
+	Call Main()
+Case "DOMove"
+	ID = Replace(Replace(Request("ids"),"'","")," ","")
+	Call U.EchoMoveHtml(ID)
+Case "DOMoveit"
+	Dim Tmp
+	Dim Tocid : Tocid = Request("Tocid")
+	Call U.MoveContent(Tocid,ID)
+	Call Main()
+Case Else
+	Call Main()
+End Select
+
+Set U = Nothing
+If IsObject(Conn) Then Conn.Close : Set Conn = Nothing
+
+Sub Main()
+If Len(Key) > 0 Then
+	If Instr(",[ID],[SpecialName],[FileName],[Template],[Orders],","," & DFieldKey & ",") > 0 Then
+		If Len(Key) > 0 And IsNumeric(Key) Then Sql = "[" & DFieldKey & "]=" & Key & ""
+	Else
+		Sql = "[" & DFieldKey & "] Like '%" & Key & "%'"
+	End If
+End If
+
+
+Set Rs = New DataList
+Rs.Field = "[ID],[SpecialName],[FileName],[Template],[Order]"
+Rs.Table = "[{pre}Special]"
+Rs.Where = SQL
+Rs.Order = "[" & DFieldOrders & "] " & Orders & ""
+Rs.AbsolutePage = Page
+Rs.List()
+%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+		<td colspan=8><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<form name=frmSearch method=post action=Admin_Special.asp>
+					<tr>
+						<td class=css_main><a href=Admin_Special.Asp>专题管理</a> <a href=Admin_Special.Asp?Act=Guide&Page=<%=Page%><%=JumpUrl%>>添加专题</a></td>
+						<td class=css_search><select name=DFieldKey id=DFieldKey>
+								<option value="ID" <%If Lcase(DFieldKey) = "id" Then Response.Write "selected='selecte'" %>>编号</option>
+								<option value="Cid" <%If Lcase(DFieldKey) = "cid" Then Response.Write "selected='selected'" %>>栏目</option>
+								<option value="Title" <%If Lcase(DFieldKey) = "title" Then Response.Write "selected='selected'" %>>标题</option>
+								<option value="Display" <%If Lcase(DFieldKey) = "display" Then Response.Write "selected='selected'" %>>前台显示</option>
+							</select>
+							<input name=Key type=text id=Key size=10 value="<%=Key%>">
+							<input type=submit name=Submit value=搜></td>
+					</tr>
+				</form>
+			</table></td>
+	</tr>
+	<form name=frm method=post action=Admin_Special.asp>
+		<tr>
+		  <td width="38" class='css_top'><input type="checkbox" name="chkall" id="chkall"  class="checkbox"></td>
+			<td width="46" class='css_top'>编号</td>
+			<td width="568" class='css_top'>专题名称</td>
+			<td width="174" class='css_top'><a href='Admin_Special.asp?Page=<%=Page%>&DFieldOrders=Views&Orders=<%If Lcase(DFieldOrders) = Lcase("Views") And Orders = "Desc" Then Response.Write "Asc" Else Response.Write "Desc" %>'>文件名称</a></td>
+			<td width="204" class='css_top'><a href='Admin_Special.asp?Page=<%=Page%>&DFieldOrders=Modifytime&Orders=<%If Lcase(DFieldOrders) = Lcase("Modifytime") And Orders = "Desc" Then Response.Write "Asc" Else Response.Write "Desc" %>'>专题模版</a></td>
+			<td width="109" class='css_top'><a href='Admin_Special.asp?Page=<%=Page%>&DFieldOrders=Commend&Orders=<%If Lcase(DFieldOrders) = Lcase("Commend") And Orders = "Desc" Then Response.Write "Asc" Else Response.Write "Desc" %>'>显示顺序</a></td>
+			<td width="105" class='css_top'>管理</td>
+		</tr>
+		<%
+		If Rs.Eof Then
+		%>
+		<tr align="center" class=css_norecord>
+			<td colspan=8>没有任何记录！</td>
+		</tr>
+		<%
+		Else
+		For i = 0 To UBound(Rs.Data,2)
+		%>
+		<tr>
+		  <td width="38" class='css_list'><input type="checkbox" name="ids" id="ids" value="<%=Rs.Data(0,i)%>" class="checkbox"></td>
+			<td width="46" class='css_list'><%=Rs.Data(0,i)%></td>
+			<td class='css_list'><div align="left"> &nbsp;<a href="Admin_Special.Asp?Act=Guide&ID=<%=Rs.Data(0,i)%>&Page=<%=Page%><%=JumpUrl%>"><%=Rs.Data(1,i)%></a></div></td>
+		  <td width="174" class='css_list'><a href="../special/<%=Rs.Data(2,i)%>.html" target="_blank"><%=Rs.Data(2,i)%>.html</a></td>
+			<td width="204" class='css_list'><%=Rs.Data(3,i)%></td>
+			<td width="109" class='css_list'><%=Rs.Data(4,i)%></td>
+			<td width="105" class='css_list'><input name=modify type=button onclick="location.href='Admin_Special.Asp?Act=Guide&ID=<%=Rs.Data(0,i)%>&Page=<%=Page%><%=JumpUrl%>';" value=修改>
+		  <input name=delete type=button onclick="if(confirm('您确定要删除这条记录吗?')){location.href='Admin_Special.Asp?Act=Delete&ID=<%=Rs.Data(0,i)%>&Page=<%=Page%><%=JumpUrl%>';}" value=删除></td>
+		</tr>
+		<%
+		Next
+		End If
+		%>
+		<tr class=css_page_list>
+			<td colspan=8><%If Createhtml=1 Then%>
+				<input type="button" class="inputs" onclick="SpecialDo('DOCreate');" value="生成" />
+				<%End If%>
+				<input name="" type="button" class="inputs" onclick="SpecialDo('DODelete');" value="删除" />
+				&nbsp;
+				<select name='Jcid' onchange='location.href=this.options[this.selectedIndex].value;' >
+					<option value='Admin_Special.asp' selected style='background-color:#F0F9E3;'>不指定栏目</option>
+					<%Set Ns = DB("Select [ID],[Name] From [{pre}Channel] Where [OutSideLink]=0 Order By [Order] Desc,[ID] Desc",1)%> <%Do While Not Ns.Eof%>
+					<option value='Admin_Special.asp?Page=1&Key=<%=Ns(0)%>&DFieldKey=Cid' <%If DFieldKey="Cid" And Cstr(Key)=Cstr(Ns(0)) Then%>selected<%End If%>><%=Ns(1)%></option>
+					<%Ns.MoveNext : Loop%>
+				</select>
+				<%=PageList(Rs.PageCount,Page,Rs.RecordCount,15,"Admin_Special.Asp?Page={p}&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders)%></td>
+		</tr>
+	</form>
+</table>
+<%
+Set Rs = Nothing
+End Sub
+
+Sub Main_Guide(T)
+%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+		<td colspan=3><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<tr>
+					<td class=css_main><a href=Admin_Special.Asp?Page=<%=Page%><%=JumpUrl%>>专题管理</a></td>
+				</tr>
+			</table></td>
+	</tr>
+	<form name='frm' id="frm" method='post' action='Admin_special.Asp?Act=UpDate&ID=<%=ID%>&Page=<%=Page%><%=JumpUrl%>'>
+		
+		<tr>
+			<td width="94" class=css_col11_content><div align="right"> <font color=red>专题名称：</font> </div></td>
+			<td colspan="2" class=css_col21><input name="oSpecialName" type="text" class="css_input" id="oSpecialName" value="<%=U.vSpecialName%>" size="70" /></td>
+		</tr>
+		<tr>
+			<td class=css_col11_content><div align="right"> <font color=red>关键字：</font> </div></td>
+			<td colspan="2" class=css_col21><input name="oKeywords" type="text" class="css_input" id="oKeywords" value="<%=U.vKeywords%>" size="70" />			</td>
+		</tr>
+		<tr>
+			<td class=css_col11_content><div align="right"> 文件名称： </div></td>
+			<td colspan="2" class=css_col21><input name="oFileName" type="text" class="css_input" id="oFileName" value="<% If Len(U.vFileName)=0 then response.Write Year(Now)&Month(Now)&day(Now)&Hour(Now)&Minute(Now)&Second(Now) Else response.Write U.vFileName  %>" size="32" />
+			  .html</td>
+		</tr>
+		<tr>
+			<td class=css_col12_content><div align="right"> 专题模板： </div></td>
+			<td colspan="2" class=css_col22><%IF Len(U.vTemplate)=0 Then U.vTemplate="special.html"%><input name="oTemplate" type="text" class='css_input' id="oTemplate" value="<%=U.vTemplate%>" size="32" /></td>
+		</tr>
+		
+		<tr>
+			<td class=css_col11_content><div align="right"> 专题图片： </div></td>
+			<td class=css_col21><input class='css_input' name="oIndexPic" type="text" id="oIndexPic" value="<%=U.vSpecialPhoto%>" size=32 ></td>
+		    <td width="160" rowspan="2" class=css_col21><div id="indexpicimg" align="center"> <%If Len(U.vSpecialPhoto) > 0 Then%> <img src="<%=U.vSpecialPhoto%>" height=95 width=150 /> <%Else%> <img src="Images/nopic.gif" height=95 width=150 /> <%End If%> </div></td>
+		</tr>
+		<tr>
+			<td class=css_col11_content><div align="right"> 上传文件： </div></td>
+			<td class=css_col21><iframe name='uploadframe' src="Uploadspic.Asp" width="372" height="24" frameborder="0" scrolling="no" border="0"></iframe></td>
+		</tr>
+		<tr id="trdescription">
+			<td class=css_col11_content><div align="right"> 专题描述： </div></td>
+			<td colspan="2" class=css_col21><textarea name="oDescription" style="width:99.2%;" rows="3" class='css_textarea' id="oDescription" type="text"><%=U.vDescription%></textarea>			</td>
+		</tr>
+		
+		
+		<tr class=css_page_list>
+			<td colspan=3><input name='Submit' type='submit' value='保存'>			</td>
+		</tr>
+	</form>
+</table>
+
+<script>
+function multiup(){
+	$('multiup').style.top='158px';
+	$('multiup').style.left='520px';
+	$('multiup').style.display='';
+}
+
+</script>
+<div id="multiup" style="display:none;position:absolute;z-index:2;">
+ <script language="javascript">
+function challs_flash_update(){ //Flash 初始化函数
+	var a={};
+	//定义变量为Object 类型
+
+	a.title = "上传文件"; //设置组件头部名称
+	
+	a.FormName = "Filedata";
+	//设置Form表单的文本域的Name属性
+	
+	a.url="update.asp"; 
+	//设置服务器接收代码文件
+	
+	a.parameter=""; 
+	//设置提交参数，以GET形式提交
+	
+	a.typefile=["Images (*.gif,*.png,*.jpg,*jpeg)","*.gif;*.png;*.jpg;*.jpeg;",
+				"GIF (*.gif)","*.gif;",
+				"PNG (*.png)","*.png;",
+				"JPEG (*.jpg,*.jpeg)","*.jpg;*.jpeg;"];
+	//设置可以上传文件 数组类型
+	//"Images (*.gif,*.png,*.jpg)"为用户选择要上载的文件时可以看到的描述字符串,
+	//"*.gif;*.png;*.jpg"为文件扩展名列表，其中列出用户选择要上载的文件时可以看到的 Windows 文件格式，以分号相隔
+	//2个为一组，可以设置多组文件类型
+	
+	a.UpSize=0;
+	//可限制传输文件总容量，0或负数为不限制，单位MB
+	
+	a.fileNum=0;
+	//可限制待传文件的数量，0或负数为不限制
+	
+	a.size=1;
+	//上传单个文件限制大小，单位MB，可以填写小数类型
+	
+	a.FormID=['select','select2'];
+	//设置每次上传时将注册了ID的表单数据以POST形式发送到服务器
+	//需要设置的FORM表单中checkbox,text,textarea,radio,select项目的ID值,radio组只需要一个设置ID即可
+	//参数为数组类型，注意使用此参数必须有 challs_flash_FormData() 函数支持
+	
+	a.autoClose=1;
+	//上传完成条目，将自动删除已完成的条目，值为延迟时间，以秒为单位，当值为 -1 时不会自动关闭，注意：当参数CompleteClose为false时无效
+	
+	a.CompleteClose=true;
+	//设置为true时，上传完成的条目，将也可以取消删除条目，这样参数 UpSize 将失效, 默认为false
+	
+	a.repeatFile=true;
+	//设置为true时，可以过滤用户已经选择的重复文件，否则可以让用户多次选择上传同一个文件，默认为false
+	
+	a.returnServer=true;
+	//设置为true时，组件必须等到服务器有反馈值了才会进行下一个步骤，否则不会等待服务器返回值，直接进行下一步骤，默认为false
+	
+	a.MD5File = 1;
+	//设置MD5文件签名模式，参数如下 ,注意：FLASH无法计算超过100M的文件,在无特殊需要时，请设置为0
+	//0为关闭MD5计算签名
+	//1为直接计算MD5签名后上传
+	//2为计算签名，将签名提交服务器验证，在根据服务器反馈来执行上传或不上传
+	//3为先提交文件基本信息，根据服务器反馈，执行MD5签名计算或直接上传，如果是要进行MD5计算，计算后，提交计算结果，在根据服务器反馈，来执行是否上传或不上传
+	
+	a.loadFileOrder=true;
+	//选择的文件加载文件列表顺序，TRUE = 正序加载，FALSE = 倒序加载
+	
+	a.mixFileNum=0;
+	//至少选择的文件数量，设置这个将限制文件列表最少正常数量（包括等待上传和已经上传）为设置的数量，才能点击上传，0为不限制
+	
+	a.ListShowType = 1;
+	//文件列表显示类型：1 = 传统列表显示，2 = 缩略图列表显示（适用于图片专用上传）
+	
+	//a.InfoDownRight = "等待上传：%1%个  已上传：%2%个";
+	//右下角统计信息的文本设置,文本中的 %1% = 等待上传数量的替换符号，%2% = 已经上传数量的替换符号
+	
+	a.TitleSwitch = true;
+	//是否显示组件头部
+	
+	a.ForceFileNum=0;
+	//强制条目数量，已上传和待上传条目相加等于为设置的值（不包括上传失败的条目），否则不让上传, 0为不限制，设置限制后mixFileNum,autoClose和fileNum属性将无效！
+	
+	a.autoUpload = false;
+	//设置为true时，用户选择文件后，直接开始上传，无需点击上传，默认为false;
+	
+	a.adjustOrder = true;
+	//设置为true时，用户可以拖动列表，重新排列位置
+	
+	a.deleteAllShow = true;
+	//设置是否显示，全部清除按钮
+	 
+	return a ;
+	//返回Object
+}
+
+function challs_flash_onCompleteData(a){ //获取服务器反馈信息事件
+	var oEditor = FCKeditorAPI.GetInstance('oContent');
+	oEditor.InsertHtml('<img src="' + a + '" />');
+	document.frm.indexpiclist.options[document.frm.indexpiclist.length]=new Option(a,a);
+	document.frm.indexpiclist.selectedIndex+=1;
+	document.getElementById('indexpicimg').innerHTML='<img src=' + a + ' height=95 width=150 />';
+	document.frm.oIndexpic.value=a;
+}
+
+function challs_flash_onCompleteAll(){ //上传文件列表全部上传完毕事件
+	$('multiup').style.display='none';
+}
+
+</script>
+<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=10,0,0,0" width="408" height="320" id="update" align="middle">
+<param name="allowFullScreen" value="false" />
+    <param name="allowScriptAccess" value="always" />
+	<param name="movie" value="update.swf" />
+    <param name="quality" value="high" />
+    <param name="bgcolor" value="#ffffff" />
+    <embed src="update.swf" quality="high" bgcolor="#ffffff" width="408" height="320" name="update" align="middle" allowScriptAccess="always" allowFullScreen="false" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer" />
+  </object>
+<div style="margin: 10px -3px;"><a href="javascript:;" onclick="$('multiup').style.display='none';"><img src="images/close.gif" border="0" /></a></div>
+</div>
+<%
+End Sub
+%>
+<script language="JavaScript">
+<!--
+function InsertCC(s){
+	try{
+		var oEditor = FCKeditorAPI.GetInstance('oContent');
+		oEditor.InsertHtml(s);
+	}
+	catch(e){
+	}
+}
+//-->
+</script>
+</body>
+</html>

@@ -1,0 +1,430 @@
+<!--#include file="../../Conn.asp" -->
+<!--#include file="../../Comm/Site_Class.asp" -->
+<%
+PagePath = "../../"
+
+Set Qsite = New Site_Class
+
+Qsite.SiteConfig_Master()
+%>
+<!--#include file="../Check_Login.asp" -->
+<%
+Qsite.Check_AdminFlag(arrAdminFlag(0 , 3))
+
+If Request.Form <> "" Then
+	If Request.Form("AreaId") = 0 Then
+		SaveNewArea()
+	Else
+		SaveEditArea()
+	End If
+End If
+
+If Request.QueryString("action") = "del" Then
+	DelArea Qsite.chgStr(Trim(Request.QueryString("AreaKey"))) , Qsite.chgStr(Trim(Request.QueryString("AreaId")))
+ElseIf Request.QueryString("action") = "up" Then
+	UpPx Qsite.chgStr(Trim(Request.QueryString("AreaKey"))) , Qsite.chgStr(Trim(Request.QueryString("AreaId")))
+ElseIf Request.QueryString("action") = "down" Then
+	DownPx Qsite.chgStr(Trim(Request.QueryString("AreaKey"))) , Qsite.chgStr(Trim(Request.QueryString("AreaId")))
+End If
+
+Sub Area_To_Js()
+	Dim pRs,CityRs,CountyRs
+	Dim strArea
+	Dim Fso,MyFile
+	
+	Set pRs = server.createobject("ADODB.Recordset")
+	Set CityRs = server.createobject("ADODB.Recordset")
+	Set CountyRs = server.createobject("ADODB.Recordset")
+	
+	strArea = ""
+	strArea = strArea & "var arrProvince = new Array();" & vbCrlf
+	strArea = strArea & "var arrCity = new Array();" & vbCrlf
+	strArea = strArea & "var arrCounty = new Array();" & vbCrlf & vbCrlf
+
+	strArea = strArea & "var i = 0;" & vbCrlf
+	strArea = strArea & "var j = 0;" & vbCrlf
+	strArea = strArea & "var k = 0;" & vbCrlf & vbCrlf
+	
+	pRs.Open "select * from AreaTbl where AreaKey = 0 order by Px asc" , Conn , 1 , 1
+	Do While Not pRs.Eof
+		strArea = strArea & "arrProvince[i] = """& pRs("AreaName") &""";" & vbCrlf
+		strArea = strArea & "arrCity[i] = new Array();" & vbCrlf
+		strArea = strArea & "arrCounty[i] = new Array();" & vbCrlf & vbCrlf
+		
+		CityRs.Open "select * from AreaTbl where AreaKey = "& pRs("AreaId") &" order by Px asc" , Conn , 1 , 1
+		strArea = strArea & "	j = 0;" & vbCrlf
+		Do While Not CityRs.Eof
+			strArea = strArea & "	arrCity[i][j] = """& CityRs("AreaName") &""";" & vbCrlf
+			strArea = strArea & "	arrCounty[i][j] = new Array();" & vbCrlf & vbCrlf
+			
+			CountyRs.Open "select * from AreaTbl where AreaKey = "& CityRs("AreaId") &" order by Px asc" , Conn , 1 , 1
+			strArea = strArea & "		k = 0;" & vbCrlf
+			Do While Not CountyRs.Eof
+				strArea = strArea & "		arrCounty[i][j][k++] = """& CountyRs("AreaName") &""";" & vbCrlf
+			CountyRs.MoveNext
+			Loop
+			CountyRs.Close
+			
+		CityRs.MoveNext
+		strArea = strArea & vbCrlf & "	j++;" & vbCrlf
+		Loop
+		CityRs.Close
+		
+	strArea = strArea & vbCrlf &  "i++;" & vbCrlf
+	pRs.MoveNext
+	Loop
+	pRs.Close
+	
+	Set pRs = nothing
+	Set CityRs = nothing
+	Set CountyRs = nothing
+	
+	Set Fso = CreateObject("Scripting.FileSystemObject")
+	Set MyFile = Fso.CreateTextFile(Server.Mappath("../../Comm/Area_All.js") , True)
+	MyFile.WriteLine strArea
+	MyFile.Close
+	Set MyFile = Nothing
+	Set Fso  = Nothing
+	
+End Sub
+
+Sub SaveNewArea()
+	Dim Rs
+	Dim AreaName,AreaKey,Px
+	AreaName = Qsite.chgStr(Trim(Request.Form("AreaName")))
+	AreaKey = Qsite.chgStr(Trim(Request.Form("AreaKey")))
+	Px = Qsite.chgStr(Trim(Request.Form("Px")))
+	
+	If AreaName = "" Or IsNull(AreaName) Then
+		Qsite.ShowMsg "请输入地区名称" , ""
+	End If
+	If AreaKey = "" Or IsNull(AreaKey) Or Not IsNumeric(AreaKey) Then AreaKey = 0
+	If Px = "" Or IsNull(Px) Or Not IsNumeric(Px) Then Px = 1
+	
+	Set Rs = Conn.Execute("select AreaName from AreaTbl where AreaKey = "& AreaKey &" and AreaName = '"& AreaName &"'")
+	If Not Rs.Eof Then
+		Qsite.ShowMsg "地区已经存在，请返回重新输入" , ""
+	End If
+	Set Rs = Nothing
+	
+	Conn.Execute("update AreaTbl set Px = Px + 1 where AreaKey = "& AreaKey &" and Px >= "& Px)
+	
+	Conn.Execute("insert into AreaTbl (AreaName , AreaKey , Px) values ('"& AreaName &"' , "& AreaKey &" , "& Px &")")
+	
+	Area_To_Js()
+	
+	Qsite.ShowMsg "地区添加成功" , "Admin_Area.asp?AreaKey="& AreaKey
+End Sub
+
+Sub SaveEditArea()
+	Dim AreaId,AreaName,AreaKey,Px
+	Dim Rs,OldPx
+	AreaId = Qsite.chgStr(Trim(Request.Form("AreaId")))
+	AreaName = Qsite.chgStr(Trim(Request.Form("AreaName")))
+	AreaKey = Qsite.chgStr(Trim(Request.Form("AreaKey")))
+	Px = Qsite.chgStr(Trim(Request.Form("Px")))
+	
+	If AreaId = "" Or IsNull(AreaId) Or Not IsNumeric(AreaId) Then AreaId = 0
+	
+	If AreaName = "" Or IsNull(AreaName) Then
+		Qsite.ShowMsg "请输入地区名称" , ""
+	End If
+	If AreaKey = "" Or IsNull(AreaKey) Or Not IsNumeric(AreaKey) Then AreaKey = 0
+	If Px = "" Or IsNull(Px) Or Not IsNumeric(Px) Then Px = 1
+	
+	Set Rs = Conn.Execute("select AreaName from AreaTbl where AreaKey = "& AreaKey &" and AreaName = '"& AreaName &"' and AreaId <> "& AreaId)
+	If Not Rs.Eof Then
+		Qsite.ShowMsg "地区已经存在，请返回重新输入" , ""
+	End If
+	Set Rs = Nothing
+	
+	Set Rs = Conn.Execute("select Px from AreaTbl where AreaId = "& AreaId)
+	If Rs.Eof Then
+		OldPx = Px
+	Else
+		OldPx = Rs("Px")
+	End If
+	
+	If Cint(Px) > Cint(OldPx) Then
+		Conn.Execute("update AreaTbl set Px = Px - 1 where AreaKey = "& AreaKey &" and Px > "& OldPx &" and Px <= "& Px)
+	ElseIf Cint(Px) < Cint(OldPx) Then
+		Conn.Execute("update AreaTbl set Px = Px + 1 where AreaKey = "& AreaKey &" and Px >= "& Px &" and Px < "& OldPx)
+	End If
+	
+	Conn.Execute("update AreaTbl set AreaName = '"& AreaName &"' , Px = "& Px &" where AreaId = "& AreaId)
+	
+	Area_To_Js()
+	
+	Qsite.ShowMsg "地区修改成功" , "Admin_Area.asp?AreaKey="& AreaKey
+End Sub
+
+Sub DelArea(AreaKey , AreaId)
+	Dim OldPx,Rs,dKey
+	Dim IncludeAreaId
+	
+	If AreaId = "" Or IsNull(AreaId) Or Not IsNumeric(AreaId) Then AreaId = 0
+	
+	Set Rs = Conn.Execute("select Px from AreaTbl where AreaId = "& AreaId)
+	If Rs.Eof Then
+		OldPx = 9999
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	IncludeAreaId = Qsite.OutIncludeField("AreaTbl" , "AreaId" , "AreaKey" , AreaId)
+	
+	Conn.Execute("delete * from AreaTbl where AreaId in ("& IncludeAreaId &")")
+	
+	Conn.Execute("update AreaTbl set Px = Px - 1 where AreaKey = "& AreaKey &" and Px > "& OldPx)
+	
+	Area_To_Js()
+	
+	Qsite.ShowMsg "地区删除成功" , "Admin_Area.asp?AreaKey="& AreaKey
+End Sub
+
+Sub UpPx(AreaKey , AreaId)
+	Dim Rs,OldPx
+	
+	If AreaId = "" Or IsNull(AreaId) Or Not IsNumeric(AreaId) Then AreaId = 0
+	If AreaKey = "" Or IsNull(AreaKey) Or Not IsNumeric(AreaKey) Then AreaKey = 0
+	
+	Set Rs = Conn.Execute("select Px from AreaTbl where AreaId = "& AreaId)
+	If Rs.Eof Then
+		OldPx = 1
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	If Cint(OldPx) > 1 Then
+		Conn.Execute("update AreaTbl set Px = Px + 1 where AreaKey = "& AreaKey &" and Px = "& OldPx - 1)
+		Conn.Execute("update AreaTbl set Px = Px - 1 where AreaId = "& AreaId)
+	End If
+	
+	Area_To_Js()
+	
+	Response.Redirect("Admin_Area.asp?AreaKey="& AreaKey)
+	Response.End()
+End Sub
+
+Sub DownPx(AreaKey , AreaId)
+	Dim Rs,maxPx,OldPx
+	
+	If AreaId = "" Or IsNull(AreaId) Or Not IsNumeric(AreaId) Then AreaId = 0
+	If AreaKey = "" Or IsNull(AreaKey) Or Not IsNumeric(AreaKey) Then AreaKey = 0
+	
+	Set Rs = Conn.Execute("select Px from AreaTbl where AreaId = "& AreaId)
+	If Rs.Eof Then
+		OldPx = 9999
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	Set Rs = Conn.Execute("select top 1 Px from AreaTbl where AreaKey = "& AreaKey &" order by Px desc")
+	If Rs.Eof Then
+		maxPx = 9999
+	Else
+		maxPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	If Cint(OldPx) < Cint(maxPx) Then
+		Conn.Execute("update AreaTbl set Px = Px - 1 where AreaKey = "& AreaKey &" and Px = "& OldPx + 1)
+		Conn.Execute("update AreaTbl set Px = Px + 1 where AreaId = "& AreaId)
+	End If
+	
+	Area_To_Js()
+	
+	Response.Redirect("Admin_Area.asp?AreaKey="& AreaKey)
+	Response.End()
+End Sub
+
+Dim Rs,Sql,i
+Dim uRs,uuRs,uKey,uuKey
+Dim AreaId,AreaName,AreaKey,Px,contPx
+Dim strTitle,strSubmit
+Dim strTypeName,strTypeKey
+
+Set Rs = server.createobject("ADODB.Recordset")
+
+AreaKey = Qsite.chgStr(Trim(Request.QueryString("AreaKey")))
+
+If AreaKey = "" Or IsNull(AreaKey) Or Not IsNumeric(AreaKey) Then AreaKey = 0
+
+Sql = "select * from AreaTbl where AreaKey = "& AreaKey &" order by Px asc"
+
+Rs.Open "select top 1 * from AreaTbl where AreaKey = "& AreaKey &" order by Px desc" , Conn ,1 , 1
+If Rs.Eof Then
+	contPx = 1
+Else
+	contPx = Rs("Px") + 1
+End If
+Rs.Close
+
+Rs.Open "select * from AreaTbl where AreaId = "& AreaKey , Conn , 1 , 1
+If Rs.Eof Then
+	strTypeName = ""
+	strTypeKey = 0
+Else
+	strTypeName = "[" & Rs("AreaName") & "]"
+	strTypeKey = Rs("AreaKey")
+End If
+Rs.Close
+%>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>地区管理</title>
+<link href="../style.css" rel="stylesheet" type="text/css">
+<script language="javascript">
+function PosDel(AreaKey , AreaId)
+{
+	var question = confirm("你确定要删除此条记录吗？");
+	if (question !="0")
+	{
+		location.href = "Admin_Area.asp?action=del&AreaKey=" + AreaKey + "&AreaId=" + AreaId;
+	}
+}
+</script>
+<style type="text/css">
+<!--
+.STYLE1 {color: #FF0000}
+-->
+</style>
+</head>
+
+<body>
+<p>&nbsp;</p>
+<p class="STYLE1">说明：添加分类后，要添加此分类的子项，请点此分类后面的“查看”，然后在出现页面中添加各子项。要修改现有分类中的子项，也是点“查看”后，在出现页面中对相应的子项目操作[前移 | 后移 | 修改 | 删除]</p>
+<p>  
+  <%
+AreaId = Qsite.chgStr(Trim(Request.QueryString("AreaId")))
+
+If AreaId = "" Or IsNull(AreaId) Or Not IsNumeric(AreaId) Then AreaId = 0
+
+If AreaId = 0 Then
+	AreaName = ""
+	Px = contPx
+	strTitle = "添加地区"
+	strSubmit = "添加"
+Else
+	Rs.Open "select * from AreaTbl where AreaId = "& AreaId , Conn , 1 , 1
+	If Rs.Eof Then
+		AreaId = 0
+		AreaName = ""
+		Px = contPx
+		strTitle = "添加地区"
+		strSubmit = "添加"
+	Else
+		AreaName = Rs("AreaName")
+		Px = Rs("Px")
+		strTitle = "修改地区"
+		strSubmit = "修改"
+	End If
+End If
+%>
+</p>
+<form name="PosForm" method="post" action="Admin_Area.asp" style="margin:0">
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" class="td_title"><%=strTitle%></td>
+		</tr>
+		<tr>
+			<td height="23" class="td_content">地区名称：
+				<input name="AreaName" type="text" class="input_1" id="AreaName" size="50" value="<%=AreaName%>">
+排序
+<input name="Px" type="text" class="input_1" id="Px" size="20" value="<%=Px%>">			
+	<input name="Submit" type="submit" class="input_1" value="<%=strSubmit%>">
+	<%
+	If AreaId <> 0 Then
+	%>
+	<input name="Submit" type="button" class="input_1" value="返回" onClick="javascript:history.back();">
+	<%
+	End If
+	%>
+	<input name="AreaKey" type="hidden" id="AreaKey" value="<%=AreaKey%>">
+	<input name="AreaId" type="hidden" id="AreaId" value="<%=AreaId%>"></td>
+		</tr>
+	</table>
+	<br>
+</form>
+<%
+If AreaId = 0 Then
+%>
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" colspan="2" class="td_title"><%=strTypeName%>地区列表</td>
+		</tr>
+<%
+Rs.Open Sql , Conn , 1 , 1
+If Rs.Eof Then
+%>
+		<tr>
+			<td height="23" colspan="2" class="td_content">暂无地区信息 [<a href="Admin_Area.asp?AreaKey=<%=strTypeKey%>">返回</a>]</td>
+		</tr>
+<%
+Else
+%>
+		<tr>
+<%
+	i = 0
+	Do While Not Rs.Eof
+%>
+			<td width="50%" height="23" class="td_content"><%=Rs("AreaName")%> &nbsp;&nbsp;&nbsp;[<a href="Admin_Area.asp?action=up&AreaKey=<%=AreaKey%>&AreaId=<%=Rs("AreaId")%>">前移</a> | <a href="Admin_Area.asp?action=down&AreaKey=<%=AreaKey%>&AreaId=<%=Rs("AreaId")%>">后移</a> | <a href="Admin_Area.asp?AreaKey=<%=AreaKey%>&AreaId=<%=Rs("AreaId")%>">修改</a> | <a href="#" onClick="PosDel('<%=AreaKey%>' , '<%=Rs("AreaId")%>');return false;">删除</a> 
+			<%
+			Set uRs = Conn.Execute("select AreaKey from AreaTbl where AreaId = "& Rs("AreaId"))
+			If uRs.Eof Then
+				uKey = 0
+			Else
+				uKey = uRs("AreaKey")
+			End If
+			Set uRs = Nothing
+			
+			Set uuRs = Conn.Execute("select AreaKey from AreaTbl where AreaId = "& uKey)
+			If uuRs.Eof Then
+				uuKey = 0
+			Else
+				uuKey = uuRs("AreaKey")
+			End If
+			Set uuRs = Nothing
+			
+			If Cint(uuKey) = 0 Then
+			%>
+			| <a href="Admin_Area.asp?AreaKey=<%=Rs("AreaId")%>">查看</a> 
+			<%
+			End If
+
+			If Cint(uKey) > 0 Then
+			%>
+			| <a href="Admin_Area.asp?AreaKey=<%=uuKey%>">返回</a>
+			<%
+			End If
+			%>
+			]</td>
+<%
+	Rs.MoveNext
+	i = i + 1
+	If i Mod 2 = 0 And Not Rs.Eof Then
+		Response.Write("</tr></tr>")
+	End If
+	If i Mod 2 > 0 And Rs.Eof Then
+		Response.Write("<td width=""50%"" class=""td_content"">&nbsp;</td>")
+	End If
+	Loop
+%>
+			
+		</tr>
+<%
+End If
+Rs.Close
+
+Set Rs = Nothing
+%>
+</table>
+<%
+End If
+%>
+</body>
+</html>

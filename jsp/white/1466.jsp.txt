@@ -1,0 +1,224 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" />
+<%@page import="com.bizoss.trade.tb_commpara.*" %>
+<%@page import="com.bizoss.trade.ts_custclass.*" %>
+<%@page import="com.bizoss.trade.ts_area.*" %>
+<%@page import="com.bizoss.trade.ti_member.*" %>
+<%
+	String cust_id = randomId.GenTradeId();
+	String user_id = randomId.GenTradeId();
+	Map custclassinfoMap = new Hashtable();
+	Map ti_member = new Hashtable();
+	custclassinfoMap.put("class_type","1");
+	Ts_custclassInfo custclassinfo = new Ts_custclassInfo();
+	String pub_user_id="";	
+	if( session.getAttribute("session_user_id") != null )
+	{
+		pub_user_id = session.getAttribute("session_user_id").toString();
+	}
+	
+	String s_area_attr = "";
+	if(request.getParameter("area_attr")!=null && !request.getParameter("area_attr").equals("")){
+		s_area_attr = request.getParameter("area_attr");
+		ti_member.put("area_attr",s_area_attr);
+		}
+	Tb_commparaInfo tb_commparaInfo=new Tb_commparaInfo();
+	String _income = tb_commparaInfo.getSelectItem("20","");	
+	String custclass_select =  custclassinfo.getSelectString(custclassinfoMap,"");
+%>
+<html>
+  <head>
+    <title>律师信息管理</title>
+	
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	<script type="text/javascript" src="js_personal.js"></script>
+
+</head>
+
+<body>
+	<h1>新增律师信息</h1>
+、
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+
+			<tr>
+			<td colspan="4">
+			   <img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">个人基本信息</span>			</td>
+		    </tr>
+			
+			<tr>
+				<td align="right" width="10%">
+					登陆账号<font color="red">*</font>
+				</td>
+			<td  width="30%"><input name="user_name" id="user_name" type="text" maxlength="20"  /></td>
+			<td align="right" width="10%">
+				登陆密码<font color="red">*</font>
+			</td>
+			<td >
+			<input name="passwd" id="passwd" type="password" maxlength="20" />
+			</td>
+			</tr>
+			
+			<tr>
+			<td align="right" width="10%">
+					真实姓名<font color="red">*</font>
+				</td>
+			<td  width="30%"><input name="cust_name" id="cust_name" type="text" maxlength="20"  /></td>
+			<input name="real_name" id="real_name" type="hidden" maxlength="20"  />
+			<td align="right" width="10%">
+					执业证号<font color="red">*</font>
+				</td>
+			<td  width="30%"><input name="license_no" id="license_no" type="text" maxlength="20"  /></td>
+			</tr>
+			
+
+			<input name="org_id" id="org_id" type="hidden" maxlength="20" />
+			<input name="role_code" id="role_code" type="hidden" maxlength="20"  />
+			<input name="user_id" id="user_id" type="hidden" value="<%=user_id%>"/>
+			<input name="user_state" id="user_state" type="hidden" value="0"/>
+			
+
+			
+		<tr>
+			<td align="right" width="10%">
+				律所名称:
+			</td>
+			<td width="30%"><input name="company_name" id="company_name" type="text" maxlength="20"/></td>
+
+			<td align="right" width="10%">
+				会员级别<font color="red">*</font>
+			</td>
+			<td>
+			<select name="user_class" style="width:145px" id="user_class">
+					<%=custclass_select%>
+			</select>
+			<input type="hidden" name="cust_class" id="cust_class" value="" />
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				个人相片:
+			</td>
+			<td  colspan="3">
+				<jsp:include page="/program/inc/uploadImgInc.jsp">
+					<jsp:param name="attach_root_id" value="<%=cust_id%>" />
+				</jsp:include>
+			</td>
+		</tr>
+
+			<tr>
+				<td colspan="4">
+			   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">个人详细信息</span>			</td>
+		    </tr>
+			
+		<tr>
+			<td align="right" width="10%">
+				固话:
+			</td>
+			<td width="30%"><input name="phone" id="phone" type="text"  maxlength="20"/></td>
+			<td align="right" width="10%">
+				手机:
+			</td>
+			<td><input name="cellphone" id="cellphone" type="text"  maxlength="20"/></td>			
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				Email:
+			</td>
+			<td><input name="email" id="email" type="text"/></td>
+			<td align="right" width="10%">
+				擅长的专业:
+			</td>
+			<td><input name="professional" id="professional" type="text"  maxlength="20"/></td>
+		</tr>
+
+		
+		<tr>
+			<td align="right" width="10%">
+				QQ:
+			</td>
+			<td><input name="qq" id="qq" type="text"  maxlength="20"/></td>
+			<td align="right" width="10%">
+				邮政编码:
+				</td>
+			<td><input name="postcode" id="postcode" type="text"  maxlength="10"/></td>
+		</tr>
+		<tr>
+	
+
+		<td align="right" width="10%">
+				所在地区:
+			</td>
+			<td width="40%">
+                <select name="province" id="province" onchange="setCitys(this.value,'')">
+				  <option value="">省份</option> 
+				</select>
+				<select name="eparchy_code" id="eparchy_code" onchange="setAreas(this.value,'')">
+				  <option value="">地级市</option> 
+				 </select>
+				<select name="city_code" id="city_code" style="display:inline" >
+				 <option value="">市、县级市、县</option> 
+				</select>
+					<input type="hidden" name="area_attr_bak" id="area_attr_bak" value="" />
+					<input type="hidden" name="area_attr" id="area_attr" value="" />
+
+			</td>		
+
+			<td align="right" width="10%">
+				地址:
+			</td>
+			<td><input name="address" id="address" type="text" size="30"  maxlength="100"/></td>
+						
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				性别:
+			</td>
+			<td>
+			<input name="sex" id="sex" value="0" checked type="radio" />男
+			<input name="sex" id="sex" value="1"  type="radio" />女</td>
+			<td></td>
+			<td></td>
+		</tr>
+		
+		<tr>
+			<td>
+				个人评价:
+			</td>
+			<td colspan="3">
+			 <textarea name="lawyer_desc"></textarea>
+			<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+			<script type="text/javascript">
+			   CKEDITOR.replace( 'lawyer_desc',{});  
+			</script></td>
+		</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="2624" />
+				<input type="hidden" name="jumpurl" value="/program/admin/lawyer/index.jsp" />
+				<input type="hidden" name="cust_id" id="cust_id" value="<%=cust_id%>"/>
+				<input type="hidden" name="state_code" id="state_code" value="a"/>
+				<input type="hidden" name="cust_type" id="cust_type" value="1"/>
+				<input type="hidden" name="user_type" id="user_type" value="2" />
+				<input type="hidden" name="pub_user_id" id="pub_user_id" value="<%=pub_user_id%>"/>
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onClick="subForm();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onClick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>
+<script>setProvince();</script>

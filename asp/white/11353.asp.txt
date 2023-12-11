@@ -1,0 +1,109 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../INC/adminchk.asp"-->
+<!--#include file="../../Inc/incadmin.asp"-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>Upload</title>
+<style type="text/css">
+BODY {FONT-SIZE: 13px; BACKGROUND-COLOR:#F4F4F4;margin-left: 0px; margin-top: 0px}
+.Input_text{BACKGROUND-COLOR: #ffffff; BORDER: #45A8E3 1px solid; COLOR: #333333; HEIGHT: 22px; line-height:22px; font-size: 12px}
+.button{ WIDTH: 45px; HEIGHT: 22px; BACKGROUND: url(../images/sub.gif) no-repeat 0px 0px; color:#FFFFFF; font-size:12px; BORDER: 0px; cursor:pointer}
+</style>
+</head>
+<body>
+<%
+if request("act") = "upload" then%>
+	<!--#include file="fileconfig.asp"-->
+	<script>
+	parent.document.Form1.Submit2.disabled=false;
+	</script>
+	<%
+	Server.ScriptTimeOut=999999
+	
+	Set Upload = Server.CreateObject("Persits.Upload")
+	Upload.SetMaxSize UploadLimitSize*1024, True
+	Upload.OverwriteFiles = False
+	
+	if Request.QueryString("PID") = "" then
+		Upload.ProgressID="010D60EB00C5AA4B"
+	else
+		Upload.ProgressID=Request.QueryString("PID")
+	end if
+	
+	Upload.Save
+	TourID = Upload.Form("TourID")
+	
+	If Err.Number <> 0 Then
+		Response.Write "<div style=""color:red;font-size:12px;"">出现错误: " & Err.Number & "、" & Err.Description &"<a href=""javascript:history.go(-1)"">[重新上传]</a></div>"
+	End If
+	If Err.Number = 8 Then
+		Response.Write "<div style=""color:red;font-size:12px;"">你上传的文件超过限制（"& UploadLimitSize/1024 &"M）<a href=""javascript:history.go(-1)"">[重新上传]</a></div>" 
+		response.end
+	end if
+	
+	SavePath = "/uploadfile/tour/"&TourID
+	Set fso = Server.CreateObject("Scripting.FileSystemObject")
+	if fso.folderexists(server.mappath(SavePath))=false then
+		Fso.Createfolder(server.mappath(SavePath))
+	end if
+	set fso = Nothing
+	
+	For Each File in Upload.Files
+		if not CanUpload(File.ext) then
+			File.Delete
+			response.write "<div style=""color:red;font-size:12px; PADDING-TOP:4px"">"&file.filename &"("& file.size &") 格式不正确！<a href=""javascript:history.go(-1)"">[重新上传]</a></div>"
+		Else
+			FileName = GetDateString()&File.ext
+			File.SaveAs server.mappath(SavePath&"/"&FileName)
+			'生成缩略图
+			Call ProductSmall(SavePath,FileName)
+			response.write "<script>parent.Form1.PhotoName.value='"&FileName&"';</script>"
+			response.write "<div style='color:#FF6600; PADDING-TOP:6px'>"&FileName&" 上传成功!&nbsp;<a href='javascript:history.go(-1)'>[重新上传]</a></div>"
+		end if
+	Next
+	Set Upload = Nothing
+else
+	TourID = Request.QueryString("TourID")
+	dim SPid,PID,barref
+	Set UploadProgress = Server.CreateObject("Persits.UploadProgress")
+	SPid = UploadProgress.CreateProgressID()
+	PID = "PID=" & SPid
+	barref = "framebar.asp?to=10&" & PID
+	%>
+	<script LANGUAGE="JavaScript">
+	function ShowProgress(){
+		strAppVersion = navigator.appVersion;
+		if (document.MyForm.FILE1.value != "")
+		{
+			if (strAppVersion.indexOf('MSIE') != -1 && strAppVersion.substr(strAppVersion.indexOf('MSIE')+5,1) > 4){
+				winstyle = "dialogWidth=375px; dialogHeight:175px; center:yes;status:no";
+				window.showModelessDialog('<% = barref %>&b=IE',window,winstyle);
+			}
+			else
+				window.open('<% = barref %>&b=NN','','width=370,height=165', true);
+		}
+		return true;
+	}
+	
+	function chk(){
+		if (MyForm.FILE1.value==""){
+			alert("请从硬盘选择你要上传的文件！");
+			return false;
+		}
+	}
+	</script>
+	<FORM NAME="MyForm" method="post" ENCTYPE="multipart/form-data" ACTION="?<% = PID %>&act=upload" OnSubmit="return ShowProgress();">
+	<input type="FILE" name="FILE1" size="40" class="Input_text">
+	<input type="hidden" name="PID" value="<%=PID%>">
+	<input type="hidden" name="TourID" value="<%=TourID%>">
+	<%if AdminStatus=3 then%>
+	<input type="submit" name="Submit" value="上 传" class="button" disabled="disabled">
+	<%else%>
+	<input type="submit" name="Submit" value="上 传" class="button" onClick="parent.document.Form1.Submit2.disabled=true;return chk()">
+	<%end if%>
+	</FORM>
+<%end if%>
+</body>
+</html>

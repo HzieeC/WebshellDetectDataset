@@ -1,0 +1,426 @@
+<!--#include file="const.asp"-->
+<!--#include file="../../inc/ubbcode.asp"-->
+<!--#include file="../inc/cls_tags.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_save.asp
+' 更新日期：2008-06-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+Dim TextContent,SoftTop,SoftBest,softid,ForbidEssay,showreg,SoftAccept
+Dim Action,AlphaSoftName,Taglist,Tagstring
+If Not ChkAdmin("PostSoft_"&ChannelID) Then
+	Call Transfer_error()
+End If
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+Case "save"
+	Call saveNewSoft()
+Case "modify"
+	Call ModifySoft()
+Case Else
+	'Call showmain
+End Select
+If FoundErr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub AddUpdateTags(act)
+	Tag.ChannelID=ChannelID
+	Tag.Modules=NewAsp.Modules
+	Tag.classid=NewAsp.CheckNumeric(Request.Form("ClassID"))
+	Tag.Taghits=NewAsp.CheckNumeric(Request.Form("AllHits"))
+	Tag.IsBest=NewAsp.ChkNumeric(Request.Form("IsBest"))
+	Tag.IsTop=NewAsp.ChkNumeric(Request.Form("isTop"))
+	Tag.TagString=Trim(Request.Form("Tagstring"))
+	Tag.tagList=Trim(Request.Form("Taglist"))
+	If act=1 Then
+		Tag.AddNewTags()
+	Else
+		Tag.UpdateTags()
+	End If
+	Taglist=Tag.tagList&"|"&Tag.checkTagString(Request.Form("Tagstring"))
+End Sub
+
+Sub saveNewSoft()
+	CheckSave
+	If Founderr = True Then Exit Sub
+	Call AddUpdateTags(1)
+	Dim Rs,SQL,i
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_SoftList WHERE (softid is null)"
+	Rs.Open SQL,Conn,1,3
+	Rs.Addnew
+		Rs("ChannelID") = ChannelID
+		Rs("classid") = NewAsp.CheckNumeric(Request.Form("classid"))
+		Rs("SpecialID") = NewAsp.CheckNumeric(Request.Form("SpecialID"))
+		Rs("SoftName") = NewAsp.RequestForm(Request.Form("SoftName"),255)
+		Rs("SoftVer") = NewAsp.RequestForm(Request.Form("SoftVer"),255)
+		Rs("subtitle") = NewAsp.RequestForm(Request.Form("subtitle"),200)
+		Rs("ColorMode") = Trim(Request.Form("ColorMode"))
+		Rs("FontMode") = Trim(Request.Form("FontMode"))
+		Rs("Related") = NewAsp.RequestForm(Request.Form("Related"),255)
+		Rs("content") = TextContent
+		Rs("OuterLinks") = NewAsp.RequestForm(Request.Form("OuterLinks"),255)
+		Rs("Languages") = NewAsp.RequestForm(Request.Form("Languages"),255)
+		Rs("SoftType") = NewAsp.RequestForm(Request.Form("SoftType"),255)
+		Rs("RunSystem") = NewAsp.RequestForm(Request.Form("RunSystem"),255)
+		Rs("impower") = NewAsp.RequestForm(Request.Form("impower"),255)
+		If UCase(Request.Form("SizeUnit")) = "MB" Then
+			Rs("SoftSize") = CLng(NewAsp.CheckNumeric(Request.Form("SoftSize")) * 1024)
+		Else
+			Rs("SoftSize") = NewAsp.CheckNumeric(Request.Form("SoftSize"))
+		End If
+		Rs("star") = Trim(Request.Form("star"))
+		Rs("Homepage") = Trim(Request.Form("Homepage"))
+		Rs("Contact") = Trim(Request.Form("Contact"))
+		Rs("Author") = NewAsp.RequestForm(Request.Form("Author"),50)
+		Rs("Regsite") = NewAsp.RequestForm(Request.Form("Regsite"),255)
+		Rs("showreg") = CInt(showreg)
+		Rs("username") = Trim(AdminName)
+		Rs("PointNum") = NewAsp.CheckNumeric(Request.Form("PointNum"))
+		Rs("SoftPrice") = NewAsp.CheckNumeric(Request.Form("SoftPrice"))
+		Rs("SoftTime") = Formatime(Trim(Request.Form("SoftTime")))
+		Rs("isTop") = SoftTop
+		Rs("AllHits") = NewAsp.CheckNumeric(Request.Form("AllHits"))
+		Rs("DayHits") = NewAsp.CheckNumeric(Request.Form("AllHits"))
+		Rs("WeekHits") = NewAsp.CheckNumeric(Request.Form("AllHits"))
+		Rs("MonthHits") = NewAsp.CheckNumeric(Request.Form("AllHits"))
+		Rs("HitsTime") = Now()
+		Rs("HtmlFileDate") = Trim(NewAsp.HtmlRndFileName)
+		Rs("SoftImage") = Trim(Request.Form("SoftImage"))
+		Rs("Previewimg") = Trim(Request.Form("Previewimg"))
+		Rs("plugin") = NewAsp.ChkNumeric(Request.Form("plugin"))
+		Rs("Decode") = Trim(Request.Form("Decode"))
+		Rs("isBest") = SoftBest
+		Rs("UserGroup") = NewAsp.ChkNumeric(Request.Form("UserGroup"))
+		Rs("isUpdate") = 1
+		Rs("ErrCode") = 0
+		Rs("isAccept") = SoftAccept
+		Rs("ForbidEssay") = ForbidEssay
+		Rs("AlphaIndex") = NewAsp.ReadAlpha(AlphaSoftName)
+		If NewAsp.ChkNumeric(Request.Form("plugin")) = 7 Then
+			Rs("PauseDown") = 1
+		Else
+			Rs("PauseDown") = 0
+		End If
+		Rs("good") = NewAsp.CheckNumeric(Request.Form("good"))
+		Rs("bad") = NewAsp.CheckNumeric(Request.Form("bad"))
+		Rs("Taglist")=Taglist
+	Rs.update
+	Rs.Close
+	Rs.Open "SELECT TOP 1 softid FROM NC_SoftList WHERE ChannelID=" & ChannelID & " ORDER BY softid DESC", Conn, 1, 1
+	softid = Rs("softid")
+	Rs.Close:Set Rs = Nothing
+	'---- 开始批量添加下载地址
+	Dim TempAddress,TempSiteName
+	If Trim(Request.Form("DownAddress")) <> "" Then
+		For i = 1 To Request.Form("DownAddress").Count
+			TempAddress = Trim(Request.Form("DownAddress")(i))
+			TempSiteName = Trim(Request.Form("SiteName")(i))
+			If LCase(TempAddress) <> "del" And Trim(TempAddress) <> "" Then
+				AddDownAddress Request.Form("downsid")(i),softid,TempAddress,TempSiteName
+			End If
+		Next
+	End If
+	'---- 批量添加下载地址完成
+	ClassUpdateCount NewAsp.CheckNumeric(Request.Form("classid")),1
+	Call RemoveCache
+	If CInt(NewAsp.IsCreateHtml) <> 0 Then
+		Dim url
+		url = "admin_makeshow.asp?ChannelID=" & ChannelID & "&insoftid=" & softid & "&t=2"
+		Call ScriptCreation(url)
+		SQL = "SELECT TOP 1 softid FROM NC_SoftList WHERE ChannelID=" & ChannelID & " And isAccept <> 0 And softid < " & softid & " ORDER BY softid DESC"
+		Set Rs = NewAsp.Execute(SQL)
+		If Not (Rs.EOF And Rs.BOF) Then
+			url = "admin_makeshow.asp?ChannelID=" & ChannelID & "&insoftid=" & Rs("softid") & "&t=2"
+			Call ScriptCreation(url)
+		End If
+		Rs.Close
+		Set Rs = Nothing
+	End If
+	Succeed("<li>恭喜您！添加新的" & NewAsp.ModuleName & "成功。</li><li><a href=""admin_list.asp?action=view&ChannelID=" & ChannelID & "&softid=" & softid & """>点击此处查看该" & NewAsp.ModuleName & "</a></li><li><a href=""admin_post.asp?action=add&ChannelID=" & ChannelID & "&classid=" & Request.Form("classid") & """><font color=""blue"">点击此处继续添加" & NewAsp.ModuleName & "</font></a></li>")
+End Sub
+
+Function AddDownAddress(downid,softid,DownFileName,DownText)
+	If Len(DownText) = 0 Then DownText = "立即下载"
+	Dim SQL
+	downid = NewAsp.ChkNumeric(downid)
+	DownFileName = Replace(DownFileName, "&amp;", "&")
+	DownText = Server.HTMLEncode(Replace(DownText, "&amp;", "&"))
+	If Trim(DownFileName) <> "" Then
+		SQL = "INSERT INTO NC_DownAddress (ChannelID,softid,downid,DownFileName,DownText) VALUES (" & ChannelID & "," & softid & "," & downid & ",'" & Replace(DownFileName, "'", "") & "','" & Replace(DownText, "'", "") & "')"
+		NewAsp.Execute(SQL)
+	End If
+End Function
+
+Function UpdateDownAddress(softid)
+	Dim tmpAddress,tmpDownText
+	Dim tmpdownid,tmpid,i
+	If Trim(Request.Form("DownFileName")) <> "" Then
+		For i = 1 To Request.Form("DownFileName").Count
+			tmpAddress = Replace(Trim(Request.Form("DownFileName")(i)), "'", "")
+			tmpDownText = Replace(Trim(Request.Form("DownText")(i)), "'", "")
+			tmpAddress = Replace(tmpAddress, "&amp;", "&")
+			tmpDownText = Server.HTMLEncode(Replace(tmpDownText, "&amp;", "&"))
+			tmpdownid = NewAsp.ChkNumeric(Request.Form("downid")(i))
+			tmpid = NewAsp.ChkNumeric(Request.Form("id")(i))
+			If Len(tmpDownText) = 0 Then tmpDownText = "立即下载"
+			If LCase(tmpAddress) <> "del" And Trim(tmpAddress) <> "" And LCase(tmpDownText) <> "del" Then
+				NewAsp.Execute ("UPDATE NC_DownAddress SET downid=" & tmpdownid & ",DownFileName='" & tmpAddress & "',DownText='" & tmpDownText & "' WHERE softid=" & softid & " And id="& CLng(tmpid))
+			Else
+				If LCase(tmpAddress) = "del" Or LCase(tmpDownText) = "del" Then
+					NewAsp.Execute("DELETE FROM NC_DownAddress WHERE softid=" & softid & " And id="& CLng(tmpid))
+				End If
+			End If
+		Next
+	End If
+End Function
+
+Sub ModifySoft()
+	CheckSave
+	If Founderr = True Then Exit Sub
+	Call AddUpdateTags(0)
+	Dim Auditing
+	Dim Rs,SQL,i
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_SoftList WHERE softid=" & CLng(Request("softid"))
+	Rs.Open SQL,Conn,1,3
+		Auditing = Rs("isAccept")
+		Rs("ChannelID") = ChannelID
+		Rs("ClassID") = NewAsp.CheckNumeric(Request.Form("ClassID"))
+		Rs("SpecialID") = NewAsp.CheckNumeric(Request.Form("SpecialID"))
+		Rs("SoftName") = NewAsp.RequestForm(Request.Form("SoftName"),255)
+		Rs("SoftVer") = NewAsp.RequestForm(Request.Form("SoftVer"),255)
+		Rs("subtitle") = NewAsp.RequestForm(Request.Form("subtitle"),255)
+		Rs("ColorMode") = Trim(Request.Form("ColorMode"))
+		Rs("FontMode") = Trim(Request.Form("FontMode"))
+		Rs("Related") = NewAsp.RequestForm(Request.Form("Related"),255)
+		Rs("content") = TextContent
+		Rs("OuterLinks") = NewAsp.RequestForm(Request.Form("OuterLinks"),255)
+		Rs("Languages") = NewAsp.RequestForm(Request.Form("Languages"),255)
+		Rs("SoftType") = NewAsp.RequestForm(Request.Form("SoftType"),255)
+		Rs("RunSystem") = NewAsp.RequestForm(Request.Form("RunSystem"),255)
+		Rs("impower") = NewAsp.RequestForm(Request.Form("impower"),255)
+		If UCase(Request.Form("SizeUnit")) = "MB" Then
+			Rs("SoftSize") = CLng(NewAsp.CheckNumeric(Request.Form("SoftSize")) * 1024)
+		Else
+			Rs("SoftSize") = NewAsp.CheckNumeric(Request.Form("SoftSize"))
+		End If
+		Rs("star") = Trim(Request.Form("star"))
+		Rs("Homepage") = Trim(Request.Form("Homepage"))
+		Rs("Contact") = Trim(Request.Form("Contact"))
+		Rs("Author") = NewAsp.RequestForm(Request.Form("Author"),50)
+		Rs("Regsite") = NewAsp.RequestForm(Request.Form("Regsite"),255)
+		Rs("showreg") = CInt(showreg)
+		Rs("PointNum") = NewAsp.CheckNumeric(Request.Form("PointNum"))
+		Rs("SoftPrice") = NewAsp.CheckNumeric(Request.Form("SoftPrice"))
+		If CInt(Request.Form("Update")) = 1 Then
+			Rs("SoftTime") = Now()
+		Else
+			Rs("SoftTime") = Formatime(Trim(Request.Form("SoftTime")))
+		End If
+		Rs("isTop") = SoftTop
+		Rs("AllHits") = NewAsp.CheckNumeric(Request.Form("AllHits"))
+		Rs("SoftImage") = Trim(Request.Form("SoftImage"))
+		Rs("Previewimg") = Trim(Request.Form("Previewimg"))
+		Rs("plugin") = NewAsp.ChkNumeric(Request.Form("plugin"))
+		Rs("Decode") = Trim(Request.Form("Decode"))
+		Rs("isBest") = SoftBest
+		Rs("UserGroup") = NewAsp.CheckNumeric(Request.Form("UserGroup"))
+		Rs("isUpdate") = 1
+		Rs("ErrCode") = 0
+		Rs("isAccept") = SoftAccept
+		Rs("ForbidEssay") = ForbidEssay
+		Rs("AlphaIndex") = NewAsp.ReadAlpha(AlphaSoftName)
+		If NewAsp.ChkNumeric(Request.Form("plugin")) = 7 Then
+			Rs("PauseDown") = 1
+		Else
+			Rs("PauseDown") = 0
+		End If
+		Rs("good") = NewAsp.CheckNumeric(Request.Form("good"))
+		Rs("bad") = NewAsp.CheckNumeric(Request.Form("bad"))
+		Rs("Taglist")=Taglist
+	Rs.update
+	softid = Rs("softid")
+	
+	If SoftAccept = 1 And Auditing = 0 Then
+		AddUserPointNum Rs("username"),1
+	End If
+	If SoftAccept = 0 And Auditing = 1 Then
+		AddUserPointNum Rs("username"),0
+	End If
+	Rs.Close:Set Rs = Nothing
+	If Len(Request("DownFileName")) > 0 Then
+		UpdateDownAddress(softid)
+	End If
+	'---- 开始批量添加下载地址
+	Dim TempAddress,TempSiteName
+	If Trim(Request.Form("DownAddress")) <> "" Then
+		For i = 1 To Request.Form("DownAddress").Count
+			TempAddress = Trim(Request.Form("DownAddress")(i))
+			TempSiteName = Trim(Request.Form("SiteName")(i))
+			If LCase(TempAddress) <> "del" And Trim(TempAddress) <> "" Then
+				AddDownAddress Request.Form("downsid")(i),softid,TempAddress,TempSiteName
+			End If
+		Next
+	End If
+	ClassUpdateCount NewAsp.CheckNumeric(Request.Form("classid")),2
+	'---- 批量添加下载地址完成
+	Call RemoveCache
+	If CInt(NewAsp.IsCreateHtml) <> 0 Then
+		Dim url
+		url = "admin_makeshow.asp?ChannelID=" & ChannelID & "&insoftid=" & softid & "&t=2"
+		Call ScriptCreation(url)
+	End If
+	Succeed("<li>恭喜您！修改" & NewAsp.ModuleName & "成功。</li><li><a href=""admin_list.asp?action=view&ChannelID=" & ChannelID & "&softid=" & softid & """>点击此处查看该" & NewAsp.ModuleName & "</a></li>")
+End Sub
+
+Sub CheckSave()
+	Dim i
+	If Trim(Request.Form("SoftName")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>" & NewAsp.ModuleName & "名称不能为空！</li>"
+	Else
+		AlphaSoftName = ubb.CheckSpecialChar(Trim(Request.Form("SoftName")))
+	End If
+	If Len(Request.Form("SoftName")) => 200 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>" & NewAsp.ModuleName & "名称不能超过200个字符！</li>"
+	End If
+	If Trim(Request.Form("ColorMode")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>标题颜色参数错误！</li>"
+	End If
+	If Trim(Request.Form("FontMode")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>标题字体参数错误！</li>"
+	End If
+	If Len(Request.Form("Related")) => 220 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>相关" & NewAsp.ModuleName & "不能超过220个字符！</li>"
+	End If
+	If Trim(Request.Form("PointNum")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>下载所需的点数不能为空！如果不想设置请输入零。</li>"
+	End If
+	If Not IsNumeric(Request.Form("star")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>" & NewAsp.ModuleName & "星级不能为空。</li>"
+		Exit Sub
+	End If
+	If Not IsNumeric(Request.Form("UserGroup")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>" & NewAsp.ModuleName & "等级参数错误！</li>"
+	End If
+	If Not IsNumeric(Request.Form("ClassID")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>该一级分类已经有下属分类，不能添加" & NewAsp.ModuleName & "！</li>"
+		Exit Sub
+	End If
+	If CLng(Request.Form("ClassID")) = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>该分类是外部连接，不能添加" & NewAsp.ModuleName & "！</li>"
+	End If
+	If Trim(Request.Form("SoftType")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请选择" & NewAsp.ModuleName & "类型！</li>"
+	End If
+	If Trim(Request.Form("impower")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请选择" & NewAsp.ModuleName & "授权方式！</li>"
+	End If
+	If Trim(Request.Form("Languages")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请选择" & NewAsp.ModuleName & "语言！</li>"
+	End If
+	If Trim(Request.Form("AllHits")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>初始点击数不能为空！</li>"
+	End If
+	If Not IsNumeric(Request.Form("AllHits")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>初始点击数请输入整数！</li>"
+	End If
+	If Not IsNumeric(Request.Form("SpecialID")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>专题ID参数错误！</li>"
+		Exit Sub
+	End If
+	TextContent = ""
+	For i = 1 To Request.Form("content").Count
+		TextContent = TextContent & Request.Form("content")(i)
+	Next
+	If Trim(TextContent) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>" & NewAsp.ModuleName & "简介不能为空！</li>"
+	End If
+	If NewAsp.setAdminEditor(0) <> 0 Then
+		TextContent = NewAsp.HTMLEncodes(TextContent)
+	End If
+	TextContent = CheckHtmlCode(Re_Replace(TextContent, InstallDir_ChannelDir, "[InstallDir_ChannelDir]"))
+
+	SoftTop = NewAsp.ChkNumeric(Request.Form("isTop"))
+	SoftBest = NewAsp.ChkNumeric(Request.Form("isBest"))
+	ForbidEssay = NewAsp.ChkNumeric(Request.Form("ForbidEssay"))
+	showreg = NewAsp.ChkNumeric(Request.Form("showreg"))
+	SoftAccept = NewAsp.ChkNumeric(Request.Form("isAccept"))
+	If Len(Request.Form("RunSystem")) = 0 Then
+		Founderr = True
+		ErrMsg = ErrMsg + "<li>运行环境不能为空！</li>"
+	End If
+	If Not IsNumeric(Request.Form("SoftSize")) Then
+		Founderr = True
+		ErrMsg = ErrMsg + "<li>" & NewAsp.ModuleName & "大小请输入整数！</li>"
+		Exit Sub
+	End If
+End Sub
+
+Function ClassUpdateCount(sortid,stype)
+	Dim rscount,Parentstr
+	On Error Resume Next
+	Set rscount = NewAsp.Execute("SELECT ClassID,Parentstr FROM [NC_Classify] WHERE ChannelID=" & ChannelID & " And ClassID=" & CLng(sortid))
+	If Not (rscount.BOF And rscount.EOF) Then
+		Parentstr = rscount("Parentstr") &","& rscount("ClassID")
+		If stype = 1 Then
+			NewAsp.Execute ("UPDATE [NC_Classify] SET ShowCount=ShowCount+1,isUpdate=1 WHERE ChannelID="& ChannelID &" And ClassID in (" & Parentstr & ")")
+		ElseIf stype = 2 Then
+			NewAsp.Execute ("UPDATE [NC_Classify] SET isUpdate=1 WHERE ChannelID="& ChannelID &" And ClassID in (" & Parentstr & ")")
+		Else
+			NewAsp.Execute ("UPDATE [NC_Classify] SET ShowCount=ShowCount-1,isUpdate=1 WHERE ChannelID="& ChannelID &" And ClassID in (" & Parentstr & ")")
+		End If
+	End If
+	Set rscount = Nothing
+End Function
+
+Function AddUserPointNum(username,stype)
+	On Error Resume Next
+	Dim rsuser,GroupSetting,userpoint
+	Set rsuser = NewAsp.Execute("SELECT userid,UserGrade,userpoint FROM NC_User WHERE username='"& username &"'")
+	If Not(rsuser.BOF And rsuser.EOF) Then
+		GroupSetting = Split(NewAsp.UserGroupSetting(rsuser("UserGrade")), "|||")(13)
+		If CInt(stype) = 1 Then
+			userpoint = CLng(rsuser("userpoint") + GroupSetting)
+			NewAsp.Execute ("UPDATE NC_User SET userpoint="& userpoint &",experience=experience+2,charm=charm+1 WHERE userid="& rsuser("userid"))
+		Else
+			userpoint = CLng(rsuser("userpoint") - GroupSetting)
+			NewAsp.Execute ("UPDATE NC_User SET userpoint="& userpoint &",experience=experience-2,charm=charm-1 WHERE userid="& rsuser("userid"))
+		End If
+	End If
+	Set rsuser = Nothing
+End Function
+
+Sub RemoveCache()
+	RemoveAppCache "statistic_soft"
+	RemoveLabelCache 2
+End Sub
+%>

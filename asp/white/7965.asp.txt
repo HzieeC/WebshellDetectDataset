@@ -1,0 +1,144 @@
+<!--#include file="../Inc/conn.asp"-->
+<!--#include file="Admin_check.asp"-->
+<%
+If yaoadmintype<>1 then
+Response.Redirect ""&SitePath&""&SiteAdmin&"/Info.asp?Info=没有权限"
+Response.End()
+End If
+%><html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equtv="Content-Type" content="text/html; charset=gb2312" />
+<title>网站后台管理--文件清理</title>
+<link href="images/Admin_css.css" type=text/css rel=stylesheet>
+</head>
+<body>
+<%	
+	if request("action")="del" then
+		call DelOver()
+	else
+		call Main()
+	end if
+Sub Main
+%>
+<table border="0"  cellspacing="1" cellpadding="3" height="1" class="admintable1">
+<tr>
+<td class="admintitle">上传文件清理</td>
+</tr><tr>
+<td height=30 bgcolor="#FFFFFF" class="td"><br><br><b>注意：</b>请谨慎使用本功能，操作前最好先备份下上传文件夹，以免文件丢失。<br><br>
+如果你的文章特别多(数万)，清理起来可能会非常慢，不推荐使用本功能。
+<br><br>当前上传文件夹为：<%=SiteUp%>
+  <br /><br /><input type="button" value="开始清理" class="bnt" onClick="if(confirm('确定要清除文件夹<%=SiteUp%>中的垃圾文件?\n\n请谨慎操作！'))location.href='?action=del';return false;" />
+  <br /><br /><br />
+</td>
+</tr>
+</table>
+  <%
+End Sub
+
+Sub DelOver
+	Dim Sql,Rs,strFiles,ItemIntro
+	strFiles="|"&SitePath&SiteUp&"|"&SiteLogo
+	ItemIntro=""
+	
+	Sql = "Select Content From "&tbname&"_Article"
+	Set Rs = Conn.Execute(Sql)
+	While Not Rs.Eof
+		IF Rs(0) <> "" Then
+			strFiles=strFiles&"|"&Rs(0)
+		End If
+	Rs.MoveNext
+	Wend
+	Rs.Close
+	
+	Sql = "Select Content From "&tbname&"_Ad"
+	Set Rs = Conn.Execute(Sql)
+	While Not Rs.Eof
+		IF Rs(0) <> "" Then
+			strFiles=strFiles&"|"&Rs(0)
+		End If
+	Rs.MoveNext
+	Wend
+	Rs.Close
+	
+	Sql = "Select LogoUrl From "&tbname&"_Link"
+	Set Rs = Conn.Execute(Sql)
+	While Not Rs.Eof
+		IF Rs(0) <> "" Then
+			strFiles=strFiles&"|"&Rs(0)
+		End If
+	Rs.MoveNext
+	Wend
+	Rs.Close
+	
+	Sql = "Select UserFace From "&tbname&"_User"
+	Set Rs = Conn.Execute(Sql)
+	While Not Rs.Eof
+		IF Rs(0) <> "" Then
+			strFiles=strFiles&"|UserFace/"&Rs(0)
+		End If
+	Rs.MoveNext
+	Wend
+	Rs.Close
+	
+	Dim tempStr, tempi, TempArray,UpFileType,regEx,Matches,Match
+		UpFileType = "gif|jpg|jpeg|bmp|png"
+		Set regEx=New Regexp
+		regEx.Ignorecase=True
+		regEx.Global=True
+        regEx.Pattern = "<img.+?[^\>]>" '查询内容中所有 <img..>
+        Set Matches = regEx.Execute(ItemIntro)
+        For Each Match In Matches
+            If tempStr <> "" Then
+                tempStr = tempStr & "|" & Match.value '累计数组
+            Else
+                tempStr = Match.value
+            End If
+        Next
+        If tempStr <> "" Then
+            TempArray = Split(tempStr, "|") '分割数组
+            tempStr = ""
+            For tempi = 0 To UBound(TempArray)
+                regEx.Pattern = "src\s*=\s*.+?\.(" & UpFileType & ")" '查询src =内的链接
+                Set Matches = regEx.Execute(TempArray(tempi))
+                For Each Match In Matches
+                    If tempStr <> "" Then
+                        tempStr = tempStr & "|" & Match.value '累加得到 链接加$Array$ 字符
+                    Else
+                        tempStr = Match.value
+                    End If
+                Next
+            Next
+        End If
+        If tempStr <> "" Then
+            regEx.Pattern = "src\s*=\s*" '过滤 src =
+            tempStr = regEx.Replace(tempStr, "")
+        End If
+		Set regEx=Nothing
+        strFiles = strFiles & tempStr
+	    strFiles = LCase(strFiles)
+		Dim i,theFolder,fso,theFile,theSubFolder
+		Set Fso=CreateObject("Scripting.FileSystemObject")
+		 i = 0
+     
+
+    Set theFolder = fso.GetFolder(Server.MapPath(SitePath&SiteUp))
+    For Each theFile In theFolder.Files
+        If InStr(strFiles, LCase(theFile.name)) <= 0 Then
+            theFile.Delete True
+            i = i + 1
+        End If
+    Next
+    For Each theSubFolder In theFolder.SubFolders
+        For Each theFile In theSubFolder.Files
+            If InStr(strFiles, LCase(theSubFolder.name & "/" & theFile.name)) <= 0 Then
+                theFile.Delete True
+                i = i + 1
+            End If
+        Next
+    Next
+	Call Alert("本次共清理"&I&"个垃圾文件","?")
+End Sub
+%>
+<!--#include file="Admin_copy.asp"-->
+</body>
+</html>

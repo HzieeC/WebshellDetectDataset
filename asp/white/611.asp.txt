@@ -1,0 +1,292 @@
+
+<!--#include file = "Startup.asp"-->
+<!-- #include file="Function.asp" -->
+<%
+call adminer()
+Call Header()
+Call ComeUrl()
+%>
+<%
+dim Action,FoundErr,ErrMsg
+dim rs, sql,iCount,i,j
+Action=trim(request("Action"))
+
+if Action="SaveModify" then
+	call SaveModify()
+elseif Action="UpOrder" then 
+	call UpOrder() 
+elseif Action="DownOrder" then 
+	call DownOrder() 
+else
+	call main()
+end if
+if FoundErr=True then
+	call WriteErrMsg()
+end if
+%>
+<%
+Sub Main()
+	Set rs=Server.CreateObject("Adodb.RecordSet")
+	sSql="select * from Channel order by OrderID"
+	oRs.Open sSql,oConn,1,1
+	iCount=oRs.recordcount
+	j=1
+
+%>
+<table width="100%"  border="0" cellpadding="3" cellspacing="1" bgcolor="#DEDFDE">
+  <tr bgcolor="#F7F7F7">
+    <td><div align="center"><strong>频道名称</strong></div></td>
+    <td><div align="center"><strong>频道类型</strong></div></td>
+    <td><div align="center"><strong>打开方式</strong></div></td>
+    <td colspan="3"><div align="center"><strong>是否突出显示</strong></div></td>
+    <td colspan="2"><div align="center"><strong>排序操作</strong></div></td>
+  </tr>
+  <%do while not oRs.EOF %>
+  <tr bgcolor="#FFFFFF" onmouseout="this.style.backgroundColor=''" onmouseover="this.style.backgroundColor='#F7F8F8'">
+    <td><div align="center"><%=oRs("ChannelName")%></div></td>
+    <td><div align="center">
+          <%
+	if oRs("ChannelType")=1 then
+		response.write "用户添加"
+	else
+		response.write "系统提供"
+	end if
+	%>
+    </div></td>
+    <td><div align="center">
+          <%
+	if oRs("OpenType")="1" then
+		response.write "<font color=#ff6600>新窗口</font>"
+	else
+		response.write "原窗口"
+	end if
+	%>
+    </div></td><form method="post" action="Channel.asp?Action=SaveModify">
+	<input name="ChannelID" type="hidden" value="<%=oRs("ChannelID")%>">
+    <td><div align="center">
+      <input name="Outstanding" type="checkbox" id="Outstanding" value="True" <%If oRs("Outstanding")=True Then%>checked<%End If%>>
+	  <%
+	  If oRs("Outstanding")=True Then
+	  	Response.Write "是"
+	  Else
+	  	Response.Write "否"
+	  End If
+	  %>
+      </div></td>
+    <td><div align="center">有效16进制值颜色</div></td>
+    <td><div align="center">
+      <input name="OutstandingColor" type="text" class="input_text" id="OutstandingColor" value="<%=oRs("OutstandingColor")%>" size="7" maxlength="7">
+	  
+      <input type="submit" name="Submit" value="修改" class=input_submit>
+    </div></td></form>
+    <form action='Channel.asp?Action=UpOrder' method='post'>
+      <td width='120' align="center"> <% 
+	if j>1 then 
+		response.write "<select name=MoveNum size=1 class=input_text><option value=0>向上移动</option>" 
+		for i=1 to j-1 
+			response.write "<option value="&i&">"&i&"</option>" 
+		next 
+		response.write "</select>" 
+		response.write "<input type=hidden name=ChannelID value="&oRs("ChannelID")&">"
+		response.write "<input type=hidden name=cOrderID value="&oRs("OrderID")&">&nbsp;<input type=submit name=Submit value=修改 class=input_submit>" 
+	else 
+		response.write "&nbsp;" 
+	end if 
+%> </td>
+    </form>
+    <form action='Channel.asp?Action=DownOrder' method='post'>
+      <td width='120' align="center"> <%
+	if iCount>j then 
+		response.write "<select name=MoveNum size=1 class=input_text><option value=0>向下移动</option>" 
+		for i=1 to iCount-j 
+			response.write "<option value="&i&">"&i&"</option>" 
+		next 
+		response.write "</select>" 
+		response.write "<input type=hidden name=ChannelID value="&oRs("ChannelID")&">"
+		response.write "<input type=hidden name=cOrderID value="&oRs("OrderID")&">&nbsp;<input type=submit name=Submit value=修改 class=input_submit>" 
+	else 
+		response.write "&nbsp;" 
+	end if 
+%> </td>
+    </form>
+  </tr>
+    <%
+     	j=j+1	
+		oRs.MoveNext
+   	loop
+  %>
+
+</table>
+<%
+oRs.Close
+End Sub
+%>
+
+
+
+
+
+<%
+Sub SaveModify
+Dim ChannelID,Outstanding,OutstandingColor
+
+ChannelID=trim(request("ChannelID"))
+Outstanding=Trim(Request("Outstanding"))
+OutstandingColor=Trim(Request("OutstandingColor"))
+
+If ChannelID="" Then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>参数不足！</li>"
+Else
+	ChannelID=CLng(ChannelID)
+End If
+If OutstandingColor="" Then
+	FoundErr=True
+	ErrMsg=ErrMsg&"<br><li>颜色值不能为空！</li>"
+End If
+
+'oConn.execute("update Channel set Outstanding="&Outstanding&",OutstandingColor='"&OutstandingColor&"' where ChannelID=" & ChannelID)
+
+sSql="SELECT * FROM Channel WHERE ChannelID="&ChannelID
+oRs.Open sSql,oConn,1,3
+If Not oRs.Eof Then
+	If Outstanding<>"" Then
+		oRs("Outstanding")=True
+	Else
+		oRs("Outstanding")=False
+	End If
+	oRs("OutstandingColor")=OutstandingColor
+	oRs.Update
+End If
+response.redirect "Channel.asp"
+oRs.Close
+
+
+End Sub
+
+sub UpOrder()
+	dim ChannelID,sqlOrder,rsOrder,MoveNum,cOrderID,tOrderID,i,rs
+	ChannelID=trim(request("ChannelID"))
+	cOrderID=Trim(request("cOrderID"))
+	MoveNum=trim(request("MoveNum"))
+	if ChannelID="" then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>参数不足！</li>"
+	else
+		ChannelID=CLng(ChannelID)
+	end if
+	if cOrderID="" then
+		FoundErr=true
+		ErrMsg=ErrMsg & "<br><li>错误参数！</li>"
+	else
+		cOrderID=Cint(cOrderID)
+	end if
+	if MoveNum="" then
+		FoundErr=true
+		ErrMsg=ErrMsg & "<br><li>错误参数！</li>"
+	else
+		MoveNum=Cint(MoveNum)
+		if MoveNum=0 then
+			FoundErr=True
+			ErrMsg=ErrMsg & "<br><li>请选择要提升的数字！</li>"
+		end if
+	end if
+	if FoundErr=True then
+		exit sub
+	end if
+
+	dim mrs,MaxOrderID
+	set mrs=oConn.execute("select max(OrderID) From Channel")
+	MaxOrderID=mrs(0)+1
+	'先将当前栏目移至最后，包括子栏目
+	oConn.execute("update Channel set OrderID=" & MaxOrderID & " where ChannelID=" & ChannelID)
+	
+	'然后将位于当前栏目以上的栏目的OrderID依次加一，范围为要提升的数字
+	sqlOrder="select * From Channel where OrderID<" & cOrderID & " order by OrderID desc"
+	set rsOrder=server.CreateObject("adodb.recordset")
+	rsOrder.open sqlOrder,oConn,1,3
+	if rsOrder.bof and rsOrder.eof then
+		exit sub        '如果当前栏目已经在最上面，则无需移动
+	end if
+	i=1
+	do while not rsOrder.eof
+		tOrderID=rsOrder("OrderID")       '得到要提升位置的OrderID，包括子栏目
+		oConn.execute("update Channel set OrderID=OrderID+1 where OrderID=" & tOrderID)
+		i=i+1
+		if i>MoveNum then
+			exit do
+		end if
+		rsOrder.movenext
+	loop
+	rsOrder.close
+	set rsOrder=nothing
+	
+	'然后再将当前栏目从最后移到相应位置，包括子栏目
+	oConn.execute("update Channel set OrderID=" & tOrderID & " where ChannelID=" & ChannelID)
+	response.redirect "Channel.asp"
+end sub
+
+sub DownOrder()
+	dim ChannelID,sqlOrder,rsOrder,MoveNum,cOrderID,tOrderID,i,rs,PrevID,NextID
+	ChannelID=trim(request("ChannelID"))
+	cOrderID=Trim(request("cOrderID"))
+	MoveNum=trim(request("MoveNum"))
+	if ChannelID="" then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>参数不足！</li>"
+	else
+		ChannelID=CLng(ChannelID)
+	end if
+	if cOrderID="" then
+		FoundErr=true
+		ErrMsg=ErrMsg & "<br><li>错误参数！</li>"
+	else
+		cOrderID=Cint(cOrderID)
+	end if
+	if MoveNum="" then
+		FoundErr=true
+		ErrMsg=ErrMsg & "<br><li>错误参数！</li>"
+	else
+		MoveNum=Cint(MoveNum)
+		if MoveNum=0 then
+			FoundErr=True
+			ErrMsg=ErrMsg & "<br><li>请选择要提升的数字！</li>"
+		end if
+	end if
+	if FoundErr=True then
+		exit sub
+	end if
+
+	dim mrs,MaxOrderID
+	set mrs=oConn.execute("select max(OrderID) From Channel")
+	MaxOrderID=mrs(0)+1
+	'先将当前栏目移至最后，包括子栏目
+	oConn.execute("update Channel set OrderID=" & MaxOrderID & " where ChannelID=" & ChannelID)
+	
+	'然后将位于当前栏目以下的栏目的OrderID依次减一，范围为要下降的数字
+	sqlOrder="select * From Channel where OrderID>" & cOrderID & " order by OrderID"
+	set rsOrder=server.CreateObject("adodb.recordset")
+	rsOrder.open sqlOrder,oConn,1,3
+	if rsOrder.bof and rsOrder.eof then
+		exit sub        '如果当前栏目已经在最下面，则无需移动
+	end if
+	i=1
+	do while not rsOrder.eof
+		tOrderID=rsOrder("OrderID")       '得到要提升位置的OrderID，包括子栏目
+		oConn.execute("update Channel set OrderID=OrderID-1 where OrderID=" & tOrderID)
+		i=i+1
+		if i>MoveNum then
+			exit do
+		end if
+		rsOrder.movenext
+	loop
+	rsOrder.close
+	set rsOrder=nothing
+	
+	'然后再将当前栏目从最后移到相应位置，包括子栏目
+	oConn.execute("update Channel set OrderID=" & tOrderID & " where ChannelID=" & ChannelID)
+	response.redirect "Channel.asp"
+end sub
+
+
+%> 

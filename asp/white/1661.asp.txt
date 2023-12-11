@@ -1,0 +1,243 @@
+<%
+session.timeout=30
+Const SystemRoot="/admin/"
+
+Dim webconfig,StarTime
+StarTime=Timer()
+webconfig=Server.MapPath(SystemRoot&"inc/webconfig.xml")
+
+sss=LCase(request.servervariables("QUERY_STRING"))
+if instr(sss,"select")<>0 then
+   response.write "<BR><BR><center>你的网址不合法"
+   response.end
+end if
+
+set conn=server.CreateObject("adodb.connection")
+DBPath = Server.MapPath(SystemRoot&"data/db1.asp")
+conn.open "Provider = Microsoft.Jet.OLEDB.4.0;Data Source ="& DBpath
+
+Function CloseDB
+	If Isobject(rs) then
+		If rs.State=1 Then rs.Close
+		Set rs=Nothing
+	End If
+	If Isobject(conn) then
+		If conn.State=1 Then conn.Close
+		Set conn=Nothing
+	End If
+End Function
+
+Function GetRS(ByVal sql,ByVal LockT)
+	If isobject(rs) then
+		If rs.state=1 then rs.close
+	Else
+		Set rs=Server.CreateObject("ADODB.RecordSet")
+	End If
+	rs.open sql,conn,1,LockT
+End Function
+
+Function CreateRS(ByVal sql,ByVal LockT)
+	Dim rs
+	Set rs=Server.CreateObject("ADODB.RecordSet")
+	rs.open sql,conn,1,LockT
+	Set CreateRS = rs
+End Function
+
+Function CloseRS(ByRef rs)
+	if isobject(rs) then
+		if rs.state=1 then rs.close
+		set rs=nothing
+	end if
+End Function
+
+function titleb(str,strlen)
+	dim l,t,c, i
+	l=len(str)
+	t=0
+	for i=1 to l
+	c=Abs(Asc(Mid(str,i,1)))
+	if c>255 then
+	t=t+2
+	else
+	t=t+1
+	end if
+	if t>=strlen then
+	titleb=left(str,i)&"…"
+	exit for
+	else
+	titleb=str&""
+	end if
+	next
+end function
+
+Function Cut_Title(Title,TLen,str)
+Dim k,i,c
+Dim iStr
+Dim ForTotal
+If CDbl(TLen) > 0 Then
+	k=0
+	iStr=""
+	ForTotal = Len(Title)
+	For i=1 To ForTotal
+		c=Abs(Asc(Mid(Title,i,1)))
+		If c>255 Then
+			k=k+2
+		Else
+			k=k+1
+		End If
+		iStr=iStr&Mid(Title,i,1)
+		If CLng(k)>=CLng(TLen) Then
+			'iStr=Left(Title,i) 
+			iStr=iStr&str
+			Exit For
+		End If
+	Next
+	Cut_Title=iStr
+Else
+	Cut_Title=""
+End If
+End Function
+
+Function HtmlFiler(ByVal Str,ByVal Lens,ByVal str2)
+   If IsNull(Str) or Str="" then
+    HtmlFiler=""
+	Exit Function
+   End If
+   Dim regEx,Temp
+   Set regEx = New RegExp
+   regEx.Pattern = "<[^>]*>|&nbsp;|\s"
+   regEx.IgnoreCase = False
+   regEx.Global = True
+   Temp=regEx.Replace(Str,"")
+   If Len(Temp)>Lens then
+   	HtmlFiler=Cut_Title(Temp,Lens,str2)
+   Else
+    HtmlFiler=Temp
+   End IF
+End Function
+
+Function GetC_Source()
+Dim cSource,cSourceValue,i,str
+If IsFile(webconfig) then
+	LoadXML(webconfig)
+Else
+	ErrMsg = webconfig & " 文件不存在"
+	Call ShowErrMsg(0,0)
+End If
+Set cSource = objXML.selectSingleNode("config/module[name=""WebInfo""]/params[name=""c_Source""]")
+cSourceValue = split(cSource.selectSingleNode("value").Text,";")
+
+str = "<option value=""="" selected=""selected"">请选择文章来源</option>" & VBCrlf
+For i=0 to Ubound(cSourceValue)
+	str = str & "<option value="""&cSourceValue(i)&""">"&left(cSourceValue(i),instr(cSourceValue(i),"=")-1)&"</option>" & VBCrlf
+Next
+Set cSource = Nothing
+Call CloseXML
+GetC_Source = str
+End Function
+
+sub flist(id,str,fid)
+sqlc="SELECT lmr.id, lmr.name, lmr.fatherid, lmr.order, (select count(*) from lm where lm.fatherid=lmr.id) as"
+sqlc=sqlc&" [CNum] FROM lm as lmr where fatherid="&id&" order by lmr.order asc;"
+sqlc="SELECT lm.id, lm.name, lm.fatherid FROM lm"
+Set rsc = Server.CreateObject("ADODB.RecordSet")
+rsc.Open sqlc,conn,1,1
+while not rsc.eof
+  if rsc("CNum")=0 then
+	if cint(rsc("id"))=cint(fid) then
+	  selected=" selected"
+	end if 
+	Response.write "<option value='"&rsc("id")&"' "&selected&">"&str&"&nbsp;&nbsp;├(编号:"&rsc("id")&")"&rsc("name")&"</option>"
+  end if
+  rsc.movenext
+wend
+If not rsc.bof or not rsc.eof then
+	rsc.MoveFirst 
+End If
+while not rsc.eof
+	if rsc("CNum")>0 then
+	Response.write "<optgroup label='"&str&"&nbsp;&nbsp;(编号:"&rsc("id")&")"&rsc("name")&"'>"
+	str1=str&"　　"
+	call flist(rsc("id"),str1,fid)
+	end if
+	rsc.movenext
+wend 
+rsc.close
+Set rsc=nothing
+end sub
+
+Response.Buffer = True
+Const EnableStopInjection = True
+If EnableStopInjection = True Then
+    If Request.QueryString <> "" Then Call StopInjection(Request.QueryString)
+    If Request.Cookies <> "" Then Call StopInjection(Request.Cookies)
+End If
+Sub StopInjection(Values)
+    Dim regEx
+    Set regEx = New RegExp
+    regEx.IgnoreCase = True
+    regEx.Global = True
+    regEx.Pattern = "'|;|#|([\s\b+()]+(select|update|insert|delete|declare|@|exec|dbcc|alter|drop|create|backup|if|else|end|and|or|add|set|open|close|use|begin|retun|as|go|exists)[\s\b+]*)"
+    Dim sItem, sValue
+    For Each sItem In Values
+        sValue = Values(sItem)
+        If regEx.Test(sValue) Then
+            Response.Write "检测到SQL注入危险, 请确认你提交的信息不含有危险信息并清空IE缓存，重新提交信息。"
+            Response.End
+        End If
+    Next
+    Set regEx = Nothing
+End Sub
+%>
+<%'每天一次的操作
+set rs=Creaters("select * from Information where num=0",3)
+if rs.eof then
+	rs.addnew
+	rs("num")=0
+	rs("Field4")=now()
+	rs("content")="每天一次的操作+RSS管理"
+	rs.update
+	d_updata()
+elseif year(rs("Field4"))<>year(now()) or month(rs("Field4"))<>month(now()) or day(rs("Field4"))<>day(now()) then
+  rs("Field4")=now()
+  rs.update
+  d_updata()
+end if
+
+Function d_updata()
+		bkfolder=SystemRoot&"backup"
+		bkdbname=Weekday(Date)-1&".asp"
+		Set Fso=server.createobject("scripting.filesystemobject")
+		if fso.fileexists(dbpath) then
+			If d_CheckDir(bkfolder) = True Then
+			fso.copyfile dbpath,bkfolder& "\"& bkdbname
+			else
+			d_MakeNewsDir bkfolder
+			fso.copyfile dbpath,bkfolder& "\"& bkdbname
+			end if
+		Else
+			'response.write "找不到您所需要备份的文件。"
+		End if
+end Function
+
+Function d_CheckDir(FolderPath) '备份数据库
+	folderpath=Server.MapPath(folderpath)
+    Set fso1 = CreateObject("Scripting.FileSystemObject")
+    If fso1.FolderExists(FolderPath) then
+       '存在
+       d_CheckDir = True
+    Else
+       '不存在
+       d_CheckDir = False
+    End if
+    Set fso1 = nothing
+End Function
+'-------------根据指定名称生成目录-----------------------
+Function d_MakeNewsDir(foldername)
+	dim f
+    Set fso1 = CreateObject("Scripting.FileSystemObject")
+        Set f = fso1.CreateFolder(foldername)
+        d_MakeNewsDir = True
+  Set fso1 = nothing
+End Function
+%>

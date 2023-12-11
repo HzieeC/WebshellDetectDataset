@@ -1,0 +1,86 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<head>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/default/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/good/goodSpecification/edit_goodSpecification.js"></script>
+</head>
+<body>
+
+    <table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+					
+					<form id="saveForm" method="post" action="">
+			    		<s:hidden name="goodSpecification.id" id="id" />
+			    		<s:hidden name="goodSpecification.code" />
+			    		<s:hidden name="goodSpecification.creatorId" />
+			    		<s:hidden name="goodSpecification.creatorName" />
+			    		<s:hidden name="goodSpecification.createTime" />
+			    		<s:hidden name="goodSpecification.modifierId" />
+			    		<s:hidden name="goodSpecification.modifierName" />
+			    		<s:hidden name="goodSpecification.modifyTime" />
+			    		<s:hidden name="goodSpecification.state" />
+				    	
+				    	<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">
+					    	<tr>
+								<td class='gridtitle'>规格编号：</td>
+								<td class='gridbody'>
+									<s:textfield id="code" name="goodSpecification.code" disabled="true"/>				
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'>规格名称：</td>
+								<td class='gridbody'>
+									<s:textfield id="name" name="goodSpecification.name" />	
+								</td>
+							</tr>
+							
+								<tr>
+								<td class='gridtitle'>显示类型：</td>
+								<td class='gridbody'>
+									<input type="radio" value="0" name="goodSpecification.showType" <c:if test="${goodSpecification.showType == null || goodSpecification.showType == 0}">checked="checked"</c:if>/>文字
+									<input type="radio" value="1" name="goodSpecification.showType" <c:if test="${goodSpecification.showType == 1}">checked="checked"</c:if>/>图片
+								</td>
+							</tr>
+						<!-- 
+								<tr>
+									<td class='gridtitle'>显示方式：</td>
+									<td class='gridbody'>
+										<input type="radio" value="0" name="goodSpecification.showWay" <c:if test="${goodSpecification.showWay == null || goodSpecification.showWay == 0}">checked="checked"</c:if>/>平铺
+										<input type="radio" value="1" name="goodSpecification.showWay" <c:if test="${goodSpecification.showWay == 1}">checked="checked"</c:if>/>下拉
+									</td>
+								</tr>
+								<tr>
+									<td class='gridtitle'>序号：</td>
+									<td class='gridbody'>
+										<s:textfield id="sort" name="goodSpecification.sort"/>	
+									</td>
+								</tr>
+						 -->
+							<tr>
+								<td class='gridtitle'>备注：</td>
+								<td class='gridbody'>
+									<s:textfield id="remark" name="goodSpecification.remark"/>
+								</td>
+							</tr>
+						</table>
+						
+					</form>
+				</div>
+	    	</td>
+	    </tr>
+	</table>
+
+</body>
+</html>
+

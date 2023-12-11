@@ -1,0 +1,165 @@
+<!--#include file="../../conn/conn.asp"-->
+<!--#include file="../../person/checkpmember.asp" -->
+<%'注意 系统会自动检测您的服务器是否支持AspJpeg组件，如果支持则会自动生成jpg图像 反之则生成bmp图像
+Response.Expires = -1
+Response.AddHeader "Pragma", "no-cache"
+Response.AddHeader "Cache-Control", "no-cache, must-revalidate"
+on error resume next
+dim strSaveFileName
+strnow =replace(replace(replace(now(), ":", ""), "-", ""), " ", "")
+Dim w,h
+w =Request.Form("w")
+h =Request.Form("h")
+Dim intTotalLine
+intTotalLine =Request.Form.Count
+Dim strHeadData
+strHeadData=ChrB(66) & ChrB(77) '文件标识
+strHeadData=strHeadData&ChrB(230) & ChrB(4) & ChrB(0) & ChrB(0) '文件大小
+strHeadData=strHeadData & ChrB(0) & ChrB(0) & ChrB(0) & ChrB(0) '保留，每字节以“00”填写
+strHeadData=strHeadData&ChrB(54) & ChrB(0) & ChrB(0) & ChrB(0) '记录图像数据区的起始位置
+strHeadData=strHeadData & ChrB(40) & ChrB(0) &ChrB(0) & ChrB(0) '图像描述信息块的大小
+strHeadData =strHeadData &ChrB(w) & ChrB(0) & ChrB(0) & ChrB(0) '宽度
+strHeadData =strHeadData & ChrB(h) & ChrB(0) & ChrB(0) & ChrB(0) '高度
+strHeadData =strHeadData & ChrB(1) & ChrB(0) '图像的plane总数
+strHeadData =strHeadData &ChrB(24) & ChrB(0) '图像的位数 
+strHeadData =strHeadData & ChrB(0) & ChrB(0) & ChrB(0) & ChrB(0) '数据压缩方式
+strHeadData =strHeadData &ChrB(176) & ChrB(4) & ChrB(0) & ChrB(0) '图像区数据的大小
+strHeadData =strHeadData & ChrB(18) & ChrB(11) & ChrB(0) & ChrB(0) '水平每米有多少像素
+strHeadData =strHeadData & ChrB(0) & ChrB(0) &ChrB(0) & ChrB(0) '垂直每米有多少像素
+strHeadData =strHeadData & ChrB(0) & ChrB(0) & ChrB(0) & ChrB(0) '此图像所用的颜色数
+strHeadData =strHeadData & ChrB(0) & ChrB(0) & ChrB(0) & ChrB(0) '颜色表
+Dim strSaveData, intLoop1, intLoop2, strTempData
+For intLoop1 =intTotalLine To 0 Step -1
+	strTempData =Request("PX"&intLoop1)
+	strTempData =Split(strTempData, ",")
+	For intLoop2 =0 To ubound(strTempData)
+		strSaveData =strSaveData &To3(strTempData(intLoop2))
+	Next
+Next
+	strSaveData =strHeadData & strSaveData	
+Dim Jpeg
+Set Jpeg = Server.CreateObject(FR_HR_PJ)
+if Err Then
+Err.Clear()
+strSaveFileName =strNow &".bmp"
+set rs =server.CreateObject(FR_HR_Rs)
+sql ="select * from JOB_Plus_Paizhao"
+rs.open sql,conn,1,3
+rs.addnew
+rs("id") =strnow
+rs("addtime") =now
+rs("imgdata").AppendChunk(strSaveData)
+rs.update
+rs.close
+set rs =nothing
+set rs =conn.execute("select * from JOB_Plus_Paizhao where id ="& strnow)
+	img_size =rs("imgdata").ActualSize 
+	saa= rs("imgdata").GetChunk(img_size)
+set rs =nothing
+Call SaveStream(InstallDir&FR_UPFILES_DIR&"/Person/"& strSaveFileName, saa)
+conn.execute("delete from JOB_Plus_Paizhao where id ="& strnow)
+else 
+strSaveFileName =strNow &".jpg"
+Jpeg.OpenBinary strSaveData
+Jpeg.Width = Jpeg.OriginalWidth 
+Jpeg.Height = Jpeg.OriginalHeight
+Dim TempJPG '加了不透明文字水印的图片
+'=========加文字水印=================
+Jpeg.Canvas.Font.Color = &Hffffff'水印文字颜色
+Jpeg.Canvas.Font.Family = Arial'字体
+Jpeg.Canvas.Font.Bold = True'是否加粗
+Jpeg.Canvas.Font.Size = 15'字体大小
+Jpeg.Canvas.Font.ShadowColor = &H000000'阴影色彩
+Jpeg.Canvas.Font.ShadowYOffset = 1
+Jpeg.Canvas.Font.ShadowXOffset = 1
+Jpeg.Canvas.Brush.Solid = True
+Jpeg.Canvas.Font.Quality = 5'输出质量
+Jpeg.Canvas.PrintText Jpeg.OriginalWidth-90,Jpeg.OriginalHeight-20,"finereason.com"'水印位置及文字
+TempJPG=Jpeg.Binary
+'============调整文字透明度================
+Set MyJpeg = Server.CreateObject(FR_HR_PJ)
+MyJpeg.OpenBinary strSaveData
+Set Logo = Server.CreateObject(FR_HR_PJ)
+Logo.OpenBinary TempJPG
+MyJpeg.DrawImage 0,0, Logo, 0.3'0.3是透明度
+' 保存缩略图到指定文件夹下
+MyJpeg.Save Server.MapPath(InstallDir&FR_UPFILES_DIR&"/Person/"& strSaveFileName)
+set TempJPG=nothing
+MyJpeg.Close
+Logo.Close
+end if
+' 注销实例
+Set Jpeg = Nothing
+'数据库处理
+Set rs= Server.CreateObject(FR_HR_Rs)
+sql="select * from job_member where Member_login='"&pmember_login&"' and Member_typeid=1"
+rs.open sql,conn,3,3
+ prepicture=rs("Member_logo")
+ if prepicture<>"" and not isnull(prepicture) and prepicture<>"nophoto.gif" and prepicture<>"error.gif" then      '原来有图片
+  set fileobject=server.createobject(FR_HR_Fso)
+  path=Server.MapPath(InstallDir&FR_UPFILES_DIR&"/Person/"&prepicture)
+  if fileobject.fileexists(path) then
+   set afile=fileobject.getfile(path)
+   afile.delete
+  end if
+ end if
+ rs("Member_logostatus")=1
+ rs("Member_logo")=strSaveFileName
+ if AdminPicCheckReg=1 then
+ rs("Member_logoflag")=0
+ else
+ rs("Member_logoflag")=1
+ end if
+ rs.update
+rs.close
+set rs=nothing
+call CloseConn()	'关闭数据库
+response.redirect "../../person/person_photo.asp"
+response.end
+Function To3(nums)
+	Dim myArray()
+	Dim iii, tmp
+	For iii=1 To 3
+		tmp=Mid(nums,iii*2-1,2)
+		Redim Preserve myArray(iii)
+		myArray(iii) =chn10(tmp)
+	Next
+	To3 = ChrB(myArray(3))&ChrB(myArray(2))&ChrB(myArray(1))
+End Function
+
+Function toBin(str)
+	Dim intTemp, binTemp, strTemp
+	For intTemp =1 To 6 Step 2
+		strTemp =Mid(str, intTemp, 2)
+		binTemp =binTemp & ChrB(chn10(strTemp))
+	Next
+	toBin =binTemp
+End Function
+
+Function chn10(nums)
+	Dim tmp, tmpstr, intLoop4
+	nums_len=Len(nums)
+	For intLoop4=1 To nums_len
+		tmp=Mid(nums,intLoop4,1)
+		If IsNumeric(tmp) Then
+			tmp=tmp * 16 * (16^(nums_len-intLoop4-1))
+		Else
+			tmp=(ASC(UCase(tmp))-55) * (16^(nums_len-intLoop4))
+		End If
+		tmpstr=tmpstr+tmp
+	Next
+	chn10 = tmpstr
+End Function
+Sub SaveStream(paR_strFile, paR_streamContent)
+	Dim objStream
+	Set objStream =Server.CreateObject(FR_HR_Stream)
+		with objStream
+			.Type =1
+			.Open
+			.Write paR_streamContent
+			.SaveToFile Server.Mappath(paR_strFile), 2
+			.Close()
+		End with
+	Set objStream =Nothing
+End Sub
+%>

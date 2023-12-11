@@ -1,0 +1,97 @@
+<!-- #include file="conn.asp" -->
+<!--#include file="inc/ubbcode.asp"-->
+<!--#include file="upfile_class.asp"-->
+<!-- #include file="bbsuser.asp" -->
+<!-- #include file="touxianfun.asp" -->
+<!-- #include file="aspjpg.asp" -->
+<!--#include file="inc/publicfun.asp" -->
+<!-- #include file="ispicfun.asp" -->
+<%
+userid=cint(getcookie("clubuser_id"))
+call FTBBS_HTML_MB(ft)
+url=Application("FTBBSMB")(10,0)
+upfiletype=Application("FTBBSMB")(12,0)
+upfilesize=Application("FTBBSMB")(13,0)
+upfiletype=RegExReplace(upfiletype,"(asp)","rar")
+upfiletype=RegExReplace(upfiletype,"(asa)","rar")
+upfiletype=RegExReplace(upfiletype,"(cdx)","rar")
+upfiletype=RegExReplace(upfiletype,"(cer)","rar")
+if Application("FTBBSMB")(7,0)="M" then
+ inFolder=year(date())&month(date())
+else
+ inFolder=year(date())&month(date())&day(date())
+end if
+
+'myFolder = userid
+call makefolder(inFolder,fso)
+myFolder = inFolder&"/"&userid
+call makefolder(myFolder,fso) '生成文件夹,成为bokeer已生成
+
+dim upload,file,upfile,formPath,ServerPath,FSPath,formName,companyName,oFile,upfilecount,SaveFileName,SavePathFileName
+set upload=new Ftbbs_Class
+upload.AllowExt=upfiletype    '设置上传文件类型
+upload.GetData (upfilesize)   '取得上传文件大小
+photo_name=upload.form("photo_name")
+photo_note=upload.form("photo_note")
+photo_name=CheckStr(photo_name)
+photo_note=CheckStr(photo_note)
+
+if photo_name=""  then
+   response.write "<SCRIPT language=JavaScript>alert('相册分类不能为空！');history.go(-1);</script>"        
+   response.end
+end if
+
+sign=0
+sql="select top 1 * from "&ft&"ftblog_type where userid="&userid&" and blogphoto=1 and blogtype='"&photo_name&"'"
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,3
+if not rs.eof then
+   sign=rs("sign")
+end if
+rs.close
+formPath=inFolder&"/"&userid
+if right(formPath,1)<>"/" then formPath=formPath&"/"
+if upload.isErr then
+    select case upload.isErr
+    case 1
+        Response.Write "<font color=red>上传文件不能为空</font>"
+    case 2
+        Response.Write "系统限制上传文件大小在<font color=red>"&upfilesize&"</font>字节以下."
+    end select
+else
+    for each formName in upload.file '列出所有上传了的文件
+	   set oFile=upload.file(formname)
+	   filesize=oFile.FileSize '取得文件大小
+	   
+	   vfname = makefilename(now())
+	   Randomize
+	   Random=Int((1000 - 100 + 1) * Rnd + 100)
+	   vfname=vfname&"_"&Random
+	   FileExt=oFile.FileExt '取文件扩展名
+	   filetype=oFile.FileMIME '取文件头类型 
+	   fname = formPath&vfname & "." & FileExt
+	   todbpath=vfname & "." & FileExt
+       SavePathFileName = Server.MapPath(fname)
+	   if filetype="text/plain" then
+       response.write "<script language='javascript'>alert('您上传的文件有问题,请返回重传!');history.go(-1);</script>"
+       response.end 
+       else
+	   upload.SaveToFile formName,SavePathFileName '保存文件
+	   end if
+       if upload.iserr then 
+         Response.Write upload.errmessage
+       else
+         if Application("FTBBSMB")(15,0)=1 and FileExt="jpg" then
+		    imgtmlogo fname
+		 end if
+		 Call ispic(SavePathFileName,fso)
+         sql="insert into "&ft&"ftbbs_upload (upload_pic,file_type,upload_size,upload_ext,userid,pic_note,photo_name,sign,bbs_blog_type,clubuser_id) values('"&inFolder&"/"&userid&"/"&todbpath&"',0,'"&filesize&"','"&FileExt&"','"&getcookie("name")&"','"&photo_note&"','"&photo_name&"',"&sign&",2,"&userid&")"
+         conn.Execute(sql)
+         closedb
+         response.redirect "up_photo.asp?success=Y&pic="&inFolder&"/"&userid&"/"&todbpath
+       end if
+       set oFile = nothing
+    next
+end if    
+set upload=nothing
+%>

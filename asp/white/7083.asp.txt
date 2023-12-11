@@ -1,0 +1,277 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<%
+path="../"
+%>
+<!--#include file="inc/conndb_big.asa"-->
+<%
+Call GetSiteStatus()
+Dim site_desc,if_close
+%>
+<!--#include file="inc/Get_admins.asp" -->
+<%
+If (if_close)="True" Then
+	response.write"<script>alert('对不起，网站维护中！');window.open('../t','_self')</script>"
+	response.End()
+end if
+%>
+
+
+<!--#include file="inc/conndb.asa"-->
+<!--#include file="inc/function.asp"--> 
+<%
+BoardID = CheckNum(Request.QueryString("boardid"))
+Act=CheckStr(Request.QueryString("Act"))
+
+If Request("CurPage") = "" or Request("CurPage") = 0 then
+	CurPage = 1
+Else
+	CurPage = CheckNum(Request("CurPage"))
+End If
+If BoardID="" Then BoardID=0
+If BoardID=0 Then
+	'BoardAdminShow="吧主:"&Replace(CheckAdminName(0),"|"," ")
+	Page_WebTitle=TieBa_Name
+	now_where="全部帖子浏览"
+Else
+	If Not IsArray(Arr_Category) Then GetBoardCache()
+	For i=0 To Ubound(Arr_Category,2)
+		If Int(Arr_Category(1,i))=Int(BoardID) Then
+			BoardName=Arr_Category(0,i)
+			BoardFather=Arr_Category(5,i)
+			BoardAbout=Arr_Category(2,i)
+			BoardAD=Arr_Category(6,i)
+			Exit For
+		End If
+	Next
+	If BoardFather=0 Then 
+		now_where=BoardName
+		GetSonSqlStr=GetBoardSonStr(BoardID)
+	Else
+		now_where="<a href="""&list_page_name&"?BoardID="&BoardFather&""">"&GetBoardName(BoardFather)&"</a> &raquo; "& BoardName
+	End If
+	
+	BoardAdmin=CheckAdminName(BoardID)
+	If BoardAdmin<>"" Then 
+		'BoardAdminShow=" 版主:"&Replace(BoardAdmin,"|"," ")
+	Else
+		'BoardAdminShow=" 版主:*空缺中*"
+	End If
+	If IsAdmin<>9 Then IsAdmin=CheckAdmin(BoardID)
+	boardidUrlStr="&boardid="&BoardID
+	boardidSqlStr="and (istop=2 or boardid="&BoardID&" "&GetSonSqlStr&")"
+	Page_WebTitle=BoardName &"-"& TieBa_Name
+	Page_Description=BoardAbout
+	Page_Keywords=BoardName&","&Page_Keywords
+End If
+extra=BoardID&"-"&CurPage
+If extra<>"" And CurPage<>1 And NeedLinkEX=True Then isextra="&extra="&extra
+
+BoardListStr=BoardList(BoardID)
+NavRight=BoardListSon(BoardID)
+If IsAdmin>0 Then 
+	ischeckSqlStr="ischeck>-1"
+Else
+	ischeckSqlStr="ischeck=1"
+End If 
+
+%>
+<!--#include file="inc/header.htm"-->
+<%
+If Act="good" Then 
+GoodSqlStr="and isgood=1 "
+isact="&act=good"
+End If 
+
+'计算文章数。
+dim Totalcount,Sys_List_Num,wzpage,wzpagecount,wzpagerep,boardstr
+Totalcount = conn.execute ("select count(id) from "&bbstable&" where "&ischeckSqlStr&" "&boardidSqlStr & GoodSqlStr &"",0,1)(0)
+SQLQueryNums=SQLQueryNums+1
+If Totalcount>0 Then 
+	wzpagecount = abs(int(-abs(Totalcount/Sys_List_Num)))
+	'取文章列表
+	set rs = server.createobject("adodb.recordset")
+	rssql = "select id,username,title,addtime,retime,rename,recount,hits,boardid,TitleColor,titleBold,istop,recount,isGood,ischeck from "&bbstable&" where "&ischeckSqlStr&" "&boardidSqlStr & GoodSqlStr &" order by istop desc,retime desc,addtime desc"
+	rs.open rssql,conn,1,1,&h0001
+	SQLQueryNums=SQLQueryNums+1
+	'根据分页参数获取当前页面纪录
+	rs.absoluteposition=rs.absoluteposition+((abs(CurPage)-1)*Sys_List_Num)
+	html= html &"<div class=""pages_info"">版块介绍: "&Page_Description&"</div>"
+	html= html &"<div class=""pages_btns""><span>"&BoardAdminShow&"<BR>主题："&Totalcount&"</span><A HREF=""#post""><IMG SRC=""skins/"&Sys_skins&"/post.gif"" border='0'></A> <A HREF="""&list_page_name&"?Act=good"&boardidUrlStr&"""><IMG SRC=""skins/"&Sys_skins&"/good.gif"" border='0'></A> </div>"
+
+	'显示文章标题列表
+	If IsAdmin>0 Then html= html &"<form action=""so.asp?Action=TieDeal"" method=post name=inbox>"
+	html= html &"<table cellspacing=""0"" cellpadding=""0"" class=""datatable"">"
+	html= html &"<thead>"
+	html= html &"<td>&nbsp;</td>"
+	html= html &"<td>标题</td>"
+	html= html &"<td>作者</td>"
+	html= html &"<td align=right>回复/点击</td>"
+	html= html &"<td class=""lastpost"">最后回复 </td>"
+	html= html &"</thead>"
+	'文章标题循环开始
+	if rs.eof or rs.bof Then
+
+	Else
+		for i = 0 to Sys_List_Num-1
+			if rs.eof then exit For
+			pre_title=""
+			title=rs("title")
+			if Rs("TitleColor")<>"" Then title="<font color="&Rs("TitleColor")&">"&title&"</font>"
+			if CInt(Rs("titleBold"))=1 Then title="<B>" & title & "</B>"
+			If rs("ischeck")=0 Then title= "<font color=red>[未审核]</font>"&title 
+			title="<a href=""show.asp?id="&Rs("id")& isextra &""">"& title &"</a>"
+			If BoardID=0 Or GetSonSqlStr<>"" Then title="<em>[<a href="&list_page_name&"?boardid="&rs("boardid")&">"&GetBoardName(rs("boardid"))&"</a>]</em> "&title
+			titlepic="icoz_comm.gif"
+			if Rs("isTop")=1 Then titlepic="icoz_top.gif"
+			if Rs("isTop")=2 Then titlepic="icoz_top.gif"
+			if Rs("isGood")=1 Then titlepic="isgood.gif"
+
+			'帖子分页
+			if CInt(Rs("recount"))>Sys_Show_Num then
+				rep ="<li class=pagecut>"& _
+				GetRePageNo("show.asp?id="&Rs("id")&isextra&"&CurPage=",CInt(Rs("recount")),Sys_Show_Num,false) &"</li>"
+			else
+				rep = ""
+			end If
+			'开始匹配循环标签
+			username=DropFuckWords(LCase(Rs("username")))
+			username2=LCase(Rs("username"))
+			If ubound(split(username,"."))<3 And instr(username,".*")=0 And _
+			((Dreamsun_Name<>"" And Sys_isuserinfo=0) Or Sys_isuserinfo=1) Then
+				username = "<a href=user.asp?Action=infoshow&username="&username2&">"& username &"</a>"
+			else
+				if Sys_isShowIpName>0 And instr(username,".*")>0  then
+					n_name = Replace(username,"*","1")
+					username = "<span id='tie_"&Rs("id")&"' onmouseover=""showIpData('"&n_name&"','tie_"&Rs("id")&"',1);""  onmouseout=""SetValue('tie_"&Rs("id")&"','"&username&"');"">"&username&"</span>"
+				end if
+			End If 
+
+			If IsNull(Rs("rename")) Or Rs("rename")=""  Then
+				rename="暂无"
+			Else 
+				rename=DropFuckWords(Trim(LCase(Rs("rename"))))
+				rename2=LCase(Trim(Rs("rename")))
+				If ubound(split(rename2,"."))<3 And instr(rename2,"*")=0 And _
+				((Dreamsun_Name<>"" And Sys_isuserinfo=0) Or Sys_isuserinfo=1) Then
+					rename="<a href=user.asp?Action=infoshow&username="&rename2&">"&rename&"</a>"
+				else
+					if Sys_isShowIpName>0 and instr(rename2,"*")>0 then
+						n_rename = Replace(rename,"*","1")
+						rename = "<span id='tier_"&Rs("id")&"' onmouseover=""showIpData('"&n_rename&"','tier_"&Rs("id")&"',1);"" onmouseout=""SetValue('tier_"&Rs("id")&"','"&rename&"');"">"&rename&"</span>"
+					end if
+				End If 
+			End If
+
+			html= html &"<tbody id="""&rs(0)&"""><tr>"& vbCrLf
+			If IsAdmin>0 And Rs("isTop")=0 Then 
+				html= html &"<td class=""checkput""><input name=""bbsid"" type=""checkbox"" value="""&rs(0)&"""></td>"& vbCrLf
+			Else
+				html= html &"<td class=""folder""><img src=""skins/"&Sys_skins&"/"&titlepic&""" /></td>"& vbCrLf
+			End If 
+			html= html &"<td class=""subject""><div class=tietitle>"&pre_title&""& title & rep &"</div></td>"& vbCrLf
+			html= html &"<td class=""author""><cite>"&username&"</a></cite><em>"&DateToStr(rs(3),"Y-m-d")&"</em></td>"& vbCrLf
+			html= html &"<td class=""nums""><strong>"&rs("recount")&"</strong>/<em>"&rs("hits")&"</em></td>"& vbCrLf
+			html= html &"<td class=""lastpost""><cite>"&rename&"</cite><em>"&DateToStr(rs(4),"Y-m-d")&"</em></td>"& vbCrLf
+			html= html &"</tr></tbody>"& vbCrLf
+		rs.movenext
+		Next
+		pagecut=viewpage(Totalcount, Sys_List_Num,5,CurPage,boardidUrlStr&isact&iskey,"当前总数:",list_page_name)
+	end if
+
+	html= html &"<thead>"& vbCrLf
+	html= html &"<td>&nbsp;</td>"& vbCrLf
+	If IsAdmin>0 Then 
+		html= html &"<td><input type=""checkbox"" name=""chkall"" id=""chkall"" value=""on"" onClick=""CheckAll(this.form)"">                <label for=""chkall"">全选/取消 </label><select name=""cz""><option value=""BatchVDel"">批量删除</option><option value=""BatchCheck"">批量审核</option><option value=""BatchNoCheck"">批量屏蔽</option></select><input type=""submit"" value=""执行"" onClick=""{if(confirm('您确定执行的操作吗?')){return true;}return false;}""></td>"& vbCrLf
+	Else
+		html= html &"<td>标题</td>"& vbCrLf
+	End If 
+	html= html &"<td>作者"&Sys_isSideBar&"</td>"& vbCrLf
+	html= html &"<td align=right>回复/点击</td>"& vbCrLf
+	html= html &"<td class=""lastpost"">最后回复 </td>"& vbCrLf
+	html= html &"</thead>"& vbCrLf
+	html= html &"</table>"& vbCrLf
+	If IsAdmin>0 Then html= html &"</form>"& vbCrLf
+
+Else
+html= html &"暂无帖子，请发表！"
+End If 
+html= html &"<table width=""100%"" border=""0"" height=""40"" cellspacing=""0""><TR><TD><form name=""form1"" method=""post"" action=""so.asp?Action=so"" style=""margin:2px;"" onSubmit=""return socheck(this);"">快速搜索：<input name=""Keys"" type=""text"" id=""Keys"" value="""&keys&""" size=""15"" maxlength=""10"" title=""支持空格或者+分隔关键词""> <input type=""submit""class=""button_style_w"" value=""搜索""></form></TD><TD align=right>"&pagecut&"</TD></TR></TABLE>"
+
+If Sys_isSideBar=1 Then 
+	If Application(webname&"_TieBa_SideBar"&BoardID)="" Or Application(webname&"Loaded")<>"YES" Then 
+		Application.Lock
+		Application(webname&"_TieBa_SideBar"&boardid)=sidebarContent
+		Application.UnLock
+	End If 
+	response.write "<div id=""side"" class=""side"">"&Application(webname&"_TieBa_SideBar"&boardid)&"</div><div id=""main"" class=""main""><div class=""mainContent"">"&html&"</div></div>"
+Else
+	response.write "<div class=""mainContent"">"&html&"</div>"
+End If 
+BoardQX=True
+If BoardQX Then '如果该栏目允许您发帖
+	If Sys_Guest_Add=1 Or (Sys_Guest_Add=0 And Dreamsun_Name<>"") Then 
+		indexPost=True
+	Else
+		indexPost=False
+		shuoming="目前不允许游客发表，请在网站首页 <A href='../t'>登录</A> 后 发贴。"
+	End If
+Else
+		indexPost=False
+		shuoming="该栏目目前已经锁定，不允许发表。"
+End If 
+If indexPost Then 
+%>
+	<TABLE class="m15" width="95%" align=center border=0><TR><TD align=left valign=top><B>发帖须知：</B><BR><BR>1，发帖请遵守《计算机信息网络国际联网安全保护管理办法》、《互联网信息服务管理办法》、 《互联网电子公告服务管理规定》、《维护互联网安全的决定》等法律法规。<BR><BR>2，请对您的言论负责，我们将保留您的上网记录和发帖信息。<BR><BR>3，在此发帖表示认同我们的条款，我们有权利对您的言论进行审核、删除或者采取其他在法律、地方法规等条款规定之内的管理操作。 </TD><TD  width=650><form name="save" method="post" action="tzsave.asp?cz=addsave" onSubmit="return regcheck(this);"><TABLE width="100%"><TR><TD width=50>分类：</TD><TD><%=BoardSelect(BoardID)%> &nbsp;&nbsp;<%If IsAdmin>0 Then %>回复： <input name="isRe" type="radio" id="isRe1" value="1" checked><label for="isRe1">允许</label><input name="isRe" type="radio" id="isRe2" value="0"  > <label for="isRe2">不允许</label><%End If %></TD></TR><TR><TD>标题：</TD><TD><input name="title" type="text" id="title" size="40"  maxlength="50" value=""> <%If IsAdmin>0 Then %>字体：<input type="radio" name="titleBold" value="0" checked id="titleBold1"><label for="titleBold1">正常</label><input type="radio" name="titleBold" value="1"  id="titleBold2"><label for="titleBold2">粗体</label> &nbsp;<select name="titlecolor"><option value="">标题醒目</option><%
+	For i=0 To UBound(TitleColorArray)
+	response.write "<option style=""COLOR: "&TitleColorArray(i)&""" value="""&TitleColorArray(i)&""">"&TitleColorArray(i)&"</option>"
+	Next%></select><%End If %></TD></TR><TR><TD>内容：</TD><TD><textarea id="content" name="content" rows="10" cols="70" class="ubbeditor"></textarea></TD></TR>
+	<%
+	If Dreamsun_name="" Then
+	%>
+		<TR><TD>验证：</TD><TD><input name="zd_code" type="text" id="zd_code" size="8" maxlength="4"  onFocus="document.all.checkcode.src='inc/GetCode.asp?a=index&s='+Math.random()"/> <img id='checkcode' src='images/circle.gif' alt='验证码,看不清楚?请点击刷新验证码' style='cursor : pointer;' onclick="src='inc/GetCode.asp?a=index&s='+Math.random()"/> * 匿名发表需要进行验证！<input type="Submit" name="Submit" id="Submit" value="发表帖子" /></TD></TR>
+	<%
+	Else%>
+		<TR><TD></TD><TD><input name="zd_code" type="hidden" id="zd_code" value="dreamsun"/>尊敬的会员<span class=hot><%=Dreamsun_name%></span>，欢迎您使用本贴吧发帖！<input type="Submit" name="Submit" id="Submit" value="发表帖子" /></TD></TR>
+	<%
+	End If 
+	%>
+	</TABLE></form></TD></TR></TABLE>
+	<script type="text/javascript"  charset="utf-8" src="images/xheditor-zh-cn.js"></script><script type="text/javascript" src="images/ubb.js"></script>
+	<script type="text/javascript">
+	$(pageInit);
+	var editor;
+	var dd;
+	function pageInit(){$('#content').xheditor(true,{tools:'mini',forcePtag:false,showBlocktag:false,beforeSetSource:ubb2html,beforeGetSource:html2ubb<%if Dreamsun_Name<>"" Then%><%=ubbupload%><%end if%>});
+	editor=$('#content').xheditor(true)[0].objxhe;
+	}
+	function regcheck(formct){
+
+		if (formct.BoardId.value=='' ){
+			alert('分类不能为空.');
+			formct.BoardId.focus();
+			return false; 
+		}
+		if (formct.title.value=='' ){
+			alert('标题不能为空,请填写.');
+			formct.title.focus();
+			return false; 
+		}
+		if (editor.getSource()=='' ){
+			alert('内容不能为空,请填写.');
+			return false; 
+		}
+		if (formct.zd_code.value=='' ){
+			alert('验证码不能为空,请填写.');
+			formct.zd_code.focus();
+			return false; 
+		}
+		formct.Submit.disabled=true;
+		return true;
+	}
+</script>
+	<%
+Else 
+	response.write "<TABLE width=""95%"" border=0 height=60><TR><TD align=center class=hot>"&shuoming&"</TD></TR></TABLE>"
+End If 
+%><a name="post"> &nbsp;</a>
+<!--#include file="inc/bottom.htm"-->

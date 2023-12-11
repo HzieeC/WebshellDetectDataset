@@ -1,0 +1,37 @@
+<%
+Function c2u(sGBStr)
+Dim i,c
+if sGBStr<>"" then
+For i = 1 to Len(sGBStr)
+c = Mid(sGBStr,i,1)
+if c=chr(13) then 
+c2u = c2u & "<br/>"
+else
+c2u = c2u & "&#x" & Hex(AscW(c)) & ";"
+end if
+Next
+end if
+End Function
+
+function UBB(strContent)
+	on error resume next
+	strContent = HTMLEncode(strContent)
+	dim objRegExp
+	Set objRegExp=new RegExp
+	objRegExp.IgnoreCase =true
+	objRegExp.Global=True
+
+	objRegExp.Pattern="(\(URL\))(.*)(\(\/URL\))"
+	strContent= objRegExp.Replace(strContent,"<a href=""$2"" >$2</a>")
+
+	objRegExp.Pattern="(\(URL=(.*)\))(.*)(\(\/URL\))"
+	strContent= objRegExp.Replace(strContent,"<a href=""$2"" >$3</a>")
+
+	objRegExp.Pattern="(\(IMG\))(.*)(\(\/IMG\))"
+	strContent= objRegExp.Replace(strContent,"<img src=""$2"" alt='load..'/><br/><a href=""$2"" >&#x70B9;&#x51FB;&#x4E0B;&#x8F7D;</a>")
+        objRegExp.Pattern="(\\)"
+	strContent= objRegExp.Replace(strContent,"<br/>")
+	set objRegExp=Nothing
+	UBBCode=strContent
+end function
+%>

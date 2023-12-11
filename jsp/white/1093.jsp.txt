@@ -1,0 +1,44 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>	
+<link rel="stylesheet" rev="stylesheet" href="/templets/html/8diansc/css/main_right.css" type="text/css" />
+<script language="javascript" type="text/javascript" src="commen.js"></script>
+
+<div class="f-right ">
+    <table width="100%" border="0" cellpadding="0" cellspacing="0"  class="table_main">
+      <tr>
+        <th width="5%" align="center"><img src="/program/member/index/images/icon1.gif" /></th>
+        <th width="75%"><h3>修改用户密码</h3></th>
+      </tr>
+    </table>
+
+    <!--Content部分开始-->
+    <DIV class="">
+      
+		<form action="/doTradeReg.do" name="addForm" method="post">
+			<input type="hidden" name="bpm_id" value="5412" />
+	  		<input type="hidden" name="user_id" value="<%=user_id%>" />
+          <table width="100%" border="0" cellspacing="2"  cellpadding="2" style=" border:1px solid #ccc; border-top:0" >
+		    <tr>
+				<td colspan="2">密码请设为6-16位字母或数字。</td>
+			</tr>
+            <tr>
+			  <td  align="right" width="38%"  class="art_col">新密码:</td>
+			  <td><input name="passwd" id="newpasswd" value="" type="password" maxlength="50"   /></td>
+			</tr>
+			<tr>
+			  <td  align="right" width="38%"   class="art_col">新密码确认:</td>
+			  <td><input name="passwdconfirm" id="passwdconfirm" value="" type="password" maxlength="50" /></td>
+			</tr>
+
+			<tr>
+              <td align="center" colspan="2">
+				<input type="button" class="button2" name="Submit2" value="确定"   onclick="submitForm();">
+              </td>
+            </tr>
+
+          </table>
+
+		  </form>
+      
+  </div>
+</div>

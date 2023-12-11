@@ -1,0 +1,199 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="inc/file_memberLog.asp" -->
+<%
+Call CheckIframe()
+
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 ****
+
+
+Call OpenMemberexe("","login",2)
+Call CloseMemberexe()
+
+
+Select Case mudi
+	Case "add","rev"
+		Call AddOrRev()
+
+	Case "del"
+		menuFileID = 95
+		Call IsSecMenuRight("alert",menuFileID,dataType)
+		Call del()
+
+End Select
+
+
+Call CloseConobj()
+
+
+
+
+
+
+
+
+
+
+
+'添加与修改
+Private Sub AddOrRev()
+	backURL		= ToPostStr("backURL")
+	dataType	= ToPostStr("dataType")
+	dataTypeCN	= ToPostStr("dataTypeCN")
+	dataID		= ToPostInt("dataID")
+
+	oldFatID	= ToPostInt("oldFatID")
+
+	theme		= ToPostStr("theme")
+	fatID		= ToPostInt("fatID")
+		If fatID>0 Then level=2 Else level=1
+	mode		= ToPostStr("mode")
+	webURL		= ToPostStr("webURL")
+		If webURL="http://" Then webURL=""
+	webID		= ToPostInt("webID")
+	titleAddi	= ToPostRStr("titleAddi")
+	webKey		= ToPostStr("webKey")
+	webDesc		= RegExpStr(ToPostStr("webDesc"),"html")
+	openMode	= ToPostStr("openMode")
+	showMode	= ToPostInt("showMode")
+	showNum		= ToPostInt("showNum")
+		If showNum<=0 Then showNum=10
+	isMenu		= ToPostInt("isMenu")
+	isHome		= ToPostInt("isHome")
+	homeNum		= ToPostInt("homeNum")
+		If homeNum=0 Then homeNum=10
+	isHomeImg	= ToPostInt("isHomeImg")
+	isItemDate	= ToPostInt("isItemDate")
+	isUser		= ToPostInt("isUser")
+	rank		= ToPostInt("rank")
+	lookScore	= ToPostInt("lookScore")
+'		If fatID>0 And showMode=5 Then showMode=1
+
+	
+	If theme="" Then
+		Call JS_AlertBackEnd("表单内容接收不全")
+	End If
+
+	
+	application.lock
+		Set dealrec=server.CreateObject("ADODB.recordset")
+		dealrec.open "select top 1 * from OT_infoType where IT_ID="& dataID,conobj,0,2
+			If dealrec.EOF Then
+				menuFileID = 93
+				Call IsSecMenuRight("alertBack",menuFileID,dataType)
+				dealrec.addnew
+				alertMode="添加"
+		dealrec("IT_type")	= dataType
+			Else
+				menuFileID = 94
+				Call IsSecMenuRight("alertBack",menuFileID,dataType)
+				alertMode="修改"
+				If oldFatID=0 And fatID>0 Then
+					Set checkexe=conobj.execute("select top 1 IT_ID from OT_infoType where IT_fatID="& dataID)
+						If Not checkexe.EOF Then
+							Call JS_AlertBackEnd("该栏目下存在子栏目，请选转移或删除子栏目，再选择非顶级分类。")
+						End If
+					checkexe.close
+					Set checkexe=Nothing
+				End If
+				If oldFatID<>fatID Then
+					If oldFatID=0 Then oldLevel=1 Else oldLevel=2
+					If fatID=0 Then
+						setStr="IF_typeStr=',"& dataID &",',IF_type1ID="& dataID &",IF_type2ID=0"
+					Else
+						setStr="IF_typeStr=',"& fatID &","& dataID &",',IF_type1ID="& fatID &",IF_type2ID="& dataID &""
+					End If
+					conobj.execute("update OT_info set "& setStr &" where IF_type"& oldLevel &"ID="& dataID)
+				End If
+			End If
+		dealrec("IT_level")			= level
+		dealrec("IT_fatID")			= fatID
+		dealrec("IT_theme")			= theme
+		dealrec("IT_mode")			= mode
+		dealrec("IT_URL")			= webURL
+		dealrec("IT_webID")			= webID
+		dealrec("IT_titleAddi")		= titleAddi
+		dealrec("IT_webKey")		= webKey
+		dealrec("IT_webDesc")		= webDesc
+		dealrec("IT_openMode")		= openMode
+		dealrec("IT_showMode")		= showMode
+		dealrec("IT_showNum")		= showNum
+		dealrec("IT_isMenu")		= isMenu
+		dealrec("IT_isHome")		= isHome
+		dealrec("IT_homeNum")		= homeNum
+		dealrec("IT_isHomeImg")		= isHomeImg
+		dealrec("IT_isItemDate")	= isItemDate
+		dealrec("IT_isUser")		= isUser
+		dealrec("IT_rank")			= rank
+		dealrec("IT_lookScore")		= lookScore
+		dealrec.update
+		dealrec.close
+		Set dealrec=Nothing
+	application.unlock
+
+	If alertMode="添加" Then
+		If dataID=0 Then dataID=conobj.execute("select max(IT_ID) from OT_infoType")(0)
+		backURL = "infoType.asp?mudi=add&dataType="& dataType &"&dataTypeCN="& server.URLEncode(dataTypeCN) &"&dataMode="& dataMode &"&dataModeStr="& dataModeStr &"&dataID="& dataID &""
+	End If
+
+	alertResult="成功"
+	Call MemberLog_Deal(0,"","",theme,"【"& dataTypeCN &"】"& alertMode & alertResult &"！")
+
+	Call JS_AlertHref(""& alertMode &"成功！",backURL)
+End Sub
+
+
+
+
+
+
+
+'删除类别
+Private Sub del()
+	dataType	= ToGetStr("dataType")
+	dataTypeCN	= ToGetStr("dataTypeCN")
+	dataID		= ToGetInt("dataID")
+	theme		= ToGetStr("theme")
+
+	If dataID<=0 Then
+		Call JS_AlertEnd("指定ID错误！")
+	End If
+
+	Set checkexe = conobj.execute("select IT_ID,IT_level,IT_fatID from OT_infoType where IT_ID="& dataID)
+		If checkexe.EOF Then
+			Call JS_AlertEnd("该栏目不存在")
+		End If
+		If checkexe("IT_level")=1 Or checkexe("IT_fatID")=0 Then
+			Set checkexe2 = conobj.execute("select top 1 IT_ID from OT_infoType where IT_fatID="& dataID)
+				If Not checkexe2.EOF Then
+					Call JS_AlertEnd("该栏目下存在子栏目，请先删除子栏目。")
+				End If
+			checkexe2.close
+			Set checkexe2=Nothing
+		End If
+	checkexe.close
+
+	Set checkexe = conobj.execute("select top 1 IF_ID from OT_info where IF_typeStr like '%,"& dataID &",%'")
+		If Not checkexe.EOF Then
+			Call JS_AlertEnd("有文章占用该栏目，请先转移或删除被占用的文章。")
+		End If
+	checkexe.close
+	Set checkexe=Nothing
+	
+	conobj.execute("delete from OT_infoType where IT_ID="& dataID)
+
+
+	alertResult="成功"
+	Call MemberLog_Deal(0,"","",theme,"【"& dataTypeCN &"】删除"& alertResult &"！")
+
+	response.write("<script language='javascript' type='text/javascript'>parent.$id('data"& dataID &"').style.display='none'</script>")
+End Sub
+%>

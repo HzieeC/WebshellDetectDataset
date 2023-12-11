@@ -1,0 +1,177 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.trade.ts_task.*"%>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo"%>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Map task = new Hashtable();
+	String _task_name = "",_is_exec="";
+	if(request.getParameter("task_name")!=null && !request.getParameter("task_name").equals("")){
+		_task_name = request.getParameter("task_name");
+		task.put("task_name",_task_name);
+	}
+	if(request.getParameter("is_exec")!=null && !request.getParameter("is_exec").equals("")){
+		_is_exec = request.getParameter("is_exec");
+		task.put("is_exec",_is_exec);
+	}
+	
+	Ts_taskInfo taskInfo = new Ts_taskInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = taskInfo.getListByPage(task,Integer.parseInt(iStart),limit);
+	int counter = taskInfo.getCountByObj(task);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?task_name="+_task_name+"&is_exec="+_is_exec+"&iStart=",Integer.parseInt(iStart),limit);
+
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo();
+   String tasks = tb_commparaInfo.getSelectItem("116","");
+%>
+<html>
+  <head>
+    
+    <title>任务管理</title>
+		<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+		<script type="text/javascript" src="task.js"></script>
+			<script type="text/javascript" src="/js/commen.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>任务管理</h1>
+			</td>
+			<td>
+				<a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a>
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post" onsubmit="return false;">
+	  
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+	    <td align="left">
+	    		任务名称:
+	    		<select name="task_name"  id="task_name">
+					<option value="">请选择</option>
+					<%=tasks %>
+				</select>&nbsp;&nbsp;
+				状态:
+				<select name="is_exec"  id="is_exec">
+					<option value="">请选择</option>
+					<option value="0">正在执行</option>
+					<option value="1">已执行</option>
+					<option value="2">执行失败</option>
+				</select>&nbsp;&nbsp;
+	    	<input name="searchInfo" type="button" value="查询" onclick="searchForm()"/>
+	    	
+			</td>
+	  </tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			
+		  	<th>任务名称</th>
+		  	
+		  	<th>执行参数</th>
+		  	
+		  	<th>开始时间</th>
+		  	
+		  	<th>上次执行时间</th>
+		  	
+			<th >当前状态</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String task_id="",task_name="",task_param="",start_exec_time="",end_exec_time="",is_exec="";
+  			  		if(map.get("task_id")!=null) task_id = map.get("task_id").toString();
+  			  		if(map.get("is_exec")!=null) is_exec = map.get("is_exec").toString();
+				  	if(map.get("task_name")!=null) task_name = map.get("task_name").toString();
+				  	if(map.get("task_param")!=null) task_param = map.get("task_param").toString();
+				  	if(map.get("start_exec_time")!=null) start_exec_time = map.get("start_exec_time").toString();
+				  	if(map.get("end_exec_time")!=null) end_exec_time = map.get("end_exec_time").toString();
+					if(end_exec_time.length()>19) end_exec_time=end_exec_time.substring(0,19);			
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=task_id %>" /></td>
+			
+		  	<td><a href="updateInfo.jsp?task_id=<%=task_id %>"><%=task_name%><a></td>
+		  	
+		  	<td><%=task_param%></td>
+		  	
+		  	<td><%=start_exec_time%></td>
+		  	
+		  	<td><%=end_exec_time%></td>
+		  	
+			<td >
+			<%
+				if(is_exec.equals("0"))
+					out.print("正在循环执行");
+				if(is_exec.equals("1"))
+					out.print("已执行");
+				if(is_exec.equals("2"))
+					out.print("执行失败");
+			 %>
+			 </td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=task_id%>','9957');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="9957" />
+	  </form>
+</body>
+
+</html>

@@ -1,0 +1,156 @@
+<%
+'系统初始化
+Sub Pages_Initialize()
+	Set xmlDoc=Server.CreateObject("Microsoft.XMLDOM")
+	xmlDoc.async=False
+'	xmlDoc.load(Server.MapPath("#database.xml"))
+	xmlDoc.load(BlogPath&"PLUGIN\Pages\#database.xml")
+	Set xmlPageRoot=xmlDoc.SelectSingleNode("//root/Pages")
+	Set xmlPageList=xmlPageRoot.ChildNodes
+End Sub
+Sub Pages_Terminate()
+	Set xmlDoc=Nothing
+	Set xmlPageRoot=Nothing
+	Set xmlPageList=Nothing
+End Sub
+
+'函数
+Function Pages_Check_Alias(ByVal Alias,ByVal i)
+	Dim reval:reval=False
+	Dim k,x
+	Set x=New Cls_Page
+	For k=0 To xmlPageList.Length-1
+		x.i=k
+		Call x.LoadInfo()
+		If((i>-1)And(i<xmlPageList.Length)And(x.i<>i))Then
+			If(LCase(x.Alias)=LCase(Alias))Then
+				reval=True
+				Exit For
+			End If
+		ElseIf(Not(LCase(x.Alias)=LCase(Alias)))Then
+			If(Pages_Check_File(Pages_Directory,Pages_Directory_Anonymous,Pages_Static_Type,Alias))Then
+				reval=True
+				Exit For
+			End If
+		End If
+	Next
+	Set x=Nothing
+	Pages_Check_Alias=reval
+End Function
+
+Function Pages_Check_Files(ByVal D,ByVal A,ByVal T)
+	Dim reval:reval=False
+	Dim k,x
+	Set x=New Cls_Page
+	For k=0 To xmlPageList.Length-1
+		x.i=k
+		Call x.LoadInfo()
+		If(Pages_Check_File(D,A,T,x.Alias))Then
+			reval=True
+			Exit For
+		End If
+	Next
+	Set x=Nothing
+	Pages_Check_Files=reval
+End Function
+
+Function Pages_Check_File(ByVal D,ByVal A,ByVal T,ByVal Alias)
+	Dim reval:reval=False
+	D=Replace(BlogPath&D,"\","/")
+	If((Not(D=""))And(Right(D,1)<>"/"))Then
+		D=D & "/"
+	End If
+	D=D&Alias
+	If(A)Then
+		D=D&"/default."&T
+	Else
+		D=D&"."&T
+	End If
+	Set fso = CreateObject("Scripting.FileSystemObject")
+	If(fso.FileExists(D))Then
+		reval=True
+	End If
+	Pages_Check_File=reval
+End Function
+
+Function Pages_BuildFiles()
+	If(xmlPageList.Length>0)Then
+		Dim i,x
+		For i=0 To xmlPageList.Length-1
+			Set x=New Cls_Page
+			x.i=i
+			x.LoadInfo
+'			Response.Write(i)
+			x.Build
+			x.Save
+		Next
+	End If
+	Pages_BuildFiles=True
+End Function
+
+Function Pages_DelFiles()
+	If(xmlPageList.Length>0)Then
+		Dim i,x
+		For i=0 To xmlPageList.Length-1
+			Set x=New Cls_Page
+			x.i=i
+			x.LoadInfo
+			x.DelFile
+		Next
+	End If
+	Pages_DelFiles=True
+End Function
+
+Function Pages_ExportListFile()
+	If(xmlPageList.Length>0)Then
+		Dim Count:Count=xmlPageList.Length
+		If(Count>Pages_ExportList_Count)Then
+			Count=Pages_ExportList_Count
+		End If
+		Dim html:html=""
+		Dim temp
+		Dim i,x
+		For i=0 To Count-1
+			Set x=New Cls_Page
+			x.i=i
+			x.LoadInfo
+			Call Pages_CutTitle(x.Title,Pages_ExportList_Title_Length)
+			temp=Pages_ExportList_Template
+			temp=Replace(temp,"<#article/url#>",x.Url)
+			temp=Replace(temp,"<#article/title#>",x.Title)
+			temp=Replace(temp,"<#article/intro#>",x.Intro)
+			html=html&temp
+		Next
+		Call SaveToFile(BlogPath&"include/pageslists.asp",html,"utf-8",False)
+	End If
+	Pages_ExportListFile=True
+End Function
+
+'busfly_randomsort_cutTitle
+Function Pages_CutTitle(ByRef Title,ByVal Count)
+	Dim RegExpObj,ReGCheck
+	Set RegExpObj=new RegExp 
+	RegExpObj.Pattern="^[\u4e00-\u9fa5]+$" 
+	Dim l,t,c,i
+	l=Len(Title)
+	t=0
+	For i=1 to l
+	c=Mid(Title,i,1)   
+	ReGCheck=RegExpObj.test(c)
+	If ReGCheck Then
+	  t=t+2
+	Else
+	  t=t+1
+	End If
+	If t>=Count Then
+	  Title=left(Title,i)&"..."
+	  Exit For
+	End If
+	Next
+	Set RegExpObj=nothing 
+	Title=Replace(Title,chr(10),"")
+	Title=Replace(Title,chr(13),"")
+	Pages_CutTitle=True
+End Function  
+
+%>

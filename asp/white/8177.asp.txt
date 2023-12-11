@@ -1,0 +1,134 @@
+<%
+'=====================================================================
+' 作者声明：转载请保留版权信息，鄙视不要脸的人
+'=====================================================================
+' 程序名称：逐鹿科技发布系统
+' 软件版本：Version 3.3.0 Sp1
+' 程序作者：嘬後dè選萚 QQ：63661063 嘬後dè選萚 QQ：63661063
+'=====================================================================
+' 联系方式：Tel：15858171675，QQ：63661063，www.zhaosf3000ok.com
+' 程序开发：嘬後dè選萚,嘬後dè選萚
+' 官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=====================================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=====================================================================
+Class Admanage_Cls
+	Private boardid
+	Private JsFileName
+	Private maxadnum
+
+	Private Sub Class_Initialize()
+		On Error Resume Next
+		boardid = 1
+	End Sub
+	
+	Public Property Let adboardid(ByVal NewValue)
+		boardid = CLng(NewValue)
+	End Property
+	Private Sub LoadAdBoardInfo()
+		Dim Rs
+		On Error Resume Next
+		Set Rs = tee5.Execute("SELECT fileName,maxads FROM Gq_AdBoard WHERE boardid=" & boardid)
+		If Rs.BOF And Rs.EOF Then
+			JsFileName = "../adfile/ad.js"
+			maxadnum = 1
+		Else
+			JsFileName = "../adfile/" & Trim(Rs("fileName"))
+			maxadnum = Rs("maxads")
+		End If
+		Set Rs = Nothing
+	End Sub
+
+	Private Function ReadFlashAndPic(ByVal url, ByVal Picurl, _
+		ByVal width, ByVal height, _
+		ByVal Readme, ByVal isFlash)
+		
+		Dim strTemp
+		If CInt(isFlash) = 1 Then
+			
+			strTemp = "<embed src='" & Picurl & "' quality='high' pluginspage='http://www.macromedia.com/go/getflashplayer' type='application/x-shockwave-flash' width='" & width & "' height='" & height & "'></embed>"
+		Else
+			strTemp = "<a href='" & url & "' target='_blank'><img src='" & Picurl & "' width='" & width & "' height='" & height & "' border=0 alt='" & fixjs(Readme) & "'></a>"
+		End If
+		ReadFlashAndPic = strTemp
+	End Function
+
+	Public Function fixjs(ByVal str)
+		If str <> "" Then
+			str = Replace(str, "\", "\\")
+			str = Replace(str, Chr(34), "\""")
+			str = Replace(str, Chr(39), "\'")
+			str = Replace(str, Chr(13), "")
+			str = Replace(str, Chr(10), "")
+			str = Replace(str, vbNewLine, vbNullString)
+		End If
+		fixjs = str
+		Exit Function
+	End Function
+
+	Public Sub CreateJsFile()
+		Dim Rs, SQL, strTemp, i
+		Dim strFalshAndPic, strAdContent, strMargin
+		Dim strCommon
+		Dim strFloat
+		Dim strFixed2
+		Dim strFixed3
+		Dim strRunCode
+		Dim strAdcode
+		
+		strMargin = ""
+		Call LoadAdBoardInfo
+		On Error Resume Next
+		Set Rs = tee5.Execute("SELECT TOP " & maxadnum & " * FROM Gq_Adlist WHERE isLock=0 And boardid=" & boardid & " ORDER BY startime DESC")
+		If Not (Rs.BOF And Rs.EOF) Then
+			i = 0
+			Do While Not Rs.EOF
+				i = i + 1
+				
+				Select Case CInt(Rs("flag"))
+				Case 1
+					strFalshAndPic = ReadFlashAndPic(Rs("url"), tee5.ReadFileUrl(Rs("Picurl")), Rs("width"), Rs("height"), Rs("Readme"), Rs("isFlash"))
+					strFloat = strFalshAndPic
+				Case 2, 3
+					If Rs("flag") = 3 Then strMargin = "style='right:" & Rs("sidemargin") & "px;POSITION:absolute;TOP:" & Rs("topmargin") & "px;'"
+					If Rs("flag") = 2 Then strMargin = "style='left:" & Rs("sidemargin") & "px;POSITION:absolute;TOP:" & Rs("topmargin") & "px;'"
+					strFalshAndPic = ReadFlashAndPic(Rs("url"), tee5.ReadFileUrl(Rs("Picurl")), Rs("width"), Rs("height"), Rs("Readme"), Rs("isFlash"))
+					strFixed2 = strFixed2 & "document.all.lovexin" & Rs("id") & ".style.pixelTop+=percent;" & vbNewLine
+					strFixed3 = strFixed3 & "suspendcode" & Rs("id") & "=""<div id=lovexin" & Rs("id") & " " & strMargin & ">" & strFalshAndPic & "</div>""" & vbNewLine & "document.write(suspendcode" & Rs("id") & "); " & vbNewLine
+				Case 4
+					strRunCode = strRunCode & vbNewLine & "window.open(""" & tee5.ServerDir & "runads.asp?id=" & Rs("id") & """,""runads" & Rs("id") & """,""toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=no,width=" & Rs("Width") & ",height=" & Rs("Height") & ",top=" & Rs("topmargin") & ",left=" & Rs("sidemargin") & """);" & vbNewLine
+				Case 5
+					strAdContent = strAdContent & vbNewLine & Rs("Adcode") & vbNewLine
+					strAdcode = vbNewLine & "document.writeln(""<iframe scrolling='no' frameborder='0' marginheight='0' marginwidth='0' width='" & Rs("width") & "' height='" & Rs("height") & "' allowTransparency src=" & tee5.ServerDir & "adfile/ad" & boardid & ".htm></iframe>"");" & vbNewLine
+				Case Else
+					strFalshAndPic = ReadFlashAndPic(Rs("url"), tee5.ReadFileUrl(Rs("Picurl")), Rs("width"), Rs("height"), Rs("Readme"), Rs("isFlash"))
+					strCommon = strCommon & "document.writeln(""" & strFalshAndPic & """);" & vbNewLine
+				End Select
+				Rs.MoveNext
+			Loop
+		End If
+		Rs.Close: Set Rs = Nothing
+		strTemp = strCommon
+		If Trim(strFloat) <> "" Then
+			strTemp = strTemp & tee5.Readfile("inc/float.inc")
+			strTemp = Replace(strTemp, "{$FloatCode}", strFloat)
+		End If
+		If Trim(strFixed2) <> "" Then
+			strTemp = strTemp & tee5.Readfile("inc/fixed.inc")
+			strTemp = Replace(strTemp, "{$Scroll}", strFixed2)
+			strTemp = Replace(strTemp, "{$SuspendCode}", strFixed3)
+		End If
+		If Trim(strAdcode) <> "" Then
+			Dim strHtml, HtmlName
+			HtmlName = "../adfile/ad" & boardid & ".htm"
+			strHtml = tee5.Readfile("inc/html.inc")
+			strHtml = Replace(strHtml, "{$HtmlContent}", strAdContent)
+			tee5.CreatedTextFile HtmlName, strHtml
+			strTemp = strTemp & strAdcode
+		End If
+		strTemp = strTemp & strRunCode
+		tee5.CreatedTextFile JsFileName, strTemp
+	End Sub
+End Class
+%>
+

@@ -1,0 +1,54 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+   
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<div class="Header" id="headCon">
+<div class="Header1">
+
+<div style="display:none" id="i18nDiv">
+<c:forEach var="i18n" items="${i18n}" varStatus="step">
+<input id="${i18n}" name="${i18n}" value="<fmt:message key="${i18n}"/>"/>
+</c:forEach>
+</div>
+ <input type="hidden" value="${contextPath}" id="contextPath"/>
+ <input type="hidden" value="${empty_path_variable}"  id="emptyPathVariable"/>
+ 
+<input type="hidden" value="${topMenu}" id="topMenuId"/>
+<input type="hidden" value="${sideMenu}" id="leftMenuId"/> 
+  
+	<div class="row ">
+	<span style="float:left"><fmt:message key="switch.Language"/>：<a href="?siteLanguage=en_US"><fmt:message key="english"/></a> | <a id="defaultLocale" href="?siteLanguage=local"><fmt:message key="simpleChinese"/></a>&nbsp;&nbsp;<a id="more" href="#"><fmt:message key="more"/>..</a></span>
+				<div class="top_menu">
+				<span ><fmt:message key="userName"/>：<a  href="#"  target="_blank" >${user.name} </a></span> |<span   ><fmt:message key="role"/>：<a  href="#"  target="_blank" >${user.role}</a></span> |<span onclick="j;" href="javascript:viod(0);"><a><fmt:message key="guide"/></a></span> |<span target="main"><a href="http://www.ricesoft.com"  target="_blank" ><fmt:message key="official"/></a></span> |<span class="button blue small"  id="loginOut"><fmt:message key="quit"/></span>
+				</div>
+				</div>
+	</div>
+	<div class="logo"></div>
+<div>
+   <div class="topmenu" id="topmenu"></div>
+</div>
+<div style="clear:both;"></div>
+<div style="width:100%; height:4px;"></div>
+
+
+</div>
+<div>
+	<form id="siteLanguageForm" style="display:none" title="选择语言">
+		<table class="yTable margintop">
+			<tr>
+			<th style="width:65px"><fmt:message key="language"/></th>
+			<td>
+			<select id="siteLanguage" style="width:110%" noadd="yes"><option value="" noadd="yes">--<fmt:message key="select"/>--</option><option value="es_ES" noadd="yes"><fmt:message key="Spanish"/></option><option value="fr_FR" noadd="yes"><fmt:message key="French"/></option><option value="de_DE" noadd="yes"><fmt:message key="German"/></option><option value="ru_RU" noadd="yes"><fmt:message key="Russian"/></option><option value="ja_JP" noadd="yes"><fmt:message key="Japanese"/></option><option value="ko_KR" noadd="yes"><fmt:message key="Korean"/></option><option value="ar_EG" noadd="yes"><fmt:message key="Arabic"/></option><option value="zh_TW" noadd="yes"><fmt:message key="traditionalChinese"/></option></select>
+    		<td>
+			</tr>
+		</table>
+	
+	</form>
+</div>
+
+<script type="text/javascript">
+	 
+seajs.use("${scriptBasePath}/common/header.js");
+	
+</script>

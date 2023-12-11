@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ taglib uri="MianFeiZhe" prefix="mfz" %>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>签写留言 - MianFeiZhe内容管理系统</title>
+<meta name="description" content="免费者内容管理系统">
+<meta name="keywords" content="签写留言 ,免费者内容管理系统">
+<meta name="MSSmartTagsPreventParsing" content="TRUE">
+<meta http-equiv="MSThemeCompatible" content="Yes">
+<link href="<%=url%>/skin/default/style.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<div class="globalBody">
+  <table border="0" align="center" cellpadding="0" cellspacing="0" class="tableborder">
+    <tr>
+      <td class="masthead">
+        <div class="siteLogo"><a href="<%=url%>"><img src="<%=url%>/images/logo.jpg" width="180" height="60" border="0"></a></div>
+        <div class="bannerad"><script language="JavaScript" type="text/javascript" src="<%=url%>/guestbook/adfile/banner.js"></script></div>
+        <div class="mastheadLinks">
+          <ul>
+            <li><img src="../skin/default/top_home.gif" border="0"> <a onclick="this.style.behavior='url(#default#homepage)';this.sethomepage('http://www.mianfeizhe.com');return false;" href="http://www.mianfeizhe.com" title="将本站设为你的首页">设为首页</a></li>
+            <li><img src="<%=url%>/skin/default/top_gift.gif" border="0"> <a href="javascript:window.external.AddFavorite(location.href,document.title)" title="将本站加入到你的收藏夹">加入收藏</a></li>
+            <li><img src="<%=url%>/skin/default/top_mail.gif" border="0"> <a href="mailto:83439123@qq.com">联系我们</a></li>
+          </ul>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="siteCatalog">
+        <div class="siteNav1"><a href="<%=url%>">首页</a>&nbsp;&nbsp;<mfz:top startTag="&nbsp;" endTag=""></mfz:top></div>
+      </td>
+    </tr>
+    <tr>
+      <td class="frameLoging">用户名:<input type="text" name="userName">密码:<input type="password" name="userPwd"><input type="button" value="登陆"></td>
+    </tr>
+  </table>
+</div>
+
+<div class="globalBody">
+
+<table border="0" align="center" cellpadding="0" cellspacing="0" class="tableborder">
+	<tr valign="top">
+		<td>
+<div>
+<table width="99%"  border="0" align="center" cellpadding="3" cellspacing="1" class="tableborders2">
+  <tr align="center" class=header>
+    <th colspan="3">签写留言  　</th>
+  </tr>
+  <form name="myform" method="post" action="<%=url%>/servletsguestbook">
+  <input type=hidden name="guestid" value=''>
+  <tr bgcolor="#F8F8F8">
+    <td width="15%" align="right"><strong>你的名字：</strong></td>
+    <td width="48%"><input name="username" type="text" name="userName" size="20" maxlength="20" value=""> <font color=red>！</font></td>
+    <td width="37%" rowspan="4"><img name="face" id="Face" src="images/1.gif" value="images/1.gif" alt="头像"></td>
+  </tr>
+  <tr bgcolor="#F8F8F8">
+    <td align="right"><strong>电子邮箱：</strong></td>
+    <td><input type="text" name="email" size="30" maxlength="50" value=""> <font color=red>！</font></td>
+  </tr>
+  <tr bgcolor="#F8F8F8">
+    <td align="right"><strong>OICQ号码：</strong></td>
+    <td><input type="text" name="qq" size="20" maxlength="20" value=""></td>
+  </tr>
+  <tr bgcolor="#F8F8F8">
+    <td align="right"><strong>主页地址：</strong></td>
+    <td><input name="webUrl" type="text" id="webUrl" size="45" maxlength="100" value="http://"></td>
+  </tr>
+  <tr bgcolor="#F8F8F8">
+    <td align="right"><strong>来自何方：</strong></td>
+    <td><SELECT name="address" size="1">
+          <option value="未知">请选择</option>  
+          <option value="湖北">湖北</option>
+          <option value="内蒙古">内蒙古</option>
+          <option value="安徽">安徽</option>
+          <option value="北京">北京</option>
+          <option value="重庆">重庆</option>
+          <option value="福建">福建</option>
+          <option value="甘肃">甘肃</option>
+          <option value="广东">广东</option>
+          <option value="广西">广西</option>
+          <option value="贵州">贵州</option>
+          <option value="海南">海南</option>
+          <option value="河北">河北</option>
+          <option value="黑龙江">黑龙江</option>
+          <option value="河南">河南</option>
+          <option value="湖南">湖南</option>
+          <option value="江苏">江苏</option>
+          <option value="江西">江西</option>
+          <option value="吉林">吉林</option>
+          <option value="辽宁">辽宁</option>
+          <option value="宁夏">宁夏</option>
+          <option value="青海">青海</option>
+          <option value="山西">山西</option>
+          <option value="陕西">陕西</option>
+          <option value="山东">山东</option>
+          <option value="上海">上海</option>
+          <option value="四川">四川</option>
+          <option value="天津">天津</option>
+          <option value="西藏">西藏</option>
+          <option value="新疆">新疆</option>
+          <option value="云南">云南</option>
+          <option value="浙江">浙江</option>
+          <option value="香港">香港</option>
+          <option value="澳门">澳门</option>
+          <option value="台湾">台湾</option>
+          <option value="台湾">亚洲</option>
+          <option value="台湾">欧洲</option>
+          <option value="台湾">美洲</option>
+          <option value="台湾">非洲</option>
+          <option value="台湾">大洋州</option>
+          <option value="其他">其他</option>
+        </SELECT></td>
+    <td><strong>请选择图像：</strong><select name="Face" onChange="document.images['Face'].src=options[selectedIndex].value;">
+		<option value='images/1.gif'>头像1</option><option value='images/2.gif'>头像2</option><option value='images/3.gif'>头像3</option><option value='images/4.gif'>头像4</option><option value='images/5.gif'>头像5</option><option value='images/6.gif'>头像6</option><option value='images/7.gif'>头像7</option><option value='images/8.gif'>头像8</option><option value='images/9.gif'>头像9</option><option value='images/10.gif'>头像10</option><option value='images/11.gif'>头像11</option><option value='images/12.gif'>头像12</option><option value='images/13.gif'>头像13</option><option value='images/14.gif'>头像14</option><option value='images/15.gif'>头像15</option><option value='images/16.gif'>头像16</option><option value='images/17.gif'>头像17</option><option value='images/18.gif'>头像18</option><option value='images/19.gif'>头像19</option><option value='images/20.gif'>头像20</option>
+              </select></td>
+  </tr>
+  <tr bgcolor="#F8F8F8">
+    <td align="right"><strong>当前心情：</strong></td>
+    <td colspan="2"><input type="radio" value="emot/1.gif" name="emot" checked><img src="emot/1.gif">&nbsp;<input type=radio name=emot  value=emot/2.gif ><img src="emot/2.gif">&nbsp;<input type=radio name=emot  value=emot/3.gif ><img src="emot/3.gif">&nbsp;<input type=radio name=emot  value=emot/4.gif ><img src="emot/4.gif">&nbsp;<input type=radio name=emot  value=emot/5.gif ><img src="emot/5.gif">&nbsp;<input type=radio name=emot  value=emot/6.gif ><img src="emot/6.gif">&nbsp;<input type=radio name=emot  value=emot/7.gif ><img src="emot/7.gif">&nbsp;<input type=radio name=emot  value=emot/8.gif ><img src="emot/8.gif">&nbsp;<input type=radio name=emot  value=emot/9.gif ><img src="emot/9.gif">&nbsp;<input type=radio name=emot  value=emot/10.gif ><img src="emot/10.gif">&nbsp;<input type=radio name=emot  value=emot/11.gif ><img src="emot/11.gif">&nbsp;<input type=radio name=emot  value=emot/12.gif ><img src="emot/12.gif">&nbsp;<input type=radio name=emot  value=emot/13.gif ><img src="emot/13.gif">&nbsp;<br><input type=radio name=emot  value=emot/14.gif ><img src="emot/14.gif">&nbsp;<input type=radio name=emot  value=emot/15.gif ><img src="emot/15.gif">&nbsp;<input type=radio name=emot  value=emot/16.gif ><img src="emot/16.gif">&nbsp;<input type=radio name=emot  value=emot/17.gif ><img src="emot/17.gif">&nbsp;<input type=radio name=emot  value=emot/18.gif ><img src="emot/18.gif">&nbsp;<input type=radio name=emot  value=emot/19.gif ><img src="emot/19.gif">&nbsp;<input type=radio name=emot  value=emot/20.gif ><img src="emot/20.gif">&nbsp;<input type=radio name=emot  value=emot/21.gif ><img src="emot/21.gif">&nbsp;<input type=radio name=emot  value=emot/22.gif ><img src="emot/22.gif">&nbsp;<input type=radio name=emot  value=emot/23.gif ><img src="emot/23.gif">&nbsp;<input type=radio name=emot  value=emot/24.gif ><img src="emot/24.gif">&nbsp;<input type=radio name=emot  value=emot/25.gif ><img src="emot/25.gif">&nbsp;<input type=radio name=emot  value=emot/26.gif ><img src="emot/26.gif">&nbsp;</td>
+  </tr>
+  <tr bgcolor="#F8F8F8">
+    <td align="right"><strong>留言主题：</strong></td>
+    <td colspan="2"><input name="title" type="text" id="topic" size="45" maxlength="100" value=""> <font color=red>！</font>
+        <input type="hidden" name="Topicformat" size="1" value="">&nbsp; 
+	
+	</td>
+  </tr>
+  <tr bgcolor="#F8F8F8">
+    <td align="right"><strong>留言内容：</strong></td>
+    <td colspan="2">
+
+
+<div class="editorContent"><textarea id="content" class="editTextarea" style="height: 220px;" accesskey="R" rows="10" cols="60" name="content"></textarea></div>
+<input type="hidden" name="action" value="write">
+</td>
+  </tr>
+  <tr bgcolor="#F8F8F8">
+    <td align="right">&nbsp;</td>
+    <td colspan="2" align="center">
+    <input type="button" name="Submit4" onclick="javascript:history.go(-1)" value="返回上一页" class=Button>
+    <input type="submit" name="Submit" value="发表新留言" class="Button">
+     最多留言字符数[<font color=red>1000</font>]</td>
+  </tr>
+  </form>
+</table></div>
+<BR style="OVERFLOW: hidden; LINE-HEIGHT: 10px">
+</td>
+	</tr>
+</table>
+</div><!-- End globalBody -->
+<div class="globalBody">
+  <table border="0" align="center" cellpadding="0" cellspacing="0" class="tableborder">
+    <tr>
+      <td class="pageBottom">
+        <a href="#">关于本站</a> - 
+        <a href="#">网站帮助</a> - 
+        <a href="#">广告合作</a> - 
+        <a href="#">下载声明</a> - 
+        <a href="<%=url%>/link/link.jsp" target="_blank">友情连接</a> - 
+        <a href="#">网站地图</a> -
+        <a href="/admin/admin_login.jsp" target="_blank">管理登陆</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="pageFooter">
+        <div class="footLogo">
+          <a href="/" target="_blank"><img src="<%=url%>/images/logo.jpg" width="190" height="73" border="0"></a>
+        </div>
+        <div class="footInfo"> 
+          Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+          <br><a href="http://www.mianfeizhe.com" target="_blank" class="navmenu">MianFeiZhe内容管理系统 Beta版</a>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+</body>
+</html>

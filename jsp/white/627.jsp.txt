@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<script src="${contextPath}/js/plugins/jquery/jquery-1.9.1.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script src="${contextPath}/js/plugins/jquery/jquery-ui.js"></script>
+	<link href="${contextPath}/js/plugins/jquery/jquery-ui.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script> 
+</head>
+<body>
+<div style="display: none">
+ <input id="uploadUrl" type="hidden" value="${contextPath}<ifa:constant namespace='cim' fieldName='RES_IMPORT_URL'/>"/>
+ <input id="downloadUrl" type="hidden" value="${contextPath}<ifa:constant namespace='cim' fieldName='RES_TEMPLATE_DOWNLOAD_URL'/>"/>
+</div>
+<div class="userInfo">
+	<form id="importForm"  method="post" enctype="multipart/form-data">
+		<div>
+			<h1><fmt:message key="questionimport"/></h1>
+				<table class="yTable margintop">
+					<tr>
+						<th><fmt:message key="selectfile"/>：</th>
+						<td><input id="files" name="files" type="file" /></td>
+					</tr>
+				</table>
+			<br />
+		</div>	
+		<div class="Btn">
+	<input id="downloadBtn" type="button" value="<fmt:message key="downloadtemplate"/>" /> 
+				<input id="importBtn" type="button" value="<fmt:message key="import"/>" />
+		
+	</div>	
+   </form>
+	
+	<br/>
+	<div>
+	<c:if test="${importResSuccessFlag }">
+	   <span style="color: #76EE00;"><fmt:message key="Page.Dialog.content.upload.success" /></span>
+	</c:if>
+	<c:if test="${hasFormatErrorFlag }">
+	 <span style="color: #f00;">
+	 <fmt:message key="Entity.reservation.inExcel" >
+	 <fmt:param value="${formatErrorMsg }" ></fmt:param>
+	 </fmt:message>
+    </span><br/>
+	</c:if>
+	<c:if test="${importFileTypeError }">
+	   <span style="color: #CD0000;"><fmt:message key="Entity.reservation.errAndExcel" /></span></br>
+	</c:if>
+	<c:if test="${importFileDataTooManyErroFlag }">
+	   <span style="color: #f00;"><fmt:message key="Entity.reservation.tooMuch" /></span>
+	</c:if>
+	<c:forEach items="${invalidInsertDateList }" var="invalidResData" varStatus="status">
+	   <span style="color: #f00;"><c:out value="${invalidResData.errorMsg }"></c:out></span></br>
+	</c:forEach></div>
+	<c:if test="${importFileReadErrorMsg }">
+	   <span style="color: #FF0000;"><fmt:message key="Entity.reservation.errRead" /></span>
+	</c:if>
+</div>
+
+<script type="text/javascript">
+  seajs.use("${scriptBasePath}/question/import.js");
+</script>
+</body>
+</html>

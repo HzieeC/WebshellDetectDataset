@@ -1,0 +1,463 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../inc/setup.asp"-->
+<!--#include file="../inc/const.asp"-->
+<!--#include file="../inc/check.asp"-->
+<!--#include file="../../inc/md5.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_master.asp
+' 更新日期：2008-09-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="100" align="left">管理员管理</td>
+		<td class="tableline" width="*" align="right"><a href="../sys/admin_setting.asp">基本设置</a>
+			 - <a href="admin_master.asp">管理员管理</a>
+			 - <a href="admin_master.asp?action=add">添加管理员</a>
+			 - <a href="admin_password.asp">修改密码</a>
+			 - <a href="admin_list.asp">用户列表</a>
+			 - <a href="../sys/admin_channel.asp">频道管理</a>
+			 - <a href="../sys/admin_maillist.asp?action=mail">发送邮件</a>
+			 - <a href="../sys/admin_lockip.asp">IP限制</a>
+		</td>
+	</tr>
+</table>
+<%
+Dim Action,m_strAdminflag
+Action = LCase(Request("action"))
+If Not ChkAdmin("9999") Then
+	Call Transfer_error()
+End If
+Select Case Trim(Action)
+Case "add"
+	Call addAdministrators()
+Case "edit"
+	Call editAdministrators()
+Case "del"
+	Call delAdministrators()
+Case "savenew"
+	Call savenew()
+Case "savedit"
+	Call savedit()
+Case "active"
+	Call ActiveLock()
+Case "purview"
+	Call editPurview()
+Case "renew","savepurview"
+	Call savePurview()
+Case Else
+	Call showmain()
+End Select
+If FoundErr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+	Dim Rs,i,iCount
+%>
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th width="20%">用户名</th>
+	<th width="20%">上次登陆时间</th>
+	<th width="20%">上次登陆IP</th>
+	<th width="30%">管理操作</th>
+	<th width="10%">状 态</th>
+</tr>
+<%
+	Set Rs=NewAsp.Execute("SELECT * FROM NC_Admin ORDER BY Logintime DESC")
+	i = 0
+	Do While Not Rs.EOF
+		If Not Response.IsClientConnected Then Response.End
+		If (i mod 2) = 0 Then iCount=1 Else iCount=2
+%>
+<tr align="center">
+	<td class="tablerow<%=iCount%> hovered" align="left" title="点击此处修改管理员信息"><a href="?action=edit&id=<%=Rs("id")%>"><%=Rs("username")%></a></td>
+	<td class="tablerow<%=iCount%> hovered"><%=showDateTime(Rs("Logintime"),"yyyy-MM-dd hh:mm:ss")%></td>
+	<td class="tablerow<%=iCount%> hovered"><%=Rs("Loginip")%></td>
+	<td class="tablerow<%=iCount%> hovered">
+	<%
+		If Rs("isLock") = 0 Then
+			Response.Write "<a href=""?action=active&id=" & Rs("id") & "&lock=1"" onclick=""return confirm('您确定要锁定此管理员吗?')"">锁定管理员</a> | "
+		Else
+			Response.Write "<a href=""?action=active&id=" & Rs("id") & "&lock=0"" onclick=""return confirm('您确要激活此管理员吗?')"">激活管理员</a> | "
+		End If
+	%>
+	<a href="?action=del&id=<%=Rs("id")%>&username=<%=Rs("username")%>" onclick="return confirm('此操作将删除该管理员\n 您确定执行此操作吗?')">删除</a> | 
+	<a href="?action=purview&id=<%=Rs("id")%>">编辑权限</a>
+	</td>
+	<td class="tablerow<%=iCount%> hovered">
+	<%
+		If Rs("isLock") = 0 Then
+			Response.Write "正常"
+		Else
+			Response.Write "<font color=""red"">锁定<font>"
+		End If
+	%>
+	</td>
+</tr>
+<%
+		Rs.movenext
+		i = i + 1
+	Loop
+	Rs.Close
+	Set Rs = Nothing
+%>
+</table>
+<%
+End Sub
+
+Sub addAdministrators()
+%>
+<form name="myform" method="post" action="?action=savenew">
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">添加管理员</th>
+</tr>
+<tr>
+	<td class="tablerow1" width="25%" align="right"><b>后台登陆名称：</b></td>
+	<td class="tablerow1" width="75%"><input type="text" name="username2" size="30"></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>后台登陆密码：</b></td>
+	<td class="tablerow2"><input type="password" name="password2" size="30"></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>管理员级别：</b></td>
+	<td class="tablerow1"><input type="radio" name="AdminGrade" value="0" checked> 普通管理员&nbsp;&nbsp;
+	<input type="radio" name="AdminGrade" value="999"> 高级管理员（拥有最高权限）&nbsp;&nbsp;
+	<input type="radio" name="AdminGrade" value="111"> 只读管理员</td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>限制一个管理员登陆：</b></td>
+	<td class="tablerow2"><input type="radio" name="isAloneLogin" value="1" checked> 是&nbsp;&nbsp;
+	<input type="radio" name="isAloneLogin" value="0"> 否</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>是否激活管理员：</b></td>
+	<td class="tablerow1"><input type="radio" name="isLock" value="0" checked> 是&nbsp;&nbsp;
+	<input type="radio" name="isLock" value="1"> 否</td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>&nbsp;</b></td>
+	<td class="tablerow2"><input type="reset" name="reset_button" value="清 除" class="button">&nbsp;&nbsp;
+	<input type="submit" name="submit_button" value="提 交" class="button"></td>
+</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub editAdministrators()
+	Dim Rs,SQL
+	SQL="SELECT * FROM [NC_Admin] WHERE id=" & NewAsp.ChkNumeric(Request("id"))
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>错误的系统参数！</li>"
+		Set Rs = Nothing
+		Exit Sub
+	End If
+%>
+<form name="myform" method="post" action="?action=savedit">
+<input type="hidden" name="id" value="<%=Rs("id")%>">
+<input type="hidden" name="oldusername" value="<%=Server.HTMLEncode(Rs("username"))%>">
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">编辑管理员</th>
+</tr>
+<tr>
+	<td class="tablerow1" width="25%" align="right"><b>后台登陆名称：</b></td>
+	<td class="tablerow1" width="75%"><input type="text" name="username2" size="30" value="<%=Server.HTMLEncode(Rs("username"))%>"></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>后台登陆密码：</b></td>
+	<td class="tablerow2"><input type="password" name="password2" size="30"> <font color="red">(如果不修改密码请留空) </font></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>管理员级别：</b></td>
+	<td class="tablerow1"><input type="radio" name="AdminGrade" value="0"<%If Rs("AdminGrade")=0 Then Response.Write " checked"%>> 普通管理员&nbsp;&nbsp;
+	<input type="radio" name="AdminGrade" value="999"<%If Rs("AdminGrade")=999 Then Response.Write " checked"%>> 高级管理员（拥有最高权限）&nbsp;&nbsp;
+	<input type="radio" name="AdminGrade" value="111"<%If Rs("AdminGrade")=111 Then Response.Write " checked"%>> 只读管理员</td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>限制一个管理员登陆：</b></td>
+	<td class="tablerow2"><input type="radio" name="isAloneLogin" value="1"<%If Rs("isAloneLogin")=1 Then Response.Write " checked"%>> 是&nbsp;&nbsp;
+	<input type="radio" name="isAloneLogin" value="0"<%If Rs("isAloneLogin")=0 Then Response.Write " checked"%>> 否</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>是否激活管理员：</b></td>
+	<td class="tablerow1"><input type="radio" name="isLock" value="0"<%If Rs("isLock")=0 Then Response.Write " checked"%>> 是&nbsp;&nbsp;
+	<input type="radio" name="isLock" value="1"<%If Rs("isLock")=1 Then Response.Write " checked"%>> 否</td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>&nbsp;</b></td>
+	<td class="tablerow2"><input type="reset" name="reset_button" value="清 除" class="button">&nbsp;&nbsp;
+	<input type="submit" name="submit_button" value="提 交" class="button"></td>
+</tr>
+</table>
+</form>
+<%
+	Rs.Close:Set Rs=Nothing
+End Sub
+
+Sub savenew()
+	Dim Rs,SQL
+	Dim adminuserid
+	If Request.Form("username2") = "" Then
+		ErrMsg = "请输入后台登陆用户名！"
+		Founderr = True
+		Exit Sub
+	Else
+		adminuserid = Request.Form("username2")
+	End If
+	If Request.Form("password2") = "" Then
+		ErrMsg = "请输入后台登陆密码！"
+		Founderr = True
+		Exit Sub
+	End If
+	Set Rs=NewAsp.Execute("SELECT username FROM NC_Admin WHERE username='" & Replace(Request.Form("username2"), "'", "") & "'")
+	If Not (Rs.EOF And Rs.bof) Then
+		ErrMsg = "您输入的用户名已经在管理用户中存在！"
+		Founderr = True
+		Exit Sub
+	End If
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT * FROM NC_Admin WHERE (id is null)"
+	Rs.open SQL,conn,1,3
+	Rs.addnew
+		Rs("username") = Replace(Request.Form("username2"), "'", "")
+		If NewAsp.ChkNumeric(Request.Form("AdminGrade")) = 999 Then
+			Rs("status") = "高级管理员"
+		ElseIf NewAsp.ChkNumeric(Request.Form("AdminGrade")) = 111 Then
+			Rs("status") = "只读管理员"
+		Else
+			Rs("status") = "普通管理员"
+		End If
+		Rs("password") = md5(Request.Form("password2"),16)
+		Rs("isLock") = NewAsp.ChkNumeric(Request.Form("isLock"))
+		Rs("AdminGrade") = NewAsp.ChkNumeric(Request.Form("AdminGrade"))
+		Rs("Adminflag") = ",,,,,,,,,,,,,,,"
+		Rs("LoginTime") = Now()
+		Rs("Loginip") = NewAsp.UserTrueIP
+		Rs("RandomCode") = NewAsp.GetRandomCode(16)
+		Rs("isAloneLogin") = NewAsp.ChkNumeric(Request.Form("isAloneLogin"))
+	Rs.update
+	Rs.close:set Rs=Nothing
+	Succeed ("用户ID:" & adminuserid & " 添加成功，请到管理员管理给予相应的权限，如需修改请返回管理员管理！")
+End Sub
+
+Sub savedit()
+	Dim passnw,usernw
+	Dim aduser,oldpassword
+	Dim Rs,SQL
+
+	Set Rs=NewAsp.Execute("SELECT * FROM NC_Admin WHERE id=" & NewAsp.ChkNumeric(Request("id")))
+	oldpassword = Rs("password")
+	If Request.Form("username2") = "" Then
+		ErrMsg = "<li>请输入管理员名字。</li>"
+		Founderr = True
+		Exit Sub
+	Else
+		usernw = Trim(Request.Form("username2"))
+	End If
+	If Request("password2") = "" Then
+		passnw = "没有修改"
+	Else
+		passnw = Request.Form("password2")
+	End If
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT * FROM NC_Admin WHERE username='" & NewAsp.CheckStr(Trim(Request.Form("oldusername"))) & "'"
+	Rs.Open SQL, conn, 1, 3
+	If Not Rs.EOF And Not Rs.bof Then
+		Rs("username") = usernw
+		If Request("password2") <> "" Then Rs("password") = md5(Request.Form("password2"),16)
+		If NewAsp.ChkNumeric(Request.Form("AdminGrade")) = 999 Then
+			Rs("status") = "高级管理员"
+		ElseIf NewAsp.ChkNumeric(Request.Form("AdminGrade")) = 111 Then
+			Rs("status") = "只读管理员"
+		Else
+			Rs("status") = "普通管理员"
+		End If
+		Rs("AdminGrade") = NewAsp.ChkNumeric(Request.Form("AdminGrade"))
+		Rs("isLock") = NewAsp.ChkNumeric(Request.Form("isLock"))
+		Rs("isAloneLogin") = NewAsp.ChkNumeric(Request.Form("isAloneLogin"))
+		Succeed ("<li>管理员资料更新成功，请记住更新信息。</li><li> 管理员：" & Request("username2") & " </li><li> 密   码：" & passnw & "</li>")
+		Rs.update
+	End If
+	Rs.Close
+	Set Rs = Nothing
+End Sub
+
+Sub delAdministrators()
+	If Trim(Request("id")) <> "" Then
+		NewAsp.Execute ("DELETE FROM NC_Admin WHERE username<>'" & AdminName & "' And id=" & NewAsp.ChkNumeric(Request("id")))
+		Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+	Else
+		ErrMsg = "<li>错误的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+End Sub
+
+Sub ActiveLock()
+	If Trim(Request("lock")) <> "" And Trim(Request("id")) <> "" Then
+		NewAsp.Execute ("UPDATE NC_Admin set isLock="&NewAsp.ChkNumeric(Request("lock"))&" WHERE username<>'" & AdminName & "' And id=" & NewAsp.ChkNumeric(Request("id")))
+		Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+	Else
+		ErrMsg = "<li>错误的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+	End If
+End Sub
+
+Sub editPurview()
+	Dim Rs
+	Dim Adminflag,rsChannel
+	Dim ChanID,ModuleName,strModules
+	Set Rs = Newasp.Execute("SELECT id,Adminflag FROM NC_Admin WHERE id=" & CLng(Request("id")))
+	Adminflag = Rs("Adminflag")
+	Rs.Close
+	Set Rs = Nothing
+	m_strAdminflag = Adminflag
+%>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="6">管理员权限管理(请选择相应的权限分配给管理员)</th>
+</tr>
+<form name="myform" method="post" action="?action=renew">
+<input type="hidden" name="id" value="<%=Request("id")%>">
+<tr>
+	<td class="tablerow2" colspan="6">&nbsp;<b>常规设置</b></td>
+</tr>
+<tr>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Setting" <%If InStr(Adminflag, "Setting") <> 0 Then Response.Write "checked"%>> 基本设置</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="BadWords" <%If InStr(Adminflag, "BadWords") <> 0 Then Response.Write "checked"%>> 过虑设置</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Channel" <%If InStr(Adminflag, "Channel") <> 0 Then Response.Write "checked"%>> 频道设置</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Template" <%If InStr(Adminflag, "Template") <> 0 Then Response.Write "checked"%>> 模板管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Makelabel" <%If InStr(Adminflag, "Makelabel") <> 0 Then Response.Write "checked"%>> 生成标签管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="LockIP" <%If InStr(Adminflag, "LockIP") <> 0 Then Response.Write "checked"%>> IP访问限制</td>
+</tr>
+<tr>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="FriendLink" <%If InStr(Adminflag, "FriendLink") <> 0 Then Response.Write "checked"%>> 友情连接管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Announce" <%If InStr(Adminflag, "Announce") <> 0 Then Response.Write "checked"%>> 公告管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="CreateIndex" <%If InStr(Adminflag, "CreateIndex") <> 0 Then Response.Write "checked"%>> 生成首页</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="data" <%If InStr(Adminflag, "data") <> 0 Then Response.Write "checked"%>> 系统数据管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="BatchReplace" <%If InStr(Adminflag, "BatchReplace") <> 0 Then Response.Write "checked"%>> 批量替换管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="MailList" <%If InStr(Adminflag, "MailList") <> 0 Then Response.Write "checked"%>> 邮件列表管理</td>
+</tr>
+<tr>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Online" <%If InStr(Adminflag, "Online") <> 0 Then Response.Write "checked"%>> 查看在线列表</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="UploadFile" <%If InStr(Adminflag, "UploadFile") <> 0 Then Response.Write "checked"%>> 上传文件</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Vote" <%If InStr(Adminflag, "Vote") <> 0 Then Response.Write "checked"%>> 投票管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="AdFileAdmin" <%If InStr(Adminflag, "AdFileAdmin") <> 0 Then Response.Write "checked"%>> 广告文件管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="admanage" <%If InStr(Adminflag, "admanage") <> 0 Then Response.Write "checked"%>> 广告管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Other" <%If InStr(Adminflag, "Other") <> 0 Then Response.Write "checked"%>> 其它设置</td>
+</tr>
+<%
+	Set rsChannel = Newasp.Execute("SELECT ChannelID,ChannelName,modules,ModuleName FROM NC_Channel WHERE StopChannel=0 And ChannelID<>4 And ChannelID<>3 And ChannelType<2 ORDER BY orders ASC")
+	Do While Not rsChannel.EOF
+	ChanID = rsChannel("ChannelID")
+	Select Case rsChannel("modules")
+		Case 1:strModules = "Article"
+		Case 2:strModules = "Soft"
+		Case 3:strModules = "Shop"
+		Case 4:strModules = "Asked"
+		Case 5:strModules = "Flash"
+	Case Else
+		strModules = "Article"
+	End Select
+%>
+<tr>
+	<td class="tablerow2" colspan="6">&nbsp;<b><%=rsChannel("ChannelName")%></b></td>
+
+</tr>
+<tr>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="<%=strModules &"_"& ChanID%>" <%If ChkAdminflag(strModules &"_"& ChanID) Then Response.Write "checked"%>> <%=rsChannel("ModuleName")%>管理权限</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Post<%=strModules &"_"& ChanID%>" <%If ChkAdminflag("Post" & strModules &"_"& ChanID) Then Response.Write "checked"%>> 添加/编辑<%=rsChannel("ModuleName")%></td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Class_<%=ChanID%>" <%If ChkAdminflag("Class_" & ChanID) Then Response.Write "checked"%>> <%=rsChannel("ModuleName")%>分类管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Special_<%=ChanID%>" <%If ChkAdminflag("Special_" & ChanID) Then Response.Write "checked"%>> <%=rsChannel("ModuleName")%>专题管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="CreateHtml_<%=ChanID%>" <%If ChkAdminflag("CreateHtml_"& ChanID) Then Response.Write "checked"%>> 生成HTML管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Comment_<%=ChanID%>" <%If ChkAdminflag("Comment_" & ChanID) Then Response.Write "checked"%>> <%=rsChannel("ModuleName")%>评论管理</td>
+</tr>
+<tr>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="List_<%=ChanID%>" <%If ChkAdminflag("List_" & ChanID) Then Response.Write "checked"%>> <%=rsChannel("ModuleName")%>列表管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="BatSetting_<%=ChanID%>" <%If ChkAdminflag("BatSetting_" & ChanID) Then Response.Write "checked"%>> 批量设置</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="JsScript_<%=ChanID%>" <%If ChkAdminflag("JsScript_" & ChanID) Then Response.Write "checked"%>> JS文件管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="FileAdmin_<%=ChanID%>" <%If ChkAdminflag("FileAdmin_" & ChanID) Then Response.Write "checked"%>> 上传文件管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Collection_<%=ChanID%>" <%If ChkAdminflag("Collection_" & ChanID) Then Response.Write "checked"%>>  <%=rsChannel("ModuleName")%>采集管理</td>
+	<td class="tablerow1"><%If rsChannel("modules") = 2 Or rsChannel("modules") = 5 Then%><input type="checkbox" name="Adminflag" value="DownServer_<%=ChanID%>" <%If ChkAdminflag("DownServer_" & ChanID) Then Response.Write "checked"%>> 下载服务器管理<%End If%>&nbsp;</td>
+</tr>
+<%
+		rsChannel.movenext
+	Loop
+	Set rsChannel = Nothing
+%>
+<tr>
+	<td class="tablerow2" colspan="6">&nbsp;<b>用户管理</b></td>
+</tr>
+<tr>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="AddUser" <%If ChkAdminflag("AddUser") Then Response.Write "checked"%>> 添加会员</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="AdminUser" <%If ChkAdminflag("AdminUser") Then Response.Write "checked"%>> 会员管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="ChangePassword" <%If ChkAdminflag("ChangePassword") Then Response.Write "checked"%>> 修改管理员密码</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="UserGroup" <%If ChkAdminflag("UserGroup") Then Response.Write "checked"%>> 用户组管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="MailList" <%If ChkAdminflag("MailList") Then Response.Write "checked"%>> 邮件列表管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Confirm" <%If ChkAdminflag("Confirm") Then Response.Write "checked"%>> 交费确认管理</td>
+</tr>
+<tr>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Account" <%If ChkAdminflag("Account") Then Response.Write "checked"%>> 交易明细查询</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Card" <%If ChkAdminflag("Card") Then Response.Write "checked"%>> 充值卡管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Conform" <%If ChkAdminflag("Conform") Then Response.Write "checked"%>> 系统整合设置</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="UserOrder" <%If ChkAdminflag("UserOrder") Then Response.Write "checked"%>> 充值定单管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="PayMode" <%If ChkAdminflag("PayMode") Then Response.Write "checked"%>> 付款方式管理</td>
+	<td class="tablerow1"><input type="checkbox" name="Adminflag" value="Message" <%If InStr(Adminflag, "Message") <> 0 Then Response.Write "checked"%>> 用户短信管理</td>
+</tr>
+<tr>
+	<td class="tablerow2" colspan="6" align="center"><input type="button" name="go_button" onclick='javascript:history.go(-1)' value='返回上一页' class="button">
+	<input class="button" type="button" name="chkall" value='全选' onClick='CheckAll(this.form)'><input class="button" type="button" name="chksel" value='反选' onClick="ContraSel(this.form)">
+	<input type="submit" name="submit_button" value="更新管理员权限" class="button"></td>
+</tr>
+</form>
+</table>
+<%
+End Sub
+
+Sub savePurview()
+	Dim Rs,SQL
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Admin WHERE id=" & CLng(Request("id"))
+	Rs.Open SQL, conn, 1, 3
+	If Not (Rs.EOF And Rs.BOF) Then
+		Rs("Adminflag") = Replace(Replace(Request("Adminflag"), "'", ""), " ", "")
+		Rs.update
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	Succeed ("<li>管理员更新成功，请记住更新信息。</li>")
+End Sub
+
+Function ChkAdminflag(ByVal strFlag)
+	Dim strAdminflag
+	strAdminflag = "," & Trim(m_strAdminflag) & ","
+	If strFlag = "" Or Len(strAdminflag) < 3 Then
+		ChkAdminflag = False
+		Exit Function
+	End If
+	strFlag = "," & Trim(strFlag) & ","
+	If InStr(strAdminflag, strFlag) = 0 Then
+		ChkAdminflag = False
+	Else
+		ChkAdminflag = True
+	End If
+End Function
+%>

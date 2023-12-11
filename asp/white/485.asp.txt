@@ -1,0 +1,411 @@
+<!--#Include File="../Inc/Const.Asp"-->
+<!--#Include File="Inc/Class_Channel.Asp"-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=GBK" />
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<title>栏目管理</title>
+<link href="Images/Style.Css" rel="stylesheet" type="text/css" />
+<script language="JavaScript" type="text/javascript" src="js/jquery-1.5.1.min.js"></script>
+<script language="JavaScript" type="text/javascript" src="js/common.js"></script>
+</head>
+<body>
+<%
+
+Call ChkLogin("channel")
+
+Dim U
+Set U = New Cls_Channel
+
+Dim Rs,Ns,Sql,Style,checked
+Dim ID
+    ID = Request("ID")
+Dim Key
+    Key = Request("Key")
+Dim Page
+    Page = Request("Page")
+Dim DFieldKey
+    DFieldKey = Request("DFieldKey")
+If len(ID) > 0 And Not IsNumeric(ID) Then : Response.Write "编号只能是数字!" : Conn.Close : Set Conn = Nothing : Set U = Nothing : Response.End '// 检测ID
+If Len(Page) = 0 Or Not IsNumeric(ID) Then Page = 1
+If Page < 1 Then Page = 1
+If Len(DFieldKey) = 0 Then DFieldKey = "Name"
+If Instr("[id],[fatherid],[name],[order],[domain]" , "[" & Lcase(DFieldKey) & "]") = 0 Then Key = ""
+Page = Int(Page) : Key = Replace(Key,"'","")
+Dim JumpUrl
+    JumpUrl = "&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey
+	
+Dim ParentID
+ParentID = Request("ParentID")
+If len(ParentID) > 0 And Not IsNumeric(ParentID) Then Response.Write "参数错误!" : Conn.Close : Set Conn = Nothing : Set U = Nothing : Response.End
+
+Select Case Request("Act")
+Case "Guide"
+	If Len(ID) = 0 Then
+		Call U.Initialize()
+		Call Main_Guide(0)
+	Else
+		U.vID = ID
+		Call U.SetValue()
+		Call Main_Guide(1)
+	End If
+Case "UpDate"
+	If U.GetValue() Then
+		If Len(ID) = 0 Then
+			If Not U.Create() Then
+				Alert U.LastError,"Admin_Channel.Asp?Page=" & Page & JumpUrl
+			Else
+				Alert "","Admin_Channel.Asp?Page=" & Page & JumpUrl
+			End If
+		Else
+			U.vID = ID
+			If Not U.Modify() Then
+				Alert U.LastError,"Admin_Channel.Asp?Page=" & Page & JumpUrl
+			Else
+				Alert "","Admin_Channel.Asp?Page=" & Page & JumpUrl
+			End If
+		End If
+	Else
+		Alert U.LastError,"Admin_Channel.Asp?Page=" & Page & JumpUrl
+	End If
+Case "Delete"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Delete() Then
+			Alert U.LastError,"Admin_Channel.Asp?Page=" & Page & JumpUrl
+		Else
+			Alert "","Admin_Channel.Asp?Page=" & Page & JumpUrl
+		End If
+	Else
+		Call Main()
+	End If
+Case "Change"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Change() Then
+			Alert U.LastError,""
+		End If
+	End If
+	Call Main()
+Case Else
+	Call Main()
+End Select
+
+Set U = Nothing
+If IsObject(Conn) Then Conn.Close : Set Conn = Nothing
+
+Sub Main()
+	Sql = "Select [ID],[FatherID],[ChildID],[DeepPath],[Name],[Order],[Domain],[Table],[OutSideLink],[Display] From [{pre}Channel]"
+	If Len(Key) > 0 Then
+		If Instr(",ID,FatherID,Order,","," & DFieldKey & ",") > 0 Then
+			If Len(Key) > 0 And IsNumeric(Key) Then
+				Sql = Sql & " Where [" & DFieldKey & "]=" & Key & ""
+			End If
+		Else
+			Sql = Sql & " Where [" & DFieldKey & "] Like '%" & Key & "%'"
+		End If
+	End If
+	Sql = Sql & " Order By [Order] Desc,[ID] Desc"
+	Set Rs = DB(Sql,1)
+	%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table>
+	<tr class=css_menu>
+		<td colspan=6><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<form name=frmSearch method=post action=Admin_Channel.Asp>
+					<tr>
+						<td class=css_main><a href=Admin_Channel.Asp?Page=<%=Page%><%=JumpUrl%>>栏目管理</a> <a href=Admin_Channel.Asp?Act=Guide&Page=<%=Page%><%=JumpUrl%>>添加栏目</a><span style="font-weight:normal; color:#ff0000">（提示：双击显示顺序进行快捷修改，双击或回车提交修改）</span></td>
+						<td class=css_search><select name=DFieldKey id=DFieldKey>
+								<option value="ID" <%If Lcase(DFieldKey) = "id" Then Response.Write "selected='selecte'" %>>编号</option>
+								<option value="FatherID" <%If Lcase(DFieldKey) = "fatherid" Then Response.Write "selected='selected'" %>>上级栏目</option>
+								<option value="Name" <%If Lcase(DFieldKey) = "name" Then Response.Write "selected='selected'" %>>栏目名称</option>
+								<option value="Order" <%If Lcase(DFieldKey) = "order" Then Response.Write "selected='selected'" %>>排列顺序</option>
+								<option value="Domain" <%If Lcase(DFieldKey) = "domain" Then Response.Write "selected='selected'" %>>绑定域名</option>
+							</select>
+							<input name=Key type=text id=Key size=10 value="<%=Key%>">
+							<input type=submit name=Submit value=搜>
+						</td>
+					</tr>
+				</form>
+			</table></td>
+	</tr>
+	<tr>
+		<td class='css_top'>编号</td>
+		<td class='css_top'>栏目</td>
+		<td class='css_top'>顺序</td>
+		<td class='css_top'>域名</td>
+		<td class='css_top'>数据表</td>
+		<td class='css_top'>前台显示</td>
+		<td class='css_top'>管理</td>
+	</tr>
+	<%
+	  If Rs.Eof Then
+	  %>
+	<tr class=css_norecord>
+		<td colspan=7>没有任何记录！</td>
+	</tr>
+	<%
+	  Else
+	  Ns = Rs.Getrows()
+	  Rs.Close : Set Rs = Nothing
+	  Call ListChannelX(0)
+	  End If
+	  %>
+	<tr class=css_page_list>
+		<td colspan=7>&nbsp;</td>
+	</tr>
+</table>
+<%
+End Sub
+
+Sub Main_Guide(T)
+	%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+		<td colspan=2><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<tr>
+					<td class=css_main><a href=Admin_Channel.Asp?Page=<%=Page%><%=JumpUrl%>>栏目管理</a></td>
+				</tr>
+			</table></td>
+	</tr>
+	<form name='frm' method='post' action='Admin_Channel.Asp?Act=UpDate&ID=<%=ID%>&Page=<%=Page%><%=JumpUrl%>'>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col11>上级栏目：<span id='hFatherID' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col21><%If IsNull(U.vFatherID) Then U.vFatherID=""%>
+				<select class='css_select' name="oFatherID" type="text" id="oFatherID" onfocus="hFatherID.style.color='red';" onblur="hFatherID.style.color='#ccc';"  >
+					<option value="0">无(作为一级分类)</option>
+					<%
+		  Dim Ps
+		  Set Ps = DB("Select [ID],[FatherID],[ChildID],[DeepPath],[Name] From [{pre}Channel] Where [OutSideLink]=0 Order By [Order] Desc,[ID] Desc",1)
+		  If Not Ps.Eof Then
+		      Ns = Ps.Getrows()
+		      Call ListChannel(0)
+		  End If
+		  %>
+				</select>	&nbsp;&nbsp;<%If U.vDisplay=0 Then checked="checked=checked" else checked=""%>	<label for="display"><input type="checkbox" <%=checked%> name="display" id="display" /><font color="#FF0000">前台隐藏</font></label>	</td>
+		</tr>
+		<%If T = 0 Then Style=" style='display:none;'" Else Style=" style='display:none;'"%>
+		<tr<%=Style%>>
+			<td class=css_col12>下属ID：<span id='hChildID' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col22><input class='css_input' name="oChildID" type="text" id="oChildID" onfocus="hChildID.style.color='red';" onblur="hChildID.style.color='#ccc';" value="<%=U.vChildID%>"  >			</td>
+		</tr>
+		<%If T = 0 Then Style=" style='display:none;'" Else Style=" style='display:none;'"%>
+		<tr<%=Style%>>
+			<td class=css_col11>栏目深度：
+				<div id='hDeepPath' style="color:#ccc;letter-spacing: 0px;font-size:13px;">禁用此栏目后,将无法再添加内容&nbsp;</div></td>
+			<td class=css_col21><input class='css_input' name="oDeepPath" type="text" id="oDeepPath" onfocus="hDeepPath.style.color='red';" onblur="hDeepPath.style.color='#ccc';" value="<%=U.vDeepPath%>"  >			</td>
+		</tr>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col12>栏目名称：
+				<div id='hName' style="color:#ccc;letter-spacing: 0px;font-size:13px;">支持HTML语法,不要超过250个字符&nbsp;</div></td>
+			<td class=css_col22><input class='css_input' name="oName" type="text" id="oName" onfocus="hName.style.color='red';" onblur="hName.style.color='#ccc';" value="<%=Server.HtmlEnCode(U.vName)%>" size=40 >
+				<input type='submit' name='Submit2' value='保存' />			</td>
+		</tr>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col11>排列顺序：<span id='hOrder' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col21><input class='css_input' name="oOrder" type="text" id="oOrder" onfocus="hOrder.style.color='red';" onblur="hOrder.style.color='#ccc';" value="<%=U.vOrder%>"  >			</td>
+		</tr>
+		<%If T = 0 Then Style="" Else Style=" style='display:none;'"%>
+		<tr<%=Style%>>
+			<td class=css_col12>内容表：
+				<div id='hTable' style="color:#ccc;letter-spacing: 0px;font-size:13px;">数据量大时请选择不同的表进行存放&nbsp;</div></td>
+			<td class=css_col22><%If IsNull(U.vTable) Then U.vTable=""%>
+				<select class='css_select' name="oTable" type="text" id="oTable" onfocus="hTable.style.color='red';" onblur="hTable.style.color='#ccc';"  >
+					<option value="{pre}Content_01" <%If U.vTable = "{pre}Content_01" Then Response.Write "selected"%>>数据表一</option>
+					<option value="{pre}Content_02" <%If U.vTable = "{pre}Content_02" Then Response.Write "selected"%>>数据表二</option>
+					<option value="{pre}Content_03" <%If U.vTable = "{pre}Content_03" Then Response.Write "selected"%>>数据表三</option>
+					<option value="{pre}Content_04" <%If U.vTable = "{pre}Content_04" Then Response.Write "selected"%>>数据表四</option>
+					<option value="{pre}Content_05" <%If U.vTable = "{pre}Content_05" Then Response.Write "selected"%>>数据表五</option>
+					<option value="{pre}Content_06" <%If U.vTable = "{pre}Content_06" Then Response.Write "selected"%>>数据表六</option>
+					<option value="{pre}Content_07" <%If U.vTable = "{pre}Content_07" Then Response.Write "selected"%>>数据表七</option>
+					<option value="{pre}Content_08" <%If U.vTable = "{pre}Content_08" Then Response.Write "selected"%>>数据表八</option>
+					<option value="{pre}Content_09" <%If U.vTable = "{pre}Content_09" Then Response.Write "selected"%>>数据表九</option>
+					<option value="{pre}Content_10" <%If U.vTable = "{pre}Content_10" Then Response.Write "selected"%>>数据表十</option>
+				</select>			</td>
+		</tr>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col11>绑定域名：
+				<div id='hDomain' style="color:#ccc;letter-spacing: 0px;font-size:13px;">填写后即可通过绑定域名访问,如果是外部链接这里可以设置成外部链接地址&nbsp;</div></td>
+			<td class=css_col21><input class='css_input' name="oDomain" type="text" id="oDomain" onfocus="hDomain.style.color='red';" onblur="hDomain.style.color='#ccc';" value="<%=U.vDomain%>" size=40 >
+				<input name="oOutSideLink" type="checkbox" id="oOutSideLink" value="1" <%If U.vOutSideLink = 1 Then Response.Write "checked='checked'"%> />
+				<span style="color:#888;letter-spacing: 0px;font-size:13px;">作为外部链接</span> </td>
+		</tr>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col12>大类模板：
+				<div id='hTemplatechannel' style="color:#ccc;letter-spacing: 0px;font-size:13px;">如果该栏目存在子栏目,则调用此目录下的模板,可使用  {cid} 标签,此模板应在 templatedir 指定目录下面</div></td>
+			<td class=css_col22><input class='css_input' name="oTemplatechannel" type="text" id="oTemplatechannel" onfocus="hTemplatechannel.style.color='red';" onblur="hTemplatechannel.style.color='#ccc';" value="<%=U.vTemplatechannel%>" size=40 >			</td>
+		</tr>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col11>小类模板：
+				<div id='hTemplateclass' style="color:#ccc;letter-spacing: 0px;font-size:13px;">如果该栏目不存在子栏目,则调用此模板,可使用  {cid} 标签,此模板应在 templatedir 指定目录下面</div></td>
+			<td class=css_col21><input class='css_input' name="oTemplateclass" type="text" id="oTemplateclass" onfocus="hTemplateclass.style.color='red';" onblur="hTemplateclass.style.color='#ccc';" value="<%=U.vTemplateclass%>" size=40 >			</td>
+		</tr>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col12>预览页模板：
+				<div id='hTemplateview' style="color:#ccc;letter-spacing: 0px;font-size:13px;">文章浏览页面模板,可使用  {cid} 标签,此模板应在 templatedir 指定目录下面</div></td>
+			<td class=css_col22><input class='css_input' name="oTemplateview" type="text" id="oTemplateview" onfocus="hTemplateview.style.color='red';" onblur="hTemplateview.style.color='#ccc';" value="<%=U.vTemplateview%>" size=40 >			</td>
+		</tr>
+		<%If Createhtml = 1 Or Createhtml=3 Then Style="" Else Style=" style='display:none;'"%>
+		<tr<%=Style%>>
+			<td class=css_col11>栏目存放目录：
+				<div id='hRuleindex' style="color:#ccc;letter-spacing: 0px;font-size:13px;">栏目存放目录址,可使用 {installdir} {cid} 标签, {py} 标签将栏目名转换成对应拼音&nbsp;</div></td>
+			<td class=css_col21><input class='css_input' name="oRuleindex" type="text" id="oRuleindex" onfocus="hRuleindex.style.color='red';" onblur="hRuleindex.style.color='#ccc';" value="<%=U.vRuleindex%>" size=40 >			</td>
+		</tr>
+		<%If Createhtml = 1 Then Style="" Else Style=" style='display:none;'"%>
+		<tr<%=Style%>>
+			<td class=css_col12>栏目分页规则：
+				<div id='hRulechannel' style="color:#ccc;letter-spacing: 0px;font-size:13px;">栏目分页列表存放规则,可使用 {cid} {page} 标签,其中 {page} 为必填标签&nbsp;</div></td>
+			<td class=css_col22><input class='css_input' name="oRulechannel" type="text" id="oRulechannel" onfocus="hRulechannel.style.color='red';" onblur="hRulechannel.style.color='#ccc';" value="<%=U.vRulechannel%>" size=40 >			</td>
+		</tr>
+		<%If Createhtml = 1 Or Createhtml = 3 Then Style="" Else Style=" style='display:none;'"%>
+		<tr<%=Style%>>
+			<td class=css_col11>预览页规则：
+				<div id='hRuleview' style="color:#ccc;letter-spacing: 0px;font-size:13px;">文章浏览页存放规则,可使用 {cid} {aid} {d} {m} {y} {date} 标签, {aid} 一定要存在&nbsp;</div></td>
+			<td class=css_col21><input class='css_input' name="oRuleview" type="text" id="oRuleview" onfocus="hRuleview.style.color='red';" onblur="hRuleview.style.color='#ccc';" value="<%=U.vRuleview%>" size=40 >			</td>
+		</tr>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col12>形象图：
+				<div id='hPicture' style="color:#ccc;letter-spacing: 0px;font-size:13px;">该栏目的形象图&nbsp;</div></td>
+			<td class=css_col22><input class='css_input' name="oPicture" type="text" id="oPicture" onfocus="hPicture.style.color='red';" onblur="hPicture.style.color='#ccc';" value="<%=U.vPicture%>" size=40 >			</td>
+		</tr>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col11>栏目关键字：
+				<div id='hKeywords' style="color:#ccc;letter-spacing: 0px;font-size:13px;">多个用,做分隔&nbsp;</div></td>
+			<td class=css_col21><textarea class='css_textarea' name="oKeywords" type="text" id="oKeywords" onfocus="hKeywords.style.color='red';" onblur="hKeywords.style.color='#ccc';" cols="50" rows="2" ><%=Server.HtmlEnCode(U.vKeywords)%></textarea>			</td>
+		</tr>
+		<%If T = 0 Then Style="" Else Style=""%>
+		<tr<%=Style%>>
+			<td class=css_col12>栏目描述：
+				<div id='hDescription' style="color:#ccc;letter-spacing: 0px;font-size:13px;">栏目简要说明,不过超过250个字符&nbsp;</div></td>
+			<td class=css_col22><textarea class='css_textarea' name="oDescription" type="text" id="oDescription" onfocus="hDescription.style.color='red';" onblur="hDescription.style.color='#ccc';"  cols="50" rows="5" ><%=Server.HtmlEnCode(U.vDescription)%></textarea>			</td>
+		</tr>
+		<%If T = 0 Then Style=" style='display:none;'" Else Style=" style='display:none;'"%>
+		<tr<%=Style%>>
+			<td class=css_col11>是否需要更新：<span id='hNeedcreate' style="color:#ccc;letter-spacing: 0px;font-size:13px;"></span></td>
+			<td class=css_col21><input class='css_input' name="oNeedcreate" type="text" id="oNeedcreate" onfocus="hNeedcreate.style.color='red';" onblur="hNeedcreate.style.color='#ccc';" value="<%=U.vNeedcreate%>"  >			</td>
+		</tr>
+		<tr class=css_page_list>
+			<td colspan=2><input type='submit' name='Submit' value='保存'></td>
+		</tr>
+	</form>
+</table>
+<%
+End Sub
+
+'# 表单
+Sub ListChannel(x)
+	'Ns(0,i) Ns(1,i)    Ns(2,i)   Ns(3,i)    Ns(4,i)
+	'[ID]    [FatherID] [ClildID] [DeepPath] [Name]  
+	Dim i,j
+	For i = 0 To Ubound(Ns,2)
+		
+		If Ns(1,i) = x Then	'当本类的父ID等于传来的父ID值才列表
+			
+			If Len(U.vID) > 0 Then U.vID = Int(U.vID)
+			
+			If U.vID <> Ns(0,i) Then '# 不能指定本类以级本类以下的栏目为上级分类
+			
+				Response.Write "<option value=""" & Ns(0,i) & """"
+
+				If Len(ParentID) = 0 Then
+					If U.vFatherID = Ns(0,i) Then Response.Write " selected" & ">" Else Response.Write ">"
+				Else
+					If Int(ParentID) = Ns(0,i) Then Response.Write " selected" & ">" Else Response.Write ">"
+				End If
+	
+				For j = 1 To Ns(3,i)
+					Response.Write "　"
+				Next
+				If x > 0 Then Response.Write "├ "
+				Response.Write   Ns(4,i) & "</option>" & Vbcrlf 
+				
+				ListChannel Ns(0,i) '该ID下的分类
+			End If
+			
+		End If
+
+	Next
+End Sub
+
+'# 列表
+Sub ListChannelX(x)
+	'Ns(0,i) Ns(1,i)    Ns(2,i)   Ns(3,i)    Ns(4,i)  Ns(5,i)   Ns(6,i)  Ns(7,i) Ns(8,i)
+	'[ID]    [FatherID] [ClildID] [DeepPath] [Name]   [Order]   [Domain] [Table] [OutSideLink]
+ 	Dim tID
+	Dim tFatherID
+	Dim tChildID
+	Dim tDeepPath
+	Dim tName
+	Dim tOrder
+	Dim tDomain
+	Dim tStyle
+ 	Dim tTable
+	Dim tOutSideLink
+	Dim tDisplay
+	
+	Dim i,j
+	For i = 0 To Ubound(Ns,2)
+		
+		If Ns(1,i) = x Then	'当本类的父ID等于传来的父ID值才列表
+			
+			If Len(U.vID) > 0 Then U.vID = Int(U.vID)
+			
+			If U.vID <> Ns(0,i) Then '# 不能指定本类以级本类以下的栏目为上级分类
+			
+				tID = Ns(0,i)
+				tFatherID = Ns(1,i)
+				tChildID = Ns(2,i)
+				tDeepPath = Ns(3,i)
+				tName = Ns(4,i)
+				tOrder = Ns(5,i)
+				tDomain = Ns(6,i)
+				tTable = Ns(7,i)
+				If Ns(8,i) = 1 Then tOutSideLink = " <font color=#999999>外</font>" Else tOutSideLink = ""
+				tStyle = ""
+				If tFatherID = 0 Then
+					tName = "<strong>" & tName & "</strong>"
+				End If
+				For j = 1 To Ns(3,i)
+					tStyle = tStyle &  "　"
+				Next
+				If x > 0 Then tStyle = tStyle & "├ "
+				tDisplay = Ns(9,i)
+				if tDisplay=0 then
+					tDisplay = "<font color=red>隐藏</font>"
+				else
+					tDisplay = "显示"
+				end if
+				%>
+<tr>
+	<td width=35 class='css_list'><%=tID%></td>
+	<td class='css_list'><div align="left"><%=tStyle%><%=tName%><%=tOutSideLink%></div></td>
+	<td width=85 class='css_list' id="tOrder_<%=tID%>"><div ondblclick="updateOrder('edit',<%=tID%>,0)"><%=tOrder%></div></td>
+	<td width=200 class='css_list'><%=tDomain%></td>
+	<td width=100 class='css_list'><%=tTable%></td>
+	<td width=100 class='css_list'><%=tDisplay%></td>
+	<td width=150 class='css_list'><input name="modify" type="button" onclick="location.href='Admin_Channel.Asp?Act=Guide&Page=<%=Page%><%=JumpUrl%>&ParentID=<%=tID%>&sub=yes';" value="添加" <%If Ns(8,i) = 1 Then Response.Write "disabled='disabled'"%> />
+		<input name="modify2" type="button" onclick="location.href='Admin_Channel.Asp?Act=Guide&amp;ID=<%=tID%>&amp;Page=<%=Page%><%=JumpUrl%>';" value="修改" />
+		<input name=delete type=button onclick="if(confirm('您确定要删除这条记录吗?')){location.href='Admin_Channel.Asp?Act=Delete&ID=<%=tID%>&Page=<%=Page%><%=JumpUrl%>';}" value=删除>
+	</td>
+</tr>
+<%
+				
+				ListChannelX Ns(0,i) '该ID下的分类
+			End If
+			
+		End If
+
+	Next
+End Sub
+%>
+</body>
+</html>

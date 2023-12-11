@@ -1,0 +1,196 @@
+<!--#include file="inc/conn.asp"-->
+<!--#include file="Inc/config.asp" -->
+<%
+key=Trim(request("key"))
+otype=Trim(request("otype"))
+BigClass=request("BigClass")
+if key="" then
+   response.write "<script>alert('查找字符串不能为空！');history.back();</Script>"
+   response.end
+end if
+%>
+<!-- #include file="Head.asp" --><body topmargin="0">
+<TABLE cellSpacing=0 cellPadding=0 width=1002 align=center border=0>
+  <TBODY>
+    <TR>
+      <TD width=210 align="center" vAlign=top><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+          <TBODY>
+            <TR>
+              <TD><IMG height=40 src="imgbly/lt9.gif" width=210></TD>
+            </TR>
+            <TR>
+              <TD align=center><TABLE 
+            style="BORDER-RIGHT: #e9e9e9 1px solid; BORDER-TOP: #e9e9e9 1px solid; BORDER-LEFT: #e9e9e9 1px solid; BORDER-BOTTOM: #e9e9e9 1px solid" 
+            cellSpacing=0 cellPadding=0 width=178 border=0>
+                <TBODY>
+                  <TR>
+                    <TD height=15>&nbsp;</TD>
+                  </TR>
+                  <TR>
+                    <TD><TABLE cellSpacing=0 cellPadding=0 width=162 align=center 
+                  border=0>
+                        <TBODY>
+                          <TR>
+                            <TD class=lNav1><a href="NewsClass.asp?BigClass=&#20225;&#19994;&#26032;&#38395;">企业新闻</a></TD>
+                          </TR>
+                          <TR>
+                            <TD height="5"></TD>
+                          </TR>
+                          <TR>
+                            <TD class=lNav1><a href="NewsClass.asp?BigClass=&#19994;&#20869;&#36164;&#35759;">业内资讯</a></TD>
+                          </TR>
+                          <TR>
+                            <TD height="5"></TD>
+                          </TR>
+                          <TR>
+                            <TD class=lNav1><a href="NewsClass.asp?BigClass=&#25216;&#26415;&#25991;&#26723;">技术文档</a></TD>
+                          </TR>
+                        </TBODY>
+                    </TABLE></TD>
+                  </TR>
+                  <TR>
+                    <TD height=15>&nbsp;</TD>
+                  </TR>
+                </TBODY>
+              </TABLE></TD>
+            </TR>
+          </TBODY>
+        </TABLE>
+          <IMG height=40 src="imgbly/lt2.gif" width=210>
+          <TABLE 
+            style="BORDER-RIGHT: #e9e9e9 1px solid; BORDER-TOP: #e9e9e9 1px solid; BORDER-LEFT: #e9e9e9 1px solid; BORDER-BOTTOM: #e9e9e9 1px solid" 
+            cellSpacing=0 cellPadding=0 width=178 border=0>
+            <TBODY>
+              <TR>
+                <TD height=10></TD>
+              </TR>
+              <TR>
+                <TD><table width="178" border="0" cellpadding="0" cellspacing="0">
+                    <form name="form1" method="get" action="News_search.asp">
+                      <tr>
+                        <td  height="30" align="center"><input type="text" name="key" size="19" class="input">
+                        </td>
+                      </tr>
+                      <tr>
+                        <td height="30" align="center"><select name="otype" class="input">
+                            <option value="title" selected class="input">新闻标题</option>
+                            <option value="msg" class="input">新闻内容</option>
+                          </select>
+                        　
+                        <input type="submit" name="Submit" value="搜索" class="input"></td>
+                      </tr>
+                    </form>
+                </table></TD>
+              </TR>
+              <TR>
+                <TD height=10></TD>
+              </TR>
+            </TBODY>
+        </TABLE></TD>
+      <TD style="BACKGROUND: url(imgbly/bg_body.gif) repeat-y 50% top" vAlign=top><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+          <TBODY>
+            <TR>
+              <TD><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+                  <TBODY>
+                    <TR>
+                      <TD background=imgbly/bg_rt.gif><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+                          <TBODY>
+                            <TR>
+                              <TD><IMG src="imgbly/rt12.gif" width="209" height=41></TD>
+                              <TD>&nbsp;</TD>
+                              <TD class=loc 
+                      style="BACKGROUND: url(img/bg_rtjiao.gif) no-repeat right 50%; COLOR: #9f9f9f" 
+                      align=right>你现在的位置：<A href="index.asp">首页</A> &gt; <A href="about.asp">新闻中心</A> </TD>
+                            </TR>
+                          </TBODY>
+                      </TABLE></TD>
+                      <TD width=17>&nbsp;</TD>
+                    </TR>
+                  </TBODY>
+              </TABLE></TD>
+            </TR>
+          </TBODY>
+        </TABLE>
+          <TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+            <TBODY>
+              <TR>
+                <TD width=17 height=26>&nbsp;</TD>
+                <TD>&nbsp;</TD>
+                <TD width=17>&nbsp;</TD>
+              </TR>
+              <TR>
+                <TD>&nbsp;</TD>
+                <TD align="center" style="LINE-HEIGHT: 24px"><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+                    <TBODY>
+                      <TR>
+                        <TD><table width="98%"  border="0" align="center" cellpadding="0" cellspacing="5">
+                            <tr>
+                              <td><table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" bgcolor="#CCCCCC">
+                                  <% 
+Set rs= Server.CreateObject("ADODB.Recordset")
+if otype="title" then
+sql="select * from NEWS where title Like '%"& key &"%' order by id desc"
+elseif otype="msg" then
+sql="select * from NEWS where content Like '%"& key &"%' order by id desc"
+else
+end if
+rs.open sql,conn,1,1
+if rs.eof and rs.bof then
+response.write "<p align='center'>对不起，没有找到相关新闻</p>"
+else
+%>
+                                  <tr bgcolor="#F2F3F0">
+                                    <td width="9%" height="25" align="center">ID</td>
+                                    <td width="55%" align="center">新闻标题</td>
+                                    <td width="15%" align="center">发布者</td>
+                                    <td width="21%" align="center">发布日期</td>
+                                  </tr>
+                                  <%
+i=0
+do while not rs.eof
+%>
+                                  <tr bgcolor="#FFFFFF">
+                                    <td height="22" align="center"><%=rs("id")%></td>
+                                    <td>　<a href="shownews.asp?id=<%=rs("id")%>"  target="_blank"><%=rs("title")%></a></td>
+                                    <td align="center"><%=left(rs("user"),5)%></td>
+                                    <td align="center"><%=rs("infotime")%></td>
+                                  </tr>
+                                  <%
+rs.movenext
+i=i+1                                                         
+loop
+%>
+                                  <tr bgcolor="#FFFFFF">
+                                    <td height="24" colspan="4"><div align="center">关键字<font color="#FF0000"><strong><%=key%></strong></font>，共为您找到<font color="#FF0000"><%=i%></font>条新闻</div></td>
+                                  </tr>
+                                  <% 
+end if
+rs.close
+set rs=nothing
+%>
+                                </table>
+                                  <table width="95%" border="0" align="center" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                      <td height="40" align="right"><img src="images/printer.gif" width="16" height="14" align="absmiddle"> <a href="javascript:window.print()">打印本页</a> | <img src="images/close.gif" width="14" height="14" align="absmiddle"> <a href="javascript:window.close()">关闭窗口</a></td>
+                                    </tr>
+                                </table></td>
+                            </tr>
+                        </table></TD>
+                      </TR>
+                    </TBODY>
+                </TABLE></TD>
+                <TD>&nbsp;</TD>
+              </TR>
+              <TR>
+                <TD height=10>&nbsp;</TD>
+                <TD>&nbsp;</TD>
+                <TD>&nbsp;</TD>
+              </TR>
+            </TBODY>
+        </TABLE></TD>
+    </TR>
+  </TBODY>
+</TABLE>
+<!--#include file="inc/foot.asp"-->
+</body>
+</html>

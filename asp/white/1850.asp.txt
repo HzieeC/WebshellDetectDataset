@@ -1,0 +1,414 @@
+﻿<%
+Dim J_rs,J_sql,J_page,I,Boardid,id,Title,Board,Wap_name,BadWords,rBadWord,J_setup_rs,wap_post,Isetting,j_rnd
+Dim Forum_wap,wap_setting,Viewfile,DateTimeStr
+
+Set J_setup_rs=wap_conn.Execute("Select Forum_setting,Forum_Badwords,Forum_ChanSetting,Forum_wap From [Dv_setup]")
+Isetting=J_setup_rs(0)
+
+'获取上传路径
+wap_setting=split(Isetting,"|||")(1)  '论坛基本设置数据获取
+Viewfile=Split(wap_setting,",")(76)
+Viewfile="../"&Viewfile      '论坛上传路径
+
+'获取wap设置信息
+Forum_wap=Split(J_setup_rs(3),",")
+
+Wap_name=Split(Isetting,",")(0)&""
+BadWords=Split(j_setup_rs(1),"|")
+
+'获取时间
+DateTimeStr=Replace(Replace(CSTR(NOW()+0/24),"AM",""),"PM","")
+
+J_setup_rs.Close
+Set J_setup_rs=Nothing
+id=Killsql(Request("id"))
+Boardid=Killsql(Request("Boardid"))
+Board=Server.Urlencode(request("Board"))
+Title=Server.Urlencode(ChkBadWords(Request("Title")))
+
+If request.cookies("dv_wap")("guestid")="" Then
+Randomize:j_rnd=Left(Rnd(1)*100000,5)
+Response.Cookies("dv_wap")("guestid")=j_rnd
+End If
+
+If Forum_wap(0) <> 0 Then  '判断是否开启wap功能
+	   Response.Write "<?xml version='1.0' encoding='UTF-8'?>"
+       Response.Write "<!DOCTYPE wml PUBLIC '-//WAPFORUM//DTD WML 1.1//EN' 'http://www.wapforum.org/ DTD/wml_1.1.xml'>"
+       Response.Write "<wml>"
+       Response.Write "<head>"
+       Response.Write "<meta http-equiv='Cache-Control' content='max-age=180,private' />"
+       Response.Write "</head>"
+       Response.Write "<card id='msg' title='系统没有开启 WAP功能'>"
+       Response.Write "<p>系统没有开启 WAP功能</p>"
+	   'response.write "<p>"&uptime&"</p>"
+       Response.Write "<p><br/><small><b>YiLot.Com</b> V8.3</small></p>"
+       Response.Write "</card></wml>"
+	   
+	   response.End
+End if   
+
+If Forum_wap(1)=0 Then 
+	wap_post="<p style=""font-size: small;color: #C0C0C0;text-align: right;""><img src=""http://www.wz008.cn/images/wap.gif"" />通过手机发表，手机访问: wz008.cn/wap</p>"
+Else
+	wap_post="<!-- "&Wap_name&" -->"
+End If
+
+Function Killsql(Str)'防sql注入
+	If Isnull(Str) Then
+	  Killsql = ""
+	  Exit Function 
+	End If
+	Killsql=Replace(Str,"'","''")
+End Function
+Function Killpostcode(Str)'过滤提交的代码
+	Dim regEx
+	Set regEx = New RegExp
+	regEx.Pattern = "<(.[^>]*)>"
+	regEx.Global = True
+	regEx.IgnoreCase = True
+	Killpostcode = replace(regEx.Replace(""&str,""),"&nbsp;","")
+End Function
+Function Killcode(Str)'过滤代码+脏话
+	Dim regEx
+	Set regEx = New RegExp
+	regEx.Pattern ="<(.[^>]*)>"  '"(<[^>]*?>|\[[^]\/]*?]|\[/\w+\])"
+	regEx.Global = True
+	regEx.IgnoreCase = True
+	str=replace(str,"&","&amp;")
+	str=replace(str,"$","$$")
+	str=replace(str,Chr(13),"<br/>")
+	str=replace(str,"'","&#39;")
+	str=replace(str,"<br/>","-")
+	Killcode = Chkbadwords(replace(regEx.Replace(""&str,""),"&nbsp;",""))
+	If Killcode="" Then Killcode="【抱歉：此帖子内容无法通过手机显示，请使用电脑浏览！】"
+End Function
+Function Killubb(Str)'过滤UBB
+	Dim regEx,result,str1,str2,kubb_i
+	Set regEx = New RegExp
+	regEx.Pattern= "\[(.+)\](.+)\[(.+)\]" 
+	result = regEx.Replace(str,"$2") 
+	regEx.Pattern = "[\u4e00-\u9fa5]*[^a-zA-Z]*[\u4e00-\u9fa5]*" '"[\u4e00-\u9fa5]+" 
+	for kubb_i=1 to len(result) 
+		str1 = mid(result,kubb_i,1) 
+		if regEx.Test(str1) = true then 
+			str2 = str2 & str1 
+		end if 
+	Next
+	str2=replace(str2,"&amp;nbsp;","")
+	str2=replace(str2,"&amp;gt;","")
+	str2=replace(str2,"-","<br/>")
+	str2=replace(str2,"<br/><br/>","<br/>")
+	Killubb=str2
+End Function
+Function Chkbadwords(Str)'过滤脏话
+	Dim zh_i
+	For zh_i=0 To Ubound(Badwords)
+		Str=Replace(Str,Badwords(zh_i),"*") 
+	Next
+	Chkbadwords=Str
+End Function
+Function iCreateObject(str)'创建对象
+	'iis5创建对象方法Server.CreateObject(ObjectName);
+	'iis6创建对象方法CreateObject(ObjectName);
+	'默认为iis6，如果在iis5中使用，需要改为Server.CreateObject(str);
+	Set iCreateObject=CreateObject(str)
+End Function
+Function IsValidEmail(email)'验证Email是否正确
+	Dim names, name, i, c
+	IsValidEmail = True
+	names = Split(email, "@")
+	If UBound(names) <> 1 Then
+	   IsValidEmail = False
+	   Exit Function
+	End If
+	For Each name In names
+	   If Len(name) <= 0 Then
+		 IsValidEmail = False
+		 Exit Function
+	   End If
+	   For i = 1 To Len(name)
+		 c = Lcase(Mid(name, i, 1))
+		 If InStr("abcdefghijklmnopqrstuvwxyz_-.", c) <= 0 and not IsNumeric(c) Then
+		   IsValidEmail = False
+		   Exit Function
+		 End If
+	   Next
+	   If Left(name, 1) = "." or Right(name, 1) = "." Then
+		  IsValidEmail = False
+		  Exit Function
+	   End If
+	Next
+	If InStr(names(1), ".") <= 0 Then
+	   IsValidEmail = False
+	   Exit Function
+	End If
+	i = Len(names(1)) - InStrRev(names(1), ".")
+	If i <> 2 and i <> 3 Then
+	   IsValidEmail = False
+	   Exit Function
+	End If
+	If InStr(email, "..") > 0 Then
+	   IsValidEmail = False
+	End If
+End Function
+Function Checkstr(Str) 'Ubblist字段处理 
+	If Isnull(Str) Then
+		CheckStr = ""
+		Exit Function 
+	End If
+	Str = Replace(Str,Chr(0),"")
+	CheckStr = Replace(Str,"'","''")
+End Function
+Function unicode2chinese(Salon) '把UNICODE编码的文字转换到汉字
+	Dim i,m,j,num,k,x,Salon_one,Salon_chinese
+	If left(Salon,"2")="&#" And Right(Salon,"1")=";" Then
+		j = 0
+		m=Split(Salon,";")
+		For i = 0 To UBound(m)-1
+			If LCase(Mid(m(i),3,1))="x" then
+				Salon_one = Mid(m(i),4, CInt(Len(m(i))-3))
+				num = 0			
+				For k = 1 To Len(Salon_one)
+					x = Mid(Salon_one, k, 1) 
+					If Asc(x) >= Asc("A") And Asc(x) <= Asc("F") Then
+						num = num * 16 + Asc(x) - Asc("A") + 10
+					End If
+					If Asc(x) >= Asc("0") And Asc(x) <= Asc("9") Then
+						num = num * 16 + Asc(x) - Asc("0")
+					End If
+					If Asc(x) >= Asc("a") And Asc(x) <= Asc("f") Then
+						num = num * 16 + Asc(x) - Asc("a") + 10
+					End If
+				Next
+				Salon_chinese = Salon_chinese & ChrW(num)
+				j = j + 1
+			Else
+				Salon_one = Mid(m(i),3, CInt(Len(m(i))-2))
+				Salon_one=Hex(Salon_one)
+				num = 0	
+				For k = 1 To Len(Salon_one)
+					x = Mid(Salon_one, k, 1) 
+					If Asc(x) >= Asc("A") And Asc(x) <= Asc("F") Then
+						num = num * 16 + Asc(x) - Asc("A") + 10
+					End If
+					If Asc(x) >= Asc("0") And Asc(x) <= Asc("9") Then
+						num = num * 16 + Asc(x) - Asc("0")
+					End If
+					If Asc(x) >= Asc("a") And Asc(x) <= Asc("f") Then
+						num = num * 16 + Asc(x) - Asc("a") + 10
+					End If
+				Next
+				Salon_chinese = Salon_chinese & ChrW(num)
+				j = j + 1
+			End If 
+		Next
+	Else
+		Salon_chinese=Salon
+	End if
+	unicode2chinese = Salon_chinese
+End Function
+Sub Response_wap(Str)'输出内容
+	Response.Write Str
+End Sub
+Sub Response_err(Str)'输出错误内容
+	Response.Write Str
+	Call wap_bottom()
+	Response.End
+End Sub
+Sub LeftTxt(Txtbody,Lenstr)'输出帖子文本开头内容
+	If InStr(Right(left(Txtbody,Lenstr),4),"<")>0 Then
+	Response_wap  left(Txtbody,Lenstr-4)
+	Else
+	Response_wap  left(Txtbody,Lenstr)
+	End if
+End Sub
+Sub Txtpage(Txtbody,Lenstr)'帖子文本内容分页
+	Dim topicpage,Mxl,j,Showpage,LXtest
+	topicPage=Killsql(Request("topicPage"))
+	If topicPage="" Then topicPage=1
+	Txtbody=killubb(Txtbody)
+	Mxl=Len(Txtbody)
+	J=Clng(Mxl/Lenstr)+1
+	If Clng(topicPage+1)<Clng(J) Then Showpage=Showpage&" <a href=""wap_dispbbs.asp?boardid="&boardid&"&amp;id="&id&"&amp;Board="&Board&"&amp;title="&title&"&amp;topicpage="&Clng(topicPage+1)&""">下一页</a>"
+	If Clng(J-1)<>Clng(topicPage) And Clng(J-1)>0 Then Showpage=Showpage&" <a href=""wap_dispbbs.asp?boardid="&boardid&"&amp;id="&id&"&amp;Board="&Board&"&amp;title="&title&"&amp;topicpage="&Clng(J-1)&""">最末页</a><br/>"
+	If Clng(topicPage)>1 Then Showpage=Showpage&" <a href=""wap_dispbbs.asp?boardid="&boardid&"&amp;id="&id&"&amp;Board="&Board&"&amp;title="&title&"&amp;topicpage=1"">第一页</a>"
+	If Clng(topicPage-1)>0 Then Showpage=Showpage&" <a href=""wap_dispbbs.asp?boardid="&boardid&"&amp;id="&id&"&amp;Board="&Board&"&amp;title="&title&"&amp;topicpage="&Clng(topicPage-1)&""">上一页</a><br/>"
+	If Clng(J-1)>1 Then Showpage=Showpage&"第"&topicPage&"页/共"&Clng(J-1)&"页<br/>"
+	LXtest =  Mid(Txtbody, Clng(topicPage-1)*Lenstr+1, Lenstr)
+    If InStr(Right(LXtest,4),"<")>0 Then
+	Response_wap  Mid(LXtest, 1, Lenstr-4) & "<br/>"
+	Else
+	Response_wap  LXtest & "<br/>"
+	End if
+	Response_wap Showpage
+End Sub
+Sub Pagehead(J_sql)'分页开始
+	Set J_rs=Server.Createobject("Adodb.Recordset")
+	J_rs.Open J_sql,wap_conn,1,1
+	If Not (J_rs.Bof And J_rs.Eof) Then
+		J_rs.Pagesize=Forum_wap(4)
+		If Request("Page")<>"" Then
+			J_page=Cint(Request("Page"))
+			If J_page<1 Then J_page=1
+			If J_page>J_rs.Pagecount Then J_page=J_rs.Pagecount
+		Else
+			J_page=1
+		End If
+		J_rs.Absolutepage=J_page
+	End If
+End Sub
+Sub Pagebottom()'分页结束
+	Dim WhoPage
+	If instr(request.ServerVariables("script_name"),"wap_list.asp")="0" Then
+		WhoPage="wap_dispbbs.asp"
+	Else
+		WhoPage="wap_list.asp"
+	End If
+	If j_page<j_rs.pagecount then
+		Response_wap " <a href="""&WhoPage&"?boardid="&boardid&"&amp;title="&title&"&amp;id="&id&"&amp;board="&Board&"&amp;page="&j_page+1&""">下一页</a> "
+		Response_wap " <a href="""&WhoPage&"?boardid="&boardid&"&amp;title="&title&"&amp;id="&id&"&amp;board="&Board&"&amp;page="&j_rs.pagecount&""">最末页</a> <br/>"
+	End if
+	If j_page>1 then
+		Response_wap " <a href="""&WhoPage&"?boardid="&boardid&"&amp;title="&title&"&amp;id="&id&"&amp;board="&Board&""">第一页</a> "
+		Response_wap " <a href="""&WhoPage&"?boardid="&boardid&"&amp;title="&title&"&amp;id="&id&"&amp;board="&Board&"&amp;page="&j_page-1&""">上一页</a> <br/>"
+	End If
+	Response_wap "第"&J_page&"页/共"&J_rs.Pagecount&"页"
+End Sub
+Sub downloadFile(strFile,FileOldName)'附件下载
+	'On error resume next
+	Server.ScriptTimeOut=999999
+	Dim S,fso,f,intFilelength,strFilename,DownFileName
+	strFilename = Server.MapPath(strFile)
+	Response.Clear
+	Set s = iCreateObject("ADODB.Stream") 
+	s.Open
+	s.Type = 1 
+	Set fso = iCreateObject("Scripting.FileSystemObject") 
+	If Not fso.FileExists(strFilename) Then
+		Response_err "<p>错误: <br/>系统找不到指定文件</p>"
+		Exit Sub		
+	End If
+	Set f = fso.GetFile(strFilename)
+	intFilelength = f.size
+	s.LoadFromFile(strFilename)
+	If err Then
+		Response_err "<p>错误: <br/>" & err.Description &"</p>"
+	End If
+	Set fso=Nothing
+	Dim Data
+	Data=s.Read
+	s.Close
+	Set s=Nothing
+	If FileOldName="" Or IsNull(FileOldName) Then DownFileName=f.name Else DownFileName=FileOldName
+	If Response.IsClientConnected Then 
+		Response.AddHeader "Content-Disposition", "attachment; filename=" &  DownFileName
+		Response.AddHeader "Content-Length", intFilelength 
+		Response.CharSet = "UTF-8" 
+		Response.ContentType = "application/octet-stream"
+		Response.BinaryWrite Data
+		Response.Flush
+	End If
+End Sub
+
+
+Sub wap_logincode()'登录代码
+	Dim Username,Password
+	If instr(Request("u"),"@")>0 Then 
+		Dim u
+		u=split(Request("u"),"@") 
+		Username=Trim(u(0))
+		If Len(u(1))=16 Then 
+			Password=Trim(u(1))
+		Else
+			Password=Md5(Trim(u(1)),16)
+		End If
+	Else
+		Username=Trim(Request.Form("username"))
+		Password=Md5(Trim(Request.Form("password")),16)
+	End if
+	If Username>"" Then
+		Username=unicode2chinese(Username)
+		Dim sql
+		If IsNumeric(Username) Then 
+			sql="userid="&username
+		Else
+			sql="username='"&username&"'"
+		End if
+		Set j_rs=wap_conn.Execute("Select userid,username,userpassword,userclass,LockUser From [Dv_user] Where "&sql)
+		If J_rs.Bof Or J_rs.Eof Then
+			Response_err "对不起，此用户名不存在！[<a href=""wap_login.asp"">重新登录</a>][<a href=""wap_reg.asp"">注册</a>]<br/><br/>"
+		Else
+			If j_rs(4)=0 Then 
+				If j_rs(2)<>Password Then 
+					Response_err "对不起，您的密码错误！[<a href=""wap_login.asp"">重新登录</a>]<br/><br/>"
+				Else
+					Call j_isetting(1,7,13,"",J_rs(1))
+					Response.Cookies("dv_wap")("username")=J_rs(1)
+					Response.Cookies("dv_wap")("password")=J_rs(2)
+					Response.Cookies("dv_wap")("userclass")=J_rs(3)
+					Response.Cookies("dv_wap")("userid")=J_rs(0)
+					Response.Cookies("dv_wap")("login")="T"
+				End If
+			Else
+				Response_err "您的帐号异常，无法登录，请与管理员联系！<br/>"
+			End if
+		End If
+		Call Rsclose()
+	End If
+End Sub
+
+
+Sub wap_logout()'退出登录
+	Response.Cookies("dv_wap")("username")=""
+	Response.Cookies("dv_wap")("password")=""
+	Response.Cookies("dv_wap")("userclass")=""
+	Response.Cookies("dv_wap")("userid")=""
+	Response.Cookies("dv_wap")("login")=""
+	Response.Cookies("dv_wap")("guestid")=""
+	Response_wap "成功退出登录！"
+End Sub
+Sub j_guestpost()'游客发言
+	If request.cookies("dv_wap")("login")="" Then 
+		Response_wap "<b>帐号：</b><input name=""username"" type=""text"" value=""""/><br/>"
+		Response_wap "<b>密码：</b><input name=""password"" title=""password"" type=""password""/><br/>"
+		If Forum_wap(9)=1 Then
+			Response_wap "请填写您在本站的帐号、密码，如果您没有，请先[<a href=""wap_reg.asp"">注册</a>]<br/>"
+		Else
+			Response_wap "本站允许游客发言，如果您在本站没有帐号、密码，上面两项可以留空！<br/>"
+		End If
+	End If
+End Sub
+Sub j_getcode(str)'验证码验证
+	If session("GetCode")<>request("getcode") Then Session("GetCode")=empty:Response_err "对不起，验证码错误！<a href="""&str&""">点此返回</a><br/><br/>"
+	Session("GetCode")=empty
+End Sub
+
+Sub Isguestpost()'游客发言验证
+	If request.cookies("dv_wap")("login")="" Then
+		If Forum_wap(9)=1 Then 
+			Response_err "抱歉，请填写您在本站的帐号、密码，如果您没有，请先[<a href=""wap_reg.asp"">注册</a>]<br/>"
+		Else
+			Response.Cookies("dv_wap")("username")="匿名"&request.cookies("dv_wap")("guestid")
+		End If
+	End if
+End Sub
+
+Sub j_isetting(jq,jy,ml,tie,username)'拆分积分机制并更新用户数据
+	Dim J_fen:j_fen=Split(Split(Isetting,"|||")(2),",")
+	If tie<>"" Then
+		If tie="主帖" Then
+			tie=",UserPost=UserPost+1,UserTopic=UserTopic+1"
+		Else
+			tie=",UserPost=UserPost+1"
+		End If
+	End if
+	wap_conn.execute("update [dv_user] set userWealth=userWealth+"&j_fen(jq)&",userEP=userEP+"&j_fen(jy)&",userCP=userCP+"&j_fen(ml)&tie&" where UserName='"&username&"'")
+	'j_fen(0)(注册金钱数)j_fen(1)(登录增加金钱)j_fen(2)(发帖增加金钱)j_fen(3)(跟帖增加金钱)j_fen(4)(精华增加金钱)j_fen(5)(删帖减少金钱)
+	'j_fen(6)(注册经验值)j_fen(7)(登录增加经验值)j_fen(8)(发帖增加经验值)j_fen(9)(跟帖增加经验值)j_fen(10)(精华增加经验值)j_fen(11)(删帖减少经验值)
+	'j_fen(12)(注册魅力值)j_fen(13)(登录增加魅力值)j_fen(14)(发帖增加魅力值)j_fen(15)(跟帖增加魅力值)j_fen(16)(精华增加魅力值)j_fen(17)(删帖减少魅力值)
+End Sub 
+Sub Rsclose()'注销对象
+	J_rs.Close
+	Set J_rs=Nothing
+End Sub
+%>

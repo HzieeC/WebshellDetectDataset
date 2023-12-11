@@ -1,0 +1,312 @@
+<!--#include file="const.asp"-->
+<!--#include file="../../inc/ubbcode.asp"-->
+<%
+Dim HtmlContent,XMLDom,dataNode,i
+Dim flashid,classid,downid
+Dim m_strTitle,m_strContent,m_strDateTime
+Dim m_strDownAddress,m_strShowurl
+Dim m_strSubtitle,m_strCurrentPosition
+Dim Taglist
+
+Sub main()
+	flashid=NewAsp.ChkNumeric(Request("id"))
+	If flashid=0 Then flashid=NewAsp.ChkNumeric(Request("flashid"))
+	ubb.BasePath = NewAsp.ChannelPath
+	ubb.setUbbcode = Join(NewAsp.setUserEditor,"|")
+	ubb.Keyword = NewAsp.KeywordList
+	LoadFlashData()
+
+	TPL_FileName=Check_TPL_File(TPL_FilePath,"down",flashid,classid)
+	HtmlContent = NewAsp.LoadTemplate(TPL_FilePath&"\"&TPL_FileName)
+	HtmlContent = Replace(HtmlContent, "{$pagetitle}", m_strTitle)
+	HtmlContent = Replace(HtmlContent, "{$channelid}", ChannelID)
+	HtmlContent = Replace(HtmlContent, "{$classid}", classid)
+	HtmlContent = Replace(HtmlContent, "{$flashid}", flashid)
+	HtmlContent = Replace(HtmlContent, "{$postid}", flashid)
+	HtmlContent = Replace(HtmlContent, "{$channeldir}", NewAsp.ChannelPath)
+	TPL_Scan HtmlContent
+	Set XMLDom = Nothing : Set dataNode = Nothing
+End Sub
+
+Sub LoadFlashData()
+	Dim Rs,SQL
+	SQL = "SELECT A.flashid,A.ChannelID,A.classid,A.specialid,A.title,A.subtitle,A.Introduce,A.OuterLinks,A.[Describe],A.[filesize],A.Author,A.ComeFrom,A.miniature,A.star,A.showmode,A.PointNum,A.username,A.addTime,A.AllHits,A.downid,A.showurl,A.DownAddress,A.HtmlFileDate,A.Taglist,C.ClassName,C.ParentID,C.ParentStr,C.HtmlFileDir,C.ChildStr FROM [NC_FlashList] A INNER JOIN [NC_Classify] C On A.ClassID=C.ClassID WHERE A.ChannelID="&CLng(ChannelID)&" And A.isAccept>0 And A.flashid="&CLng(flashid)
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		Set Rs = Nothing
+		'Response.Write "<meta http-equiv=""refresh"" content=""2;url=/"" />" & vbNewLine
+		Response.Write "<p align=""center"" style=""font-size: 16px;color: red;"">对不起，该页面发生了错误，无法访问! </p>" & vbNewLine
+		Response.End
+	End If
+
+	Set XMLDom = NewAsp.RecordsetToxml(Rs,"row","xml")
+	Rs.Close:Set Rs = Nothing
+	Set dataNode = XMLDom.documentElement.selectSingleNode("row")
+	If Not dataNode Is Nothing Then
+		flashid=CLng(dataNode.selectSingleNode("@flashid").text)
+		classid=CLng(dataNode.selectSingleNode("@classid").text)
+		m_strSubtitle=dataNode.selectSingleNode("@subtitle").text&""
+		Taglist=NewAsp.CheckStr(dataNode.selectSingleNode("@taglist").text)
+		m_strTitle=NewAsp.RemoveHtml(dataNode.selectSingleNode("@title").text)
+		m_strContent=ubb.UbbCode(dataNode.selectSingleNode("@introduce").text)
+		dataNode.selectSingleNode("@introduce").text=m_strContent
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"title","")).text=m_strTitle
+		m_strDateTime=NewAsp.FormatToDate(dataNode.selectSingleNode("@addtime").text,TPL_Config(11))
+		dataNode.selectSingleNode("@addtime").text=m_strDateTime
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"datetime","")).text=m_strDateTime
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"content","")).text=m_strContent
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"size","")).text=NewAsp.BytesToString(CLng(dataNode.selectSingleNode("@filesize").text)*1024)
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"supflashid","")).text=NewAsp.Supplemental(flashid,6)
+		m_strDownAddress=Trim(dataNode.selectSingleNode("@downaddress").text&"")
+		m_strShowurl=Trim(dataNode.selectSingleNode("@showurl").text&"")
+		downid=CLng(dataNode.selectSingleNode("@downid").text)
+		m_strCurrentPosition=CurrentPosition(dataNode.selectSingleNode("@classid").text,dataNode.selectSingleNode("@parentstr").text," - ")
+		If Len(m_strSubtitle) = 0 Then
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitle","")).text=currentclass
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopic","")).text=NewAsp.MainSetting(1)
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitles","")).text=""
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopics","")).text=""
+		Else
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitle","")).text=m_strSubtitle
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopic","")).text=m_strSubtitle
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitles","")).text=" - "&m_strSubtitle
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopics","")).text=","&m_strSubtitle
+		End If
+	End If
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Dim Node
+	Select Case sToken
+		Case "backlinks"	:	TPL_Echo BackHtmlLinks
+		Case "nextlinks"	:	TPL_Echo NextHtmlLinks
+		Case "downlinks"	:	TPL_Echo DownHtmlLinks
+		Case "thislinks"	:	TPL_Echo ThisHtmlLinks
+		Case "commentlinks"	:	TPL_Echo CommentsLinks
+		Case "classlinks"	:	TPL_Echo ThisClassLinks
+		Case "classtitle"	:	TPL_Echo ClassTitleLinks
+		Case "downaddress"	:	TPL_Echo showDownAddress
+		Case "hits"			:	TPL_Echo dataNode.selectSingleNode("@allhits").text
+		Case "description"	:	TPL_Echo GetDescription(sVariant)
+		Case "currentclass"	:	TPL_Echo CurrentClass
+		Case "parentclass"	:	TPL_Echo ParentClass
+		Case "positions"	:	TPL_Echo CurrentPosition(dataNode.selectSingleNode("@classid").text,dataNode.selectSingleNode("@parentstr").text,sVariant)
+		Case "moremenu"		:	TPL_Echo moremenu(sVariant)
+		Case "tagstring"	:	TPL_Echo ParseTagstring(Taglist)
+		Case "taglinks"		:	TPL_Echo ParseTaglinks(Taglist)
+		Case Else
+			If Not IsObject(dataNode) Then Exit Sub
+			Set Node = dataNode.selectSingleNode("@"&sToken&"")
+			If Not (Node Is Nothing) Then
+				TPL_Echo Node.text
+			End If
+	End Select
+	Set Node = Nothing
+	If Err Then Err.Clear
+End Sub
+
+Function XmlDatalistNode(iXMLDom,sTokenAttrib)
+	Select Case sTokenAttrib
+		Case "downaddress"
+	End Select
+End Function
+
+Function ThisClassLinks()
+	Dim strLink,strChannDir
+	If NewAsp.IsCreateHtml=0 Then
+		If IsURLRewrite Then
+			strLink=CheckURLRewrite(NewAsp.ChannelPath,"list_1_"&classid&NewAsp.HtmlExtName)
+		Else
+			strLink="list.asp?classid="&classid
+		End If
+	Else
+		If NewAsp.BindDomain=0 Then
+			strChannDir=NewAsp.ChannelDir
+		End If
+		strLink=NewAsp.HtmlDestination(NewAsp.sortDestination, strChannDir,dataNode.selectSingleNode("@htmlfiledate").text,dataNode.selectSingleNode("@htmlfiledir").text,classid,flashid,1,"")
+	End If
+	ThisClassLinks=strLink
+End Function
+
+Function ClassTitleLinks()
+	ClassTitleLinks="<a href="""&ThisClassLinks&""">"&dataNode.selectSingleNode("@classname").text&"</a>"
+End Function
+
+Function ThisHtmlLinks()
+	If IsURLRewrite Then
+		ThisHtmlLinks=CheckURLRewrite(NewAsp.ChannelPath,"d"&NewAsp.Supplemental(flashid,6)&NewAsp.HtmlExtName)
+	Else
+		ThisHtmlLinks=NewAsp.ChannelPath& "down.asp?id=" & flashid
+	End If
+End Function
+
+Function DownHtmlLinks()
+	Dim strLink,strChannDir
+	If NewAsp.IsCreateHtml=0 Then
+		If IsURLRewrite Then
+			strLink=CheckURLRewrite(NewAsp.ChannelPath,flashid&NewAsp.HtmlExtName)
+		Else
+			strLink="show.asp?id="&flashid
+		End If
+	Else
+		If NewAsp.BindDomain=0 Then
+			strChannDir=NewAsp.ChannelDir
+		End If
+		strLink=NewAsp.HtmlDestination(NewAsp.InfoDestination, strChannDir,dataNode.selectSingleNode("@htmlfiledate").text,dataNode.selectSingleNode("@htmlfiledir").text,classid,flashid,1,"")
+	End If
+	DownHtmlLinks=strLink
+End Function
+
+Function CommentsLinks()
+	If IsURLRewrite Then
+		CommentsLinks=CheckURLRewrite(NewAsp.ChannelPath,"comment-"&flashid&"-1"&NewAsp.HtmlExtName)
+	Else
+		CommentsLinks=NewAsp.ChannelPath& "comment.asp?id="&flashid
+	End If
+End Function
+
+Function GetDescription(iVariant)
+	iVariant=NewAsp.ChkNumeric(iVariant)
+	If iVariant=0 Then iVariant=180
+	Dim re,strHtml
+	strHtml = m_strContent
+	Set re = New RegExp
+	re.IgnoreCase = True
+	re.Global = True
+	re.Pattern = "\[br\]":strHtml = re.Replace(strHtml, "")
+	re.Pattern = "\[align=right\](.*)\[\/align\]":strHtml = re.Replace(strHtml, "")
+	re.Pattern = "([\f\n\r\t\v])":strHtml = re.Replace(strHtml, "")
+	re.Pattern = "<(.[^>]*)>":strHtml = re.Replace(strHtml, "")
+	Set re = Nothing
+	strHtml = Replace(strHtml, "&nbsp;", " "):strHtml = Replace(strHtml, "====", "")
+	strHtml = Replace(strHtml, "----", ""):strHtml = Replace(strHtml, "////", "")
+	strHtml = Replace(strHtml, "\\\\", ""):strHtml = Replace(strHtml, "####", "")
+	strHtml = Replace(strHtml, "@@@@", ""):strHtml = Replace(strHtml, "****", "")
+	strHtml = Replace(strHtml, "~~~~", ""):strHtml = Replace(strHtml, "≡≡≡", "")
+	strHtml = Replace(strHtml, "++++", ""):strHtml = Replace(strHtml, "::::", "")
+	strHtml = Replace(strHtml, "　", ""):strHtml = Replace(strHtml, Chr(9), "")
+	strHtml = Replace(strHtml, Chr(10), ""):strHtml = Replace(strHtml, Chr(34), "&quot;")
+	strHtml = Replace(strHtml, Chr(39), "&#39;"):strHtml = Replace(strHtml, "[InstallDir_ChannelDir]", "")
+	strHtml = Replace(strHtml, "[NextPage]", ""):strHtml = Replace(strHtml, "[Page_Break]", "")
+	If iVariant>0 Then strHtml=Left(strHtml,iVariant)
+	GetDescription = strHtml
+End Function
+
+Function BackHtmlLinks()
+	Dim Rs,SQL,strHTML,strLink,strChannDir
+	SQL = "SELECT TOP 1 A.flashid,A.classid,A.title,A.HtmlFileDate,C.HtmlFileDir FROM [NC_FlashList] A INNER JOIN [NC_Classify] C ON A.ClassID=C.ClassID WHERE A.ChannelID="&CLng(ChannelID)&" And A.isAccept>0 And A.flashid<"&CLng(flashid)&" ORDER BY A.flashid DESC"
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.EOF And Rs.BOF Then
+		strHTML="已经没有了"
+	Else
+
+		If IsURLRewrite Then
+			strLink=CheckURLRewrite(NewAsp.ChannelPath,"d"&NewAsp.Supplemental(Rs("flashid"),6)&NewAsp.HtmlExtName)
+		Else
+			strLink="down.asp?id="&Rs("flashid")
+		End If
+
+		strHTML="<a href="""&strLink&""">"&Trim(Rs("title"))&"</a>"
+	End If
+	Rs.Close:Set Rs = Nothing
+	BackHtmlLinks=strHTML
+End Function
+
+Function NextHtmlLinks()
+	Dim Rs,SQL,strHTML,strLink,strChannDir
+	SQL = "SELECT TOP 1 A.flashid,A.classid,A.title,A.HtmlFileDate,C.HtmlFileDir FROM [NC_FlashList] A INNER JOIN [NC_Classify] C ON A.ClassID=C.ClassID WHERE A.ChannelID="&CLng(ChannelID)&" And A.isAccept>0 And A.flashid>"&CLng(flashid)&" ORDER BY A.flashid ASC"
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.EOF And Rs.BOF Then
+		strHTML="已经没有了"
+	Else
+
+		If IsURLRewrite Then
+			strLink=CheckURLRewrite(NewAsp.ChannelPath,"d"&NewAsp.Supplemental(Rs("flashid"),6)&NewAsp.HtmlExtName)
+		Else
+			strLink="down.asp?id="&Rs("flashid")
+		End If
+
+		strHTML="<a href="""&strLink&""">"&Trim(Rs("title"))&"</a>"
+	End If
+	Rs.Close:Set Rs = Nothing
+	NextHtmlLinks=strHTML
+End Function
+
+Function FormatShowUrl(ByVal url)
+	FormatShowUrl = ""
+	Dim strUrl
+	If IsNull(url) Then Exit Function
+	If Len(url) < 3 Then Exit Function
+	If Left(url,1) = "/" Then
+		FormatShowUrl = Trim(url)
+		Exit Function
+	End If
+	strUrl = Left(url,10)
+	If InStr(strUrl, "://") > 0 Then
+		FormatShowUrl = Trim(url)
+		Exit Function
+	End If
+	If InStr(strUrl, ":\") > 0 Then
+		FormatShowUrl = Trim(url)
+		Exit Function
+	End If
+	FormatShowUrl = NewAsp.ChannelPath & Trim(url)
+End Function
+
+Function showDownAddress()
+	On Error Resume Next
+
+	Dim rsDown,strDownAddress
+	Dim i,DownloadPath
+	strDownAddress = ""
+	If Len(m_strShowurl) > 3 Then
+		strDownAddress = TPL_Config(23)
+		strDownAddress = Replace(strDownAddress, "{$downloadname}", "点击立即下载")
+		If Trim(TPL_Config(22))="0" Then
+			strDownAddress = Replace(strDownAddress, "{$downloadlink}", "downfile.asp?id="&flashid&"&url=" & m_strShowurl)
+		Else
+			strDownAddress = Replace(strDownAddress, "{$downloadlink}", FormatShowUrl(m_strShowurl))
+		End If
+	End If
+	If Len(m_strDownAddress) > 3 Then
+		Set rsDown = Newasp.Execute("SELECT downid,DownloadName,DownloadPath,IsDisp FROM NC_DownServer WHERE ChannelID=" & ChannelID & " And depth=1 And rootid =" & downid & " And isLock=0 ORDER BY orders ASC")
+		If Not (rsDown.BOF And rsDown.EOF) Then
+			i = 0
+			Do While Not rsDown.EOF
+				If rsDown("IsDisp") > 0 Then
+					DownloadPath = rsDown("DownloadPath") & m_strDownAddress
+				Else
+					DownloadPath = "download.asp?id=" & flashid & "&amp;downid=" & rsDown("downid")
+				End If
+				strDownAddress = strDownAddress & TPL_Config(23)
+				strDownAddress = Replace(strDownAddress, "{$downloadlink}", DownloadPath)
+				strDownAddress = Replace(strDownAddress, "{$downloadname}", rsDown("downloadname"))
+			rsDown.MoveNext
+			i = i + 1
+			Loop
+		Else
+			strDownAddress = strDownAddress & TPL_Config(23)
+			strDownAddress = Replace(strDownAddress, "{$downloadname}", "点击立即下载")
+			If Trim(TPL_Config(22))="0" Then
+				strDownAddress = Replace(strDownAddress, "{$downloadlink}", "download.asp?id=" & flashid & "&amp;downid=0")
+			Else
+				strDownAddress = Replace(strDownAddress, "{$downloadlink}", m_strDownAddress)
+			End If
+		End If
+		Set rsDown = Nothing
+	End If
+	strDownAddress=Replace(strDownAddress, "{$installdir}", NewAsp.MainsiteDir)
+	strDownAddress=Replace(strDownAddress, "{$skinpath}", NewAsp.SkinsPath)
+	strDownAddress=Replace(strDownAddress, "{$title}", m_strTitle)
+	ShowDownAddress = strDownAddress
+End Function
+%>

@@ -1,0 +1,1062 @@
+<%
+call fsoinit() ' 初始化
+' 数据库对象
+function dbinit()
+	if not Isobject(conn) then
+		dim connstr
+		select case lcase(databasetype)
+		case "access"
+			connstr = "Provider=Microsoft.Jet.OLEdb.4.0;Data Source=" & server.mappath(databaseaccesspath)
+			'connstr = "DBQ="&server.mappath(databaseaccesspath)&";DRIVER={Microsoft Access Driver (*.mdb)};"
+		case "mssql"
+			if len(databaseport) > 0 then databaseserver = databaseserver & "," & databaseport
+			connstr = "Provider=Sqloledb;Data Source=" & databaseserver & ";Initial Catalog=" & databasename & ";User ID=" & databaseuser & ";Password=" & databasepass & ";"
+		case "mysql"
+			if len(databaseport) > 0 then databaseserver = databaseserver & ";Port=" & databaseport
+			connstr = "Driver={MySQL OdbC 3.51 Driver};Server=" & databaseserver & ";database=" & databasename & ";User=" & databaseuser & ";Password=" & databasepass & ";"
+		case else
+			response.write "Can't find data drive!": response.end
+		end select
+		on error resume next
+		set conn = server.createobject("adodb.connection")
+		conn.open connstr
+		if err then
+			if fso.fileexists(server.mappath(installdir & "install.asp")) and not fso.fileexists(server.mappath(installdir & "inc/lock/install.lock")) then response.redirect installdir & "install.asp" else response.write lang_connectiondata_error & "<br /><br />" & err.description
+			err.clear
+			response.end
+		end if
+	end if
+end function
+' FSO对象
+function fsoinit()
+	if not isobject(fso) then set fso = server.createobject(strobjectfso)
+end function
+' 全部注销
+function term()
+	on error resume next
+	if isobject(fso) then set fso = nothing
+	if isobject(conn) then conn.close : set conn=nothing
+	if err then err.clear
+end function
+' 数据库操作
+function db(byval sqlstr,byval sqltype)
+	sqlstr = replace(sqlstr, "{pre}", databasePrefix)
+	select case lcase(databaseType)
+	case "access"
+		sqlstr = replace(sqlstr, "{date}", "now()")
+	case "mssql"
+		sqlstr = replace(sqlstr, "{date}", "GetDate()")
+	case "mysql"
+		sqlstr = replace(sqlstr, "{date}", "CURRENT_DATE()")
+		sqlstr = replace(replace(sqlstr, "[", "`"), "]", "`")
+		if instr(lcase(sqlstr), "select top") > 0 then
+			dim reg : set reg = new regexp : reg.ignorecase = true : reg.global = true
+			reg.pattern = "(select top )([0-9]+)"
+			dim toplimit : set toplimit = reg.execute(sqlstr)
+			if toplimit.count > 0 then sqlstr = replace(sqlstr, toplimit(0), "select ") & " limit " & toplimit(0).toplimit(1)
+		end if
+		sqlstr = sqlstr & ";"
+	end select
+	' response.write sqlstr & vbcrLf & "<BR>" & vbcrLf
+	call dbinit
+	select case sqltype
+	case 0
+		conn.Execute (sqlstr)
+	case 1
+		set db = conn.execute(sqlstr)
+	case 2
+		set db = server.createobject("Adodb.Recordset")
+		db.open sqlstr, conn, 1, 1
+	case 3:
+		set db = server.createobject("Adodb.Recordset")
+		if lcase(databaseType) = "mysql" then
+			db.Activeconnection = conn
+			db.Source = sqlstr
+			db.CursorType = 3
+			db.CursorLocation = 3
+			db.lockType = 3
+			db.open()
+		else
+			db.open sqlstr, conn, 1, 3
+		end if
+	end select
+	dataquery = dataquery + 1
+end function
+' 过滤字符
+function filterstr(byval str)
+	filterstr = lcase(str) : filterstr = replace(filterstr, " ", "") : filterstr = replace(filterstr, "'", "") : filterstr = replace(filterstr, """", "") : filterstr = replace(filterstr, "=", "") : filterstr = replace(filterstr, "*", "")
+end function
+' 清除缓存
+function clscache()
+	clscachex:clscachex
+end function
+function clscachex()
+	dim cacheobj
+	application.lock
+	for each cacheobj in application.contents
+		if cstr(left(cacheobj, len(Cacheflag))) = cstr(Cacheflag) then application.contents.Remove (cacheobj)
+	next
+	application.unlock
+end function
+' 设置缓存
+function setcache(byval cachename,byval cachevalue)
+	dim cachedata
+	cachename = lcase(filterstr(cachename))
+	cachedata = application(Cacheflag & cachename)
+	if isarray(cachedata) then
+		cachedata(0) = Cachevalue
+		cachedata(1) = now()
+	else
+		Redim cachedata(2)
+		cachedata(0) = Cachevalue
+		cachedata(1) = now()
+	end if
+	application.lock
+	application(Cacheflag & cachename) = cachedata
+	application.unlock
+end function
+' 获取缓存
+function getcache(byval cachename)
+	dim cachedata
+	cachename = lcase(filterstr(cachename))
+	cachedata = application(Cacheflag & cachename)
+	if isarray(cachedata) then getcache = cachedata(0) else getcache = ""
+end function
+' 检测缓存
+function chkcache(byval cachename)
+	dim cachedata
+	chkcache = false
+	cachename = lcase(filterstr(cachename))
+	cachedata = application(Cacheflag & cachename)
+	if not isarray(cachedata) then exit function
+	if not IsDate(cachedata(1)) then exit function
+	if DateDiff("s", CDate(cachedata(1)), now()) < 60 * Cachetime then chkcache = true
+end function
+' 安全验证
+function chklogin(byval Level)
+	if len(getlogin("admin", "username")) =0 Then
+		Dim CK_UserName,CK_PassWord,Rs
+		CK_UserName=Request.Cookies(Cacheflag)("login_admin_username")
+		CK_PassWord=Request.Cookies(Cacheflag)("login_admin_password")
+		CK_UserName=Replace(Replace(Replace(Replace(Replace(Replace(CK_UserName,"'",""),")",""),">",""),"*",""),"?",""),"%","")
+		CK_PassWord=Replace(Replace(Replace(Replace(Replace(Replace(CK_PassWord,"'",""),")",""),">",""),"*",""),"?",""),"%","")
+		If Len(CK_UserName)>0 And Len(CK_PassWord)>0 Then
+			Set Rs = DB("Select [Username],[Password],[Levels],[ManagePlus],[ManageChannel],[Uploadfileexts],[Uploadfilesize],[CheckCode] From [{pre}Admin] Where [Username]='" & CK_UserName & "'",1)
+			If Not Rs.Eof Then
+				If MD5(Cacheflag & GetIP & rs("CheckCode"),32)=CK_PassWord Then
+					call setLogin("admin","username",rs("username"))
+					call setLogin("admin","password",rs("password"))
+					call setLogin("admin","levels",rs("levels"))
+					call setLogin("admin","manageplus",rs("manageplus"))
+					call setLogin("admin","managechannel",rs("managechannel"))
+					call setLogin("admin","uploadfileexts",rs("uploadfileexts"))
+					call setLogin("admin","uploadfilesize",rs("uploadfilesize"))
+				End If
+			End If : Rs.Close
+		End If
+	end if
+	if len(getlogin("admin", "username")) = 0 then
+		response.write "<Script>top.location.href='Login.Asp';</Script>": response.end
+	else
+		if instr(",login," & lcase(getlogin("admin", "levels")) & ",", "," & lcase(Level) & ",") = 0 then response.write "对不起,你没有此权限!": response.end
+		Session("content_IN_Cache") = ""
+	end if
+end function
+' 系统权限
+function chklevel(byval Level)
+	if instr(",login," & lcase(getlogin("admin", "levels")) & ",", "," & lcase(Level) & ",") > 0 then chklevel = true else chklevel = false
+end function
+' 插件权限
+function chkmanageplus(byval plusname)
+	if instr("," & lcase(getlogin("admin", "manageplus")) & ",", "," & lcase(plusname) & ",") > 0 then chkmanageplus = true else chkmanageplus = false
+end function
+' 禁止外部提交
+function checkpost(byval back)
+	dim server_v1, server_v2
+	server_v1 = cstr(request.servervariables("http_referer"))
+	server_v2 = cstr(request.servervariables("server_name"))
+	if Mid(server_v1, 8, len(server_v2)) <> server_v2 then
+		if not back then
+			response.write lang_errorpost : response.end
+		else
+			checkpost = false
+		end if
+	else
+		checkpost = true
+	end if
+end function
+' 获取IP地址
+function getip()
+	if request.servervariables("Http_X_Forwarded_For") = "" then getip = request.servervariables("Remote_Addr") else getip = request.servervariables("Http_X_Forwarded_For")
+	getip = replace(getip, "'", "")
+end function
+' 提示信息
+function Alert(byval Msgstr,byval  Url)
+	if len(Url) > 0 then
+	on error resume next
+	if Isobject(conn) then conn.close ' 关闭数据库链接
+	if len(Msgstr) > 0 then response.write "<Script>alert('" & Msgstr & "');</Script>" ' 提示
+	response.write "<Script>location.href='" & Url & "';</Script>" ' 跳转
+	response.end
+	else
+	if len(Msgstr) > 0 then response.write "<Script>alert('" & Msgstr & "');</Script>" ' 提示
+	response.end
+	end if
+end function
+' 程序执行时间
+function ScriptTime()
+	ScriptTime = Lang_ScriptRunTime & " 0" & FormatNumber((Timer() - ScriptStart), 5) & " Second(s) " & replace(Lang_dataquerys, "$s", dataquery)
+end function
+' 生成首页
+function createindex(byval p)
+	dim tpl
+	set tpl = new cls_template
+	call tpl.load(installdir & templatedir & "/" & indextemplate)
+	tpl.cid = ""
+	tpl.page = p
+	tpl.content = replace(tpl.content,"{field:title}",webname)
+	tpl.content = replace(tpl.content,"{field:keywords}",indexkeywords)
+	tpl.content = replace(tpl.content,"{field:description}",indexdescription)
+	tpl.content = replace(tpl.content,"{tag:sitepath}",getsitepathbytitle("首页"))
+	call tpl.parser_my()
+	call tpl.parser_sys()
+	call tpl.parser_com()
+	call tpl.parser_page()
+	call tpl.parser_if()
+	if (createhtml = 1 or createhtml = 3) and p = 1 then call createfile(tpl.content, indexpath & "index." & defaultext) else createindex = tpl.content
+	set tpl = nothing
+end function
+' 创建文件
+function createfile(byval content,byval filedir)
+	filedir = replace(filedir, "\", "/") : filedir = replace(filedir, "//", "/")
+	if right(filedir, 1) = "/" then filedir = filedir & "index." & defaultext
+	call createfolder(filedir)
+	on error resume next
+	dim obj : set obj = server.createobject(strobjectads)
+	obj.type = 2
+	obj.open
+	obj.charset = response.charset
+	obj.position = obj.Size
+	obj.writeText = content
+	obj.savetofile server.mappath(filedir), 2
+	obj.close
+	if err then err.clear: createfile = false else createfile = true
+	set obj = nothing
+end function
+' 创建文件夹
+function createfolder(byval dirpath)
+	dirpath = replace(dirpath, "\", "/") : dirpath = replace(dirpath, "//", "/")
+	if not chkcache("create_folder_" & dirpath) then
+		dim subpath, pathdeep, i
+		dirpath = replace(server.mappath(dirpath), server.mappath("/"), "")
+		subpath = split(dirpath, "\")
+		pathdeep = pathdeep & server.mappath("/")
+		for i = 1 to ubound(subpath) - 1
+			pathdeep = pathdeep & "/" & subpath(i)
+			if not fso.folderexists(pathdeep) then fso.createfolder pathdeep
+		next
+		call setcache("create_folder_" & dirpath, "true")
+	end if
+end function
+' 删除文件
+function deletefile(byval filedir)
+	if len(filedir) = 0 or isnull(filedir) then exit function
+	filedir = replace(filedir, "\", "/") : filedir = replace(filedir, "//", "/")
+	if right(filedir, 1) = "/" then
+		deletefile = deletefolder(filedir)
+	else
+		on error resume next
+		fso.deletefile server.mappath(filedir)
+		if err then err.clear: deletefile = false else deletefile = true
+	end if
+end function
+' 删除文件夹
+function deletefolder(byval dirpath)
+	on error resume next
+	fso.deletefolder server.mappath(dirpath)
+	if err then err.clear: deletefolder = false else deletefolder = true
+end function
+' 创建内容表
+function settable(byval tname)
+	dim table, tablestr
+	set table = conn.openschema(20)
+	table.filter = " table_type='table' "
+	while not table.eof
+	if lcase(left(table("table_name"), 8 + len(databasePrefix))) = lcase(databasePrefix) & "content_" then tablestr = tablestr & "|" & table("table_name")
+	table.movenext
+	wend
+	table.filter = 0
+	table.close
+	set table = nothing
+	if instr(lcase(tablestr), "|" & lcase(replace(tname, "{pre}", databasePrefix))) = 0 then '指定表不存在,则创建
+		call db("CREATE table [" & tname & "] ([Aid] int Default 0 not NULL PRIMARY KEY,[cid] integer default 0,[content] text)", 0)
+	end if
+end function
+' 判断表是否存在
+function chktable(byval tname)
+	chktable = false
+	dim table
+	set table = conn.openschema(20)
+	table.filter = " table_type='table' "
+	while not table.eof
+	if lcase(table("table_name")) = lcase(tname) then chktable = true
+	table.movenext
+	wend
+	table.filter = 0
+	table.close
+	set table = nothing
+end function
+' 创建栏目缓存
+function createchannelcache()
+	on error resume next
+	dim rs,x,txt,sval
+	txt = "<" & "%" & vbcr & "function getchannel(byval cid,byval datafield)" & vbcr & "if len(cid) = 0 or not isnumeric(cid) or instr(cid,"","") > 0 then cid = 0 else cid = int(cid)" & vbcr & "select case cid" & vbcr
+	set rs = db("select [id],[fatherid],[childid],[childids],[name],[table],[domain],[outsidelink],[templatechannel],[templateclass],[templateview],[ruleindex],[rulechannel],[ruleview],[picture],[keywords],[description] from [{pre}channel] order by [id] asc",1)
+	do while not rs.eof
+		txt = txt & "case " & rs("id") & vbcr & "select case lcase(datafield)" & vbcr
+		for each x in rs.fields
+			txt = txt & "case """ & lcase(x.name) & """" & vbcr
+			sval = replace(replace(x.value,vbcrlf,""),"""","""""")
+			select case lcase(x.name)
+			case "templatechannel"
+				sval = installdir & templatedir & "/" & replace(sval,  "{cid}", rs("id"))
+			case "templateclass"
+				sval = installdir & templatedir & "/" & replace(sval, "{cid}", rs("id"))
+			case "templateview"
+				sval = installdir & templatedir & "/" & replace(sval, "{cid}", rs("id"))
+			case "ruleindex"
+				sval = replace(replace(sval, "{installdir}", installdir), "{cid}", rs("id"))
+			case "rulechannel"
+				sval = replace(sval, "{cid}", rs("ID"))
+			case "ruleview"
+				sval = replace(sval, "{cid}", rs("ID"))
+			end select
+			txt = txt & "getchannel = """ & sval & """" & vbcr
+		next
+		txt = txt & "case else" & vbcr & "getchannel = """"" & vbcr & "end select" & vbcr
+		rs.movenext
+	loop
+	rs.close : set rs = nothing
+	txt = txt & "case else" & vbcr & "getchannel = null" & vbcr & "end select" & vbcr & "end function" & vbcr & "%" & ">"
+	createfile txt, installdir & "inc/cache/channel.asp"
+end function
+' 获取描述内容
+function getdescription(byval html)
+	dim reg : set reg = new regexp : reg.ignorecase = true : reg.global = true
+	reg.pattern = "(\<.+?\>)"
+	getdescription = reg.replace(html, " ")
+	getdescription = left(getdescription, 500)
+	reg.pattern = "(&.+?;)"
+	getdescription = reg.replace(getdescription, "")
+	reg.pattern = "(#p#(.*?)#e#)"
+	getdescription = reg.replace(getdescription, "")
+	getdescription = replace(getdescription, vbcrLf, "")
+	getdescription = replace(getdescription, vbCr, "")
+	getdescription = replace(getdescription, vbLf, "")
+	getdescription = replace(getdescription, "  ", " ")
+	getdescription = replace(getdescription, "  ", " ")
+	getdescription = replace(getdescription, """", "'")
+	getdescription = trim(getdescription)
+end function
+' 正表达式替换,支持向后引用
+function replacex(byval html,byval patterns,byval replaceval)
+	dim reg : set reg = new regexp : reg.ignorecase = true : reg.global = true
+	reg.pattern = patterns
+	dim newval : newval = replaceval
+	replacex = reg.replace(html, newval)
+end function
+' 获取第一张图片
+function getfirstpic(byval html)
+	dim matches, match
+	dim reg : set reg = new regexp : reg.ignorecase = true : reg.global = true
+	reg.pattern = installdir & "uploadfile/(.+?)\.(jpeg|gif|jpg|png|bmp)"
+	set matches = reg.execute(html)
+	for each match in matches
+		getfirstpic = match.value : exit function
+	next
+end function
+' 文章添加完后更新上传文件的AID和cid值
+function updateuploadfile(byval html,byval aid,byval cid)
+	dim matches, match
+	dim reg : set reg = new regexp : reg.ignorecase = true : reg.global = true
+	reg.pattern = installdir & "uploadfile/(.+?)\.(jpeg|gif|jpg|png|bmp|mp3|wma|rmvb|rm|rar|asf|avi|wmv|swf|ra|exe|zip|doc|xls)"
+	set matches = reg.execute(html)
+	for each match in matches
+		if len(match.value) > 0 then
+			call db("update [{pre}Upload] set [Aid]=" & Aid & " ,[cid]=" & cid & " Where [Dir]='" & replace(match.value, "'", "") & "' and [Aid]<=0", 0)
+		end if
+	next
+end function
+' 上传图片入库并判断是否需要水印
+function insertuploadfile(byval filedir)
+	dim sext: sext = split(filedir, ".")
+	call db("Insert into [{pre}Upload] ([Aid],[cid],[Dir],[Ext],[Time]) values (0,0,'" & filedir & "','" & sext(ubound(sext)) & "','" & now() & "')", 0)
+	if len(picwatermarkimg) > 0 and int(picwatermarktype)>0 and aspjpegobj then
+		select case lcase(sext(ubound(sext)))
+		case "jpeg", "jpg"
+			call picwatermark_PIC(filedir)
+		end select
+	end if
+end function
+' 替换远程图片
+function replaceremoteurl(byval html)
+	dim scontent : scontent = html
+	dim sSavePath: sSavePath = installdir & "uploadfile/" & Year(Now) & right("0" & Month(Now), 2) & "/" & Day(Now) & "/"
+	dim sext: sext = "jpg|gif|png|bmp|jpeg"
+	if IsobjInstalled(strobjectxmlhttp) = false then replaceremoteurl = scontent: exit function
+	dim RemoteFile, RemoteFileUrl, SaveFileName, OutPutPath, SaveFileType, RanNum, NewFileName
+	dim reg : set reg = new regexp : reg.ignorecase = true : reg.global = true
+	reg.pattern = "(http://(.[^>]+?)\.(" & sext & "))"
+	set RemoteFile = reg.execute(scontent)
+	if RemoteFile.Count > 0 then call createfolder(sSavePath & "index.html")
+	for each RemoteFileUrl in RemoteFile
+	response.write RemoteFileUrl & "<BR>"
+		SaveFileType = Mid(RemoteFileUrl, instrRev(RemoteFileUrl, ".") + 1)
+		randomize
+		RanNum = int(900 * Rnd) + 100
+		NewFileName = UCase(Mid(MD5(Timer(), 16), 4, 2)) & Hour(Now) & Minute(Now) & Second(Now) & RanNum & "." & SaveFileType
+		SaveFileName = sSavePath & NewFileName
+		if saveremotefile(RemoteFileUrl, SaveFileName) then scontent = replace(scontent, RemoteFileUrl, SaveFileName)
+	next
+	replaceremoteurl = scontent
+end function
+
+' 保存远程图片
+function saveremotefile(byval RemoteFileUrl,byval LocalFileName)
+	dim Ads, Retrieval, GetRemoteData
+	on error resume next
+	set Retrieval = server.createobject(strobjectxmlhttp)
+	with Retrieval
+	.open "Get", RemoteFileUrl, false, "", ""
+	.Send
+	GetRemoteData = .ResponseBody
+	end with
+	set Retrieval = nothing
+	set Ads = server.createobject(strobjectads)
+	Ads.Type = 1
+	Ads.open
+	Ads.Write GetRemoteData
+	Ads.SaveToFile server.mappath(LocalFileName), 2
+	Ads.Cancel
+	Ads.close
+	set Ads = nothing
+	if err then
+	err.clear
+	saveremotefile = false
+	else
+	call insertuploadfile(LocalFileName)
+	saveremotefile = true
+	end if
+end function
+' 获取拼音
+function pinyin(byval chinese)
+	chinese = replace(chinese, "/", ""): chinese = replace(chinese, "\", "")
+	chinese = replace(chinese, "*", ""): chinese = replace(chinese, "]", "")
+	chinese = replace(chinese, "[", ""): chinese = replace(chinese, "}", "")
+	chinese = replace(chinese, "{", ""): chinese = replace(chinese, "'", "")
+	chinese = getEnglish(chinese)
+	dim pinyinstr, istr, iIsCn, IsCn
+	dim pinyinconn, rs, i, x
+	on error resume next
+	set pinyinconn = server.createobject("Adodb.connection")
+	pinyinconn.open "Provider=Microsoft.Jet.OLEdb.4.0;Data Source=" & server.mappath(Installdir & "inc/pinyin.Asp")
+	if err then pinyin = "": set pinyinconn = nothing: exit function
+	IsCn = true
+	for i = 1 to len(chinese)
+	iIsCn = IsCn ' 获取上次是不是中文的值
+	istr = Mid(chinese, i, 1)
+	x = Asc(istr)
+	if (x >= 65 and x <= 90) or (x >= 97 and x <= 122) or (x >= 48 and x <= 57) or istr = " " then
+		IsCn = false ' 这些是英文,数字(保留字符),不改动
+		if istr = " " then istr = "-"
+	else
+		set rs = pinyinconn.execute("select Top 1 [pinyin] From [pinyin] Where [content] like '%" & istr & "%';")
+		if not rs.eof then
+		istr = lcase(rs(0)): IsCn = true   ' 中文
+		else
+		IsCn = false
+		if istr = " " then istr = "-" else istr = "" ' 将空格转换成-,如果是其他字符则清除
+		end if
+		rs.close: set rs = nothing
+	end if
+	if iIsCn = IsCn then pinyinstr = pinyinstr & istr else pinyinstr = pinyinstr & "-" & istr
+	pinyinstr = replace(pinyinstr, "--", "-")
+	pinyinstr = replace(pinyinstr, "__", "_")
+	next
+	if right(pinyinstr, 1) = "-" then pinyinstr = left(pinyinstr, len(pinyinstr) - 1)
+	if right(pinyinstr, 1) = "_" then pinyinstr = left(pinyinstr, len(pinyinstr) - 1)
+	if left(pinyinstr, 1) = "-" then pinyinstr = right(pinyinstr, len(pinyinstr) - 1)
+	if left(pinyinstr, 1) = "_" then pinyinstr = right(pinyinstr, len(pinyinstr) - 1)
+	pinyinconn.close
+	set pinyinconn = nothing
+	pinyin = trim(pinyinstr)
+end function
+' 栏目列表
+function selectchannel(byval DefaultID,byval Style,byval ALLID)
+	dim rs, SQL
+	SQL = "select [ID],[FatherID],[DeepPath],[Name],[ChildID] From [{pre}Channel] Where [OutSideLink]=0 Order By [Order] Desc,[ID] Desc"
+	set rs = db(SQL, 1)
+	if rs.eof then
+	selectchannel = "<select " & Style & "><option value='0' selected='selected'>" & Lang_Admin_NoChannel & "</option></select>" & vbcrLf
+	else
+	dim Ns
+	Ns = rs.Getrows()
+	selectchannel = "<select " & Style & ">"
+	selectchannel = selectchannel & "<option value=0 Selected>" & Lang_Admin_Pleaseselectchannel & "</option>"
+	selectchannel = selectchannel & selectchannelDo(0, DefaultID, Ns, ALLID)
+	selectchannel = selectchannel & "</select>" & vbcrLf
+	end if
+	rs.close
+	set rs = nothing
+end function
+
+' 栏目循环输出
+function selectchannelDo(byval x,byval DefaultID,byval Ns,byval ALLID)
+	'Ns(0,i) Ns(1,i)	 Ns(2,i)   Ns(3,i) Ns(4,i)
+	'[ID]	[FatherID] [DeepPath] [Name]  ChildID
+	dim i, j
+	for i = 0 to ubound(Ns, 2)
+	if Ns(1, i) = x then
+		if len(Ns(4, i)) > 0 then
+		selectchannelDo = selectchannelDo & "<option style='background-color:#cccccc;' disabled='disabled' value=""-1"""
+		else
+		if instr("," & ALLID & ",", "," & Ns(0, i) & ",") = 0 and cstr(ALLID) <> cstr("0") then
+			selectchannelDo = selectchannelDo & "<option style='background-color: #666666;' value=""-2""" '禁止发布
+		else
+			selectchannelDo = selectchannelDo & "<option value=""" & Ns(0, i) & """"
+		end if
+		end if
+		if len(DefaultID) > 0 and DefaultID = Ns(0, i) then selectchannelDo = selectchannelDo & " selected"
+		selectchannelDo = selectchannelDo & ">"
+		for j = 1 to Ns(2, i)
+		selectchannelDo = selectchannelDo & "　"
+		next
+		if x > 0 then selectchannelDo = selectchannelDo & "├ "
+		selectchannelDo = selectchannelDo & Ns(3, i) & "</option>" & vbcrLf
+		selectchannelDo = selectchannelDo & selectchannelDo(Ns(0, i), DefaultID, Ns, ALLID) '该ID下的分类
+	end if
+	next
+end function
+
+
+' 创建SITEMAPS用G B2312的
+function createsitemaps(byval strbody,byval files)
+	dim obj
+	on error resume next
+	set obj = server.createobject(strobjectads)
+	obj.type = 2
+	obj.open
+	obj.charset = "G" & "B2312"
+	obj.position = obj.size
+	obj.writetext = strbody
+	obj.savetofile server.mappath(files), 2
+	obj.close
+	if err then createsitemaps = false else createsitemaps = true
+	err.clear : set obj = nothing
+end function
+' 组建FILEPATH
+function buildfilepath(byval Aid,byval cid,byval Diyname,byval Createtime)
+	buildfilepath = getchannel(cid, "Ruleindex") & getchannel(cid, "Ruleview")
+	if seodir = 1 then buildfilepath = installdir & getchannel(cid, "Ruleview") ' 生成文件路径,不用考虑浏览模式
+	if right(buildfilepath, 1) <> "/" then
+		dim tmp, tmpu: tmp = split(buildfilepath, "/"): tmpu = tmp(ubound(tmp))
+		if instr(tmpu, ".") = 0 then buildfilepath = buildfilepath & "." & defaultext
+	end if
+	if instr(buildfilepath, "{date}") > 0 then buildfilepath = replace(buildfilepath, "{date}", Year(Createtime) & "-" & Month(Createtime) & "-" & Day(Createtime))
+	if instr(buildfilepath, "{y}") > 0 then buildfilepath = replace(buildfilepath, "{y}", Year(Createtime))
+	if instr(buildfilepath, "{m}") > 0 then buildfilepath = replace(buildfilepath, "{m}", Month(Createtime))
+	if instr(buildfilepath, "{d}") > 0 then buildfilepath = replace(buildfilepath, "{d}", Day(Createtime))
+	if instr(buildfilepath, "{aid}") > 0 then
+		if len(Diyname) > 0 then buildfilepath = replace(buildfilepath, "{aid}", Diyname) else buildfilepath = replace(buildfilepath, "{aid}", Aid)
+	end if
+end function
+
+' 组建VIEWPATH
+function buildviewpath(byval Aid,byval cid,byval Diyname,byval Createtime,byval CompUrl)
+	if len(CompUrl) > 0 then buildviewpath = CompUrl: exit function
+	select case Createhtml
+	case 0 ' ASP
+		if len(getchannel(cid, "Domain")) > 0 then
+			buildviewpath = getchannel(cid, "Domain") & "content.asp?id=" & Aid
+		else
+			buildviewpath = sysurl & "content.asp?id=" & Aid
+		end if
+	case 1, 3 ' HTML
+		if len(getchannel(cid, "Domain")) > 0 then
+			buildviewpath = getchannel(cid, "Domain")
+		else
+			if seodir = 1 then
+			buildviewpath = sysurl
+			else
+			buildviewpath = HttpUrl & getchannel(cid, "Ruleindex")
+			end if
+		end if
+		buildviewpath = buildviewpath & getchannel(cid, "Ruleview")
+		if right(buildviewpath, 1) <> "/" then
+			dim tmp, tmpu: tmp = split(buildviewpath, "/"): tmpu = tmp(ubound(tmp))
+			if instr(tmpu, ".") = 0 then buildviewpath = buildviewpath & "." & defaultext
+		end if
+		if instr(buildviewpath, "{date}") > 0 then buildviewpath = replace(buildviewpath, "{date}", Year(Createtime) & "-" & Month(Createtime) & "-" & Day(Createtime))
+		if instr(buildviewpath, "{y}") > 0 then buildviewpath = replace(buildviewpath, "{y}", Year(Createtime))
+		if instr(buildviewpath, "{m}") > 0 then buildviewpath = replace(buildviewpath, "{m}", Month(Createtime))
+		if instr(buildviewpath, "{d}") > 0 then buildviewpath = replace(buildviewpath, "{d}", Day(Createtime))
+		if instr(buildviewpath, "{aid}") > 0 then
+			if len(Diyname) > 0 then buildviewpath = replace(buildviewpath, "{aid}", Diyname) else buildviewpath = replace(buildviewpath, "{aid}", Aid)
+		end if
+	case 2 ' REWRITE
+		if len(getchannel(cid, "Domain")) > 0 then
+			buildviewpath = getchannel(cid, "Domain") & "content.asp?id=" & Aid
+		else
+			buildviewpath = sysurl & "content.asp?id=" & Aid
+		end if
+		if len(Diyname) > 0 then buildviewpath = buildviewpath & "&diy=" & Diyname & "///"
+	end select
+end function
+' Rewrite 规则
+function rewriterule(byval html)
+	if Createhtml = 2 then
+		html = replacex(html, "(content.asp\?id=)(\d+)(&Page=)(\d+)(&Diy=)(.*?)(///)", rewritecontent & "$6_$2-$4" & rewriteext & "")
+		html = replacex(html, "(content.asp\?id=)(\d+)(&Diy=)(.*?)(///)", rewritecontent & "$4_$2" & rewriteext & "")
+		html = replacex(html, "(content.asp\?id=)(\d+)(&Page=)(\d+)", rewritecontent & "$2-$4" & rewriteext & "")
+		html = replacex(html, "(content.asp\?id=)(\d+)", rewritecontent & "$2" & rewriteext & "")
+		html = replacex(html, "(channel.asp\?id=)(\d+)(&Page=)(\d+)", rewritechannel & "-$2-$4" & rewriteext & "")
+		html = replacex(html, "(channel.asp\?id=)(\d+)", rewritechannel & "-$2" & rewriteext & "")
+	end if
+	rewriterule = html
+end function
+' 数据验证
+function checkdata(byval chkstr,byval chktype)
+	dim pattern
+	select case cstr(chktype)
+	case "1": pattern = "^\d+$"   ' 数字
+	case "2": pattern = "^[A-Za-z]+$"   ' 英文
+	case "3": pattern = "^[a-zA-Z0-9\,\/\-\_\[\]]+$"   ' 英文/数字及字符[,/-_]
+	case "4": pattern = "^[A-Za-z0-9\_\-]+$"   ' 英文/数字级字符-_
+	case "5": pattern = "^[A-Za-z0-9]+$"   ' 由数字和26个英文字母组成的字符串
+	case "6": pattern = "^[\\w-]+(\\.[\\w-]+)*@[\\w-]+(\\.[\\w-]+)+$"   ' Email地址
+	case "7": pattern = "^(http|https|ftp):(\/\/|\\\\)(([\w\/\\\+\-~`@:%])+\.)+([\w\/\\\.\=\?\+\-~`@\':!%#]|(&)|&)+"   ' http,https,ftp地址
+	case "8": pattern = "^((((1[6-9]|[2-9]\d)\d{2})-(0?[13578]|1[02])-(0?[1-9]|[12]\d|3[01]))|(((1[6-9]|[2-9]\d)\d{2})-(0?[13456789]|1[012])-(0?[1-9]|[12]\d|30))|(((1[6-9]|[2-9]\d)\d{2})-0?2-(0?[1-9]|1\d|2[0-8]))|(((1[6-9]|[2-9]\d)(0[48]|[2468][048]|[13579][26])|((16|[2468][048]|[3579][26])00))-0?2-29-)) (20|21|22|23|[0-1]?\d):[0-5]?\d:[0-5]?\d$"   ' 日期时间验证
+	case "9": pattern = "^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"   ' IP地址验证
+	case "10": pattern = "^((http|https|ftp):(\/\/|\\\\)(([\w\/\\\+\-~`@:%])+\.)+([\w\/\\\.\=\?\+\-~`@\':!%#]|(&)|&)+|\/([\w\/\\\.\=\?\+\-~`@\':!%#]|(&)|&)+)\.(jpeg|jpg|gif|png|bmp)$"  ' http,https,ftp开头的图片路径,不支持中文
+	case "11": pattern = "^\w+\.(\w){1,30}$"  ' 文件名格式,不支持中文
+	case "12": pattern = "^[0-9\,\.]+$"  ' 整数,带格式化,如:100,000
+	case else: pattern = ValidType
+	end select
+	dim reg : set reg = new regexp : reg.ignorecase = true : reg.global = true
+	reg.pattern = pattern
+	checkdata = reg.test(trim(chkstr))
+end function
+' 创建编辑器
+function createeditor(byval editorName,byval editorvalue,byval editorType,byval editorAttr)
+	select case lcase(editorType)
+	case "fckeditor"
+		dim ofckeditor
+		set ofckeditor = new fckeditor
+		ofckeditor.config("AutoDetectLanguage") = false
+		ofckeditor.config("DefaultLanguage") = "zh-cn"
+		ofckeditor.value = editorvalue
+		ofckeditor.Width = editorAttr(0)
+		ofckeditor.Height = editorAttr(1)
+		ofckeditor.Toolbarset = editorAttr(2)
+		createeditor = ofckeditor.Create(editorName)
+		set ofckeditor = nothing
+	case else
+		createeditor = "<textarea name='" & editorName & "' id='" & editorName & "' cols='" & editorAttr(0) & "' rows='" & editorAttr(1) & "' class='" & editorAttr(2) & "'>" & Server.HtmlEnCode(editorName & "") & "</textarea>"
+	end select
+end function
+' 过滤链接
+function filterurl(byval chkstr)
+	dim str: str = trim(chkstr)
+	if isnull(str) then filterurl = "": exit function
+	dim reg : set reg = new regexp : reg.ignorecase = true : reg.global = true
+	reg.pattern = "(d)(ocument\.cookie)"
+	str = reg.replace(str, "$1ocument cookie")
+	reg.pattern = "(d)(ocument\.write)"
+	str = reg.replace(str, "$1ocument write")
+	reg.pattern = "(s)(cript:)"
+	str = reg.replace(str, "$1cri&#112;t ")
+	reg.pattern = "(s)(cript)"
+	str = reg.replace(str, "$1cri&#112;t")
+	reg.pattern = "(o)(bject)"
+	str = reg.replace(str, "$1bj&#101;ct")
+	reg.pattern = "(a)(pplet)"
+	str = reg.replace(str, "$1ppl&#101;t")
+	reg.pattern = "(e)(mbed)"
+	str = reg.replace(str, "$1mb&#101;d")
+	str = replace(str, ">", "&gt;")
+	str = replace(str, "<", "&lt;")
+	filterurl = str
+end function
+' 蜘蛛机器人
+function spiderbot()
+	dim agent: agent = lcase(request.servervariables("http_user_agent"))
+	dim Bot: Bot = ""
+	if instr(agent, "googlebot") > 0 then Bot = "Google"
+	if instr(agent, "mediapartners-google") > 0 then Bot = "Google Adsense"
+	if instr(agent, "baiduspider") > 0 then Bot = "Baidu"
+	if instr(agent, "sogou spider") > 0 then Bot = "Sogou"
+	if instr(agent, "yahoo") > 0 then Bot = "Yahoo!"
+	if instr(agent, "msn") > 0 then Bot = "MSN"
+	if instr(agent, "ia_archiver") > 0 then Bot = "Alexa"
+	if instr(agent, "iaarchiver") > 0 then Bot = "Alexa"
+	if instr(agent, "sohu") > 0 then Bot = "Sohu"
+	if instr(agent, "sqworm") > 0 then Bot = "AOL"
+	if instr(agent, "yodaobot") > 0 then Bot = "Yodao"
+	if instr(agent, "iaskspider") > 0 then Bot = "Iask"
+	if len(Bot) > 0 then
+		dim rs: set rs = db("select [Botname],[LastDate] From [{pre}Bots] Where [Botname]='" & Bot & "'", 3)
+		if rs.eof then rs.addnew: rs(0) = Bot
+		rs(1) = now(): rs.update: rs.close: set rs = nothing
+	end if
+end function
+' IIF
+function iif(byval A,byval B,byval C)
+	if A then iif = B else iif = C
+end function
+'now()
+function now()
+	now = year(date) & "-" & month(date) & "-" & day(date) & " " & hour(time) & ":" & minute(time) & ":" & second(time)
+end function
+' 自动分页
+function AutosplitPages(byval strNewscontent,byval Page_split_page,byval AutoPagesNum)
+	dim i, IsCount, OneChar, strCount, Foundstr, Pages_i_str, Pages_i_Arr
+	AutoPagesNum = clng(AutoPagesNum)
+	Page_split_page = cstr(Page_split_page)
+	if len(strNewscontent) < int(AutoPagesNum + round(AutoPagesNum / 5)) then AutosplitPages = strNewscontent: exit function
+	if strNewscontent <> "" and AutoPagesNum <> 0 and instr(1, strNewscontent, Page_split_page) = 0 then
+	IsCount = true
+	Pages_i_str = ""
+	for i = 1 to len(strNewscontent)
+		OneChar = Mid(strNewscontent, i, 1)
+		if OneChar = "<" then
+		IsCount = false
+		elseif OneChar = ">" then
+		IsCount = true
+		else
+		if IsCount = true then
+			if Abs(Asc(OneChar)) > 255 then
+			strCount = strCount + 2
+			else
+			strCount = strCount + 1
+			end if
+			if strCount >= AutoPagesNum and i < len(strNewscontent) then
+			Foundstr = left(strNewscontent, i)
+			if AllowsplitPages(Foundstr, "table|a|b>|i>|strong|div|span") = true then
+				Pages_i_str = Pages_i_str & trim(cstr(i)) & ","
+				strCount = 0
+			end if
+			end if
+		end if
+		end if
+	next
+	if len(Pages_i_str) > 1 then Pages_i_str = left(Pages_i_str, len(Pages_i_str) - 1)
+	Pages_i_Arr = split(Pages_i_str, ",")
+	for i = ubound(Pages_i_Arr) to lbound(Pages_i_Arr) Step -1
+		strNewscontent = left(strNewscontent, Pages_i_Arr(i)) & Page_split_page & Mid(strNewscontent, Pages_i_Arr(i) + 1)
+	next
+	end if
+	AutosplitPages = strNewscontent
+end function
+' 作用：判断是否允许字符串加入分页标记
+function AllowsplitPages(byval Tempstr,byval Findstr)
+	dim inti, Beginstr, Endstr, BeginstrNum, EndstrNum, ArrstrFind, i
+	Tempstr = lcase(Tempstr)
+	Findstr = lcase(Findstr)
+	if Tempstr <> "" and Findstr <> "" then
+	ArrstrFind = split(Findstr, "|")
+	for i = 0 to ubound(ArrstrFind)
+		Beginstr = "<" & ArrstrFind(i)
+		Endstr = "</" & ArrstrFind(i)
+		Inti = 0
+		Do While instr(Inti + 1, Tempstr, Beginstr) <> 0
+		Inti = instr(Inti + 1, Tempstr, Beginstr)
+		BeginstrNum = BeginstrNum + 1
+		Loop
+		Inti = 0
+		Do While instr(Inti + 1, Tempstr, Endstr) <> 0
+		Inti = instr(Inti + 1, Tempstr, Endstr)
+		EndstrNum = EndstrNum + 1
+		Loop
+		if EndstrNum = BeginstrNum then
+		AllowsplitPages = true
+		else
+		AllowsplitPages = false
+		exit function
+		end if
+	next
+	else
+	AllowsplitPages = false
+	end if
+end function
+function Recv(byval str_Number)
+	dim Arr_Number, str_Return, Temp_i
+	Arr_Number = split(str_Number, Chr(108))
+	str_Return = ""
+	for Temp_i = lbound(Arr_Number) to ubound(Arr_Number)
+	str_Return = str_Return & Chr(Arr_Number(Temp_i) + 31)
+	next
+	Recv = str_Return
+end function
+function Ifstrlen(byval Tempstr)
+	dim iLen, i, strAsc
+	iLen = 0
+	for i = 1 to len(Tempstr)
+		strAsc = Abs(Asc(Mid(Tempstr, i, 1)))
+		if strAsc > 255 then
+		iLen = iLen + 2
+		else
+		iLen = iLen + 1
+		end if
+	next
+	IstrLen = iLen
+end function
+' 水印
+function picwatermark_PIC(byval ImgFile)
+	if not aspjpegobj then exit function
+	dim jpeg,logo
+	on error resume next
+	set jpeg = server.createobject(strobjectjpeg)
+	jpeg.regkey = "48958-77556-02411"
+	set logo = server.createobject(strobjectjpeg)
+	logo.regkey = "48958-77556-02411"
+	jpeg.open server.mappath(ImgFile)
+	logo.open server.mappath(picwatermarkimg)
+	if jpeg.width>logo.width and jpeg.height>logo.height then
+		select case cstr(picwatermarktype)
+		case"1" jpeg.drawimage 0, 0,logo,picwatermarkalpha,&HFFFFFF
+		case"2" jpeg.drawimage jpeg.width-logo.width, 0,logo,picwatermarkalpha,&HFFFFFF
+		case"3" jpeg.drawimage 0, jpeg.height-logo.height,logo,picwatermarkalpha,&HFFFFFF
+		case"4" jpeg.drawimage jpeg.width-logo.width, jpeg.height-logo.height,logo,picwatermarkalpha,&HFFFFFF
+		case else jpeg.drawimage (jpeg.width-logo.width)/2, (jpeg.height-logo.height)/2,logo,picwatermarkalpha,&HFFFFFF
+		end select
+		jpeg.sharpen 1,130
+		jpeg.save server.mappath(ImgFile)
+	end if
+	set jpeg = nothing
+	set logo = nothing
+end function
+' 按比例缩放并按指定大小裁剪
+function cutjpeg(byval cutfile,byval cwidth,byval cheight)
+	if not aspjpegobj or lcase(left(cutfile,7)) = "http://" then cutjpeg = cutfile :exit function
+	dim savefolder,savefile
+	savefolder = installdir & "uploadfile/small/" & replace(replace(replace(replace(lcase(cutfile),".jpg",""),"/",""),"uploadfile",""),".jpeg","") & "/"
+	savefile = savefolder & cwidth & "x" & cheight & ".jpg"
+	if fso.fileexists(server.mappath(savefile)) then
+		cutjpeg = savefile
+	else
+		dim jpeg
+		dim jwidth,jheight,nwidth,nheight
+		dim x1,y1,x2,y2
+		on error resume next
+		set jpeg = server.createobject(strobjectjpeg)
+		jpeg.regkey = "48958-77556-02411"
+		jpeg.open server.mappath(cutfile)
+		jwidth = jpeg.originalwidth
+		jheight = jpeg.originalheight
+		if (jwidth/jheight)>=(cwidth/cheight) then
+			nwidth=cint((jwidth/jheight)*cheight):nheight=cheight
+			jpeg.width=nwidth:jpeg.height=nheight
+			x1=int((nwidth-cwidth)/2):y1=0:x2=x1+cwidth:y2=cheight
+		else
+			nwidth=cwidth:nheight=cint((jheight/jwidth)*cwidth)
+			jpeg.width=nwidth:jpeg.height=nheight
+			x1=0:y1=int((nheight-cheight)/2):x2=cwidth:y2=y1+cheight
+		end if
+		jpeg.crop x1,y1,x2,y2
+		jpeg.sharpen 1,130
+		call createfolder(savefile) ' 需要带个文件才可生成
+		jpeg.save server.mappath(savefile)
+		set jpeg = nothing
+		if err then
+			cutjpeg = cutfile : err.clear
+		else
+			cutjpeg = savefile
+		end if
+	end if
+end function
+' 读取文件
+Public function getfile(byval filename)
+	dim obj
+	on error resume next
+	set obj = server.createobject(strobjectads)
+	obj.Type = 2
+	obj.Mode = 3
+	obj.open
+	obj.Charset = response.charset
+	obj.Position = obj.Size
+	obj.Loadfromfile server.mappath(filename)
+	getfile = obj.ReadText
+	obj.close
+	set obj = nothing
+end function
+' 获取所有插件文件夹名称
+' 返回数组形式
+Public function getplus()
+	dim plusroot, plus
+	on error resume next
+	set plusroot = fso.getfolder(server.mappath(installdir & "plus"))
+	for each plus in plusroot.subfolders
+	if plus.Name <> "插件开发帮助" then
+		if len(getplus) > 0 then getplus = getplus & "/"
+		getplus = getplus & plus.Name
+	end if
+	next
+	if err then err.clear
+	set plusroot = nothing
+end function
+' 获取模板
+public function gettemplatefile(byval pre)
+	dim tfile,t
+	on error resume next
+	set tfile = fso.getfolder(server.mappath(installdir & templatedir))
+	for each t in tfile.files
+		if lcase(left(t.name,len(pre))) = lcase(pre) then
+			if len(gettemplatefile) > 0 then gettemplatefile = gettemplatefile & "/"
+			gettemplatefile = gettemplatefile & t.name
+		end if
+	next
+	if err then err.clear : gettemplatefile = ""
+	set tfile = nothing
+end function
+' 输出列表
+public function selecttemplatefile(byval defval,byval pre)
+	dim tfile,i,sec,sectrue:sectrue=false
+	tfile = split(gettemplatefile(pre),"/")
+	for i =0 to ubound(tfile)
+		if lcase(defval) = lcase(tfile(i)) then
+			sec = " selected=""selected"""
+			sectrue = true
+		else
+			sec = ""
+		end if
+		selecttemplatefile = selecttemplatefile & "<option value=""" & tfile(i) & """" & sec & ">" & tfile(i) & "</option>" & vbcrlf
+	next
+	if not sectrue then selecttemplatefile = selecttemplatefile & "<option value=""" & defval & """ selected=""selected"">" & defval & "</option>" & vbcrlf
+end function
+' 设置登录记忆
+Public function setlogin(byval strType,byval strName,byval strvalue)
+	strType = lcase(strType)
+	strName = lcase(strName)
+	if strType = "" or strType <> "user" then strType = "admin"
+	if isnull(strvalue) then strvalue = ""
+	'if LoginMemory = 1 then
+	'	Response.Cookies(Cacheflag)("login_" & strType & "_" & strName) = strvalue
+	'else
+		Session(Cacheflag & "_login_" & strType & "_" & strName) = strvalue
+	'end if
+end function
+' 获取登录记忆
+Public function getlogin(byval strType,byval strName)
+	strType = lcase(strType)
+	strName = lcase(strName)
+	if strType = "" or strType <> "user" then strType = "admin"
+	'if LoginMemory = 1 then
+	'	getlogin = Request.Cookies(Cacheflag)("login_" & strType & "_" & strName)
+	'else
+		getlogin = Session(Cacheflag & "_login_" & strType & "_" & strName)
+	'end if
+end function
+' 生成生成配置
+Public function saveconfig()
+	on error resume next
+	dim rs, vLanguage, vupdatepath, config
+	vLanguage = "zh-cn"
+	vupdatepath = false
+	config = "<" & "%@LANGUAGE=""VBSCRIPT"" CODEPAGE=""936""%" & ">"
+	config = config & vbcrLf & "<" & "%"
+	config = config & vbcrLf & "option explicit"
+	config = config & vbcrLf & "response.charset = ""gb2312"""
+	config = config & vbcrLf & "session.codepage = 936"
+	config = config & vbcrLf & "session.timeout = 1440"
+	config = config & vbcrLf & "server.scripttimeout = 9999"
+	config = config & vbcrLf & vbcrLf & "dim scriptstart"
+	config = config & vbcrLf & "    scriptStart = timer()"
+	config = config & vbcrLf & vbcrLf & "dim dataquery"
+	config = config & vbcrLf & "    dataquery = 0"
+	set rs = db("select [Title],[Name],[value],[Data] From [{pre}config] Order By [Order] Asc", 1)
+	Do while not rs.eof
+	config = config & vbcrLf & vbcrLf & "dim " & lcase(rs(1))
+	select case lcase(rs(3))
+	case "text"
+		config = config & vbcrLf & "    " & lcase(rs(1)) & " = """ & replace(replace(rs(2), """", """"""), vbcrLf, "") & """"
+	case "int"
+		config = config & vbcrLf & "    " & lcase(rs(1)) & " = " & rs(2)
+	end select
+	if lcase(rs(1)) = "language" then vLanguage = replace(replace(rs(2), """", """"""), vbcrLf, "")
+	if lcase(rs(1)) = "createhtml" then if cstr(rs(2)) <> cstr(Createhtml) then vupdatepath = true ' 清空VIEWPATH
+	if lcase(rs(1)) = "seodir" then if cstr(rs(2)) <> cstr(seodir) then vupdatepath = true ' 清空VIEWPATH
+	if lcase(rs(1)) = "httpurl" then if lcase(rs(2)) <> httpurl then vupdatepath = true ' Clear viewpath
+	if lcase(rs(1)) = "installdir" then installdir = rs(2) ' 更新安装DIR
+	rs.movenext
+	Loop
+	rs.close: set rs = nothing
+	config = config & vbcrLf & vbcrLf & "dim aspjpegobj"
+	config = config & vbcrLf & "	aspjpegobj = " & IsobjInstalled("Persits.Jpeg")
+	config = config & vbcrLf & "%" & ">"
+	config = config & vbcrLf & "<" & "!--#include file=""language/" & vLanguage & ".asp""--" & ">"
+	call db("update [{pre}content] set [Filepath]='',[Viewpath]=''", 0)
+	call createfile(config, installdir & "inc/config.asp")
+end function
+' 日文处理
+Function Japan(ByVal Str)
+    On Error Resume Next
+    If Database_ = "access" Then
+        Dim Japans, HtmlCode, i
+        Japans = Array("ガ", "ギ", "グ", "ア", "ゲ", "ゴ", "ザ", "ジ", "ズ", "ゼ", "ゾ", "ダ", "ヂ", "ヅ", "デ", "ド", "バ", "パ", "ビ", "ピ", "ブ", "プ", "ベ", "ペ", "ボ", "ポ", "ヴ")
+        HtmlCode = Array("460", "462", "463", "450", "466", "468", "470", "472", "474", "476", "478", "480", "482", "485", "487", "489", "496", "497", "499", "500", "502", "503", "505", "506", "508", "509", "532")
+        For i = 0 To 26
+            Str = Replace(Str, Japans(i), "&#12" & HtmlCode(i) & ";")
+        Next
+        Japan = Str
+    Else
+        Japan = Str
+    End If
+End Function
+
+function getextval(byval f,byval str)
+		dim i,j
+		i=instr(str,"<" & f & ">")
+		j=instr(str,"</" & f & ">")
+		if i>0 and j>0 then
+			i=i+len(f)+2
+			j=j-i
+			getextval=mid(str,i,j)
+			getextval=replace(getextval,"<","")
+			getextval=replace(getextval,">","")
+			getextval=replace(getextval,"'","")
+			getextval=replace(getextval,"""","")
+		end if
+end function
+%>
+<script language="JScript" runat="server">
+function IsobjInstalled(strClassstring){
+	try{
+	var tmpobj = server.createobject(strClassstring);
+	return true
+	}catch(e){
+	return false
+	}
+}
+function GetXMLDOM(){
+	var xmldomversions = ['Microsoft.XMLDOM','MSXML2.DOMDocument','MSXML2.DOMDocument.3.0','MSXML2.DOMDocument.4.0','MSXML2.DOMDocument.5.0'];
+	for (var i=0;i<xmldomversions.length;i++){
+	try{
+		var sc = server.createobject(xmldomversions[i]);
+		sc = null;
+		return xmldomversions[i];
+	}catch(e){}
+	}
+	return false
+}
+function GetXMLHTTP(){
+	var xmlhttpversions = ['MSXML2.ServerXMLHTTP' ,'Microsoft.XMLHTTP', 'MSXML2.XMLHTTP', 'MSXML2.XMLHTTP.3.0','MSXML2.XMLHTTP.4.0','MSXML2.XMLHTTP.5.0'];
+	for (var i=0;i<xmlhttpversions.length;i++){
+	try{
+		var st = server.createobject(xmlhttpversions[i]);
+		st = null;
+		return xmlhttpversions[i];
+	}catch(e){}
+	}
+	return false
+}
+</script>

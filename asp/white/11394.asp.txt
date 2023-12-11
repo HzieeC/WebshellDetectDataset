@@ -1,0 +1,388 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../INC/incuser.asp"-->
+<%
+cid = ReplaceBadChar(Request.QueryString("cid")) '分类
+sid = ReplaceBadChar(Request.QueryString("sid")) '主题
+pid = ReplaceBadChar(Request.QueryString("pid")) '价格
+tid = ReplaceBadChar(Request.QueryString("tid")) '天数
+xid = ReplaceBadChar(Request.QueryString("xid"))				'推荐
+CityFrom = ReplaceBadChar(Request.QueryString("CityFrom"))		'出发城市
+CityTo = ReplaceBadChar(Request.QueryString("CityTo"))			'目的城市
+pcid = ReplaceBadChar(Request.QueryString("pcid"))				'判断是否出境
+if pcid <> "" then
+	if not CheckInteger(pcid) then
+		pcid = 1
+	end if
+else
+	pcid = 1
+end if
+if pcid = 2 then
+	ChannelID = 2
+else
+	ChannelID = 1
+end if
+
+sql="select ClassName, PageTitle, Keywords, Descriptions from Pulb_TourClass where ClassID="&pcid
+set rs=server.createobject("adodb.recordset")
+rs.open sql,Conn,1,1
+if not rs.eof then
+	ChannelClassName = rs(0)
+	PageTitle = rs(1)
+	Keywords = rs(2)
+	Descriptions = rs(3)
+end if
+rs.close
+set rs=nothing	
+
+CurrentPage = "<A href='?pcid="&pcid&"'>"&ChannelClassName&"</A>"
+
+if cid <> "" then
+	if not CheckInteger(cid) then
+		cid = ""
+	else
+		sql="select ClassName, ParentPath, RootID from Pulb_TourClass where ClassID="&cid
+		set rs=server.createobject("adodb.recordset")
+		rs.open sql,Conn,1,1
+		if not rs.eof then
+			ClassName = rs(0)
+			ParentPath = rs(1)
+			RootID = rs(2)
+		end if
+		rs.close
+		
+		CurrentList = ""
+		temp = Split(ParentPath,",")
+		For k=0 To UBound(Temp)
+			if temp(k) <> "" and temp(k) <> "0" then
+				sql="select ClassID,ClassName from Pulb_TourClass where ClassID="&temp(k)&" and Depth>0"
+				rs.open sql,Conn,1,1
+				if not rs.eof then
+					Temp1 = "<a href='?pcid="&pcid&"&cid="&rs(0)&"'>"&rs(1)&"</a>"
+					CurrentPage = CurrentPage &" -> "& Temp1
+					
+					if CurrentList = "" then
+						CurrentList = rs(1)
+					else
+						CurrentList = CurrentList &" -> "& rs(1)
+					end if
+				end if
+				rs.close
+			end if
+		Next
+		set rs=nothing
+		CurrentPage = CurrentPage &" -> <a href='?cid="&cid&"'>"&ClassName&"</a>"
+	end if
+end if
+
+if sid <> "" then
+	if not CheckInteger(sid) then
+		sid = ""
+	end if
+end if
+if pid <> "" then
+	if not CheckInteger(pid) then
+		pid = ""
+	elseif pid = "0" then
+		pid = ""
+	end if
+end if
+if tid <> "" then
+	if not CheckInteger(tid) then
+		tid = 0
+	else
+		tid = Cint(tid)
+	end if
+else
+	tid = 0
+end if
+if xid <> "" then
+	if not CheckInteger(xid) then
+		xid = 0
+	else
+		xid = Cint(xid)
+	end if
+else
+	xid = 0
+end if
+
+Dim PathPage
+PathPage = "pcid="&pcid
+
+sqllist = "SELECT ID, IsTop, IsHot, IsSale, ClassID, TopicID, Title, TitleColor, TitleSmall, TourDays, CityFrom, CityTo, Schedule, PriceAdult FROM Pulb_TourRoute where IsShow"
+if xid > 0 then
+	if xid = 1 then
+		sqllist = sqllist &" and IsTop"
+	elseif xid = 2 then
+		sqllist = sqllist &" and IsHot"
+	elseif xid = 3 then
+		sqllist = sqllist &" and IsSale"
+	end if
+	PathPage = PathPage &"&xid="&xid
+end if
+
+if cid <> "" then
+	sqllist = sqllist &" and ClassID Like '%,"&cid&",%'"
+	PathPage = PathPage &"&cid="&cid
+'else
+'	sqllist = sqllist &" and ClassID Like ',0,"&pcid&",%'"
+end if
+
+if sid <> "" then
+	sqllist = sqllist &" and TopicID Like '%,"&sid&",%'"
+	PathPage = PathPage &"&sid="&sid
+end if
+if tid > 0 then
+	if tid = 0 then
+		sqllist = sqllist &" and TourDays>0"
+	elseif tid = 500 then
+		sqllist = sqllist &" and TourDays>=5"
+	elseif tid = 1000 then
+		sqllist = sqllist &" and TourDays>=10"
+	else
+		sqllist = sqllist &" and TourDays="&tid
+	end if
+	PathPage = PathPage &"&tid="&tid
+end if
+if CityFrom <> "" then
+	sqllist = sqllist &" and CityFrom like '%"&CityFrom&"%'"
+	PathPage = PathPage &"&CityFrom="&Server.URLEncode(CityFrom)
+end if
+if CityTo <> "" then
+	sqllist = sqllist &" and CityTo like '%"&CityTo&"%'"
+	PathPage = PathPage &"&CityTo="&Server.URLEncode(CityTo)
+end if
+if pid <> "" then
+	if ChannelID = 1 then
+		if pid = "1" then
+			sqllist = sqllist &" AND PriceAdult > 0 AND PriceAdult < 200"
+		elseif pid = "2" then
+			sqllist = sqllist &" AND PriceAdult >= 200 AND PriceAdult < 500"
+		elseif pid = "3" then
+			sqllist = sqllist &" AND PriceAdult >= 500 AND PriceAdult < 1000"
+		elseif pid = "4" then
+			sqllist = sqllist &" AND PriceAdult >= 1000 AND PriceAdult < 1500"
+		elseif pid = "5" then
+			sqllist = sqllist &" AND PriceAdult >= 1500 AND PriceAdult < 2000"
+		elseif pid = "6" then
+			sqllist = sqllist &" AND PriceAdult >= 2000"
+		else
+			sqllist = sqllist &" AND PriceAdult > 0"
+		end if
+	else
+		if pid = "1" then
+			sqllist = sqllist &" AND PriceAdult > 0 AND PriceAdult < 2000"
+		elseif pid = "2" then
+			sqllist = sqllist &" AND PriceAdult >= 2000 AND PriceAdult < 5000"
+		elseif pid = "3" then
+			sqllist = sqllist &" AND PriceAdult >= 5000 AND PriceAdult < 10000"
+		elseif pid = "4" then
+			sqllist = sqllist &" AND PriceAdult >= 10000 AND PriceAdult < 15000"
+		elseif pid = "5" then
+			sqllist = sqllist &" AND PriceAdult >= 15000 AND PriceAdult < 20000"
+		elseif pid = "6" then
+			sqllist = sqllist &" AND PriceAdult >= 20000"
+		else
+			sqllist = sqllist &" AND PriceAdult > 0"
+		end if
+	end if
+	PathPage = PathPage &"&pid="&pid
+end if
+sqllist = sqllist &" order by UpdateTime DESC"
+%><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title><%=ChannelClassName%>-<%=SystemInfo(1)%></title>
+<meta name="keywords" content="<%=SystemInfo(3)%>">
+<meta name="description" content="<%=SystemInfo(4)%>">
+<link rel="stylesheet" href="/css/main.css" type="text/css">
+<script language="javascript" src="/js/jquery-1.4.js"></script>
+<script language="javascript" src="/js/base.js"></script>
+<script language="javascript" src="/js/site.source.js"></script>
+<script type="text/javascript" src="/JS/from/textinput_split.js"></script>
+<script type="text/javascript" src="/js/from/select_split.js"></script>
+<link rel="stylesheet" href="/js/from/style.css" type="text/css" />
+</head>
+
+<body>
+<%=FunHeader()%>
+<div class="main">
+	<div class='body'>
+		<div class="lf">
+			<div class="searbo">
+				<%=GetSearch(1, 0)%>
+			</div>
+			<div class='func'>
+				<div class='tit'>
+					<span class='ti'><%=ChannelClassName%></span>
+				</div>
+				<div class='list'>
+					<div class="tour_class">
+						<%=FunTourClassList(pcid)%>
+					</div>
+				</div>
+			</div>
+			<div class='func'>
+				<div class='tit'>
+					<span class='ti'>旅游线路</span>
+				</div>
+				<div class='titsm' id='TourTop'>
+					<li class='show'>推荐</li>
+					<li>热门</li>
+					<li>特价</li>
+				</div>
+				<div class='list_t' id='TourTopCon'>
+					<%=FunTourAll(10)%>
+				</div>
+				<script language="javascript" src="/js/switch.js"></script>
+				<script>var num=Math.floor(Math.random()*3+0);SwitchFun.Channel("TourTop/li","TourTopCon/ul","onmouseover",num,4000);</script>
+			</div>
+			<div class='func'>
+				<div class='tit'>
+					<span class='ti'>旅游资讯</span><span class="mo"><a href="/news/">more>></a></span>
+				</div>
+				<div class='list'>
+					<%=FunTopNews(0, 10)%>
+				</div>
+			</div>
+			<div class='ibanner' id='LeftBanner' style="display:none"></div>
+		</div>
+		<div class="rm">
+			<div class="ho_cl">
+				<UL>
+					<LI class="ft">按主题：</LI>
+					<LI class="fc"><%
+						sql = "select ID, ClassName from Pulb_TopicClass where ClassID=1 order by Orderby"
+						set rs=server.createobject("adodb.recordset")
+						rs.open sql,Conn,1,1
+						Do While not rs.eof
+							response.Write "<a href='list.asp?pcid="&pcid&"&sid="&rs(0)&"'"
+							if sid = Cstr(rs(0)) then
+								response.Write " class='on'"
+							end if
+							response.Write ">"&rs(1)&"</a>　"
+							rs.MoveNext
+						loop
+						rs.close
+						set rs = nothing
+					%></LI>
+				</UL>
+				<UL>
+					<LI class="ft">按价格：</LI>
+					<LI class="fc">
+					<%if pcid = 2 then%>
+					<a href='list.asp?pcid=<%=pcid%>&pid=1'<%if pid = "1" then response.Write " class='on'"%>>2000元以下</a>　
+					<a href='list.asp?pcid=<%=pcid%>&pid=2'<%if pid = "2" then response.Write " class='on'"%>>2000-4999元</a>　
+					<a href='list.asp?pcid=<%=pcid%>&pid=3'<%if pid = "3" then response.Write " class='on'"%>>5000-9999元</a>　
+					<a href='list.asp?pcid=<%=pcid%>&pid=4'<%if pid = "4" then response.Write " class='on'"%>>10000-14999元</a>　
+					<a href='list.asp?pcid=<%=pcid%>&pid=5'<%if pid = "5" then response.Write " class='on'"%>>15000-19999元</a>　
+					<a href='list.asp?pcid=<%=pcid%>&pid=6'<%if pid = "6" then response.Write " class='on'"%>>20000元以上</a>
+					<%else%>
+					<a href='list.asp?pcid=<%=pcid%>&pid=1'<%if pid = "1" then response.Write " class='on'"%>>200元以下</a>　
+					<a href='list.asp?pcid=<%=pcid%>&pid=2'<%if pid = "2" then response.Write " class='on'"%>>200-499元</a>　
+					<a href='list.asp?pcid=<%=pcid%>&pid=3'<%if pid = "3" then response.Write " class='on'"%>>500-999元</a>　
+					<a href='list.asp?pcid=<%=pcid%>&pid=4'<%if pid = "4" then response.Write " class='on'"%>>1000-1499元</a>　
+					<a href='list.asp?pcid=<%=pcid%>&pid=5'<%if pid = "5" then response.Write " class='on'"%>>1500-1999元</a>　
+					<a href='list.asp?pcid=<%=pcid%>&pid=6'<%if pid = "6" then response.Write " class='on'"%>>2000元以上</a>
+					<%end if%></LI>
+				</UL>
+				<UL>
+					<LI class="ft">按天数：</LI>
+					<LI class="fc">
+					<%if pcid = 2 then%>
+					<a href='list.asp?pcid=<%=pcid%>&tid=4'<%if tid = 4 then response.Write " class='on'"%>>4天</a>　
+					<a href='list.asp?pcid=<%=pcid%>&tid=5'<%if tid = 5 then response.Write " class='on'"%>>5天</a>　
+					<a href='list.asp?pcid=<%=pcid%>&tid=6'<%if tid = 6 then response.Write " class='on'"%>>6天</a>　
+					<a href='list.asp?pcid=<%=pcid%>&tid=7'<%if tid = 7 then response.Write " class='on'"%>>7天</a>　
+					<a href='list.asp?pcid=<%=pcid%>&tid=8'<%if tid = 8 then response.Write " class='on'"%>>8天</a>　
+					<a href='list.asp?pcid=<%=pcid%>&tid=9'<%if tid = 9 then response.Write " class='on'"%>>9天</a>　
+					<a href='list.asp?pcid=<%=pcid%>&tid=1000'<%if tid = 1000 then response.Write " class='on'"%>>10天以上</a>
+					<%else%>
+					<a href='list.asp?pcid=<%=pcid%>&tid=1'<%if tid = 1 then response.Write " class='on'"%>>1天</a>　
+					<a href='list.asp?pcid=<%=pcid%>&tid=2'<%if tid = 2 then response.Write " class='on'"%>>2天</a>　
+					<a href='list.asp?pcid=<%=pcid%>&tid=3'<%if tid = 3 then response.Write " class='on'"%>>3天</a>　
+					<a href='list.asp?pcid=<%=pcid%>&tid=4'<%if tid = 4 then response.Write " class='on'"%>>4天</a>　
+					<a href='list.asp?pcid=<%=pcid%>&tid=500'<%if tid = 500 then response.Write " class='on'"%>>5天以上</a>
+					<%end if%></LI>
+				</UL>
+				<UL>
+					<LI class="ft">按热度：</LI>
+					<LI class="fc">
+					<a href='list.asp?pcid=<%=pcid%>&xid=1'<%if xid = 1 then response.Write " class='on'"%>>推荐</a>　
+					<a href='list.asp?pcid=<%=pcid%>&xid=2'<%if xid = 2 then response.Write " class='on'"%>>热门</a>　
+					<a href='list.asp?pcid=<%=pcid%>&xid=3'<%if xid = 3 then response.Write " class='on'"%>>特价</a></LI>
+				</UL>
+			</div>
+			<UL class='toplist'>
+				<span class="cc">旅游线路</span>
+			</UL>
+			<div class="lis">
+				<div class="tour_bo">
+<%
+Dim Page,CurrentPage,MaxPerPage,totalPut,mPage,PageNo,pp,pno,p,i
+Page=Request.QueryString("Page")
+if not CheckInteger(Page) then
+	CurrentPage = 1
+else
+	CurrentPage = cint(Page)
+end if
+MaxPerPage = 10
+set rs=server.createobject("adodb.recordset")
+set rs2=server.createobject("adodb.recordset")
+rs.open sqllist,Conn,1,1
+if not rs.eof then
+	rs.movefirst
+	totalPut = rs.recordcount
+	rs.Move (CurrentPage-1)*MaxPerPage
+	rs.PageSize=MaxPerPage
+	mPage=rs.PageCount
+	i=0
+	Do While not rs.eof
+		ImagesName = ""
+		sql2="select top 1 ImagesName from Pulb_TourPhoto where TourID="&rs(0)&" order by Orderby"
+		rs2.open sql2,Conn,1,1
+		if not rs2.eof then
+			ImagesName = rs2(0)
+		end if
+		rs2.close
+		if ImagesName <> "" then
+			ImagesName = "<img src='/uploadfile/tour/"&rs(0)&"/s_"&ImagesName&"' alt='"&rs(6)&"' title='"&rs(6)&"' />"
+		else
+			ImagesName = "<img src='/images/noimg2.gif' />"
+		end if
+		response.Write "					<div class='tour_li'>"& chr(10)
+		response.Write "						<div class='timg'><a href='content.asp?id="&rs(0)&"' target='_blank' class='img_bor_a'>"&ImagesName&"</a></div>"& chr(10)
+		response.Write "						<div class='ttxt'>"& chr(10)
+		response.Write "							<h3><a href='content.asp?id="&rs(0)&"' target='_blank'>"&rs(6)&"</a> "&GetProductState(rs(1), rs(2), rs(3))&"</h3>"& chr(10)
+		response.Write "							<p>"&rs(10)&"<span class='jiantou'>→</span><a href='list.asp?CityTo="&Server.URLEncode(rs(11))&"'>"&rs(11)&"</a>　　"&rs(12)&"<BR />"& chr(10)
+		response.Write "							出发日期："&DateStr&"...</p>"& chr(10)
+		response.Write "						</div>"& chr(10)
+		response.Write "						<div class='tpric'>"& chr(10)
+		response.Write "							<p class='price_m'><em>&yen;</em><font>"&rs(13)&"</font></p><p class='t_day'><em>"&rs(9)&"</em> 天</p>"& chr(10)
+		response.Write "							</div>"& chr(10)
+		response.Write "					</div>"& chr(10)
+		
+		i=i+1
+		if i>=MaxPerPage then exit do
+		rs.MoveNext
+	loop
+
+	if totalPut > MaxPerPage then
+		response.Write "<div class='pag'><DIV id=listPage>"&GetPageUser(PathPage)&"</DIV></div>"
+	end if
+else
+	response.Write "<div class='noinfo'>没有找到相关旅游线路！</div>"
+end if
+rs.close
+set rs = nothing
+set rs2 = nothing
+%>
+				</div>
+			</div>				
+		</div>
+	</div>
+</div>
+<%=FunFooter(1)%>
+<%CloseDB%>
+</body>
+</html>

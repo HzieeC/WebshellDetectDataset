@@ -1,0 +1,128 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="connections.DaoLog,java.util.ArrayList,javaBean.BeanLog,pagination.PaginationLog"%>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+
+<TABLE width='98%' align=center cellpadding=3 cellspacing=1 border=0 class=tableBorder>
+<TR>
+	<TH colspan=5>后台日志管理</TH>
+</TR>
+
+<TR>
+	<TH width="5%">操作</TH>
+	<TH width="10%">操 作 人</TH>
+	<TH width='50%'>事件内容</TH>
+	<TH width="20%">日期时间</TH>
+	<th width="15%">IP</th>
+</TR>
+<form action="<%=request.getContextPath()%>/servletslogin?action=dellog" method="post">
+<% 
+	String pageCurrent = request.getParameter("pageCurrent");
+	if (pageCurrent == null) {
+		pageCurrent = "0";
+	}
+	PaginationLog atg=new PaginationLog();
+	String sqlstr="select count(*) from log";
+	atg.setSum(sqlstr);//查询出总共有多少
+	atg.setPageSize(15);//设置每页显示多少数量
+	atg.setPageCount();//
+	atg.setPageCurrent(Integer.parseInt(pageCurrent));//设置当前页
+	
+	String sql="select TOP "+atg.getPageSize()+" * from log where id not in (select top "+atg.getPageSize()*atg.getPageCurrent()+" id from log) order by actionTime desc";
+	atg.setAlist(sql);
+	
+	int CurrentPage=atg.getPageCurrent();
+	int count=atg.getPageCount();
+
+	ArrayList alist=atg.getAlist();
+	BeanLog bl=null;
+	for(int i=0;i<alist.size();i++){
+		bl=(BeanLog)alist.get(i);
+%>
+<tr>
+	<td class=TableRow1>
+		<input type="checkbox" name="id" value="<%=bl.getId()%>">
+	</td>
+	<td class=TableRow1>
+		<%=bl.getUsername()%>
+	</td>
+	<td class=TableRow1>
+		<%=bl.getEvent()%>
+	</td>
+	<td class=TableRow1>
+		<%=bl.getActionTime()%>
+	</td>
+	<td class=TableRow1>
+		<%=bl.getIp()%>
+	</td>
+</tr>
+<%}%>
+<TR height=25>
+	<TD class=TableRow1 align=center colspan=5><B>请选择要删除的日志事件:<B> 
+	<input type=checkbox name=chkall value=on onclick="CheckAll(this.form)"> 全选 
+	 <input class=Button type=submit name=act value="删除日志"  onclick="{if(confirm('您确定执行的操作吗?')){this.document.even.submit();return true;}return false;}">
+	<input class=Button type=submit name=act value="删除全部"  onclick="{if(confirm('您确定执行的操作吗?')){this.document.even.submit();return true;}return false;}">(最近三天不能被删除)
+</TD>
+</TR></form>
+<TR height=25>
+	<TD class=TableRow2 align=center colspan=5><table cellspacing=1 width='100%' border=0><form method=Post action=?type=><tr><td align=center> 
+<%
+	if(atg.getPageCurrent()==0&&atg.getSum()>atg.getPageSize()){%>
+	首页
+	<a href="<%=url%>/admin/admin_log.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	上一页
+	<a href="<%=url%>/admin/admin_log.jsp?pageCurrent=<%=count-1%>">尾页</a>
+	<%=CurrentPage+1%>/<%=count%>
+		
+	<%}else if(atg.getPageCurrent()==(atg.getPageCount()-1)&&atg.getSum()>atg.getPageSize()){%>
+		<a href="<%=url%>/admin/admin_log.jsp?pageCurrent=0">首页</a>
+		下一页
+		<a href="<%=url%>/admin/admin_log.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+		尾页
+		<%=CurrentPage+1%>/<%=count%>
+	<%}else if(atg.getSum()<=atg.getPageSize()){%>
+		首页 下一页 上一页 尾页<%=CurrentPage+1%>/<%=count%>
+	<%}else{%>
+	<a href="<%=url%>/admin/admin_log.jsp?pageCurrent=0">首页</a>
+	<a href="<%=url%>/admin/admin_log.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	
+	<a href="<%=url%>/admin/admin_log.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+	
+	<a href="<%=url%>/admin/admin_log.jsp?pageCurrent=<%=count-1%>">尾页</a>
+	<%=CurrentPage+1%>/<%=count%>
+	<% }  %>
+
+</td></tr></FORM></table>
+</TD>
+</TR>
+</TABLE>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>
+<script language="javascript">
+function CheckAll(form)  
+  {  
+  for (var i=0;i<form.elements.length;i++)  
+    {  
+    var e = form.elements[i];  
+    if (e.name != 'chkall')  
+       e.checked = form.chkall.checked;  
+    }  
+  }  
+</script>

@@ -1,0 +1,167 @@
+<!--#include file = "Startup.asp"-->
+<!-- #include file="Function.asp" -->
+<%
+call adminer()
+Call Header()
+Call ComeUrl()
+%>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<%
+	Dim PictureID,FoundErr,errmsg,FileName,Action
+	PictureID = Trim(Request("PictureID"))
+	Action=Trim(Request("Action"))
+	FileName=Session("FileName")
+	If FileName="Picture_Manage2.asp?" Then
+	'If FileName="CoolSite_Manage.asp?" Then
+		FileName=Left(FileName,19)
+	End If
+
+	If Action="" Then
+	founderr=true
+	errmsg=errmsg & "<br><li>参数不足！</li>"
+	Else
+		if Action="Del" then
+			call DelPicture()
+		elseif Action="ConfirmDel" then
+			call ConfirmDel()
+		elseif Action="ClearRecyclebin" then
+			call ClearRecyclebin()
+		elseif Action="Restore" then
+			call Restore()
+		elseif Action="RestoreAll" then
+			call RestoreAll()
+		end if
+	End If
+	if FoundErr=True then
+	call WriteErrMsg()
+	end if
+%>
+<%
+Sub DelPicture()
+	if PictureID="" then
+		founderr=true
+		errmsg=errmsg & "<br><li>请您选择要删除的图片！！</li>"
+	end if
+	if FoundErr=True then
+		exit sub
+	end if
+	sSql="Select P_Recycle,P_RecycleTime From PictureData Where P_ID in ("& PictureID &")"
+	oRs.Open sSql,oConn,1,3
+	If Not oRs.Eof Then
+		Do While Not oRs.Eof
+			oRs("P_Recycle")=True
+			oRs("P_RecycleTime")=Now()
+			oRs.Update
+			oRs.MoveNext
+		Loop
+	Else
+		GoError "无效的图片ID，请点页面上的链接进行操作！"
+	End If
+	oRs.Close
+	response.write "<p align=center>图片删除成功，3秒后自动返回图片列表页！<script>window.setTimeout(""location.href='"&FileName&"'"",3000);</script></p>"
+
+End Sub
+%>
+<%
+Sub ConfirmDel()
+
+	if PictureID="" then
+		founderr=true
+		errmsg=errmsg & "<br><li>请您选择要删除的图片！！</li>"
+	end if
+	if FoundErr=True then
+		exit sub
+	end if
+	sSql = "SELECT P_PictureUrlS,P_PictureUrlB FROM PictureData WHERE P_ID in ("& PictureID &")"
+	oRs.Open sSql, oConn, 0, 1
+	If Not oRs.Eof Then
+		Do While Not oRs.Eof
+			Call DoDelFile(oRs("P_PictureUrlS"))
+			Call DoDelFile(oRs("P_PictureUrlB"))
+		oRs.MoveNext
+		Loop
+	Else
+		GoError "无效的图片ID，请点页面上的链接进行操作！"
+	End If
+	oRs.Close
+
+	sSql = "DELETE FROM PictureData WHERE P_ID in ("& PictureID &")"
+	oConn.Execute sSql
+
+	response.write "<p align=center>彻底删除图片成功，3秒后自动返回图片列表页！<script>window.setTimeout(""location.href='"&FileName&"'"",3000);</script></p>"
+
+End Sub
+%>
+<%
+Sub ClearRecyclebin()
+	sSql="Select P_PictureUrlS,P_PictureUrlB From PictureData Where P_Recycle=True"
+	oRs.Open sSql,oConn,0,1
+	If Not oRs.Eof Then
+		Do While Not oRs.Eof
+			Call DoDelFile(oRs("P_PictureUrlS"))
+			Call DoDelFile(oRs("P_PictureUrlB"))
+		oRs.MoveNext
+		Loop
+	Else
+		GoError "无效的图片ID，请点页面上的链接进行操作！"
+	End If
+	oRs.Close
+
+	sSql = "DELETE FROM PictureData WHERE P_Recycle=true"
+	oConn.Execute sSql
+	response.write "<p align=center>清除回收站成功，3秒后自动返回图片回收站列表页！<script>window.setTimeout(""location.href='Picture_Recycle.asp'"",3000);</script></p>"
+
+End Sub
+%>
+<%
+Sub Restore()
+	if PictureID="" then
+		founderr=true
+		errmsg=errmsg & "<br><li>请您选择要删除的图片！！</li>"
+	end if
+	if FoundErr=True then
+		exit sub
+	end if
+	sSql="Select P_Recycle From PictureData Where P_ID in ("& PictureID &")"
+	oRs.Open sSql,oConn,1,3
+	If Not oRs.Eof Then
+		Do While Not oRs.Eof
+			oRs("P_Recycle")=False
+			oRs.Update
+			oRs.MoveNext
+		Loop
+	Else
+		GoError "无效的图片ID，请点页面上的链接进行操作！"
+	End If
+	oRs.Close
+	response.write "<p align=center>选定图片还原成功，3秒后自动返回图片回收站列表页！<script>window.setTimeout(""location.href='Picture_Recycle.asp'"",3000);</script></p>"
+End Sub
+%>
+<%
+Sub RestoreAll()
+	sSql="Select P_Recycle From PictureData Where P_Recycle=True"
+	oRs.Open sSql,oConn,1,3
+	If Not oRs.Eof Then
+		Do While Not oRs.Eof
+			oRs("P_Recycle")=False
+			oRs.Update
+			oRs.MoveNext
+		Loop
+	Else
+		GoError "无效的图片ID，请点页面上的链接进行操作！"
+	End If
+	oRs.Close
+	response.write "<p align=center>还原所有图片成功，3秒后自动返回图片回收站列表页！<script>window.setTimeout(""location.href='Picture_Recycle.asp'"",3000);</script></p>"
+End Sub
+%>
+
+<%
+' 删除指定的文件
+Sub DoDelFile(sPathFile)
+	On Error Resume Next
+	Dim oFSO
+	Set oFSO = Server.CreateObject("Scripting.FileSystemObject")
+	oFSO.DeleteFile(Server.MapPath(sPathFile))
+	Set oFSO = Nothing
+End Sub
+%> 

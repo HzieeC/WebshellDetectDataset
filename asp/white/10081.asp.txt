@@ -1,0 +1,582 @@
+<!--#include file="inc/conn.asp"-->
+<!--#include file="inc/function.asp"-->
+<!--#include file="../checkvalid.asp"-->
+<%
+dim Action,RsItem,SqlItem,ItemID,ItemName,ClassID,SpecialID,Flag
+Dim ObjInstalled,tClass,tSpecial
+ObjInstalled=IsObjInstalled("Scripting.FileSystemObject")
+Action=trim(request("Action"))
+%>      
+<html>
+<head>
+<title>数据采集系统</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link rel="stylesheet" type="text/css" href="../style/Style.css">
+<SCRIPT language=javascript>
+function unselectall(thisform)
+{
+	if(thisform.chkAll.checked)
+	{
+		thisform.chkAll.checked = thisform.chkAll.checked&0;
+	}   
+}
+function CheckAll(thisform)
+{
+	for (var i=0;i<thisform.elements.length;i++)
+	{
+		var e = thisform.elements[i];
+		if(e.Name !="chkAll"&&e.disabled!=true)
+			e.checked = thisform.chkAll.checked;
+	}
+}
+</script>
+</head>
+<body>
+<table width="98%" align="center" border="0" cellpadding="0" cellspacing="1" bgcolor="#8ED1FF" class="mtab">
+  <tr> 
+    <td colspan="2" class="td28">采集系统数据库管理</td>
+  </tr>
+  <tr class="td26" bgcolor="#FFFFFF"> 
+    <td><b>管理导航：</b><a href=Admin_ItemStart.asp>管理首页</a> | <a href="Admin_ItemAddNew.asp">添加新项目</a> | <a href="Admin_ItemManage.asp">采集项目管理</a> | <a href="Admin_ItemFilters.asp">采集过滤设置</a> | <a href="Admin_ItemHistroly.asp">历史采集记录</a> | <a href="Admin_ItemDatabase.asp?Action=LeadOut">采集项目导出</a> <a href="Admin_ItemDatabase.asp?Action=LeadIn">导入</a></td>
+  </tr>
+</table>
+<% 
+If Action="LeadOut" or Action="LeadOutData" then 
+	Call ShowLeadOut()
+Elseif  Action="LeadIn" or Action="ShowLeadInData" or Action="LeadInData"  Then
+    Call ShowLeadIn()
+End If
+%>
+<%
+Sub ShowLeadOut()
+If Action="LeadOut" Then
+%>
+<table width="98%" align="center" border="0" cellpadding="0" cellspacing="1" bgcolor="#8ED1FF" class="mtab">
+  <tr>
+     <td colspan="4" class="td28">项目导出</td>
+  </tr>
+<form method="post" name="myform" action="Admin_ItemDatabase.asp?Action=LeadOutData">
+   <tr class="tdcenter" bgcolor="#ECF5FE">         
+      <td width="5%">选择</td>                 
+      <td width="10%">项目名称</td>
+      <td width="10%">所属栏目</td> 
+      <td width="5%">状态</td>      
+   </tr>         
+<%
+   Set RsItem=server.createobject("adodb.recordset")         
+   SqlItem="select ItemID,ItemName,ClassID,Flag from Item order by ItemID ASC"         
+   RsItem.open SqlItem,ConnItem,1,1
+   If (Not RsItem.Eof)  And (Not RsItem.Bof) then
+   Do While Not RsItem.Eof
+%>
+   <tr>         
+      <td width="5%" height="22" align="center" bgcolor="#FFFFFF"><input type="checkbox" value=<%=RsItem("ItemID")%> name="ItemID" onClick="unselectall(this.form)"></td>                 
+      <td width="10%" align="left" bgcolor="#FFFFFF"> &nbsp;<%=RsItem("ItemName")%></td>
+      <td width="10%" align="center" bgcolor="#FFFFFF">
+<%
+set rs=conn.execute("select S_id,S_name from JOB_NewsSort where S_id="&RsItem("ClassID")&"")
+if not rs.eof then
+	response.write rs("S_name")
+else
+	response.write"未知"
+end if
+%>
+</td>   
+      <td width="5%" align="center" bgcolor="#FFFFFF">
+      <%
+         If RsItem("Flag")=True Then
+            Response.write "√"
+         Else
+            Response.write "<font color=red>×</font>"
+         End If
+      %>
+      </td>      
+   </tr>   
+      <%
+         RsItem.MoveNext
+      Loop
+      %>
+   <tr>
+      <td colspan="7" align="center" bgcolor="#FFFFFF"><input name="chkAll" type="checkbox" id="chkAll" onClick="CheckAll(this.form)" value="checkbox">全选&nbsp;&nbsp;&nbsp;&nbsp;导出到数据库：<input type="text" name="LeadOutMdb" size="30" value="Database/LeadOut.mdb"> <input type="submit" name="submit" class="submit1" value="导出">
+      </td>
+   </tr>
+<%
+   Else
+%>
+      <tr>
+        <td colspan='9' align="center" bgcolor="#FFFFFF">系统中暂无采集项目！</td>
+      </tr>
+<%
+	End If
+	RsItem.Close
+	Set RsItem=Nothing
+%>
+</form>
+</table>
+<%
+Else
+   Call LeadOutData()
+End If
+%>
+<%End Sub%>
+<%Sub ShowLeadIn
+If Action="LeadIn" Then
+%>
+<table width="98%" align="center" border="0" cellpadding="0" cellspacing="1" bgcolor="#8ED1FF" class="mtab">
+  <tr>
+	<td class="td28">项目导入</td>
+  </tr>
+<form method="post" action="Admin_ItemDatabase.asp?Action=ShowLeadInData">
+   <tr>
+      <td align="center" valign="middle" bgcolor="#FFFFFF">数据库位置：<input name="LeadInMdb" type="text" id="LeadInMdb" size="23" value="Database/LeadOut.mdb"></td>
+   </tr>
+   <tr>
+      <td align="center" bgcolor="#FFFFFF"><input name="submit" type=submit value=" 下&nbsp;一&nbsp;步 " class="submit1"></td>
+   </tr>
+</form>
+</table>
+<%
+ElseIf Action="ShowLeadInData" Then
+   Call ShowLeadInData()
+Else
+   Call LeadInData()
+End if
+End Sub
+Sub LeadOutData
+   Dim fso,ItemMdb,ItemMdbPath,LeadOutMdb,RsF,SqlF,RsLead,SqlLead,ItemIDTemp
+   LeadOutMdb=trim(request.form("LeadOutMdb"))
+   ItemID=trim(request.form("ItemID"))
+   ItemMdb=DbItem
+   ItemMdbPath=Left(DbItem,Instrrev(DbItem,"/")-1)
+   If Instr(ItemMdb,"/")>0 Then
+      ItemMdbPath=Left(ItemMdb,InstrRev(ItemMdb,"/"))
+   End If
+   If LeadOutMdb="" then
+   	  Call WrongMsg("数据库地址不能为空！","Admin_ItemDatabase.asp?Action=LeadOut")
+	  Response.End()
+   End If
+   If ItemID="" Then
+   	  Call WrongMsg("请选择要导出的项目！","Admin_ItemDatabase.asp?Action=LeadOut")
+	  Response.End()
+   Else
+      ItemID=Replace(ItemID," ","")
+   End If
+   If ObjInstalled<>False Then
+      Set fso = Server.CreateObject("Scripting.FileSystemObject")
+      	If fso.FileExists(Server.MapPath(LeadOutMdb)) Then
+      Else
+         If fso.FileExists(Server.MapPath(ItemMdbPath & "ItemTemp.mdb")) Then
+            fso.CopyFile Server.MapPath(ItemMdbPath & "ItemTemp.mdb"),Server.MapPath(LeadOutMdb)
+         Else
+		 	Call WrongMsg("用于导出项目的数据库：ItemTemp.mdb不存在！","Admin_ItemDatabase.asp?Action=LeadOut")
+	  		Response.End()
+         End If
+      End If
+      set fso=nothing
+   End If
+
+  dim connstrLead,connLead
+  Set connLead = Server.CreateObject("ADODB.Connection")
+  connstrLead="Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(LeadOutMdb)
+  connLead.Open connstrLead
+  If Err Then
+	 err.Clear
+	 Call WrongMsg("数据库连接出错，请确认数据库是否存在！","Admin_ItemDatabase.asp?Action=LeadOut")
+	 Response.End()
+  End If
+
+	 ConnLead.execute("Delete From Item")
+	 ConnLead.execute("Delete From Filters")
+	 Set RsItem=server.createobject("adodb.recordset")         
+	 SqlItem="select * from Item where ItemID in(" & ItemID & ") order by ItemID DESC"         
+	 RsItem.open SqlItem,ConnItem,1,1
+	 If Not RsItem.Eof then
+		Do while Not RsItem.Eof
+		   '打开数据库
+		   Set RsLead=server.createobject("adodb.recordset")         
+		   SqlLead="select * from Item"         
+		   RsLead.open SqlLead,ConnLead,1,3
+		   RsLead.AddNew
+		   RsLead("ItemName")=RsItem("ItemName")
+		   RsLead("ClassID")=RsItem("ClassID")
+		   RsLead("WebName")=RsItem("WebName")
+		   RsLead("WebUrl")=RsItem("WebUrl")
+		   RsLead("ItemDemo")=RsItem("ItemDemo")
+		   RsLead("LoginType")=RsItem("LoginType")
+		   RsLead("LoginUrl")=RsItem("LoginUrl")
+		   RsLead("LoginPostUrl")=RsItem("LoginPostUrl")
+		   RsLead("LoginUser")=RsItem("LoginUser")
+		   RsLead("LoginPass")=RsItem("LoginPass")
+		   RsLead("LoginFalse")=RsItem("LoginFalse")
+		   RsLead("ListStr")=RsItem("ListStr")
+		   RsLead("LsString")=RsItem("LsString")
+		   RsLead("LoString")=RsItem("LoString")
+		   RsLead("ListPaingType")=RsItem("ListPaingType")
+		   RsLead("LPsString")=RsItem("LPsString")
+		   RsLead("LPoString")=RsItem("LPoString")
+		   RsLead("ListPaingStr1")=RsItem("ListPaingStr1")
+		   RsLead("ListPaingStr2")=RsItem("ListPaingStr2")
+		   RsLead("ListPaingID1")=RsItem("ListPaingID1")
+		   RsLead("ListPaingID2")=RsItem("ListPaingID2")
+		   RsLead("ListPaingStr3")=RsItem("ListPaingStr3")
+		   RsLead("HsString")=RsItem("HsString")
+		   RsLead("HoString")=RsItem("HoString")
+		   RsLead("HttpUrlType")=RsItem("HttpUrlType")
+		   RsLead("HttpUrlStr")=RsItem("HttpUrlStr")
+		   RsLead("TsString")=RsItem("TsString")
+		   RsLead("ToString")=RsItem("ToString")
+		   RsLead("CsString")=RsItem("CsString")
+		   RsLead("CoString")=RsItem("CoString")
+		   RsLead("DateType")=RsItem("DateType")
+		   RsLead("DsString")=RsItem("DsString")
+		   RsLead("DoString")=RsItem("DoString")
+		   RsLead("AuthorType")=RsItem("AuthorType")
+		   RsLead("AsString")=RsItem("AsString")
+		   RsLead("AoString")=RsItem("AoString")
+		   RsLead("AuthorStr")=RsItem("AuthorStr")
+		   RsLead("CopyFromType")=RsItem("CopyFromType")
+		   RsLead("FsString")=RsItem("FsString")
+		   RsLead("FoString")=RsItem("FoString")
+		   RsLead("CopyFromStr")=RsItem("CopyFromStr")
+		   RsLead("KeyType")=RsItem("KeyType")
+		   RsLead("KsString")=RsItem("KsString")
+		   RsLead("KoString")=RsItem("KoString")
+		   RsLead("KeyStr")=RsItem("KeyStr")
+		   RsLead("newsPaingType")=RsItem("newsPaingType")
+		   RsLead("NPsString")=RsItem("NPsString")
+		   RsLead("NPoString")=RsItem("NPoString")
+		   RsLead("newsPaingStr")=RsItem("newsPaingStr")
+		   RsLead("newsPaingHtml")=RsItem("newsPaingHtml")
+		   RsLead("PaginationType")=RsItem("PaginationType")
+		   RsLead("MaxCharPerPage")=RsItem("MaxCharPerPage")
+		   RsLead("ReadLevel")=RsItem("ReadLevel")
+		   RsLead("Stars")=RsItem("Stars")
+		   RsLead("ReadPoint")=RsItem("ReadPoint")
+		   RsLead("Hits")=RsItem("Hits")
+		   RsLead("UpDateType")=RsItem("UpDateType")
+		   RsLead("UpDateTime")=RsItem("UpDateTime")
+		   RsLead("IncludePicYn")=RsItem("IncludePicYn")
+		   RsLead("DefaultPicYn")=RsItem("DefaultPicYn")
+		   RsLead("OnTop")=RsItem("OnTop")
+		   RsLead("Elite")=RsItem("Elite")
+		   RsLead("Hot")=RsItem("Hot")
+		   RsLead("SkinID")=RsItem("SkinID")
+		   RsLead("TemplateID")=RsItem("TemplateID")
+		   RsLead("Script_Iframe")=RsItem("Script_Iframe")
+		   RsLead("Script_Object")=RsItem("Script_Object")
+		   RsLead("Script_Script")=RsItem("Script_Script")
+		   RsLead("Script_Div")=RsItem("Script_Div")
+		   RsLead("Script_Class")=RsItem("Script_Class")
+		   RsLead("Script_Span")=RsItem("Script_Span")
+		   RsLead("Script_Img")=RsItem("Script_Img")
+		   RsLead("Script_Font")=RsItem("Script_Font")
+		   RsLead("Script_A")=RsItem("Script_A")
+		   RsLead("Script_Html")=RsItem("Script_Html")
+		   RsLead("CollecListNum")=RsItem("CollecListNum")
+		   RsLead("CollecnewsNum")=RsItem("CollecnewsNum")
+		   RsLead("Passed")=RsItem("Passed")
+		   RsLead("SaveFiles")=RsItem("SaveFiles")
+		   RsLead("CollecOrder")=RsItem("CollecOrder")
+		   RsLead("LinkUrlYn")=RsItem("LinkUrlYn")
+		   RsLead("InputerType")=RsItem("InputerType")
+		   RsLead("Inputer")=RsItem("Inputer")
+		   RsLead("EditorType")=RsItem("EditorType")
+		   RsLead("Editor")=RsItem("Editor")
+		   RsLead("ShowCommentLink")=RsItem("ShowCommentLink")
+		   RsLead("Script_Table")=RsItem("Script_Table")
+		   RsLead("Script_Tr")=RsItem("Script_Tr")
+		   RsLead("Script_Td")=RsItem("Script_Td")
+		   RsLead("Flag")=RsItem("Flag")
+		   ItemIDTemp=RsLead("ItemID")
+		   RsLead.Update
+		   RsLead.Close
+		   Set RsLead=Nothing
+
+		   '过滤信息
+		   Set RsF=server.createobject("adodb.recordset")         
+		   SqlF="select * from Filters Where ItemID=" & RsItem("ItemID") & " order by ItemID DESC"         
+		   RsF.open SqlF,ConnItem,1,1              
+		   If Not RsF.Eof then
+			  Do While Not RsF.Eof
+				 Set RsLead=server.createobject("adodb.recordset")         
+				 SqlLead="select * from Filters"         
+				 RsLead.open SqlLead,ConnLead,1,3
+				 RsLead.AddNew
+				 RsLead("ItemID")=ItemIDTemp
+				 RsLead("FilterName")=RsF("FilterName")
+				 RsLead("FilterObject")=RsF("FilterObject")
+				 RsLead("FilterType")=RsF("FilterType")
+				 RsLead("FilterContent")=RsF("FilterContent")
+				 RsLead("FisString")=RsF("FisString")
+				 RsLead("FioString")=RsF("FioString")
+				 RsLead("FilterRep")=RsF("FilterRep")
+				 RsLead("Flag")=RsF("Flag")
+				 RsLead("PublicTf")=RsF("PublicTf")
+				 RsLead.Update
+				 RsLead.Close
+				 Set RsLead=Nothing
+			  RsF.MoveNext
+			  Loop
+		   End If
+		   RsF.Close
+		   Set RsF=Nothing
+
+		RsItem.MoveNext
+		Loop
+	 End If
+	 RsItem.Close
+	 Set RsItem=Nothing
+  ConnLead.close
+  set connlead=nothing
+	Call SucessMsg("数据导出成功,数据导出为:"&LeadOutMdb&"","Admin_ItemDatabase.asp?Action=LeadOut")
+	Response.End()
+End Sub
+
+Sub ShowLeadInData
+   Dim LeadInMdb,connstrLead,connLead,RsLead,SqlLead
+   LeadInMdb=Trim(Request("LeadInMdb"))
+   If LeadInMdb="" Then
+   		 Call WrongMsg("数据库地址不能为空！","Admin_ItemDatabase.asp?Action=LeadIn")
+	     Response.End()
+   End If
+
+	Set connLead = Server.CreateObject("ADODB.Connection")
+	connstrLead="Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(LeadInMdb)
+	connLead.Open connstrLead
+	If Err Then
+		err.Clear
+		Call WrongMsg("数据库连接出错，请确认数据库是否存在！","Admin_ItemDatabase.asp?Action=LeadIn")
+	    Response.End()
+	End If
+
+	Set RsLead=server.createobject("adodb.recordset")         
+	SqlLead="select ItemID,ItemName,ClassID,Flag from Item order by ItemID DESC"         
+	RsLead.open SqlLead,ConnLead,1,1
+	If Not RsLead.Eof then
+%>
+<form method="post" action="Admin_ItemDatabase.asp?Action=LeadInData" style="padding:0; margin:0;">
+<table width="98%" align="center" border="0" cellpadding="0" cellspacing="1" bgcolor="#8ED1FF" class="mtab">
+  <tr>
+	<td colspan="4" class="td28">项目导入</td>
+	</tr>
+   <tr class="tdcenter" bgcolor="#ECF5FE">         
+      <td width="5%">选择</td>                 
+      <td width="10%">项目名称</td>
+      <td width="10%">所属栏目</td> 
+      <td width="5%">状态</td>      
+   </tr>         
+<%
+	Do While Not RsLead.Eof
+%>
+   <tr>         
+      <td width="5%" align="center" bgcolor="#FFFFFF"><input type="checkbox" value=<%=RsLead("ItemID")%> name="ItemID" onClick="unselectall(this.form)"></td>                 
+      <td width="10%" align="left" bgcolor="#FFFFFF"> &nbsp;<%=RsLead("ItemName")%></td>
+      <td width="10%" height="22" align="center" bgcolor="#FFFFFF"><%=RsLead("ClassID")%></td> 
+      <td width="5%" align="center" bgcolor="#FFFFFF">
+      <%If RsLead("Flag")=True Then
+           Response.write "√"
+        Else
+           Response.Write "<font color=red>×</font>"
+      End If%>
+      </td>            
+   </tr>   
+<%
+	RsLead.MoveNext
+	Loop
+%>
+</table>
+<table width="98%" align="center" border="0" cellpadding="0" cellspacing="1" bgcolor="#8ED1FF" class="mtab">
+   <tr>
+     <td align="center" bgcolor="#FFFFFF">
+	<input name="LeadInMdb" type="hidden" value="<%=LeadInMdb%>">
+        <input name="chkAll" type="checkbox" id="chkAll" onclick=CheckAll(this.form) value="checkbox" >全选&nbsp;&nbsp;&nbsp;&nbsp;
+	<input name="step" type="hidden" value="1">
+	<input name="submit" type=submit class="submit1" value=" 确&nbsp;&nbsp;&nbsp;定 ">     </td>
+   </tr>
+</table>
+</form>
+<%
+	Else
+		Response.Write"<br>无任何记录！"
+		Response.End()
+	End If
+	RsLead.Close
+	Set RsLead=Nothing
+	connLead.close
+	set connlead=nothing
+End Sub
+
+
+Sub LeadInData()
+   Dim LeadInMdb,ItemMdb,ItemMdbPath
+   ItemMdb=DbItem
+   LeadInMdb=trim(request.form("LeadInMdb"))
+   ItemID=trim(request.form("ItemID"))
+   If LeadInMdb="" Then
+   	  Call WrongMsg("数据库地址不能为空！","Admin_ItemDatabase.asp?Action=LeadIn")
+	  Response.End()
+   End If
+   If ItemID="" Then
+   	  Call WrongMsg("请选择项目！","Admin_ItemDatabase.asp?Action=LeadIn")
+	  Response.End()
+   Else
+      ItemID=Replace(ItemID," ","")
+   End If    
+      dim connstrLead,connLead,RsLead,SqlLead,RsF,SqlF,ItemIDTemp
+      Set connLead = Server.CreateObject("ADODB.Connection")
+      connstrLead="Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(LeadInMdb)
+      connLead.Open connstrLead
+      If Err Then
+         err.Clear
+         ConnLead.Close
+	 	 Set ConnLead = Nothing
+		 Call WrongMsg("数据库连接出错，请确认数据库是否存在！","Admin_ItemDatabase.asp?Action=LeadIn")
+	     Response.End()
+      End If
+         Set RsLead=server.createobject("adodb.recordset")         
+         SqlLead="select * from Item where ItemID in(" & ItemID & ") order by ItemID ASC"         
+         RsLead.open SqlLead,ConnLead,1,1
+         If Not RsLead.Eof then
+            Do While Not RsLead.Eof
+               Set RsItem=server.createobject("adodb.recordset")         
+               SqlItem="select top 1 * from Item"
+               RsItem.open SqlItem,ConnItem,1,3
+               RsItem.AddNew
+               RsItem("ItemName")=RsLead("ItemName")
+               RsItem("ClassID")=RsLead("ClassID")
+               RsItem("WebName")=RsLead("WebName")
+               RsItem("WebUrl")=RsLead("WebUrl")
+               RsItem("ItemDemo")=RsLead("ItemDemo")
+               RsItem("LoginType")=RsLead("LoginType")
+               RsItem("LoginUrl")=RsLead("LoginUrl")
+               RsItem("LoginPostUrl")=RsLead("LoginPostUrl")
+               RsItem("LoginUser")=RsLead("LoginUser")
+               RsItem("LoginPass")=RsLead("LoginPass")
+               RsItem("LoginFalse")=RsLead("LoginFalse")
+               RsItem("ListStr")=RsLead("ListStr")
+               RsItem("LsString")=RsLead("LsString")
+               RsItem("LoString")=RsLead("LoString")
+               RsItem("ListPaingType")=RsLead("ListPaingType")
+               RsItem("LPsString")=RsLead("LPsString")
+               RsItem("LPoString")=RsLead("LPoString")
+               RsItem("ListPaingStr1")=RsLead("ListPaingStr1")
+               RsItem("ListPaingStr2")=RsLead("ListPaingStr2")
+               RsItem("ListPaingID1")=RsLead("ListPaingID1")
+               RsItem("ListPaingID2")=RsLead("ListPaingID2")
+               RsItem("ListPaingStr3")=RsLead("ListPaingStr3")
+               RsItem("HsString")=RsLead("HsString")
+               RsItem("HoString")=RsLead("HoString")
+               RsItem("HttpUrlType")=RsLead("HttpUrlType")
+               RsItem("HttpUrlStr")=RsLead("HttpUrlStr")
+               RsItem("TsString")=RsLead("TsString")
+               RsItem("ToString")=RsLead("ToString")
+               RsItem("CsString")=RsLead("CsString")
+               RsItem("CoString")=RsLead("CoString")
+               RsItem("DateType")=RsLead("DateType")
+               RsItem("DsString")=RsLead("DsString")
+               RsItem("DoString")=RsLead("DoString")
+               RsItem("AuthorType")=RsLead("AuthorType")
+               RsItem("AsString")=RsLead("AsString")
+               RsItem("AoString")=RsLead("AoString")
+               RsItem("AuthorStr")=RsLead("AuthorStr")
+               RsItem("CopyFromType")=RsLead("CopyFromType")
+               RsItem("FsString")=RsLead("FsString")
+               RsItem("FoString")=RsLead("FoString")
+               RsItem("CopyFromStr")=RsLead("CopyFromStr")
+               RsItem("KeyType")=RsLead("KeyType")
+               RsItem("KsString")=RsLead("KsString")
+               RsItem("KoString")=RsLead("KoString")
+               RsItem("KeyStr")=RsLead("KeyStr")
+               RsItem("newsPaingType")=RsLead("newsPaingType")
+               RsItem("NPsString")=RsLead("NPsString")
+               RsItem("NPoString")=RsLead("NPoString")
+               RsItem("newsPaingStr")=RsLead("newsPaingStr")
+               RsItem("newsPaingHtml")=RsLead("newsPaingHtml")
+               RsItem("PaginationType")=RsLead("PaginationType")
+               RsItem("MaxCharPerPage")=RsLead("MaxCharPerPage")
+               RsItem("ReadLevel")=RsLead("ReadLevel")
+               RsItem("Stars")=RsLead("Stars")
+               RsItem("ReadPoint")=RsLead("ReadPoint")
+               RsItem("Hits")=RsLead("Hits")
+               RsItem("UpDateType")=RsLead("UpDateType")
+               RsItem("UpDateTime")=RsLead("UpDateTime")
+               RsItem("IncludePicYn")=RsLead("IncludePicYn")
+               RsItem("DefaultPicYn")=RsLead("DefaultPicYn")
+               RsItem("OnTop")=RsLead("OnTop")
+               RsItem("Elite")=RsLead("Elite")
+               RsItem("Hot")=RsLead("Hot")
+               RsItem("SkinID")=RsLead("SkinID")
+               RsItem("TemplateID")=RsLead("TemplateID")
+               RsItem("Script_Iframe")=RsLead("Script_Iframe")
+               RsItem("Script_Object")=RsLead("Script_Object")
+               RsItem("Script_Script")=RsLead("Script_Script")
+               RsItem("Script_Div")=RsLead("Script_Div")
+               RsItem("Script_Class")=RsLead("Script_Class")
+               RsItem("Script_Span")=RsLead("Script_Span")
+               RsItem("Script_Img")=RsLead("Script_Img")
+               RsItem("Script_Font")=RsLead("Script_Font")
+               RsItem("Script_A")=RsLead("Script_A")
+               RsItem("Script_Html")=RsLead("Script_Html")
+               RsItem("CollecListNum")=RsLead("CollecListNum")
+               RsItem("CollecnewsNum")=RsLead("CollecnewsNum")
+               RsItem("Passed")=RsLead("Passed")
+               If ObjInstalled=True Then
+                  RsItem("SaveFiles")=RsLead("SaveFiles")
+               Else
+                  RsItem("SaveFiles")=False
+               End If
+               RsItem("CollecOrder")=RsLead("CollecOrder")
+               RsItem("LinkUrlYn")=RsLead("LinkUrlYn")
+               RsItem("InputerType")=RsLead("InputerType")
+               RsItem("Inputer")=RsLead("Inputer")
+               RsItem("EditorType")=RsLead("EditorType")
+               RsItem("Editor")=RsLead("Editor")
+               RsItem("ShowCommentLink")=RsLead("ShowCommentLink")
+               RsItem("Script_Table")=RsLead("Script_Table")
+               RsItem("Script_Tr")=RsLead("Script_Tr")
+               RsItem("Script_Td")=RsLead("Script_Td")
+               RsItem("Flag")=False
+               ItemIDTemp=RsItem("ItemID")
+               RsItem.Update
+               RsItem.close
+               set rsItem=nothing
+
+               '过滤信息
+               Set RsF=server.createobject("adodb.recordset")         
+               SqlF="select * from Filters Where ItemID=" & RsLead("ItemID") & " order by FilterID ASC"         
+               RsF.open SqlF,ConnLead,1,1              
+               If Not RsF.Eof then
+                  Do While Not RsF.Eof
+                     Set RsItem=server.createobject("adodb.recordset")         
+                     SqlItem="select top 1 * from Filters"         
+                     RsItem.open SqlItem,ConnItem,1,3
+                     RsItem.AddNew
+                     RsItem("ItemID")=ItemIDTemp
+                     RsItem("FilterName")=RsF("FilterName")
+                     RsItem("FilterObject")=RsF("FilterObject")
+                     RsItem("FilterType")=RsF("FilterType")
+                     RsItem("FilterContent")=RsF("FilterContent")
+                     RsItem("FisString")=RsF("FisString")
+                     RsItem("FioString")=RsF("FioString")
+                     RsItem("FilterRep")=RsF("FilterRep")
+                     RsItem("Flag")=RsF("Flag")
+                     RsItem("PublicTf")=RsF("PublicTf")
+                     RsItem.Update
+                     RsItem.Close
+                     Set RsItem=Nothing
+                  RsF.MoveNext
+                  Loop
+               End If
+               RsF.Close
+               Set RsF=Nothing
+            RsLead.MoveNext
+            Loop
+         End If
+         RsLead.Close
+         Set RsLead=Nothing
+      connlead.close
+      set connlead=nothing
+	  Call SucessMsg("数据导入成功!","Admin_ItemDatabase.asp?Action=LeadIn")
+	  Response.End()
+End Sub
+%>

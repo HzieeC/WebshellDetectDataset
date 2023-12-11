@@ -1,0 +1,666 @@
+<!--#include file="conn.asp"--><!--#include file="inc/fun.asp"--><!--#include file="inc/md5.asp"-->
+<%dim action,strt,i,lgname,lgpwd,lgpwdmd5,lguserid,touserid,usedtable,usetable,using,table,canadd,totable,tablestr,autotable,usedtable1,sql,bd,rs2
+lgname=replace(session(prefix&"lgname"),"'","''")
+lgpwd=replace(session(prefix&"lgpwd"),"'","''")
+if isnull(lgname) or lgname="" or isnull(lgpwd) or lgpwd="" then
+response.redirect"admincheck.asp"
+else
+lgpwdmd5=md5(lgpwd)
+if conn.execute("select top 1 bd from admin where name='"&lgname&"' and password='"&lgpwdmd5&"' and bd=0").eof then
+response.redirect"admincheck.asp"
+end if
+end if
+lguserid=checknum(session(prefix&"lguserid"))
+action=request.querystring("action")
+select case action
+case"sms","deloldsms","delusersms" strt="论坛留言管理"
+case"sendsms","savesms" strt="群发留言"
+case"table","updatetable","addtable","deltable" strt="论坛帖子数据表管理"
+case"recycle","delbbsgg" strt="论坛回收站"
+end select
+sub send(str)
+response.write"<table class=td1 border=1 cellpadding=0 cellspacing=0 style='border-collapse: collapse' bordercolor=#F4F6FC width=100% bgcolor=#749AEC height=50><tr><td width=100% ><p style='margin:5px;line-height:150%'>"&str&"</p></td></tr></table>"
+end sub
+%>
+<link rel=stylesheet type=text/css href=inc/css.css>
+<STYLE type=text/css>BODY {
+	SCROLLBAR-FACE-COLOR: #749AEC;  SCROLLBAR-HIGHLIGHT-COLOR:#749AEC; SCROLLBAR-3DLIGHT-COLOR: #749AEC; SCROLLBAR-ARROW-COLOR:#F4F6FC; SCROLLBAR-TRACK-COLOR: #B0C7F4; SCROLLBAR-DARKSHADOW-COLOR: #749AEC}
+</style>
+<body topmargin="0" leftmargin="0">
+
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="100%">
+  <tr>
+    <td width="12"><img border="0" src="pic/admin/a1.gif"></td>
+    <td background="pic/admin/a2.gif" width="100%">　</td>
+    <td width="279"><map name="FPMap0">
+    <area target="_top" href="index.asp" shape="rect" coords="14, 3, 94, 22">
+    <area target="_top" coords="94, 3, 175, 22" shape="rect" href="admin.asp">
+    <area target="_top" coords="175, 3, 260, 22" shape="rect" href="admincheck.asp?action=exit">
+    </map><img border="0" src="pic/admin/a3.gif" usemap="#FPMap0"></td>
+  </tr>
+</table>
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#749AEC">
+  <tr>
+    <td class=td1 width="100%" height="35">&nbsp;
+    <img border="0" src="pic/admin/a4.gif" align="absmiddle"><%=strt%></td>
+  </tr>
+</table>
+<table border="3" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#749AEC" width="100%">
+  <tr>
+    <td width="100%" valign="top" height="475">
+<%
+select case action
+case"sms"
+%><br><form method="POST" action="adminright3.asp?action=deloldsms">
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="100%">
+  <tr>
+    <td class=td1 width="100%" height="32" colspan="2" bgcolor="#749AEC">&nbsp;删除所有已读的留言:</td>
+  </tr>
+  <tr>
+    <td class=td2 width="30%" height="40" bgcolor="#F4F6FC">
+    <p style="margin: 6">删除所有已读的留言：<br>确实要删除，请输入<font color="#FF0000">ok</font>。</td>
+    <td width="70%" bgcolor="#F4F6FC">
+    <input type="text" name="ok" size="20">&nbsp; 
+    <input type="submit" value=" 确  认  删  除 " name="B1"></td>
+  </tr>
+  </table></form>
+  <form method="POST" action="adminright3.asp?action=delusersms">
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="100%">
+  <tr>
+    <td class=td1 width="100%" height="32" colspan="2" bgcolor="#749AEC">
+    &nbsp;删除指定用户的所有留言：</td>
+  </tr>
+  <tr>
+    <td class=td2 width="30%" height="40" bgcolor="#F4F6FC">
+    <p style="margin: 6">删除指定用户的留言：( 用户名 )</td>
+    <td width="70%" bgcolor="#F4F6FC">
+    <input type="text" name="name" size="20">&nbsp; <input type="submit" value=" 确  认  删  除 " name="B1"></td>
+  </tr>
+  </table></form>
+<%case"deloldsms"
+dim ok
+ok=Replace(Request.Form("ok"),"'","")
+if ok="ok" then
+conn.execute("delete*from sms where new=false")
+call send("删除已读留言成功。")
+else
+call send("删除已读留言失败。")
+end if
+
+case"delusersms"
+dim name,userid
+name=Replace(Request.Form("name"),"'","")
+set rs=conn.execute("select top 1 userid from [user] where name='"&name&"'")
+if rs.eof then
+call send("·论坛不存在该用户<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+userid=rs(0)
+conn.execute("delete*from sms where touserid="&userid&"")
+call send("删除 "&kbbs(name)&" 的留言成功。")
+end if
+set rs=nothing
+%>
+<%case"sendsms"%>
+
+<SCRIPT>
+function checkeditor(editor)
+{
+if(editor=="html")
+	{
+				document.getElementById("ubbeditordiv").style.display = 'none';
+				document.getElementById("htmltoolbar").style.display = 'block';
+				EDITFORM_DOCUMENT.body.innerHTML = document.getElementById("CodeForm").value;
+				document.getElementById("editTextarea").style.display = 'none';
+				document.getElementById("editIframe").style.display = 'block';
+				HtmlDisableToolbar(false);
+	}
+else if(editor=="ubb")
+	{
+				document.getElementById("ubbeditordiv").style.display = 'block';
+				document.getElementById("htmltoolbar").style.display = 'none';
+				document.getElementById("CodeForm").value = HtmlHtmlToXhtml(EDITFORM_DOCUMENT.body.innerHTML);
+				document.getElementById("editIframe").style.display = 'none';
+				document.getElementById("editTextarea").style.display = 'block';
+				HtmlDisableToolbar(true);
+	}
+}
+
+function preview()
+{
+if(htmlsubmit()){
+document.form1.topic.value=document.topicform.ggtitle.value;
+document.form1.content.value=document.topicform.content.value;
+var popupWin = window.open('paper.asp?action=preview', 'showgg', 'width=500,height=400,resizable=1,scrollbars=yes,menubar=no,status=yes');
+document.form1.submit()
+}
+}
+</SCRIPT>
+
+<form method="POST" action="adminright3.asp?action=savesms" name="topicform">
+
+    <table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bordercolor="#F4F6FC">
+      <tr>
+        <td class=td2 width="100%" height="32" colspan="2" bgcolor="#F4F6FC">
+        &nbsp;<font color="#FF0000">注意：该操作将会占用很大系统资源，请慎用。</font></td>
+      </tr>
+      <tr>
+        <td class=td2 width="25%" height="32">
+        <p style="line-height: 120%; margin: 4">留言对象：</td>
+        <td width="75%">
+        <p style="line-height: 120%; margin: 4">
+        <select style="FONT-SIZE: 9pt" name="toname">
+        <option value="0" selected>所有在线用户</option>
+        <option value="1">所有版主</option>
+        <option value="2">所有超级版主</option>
+        <option value="3">所有管理员</option>
+        <option value="4">所有Vip用户</option>
+        <option value="5">所有注册用户</option>
+        </select><input type="hidden" name="ggtitle" size="20" value="群发留言"></td>
+      </tr>
+      <tr>
+        <td valign="top">
+
+        <p style="line-height: 150%; margin: 5"><b><font color="#0466CC">留言内容：</font></b><br>
+		<input type="radio" name="usereditor" value="html" onclick="checkeditor('html')" checked>使用Html编辑器<br>
+		<input type="radio" name="usereditor" value="ubb" onclick="checkeditor('ubb')">使用UBB编辑器<br>
+
+</td>
+<td valign="top" style="padding:5px;">
+<input name=content type="hidden">
+<SCRIPT src="Editor/Ubb/UbbEditor.js"></SCRIPT>
+<script type="text/javascript" src="Editor/Html/htmlEditor.js"></script>
+
+<script>
+
+var ubbedit=new UbbEditor("CodeForm",100,14,"default values","editor/ubb/images/");
+ubbedit.showeditor();
+</script>
+
+
+<script type="text/javascript">
+var editor = new htmlEditor("editor");
+editor.hiddenName = "content";
+editor.width = "100%";
+editor.height = "300px";
+editor.imagePath="editor/html/images/";
+editor.iconPath = 'editor/html/images/face/';
+editor.show();
+
+var strlength;
+
+//提交表单
+function submitform(){
+   	if(htmlsubmit())
+   		{document.topicform.submit();}
+}
+
+//检测表单
+function htmlsubmit() {
+	if(document.getElementsByName("usereditor").item(0).checked==true){
+		var content = editor.data();
+	}
+	else if(document.getElementsByName("usereditor").item(1).checked==true){
+		checkeditor("html");
+		var content = editor.data();
+		checkeditor("ubb");
+	}
+	
+		strlength=document.getElementsByName("content").item(0).value.length;
+		if (strlength>25600||strlength<5){
+			alert("您输入的文章长度为"+strlength+"，长度必须大于5且小于25600，请修正之后再继续。");
+			return false;
+		}
+		else if(document.getElementsByName("ggtitle").item(0).value==""){
+			alert("标题不能为空。");
+			document.getElementsByName("ggtitle").item(0).focus();
+			return false;
+		}
+		else{
+			return true;
+		}
+}
+
+</script>
+
+        </td>
+</tr>
+      <tr>
+        <td colspan="2" align="center" height="40" bgcolor="#F4F6FC">
+        <input class=submit type=button value=OK_！发送 name=B1 onclick=submitform()>&nbsp;&nbsp;&nbsp; <input class=submit type=button value="预  览！" onclick=preview()>&nbsp;&nbsp;&nbsp; <input class=submit type=reset value=NO_！重写 name=B2>&nbsp; [ 按 Alt+Enter 直接发送 ]</td>
+      </tr>
+      </table>
+</div>
+</form>
+<form name=form1 action=paper.asp?action=preview method=post target=showgg>
+<input type=hidden name=topic value=><input type=hidden name=content value=>
+</form>
+<%case"savesms"
+dim bad,b,toname,content,contentok,content2
+toname=checknum(request.form("toname"))
+
+function checkbad(str)
+if isnull(str) then exit function 
+bad=split(application(prefix&"badcontent"), "|")
+for b=0 to ubound(bad)
+str=Replace(str,bad(b),string(len(bad(b)),"*")) 
+next
+checkbad=str
+end function
+
+content=checkbad(Request.Form("content"))
+content=replace(content,"|","│")
+content=replace(content,"'","''")
+contentok=Replace(content," ","")
+content2=content&"|"&now()+timeset/24
+if toname="" or contentok="" then
+call send("·请填写完整留言对象和留言内容<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+select case toname
+
+case 0
+set rs=conn.execute("select userid from online where userid<>0")
+do while not rs.eof
+conn.execute("insert into sms(fromuserid,touserid,content) values("&lguserid&","&rs("userid")&",'"&content2&"')")
+rs.movenext
+loop
+set rs=nothing
+
+case 1
+set rs=conn.execute("select userid from [user] where grade=14")
+do while not rs.eof
+conn.execute("insert into sms(fromuserid,touserid,content) values("&lguserid&","&rs("userid")&",'"&content2&"')")
+rs.movenext
+loop
+set rs=nothing
+
+case 2
+set rs=conn.execute("select userid from [user] where grade=15")
+do while not rs.eof
+conn.execute("insert into sms(fromuserid,touserid,content) values("&lguserid&","&rs("userid")&",'"&content2&"')")
+rs.movenext
+loop
+set rs=nothing
+
+case 3
+set rs=conn.execute("select userid from [user] where grade=16")
+do while not rs.eof
+conn.execute("insert into sms(fromuserid,touserid,content) values("&lguserid&","&rs("userid")&",'"&content2&"')")
+rs.movenext
+loop
+set rs=nothing
+
+case 4
+set rs=conn.execute("select userid from [user] where grade=13")
+do while not rs.eof
+conn.execute("insert into sms(fromuserid,touserid,content) values("&lguserid&","&rs("userid")&",'"&content2&"')")
+rs.movenext
+loop
+set rs=nothing
+
+case 5
+set rs=conn.execute("select userid from [user]")
+do while not rs.eof
+conn.execute("insert into sms(fromuserid,touserid,content) values("&lguserid&","&rs("userid")&",'"&content2&"')")
+rs.movenext
+loop
+set rs=nothing
+
+end select
+call send("群发留言成功。")
+end if
+case"table"
+%><form method="POST" action="adminright3.asp?action=updatetable">
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+  <tr>
+    <td class=td2 width="100%" colspan="4" height="32" bgcolor="#F4F6FC">&nbsp;当前论坛已有的帖子数据表：</td>
+  </tr>
+  <tr class=td2>
+    <td width="20%" height="28">&nbsp;数据表名称：</td>
+    <td width="20%">&nbsp;帖数：</td>
+    <td width="20%">&nbsp;默认使用：</td>
+    <td width="40%">&nbsp;删除：（这样将删除相关的帖子）</td>
+  </tr>
+<%usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+response.write"<tr class=td2><td width=20% height=28>　bbs"&usedtable(i)&"</td><td width=20% >　"&conn.execute("select count(bbsid) from bbs"&usedtable(i)&"")(0)&"</td><td width=20% >　<input type=radio value='"&usedtable(i)&"'"
+if int(usedtable(i))=checknum(application(prefix&"autotable")) then:response.write" checked ":end if
+response.write"name='using'></td><td width=40% >　<a href=adminright3.asp?action=deltable&totable="&usedtable(i)&"><img src=pic/del.gif border=0></a></td></tr>"
+next
+%>  <tr>
+    <td class=td2 width="100%" colspan="4" height="32" bgcolor="#F4F6FC" align="center">
+    <input type="submit" value="   确  认  修  改   " name="B1"></td>
+  </tr>
+</table></form><form method="POST" action="adminright3.asp?action=addtable">
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+  <tr>
+    <td class=td1 width="100%" bgcolor="#749AEC" height="30">&nbsp;添加帖子数据表：</td>
+  </tr>
+  <tr>
+    <td class=td2 width="100%" bgcolor="#F4F6FC" height="40">&nbsp;数据表名称：bbs <input type="text" name="table" size="5"> 
+    （只填数字）
+    <input type="submit" value="   确  认  添  加   " name="B1"></td>
+  </tr>
+</table></form>
+<%case"updatetable"
+usedtable=application(prefix&"usedtable")
+using=checknum(request.form("using"))
+usetable=using&"-"&usedtable
+conn.execute("update config set usetable='"&usetable&"'")
+call send("设定默认表成功。")
+application(prefix&"autotable")=using
+%>
+<%case"addtable"
+canadd=true
+table=checknum(request.form("table"))
+usedtable=application(prefix&"usedtable")
+usedtable1=split(usedtable,"|")
+for i=1 to ubound(usedtable1)
+if table=int(usedtable1(i)) then
+canadd=false
+call send("·该表名已经被使用了<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+exit for
+end if
+next
+if canadd=true then
+sql="create table bbs"&table&" (bbsid int IDENTITY (1, 1) NOT NULL CONSTRAINT PrimaryKey PRIMARY KEY,id int default 0,bid int Default 0,userid int Default 0,content text,bd int Default 0,edittime datetime,type int Default 0,ip varchar(20))"
+conn.execute(sql)
+conn.execute("create index id on bbs"&table&" (id)")
+conn.execute("create index bid on bbs"&table&" (bid)")
+conn.execute("create index userid on bbs"&table&" (userid)")
+conn.execute("create index bd on bbs"&table&" (bd)")
+tablestr="|"&table
+conn.execute("update config set usetable=usetable&'"&tablestr&"'")
+application(prefix&"usedtable")=usedtable&tablestr
+call send("已经成功添加帖子数据表 bbs"&table&" 。")
+end if
+%>
+<%case"deltable"
+totable=checknum(request.querystring("totable"))
+autotable=checknum(application(prefix&"autotable"))
+if totable=autotable then
+call send("该表是默认使用的表，不能删除。")
+else
+conn.execute("delete*from Topic where totable="&totable&"")
+conn.execute("drop table [bbs"&totable&"]")
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+if int(usedtable(i))<>totable then
+tablestr=tablestr&"|"&usedtable(i)
+end if
+next
+application(prefix&"usedtable")=tablestr
+tablestr=autotable&"-"&tablestr
+conn.execute("update config set usetable='"&tablestr&"'")
+call send("已经成功的删除帖子数据表 bbs"&totable&" 。")
+end if
+%>
+<%case"recycle"
+dim key
+key=trim(Replace(Replace(Replace(request("key"),"'",""),"[","[[]"),"|","│"))
+if key="" then key="帖子主题或内容关键字"
+bd=checknum(trim(request("bd")))
+if bd="" then bd=0
+dim str1,str2,topictype,pagesetup,count,totalpage,color,pagecount,value,ii,iii
+topictype=checknum(request.querystring("topictype"))
+totable=checknum(request.querystring("totable"))
+if totable="" then totable=checknum(application(prefix&"autotable"))
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+color="#0466CC"
+str1="<font color=#0466CC>话题</font>"
+str2="<font color=#0466CC>回帖</font>"
+
+if int(usedtable(i))=totable then
+color="red"
+if topictype=1 or topictype="" then
+str1="<font color=red>话题</font>"
+elseif topictype=2 then
+str2="<font color=red>回帖</font>"
+end if
+end if
+
+tablestr=tablestr&"·<a href=?action=recycle&totable="&usedtable(i)&"><b><font color="&color&">数据表 "&usedtable(i)&"</font></b></a> [<a href=?action=recycle&totable="&usedtable(i)&"&topictype=1>"&str1&"</a>][<a href=?action=recycle&totable="&usedtable(i)&"&topictype=2>"&str2&"</a>] "
+next
+response.write"<script language='javascript'>function Check(){var Name=document.form.topage.value;document.location='?action=recycle&topage='+Name+'&totable="&totable&"';}</script>"
+%><SCRIPT language=JavaScript>
+function CheckAll(form)  {
+  for (var i=0;i<form.elements.length;i++){
+    var e = form.elements[i];
+    if (e.name != 'chkall')       e.checked = form.chkall.checked; 
+   }
+  }
+</SCRIPT><SCRIPT src="inc/menu.js"></SCRIPT>
+<form method="POST" action="?action=recycle&topictype=<%=topictype%>&totable=<%=totable%>">
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#F4F6FC" height="32">
+  <tr>
+    <td width="100%">&nbsp; <%=tablestr%></td><td>&nbsp;<input type="text" name="key" size="25" value="<%=key%>">&nbsp;<select size="1" name="bd" style="font-size: 9pt">
+<option value="0" <%if bd=0 then response.write "selected='selected'"%>>所有论坛</option>
+<%set rs=conn.execute("select id,bdinfo from bdinfo where followid<>0 order by orders desc,id")
+do while not rs.eof%>
+<option value="<%=rs("id")%>" <%if bd=rs("id") then response.write "selected='selected'"%>><%=split(rs("bdinfo"),"|")(0)%></option>
+<%rs.movenext
+loop
+rs.close
+set rs=nothing
+%></select>&nbsp;&nbsp;<input type="submit" value=" 开始搜索 " name="B1">&nbsp;</td>
+  </tr>
+</table></form>
+<form method="POST" action="adminright3.asp?action=delbbsgg&bd=<%=bd%>&totable=<%=totable%>&topictype=<%=topictype%>&key=<%=key%>&topage=<%=request.querystring("topage")%>">
+<table class=td1 border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#749AEC" height="28" bordercolor="#F4F6FC">
+  <tr>
+    <td width="5%" align="center">选择</td>
+    <td width="55%" align="center">主题</td>
+    <td width="15%" align="center">作者</td>
+    <td width="25%" align="center">发表时间</td>
+  </tr>
+</table>
+<%
+sql="select * from bbs"&totable&" where type=3 "
+if bd>0 then sql=sql&"and bd="&bd&" "
+if topictype=1 or topictype="" then
+sql=sql&"and bid=0 "
+elseif topictype=2 then
+sql=sql&"and bid<>0 "
+end if
+if key="" or key="帖子主题或内容关键字" then
+sql=sql&"order by edittime desc"
+else
+sql=sql&"and content like '%"&key&"%' order by edittime desc"
+end if
+set rs = server.createobject("adodb.recordset")
+pagesetup=checknum(application(prefix&"topiclistpage"))
+rs.Open sql,conn,1
+TotalPage=0
+Count=rs.recordcount
+if not rs.eof then
+If Count/pagesetup > (Count\pagesetup) then
+TotalPage=(Count\pagesetup)+1
+else TotalPage=(Count\pagesetup)
+End If
+pagecount= 0
+rs.moveFirst
+if Request.QueryString("ToPage")<>"" and isnumeric(Request.QueryString("ToPage")) then PageCount = cint(Request.QueryString("ToPage"))
+if PageCount <=0 then PageCount = 1
+if PageCount > TotalPage then PageCount = TotalPage
+rs.move (PageCount-1) * pagesetup
+i=1
+do while not rs.eof
+content=rs("content")
+content=split(content,"|")
+if topictype=1 or topictype="" then
+value=rs("id")
+elseif topictype=2 then
+value=rs("bbsid")
+end if
+
+if topictype=1 or topictype="" then
+if rs("id")=0 then
+set rs2=conn.execute("select top 1 id,top,type,topicinfo,renum,edittime from topic where id="&rs("bid")&"")
+elseif rs("bid")=0 then
+set rs2=conn.execute("select top 1 id,top,type,topicinfo,renum,edittime from topic where id="&rs("id")&"")
+end if
+content2=rs2("topicinfo")
+content2=split(content2,"|")
+end if
+%>
+<table border="0" cellpadding="0" cellspacing="0" style='border-collapse: collapse; border-left-style: solid; border-left-width: 1; border-right-style: solid; border-right-width: 1; border-top-width: 1; border-bottom-style: solid; border-bottom-width: 1' width="100%" height="28">
+  <tr>
+    <td width="5%" align="center">
+    <input type="checkbox" name="delbbsid" value="<%=value%>"></td>
+<%if topictype=1 or topictype="" then%>
+    <td width="55%">&nbsp; <a href=# onclick=openscript('paper.asp?action=showdelbbs&bd=<%=rs("bd")%>&bbsid=<%=rs("bbsid")%>&totable=<%=totable%>')><%=lefttrue(kbbs(content2(1)),40)%></a></td>
+<%elseif topictype=2 then%>
+    <td width="55%">&nbsp; <a href=# onclick=openscript('paper.asp?action=showdelbbs&bd=<%=rs("bd")%>&bbsid=<%=rs("bbsid")%>&totable=<%=totable%>')><%=lefttrue(kbbs(content(4)),40)%></a></td>
+<%end if%>
+    <td width="15%" align="center"><%=kbbs(content(2))%></td>
+    <td width="25%" align="center"><%=kbbs(content(5))%></td>
+  </tr>
+</table>
+<%
+i=i+1
+if i>pagesetup then exit do
+rs.movenext
+loop
+end if
+rs.Close
+set rs=nothing%>
+
+<table class=td1 border="0" cellpadding="0" cellspacing="0" style='border-collapse: collapse; ' width="100%" height="32" bgcolor="#F4F6FC">
+  <tr>
+    <td width="100%" bgcolor="#749AEC">
+    &nbsp;<input onclick=CheckAll(this.form) type="checkbox"  name=chkall value="ON">全 选&nbsp;&nbsp;&nbsp;
+<INPUT type=submit value=" 删除所选 " name=action onclick="{if(confirm('确定删除您所选择的帖子吗？不可恢复！')){return true;}return false;}"> <INPUT type=submit value=" 还原所选 " name=action onclick="{if(confirm('确定还原您所选择的帖子吗？')){return true;}return false;}"></td><td bgcolor="#749AEC">&nbsp;<%if topictype=1 or topictype="" then%><INPUT type=submit value=" 看清楚了！一键清空回收站！！清吧！！！ " name=action onclick="{if(confirm('确定清空回收站所有的帖子包括回帖吗？不可恢复！')){return true;}return false;}"><%end if%>&nbsp;</td>
+  </tr>
+</table>
+</form>
+<%
+response.write"<TABLE bgcolor=#749AEC cellSpacing=0 cellPadding=0 width='100%' border=0 style='border-collapse:collapse;'><TBODY><TR height=25><TD height=2><TABLE cellSpacing=0 cellPadding=3 width='100%' border=0 style='border-collapse: collapse; border-left-width:0; border-top-width:0; border-bottom-width:0'><TBODY><TR><TD><b><font color='#FFFFFF'><img border='0' src='pic/fl.gif'> 本回收站共有</font><font color='#00FFFF'> "&TotalPage&" </font><font color='#FFFFFF'>页,<font color='#00FFFF'> "&count&" </font>张帖子，每页有<font color='#00FFFF'> "&pagesetup&" </font> 张帖子 >> ["
+ii=PageCount-5
+iii=PageCount+5
+if ii < 1 then
+ii=1
+end if
+if iii > TotalPage then
+iii=TotalPage
+end if
+if PageCount > 6 then
+Response.Write " <a href=?topage=1&bd="&bd&"&key="&key&"&topictype="&topictype&"&totable="&totable&"&action=recycle><font color=yellow>1</font></a> ... "
+end if
+for i=ii to iii
+If i<>PageCount then
+Response.Write " <a href=?topage="& i &"&bd="&bd&"&key="&key&"&topictype="&topictype&"&totable="&totable&"&action=recycle><font color=yellow>" & i & "</font></a> "
+else
+Response.Write " <font color=red><b>"&i&"</b></font> "
+end if
+next
+if TotalPage > PageCount+5 then
+Response.Write " ... <a href=?topage="&TotalPage&"&bd="&bd&"&key="&key&"&topictype="&topictype&"&totable="&totable&"&action=recycle><font color=yellow>"&TotalPage&"</font></a>"
+end if
+response.write" ]</font></b></TD><form name=form method='POST' action=javascript:Check()><TD height=2 align='right'><font color='#FFFFFF'>页码：<input style=FONT-SIZE:9pt maxLength='6' size='6' name='topage' value='"&PageCount&"'><input style=FONT-SIZE:9pt value='GO!' type='submit'></font></TD></form></TR></TBODY></TABLE></TD></TR></TBODY></TABLE>"
+%>
+
+<%case"delbbsgg"
+dim delidsql,delbidsql,delbbsid,baction,sql1,sql2
+key=trim(request.querystring("key"))
+bd=checknum(request.querystring("bd"))
+topictype=checknum(request.querystring("topictype"))
+'topage=checknum(request.querystring("topage"))
+totable=checknum(request.querystring("totable"))
+if totable="" then totable=checknum(application(prefix&"autotable"))
+
+delbbsid=replace(","&request.form("delbbsid"),"'","")
+delbbsid=split(delbbsid,",")
+
+baction=replace(request.form("action"),"'","")
+
+if baction=" 删除所选 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)-1
+delidsql=delidsql&"id="&delbbsid(i)&" or "
+delbidsql=delbidsql&"bid="&delbbsid(i)&" or "
+next
+delidsql=delidsql&"id="&delbbsid(ubound(delbbsid))
+delbidsql=delbidsql&"bid="&delbbsid(ubound(delbbsid))
+if delidsql="id=" then delidsql="id=-1"
+if delbidsql="bid=" then delbidsql="bid=-1"
+
+sql1="delete*from topic where type=3 and ("&delidsql&")"
+sql2="delete*from bbs"&totable&" where (type=3 and ("&delidsql&")) or ("&delbidsql&")"
+conn.execute(sql1)
+conn.execute(sql2)
+end if
+
+if topictype=2 then
+for i=1 to ubound(delbbsid)-1
+delidsql=delidsql&"bbsid="&delbbsid(i)&" or "
+next
+delidsql=delidsql&"bbsid="&delbbsid(ubound(delbbsid))
+if delidsql="bbsid=" then delidsql="bbsid=-1"
+
+sql1="delete*from bbs"&totable&" where type=3 and ("&delidsql&")"
+conn.execute(sql1)
+end if
+
+response.redirect "adminright3.asp?action=recycle&bd="&bd&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&request.querystring("topage")&""
+response.end
+end if
+
+if baction=" 还原所选 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)-1
+delidsql=delidsql&"id="&delbbsid(i)&" or "
+next
+delidsql=delidsql&"id="&delbbsid(ubound(delbbsid))
+if delidsql="id=" then delidsql="id=-1"
+
+sql1="update topic set type=0 where ("&delidsql&")"
+sql2="update bbs"&totable&" set type=0 where ("&delidsql&")"
+conn.execute(sql1)
+conn.execute(sql2)
+end if
+
+if topictype=2 then
+for i=1 to ubound(delbbsid)-1
+delidsql=delidsql&"bbsid="&delbbsid(i)&" or "
+next
+delidsql=delidsql&"bbsid="&delbbsid(ubound(delbbsid))
+if delidsql="bbsid=" then delidsql="bbsid=-1"
+sql1="update bbs"&totable&" set type=0 where ("&delidsql&")"
+conn.execute(sql1)
+end if
+
+response.redirect "adminright3.asp?action=recycle&bd="&bd&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&request.querystring("topage")&""
+response.end
+end if
+
+if baction=" 看清楚了！一键清空回收站！！清吧！！！ " then
+if topictype=1 or topictype="" then
+sql1="delete*from topic where type=3"
+sql2="delete*from bbs"&totable&" where type=3"
+if bd>0 then sql1=sql1&" and bd="&bd&""
+if bd>0 then sql2=sql2&" and bd="&bd&""
+conn.execute(sql1)
+conn.execute(sql2)
+end if
+response.redirect "adminright3.asp?action=recycle&bd="&bd&"&key="&key&"&totable="&totable&"&topictype="&topictype&""
+response.end
+end if
+%>
+<%end select
+%></td>
+  </tr>
+</table>
+<table rules='none' border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#346AE4">
+  <tr>
+    <td valign="top"><img border="0" src="pic/admin/2.gif"></td>
+    <td background="pic/admin/4.gif" width="100%" align="center">Powered By ： <a target=_blank href=http://www.huoguopai.com>www.huoguopai.com</a><br>Copyright 2011-<%response.write year(now)+1%> LIFEYT.COM All Rights Reserved.
+    　</td>
+    <td valign="top"><img border="0" src="pic/admin/3.gif"></td>
+  </tr>
+  <tr>
+    <td valign="top" colspan="3" bgcolor="#749AEC" height="4"></td>
+  </tr>
+</table>

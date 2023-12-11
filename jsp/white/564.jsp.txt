@@ -1,0 +1,16 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>东晟商城</title>
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div class="kuang_da">
+  <div id="banquan">
+    2012-2015 E购--订货系统 All Rights Reserved 粤ICP备09005027号<br />
+    <a href="http://www.kuquo.com" target="_brant">技术支持：酷趣科技 </a></div>
+</div>
+</body>
+</html>

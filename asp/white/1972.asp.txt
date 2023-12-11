@@ -1,0 +1,535 @@
+<!--#include file="Conn.asp"-->
+<!-- #include file="inc/const.asp" -->
+<!--#include file="inc/dv_clsother.asp"-->
+<!--#include file="inc/dv_ubbcode.asp"-->
+<!--#include file="inc/ubblist.asp"-->
+<meta name="keywords" content="温州鞋城，温州鞋业网，鞋业论坛，鞋料市场，鞋业招聘，鞋子批发，制鞋技术，温州二手，温州房产，温州商贸城，温州信息网" />
+<meta name="description" content="温州鞋城，温州鞋网，温州鞋业网，鞋业招聘，鞋业论坛，鞋料市场，鞋批发，温州网，制鞋技术，温州商贸城，中国鞋网，鞋厂招聘，鞋子品牌，温州打工网，温州信息网" />
+<%
+Dim XmlDom,Root,Dv_ubb
+Dim PageUrl,Forum_url,VisitType
+Dim TotalUseTable,Announceid,UserName,PostBuyUser,ReplyID_a,RootID_a,AnnounceID_a,EmotPath,T_GetMoneyType,IsThisBoardMaster
+IsThisBoardMaster = Dvbbs.BoardMaster
+VisitType = Lcase(Request("s"))
+Forum_url = Dvbbs.Get_ScriptNameUrl()
+'文档浏览地址：
+If VisitType = "" Then
+	VisitType = "xhtml"
+End If
+PageUrl = Forum_url & "dv_rss.asp?s="&VisitType
+Page_Main()
+Page_End()
+Dvbbs.PageEnd()
+Sub Page_Main()
+	Call CreatRssXml()
+	If Dvbbs.Boardid>0 Then
+		Root.setAttribute "boardtype",Dvbbs.BoardType
+	End If
+	Root.setAttribute "visittype",VisitType
+	Root.setAttribute "isapiwrite",IsUrlreWrite
+	Root.setAttribute "forum_url",Forum_url
+	Root.setAttribute "boardid",Dvbbs.Boardid
+	Root.setAttribute "pageurl",PageUrl
+	Root.setAttribute "sqlquerynum",Dvbbs.SqlQueryNum
+	Root.setAttribute "runtime",FormatNumber((Timer()-Startime),5)
+	Select Case Lcase(Request("s"))
+		Case "xml"
+			ShowXML "xml"
+		Case "xhtml"
+			TransNode XmlDom
+		Case "xslt"
+			ShowXML "xslt"
+		Case Else
+			TransNode XmlDom
+	End Select
+End Sub
+
+Sub Page_End()
+	Set XmlDom = Nothing
+	'Set Dvbbs = Nothing
+End Sub
+
+'创建XML文档
+Sub CreatRssXml()
+	Dim TopicID,PostID
+	TopicID = Dvbbs.CheckNumeric(Request.QueryString("id"))
+	PostID = Dvbbs.CheckNumeric(Request.QueryString("replyid"))
+	Set XmlDom = Dvbbs.CreateXmlDoc("msxml2.FreeThreadedDOMDocument")
+	XmlDom.appendChild(XmlDom.createElement("rss"))
+	XmlDom.documentElement.setAttribute "version","2.0"
+	Set Root = XmlDom.documentElement.appendChild(XmlDom.createNode(1,"channel",""))
+	Call CreatHead()
+	'分类信息显示
+	If Dvbbs.Boardid>0 Then
+		'主题ID>0时读取该帖子
+		If TopicID>0 Then
+			Set Dv_ubb = new Dvbbs_UbbCode
+				Dv_ubb.PostType = 1
+				PostList(TopicID)
+			Set Dv_ubb = Nothing
+		Else
+			TopicList()
+		End If
+	Else
+		Call BoardList()
+	End If
+End Sub
+
+Sub ShowXML(Stype)
+	Response.Clear
+	Response.CharSet="gb2312"  '数据集
+	Response.ContentType="text/xml"  '数据流格式定义
+	Response.Write "<?xml version=""1.0"" encoding=""gb2312""?>"&vbNewLine
+	If Stype = "xslt" Then
+		Response.Write "<?xml-stylesheet type=""text/xsl"" href=""inc/Templates/sitemap.xslt"" ?>"&vbNewLine
+	End If
+	Response.Write XmlDom.xml
+End Sub
+
+Sub TransNode(XmlDoc)
+	'XSLT模板转换开始
+	Dim Xmlskin,Proc,XmlStyle
+	Set Xmlskin = Dvbbs.CreateXmlDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+	If Not (Xmlskin.load(Server.MapPath("inc/Templates/sitemap.xslt"))) Then
+		Response.Write "模板数据出错，请与管理员联系！"
+		Response.End
+	End If
+	Set XMLStyle=Dvbbs.iCreateObject("msxml2.XSLTemplate" & MsxmlVersion)
+	XMLStyle.stylesheet=Xmlskin
+	Set Proc=XMLStyle.createProcessor()
+	Proc.input = XmlDoc
+  	proc.transform()
+  	Response.Write proc.output
+	Set XmlStyle = Nothing
+	Set Xmlskin = Nothing
+End Sub
+
+'--------------------------------------------------------------------
+'文档内容数据
+'--------------------------------------------------------------------
+
+'创建文档信息
+Sub CreatHead()
+	Dim Node,RssTitle
+	RssTitle = "Rss & SiteMap"
+	Root.appendChild(XmlDom.createNode(1,"title","")).text = Dvbbs.Forum_Info(0)
+	Root.appendChild(XmlDom.createNode(1,"link","")).text = Dvbbs.Forum_info(1)
+	Root.appendChild(XmlDom.createNode(1,"description","")).text = Dvbbs.Forum_Info(10)
+	Root.appendChild(XmlDom.createNode(1,"language","")).text = "zh-cn"
+	Root.appendChild(XmlDom.createNode(1,"copyright","")).text = Dvbbs.Forum_Copyright
+	Root.appendChild(XmlDom.createNode(1,"generator","")).text = "Rss Generator By Dvbbs.Net"
+	Root.appendChild(XmlDom.createNode(1,"webMaster","")).text = Dvbbs.Forum_info(5)
+
+	Root.appendChild(XmlDom.createNode(1,"powered","")).text = "Powered By <a href = ""http://www.dvbbs.net/"" target = ""_blank"">Dvbbs</a>  <a href = ""http://www.dvbbs.net/download.asp"" target = ""_blank"">Version " & fVersion & "</a>"
+	'Root.appendChild(XmlDom.createNode(1,"copyright","")).text = Dvbbs.Forum_Copyright
+
+	Set Node = Root.appendChild(XmlDom.createNode(1,"image",""))
+	Node.appendChild(XmlDom.createNode(1,"url","")).text = Dvbbs.Forum_Info(6)
+	Node.appendChild(XmlDom.createNode(1,"title","")).text = Dvbbs.Forum_Info(0)
+End Sub
+
+'版面列表
+Sub BoardList()
+	Dim BoardNodes,ChildNode
+	Dim Node
+	Set BoardNodes = Application(Dvbbs.CacheName&"_boardlist").documentElement.childNodes
+	For Each ChildNode in BoardNodes
+		If Not (ChildNode.getAttribute("hidden")="1" and Dvbbs.GroupSetting(37)="0") Then
+			Set Node = Root.appendChild(XmlDom.createNode(1,"item",""))
+			Node.setAttribute "type","board"
+			Node.setAttribute "depth",ChildNode.getAttribute("depth")
+			Node.setAttribute "bid",ChildNode.getAttribute("boardid")
+			Node.setAttribute "child",ChildNode.getAttribute("child")
+			Node.appendChild(XmlDom.createNode(1,"title","")).text = ChildNode.getAttribute("boardtype")
+			Node.appendChild(XmlDom.createNode(1,"author","")).text = ""
+			Node.appendChild(XmlDom.createNode(1,"pubDate","")).text = Now()
+			Node.appendChild(XmlDom.createNode(1,"description","")).text = ChildNode.getAttribute("readme")
+			If IsUrlreWrite = 1 Then
+				Node.appendChild(XmlDom.createNode(1,"link","")).text = Forum_url&"dv_rss_"&VisitType&"_"&ChildNode.getAttribute("boardid")&".html"
+				Node.appendChild(XmlDom.createNode(1,"bbslink","")).text = Forum_url & "index_"&ChildNode.getAttribute("boardid")&".html"
+			Else
+				Node.appendChild(XmlDom.createNode(1,"link","")).text = PageUrl&"&boardid="&ChildNode.getAttribute("boardid")
+				Node.appendChild(XmlDom.createNode(1,"bbslink","")).text = Forum_url & "index.asp?boardid="&ChildNode.getAttribute("boardid")
+			End If
+		End If
+	Next
+End Sub
+
+'主题列表
+Sub TopicList()
+	Dim Sql,Rs,Cmd,Page,TopicMode,Count,PageCount,PageSize
+	Dim Posttime
+	Dim Topidlist,Node,ChildNode
+	'参数处理
+	Page = Dvbbs.CheckNumeric(Request("Page"))	'分页
+	TopicMode = Dvbbs.CheckNumeric(Request("topicmode")) '专题
+	Count = Dvbbs.CheckNumeric(Request("Count"))
+	PageSize = Dvbbs.CheckNumeric(Dvbbs.Board_Setting(26))
+	If Page<1 Then Page = 1
+
+	If Not IsObject(Conn) Then ConnectionDatabase
+	If IsSqlDataBase=1 And IsBuss=1 Then
+		Set Cmd = Dvbbs.iCreateObject("ADODB.Command")
+		Set Cmd.ActiveConnection=conn
+		Cmd.CommandText="dv_TopicList"
+		Cmd.CommandType=4
+		Cmd.Parameters.Append cmd.CreateParameter("@boardid",3)
+		Cmd.Parameters.Append cmd.CreateParameter("@pagenow",3)
+		Cmd.Parameters.Append cmd.CreateParameter("@pagesize",3)
+		Cmd.Parameters.Append cmd.CreateParameter("@topicmode",3)
+
+		Cmd.Parameters.Append cmd.CreateParameter("@inConditions",200,1,250)
+		Cmd.Parameters.Append cmd.CreateParameter("@inOrder",3)
+		Cmd.Parameters.Append cmd.CreateParameter("@inSort",3)
+		Cmd.Parameters.Append cmd.CreateParameter("@totalrec",3,2)
+
+		Cmd("@boardid")=Dvbbs.BoardID
+		Cmd("@pagenow")=page
+		Cmd("@pagesize")=PageSize
+		Cmd("@topicmode")=TopicMode
+		Cmd("@inConditions")=""
+		Cmd("@inOrder")=0
+		Cmd("@inSort")=0
+
+
+		Set Rs=Cmd.Execute
+		If Not Rs.EoF Then
+			Sql = Rs.GetRows(PageSize)
+			Set Topidlist=Dvbbs.ArrayToxml(sql,rs,"item","topic")
+		Else
+			Set Topidlist=Nothing
+		End If
+		Rs.close()
+		Set Rs=Nothing
+		Count = Cmd("@totalrec")
+		Set Cmd =  Nothing
+	Else
+		If Count = 0 Then
+			Count = Dvbbs.Execute("Select Count(topicid) From Dv_Topic Where BoardID="&Dvbbs.BoardID&"")(0)
+		End If
+		Set Rs = Dvbbs.iCreateObject ("adodb.recordset")
+		If Cint(TopicMode)=0 Then
+			Sql="Select  TopicID,boardid,title,postusername,postuserid,dateandtime,child,hits,votetotal,lastpost,lastposttime,istop,isvote,isbest,locktopic,Expression,TopicMode,Mode,GetMoney,GetMoneyType,UseTools,IsSmsTopic,hidename From Dv_Topic Where BoardID="&Dvbbs.BoardID&" Order By LastPostTime Desc"
+		Else
+			Sql="Select  TopicID,boardid,title,postusername,postuserid,dateandtime,child,hits,votetotal,lastpost,lastposttime,istop,isvote,isbest,locktopic,Expression,TopicMode,Mode,GetMoney,GetMoneyType,UseTools,IsSmsTopic,hidename From Dv_Topic Where Mode="&TopicMode&" and BoardID="&Dvbbs.BoardID&" Order By LastPostTime Desc"
+		End If
+		Rs.Open Sql,Conn,1,1
+		If Page >1 Then
+			Rs.Move (page-1) * PageSize
+		End If
+		If Not Rs.EoF Then
+			Sql = Rs.GetRows(PageSize)
+			Set Topidlist=Dvbbs.ArrayToxml(sql,rs,"item","topic")
+		Else
+			Set Topidlist=Nothing
+		End If
+		Rs.Close
+		Set Rs = Nothing
+	End If
+	If Count Mod PageSize = 0 Then
+		PageCount = Count \ PageSize
+	Else
+		PageCount = Count \ PageSize + 1
+	End If
+	If Page>PageCount Then Page = PageCount
+	Dvbbs.SqlQueryNum = Dvbbs.SqlQueryNum + 1
+	Sql = Empty
+	If Not Topidlist Is Nothing Then
+		For Each ChildNode in Topidlist.documentElement.SelectNodes("item")
+			'数据信息调整
+			If Dvbbs.Board_Setting(60)<>"" And Dvbbs.Board_Setting(60)<>"0" Then
+				Posttime = ChildNode.getAttribute("lastposttime")
+				If Not IsDate(Posttime) Then
+					Posttime = Now()
+				Else
+					Posttime = CDate(Posttime)
+				End If
+				If DateDiff("n",Posttime,Now)+Cint(Dvbbs.Forum_Setting(0)) < CLng(Dvbbs.Board_Setting(61)) Then
+					ChildNode.setAttribute "lastposttime",DateDiff("n",Posttime,Now)+Cint(Dvbbs.Forum_Setting(0))
+				End If
+			End If
+			'建立item节点信息
+			'Set Node = Root.appendChild(XmlDom.createNode(1,"item",""))
+			ChildNode.setAttribute "type","topic"
+			ChildNode.appendChild(XmlDom.createNode(1,"title","")).text = Dvbbs.ChkBadWords(ChildNode.getAttribute("title"))
+			If ChildNode.getAttribute("hidename")="1" Then
+				ChildNode.appendChild(XmlDom.createNode(1,"author","")).text = "匿名用户"
+			Else
+				ChildNode.appendChild(XmlDom.createNode(1,"author","")).text = Dvbbs.ChkBadWords(ChildNode.getAttribute("postusername"))
+			End If
+			ChildNode.appendChild(XmlDom.createNode(1,"pubDate","")).text = ChildNode.getAttribute("lastposttime")
+			ChildNode.appendChild(XmlDom.createNode(1,"description","")).text = ""
+			'ChildNode.appendChild(XmlDom.createNode(1,"link","")).text = PageUrl&"&boardid="&Dvbbs.Boardid&"&id="&ChildNode.getAttribute("topicid")&"&page="&Page
+
+			If IsUrlreWrite = 1 Then
+				ChildNode.appendChild(XmlDom.createNode(1,"link","")).text = Forum_url&"dv_rss_"&VisitType&"_"&Dvbbs.Boardid&"_"&ChildNode.getAttribute("topicid")&"_"&Page&".html"
+
+				ChildNode.appendChild(XmlDom.createNode(1,"bbslink","")).text = Forum_url & "dispbbs_"&ChildNode.getAttribute("boardid")&"_"&ChildNode.getAttribute("topicid")&"_"&Page&".html"
+			Else
+				ChildNode.appendChild(XmlDom.createNode(1,"link","")).text = PageUrl&"&boardid="&Dvbbs.Boardid&"&id="&ChildNode.getAttribute("topicid")&"&page="&Page
+				ChildNode.appendChild(XmlDom.createNode(1,"bbslink","")).text = Forum_url & "dispbbs.asp?boardid="&ChildNode.getAttribute("boardid")&"&id="&ChildNode.getAttribute("topicid")&"&page="&page
+			End If
+
+			'清理不需要的属性
+			ChildNode.removeAttribute "dateandtime"
+			ChildNode.removeAttribute "expression"
+			ChildNode.removeAttribute "getmoney"
+			ChildNode.removeAttribute "getmoneytype"
+			ChildNode.removeAttribute "usetools"
+			ChildNode.removeAttribute "issmstopic"
+			ChildNode.removeAttribute "hidename"
+			ChildNode.removeAttribute "lastpost"
+			ChildNode.removeAttribute "title"
+			ChildNode.removeAttribute "postusername"
+			ChildNode.removeAttribute "lastposttime"
+			Root.appendChild ChildNode
+		Next
+
+	End If
+	Root.setAttribute "page",Page
+	Root.setAttribute "pagesize",PageSize
+	Root.setAttribute "count",Count
+	Root.setAttribute "pagecount",PageCount
+End Sub
+
+'帖子显示
+Sub PostList(id)
+	Dvbbs.LoadTemplates("")
+	Dim Star,Sql,Rs,Page,TopicMode,Count,PageCount,PageSize
+	Dim CantRead,TopicTitle,Topicinfo,PostInfo,ChildNode
+	Dim IsTop,IsVote,Pollid,PostUserName,Locktopic,PostUserid,T_GetMoneyType
+	Star = Dvbbs.CheckNumeric(Request("star"))	'帖子分页
+	Page = Dvbbs.CheckNumeric(Request("page"))	'主题列表分页
+	Count = Dvbbs.CheckNumeric(Request("Count"))
+
+	If Star<1 Then Star = 1
+	If Page<1 Then Page = 1
+
+	Set Rs = Dvbbs.iCreateObject("Adodb.RecordSet")
+	SQL="Select title,istop,isbest,PostUserName,PostUserid,hits,isvote,child,pollid,LockTopic,PostTable,BoardID,TopicMode,GetMoney,UseTools,GetMoneyType,dateandtime  From DV_topic where topicID="&ID
+	If Not IsObject(Conn) Then ConnectionDatabase
+	Rs.Open SQL,Conn,1,3
+	Dvbbs.SqlQueryNum=Dvbbs.SqlQueryNum+1
+	'Set Rs=Dvbbs.Execute(SQL)
+	If Not(Rs.BOF and Rs.EOF) then
+		If Rs(11)<>Dvbbs.BoardID Then Dvbbs.AddErrCode(29)
+		PostUserid = Rs(4)
+		Rs(5) = Rs(5)+1
+		Rs.Update
+		TopicTitle = Rs(0)
+		IsTop = Rs(1)
+		IsVote = Rs(6)
+		Count = Rs(7)+1
+		'pollid = Rs(8)
+		'T_GetMoney = cCur(Rs(13))
+		'T_UseTools = Rs(14)
+		T_GetMoneyType = Cint(Rs(15))
+		PostUserName = Rs(3)
+		TotalUseTable = Rs(10)
+		'锁定多少天前的帖子判断 2004-9-16 Dv.Yz
+		If Not Ubound(Dvbbs.Board_Setting) > 70 Then
+			Locktopic = Rs(9)
+		Else
+			If (Not Clng(Dvbbs.Board_Setting(71)) = 0) And Datediff("d", Rs("dateandtime"), Now()) > Clng(Dvbbs.Board_Setting(71)) And Rs(9)=0 Then
+				Locktopic = 1
+				Rs(9)=Locktopic
+				Rs.Update
+			Else
+				Locktopic = Rs(9)
+			End If
+		End If
+		TopicTitle=Dvbbs.ChkBadWords(TopicTitle)
+		If Not Rs("topicmode")=1 Then
+			TopicTitle=replace(TopicTitle,"<","&lt;")
+		End If
+		Dvbbs.Stats=TopicTitle
+		'Set Topicinfo=Dvbbs.RecordsetToxml(Rs,"item","post")
+	Else
+		Dvbbs.AddErrcode(32)
+	End If
+	Rs.Close
+	Set Rs=Nothing
+	CantRead = True
+	If Dvbbs.BoardMaster Then CantRead=False
+	Dvbbs.ShowErr()
+
+	PageSize = Dvbbs.CheckNumeric(Dvbbs.Board_Setting(27))
+
+	If Count mod PageSize=0 then
+		PageCount= Count \ PageSize
+	Else
+		PageCount= Count \ PageSize+1
+	End If
+	If Star > PageCount Then star = PageCount
+	If Star < 1 Then star = 1
+
+	Rem 如果是原版论坛,没经过转换的建议使用这行,可以减少消耗
+	SQL="Select AnnounceID,B.UserName,Topic,dateandtime,body,RootID,isbest,PostUserid,Ubblist,LockTopic,PostBuyUser,ParentID,GetMoneyType,signflag,U.UserGroupID,U.LockUser From "& TotalUseTable &" B Inner Join [dv_user] U On U.UserID=B.PostUserID where  RootID="& id &" and Boardid="& Dvbbs.Boardid&" Order By Announceid"
+
+	Rem 如果你的论坛是从别的论坛转换过来的,如出现楼层错误,则可以把下面的注释去掉,避免错误.
+	Rem SQL="Select AnnounceID,UserName,Topic,dateandtime,body,Expression,ip,RootID,signflag,isbest,PostUserid,layer,isagree,GetMoneyType,IsUpload,Ubblist,LockTopic,GetMoney,UseTools,PostBuyUser,ParentID From "& TotalUseTable &" where  RootID="& id &" and Boardid="& Dvbbs.Boardid&" Order By dateandtime"
+
+	Set Rs=Dvbbs.Execute(SQL)
+	If Star >1 Then
+		Rs.Move (Star-1) * PageSize
+	End If
+	If Not Rs.Eof Then
+		Sql = Rs.GetRows(PageSize)
+		Set PostInfo = Dvbbs.ArrayToxml(sql,rs,"item","post")
+	Else
+		Set PostInfo = Nothing
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	Dim Postbody
+
+	EmotPath=Split(Dvbbs.Forum_emot,"|||")(0)		'em心情路径
+	If Not PostInfo Is Nothing Then
+		For Each ChildNode in PostInfo.documentElement.SelectNodes("item")
+			CantRead = True
+			'过滤脏字
+			If Int(ChildNode.getAttribute("postuserid")) = Dvbbs.UserID Then
+				Postbody = Dvbbs.ChkBadWords(ChildNode.getAttribute("body"))
+				CantRead = False
+			End If
+
+			If CantRead Then
+				If ChildNode.getAttribute("parentid") = "0" and T_GetMoneyType=3 Then
+					If Dvbbs.BoardMaster Then
+						Postbody = Dvbbs.ChkBadWords(ChildNode.getAttribute("body"))
+					Else
+						Postbody = "金币购买帖，请进入完整模式浏览！"
+						CantRead = False
+					End If
+				Else
+					Postbody = Dvbbs.ChkBadWords(ChildNode.getAttribute("body"))
+				End If
+			End If
+
+			If CantRead Then
+				If ChildNode.getAttribute("locktopic")=1 Then
+					If Dvbbs.BoardMaster Then
+						Postbody = "帖子已锁定！<hr/>" & Dvbbs.ChkBadWords(ChildNode.getAttribute("body"))
+					Else
+						Postbody = "帖子已锁定！"
+						CantRead = False
+					End If
+				ElseIf ChildNode.getAttribute("locktopic")=2 Then
+					If Dvbbs.BoardMaster Then
+						Postbody = "帖子已屏蔽！<hr/>" & Dvbbs.ChkBadWords(ChildNode.getAttribute("body"))
+					Else
+						Postbody = "帖子已屏蔽！"
+						CantRead = False
+					End If
+				ElseIf ChildNode.getAttribute("locktopic")=3 Then
+					If Dvbbs.BoardMaster Then
+						Postbody = "帖子待审核！<hr/>" & Dvbbs.ChkBadWords(ChildNode.getAttribute("body"))
+					Else
+						Postbody = "帖子待审核！"
+						CantRead = False
+					End If
+				End If
+			End If
+			If CantRead Then
+				If ChildNode.getAttribute("lockuser")=1 Then
+					If Dvbbs.BoardMaster Then
+						Postbody = "用户已锁定！<hr/>" & Dvbbs.ChkBadWords(ChildNode.getAttribute("body"))
+					Else
+						Postbody = "用户已锁定！"
+						CantRead = False
+					End If
+				ElseIf ChildNode.getAttribute("lockuser")=2 Then
+
+					If Dvbbs.BoardMaster Then
+						Postbody = "用户已屏蔽！<hr/>" & Dvbbs.ChkBadWords(ChildNode.getAttribute("body"))
+					Else
+
+						Postbody = "用户已屏蔽！"
+
+						CantRead = False
+					End If
+				End If
+			End If
+			If CantRead Then
+				If ChildNode.getAttribute("isbest")="1" Then
+					If Dvbbs.GroupSetting(41)="1" Then
+						Postbody = Dvbbs.ChkBadWords(ChildNode.getAttribute("body"))
+					Else
+						Postbody = "精华帖子，目前你无权浏览！"
+						CantRead = False
+					End If
+				Else
+					Postbody = Dvbbs.ChkBadWords(ChildNode.getAttribute("body"))
+				End If
+			End If
+			'UBB需要变量
+			Announceid = ChildNode.getAttribute("announceid")
+			UserName = ChildNode.getAttribute("username")
+			PostBuyUser = ChildNode.getAttribute("postbuyuser")
+			ReplyID_a = ChildNode.getAttribute("announceid")
+			RootID_a = ChildNode.getAttribute("rootid")
+			AnnounceID_a = ReplyID_a
+			'建立item节点信息
+			ChildNode.setAttribute "type","post"
+			If ChildNode.getAttribute("parentid")=0 Then
+				ChildNode.appendChild(XmlDom.createNode(1,"title","")).text =TopicTitle
+			Else
+				ChildNode.appendChild(XmlDom.createNode(1,"title","")).text = Dvbbs.ChkBadWords(ChildNode.getAttribute("topic"))
+			End If
+			If ChildNode.getAttribute("signflag")="2" Then
+				ChildNode.appendChild(XmlDom.createNode(1,"author","")).text = "匿名用户"
+			Else
+				ChildNode.appendChild(XmlDom.createNode(1,"author","")).text = Dvbbs.ChkBadWords(ChildNode.getAttribute("username"))
+			End If
+			'ChildNode.appendChild(XmlDom.createNode(1,"author","")).text = ChildNode.getAttribute("username")
+			ChildNode.appendChild(XmlDom.createNode(1,"pubDate","")).text = ChildNode.getAttribute("dateandtime")
+			'ChildNode.appendChild(XmlDom.createNode(1,"description","")).text = Postbody
+			'Ubb转换
+			If CantRead = False Then
+				ChildNode.appendChild(XmlDom.createNode(1,"description","")).text = postbody
+			Else
+				Ubblists = ChildNode.getAttribute("ubblist")
+				If InStr(Ubblists,",39,") > 0  Then
+					ChildNode.appendChild(XmlDom.createNode(1,"description","")).text = Dv_ubb.Dv_UbbCode(postbody,Cint(ChildNode.getAttribute("usergroupid")),1,0)
+				Else
+					ChildNode.appendChild(XmlDom.createNode(1,"description","")).text = Dv_ubb.Dv_UbbCode(postbody,Cint(ChildNode.getAttribute("usergroupid")),1,1)
+				End If
+			End If
+			'ChildNode.appendChild(XmlDom.createNode(1,"link","")).text = PageUrl&"&boardid="&Dvbbs.Boardid&"&id="&ChildNode.getAttribute("rootid")&"&page="&Page&"&star="&Star
+
+
+			If IsUrlreWrite = 1 Then
+				ChildNode.appendChild(XmlDom.createNode(1,"link","")).text = Forum_url&"dv_rss_"&VisitType&"_"&Dvbbs.Boardid&"_"&ChildNode.getAttribute("rootid")&"_"&Page&"_"&Star&".html"
+
+				ChildNode.appendChild(XmlDom.createNode(1,"bbslink","")).text = Forum_url & "dispbbs_"&Dvbbs.Boardid&"_"&ChildNode.getAttribute("rootid")&"_"&Page&"_"&Star&".html"
+			Else
+				ChildNode.appendChild(XmlDom.createNode(1,"link","")).text = PageUrl&"&boardid="&Dvbbs.Boardid&"&id="&ChildNode.getAttribute("rootid")&"&page="&Page&"&star="&Star
+
+				ChildNode.appendChild(XmlDom.createNode(1,"bbslink","")).text = Forum_url & "dispbbs.asp?boardid="&Dvbbs.Boardid&"&id="&ChildNode.getAttribute("rootid")&"&page="&page&"&star="&Star
+			End If
+
+
+			'清理不需要的属性
+			ChildNode.removeAttribute "lockuser"
+			ChildNode.removeAttribute "getmoneytype"
+			ChildNode.removeAttribute "postbuyuser"
+			ChildNode.removeAttribute "usergroupid"
+			ChildNode.removeAttribute "ubblist"
+			ChildNode.removeAttribute "topic"
+			ChildNode.removeAttribute "username"
+			ChildNode.removeAttribute "dateandtime"
+			ChildNode.removeAttribute "body"
+			Root.appendChild ChildNode
+		Next
+	End If
+	Root.setAttribute "topic",TopicTitle
+	Root.setAttribute "id",id
+	Root.setAttribute "page",Page
+	Root.setAttribute "star",Star
+	Root.setAttribute "pagesize",PageSize
+	Root.setAttribute "count",Count
+	Root.setAttribute "pagecount",PageCount
+End Sub
+
+
+%>

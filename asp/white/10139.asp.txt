@@ -1,0 +1,223 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../checkvalid.asp"-->
+<%If Not FRAdminLevel(204) Then
+	Call ErrorMsg()
+End If
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+Dim Action
+Level_id=request("Level_id")
+Sub addmore()
+Level_name=Trim(Request("Level_name"))
+Level_images=Trim(Request("Level_images"))
+Level_integral=Request("Level_integral")
+'新增
+Level_namenew=Trim(Request("Level_namenew"))
+Level_imagesnew=Trim(Request("Level_imagesnew"))
+Level_integralnew=Request("Level_integralnew")
+	if action<>"" and action="Addmore" then
+'更新现有的记录
+		if Level_id<>"" then
+		pp=ubound(split(Level_id,","))+1 
+			for v=1 to pp
+			Level_id=request("Level_id")(v)
+			Level_name=request("Level_name")(v)
+			Level_integral=request("Level_integral")(v)
+			Level_images=request("Level_images")(v)
+			if Level_id="" or Level_name="" or Level_integral="" or Level_images="" or not IsNumeric(Level_id) or not IsNumeric(Level_integral) then
+				FoundErr=True
+				ErrMsg=ErrMsg & "<br><li>部分项目未填写完整！</li>"
+				exit sub
+			else
+			Set rst=Server.CreateObject(FR_HR_RS)
+			sql1="select * from JOB_Level where Level_id="&Level_id&""
+			rst.open sql1,conn,1,3
+			rst("Level_name")=Level_name
+			rst("Level_integral")=Clng(Level_integral)
+			rst("Level_images")=Level_images
+			rst.update
+			end if
+			next
+			rst.close
+			set rst=nothing
+		end if
+		if Level_namenew<>"" then
+		Set rs=Server.CreateObject(FR_HR_RS)
+		sql="select * from JOB_Level where Level_name='"&Level_namenew&"'"
+		rs.open sql,conn,1,3
+			if not rs.eof then
+				FoundErr=True
+				ErrMsg=ErrMsg & "<br><li>等级名称已存在！</li>"
+				exit sub
+			else
+			rs.addnew
+			rs("Level_name")=Level_namenew
+			rs("Level_integral")=Clng(Level_integralnew)
+			rs("Level_images")=Level_imagesnew
+			rs.update
+			end if
+		rs.close
+		set rs=nothing
+		end if
+		response.redirect "Admin_Level.asp"
+		response.end	
+	end if
+end sub
+Sub Del()
+	if Level_id="" then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>参数不足！</li>"
+		exit sub
+	else
+	conn.execute("delete from JOB_Level where Level_id="&Level_id&"")
+	end if
+    response.redirect "Admin_Level.asp"
+	response.End()
+End Sub
+Function MemberLevelCount(levelname,minlevel,maxlevel)
+Set MLCRs=Server.Createobject(FR_HR_Rs)
+MLCSql="Select * From JOB_Member"
+if maxlevel=0 then
+	MLCSql=MLCSql&" where Member_integral>="&minlevel&""
+else
+	MLCSql=MLCSql&" where Member_integral>="&minlevel&" and Member_integral<"&maxlevel&""
+end if
+MLCRs.Open MLCSql,conn,1,3
+MemberLevelCount=MLCRs.RecordCount
+if not MLCRs.eof then
+do while not MLCRs.eof
+MLCRs("Member_level")=levelname
+MLCRs.update
+MLCRs.movenext
+loop
+end if
+MLCRs.Close
+Set MLCRs=Nothing
+End Function
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>会员管理</title>
+<link href="../Css/style.css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+<!--
+.style11 {	color: #0066CC;
+	font-weight: bold;
+}
+-->
+</style>
+</head>
+<body>
+<%
+Action=trim(Request("Action"))
+Select Case Action
+	Case "Addmore"
+		Call addmore()
+	Case "Del"
+		Call Del()
+	Case Else
+		Call main()
+End Select
+if FoundErr=True then
+call Show_Err()
+end if	
+Conn.Close
+Set Conn=Nothing
+%>
+<%
+Sub main()
+Set rs= Server.CreateObject(FR_HR_RS)
+	sql="select * from JOB_Level order by Level_id asc"
+	rs.open sql,conn,1,1
+	%>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1"  class="tableBorder mt10">
+  <tr>
+    <th  height="25" colspan="7" class="tableHeaderText">用户等级设置</th>
+  </tr>
+  <form action="Admin_Level.asp" method="post" name="form1" id="form1">
+    <tr>
+      <td width="5%" align="center" class="bodytitle"><span class="style11">ID</span></td>
+      <td width="11%" align="center" class="bodytitle"><b class="style11">用户等级</b></td>
+      <td width="22%" align="center" class="bodytitle"><b class="style11">头衔</b></td>
+      <td width="13%" align="center" class="bodytitle"><b class="style11">最少积分</b></td>
+      <td width="25%" align="center" class="bodytitle"><b class="style11">等级图片</b></td>
+      <td width="8%" align="center" class="bodytitle"><b class="style11">用户数</b></td>
+      <td width="16%" align="center" class="bodytitle"><b class="style11">操作选项</b></td>
+    </tr>
+	<%
+	if not rs.eof then
+	n=0
+	do while not rs.eof
+	n=n+1
+	Set rst= Server.CreateObject(FR_HR_RS)
+	sqlt="select top 1 * from JOB_Level where Level_integral>"&rs("Level_integral")&""
+	rst.open sqlt,conn,1,1
+	if not rst.eof then
+	MaxLevel_integral=rst("Level_integral")
+	else
+	MaxLevel_integral=0
+	end if
+	rst.close
+	set rst=nothing
+	%>
+    <tr>
+      <td height="25" align="center"><%=rs("Level_id")%><input name="Level_id" type="hidden" value="<%=rs("Level_id")%>"></td>
+      <td align="center"><%=capitalization(small(n))%>级</td>
+      <td align="center">
+	  <label>
+        <input name="Level_name" type="text" value="<%=rs("Level_name")%>" />
+        </label>	  </td>
+      <td align="center">
+        <label>
+        <input name="Level_integral" type="text" size="10" value="<%=rs("Level_integral")%>" />
+        </label></td>
+      <td align="center">
+        <div align="left">
+		<label>
+          <input name="Level_images" type="text" size="15" value="<%=rs("Level_images")%>" />
+		  </label>
+		  <img src="../../skin/system/<%=rs("Level_images")%>">	    </div>	  </td>
+      <td align="center"><%=MemberLevelCount(rs("Level_images"),rs("Level_integral"),MaxLevel_integral)%></td>
+      <td align="center"><a href="Admin_Member.asp?level=<%=rs("Level_integral")%>,<%=MaxLevel_integral%>">列出用户</a> | <a href="Admin_Level.asp?Action=Del&Level_id=<%=rs("Level_id")%>">删除</a></td>
+    </tr>
+	<%rs.movenext
+	loop
+	end if
+	rs.close
+	set rs=nothing
+	%>
+    <tr>
+      <td height="25" align="center">新增</td>
+      <td align="center">&nbsp;</td>
+      <td align="center">
+	  <label>
+        <input type="text" name="Level_namenew" />
+        </label>      </td>
+      <td align="center">
+        <label>
+        <input name="Level_integralnew" type="text" value="0" size="10" />
+        </label></td>
+      <td align="center">
+        <div align="left"><label>
+          <input name="Level_imagesnew" type="text" value="level/level0.gif" size="15" />
+        </label>
+		  <img src="../../skin/system/level/level0.gif" width="13" height="12"></div>      </td>
+      <td align="center">0</td>
+      <td align="center">&nbsp;</td>
+    </tr>
+    <tr>
+      <td height="25" colspan="7" align="center"><label>
+        <input name="action" type="hidden" value="Addmore"><input name="Submit" type="submit" class="inputs" value="批量修改" />
+      </label></td>
+    </tr>
+  </form>
+</table>
+<%end sub%>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!--#include file="../Conn.asp"-->
+<!-- #include file="inc/const.asp" -->
+<!-- #include file="../inc/md5.asp" -->
+<!-- #include file="../inc/chkinput.asp" -->
+<%
+Dim admin_flag
+admin_flag=",2,"
+CheckAdmin(admin_flag)
+Dim Action
+
+Action = Request("action")
+Head()
+Page_main()
+Footer()
+
+Dim senable,semail,sid,spassword,skey,owidth,oheight,iwidth,iheight,boardlist
+
+Sub Page_main()
+	Select Case Action
+		Case "edit"
+			Call edit()			
+		Case Else
+			MainForm()
+	End Select
+End Sub
+
+
+Sub requst()
+	senable	=	Dvbbs.CheckStr(Trim(Request("senable")))
+	boardlist = Replace(Dvbbs.CheckStr(Request("boardlist"))," ","")
+	semail	=	Dvbbs.CheckStr(Trim(Request("semail")))
+	sid	=	Dvbbs.CheckStr(Trim(Request("sid")))
+	spassword	= Dvbbs.CheckStr(Trim(Request("spassword")))
+	skey	=	Dvbbs.CheckStr(Trim(Request("skey")))
+	owidth	=	Dvbbs.CheckStr(Trim(Request("owidth")))
+	oheight	=	Dvbbs.CheckStr(Trim(Request("oheight")))
+	iwidth	=	Dvbbs.CheckStr(Trim(Request("iwidth")))
+	iheight	=	Dvbbs.CheckStr(Trim(Request("iheight")))
+End Sub
+
+Sub edit()
+	Call requst()
+
+	Dvbbs.Execute("Update Dv_Qcomic set senable='"& senable &"|||,"& boardlist &",',semail='"& semail &"',sid='"& sid &"',spassword='"& spassword &"',skey='"& skey &"',owidth='"& owidth &"',oheight='"& oheight &"',iwidth='"& iwidth &"',iheight='"& iheight &"'")
+	Dv_suc("修改更新成功")
+
+	Call Dvbbs.Load_qcomic_plus()
+End Sub
+
+Sub MainForm()
+	Dim post_action,rs,method,str
+	Set rs = Dvbbs.Execute("Select * From Dv_Qcomic")
+	If Not rs.EOF Then
+		senable	=	Split(rs("senable"),"|||")(0)
+		If (InStr(rs("senable"), "|||")>0) Then
+			boardlist	=	Split(rs("senable"),"|||")(1)
+		Else
+			boardlist	=	",0,"
+		End If
+		semail	=	rs("semail")
+		sid	=	rs("sid")
+		spassword	= rs("spassword")
+		skey	=	rs("skey")
+		owidth	=	rs("owidth")
+		oheight	=	rs("oheight")
+		iwidth	=	rs("iwidth")
+		iheight	=	rs("iheight")
+	Else
+		senable	=	"0"
+		owidth	=	"650"
+		oheight	=	"500"
+		iwidth	=	"750"
+		iheight	=	"240"
+	End If
+	post_action = "edit"
+	method	= "post"
+	str	=	"修改"
+	Set rs = Nothing
+%>
+<table cellpadding="3" cellspacing="1" border="0" width="100%" align="center">
+<tr><td height="25" class="td_title">组图功能说明</td></tr>
+</table>
+
+<table border="0" cellspacing="1" cellpadding="3" align="center" width="100%">
+<tr><td class="td2 title" colspan="2">基本参数设置（请访问<a href="http://picunion.qihoo.com" target=_blank><font color=red>http://picunion.qihoo.com</font></a>，获取联盟帐户信息）</td></tr>
+<form method="<%=method%>" action="">
+<tr>
+	<td align="right">是否开启组图功能：</td>
+	<td><input type="radio" name="senable" value="1" <%If senable="1" Then Response.Write "checked" %>/>开启&nbsp;&nbsp;<input type="radio" name="senable" value="0" <%If senable="0" Then Response.Write "checked" %>/>关闭&nbsp;&nbsp;</td>
+</tr>
+<tr>
+	<td align="right">联盟帐户：</td>
+	<td>
+	<input type="text" name="semail" size="30" value="<%=semail%>"/>
+	&nbsp;<font class="font1">您将使用此邮件地址登录，请确保它是真实有效的</font>
+	</td>
+</tr>
+<tr>
+	<td align="right">联盟ID：</td>
+	<td><input type="text" name="sid" size="30" value="<%=sid%>"/></td>
+</tr>
+<tr>
+	<td align="right">联盟密码：</td>
+	<td><input type="text" name="spassword" size="30" value="<%=spassword%>" /></td>
+</tr>
+<tr>
+	<td align="right">联盟密钥：</td>
+	<td><input type="text" name="skey" size="30" value="<%=skey%>" /></td>
+</tr>
+
+<tr><td class="td2 title" colspan="2">flash宽高设置</td></tr>
+<tr>
+	<td align="right">展示flash宽度：</td>
+	<td><input type="text" name="owidth" size="30" value="<%=owidth%>" />&nbsp;<font class="font1">默认值650</font></td>
+</tr>
+<tr>
+	<td align="right">展示flash高度：</td>
+	<td><input type="text" name="oheight" size="30" value="<%=oheight%>" />&nbsp;<font class="font1">默认值500</font></td>
+</tr>
+<tr>
+	<td align="right">上传flash宽度：</td>
+	<td><input type="text" name="iwidth" size="30" value="<%=iwidth%>" />&nbsp;<font class="font1">默认值750</font></td>
+</tr>
+<tr>
+	<td align="right">上传flash高度：</td>
+	<td><input type="text" name="iheight" size="30" value="<%=iheight%>" />&nbsp;<font class="font1">默认值240</font></td>
+</tr>
+<tr>
+	<td align="right">选择启用板块：<br />请按 Ctrl 或者 Shift 键多选<br />板块不能继承</td>
+	<td>
+		<select name="boardlist" size="20" style="width:270px" multiple>
+		<%
+		Dim ii
+		set rs=Dvbbs.Execute("select boardid,boardtype,depth from dv_board order by rootid,orders")
+		Response.Write "<option "
+		if Instr(boardlist,",0,")>0 then
+			Response.Write " selected"
+		end if
+		Response.Write " value='0'>全部板块</option>"
+		do while not rs.eof
+			Response.Write "<option "
+			if Instr(boardlist,","&rs(0)&",")>0 then
+				Response.Write " selected"
+			end if
+			Response.Write " value="&rs(0)&">"
+			Select Case rs(2)
+				Case 0
+					Response.Write "╋"
+				Case 1
+					Response.Write "&nbsp;&nbsp;├"
+			End Select
+			If rs(2)>1 Then
+				For ii=2 To rs(2)
+					Response.Write "&nbsp;&nbsp;│"
+				Next
+				Response.Write "&nbsp;&nbsp;├"
+			End If
+			Response.Write rs(1)
+			Response.Write "</option>"
+			rs.movenext
+		loop
+		rs.close
+		set rs=nothing
+		%>
+		</select>
+	</td>
+</tr>
+<tr>
+	<td class="td2" colspan="2" align="center">
+	<input type="hidden" name="action" value="<%=post_action%>" />	
+	<input type="submit" name="submit" value="确认提交"/>
+</td>
+</tr>
+</form>
+</table>
+<%End Sub%>

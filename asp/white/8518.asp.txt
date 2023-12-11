@@ -1,0 +1,851 @@
+<!--
+  
+  设计之帆网站管理系统---文章栏目移动。
+  
+  文件名：admin_news_lm_move.asp
+
+ 
+  
+
+说明：
+  
+  历时四天，终于今天搞出了这个栏目移动了。
+
+  功能说明特点：直观地对栏目顺序和二级、三级栏目进行移动。并能自动更新文章对应的栏目。
+
+  使用注意：本程序执行，最好在网站无其他用户访问的情况下执下。因为要利用到数据库独占功能
+。
+
+  设计体会：本程序可以说是一个经典的程序例子。包含有子程序调用、数据库的数据表名检测、数
+据库的字段添加，数据库的表的删除，添加表内容等等。表单的参数传递方法等。也可以是本人一个
+比较优秀的程序设计案例。
+
+   警告：由于栏目移动后，文章的JS调用块有可能受影响，建议在移动之前做了数据库备份。以免
+出错，造成意外。
+
+
+
+-->
+
+
+
+<!--#include file = admin_chk.asp -->
+
+<%
+
+if Request.Cookies("admindj")<>"1" then
+   Response.Write "<BR><BR><BR><BR><center>权限不足，你没有此功能的管理权限"
+   Response.end
+end if
+
+%>
+
+
+
+
+<%
+
+     action=trim(request("action"))  '取出操作参数
+     if action=""  then create_temp_table()  '第一次进入时
+     if action="Move_OK"  then  move_lm_ok() '同意进行移动时。
+     if  action="hao_up"  then   done_hao_up()  '栏目顺序上移
+     if  action="hao_down"  then   done_hao_down()  '栏目顺序上移
+     if  action="lm_up"  then   done_lm_up()  '栏目位置上移
+     if  action="lm_down"  then   done_lm_down()  '栏目位置上移
+     if  action="show"  then   show_lm_window()  '栏目位置上移
+
+  %>
+
+<%
+ '显示栏目的视图
+sub show_lm_window()
+
+move_after_id=clng(request("move_after_id"))
+'对移动后的记录做个标识，以便用户清楚看到移动哪里去了。
+if move_after_id<>0 then 
+   move_icon="<font color='red'>←◆</font>"
+else
+   move_icon=""
+end if
+
+%>
+
+<html>
+
+<head>
+<!--#include file = language.asp -->
+<title>新建网页 1</title>
+<link rel="stylesheet" type="text/css" href="../images/admin/style.css">
+</head>
+
+<TABLE width="100%" border="0" align=center cellpadding="0" cellspacing="1" class="tableBorder"> 
+    <tr> 
+      <th height=25  >栏目移动管理</th> 
+    </tr> 
+    <TR > 
+      <TD class="forumRow" align="center" height="30"> <a href="admin_news_lm.asp"><font color="red">返回栏目操作</font></a>  </td></tr>
+	  <tr><td>
+      
+<table width="100%" border="1" align="center" cellpadding="3" cellspacing="0" bordercolordark="#FFFFFF" bordercolorlight="#9CD752"  bgcolor="#FFFFFF">
+ <form method="POST" action="admin_news_lm_move.asp?action=Move_OK" name="form1">
+  <tr align="center">
+  <td  width="35%"> <!-- 大表格的第一列，大表格共一行，两列占35%和65%宽度，第1列包括旧栏目表的顺序和栏目名称，第二列包括新栏目的顺序操作，栏目移动，新栏目名称 -->
+
+<!-- 旧栏目视图的记录输出 -->
+<table width="100%" border="1" align="center" cellpadding="3" cellspacing="0" bordercolordark="#FFFFFF" bordercolorlight="#9CD752"  bgcolor="#FFFFFF">
+  <tr align="center"> 
+    <td  height="25" background="../images/bg1.gif">
+	<font color="#FFFFFF">旧栏目视图</font>
+	</td>
+   </tr>
+<%
+	 '开始处理栏目移动程序.
+     sql = "select * from ["&CgsailPrefix&"lm] where lm<>'' order by id_desc,id"
+      Set rs = Server.CreateObject("ADODB.RecordSet")
+       rs.Open sql,conn,1,1
+     
+	  if rs.recordcount>0 then 
+	    do while not rs.eof
+       %>
+            <tr>
+               <!-- 旧栏目视图 -->
+                   <td><B><font color="<%=rs("fontcolor")%>"><%=rs("lm")%></font></b></td>
+             </tr>
+             <!-- 判断第二级栏目 -->
+			 <%
+                sql2= "select * from ["&CgsailPrefix&"lm] where lmid='"&rs("ID")&"' and lm2<>'' order by id_desc,id "
+                 Set rs2 = Server.CreateObject("ADODB.RecordSet")
+                 rs2.Open sql2,conn,1,1
+                 do while not rs2.eof
+                   %>
+                      <tr>
+                        <!-- 旧二级栏目视图 -->
+                           <td><font color="<%=rs2("fontcolor")%>">　├<%=rs2("lm2")%></font></td>
+              </tr>
+			       
+			 <!-- 判断第三级栏目 -->
+			 <%
+			          sql3="select * from ["&CgsailPrefix&"lm] where lmid='"&rs2("id")&"' and lm3<>'' order by id_desc,id"
+                      Set rs3 = Server.CreateObject("ADODB.RecordSet")
+                       rs3.Open sql3,conn,1,1
+                      do  while not rs3.eof
+                    %>
+                      <tr>
+                        <!-- 旧第三级子栏目视图 -->
+                           <td><font color="<%=rs3("fontcolor")%>">　　　├<%=rs3("lm3")%></font></td>
+              </tr>
+                        <!-- 判断第二级栏目 -->
+			        <%
+		                   rs3.movenext
+		                  loop  '二级rs3循环
+				          rs3.close
+				          set rs3=nothing
+
+				rs2.movenext
+		      loop  '二级rs2循环
+		      rs2.close
+		      set rs2=nothing
+
+				   rs.movenext
+				   loop  '一级rs循环
+		    else  '无一级栏目时。
+			%>
+                   <tr><td >暂无栏目记录</td></tr>
+			<%
+         end if   '旧栏目视图结束
+	      rs.close
+		 set rs=nothing
+		%>
+          </table>
+		  <!-- 旧栏目的表格结束 -->
+         </td>  <!--  table1的第一大列结束 -->
+
+		 <td width="65%"> <!-- table1的第二大列开始 -->
+
+<!-- 新栏目视图的记录输出 -->
+<table width="100%" border="1" align="center" cellpadding="3" cellspacing="0" bordercolordark="#FFFFFF" bordercolorlight="#9CD752"  bgcolor="#FFFFFF">
+  <tr align="center">
+  
+    <td  width="45" height="25" background="../images/bg1.gif">
+	<font color="#FFFFFF">顺序号</font>
+	</td>
+
+    <td  width="90"  height="25" background="../images/bg1.gif">
+	<font color="#FFFFFF">改变顺序</font>
+	</td>
+    <td  width="90" height="25" background="../images/bg1.gif">
+	<font color="#FFFFFF">栏目移动</font>
+	</td>
+    <td  height="25" background="../images/bg1.gif">
+	<font color="#FFFFFF">新栏目视图</font>
+    </td>
+ </tr>
+
+<%
+   
+    '取
+
+
+
+	 nhao=0  '顺序号
+	 class1_hao=0 '第一级顺序号
+      temp_sql = "select * from ["&CgsailPrefix&"temp_lm] where lm<>'' order by id_desc,id"
+      Set temp_rs = Server.CreateObject("ADODB.RecordSet")
+       temp_rs.Open temp_sql,conn,1,3
+	  
+	   if  temp_rs.recordcount>0 then
+	  	    do while not temp_rs.eof
+		        nhao=nhao+1
+				class1_hao=class1_hao+1 '第一级顺序号
+				
+
+
+%>
+  <tr>
+  
+   <!-- 顺序号 -->
+                   <td width="45" align="center"><%=nhao%></td>
+<!-- 顺序移动 -->
+
+	<td width="90" align="center">
+
+
+	<% if class1_hao>1 then %>
+
+	<a href="?id=<%=temp_rs("id")%>&action=hao_up&class=1&lm=<%=temp_rs("lm")%>&lmid=0&id_desc=<%=class1_hao-1%>"><font color="green">↑上移</font></a>&nbsp;
+	
+	<% else %>
+						  
+		<font color="#CCCCCC">↑上移</font>&nbsp;
+					    
+	<% end if %>
+						 
+				
+	<% if class1_hao<temp_rs.recordcount then %>
+	
+	<a href="?id=<%=temp_rs("id")%>&action=hao_down&class=1&lm=<%=temp_rs("lm")%>&lmid=0&id_desc=<%=class1_hao+1%>"><font color="green">下移↓</font></a>
+   
+	<% else %>
+						  
+		<font color="#CCCCCC">下移↓</font>
+					    
+	<% end if %>
+
+
+	<%temp_rs("id_desc")=class1_hao%>
+	
+	</td>
+
+<!-- 一级栏目移动 -->
+
+    <td width="90" align="center" ><font color="#CCCCCC">↑上移&nbsp;下移↓</font></a>
+   </td>
+
+<!-- 新栏目视图 -->
+	<td>
+	
+	
+	<B><font color="<%=temp_rs("fontcolor")%>"><%=temp_rs("lm")%></font></b>
+	
+	<% if temp_rs("id")=move_after_id then response.write move_icon %>
+
+	
+	</td>
+     </tr>
+
+<!-- 二级栏目 -->
+             <!-- 判断第二级栏目 -->
+			 <%
+
+
+			 			    '取下移的ID
+				 if class1_hao+1<=temp_rs.recordcount then
+				    temp_rs.movenext '先移下一记录,取得下一个ID号
+					dw1_id=temp_rs("id")
+					dw1_lmid=temp_rs("lmid")
+					temp_rs.MovePrevious '再移回原来的位置.
+                 else
+				    dw1_id=0
+					dw1_lmid=""
+
+				 end if
+
+
+			    class2_hao=0
+                temp_sql2= "select * from ["&CgsailPrefix&"temp_lm] where lmid='"&temp_rs("ID")&"' and lm2<>'' order by id_desc,id "
+                 Set temp_rs2 = Server.CreateObject("ADODB.RecordSet")
+                 temp_rs2.Open temp_sql2,conn,1,3
+                 do while not temp_rs2.eof
+				      nhao=nhao+1
+					  class2_hao=class2_hao+1
+
+
+
+
+
+                   %>
+                      <tr>
+					  <!-- 顺序号 -->
+                      <td width="45" align="center"><%=nhao%></td>
+                       <!-- 顺序移动 -->
+
+	                   <td width="90" align="center">
+	                     
+						 <!-- 顺序上移 -->
+					<% if class2_hao>1  then %>
+						 <a href="?id=<%=temp_rs2("id")%>&action=hao_up&class=2&lm=<%=temp_rs2("lm2")%>&lmid=<%=temp_rs2("lmid")%>&id_desc=<%=class2_hao-1%>"><font color="green">↑上移</font></a>&nbsp;
+					<% else %>
+						  
+				     <font color="#CCCCCC">↑上移</font>&nbsp;
+					    
+					<% end if %>
+						 
+				
+					<% if class2_hao<temp_rs2.recordcount then %>
+
+					   <a href="?id=<%=temp_rs2("id")%>&action=hao_down&class=2&lm=<%=temp_rs2("lm2")%>&lmid=<%=temp_rs2("lmid")%>&id_desc=<%=class2_hao+1%>"><font color="green">下移↓</font></a>
+					 
+					<% else %>
+						  
+				     <font color="#CCCCCC">下移↓</font>
+					    
+					<% end if %>
+
+					<%temp_rs2("id_desc")=class2_hao%>
+
+
+					 </td>
+
+                   <!-- 栏目移动 -->
+
+                   <td width="90" align="center" >
+				   
+				   <!--二级栏目上移 -->
+				   						 
+					<% if up1_id<>0  then %>
+                        
+	                  <a href="?action=lm_up&class=2&id=<%=temp_rs2("id")%>&lmid=<%=temp_rs2("lmid")%>&m_id=<%=up1_id%>&m_lmid=<%=up1_lmid%>"><font color="red">↑上移</font></a>&nbsp;
+						
+					<% 
+					    else 
+						
+					%>
+						  
+				     <font color="#CCCCCC">↑上移</font>&nbsp;
+					    
+					<% end if %>
+                     
+					 <!--二级栏目下移  -->
+					 
+					 <% if dw1_id<>0 then %>
+
+	                 <a href="?action=lm_down&class=2&id=<%=temp_rs2("id")%>&lmid=<%=temp_rs2("lmid")%>&m_id=<%=dw1_id%>&m_lmid=<%=dw1_lmid%>"><font color="red">下移↓</font></a>
+
+					 <% else %>
+						  
+				        <font color="#CCCCCC">下移↓</font>
+					    
+					 <% end if %>
+
+
+                   </td>
+                        <!-- 新二级栏目视图 -->
+                           <td>
+						   
+						   
+
+						   <font color="<%=temp_rs2("fontcolor")%>">　├<%=temp_rs2("lm2")%></font>
+						   	
+							<% if temp_rs2("id")=move_after_id then response.write move_icon %>
+						   
+						   </td>
+              </tr>
+			       
+			 <!-- 判断第三级栏目 -->
+			 <%
+
+
+			 			 '取下移的ID
+
+						 if class2_hao+1<=temp_rs2.recordcount then
+						    temp_rs2.movenext '先移下一记录,取得下一个ID号
+							dw2_id=temp_rs2("id")
+							dw2_lmid=temp_rs2("lmid")
+							temp_rs2.MovePrevious '再移回原来的位置.
+						else
+						   
+						   '调试难点：如果刚好某个最后的二级栏目有三级栏目存在时，会出错。正确是继续往后找到一个二级栏目。把最后的三级栏下移到下一个有二级栏目存在的ID上。
+						      
+
+                              if class1_hao+1<temp_rs.recordcount then
+							     temp_rs.movenext
+								
+								 temp_sql2_temp="select  * from ["&CgsailPrefix&"temp_lm] where lmid='"&temp_rs("ID")&"' and lm2<>'' order by id_desc,id "
+                            
+								Set temp_rs2_temp= Server.CreateObject("ADODB.RecordSet")
+                                temp_rs2_temp.Open temp_sql2_temp,conn,1,3
+                                
+								if temp_rs2_temp.recordcount>0 then
+								   
+								   dw2_id=temp_rs2_temp("id")
+								   dw2_lmid=temp_rs2_temp("lmid")
+								else
+								   dw2_id=0
+								   dw2_lmid=""
+								end if
+								temp_rs.MovePrevious
+
+							   else
+							      dw2_id=0
+								  dw2_lmid=""
+							  end if
+
+
+                          end if ''结束条件class1_hao+1<=temp_rs.recordcount then
+
+
+
+						   
+						 '结束取出下一个二级栏目的ID.
+						 
+
+
+
+			          class3_hao=0
+			          temp_sql3="select * from ["&CgsailPrefix&"temp_lm] where lmid='"&temp_rs2("id")&"' and lm3<>'' order by id_desc,id"
+                      Set temp_rs3 = Server.CreateObject("ADODB.RecordSet")
+                       temp_rs3.Open temp_sql3,conn,1,3
+                      do  while not temp_rs3.eof
+                    			    nhao=nhao+1
+									class3_hao=class3_hao+1
+
+
+
+
+
+
+                                %>
+                      <tr>
+					  <!-- 顺序号 -->
+                      <td width="45" align="center"><%=nhao%></td>
+                       
+					   <!-- 顺序移动 -->
+
+	                   <td width="90" align="center">
+					
+					<!-- 顺序上移 -->
+					<% if class3_hao>1 then %>
+
+	                     <a href="?id=<%=temp_rs3("id")%>&action=hao_up&class=3&lm=<%=temp_rs3("lm3")%>&lmid=<%=temp_rs3("lmid")%>&id_desc=<%=class3_hao-1%>"><font color="green">↑上移</font></a>&nbsp;
+
+	                 <% else %>
+						  
+		                <font color="#CCCCCC">↑上移</font>&nbsp;
+					    
+	                 <% end if %>
+						 
+				<!-- 顺序下移 -->
+	                <% if class3_hao<temp_rs3.recordcount then %>
+
+	                   <a href="?id=<%=temp_rs3("id")%>&action=hao_down&class=3&lm=<%=temp_rs3("lm3")%>&lmid=<%=temp_rs3("lmid")%>&id_desc=<%=class3_hao+1%>"><font color="green">下移↓</font></a>
+
+					 <% else %>
+						  
+				        <font color="#CCCCCC">下移↓</font>
+					    
+					 <% end if %>
+
+
+					   <%temp_rs3("id_desc")=class3_hao%>
+	                 </td>
+
+
+                   <!-- 栏目移动 -->
+
+                   <td width="90" align="center" >
+
+                     <!--  三级栏目上移 -->
+   					 <% if up2_id<>0  then %>
+
+                     <a href="?action=lm_up&class=3&id=<%=temp_rs3("id")%>&lmid=<%=temp_rs3("lmid")%>&m_id=<%=up2_id%>&m_lmid=<%=up2_lmid%>"><font color="red">↑上移</font></a>&nbsp;
+						
+					<%  else %>
+						  
+                     <font color="#CCCCCC">↑上移</font>&nbsp;
+					    
+					<% end if %>
+
+
+   					<!-- 三级栏目下移 -->
+					
+
+					 <% if dw2_id<>0 then %>
+	                    <a href="?action=lm_down&class=3&id=<%=temp_rs3("id")%>&lmid=<%=temp_rs3("lmid")%>&m_id=<%=dw2_id%>&m_lmid=<%=dw2_lmid%>"><font color="red">下移↓</font></a>
+
+					<%  else %>
+						  
+ 				       <font color="#CCCCCC">下移↓</font>&nbsp;
+
+					<% end if %>
+
+
+
+                      </td>
+                        <!-- 旧第三级子栏目视图 -->
+                           <td>
+						   
+						   
+						   <font color="<%=temp_rs3("fontcolor")%>">　　　├<%=temp_rs3("lm3")%></font>
+						   
+						   <% if temp_rs3("id")=move_after_id then response.write move_icon %>
+
+						   </td>
+              </tr>
+                        <!-- 判断第二级栏目 -->
+			        <%    
+
+
+
+
+					       temp_rs3.update
+		                   temp_rs3.movenext
+		                  loop  '三级temp_rs3循环
+				          temp_rs3.close
+				          set temp_rs3=nothing
+
+						'取出本级的栏目ID号,提供给下一次环来调用
+						 '取上移的ID
+				         up2_id=temp_rs2("id")
+                         up2_lmid=temp_rs2("lmid")
+
+
+                      temp_rs2.update  '保存id_desc字段
+
+				     temp_rs2.movenext  '移动记录
+				
+
+		    
+			  loop  '二级temp_rs2循环
+		      temp_rs2.close
+		      set temp_rs2=nothing
+              
+			  '二级栏目结束 -->
+
+				'取出本级的栏目ID号,提供给下一次环来调用
+				up1_id=temp_rs("id")
+                up1_lmid=temp_rs("lmid")
+
+				  
+				  temp_rs.update  '保存id_desc值
+                  temp_rs.movenext
+
+
+
+				  loop  '一级temp_rs栏目循环
+        else  '无一级栏目时。
+			%>
+                   <tr><td colspan="4">暂无栏目记录</td></tr>
+			<%
+         end if   '新栏目视图结束
+		 temp_rs.close
+		 set temp_rs=nothing
+		%>
+
+  </table>  <!-- 新栏目视图表格结束。 -->
+
+<!--table1的第二列结束  -->
+  </td>
+  </tr>
+<!-- 结束栏目记录输出 -->
+</table><!-- table1的结束 -->
+
+<table width="100%">
+  <tr><td class="forumR0w">
+<FONT  COLOR="#FF0066">文章栏目顺序和子栏目移动说明:<BR>&nbsp;&nbsp;&nbsp;&nbsp;一、顺序移动：对数据库的栏目表["&CgsailPrefix&"lm]自动增加了一个数值型(int)的字段（id_desc），顺序调整实际上是调整id_desc的数字大小顺序。<br>要达到有正确栏目顺序，必须对引用栏目的SQL语句中的排序order by id 改为：order by id_desc,id 。 栏目顺序调整仅在同级栏目内进行。<br>&nbsp;&nbsp;&nbsp;&nbsp;二、支持两种子栏目移动：（一）、第二级子栏目移动变为另一个第二级子栏目。（二）、第三级子栏目移动作为另一个第三级子栏目。</FONT>
+</td></tr>
+<tr><td align="center"  class="forumRaw">
+<input type="submit" name="B1" value=" 确 定 " onclick='{if(confirm("严重警告：确实要移动文章的栏目吗？\n\n建议在移动栏目之前先做好数据库备份!")
+){return true;}return false;}'>&nbsp;&nbsp;&nbsp; 
+<input type="button" name="B2" value=" 返 回 " onClick="location='admin_news_lm.asp'">
+</td></tr></form></table>
+
+</td></tr></table>
+<%
+
+conn.close
+set conn=nothing
+
+ '显示栏目的视图
+end sub  '结束,显示栏目的视图show_lm_window()
+
+
+
+'第一次进行栏目操作
+sub create_temp_table()  
+
+   '判断是否有增加了一个顺序号的字段：id_desc
+        sql="select  * from ["&CgsailPrefix&"lm] "
+		Set rs = Server.CreateObject("ADODB.RecordSet")
+		rs.Open sql,conn,1,1
+ 
+	   for i=0 to rs.fields.count-1 
+           if rs.fields(i).name="id_desc" then
+                if_field=true  '判断一个数据表lm中是否存在一个名称为：id_desc的字段
+                exit for
+			else
+                if_field=false
+			end if
+        next
+		rs.close
+		set rs=nothing
+        
+		'没有在数据表["&CgsailPrefix&"lm]中没有id_desc这个字段，则增加一个。并写入一个初始值
+		if not if_field then 
+		   conn.execute "ALTER TABLE ["&CgsailPrefix&"lm] add id_desc int"
+		   conn.Execute "update ["&CgsailPrefix&"lm] set [id_desc]=50"
+		end if
+	 '结束判断字段id_desc是否存在。
+
+
+	  '判断数据库中一个数据表是否存在.
+
+		tablename=CgsailPrefix&"_temp_lm"  '定义:数据库中的数据表名称
+        if_table=true   '定义:是否存一个标志
+
+		set rsSchema=Conn.openSchema(20)  'openschema这个属性,请google一下可知.
+        
+		rsSchema.movefirst
+         Do Until rsSchema.EOF
+            if rsSchema("TABLE_TYPE")="TABLE" then
+               if  rsSchema("TABLE_NAME")=tablename then
+               if_table=true
+              exit do
+           end if
+        end if
+       rsSchema.movenext
+      Loop
+	   rsSchema.close
+       set rsSchema=nothing
+	  
+	  '如果存在lm的临时表,则先删除这个临时数据表
+      if if_table then conn.execute "drop table ["&CgsailPrefix&"temp_lm]"
+	  
+  
+ 	  '创建一个临时表,做为新移动后的栏目表.
+	  Conn.execute "create table ["&CgsailPrefix&"temp_lm] (id int,lm text(50),mb text(50),lm2 text(50),lm3 text(50),lmid text(50) ,fontcolor  text(50), pic int, id_desc int)"
+
+	'把LM中的内容填写入临时表中.以做为备份栏目数据表用
+	  Conn.execute "insert into ["&CgsailPrefix&"temp_lm](id,lm,mb,lm2,lm3,lmid,fontcolor,pic,id_desc) SELECT id,lm,mb,lm2,lm3,lmid,fontcolor,pic,id_desc from ["&CgsailPrefix&"lm]"
+  
+      '转到显示栏目视图
+	  show_lm_window()
+
+end sub  '结束生成临时表
+
+'顺序号上移函数:
+sub done_hao_up()
+     class_n=request("class")
+	 id=request("id")
+	 lm=trim(request("lm"))
+	 lmid=trim(request("lmid"))
+	 id_desc=clng(request("id_desc"))
+
+	 if class_n="1" then where_sql=" lm<>'' "
+	 if class_n="2" then where_sql=" lm2<>'' and lmid='"&lmid&"' "
+	 if class_n="3" then where_sql=" lm3<>'' and lmid='"&lmid&"' "
+
+     if id_desc>0 then 
+		   
+		   sql = "select id,id_desc from ["&CgsailPrefix&"temp_lm] where "&where_sql&" order by id_desc,id"
+		   Set rs = Server.CreateObject("ADODB.RecordSet")
+		   rs.Open sql,conn,1,3
+		   do  while not rs.eof
+		       if rs("id")=clng(id) then 
+			      rs("id_desc")=id_desc
+				  rs.MovePrevious '移到前一条记录
+				  rs("id_desc")=id_desc+1
+				  rs.update
+				  exit do
+			   end if
+			   rs.movenext
+		    loop
+		    rs.close
+		    set rs=nothing
+	
+	else
+	   response.redirect "javascript:history.back()"
+	end if
+	
+	response.redirect "admin_news_lm_move.asp?action=show&move_after_id="&id
+
+end sub '结束:顺序号上移函数:
+
+
+'顺序号下移函数:
+sub done_hao_down()
+
+	 class_n=request("class")
+	 id=request("id")
+	 lm=trim(request("lm"))
+	 lmid=trim(request("lmid"))
+	 id_desc=clng(request("id_desc"))
+
+	 if class_n="1" then where_sql=" lm<>'' "
+	 if class_n="2" then where_sql=" lm2<>'' and lmid='"&lmid&"' "
+	 if class_n="3" then where_sql=" lm3<>'' and lmid='"&lmid&"' "
+
+     sql = "select id,id_desc from ["&CgsailPrefix&"temp_lm] where "&where_sql&" order by id_desc,id"
+	 Set rs = Server.CreateObject("ADODB.RecordSet")
+	 rs.Open sql,conn,1,3
+	 
+	 max_record=rs.recordcount
+
+     if id_desc<=max_record then
+
+		   do  while not rs.eof
+		       if rs("id")=clng(id) then 
+			      rs("id_desc")=id_desc
+				  rs.movenext '移到前一条记录
+				  rs("id_desc")=id_desc-1
+				  rs.update
+				  exit do
+			   end if
+			   rs.movenext
+		    loop
+		    rs.close
+		    set rs=nothing
+	
+	else
+
+	   rs.close
+       set rs=nothing
+	   response.redirect "javascript:history.back()"
+	end if
+	
+	response.redirect "admin_news_lm_move.asp?action=show&move_after_id="&id
+
+end sub '结束:顺序号上移函数:
+
+
+
+'栏目上移函数:
+sub done_lm_up()
+
+	 class_n=request("class")
+     '本记录
+	 id=request("id")
+	 lmid=trim(request("lmid"))
+
+	 '移动后的记录
+     m_id=request("m_id")
+     m_lmid=trim(request("m_lmid"))
+
+     sql = "select id,lmid from ["&CgsailPrefix&"temp_lm] where id="&id
+	 Set rs = Server.CreateObject("ADODB.RecordSet")
+	 rs.Open sql,conn,1,3
+
+     rs("lmid")=m_id
+
+	 rs.update
+     rs.close
+       set rs=nothing
+
+	   response.redirect "admin_news_lm_move.asp?action=show&move_after_id="&id
+
+end sub '结束:顺序号上移函数:
+
+
+
+'栏目下移函数:
+sub done_lm_down()
+
+	 class_n=request("class")
+     '本记录
+	 id=request("id")
+	 lmid=trim(request("lmid"))
+
+	 '移动后的记录
+     m_id=request("m_id")
+     m_lmid=trim(request("m_lmid"))
+
+     sql = "select id,lmid from ["&CgsailPrefix&"temp_lm] where id="&id
+	 Set rs = Server.CreateObject("ADODB.RecordSet")
+	 rs.Open sql,conn,1,3
+
+     rs("lmid")=m_id
+
+	 rs.update
+     rs.close
+       set rs=nothing
+
+	   response.redirect "admin_news_lm_move.asp?action=show&move_after_id="&id
+    
+end sub '结束:顺序号上移函数:
+
+
+'同意进行栏目移动
+sub  move_lm_ok() '同意进行移动时。
+
+     '更新数据库中["&CgsailPrefix&"lm]表的顺序和栏目位置:
+     temp_sql="select id,lmid,id_desc from ["&CgsailPrefix&"temp_lm]  order by id_desc,id"
+	 Set temp_rs = Server.CreateObject("ADODB.RecordSet")
+	 temp_rs.Open temp_sql,conn,1,3
+     do while not temp_rs.eof
+       conn.execute("update ["&CgsailPrefix&"lm] set lmid='"&temp_rs("lmid")&"',id_desc="&temp_rs("id_desc")&" where id="&temp_rs("id"))
+       temp_rs.movenext
+	 loop
+     temp_rs.close
+     set temp_rs=nothing
+
+
+
+	 '取出二级子栏目,更新顺序和栏目和["&CgsailPrefix&"news]相关文章
+	 temp_sql2 = "select id,lmid from ["&CgsailPrefix&"temp_lm] where lm2<>'' order by id_desc,id"
+   	     
+	 Set temp_rs2 = Server.CreateObject("ADODB.RecordSet")
+	 temp_rs2.Open temp_sql2,conn,1,3
+   
+	 
+	 do while not temp_rs2.eof
+          
+
+		  '开始更新文章["&CgsailPrefix&"news]的所属的二级子栏目:
+          conn.execute("update ["&CgsailPrefix&"news] set lm='"&trim(temp_rs2("lmid"))&"' where lm2='"&trim(cstr(temp_rs2("id")))&"'")
+
+		  
+		  '取出三级子栏目,更新["&CgsailPrefix&"lm]的顺序和栏目和更新["&CgsailPrefix&"news]文章
+	      temp_sql3 = "select id,lmid from ["&CgsailPrefix&"temp_lm] where lm3<>'' and lmid='"&trim(cstr(temp_rs2("id")))&"' order by id_desc,id"
+	      Set temp_rs3 = Server.CreateObject("ADODB.RecordSet")
+	      temp_rs3.Open temp_sql3,conn,1,3
+           
+		   do while not temp_rs3.eof
+		       
+		  '开始更新文章["&CgsailPrefix&"news]的所属的三级子栏目:
+              conn.execute("update ["&CgsailPrefix&"news] set lm='"&trim(temp_rs2("lmid"))&"',lm2='"&trim(cstr(temp_rs2("id")))&"' where lm3='"&trim(cstr(temp_rs3("id")))&"'")
+
+			  temp_rs3.movenext
+		   loop
+		   
+		   temp_rs3.close
+		   set temp_rs3=nothing
+
+         temp_rs2.movenext
+	 loop
+
+     temp_rs2.close
+	 set temp_rs2=nothing
+
+
+
+	  
+	 ' conn.execute "drop table ["&CgsailPrefix&"temp_lm]"  '删除临时表
+	  conn.close
+	  set conn=nothing
+
+	  response.redirect "admin_news_lm_move.asp?action=show"
+	 ' response.redirect "admin_news_lm.asp?action=show"
+
+end sub  '结束栏目移动操作
+
+
+%>

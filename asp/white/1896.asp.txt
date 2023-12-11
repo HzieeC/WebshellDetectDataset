@@ -1,0 +1,4 @@
+<%
+	Session("flag")=""
+	Response.Redirect("../")
+%>

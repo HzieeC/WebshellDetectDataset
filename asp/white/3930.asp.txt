@@ -1,0 +1,197 @@
+<!--#include file="const.asp"-->
+<!--#include file="common.asp"-->
+<%
+Dim TagName,TagID,classname,Action,TagsArry
+
+Sub main()
+	Dim Rs
+	SQLField = "A.flashid,A.ChannelID,A.classid,A.specialid,A.title,A.subtitle,A.ColorMode,A.FontMode,A.OuterLinks,A.[Describe],A.[filesize],A.Author,A.ComeFrom,A.star,A.showmode,A.PointNum,A.username,A.addTime,A.AllHits,A.isTop,A.isBest,A.HtmlFileDate,A.Taglist,A.miniature,C.ClassName,C.HtmlFileDir,C.readme"
+	maxperpage=NewAsp.ChkNumeric(TPL_Config(27))
+	If maxperpage=0 Then maxperpage=30
+	i=0:n=0:Action=0
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+	m_intOrder=NewAsp.ChkNumeric(Request("order"))
+	TagName=NewAsp.CheckBadstr(Request("name"))
+	If IsURLRewrite Then
+		m_strLinks=CheckURLRewrite(NewAsp.ChannelPath,"tag-"&Server.URLEncode(TagName)&"-[page]"&NewAsp.HtmlExtName)
+	Else
+		m_strLinks="tag.asp?name="&Server.URLEncode(TagName)&"&"
+		IsHtmlPage=False
+	End If
+	classname=TPL_Config(29)
+	If ""=TagName Then
+		TagID=0:Action=1
+	Else
+		Set Rs=NewAsp.Execute("SELECT TagID FROM NC_Tags WHERE ChannelID="&ChannelID&" And Tagname='"&tagName&"'")
+		If Rs.BOF Then TagID=0:Action=1 Else TagID=Rs(0):Action=0
+		Set Rs=Nothing
+	End If
+
+	HtmlContent = NewAsp.LoadTemplate(TPL_FilePath&"\tag")
+	HtmlContent = Replace(HtmlContent, "{$channelid}", ChannelID)
+	If Action=0 Then
+		HtmlContent = Replace(HtmlContent, "{$pagetitle}", Replace(TagName, "{$", "{ $"))
+		HtmlContent = Replace(HtmlContent, "{$tagname}", Replace(TagName, "{$", "{ $"))
+	Else
+		HtmlContent = Replace(HtmlContent, "{$pagetitle}", TPL_Config(29))
+		HtmlContent = Replace(HtmlContent, "{$tagname}", TPL_Config(29))
+	End If
+	HtmlContent = Replace(HtmlContent, "{$tagid}", TagID)
+	HtmlContent = Replace(HtmlContent, "{$classid}", 0)
+	TPL_Scan HtmlContent
+End Sub
+
+Sub showTopiclist()
+	Dim Rs,SQL
+	SQLQuery=" And A.isAccept=1"
+	If IsSqlDataBase=1 Then
+		SQLQuery=" And A.Taglist like '%{"&TagID&"}%'"&SQLQuery
+	Else
+		SQLQuery=" And InStr(1,LCase(A.Taglist),LCase('{"&TagID&"}'),0)>0"&SQLQuery
+	End If
+
+
+	On Error Resume Next
+
+	If m_intOrder=1 Then
+		m_strOrder="A.flashid"
+	ElseIf m_intOrder=2 Then
+		m_strOrder="A.Allhits"
+	ElseIf m_intOrder=3 Then
+		m_strOrder="A.filesize"
+	Else
+		m_strOrder="A.addtime"
+	End If
+	If Not IsObject(Conn) Then ConnectionDatabase
+	totalrec=Newasp.Execute("SELECT COUNT(*) FROM NC_FlashList A WHERE A.ChannelID="&ChannelID&" "&SQLQuery&"")(0)
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT "& SQLField &" FROM [NC_FlashList] A INNER JOIN [NC_Classify] C on A.ClassID=C.ClassID WHERE A.ChannelID=" &ChannelID& " "&SQLQuery&" ORDER BY "&m_strOrder&" DESC"
+	Rs.Open SQL,Conn,1,1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum+1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		Topiclist=Rs.GetRows(maxperpage)
+	Else
+		Topiclist=Null
+		Action=1
+	End If
+	Rs.close():Set Rs=Nothing
+End Sub
+
+Sub showTagListItem()
+	Dim Rs,SQL
+	maxperpage=200
+	On Error Resume Next
+	totalrec=NewAsp.Execute("SELECT COUNT(*) FROM NC_Tags WHERE ChannelID="&ChannelID)(0)
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT TagID,Tagname,Tagcount,Taghits FROM NC_Tags WHERE ChannelID="&ChannelID&" ORDER BY TagID DESC"
+	Rs.Open SQL,Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Rs.BOF And Rs.EOF Then
+		TagsArry=Null
+	Else
+		TagsArry=Rs.GetRows(maxperpage)
+	End If
+	Rs.close()
+	Set Rs=Nothing
+
+	If IsURLRewrite Then
+		m_strLinks=CheckURLRewrite(NewAsp.ChannelPath,"tag-[page]"&NewAsp.HtmlExtName)
+	Else
+		m_strLinks="tag.asp?"
+		IsHtmlPage=False
+	End If
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	Select Case sTokenName
+		Case "action=1"	:	If action=1 Then TPL_Scan sTemplate
+		Case "action=0"	:	If action=0 Then TPL_Scan sTemplate
+		Case "pagenow=1"	:	If pagenow=1 Then TPL_Scan sTemplate
+		Case "pagenow=0"	:	If pagenow>1 Then TPL_Scan sTemplate
+		Case "topiclist"
+			If action=0 Then
+				Call showTopiclist()
+				If IsArray(Topiclist) Then
+					For i=0 To UBound(Topiclist,2)
+						n=n+1:If (n Mod 2) = 0 Then im=2 Else im=1
+						If (i Mod 2) = 0 Then m=1 Else m=2
+						TPL_Scan sTemplate
+					Next
+				End If
+			End If
+		Case "taglistitem"
+			If action=1 Then
+				Call showTagListItem()
+				If IsArray(TagsArry) Then
+					For i=0 To UBound(TagsArry,2)
+						n=n+1:If (n Mod 2) = 0 Then im=2 Else im=1
+						If (i Mod 2) = 0 Then m=1 Else m=2
+						TPL_Scan sTemplate
+					Next
+				End If
+			End If
+	End Select
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+		Case "topiclist"
+			ParseTopicNode		sTokenName
+		Case "taglistitem"
+			ParseTagListNode		sTokenName
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Select Case sToken
+		Case "i"			:	TPL_Echo i+1
+		Case "tagid"		:	TPL_Echo TagID
+		Case "tagname"		:	TPL_Echo TagName
+		Case "moremenu"		:	TPL_Echo moremenu(sVariant)
+		Case "typemenu"		:	TPL_Echo typemenu(sVariant)
+		Case "totalrec"		:	TPL_Echo totalrec
+		Case "pagenow"		:	TPL_Echo pagenow
+		Case "pagecount"	:	TPL_Echo Pcount
+	End Select
+	If Err Then Err.Clear
+End Sub
+
+Sub ParseTagListNode(sToken)
+	Dim strLinks,strTagtitle
+	If IsURLRewrite Then
+		strLinks=CheckURLRewrite(NewAsp.ChannelPath,"tag-"&Server.URLEncode(TagsArry(1,i))&"-1"&NewAsp.HtmlExtName)
+	Else
+		strLinks="tag.asp?name="&Server.URLEncode(TagsArry(1,i))
+	End If
+	strTagtitle="<a href="""&strLinks&""">"&TagsArry(1,i)&"</a>"
+	Select Case sToken
+		Case "i"			:	TPL_Echo i
+		Case "n"			:	TPL_Echo n
+		Case "m"			:	TPL_Echo m
+		Case "link"			:	TPL_Echo strLinks
+		Case "tagtitle"		:	TPL_Echo strTagtitle
+		Case "tagid"		:	TPL_Echo TagsArry(0,i)
+		Case "tagname"		:	TPL_Echo TagsArry(1,i)
+		Case "tagcount"		:	TPL_Echo TagsArry(2,i)
+		Case "taghits"		:	TPL_Echo TagsArry(3,i)
+	End Select
+End Sub
+
+
+%>

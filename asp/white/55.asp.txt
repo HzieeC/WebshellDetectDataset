@@ -1,0 +1,358 @@
+<%
+Function GetHttpPage(HttpUrl,Cset)
+	On Error Resume Next'屏掉asp出错信息
+	If IsNull(HttpUrl)=True Or Len(HttpUrl)<18 Or HttpUrl=False Then
+	GetHttpPage=False
+	Exit Function
+	End If
+	Dim Http
+	Set Http=server.createobject("MSXML2.XMLHTTP")
+	Http.open "GET",HttpUrl,False
+	Http.Send()
+	If Http.Readystate<>4 then
+	Http.close
+	Set Http=Nothing 
+	GetHttpPage=False
+	Exit function
+	End if
+	GetHTTPPage=bytesToBSTR(Http.responseBody,Cset)
+	Set Http=Nothing
+	If Err.number<>0 then
+	Err.Clear
+	End If
+End Function
+
+Function BytesToBstr(Body,Cset)
+	Dim Objstream
+	Set Objstream = Server.CreateObject("adodb.stream")
+	objstream.Type = 1
+	objstream.Mode =3
+	objstream.Open
+	objstream.Write body
+	objstream.Position = 0
+	objstream.Type = 2
+	objstream.Charset = Cset
+	BytesToBstr = objstream.ReadText 
+	objstream.Close
+	set objstream = nothing
+End Function
+
+Function GetBody(ConStr,StartStr,OverStr)
+   on error resume next
+   If ConStr=False or ConStr="" or IsNull(ConStr)=True Or StartStr="" or IsNull(StartStr)=True Or OverStr="" or IsNull(OverStr)=True Then
+      GetBody=False
+      Exit Function
+   End If
+   Dim ConStrTemp
+   Dim Start,Over
+   ConStrTemp=Lcase(ConStr)
+   StartStr=Lcase(StartStr)
+   OverStr=Lcase(OverStr)
+   Start = InStrB(1, ConStrTemp, StartStr, vbBinaryCompare)
+   If Start<=0 then
+      GetBody=False
+      Exit Function
+   Else
+         Start=Start+LenB(StartStr)
+   End If
+   Over=InStrB(Start,ConStrTemp,OverStr,vbBinaryCompare)
+   GetBody=MidB(ConStr,Start,Over-Start)
+End Function
+
+Function GetArray(Byval ConStr,StartStr,OverStr)
+	on error resume next
+	If ConStr=False or ConStr="" Or IsNull(ConStr)=True or StartStr="" Or OverStr="" or IsNull(StartStr)=True Or IsNull(OverStr)=True Then
+	GetArray=False
+	Exit Function
+	End If
+	Dim TempStr,TempStr2,objRegExp,Matches,Match
+	TempStr=""
+	Set objRegExp = New Regexp 
+	objRegExp.IgnoreCase = True 
+	objRegExp.Global = True
+	objRegExp.Pattern = "("&StartStr&").+?("&OverStr&")"
+	Set Matches =objRegExp.Execute(ConStr) 
+	For Each Match in Matches
+	TempStr=TempStr & "$Array$" & Match.Value
+	Next 
+	Set Matches=nothing
+	
+	If TempStr="" Then
+	GetArray=False
+	Exit Function
+	End If
+	TempStr=Right(TempStr,Len(TempStr)-7)
+	objRegExp.Pattern =StartStr
+	TempStr=objRegExp.Replace(TempStr,"")
+	objRegExp.Pattern =OverStr
+	TempStr=objRegExp.Replace(TempStr,"")
+	Set objRegExp=nothing
+	
+	TempStr=Replace(TempStr,"""","")
+	TempStr=Replace(TempStr,"'","")
+	TempStr=Replace(TempStr," ","")
+	If TempStr="" then
+	GetArray=False
+	Else
+	GetArray=TempStr
+	End if
+End Function
+
+
+'==================================================
+'函数名：DefiniteUrl
+'作  用：将相对地址转换为绝对地址
+'参  数：PrimitiveUrl ------要转换的相对地址
+'参  数：ConsultUrl ------当前网页地址
+'==================================================
+Function DefiniteUrl(Byval PrimitiveUrl,Byval ConsultUrl)
+	Dim ConTemp,PriTemp,Pi,Ci,PriArray,ConArray
+	If PrimitiveUrl="" or ConsultUrl="" or PrimitiveUrl="$False$" or ConsultUrl="$False$" Then
+	DefiniteUrl=False
+	Exit Function
+	End If
+	If Left(Lcase(ConsultUrl),7)<>"http://" Then
+	ConsultUrl= "http://" & ConsultUrl
+	End If
+	ConsultUrl=Replace(ConsultUrl,"\","/")
+	ConsultUrl=Replace(ConsultUrl,"://",":\\")
+	PrimitiveUrl=Replace(PrimitiveUrl,"\","/")
+	
+	If Right(ConsultUrl,1)<>"/" Then
+	If Instr(ConsultUrl,"/")>0 Then
+	If Instr(Right(ConsultUrl,Len(ConsultUrl)-InstrRev(ConsultUrl,"/")),".")>0 then 
+	Else
+	ConsultUrl=ConsultUrl & "/"
+	End If
+	Else
+	ConsultUrl=ConsultUrl & "/"
+	End If
+	End If
+	ConArray=Split(ConsultUrl,"/")
+	
+	If Left(LCase(PrimitiveUrl),7) = "http://" then
+	DefiniteUrl=Replace(PrimitiveUrl,"://",":\\")
+	ElseIf Left(PrimitiveUrl,1) = "/" Then
+	DefiniteUrl=ConArray(0) & PrimitiveUrl
+	ElseIf Left(PrimitiveUrl,2)="./" Then
+	PrimitiveUrl=Right(PrimitiveUrl,Len(PrimitiveUrl)-2)
+	If Right(ConsultUrl,1)="/" Then 
+	DefiniteUrl=ConsultUrl & PrimitiveUrl
+	Else
+	DefiniteUrl=Left(ConsultUrl,InstrRev(ConsultUrl,"/")) & PrimitiveUrl
+	End If
+	ElseIf Left(PrimitiveUrl,3)="../" then
+	Do While Left(PrimitiveUrl,3)="../"
+	PrimitiveUrl=Right(PrimitiveUrl,Len(PrimitiveUrl)-3)
+	Pi=Pi+1
+	Loop 
+	For Ci=0 to (Ubound(ConArray)-1-Pi)
+	If DefiniteUrl<>"" Then
+	DefiniteUrl=DefiniteUrl & "/" & ConArray(Ci)
+	Else
+	DefiniteUrl=ConArray(Ci)
+	End If
+	Next
+	DefiniteUrl=DefiniteUrl & "/" & PrimitiveUrl
+	Else
+	If Instr(PrimitiveUrl,"/")>0 Then
+	PriArray=Split(PrimitiveUrl,"/")
+	If Instr(PriArray(0),".")>0 Then
+	If Right(PrimitiveUrl,1)="/" Then
+	DefiniteUrl="http:\\" & PrimitiveUrl
+	Else
+	If Instr(PriArray(Ubound(PriArray)-1),".")>0 Then 
+	DefiniteUrl="http:\\" & PrimitiveUrl
+	Else
+	DefiniteUrl="http:\\" & PrimitiveUrl & "/"
+	End If
+	End If 
+	Else
+	If Right(ConsultUrl,1)="/" Then 
+	DefiniteUrl=ConsultUrl & PrimitiveUrl
+	Else
+	DefiniteUrl=Left(ConsultUrl,InstrRev(ConsultUrl,"/")) & PrimitiveUrl
+	End If
+	End If
+	Else
+	If Instr(PrimitiveUrl,".")>0 Then
+	If Right(ConsultUrl,1)="/" Then
+	If right(LCase(PrimitiveUrl),3)=".cn" or right(LCase(PrimitiveUrl),3)="com" or right(LCase(PrimitiveUrl),3)="net" or right(LCase(PrimitiveUrl),3)="org" Then
+	DefiniteUrl="http:\\" & PrimitiveUrl & "/"
+	Else
+	DefiniteUrl=ConsultUrl & PrimitiveUrl
+	End If
+	Else
+	If right(LCase(PrimitiveUrl),3)=".cn" or right(LCase(PrimitiveUrl),3)="com" or right(LCase(PrimitiveUrl),3)="net" or right(LCase(PrimitiveUrl),3)="org" Then
+	DefiniteUrl="http:\\" & PrimitiveUrl & "/"
+	Else
+	DefiniteUrl=Left(ConsultUrl,InstrRev(ConsultUrl,"/")) & "/" & PrimitiveUrl
+	End If
+	End If
+	Else
+	If Right(ConsultUrl,1)="/" Then
+	DefiniteUrl=ConsultUrl & PrimitiveUrl & "/"
+	Else
+	DefiniteUrl=Left(ConsultUrl,InstrRev(ConsultUrl,"/")) & "/" & PrimitiveUrl & "/"
+	End If 
+	End If
+	End If
+	End If
+	If Left(DefiniteUrl,1)="/" then
+	DefiniteUrl=Right(DefiniteUrl,Len(DefiniteUrl)-1)
+	End if
+	If DefiniteUrl<>"" Then
+	DefiniteUrl=Replace(DefiniteUrl,"//","/")
+	DefiniteUrl=Replace(DefiniteUrl,":\\","://")
+	Else
+	DefiniteUrl=False
+	End If
+End Function
+
+Function getHTTPimg(url,TistUrlx)
+	on error resume next
+	dim http,geturl,objStream
+	urlx=DefiniteUrl(url,TistUrlx)
+	if SaveFiles=1 then
+	ArrSaveFileName = Split(url,".")
+		strFileType=Lcase(ArrSaveFileName(Ubound(ArrSaveFileName)))
+		strFileName=year(now)&month(now)&day(now)&hour(now)&minute(now)&second(now)&MakeRandom(4)& "." & strFileType
+	set http=server.createobject("MSXML2.XMLHTTP")
+	Http.open "GET",urlx,false
+	Http.send()
+	if Http.readystate<>4 then exit function
+	getHTTPimg=Http.responseBody
+	set http=nothing
+	if err.number<>0 then err.Clear 
+		 
+	Set objStream = Server.CreateObject("ADO"&"DB.Stream")
+	objStream.Type =1
+	objStream.Open
+	objstream.write getHTTPimg
+	objstream.SaveToFile server.MapPath("../../"&GetConfig("PhotoUpDir")&"/"&strFileName),2
+	objstream.Close()
+	set objstream=nothing
+	getHTTPimg=GetConfig("WebiInstallDir")&GetConfig("PhotoUpDir")&"/"&strFileName
+	else
+	getHTTPimg=urlx
+	end if
+End Function
+
+Function ScriptHtml(Byval ConStr,TagName,FType)
+    Dim Re
+    Set Re=new RegExp
+    Re.IgnoreCase =true
+    Re.Global=True
+    Select Case FType
+    Case 1
+       Re.Pattern="<" & TagName & "([^>])*>"
+       ConStr=Re.Replace(ConStr,"")
+    Case 2
+       Re.Pattern="<" & TagName & "([^>])*>.*?</" & TagName & "([^>])*>"
+       ConStr=Re.Replace(ConStr,"") 
+	Case 3
+       Re.Pattern="<" & TagName & "([^>])*>"
+       ConStr=Re.Replace(ConStr,"")
+       Re.Pattern="</" & TagName & "([^>])*>"
+       ConStr=Re.Replace(ConStr,"")
+    End Select
+    ScriptHtml=ConStr
+    Set Re=Nothing
+End Function
+
+Function nohtml(byval str)
+	if isnull(str) or trim(str)="" then
+		nohtml=""
+		exit function
+	end if
+    dim re
+    Set re=new RegExp
+    re.IgnoreCase =true
+    re.Global=True
+    re.Pattern="(\<.[^\<]*\>)"
+    str=re.replace(str,"")
+    re.Pattern="(\<\/[^\<]*\>)"
+    str=re.replace(str,"")
+    set re=nothing
+	str=replace(str,chr(34),"")
+	str=replace(str,"'","")
+    nohtml=str
+End Function
+
+Function MakeRandom(ByVal maxLen)
+	Dim strNewPass
+	Dim whatsNext, upper, lower, intCounter
+	Randomize
+	
+	For intCounter = 1 To maxLen
+	upper = 57
+	lower = 48
+	strNewPass = strNewPass & Chr(Int((upper - lower + 1) * Rnd + lower))
+	Next
+	MakeRandom = strNewPass
+End Function
+
+
+Function HTMLDecode(sText)
+    Dim I
+    sText = Replace(sText, "&amp;" , Chr(38))
+    sText = Replace(sText, "&quot;", Chr(34))
+    sText = Replace(sText, "&lt;" , Chr(60))
+    sText = Replace(sText, "&gt;" , Chr(62))
+    sText = Replace(sText, "&nbsp;", Chr(32))
+    For I = 1 To 255
+        sText = Replace(sText, "&#" & I & ";", Chr(I))
+    Next
+    HTMLDecode = sText
+End Function
+
+Function Admin_ShowErr(ErrMsg,ErrorUrl,ErrType)
+	Select Case ErrType
+	Case 0
+	ErrTitle="操作失败"
+	ErrLeft="×"
+	Case 1
+	ErrTitle="操作成功"
+	ErrLeft="√"
+	End Select
+	Response.Write"<table width=""100%"" height=""60%"" border=0 align=""center"" cellpadding=1 cellspacing=0>" &vbcrlf
+	Response.Write"<tr>" &vbcrlf 
+	Response.Write"<td>" &vbcrlf
+	Response.Write"<TABLE class=table cellSpacing=1 cellPadding=3 width=""60%"" align=center border=0>" &vbcrlf
+	Response.Write"<TBODY>" &vbcrlf
+	Response.Write"<TR>" &vbcrlf
+	Response.Write"<TD class=xingmu colSpan=3 colspan=2>"&ErrTitle&"</TD>" &vbcrlf
+	Response.Write"</TR>" &vbcrlf
+	Response.Write"<TR>" &vbcrlf
+	Response.Write"<TD class=""hback"" width=""15%"" height=""10"" align=""center""><font style=""font-size:30px;color: #FF0000;""><strong>"&ErrLeft&"</strong></font></TD>" &vbcrlf
+	Response.Write"<TD class=""hback"" align=""left"" height=""100"">"&ErrMsg&"<li><a href="&ErrorUrl&">返回上一级</a></li></TD>" &vbcrlf
+	Response.Write"</TR>" &vbcrlf
+	Response.Write"<TR>" &vbcrlf
+	Response.Write"<TD class=xingmu colSpan=3 height=""25"" colspan=2></TD>" &vbcrlf
+	Response.Write"</TR>" &vbcrlf
+	Response.Write"</TBODY>" &vbcrlf
+	Response.Write"</TABLE>" &vbcrlf
+	Response.Write"</td>" &vbcrlf
+	Response.Write"</tr>" &vbcrlf
+	Response.Write"</table>"
+	response.end
+End Function
+
+'Txts=要替换的数据
+'str=规则
+Function ReplaceAdn(Txts,str)'播放地址与分局过滤函数
+	If str ="" Or str="" Or IsNull(str) Then Exit Function
+	If Instr(str,Chr(10))=0 Then'只有一个替换规则
+	    TT=Split(str,"$$$")
+	    Txts=Replace(Txts,TT(0),TT(1))
+	Else
+		Dim T,UU_Rep,U_Rep
+		U_Rep=split(str,Chr(10))
+		For T=0 to ubound(U_Rep)
+		UU_Rep=split(U_Rep(T),"$$$")
+		Txts=Replace(Txts,UU_Rep(0),UU_Rep(1))
+		Next
+	End If
+	ReplaceAdn=Replace(Txts,Chr(13),"")
+End Function
+%>

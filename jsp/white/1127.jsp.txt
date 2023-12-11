@@ -1,0 +1,35 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.updateHtml.updateHtml.*" %>
+
+<%
+	UpdateArticleHtml uah = new UpdateArticleHtml();
+
+
+	String info_id="",biz_type="",num="";
+	if(request.getParameter("info_id")!=null)
+	{
+		info_id  = request.getParameter("info_id");
+	}
+	if(request.getParameter("num")!=null)
+	{
+		num  = request.getParameter("num");
+	}
+	if(request.getParameter("biz_type")!=null)
+	{
+		biz_type  = request.getParameter("biz_type");
+	}
+
+	try{
+		if(biz_type.equals("1"))
+			uah.updateArticleByGoodsId("ljc8k4RlQ34m5y1",info_id,num,"1");
+		if(biz_type.equals("2"))
+			uah.updateArticleByGoodsId("ljc8k4Rldf4m5y2",info_id,num,"1");
+		if(biz_type.equals("f"))
+			uah.updateArticleByGoodsId("ljc8k4Rldfas5yf",info_id,num,"1");
+		out.println("成功");
+	}catch(Exception e){
+		e.printStackTrace();
+		out.println("失败");
+	}
+%>

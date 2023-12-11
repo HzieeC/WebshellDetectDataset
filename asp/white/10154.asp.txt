@@ -1,0 +1,238 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%> 
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<%
+wid=request("wid")
+if wid="" or not Isnumeric(wid) then wid=10
+If Not FRAdminLevel(307&wid) Then
+	Call ErrorMsg()
+End If
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1
+keywords=replace_text(request("keywords"))
+if request("typeid")<>"" then
+	if Chkrequest(request("typeid")) then
+		typeid=request("typeid")
+	end if
+end if
+Dim Action
+Dim page,i
+Dim totalPut
+const MaxPerpage=20
+page=Trim(Request("page"))
+strFileName="index.asp?wid="&wid&"&typeid="&typeid&"&keyword="&keyword&""
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>HR资讯管理</title>
+<link href="../Css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<script type="text/javascript">
+function CheckAll(form)
+{
+for (var i=0;i<form.elements.length;i++)
+{
+var e = form.elements[i];
+if (e.Name != "chkAll")
+   e.checked = form.chkAll.checked;
+}
+}
+</script>
+<body>
+<table width="98%" border="0" cellspacing="1" cellpadding="2" align=center class="tableBorder"> 
+  <tr> 
+     <th height=25><%=ChannelNametitle(wid)%>管理</th> 
+  </tr> 
+  <tr>
+    <td height=25><span class="bodytitle"><font color="ff6600"><b class="style1">　管理选项</b></font></span>： <a href="newsadd.asp?wid=<%=wid%>">添加<%=ChannelNametitle(wid)%></a> | <a href="index.asp?wid=<%=wid%>">管理<%=ChannelNametitle(wid)%></a> | <a href="newssort.asp?wid=<%=wid%>#type">添加信息类别</a> | <a href="newssort.asp?wid=<%=wid%>">管理信息类别</a> | [<a href="javascript:location.reload()">刷新页面</a>] </td>
+  </tr>
+  <tr>
+    <td height=25><span class="bodytitle"><font color="ff6600"><b class="style1">　二级栏目</b></font></span>：
+	<%
+		set rs6=conn.execute("select S_id,S_name from JOB_NewsSort where S_cid="&wid&" order by S_order asc,S_addtime desc")
+		do while not rs6.eof
+	%>
+      <a href="index.asp?typeid=<%=rs6("S_id")%>&wid=<%=wid%>"><%=rs6("S_name")%></a> |
+    <%
+		rs6.movenext
+		loop
+		rs6.close
+		set rs6=nothing
+	%>
+</td>
+  </tr>
+  <tr><form name="searchForm" action="index.asp?wid=<%=wid%>" method="post">
+    <td height=25><span class="bodytitle"><font color="ff6600"><b class="style1">　操作选项</b></font></span>：搜索关键字：<input name="keywords" type="text" value="<%=keywords%>">&nbsp;所属类别：<select name="typeid" size="1">
+<option value="" selected="selected">所有类别 类信息</option>
+<%
+set rs1=conn.execute("select S_id,S_name from JOB_NewsSort where S_cid="&wid&" order by S_order asc,S_addtime desc")
+do while not rs1.eof
+%>
+<option value="<%=rs1("S_id")%>" <%if cstr(typeid)=cstr(rs1("S_id")) then%>selected="selected"<%end if%>><%=rs1("S_name")%> 类信息</option>
+<%
+rs1.movenext
+loop
+rs1.close
+%>
+</select> <input name="submit" type="submit" class="inputs" id=submit value="立刻查找"></td></form>
+  </tr>
+</table>
+<%
+Action=trim(Request("Action"))
+Select Case Action
+	Case "Del"
+		Call Del()
+	Case Else
+		Call main()
+End Select
+if FoundErr=True then
+	call Show_Err()
+end if
+Conn.Close
+Set Conn=Nothing
+
+Sub main()
+sql="select * from JOB_News where N_cid="&wid&""
+if typeid<>"" then sql=sql&" and N_sid="&typeid&""
+if keywords<>"" then sql=sql&" and N_title like '%"&keywords&"%'"
+sql=sql&" order by N_id desc"
+
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,1
+if rs.eof and rs.bof then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>暂无文章，请添加后再进行管理！</li>"
+	exit sub
+else
+	totalPut=rs.recordcount
+	if (page-1)*MaxPerpage>totalput then
+		if (totalPut mod MaxPerpage)=0 then
+			page= totalPut \ MaxPerpage
+		else
+			page= totalPut \ MaxPerpage + 1
+		end if
+	end if
+	if page=1 then
+		Call MainInfo()
+	else
+		if (page-1)*MaxPerpage<totalPut then
+			rs.move  (page-1)*MaxPerpage
+			dim bookmark
+			bookmark=rs.bookmark
+			Call MainInfo()
+		else
+			page=1
+			Call MainInfo()
+		end if
+	end if
+end if
+rs.close
+set rs=nothing
+end sub	
+%>
+<%Sub MainInfo()%>
+<table wnewsidth="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder mt6">
+  <Form name="form1" method="POST" action="<%=strFileName%>">
+    <tr>
+      <th height=25 colspan="6"><%=ChannelNametitle(wid)%>信息列表</th>
+	</tr>
+    <tr align="center">
+	  <td width="6%">全选</td>
+      <td width="51%"><b>标题</b></td>
+      <td width="9%"><b>所属类别</b></td>
+      <td width="7%"><b>点击数</b></td>
+      <td width="16%"><b>发布日期</b></td>
+      <td width="11%"><b>操作</b></td>
+    </tr>
+<%do while not rs.eof
+if rs("N_color")<>"" and not Isnull(rs("N_color")) then
+	ntit="<font color='"&rs("N_color")&"'>"&rs("N_title")&"<font>"
+else
+	ntit=rs("N_title")
+end if
+%>
+    <tr>
+	  <td align="center"><input name="Newsid2" type="checkbox" class="checkbox" value="<%=rs("N_id")%>" /></td>
+      <td align="left">&nbsp;<a href="<%=FormatLink(rs("N_addtime"),wid,rs("N_sid"),rs("N_id"),0)%>" target="_blank"><%if rs("N_sorttit")<>"" and not Isnull(rs("N_sorttit")) then%><%=rs("N_sorttit")%><%end if%><%=ntit%></a> <%if rs("N_iscommond")=1 or rs("N_homecommond")=1 then%><img src="../images/thanx.gif" alt="推荐信息！" width="19" height="19" align="absmiddle"><%end if%> <%if rs("N_pic")<>"" and not isnull(rs("N_pic")) then%><img src="../images/haveimg.gif" alt="此条信息为图片标题：&lt;br&gt;&lt;img src='<%=InstallDir%><%=FR_UPFILES_DIR%>/Article/<%=rs("N_pic")%>' border=1 width=220 height=150" width="12" height="12" border="0">
+      <%end if%>	  </td>
+      <td align="center"><a href="index.asp?typeid=<%=rs("N_sid")%>" title="查看该类别的文章"><%=InfoType(rs("N_sid"))%></a></td>
+      <td align="center"><%=rs("N_hits")%></td>
+      <td align="center"><%=rs("N_addtime")%></td>
+      <td align="center"><!--<a href="../websys/admin_comment.asp?newsid=<%=rs("N_id")%>&wid=<%=wid%>">评论</a> --><a href="newsadd.asp?newsid=<%=rs("N_id")%>&wid=<%=wid%>">修改</a></td>
+    </tr>
+    <%i=i+1
+		if i>=MaxPerPage then exit do
+		rs.movenext
+		loop
+	%>
+    <tr>
+      <td colspan="6" align="left"> &nbsp; <input name="chkAll" type="checkbox" class="checkbox" onclick="CheckAll(this.form)" value="checkbox" />   <input name="Action" type="hidden" value="Del" />   选中所有项目&nbsp;&nbsp;&nbsp;&nbsp;将选定的项目:&nbsp;
+<input name="submit" type="submit" class="inputs" value="删除" /></td>
+    </tr>
+    <tr>
+      <td align="right" colspan="6"><%Call Showpage(strFileName,totalput,MaxPerPage,false,true,"篇文章")%></td>
+    </tr>
+	</form>
+</table>
+<%End Sub%>
+<!--#include file="../inc/copy.asp" -->
+<div id="pltsTipLayer" name="pltsTipLayer" style="display:none; position:absolute; z-index:10001; text-align:left;"></div>
+<script language="javascript" src="../../Js/tit.js"></script>
+</body>
+</html>
+<%
+Sub Del()
+	newsid=request.Form("Newsid2")
+	ids=split(newsid,",")
+	if CreateHtml=1 then
+		'删除生成的静态文件
+		set rs=Server.CreateObject("ADODB.RecordSet")
+		for i=0 to ubound(ids)
+			sql="select N_id,N_addtime,N_cid,N_sid,N_content from JOB_News where N_id="&ids(i)&""
+			rs.open sql,conn,1,1
+			if not rs.eof then
+				'判断内容是否有分页，有循环删除分页文件
+				dim page,contentNum
+				contentNum=""
+				MMText=replace(rs("N_content"),"[JYPage]"," [JYPage] ")
+				MMfText=split(MMText,"[JYPage]")
+				for pagenums=0 to ubound(MMfText)
+					htmlname=FormatLinks(rs("N_addtime"),rs("N_cid"),rs("N_sid"),rs("N_id"),pagenums+1)
+					'删除静态文件
+					Call DelArticleHtml(htmlname)
+				next
+			end if
+			rs.close
+		next
+		set rs=nothing
+	end if
+	conn.execute("Delete From JOB_News where N_id in("&newsid&")")
+	response.Redirect("index.asp?wid="&wid&"")
+End Sub
+
+'删除静态文件
+Function DelArticleHtml(htmlname)
+	On Error Resume Next
+	if htmlname<>"" then
+	Dim fso
+	Set fso = Server.CreateObject("Scripting.FileSystemObject")
+	if fso.FileExists(Server.MapPath(htmlname)) then
+		fso.DeleteFile(Server.MapPath(htmlname))
+	end if
+	Set fso = Nothing
+	end if
+End Function
+%>

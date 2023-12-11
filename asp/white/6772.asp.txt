@@ -1,0 +1,286 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="../inc/consts.asp" -->
+<%
+if session("class_id")="" then
+	response.write"<script>alert('权限不够！');window.open('index.asp','_parent')</script>"
+	response.End()
+end if
+%>
+
+<%
+'本段程序是每次更新后执行的，每次修改版本号时会自动更新网站版本号。
+'建立与数据库的连接'每次登陆时启发一次
+
+'-----------------------------------------------------------
+	site_version="1.11"	'每次更新变化						|
+	site_time="2013-1-15 下午 20:00:00"'每次更新变化		|
+	update_times=11		'每次更新变化              |
+'------------------------------------------------------------
+
+	
+On Error Resume Next
+	path_name_v="../Version"   '数据库所在目录名，双引号内的值根据实际需要修改，越复杂越好
+    dbname_v="version.mdb"   '数据库文件名，双引号内的值根据实际需要修改，越复杂越好
+	strconn_v = "provider=microsoft.jet.oledb.4.0;data source="  & Server.MapPath(path_name_v&"\"&dbname_v)
+	set conn_v = server.createobject("adodb.connection")
+	conn_v.open strconn_v
+	'获取常量
+	set rs_v=server.createobject("adodb.recordset")
+	sql_v="select top 1 * from Version order by id desc"
+	rs_v.open sql_v,conn_v,1,3
+	if not rs_v.eof then
+		current_version=rs_v("Version")
+	end if
+	rs_v.close
+	Set rs_v=Nothing
+	Set sql_v=Nothing 
+	if session("check_version")<>1 then
+		'判断版本并自动升级版本号
+		set rs_v=server.createobject("adodb.recordset")
+		sql_v="select top 1 * from Version order by id desc"
+		rs_v.open sql_v,conn_v,1,3
+		if not rs_v.eof then
+			'response.Write "<br/>版本号="&rs_v("Version")&"<br/>"
+			'response.Write "<br/>内update_times="&rs_v("update_times")&"<br/>"
+			'response.Write "<br/>外update_times="&update_times&"<br/>"
+			if (rs_v("Version")<>site_version) and (update_times-rs_v("update_times")<>1) then
+				response.Write "<script>alert('出错啦，可能是：\r\n\r\n1、如果您网站目录下没有version目录以及version.mdb，请联系我们进行安装。\r\n\r\n 2、如果确认已存在，那么您的网站很可能升级时遗漏了部分补丁，请依照当前版本（"&current_version&"）的下一版本，从小到大依次升级！');</script>"
+			elseif cint(update_times)=cint(rs_v("update_times")) then
+				'网站已经是最新版
+			else
+				rs_v.addnew
+				rs_v("Version")=site_version
+				rs_v("updated_time")=site_time
+				rs_v("update_times")=update_times
+				rs_v.update
+				response.Write "<script>alert('恭喜您，网站已经升级为：Ver "&site_version&"！');window.open('admin_top.asp','_self')</script>"
+			end if
+		else
+			response.Write "<script>alert('亲，您的网站未添加版本号自动更新功能！');window.open('admin_top.asp','_self')</script>"
+		end if
+		rs_v.close
+		Set rs_v=Nothing
+		Set sql_v=Nothing 
+		session("check_version")=1
+	end if
+	Set conn_v=Nothing
+%>
+
+
+
+
+<%
+select case session("class_id")
+	case 0:aaa= "管理员"
+	case 1:aaa= "信息发布员"
+	case 2:aaa= "客服/SEO专员"
+end select
+%>
+<%
+'获取常量
+set rs=server.createobject("adodb.recordset")
+sql="select * from My_config"
+rs.open sql,conn,1,1
+'site_name=rs("site_name")
+site_url=rs("site_url")
+'自动语音提示
+voice_remind_timer=rs("voice_remind_timer")
+if voice_remind_timer>0 then
+	reflesh_timer=voice_remind_timer*60 '分钟转为秒
+else
+	reflesh_timer=180
+end if
+rs.close
+%>
+<%
+'获取收到的未读简历数量
+sql="select Smt_id from My_jianli where jl_status=0"
+rs.open sql,conn,1,1
+if not rs.eof then
+	jobs_jl=rs.recordcount
+	'response.write"<script>alert('您收到 "&jobs_jl&" 则未读简历！');window.open('job.asp?if_chuli=0','main')<script>"
+else
+	jobs_jl=0
+end if
+rs.close
+%>
+<%
+'获取收到的未读留言数量
+sql="select Smt_id from My_Msg where if_readed=0"
+sql=sql&" and (msg_sender<>'' or not isnull(msg_sender))"
+rs.open sql,conn,1,1
+if not rs.eof then
+	liuyan_count=rs.recordcount
+	'response.write"<script>alert('您收到 "&liuyan_count&" 则新留言！');window.open('msg.asp?show_id=1','main')<script>"
+else
+	liuyan_count=0
+end if
+rs.close
+'获取未完成订单
+sql="select SMT_key from My_Order_List where (SMT_key=0 or SMT_key=1) and if_sent=0"
+rs.open sql,conn,1,1
+if not rs.eof then
+	dd_count1=rs.recordcount
+	'response.write"<script>alert('您收到 "&dd_count1&" 新订单！');window.open('dingdan.asp?key=0','main')<script>"
+else
+	dd_count1=0
+end if
+rs.close
+	'获取已付款待发货订单
+	sql="select SMT_key from My_Order_List where if_payed=1 and if_sent=0 and (SMT_key=0 or SMT_key=1)"
+	rs.open sql,conn,1,1
+	if not rs.eof then
+		dd_count1_1=rs.recordcount
+	else
+		dd_count1_1=0
+	end if
+	rs.close
+	'获取未付款未发货订单
+	sql="select SMT_key from My_Order_List where if_payed=0 and if_sent=0 and (SMT_key=0 or SMT_key=1)"
+	rs.open sql,conn,1,1
+	if not rs.eof then
+		dd_count1_2=rs.recordcount
+	else
+		dd_count1_2=0
+	end if
+	rs.close
+	'获取未付款已发货订单
+	sql="select SMT_key from My_Order_List where if_payed=0 and if_sent=1 and (SMT_key=0 or SMT_key=1)"
+	rs.open sql,conn,1,1
+	if not rs.eof then
+		dd_count1_3=rs.recordcount
+	else
+		dd_count1_3=0
+	end if
+	rs.close
+
+
+
+
+
+'遍历获取所有产品，然后再获取相应的login_dates天内销售单数和总数量，最后更新到产品
+set rs=server.createobject("adodb.recordset")
+sql="select SMT_id,cp_bianhao from My_cp where SMT_key>0"
+rs.open sql,conn,1,1
+pro_xl_jilu=rs.recordcount
+if pro_xl_jilu>0 then
+k=0
+Do While Not rs.eof and Not rs.bof ' and k<=9
+	pro_id=rs("SMT_id")
+	pro_bianhao=rs("cp_bianhao")
+	'获取销量
+	login_dates=30
+	set rs1=server.createobject("adodb.recordset")
+	sql1="select cp_bianhao,key,finished_date,buy_qty from My_Order_Details where cp_bianhao='"&pro_bianhao&"' and key=2"
+	sql1=sql1&" and DateDiff('d',finished_date,'"&Now()&"')<="&login_dates&""
+	rs1.open sql1,conn,1,1
+	if rs1.eof and rs1.bof then
+		total_xl=0
+		zxl_total=0
+	else  
+		For i=0 to rs1.recordcount
+			zxl_total=cint(rs1("buy_qty"))+zxl_total
+			rs1.movenext
+			if rs1.eof then
+				exit for
+			end if
+		Next
+		total_xl=rs1.recordcount
+	end if
+	rs1.close
+	set sql1=nothing
+	'获取总平均评价分
+	sql1="select cpbianhao,pjf,if_zx from My_pinglun where cpbianhao='"&pro_bianhao&"' and if_zx=0"
+	rs1.open sql1,conn,1,1
+	if rs1.eof and rs1.bof then
+		pj_pjf=0
+		pingjiafen=0
+		pingjiafen_jilu=0
+	else
+		pingjiafen_jilu=rs1.recordcount 
+		For i=0 to pingjiafen_jilu
+			pj_pjf=rs1("pjf")+pj_pjf
+			rs1.movenext
+			if rs1.eof then
+				exit for
+			end if
+		Next
+		pingjiafen=round((pj_pjf/pingjiafen_jilu),1)
+	end if
+	rs1.close
+	conn.execute("update My_cp set zjxl="&total_xl&",zjxl_qty="&zxl_total&",pj_pjf="&pingjiafen&" where cp_bianhao='"&pro_bianhao&"'")
+	'zjxl 最近n天销售单数  'zjxl_qty 最近N天销售总数量  'pj_pjf 总平均评价分
+	set rs1=nothing
+	set sql1=nothing
+k=k+1
+rs.movenext 
+Loop
+end if
+rs.close
+Set rs=Nothing
+Set sql=Nothing 
+%>
+<html>
+<head>
+<title><%= title %> - 管理页面</title>
+<script language=JavaScript>
+function logout(){
+	if (confirm("您确定要退出控制面板吗？"))
+	top.location = "index.asp?action=logout";
+	return false;
+}
+</script>
+<script language=JavaScript1.2>
+function showddsm(){
+	alert("说明：未完成订单合计 <%=dd_count1%> 笔：\r\n\r\n(其中：\r\n\r\n※已付款但尚未发货订单有 <%=dd_count1_1%> 笔(请尽快安排发货)\r\n\r\n※未付款且未发货订单有 <%=dd_count1_2%> 笔。）；\r\n\r\n\r\n★另外请注意：\r\n未付款但已经发货订单有 <%=dd_count1_3%> 笔，需要尽快催款；")
+}
+/*
+function showsubmenu(sid) {
+	var whichEl = eval("submenu" + sid);
+	var menuTitle = eval("menuTitle" + sid);
+	if (whichEl.style.display == "none"){
+		eval("submenu" + sid + ".style.display=\"\";");
+	}else{
+		eval("submenu" + sid + ".style.display=\"none\";");
+	}
+}
+*/
+</script>
+<meta http-equiv=Content-Type content=text/html;charset=gb2312>
+<meta http-equiv="refresh" content="<%=reflesh_timer%>"><!--N分钟*60 自动刷新一次-->
+<base target="main">
+<link href="css/skin.css" rel="stylesheet" type="text/css">
+</head>
+<%if voice_remind_timer>0 then%>
+	<%if dd_count1>0 then%>
+        <%tishi_voice="../t/image/Incoming_msg.mp3"%>
+        <div style="position:absolute;"><embed src="images/tishi_voice.swf?file=<%=tishi_voice%>&width=0&songVolume=100&backColor=000000&frontColor=00ff80&autoStart=true&repeatPlay=false&showDownload=false" width="0" height="0" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash"></embed></div>
+    <%elseif liuyan_count>0 then%>
+    <%elseif jobs_jl>0 then%>
+    <%end if%>
+<%end if%>
+<body leftmargin="0" topmargin="0">
+<table width="100%" height="64" border="0" cellpadding="0" cellspacing="0" class="admin_topbg">
+  <tr>
+    <td width="auto" height="64"><div style="font-size:22px; color:#FFFFFF; margin-bottom:20px;font-family: 黑体;"><%=coname%> CMS管理系统 <%if current_version<>"" then response.Write "Ver "&current_version%></div></td>
+    <td width="auto" valign="top"><table width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr>
+        <td width="auto" height="38" class="admin_txt" align="right">
+		{未读信息:<a href="dingdan.asp?key=0" target="main" style="font-weight:bold;font-size:20px;color:#F6F;text-decoration:underline" title="说明：未完成订单合计<%=dd_count1%>笔：(其中:已付款待发货订单有<%=dd_count1_1%>笔，未付款且未发货订单有<%=dd_count1_2%>笔）；未付款已经发货订单有<%=dd_count1_3%>笔；"><%=dd_count1%></a>订单<a onClick="showddsm()"><img src="images/vie.gif" style="cursor:pointer;" title="点击查看详细"></a> / <a href="msg.asp?show_id=1" target="main" style="font-weight:bold;font-size:20px;color:#CFF;text-decoration:underline"><%=liuyan_count%></a>留言 / <a  href="job.asp?if_chuli=0" target="main" style="font-weight:bold;font-size:20px;color:#FC9;text-decoration:underline"><%=jobs_jl%></a>简历}<div style="margin-right:10px;display:inline;"></div>
+		您好,<%=aaa%>:<a href="admin/mm.asp" style="color:#fff"><b><%=session("admin")%></b></a>
+		[<a href="../t/" target="_blank" style="color:yellow">预览网站</a>]
+		[<a href="right.asp" onClick="javascript:window.open('guanli.asp','main')" style="color:#33FF00">管理首页</a>]
+		</td>
+        <td width="22%"><a href="#" target="_self" onClick="logout();"><img src="images/out.gif" alt="安全退出" width="46" height="20" border="0"></a></td>
+        <td width="4%">&nbsp;</td>
+      </tr>
+      <tr>
+        <td height="19" colspan="3">&nbsp;</td>
+        </tr>
+    </table></td>
+  </tr>
+</table>
+</body>
+</html>

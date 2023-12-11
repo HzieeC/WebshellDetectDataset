@@ -1,0 +1,108 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../Inc/Commoncode.asp" -->
+<!--#include file="../inc/CommonFunction.asp"-->
+<!--#include file="../inc/IP.asp"-->
+<%newsid=request("newsid")
+if newsid="" or not IsNumeric(newsid) then
+response.Write ("<script language='JavaScript'>alert('该页面不存在，请访问其他内容');location.href='JavaScript:history.back()';</script>")
+Response.end()
+end if
+'读取文章标题
+set rs=conn.execute("select * from JOB_news where N_id="&newsid&"")
+if not rs.eof then
+newsid=rs("N_id")
+typeid=rs("N_sid")
+ChannelID=rs("N_cid")
+news_Title=rs("N_Title")
+dateandtime=rs("N_andtime")
+else
+response.Write ("<script language='JavaScript'>alert('该页面不存在，请访问其他内容');location.href='JavaScript:history.back()';</script>")
+Response.end()
+end if
+rs.close
+set rs=nothing
+strFileName="newscomment.asp?newsid="&newsid&""
+'读取频道名称
+set rs=conn.execute("select * from JOB_Channel where ChannelID="&ChannelID&"")
+ChannelName=rs("ChannelName")
+ChannelDir=rs("ChannelDir")
+ChannelKeywords=rs("Meta_Keywords")
+ChannelDescription=rs("Meta_Description")
+set rs=nothing
+'读取模版内容
+html=LoadTemplate(ChannelID,20,0)
+'读取分页
+if request("page")<>"" then
+if cint(request("page"))<1 then:Page=1:else:Page=cint(request("page")):end if
+else:Page=1:end if
+html=ReplaceLableFlag(ReplaceAllLabel(html))
+html=Replace(html,"{$FR_频道名称}",ChannelName)
+html=Replace(html,"{$FR_频道目录}",ChannelDir)
+html=Replace(html,"{$FR_文章关键词}",ClearColor(news_Title))
+html=Replace(html,"{$FR_文章描述}",ClearColor(news_Title))
+html=Replace(html,"{$FR_文章页面地址}",""&FormatLink(dateandtime,ChannelId,typeid,newsid,0)&"")
+html=Replace(html,"{$FR_文章标题}",ClearColor(news_Title))
+html=Replace(html,"{$FR_文章编号}",newsid)
+html=Replace(html,"{$FR_评论列表}",ComMainList(20))
+html=Replace(html,"{$FR_评论文本框}","<textarea name='pj_content' style='width:400px; height:60px; border:1px #CCCCCC solid; '></textarea>")
+Response.Write(CreateHTMLReplace(html))
+
+Function ComMainList(PerPageNumber)
+Dim ComRS, Comsql, totalPut
+LabelContent="<table width=100% border=0 cellpadding=2 cellspacing=1 bgcolor=#F5F5F5 class=mcomlefttab>"
+Set ComRS= Server.CreateObject(FR_HR_RS)
+Comsql="select * from JOB_hrnewscom where newsid="&newsid&" and pass<>0 order by dateandtime desc"
+Comrs.open Comsql,conn,1,1
+if ComRS.eof and ComRS.bof then
+LabelContent=LabelContent&"没有相关的评论！！"
+else
+totalPut=ComRS.recordcount
+'读取页数
+if Page<>1 then
+ComRS.move (Page-1)*PerPageNumber
+end if
+i=0
+do while not ComRS.eof
+i=i+1
+com_id=ComRS("com_id")
+pjrname=ComRS("pjrname")
+pj_content=ComRS("pj_content")
+dateandtime=ComRS("dateandtime")
+pjrIP=ComRS("pjrIP")
+pass=ComRS("pass")
+LabelContent=LabelContent&"<tr>"
+LabelContent=LabelContent&"<td bgcolor=#F0F7FF>"
+LabelContent=LabelContent&dateandtime&" "&pjrname&" IP："&IPhideoneAddress(pjrIP)&""
+LabelContent=LabelContent&"</td>"
+LabelContent=LabelContent&"</tr>"
+LabelContent=LabelContent&"<tr>"
+LabelContent=LabelContent&"<td valign=middle bgcolor=#FFFFFF height=60>"
+if pass=2 then
+	if IsAdsContent(pj_content)=True then
+	LabelContent=LabelContent&"<font color=#999999>网站清洁机器人提醒您：本评论疑似广告，请等待管理员审核！</font>"
+	else
+	LabelContent=LabelContent&pj_content
+	end if
+else
+LabelContent=LabelContent&pj_content
+end if
+LabelContent=LabelContent&"</td>"
+LabelContent=LabelContent&"</tr>"
+if i>=Cint(PerPageNumber) then exit do
+ComRS.movenext
+loop
+LabelContent=LabelContent&"<tr><td align=center valign=middle bgcolor=#FFFFFF>"
+If totalput>0 Then
+	LabelContent=LabelContent&showpages(strFileName,totalPut,PerPageNumber,false,true,"条评论")
+End If
+LabelContent=LabelContent&"</td>"
+LabelContent=LabelContent&"</tr>"
+end if
+ComRS.close
+set ComRS=nothing
+LabelContent=LabelContent&"</table>"
+ComMainList=LabelContent
+End Function
+Call CloseConn()
+%>

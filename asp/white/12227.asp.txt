@@ -1,0 +1,226 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="inc/func_file.asp" -->
+<!-- #include file="inc/file_memberLog.asp" -->
+<!-- #include file="inc/file_serverFile.asp" -->
+<!-- #include file="inc/file_ad.asp" -->
+<%
+Call CheckIframe()
+
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 ****
+
+
+Call OpenMemberexe("","login",10)
+Call CloseMemberexe()
+
+
+
+
+Select Case mudi
+	Case "add","rev"
+		Call AddOrRev()
+
+	Case "send"
+		menuFileID = 148
+		Call IsSecMenuRight("alert",menuFileID,dataType)
+		Call Send()
+
+	Case "del"
+		menuFileID = 149
+		Call IsSecMenuRight("alert",menuFileID,dataType)
+		Call del()
+
+	Case "stateUpdate"
+		menuFileID = 148
+		Call IsSecMenuRight("alert",menuFileID,dataType)
+		Call StateUpdate()
+End Select
+
+
+Call CloseConobj()
+
+
+
+
+
+
+
+
+'添加与修改
+Private Sub AddOrRev()
+	URL			= ToPostStr("backURL")
+	dataType	= ToPostStr("dataType")
+	dataTypeCN	= ToPostStr("dataTypeCN")
+	dataID		= ToPostInt("dataID")
+	num			= ToPostInt("num")
+	theme		= ToPostStr("theme")
+	code		= ToPostStr("code")
+	upImgStr	= ToPostStr("upImgStr")
+		upImgStr = ServerFile_EditorImgStr(upImgStr,code)
+	divStyle	= ToPostStr("divStyle")
+	width		= ToPostInt("width")
+	height		= ToPostInt("height")
+	isTime		= ToPostInt("isTime")
+	startTime	= ToPostStr("startTime")
+		If IsDate(startTime)=False Then startTime=Now()
+	endTime		= ToPostStr("endTime")
+		If IsDate(endTime)=False Then endTime="3000-1-1"
+	price		= ToPostFloat("price")
+	rank		= ToPostInt("rank")
+	state		= ToPostInt("state")
+
+	
+	If num=0 Or theme="" Then
+		Call JS_AlertBackEnd("表单内容接收不全")
+	End If
+	
+
+	Set checkexe = conobj.execute("select AD_ID from OT_ad where AD_ID<>"& dataID &" and AD_num="& num)
+		If Not checkexe.EOF Then
+			Call JS_AlertBackEnd("编号重复，编号必须是唯一的")
+		End If
+	checkexe.close
+	Set checkexe=Nothing
+
+'		beforeURL=GetCurrUrlDir(1)
+'		imgUrl=beforeURL & InfoImgDir
+'		code		= Replace(code,imgUrl,InfoImgAdminDir)
+
+	application.lock
+		Set dealrec=server.CreateObject("ADODB.recordset")
+		dealrec.open "select top 1 * from OT_ad where AD_ID="& dataID,conobj,0,2
+			If dealrec.EOF Then
+				menuFileID = 147
+				Call IsSecMenuRight("alertBack",menuFileID,dataType)
+				dealrec.addnew
+				alertMode="添加"
+				dealrec("AD_type")=dataType
+			Else
+				menuFileID = 148
+				Call IsSecMenuRight("alertBack",menuFileID,dataType)
+				alertMode="修改"
+			End If
+		dealrec("AD_num")		= num
+		dealrec("AD_theme")		= theme
+		dealrec("AD_code")		= code
+		dealrec("AD_upImgStr")	= upImgStr
+		dealrec("AD_divStyle")	= divStyle
+		dealrec("AD_width")		= width
+		dealrec("AD_height")	= height
+		dealrec("AD_isTime")	= isTime
+		dealrec("AD_startTime")	= startTime
+		dealrec("AD_endTime")	= endTime
+		dealrec("AD_price")		= price
+		dealrec("AD_rank")		= rank
+		dealrec("AD_state")		= state
+		dealrec.update
+		dealrec.close
+		Set dealrec=Nothing
+	application.unlock
+
+	dealStr=""
+	If Ad_MakeJs() Then
+		dealStr="\n生成 cache/ads.js 缓存文件成功。"
+	Else
+		dealStr="\n生成 cache/ads.js 缓存文件失败，请检查根目录下的cache/目录是否有写入权限。"
+	End If
+
+	alertResult = "成功"
+	Call MemberLog_Deal(0,"","",theme,"【"& dataTypeCN &"】"& alertMode & alertResult &"！")
+
+
+	Call JS_AlertHref(""& alertMode &"成功！"& dealStr,URL)
+End Sub
+
+
+
+
+
+
+
+
+'数据发送
+Private Sub Send()
+	numID		= ToGetInt("typeNum")
+	dataID		= ToGetInt("dataID")
+	dataMode	= ToGetStr("dataMode")
+	dataModeStr	= ToGetStr("dataModeStr")
+
+	Set sendexe=conobj.execute("select top 1 * from OT_ad where AD_ID="& dataID)
+		If sendexe.EOF Then
+			JS_AlertEnd("搜索不到指定记录")
+		End If
+	response.write(_
+	"<script language='javascript' type='text/javascript'>"&_
+	"parent.$id('dataID').value='"& sendexe("AD_ID") &"';"&_
+	"parent.$id('num').value="""& sendexe("AD_num") &""";"&_
+	"parent.$id('theme').value="""& sendexe("AD_theme") &""";"&_
+	"parent.$id('code').value="""& ReplaceStr(sendexe("AD_code"),"js") &""";"&_
+	"parent.$id('rank').value='"& sendexe("AD_rank") &"';"&_
+	"parent.$id('state').value='"& sendexe("AD_state") &"';"&_
+	"parent.$id('subButton').src='images/button_rev.gif';"&_
+	"</script>")
+	sendexe.close
+	Set sendexe=Nothing
+End Sub
+
+
+
+
+
+
+
+
+
+'删除
+Private Sub del()
+	dataID	= ToGetInt("dataID")
+	theme	= ToGetStr("theme")
+
+	If dataID<=0 Then
+		Call JS_AlertEnd("指定ID错误！")
+	End If
+
+	conobj.execute("delete from OT_ad where AD_ID="& dataID)
+
+
+	Call Ad_MakeJs()
+
+
+	alertResult = "成功"
+	Call MemberLog_Deal(0,"","",theme,"【"& dataTypeCN &"】删除"& alertResult &"！")
+
+	response.write("<script language='javascript' type='text/javascript'>parent.$id('data"& dataID &"').style.display='none'</script>")
+End Sub
+
+
+
+
+
+' 批量更新状态
+Sub StateUpdate()
+	backURL	= ToGetStr("backURL")
+	state	= ToGetInt("state")
+		If state=1 Then
+			stateCN="显示"
+		ElseIf state=0 Then
+			stateCN="隐藏"
+		Else
+			Call JS_AlertBackEnd("操作目的错误")
+		End If
+
+	conobj.execute("update OT_ad set AD_state="& state)
+
+	Call Ad_MakeJs()
+
+	Call JS_AlertHrefEnd("状态全部"& stateCN &"完毕",backURL)
+End Sub
+%>

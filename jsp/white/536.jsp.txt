@@ -1,0 +1,54 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+
+<html>
+<head>
+	<title>Role Information</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript"  src="${ctx}/scripts/system/SysRole/edit_SysRole.js"></script>
+</head>
+
+<body>
+    <table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+					<form id="saveForm" method="post" action="">
+			    	    <s:hidden name="sysRole.id" id="id" />
+			    		<s:hidden name="sysRole.creatorId" />
+			    		<s:hidden name="sysRole.creatorName" />
+			    		<s:hidden name="sysRole.createTime" />
+			    		<s:hidden name="sysRole.modifierId" />
+			    		<s:hidden name="sysRole.modifierName" />
+			    		<s:hidden name="sysRole.modifyTime" />
+			    		<s:hidden name="sysRole.state" />
+			    		
+						<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">						
+							<tr>
+								<td class='gridtitle'>角色名</td>
+								<td class='gridbody'>
+									<s:textfield name="sysRole.name" id="name" /><font color="red">*</font>
+								</td>
+							</tr>
+							<tr>
+								<td class='gridtitle'>角色编号</td>
+								<td class='gridbody'>
+									<s:textfield name="sysRole.code" id="code" onblur="isCodeExisted()" /><font color="red">*</font>
+								</td>							
+							</tr>							
+						</table>
+								    		
+					</form>
+				</div>
+			</td>
+		</tr>
+	</table>
+</body>
+
+</html>
+

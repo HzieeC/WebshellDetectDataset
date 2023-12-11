@@ -1,0 +1,357 @@
+<!--#include file="inc/setup.asp"-->
+<!--#include file="inc/cj_cls.asp"-->
+
+<%
+Dim CurrentPage,MaxPerPage
+Dim DateStr
+If IsSqlDataBase = 1 Then '是否SQL数据库
+	DateStr = "smalldatetime"
+Else
+	DateStr = "date"
+End If
+%>
+<html>
+<head>
+<title><%= Skcj.GetConfig("WebName") %></title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link rel="stylesheet" type="text/css" href="css/Admin_Style.css">
+</head>
+
+<body>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder">
+  <tr>
+    <td height="22" colspan="2" align="center" bgcolor="#F3F3F3" class="topbg"><strong>采集模块管理</strong></td>
+  </tr>
+</table>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1"  class="tableBorder">
+  <tr class="tdbg"> 
+    <td width="65" height="30" bgcolor="#F2F2F2"><strong>管理导航：</strong></td>
+    <td height="30" bgcolor="#F2F2F2"><a href=SK_Channel.asp>管理首页</a> | <a href="?Action=add">添加模块</a></td>
+  </tr>
+</table>
+<%
+Action=LCase(Trim(Request("Action")))
+Select Case Action
+	
+Case "add"
+	 Call Add()
+Case "edit"
+	 Call Edit()
+Case "del"
+	 Call Del()
+Case "flag"
+	ConnItem.execute("update SK_CJ set Flag="&SKcj.G("Flag")&" Where ID="&Skcj.ChkNumeric(SKcj.G("ID"))) 
+	Call Show_Manage()
+Case else
+	Call Show_Manage()
+End Select
+
+
+Sub Show_Manage()'采集模块列表管理
+Const MaxPerPage=15
+If Request("page")<>"" then
+	CurrentPage=Cint(Request("Page"))
+Else
+	CurrentPage=1
+End if  
+%>
+<table width="100%" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <tr>
+    <th colspan="9" >采集模块列表</th>
+  </tr>
+  <tr align="center" >
+    <td width="8%" class="title3" style="font-weight: bold"> 模块名称 </td>
+	<td width="15%" class="title3" style="font-weight: bold"> 保存目录 </td>
+    <td width="4%" class="title3" style="font-weight: bold">排序ID</td>
+    <td width="4%" class="title3" style="font-weight: bold">状态</td>
+    <td width="10%" class="title3" style="font-weight: bold">操作</td>
+  </tr>
+  <%
+dim Rs
+Sql = "Select * from SK_cj Order By OrderID DESC"
+Set Rs=server.createobject("adodb.recordset") 
+Rs.open Sql,ConnItem,1,1
+if not Rs.bof and not Rs.eof then
+	Rs.PageSize=MaxPerPage
+ 	Allpage=Rs.PageCount
+    If Currentpage>Allpage Then Currentpage=1
+    ItemNum=Rs.RecordCount
+    Rs.MoveFirst
+    Rs.AbsolutePage=CurrentPage
+	I=0
+	do while not Rs.eof
+%>
+  <tr>
+    <td align="center" bgcolor="#F6F6F6" class="td">
+	<%
+	Response.Write Rs("CjName") 
+	'Set Rsl=ConnItem.execute("Select ID,CjName from SK_CJ where ID="& RS("skcjID"))
+	'if not Rsl.eof Then  Response.Write(Rsl(1))
+	'Rsl.close : Set Rsl=Nothing 
+	%>
+	</td>
+	<td align="left" bgcolor="#F6F6F6" class="td"><%=Rs("Dir")%></td>
+    <td align="left" bgcolor="#F6F6F6" class="td"><%=Rs("OrderID")%></td>
+    <td align="center" bgcolor="#F6F6F6" class="td">
+		<%if Rs("Flag") = 1 then
+		 response.Write "<a href=""?action=Flag&Flag=0&ID="& Rs("ID") &""">√</a>"
+		 else  
+		response.Write("<a href=""?action=Flag&Flag=1&ID="& Rs("ID") &"""><font color=""#FF0000"">×</font></a>")  
+		end if%>    
+	</td>
+    <td width="7%" align="center" bgcolor="#F6F6F6" class="td">
+	<a href="?action=Edit&ID=<%=Rs("ID")%>">修改</a>&nbsp;&nbsp;<a href="?action=Del&ID=<%=Rs("ID")%>" onClick='return confirm("确定要删除此记录吗？");'>删除</a>	</td>
+  </tr>
+  <%
+  	I=I+1
+  	If I>=MaxPerPage Then  Exit  Do
+	Rs.movenext
+	loop
+End if
+%>
+</table>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder" >
+  <tr>
+    <td height="22" colspan="2" class="tdbg"><%
+Response.Write ShowPage("SK_Channel.asp",ItemNum,MaxPerPage,True,True," 个项目")
+%>
+    </td>
+  </tr>
+</table>
+<%End Sub%>
+<%
+Sub Add()
+If Trim(Request.Form("SaveOk"))="ok" then
+	SqlItem="Select top 1 * from SK_Cj where ID=1"
+    Set Rs=server.CreateObject("adodb.recordset")
+    Rs.Open SqlItem,ConnItem,1,3
+	Rs.addnew
+	rs("CjName")=Skcj.G("CjName")
+	rs("FileName")=Skcj.G("FileName")
+	rs("Timeout")=Skcj.ChkNumeric(Skcj.G("Timeout"))
+	rs("Dir")=Skcj.G("Dir")
+	rs("MaxFileSize")=Skcj.ChkNumeric(Skcj.G("MaxFileSize"))
+	rs("FileExtName")=Skcj.G("FileExtName")
+	rs("MaxPerPage")=Skcj.ChkNumeric(Skcj.G("MaxPerPage"))
+	rs("Flag")=Skcj.ChkNumeric(Skcj.G("Flag"))
+	rs("OrderID")=Skcj.ChkNumeric(Skcj.G("OrderID"))
+	Rs.UpDate
+    Rs.Close	
+	set rs=nothing
+	response.write "<script>alert('增加成功!');</script>"'关闭窗口 
+End if
+%>
+<SCRIPT LANGUAGE="JavaScript">
+<!--
+function CheckForm()
+{
+  if (document.myform.CjName.value==''){
+    alert('模块名称不能为空!');
+    document.myform.SK_CJ.focus();
+    return false;
+  }
+}
+//-->
+</SCRIPT>
+<table width="100%" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+      <form name="myform" method="post" action="?action=add" onSubmit="javascript:return CheckForm();">
+  <tr>
+    <td colspan="2" class="title">添加采集模块</td>
+  </tr>
+  <tr>
+    <td width="20%" bgcolor="#F5F5F5" class="td">模块名称：</td>
+    <td width="80%" bgcolor="#F5F5F5" class="td"><input name="SaveOk" class="lostfocus"  type="hidden" value="ok">
+	<input name="CjName" type="text" class="lostfocus"> 
+      <strong><font color=ff0000  >* </font></td>
+    </tr>
+  
+  <tr>
+    <td width="20%" bgcolor="#F5F5F5" class="td">模块文件名：      </td>
+    <td width="80%" bgcolor="#F5F5F5" class="td"><input name="FileName" type="text" class="lostfocus" value=".asp"></td>
+    </tr>
+	
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">保存目录：      </td>
+    <td bgcolor="#F5F5F5" class="td"><input name="Dir" type="text" class="lostfocus" value="New/">
+      <font class="alert">&nbsp;后面必须带"/"符号</font></td>
+  </tr>
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">允许下载的图片大小：</td>
+    <td bgcolor="#F5F5F5" class="td"><input name="MaxFileSize" type="text" class="lostfocus" value="5000" size="15" maxlength="9">
+    <STRONG>KB </STRONG> <font class="alert">* 不限制请输入“0”</font></td>
+  </tr>
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">采集保存文件类型：</td>
+    <td bgcolor="#F5F5F5" class="td"><input name="FileExtName" type="text" class="lostfocus" value="rm|swf" size="50" maxlength="300"></td>
+  </tr>
+  
+  
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">采集超时设置：</td>
+    <td bgcolor="#F5F5F5" class="td"><input name="Timeout" type="text" class="lostfocus" value="64" size="10" maxlength="9">
+    <STRONG>秒</STRONG> <font class="alert">* 默认64秒 如果128K的数据64秒还下载不完(按每秒2K保守估算)，则超时。</font></td>
+    </tr>
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">项目行数设置：</td>
+    <td bgcolor="#F5F5F5" class="td"><input name="MaxPerPage" type="text" class="lostfocus" value="10" size="10" maxlength="9"></td>
+  </tr>
+  
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">排序设置：</td>
+    <td bgcolor="#F5F5F5" class="td"><input name="OrderID" type="text" class="lostfocus" size="5"></td>
+    </tr>
+	<tr>
+    <td bgcolor="#F5F5F5" class="td">是否启用：</td>
+    <td bgcolor="#F5F5F5" class="td">
+		<input type="radio" name="Flag" value="1" checked>
+		是
+		<input type="radio" name="Flag" value="0">
+        否	  </td>
+    </tr>
+  <tr>
+    <td colspan="2" align="center" bgcolor="#F5F5F5" class="td"><input type="submit" name="Submit" value="  确认添加  "></td>
+  </tr>
+      </form>
+</table>
+<%End Sub
+Sub Edit()
+	Dim Rs,ID,FieldName,ItemType,FieldType,AllowNull,FieldIntro,Flag
+	ID=Skcj.G("ID")
+	If Trim(Request.Form("Saveok"))="ok" then
+		SqlItem="Select top 1 * from SK_Cj where ID="& ID
+		Set Rs=server.CreateObject("adodb.recordset")
+		Rs.Open SqlItem,ConnItem,1,3
+		rs("CjName")=Skcj.G("CjName")
+		rs("FileName")=Skcj.G("FileName")
+		rs("Timeout")=Skcj.ChkNumeric(Skcj.G("Timeout"))
+		rs("Dir")=Skcj.G("Dir")
+		rs("MaxFileSize")=Skcj.ChkNumeric(Skcj.G("MaxFileSize"))
+		rs("FileExtName")=Skcj.G("FileExtName")
+		rs("MaxPerPage")=Skcj.ChkNumeric(Skcj.G("MaxPerPage"))
+		rs("Flag")=Skcj.ChkNumeric(Skcj.G("Flag"))
+		rs("OrderID")=Skcj.ChkNumeric(Skcj.G("OrderID"))
+		Rs.UpDate
+		Rs.Close	
+		set rs=nothing
+		response.write "<script>alert('修改成功！');location.href='SK_Channel.asp';</script>"'关闭窗口
+	End if
+	
+		SqlItem="Select top 1 * from SK_Cj where ID="& ID
+		Set Rs=server.CreateObject("adodb.recordset")
+		Rs.Open SqlItem,ConnItem,1,3
+		IF not rs.eof then 
+		CjName=rs("CjName")
+		FileName=rs("FileName")
+		Timeout=rs("Timeout")
+		Dir=rs("Dir")
+		MaxFileSize=rs("MaxFileSize")
+		FileExtName=rs("FileExtName")
+		MaxPerPage=rs("MaxPerPage")
+		Flag=rs("Flag")
+		OrderID=rs("OrderID")
+		Rs.UpDate
+		End if
+		Rs.Close	
+		set rs=nothing
+	%>
+	<SCRIPT LANGUAGE="JavaScript">
+<!--
+function CheckForm()
+{
+  if (document.myform.CjName.value==''){
+    alert('“模块名称”不能为空！');
+    //document.myform.SaveOk.focus();
+    return false;
+  }
+}
+//-->
+</SCRIPT>
+
+<table width="100%" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+      <form name="myform" method="post" action="?action=Edit&ID=<%=ID%>" onSubmit="javascript:return CheckForm();">
+  <tr>
+    <td colspan="2" class="title">修改采集模块</td>
+  </tr>
+  <tr>
+    <td width="20%" bgcolor="#F5F5F5" class="td">模块名称：</td>
+    <td width="80%" bgcolor="#F5F5F5" class="td"><input name="SaveOk" class="lostfocus"  type="hidden" value="ok">
+	<input name="CjName" type="text" class="lostfocus" value=<%= CjName %>> 
+      <strong><font color=ff0000  >* </font></td>
+    </tr>
+  
+  <tr>
+    <td width="20%" bgcolor="#F5F5F5" class="td">模块文件名：      </td>
+    <td width="80%" bgcolor="#F5F5F5" class="td"><input name="FileName" type="text" class="lostfocus" value="<%= FileName %>"></td>
+    </tr>
+	
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">保存目录：      </td>
+    <td bgcolor="#F5F5F5" class="td"><input name="Dir" type="text" class="lostfocus" value="<%= Dir %>" >
+      <font class="alert">&nbsp;后面必须带"/"符号</font></td>
+  </tr>
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">允许下载的图片大小：</td>
+    <td bgcolor="#F5F5F5" class="td"><input name="MaxFileSize" type="text" class="lostfocus" value="<%= MaxFileSize %>" size="15" maxlength="9">
+    <STRONG>KB </STRONG> <font class="alert">* 不限制请输入“0”</font></td>
+  </tr>
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">采集保存文件类型：</td>
+    <td bgcolor="#F5F5F5" class="td"><input name="FileExtName" type="text" class="lostfocus" value="<%= FileExtName %>" size="50" maxlength="300"></td>
+  </tr>
+  
+  
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">采集超时设置：</td>
+    <td bgcolor="#F5F5F5" class="td"><input name="Timeout" type="text" class="lostfocus" value="<%= Timeout %>" size="10" maxlength="9">
+    <STRONG>秒</STRONG> <font class="alert">* 默认64秒 如果128K的数据64秒还下载不完(按每秒2K保守估算)，则超时。</font></td>
+    </tr>
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">项目行数设置：</td>
+    <td bgcolor="#F5F5F5" class="td"><input name="MaxPerPage" type="text" class="lostfocus" value="<%= MaxPerPage %>" size="10" maxlength="9"></td>
+  </tr>
+  
+  <tr>
+    <td bgcolor="#F5F5F5" class="td">排序设置：</td>
+    <td bgcolor="#F5F5F5" class="td"><input name="OrderID" type="text" class="lostfocus" size="5" value="<%= OrderID %>"></td>
+    </tr>
+	<tr>
+    <td bgcolor="#F5F5F5" class="td">是否启用：</td>
+    <td bgcolor="#F5F5F5" class="td">
+		<input type="radio" name="Flag" value="1" <% IF Flag=1 then Response.Write"checked" %> >
+		是
+		<input type="radio" name="Flag" value="0" <% IF Flag=0 then Response.Write"checked" %>>
+        否	  </td>
+    </tr>
+  <tr>
+    <td colspan="2" align="center" bgcolor="#F5F5F5" class="td"><input type="submit" name="Submit" value="  确认修改  "></td>
+  </tr>
+      </form>
+</table>
+	<%
+End Sub
+
+Sub Del()
+	Dim ID
+	ID=Trim(Request("ID"))
+	ConnItem.Execute("Delete From SK_CJ Where ID = "& ID )
+	response.write "<script>location.href='SK_Channel.asp';</script>"
+End Sub
+
+'==================================================
+'过程名：WriteErrMsg
+'作  用：显示错误提示信息
+'参  数：无
+'==================================================
+sub WriteErrMsg(ErrMsg)
+	dim strErr
+	strErr=strErr & "<table cellpadding=2 cellspacing=1 border=0 width=400 class=""tableBorder"" align=center>" & vbcrlf
+	strErr=strErr & "  <tr align='center' class='title'><td height='22'><strong>错误信息</strong></td></tr>" & vbcrlf
+	strErr=strErr & "  <tr class='tdbg'><td height='100' valign='top'><b>产生错误的可能原因：</b>" & ErrMsg &"</td></tr>" & vbcrlf
+	strErr=strErr & "  <tr align='center' class='tdbg'><td><a href='javascript:history.go(-1)'>&lt;&lt; 返回上一页</a></td></tr>" & vbcrlf
+	strErr=strErr & "</table>" & vbcrlf
+	response.write strErr
+	response.end
+end sub
+%>
+</body>
+</html>

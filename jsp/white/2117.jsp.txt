@@ -1,0 +1,388 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<%@page import="util.ServletHelp"%>
+
+<%@page import="global.security.SessionUtils"%><html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 全局参数
+			var baseParams = {start:0, limit:<%=Constants.PAGE_SIZE %>, delflag:"<%=Constants.DEL_FLAG_1 %>"};
+
+			// 用户数据源
+		    var userListStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/userAction.do?method=queryForPaging',
+		        root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['userId', 'userName', 'role', 'sex', 'birthdayStr', 'email', 'phone', 'status'],
+		        baseParams: baseParams,
+		        autoLoad: true
+		    });
+
+		    // 工具栏
+		    var userListToolbar = new Ext.Toolbar({
+		    	renderTo: 'userListToolBarDiv',
+		    	items: [
+					new Ext.Button({
+					    id: 'userList-add-button',
+					    text: '添加',
+						iconCls: 'user_add'
+					}),
+					'-',
+					new Ext.Button({
+					    id: 'userList-start-button',
+					    text: '启用',
+						iconCls: 'status_online'
+					}),
+					new Ext.Button({
+					    id: 'userList-stop-button',
+					    text: '停用',
+						iconCls: 'status_offline'
+					}),
+					new Ext.Button({
+					    id: 'userList-delete-button',
+					    text: '删除',
+						iconCls: 'status_busy'
+					}),
+		            new Ext.ux.form.SearchField({
+		                store: userListStore,
+		                width: 320,
+		                paramName: 'userName',
+		                emptyText: '请输入用户名...',
+		                style: 'margin-left: 10px;'
+		            })
+				]
+			});
+
+			// 用户数据表格
+			var sm = new Ext.grid.CheckboxSelectionModel();
+			var userListGrid = new Ext.grid.GridPanel({
+				id: 'userListGrid',
+				renderTo: 'userListGridDiv',
+				border: false,
+				stateful: true,
+			    autoScroll: 'auto',
+		        store: userListStore,
+		        loadMask: true,
+		        cm: new Ext.grid.ColumnModel({
+		            defaults: {
+		                width: 100,
+		                sortable: true
+		            },
+			        columns: [
+						sm,
+						new Ext.grid.RowNumberer({header:'№'}),
+			            {id:'role',header: '角色', width: 100, sortable: true, dataIndex: 'role'},
+			            {id:'userId',header: '账号', width: 100, sortable: true, dataIndex: 'userId'},
+			            {id:'userName',header: '用户名', width: 100, sortable: true, dataIndex: 'userName'},
+			            {id:'sex',header: '性别', width: 50, sortable: true, dataIndex: 'sex'},
+			            {id:'birthdayStr',header: '生日', width: 100, sortable: true, dataIndex: 'birthdayStr'},
+			            {id:'email',header: '邮箱', width: 180, sortable: true, dataIndex: 'email'},
+			            {id:'phone',header: '电话', width: 100, sortable: true, dataIndex: 'phone'},
+			            {id:'status',header: '状态', width: 50, sortable: true, dataIndex: 'status'}
+					]
+		        }),
+		        sm: sm,
+		        columnLines: true,
+		        bbar: new Ext.PagingToolbar({
+					pageSize: <%=Constants.PAGE_SIZE %>,
+					store: userListStore,
+					displayInfo: true,
+					displayMsg: Anynote.PAGINGTOOLBAR_DISPLAYMSG,
+					emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+					doLoad: function(start){
+						baseParams.start = start;
+						this.store.load({params: baseParams});
+					}
+		        })
+		    });
+
+			// 设置Grid高度和宽度
+			Anynote.resizeGridTo("userListGrid", 0, 56);
+
+			// 添加按钮
+			$("#userList-add-button").click(function(){
+			 	// 角色数据源
+		        var roleStore = new Ext.data.ArrayStore({  
+		            fields : ['role', 'roleName'],  
+		            data : <%=ServletHelp.getArrayFromMap(Constants.ROLE_MAP, null)%>,
+		            sortInfo: {field: "role", direction: "ASC"}
+		        });
+		        if('<%=Constants.ROLE_CODE_1%>'=='<%=SessionUtils.getUserRole()%>'){
+		        	roleStore.removeAt(0);
+				}else{
+					roleStore.removeAt(0);
+					roleStore.removeAt(0);
+				}
+
+		     	// 性别数据源
+		        var sexStore = new Ext.data.ArrayStore({  
+		            fields : ['sex', 'sexName'],  
+		            data : <%=ServletHelp.getArrayFromMap(Constants.SEX_MAP, null)%>,
+		            sortInfo: {field: "sex", direction: "ASC"}
+		        });
+
+		     	// 风格数据源
+		        var themeStore = new Ext.data.SimpleStore({  
+		            fields : ['theme', 'themeName'],  
+		            data : Anynote.THEME_DATA  
+		        });
+				
+				// 编辑用户Form
+				var addUserFormPanel = new Ext.FormPanel({
+					id: 'addUserFormPanel',
+			        labelWidth: 60,
+			        buttonAlign: 'center',
+			        border: false,
+			        bodyStyle: 'padding:10px;text-align:left;background-color:transparent;',
+			        url: '',
+		            items:[{// 角色
+			                xtype:'combo',
+			                hiddenName: 'role',
+			                fieldLabel: '角色',
+			                store: roleStore,
+			                mode : 'local',
+			                triggerAction: "all",
+			                valueField: 'role',
+			                displayField: 'roleName',
+			                allowBlank:false,
+			                editable: false,
+			                width: 230,
+			                anchor:'98%'
+		                },{// 账号
+			                xtype:'textfield',
+			                name: 'userId',
+			                fieldLabel: '账号',
+			                anchor:'98%',
+			                allowBlank:false,
+			                maxLength: 20
+			           },new Ext.form.TextField ({// 密码
+			        	   inputType: 'password',
+			               name:'password',
+			               fieldLabel:'密码',
+			               anchor:'98%',
+			               allowBlank:false,
+			               maxLength: 20
+			           }),new Ext.form.TextField ({// 确认密码
+		            	   inputType: 'password',
+			               name:'repassword',
+			               fieldLabel:'确认密码',
+			               anchor:'98%',
+			               allowBlank:false,
+			               maxLength: 20
+		                }),{// 姓名
+			               xtype:'textfield',
+			               id:'userName',
+			               name:'userName',
+			               fieldLabel:'姓名',
+			               anchor:'98%',
+			               allowBlank:false,
+			               maxLength: 20
+			           },{// 性别
+			                xtype:'combo',
+			                hiddenName: 'sex',
+			                fieldLabel: '性别',
+			                store: sexStore,
+			                mode : 'local',
+			                triggerAction: "all",
+			                valueField: 'sex',
+			                displayField: 'sexName',
+			                allowBlank:false,
+			                editable: false,
+			                width: 230,
+			                anchor:'98%'
+		                },{// 生日
+			                xtype:'datefield',
+			                name: 'birthdayStr',
+			                fieldLabel: '生日',
+			                format: 'Y-m-d',
+			                width: 230,
+			                anchor:'98%'
+		                },{// 邮箱
+			               xtype:'textfield',
+			               name:'email',
+			               fieldLabel:'邮箱',
+			               anchor:'98%',
+			               vtype:'email',
+			               allowBlank:false,
+			               maxLength: 50
+			           },{// 电话
+			               xtype:'textfield',
+			               name:'phone',
+			               fieldLabel:'电话',
+			               anchor:'98%',
+			               maxLength: 20
+			           },{// 风格
+		           		   xtype:'combo',
+			               hiddenName: 'theme',
+			               fieldLabel: '风格',
+			               store: themeStore,
+			               mode : 'local',
+			               triggerAction: "all",
+			               valueField: 'theme',
+			               displayField: 'themeName',
+			               value: 'ext-all.css',
+			               editable: false,
+			               allowBlank:false,
+			               width: 230,
+			               anchor:'98%'
+			           },{
+			               xtype: 'radiogroup',
+			               fieldLabel: '主页',
+			               itemCls: 'x-check-group-alt',
+			               columns: 3,
+			               items: [
+			                   	{boxLabel: '任务', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_1_URL%>", checked: true},
+								{boxLabel: '笔记', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_2_URL%>"},
+								{boxLabel: '相册', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_3_URL%>"},
+								{boxLabel: '账目', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_4_URL%>"},
+								{boxLabel: '订阅', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_5_URL%>"},
+								{boxLabel: '文档', name: 'homePage', inputValue: "<%=Constants.HOME_PAGE_7_URL%>"}
+			               ]
+			           },{
+			               xtype: 'checkboxgroup',
+			               fieldLabel: '模块',
+			               itemCls: 'x-check-group-alt',
+			               columns: 3,
+			               items: [
+			                   {boxLabel: '任务', name: 'showTodo', checked: true},
+			                   {boxLabel: '笔记', name: 'showNote', checked: true},
+			                   {boxLabel: '相册', name: 'showPicture', checked: true},
+			                   {boxLabel: '账目', name: 'showAccount', checked: true},
+			                   {boxLabel: '订阅', name: 'showFeed', checked: true},
+			                   {boxLabel: '文档', name: 'showDocument', checked: true}
+			               ]
+			           },{// 验证码
+			               xtype:'textfield',
+			               id:'verifyCode',
+			               name:'verifyCode',
+			               fieldLabel:'验证码',
+			               anchor:'98%',
+			               allowBlank:false,
+			               maxLength: 20
+			           },{
+						   width: 110,
+						   border: false,
+						   style: 'margin-left:65px;line-height:20px;',
+						   bodyStyle: 'background-color:transparent;',
+						   html:'<img id="VerifyCodeImg" src="" style="float:left;"/><span style="float:right;"><a href="javascript:changeVerifyCode();">换一张</a></span>'
+				       }],
+			        buttons: [{
+	                    text:'提交',
+	                    handler: function(){
+				        	var form = addUserFormPanel.getForm();
+						    if(form.isValid()){
+						    	// 发送请求
+								Anynote.ajaxRequest({
+									baseUrl: '<%=baseUrl %>',
+									baseParams: form.getValues(),
+									action: '/loginAction.do?method=register',
+									callback: function(jsonResult){
+										userListGrid.getStore().reload();
+										addUserWindow.close();
+									},
+									showWaiting: true,
+									failureMsg: '保存失败.'
+								});
+							}
+	                	}
+	                },{
+	                    text: '重置',
+	                    handler: function(){
+	                		addUserFormPanel.getForm().reset();
+	                    }
+	                }]
+			    });
+				// 用户注册窗口
+				var addUserWindow = new Ext.Window({
+					title: '添加用户',
+					width: 330,
+					height: 490,
+					modal: true,
+					maximizable: false,
+					resizable: false,
+					layout:'fit',
+					plain: true,
+					items: [addUserFormPanel]
+				}).show();
+				// 获得验证码
+				changeVerifyCode();
+			});
+
+			// 启用按钮
+			$("#userList-start-button").click(function(){
+				// 启用
+				submit("start");
+			});
+
+			// 停用按钮
+			$("#userList-stop-button").click(function(){
+				// 停用
+				submit("stop");
+			});
+
+			// 删除按钮
+			$("#userList-delete-button").click(function(){
+				// 提交
+				submit("delete");
+			});
+
+			// 提交
+			function submit(type){
+				var msg = "";
+				var status = "";
+				if(type=="delete"){
+					msg = "确定要删除账户及其文件吗？";
+				}else if(type=="stop"){
+					msg = "确定要停用吗？";
+					status = "<%=Constants.USER_STATUS_2%>";
+					type = "updateStatus";
+				}else if(type=="start"){
+					msg = "确定要启用吗？";
+					status = "<%=Constants.USER_STATUS_1%>";
+					type = "updateStatus";
+				}
+				var records = userListGrid.getSelectionModel().getSelections();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一条数据.");
+				}else{
+					Ext.Msg.confirm("警告", msg, function(btn){
+						if(btn=="yes"){
+							var userIds = "";
+							for(var i=0;i<records.length;i++){
+								userIds = userIds + records[i].get("userId") + ",";
+							}
+							// 发送请求
+							Anynote.ajaxRequest({
+								baseUrl: '<%=baseUrl %>',
+								baseParams: {userIds:userIds, status:status},
+								action: '/userAction.do?method='+type,
+								callback: function(jsonResult){
+									userListGrid.getStore().reload();
+								},
+								showWaiting: true,
+								failureMsg: '保存失败.'
+							});
+						}
+					});
+				}
+			}
+		});
+
+		// 更换验证码
+		function changeVerifyCode(){
+			$("#VerifyCodeImg").attr("src", "<%=baseUrl %>/loginAction.do?method=getVerifyCode&time="+new Date());
+		}
+	</script>
+</head>
+<body>
+<div id="userListDiv">
+	<div id="userListToolBarDiv"></div>
+	<div id="userListGridDiv" style="width:100%;height:100%;"></div>
+</div>
+</body>
+</html>

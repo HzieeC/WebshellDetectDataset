@@ -1,0 +1,51 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <title>修改教员</title>
+  </head> 
+  <body>
+  
+    <form name="form1" method="post" action="doEditTeacher.htm">
+      <input type="hidden" name="id" name="id" value="${teacher.id}">
+	    <table border="1" width="370">
+	      <tr>
+		     <td width="70">姓名：</td>
+	         <td width="300"><input type="text" name="teacherName" value="${teacher.teacherName}"></td>
+	      </tr>      
+
+	      <tr>
+		    <td width="70">年龄：</td>
+		    <td width="300"><input type="text" name="age" value="${teacher.age}"></td>
+	      </tr>      
+	    </table>
+	    
+	    <div style="margin-top:20px;">
+	      <input type="submit" value="保存">&nbsp;&nbsp;&nbsp;&nbsp;
+	      <button type="button" onclick="window.location='./teacherList.htm'">返回</button>
+	    </div>
+	</form>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

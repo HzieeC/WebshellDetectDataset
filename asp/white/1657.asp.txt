@@ -1,0 +1,182 @@
+<!--#include file ="../inc/admin_conn.asp"-->
+<!--#include file ="../inc/admin_chk.asp" -->
+<!-- #include File="Upload_Class.asp" -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<style type="text/css">
+<!--
+body,td,th {
+	font-size: 12px;
+}
+input {
+	border-top-width: 1px;
+	border-left-width: 1px;
+}
+.bt {border-left:1px solid #C0C0C0; border-top:1px solid #C0C0C0; font-size: 9pt; border-right-width: 1px; border-bottom-width: 1px; height: 20px; width: 80px; background-color: #EEEEEE; cursor: default; border-right-style:solid; border-bottom-style:solid}
+.tx1 { width: 180px;height: 20px; font-size: 9pt; border: 1px solid; border-color: black black #000000; color: #0000FF}
+body {
+	margin-left: 0px;
+	margin-top: 0px;
+	height: 30px;
+}
+-->
+</style>
+</head>
+<body>
+<%
+' SID显示路径的文本框ID,sType上传文件类型(0=其它,1=图片,2=FLASH,3=音乐,4=电影)
+Dim SID,SID2,sType
+SID=Trim(Request.QueryString("SID"))
+SID2=Trim(Request.QueryString("SID2"))
+sType=Trim(Request.QueryString("type"))
+If Request("t")="1" Then
+	UploadFile()
+Else
+	Main()
+End If
+
+Sub Main()
+%>
+<table border=0 cellpadding=0 cellspacing=0>
+<form name="form" method="post" action="upfile.asp?t=1&amp;SID=<%=SID%>&amp;SID2=<%=SID2%>&amp;type=<%=sType%>" enctype="multipart/form-data">
+<tr>
+<TD valign=top id="upid">
+<%
+	Dim PostRanNum
+	Randomize
+	PostRanNum = Int(900*rnd)+1000
+	Session(SID) = Cstr(PostRanNum)
+%>
+<INPUT TYPE="hidden" NAME="<%=SID%>" value="<%=PostRanNum%>">
+	<input type="file" name="file1" class="tx1" value="" size="20">
+	<input type="submit" name="Submit" class="bt" value="上 传"></TD>
+</tr>
+</form>
+</table>
+<%
+End Sub
+
+Sub UploadFile()
+	Server.ScriptTimeOut=999999'要是你的论坛支持上传的文件比较大，就必须设置。
+	
+	Dim Upload,FormName,FilePath,ChildFilePath
+	Dim File,F_FileName,F_ViewName,F_Filesize,F_FileExt,F_Type
+	Dim Previewpath,DrawInfo,InceptMaxFile
+
+	'上传目录
+	FilePath = CreatePath(SystemRoot&"images/Img/")
+	'不带系统上传目录的下级目录路径
+	ChildFilePath = Replace(FilePath,SystemRoot,"")
+	'预览图片目录路径
+	Previewpath = SystemRoot&"images/PreviewImg/"
+	Previewpath = CreatePath(Previewpath)
+
+	DrawInfo = ""
+
+	Set Upload = New UpFile_Cls
+	
+	Upload.UploadType			= 0	'设置上传组件类型
+	Upload.UploadPath			= FilePath							'设置上传路径
+	
+	'设置上传文件限制
+	Select Case sType
+	Case "0"
+		Upload.InceptFileType	= "rar,txt,zip,exe,doc,xls,chm,hlp"
+	CAse "1"
+		Upload.InceptFileType	= "jpg,gif,png,bmp"	
+	Case "2"
+		Upload.InceptFileType	= "swf,swi"
+	Case "3"
+		Upload.InceptFileType	= "rm,mp3,wav,mid,midi,ra,avi,mpg,mpeg,asf,asx,wma,mov"
+	Case else
+		Upload.InceptFileType	= "jpg,gif,png,bmp"
+	End Select
+	
+	Upload.MaxSize				= 2048			'单位 KB
+	Upload.InceptMaxFile		= 10							'每次上传文件个数上限
+	Upload.ChkSessionName		= SID					'防止重复提交，SESSION名与提交的表单要一致。
+	'预览图片设置
+	Upload.PreviewType			= 999	'设置预览图片组件类型
+	Upload.PreviewImageWidth	= 150		'设置预览图片宽度
+	Upload.PreviewImageHeight	= 150			'设置预览图片高度
+	Upload.DrawImageWidth		= 100		'设置水印图片或文字区域宽度
+	Upload.DrawImageHeight		= 30		'设置水印图片或文字区域高度
+	Upload.DrawGraph			= 50			'设置水印透明度
+	Upload.DrawFontColor		= "red"			'设置水印文字颜色
+	Upload.DrawFontFamily		= ""			'设置水印文字字体格式
+	Upload.DrawFontSize			= 12			'设置水印文字字体大小
+	Upload.DrawFontBold			= True			'设置水印文字是否粗体
+	Upload.DrawInfo				= DrawInfo								'设置水印文字信息或图片信息
+	Upload.DrawType				= 0			'0=不加载水印 ，1=加载水印文字，2=加载水印图片
+	Upload.DrawXYType			= 2			'"0" =左上，"1"=左下,"2"=居中,"3"=右上,"4"=右下
+	Upload.DrawSizeType			= 1		'"0"=固定缩小，"1"=等比例缩小
+
+	Upload.TransitionColor	= "#CCCCCC"		'透明度颜色设置
+	'执行上传
+	Upload.SaveUpFile
+	If Upload.ErrCodes<>0 Then
+		Response.write "错误："& Upload.Description & "[ <a href=""upfile.asp?SID="&SID&"&amp;SID2="&SID2&"&amp;type="&sType&""">重新上传</a> ]"
+		Exit Sub
+	End If
+	If Upload.Count > 0 Then
+		For Each FormName In Upload.UploadFiles
+			Set File = Upload.UploadFiles(FormName)
+				F_FileName = FilePath & File.FileName
+				'创建预览及水印图片
+				If Upload.PreviewType<>999 and File.FileType=1 then
+						F_Viewname = Previewpath & "pre" & Replace(File.FileName,File.FileExt,"") & "gif"
+						'创建预览图片:Call CreateView(原始文件的路径,预览文件名及路径,原文件后缀)
+						Upload.CreateView F_FileName,F_Viewname,File.FileExt
+				End If
+				UploadSave F_FileName,ChildFilePath&File.FileName,File.FileExt,F_Viewname,File.FileSize',File.FileType
+			Set File = Nothing
+		Next
+	Else
+		Response.write "请正确选择要上传的文件。[ <a href=""upfile.asp?SID="&SID&"&amp;SID2="&SID2&"&amp;type="&sType&""">重新上传</a> ]"
+		Exit Sub
+	End If
+	Response.Write  "上传成功 [ <a href=""upfile.asp?SID="&SID&"&amp;SID2="&SID2&"&amp;type="&sType&""">返回</a> ]"
+	Set Upload = Nothing
+End Sub
+
+Function Checkstr(Str)
+	If Isnull(Str) Then
+		CheckStr = ""
+		Exit Function 
+	End If
+	Str = Replace(Str,Chr(0),"")
+	CheckStr = Replace(Str,"'","''")
+End Function
+
+'保存上传数据并返回附件ID
+Sub UploadSave(FileName,ChildFileName,FileExt,ViewName,FileSize)',F_Type)
+	Response.write("<script>document.body.innerHTML='[upload="&FileExt&"]<a href="&FileName&" target=_blank>"&ChildFileName&"</a>[/upload]';</script>")
+	Response.write("<script>window.parent.document.getElementById('"&SID&"').value='"&FileName&"';</script>")
+	Response.write("<script>window.parent.document.getElementById('"&SID2&"').value='"&ViewName&"';</script>")
+End Sub
+
+'按月份自动明名上传文件夹,需要ＦＳＯ组件支持。
+Private Function CreatePath(PathValue)
+	Dim objFSO,Fsofolder,uploadpath
+	'以年月创建上传文件夹，格式：2003－8
+	uploadpath = year(now) & "-" & month(now)
+	If Right(PathValue,1)<>"/" Then PathValue = PathValue&"/"
+	On Error Resume Next
+	Set objFSO = Server.CreateObject("Scripting.FileSystemObject")
+	If objFSO.FolderExists(Server.MapPath(PathValue))=False Then
+		objFSO.CreateFolder Server.MapPath(PathValue)
+	End If
+	If objFSO.FolderExists(Server.MapPath(PathValue & uploadpath))=False Then
+		objFSO.CreateFolder Server.MapPath(PathValue & uploadpath)
+	End If
+	If Err.Number = 0 Then
+		CreatePath = PathValue & uploadpath & "/"
+	Else
+		CreatePath = PathValue
+	End If
+	Set objFSO = Nothing
+End Function
+%>
+</body>
+</html>

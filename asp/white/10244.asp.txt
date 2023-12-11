@@ -1,0 +1,360 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%> 
+<%Session.CodePage=936%> 
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<%If Not FRAdminLevel(303) Then Call ErrorMsg()
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+search=CheckStr(trim(request("search"))) 
+segment=CheckStr(trim(request("segment")))
+operate=trim(request("operate"))
+Dim Action
+Dim page,i
+Dim totalPut
+const MaxPerpage=20
+strFileName="hire_searchlist.asp?segment="&segment&"&search="&search&"&operate="&operate&""
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+if trim(request("step"))<>"" then
+step=trim(request("step"))
+member=request("member")
+select case step
+case "reload"
+	conn.execute("update job_c_hire set hire_command=0,hire_commandstartdate=null,hire_commandenddate=null where datediff("&FR_HR_d&",hire_commandenddate,"&FR_HR_Now&")>0")
+case "audit"
+	if member<>"" then
+ 		pp=ubound(split(member,","))+1 
+			for v=1 to pp
+			member=request("member")(v)
+ conn.execute("update job_c_hire set hire_status=1 where hire_id="&member&"")
+			next
+	end if
+case "unaudit"
+	if member<>"" then
+ 		pp=ubound(split(member,","))+1 
+			for v=1 to pp
+			member=request("member")(v)
+ conn.execute("update job_c_hire set hire_status=0 where hire_id="&member&"")
+			next
+	end if
+case "command"
+	response.Redirect "hire_commend.asp?member="&member
+case "uncommand"
+	if member<>"" then
+ 		pp=ubound(split(member,","))+1 
+			for v=1 to pp
+			member=request("member")(v)
+ conn.execute("update job_c_hire set hire_command=0,hire_commandstartdate=null,hire_commandenddate=null where hire_id="&member&"")
+			next
+	end if
+case "edit"
+	response.Redirect "hire_modi.asp?member="&member&""
+case "del"
+	if member<>"" then
+ 		pp=ubound(split(member,","))+1 
+		for v=1 to pp
+			member=request("member")(v)
+			if CreateHTML=1 then
+				Call HireContentDelHtml(member)
+			end if
+	 		conn.execute("delete from job_c_hire where hire_id="&member&"")
+	 	next
+	end if
+case "clear"
+	set Crs=server.createobject("adodb.recordset")
+	Csql="select company_id from JOB_C_hire order by hire_id desc"
+	Crs.open Csql,conn,1,3
+	if not Crs.eof then
+	do while not Crs.eof
+	set rs=conn.execute("select member_id from JOB_member where member_id="&Crs("company_id")&"")
+		if rs.eof and rs.bof then
+		Crs.delete
+		end if
+	set rs=nothing
+	Crs.movenext
+	loop
+	end if
+	Crs.close
+	Set Crs=nothing
+end select
+end if
+%>
+<html>
+<head>
+<title>招聘信息列表</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<LINK href="../css/style.css" rel=stylesheet type=text/css>
+<style type="text/css">
+<!--
+.STYLE2 {color: #FF0000}
+-->
+</style>
+</head>
+<body>
+<table width="100%" border="0" align="center" cellpadding=2 cellspacing=1 class="tableBorder">
+  <tr>
+    <th height=25  class="tableHeaderText">企业招聘管理</th>
+  </tr>
+  <form action="hire_searchlist.asp" method="post">
+      <tr>
+      <td height="28" align="left"><font color="ff6600"><b class="style1">　管理选项</b></font>：&nbsp;<a href="cmember_searchlist.asp">管理首页</a> |  <a href="cmember_searchlist.asp">企业管理</a> | <a href="hire_searchlist.asp">职位管理</a> | <a href="company_service.asp">服务申请管理</a> | [<a href="javascript:location.reload()">刷新页面</a>]</td>
+    </tr>
+    <tr>
+      <td height="28" align="left"><font color="ff6600"><b class="style11">　二级选项</b></font>： <a href="?operate=0">待审职位</a> | <a href="?operate=1">已审职位</a> | <a href="?operate=2">已推荐职位</a> | <a href="?operate=3">已过期职位</a> | <a href="?operate=4">一周内到期</a> | <a href="?operate=5">30天内到期</a> </td>
+    </tr>
+    <tr height="25" > 
+      <td align="left">
+          &nbsp;&nbsp;&nbsp;关键字： 
+          <input name="search" type="text" id="search" size="10">
+          <select name="segment" size="1" id="segment">
+            <option value="hire_place">职位名称</option>
+            <option value="hire_comname">公司名称</option>
+        </select>
+          <input name="Submit" type="submit" class="inputs" value="搜索">
+     &nbsp; <a href="hire_searchlist.asp?step=reload" title="更新过期推荐职位状态！">刷新</a> <a href="hire_searchlist.asp?step=clear" title="清理企业已删除，尚未彻底删除的无效职位！">清理</a></td>
+    </tr>
+  </form>
+</table> 
+<%Call main()
+if FoundErr=True then
+	call Show_Err()
+end if
+%>
+<%sub main()
+sql="select * from job_c_hire where"
+ if segment="hire_place" then
+  sql=sql&" hire_place like '%"& search &"%'"
+ else
+  sql=sql&" hire_comname like '%"& search &"%'"
+ end if
+ if operate<>"" then
+	select case operate
+		case 0
+			sql=sql&" and hire_status=0"
+		case 1
+			sql=sql&" and hire_status=1"
+		case 2
+			sql=sql&" and hire_command=1"
+		case 3
+			sql=sql&" and datediff("&FR_HR_d&",hire_enddate,"&FR_HR_Now&")>0"
+		case 4
+			sql=sql&" and datediff("&FR_HR_d&",hire_enddate,"&FR_HR_Now&")>7 and datediff("&FR_HR_d&",hire_enddate,"&FR_HR_Now&")<=0"
+		case 5
+			sql=sql&" and datediff("&FR_HR_d&",hire_enddate,"&FR_HR_Now&")>30 and datediff("&FR_HR_d&",hire_enddate,"&FR_HR_Now&")<=0"
+	end select	
+end if
+ sql=sql&" order by hire_command desc,hire_announcedate desc,hire_id desc"
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,1
+if rs.eof and rs.bof then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>暂无招聘职位，请添加后再进行管理！</li>"
+	exit sub
+else
+	totalPut=rs.recordcount
+	if (page-1)*MaxPerpage>totalput then
+		if (totalPut mod MaxPerpage)=0 then
+			page= totalPut \ MaxPerpage
+		else
+			page= totalPut \ MaxPerpage + 1
+		end if
+	end if
+	if page=1 then
+		Call MainInfo()
+	else
+		if (page-1)*MaxPerpage<totalPut then
+			rs.move  (page-1)*MaxPerpage
+			dim bookmark
+			bookmark=rs.bookmark
+			Call MainInfo()
+		else
+			page=1
+			Call MainInfo()
+		end if
+	end if
+end if
+rs.close
+set rs=nothing
+end sub	
+%>
+<%Sub MainInfo()%>
+<table width="99%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <tr>
+    <th height=25  class="tableHeaderText" colspan="9">招聘信息列表</th>
+  </tr>
+ <form name="form2" action="hire_searchlist.asp" method="post">
+<tr align="center"> 
+  <td width="6%"><b>编号</b></td>
+  <td width="19%"><b>招聘职位</b></td>
+  <td width="25%"><b>公司名称</b></td>
+  <td width="13%"><b>点击/申请/邀请</b></td>
+  <td width="15%"><b>发布时间</b></td>
+  <td width="12%"><b>截止日期</b></td>
+  <td width="6%"><b>状态</b></td>
+  <td width="4%"><input name="checkSelect" type="checkbox" class="checkbox" onClick="javascript: checkAll(this)" value="checkbox"></td>
+</tr>
+<%do while not rs.eof%>
+<tr class="tabbgcolorli">
+<td height="25" align="center"><%=rs("hire_id")%></td>
+<td align="left"><a href="#" onClick="window.open ('hire_info.asp?id=<%=rs("hire_id")%>','newwindow','height=500,width=550,top=0,left=0,toolbar=no,menubar=no,scrollbars=yes, resizable=no,location=no, status=no') ">
+  <%if rs("hire_command")=1 and rs("hire_commandenddate")>date() then
+	response.Write "<font color=red>"&rs("hire_place")&"</font>"
+  elseif rs("hire_command")=1 and rs("hire_commandenddate")<date()then
+	response.Write "<font color=red>"&rs("hire_place")&"</font>(<font color=blue>过期</font>)"
+  else response.Write rs("hire_place")
+  end if%></a></td>
+<td align="left">
+<%if not isnull(rs("company_id")) then%>
+<a href="#" onClick="window.open ('cmember_info.asp?id=<%=rs("company_id")%>','newwindow','height=500,width=550,top=0,left=0,toolbar=no,menubar=no,scrollbars=yes, resizable=no,location=no, status=no') "><%=rs("hire_comname")%></a>
+<%else
+response.Write rs("hire_comname")&"(<font color=red>"&rs("hire_operator")&"</font>添加)"
+end if%>		  </td>
+<td align="center"><%=rs("hire_visitcount")%>/<%=rs("hire_receiveresume")%>/<%=rs("hire_sendinterview")%></td>
+<td align="center"><%=rs("hire_announcedate")%></td>
+<td align="center"><%=rs("hire_enddate")%></td>
+<td align="center"><%if rs("hire_enddate")<date() and rs("hire_status")=1 then
+  response.Write "<font color=red>过期</font>"
+  elseif rs("hire_enddate")>date() and rs("hire_status")=1 then
+  response.Write "正常"
+  elseif  rs("hire_status")=0 then
+  response.Write "<font color='#666666'>未审核</font>"
+  elseif  rs("hire_status")=2 then
+  response.Write "<font color='#666666'>屏蔽</font>"
+  end if
+%></td>
+<td align="center"><input name="member" type="checkbox" class="checkbox" id="member" value="<%=rs("hire_id")%>"></td>
+</tr>
+<%
+i=i+1
+if i>=MaxPerPage then exit do
+rs.movenext
+loop
+%>
+<tr  class="tabbgcolorli"> 
+<input type="hidden" name="search" value="<%=search%>"> 
+<input type="hidden" name="segment" value="<%=segment%>">
+<td colspan="9" align="right" aligh="right">
+<input name="button" type="button" class="inputs" id="button" onClick="confirmX(1);" value="审核职位">
+<input name="button" type="button" class="inputs" id="button" onClick="confirmX(2);" value="撤销审核">
+<input name="button" type="button" class="inputs" id="button" onClick="confirmX(3);" value="推荐职位">
+<input name="button" type="button" class="inputs" id="button" onClick="confirmX(4);" value="撤销推荐">
+<input name="button" type="button" class="inputs" id="button" onClick="confirmX(5);" value="修改">
+<input name="button" type="button" class="inputs" id="button" onClick="confirmX(6);" value="删除">          </td>
+</tr>
+<tr  class="tabbgcolorli"> 
+<td colspan="9" aligh="right"><%If totalput>0 Then
+Call Showpage(strFileName,totalput,MaxPerPage,false,true,"个职位")
+End If%>     </td>
+</tr>
+</form>
+</table>
+<%end sub%>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>
+<%Conn.Close:Set Conn=Nothing%>
+<script language="javascript">
+function confirmX(num)
+{
+	var ids = document.getElementsByName("member");
+	var check=false;
+	var a=0;
+	if (ids != null) 
+	{
+		
+		for (i=0; i<ids.length; i++) 
+		{
+			var obj = ids(i);
+			if (obj.checked==true)
+			{
+				check=true;
+				a+=1
+			}
+		}
+		if(check==false){alert("请选择操作对象！");return false;}
+	}
+	if(num==1)
+	{
+		if(confirm("你确定要审核你所选择的职位吗？"))	
+		{
+			document.form2.action="hire_searchlist.asp?step=audit";
+			document.form2.submit();		
+		}
+	}
+	if(num==2)
+	{
+		if(confirm("你确定要撤销审核你所选择的职位吗？"))	
+		{
+			document.form2.action="hire_searchlist.asp?step=unaudit";
+			document.form2.submit();		
+		}
+	}
+	if(num==3)
+	{
+		if(a==1){
+		if(confirm("你确定要推荐你所选择的职位吗？"))	
+		{
+			document.form2.action="hire_searchlist.asp?step=command";
+			document.form2.submit();		
+		}
+		}
+		else
+		{
+		alert("同一时刻只能选择一个操作对象进行修改!")
+		return false;
+		}
+		
+	}
+	if(num==4)
+	{
+		if(confirm("你确定要撤销推荐你所选择的职位吗？"))	
+		{
+			document.form2.action="hire_searchlist.asp?step=uncommand";
+			document.form2.submit();		
+		}
+	}
+	if(num==5)
+	{
+		if(a==1){
+		if(confirm("你确定要修改你所选择的职位吗？"))	
+		{
+			document.form2.action="hire_searchlist.asp?step=edit";
+			document.form2.submit();		
+		}
+		}
+		else
+		{
+		alert("同一时刻只能选择一个操作对象进行修改!")
+		return false;
+		}
+	}
+	if(num==6)
+	{
+		if(confirm("警告：此操作将会删除该职位！\n是否继续本操作？"))	
+		{
+			document.form2.action="hire_searchlist.asp?step=del";
+			document.form2.submit();		
+		}
+	}
+	return false;	
+}
+function checkAll(box1) {
+    var ids = document.getElementsByName("member");
+	if (ids != null) {
+		for (i=0; i<ids.length; i++) {
+			var obj = ids(i);
+			obj.checked = box1.checked;
+		}
+	}
+}
+</script>

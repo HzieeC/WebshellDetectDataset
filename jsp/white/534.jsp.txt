@@ -1,0 +1,73 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ include file="/commons/taglibs.jsp" %>
+<html>
+<head>
+	<%@ include file="/commons/meta.jsp" %>
+	<link href="${ctx}/styles/extremecomponents/extremecomponents.css" type="text/css" rel=stylesheet>
+	<link href="/imgs/skin.css" rel="stylesheet" type="text/css" />
+	<title>角色选人</title>
+	<script language="JavaScript" type="text/javascript" src="/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="/scripts/framework/jquery.form.js"></script>
+	<script type="text/javascript" language="javascript" src="/scripts/edit_sysUserRole.js"></script>
+</head>
+
+<body>
+<table width="100%" border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td width="17" valign="top" background="/imgs/mail_leftbg.gif"><img src="/imgs/left-top-right.gif" width="17" height="29" /></td>
+    <td valign="top" background="/imgs/content-bg.gif"><table width="100%" height="31" border="0" cellpadding="0" cellspacing="0" class="left_topbg" id="table2">
+      <tr>
+        <td height="31"><div class="titlebt">角色选人</div></td>
+      </tr>
+    </table></td>
+    <td width="16" valign="top" background="/imgs/mail_rightbg.gif"><img src="/imgs/nav-right-bg.gif" width="16" height="29" /></td>
+  </tr>
+  <tr>
+    <td valign="middle" background="/imgs/mail_leftbg.gif">&nbsp;</td>
+    <td valign="top" bgcolor="#F7F8F9">
+    	<form id="saveForm" method="post" action="">
+    		<s:hidden name="sysRole.id" />
+	    	<table>
+				<tr>
+					<td><c:out value="${sysRole.name}"></c:out>：</td>
+					<td width="200px"> 
+						<table width="100%" border="1">
+							<thead>
+								<tr>
+									<td>用户名称</td>
+									<td>操作</td>
+								</tr>
+							</thead>
+							<tbody id="sysUserRoleList">
+								<c:forEach items="${sysUserRoleList}" var="o">
+								<tr>
+									<td><c:out value="${o.userName}" />&nbsp;<input type="hidden" name="userIdArr" value="${o.userId }" /></td>
+									<td><a href="javascript:void(0)" ><span onclick="deleteData(this)">删除</span></a></td>
+								</tr>					
+								</c:forEach>
+							</tbody>
+						</table>
+						<p />
+						<a href="javascript:void(0)" id="selectData" onclick="showUserList()">选人</a>
+					</td>
+				</tr>				
+				<tr>
+					<td><input type="submit" value="提交"></td>
+					<td></td>
+				</tr>
+			</table>
+		</form>
+
+ </td>
+    <td background="/imgs/mail_rightbg.gif">&nbsp;</td>
+  </tr>
+  <tr>
+    <td valign="bottom" background="/imgs/mail_leftbg.gif"><img src="/imgs/buttom_left2.gif" width="17" height="17" /></td>
+    <td background="/imgs/buttom_bgs.gif"><img src="/imgs/buttom_bgs.gif" width="17" height="17"></td>
+    <td valign="bottom" background="/imgs/mail_rightbg.gif"><img src="/imgs/buttom_right2.gif" width="16" height="17" /></td>
+  </tr>
+</table>
+</body>
+
+</html>
+

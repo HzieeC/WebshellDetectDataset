@@ -1,0 +1,426 @@
+<!--#include file="config.asp"-->
+<%
+Sub OpenConn()
+'On Error Resume Next
+Dim AccessPath,Path,ConnStr
+If IsObject(Conn) Then Exit Sub
+ConnStr = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source="&server.MapPath("date/date.mdb")
+Set Conn = Server.CreateObject("ADODB.Connection")
+Err.clear
+Conn.open ConnStr 
+If Err Then
+	if Err.Number=-2147467259 then
+	If LCase(Right(Request.ServerVariables("URL"),11))="install.asp" Then Exit Sub
+		err.Clear
+		Response.Redirect(NowPath&"/Install.asp")
+		Response.End()
+	Else
+		Response.Write "数据库连接出错，请检查连接字串。<br /><br />"&Err.Source&" ("&Err.Number&")"
+		Set Conn = Nothing
+		err.Clear
+		Response.End
+	end if
+End If
+End Sub
+
+Function CloseConn()
+If IsObject(Conn) Then Conn.Close:Set Conn=Nothing
+End Function
+
+Function Execute(SQL)
+Dim Rs
+If Not ISoBject(Conn) Then OpenConn
+Set Rs=Conn.Execute(SQL)
+Set Execute=Rs
+End Function
+
+Function  History()
+Dim HTTP_REFERER,PATH_INFO,QUERY_STRING
+HTTP_REFERER=Request.ServerVariables("HTTP_REFERER")
+PATH_INFO=Request.ServerVariables("PATH_INFO")
+QUERY_STRING=Request.ServerVariables("QUERY_STRING")
+If IsNull(HTTP_REFERER) Or  HTTP_REFERER="" Then
+History="/Index.asp"
+ElseIf QUERY_STRING<>"" And HTTP_REFERER="/"&PATH_INFO&"?"&QUERY_STRING Then 
+History="/Index.asp"
+Else
+History=Request.ServerVariables("HTTP_REFERER")
+End If
+End Function
+
+Function NetInt(s,Num)  Rem 获取字符串中的数字，过滤字符，以免出现错误
+'On Error Resume Next
+ Dim i,Na,ss,ss_ok,NStr,N
+ N=0
+s=Trim(s)
+If IsNull(s) or s="" Then s=0
+ If left(s,1)="-" Then ss_ok=1
+For i = 0 To Len(s)
+    Na =i+1
+	NStr=Mid(s,Na,1)
+    If (NStr="." and N=0) Or IsNumeric(NStr) Then ss = ss & Mid(s,Na,1)
+	If NStr="." Then N=1
+Next
+If ss_ok=1 Then ss="-"&ss
+If Err Then ss=0:Err.Clear
+If IsNull(ss) or ss="" Then ss=0
+Select Case Num 
+Case 0
+NetInt=Int(ss)
+Case Else
+NetInt=FormatNumber(ss,Num,-1)
+End Select
+
+End Function
+ 
+ Function SplitInt(s)  Rem 过滤数字类型，允许英文逗号存在，中文逗号转英文逗号
+'On Error Resume Next
+ Dim i,Na,ss,ss_ok,NStr,N,Nok
+ N=0 Rem 上个字符为英文逗号
+ NoK=0 Rem 当前字符为需要过滤字符,1为数字
+ s=Trim(s)
+If IsNull(s) or s="" Then s=0
+For i = 0 To Len(s)
+    Na = i+1
+	NStr=Mid(s,Na,1)
+	If NStr="，" Then NStr=","
+	If NStr<>"," and N=0 Then N=1
+	If NStr="," and Nok=0 Then N=0
+	If IsNumeric(NStr)  Then
+	Nok=1 
+	Else
+	Nok=0
+	End If
+
+    If (NStr=","  Or IsNumeric(NStr)) and N=1 Then ss = ss & Mid(s,Na,1)	
+Next
+If IsNull(ss) or ss="" or ss="," Then ss=0
+If Right(ss,1)="," Then ss=Left(ss,Len(ss)-1)
+SplitInt=ss
+End Function 
+
+Function FormatHtml(str)
+Str=Trim(Str)
+Dim Re
+Set Re = New RegExp   	' 建立正则表达式。
+Re.IgnoreCase = True ' 设置是否区分大小写。
+Re.Global = True     ' 设置全局可用性。
+Re.pattern="<.*?>" Rem HTML标签
+Str=Re.Replace(str,"")
+Re.pattern="\s" Rem 去掉空格，换行
+Str=Re.Replace(str,"")
+Set Re=Nothing
+Str=Replace(str,"&nbsp;","", 1, -1, 1) 
+Str=Replace(str,"	","", 1, -1, 1) 
+FormatHtml=Str
+End Function
+
+Function HTMLEncode(Str) Rem 转化非法标签
+If Str = "" Then   HTMLEncode = "" :  Exit Function  
+ Str=Trim(Str)
+ Str = Replace(Str,Chr(0),"", 1, -1, 1) 
+ Str = Replace(Str, "'", "’", 1, -1, 1)
+ Str = Replace(Str, """", "&quot;", 1, -1, 1) 
+ Str = Replace(Str,"<","&lt;", 1, -1, 1) 
+ Str = Replace(Str,">","&gt;", 1, -1, 1)  
+ Str = Replace(Str, "script", "&#115;cript", 1, -1, 0) 
+ Str = Replace(Str, "SCRIPT", "&#083;CRIPT", 1, -1, 0) 
+ Str = Replace(Str, "Script", "&#083;cript", 1, -1, 0) 
+ Str = Replace(Str, "script", "&#083;cript", 1, -1, 1) 
+ Str = Replace(Str, "object", "&#111;bject", 1, -1, 0) 
+ Str = Replace(Str, "OBJECT", "&#079;BJECT", 1, -1, 0) 
+ Str = Replace(Str, "Object", "&#079;bject", 1, -1, 0) 
+ Str = Replace(Str, "object", "&#079;bject", 1, -1, 1) 
+ Str = Replace(Str, "applet", "&#097;pplet", 1, -1, 0) 
+ Str = Replace(Str, "APPLET", "&#065;PPLET", 1, -1, 0)
+ Str = Replace(Str, "Applet", "&#065;pplet", 1, -1, 0) 
+ Str = Replace(Str, "applet", "&#065;pplet", 1, -1, 1) 
+ Str = Replace(Str, "[", "&#091;") 
+ Str = Replace(Str, "]", "&#093;") 
+ Str = Replace(Str, """", "", 1, -1, 1) 
+ Str = Replace(Str, "=", "&#061;", 1, -1, 1) 
+ Str = Replace(Str, "select", "sel&#101;ct", 1, -1, 1) 
+ Str = Replace(Str, "execute", "&#101xecute", 1, -1, 1) 
+ Str = Replace(Str, "exec", "&#101xec", 1, -1, 1) 
+ Str = Replace(Str, "join", "jo&#105;n", 1, -1, 1) 
+ Str = Replace(Str, "union", "un&#105;on", 1, -1, 1) 
+ Str = Replace(Str, "where", "wh&#101;re", 1, -1, 1) 
+ Str = Replace(Str, "insert", "ins&#101;rt", 1, -1, 1) 
+ Str = Replace(Str, "delete", "del&#101;te", 1, -1, 1) 
+ Str = Replace(Str, "update", "up&#100;ate", 1, -1, 1) 
+ Str = Replace(Str, "like", "lik&#101;", 1, -1, 1) 
+ Str = Replace(Str, "drop", "dro&#112;", 1, -1, 1) 
+ Str = Replace(Str, "create", "cr&#101;ate", 1, -1, 1) 
+ Str = Replace(Str, "rename", "ren&#097;me", 1, -1, 1) 
+ Str = Replace(Str, "count", "co&#117;nt", 1, -1, 1) 
+ Str = Replace(Str, "chr", "c&#104;r", 1, -1, 1) 
+ Str = Replace(Str, "mid", "m&#105;d", 1, -1, 1) 
+ Str = Replace(Str, "truncate", "trunc&#097;te", 1, -1, 1) 
+ Str = Replace(Str, "nchar", "nch&#097;r", 1, -1, 1) 
+ Str = Replace(Str, "char", "ch&#097;r", 1, -1, 1) 
+ Str = Replace(Str, "alter", "alt&#101;r", 1, -1, 1) 
+ Str = Replace(Str, "cast", "ca&#115;t", 1, -1, 1) 
+ HTMLEncode = Replace(Str, "exists", "e&#120;ists", 1, -1, 1)
+End Function
+
+Function ReadPage() Rem 读取记录翻页
+If RsPage<2 Then Exit Function
+Dim InfoUrl,PrePage,NextPage,NowPage,NPage,NowStr,FirstPage,LastPage,Url
+InfoUrl=request.QueryString
+NowPage="http://" & Request.servervariables("server_name")
+If Request.ServerVariables("REMOTE_PORT")<>"80" Then NowPage=NowPage&":"&Request.ServerVariables("SERVER_PORT")
+NowPage=LCase(NowPage&Request.servervariables("script_name"))
+Url=LCase(NowPage&"?"&InfoUrl)
+Re.Pattern = ".*?page=(\d*?).*?"
+NPage=Re.Replace(Url,"$1")
+If Instr(Url,"page="&NPage)>0 Then
+PrePage=Replace(URL,"page="&NPage,"page="&(Page-1))
+NextPage=Replace(URL,"page="&NPage,"page="&(Page+1))
+FirstPage=Replace(URL,"page="&NPage,"page=1")
+LastPage=Replace(URL,"page="&NPage,"page="&RsPage)
+Else
+PrePage=Url&"&page="&(Page-1)
+NextPage=Url&"&page="&(Page+1)
+FirstPage=Url&"&page=1"
+LastPage=Url&"&page="&RsPage
+End If
+NowStr="{$firsturl$}首页{$/firsturl$} {$preurl$}上一页{$/preurl$} {$nexturl$}下一页{$/nexturl$} {$lasturl$}最后一页{$/lasturl$} 当前<font color=red>{$page$}</font>/{$rspage$}页 {$RsPageCount$}条记录/页 共{$rscount$}条记录"
+NowStr=Replace(NowStr,"{$page$}",Page,1,-1,1)
+NowStr=Replace(NowStr,"{$rspage$}",RsPage,1,-1,1)
+NowStr=Replace(NowStr,"{$rscount$}",RsCount,1,-1,1)
+NowStr=Replace(NowStr,"{$rspagecount$}",RsPageCount,1,-1,1)
+If RsPage<2 Then
+NowStr=Replace(NowStr,"{$firsturl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$preurl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$nexturl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$lasturl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$/firsturl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$/preurl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$/nexturl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$/lasturl$}","",1,-1,1)
+ElseIf Page<2 Then
+NowStr=Replace(NowStr,"{$firsturl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$preurl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$nexturl$}","<a href='"&NextPage&"'>",1,-1,1)
+NowStr=Replace(NowStr,"{$lasturl$}","<a href='"&LastPage&"'>",1,-1,1)
+NowStr=Replace(NowStr,"{$/firsturl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$/preurl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$/nexturl$}","</a>",1,-1,1)
+NowStr=Replace(NowStr,"{$/lasturl$}","</a>",1,-1,1)
+ElseIf Page=RsPage Then
+NowStr=Replace(NowStr,"{$firsturl$}","<a href='"&FirstPage&"'>",1,-1,1)
+NowStr=Replace(NowStr,"{$preurl$}","<a href='"&PrePage&"'>",1,-1,1)
+NowStr=Replace(NowStr,"{$nexturl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$lasturl$}","")
+NowStr=Replace(NowStr,"{$/firsturl$}","</a>",1,-1,1)
+NowStr=Replace(NowStr,"{$/preurl$}","</a>",1,-1,1)
+NowStr=Replace(NowStr,"{$/nexturl$}","",1,-1,1)
+NowStr=Replace(NowStr,"{$/lasturl$}","",1,-1,1)
+Else
+NowStr=Replace(NowStr,"{$firsturl$}","<a href='"&FirstPage&"'>",1,-1,1)
+NowStr=Replace(NowStr,"{$preurl$}","<a href='"&PrePage&"'>",1,-1,1)
+NowStr=Replace(NowStr,"{$nexturl$}","<a href='"&NextPage&"'>",1,-1,1)
+NowStr=Replace(NowStr,"{$lasturl$}","<a href='"&LastPage&"'>",1,-1,1)
+NowStr=Replace(NowStr,"{$/firsturl$}","</a>",1,-1,1)
+NowStr=Replace(NowStr,"{$/preurl$}","</a>",1,-1,1)
+NowStr=Replace(NowStr,"{$/nexturl$}","</a>",1,-1,1)
+NowStr=Replace(NowStr,"{$/lasturl$}","</a>",1,-1,1)
+End If
+NowStr="<div id=""page"">"&Replace(NowStr,"?&","?")&"</div>"
+ReadPage=NowStr
+End Function
+
+Function ReadRs(SQL,NetType)
+If Not IsObject(Conn) Then OpenConn
+If IsObject(Rs) Then Rs.Close
+On Error Resume Next
+Dim Rs
+If SQL="" Then Exit Function
+If NetType>3 or NetType<0 Then NetType=1
+Set Rs= Server.CreateObject("ADODB.RECORDSET")
+Rs.Open SQL,Conn,1,NetType
+ReadTimes=ReadTimes+1
+Set ReadRs=Rs
+Set Rs=Nothing
+'Rs.Close
+End Function
+
+Function ReadRsPage(sql)
+Dim Rs
+Set Rs = ReadRs(sql, 1)
+RsCount = Rs.RecordCount
+  If CInt(RsCount) > CInt(RsPageCount) Then
+  If RsCount Mod RsPageCount = 0 Then
+  RsPage = RsCount \ RsPageCount
+  Else
+  RsPage = RsCount \ RsPageCount + 1
+  End If
+  Else
+  Page = 1
+  RsPage = 1
+End If
+If Page > RsPage Then Page = RsPage
+If Page < 1 Then Page = 1
+If RsCount > 0 Then Rs.Move (Page - 1) * Int(RsPageCount)
+Set ReadRsPage = Rs
+Set Rs = Nothing
+End Function
+
+Function NetPage() Rem 分页计算
+Dim NPageCount
+
+  If RsCount>RsPageCount Then
+  If RsCount Mod RsPageCount=0 Then
+  RsPage=RsCount\RsPageCount
+  Else
+  RsPage=RsCount\RsPageCount+1
+  End If
+  Else
+  Page=1
+If RsCount>0 Then 
+RsPage=1
+Else
+RsPage=0
+End If
+End If
+If Page>RsPage Then Page=RsPage
+If Page<1 Then Page=1
+End Function 
+
+Function FormatTime(Str)'格式化时间
+If not IsDate(Str) or Str="" Then Exit Function
+If Datediff("s",Str,Now())<60 Then FormatTime=Datediff("s",Str,Now())&"秒钟前":Exit Function
+If Datediff("n",Str,Now())<60 Then FormatTime=Datediff("n",Str,Now())&"分钟前":Exit Function
+If Datediff("h",Str,Now())<24 Then FormatTime=Datediff("h",Str,Now())&"小时前":Exit Function
+FormatTime=Month(Str)&"月"&Day(Str)&"日"
+End Function
+
+Public Function RecordsetToxml(Recordset,row,xmlroot)  
+ Dim i,node,rs,j,DataArray   
+ If IsNull(xmlroot) Then xmlroot="xml"  
+  If IsNull(row) Then row="row"   
+ Set RecordsetToxml=Server.CreateObject("msxml2.FreeThreadedDOMDocument.3.0")  
+  RecordsetToxml.appendChild(RecordsetToxml.createElement(xmlroot))  
+  If Not Recordset.EOF Then   
+  DataArray=Recordset.GetRows(-1)
+  For i=0 To UBound(DataArray,2) 
+  Set Node=RecordsetToxml.createNode(1,row,"")   Rem 行
+	j=0 
+	For Each rs in Recordset.Fields 
+	 node.attributes.setNamedItem(RecordsetToxml.createNode(2,LCase(rs.name),"")).text= DataArray(j,i)& "" Rem 元组
+	j=j+1 
+	 Next   
+	RecordsetToxml.documentElement.appendChild(Node)   
+	Next  
+	End If   
+	DataArray=Null 
+End Function
+
+Function IP() 
+		Dim IPAddr,Forip
+		If Request.ServerVariables("HTTP_X_FORWARDED_FOR") = "" OR InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), "unknown") > 0 Then 
+			IPAddr = Request.ServerVariables("REMOTE_ADDR") 
+		ElseIf InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ",") > 0 Then 
+			IPAddr = Mid(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), 1, InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ",")-1) 
+			forip=Request.ServerVariables("REMOTE_ADDR")
+		ElseIf InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ";") > 0 Then 
+			IPAddr = Mid(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), 1, InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ";")-1)
+			Forip=Request.ServerVariables("REMOTE_ADDR")
+		Else 
+			IPAddr = Request.ServerVariables("HTTP_X_FORWARDED_FOR") 
+			Forip=Request.ServerVariables("REMOTE_ADDR")
+		End If 
+		IP = CheckStr(Trim(Mid(IPAddr, 1, 30)))
+End Function 
+
+Function Checkstr(Str)
+		If Isnull(Str) Then
+			CheckStr = ""
+			Exit Function 
+		End If
+		Str = Replace(Str,Chr(0),"")
+		CheckStr = Replace(Str,"'","''")
+End Function
+
+Sub SendMail(Title,AddUser,Content,SendEmail) Rem Jmail组件发送邮件,多个电子邮件之间以，隔开
+On Error Resume Next
+Dim Mail,SendEmails
+If FEmail="" or SendEmail="" Then Exit Sub
+Set Mail = Server.CreateObject("JMail.Message")
+Mail.silent = True Rem 屏蔽例外错误
+Mail.Logging = True  Rem 启用邮件日志
+Mail.Charset = "gb2312" 
+Mail.ContentType="text/html "   Rem 邮件的格式为HTML格式
+Mail.MailServerUserName =FEmail  Rem 输入smtp服务器验证登录名,即任何一个在该smpt服务器上申请的Email地址） 
+Mail.MailServerPassword =FPass	  Rem 输入smtp服务器验证密码,即Email账号对应的密码,如果是在本机测试,请忽略此行代码,即无须输入密码
+Mail.From =FEmail  Rem 发件人Email地址 
+Mail.FromName =AddUser  Rem 发件人姓名 
+SendEmails=Split(SendEmail,",")
+For i=0 To Ubound(SendEmails)
+Mail.AddRecipient(SendEmails(i)) Rem 收件人Email地址 
+Next
+Mail.Subject =Title Rem 信件主题 
+Mail.Body =Content Rem 正文 
+Mail.Priority   =   3   Rem 邮件的紧急程序，1   为最快，5   为最慢，   3   为默认值   
+SendMail=Mail.Send ("smtp."&Right(NetEmail,Len(NetEmail)-Instr(NetEmail,"@"))) Rem smtp服务器地址（企业邮局地址）
+Mail.close() 
+set Mail = Nothing 
+End Sub
+
+Function Ubb(Str)
+Dim Strng,Re
+Set Re = New RegExp   	' 建立正则表达式。
+Re.IgnoreCase = True ' 设置是否区分大小写。
+Re.Global = True     ' 设置全局可用性。
+Strng=Str
+Strng= Replace(Strng,"<","&lt;", 1, -1, 1) 
+Strng= Replace(Strng,">","&gt;", 1, -1, 1) 
+
+Re.pattern="\[(color|hilitecolor|url|align)=""?([\s]*?)""?\](.*?)\[\/\1\]" 
+Strng=re.Replace(Strng,"$3")
+
+Re.Pattern = "\[color=[""']?(.*?)[""']?\](.*?)\[\/color\]" 
+Strng=Re.Replace(Strng,"<font color=$1>$2</font>")
+
+Re.Pattern = "\[align=[""']?(.*?)[""']?](.*?)\[\/align\]" 
+Strng=Re.Replace(Strng,"<div align=$1 >$2</div>")
+
+Re.Pattern = "\[img](.*?)\[\/img\]" 
+Strng=Re.Replace(Strng,"<img src='$1'>")
+
+Re.Pattern = "\[hilitecolor\=[""']?(.*?)[""']?\](.*?)\[\/hilitecolor\]" 
+Strng=Re.Replace(Strng,"<span style=""background:$1"">$2</span>")
+
+
+
+Re.Pattern = "\[url=[""']?(.*?)[""']?\](.*?)\[\/url\]" 
+Strng=Re.Replace(Strng,"<a href='$1'>$2</a>")
+
+Re.Pattern = "\[(\/?)(ul|li|ol|i|b|p|br)\]" 
+Strng=Re.Replace(Strng,"<$1$2>")
+Set Re=Nothing
+Ubb=Strng
+End Function
+
+Function CheckUser()
+Dim UserID,Key,Rs,json,Strng
+UserID=NetInt(Request.Cookies("UID"),0)
+Key=Trim(Request.Cookies("Key"))
+If Key="" OR UserID<1 Then Exit Function
+Set Rs=ReadRs("Select *,(Select flag From ["&NetTable&"group] where id=["&NetTable&"User].GroupID ) as flag ,(Select title From ["&NetTable&"group] where id=["&NetTable&"User].GroupID ) as shenfen From ["&NetTable&"User] where ID="&UserID,1)
+If Rs.EOF OR Rs.Bof Then  Response.Redirect(History):Response.End() 
+If Rs("Rand")=Key Then Set  CheckUser=RecordsetToxml(RS,"User","User")
+Rs.Close
+Set Rs=Nothing
+End Function
+
+Function Level(ID)
+If Instr(","&Flag&","&User("flag")&",",","&ID&",")>0 Then Level=True Else Level=False
+End Function
+
+Function User(Str)
+If not IsObject(CheckUser) Then Exit Function
+User=CheckUser.documentElement.selectSingleNode("User/@"&LCase(Trim(Str))).text
+End Function
+%>
+<!--#include file="md5.asp"-->

@@ -1,0 +1,182 @@
+<!--#include file="const.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_error.asp
+' 更新日期：2008-06-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="80" align="left" noWrap="noWrap"><%=NewAsp.ModuleName%>错误报告</td>
+		<td class="tableline" width="*" align="right"><a href="admin_index.asp?ChannelID=<%=ChannelID%>">管理首页</a>
+			 - <a href="admin_error.asp?ChannelID=<%=ChannelID%>">错误列表</a>
+			 - <a href="admin_list.asp?ChannelID=<%=ChannelID%>"><%=NewAsp.ModuleName%>管理</a>
+			 - <a href="admin_comment.asp?ChannelID=<%=ChannelID%>">评论管理</a>
+			 - <a href="admin_comment.asp?ChannelID=<%=ChannelID%>&apprize=1">通知管理员</a>
+			 - <a href="../sys/admin_channel.asp?action=edit&ChannelID=<%=ChannelID%>">频道管理</a>
+			 - <a href="admin_makehtml.asp?ChannelID=<%=ChannelID%>">生成HTLM</a>
+		</td>
+	</tr>
+</table>
+<%
+If Not ChkAdmin("List_"&ChannelID) Then
+	Call Transfer_error()
+End If
+
+Dim maxperpage,totalrec,Pcount,pagelinks,pagenow,count
+Dim Action,TopicArry,SQLQuery,SQLField
+Action=LCase(Request("action"))
+Select Case Trim(Action)
+Case "del"
+	Call DeleteErrSoft()
+Case "amend"
+	Call AmendErrSoft()
+Case Else
+	Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+	Dim i,iCount,lCount
+	maxperpage=30
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+	count=NewAsp.ChkNumeric(Request("count"))
+%>
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th width="5%" noWrap="noWrap">选择</th>
+	<th width="70%">软件名称</th>
+	<th width="15%" noWrap="noWrap">更新时间</th>
+	<th width="5%" noWrap="noWrap">编辑</th>
+	<th width="5%" noWrap="noWrap">删除</th>
+</tr>
+<tr>
+	<td class="tablerow2" colspan="5" align="left" id="showNextPage">&nbsp;</td>
+</tr>
+<form name="selform" id="selform" method="post" action="admin_error.asp?ChannelID=<%=ChannelID%>">
+<input type="hidden" name="action" value="amend">
+<%
+	Call showTopiclist()
+	iCount=1:lCount=2
+	If IsArray(TopicArry) Then
+		For i=0 To Ubound(TopicArry,2)
+			If Not Response.IsClientConnected Then Response.End
+			If (i mod 2) = 0 Then iCount=1:lCount=2 Else iCount=2:lCount=1
+%>
+<tr>
+	<td class="tablerow<%=iCount%> hovered" align="center"><input type="checkbox" name="softid" value="<%=TopicArry(0,i)%>"/></td>
+	<td class="tablerow<%=iCount%> hovered" align="left">
+		<a href="admin_list.asp?action=view&ChannelID=<%=ChannelID%>&softid=<%=TopicArry(0,i)%>"><%=NewAsp.HTMLEncode(TopicArry(3,i)&" "&TopicArry(4,i))%></a>
+	</td>
+	<td class="tablerow<%=iCount%> hovered" align="center"><%=showDateTime(TopicArry(6,i),"yyyy-MM-dd")%></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap" align="center"><a href="admin_post.asp?action=edit&ChannelID=<%=ChannelID%>&softid=<%=TopicArry(0,i)%>">编辑</a></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap" align="center"><a href="?action=del&ChannelID=<%=ChannelID%>&softid=<%=TopicArry(0,i)%>" onclick="return confirm('您确定要删除此软件吗?')">删除</a></td>
+</tr>
+<%
+		Next
+	End If
+%>
+<tr>
+	<td class="tablerow<%=lCount%>" colspan="5"><input class="button" type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class="button" type="button" name="chksel" value="反选" onClick="ContraSel(this.form)">
+		<input class="button" type="submit" name="submit_button2" value="直接修正" onclick="return confirm('确定直接修正软件吗?')">
+		<input class="button" type="submit" name="submit_button3" value="直接删除" onclick="{if(confirm('确定要删除吗?')){document.selform.action.value='del';return true;}return false;}">
+	</td>
+</tr>
+</form>
+<tr>
+	<td class="tablerow<%=iCount%>" align="right" colspan="7" id="NextPageText">
+	<var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+</table>
+<script type="text/javascript">
+document.getElementById("showNextPage").innerHTML = document.getElementById("NextPageText").innerHTML;
+</script>
+<%
+End Sub
+
+Sub showTopiclist()
+	Dim Rs,SQL
+	On Error Resume Next
+	SQLField = "A.softid,A.ChannelID,A.classid,A.SoftName,A.SoftVer,A.username,A.SoftTime,A.AllHits,A.isTop,A.isBest,A.isAccept,A.SoftSize,C.ClassName"
+	SQLQuery = " And errcode>0"
+	
+	If count=0 Then
+		totalrec=NewAsp.Execute("SELECT COUNT(softid) FROM NC_SoftList A WHERE A.ChannelID="&ChannelID&" "&SQLQuery&"")(0)
+	Else
+		totalrec=count
+	End If
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT "& SQLField &" FROM [NC_SoftList] A INNER JOIN [NC_Classify] C on A.classid=C.classid WHERE A.ChannelID=" &ChannelID& " "&SQLQuery&" ORDER BY A.SoftTime DESC"
+	Rs.Open SQL,Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		TopicArry=Rs.GetRows(maxperpage)
+	Else
+		TopicArry=Null
+	End If
+	Rs.close()
+	Set Rs=Nothing
+	pagelinks="admin_error.asp?channelid="& ChannelID &"&count="&totalrec&"&"
+End Sub
+
+Sub DeleteErrSoft()
+	Dim Rs,softidlist
+	softidlist = NewAsp.CheckIDlist(Request("softid"))
+	If Trim(Request("softid")) <> "" Then
+		Set Rs = NewAsp.Execute("SELECT softid,classid,username FROM NC_SoftList WHERE ChannelID="& ChannelID &" And softid in (" & softidlist & ")")
+		Do While Not Rs.EOF
+			ClassUpdateCount (Rs("classid"))
+			Rs.movenext
+		Loop
+		Rs.Close:Set Rs = Nothing
+		NewAsp.Execute ("DELETE FROM NC_SoftList WHERE ChannelID = "& ChannelID &" And softid in (" & softidlist & ")")
+		NewAsp.Execute("DELETE FROM NC_DownAddress WHERE ChannelID = "& ChannelID &" And softid in (" & softidlist & ")")
+		NewAsp.Execute ("DELETE FROM NC_Comment WHERE ChannelID = "& ChannelID &" And postid in (" & softidlist & ")")
+		Response.Redirect  Request.ServerVariables("HTTP_REFERER")
+	Else
+		ErrMsg = "<li>错误的系统参数,请选择要删除的软件ID</li>"
+		FoundErr = True
+	End If
+End Sub
+
+Sub AmendErrSoft()
+	Dim Rs,softidlist
+	softidlist = NewAsp.CheckIDlist(Request("softid"))
+	If Trim(Request("softid")) <> "" Then
+		NewAsp.Execute ("UPDATE NC_SoftList SET ErrCode=0 WHERE ChannelID = "& ChannelID &" And softid in (" & softidlist & ")")
+		Response.Redirect  Request.ServerVariables("HTTP_REFERER")
+	Else
+		ErrMsg = "<li>错误的系统参数,请选择要修正的软件ID</li>"
+		FoundErr = True
+	End If
+End Sub
+
+Function ClassUpdateCount(sortid)
+	Dim rscount,Parentstr
+	On Error Resume Next
+	Set rscount = NewAsp.Execute("SELECT ClassID,Parentstr FROM [NC_Classify] WHERE ChannelID=" & ChannelID & " And classid=" & CLng(sortid))
+	If Not (rscount.BOF And rscount.EOF) Then
+		Parentstr = rscount("Parentstr") &","& rscount("ClassID")
+		NewAsp.Execute ("UPDATE [NC_Classify] SET ShowCount=ShowCount-1,isUpdate=1 WHERE ChannelID="& ChannelID &" And classid in (" & Parentstr & ")")
+	End If
+	Set rscount = Nothing
+End Function
+%>

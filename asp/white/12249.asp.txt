@@ -1,0 +1,293 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="cache/userSys.asp" -->
+<!-- #include file="cache/system.asp" -->
+<!-- #include file="file_users.asp" -->
+<%
+	response.charset="gb2312"
+
+	Call CheckIsOutSubmit("")	'检测是否外部提交
+
+
+	judUserErr = Users_Open("get",",UE_state","")
+		If judUserErr<>"" Then
+			response.write(_
+			"<br /><br />"&_
+			"<center style='font-size:14px;'>"&_
+				"请先登录，该功能需要登录才能使用."&_
+				""& judUserErr &"<span class='font2_1 pointer' onclick=""OpenPopup('login');"">[登录]</span>"&_
+			"</center>"&_
+			"<br /><br />"&_
+			"")
+			response.End()
+		End If
+
+	UE_ID	= userexe("UE_ID")
+	UE_state= userexe("UE_state")
+
+
+Select Case  mudi
+	case "deal"
+		Call deal()
+
+	case "del"
+		Call del()
+
+End Select
+
+
+Call Users_Close()
+Call CloseConobj()
+
+
+
+
+
+' 添加/修改
+Sub deal()
+	URL			= ToPostStr("URL")
+	dataID		= ToPostInt("dataID")
+	page		= ToPostInt("page")
+
+	theme		= ToPostReplaceStr("theme","html")
+	source		= ToPostRegExpStr("source","html")
+	writer		= ToPostRegExpStr("writer","html")
+	typeStr		= ToPostStr("typeStr")
+	img			= ToPostStr("img")
+	content		= FilterEditor(ToPostRStr("content"))
+	pageNum		= ToPostInt("pageNum")
+	pageCount	= ContentPageNum(content,pageNum)
+	themeKey	= ToPostRegExpStr("themeKey","html")
+	contentKey	= ReplaceStr(FilterSpecSign(ToPostStr("contentKey")),"html")
+		contentKey	= Replace(contentKey,"[OT_page]","")
+	voteMode	= ToPostInt("voteMode")
+	voteStr		= "0,0,0,0,0,0,0,0"
+	isReply		= ToPostInt("isReply")
+
+	If theme="" Or typeStr="" Or Len(""& content)<10 Then
+		response.write("alert('表单接收不全');wNewsWaitTime = 0;")
+		response.End()
+	End If
+
+	If UE_state=0 Then
+		response.write("alert('您尚未审核通过，该功能无法使用。');")
+		response.End()
+	End If
+
+	If pageCount>20 Then
+		response.write("alert('当前内容分页为"& pageCount &"页超过最大限制的20页，请重新设置分页');wNewsWaitTime = 0;")
+		response.End()
+	End If
+	
+	If themeKey<>"" Then themeKey = Replace(Replace(Replace(themeKey," ",","),"，",","),"|",",")
+	If contentKey="" Then contentKey = Left(RegExpStr(content,"html"),140) &"..."
+
+		beforeURL=GetCurrUrlDir(0)
+		imgUrl=beforeURL & InfoImgDir
+		content		= Replace(content,imgUrl,InfoImgAdminDir)
+
+	Set userrec=server.CreateObject("ADODB.recordset")
+	If dataID>0 Then
+		If US_isNewsRev=0 Then
+			response.write("alert('不允许修改文章，有问题请联系管理员');")
+			response.End()
+		End If
+
+		userrec.open "select top 1 * from OT_info where IF_ID="& dataID &" and IF_userID="& UE_ID &"",conobj,0,2
+			If userrec.EOF Then
+				response.write("alert('记录不存在');")
+				response.End()
+			End If
+		alertMode = "修改"
+
+		If US_isNewsRevAudit=1 Then
+			userrec("IF_isAudit")	= 0
+		End If
+	Else
+		If US_isNewsAdd=0 Then
+			response.write("alert('文章发表已关闭，有问题请联系管理员');")
+			response.End()
+		End If
+
+		userrec.open "select top 1 * from OT_info where 1=2",conobj,0,2
+		userrec.addnew()
+		alertMode = "发表"
+
+		userrec("IF_voteStr")	= voteStr
+		If US_isNewsAudit=1 Then
+			userrec("IF_isAudit")	= 0
+		Else
+			userrec("IF_isAudit")	= 1
+			userrec("IF_isGetScore")= 1
+			conobj.execute(_
+				"update OT_users set "&_
+					"UE_score1=UE_score1+"& US_newsAddScore1 &","&_
+					"UE_score2=UE_score2+"& US_newsAddScore2 &","&_
+					"UE_score3=UE_score3+"& US_newsAddScore3 &","&_
+					"UE_score4=UE_score4+"& US_newsAddScore4 &","&_
+					"UE_score5=UE_score5+"& US_newsAddScore5 &","&_
+					"UE_score1Day=UE_score1Day+"& US_newsAddScore1 &","&_
+					"UE_score2Day=UE_score2Day+"& US_newsAddScore2 &","&_
+					"UE_score3Day=UE_score3Day+"& US_newsAddScore3 &","&_
+					"UE_score4Day=UE_score4Day+"& US_newsAddScore4 &","&_
+					"UE_score5Day=UE_score5Day+"& US_newsAddScore5 &","&_
+					"UE_score1Week=UE_score1Week+"& US_newsAddScore1 &","&_
+					"UE_score2Week=UE_score2Week+"& US_newsAddScore2 &","&_
+					"UE_score3Week=UE_score3Week+"& US_newsAddScore3 &","&_
+					"UE_score4Week=UE_score4Week+"& US_newsAddScore4 &","&_
+					"UE_score5Week=UE_score5Week+"& US_newsAddScore5 &","&_
+					"UE_score1Month=UE_score1Month+"& US_newsAddScore1 &","&_
+					"UE_score2Month=UE_score2Month+"& US_newsAddScore2 &","&_
+					"UE_score3Month=UE_score3Month+"& US_newsAddScore3 &","&_
+					"UE_score4Month=UE_score4Month+"& US_newsAddScore4 &","&_
+					"UE_score5Month=UE_score5Month+"& US_newsAddScore5 &","&_
+					"UE_score1Year=UE_score1Year+"& US_newsAddScore1 &","&_
+					"UE_score2Year=UE_score2Year+"& US_newsAddScore2 &","&_
+					"UE_score3Year=UE_score3Year+"& US_newsAddScore3 &","&_
+					"UE_score4Year=UE_score4Year+"& US_newsAddScore4 &","&_
+					"UE_score5Year=UE_score5Year+"& US_newsAddScore5 &""&_
+				" where UE_ID="& UE_ID)
+
+		End If
+
+	End If
+
+	type1ID		= 0
+	type2ID		= 0
+	type3ID		= 0
+		If typeStr="announ" Then
+			type1ID = -1
+		Else
+			typeArr = Split(typeStr,",")
+			typeUbound=UBound(typeArr)
+			If typeUbound>=2 Then
+				type1ID = typeArr(1)
+				If typeUbound>=3 Then
+					type2ID = typeArr(2)
+					If typeUbound>=4 Then
+						type3ID = typeArr(3)
+					End If
+				End If
+			End If
+			typeCurrID = typeArr(typeUbound-1)
+		End If
+
+	IF_imgMode = 0
+	If Len(""& img)>4 Then
+		IF_imgMode = 1
+	End If
+
+	userrec("IF_isNew")		= 1
+	userrec("IF_imgMode")	= IF_imgMode
+	userrec("IF_theme")		= JapanCode(theme,true)
+	userrec("IF_time")		= Now()
+	userrec("IF_revTime")	= Now()
+	userrec("IF_type")		= "news"
+	userrec("IF_source")	= source
+	userrec("IF_writer")	= writer
+	userrec("IF_typeStr")	= typeStr
+	userrec("IF_type1ID")	= type1ID
+	userrec("IF_type2ID")	= type2ID
+	userrec("IF_type3ID")	= type3ID
+	userrec("IF_content")	= JapanCode(content,true)
+	userrec("IF_themeKey")	= themeKey
+	userrec("IF_contentKey")= contentKey
+	userrec("IF_pageNum")	= pageNum
+	userrec("IF_voteMode")	= voteMode
+	userrec("IF_isReply")	= isReply
+	userrec("IF_userID")	= UE_ID
+	userrec("IF_state")		= 1
+	userrec.update()
+	userrec.close()
+	Set userrec=Nothing
+	
+
+	response.write(_
+	"alert('"& alertMode &"文章成功');OpenPopup('newsManage','&page="& page &"');;"&_
+	"")
+
+End Sub
+
+
+
+
+
+' 删除
+Sub del()
+	If US_isNewsDel=0 Then
+		response.write("alert('禁止会员删除文章，有问题请联系管理员');")
+		response.End()
+	End If
+
+	dataID	= ToGetInt("dataID")
+	theme	= ToGetStr("theme")
+
+	userSqlStr = ""
+	Set delrec=server.CreateObject("ADODB.recordset")
+	delrec.open "select IF_ID,IF_upImgStr,IF_file,IF_img,IF_userID,IF_isGetScore from OT_info where IF_ID="& dataID &" and IF_userID="& UE_ID &"",conobj,0,2
+		If delrec.EOF Then
+			Call JS_AlertEnd("不存在该记录")
+		End If
+		If delrec("IF_isGetScore")=1 Then
+			userSqlStr = ""&_
+			"update OT_users set "&_
+				"UE_score1=UE_score1-"& US_newsDelScore1 &","&_
+				"UE_score2=UE_score2-"& US_newsDelScore2 &","&_
+				"UE_score3=UE_score3-"& US_newsDelScore3 &","&_
+				"UE_score4=UE_score4-"& US_newsDelScore4 &","&_
+				"UE_score5=UE_score5-"& US_newsDelScore5 &","&_
+				"UE_score1Day=UE_score1Day-"& US_newsDelScore1 &","&_
+				"UE_score2Day=UE_score2Day-"& US_newsDelScore2 &","&_
+				"UE_score3Day=UE_score3Day-"& US_newsDelScore3 &","&_
+				"UE_score4Day=UE_score4Day-"& US_newsDelScore4 &","&_
+				"UE_score5Day=UE_score5Day-"& US_newsDelScore5 &","&_
+				"UE_score1Week=UE_score1Week-"& US_newsDelScore1 &","&_
+				"UE_score2Week=UE_score2Week-"& US_newsDelScore2 &","&_
+				"UE_score3Week=UE_score3Week-"& US_newsDelScore3 &","&_
+				"UE_score4Week=UE_score4Week-"& US_newsDelScore4 &","&_
+				"UE_score5Week=UE_score5Week-"& US_newsDelScore5 &","&_
+				"UE_score1Month=UE_score1Month-"& US_newsDelScore1 &","&_
+				"UE_score2Month=UE_score2Month-"& US_newsDelScore2 &","&_
+				"UE_score3Month=UE_score3Month-"& US_newsDelScore3 &","&_
+				"UE_score4Month=UE_score4Month-"& US_newsDelScore4 &","&_
+				"UE_score5Month=UE_score5Month-"& US_newsDelScore5 &","&_
+				"UE_score1Year=UE_score1Year-"& US_newsDelScore1 &","&_
+				"UE_score2Year=UE_score2Year-"& US_newsDelScore2 &","&_
+				"UE_score3Year=UE_score3Year-"& US_newsDelScore3 &","&_
+				"UE_score4Year=UE_score4Year-"& US_newsDelScore4 &","&_
+				"UE_score5Year=UE_score5Year-"& US_newsDelScore5 &""&_
+			" where UE_ID="& delrec("IF_userID")
+		End If
+		IF_upImgStr	= delrec("IF_upImgStr")
+		IF_file		= delrec("IF_file")
+		IF_img		= delrec("IF_img")
+	delrec.delete
+	delrec.update
+
+	delrec.close
+	Set delrec=Nothing
+
+	If userSqlStr<>"" Then conobj.execute(userSqlStr)
+
+
+'	If Len(""& IF_upImgStr)>4 Then 
+'		On Error Resume Next
+'		Set fso=server.CreateObject("Scripting.FileSystemObject")
+'			fileArr=Split(IF_upImgStr,"|")
+'				For i=0 To UBound(fileArr)
+'					If fileArr(i)<>"" And (Left(fileArr(i),2)="OT" Or Left(fileArr(i),5)="coll/") Then
+'						If fso.fileexists(server.mappath(InfoImgDir & fileArr(i))) = True Then
+'							fso.deletefile server.mappath(InfoImgDir & fileArr(i)),True
+'						End If
+'					End If
+'				Next
+'		fso.close
+'		Set fso=Nothing
+'	End If
+
+
+	response.write("$id('data"& dataID &"').style.display='none';")
+
+End Sub
+
+%>

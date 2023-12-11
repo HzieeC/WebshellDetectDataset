@@ -1,0 +1,62 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%
+	String url = request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<table cellpadding=2 cellspacing=1 border=0 class=tableBorder align=center>
+ <tr>
+ <th height=22 colspan=6>管理员操作</th>
+ </tr>
+ <tr>
+ <td class=TableRow1> <b>管理选项：</b> <a href='<%=url%>/servletsmanage?action=manage'>管理首页</a> &nbsp;<a href="<%=url%>/admin/admin_master.jsp">添加管理员</a> </td>
+ </tr>
+ </table><br>
+<table cellpadding="2" cellspacing="1" border="0" class="tableBorder" align=center>
+<form action="<%=url%>/servletsmanage" method=post>
+ <tr>
+ <th colspan=2 height=23>管理员管理－－添加管理员
+ </th>
+ </tr>
+ <tr >
+ <td width="26%" align="right" class=tablerow1>后台登陆名称：</td>
+ <td width="74%" class=tablerow1>
+ <input type=text name="username">
+ </td>
+ </tr>
+ <tr>
+ <td width="26%" align="right" class=tablerow1>后台登陆密码：</td>
+ <td width="74%" class=tablerow1>
+ <input type="password" name="userpwd">
+ </td>
+ </tr>
+ <tr>
+ <td width="26%" align="right" class=tablerow1>是否激活管理员：</td>
+ <td width="74%" class=tablerow1>
+ <input type=radio name=isLock value='0' checked> 否&nbsp;&nbsp;
+ <input type=radio name=isLock value='1'> 是
+ </td>
+ </tr>
+ <tr align="center">
+ <td colspan="2" class=tablerow1>
+ <input type=button name=Submit4 onclick='javascript:history.go(-1)' value='返回上一页' class=Button>  <input type="submit" name="Submit" value="添加" class="button">
+ </td>
+ </tr>
+ </form>
+ </table>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

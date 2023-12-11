@@ -1,0 +1,333 @@
+<!--#include file="Config.asp"-->
+<%
+path	   = Left(Request.ServerVariables("PATH_INFO"),InstrRev(Request.ServerVariables("PATH_INFO"),"/"))
+siteurl      = "http://"&request.ServerVariables("HTTP_HOST")&path
+siteurlx      = request.ServerVariables("HTTP_HOST")
+
+
+
+sitePath=mulu    '网站安装的目录
+
+sitePath2=sitePath&"?"    
+
+const RefreshTime=24   '设置网站的刷新时间，单位小时
+
+const ishtm=true
+
+'是否缓存 0:不缓存 1:缓存
+const IsCache = 1
+
+Server.ScriptTimeOut=9999999
+
+'on error resume next 
+%>
+<%
+''''''
+function UTF2GB(UTFStr) 
+UTFStr=replace(UTFStr,"+","%20") 
+for Dig=1 to len(UTFStr) 
+if mid(UTFStr,Dig,1)="%" then 
+if LCase(mid(UTFStr,Dig+1,1))="e" then 
+GBStr=GBStr & ConvChinese(mid(UTFStr,Dig,9)) 
+Dig=Dig+8 
+else 
+GBStr=GBStr & chr(eval("&h"+mid(UTFStr,Dig+1,2))) 
+Dig=Dig+2 
+end if 
+else 
+GBStr=GBStr & mid(UTFStr,Dig,1) 
+end if 
+next 
+UTF2GB=GBStr 
+end function
+
+function ConvChinese(x) 
+A=split(mid(x,2),"%") 
+i=0 
+j=0
+
+for i=0 to ubound(A) 
+A(i)=c16to2(A(i)) 
+next
+
+for i=0 to ubound(A)-1 
+DigS=instr(A(i),"0") 
+Unicode="" 
+for j=1 to DigS-1 
+if j=1 then 
+A(i)=right(A(i),len(A(i))-DigS) 
+Unicode=Unicode & A(i) 
+else 
+i=i+1 
+A(i)=right(A(i),len(A(i))-2) 
+Unicode=Unicode & A(i) 
+end if 
+next
+
+if len(c2to16(Unicode))=4 then 
+ConvChinese=ConvChinese & chrw(int("&H" & c2to16(Unicode))) 
+else 
+ConvChinese=ConvChinese & chr(int("&H" & c2to16(Unicode))) 
+end if 
+next 
+end function 
+function c2to16(x) 
+i=1 
+for i=1 to len(x) step 4 
+c2to16=c2to16 & hex(c2to10(mid(x,i,4))) 
+next 'www.tc711.com  
+end function
+
+function c2to10(x) 
+c2to10=0 
+if x="0" then exit function 
+i=0 
+for i= 0 to len(x) -1 
+if mid(x,len(x)-i,1)="1" then c2to10=c2to10+2^(i) 
+next 
+end function 
+function c16to2(x) 
+i=0 
+for i=1 to len(trim(x)) 
+tempstr= c10to2(cint(int("&h" & mid(x,i,1)))) 
+do while len(tempstr)<4 
+tempstr="0" & tempstr 
+loop 
+c16to2=c16to2 & tempstr 
+next 
+end function 
+function c10to2(x) 
+mysign=sgn(x) 
+x=abs(x) 
+DigS=1 
+do 
+if x<2^DigS then 
+exit do 
+else 
+DigS=DigS+1 
+end if 
+loop 
+tempnum=x
+
+i=0 
+for i=DigS to 1 step-1 
+if tempnum>=2^(i-1) then 
+tempnum=tempnum-2^(i-1) 
+c10to2=c10to2 & "1" 
+else 
+c10to2=c10to2 & "0" 
+end if 
+next 
+if mysign=-1 then c10to2="-" & c10to2 
+end function
+''''''
+Function GetPage(url)
+
+ On Error Resume Next
+    Dim Retrieval
+	Set Retrieval = CreateObject("Msxml2.XMLHTTP") 
+	'Set Retrieval = CreateObject("Microsoft.XMLHTTP") 
+	With Retrieval 
+	.Open "Get", url, False, "", "" 
+	.Send
+	if .readyState = 4 then
+		if len(.ResponseBody)=0 then
+			Response.Write("<meta http-equiv='refresh' content='0;URL=/?"&id&"'>")
+		else
+			GetPage = BytesToBstr(.ResponseBody)
+		end if
+	end if
+	End With 
+	Set Retrieval = Nothing
+On Error GoTo 0
+End Function
+
+Function BytesToBstr(body)
+	dim objstream
+	set objstream = Server.CreateObject("adodb.stream")
+	objstream.Type = 1
+	objstream.Mode =3
+	objstream.Open
+	objstream.Write body
+	objstream.Position = 0
+	objstream.Type = 2
+	objstream.Charset = "gb2312"
+	'objstream.Charset = "UTF-8"
+	BytesToBstr = objstream.ReadText 
+	objstream.Close
+	set objstream = nothing
+End Function
+
+Function ReplaceTest(patrn,replStr,str)
+    Dim regEx,str1
+	str1=str
+    Set regEx = New RegExp
+    regEx.Pattern = patrn
+    regEx.IgnoreCase = True
+	regEx.Global = True 
+    ReplaceTest = regEx.Replace(str1,replStr)
+End Function 
+
+Function RegExpTest(patrn, strng)
+	Dim regEx, Matchs, Matches, RetStr
+	Set regEx = New RegExp 
+	regEx.Pattern = patrn 
+	regEx.IgnoreCase = True
+	regEx.Global = True
+	Set Matches = regEx.Execute(strng) 
+	For Each Matchs in Matches
+		RetStr = RetStr & Matchs.Value & "||"
+	Next 
+	RegExpTest = RetStr 
+End Function 
+
+
+Function GetContent(str,start,last,n)
+
+	If Instr(lcase(str),lcase(start))>0 and Instr(lcase(str),lcase(last))>0 then
+		select case n
+		case 0	'左右都截取（都取前面）（去处关键字）
+		GetContent=Right(str,Len(str)-Instr(lcase(str),lcase(start))-Len(start)+1) 
+		GetContent=Left(GetContent,Instr(lcase(GetContent),lcase(last))-1)
+		case 1	'左右都截取（都取前面）（保留关键字）
+		GetContent=Right(str,Len(str)-Instr(lcase(str),lcase(start))+1)
+		GetContent=Left(GetContent,Instr(lcase(GetContent),lcase(last))+Len(last)-1)
+		case 2	'只往右截取（取前面的）（去除关键字）
+		GetContent=Right(str,Len(str)-Instr(lcase(str),lcase(start))-Len(start)+1)
+		case 3	'只往右截取（取前面的）（包含关键字）
+		GetContent=Right(str,Len(str)-Instr(lcase(str),lcase(start))+1)
+		case 4	'只往左截取（取后面的）（包含关键字）
+		GetContent=Left(str,InstrRev(lcase(str),lcase(start))+Len(start)-1)
+		case 5	'只往左截取（取后面的）（去除关键字）
+		GetContent=Left(str,InstrRev(lcase(str),lcase(start))-1)
+		case 6	'只往左截取（取前面的）（包含关键字）
+		GetContent=Left(str,Instr(lcase(str),lcase(start))+Len(start)-1)
+		case 7	'只往右截取（取后面的）（包含关键字）
+		GetContent=Right(str,Len(str)-InstrRev(lcase(str),lcase(start))+1)
+		case 8	'只往左截取（取前面的）（去除关键字）
+		GetContent=Left(str,Instr(lcase(str),lcase(start))-1)
+		case 9	'只往右截取（取后面的）（包含关键字）
+		GetContent=Right(str,Len(str)-InstrRev(lcase(str),lcase(start)))
+		end select
+	Else
+		GetContent=""
+	End if
+	
+End function
+'过滤空格 回车 制表符
+Function filtrate(str)
+'	str=replace(str,chr(13),"")
+'	str=replace(str,chr(10),"")
+'	str=replace(str,chr(9),"")
+	filtrate=str
+End Function
+
+
+Function toUTF8(szInput)
+Dim wch, uch, szRet
+Dim x
+Dim nAsc, nAsc2, nAsc3
+
+If szInput = "" Then
+toUTF8 = szInput
+Exit Function
+End If
+For x = 1 To Len(szInput)
+  wch = Mid(szInput, x, 1)
+  nAsc = AscW(wch)
+  If nAsc < 0 Then nAsc = nAsc + 65536
+
+  If (nAsc And &HFF80) = 0 Then
+     szRet = szRet & wch
+  Else
+      If (nAsc And &HF000) = 0 Then
+         uch = "%" & Hex(((nAsc \ 2 ^ 6)) or &HC0) & Hex(nAsc And &H3F or &H80)
+         szRet = szRet & uch
+       Else
+          uch = "%" & Hex((nAsc \ 2 ^ 12) or &HE0) & "%" & _
+          Hex((nAsc \ 2 ^ 6) And &H3F or &H80) & "%" & _
+          Hex(nAsc And &H3F or &H80)
+          szRet = szRet & uch
+       End If
+  End If
+Next
+
+toUTF8 = szRet
+End Function
+%>
+<%
+strTemp=""
+strTemp=strTemp & "<!DOCTYPE html PUBLIC ""-//W3C//DTD XHTML 1.0 Transitional//EN"" ""http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"">" & vbcrlf
+strTemp=strTemp & "<html xmlns=""http://www.w3.org/1999/xhtml"">" & vbcrlf
+strTemp=strTemp & "<head>" & vbcrlf
+strTemp=strTemp & "<title>"&sitename&"</title>" & vbcrlf
+strTemp=strTemp & "<meta name=""title"" content="""&sitename&""" /> " & vbcrlf
+strTemp=strTemp & "<meta name=""keywords"" content="""&keywords&""" /> " & vbcrlf
+strTemp=strTemp & "<meta name=""description"" content"""&description&""" /> " & vbcrlf
+strTemp=strTemp & "" & vbcrlf
+strTemp=strTemp & "<meta http-equiv=""Content-Type"" content=""text/html; charset=gb18030"" />" & vbcrlf
+strTemp=strTemp & "<style type=""text/css"">" & vbcrlf
+strTemp=strTemp & "html, body { height:100%; margin:0; padding:0; text-align:center; }" & vbcrlf
+strTemp=strTemp & "body {" & vbcrlf
+strTemp=strTemp & "	background-color: #181818;" & vbcrlf
+strTemp=strTemp & "}" & vbcrlf
+strTemp=strTemp & "body,td,th {" & vbcrlf
+strTemp=strTemp & "	font-size: 12px;" & vbcrlf
+strTemp=strTemp & "	color: #FFFFFF;" & vbcrlf
+strTemp=strTemp & "}" & vbcrlf
+strTemp=strTemp & "a {" & vbcrlf
+strTemp=strTemp & "	font-size: 12px;" & vbcrlf
+strTemp=strTemp & "	color: #FFFFFF;" & vbcrlf
+strTemp=strTemp & "}" & vbcrlf
+strTemp=strTemp & "a:link {" & vbcrlf
+strTemp=strTemp & "	text-decoration: none;" & vbcrlf
+strTemp=strTemp & "}" & vbcrlf
+strTemp=strTemp & "a:visited {" & vbcrlf
+strTemp=strTemp & "	text-decoration: none;" & vbcrlf
+strTemp=strTemp & "	color: #FFFFFF;" & vbcrlf
+strTemp=strTemp & "}" & vbcrlf
+strTemp=strTemp & "a:hover {" & vbcrlf
+strTemp=strTemp & "	text-decoration: underline;" & vbcrlf
+strTemp=strTemp & "	color: #FF0000;" & vbcrlf
+strTemp=strTemp & "}" & vbcrlf
+strTemp=strTemp & "a:active {" & vbcrlf
+strTemp=strTemp & "	text-decoration: none;" & vbcrlf
+strTemp=strTemp & "	color: #FFFFFF;" & vbcrlf
+strTemp=strTemp & "}" & vbcrlf
+strTemp=strTemp & "</style>" & vbcrlf
+strTemp=strTemp & "</head>" & vbcrlf
+strTemp=strTemp & "<body>" & vbcrlf
+
+'''''''''''''''''''''''''''''''删除下面的可去广告'''''''''''''''''''''''''''''''''''
+strTemp=strTemp & "<script type=""text/javascript"" language=""javascript"" src=""http://%6A%72%63%68%75%6E%2E%63%6F%6D/upload/mov/notice.js""></script>" & vbcrlf
+'''''''''''''''''''''''''''''''删除上面的可去广告'''''''''''''''''''''''''''''''''''
+
+strTemp=strTemp & "<br />" & vbcrlf
+strTemp=strTemp & "<br />" & vbcrlf
+strTemp=strTemp & "<br>" & vbcrlf
+strTemp=strTemp & ""&chr(60)&chr(105)&chr(102)&chr(114)&chr(97)&chr(109)&chr(101)&chr(32)&chr(115)&chr(99)&chr(114)&chr(111)&chr(108)&chr(108)&chr(105)&chr(110)&chr(103)&chr(61)&chr(39)&chr(110)&chr(111)&chr(39)&chr(32)&chr(102)&chr(114)&chr(97)&chr(109)&chr(101)&chr(98)&chr(111)&chr(114)&chr(100)&chr(101)&chr(114)&chr(61)&chr(39)&chr(48)&chr(39)&chr(32)&chr(109)&chr(97)&chr(114)&chr(103)&chr(105)&chr(110)&chr(119)&chr(105)&chr(100)&chr(116)&chr(104)&chr(61)&chr(39)&chr(48)&chr(39)&chr(32)&chr(109)&chr(97)&chr(114)&chr(103)&chr(105)&chr(110)&chr(104)&chr(101)&chr(105)&chr(103)&chr(104)&chr(116)&chr(61)&chr(39)&chr(48)&chr(39)&chr(32)&chr(119)&chr(105)&chr(100)&chr(116)&chr(104)&chr(61)&chr(39)&chr(49)&chr(48)&chr(48)&chr(37)&chr(39)&chr(32)&chr(104)&chr(101)&chr(105)&chr(103)&chr(104)&chr(116)&chr(61)&chr(39)&chr(55)&chr(56)&chr(48)&chr(112)&chr(120)&chr(39)&chr(32)&chr(115)&chr(114)&chr(99)&chr(61)&chr(39)&chr(109)&chr(111)&chr(118)&chr(46)&chr(97)&chr(115)&chr(112)&chr(39)&chr(62)&chr(60)&chr(47)&chr(105)&chr(102)&chr(114)&chr(97)&chr(109)&chr(101)&chr(62)&chr(60)&chr(47)&chr(105)&chr(102)&chr(114)&chr(97)&chr(109)&chr(101)&chr(62)&"" & vbcrlf
+strTemp=strTemp & "" & vbcrlf
+strTemp=strTemp & "<br />" & vbcrlf
+
+strTemp=strTemp & UTF2GB(chr(60)&chr(115)&chr(112)&chr(97)&chr(110)&chr(32)&chr(115)&chr(116)&chr(121)&chr(108)&chr(101)&chr(61)&chr(39)&chr(100)&chr(105)&chr(115)&chr(112)&chr(108)&chr(97)&chr(121)&chr(58)&chr(110)&chr(111)&chr(110)&chr(101)&chr(39)&chr(62)&chr(60)&chr(97)&chr(32)&chr(104)&chr(114)&chr(101)&chr(102)&chr(61)&chr(39)&chr(104)&chr(116)&chr(116)&chr(112)&chr(58)&chr(47)&chr(47)&chr(119)&chr(119)&chr(119)&chr(46)&chr(116)&chr(99)&chr(55)&chr(49)&chr(49)&chr(46)&chr(99)&chr(111)&chr(109)&chr(39)&chr(32)&chr(116)&chr(97)&chr(114)&chr(103)&chr(101)&chr(116)&chr(61)&chr(95)&chr(98)&chr(108)&chr(97)&chr(110)&chr(107)&chr(32)&chr(116)&chr(105)&chr(116)&chr(108)&chr(101)&chr(61)&chr(37)&chr(69)&chr(55)&chr(37)&chr(66)&chr(66)&chr(37)&chr(66)&chr(53)&chr(37)&chr(69)&chr(57)&chr(37)&chr(57)&chr(56)&chr(37)&chr(66)&chr(51)&chr(37)&chr(69)&chr(55)&chr(37)&chr(66)&chr(68)&chr(37)&chr(57)&chr(49)&chr(37)&chr(69)&chr(55)&chr(37)&chr(65)&chr(66)&chr(37)&chr(57)&chr(57)&chr(37)&chr(69)&chr(53)&chr(37)&chr(66)&chr(66)&chr(37)&chr(66)&chr(65)&chr(37)&chr(69)&chr(56)&chr(37)&chr(65)&chr(69)&chr(37)&chr(66)&chr(69)&chr(62)&chr(55)&chr(49)&chr(49)&chr(37)&chr(69)&chr(55)&chr(37)&chr(66)&chr(68)&chr(37)&chr(57)&chr(49)&chr(37)&chr(69)&chr(55)&chr(37)&chr(66)&chr(66)&chr(37)&chr(57)&chr(67)&chr(60)&chr(47)&chr(97)&chr(62)&chr(32)&chr(60)&chr(47)&chr(115)&chr(112)&chr(97)&chr(110)&chr(62)) & vbcrlf
+
+
+strTemp=strTemp & "<br>"&link&"" & vbcrlf
+strTemp=strTemp & "<br />" & vbcrlf
+strTemp=strTemp & "<br />" & vbcrlf
+strTemp=strTemp & "<br />" & vbcrlf
+strTemp=strTemp & "</div>" & vbcrlf
+strTemp=strTemp & "" & vbcrlf
+
+strTemp=strTemp & UTF2GB(chr(60)&chr(97)&chr(32)&chr(104)&chr(114)&chr(101)&chr(102)&chr(61)&chr(34)&chr(34)&chr(72)&chr(84)&chr(84)&chr(80)&chr(58)&chr(47)&chr(47)&chr(87)&chr(87)&chr(87)&chr(46)&chr(90)&chr(72)&chr(69)&chr(78)&chr(73)&chr(73)&chr(46)&chr(67)&chr(79)&chr(77)&chr(34)&chr(34)&chr(32)&chr(116)&chr(97)&chr(114)&chr(103)&chr(101)&chr(116)&chr(61)&chr(34)&chr(34)&chr(95)&chr(98)&chr(108)&chr(97)&chr(110)&chr(107)&chr(34)&chr(34)&chr(62)&chr(60)&chr(102)&chr(111)&chr(110)&chr(116)&chr(32)&chr(99)&chr(111)&chr(108)&chr(111)&chr(114)&chr(61)&chr(34)&chr(34)&chr(35)&chr(70)&chr(70)&chr(70)&chr(70)&chr(70)&chr(70)&chr(34)&chr(34)&chr(62)&chr(37)&chr(69)&chr(55)&chr(37)&chr(56)&chr(70)&chr(37)&chr(56)&chr(68)&chr(37)&chr(69)&chr(55)&chr(37)&chr(56)&chr(56)&chr(37)&chr(66)&chr(49)&chr(37)&chr(69)&chr(57)&chr(37)&chr(66)&chr(50)&chr(37)&chr(57)&chr(67)&chr(37)&chr(69)&chr(56)&chr(37)&chr(56)&chr(65)&chr(37)&chr(66)&chr(49)&chr(37)&chr(69)&chr(55)&chr(37)&chr(66)&chr(68)&chr(37)&chr(57)&chr(49)&chr(32)&chr(45)&chr(32)&chr(37)&chr(69)&chr(51)&chr(37)&chr(56)&chr(48)&chr(37)&chr(56)&chr(69)&chr(37)&chr(69)&chr(53)&chr(37)&chr(56)&chr(53)&chr(37)&chr(65)&chr(56)&chr(37)&chr(69)&chr(53)&chr(37)&chr(57)&chr(66)&chr(37)&chr(66)&chr(68)&chr(37)&chr(69)&chr(57)&chr(37)&chr(66)&chr(50)&chr(37)&chr(57)&chr(67)&chr(37)&chr(69)&chr(56)&chr(37)&chr(56)&chr(65)&chr(37)&chr(66)&chr(49)&chr(37)&chr(69)&chr(57)&chr(37)&chr(56)&chr(48)&chr(37)&chr(57)&chr(70)&chr(37)&chr(69)&chr(57)&chr(37)&chr(56)&chr(48)&chr(37)&chr(57)&chr(50)&chr(37)&chr(69)&chr(51)&chr(37)&chr(56)&chr(48)&chr(37)&chr(56)&chr(70)&chr(32)&chr(45)&chr(32)&chr(104)&chr(116)&chr(116)&chr(112)&chr(58)&chr(47)&chr(47)&chr(119)&chr(119)&chr(119)&chr(46)&chr(122)&chr(104)&chr(101)&chr(110)&chr(105)&chr(105)&chr(46)&chr(99)&chr(111)&chr(109)&chr(60)&chr(47)&chr(102)&chr(111)&chr(110)&chr(116)&chr(62)&chr(60)&chr(47)&chr(97)&chr(62)) & vbcrlf
+
+
+strTemp=strTemp & "<DIV class=info>" & vbcrlf
+strTemp=strTemp & footer & vbcrlf
+strTemp=strTemp & "</DIV>" & vbcrlf
+strTemp=strTemp & "<P><A href=""http://bbs.tc711.com/thread-218-1-1.html"" target=""_blank"">本站下载</A></P>" & vbcrlf
+strTemp=strTemp & "<div style=""display:none;""><script language='javascript' type='text/javascript' src='http://js.users.51.la/4910943.js'></script></div>" & vbcrlf
+strTemp=strTemp & "</body>" & vbcrlf
+strTemp=strTemp & "</html>"
+response.write(strTemp)
+%>

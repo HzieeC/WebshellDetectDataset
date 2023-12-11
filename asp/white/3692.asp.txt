@@ -1,0 +1,62 @@
+<!--#include file="../inc/MainClass.asp"-->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+function getTopicPage(id,page)
+	dim topicArray,cacheName,x,pCount:
+	topicArray = conn.db("select top 1 m_id,m_name,m_template,m_enname from {pre}topic where m_id ="&id,"array")
+	if not isArray(topicArray) then OutNotFound("topicpage")
+	if isNul(topicArray(2,0)) then topicArray(2,0)="topicpage.html" end if
+	x="/"&sitePath&"template/"&defaultTemplate&"/"&templateFileFolder&"/"&topicArray(2,0)
+	currentTopicId = topicArray(0,0):cacheName="parse_topicpage_"&currentTopicId
+	if cacheStart=1 then 
+		if cacheObj.chkCache(cacheName) then templateobj.content=cacheObj.getCache(cacheName) else parseTopicPart x,topicArray(1,0):cacheObj.setCache cacheName,templateobj.content
+	else
+		parseTopicPart x,topicArray(1,0)
+	end if
+	pCount=10:with templateObj:.content=replaceStr(.content,"{topicpagelist:page}",page):.parsePageList id,page,pCount,"topicpage":.parseIf():end with
+	getTopicPage=templateObj.content
+End function
+
+Sub parseTopicPart(x,ptopicName)
+	with templateObj: .content=loadFile(x):.parseTopAndFoot():.parseSelf():.parseGlobal():.content=replaceTopicId(replaceCurrentTypeId(.content)):.content=replaceStr(.content,"{maxcms:topicname}",ptopicName):.parseMenuList(""):.parseAreaList():.parseTopicList():.parseVideoList():.parseNewsList():.parseLinkList():end with
+End Sub
+
+'控制缓存前几页
+Const CachePage=3
+dim id,page
+
+if paramset=0 OR runmode="forgedStatic" then
+	dim paras,parasArray:paras=replaceStr(request.QueryString,fileSuffix,"")
+	if instr(paras,"-")>0 then
+		parasArray=split(paras,"-"):id=parasArray(0):page=parasArray(1)
+	else
+		id=paras:page=1
+	end if
+else
+	id=getForm(paramid,"both") : page=getForm(parampage,"both")
+end if
+
+if isNul(id) then
+	echoSaveStr "null"
+else 
+	if isNum(id) then id=clng(id) else echoSaveStr "safe"
+end if
+
+if isNul(page) then 
+	page=1 
+else 
+	if isNum(page) then page=clng(page) else echoSaveStr "safe"
+end if
+
+if page<=CachePage then tryDieCacheFile id,"topicpage/"&page
+dim templateobj,temp:set templateobj = mainClassobj.createObject("MainClass.template"):temp=getTopicPage(id,page)
+WriteCacheFile id,"topicpage/"&page,temp:echo replaceStr(temp,"{maxcms:runinfo}",getRunTime())
+set templateobj =nothing:terminateAllObjects
+%>

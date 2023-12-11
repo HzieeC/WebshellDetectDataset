@@ -1,0 +1,558 @@
+<%
+If OT_ISOTCMS<>True Then
+	response.write("非法访问")
+	response.End()
+End If
+
+
+'远程图片保存类型
+Const Images_Ext="jpg|jpeg|gif|bmp|png"
+Images_oldImgStr= ""
+Images_imgStr	= ""
+Images_errStr	= ""
+Images_sizeStr	= ""
+collImgErrStr = ""
+
+
+' 替换字符串中的远程文件为本地文件并保存远程文件
+' siContent：要处理的字符串；siSavePath：保存文件的路径；siImgMaxSize：采集的图片最大大小；currWebUrl：当前网页地址
+Function Images_ReplaceContent(siContent, siSavePath,siImgMaxSize,currWebUrl)
+	If Images_IsExistObj("Microsoft.XMLHTTP") = False then
+		Images_ReplaceContent = siContent
+		Exit Function
+	End If
+	
+	If Right(siSavePath,1)<>"/" Then siSavePath = siSavePath &"/"
+	Dim re, newFilePath,newFileArr,newFileName,newFileExt
+	Set re = new RegExp
+	
+	dim imgUrlValue,imgUrlArr,imgUrlStr,urlTempArr
+	imgUrlStr = ""
+	Re.IgnoreCase = True 
+	Re.Global = True
+'	Re.Pattern = "<img.+?[^\>]>"
+'	Re.Pattern = "<img.*src\s*=\s*[\"|\']?\s*([^>\"\'\s]*)"
+'	Re.Pattern = "src\s*=\s*.+?\.("& Images_Ext &")"
+	Re.Pattern = "src\s*=\s*[\""|\']?\s*[^>\""\'\s]*\.("& Images_Ext &")"
+	Set imgUrlArr = Re.Execute(siContent)
+	For Each imgUrlValue in imgUrlArr
+		If imgUrlStr<>"" then 
+			imgUrlStr = imgUrlStr &"$Arr$"& imgUrlValue.Value
+		Else
+			imgUrlStr = imgUrlValue.Value
+		End if
+	Next
+	set imgUrlArr = nothing
+
+'	If imgUrlStr<>"" Then
+'		urlTempArr=Split(imgUrlStr,"$Arr$")
+'		imgUrlStr=""
+'		For Pi=0 To Ubound(urlTempArr)
+'			Re.Pattern = "src\s*=\s*.+?\.(" & Images_Ext & ")"
+'			Set imgUrlArr = Re.Execute(urlTempArr(Pi)) 
+'			For Each imgUrlValue in imgUrlArr
+'				If imgUrlStr<>"" then 
+'					imgUrlStr = imgUrlStr &"$Arr$"& imgUrlValue.Value
+'				Else
+'					imgUrlStr = imgUrlValue.Value
+'				End if
+'			Next
+'		Next
+'	End if
+	set imgUrlArr = nothing
+	set re = nothing
+
+	'如果没有图片则退出函数
+	If imgUrlStr="" Then
+		Images_ReplaceContent=siContent
+		Exit function
+	End if
+	
+'	imgUrlStr = Replace(imgUrlStr,"""","")
+'	imgUrlStr = Replace(imgUrlStr,"'","")
+'	imgUrlStr = Replace(imgUrlStr," ","")
+'	imgUrlStr = Replace(imgUrlStr,"src=","")
+'	imgUrlStr = Replace(imgUrlStr,"SRC=","")
+	Set re = new RegExp
+	re.IgnoreCase = True 
+	re.Global = True
+	re.Pattern = "src\s*=\s*[\""|\']?\s*([^>\""\'\s]*\.("& Images_Ext &"))"
+	imgUrlStr=re.Replace(imgUrlStr,"$1")
+	set re = nothing	
+
+	Dim remFileUrl,pathTemp,pathArr,todayTime,isSaveFile,childDir
+	todayTime=Now()
+	isSaveFile=True
+	childDir = ""
+
+
+	' 判断并创建本地目录，分年和月保存
+	childDir = "coll/"& year(todayTime) & right("0" & month(todayTime),2) & right("0" & Day(todayTime),2) & "/"
+'	childDir = "coll/"
+	siSavePath2 = siSavePath & childDir
+	'response.write "链接路径：" & siSavePath & "<br>"
+	pathArr	= Split(siSavePath2,"/")
+	pathTemp= ""
+	For Pi=0 To Ubound(pathArr)-1
+		If Pi=0 Then
+			pathTemp = pathArr(0) & "/"
+		Else
+			pathTemp = pathTemp & pathArr(Pi) & "/"
+		End If
+		
+		If Images_CheckCreateDir(pathTemp)=False Then
+			childDir = "coll/"
+			siSavePath2 = siSavePath & childDir
+			If Images_CheckDir(siSavePath2)=False Then
+				childDir = ""
+			End If
+			isSaveFile=False
+			Exit For
+		End If
+	Next
+	siSavePath = siSavePath & childDir
+
+
+	' 去掉重复图片和已存在该网站上的图片
+	If currWebUrl="" Then
+		currWebUrl = "http://"& request.ServerVariables("Server_NAME") & GetCurrUrlPost() & request.ServerVariables("SCRIPT_NAME")
+	End If
+	nowWebUrl = "http://"& request.ServerVariables("Server_NAME")
+	urlTempArr	= Split(imgUrlStr,"$Arr$")
+	imgUrlStr	= ""
+	For Pi=0 To Ubound(urlTempArr)
+		If Instr(Lcase(imgUrlStr),Lcase(urlTempArr(Pi)))<1 And InStr(Lcase(urlTempArr(Pi)),LCase(nowWebUrl))<1 Then
+			imgUrlStr = imgUrlStr &"$Arr$"& urlTempArr(Pi)
+		End If
+	Next
+	If imgUrlStr="" Then
+		Images_ReplaceContent=siContent
+		Exit function
+	End if
+	imgUrlStr	= Right(imgUrlStr,Len(imgUrlStr)-5)
+	urlTempArr	= Split(imgUrlStr,"$Arr$")
+
+	'转换相对图片地址开始
+	imgUrlStr=""
+	For Pi=0 To Ubound(urlTempArr)
+		imgUrlStr = imgUrlStr &"$Arr$"& Images_RealUrl(urlTempArr(Pi),currWebUrl)
+	Next
+	
+	imgUrlStr	= Right(imgUrlStr,Len(imgUrlStr)-5)
+	imgUrlStr	= Replace(imgUrlStr,Chr(0),"")
+	urlTempArr2	= Split(imgUrlStr,"$Arr$")
+
+'	response.write(imgUrlStr)
+'	response.End()
+
+	'图片替换/保存
+	For Pi=0 To Ubound(urlTempArr2)
+		remFileUrl=urlTempArr2(Pi)
+		remFileUrlOld=urlTempArr(Pi)
+		If remFileUrl<>"" And isSaveFile=True Then
+			newFileArr = Split(remFileUrl,".")
+			newFileExt = Lcase(newFileArr(Ubound(newFileArr)))'文件类型
+			
+			'判断保存文件不能为以下文件类型
+			If InStr("|asp|asa|aspx|cer|cdx|exe|rar|zip|bat|","|"& newFileExt &"|")>0 then
+				UploadFiles=""
+				Images_ReplaceContent=siContent
+				Exit Function
+			End If
+			
+			newFileName = "OT"& Year(todayTime) & Right("0"& Month(todayTime),2) & Right("0"& Day(todayTime),2) & Right("0"& Hour(todayTime),2) & Right("0"& Minute(todayTime),2) & Right("0"& Second(todayTime),2) & RndNum(3) &"."& newFileExt
+			newFilePath = siSavePath & newFileName
+			
+			'执行保存操
+			remFileSize = Images_SaveRemoteFile(newFilePath, remFileUrl,siImgMaxSize)
+			If remFileSize<>False Then
+				Images_oldImgStr= Images_oldImgStr &"|"& remFileUrl
+				Images_imgStr	= Images_imgStr &"|"& childDir & newFileName
+				Images_sizeStr	= Images_sizeStr &"|"& remFileSize
+				siContent = Replace(siContent,remFileUrlOld,newFilePath)
+				
+			Else
+				Images_errStr	= Images_errStr &"|"& remFileUrl
+				siContent = Replace(siContent,remFileUrlOld,remFileUrl)
+			End If
+		ElseIf remFileUrl<>"False" and isSaveFile=False Then'不保存图片
+			Images_errStr	= Images_errStr &"|"& remFileUrl
+			siContent = Replace(siContent,remFileUrlOld,remFileUrl)
+		End If
+	Next   
+	Set Re=nothing
+
+	Images_ReplaceContent = siContent
+End Function
+
+
+
+' 处理采集图片路径为本地路径
+' siContent：要处理的字符串；siSavePath：保存文件的路径; currWebUrl：当前网页地址
+Function Images_ReplaceRealUrlContent(siContent,currWebUrl)
+	If Images_IsExistObj("Microsoft.XMLHTTP") = False then
+		Images_ReplaceRealUrlContent = siContent
+		Exit Function
+	End If
+	
+	dim imgUrlValue,imgUrlArr,imgUrlStr,urlTempArr
+	Set re = new RegExp
+	imgUrlStr = ""
+	Re.IgnoreCase = True 
+	Re.Global = True
+'	Re.Pattern = "<img.+?[^\>]>"
+'	Re.Pattern = "src\s*=\s*.+?\.("& Images_Ext &")"
+	Re.Pattern = "src\s*=\s*[\""|\']?\s*([^>\""\'\s]*)\.("& Images_Ext &")"
+	Set imgUrlArr = Re.Execute(siContent)
+	For Each imgUrlValue in imgUrlArr
+		If imgUrlStr<>"" then 
+			imgUrlStr = imgUrlStr & "$Arr$" & imgUrlValue.Value
+		Else
+			imgUrlStr = imgUrlValue.Value
+		End if
+	Next
+	set imgUrlArr = nothing
+
+'	If imgUrlStr<>"" Then
+'		urlTempArr=Split(imgUrlStr,"$Arr$")
+'		imgUrlStr=""
+'		For Pi=0 To Ubound(urlTempArr)
+'			Re.Pattern = "src\s*=\s*.+?\.(" & Images_Ext & ")"
+'			Set imgUrlArr = Re.Execute(urlTempArr(Pi)) 
+'			For Each imgUrlValue in imgUrlArr
+'				If imgUrlStr<>"" then 
+'					imgUrlStr = imgUrlStr &"$Arr$"& imgUrlValue.Value
+'				Else
+'					imgUrlStr = imgUrlValue.Value
+'				End if
+'			Next
+'		Next
+'	End if
+	set imgUrlArr = nothing
+	set re = nothing
+
+	'如果没有图片则退出函数
+	If imgUrlStr="" Then
+		Images_ReplaceRealUrlContent=siContent
+		Exit function
+	End if
+	
+'	imgUrlStr = Replace(imgUrlStr,"""","")
+'	imgUrlStr = Replace(imgUrlStr,"'","")
+'	imgUrlStr = Replace(imgUrlStr," ","")
+'	imgUrlStr = Replace(imgUrlStr,"src=","")
+'	imgUrlStr = Replace(imgUrlStr,"SRC=","")
+	Set re = new RegExp
+	re.IgnoreCase = True 
+	re.Global = True
+	re.Pattern = "src\s*=\s*[\""|\']?\s*([^>\""\'\s]*\.("& Images_Ext &"))"
+	imgUrlStr=re.Replace(imgUrlStr,"$1")
+	set re = nothing	
+
+
+	' 去掉重复图片和已存在该网站上的图片
+	If currWebUrl="" Then
+		currWebUrl = "http://"& request.ServerVariables("Server_NAME") & GetCurrUrlPost() & request.ServerVariables("SCRIPT_NAME")
+	End If
+	nowWebUrl = "http://"& request.ServerVariables("Server_NAME")
+	urlTempArr	= Split(imgUrlStr,"$Arr$")
+	imgUrlStr	= ""
+	For Pi=0 To Ubound(urlTempArr)
+		If Instr(Lcase(imgUrlStr),Lcase(urlTempArr(Pi)))<1 And InStr(Lcase(urlTempArr(Pi)),LCase(nowWebUrl))<1 Then
+			imgUrlStr = imgUrlStr &"$Arr$"& urlTempArr(Pi)
+		End If
+	Next
+	If imgUrlStr="" Then
+		Images_ReplaceRealUrlContent=siContent
+		Exit function
+	End if
+	imgUrlStr	= Right(imgUrlStr,Len(imgUrlStr)-5)
+	urlTempArr	= Split(imgUrlStr,"$Arr$")
+
+	'转换相对图片地址开始
+	For Pi=0 To Ubound(urlTempArr)
+		siContent = Replace(siContent,urlTempArr(Pi),Images_RealUrl(urlTempArr(Pi),currWebUrl))
+	Next
+	
+	Images_ReplaceRealUrlContent = siContent
+End Function
+
+
+
+' 保存远程的文件到本地
+' siLocalFile:本地文件名；siRemoteFile:远程文件URL；siImgMaxSize:下载文件最大大小(KB)
+Function Images_SaveRemoteFile(siLocalFile,siRemoteFile,siImgMaxSize)
+	Dim Ads, Retrieval, GetRemoteData, isRunSaveImgSRF
+	On Error Resume Next
+	isRunSaveImgSRF = True
+	siImgMaxSize = siImgMaxSize*1024
+	Set Retrieval = Server.CreateObject("Microsoft.XMLHTTP")
+	With Retrieval
+		.Open "Get", siRemoteFile, False, "", ""
+		.Send
+        If .Readystate<>4 or .Status > 300 Then
+			collImgErrStr="获取不到图片"
+			isRunSaveImgSRF=False
+            Images_SaveRemoteFile=False
+            Exit Function
+        End If
+		GetRemoteData = .ResponseBody
+	End With
+	Set Retrieval = Nothing
+
+	siGetSize = LenB(GetRemoteData)
+	If siImgMaxSize>0 Then
+		If siGetSize > siImgMaxSize Then
+			collImgErrStr="图片大小超出设定的最大值"
+			isRunSaveImgSRF=False
+            Images_SaveRemoteFile=False
+			Exit Function
+		End If
+	End If
+
+	If isRunSaveImgSRF=True Then
+		Set Ads = Server.CreateObject("Adodb.Stream")
+		With Ads
+			.Type = 1
+			.Open
+			.Write GetRemoteData
+			.SaveToFile Server.MapPath(siLocalFile), 2
+			.Cancel()
+			.Close()
+		End With
+		If Err.number<>0 then
+			collImgErrStr="无法保存到本地"
+			Images_SaveRemoteFile=False
+			Exit Function
+			Err.Clear
+		End If
+		Set Ads=Nothing
+	End If
+	Images_SaveRemoteFile = siGetSize
+End Function
+
+
+
+' 检查组件是否已经安装
+' strClassString:组件名
+' 返回值：True:已经安装；False:没有安装
+Function Images_IsExistObj(s_ClassString)
+	On Error Resume Next
+	Images_IsExistObj = False
+	Err = 0
+	Dim xTestObj
+	Set xTestObj = Server.CreateObject(s_ClassString)
+	If 0 = Err Then Images_IsExistObj = True
+	Set xTestObj = Nothing
+	Err = 0
+End Function
+
+
+' 将相对地址转换为绝对地址
+' getStrUrl:要转换的相对地址；currUrl:当前网页地址
+Function Images_RealUrl(ByVal getStrUrl,ByVal currUrl)
+	Dim Pi,Ci,getStrUrlArr,currUrlArr
+	If getStrUrl="" Or currUrl="" Or getStrUrl="False" Or currUrl="False" Then
+		Images_RealUrl=getStrUrl
+		Exit Function
+	End If
+	If Left(Lcase(currUrl),7)<>"http://" Then
+		currUrl= "http://"& currUrl
+	End If
+	currUrl		= Replace(currUrl,"\","/")
+	currUrl		= Replace(currUrl,"://",":\\")
+	getStrUrl	= Replace(getStrUrl,"\","/")
+
+	If Right(currUrl,1)<>"/" Then
+		If Instr(currUrl,"/")>0 Then
+			If Instr(Right(currUrl,Len(currUrl)-InstrRev(currUrl,"/")),".")>0 then   
+			Else
+				currUrl=currUrl &"/"
+			End If
+		Else
+			currUrl=currUrl &"/"
+		End If
+	End If
+	currUrlArr=Split(currUrl,"/")
+
+	If Left(LCase(getStrUrl),7) = "http://" then
+		Images_RealUrl=Replace(getStrUrl,"://",":\\")
+
+	ElseIf Left(getStrUrl,1) = "/" Then
+		Images_RealUrl=currUrlArr(0) & getStrUrl
+
+	ElseIf Left(getStrUrl,2)="./" Then
+		getStrUrl=Right(getStrUrl,Len(getStrUrl)-2)
+		If Right(currUrl,1)="/" Then   
+			Images_RealUrl=currUrl & getStrUrl
+		Else
+			Images_RealUrl=Left(currUrl,InstrRev(currUrl,"/")) & getStrUrl
+		End If
+
+	ElseIf Left(getStrUrl,3)="../" then
+		Do While Left(getStrUrl,3)="../"
+			getStrUrl=Right(getStrUrl,Len(getStrUrl)-3)
+			Pi=Pi+1
+		Loop            
+		For Ci=0 to (Ubound(currUrlArr)-1-Pi)
+			If Images_RealUrl<>"" Then
+				Images_RealUrl=Images_RealUrl &"/"& currUrlArr(Ci)
+			Else
+				Images_RealUrl=currUrlArr(Ci)
+			End If
+		Next
+		Images_RealUrl=Images_RealUrl &"/"& getStrUrl
+
+	ElseIf Left(getStrUrl,1)="?" then
+		If InStr(currUrl,"?")>0 Then   
+			Images_RealUrl=Left(currUrl,Instr(currUrl,"?")-1) & getStrUrl
+		Else
+			Images_RealUrl=currUrl & getStrUrl
+		End If
+
+	Else
+		If Instr(getStrUrl,"/")>0 Then
+			getStrUrlArr=Split(getStrUrl,"/")
+			If Instr(getStrUrlArr(0),".")>0 Then
+				If Right(getStrUrl,1)="/" Then
+					Images_RealUrl="http:\\" & getStrUrl
+				Else
+					If Instr(getStrUrlArr(Ubound(getStrUrlArr)-1),".")>0 Then 
+						Images_RealUrl="http:\\"& getStrUrl
+					Else
+						Images_RealUrl="http:\\"& getStrUrl &"/"
+					End If
+				End If      
+			Else
+				If Right(currUrl,1)="/" Then   
+					Images_RealUrl=currUrl & getStrUrl
+				Else
+					Images_RealUrl=Left(currUrl,InstrRev(currUrl,"/")) & getStrUrl
+				End If
+			End If
+		Else
+			If Instr(getStrUrl,".")>0 Then
+				If Right(currUrl,1)="/" Then
+					If right(LCase(getStrUrl),3)=".cn" or right(LCase(getStrUrl),3)="com" or right(LCase(getStrUrl),3)="net" or right(LCase(getStrUrl),3)="org" Then
+						Images_RealUrl="http:\\" & getStrUrl &"/"
+					Else
+						Images_RealUrl=currUrl & getStrUrl
+					End If
+				Else
+					If right(LCase(getStrUrl),3)=".cn" or right(LCase(getStrUrl),3)="com" or right(LCase(getStrUrl),3)="net" or right(LCase(getStrUrl),3)="org" Then
+						Images_RealUrl="http:\\" & getStrUrl &"/"
+					Else
+						Images_RealUrl=Left(currUrl,InstrRev(currUrl,"/")) &"/"& getStrUrl
+					End If
+				End If
+			Else
+				If Right(currUrl,1)="/" Then
+					Images_RealUrl=currUrl & getStrUrl &"/"
+				Else
+					Images_RealUrl=Left(currUrl,InstrRev(currUrl,"/")) &"/"& getStrUrl & "/"
+				End If         
+			End If
+		End If
+	End If
+	If Left(Images_RealUrl,1)="/" then
+		Images_RealUrl = Right(Images_RealUrl,Len(Images_RealUrl)-1)
+	End if
+	If Images_RealUrl<>"" Then
+		Images_RealUrl = Replace(Images_RealUrl,"//","/")
+		Images_RealUrl = Replace(Images_RealUrl,":\\","://")
+	Else
+		Images_RealUrl = getStrUrl
+	End If
+End Function
+
+
+' 获取需要的地址段
+' currUrl:待处理网址；rank:级数，0根地址，1子目录地址，2孙目录地址...
+Function Images_RankUrl(ByVal currUrl,rank)
+	If currUrl="" Then
+		Images_RankUrl=currUrl
+		Exit Function
+	End If
+	If Left(Lcase(currUrl),7)<>"http://" Then
+		currUrl= "http://"& currUrl
+	End If
+	currUrl		= Replace(currUrl,"\","/")
+	currUrl		= Replace(currUrl,"://",":\\")
+
+	If Right(currUrl,1)<>"/" Then
+		If Instr(currUrl,"/")>0 Then
+			If Instr(Right(currUrl,Len(currUrl)-InstrRev(currUrl,"/")),".")>0 then   
+			Else
+				currUrl=currUrl &"/"
+			End If
+		Else
+			currUrl=currUrl &"/"
+		End If
+	End If
+	currUrlArr=Split(currUrl,"/")
+
+	If rank>UBound(currUrlArr)-1 Then
+		rank = UBound(currUrlArr)-1
+	End If
+	For Ci=0 to rank
+		If Images_RankUrl<>"" Then
+			Images_RankUrl=Images_RankUrl &"/"& currUrlArr(Ci)
+		Else
+			Images_RankUrl=currUrlArr(Ci)
+		End If
+	Next
+
+	If Images_RankUrl<>"" Then
+		Images_RankUrl = Replace(Images_RankUrl,"//","/")
+		Images_RankUrl = Replace(Images_RankUrl,":\\","://")
+	Else
+		Images_RankUrl = currUrl
+	End If
+End Function
+
+
+
+' 建立目录
+Function Images_CreateDir(ByVal folderPath)
+	dim fso
+	Set fso = Server.CreateObject("Scripting.FileSystemObject")
+		fso.CreateFolder(Server.MapPath(folderPath))
+		If fso.FolderExists(Server.MapPath(folderPath)) Then
+			Images_CreateDir = True
+		Else
+			Images_CreateDir = False
+		End If
+	Set fso = nothing
+End Function
+
+
+' 检查目录是否存在
+Function Images_CheckDir(ByVal folderPath)
+	dim fso
+	Set fso = Server.CreateObject("Scripting.FileSystemObject")
+	If fso.FolderExists(Server.MapPath(folderPath)) then
+		Images_CheckDir = True		' 存在
+	Else
+		Images_CheckDir = False	' 不存在
+	End if
+	Set fso = nothing
+End Function
+
+' 检查目录是否存在并创建
+Function Images_CheckCreateDir(ByVal folderPath)
+	dim fso
+	Set fso = Server.CreateObject("Scripting.FileSystemObject")
+	If fso.FolderExists(Server.MapPath(folderPath)) then
+		Images_CheckCreateDir = True		' 存在
+	Else
+		fso.CreateFolder(Server.MapPath(folderPath))
+		If fso.FolderExists(Server.MapPath(folderPath)) Then
+			Images_CheckCreateDir = True
+		Else
+			Images_CheckCreateDir = False
+		End If
+	End if
+	Set fso = nothing
+End Function
+
+%>

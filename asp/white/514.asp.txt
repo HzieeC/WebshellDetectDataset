@@ -1,0 +1,117 @@
+<%
+
+Class Cls_Comment
+
+	Dim vID
+	Dim vAid
+	Dim vCid
+	Dim vUser
+	Dim vContent
+	Dim vRecomment
+	Dim vIp
+	Dim vTime
+	Dim vState
+	Dim LastError
+
+	Private Sub Class_Initialize()
+		Call Initialize()
+	End Sub
+
+	Private Sub Class_Terminate()
+		Call Initialize()
+	End Sub
+
+	Public Function Initialize()
+		vID = 0
+		vAid = 0
+		vCid = 0
+		vUser = "Guest"
+		vContent = ""
+		vRecomment = ""
+		vIp = ""
+		vTime = Now()
+		vState = 0
+	End Function
+
+	Public Function GetValue()
+		vAid = Request.Form("oAid")
+		vCid = Request.Form("oCid")
+		vUser = Request.Form("oUser")
+		vContent = Request.Form("oContent")
+		vRecomment = Request.Form("oRecomment")
+		vIp = Request.Form("oIp")
+		vTime = Request.Form("oTime")
+		vState = Request.Form("oState")
+		If Len(vAid) = 0 Or Not IsNumeric(vAid) Then LastError = "文章编号只能是数字" : GetValue = False : Exit Function
+		If Len(vCid) = 0 Or Not IsNumeric(vCid) Then LastError = "栏目编号只能是数字" : GetValue = False : Exit Function
+		If Len(vUser) < 1 Or Len(vUser) > 10 Then LastError = "评论者的长度请控制在 1 至 10 位" : GetValue = False : Exit Function
+		If Len(vContent) < 1 Or Len(vContent) > 250 Then LastError = "评论内容的长度请控制在 1 至 250 位" : GetValue = False : Exit Function
+		If Len(vRecomment) > 250 Then LastError = "管理回复的长度请控制在 250 位以内" : GetValue = False : Exit Function
+		If Len(vIp) < 7 Or Len(vIp) > 20 Then LastError = "评论IP的长度请控制在 7 至 20 位" : GetValue = False : Exit Function
+		If Len(vTime) = 0 Or Not IsDate(vTime) Then LastError = "评论时间只能是时间格式" : GetValue = False : Exit Function
+		If Len(vState) = 0 Or Not IsNumeric(vState) Then LastError = "审核状态只能是数字" : GetValue = False : Exit Function
+		GetValue = True
+	End Function
+
+	Public Function SetValue()
+		Dim Rs
+		Set Rs = DB("Select * From [{pre}Comment] Where [ID]=" & vID,1)
+		If Rs.Eof Then Rs.Close : Set Rs = Nothing : LastError = "你所需要查询的记录 " & vID & " 不存在!" : SetValue = False : Exit Function
+		vAid = Rs("Aid")
+		vCid = Rs("Cid")
+		vUser = Rs("User")
+		vContent = Rs("Content")
+		vRecomment = Rs("Recomment")
+		vIp = Rs("Ip")
+		vTime = Rs("Time")
+		vState = Rs("State")
+		Rs.Close
+		Set Rs = Nothing
+		SetValue = True
+	End Function
+
+	Public Function Modify()
+		Dim Rs
+		Set Rs = DB("Select * From [{pre}Comment] Where [ID]=" & vID,3)
+		If Rs.Eof Then Rs.Close : Set Rs = Nothing : LastError = "你所需要更新的记录 " & vID & " 不存在!" : Modify = False : Exit Function
+		Rs("User") = vUser
+		Rs("Content") = vContent
+		Rs("Recomment") = vRecomment
+		Rs("Ip") = vIp
+		Rs("Time") = vTime
+		Rs("State") = vState
+		Rs.Update
+		Rs.Close
+		Set Rs = Nothing
+		Modify = True
+	End Function
+
+	Public Function Delete()
+		Dim Rs,Comments
+		Call SetValue()
+		Set Rs = DB("Select Count([ID]) From [{pre}Comment] Where [Aid]=" & vAid ,1) '# 统计评论次数
+		If Not Rs.Eof Then Comments = Rs(0) - 1 Else Comments = 0
+		Rs.Close : Set Rs = Nothing
+		Call DB("Delete From [{pre}Comment] Where [ID]=" & vID ,0) '# 删除评论
+		Call DB("Update [{pre}Content] Set [Comments]=" & Comments & " Where [ID]=" & vAid ,0) '# 更新评论数量
+		Delete = True
+	End Function
+
+	Public Function Change()
+		Dim GetField
+		GetField = Request("Field")
+		If Instr(LCase("[State]"), LCase("[" & GetField & "]")) = 0 Then
+			LastError = "参数出错,无法修改记录!" : Change = False : Exit Function
+		End If
+		Dim Rs
+		Set Rs = DB("Select [" & GetField & "] From [{pre}Comment] Where [ID]=" & vID,3)
+		If Rs.Eof Then
+			Rs.Close : Set Rs = Nothing : LastError ="所需要更新的记录不存在!" : Change = False : Exit Function
+		Else
+			If Rs(GetField) = 0 Then Rs(GetField) = 1 Else Rs(GetField) = 0
+			Rs.Update : Rs.Close : Set Rs = Nothing
+			Change = True
+		End If
+	End Function
+End Class
+%>

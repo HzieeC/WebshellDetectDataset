@@ -1,0 +1,375 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="inc/function.asp" -->
+<!-- #include file="cache/system.asp" -->
+<!-- #include file="file_users.asp" -->
+<!-- #include file="inc/yucmedia.asp" -->
+<%
+	response.charset="gb2312"
+
+Select Case mudi
+	Case "message"
+		Call CheckIsOutSubmit("alertStr")	' 检测是否外部提交
+		Call message()
+
+	Case "messageSend"
+		Call MessageSend()
+
+	Case "download"
+		Call download()
+
+	Case "vote"
+		Call CheckIsOutSubmit("alertStr")	' 检测是否外部提交
+		Call vote()
+
+	Case "voteResult"
+		Call VoteResult()
+
+End Select
+
+
+Call CloseConobj()
+
+
+
+
+'留言处理
+'POST中messageType必填
+Private Sub message()
+	URL			= ToPostStr("URL")
+	dataType	= ToPostStr("dataType")
+	verCode		= ToPostStr("verCode")
+	rndMd5		= ToPostStr("rndMd5")
+
+	If OT_OpenVerCode=False Or SYS_isVerCodeMessage=0 Then
+		Dim messageOldTime,messageNewTime
+		messageNewTime = now()
+		messageOldTime = Trim(session(OT_SiteID &"messageOldTime"))
+		If IsDate(messageOldTime)=False Then messageOldTime="1988-8-8"
+		If DateDiff("s",messageOldTime,messageNewTime)<SYS_messageSecond Then'
+'				JS_AlertBackEnd("由于验证码禁用，连续留言需相隔"& SYS_messageSecond &"秒.")
+'				JS_AlertEnd("连续留言需相隔"& SYS_messageSecond &"秒.")
+			response.write("alert('连续留言需相隔"& SYS_messageSecond &"秒.');")
+			response.End()
+		Else
+			session(OT_SiteID &"messageOldTime") = messageNewTime
+		End If
+	Else
+		If SYS_verCodeMode=2 Then
+			judYucmedia = yucmedia_deal("fasp",verCode)
+			If judYucmedia<>"true" Then
+				response.write("alert('验证码错误("& yucmedia_err &"),请重新输入.');")
+				response.End()
+			End If
+		Else
+			If (verCode="" Or verCode<>session("VerCode")) And OT_OpenVerCode=True And SYS_isVerCodeMessage=1 Then
+		'		Call JS_AlertBackEnd("验证码错误.")
+				response.write("alert('验证码错误.');GetVerCode('change');")
+				response.End()
+			End If
+		End If
+	End If
+
+	username = ""
+	If SYS_isMessage=0 Then
+		response.write("alert('留言已关闭.');")
+		response.End()
+	ElseIf SYS_isMessage=10 Then
+		username = Users_GetCookies("username")
+		If username="" Then
+			response.write("alert('需要会员身份才能留言.');")
+			response.End()
+		End If
+	End If
+
+	If username="" Then username = ToPostStr("messUser")
+	content	= ToPostStr("messContent")
+	
+	If dataType="" Or content="" Then
+'		Call JS_AlertBackEnd("表单信息填写不完整.")
+'		Call JS_AlertEnd("表单信息填写不完整.")
+		response.write("alert('表单信息填写不完整.');")
+		response.End()
+	End If
+
+	contentLen = Len(content)
+	If SYS_messageMaxLen>0 And contentLen>SYS_messageMaxLen Then
+		Call JS_AlertEnd("留言内容(已经"& contentLen &"字符)超过系统限制的"& SYS_messageMaxLen &"字符.")
+	End If
+
+	OT_userIP	= GetUserIp()
+	resultMd5 = md5(md5(OT_SiteID & session.sessionID) & OT_SiteID & OT_userIP)
+	If rndMd5<>resultMd5 Then
+		response.write("alert('用户跟随信息验证失败，请重新刷新页面后再操作.');GetVerCode('change');")
+		response.End()
+	End If
+	
+	dataTime	= Now()
+	username	= ReplaceStr(username,"html")
+	content		= ReplaceStr(content,"html")
+	Set dealrec=server.CreateObject("ADODB.recordset")
+	dealrec.open "select top 1 MA_type,MA_time,MA_ip,MA_num,MA_username,MA_content,MA_contentMd5,MA_state from OT_message where 1=2",conobj,0,2
+	dealrec.addnew()
+	dealrec("MA_type")	= dataType
+
+	dealrec("MA_time")		= dataTime
+	dealrec("MA_ip")		= OT_userIP
+	dealrec("MA_num")		= ToInt(conobj.execute("select max(MA_num) from OT_message where MA_type='"& dataType &"'")(0))+1
+	dealrec("MA_username")	= username
+	dealrec("MA_content")	= content
+	dealrec("MA_contentMd5")= md5(content)
+	dealrec("MA_state")		= SYS_messageAudit
+	dealrec.update()
+	dealrec.close
+	set dealrec=nothing
+	
+	If SYS_messageAudit=0 Then
+'		Call JS_AlertHref("提交成功,待管理员审核通过后才会显示出来.",URL)
+		response.write("alert('提交成功,待管理员审核通过后才会显示出来.');$id('messageForm').reset();GetVerCode('change','noFocus');")
+	Else
+'		Call JS_AlertHref("提交成功.",URL)
+'		lastMessage = ""&_
+'			"<ul><li>"&_
+'				"<div class='username'><div class='right'>更新时间："& dataTime &"</div>留言者："& username &"</div>"&_
+'				"<div class='note'>"& content &"</div>"&_
+'			"</li><div class='clear'></div></ul>"
+'		response.write("alert('提交成功.');$id('messageForm').reset();GetVerCode('change','noFocus');$id('lastReplyBox').innerHTML="""& ReplaceStr(lastMessage,"js") &"""+ $id('lastReplyBox').innerHTML;document.location.href='#lastMessage';")
+		response.write("alert('提交成功.');$id('messageForm').reset();GetVerCode('change','noFocus');LoadMessageList();")
+	End If
+
+	session("VerCode")=""
+End Sub
+
+
+
+' 发送留言
+Private Sub MessageSend()
+	dataType	= ToGetStr("dataType")
+
+	Set showrec=server.CreateObject("ADODB.recordset")
+	showrec.open "select MA_ID,MA_time,MA_num,MA_username,MA_content,MA_isReply,MA_reply from OT_message where MA_state=1 and MA_type='message' order by MA_time DESC",conobj,3,1
+		If showrec.EOF Then
+			response.write("<br /><center class='font1_1'>暂无评论</center>")
+		Else
+			showPageSize=SYS_messageNum		'每页条数
+			showrec.pagesize=showPageSize	
+			showPageCount=showrec.pagecount
+			showCount=showrec.recordcount
+			page=ToGetInt("page")
+			if page < 1 Or page > showPageCount Then page=1
+			showrec.absolutepage=page
+
+			number=1+(page-1)*showPageSize
+			
+			response.write(_
+			"<ul>")
+			For i=1 To showPageSize
+				If showrec.EOF Then Exit For
+				response.write(_
+				"<li>"&_
+					"<div class='username'><div class='right'>更新时间："& showrec("MA_time") &"</div><b>"& showrec("MA_num") &"楼</b>&nbsp;留言者："& showrec("MA_username") &"</div>"&_
+					"<div class='note'>"& showrec("MA_content") &"</div>"&_
+					"")
+					If showrec("MA_isReply")=1 Then
+						response.write("<div class='admin'><b>"& SYS_messageName &"：</b>"& showrec("MA_reply") &"</div>")
+					End If
+				response.write(_
+				"</li><div class='clear'></div>"&_
+				"")
+			showrec.movenext
+			Next
+
+
+			response.write(_
+			"</ul><div class='clear'></div>"&_
+
+			"<center>"&_
+			"")
+				Call AjaxShowNavigation("messageList",showPageCount,showCount,"","")
+			response.write(_
+			"</center>"&_
+			"")
+		End If
+	showrec.close
+	Set showrec=Nothing
+End Sub
+
+
+
+
+
+
+'下载专区
+Private Sub download()
+	dataID=ToGetInt("dataID")
+	Set DLexe=conobj.execute("select IF_ID,IF_fileName,IF_file from OT_info where IF_ID="& dataID)
+		If DLexe.EOF Then
+			response.write("<script language=javascript>alert('无该文件!');window.close();</script>")
+		Else
+			If DLexe("IF_file")="" Then
+				response.write("<script language=javascript>alert('无该文件!');window.close();</script>")
+			End If
+			response.clear()
+'			response.write("<script language=javascript>alert('无该文件!');window.close();</script>")
+'			response.end
+			Call FileDownload(Server.MapPath(DownloadFileDir & DLexe("IF_file")),DLexe("IF_fileName") & Right(DLexe("IF_file"),Len(DLexe("IF_file"))-InstrRev(DLexe("IF_file"),".")+1))
+		End If
+	DLexe.close
+	Set DLexe=Nothing
+End Sub
+
+
+
+
+
+
+'下载
+Function FileDownload(f,n)
+	On Error Resume Next
+    Set S=CreateObject("Adodb.Stream")
+    S.Mode=3
+    S.Type=1
+    S.Open
+    S.LoadFromFile(f)
+    If Err.Number>0 Then
+		Response.Status="404"
+    Else
+		Response.ContentType="application/octet-stream"
+		Response.AddHeader "Content-Disposition:","attachment; filename="& n
+		Range=Mid(Request.ServerVariables("HTTP_RANGE"),7)
+		If Range="" then
+			Response.BinaryWrite(S.Read)
+		Else
+			S.position=Clng(Split(Range,"-")(0))
+			Response.BinaryWrite(S.Read)
+		End If
+	End If
+	Response.End
+End Function
+
+
+
+
+
+
+
+
+Private Sub vote()
+	dataID	= ToGetInt("dataID")
+
+	If dataID <= 0 Then
+		Call JS_AlertEnd("指定ID出错！")
+	End If
+	If request.Form("voteItem"& dataID).count = 0 Then
+		Call JS_AlertEnd("你还未选择！")
+	End If
+
+	application.lock
+		Set voterec=server.CreateObject("ADODB.recordset")
+		voterec.open "select VT_mode,VT_content,VT_startTime,VT_endTime from OT_vote where VT_ID="& dataID,conobj,0,2
+			If voterec.EOF Then
+				Call JS_AlertEnd("搜索不到该投票活动！")
+			End If
+			If IsDate(voterec("VT_startTime")) Then
+				If voterec("VT_startTime")>Now() Then
+					Call JS_AlertEnd("还未到投票时间，投票开始时间为："& voterec("VT_startTime"))
+				End If
+			End If
+			If IsDate(voterec("VT_endTime")) Then
+				If voterec("VT_endTime")<Now() Then
+					Call JS_AlertEnd("投票时间已过期，投票到期时间为："& voterec("VT_endTime"))
+				End If
+			End If
+
+			conArr=Split(voterec("VT_content"),Chr(13)&Chr(10))
+			For i=0 To UBound(conArr)
+				rowArr = Split(conArr(i),"|")
+				conArr(i) = Array(rowArr(0),CLng(rowArr(1)))
+			Next
+
+			If voterec("VT_mode")=1 Then
+				voteItem=ToPostInt("voteItem"& dataID)
+				conArr(voteItem)(1)=conArr(voteItem)(1)+1
+			Else
+				For i=1 To request.Form("voteItem"& dataID).count
+					voteItem=request.Form("voteItem"& dataID)(i)
+					conArr(voteItem)(1)=conArr(voteItem)(1)+1
+				Next
+			End If
+
+		newContent = ""
+		For i=0 To UBound(conArr)
+			If i=0 Then
+				newContent = conArr(i)(0) &"|"& conArr(i)(1)
+			Else
+				newContent = newContent & Chr(13)&Chr(10) & conArr(i)(0) &"|"& conArr(i)(1)
+			End If
+		Next
+
+
+		voterec("VT_content")=newContent
+		voterec.update
+		voterec.close
+		Set voterec=Nothing
+	application.unlock
+
+	response.write(_
+	"$id('voteForm"& dataID &"').reset();"&_
+	"if (confirm('投票成功!\n需要查看投票结果吗？') == true){ ReadVoteResult("& dataID &"); }"&_
+	"")
+
+End Sub
+
+
+' 投票结果
+Sub VoteResult()
+	dataID = ToGetInt("dataID")
+	Set voteexe=conobj.execute("select * from OT_vote where VT_ID="& dataID &" and VT_state=1")
+		If voteexe.EOF Then
+			response.write(_
+			"alert('搜索不到该投票活动！');"&_
+			"")
+			response.End
+		End If
+			voteArr=Split(voteexe("VT_content"),Chr(13)&Chr(10))
+			For n=0 To UBound(voteArr)
+				rowArr = Split(voteArr(n),"|")
+				rowArr(1)=ToInt(rowArr(1))
+				voteArr(n)=Array(rowArr(0),rowArr(1))
+				scoreCount=scoreCount + rowArr(1)
+			Next
+			If scoreCount=0 Then scoreCount=1
+
+			response.write(_
+			"<h3>"& voteexe("VT_theme") &"</h3>"&_
+			"")
+			For i=0 To UBound(voteArr)
+				response.write(_
+				"<div>"&_
+					(i+1) &"."& voteArr(i)(0) &"<br />"&_
+					"<table cellpadding='0' cellspacing='0'><tr>"&_
+					"<td style='padding-left:10px;'>"&_
+						"<table cellpadding='0' cellspacing='0'><tr>"&_
+						"<td style='width:2px;'><img src='inc_img/vote/vote_left.gif'></td>"&_
+						"<td style='width:"& FormatNumber(110 * voteArr(i)(1) / scoreCount,0,true) &"px; background:url(inc_img/vote/vote_bg.gif);'></td>"&_
+						"<td style='width:4px;'><img src='inc_img/vote/vote_right.gif'></td>"&_
+						"</tr></table>"&_
+					"</td>"&_
+					"<td>"&_
+						"<span class='font1_2' style='padding-left:5px;'>"& FormatNumber(voteArr(i)(1) / scoreCount * 100,2,true) &"%</span>"&_
+						"<span class='font2_2' style='padding-left:5px;'>("& voteArr(i)(1) &"票)</span>"&_
+					"</td>"&_
+					"</tr></table>"&_
+				"</div>"&_
+				"")
+			Next
+
+			response.write(_
+			"<center><input type='button' onclick='CloseVoteResult("& dataID &")' value='返回' /></center>"&_
+			"")
+
+	voteexe.close
+	Set voteexe=Nothing
+End Sub
+
+%>

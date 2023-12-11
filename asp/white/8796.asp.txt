@@ -1,0 +1,189 @@
+<!--#include file="oauth.asp"-->
+<!--#include file="../../Include/Class_Mainb.asp" -->
+<!--#Include file="../../Include/Class_Pass.asp"-->
+<%
+Call get_oauth_http(get_oauth_url(access_token_url))
+'If Session("name") <> "" Then
+'	Response.Redirect("index.asp")
+'End If
+'
+'	response.Write "<br>name="&Session("name")&"<br />"
+'	response.Write "<br>TOKEN="&Session("oauth_token")&"<br />"
+'	response.Write "<br>SECRET="&Session("oauth_token_Secret")&"<br />"
+
+		Dim get_user_info
+		Set get_user_info = toObject(gethttp(get_oauth_url(user_info_url))) '由于请求间隔限制，最好用分支控制每次只调用一个接口
+
+		Api_Name = get_user_info.data.nick '& "昵称<br/>"
+		Api_Domain = get_user_info.data.name '& "帐号<br/>"
+		Api_Statuses = get_user_info.data.tweetnum '& "广播<br/>"
+		Api_Followers = get_user_info.data.fansnum '& "听众<br/>"
+		Api_Friends = get_user_info.data.idolnum '& "收听<br/>"
+		'Response.Write "标签:"&getItem(get_user_info.data.tag,0,"name") & "<br/><br/>"
+
+
+set Rs = server.createobject("ADODB.recordset") 
+set Re = server.createobject("ADODB.recordset")
+
+sukey       = gen_key(30) 
+
+ks          = Trim(Request("ks"))
+
+
+
+IF WebApiIDt(Request.Cookies("tencent")("name"),2)=0 THEN
+
+
+if ks<>"" then
+
+sqltext="select * from OUCCS_Api"
+Rs.Open sqltext,Conn,1,3
+Rs.AddNew 
+
+	Rs("api_t")          = 2
+	Rs("api_name")       = Request.Cookies("tencent")("name")
+	Rs("api_token")      = Request.Cookies("tencent")("oauth_token")
+	Rs("api_secret")     = Request.Cookies("tencent")("oauth_token_Secret")
+	Rs("api_user")       = ks
+	Rs("api_su_key")     = ks
+	
+Rs.Update 
+Rs.Close 
+
+else
+
+sqltext="select * from OUCCS_Api"
+Rs.Open sqltext,Conn,1,3
+Rs.AddNew 
+
+	Rs("api_t")          = 2
+	Rs("api_name")       = Request.Cookies("tencent")("name")
+	Rs("api_token")      = Request.Cookies("tencent")("oauth_token")
+	Rs("api_secret")     = Request.Cookies("tencent")("oauth_token_Secret")
+	Rs("api_user")       = sukey
+	Rs("api_su_key")     = sukey
+	
+Rs.Update 
+Rs.Close 
+
+end if
+
+    api_sukeyt          = 0
+	
+ELSE
+
+if ks<>"" then
+
+Conn.Execute "Update [OUCCS_Api] Set api_su_key='"&ks&"',api_token='"&Request.Cookies("tencent")("oauth_token")&"',api_secret='"&Request.Cookies("tencent")("oauth_token_Secret")&"' Where id="&WebApiIDt(Request.Cookies("tencent")("name"),2)&""
+
+else
+
+Conn.Execute "Update [OUCCS_Api] Set api_token='"&Request.Cookies("tencent")("oauth_token")&"',api_secret='"&Request.Cookies("tencent")("oauth_token_Secret")&"' Where id="&WebApiIDt(Request.Cookies("tencent")("name"),2)&""
+
+end if
+
+
+
+    api_sukeyt          = 1
+
+
+
+END IF
+
+
+
+IF api_sukeyt = 0 THEN
+
+if ks<>"" then
+
+sqltext="select * from OUCCS_Supper where su_key='"&ks&"'"
+Rs.Open sqltext,Conn,1,3
+
+	Rs("su_tencent")         = Api_Domain
+	
+Rs.Update 
+Rs.Close 
+
+else
+
+sqltext="select * from OUCCS_Supper"
+Rs.Open sqltext,Conn,1,3
+Rs.AddNew 
+
+	Rs("su_SupperName")   = "@"
+	Rs("su_UserName")     = Api_Name
+	Rs("su_Password")     = md5("111111")
+	Rs("su_Questionid")   = 1
+'	Rs("su_Question")     = Question
+	Rs("su_IFlag")        = 10
+	Rs("su_AddTim")       = Now()
+	Rs("su_Lastime")      = Now()
+	Rs("su_LastIp")       = Request.serverVariables("REMOTE_ADDR")
+	Rs("su_tencent")      = Api_Domain
+	Rs("su_key")          = sukey
+	
+Rs.Update 
+Rs.Close 
+
+end if
+
+Response.Redirect "callbackcookies.asp?Key="&sukey
+
+ELSE
+
+
+sqltext="select * from OUCCS_Api where id="&WebApiIDt(Request.Cookies("tencent")("name"),2)&""
+Rs.Open sqltext,Conn,1,1
+
+	api_user                 = Rs("api_user")
+	api_sukey                = Rs("api_su_key")
+	
+Rs.Close
+
+
+if ks<>"" and ks<>api_user then
+Conn.Execute("Delete From [OUCCS_Supper] Where su_key='"&Trim(api_user)&"'")  
+end if
+
+
+sqltext="select * from OUCCS_Supper where su_key='"&api_sukey&"'"
+Rs.Open sqltext,Conn,1,3
+if not Rs.eof then
+
+	'Rs("su_UserName")     = Api_Name
+	Rs("su_tencent")         = Api_Domain
+	
+else
+
+sqltext="select * from OUCCS_Supper"
+Re.Open sqltext,Conn,1,3
+Re.AddNew 
+
+	Re("su_SupperName")   = "@"
+	Re("su_UserName")     = Api_Name
+	Re("su_Password")     = md5("111111")
+	Re("su_Questionid")   = 1
+'	Rs("su_Question")     = Question
+	Re("su_IFlag")        = 10
+	Re("su_AddTim")       = Now()
+	Re("su_Lastime")      = Now()
+	Re("su_LastIp")       = Request.serverVariables("REMOTE_ADDR")
+	Re("su_tencent")      = Api_Domain
+	Re("su_key")          = api_sukey
+	
+Re.Update 
+Re.Close 
+
+end if	
+Rs.Update 
+Rs.Close 
+
+Response.Redirect "callbackcookies.asp?Key="&api_sukey
+
+END IF
+
+
+
+Call CloseRs()
+Call CloseDB()
+%>

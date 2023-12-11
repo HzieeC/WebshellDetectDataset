@@ -1,0 +1,145 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="javaBean.UserBean,pagination.PaginationUser"%>
+<%@ page import="java.util.ArrayList"%>
+<%
+	String url = request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script type="text/javascript">
+	function checkall(){
+		var bool=document.getElementById("ckall").checked;
+		if(bool){
+			var temp=document.frm.userid;
+			for(var i=0;i<temp.length;i++){
+					temp[i].checked=bool;
+			}
+			}else{
+				var temp=document.frm.userid;
+				for(var i=0;i<temp.length;i++){
+					temp[i].checked=bool;
+				}
+			}
+		}
+</script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+
+<form name="frm" action="<%=url%>/servletsuser" method="post">
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+
+<tr>
+	<th width='5%' nowrap>选择</th>
+	<th width='20%' nowrap>用户名</th>
+	<th width='5%' nowrap>邮箱</th>
+	<th width='5%' nowrap>性别</th>
+	<th width="10%" nowrap>QQ</th>
+	<th width="10%" nowrap>用户网站</th>
+	<th width='10%' nowrap>操作选项</th>
+	<th width='10%' nowrap>是否锁定</th>
+	<th width='10%' nowrap>会员类型</th>
+</tr>
+<%
+	String pageCurrent = request.getParameter("pageCurrent");
+	if (pageCurrent == null) {
+		pageCurrent = "0";
+	}
+	PaginationUser pa=new PaginationUser();
+	String sqlstr="select count(*) from userinfo";
+	pa.setSum(sqlstr);//查询出总共有多少条
+	pa.setPageSize(15);//设置每页显示多少条	
+	pa.setPageCount();
+	pa.setPageCurrent(Integer.parseInt(pageCurrent));//设置当前页
+
+	int CurrentPage=pa.getPageCurrent();
+	int count=pa.getPageCount();
+
+	String sql="select top "+pa.getPageSize()+" * from userinfo where id not in(select top "+pa.getPageSize()*pa.getPageCurrent()+" id from userinfo) order by UpdateTime desc";
+	pa.setAlist(sql);//设置集合的值
+	ArrayList alist=pa.getAlist();
+%>
+
+<%
+	if(alist==null){
+%>
+<tr>
+	<td align=center colspan=10 class=TableRow1>还没有找到任何会员信息！</td>
+</tr>
+<%}else{
+	UserBean ub=null;
+	for(int i=0;i<alist.size();i++){
+		ub=(UserBean)alist.get(i);
+	%>	
+	<tr>
+		<td align=center class=TableRow1><input type="checkbox" value="<%=ub.getId()%>" name="userid"></td>
+		<td align=center class=TableRow1><%=ub.getUserName()%></td>
+		<td align=center class=TableRow1><%=ub.getUserEmail()%></td>
+		<td align=center class=TableRow1><%=ub.getSex()%></td>
+		<td align=center class=TableRow1><%=ub.getQQ()%></td>
+		<td align=center class=TableRow1><%=ub.getWebAddress()%></td>
+		<td align=center class=TableRow1><a href="<%=url%>/servletsuser?action=update&id=<%=ub.getId()%>">修改</a>&nbsp;|&nbsp;<a href="<%=url%>/servletsuser?action=delete&id=<%=ub.getId()%>">删除</a></td>
+		<%if(ub.getLocked()==0){%>
+		<td align=center class=TableRow1>否</td>
+		<%}else{%>
+		<td align=center class=TableRow1>是</td>
+		<%}%>
+		<td align=center class=TableRow1><%=ub.getUserStep()%></td>
+	</tr>
+<%	}
+}%>
+
+<tr>
+<td align='center' class='TableRow2' colspan="9" >
+<%
+	if(pa.getPageCurrent()==0&&pa.getSum()>pa.getPageSize()){%>
+	首页
+	<a href="<%=url%>/admin/admin_userManage.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	上一页
+	<a href="<%=url%>/admin/admin_userManage.jsp?pageCurrent=<%=count-1%>">尾页</a>
+	<%=CurrentPage+1%>/<%=count%>
+		
+	<%}else if(pa.getPageCurrent()==(pa.getPageCount()-1)&&pa.getSum()>pa.getPageSize()){%>
+		<a href="<%=url%>/admin/admin_userManage.jsp?pageCurrent=0">首页</a>
+		下一页
+		<a href="<%=url%>/admin/admin_userManage.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+		尾页
+		<%=CurrentPage+1%>/<%=count%>
+	<%}else if(pa.getSum()<=pa.getPageSize()){%>
+		首页 下一页 上一页 尾页
+	<%}else{%>
+	<a href="<%=url%>/admin/admin_userManage.jsp?pageCurrent=0">首页</a>
+	<a href="<%=url%>/admin/admin_userManage.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	
+	<a href="<%=url%>/admin/admin_userManage.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+	
+	<a href="<%=url%>/admin/admin_userManage.jsp?pageCurrent=<%=count-1%>">尾页</a>
+	<%=CurrentPage+1%>/<%=count%>
+	<% }  %>
+</td>
+</tr>
+
+<tr>
+	<td colspan=10 class=tablerow1>
+	<input type="checkbox" name="ckall" onclick="checkall();">全选&nbsp;&nbsp;管理选项：&nbsp;
+	 <input class=button onClick="{if(confirm('确定删除选定的用户吗?')){this.document.form.submit();return true;}return false;}" type=submit value='删除用户' name=act> 
+	 <input class=button onClick="{if(confirm('确定激活选定的用户吗?')){this.document.form.submit();return true;}return false;}" type=submit value='激活用户' name=act> 
+	 <input class=button onClick="{if(confirm('确定锁定选定的用户吗?')){this.document.form.submit();return true;}return false;}" type=submit value='锁定用户' name=act> 
+	 
+	</td>
+</tr>
+
+</table>
+</form>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

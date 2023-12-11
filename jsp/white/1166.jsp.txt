@@ -1,0 +1,354 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_teamorder.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo"%>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Hashtable ti_teamorder = new Hashtable();
+ 	String session_user_id=""; 
+	 if(session.getAttribute("session_user_id")!=null)
+	 {
+		 session_user_id = session.getAttribute("session_user_id").toString(); 
+	 }
+	 
+	
+	String req_order_no="";
+	
+	String req_num="";
+	
+	String req_total_price="";
+	
+	String req_user_name="";
+	
+	String req_cellphone="";
+	
+	String req_order_state="";
+	
+
+	String user_id = "";
+	if(session.getAttribute("session_user_id")!=null){
+		user_id = session.getAttribute("session_user_id").toString();
+		/**暂时屏蔽不按照用户过滤数据
+		if(!user_id.equals("771TXP806F41785"))
+			ti_teamorder.put("user_id",user_id);
+			**/
+	}
+	
+	if(request.getParameter("req_order_no")!=null && !request.getParameter("req_order_no").equals("")){
+		req_order_no = request.getParameter("req_order_no");
+		ti_teamorder.put("order_no",req_order_no);
+	}
+	
+	if(request.getParameter("req_num")!=null && !request.getParameter("req_num").equals("")){
+		req_num = request.getParameter("req_num");
+		ti_teamorder.put("num",req_num);
+	}
+	
+	if(request.getParameter("req_total_price")!=null && !request.getParameter("req_total_price").equals("")){
+		req_total_price = request.getParameter("req_total_price");
+		ti_teamorder.put("total_price",req_total_price);
+	}
+	
+	if(request.getParameter("req_user_name")!=null && !request.getParameter("req_user_name").equals("")){
+		req_user_name = request.getParameter("req_user_name");
+		ti_teamorder.put("user_name",req_user_name);
+	}
+	
+	if(request.getParameter("req_cellphone")!=null && !request.getParameter("req_cellphone").equals("")){
+		req_cellphone = request.getParameter("req_cellphone");
+		ti_teamorder.put("cellphone",req_cellphone);
+	}
+	
+	if(request.getParameter("req_order_state")!=null && !request.getParameter("req_order_state").equals("")){
+		req_order_state = request.getParameter("req_order_state");
+		ti_teamorder.put("order_state",req_order_state);
+	}
+	
+	String req_in_date1 = "";
+	if(request.getParameter("req_in_date1")!=null && !request.getParameter("req_in_date1").equals("")){
+		req_in_date1 = request.getParameter("req_in_date1");
+		
+		ti_teamorder.put("in_date1",req_in_date1);
+	}
+	
+	String req_in_date2 = "";
+	if(request.getParameter("req_in_date2")!=null && !request.getParameter("req_in_date2").equals("")){
+		req_in_date2 = request.getParameter("req_in_date2");
+		
+		ti_teamorder.put("in_date2",req_in_date2);
+	}
+	
+
+	Ti_teamorderInfo ti_teamorderInfo = new Ti_teamorderInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_teamorderInfo.getListByPage(ti_teamorder,Integer.parseInt(iStart),limit);
+	int counter = ti_teamorderInfo.getCountByObj(ti_teamorder);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?iStart=",Integer.parseInt(iStart),limit);
+	String _order_no="";
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	String s_order_state = tb_commparaInfo.getSelectItem("81","");    
+%>
+<html>
+  <head>
+    
+    <title>团购订单管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>	
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="index.js"></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_teamorderInfo.js'></script>     
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>团购订单管理</h1>
+			</td>
+			<td>
+				&nbsp;
+				<!-- <a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a> -->
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				
+				
+					订单号:<input name="req_order_no" type="text" />&nbsp;
+		  		   
+				    购买人:<input name="req_user_name" type="text" />&nbsp;
+		  		    
+					订单状态:
+					   <select name="req_order_state">
+					   <option value="">请选择</option>
+					  <%=s_order_state %>
+					   </select>
+					&nbsp;
+		  		   
+				    下单时间段:<input name="req_in_date1" type="text" id="req_in_date1" class="Wdate" value="" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'req_in_date2\',{d:-1})}',readOnly:true})" size="15"  width="150px"/>
+								~~
+							 <input name="req_in_date2" id="req_in_date2" type="text" class="Wdate" value="" onclick="WdatePicker({minDate:'#F{$dp.$D(\'req_in_date1\',{d:1})}',readOnly:true})" size="15" width="150px"/>&nbsp;
+		  		
+
+				<input name="searchInfo" type="button" value="搜索" onclick="return search();"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			
+		  	<th>订单号</th>
+		  	
+		  	
+		  	<th>购买人</th>
+		  	
+		  	<th>订单状态</th>
+		  	
+		  	<th>下单时间</th>
+		  	
+			<th width="10%">修改</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String trade_id="",order_no="",input_price="",company_area_attr="",area_attr="",state="",user_name="",info_id="",num="",price="",total_price="",cellphone="",rand_no="",order_state="",in_date="";
+		  			  	if(map.get("company_area_attr")!=null) company_area_attr = map.get("company_area_attr").toString();
+		  			  	if(map.get("area_attr")!=null) area_attr = map.get("area_attr").toString();
+		  			  	if(map.get("trade_id")!=null) trade_id = map.get("trade_id").toString();
+						if(map.get("order_no")!=null) order_no = map.get("order_no").toString();
+						if(map.get("info_id")!=null) info_id = map.get("info_id").toString();
+						if(map.get("num")!=null) num = map.get("num").toString();
+						if(map.get("name")!=null) user_name = map.get("name").toString();
+						if(map.get("price")!=null) price = map.get("price").toString();
+						if(map.get("input_price")!=null) input_price = map.get("input_price").toString();
+						float total_inputprice=Float.parseFloat(input_price)*Float.parseFloat(num);
+						if(map.get("total_price")!=null) total_price = map.get("total_price").toString();
+						if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+						if(map.get("order_state")!=null) order_state = map.get("order_state").toString();
+						state="<a href='index.jsp?req_order_state="+order_state+"'>"+tb_commparaInfo.getSelectedValue("31",order_state)+"</a>";
+						if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+					    if(in_date.length()>19)in_date=in_date.substring(0,19);
+
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=trade_id %>" /></td>
+			
+		  	<td><%=order_no%></td>
+		  	
+		  	<td><%=user_name%></td>
+		  	
+		  	<td >
+		  		<div id="div<%=i %><%=i %>" >
+				  	<%
+				  		if(order_state.equals("1")){%>
+				  		<a href="javascript:alterState('<%=user_id %>','<%=order_no %>','<%=total_inputprice %>','2','<%=area_attr %>',<%=i %>)">
+						<div style="background:url(/program/admin/images/orderbg.jpg) repeat-x;width:57px;height:20px;line-height:20px;color:#fff;cursor:pointer;text-align:center;">卖家发货</div>
+						</a>    
+				  		<%}else if(order_state.equals("5")){%>
+				  			<a href="javascript:updateState('<%=order_no %>','4',<%=i %>)">
+							<div style="background:url(/program/admin/images/orderbg.jpg) repeat-x;width:57px;height:20px;line-height:20px;color:#fff;cursor:pointer;text-align:center;">确认退货</div>
+							</a>    
+				  		<%}else if(order_state.equals("6")){%>
+				  			
+				  			<a href="javascript:alterState('<%=user_id %>','<%=order_no %>','<%=total_inputprice %>','7','<%=area_attr %>',<%=i %>)">
+							<div style="background:url(/program/admin/images/orderbg.jpg) repeat-x;width:57px;height:20px;line-height:20px;color:#fff;cursor:pointer;text-align:center;">卖家发货</div>
+							</a>    
+				  		<%}else if(order_state.equals("7")){%>
+				  			<a href="javascript:updateState('<%=order_no %>','3',<%=i %>)">
+							<div style="background:url(/program/admin/images/orderbg.jpg) repeat-x;width:57px;height:20px;line-height:20px;color:#fff;cursor:pointer;text-align:center;">交易成功</div>
+							</a>    
+				  		<%}else{out.print(state);}
+				  	 %>
+				 </div>
+			  	 <div id="div<%=i %>" style="display: none">
+				  	 配送单：<input type="text" name="peisong_no<%=i %>" id="peisong_no<%=i %>" /><br/>
+				  	 配送公司：<input type="text" name="peisong_company<%=i %>" id="peisong_company<%=i %>" />
+			  	 </div>
+		  	 </td>
+		  	
+		  	
+		  	<td><%=in_date%></td>
+		  	
+			<td width="10%"><a href="updateInfo.jsp?trade_id=<%=trade_id %>"><img src="/program/admin/images/edit.gif" title="修改" /></a></td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=trade_id%>','4784');"><img src="/program/admin/images/delete.gif" title="删除" /></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="4784" />
+	  </form>
+	  	<form action="/doTradeReg.do" method="post" name="bpmForm">
+			<input type="hidden" name="bpm_id" id="bpm_id" value="5356" />			
+			<input type="hidden" name="user_id" id="user_id" value="<%=session_user_id%>" />
+			<input type="hidden" name="trade_type" id="trade_type" value="5356" />
+			<input type="hidden" name="order_state" id="order_state" value="2" />
+			
+			<input type="hidden" name="order_no" id="order_no" value="" />
+			<input type="hidden" name="peisong_no" id="peisong_no" value="" />
+			<input type="hidden" name="peisong_company" id="peisong_company" value="" />
+			
+			<input type="hidden" name="product_code" id="product_code" value="I" />
+			<input type="hidden" name="biz_id" id="biz_id" value="" />
+			<input type="hidden" name="area_attr" id="area_attr" value="" />
+			<input type="hidden" name="agent_product_code" id="agent_product_code" value="" />
+			<input type="hidden" name="income_ratio" id="income_ratio" value="" />
+			<input type="hidden" name="income_num" id="income_num" value="" />
+		</form>
+	  <script type="text/javascript">
+	  	function alterState(cust_id,order_no,total_price,state,area_attr,index){
+	  			if(document.getElementById("div"+index).style.display=="none"){
+	  				document.getElementById("div"+index).style.display="block";
+	  				return;
+	  			}
+	  		    var no=document.getElementById("peisong_no"+index).value;
+	  		    if(no==null||no==""){
+	  		    	alert("配送单号不能为空");
+	  		    	return;
+	  		    }
+	  		    var company=document.getElementById("peisong_company"+index).value;
+	  		    if(company==null||company==""){
+	  		    	alert("配送公司不能为空");
+	  		    	return;
+	  		    }
+	  		    document.bpmForm.order_no.value=order_no;
+	  		    document.bpmForm.peisong_no.value=no;
+	  		    document.bpmForm.peisong_company.value=company;
+				document.bpmForm.agent_product_code.value=total_price;
+				document.bpmForm.biz_id.value=order_no;
+				document.bpmForm.area_attr.value=area_attr;
+			
+				document.bpmForm.submit();
+	  		   /**
+	  		    var params=val+","+state+","+no+","+company;
+	  			Ti_teamorderInfo.sendTeambuyByOrderNo(params,function(data){
+	  				if(data==0){
+	  					alert("操作成功");
+	  					document.getElementById("div"+index).style.display="none";
+	  					document.getElementById("div"+index+index).innerHTML="卖家已发货";
+	  				}else{
+	  					alert("操作失败");
+	  				}
+				});
+	  		   */
+	  	}
+	  	
+	  	function updateState(order_no,state,index){
+	  		Ti_teamorderInfo.updateTeamStateByOrderNo(order_no,state,function(data){
+	  				if(data==1){
+	  					alert("操作成功");
+	  					document.getElementById("div"+index).style.display="none";
+						if(state=='4')
+	  						document.getElementById("div"+index+index).innerHTML="无效的订单";
+						else
+							document.getElementById("div"+index+index).innerHTML="交易成功";
+	  				}else{
+	  					alert("操作失败");
+	  				}
+				});
+	  	}
+	  	
+	  </script>
+</body>
+
+</html>

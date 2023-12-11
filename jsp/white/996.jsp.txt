@@ -1,0 +1,443 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<script language = JavaScript>
+function ChannelSetting(n){
+	if (n == 1){
+		ChannelSetting1.style.display='none';
+		ChannelSetting2.style.display='';
+	}
+	else{
+		ChannelSetting1.style.display='';
+		ChannelSetting2.style.display='none';
+	}
+}
+</script>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="TableBorder">	<tr>		<th colspan="2">站点频道管理</th>	</tr>	<tr>		<td width="100%" class=TableRow2 colspan=2><b>管理选项：</b><a href=admin_channel.asp>管理首页</a>		| <a href=?action=add>添加频道</a> | <a href=?action=edit&ChannelID=1>文章设置</a> | <a href=?action=edit&ChannelID=2>软件设置</a> | <a href=?action=edit&ChannelID=5>动画设置</a> | <a href=?action=edit&ChannelID=4>留言设置</a> | <a href=?action=orders>频道排序</a>		</td>	</tr></table><br>
+	<table border="0" align="center" cellpadding="3" cellspacing="1" class="TableBorder">
+		<tr>
+			<th colspan="2" align="left"><img src="images/welcome.gif" width="16" height="17" align="absMiddle"> 编辑站点频道</th>
+		</tr>
+		<tr id="ChannelSetting2">
+			<td colspan="2" align="center" class="TableRow2"><a href="?action=badset&ChannelID=1"><font color="blue">审核设置</font></a> | <a href="?action=badset&ChannelID=1"><font color="blue">非法字符限制设置</font></a></td>
+		</tr>
+		<form method="POST" action="?action=savedit">
+		<input type="hidden" name="ChannelID" value="1">
+		<tr>
+			<td width="28%" class="TableRow1"><div class="divbody">频道名称：</div></td>
+			<td width="72%" class="TableRow1">
+			<input type="text" name="ChannelName" size="20" value="文章中心"></td>
+		</tr>
+				<tr>
+			<td class="TableRow2"><div class="divbody">频道名称模式：</div></td>
+			<td class="TableRow2">颜色： 
+			<select size="1" name="ColorModes">
+			<option value="0">请选择标题颜色</option>
+<option style="background-color:#FF0000;color: #FF0000" value='1'>#FF0000</option><option style="background-color:#0000FF;color: #0000FF" value='2'>#0000FF</option><option style="background-color:#008800;color: #008800" value='3'>#008800</option><option style="background-color:#FFFF00;color: #FFFF00" value='4'>#FFFF00</option><option style="background-color:#9900FF;color: #9900FF" value='5'>#9900FF</option><option style="background-color:#808080;color: #808080" value='6'>#808080</option><option style="background-color:#00FFFF;color: #00FFFF" value='7'>#00FFFF</option><option style="background-color:#998566;color: #998566" value='8'>#998566</option><option style="background-color:#FFCC00;color: #FFCC00" value='9'>#FFCC00</option>
+			</select> 字体：
+		<select size="1" name="FontModes">
+		<option value="0" selected>请选择字体</option>
+		<option value="1">粗体</option>
+		<option value="2">斜体</option>
+		<option value="3">下划线</option>
+		<option value="4">粗体+斜体</option>
+		<option value="5">粗体+下划线</option>
+		<option value="6">斜体+下划线</option>
+		
+		</select></td>
+		</tr>
+		<tr>
+			<td class="TableRow1"><div class="divbody">频道注释：</div></td>
+			<td class="TableRow1">
+			<input type="text" name="Caption" size="60" value="文章中心"></td>
+		</tr>
+		<tr>
+			<td class="TableRow2"><div class="divbody">连接目标：</div></td>
+			<td class="TableRow2">
+			<input type="radio" name="LinkTarget" value="0" checked> 本窗口打开&nbsp;&nbsp; 
+			<input type="radio" name="LinkTarget" value="1"> 新窗口打开</td>
+		</tr>
+		<tr>
+			<td class="TableRow1"><div class="divbody">频道菜单状态：</div></td>
+			<td class="TableRow1">
+			<input type="radio" name="IsHidden" value="0" checked> 正常&nbsp;&nbsp; 
+			<input type="radio" name="IsHidden" value="1"> 隐藏</td>
+		</tr>
+		<tr>
+			<td class="TableRow2"><div class="divbody">连接类型：</div></td>
+			<td class="TableRow2">
+			
+			<input type="radio" name="ChannelType" value="0" checked> 系统频道
+			</td>
+		</tr>
+		<tr id="ChannelSetting1" style="display:'none'">
+			<td class="TableRow1"><div class="divbody">频道连接URL：</div></td>
+			<td class="TableRow1">
+			<input type="text" name="ChannelUrl" size="45" value="http://"> <font color="#FF0000">
+			* 外部连接URL以“http://”开头</font></td>
+		</tr>
+		<tr id="ChannelSetting2">
+		<td class="TableRow1" colspan="2"><fieldset style="cursor: default"><legend>&nbsp;系统频道设置</legend><table width="100%" border="0" align="center" cellpadding="3" cellspacing="1" class="TableBorder2">
+			<tr>
+				<td class="TableRow2"><div class="divbody">是否关闭本频道：</div></td>
+				<td class="TableRow2">
+				<input type="radio" name="StopChannel" value="0" checked> 打开&nbsp;&nbsp; 
+				<input type="radio" name="StopChannel" value="1"> 关闭&nbsp;&nbsp; </td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">频道模块名称：</div></td>
+				<td class="TableRow1">
+				<input type="text" name="ModuleName" size="10" value="文章"></td>
+			</tr>
+			<tr>
+				<td width="28%" class="TableRow2"><div class="divbody">频道功能模块：</div></td>
+				<td width="72%" class="TableRow2">
+					<select size="1" name="modules" disabled>
+	<option value=0>外部</option>	<option value=1 selected>文章</option>	<option value=2>软件</option>	<option value=5>动画</option>	<option value=4>留言</option>					</select></td>			</tr>			<tr>				<td class="TableRow1"><div class="divbody">频道默认模板：</div></td>				<td class="TableRow1">				<select size="1" name="ChannelSkin">		<option value="0" selected>使用默认模板</option>
+		<option value="1">新云默认模板</option>
+		</select></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">频道所在目录：</div></td>
+				<td class="TableRow2">
+				<input type="text" name="ChannelDir" size="20" value="article/"> <font color="#FF0000">
+				* 如果要修改频道所在目录，请手工修改相应的目录名称</font></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">是否启用域名绑定功能：</div></td>
+				<td class="TableRow1">
+				<input type="radio" name="BindDomain" value="0" checked onClick="setBindDomain.style.display='none';"> 否&nbsp;&nbsp; 
+				<input type="radio" name="BindDomain" value="1" onClick="setBindDomain.style.display='';"> 是&nbsp;&nbsp;
+				<font color="blue">* 如果启用域名绑定功能，此频道将用你设置的域名访问本频道</font></td>
+			</tr>
+			<tr id="setBindDomain" style="display:none">
+				<td class="TableRow2"><div class="divbody">频道所绑定的域名和目录：</div></td>
+				<td class="TableRow2">
+				域名：<input type="text" name="DomainName" size="40" value="http:"> 
+				<br><font color="#FF0000">* 请输入你要绑定的域名，如：http://www1.newasp.net</font><br/>
+				路径：<input type="text" name="NamedPath" size="40" value=""> 
+				<br><font color="#FF0000">* 请指定你的频道物理路径，如：F:\newasp\wwwroot\article；如果不指定路径请留空</font></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">是否生成HTML：</div></td>
+				<td class="TableRow1">
+				<input type="radio" name="IsCreateHtml" value="0" checked> 否&nbsp;&nbsp; 
+				<input type="radio" name="IsCreateHtml" value="1"> 是</td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">HTML文件的扩展名：</div></td>
+				<td class="TableRow2"><input onClick="tagreadme.style.display='none';" type="text" name="HtmlExtName" size="10" value=".html"> <font color=blue>* 如：“.html”，“.htm”，“.shtml”，“.asp”</font></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">分类列表页HTML文件路径：</div></td>
+				<td class="TableRow1"><input onClick="tagreadme.style.display='';" type="text" name="SortDestination" size="60" value="[InstallDir][channel][class]list[classid]_[page].html"> <font color="blue">* 生成分类页面的路径和HTML文件格式</font></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">信息内容页HTML文件路径：</div></td>
+				<td class="TableRow2"><input onClick="tagreadme.style.display='';" type="text" name="InfoDestination" size="60" value="[InstallDir][channel][class]info-[id].html"> <font color="blue">* 生成信息页面的路径和HTML文件格式</font></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">其它专题页HTML文件路径：</div></td>
+				<td class="TableRow1"><input onClick="tagreadme.style.display='';" type="text" name="MoreDestination" size="60" value="[InstallDir][channel][class]index_[page].html"> <font color="blue">* 生成其它页面的路径和HTML文件格式</font></td>
+			</tr>
+			<tr id="tagreadme" style="display:none">
+				<td class="TableRow2"><div class="divbody">文件路径标签说明：</div></td>
+				<td class="TableRow2"><font color="red">[InstallDir]：</font>程序根路径标签；<font color="red">[channel]</font>：频道目录标签；<font color="red">[class]</font>分类目录标签；<br/>
+				<font color="red">[classid]</font>：分类ID标签；<font color="red">[id]</font>：内容ID标签；<font color="red">[page]</font>：分页标签；[name]：专题名标签；<br/>
+				其它标签：<font color="blue">[sortid] [cid] [sid] [parent] [child] [datetime] [date] [year]</font></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">是否允许用户上传文件：</div></td>
+				<td class="TableRow2">
+				<input type="radio" name="StopUpload" value="1"> 否&nbsp;&nbsp; 
+				<input type="radio" name="StopUpload" value="0" checked> 是</td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">允许上传文件的大小：</div></td>
+				<td class="TableRow1"><input type="text" name="MaxFileSize" size="10" value="500"> <b>KB</b></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">允许上传文件的类型：<br>多种文件类型之间用“|”分隔</div></td>
+				<td class="TableRow2"><input type="text" name="UpFileType" size="60" value="rar|zip|exe|gif|jpg|bmp|png|swf"></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">是否开启审核功能：</div></td>
+				<td class="TableRow1">
+				<input type="radio" name="IsAuditing" value="0"> 关闭&nbsp;&nbsp; 
+				<input type="radio" name="IsAuditing" value="1" checked> 打开</td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">
+发表评论
+的用户等级：</div></td>
+				<td class="TableRow2"><select size="1" name="AppearGrade">
+		<option value="999">管理员</option>
+		<option value="0" selected>匿名用户</option>
+		<option value="1">普通会员</option>
+		<option value="2">高级会员</option>
+		<option value="3">VIP 会员</option>
+		</select></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">
+				发布文章的用户等级：</div></td>
+				<td class="TableRow1"><select size="1" name="PostGrade">
+		<option value="999">管理员</option>
+		<option value="0">匿名用户</option>
+		<option value="1" selected>普通会员</option>
+		<option value="2">高级会员</option>
+		<option value="3">VIP 会员</option>
+		</select></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">最小评论留言字符：</div></td>
+				<td class="TableRow2"><input type="text" name="LeastString" size="10" value="10"></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">最大评论留言字符：</div></td>
+				<td class="TableRow1"><input type="text" name="MaxString" size="10" value="500"></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">每页显示列表数：</div></td>
+				<td class="TableRow2"><input type="text" name="PaginalNum" size="10" value="20"></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">最小热门点击数：</div></td>
+				<td class="TableRow1"><input type="text" name="LeastHotHist" size="10" value="1"></td>
+			</tr>
+
+			<tr>
+				<td class="TableRow2"><div class="divbody">设置作者：<br>每个作者请用“,”分开</div></td>
+				<td class="TableRow2"><textarea name="ChannelSetting" cols="60" rows="3">佚名,本站,不详,未知</textarea></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">设置来源：<br>每个来源请用“,”分开</div></td>
+				<td class="TableRow1"><textarea name="ChannelSetting" cols="60" rows="3">本站整理,本站原创,不详,转载</textarea></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">更新时间状态：</div></td>
+				<td class="TableRow2"><select name="ChannelSetting">
+					<option value="0" selected>不选中</option>
+					<option value="1">选中状态</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">默认星级：</div></td>
+				<td class="TableRow1"><select name="ChannelSetting">
+					<option value="5">★★★★★</option>
+					<option value="4">★★★★</option>
+					<option value="3" selected>★★★</option>
+					<option value="2">★★</option>
+					<option value="1">★</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">默认发表评论状态：</div></td>
+				<td class="TableRow2"><select name="ChannelSetting">
+					<option value="0" selected>允许发表评论</option>
+					<option value="1">禁止发表评论</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">默认上传设置：</div></td>
+				<td class="TableRow1"><select name="ChannelSetting">
+					<option value="0" selected>不生成缩略图</option>
+					<option value="1">生成缩略图</option>
+				</select> <select name="ChannelSetting">
+					<option value="0">不自动更名</option>
+					<option value="1" selected>自动更名</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">设置上传图片目录：</div></td>
+				<td class="TableRow2"><input type="text" name="ChannelSetting" size="60" value="UploadPic/"></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">设置上传文件目录：</div></td>
+				<td class="TableRow1"><input type="text" name="ChannelSetting" size="60" value="UploadFile/"></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">默认内容生成XML设置：</div></td>
+				<td class="TableRow2"><select name="ChannelSetting">
+					<option value="0" selected>不生成XML</option>
+					<option value="1">内容生成XML</option>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">XML文件名前缀：</div></td>
+				<td class="TableRow1"><input type="text" name="ChannelSetting" size="20" value="newasp_"></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">XML文件扩展名：</div></td>
+				<td class="TableRow2"><input type="text" name="ChannelSetting" size="20" value=".xml"></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">XML文件路径：</div></td>
+				<td class="TableRow1"><input type="text" name="ChannelSetting" size="60" value="xmlfile/"></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">默认分页设置：</div></td>
+				<td class="TableRow2"><select name="ChannelSetting">
+					<option value="0">自动分页</option>
+					<option value="1" selected>手动分页</option>
+				</select></td>
+			</tr>
+
+			<tr>
+				<th colspan="2" align="left"><img src="images/welcome.gif" align="absMiddle"> 编辑器设置</th>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">后台编辑器类型：</div></td>
+				<td class="TableRow1"><input type="radio" name="setEditor(0)" value="0" checked> HTML编辑器&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(0)" value="1"> UBB编辑器(常规)
+				<input type="radio" name="setEditor(0)" value="2"> UBB编辑器(专家)</td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">后台编辑器模式：</div></td>
+				<td class="TableRow2"><select size="1" name="setEditor(1)">
+		<option value="Default">默认编辑模式</option>
+		<option value="AdminMode" selected>常规编辑模式</option>
+		<option value="Simple">简单编辑模式</option>
+		<option value="Basic">基本编辑模式</option>
+		</select></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">后台编辑器宽度：</div></td>
+				<td class="TableRow1"><input type="text" name="setEditor(2)" size="10" value="590"> px</td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">后台编辑器高度：</div></td>
+				<td class="TableRow2"><input type="text" name="setEditor(3)" size="10" value="350"> px</td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">编辑器目录：</div></td>
+				<td class="TableRow1"><input type="text" name="setEditor(4)" size="20" value="editor/"></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">前台编辑器类型：</div></td>
+				<td class="TableRow2"><input type="radio" name="setEditor(5)" value="0" checked> HTML编辑器&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(5)" value="1"> UBB编辑器(常规)&nbsp;&nbsp;
+				<input type="radio" name="setEditor(5)" value="2"> UBB编辑器(专家)&nbsp;&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">前台编辑器模式：</div></td>
+				<td class="TableRow1"><select size="1" name="setEditor(6)">
+		<option value="Default">默认编辑模式</option>
+		<option value="UserMode">常规编辑模式</option>
+		<option value="Simple" selected>简单编辑模式</option>
+		<option value="Basic">基本编辑模式</option>
+		</select></td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">前台编辑器宽度：</div></td>
+				<td class="TableRow2"><input type="text" name="setEditor(7)" size="10" value="560"> px</td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">前台编辑器高度：</div></td>
+				<td class="TableRow1"><input type="text" name="setEditor(8)" size="10" value="350"> px</td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">禁用所有UBB标签：</div></td>
+				<td class="TableRow2"><input type="radio" name="setEditor(9)" value="0" checked> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(9)" value="1"> 是&nbsp;&nbsp;
+				<font color="red"></font></td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">禁用URL标签：</div></td>
+				<td class="TableRow1"><input type="radio" name="setEditor(10)" value="0"> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(10)" value="1" checked> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">禁用IMG标签：</div></td>
+				<td class="TableRow2"><input type="radio" name="setEditor(11)" value="0"> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(11)" value="1" checked> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">禁用FLASH标签：</div></td>
+				<td class="TableRow1"><input type="radio" name="setEditor(12)" value="0"> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(12)" value="1" checked> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">禁用多媒体标签：</div></td>
+				<td class="TableRow2"><input type="radio" name="setEditor(13)" value="0"> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(13)" value="1" checked> 是&nbsp;&nbsp;
+				<input type="radio" name="setEditor(13)" value="2"> 模式二&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">禁用Email标签：</div></td>
+				<td class="TableRow1"><input type="radio" name="setEditor(14)" value="0"> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(14)" value="1" checked> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">禁用HTML标签：</div></td>
+				<td class="TableRow2"><input type="radio" name="setEditor(15)" value="0" checked> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(15)" value="1"> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">禁用DOWN标签：</div></td>
+				<td class="TableRow1"><input type="radio" name="setEditor(16)" value="0"> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(16)" value="1" checked> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">禁用ED2K标签：</div></td>
+				<td class="TableRow2"><input type="radio" name="setEditor(17)" value="0"> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(17)" value="1" checked> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">自动识别网址：</div></td>
+				<td class="TableRow1"><input type="radio" name="setEditor(18)" value="0" checked> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(18)" value="1"> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">禁用内容关键字：</div></td>
+				<td class="TableRow2"><input type="radio" name="setEditor(19)" value="0" checked> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(19)" value="1"> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">禁用CC视频标签：</div></td>
+				<td class="TableRow1"><input type="radio" name="setEditor(22)" value="0"> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(22)" value="1" checked> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow2"><div class="divbody">禁用CC视频上传插件：</div></td>
+				<td class="TableRow2"><input type="radio" name="setEditor(23)" value="0"> 否&nbsp;&nbsp; 
+				<input type="radio" name="setEditor(23)" value="1" checked> 是&nbsp;&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="TableRow1"><div class="divbody">固定内容中图片大小：</div></td>
+				<td class="TableRow1"><input type="text" name="setEditor(20)" size="10" value="550"> px
+				<font color="red">* 小于10=按比例缩小</font></td>
+			</tr>
+			
+			<tr>
+				<td class="TableRow2"><div class="divbody">内容自动分页字符数：</div></td>
+				<td class="TableRow2"><input type="text" name="setEditor(21)" size="10" value="0"> px
+				<font color="red">* 如果不自动分页请输入“0”</font></td>
+			</tr>
+
+		</table></fieldset></td>
+		</tr>
+		<tr>
+			<td class="TableRow1">　</td>
+			<td class="TableRow1" align="center"><input type="button" onclick="javascript:history.go(-1)" value="返回上一页" name="B1" class=Button>&nbsp;&nbsp;
+			<input type="submit" value="保存设置" name="B2" class="Button"></td>
+		</tr>
+		</form>
+	</table>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

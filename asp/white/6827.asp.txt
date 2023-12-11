@@ -1,0 +1,165 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="consts.asp" -->
+<!--#include file="inc/Get_admins.asp" -->
+<%if session("user_bianhao")<>"" then%>
+	<%
+	cp_bianhao=Checkstr(trim(request("cp_bianhao")))
+	color_str=Checkstr(trim(request("color_str")))
+	color_str=Server.UrlDecode(color_str)
+	xinghao_str=Checkstr(trim(request("xinghao_str")))
+	xinghao_str=Server.UrlDecode(xinghao_str)
+	qty_str=Checkstr(trim(request("buy_qty_str")))
+	if qty_str="" or isnull(qty_str) or isnumeric(qty_str)=false or qty_str=0 then
+		response.write 3 '数量为空时
+	else
+		'首次点击购物车时 生成临时的订单
+		'SMT_key:0已提交但是待发货）/1已完成已发货/2已作废（不可恢复）/3（临时订单，登录自动删除）/ 4(临时订单,保存在服务器)
+		sql="select * from My_Order_List where (SMT_key=3 or SMT_key=4) and SMT_bianhao='"&session("user_bianhao")&"'"
+		rs.open sql,conn,1,3
+		if rs.eof then'没有临时订单的话
+			rs.addnew
+				if session("user_bianhao")<>"" then rs("SMT_bianhao")=session("user_bianhao")
+
+				'生成临时的订单号
+				Dim yy, mm, dd, hh, mn, ss, rr
+				Randomize
+				yy = Year(Now)
+				mm = right("0" & Month(Now),2)
+				dd = right("0" & Day(Now),2)
+				hh = right("0" & Hour(Now),2)
+				mn =right("0" & Minute(Now),2)
+				ss = right("0" & Second(Now),2)
+				rr = 0
+				rr = CInt(Rnd() * 10000)
+				ss = right("0000" & r,4)
+				Get_Order_Po = yy & mm & dd & hh & mn & ss & rr
+				rs("Order_Po")=Get_Order_Po
+				
+				rs("SMT_key")=4'临时订单状态
+				rs("beizhu")=""
+				rs("yunfei")=0
+				rs("yijia")=0
+				rs("final_price")=0
+				rs("added_date")=Now()
+				rs("sell_confirm")=0'卖家确认 确认为1时，则该订单会修改内容，应提示买家
+				rs("buy_confirm")=0'买家确认 确认为1时，则该订单会修改内容，应提示买家
+				'rs("finished_date")=""
+			rs.update
+		else'如果已存在
+			Get_Order_Po=rs("Order_Po")
+		end if
+		rs.close
+		
+		Order_Po=Get_Order_Po
+		if session("Order_Po")="" then session("Order_Po")=Get_Order_Po'保存到SESSION
+		'然后将这个订单号保存到SESSION
+		'接下来判断购物清单表内 是否存在临时被保存数据key=0
+		'key:0临时保存在购物车页面可手动删除/1正式未完成/3临时自动删除/2已经完成
+		sql="select * from My_Order_Details where key=0 and SMT_bianhao='"&session("user_bianhao")&"'"
+		rs.open sql,conn,1,1
+		if not rs.eof then'若有 则把这些数据的订单号全部设为前面生成的临时订单号key=0
+			conn.execute("update My_Order_Details set Order_Po='"&Order_Po&"' where key=0 and SMT_bianhao='"&session("user_bianhao")&"'")
+		end if
+		rs.close
+		
+		'开始添加清单
+		'商品添加-开始
+		if cp_bianhao<>"" then
+			'先获取商品信息
+			sql="select * from My_cp where cp_bianhao='"&cp_bianhao&"'"
+			rs.open sql,conn,1,1
+			if not rs.eof then
+			cpjg=rs("cpjg")
+			money_id=rs("money_id")
+			zhekou=rs("zhekou")
+			zhekou_end_date=rs("zhekou_end_date")'打折自动到期日期
+			if DateDiff("d",date(),zhekou_end_date)<0 then zhekou=100'到期后自动变为不打折
+			cpjl=rs("cpjl")
+			xinghao=rs("cp_xinghao")
+			colors=rs("colors")
+			if_reduce_qty=rs("if_reduce_qty")
+			cp_qty=rs("qty")
+			else
+			end if
+			rs.close
+	
+			'接下来判断是否有商品添加到购物车过
+			sql="select * from My_Order_Details where key<>1 and key<>2 and cp_bianhao='"&cp_bianhao&"' and colors='"&color_str&"' and xinghao='"&xinghao_str&"' and SMT_bianhao='"&session("user_bianhao")&"'"
+			rs.open sql,conn,1,3
+			if rs.eof then'没有录入过的话
+				rs.addnew
+					if session("user_bianhao")<>"" then rs("SMT_bianhao")=session("user_bianhao")
+					rs("Order_Po")=session("Order_Po")
+						'判断是否已经临时订单设为保存，若保存则0 若不保存则为3
+						set rs1=server.createobject("adodb.recordset")	
+						sql1="select * from My_Order_List where Order_Po='"&session("Order_Po")&"' and SMT_key=3 and SMT_bianhao='"&session("user_bianhao")&"'"
+						rs1.open sql1,conn,1,1
+						if rs1.eof then'没有录入过的话
+						rs("key")=0'临时保存订单状态 被保存登录时不会被删除
+						else
+						rs("key")=3'临时可删订单状态 被保存登录时会被删除
+						end if
+						rs1.close
+						set rs1=nothing
+						set sql1=nothing
+					rs("cp_bianhao")=cp_bianhao'商品编号
+					rs("cpjg")=cpjg'下单当时的单价
+					rs("money_id")=money_id'货币种类ID
+					rs("buy_qty")=qty_str'购买数量
+					rs("xinghao")=xinghao_str'规格/型号/代码
+					rs("colors")=color_str'色别
+					rs("zhekou")=zhekou
+					zhekou_final_price=(zhekou*cpjg)/100
+					if zhekou_final_price>0 then
+						rs("zhekou_final_price")=round(zhekou_final_price,4)'下单当时是否打折 单位%
+					else
+						rs("zhekou_final_price")=0
+				end if
+				rs.update
+				rs.close
+				response.write 1'成功 可以添加
+			else'若已录入则数量增加
+				if if_reduce_qty=1 then''库存数量减少开关 1开
+					'如果已存在 则提示已经将此商品添加到购物车了 订购的数量累加。
+					if qty_str>0 and isnumeric(qty_str)=true and not isnull(qty_str) then
+						'判断是否已经超出实际库存
+						set rs1=server.createobject("adodb.recordset")
+						sql1="select * from My_Order_Details where key<>1 and key<>2 and cp_bianhao='"&cp_bianhao&"' and SMT_bianhao='"&session("user_bianhao")&"'"
+						rs1.open sql1,conn,1,1
+						if not rs1.eof then
+							current_qty=rs1("buy_qty")
+							buy_total=current_qty+qty_str
+						else
+						end if
+						rs1.close
+						set rs1=nothing
+						set sql1=nothing
+					
+						if cint(buy_total)<=cint(cp_qty) then
+							conn.execute("update My_Order_Details set buy_qty=buy_qty+"&qty_str&" where key<>1 and cp_bianhao='"&cp_bianhao&"' and colors='"&color_str&"' and xinghao='"&xinghao_str&"' and SMT_bianhao='"&session("user_bianhao")&"'")
+							response.write 0 '可以购买 数量累加
+						else
+							rs.close
+							response.write 2 '超出实际库存
+						end if
+					end if
+				else'库存数量减少开关 0关
+					conn.execute("update My_Order_Details set buy_qty=buy_qty+"&qty_str&" where key<>1 and cp_bianhao='"&cp_bianhao&"' and colors='"&color_str&"' and xinghao='"&xinghao_str&"' and SMT_bianhao='"&session("user_bianhao")&"'")
+					rs.close
+					response.write 0'可以购买 数量累加
+				end if'库存数量减少判断结束
+				%>
+				<%
+			end if
+			set rs=nothing
+			set sql=nothing
+		else
+			response.write"<script>alert(':-(   参数错误！');history.go(-1);</script>"
+			response.End()
+		end if
+		'商品添加-结束
+	end if
+	%>
+<%end if%>

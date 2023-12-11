@@ -1,0 +1,88 @@
+<%@ page contentType="text/html; charset=GBK" %>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<meta http-equiv="Content-Type" content="text/html;charset=gb2312"/>
+<title>管理页面</title>
+<link rel="stylesheet" href="images/css/admin_style_1.css" type="text/css" media="all" />
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="5" marginheight="0" marginwidth="0" bgcolor="#DDEEFF">
+<table class="tableBorder" cellspacing="1" cellpadding="2" width="96%" align="center" border="0">
+	<tr>
+		<th colspan="2" height="25" align="left">系统信息统计</th>
+	</tr>
+	<tr>
+		<td class="BodyTitle" colspan="2" height="23" align="left"></td>
+	</tr>
+	<tr>
+		<td class="TableRow1" width="50%" height="23">JVM内存总量：<%=Runtime.getRuntime().totalMemory()/1024/1024%>MB</td>
+		<td class="TableRow1" width="50%">JVM最大内存：<%=Runtime.getRuntime().maxMemory()/1024/1024%>MB</td>
+	</tr>
+	<tr>
+		<td class="TableRow2" width="50%" height="23">服务器IP地址：<%=request.getLocalAddr()%></td>
+		<td class="TableRow2" width="50%">服务器端口： <strong><%=request.getLocalPort()%></strong></td>
+	</tr>
+	<tr>
+		<td class="TableRow1" width="50%" height="23">用户IP地址：<strong><%=request.getRemoteAddr()%></strong></td>
+		<td class="TableRow1" width="50%">数据库使用：<strong style="color: blue">SQL</strong></td>
+	</tr>
+</table>
+<br/>
+<table class="tableBorder" cellspacing="1" cellpadding="3" width="100%" align="center" border="0">
+	<tr>
+		<th colspan="2" height="25" align="left">网站管理系统说明</th>
+	</tr>
+	<tr>
+		<td class="TableRow1" width="60" height="23">管理员</td>
+		<td class="TableRow1" style="line-height: 150%">拥有所有权限。<br />
+		第一次使用时请到<font color="#ff0000">用户管理</font>-<a target="main" href="admin_password.jsp"><font color="#ff0000">管理员密码修改</font></a>重新设置管理密码</td>
+	</tr>
+	<tr>
+		<td class="TableRow1" height="23">使用设置</td>
+		<td class="TableRow1" style="line-height: 150%">第一次使用<font color="#ff0000">免费者</font>网站管理系统<br />
+		点击左边管理导航菜单中的&ldquo;<a href="admin_config.jsp"><font color="#ff0000">常规设置-基本设置</font></a>&rdquo;<br />
+		对你的网站信息和一些网站配置参数进行配置。</td>
+	</tr>
+</table>
+<br/>
+<table class="tableBorder" cellspacing="1" cellpadding="3" width="96%" align="center" border="0">
+	<tr>
+		<th colspan="2" height="25" align="left">网站管理系统版本</th>
+	</tr>
+	<tr>
+		<td class="TableRow1" width="60" height="23">当前版本</td>
+		<td class="TableRow1" style="line-height: 150%"><strong style="color: blue">免费者内容管理系统 Beta1.0 SQL版</strong><br /></td>
+	</tr>
+	<tr>
+		<td class="TableRow2" height="23">版权声明</td>
+		<td class="TableRow2" style="line-height: 150%">　1、本软件为共享软件,未经书面授权，不得向任何第三方提供本软件系统;<br />
+		　2、用户自由选择是否使用,在使用中出现任何问题和由此造成的一切损失作者将不承担任何责任;<br />
+		　3、您可以对本系统进行修改和美化，但必须保留完整的版权信息; <br />
+		　4、本软件受中华人民共和国《著作权法》《计算机软件保护条例》等相关法律、法规保护，作者保留一切权利。　</td>
+	</tr>
+</table>
+<br/>
+<table class="tableBorder" cellspacing="1" cellpadding="3" width="96%" align="center" border="0">
+	<tr>
+		<th colspan="2" height="25" align="left">网站管理系统开发</th>
+	</tr>
+	<tr>
+		<td class="TableRow1" width="60" height="23">程序制作</td>
+		<td class="TableRow1">免费者 - 落八</td>
+	</tr>
+	<tr>
+		<td class="TableRow2" height="23">联系方式</td>
+		<td class="TableRow2">E_mail：83439123@qq.com&nbsp;&nbsp;&nbsp;&nbsp;QQ：83439123&nbsp;&nbsp;8251904<br />
+		<b>说明：</b><font color="red">本人希望和大家交个朋友，有需要继续开发的请联系我的QQ。</font></td>
+	</tr>
+	<tr>
+		<td class="TableRow1" height="23">程序主页</td>
+		<td class="TableRow1"><a target="_blank" href="http://www.mianfeizhe.com/">www.mianfeizhe.com</a>　　 <a target="_blank" href="http://www.mianfeizhe.cn/">www.mianfeizhe.cn </a></td>
+	</tr>
+</table>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

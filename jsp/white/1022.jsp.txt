@@ -1,0 +1,104 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%
+	String url = request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script type="text/javascript">
+		function sub(){
+			if(document.frm.username.value.length<=2) {
+				alert("用户名称长度不正确!");
+				return;
+			} 
+			else if(document.frm.userpwd.value.length<=5||document.frm.userpwd.value!=document.frm.pwd2.value){
+				alert("密码长度少于六位数或者两次输入不相同!");
+				return;
+			}
+			else if(document.frm.email.value.length<=3||document.frm.email.value.indexOf('@')==-1){
+				alert("邮箱地址输入错误!");
+				return;
+			}
+			else if(document.frm.question.value.length==0){
+				alert("请输入密保问题!");
+				return;
+			}
+			else if(document.frm.result.value.length==0||document.frm.result.value==document.frm.question.value){
+				alert("密保答案不能为空且不能与密保问题相同!");
+				return;
+			}else{
+				frm.submit();
+			}
+		}
+</script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<table class="tableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="2">添加会员</th>
+	</tr>
+	<form action="<%=url%>/regservlets" method="post" name="frm">
+		<tr>
+			<td class="tablerow1" align="right" width="30%"><strong>登陆名称：</strong></td>
+			<td class="tablerow1" width="70%"><input name="username" type="text" /></td>
+		</tr>
+		<input type="hidden" name="action" value="add">
+		<tr>
+			<td class="tablerow2" align="right"><strong>用户密码：</strong></td>
+			<td class="tablerow2"><input type="password" name="userpwd" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow1" align="right"><strong>确认密码：</strong></td>
+			<td class="tablerow1"><input type="password" name="pwd2" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow1" align="right"><strong>用户邮箱：</strong></td>
+			<td class="tablerow1"><input size="30" name="email" value="83439123@qq.com" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow2" align="right"><strong>密保问题：</strong></td>
+			<td class="tablerow2"><input name="question" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow2" align="right"><strong>密保答案：</strong></td>
+			<td class="tablerow2"><input name="result" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow2" align="right"><strong>用户姓别：</strong></td>
+			<td class="tablerow2"><select name="sex">
+			<option value="男" selected="selected">帅哥</option>
+			<option value="女">美女</option>
+			</select></td>
+		</tr>
+		
+		<tr>
+			<td class="tablerow2" align="right"><strong>主页地址:</strong></td>
+			<td class="tablerow2"><input size="10" name="weburl" value="http://" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow2" align="right"><strong>QQ:</strong></td>
+			<td class="tablerow2"><input size="10" name="qq" value="" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="tablerow1" align="right"><strong>所属用户组：</strong></td>
+			<td class="tablerow1"><select name="UserGrade">
+		<option value="1,普通会员" selected>普通会员</option>
+			</select></td>
+		</tr>
+		<tr align="center">
+			<td class="tablerow1" colspan="2"><input class="Button" type="button" onclick="javascript:history.go(-1)" name="Submit2" value="返回上一页" /> <input class="Button" type="button" name="Submit1" value="添加用户" onclick="sub();"/></td>
+		</tr>
+	</form>
+</table>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

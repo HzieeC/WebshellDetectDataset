@@ -1,0 +1,495 @@
+﻿﻿<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+	<head>
+		<title>e购订货系统</title>
+		<%@ include file="/commons/taglibs.jsp"%>
+		<%@ include file="/commons/meta.jsp"%>
+
+		<link rel="stylesheet" type="text/css"
+			href="${ctx }/styles/index/index4.css" />
+		<link rel="stylesheet" type="text/css"
+			href="${ctx }/scripts/framework/easyui/themes/default/easyui.css">
+		<link rel="stylesheet" type="text/css"
+			href="${ctx }/scripts/framework/easyui/themes/icon.css">
+
+
+		<script language="JavaScript" type="text/javascript"
+			src="${ctx }/scripts/framework/jquery.js"></script>
+		<script type="text/javascript"
+			src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+
+		<script language="JavaScript" type="text/javascript"
+			src="${ctx }/scripts/index/main.js"></script>
+				
+	</head>
+
+	<body class="easyui-layout"> 
+		<div region="north" style="height: 114px; background-color: #86AEEC;">
+			<div class="header">
+				<div class="tel">
+<!--					<s:text name="main.service"/>:400-100-1922-->
+				</div>
+			</div>
+			<div class="banner for">
+				<div class="peo3">
+					<img src="${ctx }/Images/index/peo3.gif" height="23" width="17" />
+				</div>
+				<div class="font1">
+					${loginUser.roleName }&nbsp;<s:text name="main.system"/>
+				</div>
+				<div class="font2">
+					${loginUser.name },<s:text name="main.welcome"/>!
+					<a href="javascript:void(0)" target="_self"
+						onClick="javascript:logout();"> <img
+							src="${ctx }/Images/index/bott.gif" alt="logout" width="46"
+							height="16" border="0"> </a>
+				</div>
+			</div>
+		</div>
+
+		<div region="west" title="<s:text name="main.menu"/>"
+			style="width: 161px; padding: 0px; overflow: hidden;">
+			<div class="leftbanner">
+
+				<!-- 菜单 开始 -->
+
+				<!-- 经销商菜单开始 -->
+				<c:if
+					test="${not empty powerMap['customer_info'] && loginUser.roleCode != 'admin'}">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/order.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.AccountCenter"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.MyProfile"/>','${ctx}/customer!showMaterial.do')"><s:text name="main.MyProfile"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.ShippingAddress"/>','${ctx}/receivedAddress!list.do')"><s:text name="main.ShippingAddress"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.ChangingPasswords"/>','${ctx}/customer!modifierPwd.do')"><s:text name="main.ChangingPasswords"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)" 
+									onclick="addTab('<s:text name="main.SendMessages"/>','${ctx}/message!listSend.do')"><s:text name="main.SendMessages"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.CollectMessages"/>','${ctx}/message!listAccept.do')"><s:text name="main.CollectMessages"/></a>
+							</li>
+						</ul>
+					</div>
+				</c:if>
+
+				<c:if
+					test="${not empty powerMap['customer_buy'] && loginUser.roleCode != 'admin'}">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/order.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.OrderingtheGoods"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.OrdinaryOrder"/>','${ctx}/generalOrder!list.do')"><s:text name="main.OrdinaryOrder"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.QuickOrder"/>','${ctx}/orders!fastOrders.do')"><s:text name="main.QuickOrder"/></a>
+							</li>
+						</ul>
+					</div>
+				</c:if>
+
+				<c:if test="${not empty powerMap['customer_order'] && loginUser.roleCode != 'admin'}">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/order.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.OrderManagement"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.AllOrders"/>','${ctx}/orders!list.do?1=1')"><s:text name="main.AllOrders"/></a>  <!-- 所有订单 -->
+							</li>
+							<li style="display:none;">
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.ConfirmationOrders"/>','${ctx}/orders!list.do?orders.state=0')"><s:text name="main.ConfirmationOrders"/></a>  <!-- 待审核订单 -->
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.PaymentOrders"/>','${ctx}/orders!list.do?orders.payState=0&orders.payState=0')"><s:text name="main.PaymentOrders"/></a>  <!-- 待付款订单 -->
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.ProcessingOrders"/>','${ctx}/orders!list.do?orders.payState=0&orders.state=1')"><s:text name="main.ProcessingOrders"/></a>   <!-- 处理中的订单 -->
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.HistoricalOrders"/>','${ctx}/orders!list.do?orders.payState=0&orders.flowStateStr=3,1')"><s:text name="main.HistoricalOrders"/></a>  <!-- 历史订单 -->
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.ShoppingCart"/>','${ctx }/good!myShoppingCar.do')"><s:text name="main.ShoppingCart"/></a>
+							</li>
+						</ul>
+					</div>
+				</c:if>
+
+				<!--
+				<c:if test="${loginUser.roleCode == 'customer'}">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/order.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.ProductsComplaints"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.IhaveaComplaint"/>','${ctx}/goodsComplaints!edit.do')"><s:text name="main.IhaveaComplaint"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.MyComplaint"/>','${ctx}/goodsComplaints!list.do')"><s:text name="main.MyComplaint"/></a>
+							</li>
+
+						</ul>
+					</div>
+				</c:if>
+				-->
+				<!-- 经销商菜单结束 -->
+
+				<!-- 管理员菜单开始 -->
+				<c:if test="${not empty powerMap['admin_customer'] }">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/order.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.CustomerManagement"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.CustomerList"/>','${ctx}/customer!list.do')"><s:text name="main.CustomerList"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.CustomerLevel"/>','${ctx}/vipLevel!list.do')"><s:text name="main.CustomerLevel"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.SendMessages"/>','${ctx}/message!listSend.do')"><s:text name="main.SendMessages"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.CollectMessages"/>','${ctx}/message!listAccept.do')"><s:text name="main.CollectMessages"/></a>
+							</li>
+						</ul>
+					</div>
+				</c:if>
+
+				<c:if test="${not empty powerMap['admin_order'] }">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/order.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.OrderManagement"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.OfflineOrders"/>','${ctx}/orders!edit.do')"><s:text name="main.OfflineOrders"/></a>  <!-- 线下下单 -->
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.AllOrders"/>','${ctx}/orders!list.do?1=1')"><s:text name="main.AllOrders"/></a>   <!-- 所有订单 -->
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.Toreviewtheorder"/>','${ctx}/orders!list.do?orders.state=0')"><s:text name="main.Toreviewtheorder"/></a>   <!-- 待审核订单 -->
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.PaymentOrders"/>','${ctx}/orders!list.do?orders.payState=0')"><s:text name="main.PaymentOrders"/></a>   <!-- 待付款订单 -->
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.ProcessingOrders"/>','${ctx}/orders!list.do?orders.state=1&orders.payStr=str')"><s:text name="main.ProcessingOrders"/></a>   <!-- 处理中的订单 -->
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.HistoricalOrders"/>','${ctx}/orders!list.do?orders.flowStateStr=str')"><s:text name="main.HistoricalOrders"/></a>   <!-- 历史订单 -->
+							</li>
+						</ul>
+					</div>
+				</c:if>
+
+				<c:if test="${not empty powerMap['admin_good'] }">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/mix.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.CommodityManagement"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.OrderingListingPage"/>','${ctx}/good!list.do')"><s:text name="main.OrderingListingPage"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.ProductTypeName"/>','${ctx}/goodType!list.do')"><s:text name="main.ProductTypeName"/></a>
+							</li>
+							<li><a href="javascript:void(0)" onclick="addTab('商品规格','${ctx}/goodSpecification!list.do')">商品规格</a></li>
+						</ul>
+					</div>
+				</c:if>
+				 
+		            <div class="ban1">
+		            	<div class="pic"><img src="${ctx }/Images/index/mix.gif" width="21" height="18" /></div>
+		                <div class="font4">广告管理</div>
+		            </div>
+		            <div class="submenu">
+		            	<ul>
+							<li><a href="javascript:void(0)" onclick="addTab('广告管理','${ctx}/advertise!list.do')">广告管理</a></li>
+		                	<!-- <li><a href="javascript:void(0)" onclick="addTab('杂志管理','${ctx}/magazine!list.do')">杂志管理</a></li> -->
+		                </ul>
+		            </div>		    
+	            
+
+				<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/mix.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.NewsManagement"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)" onclick="addTab('<s:text name="main.UserCenter"/>','${ctx}/information!list.do?information.type=1')"><s:text name="main.UserCenter"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)" onclick="addTab('<s:text name="main.Newsinfo"/>','${ctx}/information!list.do?information.type=2')"><s:text name="main.Newsinfo"/></a>
+							</li>
+			
+						</ul>
+					</div>
+			
+				<!--   
+     	       <c:if test="${not empty powerMap['sms'] }">
+		            <div class="ban1">
+		            	<div class="pic"><img src="${ctx }/Images/index/order.gif" width="21" height="18" /></div>
+		                <div class="font4">我的短信</div>
+		            </div>
+		            <div class="submenu">
+		            	<ul>
+							<li><a href="javascript:void(0)" onclick="addTab('短信管理','${ctx}/sms!list.do')">短信管理</a></li>
+		                </ul>
+		            </div>		            
+	            </c:if>	
+	            
+	            <c:if test="${not empty powerMap['mail'] }">
+		            <div class="ban1">
+		            	<div class="pic"><img src="${ctx }/Images/index/order.gif" width="21" height="18" /></div>
+		                <div class="font4">站内消息</div>
+		            </div>
+		            <div class="submenu">
+		            	<ul>
+		            		<li><a href="javascript:void(0)" onclick="addTab('发信息','${ctx}/message!listSend.do')">发信息</a></li>
+		              		<li><a href="javascript:void(0)" onclick="addTab('收信息','${ctx}/message!listAccept.do')">收信息</a></li>
+		                </ul>
+		            </div>		            
+	            </c:if>-->
+
+				<c:if test="${not empty powerMap['pay_delivery'] }">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/mix.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.PaymentandDelivery"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.PaymentMethod"/>','${ctx}/payment!list.do')"><s:text name="main.PaymentMethod"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.DeliveryMethod"/>','${ctx}/delivery!list.do')"><s:text name="main.DeliveryMethod"/></a>
+							</li>
+						</ul>
+					</div>
+				</c:if>
+
+<!--  			<c:if test="${not empty powerMap['baseinfo'] }">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/manage.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.EssentialInformation"/>
+						</div>
+					</div>
+				<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.AreaInfo"/>','${ctx}/area!list.do')"><s:text name="main.AreaInfo"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.NewsManagement"/>','${ctx}/information!list.do?information.type=1')"><s:text name="main.NewsManagement"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.InformationManagement"/>','${ctx}/information!list.do?information.type=2')"><s:text name="main.InformationManagement"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.DataDictionary"/>','${ctx}/Dictionary!list.do')"><s:text name="main.DataDictionary"/></a>
+							</li>
+						</ul>
+					</div>
+				</c:if>
+-->
+				<c:if test="${not empty powerMap['system'] }">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/system.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.SystemManagement"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.SystemUser"/>','${ctx }/SysUser!list.do?LJ=XT')"><s:text name="main.SystemUser"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.SystemRole"/>','${ctx }/SysRole!list.do')"><s:text name="main.SystemRole"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.SystemPrivileges"/>','${ctx }/SysPower!list.do')"><s:text name="main.SystemPrivileges"/></a>
+							</li>
+							<li>
+								<a href="javascript:void(0)" onclick="backupData()"><s:text name="main.DataBackup"/></a>
+							</li>
+						</ul>
+					</div>
+				</c:if>
+				
+				<c:if test="${loginUser.roleCode != 'customer' }">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/Chart.gif" width="21"
+								height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.Salesstatistics"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.Salesstatistics"/>','${ctx }/saledetail!list.do')"><s:text name="main.Salesstatistics"/></a>
+							</li>
+						</ul>
+					</div>
+				</c:if>
+
+				<c:if test="${not empty powerMap['desktop'] }">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/maintenance.gif" width="21"
+								height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.MyDesktop"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.ChangePassword"/>','${ctx }/SysUser!editPassword.do')"><s:text name="main.ChangePassword"/></a>
+							</li>
+						</ul>
+					</div>
+				</c:if>
+				
+				<!-- 
+					<c:if test="${loginUser.roleCode != 'customer'&&loginUser.roleCode != 'financial'}">
+					<div class="ban1">
+						<div class="pic">
+							<img src="${ctx }/Images/index/order.gif" width="21" height="18" />
+						</div>
+						<div class="font4">
+							<s:text name="main.ProductsComplaints"/>
+						</div>
+					</div>
+					<div class="submenu">
+						<ul>
+							<li>
+								<a href="javascript:void(0)"
+									onclick="addTab('<s:text name="main.ComplaintManagement"/>','${ctx}/goodsComplaints!list.do')"><s:text name="main.ComplaintManagement"/></a>
+							</li>
+
+						</ul>
+					</div>
+				</c:if>
+				 -->
+				<!-- 菜单 结束 -->
+
+			</div>
+		</div>
+
+		<div region="center" style="overflow: hidden;">
+			<div id="tab_area">
+			</div>
+		</div>
+		
+		<!-- 语言设置-->
+		<input type="hidden" id="AllOrders" value="<s:text name="main.AllOrders"/>"/>
+	</body>
+
+</html>

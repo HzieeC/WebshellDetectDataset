@@ -1,0 +1,304 @@
+<!--#include file = admin_chk.asp -->
+<!--#include file= ../Include/cgsail_pub_cls.asp -->
+<%
+'**************设计之帆网站管理系统asp木马查找 ************
+' copyright 2009
+' create:2009- 6-16
+' update:2009-7-12  设计之帆网站管理系统 www.cgsail.com  QQ：369615259
+'***************************************************
+
+server.scripttimeout = 600
+dimfileext = "asp,cer,asa,cdx"
+dim report, sun, sumfiles, sumfolders
+
+	sun = 0
+	sumfiles = 0
+	sumfolders = 1
+	requestpath = request.form("path")
+	if requestpath = "" or instr(requestpath,"..\") then
+		response.write("no hack")
+		response.end()
+	end if
+	timer1 = timer
+	if requestpath = "\" then
+		tmppath = server.mappath("\")
+	elseif requestpath = "." then
+		tmppath = server.mappath(".")
+	else
+		tmppath = server.mappath("\" & requestpath)
+	end if
+	call showallfile(tmppath)
+%>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=gb2312">
+<link rel="stylesheet" rev="stylesheet" href="inc/control.css" type="text/css" media="all" /> 
+<style type="text/css">
+<!--
+.STYLE3 {font-size: 16px}
+-->
+</style>
+</head>
+
+<body class="contentbody">
+<div class="maindiv">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" class="ccontent" style="word-break:break-all">
+  <tr>
+    <th  height="25">asp木马搜索结果
+  </tr>
+  <tr>
+    <td class="cpanel">
+        
+<span class="STYLE3"><br>
+扫描完毕！一共检查文件夹<font color="#ff0000"><%=sumfolders%></font>个，文件<font color="#ff0000"><%=sumfiles%></font>个，发现可疑点<font color="#ff0000"><%=sun%></font>个（<font color="#ff0000">红字</font>显示的为严重可疑）</span><br>	
+<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#CCFF99">
+	 <tr>
+		 <td valign="top">
+			 <table width="100%" border="1" cellpadding="0" cellspacing="0" style="padding:5px;line-height:170%;clear:both;font-size:12px">
+			 <tr>
+			   <td width="20%">文件相对路径</td>
+			   <td width="20%">特征码</td>
+			   <td width="40%">描述</td>
+			   <td width="20%">创建/修改时间</td>
+			   </tr>
+		     <p>
+			 <%=report%>
+			 <br/></p>
+			 </table></td>
+	 </tr>
+	</table>
+</td></tr></table>
+<%
+timer2 = timer
+thetime=cstr(int(((timer2-timer1)*10000 )+0.5)/10)
+response.write "<br><font size=""2"">本页执行共用了"&thetime&"毫秒</font>"
+%>
+</div>
+</body>
+</html>
+<%
+'遍历处理path及其子目录所有文件
+sub showallfile(path)
+	on error resume next
+	if not response.isclientconnected then response.end()
+	set fso = createobject("scripting.filesystemobject")
+	if not fso.folderexists(path) then exit sub
+	set f = fso.getfolder(path)
+	set fc2 = f.files
+	for each myfile in fc2
+		if err then response.write("权限不足，不能检查目录 <b>"&path&"</b><br>"):exit sub
+		if checkext(fso.getextensionname(path&"\"&myfile.name)) then
+			call scanfile(path&temp&"\"&myfile.name, "")
+			sumfiles = sumfiles + 1
+		end if
+	next
+	set fc = f.subfolders
+	for each f1 in fc
+		showallfile path&"\"&f1.name
+		sumfolders = sumfolders + 1
+    next
+	set fso = nothing
+end sub
+
+'检测文件
+sub scanfile(filepath, infile)
+	if infile <> "" then
+		infiles = "<font color=red>该文件被<a href=""http://"&request.servervariables("server_name")&"/"&turlencode(infile)&""" target=_blank>"& infile & "</a>文件包含执行</font>"
+	end if
+	temp = "<a href=""http://"&request.servervariables("server_name")&"/"&turlencode(replace(replace(filepath,server.mappath("\")&"\","",1,1,1),"\","/"))&""" target=_blank>"&replace(filepath,server.mappath("\")&"\","",1,1,1)&"</a>"
+	on error resume next
+	set tstream = server.createobject("adodb.stream")
+	tstream.type = 1
+	tstream.mode = 3
+	tstream.open
+	tstream.position=0
+	tstream.loadfromfile filepath
+	if err then exit sub end if
+	tstream.type = 2
+	tstream.charset = "gb2312"
+	do until tstream.eos
+		filetxt = filetxt & lcase(replace(tstream.readtext(102400), chr(0), ""))
+	loop
+	tstream.close()
+	set tstream = nothing
+
+	set fsos = createobject("scripting.filesystemobject")	
+	if len(filetxt) >0 then
+		'特征码检查
+		filetxt = vbcrlf & filetxt
+			'check "wscr"&domybest&"ipt.shell"
+			if instr( filetxt, lcase("wscr"&domybest&"ipt.shell") ) or instr( filetxt, lcase("clsid:72c24dd5-d70a"&domybest&"-438b-8a42-98424b88afb8") ) then
+				report = report&"<tr><td>"&temp&"</td><td>wscr"&domybest&"ipt.shell 或者 clsid:72c24dd5-d70a"&domybest&"-438b-8a42-98424b88afb8</td><td><font color=red>危险组件，一般被asp木马利用</font>"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'check "she"&domybest&"ll.application"
+			if instr( filetxt, lcase("she"&domybest&"ll.application") ) or instr( filetxt, lcase("clsid:13709620-c27"&domybest&"9-11ce-a49e-444553540000") ) then
+				report = report&"<tr><td>"&temp&"</td><td>she"&domybest&"ll.application 或者 clsid:13709620-c27"&domybest&"9-11ce-a49e-444553540000</td><td><font color=red>危险组件，一般被asp木马利用</font>"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'check .encode
+			set regex = new regexp
+			regex.ignorecase = true
+			regex.global = true
+			regex.pattern = "\blanguage\s*=\s*[""]?\s*(vbscript|jscript|javascript).encode\b"
+			if regex.test(filetxt) then
+				report = report&"<tr><td>"&temp&"</td><td>(vbscript|jscript|javascript).encode</td><td><font color=red>似乎脚本被加密了，一般asp文件是不会加密的<a href=plugins/decoder.asp?path="&server.urlencode(filepath)&" target=_blank>[解密]</a></font>"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'check my asp backdoor :(
+			regex.pattern = "\bev"&"al\b"
+			if regex.test(filetxt) then
+				report = report&"<tr><td>"&temp&"</td><td>ev"&"al</td><td>e"&"val()函数可以执行任意asp代码，被一些后门利用。其形式一般是：ev"&"al(x)<br>但是javascript代码中也可以使用，有可能是误报。"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'Check exe&cute backdoor
+			regEx.Pattern = "[^.]\bExe"&"cute(Global)?\b"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>Exec"&"ute()或者Exe"&"cuteGlobal()</td><td><font color=red>该函数可以执行任意ASP代码，被一些后门利用。其形式一般是：ex"&"ecute(X)</font><br>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check Script.Control
+			regEx.Pattern = "\.Execu"&"teStatement\b"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>.Exec"&"uteStatement</td><td><font color=red>发现MSScriptControl.ScriptControl的.Execut"&"eStatement函数</font><br>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'check .(open|create)textfile
+			regex.pattern = "\.(open|create)textfile\b"
+			if regex.test(filetxt) then
+				report = report&"<tr><td>"&temp&"</td><td>.crea"&"tetextfile|.o"&"pentextfile</td><td>使用了fso的createtextfile|opentextfile函数读写文件"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'check .savet&ofile
+			regex.pattern = "\.savet"&"ofile\b"
+			if regex.test(filetxt) then
+				report = report&"<tr><td>"&temp&"</td><td>.sa"&"vetofile</td><td>使用了stream或者jmail的savetofile函数写文件"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'check .&save|.&saveas
+			regex.pattern = "\.sa"&"ve(as)?\b"
+			if regex.test(filetxt) then
+				report = report&"<tr><td>"&temp&"</td><td>.sa"&"ve或者.sa"&"veas</td><td>使用了save或saveas函数写文件"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'check set server
+			regex.pattern = "set\s*.*\s*=\s*server\s"
+			if regex.test(filetxt) then
+				report = report&"<tr><td>"&temp&"</td><td>set xxx=se"&"rver</td><td><font color=red>发现set xxx=ser" & jj & "ver，请管理员仔细检查是否调用.execute</font><br>"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'check server.(transfer|ex&ecute)
+			regex.pattern = "server.(ex"&"ecute|transfer)([ \t]*|\()[^""]\)"
+			if regex.test(filetxt) then
+				report = report&"<tr><td>"&temp&"</td><td>server.ex"&"ecute</td><td><font color=red>不能跟踪检查server.e"&"xecute()函数执行的文件。请管理员自行检查</font><br>"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'check .ru&n
+			regex.pattern = "\.r"&"un\b"
+			if regex.test(filetxt) then
+				report = report&"<tr><td>"&temp&"</td><td>.ru"&"n</td><td><font color=red>发现 wscript 的 run 函数</font><br>"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'check .exe&c
+			regex.pattern = "\.ex"&"ec\b"
+			if regex.test(filetxt) then
+				report = report&"<tr><td>"&temp&"</td><td>.ex"&"ec</td><td><font color=red>发现 wscript 的 exec 函数</font><br>"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'check .shel&lexecute
+			regex.pattern = "\.shel"&"lexecute\b"
+			if regex.test(filetxt) then
+				report = report&"<tr><td>"&temp&"</td><td>.shelle"&"xecute</td><td><font color=red>发现 application 的 shellexecute 函数</font><br>"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			'check .&create
+			regex.pattern = "\.cre"&"ate\b"
+			if regex.test(filetxt) then
+				report = report&"<tr><td>"&temp&"</td><td>.crea"&"te</td><td>发现 create 函数<br>"&infiles&"</td><td>"&getdatecreate(filepath)&"<br>"&getdatemodify(filepath)&"</td></tr>"
+				sun = sun + 1
+			end if
+			set regex = nothing
+
+		
+		'check include file not with "&' 
+		set regex = new regexp
+		regex.ignorecase = true
+		regex.global = true
+		regex.pattern = "<!--\s*#include\s+(file|virtual)\s*=\s*.*-->"
+		set matches = regex.execute(filetxt)
+		for each match in matches
+			tfile = replace(trim(mid(match.value, instr(match.value, "=") + 1, len(match.value) - instr(match.value, "=") - 1)),"/","\")
+			if left(tfile, 1)="'" then
+				tfile = mid(tfile, 2, instr(2, tfile, "'", 1) - 2)
+			elseif left(tfile, 1)="""" then
+				tfile = mid(tfile, 2, instr(2, tfile, """", 1) - 2)
+			else
+				tfile = replace(tfile, chr(9), " ")
+				if instr(tfile, " ") <> 0 then 
+					tfile = left(tfile, instr( tfile, " ") - 1)
+				else
+					tfile = left(tfile, instr( tfile, "-") - 1)
+				end if
+			end if
+			if not checkext(fsos.getextensionname(tfile)) then
+				call scanfile( mid(filepath,1,instrrev(filepath,"\"))&tfile, replace(filepath,server.mappath("\")&"\","",1,1,1) )
+				sumfiles = sumfiles + 1
+			end if
+		next
+		set matches = nothing
+		set regex = nothing
+				
+		'check server&.execute|transfer
+		set regex = new regexp
+		regex.ignorecase = true
+		regex.global = true
+		regex.pattern = "server.(exec"&"ute|transfer)([ \t]*|\()"".*?"""
+		set matches = regex.execute(filetxt)
+		for each match in matches
+			tfile = replace(mid(match.value, instr(match.value, """") + 1, len(match.value) - instr(match.value, """") - 1),"/","\")
+			if not checkext(fsos.getextensionname(tfile)) then
+				call scanfile( mid(filepath,1,instrrev(filepath,"\"))&tfile, replace(filepath,server.mappath("\")&"\","",1,1,1) )
+				sumfiles = sumfiles + 1
+			end if
+		next
+		set matches = nothing
+		set regex = nothing
+			
+		'check runatscript
+		set xregex = new regexp
+		xregex.ignorecase = true
+		xregex.global = true
+		xregex.pattern = "<scr"&"ipt\s*(.|\n)*?runat\s*=\s*""?server""?(.|\n)*?>"
+		set xmatches = xregex.execute(filetxt)
+		for each match in xmatches
+			tmplake2 = mid(match.value, 1, instr(match.value, ">"))
+			srcseek = instr(1, tmplake2, "src", 1)
+			if srcseek > 0 then
+				srcseek2 = instr(srcseek, tmplake2, "=")
+				for i = 1 to 50
+					tmp = mid(tmplake2, srcseek2 + i, 1)
+					if tmp <> " " and tmp <> chr(9) and tmp <> vbcrlf then
+						exit for
+					end if
+				next
+				if tmp = """" then
+					tmpname = mid(tmplake2, srcseek2 + i + 1, instr(srcseek2 + i + 1, tmplake2, """") - srcseek2 - i - 1)
+				else
+					if instr(srcseek2 + i + 1, tmplake2, " ") > 0 then tmpname = mid(tmplake2, srcseek2 + i, instr(srcseek2 + i + 1, tmplake2, " ") - srcseek2 - i) else tmpname = tmplake2
+					if instr(tmpname, chr(9)) > 0 then tmpname = mid(tmpname, 1, instr(1, tmpname, chr(9)) - 1)
+					if instr(tmpname, vbcrlf) > 0 then tmpname = mid(tmpname, 1, instr(1, tmpname, vbcrlf) - 1)
+					if instr(tmpname, ">") > 0 then tmpname = mid(tmpname, 1, instr(1, tmpname, ">") - 1)
+				end if
+				call scanfile( mid(filepath,1,instrrev(filepath,"\"))&tmpname , replace(filepath,server.mappath("\")&"\","",1,1,1))
+				sumfiles = sumfiles + 1
+			end if
+		next
+		set matches = nothing
+		set regex = nothing
+
+	end if
+		set fsos = nothing
+
+end sub
+
+%>

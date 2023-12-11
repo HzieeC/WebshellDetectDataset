@@ -1,0 +1,256 @@
+<%
+Rem Add By Dv.唧唧.Net 关闭圈子功能 2007-10-15
+If Dvbbs.forum_setting(104)=0 And Not Dvbbs.Master Then
+	Response.redirect "showerr.asp?ErrCodes=<li>对不起，本论坛的圈子功能已经关闭！</li>&action=OtherErr"
+End If
+
+Dim Dv_IndivGroup_MainClass
+Set Dv_IndivGroup_MainClass = New Dv_IndivGroup_MainClass_Forum
+
+Class Dv_IndivGroup_MainClass_Forum
+	Private Rs,SQL
+	Public ID,Name,Info,AppUserID,AppUserName,UserNum,GroupStats,PostNum,TopicNum,TodayNum,YesterdayNum,LimitMemberNum,PassDate,VisitDate,ViewFlag,GroupLogo,ClassId
+	Public BoardID,BoardName,BoardStats,InfoXMLDom,BoardXMLDom
+	Public PowerFlag,PageDescription,Stats,ShowSQL,Page
+
+	Private Sub Class_Initialize()
+		Call LoadGroupClass()
+		ID = Dvbbs.CheckNumeric(Request("GroupID")):Name=""
+		BoardID = Dvbbs.CheckNumeric(Request("GroupBoardID")):BoardName=""
+		Page = Dvbbs.CheckNumeric(Request("Page")):If Page=0 Then Page=1
+		AppUserID=0:AppUserName=""
+		PowerFlag=0
+		If ID>0 Then
+			'GroupName=0,GroupInfo=1,AppUserID=2,AppUserName=3,UserNum=4,Stats=5,PostNum=6
+			'TopicNum=7,TodayNum=8,YesterdayNum=9,LimitUser=10,PassDate=11,visitDate=12,id=13,Locked=14,ViewFlag=15
+			Set Rs=Execute("Select GroupName,GroupInfo,AppUserID,AppUserName,UserNum,Stats,PostNum,TopicNum,TodayNum,YesterdayNum,LimitUser,PassDate,visitDate,id,Locked,ViewFlag,GroupLogo,ClassId From Dv_GroupName Where ID="&ID)
+			If Not Rs.Eof Then
+				Name=Rs(0):Info=Rs(1):GroupStats=Rs(5):LimitMemberNum=Rs(10)
+				AppUserID=Rs(2):AppUserName=Rs(3)
+				UserNum=Rs(4):PostNum=Rs(6):TopicNum=Rs(7):YesterdayNum=Rs(9)
+				TodayNum=Rs(8):If IsNull(TodayNum) Then TodayNum=0
+				PassDate=Rs(11)
+				PageDescription=Rs(1)
+				VisitDate = Rs(12)
+				ViewFlag = Rs(15)
+				GroupLogo = Rs(16)
+				ClassId = Rs(17)
+				If IsDate(VisitDate) Then
+					If Datediff("d",VisitDate,Now())>0 Then
+						Execute("Update Dv_GroupName Set visitDate='"&Now()&"',TodayNum=0,YesterdayNum="&TodayNum&" Where ID="&ID)
+						YesterdayNum=TodayNum:TodayNum=0:VisitDate=Now()
+						Execute("Update Dv_Group_Board Set TodayNum=0 Where RootID="&ID)
+					End If
+				Else
+					Execute("Update Dv_GroupName Set visitDate='"&Now()&"',TodayNum=0,YesterdayNum="&TodayNum&" Where ID="&ID)
+					YesterdayNum=TodayNum:TodayNum=0:VisitDate=Now()
+					Execute("Update Dv_Group_Board Set TodayNum=0 Where RootID="&ID)
+				End If
+				Set InfoXMLDom = Dvbbs.RecordsetToxml(Rs,"Info","IndivGroup")
+			End If
+			Rs.Close:Set Rs=Nothing
+			Call CheckPower
+			Call LoadGroupBoard
+		End If
+	End Sub
+	'圈子权限判断
+	Public Sub CheckPower()
+		Dim UserIndivGroupStr,CheckFlag
+		If Dvbbs.UserID>0 Then
+			UserIndivGroupStr=Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@usergroup").text
+			If UserIndivGroupStr="" Or IsNull(UserIndivGroupStr) Then UserIndivGroupStr=","
+			CheckFlag = Dvbbs.CheckNumeric(InStr(UserIndivGroupStr,","&ID&","))
+			If CheckFlag>0 Then
+				Set Rs=Execute("Select * From Dv_GroupUser Where GroupID="&ID&" And UserID="&Dvbbs.UserID&" And IsLock=2")
+				If Not Rs.Eof Then PowerFlag=3 Else PowerFlag=7
+			Else
+				Set Rs=Execute("Select IsLock From Dv_GroupUser Where GroupID="&ID&" And UserID="&Dvbbs.UserID&" And IsLock>0")
+				If Not Rs.Eof Then
+					If Rs(0)=2 Then PowerFlag=3 Else PowerFlag=7
+					UserIndivGroupStr=UserIndivGroupStr & ID&","
+					Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@usergroup").text=UserIndivGroupStr
+					Dvbbs.Execute("Update Dv_User Set UserGroup='"&UserIndivGroupStr&"' Where UserID="&Dvbbs.UserID)
+				End If
+			End If
+			Rs.Close:Set Rs=Nothing
+			If Dvbbs.UserID=AppUserID Then
+				If PowerFlag=0 Then
+					Execute("Insert Into Dv_GroupUser(GroupID,UserID,UserName,IsLock) Values("&ID&","&AppUserID&",'"&AppUserName&"',2)")
+					UserIndivGroupStr=UserIndivGroupStr & ID&","
+					Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@usergroup").text=UserIndivGroupStr
+					Dvbbs.Execute("Update Dv_User Set UserGroup='"&UserIndivGroupStr&"' Where UserID="&Dvbbs.UserID)
+				End If
+				PowerFlag=2
+			End If
+			If Dvbbs.master Then PowerFlag =1
+		End If
+		If PowerFlag=0 And ViewFlag=0 Then PowerFlag=8
+	End Sub
+	'加载圈子栏目信息
+	Public Sub LoadGroupBoard()
+		Set Rs=Dvbbs.Execute("Select ID,BoardName,BoardInfo,IndexIMG,TodayNum,TopicNum,PostNum,RootID,Rules,LastPost,FoundDate,BoardStats From Dv_Group_Board Where RootID="&ID)
+		Set BoardXMLDom = Dvbbs.RecordsetToxml(Rs,"Board","BoardList")
+		Rs.Close:Set Rs=Nothing
+		If BoardID>0 Then
+			BoardName = BoardXMLDom.documentElement.selectSingleNode("Board[@id='"&BoardID&"']/@boardname").text
+			PageDescription = BoardXMLDom.documentElement.selectSingleNode("Board[@id='"&BoardID&"']/@boardinfo").text
+			BoardStats = BoardXMLDom.documentElement.selectSingleNode("Board[@id='"&BoardID&"']/@boardstats").text
+		End If
+	End Sub
+	
+	Rem 输出圈子分类列表到xml
+	Public Sub LoadGroupClass()		
+		Dim SqlStr,Rs
+		SqlStr="Select * From Dv_Group_Class Order By Orders,Id"
+		Set Rs=Dvbbs.Execute(SqlStr)
+		Set Application(Dvbbs.CacheName & "_Dv_Group_Class")=Dvbbs.RecordsetToxml(Rs,"list","groupclass")
+		Rs.Close
+	End Sub
+
+	Rem 根据id查找圈子分类名称
+	Public Function GetGroupClassName(Id)
+		Dim GroupClass
+		If Not IsObject(Application(Dvbbs.CacheName & "_Dv_Group_Class")) Then LoadGroupClass()
+		Set GroupClass = Application(Dvbbs.CacheName & "_Dv_Group_Class")
+		If Id=0 Or Id="" Or IsNull(Id) Then
+			GetGroupClassName = "个性圈子"
+		Else
+			GetGroupClassName = GroupClass.documentElement.selectSingleNode("list[@id="&Id&"]/@classname").text
+		End If
+	End Function
+
+	Public Function getGroupClassList(i)
+		Dim SqlStr,Rs,Str,sel
+		Dim SelectName
+		SqlStr="Select * From Dv_Group_Class Order By Orders,Id"
+		Set Rs=Dvbbs.Execute(SqlStr)
+		Str = "<select name=""ClassId"">"
+		Do While Not Rs.EOF			
+			If i=Rs(0) Then
+				sel = " Selected"
+			Else
+				sel =""
+			End if
+			Str = Str & "<option value="""&Rs(0)&""" "& sel &" >"&Rs(1)&"</option>"
+			Rs.MoveNext
+		Loop
+		Str = Str & "</select>"
+		getGroupClassList = Str
+	End Function
+
+	'读取圈子管理员信息
+	Public Function MasterXMLDom()
+		Set Rs=Execute("Select UserID,UserName From Dv_GroupUser Where GroupID="&ID&" And IsLock=2")
+		Set MasterXMLDom=Dvbbs.RecordsetToxml(Rs,"Master","MasterList")
+		Rs.Close:Set Rs=Nothing
+	End Function
+	'读取圈子栏目固顶评论主题
+	Public Function TopTopicXMLDom()
+		SQL = "Select topicid,GroupID,boardid,title,postusername,postuserid,dateandtime,child,hits,lastpost,lastposttime,istop,isbest,locktopic,expression,topicmode from Dv_Group_Topic Where GroupID="&ID&" And BoardID="&BoardID&" And IsTop = 1 Order By Lastposttime Desc"
+		Set Rs=Dv_IndivGroup_MainClass.Execute(SQL)
+		Set TopTopicXMLDom=Dvbbs.RecordsetToxml(rs,"row","toptopic")
+		Rs.Close:Set Rs=Nothing
+	End Function
+	'读取圈子栏目评论主题
+	Public Function TopicXMLDom(EPCount)
+		If Not IsObject(Dv_IndivGroup_Conn) Then Dv_IndivGroup_ConnectionDatabase
+		Sql="Select  TopicID,GroupID,boardid,title,postusername,postuserid,dateandtime,child,hits,lastpost,lastposttime,istop,isbest,locktopic,Expression,TopicMode,Mode From Dv_Group_Topic Where BoardID="&BoardID&" And IsTop=0 Order By LastPostTime Desc"
+		Set Rs = Dvbbs.iCreateObject ("ADODB.Recordset")
+		Rs.Open Sql,Dv_IndivGroup_Conn,1,1
+		If Page >1 Then	Rs.Move (Page-1) * EPCount
+		If Not Rs.EoF Then
+			SQL=Rs.GetRows(EPCount)
+			Set TopicXMLDom=Dvbbs.ArrayToxml(sql,rs,"row","topic")
+			SQL=Empty
+		Else
+			Set TopicXMLDom=Nothing
+		End If
+		Rs.Close:Set Rs=Nothing
+	End Function
+
+	Public Sub Head_var(IsBoard,GetTitle,GetUrl)
+		Dim Nowstats,NavStr
+		Nowstats=Dvbbs.Replacehtml(Stats)
+		If ID=0 Then PageDescription=Dvbbs.lanstr(2)&Dvbbs.Forum_Info(0)&" <b>"&template.Strings(0)&"</b> "
+		NavStr = " <a href="""&Dvbbs.Forum_Info(11)&""">"&Dvbbs.Forum_info(0)&"</a> →  <a href=""IndivGroup_List.asp?ClassId="&ClassId&""">"&GetGroupClassName(ClassId)&"</a> → "Rem template.Strings(0)
+		'NavStr = NavStr & " <a href=""IndivGroup_List.asp"">"&template.Strings(0)&"</a> → "
+		If ID>0 Then
+			If BoardID>0 Then
+				NavStr = NavStr & " <a href=""IndivGroup_Index.asp?GroupID="&ID&""" onmouseover=""showmenu(event,IndivGroupBoardJumpList("&ID&"),'',0);"" style=""cursor:hand;"">"&Name&"</a> → "
+			Else
+				NavStr = NavStr & " <a href=""IndivGroup_Index.asp?GroupID="&ID&""">"&Name&"</a> → "
+			End If
+		End If
+		If IsBoard=1 Then
+			If LCase(Dvbbs.ScriptName)="indivgroup_dispbbs.asp" Then 
+				NavStr = NavStr & "<a href=""IndivGroup_Index.asp?GroupID="&ID&"&GroupBoardID="&BoardID&"&page="&Page&""">"&BoardName&"</a>"
+			Else
+				NavStr = NavStr & "<a href=""IndivGroup_Index.asp?GroupID="&ID&"&GroupBoardID="&BoardID&""">"&BoardName&"</a>"
+			End If
+			NavStr = NavStr & " → " & Nowstats
+		Elseif IsBoard=2 Then
+			NavStr = NavStr & Nowstats
+		Else
+			NavStr = NavStr & "<a href="&GetUrl&">"&GetTitle&"</a> → " & Nowstats
+		End If
+		NavStr = Replace(Dvbbs.mainhtml(5),"{$nav}",NavStr)
+		NavStr = Replace(NavStr,"{$width}",Dvbbs.mainsetting(0))
+		NavStr = Replace(NavStr,"{$boardreadme}",PageDescription&"")
+		If Dvbbs.UserID>0 Then
+			NavStr = Replace(NavStr,"{$umsg}","<div style=""margin-right:15px""><a href=""IndivGroup_List.asp?action=mygrouplist"">我参与的圈子</a></div>")
+		Else
+			NavStr = Replace(NavStr,"{$umsg}","")
+		End If
+		'NavStr = Replace(NavStr,"{$umsg}","<a href=""IndivGroup_List.asp?action=mygrouplist"">我参与的圈子</a>")
+		NavStr = Replace(NavStr,"{$SearchStr}","")
+		NavStr = Replace(NavStr,"{$alertcolor}",Dvbbs.mainsetting(1))
+		NavStr = Replace(NavStr,"{$showstr}","")
+		Response.Write vbNewLine & NavStr
+	End Sub
+
+	Public Function Execute(Command)
+		If Not IsObject(Dv_IndivGroup_Conn) Then Dv_IndivGroup_ConnectionDatabase		
+		If IsDeBug = 0 Then 
+			On Error Resume Next
+			Set Execute = Dv_IndivGroup_Conn.Execute(Command)
+			If Err Then
+				err.Clear
+				Set Dv_IndivGroup_Conn = Nothing
+				Response.Write "查询数据的时候发现错误，请检查您的查询代码是否正确。"
+				Response.End
+			End If
+		Else
+			If Dvbbs.ShowSQL=1 Then
+				Response.Write command & "<br>"
+			End If
+			Set Execute = Dv_IndivGroup_Conn.Execute(Command)
+		End If	
+		Dvbbs.SqlQueryNum = Dvbbs.SqlQueryNum+1
+	End Function
+	'截断字符串函数
+	'参数str：被截断的字符串，strlen：截断的字符串最大长度
+	'返回截断后的字符串
+	Function cutStr(str,strlen)
+		Str=Dvbbs.Replacehtml(Str)
+		Dim l,t,c,i
+		l=Len(str)
+		t=0
+		For i=1 to l
+			c=Abs(Asc(Mid(str,i,1)))
+			If c>255 Then
+				t=t+2
+			Else
+				t=t+1
+			End If
+			If t>=strlen Then
+				cutStr=left(str,i)&"..."
+				Exit For
+			Else
+				cutStr=str
+			End If
+		Next
+		cutStr=Replace(cutStr,chr(10),"")
+		cutStr=Replace(cutStr,chr(13),"")
+	End Function
+End Class
+%>

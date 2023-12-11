@@ -1,0 +1,220 @@
+<!--#include file="../inc/mdb.asp"-->
+<!--#include file="../inc/config.asp"-->
+<!--#include file="../inc/cmspublic.asp"-->
+<!--#include file="../inc/cmsfunction.asp"-->
+<!--#include file="syscode_news.asp"-->
+<%
+'****************************************************
+
+'****************************************************
+dim cat_id,topic,sClass,sTitle,sNum,start,stt,t
+t=Request.QueryString("t")
+if request.querystring("cat_id")<>"" then
+  if not IsNumeric(request.querystring("cat_id")) then Call HxErrMsg("传值参数非法!","goto")
+  cat_id=CLng(request("cat_id"))
+else
+  cat_id=0
+end if
+sub main_Art()
+if cat_id>0 and t="" then
+  dim rs,rss,tit
+  Response.Write "<h6><span>您的位置：</span><a href='../'>网站首页</a>" 
+  set rs=conn.execute("select cat_id,cat_name,sid from newcat where cat_id="&cat_id)
+  if not rs.eof then
+     if rs("sid")>0 then
+        set rss=conn.execute("select cat_id,cat_name from newcat where cat_id="&rs("sid"))
+        Response.Write "&nbsp;>>&nbsp;<a href=""List.asp?cat_id="&rss("cat_id")&""">"&rss("cat_name")&"</a>" 
+        rss.close:set rss=nothing
+     end if
+	 tit=rs("cat_name")
+  Response.Write "&nbsp;>>&nbsp;"&rs("cat_name")&"</h6>" 
+  End IF
+  rs.close:set rs=nothing 
+else
+  Response.Write "<h6><span>您的位置：</span><a href='../'>网站首页</a>&nbsp;>>&nbsp;<a href='Index.asp'>新闻频道</a>"
+  If t="hot" Then Response.Write "&nbsp;>>&nbsp;热门新闻"
+  If t="" and cat_id=0 Then Response.Write "&nbsp;>>&nbsp;最新新闻"
+  Response.Write "</h6>"
+end if
+end sub
+sub tit()
+  dim rs,rss,tit
+  set rs=conn.execute("select cat_id,cat_name,sid from newcat where cat_id="&cat_id)
+  if not rs.eof then
+	 tit=rs("cat_name")
+  Response.Write ""&rs("cat_name")&"</h6>" 
+  End IF
+  rs.close:set rs=nothing 
+
+end sub
+sub class_Art()
+if cat_id>0 then
+dim rs,rsss,rss,ssid
+set rs=conn.execute("select cat_id,cat_name,sid from newcat where cat_id="&cat_id)
+if rs.eof then
+  Call HxErrMsg("参数错误，找不到相关的记录!","goto")
+else
+  if rs("sid")=0 then
+     topic=rs("cat_name")
+     ssid=rs("cat_id")
+  else
+     set rsss=conn.execute("select cat_id,cat_name from newcat where cat_id="&rs("sid"))
+     topic=rsss("cat_name")
+     ssid=rsss("cat_id")
+     rsss.close:set rsss=nothing
+  end if
+  rs.close:set rs=nothing
+     set rss=conn.execute("select cat_id,cat_name from newcat where sid="&ssid&" order by sorder")
+     sClass= "<ul>"
+     do while not rss.eof
+     sClass=sClass&""
+        if request("cat_id")=cstr(rss("cat_id")) then
+           sClass=sClass&" <tr><td height='20' style='BORDER-bottom: #D6E3F4 1px solid'><div align='left'>·<span class=""f13 red"">"&rss("cat_name")&"</span></div></td></tr>"
+           stt=" - "&rss("cat_name")
+        else
+           sClass=sClass&"<tr><td height='20' style='BORDER-bottom: #D6E3F4 1px solid'><div align='left'>·<a href='List.asp?cat_id="&rss("cat_id")&"'><span class='STYLE8'>"&rss("cat_name")&"</span></a></div></td></tr>"
+        end if
+        sClass=sClass&""
+    rss.movenext
+    loop
+    rss.close:set rss=nothing
+    sClass=sClass&"</ul>"
+end if
+end if
+start=topic&stt&" - 新闻频道"
+end sub
+'=================================================
+'过程名：displayList_Art
+'作  用：带分页功能的新闻列表
+'Web:    http://www.07ing.com
+'=================================================
+sub displayList_Art()
+Dim CurPage,Url_Add,Hxperpage,Sql,Rs07ing,keyword
+Url_Add="?"
+sNum=0
+Hxperpage=14
+keyword=checkspace(trim(request("keyword")))
+If Request.QueryString("Page")<>"" Then
+   Curpage=Request.QueryString("Page")
+   If IsInteger(Curpage)=False Then Curpage=1
+Else
+   Curpage=1
+End If
+if t="" and cat_id>0 then
+   sql="select news_id,news_title,news_date,istop,news_count from [news] where passed=0 and (cat_id="&cat_id&" or cat_id in(select cat_id from newcat where sid="&cat_id&")) order by istop desc, news_id desc"
+   Url_Add=Url_Add&"cat_id="&cat_id&"&"
+elseif t="hot" Then
+   sql="select news_id,news_title,news_date,istop,news_count from [news] where passed=0 and news_count>="&popnewsnum&" order by news_count desc,news_id desc"
+   Url_Add=Url_Add&"t=hot&"
+   start="热门新闻 - 新闻频道"
+elseif keyword<>"" then
+   sql="select news_id,news_title,news_date,istop,news_count from [news] where passed=0 and (news_title like '%"&keyword&"%' or news_content like '%"&keyword&"%') order by news_id desc"
+   Url_Add=Url_Add&"keyword="&Server.URLEncode(keyword)&"&"
+   start=keyword&" - 新闻频道"
+else
+   sql="select news_id,news_title,news_date,istop,news_count from [news] where passed=0 order by news_id desc"
+   start="最新新闻 - 新闻频道"
+End If
+set Rs07ing=server.createobject("adodb.recordset")
+Rs07ing.open sql,conn,1,1
+   sTitle="<ul>" & vbCrLf
+if not Rs07ing.eof then
+   sTitle=sTitle& "<li class=""f14""><a class=""time"">发表时间</a><a class=""a80"">阅读</a>标题</li>" & vbCrLf
+   Dim Hx_Nums,MultiPages,i,Titles
+   Rs07ing.PageSize=Hxperpage
+   Rs07ing.AbsolutePage=CurPage
+   Hx_Nums=Rs07ing.RecordCount
+   sNum=Hx_Nums
+   MultiPages="<li class=""f14"">"&MultiPage(Hx_Nums,Hxperpage,CurPage,Url_Add)&"</li>"
+Do Until Rs07ing.EOF OR i=Hxperpage
+   if Rs07ing(3)=1 then      
+      folder="<img alt=""固顶新闻"" src=""../img/1.gif"" />"     
+   elseif Rs07ing(4)>=popnewsnum then
+      folder="<img alt=""热门新闻"" src=""../img/3.gif"" />"     
+   else
+      folder="<img alt=""普通新闻"" src=""../img/4.gif"" />"      
+   end if    
+   Title=HTMLEncode(Rs07ing(1))
+   Titles=gotTopic(Title,70)
+   if keyword<>"" then Titles=chsearchstr(Titles,keyword)
+   sTitle=sTitle& "<li><a class=""time"">"&DateToStr(Rs07ing(2),1)&"</a><a class=""a80"">"&Rs07ing(4)&"</a>"&folder&" <span class=""f14""><a href='Show.asp?id=" & Rs07ing(0) & "&cat_id="&cat_id&"' title='"&Title&"'><span class=""STYLE11"">" & Titles &"</span></a></span></li>" & vbCrLf
+i=i+1
+Rs07ing.movenext
+loop
+else
+sTitle=sTitle&"<li>暂时没有相关新闻!</li>"
+end if
+sTitle=sTitle&MultiPages
+sTitle=sTitle&"</ul>" & vbCrLf
+Rs07ing.close:set Rs07ing=nothing
+end sub
+call class_Art()
+call displayList_Art()
+call trimanList()
+Call triman_Head()
+%>
+<!--页面顶部结束-->
+<!--页面当前位置-->
+<table width="900" border="0" align="center" cellpadding="0" cellspacing="0" bgcolor="#FFFFFF">
+  <tr>
+    <td><div align="center">
+      <table width="890" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+          <td width="222" valign="top" bgcolor="EBF3FE" style="BORDER-right: #ffffff 5px solid"><table width="222" border="0" cellspacing="0" cellpadding="0">
+            <tr>
+              <td><div align="left">
+                <table width="222" border="0" cellpadding="0" cellspacing="0" background="<%=InstallDir%>image/z/bj-1.jpg">
+                  <tr>
+                    <td width="17"><img src="<%=InstallDir%>image/z/1.jpg" width="17" height="33" /></td>
+                    <td><span class="STYLE6">◎ <%=topic%></span></td>
+                    <td width="18"><img src="<%=InstallDir%>image/z/2.jpg" width="18" height="33" /></td>
+                  </tr>
+                </table>
+              </div></td>
+              </tr>
+            <tr>
+              <td height="120" valign="top">
+			  <table width="88%" border="0" align="center" cellpadding="0" cellspacing="5">
+              <%=sClass%>
+			  </table>
+			  </td>
+            </tr>
+            <tr>
+              <td height="25" bgcolor="A7C0E0"><div align="left"><span class="STYLE7">&nbsp; ◎ 最新信息</span></div></td>
+            </tr>
+            <tr>
+              <td height="150" valign="top"><table width="222" border="0" cellspacing="5" cellpadding="0">
+                <tr>
+                  <td valign="top"><div align="left"><span class="STYLE8"><div class="other_16 list_block"><%=NewList%></div></span></div></td>
+                </tr>
+              </table></td>
+            </tr>
+          </table></td>
+          <td height="300" valign="top"><table width="662" border="0" cellspacing="0" cellpadding="0">
+            <tr>
+              <td height="101" background="<%=InstallDir%>image/z/3.jpg"><div align="left"><span class="STYLE9">&nbsp;&nbsp; <%call tit()%></span></div></td>
+            </tr>
+            <tr>
+              <td height="25" bgcolor="E6E6E6" style="BORDER-top: #ffffff 5px solid"><div align="left"><span class="STYLE10"><div id="position"><%call main_Art()%></div></span></div></td>
+            </tr>
+            <tr>
+              <td><table width="98%" border="0" align="center" cellpadding="0" cellspacing="5">
+                <tr>
+                  <td><div align="left"><span class="STYLE11"><div class="other_16 list_block"><%=sTitle%></div></span></div></td>
+                </tr>
+              </table></td>
+            </tr>
+          </table></td>
+        </tr>
+      </table>
+    </div></td>
+  </tr>
+</table>
+
+
+<%
+Call triman_Footer()
+'****************************************************
+
+'****************************************************
+%>

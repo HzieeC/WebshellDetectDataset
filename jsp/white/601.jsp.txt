@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title><fmt:message key='Titles.SystemUser.list' /></title>
+
+</head>
+<body>
+<div class="userInfo">
+	<div  ><h1><fmt:message key="welcom.title1"/></h1></div>
+	 <div style="padding-top:10px" ><h2><fmt:message key="welcom.title2"/></h2><a target=blank href=tencent://message/?uin=879786154&Site=13254.com&Menu=yes><img border="0" SRC=http://wpa.qq.com/pa?p=1:879786154:5 alt="点击这里给我发消息"></a></div>
+	<div style="padding-top:10px;color:red" ><h2>MyExam声明：<h2></div>
+	<div style="font-size:16px;width:900px" >&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;欢迎大家下载使用MyExam，MyExam只提供学习之用，不得用于任何的商业目的，版权所有，否则后果自负，需要用于二次开发或者用于商用系统，请购买MyExam商业版源码。
+	</br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MyExam团队提供全套的开发代码，您只需付很少的费用，便可拥有助力你的系统开发的它，MyExam的发展离不开各位程序爱好者的支持和捐赠，谢谢您的关注。
+	</br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;祝福MyExam一天天壮大起来。</div>
+	<p></p> 
+</div>
+</body>
+</html>

@@ -1,0 +1,374 @@
+<%
+'********************系统变量定义开始**********************
+
+Const FR_HR_Edition = 0      
+Const FR_HR_DataBaseType = 0     '系统数据库类型，"1"为MS SQL2000数据库，"0"为MS ACCESS 2000数据库
+Const FR_HR_DomainRoot = "91rencai.com"      '网站域名根 
+Const FRHRCMS = "FRHRCMS"
+Const FR_HR_Sql = True        '是否启用防SQL注入功能，True为启用，False为禁用
+
+'*******************文件上传目录变量开始*******************
+
+Const FR_UPFILES_DIR = "UpFiles"                         '文件上传目录
+
+'********************服务器组件变量开始********************
+
+Const FR_HR_Dict = "Scripting.Dictionary"                'Scripting.Dictionary；
+Const FR_HR_Fso = "Scripting.FileSystemObject"           'Scripting.FileSystemObject；
+Const FR_HR_Stream = "Adodb.Stream"                      'Adodb.Stream；
+Const FR_HR_Rs = "Adodb.RecordSet"                       'Adodb.RecordSet；
+Const FR_HR_Http = "Microsoft.XMLHTTP"                   'Microsoft.XMLHTTP；
+Const FR_HR_XmlHttp = "MSXML2.XMLHTTP"                   'MSXML2.XMLHTTP
+Const FR_HR_Conn = "Adodb.Connection"                    'Adodb.Connection；
+
+Const FR_HR_JMail = "JMail.SMTPMail"                     'Jmail；
+Const FR_HR_Cdonts = "CDONTS.NewMail"                    'CDONTS；
+Const FR_HR_Persits = "Persits.MailSender"               'ASPEMAIL；
+Const FR_HR_Easymail = "easymail.MailSend"               'WebEasyMail；
+
+Const FR_HR_SaFileUp = "SoftArtisans.FileUp"             'SA-FileUp 文件上传；
+Const FR_HR_SaFileManager = "SoftArtisans.FileManager"   'SoftArtisans 文件管理；
+Const FR_HR_Lyf = "LyfUpload.UploadFile"                 '刘云峰的文件上传组件；
+Const FR_HR_PU = "Persits.Upload.1"                      'ASPUpload 文件上传；
+
+Const FR_HR_SaImage = "SoftArtisans.ImageGen"            'SA 的图像读写组件；
+Const FR_HR_W3Image = "W3Image.Image"                    'Dimac 的图像读写组件；
+Const FR_HR_PJ = "Persits.Jpeg"                          'ASPJpeg；
+
+'********************服务器组件变量结束********************
+
+Dim Database,DatabaseName,Password,Username,HostIP
+'如果是ACCESS数据库，请认真修改好下面的数据库的文件名
+Database = "database/$swhsdsuw.asp"      'ACCESS数据库的文件名
+'如果是SQL数据库，请认真修改好以下数据库选项
+Username = "sa"           'SQL数据库用户名
+Password = "123456"          'SQL数据库用户密码
+DatabaseName = "IQhr"       'SQL数据库名
+HostIP = "(local)"                'SQL主机IP地址。本地（指网站与数据库在同一台服务器上）可用“(local)”或“127.0.0.1”，非本机（指网站与数据库分别在不同的服务器上）请填写数据库服务器的真实IP）
+
+Dim Conn, ConnStr, FR_HR_True, FR_HR_False, FR_HR_Now, FR_HR_d
+Dim SiteName, SiteTitle, SiteUrl, SiteKey, LogoUrl, Copyright, Meta_Keywords, Meta_Description
+Dim ContactMan, ContactAddress, ContactPhone, ContactFax, CommentCheck
+Dim MailObject, MailServer, MailServerUserName, MailServerPassWord, MailDomain
+Dim WebmasterName, WebmasterEmail, InstallDir, AdminDir, CreateHTML, HTMLPath,DefaulText,CreateTime
+Dim AdminRegCheckReg, AdminPerCheckReg, AdminWorkersCheck, AdminComCheckReg, AdminSchCheckReg, AdminTraCheckReg, AdminPicCheckReg, AdminLogCheckReg, AdminHirCheckReg, AdminResCheckReg
+Dim EmailRegOfRegCheck, EmailPerOfRegCheck, EmailComOfRegCheck, EmailSchOfRegCheck, EmailTraOfRegCheck
+Dim emailsendregflag, emailsendperflag, emailsendcomflag, emailsendschflag, emailsendtraflag
+Dim GuestBook_EnableVisitor, GuestBook_ManageRubbish, UserName_RegDisabled, Point,UpfilesType,GuestSeeContact,UserSeeContact
+Dim Smssend,DefaultTPID,TemplateDir
+Dim MainWebCss,FoundErr, ErrMsg
+
+Call OpenConn
+Call GetSiteConfig
+Call WebCss()
+Call TemplateProjectIDS
+'打开数据库连接
+Sub OpenConn()
+    On Error Resume Next
+    If FR_HR_DataBaseType = 1 Then
+        ConnStr = "Provider = Sqloledb; User ID = " & Username & "; Password = " & Password & "; Initial Catalog = " & DatabaseName & "; Data Source = " & HostIP & ";"
+    Else
+        ConnStr = "DBQ=" + Server.MapPath(Add_Root_Dir(Database)) + ";DefaultDir=;DRIVER={Microsoft Access Driver (*.mdb)};"
+	ConnStr = "provider=microsoft.jet.oledb.4.0;data source="&Server.MapPath(Add_Root_Dir(Database))
+    End If
+    Set Conn = Server.CreateObject(FR_HR_Conn)
+    Conn.open ConnStr
+    If Err Then
+        Err.Clear
+        Set Conn = Nothing
+        Response.Write "<br><br><br><br><br><br><br><div align='center'>数据库连接出错，错误编号10001。</div>"
+        Response.End
+    End If
+    If FR_HR_DataBaseType = 1 Then
+        FR_HR_True = "1"
+        FR_HR_False = "0"
+        FR_HR_Now = "getdate()"
+		FR_HR_d = "d"
+    Else
+        FR_HR_True = "True"
+        FR_HR_False = "False"
+        FR_HR_Now = "Now()"
+		FR_HR_d = "'d'"
+    End If
+End Sub
+
+'关闭数据库连接
+Sub CloseConn()
+    On Error Resume Next
+    If IsObject(Conn) Then
+        Conn.Close
+        Set Conn = Nothing
+    End If
+End Sub
+
+'获取系统配置参数
+Sub GetSiteConfig()
+	On Error Resume Next
+    Dim rsConfig
+    Set rsConfig = Conn.Execute("select * from JOB_Siteconfig")
+	If Err Then
+        Err.Clear
+		Conn.Close
+        Set Conn = Nothing
+        Response.Write "<br><br><br><br><br><br><br><div align='center'>数据库发生异常错误，错误编号10002！</div>"
+        Response.End
+    End If
+	If RsConfig.bof And RsConfig.EOF Then
+        RsConfig.Close
+        Set RsConfig = Nothing
+        Response.Write "<br><br><br><br><br><br><br><div align='center'>系统配置出现错误，错误编号10003！</div>"
+        Response.End
+    Else
+	'以下信息于2007年6月12日由Mr.Hou更新
+		Application("SiteName")=rsconfig("SiteName")               '网站名称
+		Application("SiteTitle")=rsconfig("SiteTitle")             '网站标题
+		Application("SiteUrl")=rsconfig("SiteUrl")                 '网站URL地址
+		Application("SiteKey")=rsconfig("SiteKey")                 '网站授权码
+		Application("LogoUrl")=rsconfig("LogoUrl")                 '网站LOGO存放地址，相对地址
+		Application("Copyright")=rsconfig("Copyright")             '网站版权信息，俊强改(后台调)
+		Application("Meta_Keywords")=rsconfig("Meta_Keywords")     '网站关键词
+		Application("Meta_Description")=rsconfig("Meta_Description")    '网站描述
+		Application("ContactMan")=rsconfig("ContactMan")           '联系人 
+		Application("ContactAddress")=rsconfig("ContactAddress")   '联系地址原字段ContactAdress更改为ContactAddress
+		Application("ContactPhone")=rsconfig("ContactPhone")       '电话
+		Application("ContactFax")=rsconfig("ContactFax")           '传真
+		
+		Application("MailObject")=rsconfig("MailObject")           '邮件发送组件，用于发送系统邮件
+		Application("MailServer")=rsconfig("MailServer")           '邮件服务器
+		Application("MailServerUserName")=rsconfig("MailServerUserName")    '邮箱用户名
+		Application("MailServerPassWord")=rsconfig("MailServerPassWord")    '邮箱密码
+		Application("MailDomain")=rsconfig("MailDomain")           '邮件域  
+		
+		Application("WebmasterName")=rsconfig("WebmasterName")     '站长名称
+		Application("WebmasterEmail")=rsconfig("WebmasterEmail")   '站长邮箱
+		
+		Application("InstallDir")=rsconfig("InstallDir")           '系统安装目录
+		Application("AdminDir")=rsconfig("AdminDir")               '管理员目录
+		Application("CreateHTML")=rsconfig("CreateHTML")
+		Application("HTMLPath")=rsconfig("HTMLPath")
+		Application("DefaulText")=rsconfig("DefaulText")
+		Application("CreateTime")=rsconfig("CreateTime")
+		Application("UpfilesType")=rsconfig("UpfilesType")
+		Application("GuestSeeContact")=rsconfig("GuestSeeContact")
+		Application("UserSeeContact")=rsconfig("UserSeeContact")
+		Application("Smssend")=rsconfig("Smssend")
+		
+		Application("AdminRegCheckReg")=rsconfig("AdminRegCheckReg")        '会员注册是否审核
+		Application("AdminPerCheckReg")=rsconfig("AdminPerCheckReg")
+		Application("AdminComCheckReg")=rsconfig("AdminComCheckReg")
+		Application("AdminWorkersCheck")=rsconfig("AdminWorkersCheck")
+		Application("AdminSchCheckReg")=rsconfig("AdminSchCheckReg")
+		Application("AdminTraCheckReg")=rsconfig("AdminTraCheckReg")
+		Application("AdminPicCheckReg")=rsconfig("AdminPicCheckReg")
+		Application("AdminLogCheckReg")=rsconfig("AdminLogCheckReg")
+		Application("AdminHirCheckReg")=rsconfig("AdminHirCheckReg")
+		Application("AdminResCheckReg")=rsconfig("AdminResCheckReg")
+		
+		Application("EmailRegOfRegCheck")=rsconfig("EmailRegOfRegCheck")      '注册邮件内容
+		Application("EmailPerOfRegCheck")=rsconfig("EmailPerOfRegCheck")
+		Application("EmailComOfRegCheck")=rsconfig("EmailComOfRegCheck")
+		Application("EmailSchOfRegCheck")=rsconfig("EmailSchOfRegCheck")
+		Application("EmailTraOfRegCheck")=rsconfig("EmailTraOfRegCheck")
+		
+		Application("emailsendregflag")=rsconfig("emailsendregflag")       '是否发送
+		Application("emailsendperflag")=rsconfig("emailsendperflag")
+		Application("emailsendcomflag")=rsconfig("emailsendcomflag")
+		Application("emailsendschflag")=rsconfig("emailsendschflag")
+		Application("emailsendtraflag")=rsconfig("emailsendtraflag")
+		Application("CommentCheck")=rsconfig("CommentCheck")
+		
+		Application("GuestBook_EnableVisitor")=rsconfig("GuestBook_EnableVisitor")     '是否允许留言
+		
+		Application("GuestBook_ManageRubbish")=rsconfig("GuestBook_ManageRubbish")     '屏蔽留言的文字
+		Application("UserName_RegDisabled")=rsconfig("UserName_RegDisabled")        '禁止注册的用户名
+		
+		Application("Point")=rsconfig("Point")
+		rsConfig.Close
+   		Set rsConfig = Nothing
+    End If
+		SiteName=Application("SiteName")
+		SiteTitle=Application("SiteTitle")
+		SiteUrl=Application("SiteUrl")
+		SiteKey=Application("SiteKey")
+		LogoUrl=Application("LogoUrl")
+		Copyright=Application("Copyright")
+		Meta_Keywords=Application("Meta_Keywords")
+		Meta_Description=Application("Meta_Description")
+		ContactMan=Application("ContactMan")
+		ContactAddress=Application("ContactAddress")
+		ContactPhone=Application("ContactPhone")
+		ContactFax=Application("ContactFax")
+
+		Copyright=Replace(Copyright,"{$SiteName}",SiteName)
+		Copyright=Replace(Copyright,"{$ContactAddress}",ContactAddress)
+		Copyright=Replace(Copyright,"{$ContactMan}",ContactMan)
+		Copyright=Replace(Copyright,"{$ContactPhone}",ContactPhone)
+		Copyright=Replace(Copyright,"{$ContactFax}",ContactFax)
+		
+		MailObject=Application("MailObject")
+		MailServer=Application("MailServer")
+		MailServerUserName=Application("MailServerUserName")
+		MailServerPassWord=Application("MailServerPassWord")
+		MailDomain=Application("MailDomain")
+		
+		WebmasterName=Application("WebmasterName")
+		WebmasterEmail=Application("WebmasterEmail")
+		
+		InstallDir=Application("InstallDir")
+		AdminDir=Application("AdminDir")
+		CreateHTML=Application("CreateHTML")
+		HTMLPath=Application("HTMLPath")
+		DefaulText=Application("DefaulText")
+		CreateTime=Application("CreateTime")
+		UpfilesType=Application("UpfilesType")
+		GuestSeeContact=Application("GuestSeeContact")
+		UserSeeContact=Application("UserSeeContact")
+		Smssend=Application("Smssend")
+		
+		AdminRegCheckReg=Application("AdminRegCheckReg")
+		AdminPerCheckReg=Application("AdminPerCheckReg")
+		AdminComCheckReg=Application("AdminComCheckReg")
+		AdminWorkersCheck=Application("AdminWorkersCheck")
+		AdminSchCheckReg=Application("AdminSchCheckReg")
+		AdminTraCheckReg=Application("AdminTraCheckReg")
+		AdminPicCheckReg=Application("AdminPicCheckReg")
+		AdminLogCheckReg=Application("AdminLogCheckReg")
+		AdminHirCheckReg=Application("AdminHirCheckReg")
+		AdminResCheckReg=Application("AdminResCheckReg")
+		
+		EmailRegOfRegCheck=Application("EmailRegOfRegCheck")
+		EmailPerOfRegCheck=Application("EmailPerOfRegCheck")
+		EmailComOfRegCheck=Application("EmailComOfRegCheck")
+		EmailSchOfRegCheck=Application("EmailSchOfRegCheck")
+		EmailTraOfRegCheck=Application("EmailTraOfRegCheck")
+		
+		emailsendregflag=Application("emailsendregflag")
+		emailsendperflag=Application("emailsendperflag")
+		emailsendcomflag=Application("emailsendcomflag")
+		emailsendschflag=Application("emailsendschflag")
+		emailsendtraflag=Application("emailsendtraflag")
+		
+		GuestBook_EnableVisitor=Application("GuestBook_EnableVisitor")
+		GuestBook_ManageRubbish=Application("GuestBook_ManageRubbish")
+		UserName_RegDisabled=Application("UserName_RegDisabled")
+		Point=Application("Point")
+		CommentCheck=Application("CommentCheck")
+End Sub
+
+Sub WebCss()
+set cssrs=conn.execute("select * from JOB_Skin where IsDefault="&FR_HR_True&" and IsDefaultInProject="&FR_HR_True&"")
+if not cssrs.eof then
+Application("MainWebCss")=cssrs("filename")&".css"
+else
+Response.Write("样式定义错误!")
+end if
+cssrs.close
+set cssrs=nothing
+MainWebCss=Application("MainWebCss")
+End Sub
+
+'读取默认的模板方案的id
+Sub TemplateProjectIDS()
+	set tpidrs=conn.execute("select TemplateProjectID,TemplateDir from JOB_TemplateProject where IsDefault="&FR_HR_True&"")
+	if not tpidrs.eof then
+		Application("DefaultTPID")=tpidrs("TemplateProjectID")
+		'方案文件夹
+		Application("TemplateDir")=tpidrs("TemplateDir")
+	else
+		Response.Write("没有默认的模板方案")
+	end if
+	tpidrs.close
+	set tpidrs=nothing
+	DefaultTPID=Application("DefaultTPID")
+	TemplateDir=Application("TemplateDir")
+End Sub
+
+Function Root_Dir(f_Path)
+	Dim All_Path
+	If f_Path <> "" Then
+		If Right(f_Path,1)="/" Then
+			All_Path = f_Path
+		Else
+			All_Path = f_Path & "/"
+		End If
+	End If
+	Root_Dir = All_Path
+End Function
+
+Function Add_Root_Dir(f_Path)
+	Dim f_All_Path
+	If Left(f_Path,1)="/" Then
+		f_All_Path = FR_ROOT_DIR & f_Path
+	Else
+		f_All_Path = FR_ROOT_DIR & "/" & f_Path
+	End If
+	If Trim(FR_ROOT_DIR) <> "" Then
+		f_All_Path = "/" & f_All_Path
+	End If
+	Add_Root_Dir = f_All_Path
+End Function
+Function WebLock(Lockok)
+	Dim Filename,fso,fout
+	Filename = Server.MapPath(InstallDir&"WebLock.lock")
+	Set fso = CreateObject(FR_HR_FSO)
+	If Lockok<>0 Then
+		If Not fso.FileExists(Filename) Then
+		Set fout = fso.CreateTextFile(Filename)
+		fout.WriteLine ""&SiteUrl&InstallDir&",WebLocked"
+		fout.close
+		set fout = nothing
+		Else
+			Exit Function
+		End If
+	Else
+		If fso.FileExists(Filename) Then
+		fso.deletefile(Filename)
+		End If
+	End If
+	Set fso = nothing
+End Function
+
+'操作成功后提示信息和要跳转的页面
+Function SucessMsg(tit,url)
+	suchtml="<table width=""60%"" align=""center"" border=""0"" cellpadding=""2"" cellspacing=""1"" class=""mtab"" bgcolor=""#8ED1FF"">"
+	suchtml=suchtml&"<tr><td class=""td28"">操作成功</td></tr>"
+	suchtml=suchtml&"<tr><td align=""center"" bgcolor=""#FFFFFF""><br /><br />"&tit&"<br /><br /><br />如果您的浏览器没有自动跳转，请点 <a href="&url&"><font color=""#FF0000"">这里</font></a><br><br /><meta http-equiv=""Refresh"" content=""1; URL="&url&"""></td></tr>"
+	suchtml=suchtml&"</table>"
+	response.Write suchtml
+End Function
+
+'操作失败后提示信息和要跳转的页面
+Function WrongMsg(tit,url)
+	wronghtml="<table width=""60%"" align=""center"" border=""0"" cellpadding=""2"" cellspacing=""1"" class=""mtab"" bgcolor=""#8ED1FF"">"
+	wronghtml=wronghtml&"<tr><td class=""td28"">操作失败</td></tr>"
+	wronghtml=wronghtml&"<tr><td align=""center"" bgcolor=""#FFFFFF""><br /><br />"&tit&"<br /><br /><br />如果您的浏览器没有自动跳转，请点 <a href="&url&"><font color=""#FF0000"">这里</font></a><br><br /><meta http-equiv=""Refresh"" content=""3; URL="&url&"""></td></tr>"
+	wronghtml=wronghtml&"</table>"
+	response.Write wronghtml
+End Function
+
+Sub ErrorMsg()
+	Response.Write "<script>alert('禁止非法登录，请返回！');history.go(-1);</script>"
+	Response.End
+End Sub
+
+'********************************************************
+'过滤SQL非法字符并格式化html代码
+'********************************************************
+function Replace_Text(fString)
+if isnull(fString) then
+Replace_Text=""
+exit function
+else
+fString=trim(fString)
+fString=replace(fString,"'","''")
+fString=replace(fString,";","；")
+fString=replace(fString,"--","—")
+fString=server.htmlencode(fString)
+Replace_Text=fString
+end if	
+end function
+%>
+<!--#include file="sql.asp"-->
+<%'禁止锁定的IP访问本站
+Call SQLKillip()
+'If FR_HR_Sql = True then Call SQLin()%>

@@ -1,0 +1,258 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>广告列表</title>
+<link href="../Css/style.css" rel="stylesheet" type="text/css" />
+</head>
+<script language="javascript">
+<!--
+function checkform(theForm)
+{
+	if (searchs.kword.value == "")
+	{
+		alert("请输入搜索关键字！");
+		searchs.kword.focus();
+		return false;
+	}
+}
+//-->
+</script>
+<%
+If Not FRAdminLevel(106) Then
+	Call ErrorMsg()
+End If
+response.expires = 0
+response.expiresabsolute = now() - 0
+response.addHeader "pragma","no-cache"
+response.addHeader "cache-control","private"
+Response.CacheControl = "no-cache"
+Dim Action
+Dim page,i
+Dim totalPut
+const MaxPerpage=10
+style=request.QueryString("type")
+kclass=request.Form("kclass")
+kword=request.Form("kword")
+adid=request.QueryString("adid")
+adsid=request.QueryString("adsid")
+strFileName="list.asp?type="&style&"&adsid="&adsid&""
+action=request.QueryString("action")
+if action="stop" then	
+	if adid<>"" and Isnumeric(adid) then
+		conn.execute("Update JOB_Ad set ad_stop=1 where Ad_id="&adid&"")
+	end if
+	response.Redirect "list.asp"
+elseif action="start" then
+	if adid<>"" and Isnumeric(adid) then
+		conn.execute("Update JOB_Ad set ad_stop=0 where Ad_id="&adid&"")
+	end if
+	response.Redirect "list.asp"
+elseif action="del" then
+	'删除广告
+	adname=request.QueryString("adname")
+	if adid<>"" and Isnumeric(adid) then
+		adnames=Server.MapPath("../../adpic/"&TemplateDir&"/"&adname&"")
+		Dim FSO
+		Set FSO = Server.CreateObject("Scripting.FileSystemObject")
+		FSO.DeleteFile(adnames)
+		Set FSO = Nothing
+		conn.execute("delete from JOB_Ad where Ad_id="&adid&"")
+		response.Redirect "list.asp"
+	end if	
+end if
+
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+dim ssql,sql
+%>
+<body>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder">
+  <tr>
+    <th height="25">广告管理</th>
+  </tr>
+  <tr>
+    <td height=25><span class="bodytitle"><font color="ff6600"><b class="style1">　管理选项</b></font>：</span><a href="webad.asp" target="_self">添加广告</a> | <a href="list.asp" target="_self">正常广告</a> | <a href="list.asp?type=top" target="_self">点击最高</a> | <a href="list.asp?type=end" target="_self">点击最低</a> | <a href="list.asp?type=close" target="_self">暂停列表</a> | <a href="list.asp?type=lose" target="_self">失效列表</a> | <a href="adplace.asp" target="_self">广告管理</a></td>
+  </tr>
+<form method="post" action="list.asp?type=<%=style%>" name="searchs" target="_self" onSubmit="return checkform()">
+<tr><td height=30><span class="bodytitle"><font color="ff6600"><b class="style1">　广告搜索</b></font>：<select size="1" name="kclass">
+	<option value="1" selected="selected">广告ID</option>
+	<option value="2" <%if kclass=2 then%>selected="selected"<%end if%>>站点名称</option>
+	<option value="3" <%if kclass=3 then%>selected="selected"<%end if%>>站点URL</option>
+</select>
+<input type="text" name="kword" size="30" value="<%=kword%>">
+<input name="submit" type="submit" class="inputs" value="立即搜索"></td></tr>
+</form>
+</table>
+<%
+Call main()
+Sub main()
+if kclass<>"" and kword<>"" then
+	select case kclass
+		case "1"
+			ssql=" and Ad_id="&kword&""
+		case "2"
+			ssql=" and Ad_sitename like '%"&kword&"%'"
+		case "3"
+			ssql=" and Ad_siteurl like '%"&kword&"%'"
+	end select
+end if
+if adsid<>"" then
+	ssql=" and Ad_priceid="&adsid&""
+end if
+sql1="select top 20 * from JOB_Ad where projectid="&DefaultTPID&""
+sql2="select * from JOB_Ad where projectid="&DefaultTPID&""
+select case style
+	case "top"
+		sql=sql1&ssql
+		sql=sql&" order by Ad_clicks desc"
+	case "end"
+		sql=sql1&ssql
+		sql=sql&" order by Ad_clicks asc"
+	case "close"
+		sql=sql2&ssql
+		sql=sql&" and Ad_stop=1 order by Ad_id desc"
+	case "lose"
+		sql=sql2&ssql
+		sql=sql&" and Ad_lose=1 order by Ad_id desc"		
+	case else
+		sql=sql2&ssql
+		sql=sql&" order by Ad_id desc"
+end select
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,1
+if rs.eof and rs.bof then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>暂无添加广告！</li>"
+	exit sub
+else
+	totalPut=rs.recordcount
+	if (page-1)*MaxPerpage>totalput then
+		if (totalPut mod MaxPerpage)=0 then
+			page= totalPut \ MaxPerpage
+		else
+			page= totalPut \ MaxPerpage + 1
+		end if
+	end if
+	if page=1 then
+		Call MainInfo()
+	else
+		if (page-1)*MaxPerpage<totalPut then
+			rs.move  (page-1)*MaxPerpage
+			dim bookmark
+			bookmark=rs.bookmark
+			Call MainInfo()
+		else
+			page=1
+			Call MainInfo()
+		end if
+	end if
+end if
+rs.close
+set rs=nothing
+end sub	
+%>
+<%Sub MainInfo()
+do while not rs.eof%>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder mt6">
+  <tr>
+    <td width="16%" align="right">广告编号：</td>
+    <td width="33%">&nbsp;<%=rs("ad_id")%>&nbsp;<%if rs("ad_stop")=0 then%><font color="#009900">(广告正在轮播)</font><%else%><font color="#FF0000">(广告暂停中)</font><%end if%></td>
+    <td width="16%" align="right">广告类型：</td>
+    <td width="35%">&nbsp;<%if rs("Ad_type")="pic" then%>图片广告<%else%>flash广告<%end if%></td>
+  </tr>
+  <tr>
+    <td align="right">广告位种类：</td>
+    <td>&nbsp;<%=AdplaceNames(rs("Ad_placeid"))%></td>
+    <td align="right">广告位名称：</td>
+    <td>&nbsp;<%=AdpriceNames(rs("Ad_priceid"))%></td>
+  </tr>
+  <tr>
+    <td align="right">广告站点名称：</td>
+    <td>&nbsp;<%=rs("Ad_sitename")%></td>
+    <td align="right">广告链接地址：</td>
+    <td>&nbsp;<%=rs("Ad_siteurl")%></td>
+  </tr>
+  <tr>
+    <td align="right">广告添加时间：</td>
+    <td>&nbsp;<%=rs("Ad_addtime")%></td>
+    <td align="right">最近显示时间：</td>
+    <td>&nbsp;<%=rs("Ad_showtime")%></td>
+  </tr>
+  <tr>
+    <td align="right">广告图片地址：</td>
+    <td>&nbsp;<a href="../../adpic/<%=TemplateDir%>/<%=rs("Ad_pic")%>" target="_blank" title="查看图片"><%=rs("Ad_pic")%></a></td>
+    <td align="right">广告播放条件：</td>
+	<%
+		select case rs("Ad_act")
+			case 0
+				ad_act="无限制播放"
+			case 1
+				ad_act="点击次数不超过："&rs("Ad_click")&""
+			case 2
+				ad_act="显示次数不超过："&rs("Ad_show")&""
+			case 3
+				ad_act="显示截止日期为："&rs("Ad_enddate")&""
+			case 4
+				ad_act="点击次数不超过："&rs("Ad_click")&"<br>&nbsp;显示次数不超过："&rs("Ad_show")&""
+			case 5
+				ad_act="点击次数不超过："&rs("Ad_click")&"<br>&nbsp;显示截止日期为："&rs("Ad_enddate")&""
+			case 6
+				ad_act="显示次数不超过："&rs("Ad_show")&"<br>&nbsp;显示截止日期为："&rs("Ad_enddate")&""
+			case 7
+				ad_act="点击次数不超过："&rs("Ad_click")&"<br>&nbsp;显示次数不超过："&rs("Ad_show")&"<br>&nbsp;显示截止日期为:"&rs("Ad_enddate")&""
+		end select
+	%>
+    <td>&nbsp;<%=ad_act%></td>
+  </tr>
+  <tr>
+    <td align="right">广告客户姓名：</td>
+    <td>&nbsp;<%=rs("Ad_contactman")%></td>
+    <td align="right">客户联系方式：</td>
+    <td>&nbsp;<%=rs("Ad_tel")%></td>
+  </tr>
+  <tr>
+    <td align="right">广告尺寸大小：</td>
+    <td>&nbsp;<%=rs("Ad_width")%></td>
+    <td align="right">广告打开窗口：</td>
+    <td>&nbsp;<%if rs("Ad_target")="_blank" then%>新窗口<%else%>原窗口<%end if%></td>
+  </tr>
+  <tr>
+    <td align="right">广告点击次数：</td>
+    <td>&nbsp;<%=rs("Ad_clicks")%></td>
+    <td align="right">广告显示次数：</td>
+    <td>&nbsp;<%=rs("Ad_shows")%></td>
+  </tr>
+  <tr>
+    <td align="right">广告备注信息：</td>
+    <td colspan="3">&nbsp;<%=rs("Ad_other")%></td>
+  </tr>
+  <tr>
+    <td colspan="4" align="right"><a href="list.asp?action=stop&adid=<%=rs("ad_id")%>">暂停</a>&nbsp;&nbsp;&nbsp;<a href="list.asp?action=start&adid=<%=rs("ad_id")%>">开始</a>&nbsp;&nbsp;&nbsp;<a href="webad.asp?adid=<%=rs("ad_id")%>">修改</a>&nbsp;&nbsp;&nbsp;<a href="vip.asp">删除</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </td>
+  </tr>
+</table>
+<%
+i=i+1
+if i>=MaxPerPage then exit do
+rs.movenext
+loop
+If totalput>0 Then
+%>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder mt6"><tr><td align="right"><%Call Showpage(strFileName,totalput,MaxPerPage,false,true,"个广告")%></td></tr></table>
+<%End If
+end sub%>
+<!--#include file="../inc/copy.asp"-->
+</body>
+</html>

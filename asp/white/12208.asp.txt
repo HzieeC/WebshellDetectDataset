@@ -1,0 +1,292 @@
+<!-- #include file="codePage.asp" -->
+<%
+exitTimeSkip="true"
+%>
+<!-- #include file="check.asp" -->
+<!-- #include file="../inc/class_ip.asp" -->
+<!-- #include file="../inc/yucmedia.asp" -->
+<!-- #include file="inc/file_memberLog.asp" -->
+
+<%
+Call CheckIframe()
+
+OT_userIP	= GetUserIp()
+If OT_OpenIpDatabase=True Then
+	userIpInfo = GetUserIPinfo(OT_userIP)
+Else
+	userIpInfo = "缺少IP库"
+End If
+
+
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 ****
+
+
+
+
+
+
+Select Case mudi
+	Case "login"
+		Call login()
+
+	Case "revPWD"
+		'检测管理员是否登陆
+		Call OpenMemberexe("","login",10)
+		Call CloseMemberexe()
+		Call RevPWD()
+
+	Case "itemNum"
+		'检测管理员是否登陆
+		Call OpenMemberexe("","login",10)
+		Call CloseMemberexe()
+		Call ItemNum()
+
+	Case Else
+		Call ErrMudi()
+End Select
+
+
+Call CloseConobj()
+
+
+
+
+
+Private Sub login()
+	username	= ToPostRegExpStr("username","sql")
+	userpwd		= ToPostStr("userpwd")
+	verCode		= ToPostStr("verCode")
+
+	If OT_OpenVerCode=False Then
+		Dim loginOldTime,loginNewTime
+		loginNewTime = now()
+		loginOldTime = Trim(session(OT_SiteID &"loginOldTime"))
+		If IsDate(loginOldTime)=False Then loginOldTime="1988-8-8"
+		If DateDiff("s",loginOldTime,loginNewTime)<10 Then'
+			Call JS_AlertBackEnd("由于验证码禁用，连续登陆需相隔10秒.")
+		Else
+			session(OT_SiteID &"loginOldTime") = loginNewTime
+		End If
+	Else
+		SYS_verCodeMode = conobj.execute("select SYS_verCodeMode from OT_system")(0)
+		If SYS_verCodeMode=2 Then
+			judYucmedia = yucmedia_deal("dasp",verCode)
+			If judYucmedia<>"true" Then
+				Call JS_AlertBackEnd("验证码错误("& yucmedia_err &"),请重新输入.")
+			End If
+		Else
+			If verCode="" Or verCode<>session("VerCode") Then
+				Call JS_AlertBackEnd("验证码错误")
+			End If
+		End If
+	End If
+
+	Set checkrec=server.CreateObject("ADODB.recordset")
+	checkrec.open "select top 1 MB_ID,MB_loginTime,MB_loginNum,MB_loginIP,MB_realname,MB_userpwd,MB_userKey from OT_member where MB_username='"& username &"'",conobj,0,2
+		If checkrec.EOF Then
+			Call JS_AlertBackEnd("错误！请确认用户名或密码是否正确！")
+		End If
+		MB_ID		= checkrec("MB_ID")
+		MB_realname = checkrec("MB_realname")
+
+		userpwd = md5(md5(userpwd) & checkrec("MB_userKey"))
+		If checkrec("MB_userpwd")<>userpwd Then
+			Call MemberLog_Deal(MB_ID,MB_realname,"","","登录失败（密码错误）")
+			Call JS_AlertBackEnd("密码错误！")
+		End If
+		nowTime=Now()
+		checkrec("MB_loginTime")= nowTime
+		checkrec("MB_loginNum")	= checkrec("MB_loginNum")+1
+		checkrec("MB_loginIP")	= OT_userIP
+		checkrec.update
+	checkrec.close
+	Set checkrec=Nothing
+
+	Call Base64_init()
+	userInfo = Base64_Encode(encrypt_encode(MB_ID & Chr(9) & username & Chr(9) & userpwd & Chr(9) & OT_userIP & Chr(9) & nowTime,SA_adminLoginKey))
+'	userInfo = server.URLEncode(MB_ID & Chr(9) & username & Chr(9) & userpwd & Chr(9) & OT_userIP & Chr(9) & nowTime)
+	session.timeout=60
+	session(OT_SiteID &"exitOldTime")		= GetTimer()
+	session(OT_SiteID &"memberID")			= MB_ID
+	session(OT_SiteID &"memberUsername")	= username
+	session(OT_SiteID &"memberUserpwd")		= userpwd
+	session(OT_SiteID &"memberUserIP")		= OT_userIP
+	session(OT_SiteID &"memberTime")		= nowTime
+	session(OT_SiteID &"memberInfo")		= userInfo
+	session(OT_SiteID &"memberRealName")	= MB_realname
+	response.cookies(OT_SiteID &"cookies")(OT_SiteID &"memberInfo")		= userInfo
+	response.cookies(OT_SiteID &"cookies")(OT_SiteID &"memberRealName")	= MB_realname
+
+	OT_computerCode = GetComputerCode()
+	' 记录到在线表里
+	Set onlinerec = server.CreateObject("ADODB.recordset")
+	onlinerec.open "select top 1 * from OT_memberOnline where MO_userID="& MB_ID,conobj,0,2
+		If onlinerec.EOF Then onlinerec.addNew()
+		onlinerec("MO_time")		= nowTime
+		onlinerec("MO_userID")		= MB_ID
+		onlinerec("MO_computerCode")= OT_computerCode
+		onlinerec.update()
+	onlinerec.close
+	Set onlinerec=Nothing
+
+	' 操作日志记录
+	Call MemberLog_Add(MB_ID,MB_realname,"","","登录成功！（用户IP："& OT_userIP &"，用户地址："& userIpInfo &"）")
+
+	Call JS_Href("ind_backstage.asp")
+End Sub
+
+
+
+
+'修改密码
+Private Sub RevPWD()
+	qdusername	= ToPostStr("qdusername")
+	qduserpwd	= ToPostStr("qduserpwd")
+
+	If qdusername="true" Then
+		username=Trim(request.Form("username"))
+			If username="" Then
+				response.write "<script language='javascript' type='text/javascript'>alert('用户名不能为空！');history.back(-1)</script>"
+				response.End
+			End If
+		
+			If RegExpStr(username,"sql")<>username Then
+				response.write "<script language='javascript' type='text/javascript'>alert('用户名含非法字符！\n仅允许包含数字、字母、下划线、汉字，其他符号均不允许');history.back(-1)</script>"
+				response.End
+			End If
+		username=RegExpStr(username,"sql")
+
+		Set checkexe=conobj.execute("select MB_ID from OT_member where MB_username='"& username &"'")
+			If Not checkexe.EOF Then
+				response.write "<script language='javascript' type='text/javascript'>alert('该用户名已存在，请换个！');history.back(-1)</script>"
+				response.End
+			End If
+		checkexe.close
+		Set checkexe=Nothing
+	End If
+
+
+	application.lock
+		Set revrec=server.CreateObject("ADODB.recordset")
+		revrec.open "select top 1 MB_username,MB_userpwd,MB_userKey from OT_member where MB_username='"& user_name &"' and MB_userpwd='"& user_pwd &"'",conobj,0,2
+
+		If qdusername="true" And username<>"" Then revrec("MB_username")=username
+		If qduserpwd="true" Then
+			userpwd0= ToPostStr("userpwd0")
+			userpwd	= ToPostStr("userpwd")
+			If userpwd0="" Or userpwd="" Then
+				response.write "<script language='javascript' type='text/javascript'>alert('修改密码相关信息接收不全！');history.back(-1)</script>"
+				response.End
+			End If
+			If md5(md5(userpwd0) & revrec("MB_userKey"))<>revrec("MB_userpwd") Then
+				response.write "<script language='javascript' type='text/javascript'>alert('原密码错误！');history.back(-1)</script>"
+				response.End
+			End If
+			newUserKey	= RndChar(5)
+			userpwd		= md5(md5(userpwd) & newUserKey)
+			revrec("MB_userKey")= newUserKey
+			revrec("MB_userpwd")= userpwd
+		End If
+
+		revrec.update
+		revrec.close
+		Set revrec=Nothing
+	application.unlock
+
+	If qdusername="true" Then
+		user_name=username
+		alert="用户名（"& username &"）修改成功\n"
+	End If
+	If qduserpwd="true" Then
+		user_pwd=userpwd
+		alert=alert &"密码修改成功"
+	End If
+
+	Call Base64_init()
+	userInfo = Base64_Encode(encrypt_encode(user_ID & Chr(9) & user_name & Chr(9) & user_pwd & Chr(9) & user_ip & Chr(9) & user_time,SA_adminLoginKey))
+'	userInfo = server.URLEncode(user_ID & Chr(9) & user_name & Chr(9) & user_pwd & Chr(9) & user_ip & Chr(9) & user_time)
+	session(OT_SiteID &"memberUsername")	= user_name
+	session(OT_SiteID &"memberUserpwd")		= user_pwd
+	session(OT_SiteID &"memberInfo")	= userInfo
+	response.cookies(OT_SiteID &"cookies")(OT_SiteID &"memberInfo")	= userInfo
+
+	Call JS_AlertHrefEnd(""& alert &"","admin.asp?mudi=revPWD")
+
+End Sub
+
+
+
+
+
+Private Sub ItemNum()
+	mudi2		= ToPostStr("mudi2")
+	itemNumURL	= ToPostStr("itemNumURL")
+	newItemNum	= ToPostInt("itemNum")
+		If newItemNum<1 Then newItemNum=20
+
+	conobj.execute("update OT_member set MB_itemNum="& newItemNum &" where MB_username='"& user_name &"' and MB_userpwd='"& user_pwd &"'")
+
+	If mudi2="revOther" Then
+		response.write(_
+		"<script language='javascript' type='text/javascript'>"&_
+		"alert('修改成功！');"&_
+		"</script>"&_
+		"")
+	End If
+	response.write(_
+	"<script language='javascript' type='text/javascript'>"&_
+	"document.location.href='"& itemNumURL &"';"&_
+	"</script>"&_
+	"")
+'alert('修改成功！');
+End Sub
+
+
+
+
+
+
+Private Sub ErrMudi()
+
+	If user_ID>0 Then Call MemberLog_Add(0,"","","","退出成功！（用户IP："& OT_userIP &"，用户地址："& userIpInfo &"）")
+
+	'清除所有session
+	'session.contents.removeall
+	Session.Contents.Remove(OT_SiteID &"exitOldTime")
+	Session.Contents.Remove(OT_SiteID &"memberID")
+	Session.Contents.Remove(OT_SiteID &"memberUsername")
+	Session.Contents.Remove(OT_SiteID &"memberUserpwd")
+	Session.Contents.Remove(OT_SiteID &"memberUserIP")
+	Session.Contents.Remove(OT_SiteID &"memberTime")
+	Session.Contents.Remove(OT_SiteID &"memberInfo")
+	Session.Contents.Remove(OT_SiteID &"memberRealName")
+
+	'清除所有cookies
+'	Dim Cookie,Subkey
+'	For Each Cookie In Request.Cookies
+'		For Each Subkey In Request.Cookies(Cookie)
+'			Response.Cookies(Cookie)(Subkey) = Empty
+'		Next
+'	Next
+	Response.Cookies(OT_SiteID &"cookies")(OT_SiteID &"memberInfo") = Empty
+	Response.Cookies(OT_SiteID &"cookies")(OT_SiteID &"memberRealName") = Empty
+
+	user_ID = ToInt(user_ID)
+	Set isExistexe = conobj.execute("select MO_ID from OT_memberOnline where MO_userID="& user_ID)
+		If Not isExistexe.EOF Then
+			conobj.execute("delete from OT_memberOnline where MO_userID="& user_ID)
+		End If
+	isExistexe.close()
+	Set isExistexe=Nothing
+
+	Call JS_Href("index.asp")
+End Sub
+%>

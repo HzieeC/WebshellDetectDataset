@@ -1,0 +1,353 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@ page import="com.bizoss.trade.ts_category.*" %>
+<%@ page import="com.bizoss.trade.ti_job.*" %>
+<%@ page import="com.bizoss.trade.ts_area.Ts_areaInfo" %>
+<%@ page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<%	
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+    String select = ts_categoryInfo.getSelCatByTLevel("6", "1");
+	
+	Map catMap = ts_categoryInfo.getCatClassMap("6");
+	Ts_areaInfo ts_areaInfo = new Ts_areaInfo();
+	Map areaMap = ts_areaInfo.getAreaClass();
+
+	String job_id="";
+  	if(request.getParameter("job_id")!=null) job_id = request.getParameter("job_id");
+  	Ti_jobInfo ti_jobInfo = new Ti_jobInfo();
+  	List list = ti_jobInfo.getListByPk(job_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String title="",company="",work_type="",class_attr="",area_attr="",depart="",career="",work_exper="",specialty="",sex="",birth="",job_desc="",salary="",num="",start_date="",end_date="",contact="",degree="",phone="",cellphone="",email="",update_time="",state_code="";
+  	if(map.get("title")!=null) title = map.get("title").toString();
+  	if(map.get("company")!=null) company = map.get("company").toString();
+  	if(map.get("work_type")!=null) work_type = map.get("work_type").toString();
+  	if(map.get("class_attr")!=null) class_attr = map.get("class_attr").toString();
+  	if(map.get("area_attr")!=null) area_attr = map.get("area_attr").toString();
+  	if(map.get("depart")!=null) depart = map.get("depart").toString();
+  	if(map.get("career")!=null) career = map.get("career").toString();
+  	if(map.get("work_exper")!=null) work_exper = map.get("work_exper").toString();
+  	if(map.get("specialty")!=null) specialty = map.get("specialty").toString();
+  	if(map.get("sex")!=null) sex = map.get("sex").toString();
+  	if(map.get("birth")!=null) birth = map.get("birth").toString();
+  	if(map.get("job_desc")!=null) job_desc = map.get("job_desc").toString();
+  	if(map.get("salary")!=null) salary = map.get("salary").toString();
+	if(map.get("num")!=null) num = map.get("num").toString();
+	if(map.get("degree")!=null) degree = map.get("degree").toString();
+	if(map.get("salary")!=null) salary = map.get("salary").toString();
+  	if(map.get("start_date")!=null) start_date = map.get("start_date").toString();
+  	if(map.get("end_date")!=null) end_date = map.get("end_date").toString();
+  	if(map.get("contact")!=null) contact = map.get("contact").toString();
+  	if(map.get("phone")!=null) phone = map.get("phone").toString();
+  	if(map.get("cellphone")!=null) cellphone = map.get("cellphone").toString();
+  	if(map.get("email")!=null) email = map.get("email").toString();
+  	if(map.get("update_time")!=null) update_time = map.get("update_time").toString();
+	if(map.get("state_code")!=null) state_code = map.get("state_code").toString();
+	
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	work_exper = tb_commparaInfo.getSelectItem("41",work_exper);   
+	salary = tb_commparaInfo.getSelectItem("42",salary);   
+	work_type = tb_commparaInfo.getSelectItem("43",work_type);
+	degree = tb_commparaInfo.getSelectItem("44",degree); 
+	
+	StringBuffer catAttr = new StringBuffer();
+	if(!class_attr.equals("")){
+	  String catIds[] =	class_attr.split("\\|");	
+	  for(String catId:catIds){
+		 if(catMap!=null){
+			if(catMap.get(catId)!=null){
+				catAttr.append(catMap.get(catId).toString() + " ");                 
+			}                  
+		  }                 
+	   }		    
+	}
+
+	StringBuffer areaAttr = new StringBuffer();
+	if(!area_attr.equals("")){
+	  String areaIds[] = area_attr.split("\\|");	
+	  for(String areaId:areaIds){
+		 if(areaMap!=null){
+			if(areaMap.get(areaId)!=null){
+				areaAttr.append(areaMap.get(areaId).toString() + " ");
+			}                  
+		  }                 
+	   }		    
+	}
+
+	String publish_user_id = "";
+
+	if(session.getAttribute("session_user_id")!=null){
+		publish_user_id  = session.getAttribute("session_user_id").toString();
+	}
+	
+	String s_title = "";
+	if(request.getParameter("s_title")!=null && !request.getParameter("s_title").equals("")){
+		s_title = request.getParameter("s_title");
+	}
+	String state_c = "";
+	if(request.getParameter("state_c")!=null && !request.getParameter("state_c").equals("")){
+		state_c = request.getParameter("state_c");
+	}
+	String info_state = "";
+	if(request.getParameter("info_state")!=null && !request.getParameter("info_state").equals("")){
+		info_state = request.getParameter("info_state");
+	}
+	
+	String iStart = "0";
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");	
+	String para = "/program/admin/recruit/index.jsp?s_title="+s_title+"&state_c="+state_c+"&info_state="+info_state+"&iStart="+Integer.parseInt(iStart);	
+%>	
+<html>
+  <head>
+    <title>修改招聘信息</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_categoryInfo.js'></script> 
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js'></script>
+    <script type="text/javascript" src="biz.js"></script>
+ </head>
+
+<body>
+	<h1>修改招聘信息</h1>
+	     
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	 <!--table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>产品属性</h4>
+		  <span>产品属性填写的越少，越容易流失被搜索到的机会！建议您尽可能完整填写！</span><br/>
+		  </td>
+        </tr>
+      </table-->
+      <br/>
+      
+	<table width="100%" cellpadding="1" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td  colspan="6">
+		   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;
+		   <span style="font-size:14px;font-weight:bold;">职位信息</span>			
+		   </td>
+		</tr>
+
+		<tr>
+			<td align="right" width="20%">
+				 信息标题<font color="red">*</font>
+			</td>
+			<td colspan="5">
+				  <input type="text" name="title" id="title" size="62" maxlength="100" value="<%=title%>" />
+			 </td>
+		</tr>
+
+		<tr>
+		  <td align="right" width="20%">公司名称<font color="red">*</font></td>	   
+		  <td width="28%">
+			 <input type="text" name="company" id="company" size="30" maxlength="50" value="<%=company%>" />
+		  </td>
+		  <td width="12%" align="right">工作性质:</td>
+		  <td width="50%" colspan="3">
+			 <select name="work_type" id="work_type">
+				<%=work_type%>
+			 </select>	  
+		  </td>
+		</tr>
+
+		<tr>
+			<td align="right" width="20%">
+				所属分类<font color="red">*</font>				
+			</td>
+			<td width="80%" colspan="5">
+				<div id="classId1" style="display:block;">
+					<font color="#CECECE"><%=catAttr%></font>
+					<input type="button" class="button_css"name="Submit3" value="重新选择类目" style="cursor:pointer;" onClick="ChangeClassStyle();"/>
+				</div>
+				<div id="classId2" style="display:none;">
+					<select name="sort1" id="sort1" style="width:200px" onChange="setSecondClass(this.value);">
+						<option value="">请选择</option>
+						<%=select%>
+					</select>
+					<select name="sort2" id="sort2"  style="width:200px;display:none" onChange="setTherdClass(this.value);">
+						<option value="">请选择</option>
+					</select>
+					<select name="sort3" id="sort3"  style="width:200px;display:none">
+						<option value="">请选择</option>
+					</select>
+					<input type="hidden" name="class_attr" id="class_attr" value="<%=class_attr%>" />
+				</div>
+			</td>
+		</tr>
+
+		<tr>
+			<td align="right" width="20%">
+				工作地区<font color="red">*</font>				
+			</td>
+			<td width="80%" colspan="5">
+				<div id="areaId1" style="display:block;">
+					<font color="#CECECE"><%=areaAttr%></font>
+					<input type="button" class="button_css"name="Submit3" value="重新选择地区" style="cursor:pointer;" onClick="ChangeAreaStyle();"/>
+				</div>
+				<div id="areaId2" style="display:none;">
+					<select name="province" id="province" onclick="setCitys(this.value)">
+					  <option value="">省份</option> 
+					</select>
+					<select name="eparchy_code" id="eparchy_code" onclick="setAreas(this.value)">
+					  <option value="">地级市</option> 
+					 </select>
+					<select name="city_code" id="city_code" style="display:inline" >
+					 <option value="">市、县级市、县</option> 
+					</select>
+					<input name="area_attr" id="area_attr" type="hidden" value="<%=area_attr%>" />   
+				</div>  
+			</td>
+		</tr>
+
+		<tr>
+		 <td align="right" width="20%">职位薪资:</td>	   
+		  <td width="28%">
+			 <select name="salary" id="salary">
+				<%=salary%>
+			 </select>
+		  </td>
+		  <td width="12%" align="right">招聘人数:</td>
+		  <td width="50%" colspan="3">
+			 <input name="num" id="num" type="text" maxlength="10" size="30" value="<%=num%>" onkeyup= "if(isNaN(this.value))this.value=''" />
+		  </td>
+		</tr>
+			
+    
+	<tr>
+		<td  colspan="6">
+	   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">岗位要求</span>			
+		</td>
+	</tr>
+
+
+	<tr>
+	  <td align="right" width="20%">工作部门:</td>	   
+	  <td width="28%">
+		 <input type="text" name="depart" id="depart" size="30" maxlength="50" value="<%=depart%>" />
+	  </td>
+	  <td width="12%" align="right">工作岗位<font color="red">*</font></td>
+	  <td width="50%" colspan="3">
+		 <input type="text" name="career" id="career" size="30" maxlength="50" value="<%=career%>" />	  
+	  </td>
+	</tr>
+
+	<tr>
+	  <td align="right" width="20%">工作经验:</td>	   
+	  <td width="28%">
+		 <select name="work_exper" id="work_exper">
+			<%=work_exper%>
+		 </select>
+	  </td>
+	  <td width="12%" align="right">专业要求:</td>
+	  <td width="50%" colspan="3">
+		<input name="specialty" id="specialty" type="text" maxlength="50" size="30" value="<%=specialty%>" />
+	  </td>
+	</tr>
+    
+    
+	<tr>
+	  <td align="right" width="20%">年龄要求:</td>	   
+	  <td width="28%">
+		 <input name="birth" id="birth" type="text" maxlength="50" size="30" value="<%=birth%>" />
+	  </td>
+	  <td width="12%" align="right">学历要求:</td>
+	  <td width="28%">
+		 <select name="degree" id="degree">
+			<%=degree%>
+		 </select>
+	  </td>
+	  <td width="12%" align="right">性别要求:</td>
+	  <td width="50%">
+		 <select name="sex" id="sex">
+			<option <%if(sex.equals("0")){%>selected<%}%> value="0">男</option>
+			<option <%if(sex.equals("1")){%>selected<%}%> value="1">女</option>
+			<option <%if(sex.equals("2")){%>selected<%}%> value="2">不限</option>
+		 </select>
+	  </td>
+	</tr>
+
+      <tr>
+		 <td align="right" width="20%">联&nbsp;系&nbsp;人:</td>	   
+		  <td width="28%">
+			 <input type="text" name="contact" id="contact" size="30" maxlength="50" value="<%=contact%>" />
+		  </td>
+		  <td width="12%" align="right">联系电话:</td>
+		  <td width="50%" colspan="3">
+			<input name="phone" id="phone" type="text" maxlength="50" size="20" value="<%=phone%>" />
+		  </td>
+	  </tr>
+
+	  <tr>
+		 <td align="right" width="20%">手&nbsp;&nbsp;&nbsp;&nbsp;机:</td>	   
+		  <td width="28%">
+			 <input type="text" name="cellphone" id="cellphone" size="30" maxlength="20" value="<%=cellphone%>" />
+		  </td>
+		  <td width="12%" align="right">接受简历的E-mail<font color="red">*</font></td>
+		  <td width="50%" colspan="3">
+			<input name="email" id="email" type="text" maxlength="50" size="30" value="<%=email%>" />
+		  </td>
+	  </tr>
+
+	  <tr>
+		<td align="right" width="20%">
+			岗位描述/要求<font color="red">*</font>					
+		</td>
+		<td colspan="5">
+		  <textarea name="job_desc"><%=job_desc%></textarea>
+		<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+		<script type="text/javascript">
+			 //CKEDITOR.replace('job_desc');
+		   CKEDITOR.replace( 'job_desc',{
+				 filebrowserUploadUrl : '/program/inc/upload.jsp?type=file&attach_root_id=<%=job_id%>',      
+			filebrowserImageUploadUrl : '/program/inc/upload.jsp?type=img&attach_root_id=<%=job_id%>',      
+			filebrowserFlashUploadUrl : '/program/inc/upload.jsp?type=flash&attach_root_id=<%=job_id%>'     
+		});  
+		</script>
+		</td>
+	</tr>      
+
+	<tr>
+		<td  colspan="6">
+	   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">其他信息</span>			
+		</td>
+	</tr>
+	
+	<tr>
+		<td align="right" width="20%">
+			信息有效期<font color="red">*</font>			
+		</td>
+		<td colspan="5">    
+			<input type="radio" name="end_date" id="end_date1" value="30" <%if(end_date.equals("30")){ %>checked<%}%> />1个月	
+			<input type="radio" name="end_date" id="end_date2" value="90" <%if(end_date.equals("90")){ %>checked<%}%> />3个月	
+			<input type="radio" name="end_date" id="end_date3" value="180" <%if(end_date.equals("180")){ %>checked<%}%> />6个月
+			<input type="radio" name="end_date" id="end_date4" value="365" <%if(end_date.equals("365")){ %>checked<%}%> />1年
+			<input type="radio" name="end_date" id="end_date5" value="3650" <%if(end_date.equals("3650")){ %>checked<%}%> />长期有效
+		</td>
+	</tr>
+
+     
+	</table>
+	 	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="jumpurl" value="<%=para%>" />
+				<input type="hidden" name="bpm_id" value="9551" />
+				<input type="hidden" name="user_id" id="user_id" value="<%=publish_user_id%>" />
+				<input type="hidden" name="job_id" id="job_id" value="<%=job_id%>" />	
+				<input type="hidden" name="state_code" id="state_code" value="<%=state_code%>" />        
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="subForm()"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='<%=para%>';"/>
+			</td>
+		</tr>
+	</table>                                                                         
+  </form>
+
+</body>
+
+</html>
+<script>setProvince();</script>

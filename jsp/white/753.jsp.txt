@@ -1,0 +1,120 @@
+<%@ page language="java" contentType="text/html; charset=gb2312" pageEncoding="GB2312"%>   
+<%@ taglib prefix="s" uri="/struts-tags" %>  
+<%
+String path = request.getContextPath();
+String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
+%>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <base href="<%=basePath%>">
+    
+    <title>查看购物车</title>
+    <link href="./css/common.css" rel="stylesheet" type="text/css">
+	<meta http-equiv="pragma" content="no-cache">
+	<meta http-equiv="cache-control" content="no-cache">
+	<meta http-equiv="expires" content="0">    
+	<meta http-equiv="keywords" content="keyword1,keyword2,keyword3">
+	<meta http-equiv="description" content="This is my page">
+
+  <meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+    <link rel="stylesheet" href="./css/jquery.spinner.css" />
+     <style type="text/css">
+        body {margin: 20px;}
+        .spinnerExample {margin:10px 0;}
+     </style>
+  <style type="text/css">
+  body {
+	margin-left: 0px;
+	margin-top: 0px;
+	text-align: justify;
+}
+  </style>
+  </head>
+  
+  <body>
+  <script type="text/javascript" src="./js/jquery-1.8.0.min.js"></script>
+<script type="text/javascript" src="./js/jquery.spinner.js"></script>
+  <table width="1224" border="0" align="center">
+    <tr>
+      <td width="220" height="95"><div align="center"><a href="./index.jsp"><img src="./images/logo.gif" border="0"></a></div></td>
+      <td width="842" height="100"><div align="center"><img src="./images/banner.jpg" width="468" height="80"></div></td>
+      <td width="148" align="center"><img src="./images/collect.gif" alt="" width="100" height="30"><br>
+        <br>
+      <img src="./images/help.gif" alt="" width="100" height="32"></td>
+    </tr>
+    <tr>
+      <td colspan="3"><s:action name="listMenu" executeResult="true"></s:action></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top">
+      <br>
+      <table width="220" bgcolor=""><tr><td align="center">
+    <s:set name="username" value="#session['username']" />
+    <s:if test="#username==null">
+    <table  height="100" align="center"><tr><td background="images/loginbg.jpg" align="center" rowspan="0" colspan="0">
+     <div align="center"> <b>会员登录</b></div>
+      <s:form method="POST" action="./loginAction2!login">
+      <s:textfield  name="user.username" label="用户名"/>
+      <s:password  name="user.password"  label="密码"/>
+      <s:submit value="登录" align="center"/> <s:reset value="重置" align="center"/>
+	  </s:form>
+     </td></tr> </table>
+    </s:if>
+    <s:else>
+    <table align="center">
+      <tr><td rowspan="0" colspan="0">
+                欢迎您<s:property value="#session.username"/>！<br>
+      <s:a href="cart/viewcart.jsp">查看购物车</s:a>
+      <s:form action="./logoutAction!logout">
+      <s:submit value="注销"></s:submit>
+      </s:form>   
+      </td></tr></table>
+    </s:else> 
+    <br>
+    </td></tr>
+    <tr><td background="images/regbg.jpg"> <s:a href="user/adduser.jsp">
+      <div align="center">注册用户</div>
+    </s:a> 
+      </td>
+    </tr> </table>&nbsp;</td>
+      <td colspan="2" align="right" valign="middle"><br><table width="90%" border="0" align="center" cellpadding="0" cellspacing="0" bgColor="#c0c0c0">
+  <tr>
+  <td>
+  <table cellspacing="1" cellpadding="0" border="0" width="100%">
+  <tr bgcolor="#ffffff" >
+<td width="89" align="center" background="./images/tablebg.jpg"><strong><div align="center">产品编号</div></strong></td><td width="265" align="center" background="./images/tablebg.jpg"><strong> <div align="center">产品名称</div></strong></td><td width="150" align="center" background="./images/tablebg.jpg"><strong> <div align="center">价格</div></strong></td>
+<td align="center" background="./images/tablebg.jpg" class="B"><strong><div align="center">数量</div></strong></td>
+<td align="center" background="./images/tablebg.jpg"><strong><div align="center">更改数量</div></strong></td><td width="141" align="center" background="./images/tablebg.jpg"><strong><div align="center">总价</div></strong></td><td width="88" align="center" background="./images/tablebg.jpg"><strong> <div align="center">操作</div></strong></td>
+</tr><s:set var="count" value="0"/> 
+<s:iterator value="#session.shopcart" > 
+<tr bgcolor="#ffffff">
+
+<td align="center"><div align="center">
+<s:property value="productid"/>
+ <s:set var="productid" value="productid"/></div></td><td>
+<div align="center"><s:property value="productname"/></div></td><td align="center">
+ <div align="center"><font size="3"> &yen;</font><font color="red" size="4"> <s:property value="price"/></font> 元</div></td>
+<td width="84" align="center"><div align="center"><s:set var="quantity" value="quantity"/><s:property value="quantity"/></div></td>
+<td width="70"><div align="center"><s:form method="POST" action="updateCart!update.action?productid=%{#productid}"> <input name="quantity"  type="text" class="spinnerExample" value="%{#quantity}" size="10"/><s:submit value="更改" /></s:form></div></td><td align="center">
+<div align="center"><s:set var="cost" value="price*quantity"/>  <font size="3"> &yen; </font><font color="red" size="4"><s:property value="%{#cost}"/></font>元 </div></td><td align="center"><div align="center"><a href="deleteCart!delete?productid=<s:property value="productid"/>">删除</a></div></td></tr>
+<s:set var="count" value="%{#count+#cost}"/>
+</s:iterator> 
+<tr bgcolor="#ffffff">
+<td colspan="7"> <div align="right">合计： <font size="3"> &yen;</font><font color="red" size="4"><s:property value="%{#count}"/></font>元</div></td></tr></table></td></tr></table>
+        <br>
+        <div align="right">
+<s:a href="clearCart!clear"><img src="images/clearcart.gif" width="100" height="36" border="0"></s:a> 
+ <s:a href="productsAction!list"><img src="images/continueshop.gif" width="100" height="37" border="0"></s:a> <s:a href="./order/order.jsp"><img src="images/order.gif" width="100" height="37"></s:a>
+        </div></td>
+    </tr>
+    <tr>
+      <td colspan="3"><div align="center">Copyright&copy;2016康通购物网StShop版权所有</div></td>
+    </tr>
+  </table>
+  <script type="text/javascript">
+    $('.spinnerExample').spinner({});
+</script>
+  </body>
+</html>

@@ -1,0 +1,262 @@
+<%@page import="shopxx.util.FreemarkerUtils"%>
+<%@page language="java" contentType="text/html; charset=utf-8" pageEncoding="UTF-8"%>
+<%@page import="java.io.*"%>
+<%@page import="java.sql.*"%>
+<%@page import="org.apache.commons.lang.StringUtils"%>
+<%@page import="org.apache.commons.io.FileUtils"%>
+<%@page import="java.util.List"%>
+<%@page import="org.apache.commons.codec.digest.DigestUtils"%>
+<%@page import="java.util.HashMap"%>
+<%@page import="java.util.Map"%>
+<%@page import="java.util.regex.Pattern"%>
+<%@page import="java.util.regex.Matcher"%>
+<%@page import="org.codehaus.jackson.map.ObjectMapper"%>
+<%@include file="common.jsp"%>
+<%
+	Boolean isAgreeAgreement = (Boolean) session.getAttribute("isAgreeAgreement");
+	if (isAgreeAgreement == null || !isAgreeAgreement) {
+		response.sendRedirect("index.jsp");
+		return;
+	}
+	
+	String databaseType = (String) session.getAttribute("databaseType");
+	String databaseHost = (String) session.getAttribute("databaseHost");
+	String databasePort = (String) session.getAttribute("databasePort");
+	String databaseUsername = (String) session.getAttribute("databaseUsername");
+	String databasePassword = (String) session.getAttribute("databasePassword");
+	String databaseName = (String) session.getAttribute("databaseName");
+	String adminUsername = (String) session.getAttribute("adminUsername");
+	String adminPassword = (String) session.getAttribute("adminPassword");
+	
+	String status = "success";
+	String message = "";
+	String exception = "";
+	
+	if (StringUtils.isEmpty(databaseType)) {
+		status = "error";
+		message = "数据库类型不允许为空!";
+	} else if (StringUtils.isEmpty(databaseHost)) {
+		status = "error";
+		message = "数据库主机不允许为空!";
+	} else if (StringUtils.isEmpty(databasePort)) {
+		status = "error";
+		message = "数据库端口不允许为空!";
+	} else if (StringUtils.isEmpty(databaseUsername)) {
+		status = "error";
+		message = "数据库用户名不允许为空!";
+	} else if (StringUtils.isEmpty(databaseName)) {
+		status = "error";
+		message = "数据库名称不允许为空!";
+	} else if (StringUtils.isEmpty(adminUsername)) {
+		status = "error";
+		message = "管理员用户名不允许为空!";
+	} else if (adminUsername.length() < 2 || adminUsername.length() > 20) {
+		status = "error";
+		message = "管理员用户名长度必须在2-20之间!";
+	} else if (StringUtils.isEmpty(adminPassword)) {
+		status = "error";
+		message = "管理员密码不允许为空!";
+	} else if (adminPassword.length() < 4 || adminPassword.length() > 40) {
+		status = "error";
+		message = "管理员密码长度必须在4-20之间!";
+	}
+	
+	if (status.equals("success")) {
+		String jdbcUrl = null;
+		File initSqlFile = null;
+		
+		if (databaseType.equalsIgnoreCase("mysql")) {
+			jdbcUrl = "jdbc:mysql://" + databaseHost + ":" + databasePort + "/" + databaseName + "?useUnicode=true&characterEncoding=" + DATABASE_ENCODING;
+			initSqlFile = new File(rootPath + "/install/data/mysql/init.sql");
+		} else if (databaseType.equalsIgnoreCase("sqlserver")) {
+			jdbcUrl = "jdbc:sqlserver://" + databaseHost + ":" + databasePort + ";DatabaseName=" + databaseName;
+			initSqlFile = new File(rootPath + "/install/data/sqlserver/init.sql");
+		} else if (databaseType.equalsIgnoreCase("oracle")) {
+			jdbcUrl = "jdbc:oracle:thin:@" + databaseHost + ":" + databasePort + ":" + databaseName;
+			initSqlFile = new File(rootPath + "/install/data/oracle/init.sql");
+		} else {
+			status = "error";
+			message = "参数错误!";
+		}
+		
+		if (status.equals("success")) {
+			Connection connection = null;
+			Statement statement = null;
+			ResultSet resultSet = null;
+			
+			String currentSQL = null;
+			try {
+				connection = DriverManager.getConnection(jdbcUrl, databaseUsername, databasePassword);
+				connection.setAutoCommit(false);
+				statement = connection.createStatement();
+				if (initSqlFile != null) {
+					StringBuffer stringBuffer = new StringBuffer();
+					List<String> initSqlLineList = FileUtils.readLines(initSqlFile, "utf-8");
+					for (String line : initSqlLineList) {
+						if (!StringUtils.startsWith(line, "--")) {
+							stringBuffer.append(line + "\n");
+						}
+					}
+					
+					String initSql = stringBuffer.toString();
+					if (databaseType.equalsIgnoreCase("mysql")) {
+						String tableCharset;
+						if (StringUtils.equalsIgnoreCase(TABLE_CHARSET, "utf-8")) {
+							tableCharset = "utf8";
+						} else {
+							tableCharset = TABLE_CHARSET;
+						}
+						
+						String mysqlVersion = null;
+						try {
+							resultSet = statement.executeQuery("select version()");
+							resultSet.next();
+							mysqlVersion = resultSet.getString(1);
+							resultSet.close();
+						} catch (SQLException e0) {
+							status = "error";
+							message = "获取MySQL数据库版本失败!";
+							exception = stackToString(e0);
+							try {
+								if(resultSet != null) {
+									resultSet.close();
+									resultSet = null;
+								}
+								if(statement != null) {
+									statement.close();
+									statement = null;
+								}
+								if(connection != null) {
+									connection.close();
+									connection = null;
+								}
+							} catch (SQLException e1) {
+								status = "error";
+								message = "获取MySQL数据库版本失败!";
+								exception = stackToString(e1);
+							}
+						}
+						
+						String bit0 = null;
+						String bit1 = null;
+						if (mysqlVersion.compareTo("5.0") < 0) {
+							bit0 = "'0'";
+							bit1 = "'1'";
+						} else {
+							bit0 = "b'0'";
+							bit1 = "b'1'";
+						}
+						
+						String mysqlEngine = null;
+						if (StringUtils.equalsIgnoreCase(MYSQL_ENGINE, "MyISAM")) {
+							mysqlEngine = "MyISAM";
+						} else if (StringUtils.equalsIgnoreCase(MYSQL_ENGINE, "InnoDB")) {
+							mysqlEngine = "InnoDB";
+						} else {
+							if (mysqlVersion.compareTo("4.1") < 0) {
+								mysqlEngine = "MyISAM";
+							} else {
+								try {
+									mysqlEngine = "MyISAM";
+									resultSet = statement.executeQuery("show engines;");
+									while (resultSet.next()) {
+										String engine = resultSet.getString("Engine");
+										String support = resultSet.getString("Support");
+										if (StringUtils.equalsIgnoreCase(engine, "InnoDB") && !StringUtils.equalsIgnoreCase(support, "NO")) {
+											mysqlEngine = "InnoDB";
+											break;
+										}
+									}
+									resultSet.close();
+								} catch (SQLException e0) {
+									status = "error";
+									message = "获取MySQL数据库ENGINES信息失败!";
+									exception = stackToString(e0);
+									try {
+										if(resultSet != null) {
+											resultSet.close();
+											resultSet = null;
+										}
+										if(statement != null) {
+											statement.close();
+											statement = null;
+										}
+										if(connection != null) {
+											connection.close();
+											connection = null;
+										}
+									} catch (SQLException e1) {
+										status = "error";
+										message = "获取MySQL数据库ENGINES信息失败!";
+										exception = stackToString(e1);
+									}
+								}
+							}
+						}
+						
+						Map<String, Object> model = new HashMap<String, Object>();
+						model.put("tableCharset", tableCharset);
+						model.put("mysqlEngine", mysqlEngine);
+						model.put("bit0", bit0);
+						model.put("bit1", bit1);
+						model.put("base", request.getContextPath());
+						model.put("adminUsername", adminUsername);
+						model.put("adminPassword", DigestUtils.md5Hex(adminPassword));
+						model.put("demoImageUrl", DEMO_IMAGE_URL);
+						initSql = FreemarkerUtils.process(initSql, model);
+					}
+					String[] initSqlArray = initSql.split(";\n");
+					for (String sql : initSqlArray) {
+						if (!StringUtils.startsWith(sql, "--")) {
+							if (StringUtils.isNotBlank(sql)) {
+								currentSQL = sql;
+								statement.executeUpdate(sql);
+							}
+						}
+					}
+					connection.commit();
+					currentSQL = null;
+				} else {
+					status = "error";
+					message = "INIT.SQL文件不存在!";
+				}
+			} catch (SQLException e) {
+				status = "error";
+				message = "JDBC执行错误!";
+				exception = stackToString(e);
+				if (currentSQL != null) {
+					exception = "SQL: " + currentSQL + "<br />" + exception;
+				}
+			} catch (IOException e) {
+				status = "error";
+				message = "INIT.SQL文件读取失败!";
+				exception = stackToString(e);
+			} finally {
+				try {
+					if(resultSet != null) {
+						resultSet.close();
+						resultSet = null;
+					}
+					if(statement != null) {
+						statement.close();
+						statement = null;
+					}
+					if(connection != null) {
+						connection.close();
+						connection = null;
+					}
+				} catch (SQLException e) {
+					status = "error";
+					message = "JDBC执行错误!";
+					exception = stackToString(e);
+				}
+			}
+		}
+	}
+	ObjectMapper mapper = new ObjectMapper();
+	Map<String, String> jsonMap = new HashMap<String, String>();
+	jsonMap.put("status", status);
+	jsonMap.put("message", message);
+	jsonMap.put("exception", exception);
+	mapper.writeValue(response.getWriter(), jsonMap);
+%>

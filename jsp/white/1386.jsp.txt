@@ -1,0 +1,98 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" import="java.util.*" pageEncoding="utf-8"%>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.trade.ts_area.Ts_areaInfo"%>
+<%@page import="com.bizoss.trade.ti_company.Ti_companyInfo"%>
+
+<%
+ 
+ 	request.setCharacterEncoding("utf-8");
+	Map ti_member = new Hashtable();
+	ti_member.put("m_state","c");	
+ 	String cat_attr="",info_id="",flag="";
+	if(request.getParameter("cat_attr") != null) {
+		 cat_attr = request.getParameter("cat_attr").trim();
+		 ti_member.put("class_attr",cat_attr);	
+	}
+	if(request.getParameter("info_id") != null) {
+		 info_id = request.getParameter("info_id").trim();
+	}
+	Ti_companyInfo companyInfo=new Ti_companyInfo();
+    String iStart = "0";
+	int limit = 10;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List glist = companyInfo.getListByPage(ti_member,Integer.parseInt(iStart),limit);
+	int counter = companyInfo.getCountByObj(ti_member);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"showMoreCompany.jsp?iStart=",Integer.parseInt(iStart),limit);
+  	Ts_areaInfo areaBean = new Ts_areaInfo();
+  	Map areaMap  = areaBean.getAreaClass();
+   %>     
+<html>
+
+    <head>
+        <meta http-equiv="x-ua-compatible" content="ie=7" />
+        <title>more college</title>
+        <link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+        <link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+		<script type="text/javascript" src="/js/thickbox.js"></script>
+    	<script type="text/javascript" src="task.js"></script>
+    </head>
+
+    <body>
+    
+	<div style="width:500px;">
+		   <table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+				<tr>
+					<th>企业名称</th>
+					<th>地区</th>
+				</tr>
+				<% 
+		     int listsize=0;
+		     if(glist!=null && glist.size()>0){
+		        listsize =  glist.size();    
+		        String areaArr[]=null; 
+		        for(int i = 0;i < listsize;i++){ 
+		        	Hashtable gMap =(Hashtable)glist.get(i);
+		        	String cust_id="",cust_name="",area_attr="",areaAttr="";
+		        	if (gMap.get("cust_id") != null){
+							cust_id = gMap.get("cust_id").toString();
+					}
+					if (gMap.get("cust_name") != null){
+						cust_name = gMap.get("cust_name").toString();
+					}
+					if (gMap.get("area_attr") != null){
+						area_attr = gMap.get("area_attr").toString();
+					}
+					if(!area_attr.equals(""))
+						{
+						  String chIds[] =	area_attr.split("\\|");	
+						  for(String chId:chIds)
+						  {
+							 if(areaMap!=null)
+							 {
+								 if(areaMap.get(chId)!=null)
+								 {
+									areaAttr += areaMap.get(chId).toString();                 
+								  }                  
+							 
+							  }                 
+						   }		    
+						}
+						
+		   	%>		
+				<tr>
+					<td>
+						<a href="javascript:linkCompanyOpr('<%=cust_id%>','<%=cust_name%>','<%=area_attr%>')"><%=cust_name%></a>
+					</td>
+				  	<td><%=areaAttr%></td>
+				</tr>
+				<%
+		   			}	  
+			  	}
+			  %>  
+			</table> 
+			<%=pageString %>
+		</div>
+    </body>
+</html>

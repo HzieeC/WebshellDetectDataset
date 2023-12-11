@@ -1,0 +1,559 @@
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/check.asp"-->
+<!--#include file="../inc/ubbcode.asp"-->
+<!--#include file="../inc/cls_editor.asp"-->
+<!--#include file="inc/head.inc"-->
+<%
+Call InnerLocation("用户短信服务")
+
+Dim Rs,SQL,i,Action
+Dim smsincept,smscontent,smstopic,sid,sendername,Chatloglist
+
+sid = NewAsp.ChkNumeric(Request("sid"))
+
+If CInt(GroupSetting(22)) = 0 Then
+	ErrMsg = ErrMsg + "<li>对不起！您没有使用短信服务的权限，如有什么问题请联系管理员。</li>"
+	Founderr = True
+End If
+If Trim(Request("touser")) <> "" Then
+	sendername = NewAsp.CheckBadstr(Request("touser"))
+	smsincept =  NewAsp.CheckBadstr(Request("touser"))
+Else
+	sendername = NewAsp.CheckBadstr(Request("sender"))
+End If
+Chatloglist = ""
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+	Case "del"
+		Call DelMessage
+	Case "alldel"
+		Call DelAllMessage
+	Case "save"
+		Call SaveMessage
+	Case "read"
+		Call ReadMessage
+	Case "outread"
+		Call ReadMessage
+	Case "new"
+		Call SendMessage
+	Case "fw"
+		Call SendMessage
+	Case "删除收件箱"
+		Call Delinbox
+	Case "清空收件箱"
+		Call DelAllinbox
+	Case "删除发件箱"
+		Call DelSendbox
+	Case "清空发件箱"
+		Call DelAllSendbox
+	Case Else
+		ErrMsg = ErrMsg + "<li>错误的系统参数~!</li>"
+		Founderr = True
+End Select
+If Founderr = True Then
+	Call ToErrors(ErrMsg)
+End If
+
+Sub SendMessage()
+	Call UserMessage
+	If Founderr = True Then Exit Sub
+%>
+<script language=JavaScript>
+var _maxCount = '<%=CLng(GroupSetting(23))%>';
+function DoTitle(addTitle) {  
+ var revisedTitle;  
+ var currentTitle = document.myform.incept.value;
+ if(currentTitle=="") revisedTitle = addTitle; 
+ else { 
+  var arr = currentTitle.split(","); 
+  for (var i=0; i < arr.length; i++) { 
+   if( addTitle.indexOf(arr[i]) >=0 && arr[i].length==addTitle.length ) return; 
+  } 
+  revisedTitle = currentTitle+","+addTitle; 
+ } 
+
+ document.myform.incept.value=revisedTitle;  
+ document.myform.incept.focus(); 
+ return; 
+} 
+
+function doSubmit(){
+	var form1 = document.myform;
+	if (form1.incept.value==""){
+		alert("收件人不能为空！");
+		form1.incept.focus();
+		return false;
+	}
+	if (form1.topic.value==""){
+		alert("短信标题不能为空！");
+		form1.topic.focus();
+		return false;
+	}
+	<%If CInt(GroupSetting(2)) = 1 Then%>
+	if (form1.codestr.value==""){
+		alert("请填写验证码！");
+		form1.codestr.focus();
+		return false;
+	}
+	<%End If%>
+	MessageLength = form1.content.value.length;
+	if(MessageLength < 2){
+		alert("短信内容不能小于2个字符！");
+		form1.content.focus();
+		return false;
+	}
+	if(MessageLength > _maxCount){
+		alert("短信的内容不能超过"+_maxCount+"个字符！");
+		return false;
+	}
+}
+</script>
+
+<table class="Usertableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<form action="message.asp" method="post" onsubmit="return doSubmit()" name="myform">
+	<input type="hidden" name="action" value="save"/>
+			<tr>
+				<th colspan="2">站内短消息</th>
+			</tr>
+			<%
+	Call MessageTop
+%>
+			<tr>
+				<td class="Usertablerow1">收件人</td>
+				<td class="Usertablerow1"><input size="50" name="incept" value="<%=smsincept%>" type="text" /> <select onchange="DoTitle(this.options[this.selectedIndex].value)" name="friend">
+				<option value="" selected="selected">选择</option>
+				<%=Option_Friend%>
+				</select></td>
+			</tr>
+			<tr>
+				<td class="Usertablerow1">标题</td>
+				<td class="Usertablerow1"><input maxlength="70" size="70" name="topic" value="<%=smstopic%>" type="text" /></td>
+			</tr>
+			<%
+	If CInt(GroupSetting(2)) = 1 Then
+%>
+			<tr>
+				<td class="Usertablerow1">验证码</td>
+				<td class="Usertablerow1"><input name="checkcode" type="text" class="logininput" id="checkcode" size="5" maxlength="4" onfocus="get_checkcode();this.onfocus=null;" onkeyup="ajaxcheckcode('check_code','checkcode');" />
+				<span id="img_checkcode"><label style="cursor:pointer;" onclick="get_checkcode();">点击获取验证码</label></span><span id="isok_checkcode"></span></td>
+			</tr>
+			<%
+	End If
+%>
+			<tr>
+				<td class="Usertablerow1" nowrap="nowrap">短信内容</td>
+				<td class="Usertablerow1"><%
+	Dim oEditor
+	Set oEditor = New Editor_Cls
+	oEditor.UserMode		= 1
+	oEditor.setEditMode		= 1
+	oEditor.ChannelID		= 0
+	oEditor.Width			= 520
+	oEditor.Height			= 300
+	oEditor.BasePath		= "../editor/"
+	oEditor.ToolbarSet		= "Basic"'Default,AdminMode,Simple,UserMode,Basic
+	oEditor.value			= smscontent
+	oEditor.InstanceName	= "content"
+	oEditor.Execute()
+	Set oEditor = Nothing
+%></td>
+			</tr>
+			<tr height="20">
+				<td class="Usertablerow1" colspan="2"><strong>说明：</strong>标题最多50个字符，内容最多<%=CLng(GroupSetting(23))%>个字符。</td>
+			</tr>
+			<tr align="center" height="20">
+				<td class="Usertablerow2" colspan="2"><input class="Button" type="button" onclick="javascript:history.go(-1)" name="Submit4" value="返回上一页" />&nbsp; <input class="button" type="reset" name="submit2" value=" 清除 " />&nbsp; <SCRIPT LANGUAGE="JavaScript">
+<!--
+var reaction='<%=NewAsp.CheckStr(Request("reaction"))%>';
+var action='new';
+if (action=='new')
+{
+if (reaction=='chatlog')
+{
+document.write ('<input class="button" type="button" value="关闭聊天记录" name="chatlog" onclick="location.href=\'?action=new&sid=<%=Request("sid")%>&touser=<%=sendername%>\'"/>');
+}
+else{
+document.write ('<input class="button" type="button" value="查看聊天记录" name="chatlog" onclick="location.href=\'?action=new&sid=<%=Request("sid")%>&touser=<%=sendername%>&reaction=chatlog\'"/>');
+}
+}
+//-->
+</SCRIPT><input class="button" type="submit" name="Submit1" value=" 发送 " /></td>
+			</tr>
+			<SCRIPT LANGUAGE="JavaScript">
+<!--
+var reaction='<%=NewAsp.CheckStr(Request("reaction"))%>';
+var chatloglist='<%=Chatloglist%>';
+var myname='<%=MemberName%>';
+var action='new';
+if (action=='new')
+{
+if (reaction=='chatlog')
+{
+	document.write ('<tr>');
+	document.write ('<th colspan=""2"">我与<%=sendername%>的聊天记录</th>');
+	document.write ('</tr>');
+	if (myname=='')
+	{
+		document.write ('<tr>');
+		document.write ('<td class=""Usertablerow1"" colspan=""2"">自己跟自己的聊天记录没什么好看的：）</td>');
+		document.write ('</tr>');
+	}
+	else{
+		document.write (chatloglist);
+	}
+}
+}
+//-->
+</SCRIPT>
+	</form>
+</table>
+<%
+End Sub
+
+Sub MessageTop()
+%>
+	<tr align="center" height="20">
+			<td class="Usertablerow1" colspan="2"><a onclick="showClick('您确定要删除此短信吗?')" href="message.asp?action=del&amp;sid=<%=Request("sid")%>"><img alt="删除消息" border="0" src="images/m_delete.gif" /></a> &nbsp; 
+			<a href="message.asp?action=new"><img alt="发送消息" border="0" src="images/m_write.gif" /></a> &nbsp; 
+			<a href="message.asp?action=new&amp;touser=<%=sendername%>&amp;sid=<%=Request("sid")%>"><img alt="回复消息" border="0" src="images/replypm.gif" /></a>&nbsp; 
+			<a href="message.asp?action=fw&amp;sid=<%=Request("sid")%>"><img alt="转发消息" border="0" src="images/m_fw.gif" /></a></td>
+	</tr>
+
+<%
+End Sub
+
+Sub ReadMessage()
+	If Founderr = True Then Exit Sub
+	If Action = "outread" Then
+		Set Rs = NewAsp.Execute("SELECT * FROM NC_Message WHERE sender='"&MemberName&"' And delSend=0 And id="& CLng(sid))
+	Else
+		Set Rs = NewAsp.Execute("SELECT * FROM NC_Message WHERE (incept='"&MemberName&"' Or flag=1) And id="& CLng(sid))
+	End If
+	If Rs.BOF And Rs.EOF Then
+		ErrMsg = ErrMsg + "<li>错误的系统参数~！</li>"
+		Founderr = True
+		Set Rs = Nothing
+		Exit Sub
+	End If
+	Dim smsnumber
+	If Rs("isRead") = 0 And Action="read" Then
+		smsnumber = newincept(Membername) - 1
+		if smsnumber < 0 Then smsnumber = 0
+		SQL = "UPDATE NC_User SET usermsg=" & smsnumber & " where username='"&Membername&"'"
+		NewAsp.Execute(SQL)
+		if Rs("flag") = 0 Then
+			SQL = "UPDATE NC_Message SET isRead=1 where id="& CLng(sid)
+			NewAsp.Execute(SQL)
+		End If
+	End If
+%>
+<table class="Usertableborder" cellspacing="1" cellpadding="3" align="center" bgcolor="#cccccc" border="0">
+	<tbody>
+		<tr>
+			<th>阅读短消息</th>
+		</tr>
+		<%
+	Call MessageTop
+%>
+		<tr height="20">
+			<td class="Usertablerow2">　在<strong><%=Rs("SendTime")%></strong>， <%
+	If Action = "outread" Then
+		Response.Write "您给<b>" & Server.HTMLEncode(Rs("incept")) & "</b>发送的消息！"
+	Else
+		Response.Write "<b>" & Server.HTMLEncode(Request("sender")) & "</b>给您发送的消息！"
+	End If
+%></td>
+		</tr>
+		<tr>
+			<td class="Usertablerow1"><strong>短信标题：</strong><%=Rs("title")%><hr size="1" />
+			<%=ubb.UbbCode(Rs("content"))%></td>
+		</tr>
+		<tr align="center" height="20">
+			<td class="Usertablerow2" colspan="2"><input class="Button" type="button" onclick="javascript:history.go(-1)" name="Submit4" value="返回上一页" />&nbsp;</td>
+		</tr>
+	</tbody>
+</table>
+<%
+	Set Rs = Nothing
+End Sub
+Sub UserMessage()
+	If Founderr = True Then Exit Sub
+	If Not IsNumeric(Request("sid")) And Trim(Request("sid")) <> "" Then
+		ErrMsg = ErrMsg + "错误的系统参数!ID请输入整数"
+		Founderr = True
+		Exit Sub
+	End If
+	If Trim(Request("sid")) <> "" Then
+		sid = NewAsp.ChkNumeric(Request("sid"))
+	End If
+	If Action = "fw" And IsNumeric(Request("sid"))  Then
+		Set Rs = NewAsp.Execute("SELECT * FROM NC_Message where (sender='"&MemberName&"' Or incept='"&MemberName&"') And id="& CLng(sid))
+		If Rs.BOF And Rs.EOF Then
+			ErrMsg = ErrMsg + "<li>错误的系统参数~！</li>"
+			Founderr = True
+			Set Rs = Nothing
+			Exit Sub
+		End If
+		smsincept = ""
+		smscontent = "=================== 下面是转发信息 =================== <br>" & Rs("content") & "<br>====================================================<br>"
+		smstopic = "FW：" & Rs("title")
+		sendername = Rs("sender")
+		Set Rs = Nothing
+	End If
+	If Trim(Request("touser")) <> "" And Request("sid") <> "" Then
+		Set Rs = NewAsp.Execute("select * from NC_Message where id="& CLng(sid) &" And incept='"&MemberName&"'")
+		If Rs.BOF And Rs.EOF Then
+			ErrMsg = ErrMsg + "<li>错误的系统参数~！</li>"
+			Founderr = True
+			Set Rs = Nothing
+			Exit Sub
+		End If
+		smsincept = Rs("incept")
+		smscontent = "============在 " & Rs("SendTime") & " 您来信中写道：============<br>" & Rs("content") & "<br>======================================================<br>"
+		smstopic = "RW：" & Rs("title")
+		sendername = Rs("sender")
+		Set Rs = Nothing
+	End If
+	Dim Touser,temp_chat1,temp_chat2
+	If Request("reaction")="chatlog" Then
+		Touser=NewAsp.CheckStr(Request("touser"))
+		SQL="SELECT top 30 sender,incept,title,content,sendtime FROM NC_Message WHERE ((sender='"&MemberName&"' And incept='"&Touser&"') or (sender='"&Touser&"' And incept='"&MemberName&"')) And delSend=0 ORDER BY sendtime DESC"
+		Set Rs=NewAsp.Execute(SQL)
+		If Rs.EOF And Rs.BOF Then
+			Chatloglist="<tr><td class=Usertablerow1 colspan=2>还没有任何聊天记录！</td></tr>"
+		Else
+			SQL=Rs.GetRows(-1)
+			Rs.close:Set Rs=nothing
+
+			For i=0 to Ubound(SQL,2)
+				chatloglist=chatloglist & "<tr><td class=Usertablerow2 height=25 colspan=2>"
+				If Trim(SQL(0,i))=MemberName Then
+					temp_chat1 = "在" & SQL(4,i)
+					temp_chat1 = temp_chat1 & "，您发送此消息给" & NewAsp.HtmlEncode(SQL(1,i))
+					chatloglist=chatloglist & temp_chat1
+				Else
+					temp_chat2 = "在" & SQL(4,i) & "，"
+					temp_chat2 = temp_chat2 & NewAsp.HtmlEncode(SQL(0,i)) & "给您发送的消息！"
+					chatloglist=chatloglist & temp_chat2
+				End If
+				chatloglist=chatloglist & "</td></tr><tr><td class=Usertablerow1 valign=top align=left colspan=2><b>消息标题："
+				chatloglist=chatloglist & NewAsp.HtmlEncode(SQL(2,i))
+				chatloglist=chatloglist & "</b><hr size=1>"
+				chatloglist=chatloglist & UbbCode(SQL(3,i))
+				chatloglist=chatloglist & "</td></tr>"
+			Next
+		End If
+	End If
+End Sub
+Sub DelMessage()
+	If Founderr = True Then Exit Sub
+	If sid = 0 Then
+		ErrMsg = ErrMsg + "<li>对不起！错误的系统参数。</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	SQL="SELECT incept FROM NC_Message WHERE (sender='"&MemberName&"' Or incept='"&MemberName&"') And id="& CLng(sid)
+	Set Rs=NewAsp.Execute(SQL)
+	If Rs.EOF And Rs.BOF Then
+		ErrMsg = ErrMsg + "<li>请选择正确的系统参数！</li>"
+		Founderr = True
+		Exit Sub
+		Set Rs = Nothing
+	Else
+		If Rs(0) = MemberName Then
+			NewAsp.Execute("DELETE FROM NC_Message WHERE flag=0 And incept='"&MemberName&"' And id="& CLng(sid))
+		Else
+			NewAsp.Execute("UPDATE NC_Message SET delsend=1 WHERE sender='"&MemberName&"' And id="& CLng(sid))
+		End If
+	End If
+	Rs.Close:Set Rs = Nothing
+	Call ToSucceed("<li>删除短消息完成！</li>")
+End Sub
+Sub DelAllMessage()
+	If Founderr = True Then Exit Sub
+	NewAsp.Execute("DELETE FROM NC_Message WHERE flag=0 And incept='"&MemberName&"'")
+	NewAsp.Execute("UPDATE NC_Message Set delsend=1 WHERE sender='"&MemberName&"'")
+	Call ToSucceed("<li>您的短消息已经全部清除！</li>")
+End Sub
+'================================================
+' 函数名：Option_Friend
+' 作  用：用户好友下拉名单
+'================================================
+Function Option_Friend()
+	DIM i
+	SQL = "SELECT friend FROM NC_Friend WHERE grouping<>2 And userid="& memberid &" order by addtime desc"
+	Set Rs = NewAsp.Execute(Sql)
+	If Not Rs.EOF Then
+		SQL = Rs.GetRows(-1)
+		Rs.Close:Set Rs=Nothing
+	End if
+	If IsArray(SQL) Then
+		For i=0 To Ubound(SQL,2)
+		Option_Friend = Option_Friend & "<option value="""& SQL(0,i) &""">"& SQL(0,i) &"</option> "
+		Next
+	Else
+		Option_Friend = ""
+	End If
+End Function
+'================================================
+' 函数名：newincept
+' 作  用：统计短信
+'================================================
+Function newincept(iusername)
+	Dim Rs
+	Rs = NewAsp.Execute("SELECT Count(id) FROM NC_Message WHERE isRead=0 And flag=0 And incept='"& iusername &"'")
+	newincept = Rs(0)
+	Set Rs=Nothing
+	If IsNull(newincept) Then newincept = 0
+End Function
+'================================================
+' 函数名：ChkHateName
+' 作  用：黑名单验证
+'================================================
+Function ChkHateName(sName)
+	DIM SQL,Rs
+	ChkHateName = False
+	SQL="SELECT friend FROM NC_Friend WHERE (userid="& memberid &" Or username='"& sName &"') And grouping=2"
+	Set Rs = NewAsp.Execute(SQL)
+	If Not Rs.EOF Then
+		SQL=Rs.GetString(,, ",", "", "")
+		Rs.Close:Set Rs=Nothing
+		If Instr(SQL,sName) Or Instr(SQL,MemberName) Then ChkHateName = True
+	End If
+End Function
+'================================================
+' 函数名：CheckID
+' 作  用：验证短信ID
+'================================================
+Function CheckID(CHECK_ID)
+	Dim Delid,Fixid
+	CheckID=True
+	Delid=replace(CHECK_ID,"'","")
+	Delid=replace(Delid,";","")
+	Delid=replace(Delid,"--","")
+	Delid=replace(Delid,")","")
+	Delid=replace(Delid,"@","")
+	Delid=replace(Delid,"""","")
+	Delid=replace(Delid,"%","")
+	Delid=replace(Delid,"$","")
+	Fixid=replace(Delid,",","")
+	Fixid=Trim(replace(fixid," ",""))
+	If Delid="" or isnull(Delid) Then  CheckID=False
+	If Not IsNumeric(fixid) Then CheckID=False
+End Function
+'================================================
+' 过程名：SaveMessage
+' 作  用：保存短消息
+'================================================
+Sub SaveMessage()
+	Dim strIncept,strContent,strTitle,InceptName,n,ChkPostData
+	If CLng(UserToday(4)) => CLng(GroupSetting(29)) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>您每天最多只能发布<font color=""red""><b>" & GroupSetting(29) & "</b></font>篇文章，如果还要继续发布请明天再来吧！</li>"
+	End If
+	If Trim(Request.Form("incept")) = "" Then
+		ErrMsg = ErrMsg + "<li>请填写收件人姓名！</li>"
+		Founderr = True
+	Else
+		strIncept = NewAsp.CheckBadstr(Request.Form("incept"))
+		strIncept = split(strIncept,",")
+	End If
+	If Trim(Request.Form("topic")) = "" Then
+		ErrMsg = ErrMsg + "<li>请填写短信标题！</li>"
+		Founderr = True
+	Else
+		strTitle = NewAsp.RequestForm(Request.Form("topic"),50)
+	End If
+	If Trim(Request.Form("content")) = "" Then
+		ErrMsg = ErrMsg + "<li>请填写短信内容！</li>"
+		Founderr = True
+	Else
+		strContent = NewAsp.HTMLEncode(Request.Form("content"))
+	End If
+	If Len(Request.Form("content")) > CLng(GroupSetting(23)) Then
+		ErrMsg = ErrMsg + "<li>短信内容不能大于" & GroupSetting(23) & "字符！</li>"
+		Founderr = True
+	End If
+	ChkPostData = NewAsp.NeedIsAudit(Request.Form("content"), Request.Form("topic"))
+	If ChkPostData Then
+		Founderr = True
+		ErrMsg = ErrMsg + "<li>请不要发表含有不适当内容的留言，请不要发表广告信息</li>"
+		Exit Sub
+	End If
+	If CInt(GroupSetting(2)) = 1 Then
+		If Not NewAsp.CodeIsTrue() Then
+			ErrMsg = ErrMsg + "<meta http-equiv=refresh content=""2;URL="&Request.ServerVariables("HTTP_REFERER")&"""><li>验证码校验失败，请返回刷新页面再试。两秒后自动返回</li>"
+			Founderr = True
+		End If
+		Session("GetCode") = ""
+	End If
+	If Founderr = True Then Exit Sub
+	On Error Resume Next
+	Call PreventRefresh  '防刷新
+	n=0
+	For i = 0 To Ubound(strIncept)
+		If i >= 5 Then Exit For
+		n = n + 1
+		InceptName = Trim(strIncept(i))
+		SQL = "SELECT username FROM [NC_User] WHERE username='"&InceptName&"'"
+		Set Rs = NewAsp.Execute(SQL)
+		If Rs.EOF And Rs.BOF Then
+			ErrMsg = ErrMsg + "<li>没有找到<font color=""red"">" & InceptName & "</font>这个用户，短信发送不成功~！</li>"
+			Founderr = True
+			Rs.Close:Set Rs = Nothing
+			Exit Sub
+		Else
+			InceptName = Rs(0)
+		End If
+		Rs.Close:Set Rs = Nothing
+		If ChkHateName(InceptName) Then
+			ErrMsg = ErrMsg + "由于对方<font color=red>" & InceptName & "</font>已将你列入黑名单，或<font color=red>" & InceptName & "</font>存在你的黑名单中，因此短信发送被终止！"
+			Founderr = True
+			Exit Sub
+		Else
+			SQL = "Insert into NC_Message (sender,incept,title,content,flag,SendTime,isRead,delSend) values ('"& MemberName &"','"& InceptName &"','"& strTitle &"','"& strContent &"',0,"& NowString &",0,0) "
+			NewAsp.Execute(SQL)
+			SQL = "Update NC_User Set usermsg=usermsg+1 where username='"&InceptName&"'"
+			NewAsp.Execute(SQL)
+		End If
+		
+	Next
+	Dim strUserToday
+	strUserToday = UserToday(0) &","& UserToday(1) &","& UserToday(2) &","& UserToday(3) &","& UserToday(4)+n &","& UserToday(5)
+	UpdateUserToday(strUserToday)
+	Call ToSucceed("<li>恭喜您！发送短信成功。</li>")
+End Sub
+'删除收件箱
+Sub Delinbox()
+	If Not CheckID(Request("id")) Then
+		ErrMsg = ErrMsg + "<li>错误的系统参数！</li>"
+		Founderr = True
+	End If
+	If Founderr = True Then Exit Sub
+	NewAsp.Execute("DELETE FROM NC_Message WHERE flag=0 And incept='"&MemberName&"' And id in (" & NewAsp.CheckBadstr(Request("id")) & ")")
+	Call ToSucceed("<li>删除收件箱中的短信成功！</li>")
+End Sub
+'清空收件箱
+Sub DelAllinbox()
+	If Founderr = True Then Exit Sub
+	NewAsp.Execute("DELETE FROM NC_Message WHERE flag=0 And incept='"&MemberName&"'")
+	Call ToSucceed("<li>您的收件箱已成功清空！</li>")
+End Sub
+'删除发件箱
+Sub DelSendbox()
+	If Not CheckID(Request("id")) Then
+		ErrMsg = ErrMsg + "<li>错误的系统参数！</li>"
+		Founderr = True
+	End If
+	If Founderr = True Then Exit Sub
+	NewAsp.Execute("UPDATE NC_Message SET delsend=1 WHERE sender='"&MemberName&"' And id in (" & NewAsp.CheckBadstr(Request("id")) & ")")
+	Call ToSucceed("<li>删除发件箱中的短信成功！</li>")
+End Sub
+'清空发件箱
+Sub DelAllSendbox()
+	If Founderr = True Then Exit Sub
+	NewAsp.Execute("UPDATE NC_Message SET delsend=1 WHERE sender='"&MemberName&"'")
+	Call ToSucceed("<li>您的发件箱已成功清空！</li>")
+End Sub
+%>
+<!--#include file="inc/foot.inc"-->

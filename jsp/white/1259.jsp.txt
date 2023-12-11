@@ -1,0 +1,208 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" import="java.util.*" pageEncoding="utf-8"%>
+<%@ page import="com.bizoss.trade.ti_news.Ti_newsInfo" %>
+<%@ page import="com.bizoss.trade.ti_channel.Ti_channelInfo" %>
+<%
+ 	request.setCharacterEncoding("utf-8");	
+  
+  Ti_newsInfo newsinfo = new Ti_newsInfo();
+//  Ti_customerInfo custinfo = new Ti_customerInfo();
+  Ti_channelInfo  channelinfo = new Ti_channelInfo();
+  
+String keyword="", id="",get_val="";
+ if(request.getParameter("keyword") != null) {
+		 keyword = request.getParameter("keyword");
+	}
+  if(request.getParameter("val") != null) {
+		 get_val = request.getParameter("val");
+ 	}
+	
+	if(request.getParameter("id") != null) {
+		 id = request.getParameter("id");
+ 	}
+List list = new ArrayList();   
+if(id.equals("1")){
+   list = newsinfo.getnewsListForTable("",keyword);
+}
+
+//if(id.equals("2")){
+ //  list = custinfo.getcustListForTable("",keyword);
+//}
+if(id.equals("3")){
+   list = channelinfo.getchannelListForTable("",keyword);
+}
+
+%>     
+<html>
+
+    <head>
+        <meta http-equiv="x-ua-compatible" content="ie=7" />
+        <script type="text/javascript" src="/js/commen.js"></script>
+        <link href="/program/company/index/css/style.css" rel="stylesheet" type="text/css">
+        <title>more college</title>
+        <script>
+        	
+        	 var globalVal = '';
+           function linkguanlianOpr(sel)
+           {
+             var size =document.getElementById("listsize").value;
+             var innerHTMLStr = "";
+             var link_guanlian = "";
+             var k = 1;            
+             for(var i=0;i<size;i++)
+             {
+                 if(document.getElementById('checkone'+i).checked)
+                 {
+                   var guanlian_id = document.getElementById('checkone'+i).value;
+                   link_guanlian += guanlian_id + "|";
+                   var guanlian_name = document.getElementById('chechguanli_name'+i).value;
+                   setDivHtml(k,guanlian_name,guanlian_id,sel);
+                   innerHTMLStr += globalVal;
+                   k++;
+                 }             
+             } 		
+              if(link_guanlian!=""){
+			   document.getElementById(sel+"_id_group").value = link_guanlian;  
+			  }
+			  	
+           	 document.getElementById(sel+"_table").innerHTML= "<table width='100%' border='0' cellspacing='0' cellpadding='0' >" + innerHTMLStr + "</table>";
+             TB_remove();
+           }
+           
+           function setDivHtml(k,guanlian_name,guanlian_id,sel){
+           	 globalVal = "<tr id='spandiv"+k+"'><td width='5%' height='35' align='right' style='background:#F9F9F9;'><font color='#666666'>"+k+":</font>"+"</td><td width='55%' style='background:#F9F9F9;'><font color='#666666'>"+guanlian_name+"</font></td>"+"<td width='40%'>&nbsp;<img src='/program/company/index/images/cross.png' style='vertical-align:middle;cursor:pointer;' title=移除关联信息 onclick=moveout('"+k+"','"+guanlian_id+"','"+sel+"') /></td></tr>";
+           }
+           
+           function moveout(k,guanlian_id,val){		 
+           		var guanlian_id_group = document.getElementById(val+"_id_group").value;
+           		guanlian_id_group = guanlian_id_group.replace(guanlian_id+'|','');
+           		document.getElementById(val+"_id_group").value = guanlian_id_group;
+           		document.getElementById(val+"spandiv"+k).style.display='none';
+           }
+        </script>
+    </head>
+
+    <body>
+    
+		<div style="width:600px;">
+		   <table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+				<%
+				if(id.equals("1")){
+				
+				%>
+				<tr>
+				<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+				<th>资讯标题</th>
+			   <th>发布时间</th>
+				  
+				</tr>
+				<%}%>
+				
+				<%
+				if(id.equals("2")){
+				
+				%>
+				<tr>
+					<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+					<th>客户名称</th>
+			  	   <th>客户名称</th>
+				  
+				</tr>
+				<%}%>
+				
+				<%
+				if(id.equals("3")){
+				
+				%>
+				<tr>
+					<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+					<th>栏目名称</th>
+			  	   <th>等级</th>				  
+				</tr>
+				<%}%>
+				
+			<% 
+		     int listsize=0;
+		     if(list!=null && list.size()>0){
+		        listsize =  list.size();     
+		        for(int i = 0;i < listsize;i++){ 
+		        Hashtable gMap =(Hashtable)list.get(i);
+		        String guanlian_id="",guanli_name ="",others="";
+		        
+				if(id.equals("1")){
+		        if (gMap.get("news_id") != null){
+						guanlian_id = gMap.get("news_id").toString();
+					 }
+					if (gMap.get("title") != null){
+						guanli_name = gMap.get("title").toString();
+						if(guanli_name.length()>35)
+					   { guanli_name = guanli_name.substring(0,35);}
+						}
+					
+					if (gMap.get("in_date") != null){
+						others = gMap.get("in_date").toString();						
+						if(others.length()>19)
+					   { others = others.substring(0,19);}
+						}
+					    
+				}	
+
+		
+				if(id.equals("2")){
+		        if (gMap.get("cust_id") != null){
+						guanlian_id = gMap.get("cust_id").toString();
+					 }
+					if (gMap.get("cust_name") != null){
+						guanli_name = gMap.get("cust_name").toString();
+						if(guanli_name.length()>35)
+					   { guanli_name = guanli_name.substring(0,35);}
+						}
+					
+					if (gMap.get("shop_name") != null){
+						others = gMap.get("shop_name").toString();						
+						if(others.length()>19)
+					   { others = others.substring(0,19);}
+						}
+					}
+						
+				 if(id.equals("3")){
+		         if (gMap.get("ch_id") != null){
+						guanlian_id = gMap.get("ch_id").toString();
+					 }
+					if (gMap.get("ch_name") != null){
+						guanli_name = gMap.get("ch_name").toString();
+						if(guanli_name.length()>35)
+					   { guanli_name = guanli_name.substring(0,35);}
+						}
+					
+					if (gMap.get("ch_level") != null){
+						others = gMap.get("ch_level").toString();						
+						if(others.length()>19)
+					   { others = others.substring(0,19);}
+						}
+             }						
+		   	%>		
+				<tr>
+					<td width="5%" align="center">
+						<input type="checkbox" name="checkone<%=i%>" id="checkone<%=i%>" value="<%=guanlian_id%>" />
+						<input type="hidden" name="chechguanli_name" id="chechguanli_name<%=i%>" value="<%=guanli_name%>" />
+					</td>
+					
+					<td><%=guanli_name%></td>
+					<td><%=others%></td>					
+					</tr>
+					<%
+						}	  
+					}
+				  %>  
+			</table> 
+			</div>
+			<br/>
+			<div style="text-align:center;">
+			<input type="button" class="buttoncss" value="确定" onclick="linkguanlianOpr('<%=get_val%>');">
+	      <input type="hidden" name="listsize" id="listsize" value="<%=listsize%>">
+		  <input type="hidden" name="logo_id" id="logo_id" value="<%=id%>">
+      </div> 
+    </body>
+</html>

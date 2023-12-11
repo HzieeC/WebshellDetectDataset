@@ -1,0 +1,89 @@
+﻿<!--#include file="../lib/base.asp"-->
+<!--#include file="../theme.asp"-->
+<%
+	sdcms.checkuserlogin
+	dim act:act=lcase(sdcms.fget("act",0))
+	select case act
+		case "db":checkdb()
+		case else:sdcms.show theme_userupgrade
+	end select
+	
+	sub checkdb()
+		dim t0,t1,t2,t3,t4,t5,t6
+		dim u0,u1
+		u0=sdcms.getsys("str_monthprice")
+		u1=sdcms.getsys("str_yearprice")
+		t0=sdcms.getint(sdcms.fpost("t0",0),0)
+		t1=sdcms.getint(sdcms.fpost("t1",0),0)
+		t2=sdcms.getint(sdcms.fpost("t2",0),0)
+		t3=sdcms.enhtml(sdcms.fpost("t3",0))
+		if t1<=0 or t2<=0 then
+			sdcms.echo "0&#38750;&#27861;&#21442;&#25968;&#20256;&#36882;"
+			exit sub
+		end if
+		select case t0
+			case "1"
+				t4=u1*t2
+				t6=t2&"年"
+			case else
+				t0=0
+				t4=u0*t1
+				t6=t1&"个月"
+		end select
+		if sdcms.strlen(t3)=0 then
+			sdcms.echo "0&#35831;&#36755;&#20837;&#23494;&#30721;"
+			exit sub
+		end if
+		dim userdata:userdata=sdcms.userinfo
+		if md5(t3)<>userdata(2) then
+			sdcms.echo "0&#30331;&#24405;&#23494;&#30721;&#38169;&#35823;"
+			exit sub
+		end if
+		dim data:data=sdcms.db.dbload(1,"amount,isvip,overdate","sd_user","id="&userdata(0)&"","")
+		dim amount:amount=data(0,0)
+		dim isvip:isvip=data(1,0)
+		dim overdate:overdate=data(2,0)
+		dim rate:rate=userdata(11)
+		dim ratenote
+		
+		if rate<>1 then ratenote="，省"&sdcms.getnum(t4*(1-rate))&"元"
+		t4=t4*rate
+		if clng(amount)<clng(t4) then
+			sdcms.echo "0&#24744;&#30340;&#36134;&#25143;&#20313;&#39069;&#19981;&#36275;&#65292;&#35831;&#20808;&#20805;&#20540;"
+			exit sub
+		end if
+		t5=amount-t4
+		if t0=0 then
+			if isvip=0 then
+				overdate=sdcms.getdate(dateadd("m",t1,date()),"",1)
+				t6="开通VIP会员"&t6
+			else
+				t6="续费VIP会员"&t6
+				if userdata(9)=1 then
+					overdate=sdcms.getdate(dateadd("m",t1,sdcms.numtodate(overdate)),"",1)
+				else
+					overdate=sdcms.getdate(dateadd("m",t1,date()),"",1)
+				end if
+			end if
+		else
+			if isvip=0 then
+				overdate=sdcms.getdate(dateadd("yyyy",t2,date()),"",1)
+				t6="开通VIP会员"&t6
+			else
+				t6="续费VIP会员"&t6
+				if userdata(9)=1 then
+					overdate=sdcms.getdate(dateadd("yyyy",t2,sdcms.numtodate(overdate)),"",1)
+				else
+					overdate=sdcms.getdate(dateadd("yyyy",t2,date()),"",1)
+				end if
+			end if
+		end if
+
+		sdcms.db.dbupdate "sd_user","id="&userdata(0)&"",array(array("amount",t5,0,0),array("isvip",1,0,0),array("overdate",overdate,0,0))
+		sdcms.createusermoney array(array("amount",t4,0,0),array("userid",userdata(0),0,0),array("type",2,0,0),array("content",""&t6&"，花费："&sdcms.getnum(t4)&"元"&ratenote,0,1),array("createdate",now(),0,1))
+		sdcms.createusermessage array(array("title","成功"&t6,255,1),array("fromid",-2,0,0),array("userid",userdata(0),0,0),array("content",""&t6&"，花费："&sdcms.getnum(t4)&"元"&ratenote,0,1),array("createdate",now(),0,1),array("isread",0,0,0))
+		sdcms.resetuserinfo "u.id="&userdata(0)&""
+		sdcms.echo "1成功"&t6
+	end sub
+	sdcms.db.dbclose
+%>

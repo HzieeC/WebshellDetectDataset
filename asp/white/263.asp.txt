@@ -1,0 +1,273 @@
+<%
+Function showerr(msg,url)
+Response.Write "<script>"&vbcrlf
+Response.Write "var pgo=0;"&vbcrlf
+Response.Write "function JumpUrl(){"&vbcrlf
+Response.Write "if(pgo==0){ location='"&url&"'; pgo=1; }}"&vbcrlf
+Response.Write "document.write(""<br/><div style='width:400px;margin:0px auto;padding-top:4px;height:24px;line-height: 24px;font-size:10pt;border:1px solid #cad9ea;background-color:#f5fafe;'>&nbsp;Erox系统提示信息：</div>"");"&vbcrlf
+Response.Write "document.write(""<div style='width:400px;margin:0px auto;height:100;font-size:10pt;text-align: center;border:1px solid #cad9ea;background-color:#ffffff'><br/><br/>"");"&vbcrlf
+Response.Write "document.write("""&msg&""");"&vbcrlf
+Response.Write "document.write(""<br/><br/><a href='"&url&"'>如果你的浏览器没反应，请点击这里...</a><br/><br/></div>"");"&vbcrlf
+Response.Write "setTimeout('JumpUrl()',5000);</script>"
+Response.end
+End Function
+
+Function FormatHTML(fString) 
+If fString<>"" Then 
+fString = trim(fString) 
+fString = replace(fString,chr(32),"")
+fString = replace(fString,chr(255),"")
+fString = replace(fString," ","")
+FormatHTML = fString 
+End If
+End Function
+
+Function usersip()
+Dim ip
+ip = Trim(Request.ServerVariables("HTTP_X_FORWARDED_FOR"))
+If ip = "" Then ip = Request.ServerVariables("REMOTE_ADDR")
+usersip=ip
+End Function
+
+Function fsosavefile(FileName, Content)
+	  On Error Resume Next
+		Dim FSO, FileObj
+		Set FSO = Server.CreateObject("Scripting.FileSystemObject")
+		Set FileObj = FSO.CreateTextFile(Server.MapPath(FileName), True)
+		FileObj.Write Content
+		FileObj.Close    
+		Set FileObj = Nothing
+		Set FSO = Nothing
+End Function
+
+Function fsosaveder(fldr) 
+	on error resume next
+	Dim FSO, FileObj
+	Set FSO = CreateObject("Scripting.FileSystemObject")
+	Set FileObj = FSO.CreateFolder(Server.MapPath(fldr))
+	fsosaveder = FileObj.Path
+	Set FileObj=nothing
+	Set FSO=nothing
+End Function
+
+Function deletefolder(FileStr)
+	   Dim FSO
+	   On Error Resume Next
+	   Set FSO = CreateObject("Scripting.FileSystemObject")
+			FSO.DeleteFolder Server.MapPath(FileStr), True
+	   Set FSO = Nothing
+End Function
+
+Function deletefile(FileStr)
+	   Dim FSO
+	   On Error Resume Next
+	   Set FSO = CreateObject("Scripting.FileSystemObject")
+		If FSO.FileExists(Server.MapPath(FileStr)) Then
+			FSO.DeleteFile Server.MapPath(FileStr), True
+		Else
+		deletefile = True
+		End If
+	   Set FSO = Nothing
+	   If Err.Number <> 0 Then
+	   Err.Clear:DeleteFile = False
+	   Else
+	   deletefile = True
+	   End If
+End Function
+
+Function templatesdir(FileName,templates)
+	  On Error Resume Next
+		Dim FSO, objFolder
+		Set FSO = Server.CreateObject("Scripting.FileSystemObject")
+		Set objFolder = FSO.GetFolder(Server.MapPath(FileName))
+	 	Set objSubFolders=objFolder.Subfolders
+        for each objSubFolder in objSubFolders
+		if objSubFolder.name&"/"=templates then
+		Response.Write"<option value="""&objSubFolder.name&"/"" selected>"&objSubFolder.name&"</option>"
+		else
+		Response.Write"<option value="""&objSubFolder.name&"/"">"&objSubFolder.name&"</option>"
+		end if
+        next  
+		Set objFolder = Nothing
+		set objSubFolders=nothing
+		Set FSO = Nothing
+End Function
+
+Function NoSqlHack(content)
+	Dim f_NoSqlHack_AllStr,f_NoSqlHack_Str,f_NoSqlHack_i,Str_InputStr
+	If content = "" Or IsNull(content) Then Exit Function
+	Str_InputStr=content
+	f_NoSqlHack_AllStr="dbcc|alter|drop|* |and|exec|or|insert|select|delete|update|count|master|truncate|declare|char|mid(|chr|set |where|xp_cmdshell|tab"
+	f_NoSqlHack_Str = Split(f_NoSqlHack_AllStr,"|")
+	For f_NoSqlHack_i=LBound(f_NoSqlHack_Str) To Ubound(f_NoSqlHack_Str)
+		If Instr(LCase(Str_InputStr),f_NoSqlHack_Str(f_NoSqlHack_i))<>0 Then
+			If f_NoSqlHack_Str(f_NoSqlHack_i)="'" Then f_NoSqlHack_Str(f_NoSqlHack_i)=" \' "
+			Response.Write "<html><title>警告</title><body bgcolor=""EEEEEE"" leftmargin=""60"" topmargin=""30""><font style=""font-size:16px;font-weight:bolder;color:blue;""><li>您提交的数据有恶意字符</li></font><font style=""font-size:14px;font-weight:bolder;color:red;""><br><li>您的数据已经被记录!</li><br><li>您的IP："&Request.ServerVariables("Remote_Addr")&"</li><br><li>操作日期："&Now&"</li></font></body></html>"
+			Response.End
+		End if
+	Next
+	NoSqlHack = Replace(Replace(Str_InputStr,"'","''"),"%27","''")
+End Function
+
+Function login_check()
+	Dim AdminName,PassWord
+		AdminName = NoSqlHack(Trim(Request.Cookies(web_url)("AdminName")))
+		PassWord= NoSqlHack(Trim(Request.Cookies(web_url)("AdminPassword")))
+		IF AdminName="" Or PassWord = "" Then
+		   		Response.Write "<script>top.location.href='admin_login.asp';</script>"
+	  			Response.end
+		   Exit Function
+		Else
+			Dim UserRs
+			Set Userrs=conn.execute("Select name,[password] From "&web_dbtop&"admin Where name='" & AdminName & "' And [password]='" & PassWord & "'")
+			IF UserRS.Eof And UserRS.Bof Then
+				Response.Write "<script>top.location.href='admin_login.asp';</script>"
+	  			Response.end
+			End if
+			UserRS.Close:Set UserRS=Nothing
+	   End IF
+End Function
+
+Function addlog(logcontent)
+	dim logtime
+		logtime=now()
+		conn.execute("INSERT INTO "&web_dbtop&"log (logcontent,logtime,logname,logip) VALUES ('"&logcontent&"','"&logtime&"','"&Request.Cookies(web_url)("AdminName")&"','"&usersip()&"')")
+End Function
+
+Function Format_Time(s_Time, n_Flag) 
+   Dim y, m, d, h, mi, s 
+   Format_Time = "" 
+   If IsDate(s_Time) = False Then Exit Function 
+   y = cstr(year(s_Time)) 
+   m = cstr(month(s_Time)) 
+   If len(m) = 1 Then m = "0" & m 
+   d = cstr(day(s_Time)) 
+   If len(d) = 1 Then d = "0" & d 
+   h = cstr(hour(s_Time)) 
+   If len(h) = 1 Then h = "0" & h 
+   mi = cstr(minute(s_Time)) 
+   If len(mi) = 1 Then mi = "0" & mi 
+   s = cstr(second(s_Time)) 
+   If len(s) = 1 Then s = "0" & s 
+   select Case n_Flag 
+   Case 1 
+     Format_Time = y & "-" & m & "-" & d & " " & h & ":" & mi & ":" & s 
+   Case 2 
+     Format_Time = y & "-" & m & "-" & d 
+   Case 3 
+     Format_Time = m & "月" & d & "日" 
+   Case 4 
+     Format_Time = y & "年" & m & "月" & d & "日" 
+   Case 5 
+     Format_Time = y & m & d & h & mi & s 
+   End select 
+End Function
+
+Function gethttp(HttpUrl,Cset)
+On Error Resume Next
+If IsNull(HttpUrl)=True Or Len(HttpUrl)<18 Or HttpUrl=False Then
+gethttp=False
+Exit Function
+End If
+Dim Http
+Set Http=server.createobject("MSXML2.XMLHTTP")
+Http.open "GET",HttpUrl,False
+Http.Send()
+If Http.Readystate<>4 then
+Http.close
+Set Http=Nothing 
+gethttp=False
+Exit function
+End if
+gethttp=bytesToBSTR(Http.responseBody,Cset)
+Set Http=Nothing
+If Err.number<>0 then
+Err.Clear
+End If
+End Function
+
+Function BytesToBstr(Body,Cset)
+Dim Objstream
+Set Objstream = Server.CreateObject("adodb.stream")
+objstream.Type = 1
+objstream.Mode =3
+objstream.Open
+objstream.Write body
+objstream.Position = 0
+objstream.Type = 2
+objstream.Charset = Cset
+BytesToBstr = objstream.ReadText 
+objstream.Close
+set objstream = nothing
+End Function
+
+Function GetBody(ConStr,StartStr,OverStr)
+on error resume next
+   If ConStr=False or ConStr="" or IsNull(ConStr)=True Or StartStr="" or IsNull(StartStr)=True Or OverStr="" or IsNull(OverStr)=True Then
+      GetBody=False
+      Exit Function
+   End If
+   Dim ConStrTemp
+   Dim Start,Over
+   ConStrTemp=Lcase(ConStr)
+   StartStr=Lcase(StartStr)
+   OverStr=Lcase(OverStr)
+   Start = InStrB(1, ConStrTemp, StartStr, vbBinaryCompare)
+   If Start<=0 then
+      GetBody=False
+      Exit Function
+   Else
+         Start=Start+LenB(StartStr)
+   End If
+   Over=InStrB(Start,ConStrTemp,OverStr,vbBinaryCompare)
+   GetBody=MidB(ConStr,Start,Over-Start)
+End Function
+
+Function GetArray(Byval ConStr,StartStr,OverStr)
+on error resume next
+If ConStr=False or ConStr="" Or IsNull(ConStr)=True or StartStr="" Or OverStr="" or IsNull(StartStr)=True Or IsNull(OverStr)=True Then
+GetArray=False
+Exit Function
+End If
+Dim TempStr,TempStr2,objRegExp,Matches,Match
+TempStr=""
+Set objRegExp = New Regexp 
+objRegExp.IgnoreCase = True 
+objRegExp.Global = True
+objRegExp.Pattern = "("&StartStr&").+?("&OverStr&")"
+Set Matches =objRegExp.Execute(ConStr) 
+For Each Match in Matches
+TempStr=TempStr & "$Array$" & Match.Value
+Next 
+Set Matches=nothing
+
+If TempStr="" Then
+GetArray=False
+Exit Function
+End If
+TempStr=Right(TempStr,Len(TempStr)-7)
+objRegExp.Pattern =StartStr
+TempStr=objRegExp.Replace(TempStr,"")
+objRegExp.Pattern =OverStr
+TempStr=objRegExp.Replace(TempStr,"")
+Set objRegExp=nothing
+
+TempStr=Replace(TempStr,"""","")
+TempStr=Replace(TempStr,"'","")
+TempStr=Replace(TempStr," ","")
+If TempStr="" then
+GetArray=False
+Else
+GetArray=TempStr
+End if
+End Function
+
+Function tonum(upversion)
+	upversion=Replace(upversion, ".", "")
+    If IsNumeric(upversion) and upversion <> "" then
+     tonum = CLng(upversion)
+    Else
+     tonum = 0
+    End If
+End function
+%>

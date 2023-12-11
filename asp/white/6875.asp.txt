@@ -1,0 +1,287 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="consts.asp" -->
+<!--#include file="loading.asp" -->
+<%if if_close<>True then%>
+	<%
+	vote_asp_name="myvotes.asp"
+	voteid=Checkstr(trim(request("voteid")))
+	If voteid<>"" and IsNumeric(voteid)=False Then
+		response.Redirect vote_asp_name
+	end if
+	page=Checkstr(trim(request("page")))
+	If page<>"" And IsNumeric(page)=False Then
+		response.Redirect vote_asp_name
+	elseif page="" then
+		page=1
+	end if
+	action=Checkstr(trim(request("action")))
+	
+	IF action="submitvotes" THEN'判断是否投票-开始
+		vote_selected=Checkstr(trim(request("vote_selected")))
+		If vote_selected="" Then
+			response.write"<script>alert('请至少选择一项!');history.go(-1);</script>"
+			response.End()
+		Else'判断是否投票-投票
+			vote_ip = Request.ServerVariables("HTTP_X_FORWARDED_FOR") '获取IP
+			If vote_ip = "" Then vote_ip = Request.ServerVariables("REMOTE_ADDR")
+			'先判断该IP24小时是否重复投票
+			votetime_limit=24
+			set rs=server.createobject("adodb.recordset")
+			sql="select distinct vote_id from My_votes where (vote_ip<>'' or not isnull(vote_ip)) and vote_ip='"&vote_ip&"' and DateDiff('h',add_time,'"&now()&"')<="&votetime_limit&" and vote_id="&voteid&""
+			rs.open sql,conn,1,1
+			if not rs.eof then'重复投票提示
+				response.write "<script>alert('"&votetime_limit&"小时内请勿重复投票！');history.go(-1);</script>"
+				response.End()
+			else'开始投票
+				'写入投票记录
+					set rs1=server.createobject("adodb.recordset")
+					sql1="select * from My_votes"
+					rs1.open sql1,conn,1,3
+					rs1.addnew
+					rs1("vote_id")=voteid
+					rs1("vote_sub_id")=vote_selected
+					rs1("vote_ip")=vote_ip
+					rs1("add_time")=now()
+					rs1.update
+					rs1.close
+					set rs1=nothing
+					set sql1=nothing
+				'接下来是将每个选项+1(根据,分隔所有的投票SMT_id)
+					str_A=","
+					str_B=vote_selected
+					str_C=Stats(str_A,str_B)
+					if str_B<>"" then
+						w=0
+						For each str_B In split(str_B,",")'根据,的划分,逐个获取SMT_id
+							conn.execute("update My_vote_1 set votes_count=votes_count+1 where SMT_id="&str_B&"")
+							if w>str_C then'判断末尾没有,退出循环
+								exit for
+							else
+								w=w+1
+							end if
+						Next
+					end if	
+					str_A=""
+					str_B=""
+					str_C=""
+				vote_result=1'设定状态为投票成功
+			end if
+			rs.close
+			set rs=nothing
+			set sql=nothing
+		End if
+	END IF'判断是否投票-结束
+	%>
+	<style>
+	*{margin:0;padding:0;}
+	.votes{background:#fff;}
+	.votes_title{color:#369;font-size:12px;font-weight:bold;margin:5px;clear:both;}
+	.vote_page{float:right;margin-right:15px;margin-bottom:5px;}
+	.vote_page .list_circle{position:relative;background:url(image/tg_flash_p.png) no-repeat -18px 0px;display:inline;width:8px;height:8px;cursor:pointer;float:left;margin-right:5px;}
+	.vote_page .list_circle_current{position:relative;background:url(image/tg_flash_p.png) no-repeat 0px 0px;display:inline;width:8px;height:8px;cursor:pointer;float:left;margin-right:5px;}
+	
+	.votes_list{width:270px;color:#666;margin-top:10px;font-size:12px;background-color:#FAFAFA}
+	.votes_options{width:100%;cursor:pointer;text-align:left !important;padding-left:20px;height:23px;line-height:20px;border-bottom:1px dashed #EBEBEB;}
+	.ol_off{font-size:12px;padding-left:20px;background-color:<%=border_style_on%>;height:23px;line-height:23px;border-bottom:1px dashed #EBEBEB;}
+	.ol_on{font-size:12px;padding-left:20px;background-color:<%=border_style_on_bg%>;height:23px;line-height:23px;border-bottom:1px dashed #EBEBEB;}
+	.span_left{float:left;margin-left:5px;}
+	.span_right{float:right;margin-right:5px;}
+	.vote_button{cursor:pointer;margin-left:10px;}
+	table,tr,td{font-size:12px;color:#666;}
+	
+	#votes_result_list{display:none;}
+	</style>
+    <%'先遍历投票按钮
+    set rs=server.createobject("adodb.recordset")
+    sql="select top 10 * from My_vote_0 where key=1"
+	sql=sql&" order by add_time asc"
+	rs.open sql,conn,1,1
+	%>
+    <div class="vote_page">
+		<%
+		z=1
+        Do While Not rs.eof and Not rs.bof
+		voteid_1=rs("SMT_id")
+        %>
+        <%
+		if isnull(voteid) or voteid="" then'voteid为空
+			if z=1 then
+				vote_list_classname="list_circle_current"
+			else
+				vote_list_classname="list_circle"
+			end if
+		else'voteid不为空
+			if cint(voteid)=cint(voteid_1) then
+				vote_list_classname="list_circle_current"
+			else
+				vote_list_classname="list_circle"
+			end if
+		end if
+		%>
+        <DIV class="<%=vote_list_classname%>" onMouseOver="this.className='list_circle_current';" onMouseOut="<%if voteid<>"" and cint(voteid)=cint(voteid_1) then%>this.className='list_circle_current';<%else%>this.className='list_circle';<%end if%>" OnClick="window.open('<%=vote_asp_name%>?voteid=<%=rs("SMT_id")%>','_self')"></DIV>
+		<%
+		z=z+1
+		rs.movenext 
+		Loop
+		rs.close
+		%>
+    </div>
+    
+    <%'然后遍历获取所有的投票内容
+    sql="select top 10 * from My_vote_0 where key=1"
+	if voteid<>"" then
+		sql=sql&" and SMT_id="&voteid&""
+	end if
+	sql=sql&" order by add_time asc"
+	rs.open sql,conn,1,1
+	if not rs.eof then
+		voteid_1=rs("SMT_id")
+		listnum=1'分页
+		Rs.pagesize=listnum
+		if (page-Rs.pagecount) > 0 then
+		page=Rs.pagecount
+		elseif page = "" or page < 1 then
+		page = 1
+		end if
+		Rs.absolutepage=page
+		pro_list_jilu=rs.recordcount
+		pro_list_pages=rs.pagecount
+		votetitle=rs("vote_title")
+	end if
+	if voteid="" or isnull(voteid) then voteid=voteid_1
+	%>
+	<script language="javascript" type="text/javascript">
+	function show_vote_result(){
+		document.getElementById('votes_list').style.display='none';
+		document.getElementById('votes_result_list').style.display='block';
+	}
+	function hide_vote_result(){
+		document.getElementById('votes_list').style.display='block';
+		document.getElementById('votes_result_list').style.display='none';
+	}
+	</script>
+    <div class="votes">
+    <div class="votes_title">[可多选]主题：<%=votetitle%></div>
+	<form id="VoteForm" name="VoteForm" action="<%=vote_asp_name%>" method="post">
+    <!--投票区-->
+    <div class="votes_list" id="votes_list">
+	<%if vote_result<>1 then%>
+		<%
+        z=1
+        Do While Not rs.eof and Not rs.bof and z<=listnum
+            '开始获取该主题下的选项
+            set rs1=server.createobject("adodb.recordset")
+            sql1="select * from My_vote_1 where vote_id="&rs("SMT_id")&" order by add_time asc,votes_count asc"
+            rs1.open sql1,conn,1,1
+            if not rs1.eof then
+            %>
+                <UL>
+                <%Do Until rs1.EOF
+                    %>
+                        <OL class="ol_off" onMouseOver="this.className='ol_on';"  onMouseOut="this.className='ol_off';">
+                        <span class="span_left">
+                        <input type="checkbox" name="vote_selected" value="<%=rs1("SMT_id")%>" style="margin-right:10px;"><%=rs1("vote_subtitle")%>
+                        
+                        </span>
+                        <!--<span class="span_right">(<%=rs1("votes_count")%>)</span>-->
+                        </OL>
+                <%
+                rs1.movenext
+                Loop
+                %>
+                <OL style="margin-top:8px;">
+                <span class="span_right">
+                <input class="vote_button" type="submit" value="提交"/>
+                <input class="vote_button" type="button" value="查看结果" onClick="show_vote_result()"/>
+                <input name="voteid" type="hidden" value="<%=voteid%>">
+                <input name="action" type="hidden" value="submitvotes">
+                </span>
+                </OL>
+                </UL>
+            <%
+            end if
+            rs1.close
+            set rs1=nothing
+            set sql1=nothing
+        %> 
+        <%
+        z=z+1
+        rs.movenext 
+        Loop
+        rs.close
+        set rs=nothing
+        set sql=nothing
+        %>
+	<%else%>
+        投票成功！
+        <input class="vote_button" type="button" value="查看结果" onClick="show_vote_result()"/>
+    <%end if%>
+    </div>
+    <!--/投票区-->
+    <!--投票结果区-->
+    <div class="votes_list" id="votes_result_list">
+		<%
+		'统计所有票数
+		set rs1=server.createobject("adodb.recordset")
+		sql1="select * from My_vote_1 where 1=1"
+		if voteid<>"" then
+			sql1=sql1&" and vote_id="&voteid&""
+		else
+			sql1=sql1&" and vote_id="&voteid_1&""
+		end if
+		sql1=sql1&" order by add_time asc,votes_count asc"
+		rs1.open sql1,conn,1,1
+		if not rs1.eof then
+			do while not rs1.eof
+			total_votes=total_votes+rs1("votes_count")
+			rs1.movenext
+			loop
+			rs1.close
+			set rs1=nothing
+		end if
+		'开始获取该主题下的选项
+		set rs1=server.createobject("adodb.recordset")
+		sql1="select * from My_vote_1 where 1=1"
+		if voteid<>"" then
+			sql1=sql1&" and vote_id="&voteid&""
+		else
+			sql1=sql1&" and vote_id="&voteid_1&""
+		end if
+		sql1=sql1&" order by add_time asc,votes_count asc"
+		rs1.open sql1,conn,1,1
+		if not rs1.eof then
+			vote_result_jilu=rs1.recordcount
+        end if
+		%>
+    	<table width="100%"  border="0" cellspacing="0" cellpadding="0">
+		<%
+		do while not rs1.eof
+		%>
+        <tr class="ol_off" title="<%=rs1("vote_subtitle")%>" onMouseOver="this.className='ol_on';"  onMouseOut="this.className='ol_off';">
+        <td width="35%"><%=leftt(rs1("vote_subtitle"),12)%></td>
+        <td width="35%"><img src="image/cn_button01_y2.gif" style="width:<%=int(100*rs1("votes_count")/total_votes)%>px;" height="15"></td>
+        <td width="15%"><%=formatNumber(round(100*rs1("votes_count")/total_votes,1),1,-1,-1,0)%>%</td>
+        <td width="15%"><%=rs1("votes_count")%>票</td>
+		</tr>
+		<%
+        rs1.movenext
+        loop
+		rs1.close
+        set rs1=nothing
+        %>
+        <tr style="margin-top:8px;"><td colspan="4">
+        <span class="span_right">
+        合计:<%=total_votes%> 票
+        <input class="vote_button" type="button" value="开始投票" onClick="hide_vote_result()"/>
+        </span>
+        </td>
+        </tr>
+        </table>
+    </div>
+    <!--/投票结果区-->
+    </form>
+<%else%>
+	<!--#include file="check_close.asp" -->
+<%end if%>

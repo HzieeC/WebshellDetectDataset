@@ -1,0 +1,826 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@page import="com.bizoss.trade.ts_category.*" %>
+<%@page import="com.bizoss.trade.ts_categoryattr.*" %>
+<%@page import="com.bizoss.trade.ti_brand.Ti_brandInfo" %>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<%@page import="com.bizoss.trade.ts_memlevel.Ts_memlevelInfo" %>
+<%@page import="com.bizoss.trade.ti_goods.*" %>
+<%@page import="com.bizoss.trade.tb_goodstock.Tb_goodstockInfo" %>
+<%@page import="com.bizoss.trade.ti_discountpolicy.Ti_discountpolicyInfo"%>
+
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" />  
+
+<html>
+<%
+	
+	String para = "/program/admin/goods/index.jsp";
+	
+	//String para = "/program/admin/goods/index.jsp?listOrImg="+listOrImg+"&s_cust_name="+s_cust_name+"&s_fresh="+s_fresh+"&s_q_price="+s_q_price+"&s_s_price="+s_s_price+"&s_recom="+s_recom+"&s_shelf="+s_shelf+"&s_end_date="+s_end_date+"&s_start_date="+s_start_date+"&s_goods_sate="+s_goods_sate+"&s_goods_name="+s_goods_name+"&s_class_attr="+s_class_attr+"&iStart="+Integer.parseInt(iStart)+"&limit="+limit;		 
+   
+    String goods_id="";
+	if(request.getParameter("goods_id")!=null) goods_id = request.getParameter("goods_id");
+	Ti_goodsInfo ti_goodsInfo = new Ti_goodsInfo();
+	List list = ti_goodsInfo.getListByPk(goods_id);
+	Hashtable map = new Hashtable();
+	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+	String goods_no="",discount_id="",class_attr="",brand_id="",goods_name="",member_price="",org_price="",market_price="",sale_price="";
+	String send_inter="",buy_inter="",weight="",stock_in="",stock_num="",stock_out="",stock_down="",price_unit="",state_code="" ;
+	String state_date="",ship_fare="",keywords="",outline="",goods_desc="",remark="",link_goods="",link_fit="",attr_desc="";
+	String full_discount="",f_amountship="",f_amountdiscount="",full_presented="",buyandsend="",free_vouchers="";
+	if(map.get("full_discount")!=null) full_discount = map.get("full_discount").toString();
+	if(map.get("f_amountship")!=null) f_amountship = map.get("f_amountship").toString();
+	if(map.get("f_amountdiscount")!=null) f_amountdiscount = map.get("f_amountdiscount").toString();
+	if(map.get("buyandsend")!=null) buyandsend = map.get("buyandsend").toString();
+	if(map.get("free_vouchers")!=null) free_vouchers = map.get("free_vouchers").toString();
+	if(map.get("full_presented")!=null) full_presented = map.get("full_presented").toString();
+	if(map.get("goods_no")!=null) goods_no = map.get("goods_no").toString();
+	if(map.get("class_attr")!=null) class_attr = map.get("class_attr").toString();
+	if(map.get("brand_id")!=null) brand_id = map.get("brand_id").toString();
+	if(map.get("goods_name")!=null) goods_name = map.get("goods_name").toString();
+	if(map.get("member_price")!=null) member_price = map.get("member_price").toString();
+	if(map.get("org_price")!=null) org_price = map.get("org_price").toString();
+	if(map.get("market_price")!=null) market_price = map.get("market_price").toString();
+	if(map.get("sale_price")!=null) sale_price = map.get("sale_price").toString();
+	if(map.get("send_inter")!=null) send_inter = map.get("send_inter").toString();
+	if(map.get("buy_inter")!=null) buy_inter = map.get("buy_inter").toString();
+	if(map.get("weight")!=null) weight = map.get("weight").toString();
+	if(map.get("price_unit")!=null) price_unit = map.get("price_unit").toString();
+	if(map.get("stock_in")!=null) stock_in = map.get("stock_in").toString();
+	if(map.get("stock_num")!=null) stock_num = map.get("stock_num").toString();
+	if(map.get("stock_out")!=null) stock_out = map.get("stock_out").toString();
+	if(map.get("stock_down")!=null) stock_down = map.get("stock_down").toString();
+	if(map.get("price_unit")!=null) price_unit = map.get("price_unit").toString();
+	if(map.get("state_code")!=null) state_code = map.get("state_code").toString();
+	if(map.get("state_date")!=null) state_date = map.get("state_date").toString();
+	if(map.get("ship_fare")!=null) ship_fare = map.get("ship_fare").toString();
+	if(map.get("keywords")!=null) keywords = map.get("keywords").toString();
+	if(map.get("outline")!=null) outline = map.get("outline").toString();
+	if(map.get("goods_desc")!=null) goods_desc = map.get("goods_desc").toString();
+	if(map.get("remark")!=null) remark = map.get("remark").toString();
+	if(map.get("link_goods")!=null) link_goods = map.get("link_goods").toString();
+	if(map.get("link_fit")!=null) link_fit = map.get("link_fit").toString();
+	if(map.get("attr_desc")!=null) attr_desc = map.get("attr_desc").toString();
+    if(map.get("attr_desc")!=null) attr_desc = map.get("attr_desc").toString();
+    if(map.get("discount_id")!=null) discount_id = map.get("discount_id").toString();
+    String cust_id="";    
+    if(map.get("cust_id") != null)
+    {
+      cust_id = map.get("cust_id").toString();
+    }
+	String publish_user_id ="";
+	if(map.get("publish_user_id") != null)
+    {
+       publish_user_id = map.get("publish_user_id").toString();
+    }
+	
+  
+  if (request.getParameter("class_attr") != null && !request.getParameter("class_attr").equals(""))
+  {
+      class_attr = request.getParameter("class_attr");
+  }
+  
+ // out.print("---------->"+link_goods); 
+ 
+   
+  Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+  Map catMap = ts_categoryInfo.getCatClassMap("2");
+  Ti_brandInfo  ti_brandInfo = new  Ti_brandInfo();
+  Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+  Ts_memlevelInfo ts_memlevelInfo =new Ts_memlevelInfo(); 
+  Tb_goodstockInfo tb_goodstockInfo = new Tb_goodstockInfo();    
+                                                            
+  String brand_select =  ti_brandInfo.getBrandSelectByCatId(class_attr,brand_id); 
+  List memLevelList =ts_memlevelInfo.getMemLevelAll();  
+  
+  String s_cat_all = ts_categoryInfo.getSelCatByTLevel("2","1");
+  String s_brand_all = ti_brandInfo.getBrandSelectAll(brand_id); 
+  String s_price_unit = tb_commparaInfo.getSelectItem("18",price_unit); 
+                                 
+                                                    
+  String catAttr[] = class_attr.split("\\|");
+  String cat_names ="";  
+  if(!class_attr.equals(""))
+  {
+      String catIds[] =	class_attr.split("\\|");	
+      for(String catId:catIds)
+      {
+         if(catMap!=null)
+         {
+             if(catMap.get(catId)!=null)
+             {
+              cat_names +=catMap.get(catId).toString()+" > ";                 
+             }                  
+         
+         }                 
+      }		    
+	 }
+  
+  //-------- get cat attr  
+  
+  Ts_categoryattrInfo ts_categoryattrInfo = new Ts_categoryattrInfo();
+	List attList = new ArrayList();
+  if(!catAttr[catAttr.length-1].equals(""))
+  {
+    	attList = ts_categoryattrInfo.getListByClassId(catAttr[catAttr.length-1]);
+  }  
+  
+  Hashtable stockMap = tb_goodstockInfo.getGoodStockByGoodsId(goods_id);
+  String one_price = "",before_num="",now_num="";
+  if(stockMap.get("one_price")!=null)
+  {
+    one_price = stockMap.get("one_price").toString();  
+  }
+  if(stockMap.get("before_num")!=null)
+  {
+    before_num = stockMap.get("before_num").toString();  
+  }
+  if(stockMap.get("now_num")!=null)
+  {
+    now_num = stockMap.get("now_num").toString();  
+  }	 
+  
+  
+  
+    List attrValueList = new ArrayList();
+	int attrsize = 0,valuesize = 0;
+	
+	//String publish_user_id="";
+   // if(session.getAttribute("session_user_id")!=null){
+	//     publish_user_id  =session.getAttribute("session_user_id").toString();
+	//}
+                          
+   Ti_discountpolicyInfo ti_discountpolicyInfo=new Ti_discountpolicyInfo();
+   List discountlist=ti_discountpolicyInfo.getListByPk(discount_id);
+   String offer_type="";
+   String[] arrays=new String[]{"购物送礼","满额打折","满量打折","运费优惠","满额赠送","买几送几"};
+   if(discountlist!=null&&discountlist.size()>0){
+   		Map discountInfo=(Hashtable)discountlist.get(0);
+   		offer_type=discountInfo.get("offer_type").toString();
+   		offer_type=arrays[Integer.parseInt(offer_type)-1];
+   }
+%>	
+  <head>
+    <title>修改商品</title>
+	  <link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+    <link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+ 
+	  <!-- 
+	  <script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_goodsInfo.js'></script>
+		-->
+		
+		<script type="text/javascript" src="/js/jquery.js"></script>
+    
+    <script type="text/javascript" src="/js/thickbox.js"></script>
+    
+    <script type="text/javascript" src="js_goods.js"></script>
+                                                              
+    <script src="js_link.js" type="text/javascript"></script>
+    
+    <script type="text/javascript" src="/program/admin/js/judgment.js" charset="UTF-8"></script>
+ 
+	<style>
+   .button_css{height:25px; width:135px; font-size: 10pt; color: #fff; border: 1px #cabca3 solid; 
+              background:url(/program/admin/index/images/an_01.gif) repeat-x; cursor:pointer;padding:0 3px 0 3px;}
+                                                                                                                  
+   .button_s_css{height:20px; width:55px; font-size: 12px; color: #fff; border: 1px #cabca3 solid; 
+            background:url(/program/admin/index/images/an_01.gif) repeat-x; cursor:pointer;padding:0 3px 0 3px;}
+ </style>
+ 
+ 
+
+ </head>
+
+<body>
+	<h1>修改商品</h1>
+	     
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	 
+  <table width="100%" cellpadding="1" cellspacing="1" border="0" class="listtab">
+		
+				<tr>
+					<td  colspan="4">
+				   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">基本信息</span>			</td>
+		    </tr>
+			
+			<tr>
+			<td align="right" width="20%">
+				你选择的类目:			
+			</td>
+			<td  colspan="3">
+			   <font color="red"><%=cat_names%></font> 
+				 &nbsp;&nbsp;<input class="button_css" type="button" value ="返回，重新选择类目" onClick="window.location.href='addInfo.jsp?flag_code=1&goods_id=<%=goods_id%>'">	
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				  产品属性:				
+			</td>
+			<td colspan="3">
+			   <span class="STYLE5" style="color:#FF7300;">产品属性填写的越少，越容易流失被搜索到的机会！建议您尽可能完整填写！</span> <br/>
+			 		 					
+			
+			 <%
+			      	if( attList != null && attList.size() > 0 ) {
+								 attrsize = attList.size();
+								 Hashtable attrmap = new Hashtable();
+							 	 for( int i = 0; i < attrsize; i++ )
+								 {
+								 	 attrmap = ( Hashtable )attList.get(i);
+									 String attr_id = "",attr_name = "",default_tag ="", con_type="",attrStr = "",isfill="";
+									 if( attrmap.get("attr_id") != null )
+									 {
+									 	 attr_id = attrmap.get("attr_id").toString();
+									 }
+									 if( attrmap.get("attr_name") != null )
+									 {
+									 	 attr_name = attrmap.get("attr_name").toString();
+									 }
+									 if( attrmap.get("default_tag") != null )  // if fill in or not									 
+									 {
+									 	 default_tag = attrmap.get("default_tag").toString();
+									 }
+									 if( attrmap.get("con_type") != null )
+									 {
+									 	 con_type = attrmap.get("con_type").toString();
+									 }
+									 if( default_tag.equals("0"))
+									 {
+									 	 isfill = " <span style='color:red;'>*</span>";
+									 }
+									
+									 
+						%>
+						
+						<table width="100%" border="0" cellspacing="0" cellpadding="0">
+			        <tr>
+			          <td width="18%" height="35" align="right" style="background:#F9F9F9;">
+			          	 &nbsp;<%=attr_name%><%=isfill%>
+			          </td>
+			          <td width="48%" style="background:#F9F9F9;">
+			          	
+			          								  
+								  <input type="hidden" name="attr_id<%=i%>" id="attr_id<%=i%>" value="<%=attr_id%>" /> 
+								  <input type="hidden" name="attr_name<%=i%>" id="attr_name<%=i%>" value="<%=attr_name%>" />
+								  <input type="hidden" name="con_type<%=i%>" id="con_type<%=i%>" value="<%=con_type%>" />
+								  <input type="hidden" name="default_tag<%=i%>" id="default_tag<%=i%>" value="<%=default_tag%>" />
+			          	<%
+			          			String attrValue = "";
+											
+										  if(con_type.equals("0"))
+											{
+											 	 
+											 	 attrValue = ts_categoryattrInfo.getSelectItems(attr_id,attr_desc);
+									     									
+									%>	
+											   <select class="input" name="attr_value<%=i%>" id="attr_value<%=i%>" style="height:20px;">
+											   <option value="">请选择</option>
+											   		 <%=attrValue%>
+											   </select>
+									<%			
+											}
+												
+											if( con_type.equals( "1") )
+											{
+                                                    
+                          attrValue= ts_categoryattrInfo.getInputItems(attr_id,attr_desc);												 
+									 %>
+												<input class="input" maxlength="30" type="text" name="attr_value<%=i%>" id="attr_value<%=i%>"   size="20" maxlength="100" value="<%=attrValue%>" />
+									<%			
+											}
+											if( con_type.equals( "2") ){
+													attrValueList = ts_categoryattrInfo.getListByPk(attr_id);
+                          attrValue = ts_categoryattrInfo.getCheckboxItems(attr_id,attr_desc);												  
+												  if( attrValueList != null && attrValueList.size() > 0 ) 
+													{
+                           
+                            Hashtable valuemap = (Hashtable)attrValueList.get(0);
+                            String default_value="";                           
+                            if( valuemap.get("default_value") != null )
+                            {
+															 default_value = valuemap.get("default_value").toString();
+														}
+													  
+                            String attrValues[] =	default_value.split("\\|");												  
+													  valuesize = attrValues.length;
+													  for( int j = 0; j < valuesize; j++ ) 
+													  {
+									     %>
+												    <input class="input" type="checkbox" name="attr_value<%=i%>" id="attr_value<%=i%>_<%=j%>" value="<%=attrValues[j]%>"  <%if(attrValue.indexOf("|"+attrValues[j]+"|")>-1)out.print("checked");%>/><%=attrValues[j]%>	
+												    									
+											 <%	   
+											      }
+											 %>  	
+											  
+											  <input type="hidden" name="valuesize<%=i%>" id="valuesize<%=i%>" value="<%=valuesize%>" /> 
+
+											  <%
+											}
+										}
+									%>		
+			          	
+			            <span class="STYLE5"></span>
+			          </td>
+			          <td width="36%"></td>
+					  	</tr>
+			      </table>
+			      <%		}
+							 }
+						%>
+						
+						  <input type="hidden" name="attrsize" id="attrsize" value="<%=attrsize%>" />
+			    </td>
+       </tr>
+	     
+     <tr>
+			<td align="right" width="20%">
+				 商品名称<font color="red">*</font>		
+			</td>
+			<td colspan="3">
+				  <input type="text" name="goods_name" id="goods_name" size="62" maxlength="300" value="<%=goods_name%>" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+			 </td>
+		</tr>
+  
+      <tr>
+			<td align="right" width="20%">
+				 商品关键字<font color="red">*</font>		
+			</td>
+			<td colspan="3">
+				 <input type="text" name="keywords" id="keywords" size="62" maxlength="100" value="<%=keywords%>" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+			 </td>
+		</tr>
+        
+   <tr>
+			  <td align="right" width="20%">商品编号<font color="red">*</font></td>	   
+			  <td width="18%">
+			     <input type="text" name="goods_no" id="goods_no" size="15" maxlength="15" value="<%=goods_no%>" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+			  </td>
+			  <td width="12%" align="right">商品品牌:</td>
+			  <td width="60%">
+			     <select name="brand_id" id="brand_id">
+			        <option value="">请选择</option>
+			        <%=brand_select%>
+			     </select>			  
+			  </td>
+	 </tr>
+    
+     <tr>
+			<td align="right" width="20%">
+				商品缩略图:			
+			</td>
+			<td colspan="3">
+			 
+			  <jsp:include page="/program/inc/uploadImgInc.jsp">
+					 <jsp:param name="attach_root_id" value="<%=goods_id%>" />
+					 <jsp:param name="img_type" value="1" />
+					 	<jsp:param name="req_type" value="b2c" />
+				</jsp:include>
+
+			
+			
+			</td>
+		</tr> 
+    
+    
+   <tr>
+			  <td align="right" width="20%">市场价<font color="red">*</font></td>	   
+			  <td width="18%">
+			     <input type="text" name="market_price" id="market_price" size="15" maxlength="10" onKeyUp="if(isNaN(value))this.value=''" value="<%=market_price%>"  />
+			  </td>
+			  <td width="12%" align="right">进价<font color="red">*</font></td>
+			  <td width="60%">
+			        <input name="org_price" id="org_price" type="text" maxlength="10" size="15" onKeyUp="if(isNaN(value))this.value=''" value="<%=org_price%>"/>
+			  </td>
+	 </tr>
+    
+    
+     <tr>
+			  <td align="right" width="20%">销售价<font color="red">*</font></td>	   
+			  <td width="18%">
+			   			  
+           <input type="text" name="sale_price" id="sale_price" size="15" maxlength="10" onKeyUp="if(isNaN(value))this.value='';else setAlllevelPrice()" value="<%=sale_price%>" />
+			  
+			  
+			  </td>
+			  <td width="72%" colspan="2">
+			  
+        </td>
+	 </tr>
+      
+    <tr>
+			<td align="right" width="20%">
+				会员价格:			
+			</td>
+			<td colspan="3">
+			 
+ <table width="100%" border="0" cellspacing="0" cellpadding="0">
+			 
+			 
+			 <%
+        int level_num=0;			  
+			  if(memLevelList !=null && memLevelList.size()>0){	
+			  
+              level_num=	memLevelList.size();		       
+			        for(int i=0;i<memLevelList.size();i++){
+              Hashtable lmap =(Hashtable)memLevelList.get(i);
+              String user_class="",class_name="",discount=""; 
+              if(lmap.get("user_class")!=null){
+                    user_class =lmap.get("user_class").toString();             
+              } 
+              if(lmap.get("class_name")!=null){
+                    class_name =lmap.get("class_name").toString();             
+              }
+              if(lmap.get("discount")!=null){
+                    discount =lmap.get("discount").toString();             
+              }
+              String  mb_price[] = member_price.split(",");
+               
+              String class_price ="";               
+              for(int j=0;j<mb_price.length;j++)
+              {
+                   String mb_one_price[] = mb_price[j].split("\\|"); 
+                   if(mb_one_price.length>1)
+                   {
+                       if(user_class.equals(mb_one_price[0]))
+                       {
+                          class_price = mb_one_price[1];
+                          break;                     
+                       }
+                                         
+                   }             
+               }   
+              
+                         
+			%>
+		 <tr>
+		   
+		    <td width="18%" height="35" align="right" style="background:#F9F9F9;">
+
+			  <%=class_name%>
+      
+       </td>
+			
+			<input type="hidden" name="userLevelId<%=i%>" id="userLevelId<%=i%>"	value="<%=user_class%>" />
+			<td width="48%" style="background:#F9F9F9;">
+
+			
+			<input type="text" name="userLevelDiscount<%=i%>" id="userLevelDiscount<%=i%>" value="<%=discount%>" size="4"
+						maxlength="6"	onkeyup="if(isNaN(value))this.value='';else setAlllevelPrice(<%=i%>)" />
+			<input type="text" id="level_price<%=i%>" name="level_price" value="<%=class_price%>" size="12" disabled />
+		  </td>
+    
+        <td width="36%"></td>
+ 
+   	</tr>
+
+		
+			<%
+			  }
+			}
+			%>
+			
+		 </table>
+	
+			
+			
+			
+			</td>
+		</tr>
+     
+     	<input type="hidden" name="level_num" id="level_num" value="<%=level_num%>"/>        
+            
+      <tr>
+			<td align="right" width="20%">
+				是否为免运费商品:			
+			</td>
+			<td >
+			    <input type="radio" name="ship_fare" id="ship_fare1" value="1" <%if(ship_fare.equals("1"))out.print("checked");%> />是	
+			    <input type="radio" name="ship_fare" id="ship_fare2" value="0" <%if(ship_fare.equals("0"))out.print("checked");%> />否	
+			</td>
+			 <td align="right" width="20%">赠送积分数<font color="red">*</font></td>	   
+			  <td width="18%">
+			     <input type="text" name="send_inter" id="send_inter" size="15" maxlength="10" onKeyUp="if(isNaN(value))this.value=''" value="<%=send_inter%>" />
+			  </td>
+		</tr>
+  
+  <!--
+     <tr>
+			<td align="right" width="20%">
+				优惠类型:			
+			</td>
+			<td colspan="3">
+				<input type="hidden" name="discount_id" id="discount_id" value="<%=discount_id %>"/>
+				<input type="text" name="offer_type" id="offer_type" value="<%=offer_type %>" onClick="showDiscountInfo()"/>
+			</td>
+		</tr>      
+   <tr>
+
+   <tr>
+			 <td align="right" width="20%">赠送积分数<font color="red">*</font></td>	   
+			  <td width="18%">
+			     <input type="text" name="send_inter" id="send_inter" size="15" maxlength="10" onKeyUp="if(isNaN(value))this.value=''" value="<%=send_inter%>" />
+			  </td>
+			  <td width="12%" align="right">积分购买数<font color="red">*</font></td>
+			  <td width="60%">
+			     <input name="buy_inter" id="buy_inter" type="text" maxlength="10" onKeyUp="if(isNaN(value))this.value=''" value="<%=buy_inter%>"/>
+			  </td>
+	 </tr>
+  -->
+    
+    
+   <tr>
+			 <td align="right" width="20%">商品重量<font color="red">*</font></td>	   
+			  <td width="18%">
+			     <input type="text" name="weight" id="weight" size="15" maxlength="10" onKeyUp="if(isNaN(value))this.value=''" value="<%=weight%>" />
+			     
+<!--			     <font color="#666666">(克)</font>-->		     
+			  </td>
+			  <td width="12%" align="right">计价单位<font color="red">*</font></td>
+			  <td width="60%">
+          <select name="price_unit" id="price_unit">
+            <option value="">请选择</option>
+             <%=s_price_unit%>           
+            </select>               			 
+			  </td>
+	  </tr>
+    
+ 	<tr>
+					<td  colspan="4">
+				   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">库存信息</span>			</td>
+		    </tr>
+    
+    
+    
+    <tr>
+			 <td align="right" width="20%">库存初始量<font color="red">*</font></td>	   
+			  <td width="18%">
+			     <input type="text" name="stock_in" id="stock_in" size="15" maxlength="10" onKeyUp="if(isNaN(value))this.value=''" value="<%=stock_in%>"/>
+			  </td>
+			  <td width="12%" align="right">最低库存量<font color="red">*</font></td>
+			  <td width="60%">
+			    <input name="stock_down" id="stock_down" type="text" maxlength="10" onKeyUp="if(isNaN(value))this.value=''" value="<%=stock_down%>" />
+			  </td>
+	  </tr>
+     
+     <input name="stock_num" id="stock_num" type="hidden" value="0"/>
+     
+     <input type="hidden" name="stock_out" id="stock_out" value="<%=stock_out%>"/>
+     
+	 <%
+		 if(Integer.parseInt(stock_num)<0){
+			stock_num = "0";
+		 
+		 }
+			
+	 %>
+     <tr>
+			 <td align="right" width="20%">商品库存单价<font color="red">*</font></td>	   
+			  <td width="18%">
+			     <input type="text" name="one_price" id="one_price" size="15" maxlength="10" onKeyUp="if(isNaN(value))this.value=''" value="<%=one_price%>" />
+			  </td>
+			  <td width="12%" align="right">当前库存</td>
+			  <td width="60%">
+			    <%=stock_num %><br/>
+			  </td>
+	  </tr>
+    
+	<tr>
+					<td  colspan="4">
+				   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">详细信息</span>			</td>
+		    </tr>
+       
+  <tr>
+			<td align="right" width="20%">
+				商品概述:			
+			</td>
+			<td colspan="3">
+			  <textarea name="outline" id="outline" cols="55" rows="6" maxlength="200" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " onBlur="return isMaxLen(this)"><%=outline%></textarea>			
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				商品详细描述:			
+			</td>
+			<td colspan="3">
+			  <textarea name="goods_desc"><%=goods_desc%></textarea>
+			<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+			<script type="text/javascript">
+				 //CKEDITOR.replace('goods_desc');
+			   CKEDITOR.replace( 'goods_desc',{
+			   	      filebrowserUploadUrl : '/program/inc/upload.jsp?type=file&attach_root_id=<%=goods_id%>',      
+                filebrowserImageUploadUrl : '/program/inc/upload.jsp?type=img&attach_root_id=<%=goods_id%>',      
+                filebrowserFlashUploadUrl : '/program/inc/upload.jsp?type=flash&attach_root_id=<%=goods_id%>'     
+            });  
+			</script>
+			
+			</td>
+		</tr>      
+      
+     	<tr>
+					<td  colspan="4">
+				   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">关联信息</span>			</td>
+		    </tr>
+ 
+      
+         
+     <tr>
+			<td align="right" width="20%">
+				同类商品:			
+			</td>
+			<td colspan="3">
+        <select name="g_cat_id" id="g_cat_id">
+        <option value="">所有分类</option>
+         <%=s_cat_all%>									  
+        </select>
+			  <select name="g_brand_id" id="g_brand_id" >
+				 <option value="">所有品牌</option>
+				 <%=s_brand_all%>	
+				</select>
+				<input type="text" name="g_keyword" id="g_keyword"/>
+				<input type="button" class="button_s_css" value=" 搜索 "  onclick="showLinkGoods('g')" />
+			  
+       <span id="g_goods_table">
+           <%
+           
+           if(!link_goods.trim().equals("")){           
+           %>       
+          <table width='100%' border='0' cellspacing='0' cellpadding='0' >
+          
+			   <%
+            String l_g_goods[] = link_goods.split("\\|");	
+            for(int i=0;i<l_g_goods.length;i++){
+              int k =i+1;	
+              String l_g_name = ti_goodsInfo.getGoodsNameById(l_g_goods[i]);
+              if(l_g_name.length()>28)
+              {
+                  l_g_name =l_g_name.substring(0,28);              
+              }		   
+			  
+			   %>        
+             <tr id="g_spandiv<%=k%>">
+           	<td width='5%' height='15' align='right' style='background:#F9F9F9;'>
+             	<font color="#666666"><%=k%>:</font>           
+           </td>
+           <td width='55%' style='background:#F9F9F9;'> 
+             <font color="#666666"><%=l_g_name%></font>                     
+             </td>       
+       
+          <td width='40%'>
+          
+ 	     <img src="/program/company/index/images/cross.png" style="vertical-align:middle;cursor:pointer;" title="移除关联商品" onclick=moveout("g","<%=k%>","<%=l_g_goods[i]%>") />
+          
+          </td>
+          </tr>
+          
+            <% }  %>          
+         
+          </table> 
+          <%
+					          
+					 }          
+          %>      
+      
+       </span>   			 
+			 			
+			</td>
+		</tr>  
+		
+		<tr>
+			<td align="right" width="20%">
+				推荐配饰:			
+			</td>
+			<td colspan="3">
+        <select name="p_cat_id" id="p_cat_id">
+        <option value="">所有分类</option>
+         <%=s_cat_all%>									  
+        </select>
+			  <select name="p_brand_id" id="p_brand_id">
+				 <option value="">所有品牌</option>
+				 <%=s_brand_all%>	
+				</select>
+				<input type="text" name="p_keyword" id="p_keyword"/>
+				<input type="button" class="button_s_css" value=" 搜索 " onClick="showLinkGoods('p')" />
+			 
+          <span id="p_goods_table">
+           <%
+           
+           if(!link_fit.trim().equals("")){           
+           %>       
+          <table width='100%' border='0' cellspacing='0' cellpadding='0' >
+          
+			   <%
+            String l_g_fit[] = link_fit.split("\\|");	
+            for(int i=0;i<l_g_fit.length;i++){
+              int k =i+1;	
+              String l_p_fitname = ti_goodsInfo.getGoodsNameById(l_g_fit[i]);
+              if(l_p_fitname.length()>28)
+              {
+                  l_p_fitname =l_p_fitname.substring(0,28);              
+              }	   
+			  
+			   %>        
+             <tr id="p_spandiv<%=k%>">
+           	<td width='5%' height='15' align='right' style='background:#F9F9F9;'>
+             	<font color="#666666"><%=k%>:</font>           
+           </td>
+           <td width='55%' style='background:#F9F9F9;'> 
+             <font color="#666666"><%=l_p_fitname%></font>                     
+             </td>       
+       
+          <td width='40%'>
+                 
+         <img src="/program/company/index/images/cross.png" style="vertical-align:middle;cursor:pointer;" title="移除关联配件" onclick=moveout("p","<%=k%>","<%=l_g_fit[i]%>") />
+          
+          </td>
+          </tr>
+          
+            <% }  %>          
+         
+          </table> 
+          <%
+					          
+					 }          
+          %>      
+      
+       </span>   			 
+			 
+			 
+			 			
+			</td>
+		</tr>       
+       
+     
+ 	<tr>
+			<td  colspan="4">
+			   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">其他信息</span>			</td>
+	    </tr>
+     
+      <tr>
+			<td align="right" width="20%">
+				商家备注:			
+			</td>
+			<td colspan="3">
+			  <textarea name="remark" id="remark" cols="55" rows="6" maxlength="200" oonkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " onBlur="return isMaxLen(this)"><%=remark%></textarea>			
+			</td>
+		</tr> 
+ 
+    	
+	</table>
+	 	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="2645" />
+			  <input type="button" class="buttoncss" name="tradeSub" value="提交" onClick="subForm()"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onClick="window.location.href='<%=para%>';"/>
+			</td>
+		</tr>
+	</table>
+
+	 <input type="hidden" name="discount_id" id="discount_id"/>
+    <input type="hidden" name="buy_inter" id="buy_inter"/>
+	<input type="hidden" name="jumpurl" value="<%=para%>" />
+	
+	<input type="hidden" name="goods_id" id="goods_id" value="<%=goods_id%>">
+	
+	<input type="hidden" name="class_attr" id="class_attr" value="<%=class_attr%>">
+  
+   <input type="hidden" name="state_code" id="state_code" value="<%=state_code%>">
+   
+   <input type="hidden" name="state_flag" id="state_flag" value="1">
+                                                                
+   <input type="hidden" name="state_name" id="state_name" value="">
+    
+   <input type="hidden" name="attr_desc" id="attr_desc" value="">
+                                                                 
+	<input type="hidden" name="cust_id" id="cust_id" value="<%=cust_id%>">
+                                                                        
+    <input type="hidden" name="publish_user_id" id="publish_user_id" value="<%=publish_user_id%>">
+                           
+   <input type="hidden" name="link_goods" id="link_goods" value="<%=link_goods%>">
+  
+   <input type="hidden" name="link_fit" id="link_fit" value="<%=link_fit%>">
+  
+  <input type="hidden" name="member_price" id="member_price" value="">
+  
+  <input type="hidden" name="now_num" id="now_num" value="<%=now_num%>">
+
+  <input type="hidden" name="before_num" id="before_num" value="<%=before_num%>">
+  
+  <input type="hidden" name="vary_num" id="vary_num" value="0">
+ 
+  <input type="hidden" name="vary_reason" id="vary_reason" value="修改商品库存初始">
+  
+  <input type="hidden" name="stock_flag" id="stock_flag" value="1">
+  
+  <input type="hidden" name="stock_method" id="stock_method" value="0">
+                                                                                                
+	</form>
+
+</body>
+
+</html>

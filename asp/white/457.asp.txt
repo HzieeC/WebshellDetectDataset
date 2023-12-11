@@ -1,0 +1,110 @@
+<%
+
+' 分页函数(用户预设)
+' 总页数,总记录数,当前页,每页记录数,栏目ID(获取规则)
+Function pagelistx(byval pagecountx, byval recordcountx, byval pagenowx, byval pagesizex, byval cid, byval styleid)
+    dim ruleurl, ruleindex
+
+	' 获取主链接和链接规则
+	if len(cid) = 0 then ' 首页
+		if createhtml = 2 then ruleurl = indexview & "index-{page}" & rewriteext else ruleurl = indexview & "index.asp?page={page}"
+		ruleindex = indexview
+	else
+		if len(getchannel(cid, "domain")) > 0 then
+				ruleurl   = getchannel(cid, "domain") & getchannel(cid, "rulechannel") ' 栏目分页规则
+				ruleindex = getchannel(cid, "domain") ' 栏目首页地址
+		else
+			if createhtml = 1 then ' 生成HTML
+				ruleurl   = httpurl & getchannel(cid, "ruleindex") & getchannel(cid, "rulechannel") ' 栏目分页规则
+				ruleindex = httpurl & getchannel(cid, "ruleindex") ' 栏目首页地址
+				if right(ruleurl, 1) <> "/" then ' 文件后缀
+					dim tmp, tmpi : tmp = split(ruleurl, "/") : tmpi = tmp(ubound(tmp))
+					if instr(tmpi, ".") = 0 then ruleurl = ruleurl & "." & defaultext
+				end if
+			else
+				ruleurl   = httpurl & installdir & "channel.asp?id=" & cid & "&page={page}"
+				ruleindex = httpurl & installdir & "channel.asp?id=" & cid
+			end if
+		end if
+	end if
+	
+	' 获取左右数量
+	dim i, j, loopnum1, loopnum2
+	loopnum1 = 3 ' 前面数量
+	loopnum2 = 3 ' 后面数量
+	i = pagenowx - loopnum1
+	j = pagenowx + loopnum2
+	if i < 1 then j = j + (1 - i) : i = 1
+	if j > pagecountx then
+		i = i + (pagecountx - j) : j = pagecountx
+		if i < 1 then i = 1
+	end if
+	
+	' 提示信息
+	dim pageinfo
+	pageinfo = lang_page_info
+	if len(pageinfo) > 2 then 
+		pageinfo = replace(lang_page_info,"$page",pagenowx)
+		pageinfo = replace(pageinfo,"$size",pagesizex)
+		pageinfo = replace(pageinfo,"$count",pagecountx)
+		pageinfo = replace(pageinfo,"$record",recordcountx)
+		pageinfo = "<span><a>共" & pageinfo & "条</a></span>"
+	end if
+	
+	' 主要链接
+	dim firstlink,lastlink,prelink,nextlink 
+	firstlink = "<span><a href=""" & ruleindex & """>" & lang_page_first & "</a></span>"                               ' 首页
+	prelink   = "<span><a href=""" & replace(ruleurl, "{page}", pagenowx - 1) & """>" & lang_page_pre & "</a></span>"  ' 上一页
+	nextlink  = "<span><a href=""" & replace(ruleurl, "{page}", pagenowx + 1) & """>" & lang_page_next & "</a></span>" ' 下一页
+	lastlink  = "<span><a href=""" & replace(ruleurl, "{page}", pagecountx) & """>" & lang_page_last & "</a></span>"   ' 尾页
+	if pagenowx = 2 then prelink = "<span><a href=""" & ruleindex & """>" & lang_page_pre & "</a></span>"              ' 上一页链接判断
+	if pagenowx   = 1 then firstlink = "" : prelink = "" ' 第一页无首页及上一页
+	if pagenowx   = pagecountx then lastlink = "" : nextlink = "" ' 最后一页无下一页及尾页
+	if pagecountx =< loopnum1 + loopnum2 + 1 then firstlink = "" : lastlink = "" ' 不足一次显示数量就不显示首页及尾页
+		
+	' 跳转提示框
+	dim jumplink
+	jumplink = replace(ruleurl, "{page}", "' + this.value + '")
+	if createhtml = 2 and len(cid)>0 then jumplink = rewritechannel & "-" & cid & "-' + this.value + '" & rewriteext ' 只供栏目 Rewrite 使用
+	jumplink = "<span><input type=""text"" size=""5"" value=""GO"" onclick=""this.value='';"" onkeydown=""var intstr=/^\d+$/;if(intstr.test(this.value)&&this.value<=" & pagecountx & "&&this.value>=1&&event.keyCode==13){if(this.value==1){location.href='" & ruleindex & "';}else{location.href='" & jumplink & "';}}"""" /></span>"
+	
+	' 返回链接
+	dim p, looplink, thislink
+	for p = i to j
+		if p = pagenowx then thislink = " class=""current""" else thislink = ""
+		if p = 1 then
+			looplink = looplink & "<span><a href=""" & ruleindex & """"&thislink&">1</a></span>"
+		else
+			looplink = looplink & "<span><a href=""" & replace(ruleurl, "{page}", p) & """"&thislink&">" & p & "</a></span>"
+		end if
+	next
+	pagelistx = "<div class='page"&styleid&"'>"&pageinfo & firstlink & prelink & looplink & nextlink & lastlink &"</div>"
+end Function
+
+' 分页函数(后台用)
+Function pagelist(byval pagecount, byval page, byval recordcount, byval pagesize, byval url)
+    recordcount = int(cstr(recordcount)): pagesize = int(pagesize)
+    pagecount = int(pagecount): page = int(page)
+    dim tempstr: tempstr = "{<<} {循环} {>>} {跳转} 共有{总条数}条记录/共{总页数}页"
+    dim jumpurl, i, j, loopurl, m
+    tempstr = replace(tempstr, "{总页数}", pagecount)
+    tempstr = replace(tempstr, "{总条数}", recordcount)
+    tempstr = replace(tempstr, "{<<}", "<a href=" & replace(url, "{p}", 1) & " class='page'><<</a>")
+    tempstr = replace(tempstr, "{>>}", "<a href=" & replace(url, "{p}", pagecount) & " class='page'>>></a>")
+    if page > 1 then tempstr = replace(tempstr, "{<}", "<a href=" & replace(url, "{p}", page - 1) & " class='page'><</a>") else tempstr = replace(tempstr, "{<}", "<span class='page'><</span>")
+    if page < pagecount then tempstr = replace(tempstr, "{>}", "<a href=" & replace(url, "{p}", page + 1) & " class='page'>></a>") else tempstr = replace(tempstr, "{>}", "<span class='page'>></span>")
+    jumpurl = "<input name=""page"" type=""text"" id=""page"" size=3  style='font-size:10px;color:#666;'><input name=""go"" type=""button"" id=""go"" value=""GO"" style='font-size:10px;color:#666;' onclick=""var intstr=/^\d+$/;if(intstr.test(page.value)&&page.value<=" & pagecount & "&&page.value>=1){location.href='" & replace(url, "{p}", "' + page.value + '") & "';}"">"
+    tempstr = replace(tempstr, "{跳转}", jumpurl)
+    i = page - 4: j = page + 5
+    if i < 1 then j = j + (1 - i): i = 1
+    if j > pagecount then
+        i = i + (pagecount - j): j = pagecount
+        if i < 1 then i = 1
+    end if
+    for m = i to j
+        if m = page then loopurl = loopurl & " <a href=" & replace(url, "{p}", m) & " class='pagein'>" & m & "</a>" else loopurl = loopurl & " <a href=" & replace(url, "{p}", m) & " class='page'>" & m & "</a>"
+    next
+    tempstr = replace(tempstr, "{循环}", loopurl)
+    pagelist = tempstr
+end Function
+%>

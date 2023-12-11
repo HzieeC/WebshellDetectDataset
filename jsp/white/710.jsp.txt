@@ -1,0 +1,81 @@
+<%@page pageEncoding="GB2312" contentType="text/html; charset=GB2312" %>
+<%@ taglib prefix="s" uri="/struts-tags" %>
+<%@ taglib prefix="sx" uri="/struts-dojo-tags"%>    
+<%
+String path = request.getContextPath();
+String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
+%>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <base href="<%=basePath%>">  
+    <title>增加新闻</title>
+    <link href="./css/style.css" rel="stylesheet" type="text/css">
+    <meta http-equiv="Content- Type" content="text/html; charset=GB2312"/>
+	<meta http-equiv="pragma" content="no-cache">
+	<meta http-equiv="cache-control" content="no-cache">
+	<meta http-equiv="expires" content="0">    
+	<meta http-equiv="keywords" content="keyword1,keyword2,keyword3">
+	<meta http-equiv="description" content="This is my page">
+	<!--
+	<link rel="stylesheet" type="text/css" href="styles.css">
+	-->
+	  <s:head theme="xhtml"/>   
+  <sx:head parseContent="true"/>   
+  </head>
+  
+  <body>
+<s:form name="form" id="form" method="POST" action="addNotice!save">  
+  <table border="0" cellpadding="0" cellspacing="0" bgcolor="#0099FF">
+  <tr>
+  <td>   
+ <table width="100%" border="0" cellpadding="0" cellspacing="1">
+  <tr> 
+    <td colspan="3" bgcolor="#FFFFFF"><s:textfield  name="title" label="标题"/></td>
+  </tr>
+    <tr> 
+    <td colspan="3" bgcolor="#FFFFFF"><s:textfield  name="author" label="作者"/></td>
+  </tr>
+  <tr> 
+  <td bgcolor="#FFFFFF">类别：</td>
+    <td bgcolor="#FFFFFF">
+  <s:select theme="simple" name="noticetype" list="{'公司公告','行政法规'}"></s:select>
+</td>
+  </tr>
+  <tr> 
+    <td colspan="3" bgcolor="#FFFFFF">
+     <iframe name=upload src="./upload/upload.jsp" width="800" height="220" scrolling=no frameborder=0></iframe>   
+    <s:textfield
+label="图片" 
+name="pic" 
+size="100"/> </td>
+  </tr>
+   <tr>
+         <td bgcolor="#FFFFFF">
+          <div align="right">
+            <s:radio  tooltip="是否推荐？"
+             label="推荐" 
+             list="#{'1':'推荐','0':'不推荐'}"   
+           name="recommend" 
+           value="1"
+           />
+          </div></td></tr> 
+  <tr> 
+    <td bgcolor="#FFFFFF">内容:</td>
+    <td height="20" bgcolor="#FFFFFF">
+   <sx:textarea name="content"></sx:textarea>
+   </td>
+  </tr>
+  <tr>
+<td bgcolor="#FFFFFF"><s:textfield  name="cc" label="出处"/></td>
+  </tr>
+  <tr>
+  <td colspan="3" bgcolor="#FFFFFF"><s:submit value="增加" />
+  </td></tr>
+</table>
+</td></tr></table>
+ </s:form> 
+</body>
+  
+</html>

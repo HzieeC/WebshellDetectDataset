@@ -1,0 +1,214 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 全局参数
+			var baseParams = {start:0, limit:<%=Constants.PAGE_SIZE_FEED %>, delflag:"<%=Constants.DEL_FLAG_1 %>"};
+			// 选中的图片id
+			var feedFavoriteIds = '';
+
+			// 笔记数据源
+		    var feedFavoriteStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/feedFavoriteAction.do?method=query',
+		        root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['feedId', 'title', 'link', 'description', 'updatedStr'],
+		        baseParams: baseParams,
+		        autoLoad: true
+		    });
+
+		 	// 分页工具栏
+			var feedFavoriteBottomBar = new Ext.PagingToolbar({
+				pageSize: <%=Constants.PAGE_SIZE_FEED %>,
+				store: feedFavoriteStore,
+				displayInfo: true,
+				displayMsg: Anynote.PAGINGTOOLBAR_DISPLAYMSG,
+				emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+				doLoad: function(start){
+					baseParams.start = start;
+					this.store.load({
+						params: baseParams
+					});
+				}
+	        });
+
+			// 订阅显示模板
+			var feedFavoriteTpl = new Ext.XTemplate(
+				'<tpl for=".">',
+		            '<div class="item" id="feedItem_{feedId}">',
+			            '<div class="item-title">',
+			            	'<span class="title"><a href="{link}" target="_blank">{title}</a></span>',
+			            	'<span class="updated">{updatedStr}</span>',
+			            	'<div class="x-clear"></div>',
+			            '</div>',
+			            '<div class="item-description">{description}</div>',
+			            '<div class="item-bottom"></div>',
+				    '</div>',
+		        '</tpl>'
+			);
+			// 图片显示DataView
+			var feedFavoriteDataView = new Ext.DataView({
+				id: 'feedFavoriteDataView',
+	            store: feedFavoriteStore,
+	            loadingText: '加载中...',
+	            tpl: feedFavoriteTpl,
+	            multiSelect: true,
+	            autoScroll: true,
+	            overClass:'x-view-over',
+	            itemSelector:'div.item',
+	            prepareData: function(data){
+	                data.pictureName = Ext.util.Format.ellipsis(data.title, 100);
+	                data.updatedStr = new Date(data.updatedStr).format('Y/m/d H:i:s');
+	                //data.description = Ext.util.Format.stripTags(data.description);
+	                return data;
+	            },
+	            listeners: {
+	            	selectionchange: function(dv,nodes){
+	            		feedFavoriteIds = '';
+						for(i=0;i<nodes.length;i++){
+							var node = nodes[i];
+							var feedFavoriteId = node.id.substring(node.id.indexOf('_')+1);
+							feedFavoriteIds = feedFavoriteIds + feedFavoriteId + ',';
+						}
+	            	},
+	            	beforeclick: function(dataview,index,item,e){
+	            		if(e.getTarget().nodeName.toUpperCase() == 'A') return false;
+	            	}
+	            }
+	        });
+	        
+			// 主面板
+			var feedFavoritePanel = new Ext.Panel({
+				id: 'feedFavoritePanel',
+				renderTo: 'feedFavoritePanelDiv',
+				border: false,
+				layout: 'fit',
+				items: [feedFavoriteDataView],
+				tbar: new Ext.Toolbar({
+					items: [
+						new Ext.Button({
+						    id: 'feedFavorite-email-button',
+							text: '邮件',
+							iconCls: 'email'
+						}),
+						new Ext.Button({
+						    id: 'feedFavorite-delete-button',
+							text: '删除',
+							iconCls: 'delete'
+						}),
+			            new Ext.ux.form.SearchField({
+			                store: feedFavoriteStore,
+			                width: 320,
+			                paramName: 'title',
+			                emptyText: '请输入标题...',
+			                style: 'margin-left: 10px;'
+			            })
+					]
+				}),
+				bbar: feedFavoriteBottomBar
+			});
+			// 设置Grid高度和宽度
+			Anynote.resizeGridTo("feedFavoritePanel", 0, 28);
+
+			// 删除订阅数据
+			$('#feedFavorite-delete-button').click(function(){
+				if(feedFavoriteIds!=''){
+					Ext.Msg.confirm("警告", "确定要删除吗？", function(btn){
+						if(btn=="yes"){
+							// 发送请求
+							Anynote.ajaxRequest({
+								baseUrl: '<%=baseUrl %>',
+								baseParams: {feedFavoriteIds:feedFavoriteIds},
+								action: '/feedFavoriteAction.do?method=delete',
+								callback: function(jsonResult){
+									feedFavoriteStore.reload();
+								},
+								showWaiting: true,
+								failureMsg: '删除失败.'
+							});
+						}
+					});
+				}else{
+					Ext.Msg.alert("提示", "请选择数据.");
+				}
+			});
+			// 发送订阅数据
+			$('#feedFavorite-email-button').click(function(){
+				var records = feedFavoriteDataView.getSelectedRecords();
+				if(records.length == 1){
+					sendFeedFavoriteWindow = new Ext.Window({
+						title: '发送订阅',
+						width: 350,
+						height: 180,
+						modal: true,
+						layout:'fit',
+						items: new Ext.form.TextArea({
+							emptyText: '请输入Email地址，用逗号分隔.',
+							id: 'Email',
+							name: 'Email'
+						}),
+						buttons: [{
+		                    text:'确定',
+		                    handler: sendFeed
+		                },{
+		                    text: '取消',
+		                    handler: function(){
+		                		sendFeedFavoriteWindow.close();
+		                    }
+		                }]
+					});
+					sendFeedFavoriteWindow.show();
+				}else{
+					Ext.Msg.alert("提示", "请选择一条数据.");
+				}
+			});
+			// 发送订阅
+			function sendFeed(){
+				var emails = $("#Email").val();
+				var emailArr = emails.split(",");
+				if(emailArr.length>5){
+					showErrorMsg("最多支持五个邮箱.");
+					return;
+				}else{
+					for(var i=0;i<emailArr.length;i++){
+						var is = validateInput("email",emailArr[i],"请输入有效的Email地址.");
+						if(!is)  return;
+					}
+				}
+
+				// 封装参数
+				var record = feedFavoriteDataView.getSelectedRecords()[0];
+				var params = {
+					emails: emails,
+					title: record.get('title'),
+					link: record.get('link'),
+					description: record.get('description')
+				};
+				// 发送请求
+				Anynote.ajaxRequest({
+					baseUrl: '<%=baseUrl %>',
+					baseParams: params,
+					action: '/feedAction.do?method=sendFeed',
+					callback: function(jsonResult){
+						sendFeedFavoriteWindow.close();
+					},
+					showWaiting: true,
+					showMsg: true,
+					successMsg: '发送成功.',
+					failureMsg: '发送失败.'
+				});
+			}
+		});
+	</script>
+</head>
+<body>
+<div id="feedFavoritePanelDiv" class="feedDataViewDiv">
+</div>
+</body>
+</html>

@@ -1,0 +1,489 @@
+<!--#include file="conn.asp"-->
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/dv_clsother.asp"-->
+<!--#include file="inc/dv_Template.inc"-->
+<!--#include file="Dv_plus/IndivGroup/Dv_IndivGroup_Config.asp"-->
+<%
+'显示头部
+Dvbbs.LoadTemplates("dispbbs")
+'Dim IsThisBoardMaster 确定当前用户是否本版版主，防止下面的操作影响到 Dvbbs.BoardMaster导致出错
+'IsThisBoardMaster = Dvbbs.Master
+Dvbbs.LoadTemplates("")
+Dvbbs.Stats = "签到情况"
+Dvbbs.Nav
+Dvbbs.Head_Var 0,0,"签到情况","signadmin.asp"
+Dvbbs.Name = "Medal"
+
+'Dvbbs.Head_var 1,"","",""
+'验证用户是否是管理员或者超级版主 定义在 Dv_ClsMain.asp
+If NoT ( Dvbbs.Master or Dvbbs.Superboardmaster) Then
+	Response.Write "<script>alert('必须是管理员才能查看');location='index.asp'</script>"
+	Response.End
+End If
+
+Dim sign_dbfile  : sign_dbfile = getdbpath(db)&"sign.mdb"  'sign.mdb的路径
+Dim page      : page = 0   '当前页码
+Dim maxrows      : maxrows=30  '每页显示的行数
+Dim startpos     : startpos=0
+Dim fullmoney    : fullmoney =30 '满勤奖金币数
+Dim sql,rs,r,totalnum
+Dim conn_sign    'signdb的链接 不可以改为conn  因为 conn 是dv使用的专有变量
+Dim today        : today=gettoday() '今日0点
+Dim i            : i=0
+Dim todaysignnum : todaysignnum=0      '今日签到人数
+Dim monthsignnum : monthsignnum=0      '今月签到人数
+Dim firstday     : firstday=getfirstday() '月初
+Dim startday     : startday=firstday
+Dim endday       : endday=today
+Dim islastday    : islastday=false
+Dim issearch     : issearch=false
+Dim searchtxt    : searchtxt=""
+Dim searchtype   : searchtype=0
+set conn_sign=server.createobject("adodb.connection")
+Dim dbpath:dbpath=server.MapPath(sign_dbfile)
+conn_sign.open "driver={microsoft access driver (*.mdb)};dbq=" & dbpath
+
+If Request.QueryString("startday") <> "" Then
+	startday=Request.QueryString("startday")
+End If
+if (Request.QueryString("endday")  <>  "") Then
+	endday=Request.QueryString("endday")
+End If
+
+If (Request.Form("searchtxt") <> "" and Request.Form("searchtype") <> "") Then
+	searchtxt=Request.Form("searchtxt")
+	searchtype=int(Request.Form("searchtype"))
+	sql="select * from sign_log where logtime >= '" & startday & " 00:00:00' and logtime <='" & endday & " 23:59:59'  and "
+	Select Case searchtype
+		case 0
+			sql=sql& "userid=" & searchtxt
+		case 1
+			sql=sql& "username='" & searchtxt &"'"
+		case 2
+			sql=sql& "logtime like '%"& searchtxt & "%'"
+	End Select
+	issearch=true
+	sql=sql& " order by logtime desc"
+	set rs=server.createobject("adodb.recordset") 
+	rs.open sql,conn_sign,1,3 
+	conn_sign.execute sql
+Else
+	If (Request.Form("deletetxt") <>"") Then
+		Dim deletetxt
+		deletetxt=Request.Form("deletetxt")
+		sql="delete from sign_log where logtime < '" & deletetxt & " 00:00:00' "
+		set rs=server.createobject("adodb.recordset") 
+		rs.open sql,conn_sign,1,3 
+		conn_sign.execute sql
+		Response.Write "<script> alert('成功删除"&deletetxt&" 00:00:00之前记录');</script>"
+	End If
+	
+	'获取今日签到人数
+	sql="select count(id) as c from sign_log where logtime >= '" & today & " 00:00:00'"
+	set rs=server.createobject("adodb.recordset") 
+	rs.open sql,conn_sign,1,3 
+	conn_sign.execute sql
+	todaysignnum=rs("c")
+
+	'显示今月签到列表 安金币数排序
+  sql="select * from sign_log where logtime >= '" & startday & " 00:00:00' and logtime <='" & endday & " 23:59:59' order by fullmoneys desc,addmoneys desc,logtime desc"
+	set rs=server.createobject("adodb.recordset") 
+	rs.open sql,conn_sign,1,3 
+	conn_sign.execute sql
+	monthsignnum=rs.recordcount 
+	
+	Dim MaxPages:MaxPages=ceil(monthsignnum/maxrows)
+	
+	page = int(Request.QueryString("page"))
+	if (page < 1 or page > MaxPages) Then
+		page=1
+	End If
+	startpos=(page-1)*maxrows
+End If
+	
+	function gettoday()
+		Dim m : m=month(date())
+		If m < 10 Then
+			m="0"&m
+		End If
+		Dim d : d=day(date())
+		If d < 10 Then
+			d="0"&d
+		End If
+		gettoday =year(date())&"-"& m &"-"& d 
+end function
+function getlastday()
+		Dim ThisDate,NextDate
+		ThisDate = Date() 
+		NextDate = DateAdd("m", 1, ThisDate) 
+		getlastday=Day(DateAdd("d", -1, Year(NextDate) & "-" & Month(NextDate) & "-1"))
+end function
+function getfirstday()
+		Dim m : m=month(date())
+		If m < 10 Then
+			m="0"&m
+		End If
+		getfirstday =year(date())&"-"& m &"-01"
+end function
+function getlastmonthfirstday()
+		Dim m : m=Month(DateAdd("m", -1, day(date())))
+		If m < 10 Then
+			m="0"&m
+		End If
+		getlastmonthfirstday =year(DateAdd("m", -1, day(date())))&"-"& m &"-01 00:00:00"
+end function
+function getnow()
+		Dim m : m=month(date())
+		If m < 10 Then
+			m="0"&m
+		End If
+		Dim d : d=day(date())
+		If d < 10 Then
+			d="0"&d
+		End If
+		Dim H : H=hour(time())
+		If H < 10 Then
+			H="0"&H
+		End If
+		Dim i : i=minute(time())
+		If i < 10 Then
+			i="0"& i
+		End If
+		Dim s : s=second(time())
+		If s < 10 Then
+			s="0"& s
+		End If
+		getnow =year(date())&"-"& m &"-"& d &" "&H&":"&i&":"&s&""
+end function
+function getdbpath(strPath)
+	Dim breakpos:breakpos=0
+	breakpos=instrrev(strPath,"/")
+	If breakpos <= 0 Then
+		breakpos=instrrev(strPath,"\")
+	End If
+	getdbpath=mid(strPath,1,breakpos)
+end function
+%>
+<script language=javascript src="images/popcalendar.js"></script>
+<style>
+	.tableborder td { padding:2px 1px; line-height:12px; }
+</style>
+<script type="text/JavaScript">
+dateFormat='yyyy-mm-dd';
+</script>
+<div class="mainbox">	
+	<div id="Tab">
+		<div class="Menubox">
+		<ul>
+			
+		   
+		   
+		   <li>签到情况</li>
+		   
+		</ul>
+		</div>		
+		
+	</div>
+</div>
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+	<tr align="left" class="TextBoxFocus">
+		<td width="20%">
+			<form action="" method="Post" onsubmit="return checkdelform()">
+			<table border=0 width="100%" >
+			<tr align="right" class="TextBoxFocus">
+				<td>
+					<input type="text" name="deletetxt" id="deletetxt" size="10" value="2009-01-01" onfocus="this.value=''">
+				</td>
+				<td>
+					<input type="submit" value="删除">
+				</td>
+			</tr>
+			</table>
+			</form>
+		</td>
+		<td width="50%">
+			<form id="form11" name="form11" method="get" action="" onsubmit="checkdateform()">
+			<table border=0 width="100%" >
+			<tr align="right" class="TextBoxFocus">
+				<td>
+					<input name="startday" id="startday" style='CURSOR: pointer;' type="text" size="10" value="<%=startday%>" onclick='popUpCalendar(this, form11.startday, dateFormat,-1,-1)' readonly /> 
+					<script>
+						if (!document.layers) 
+						{
+							document.write("<img align=absmiddle style='CURSOR:pointer;' src='images/calendar.gif' onclick='"+''+"popUpCalendar(this, form11.startday, dateFormat,-1,-1)' alt='选择开始日期' title='选择开始日期'>");
+						} 
+					</script>=>
+					<input name="endday" id="endday" style='CURSOR: pointer;' type="text" size="10" value="<%=endday %>" onclick='popUpCalendar(this, form11.endday, dateFormat,-1,-1)' readonly /> 
+					<script>
+							if (!document.layers) 
+							{
+								document.write("<img align=absmiddle style='CURSOR:pointer;' src='images/calendar.gif' onclick='"+''+"popUpCalendar(this, form11.endday, dateFormat,-1,-1)' alt='选择结束日期' title='选择结束日期'>");
+							} 
+					</script>
+				</td>
+				<td>
+					<input type="submit" value="提交">
+				</td>
+			</tr>
+			</table>
+			</form>
+		</td>
+
+		<td>
+			<form action="" method="Post" onsubmit="return checkform()">
+		<table border=0 width="98%" >
+			<tr align="right" class="TextBoxFocus">
+				<td>
+					<select name="searchtype" id="searchtype">
+						<option value="0">用户id
+						<option value="1">用户名	
+						<option value="2">签到时间
+					</select>
+				</td>
+				<td>
+					<input type="text" name="searchtxt" id="searchtxt">
+				</td>
+				<td>
+					<input type="submit" value="提交">
+				</td>
+			</tr>
+			</table>
+			</form>
+		</td>
+</table>
+
+<div>
+			
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+	<tr>
+			<td colspan=10 align="right">
+			<%
+				If Not issearch Then
+					Response.Write "今日共有"& todaysignnum&"个签到,本月共有"&monthsignnum&"个签到"
+				Else
+					Response.Write "共有"& rs.recordcount &"个符合查询条件的搜索结果"
+				End If
+			%>
+		</td>
+	</tr>
+</table>
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+      			<tr class="thh">
+      				<td>用户id</td>	
+      				<td>用户名</td>
+      				<td>登录ip</td>
+      				<td>金钱</td>
+      				<td>全勤奖</td>
+      				<td>时间</td>
+      			</tr>
+      			<%
+      			Dim jj:jj=0
+      				 Dim bgclass:bgclass="class='tableborder2'"
+      			If Not issearch Then
+      				 
+      			   do while not rs.eof
+   							If (jj >= startpos and jj < startpos + maxrows) Then
+	      			   	If (jj mod  2) = 0 Then
+	      			   		bgclass="class='tableborder2'"
+	      			   	Else
+	      			   		bgclass="class='tablebody2'"
+	      			   	End If
+		      				Response.Write vbCrLf &"      			<tr "& bgclass &">" & vbCrLf
+									Response.Write "      				<td>"&rs("userid")&"</td>"& vbCrLf
+									Response.Write "      				<td>"&rs("username")&"</td>"& vbCrLf
+									Response.Write "      				<td>"&rs("ip")&"</td>"& vbCrLf
+									Response.Write "      				<td><font color=red>+"&rs("addmoneys")&"</font></td>"& vbCrLf
+	      					Response.Write "      				<td><font color=red>+"&rs("fullmoneys")&"</font></td>"& vbCrLf
+									Response.Write "      				<td>"&rs("logtime")&"</td>"& vbCrLf 
+									Response.Write "</tr>"& vbCrLf
+								End If
+	      				rs.movenext 
+	      				jj=jj+1
+							loop
+							rs.close
+							set rs = nothing 
+							Response.Write "<tr><td colspan>"
+							showpages monthsignnum,maxrows 
+							Response.Write "</td>" & vbCrLf
+						Else
+      			   do while not rs.eof
+	      			   	If (jj mod  2) = 0 Then
+	      			   		bgclass="class='tableborder2'"
+	      			   	Else
+	      			   		bgclass="class='tablebody2'"
+	      			   	End If
+		      				Response.Write vbCrLf &"      			<tr "& bgclass &">" & vbCrLf
+									Response.Write "      				<td>"&rs("userid")&"</td>"& vbCrLf
+									Response.Write "      				<td>"&rs("username")&"</td>"& vbCrLf
+									Response.Write "      				<td>"&rs("ip")&"</td>"& vbCrLf
+									Response.Write "      				<td><font color=red>+"&rs("addmoneys")&"</font></td>"& vbCrLf
+	      					Response.Write "      				<td><font color=red>+"&rs("fullmoneys")&"</font></td>"& vbCrLf
+									Response.Write "      				<td>"&rs("logtime")&"</td>"& vbCrLf 
+									Response.Write "</tr>"& vbCrLf
+	      				rs.movenext 
+	      				jj=jj+1
+							loop
+							rs.close
+							set rs = nothing 
+							Response.Write "<tr><td colspan=10>"
+							showpages monthsignnum,maxrows 
+							Response.Write "</td></tr>" & vbCrLf
+						End If
+      				%>
+      				
+      	</table>
+<script>
+	document.getElementById("searchtype").value='<%=searchtype%>';
+	document.getElementById("searchtxt").value='<%=searchtxt%>';
+	
+	function checkdelform()
+	{
+		if(!checkdate(document.getElementById("deletetxt").value))
+		{
+			return false;
+		}
+		if(!confirm("是否要删除"+document.getElementById("deletetxt").value+" 00:00:00之前的数据？"))
+		{
+			return false;	
+		}
+		return true;
+	}
+	
+	function checkdateform()
+	{
+		if(document.getElementById("startday").value > document.getElementById("endday").value)
+		{
+			alert("开始时间不能大于结束时间.");
+			return false;
+		}
+		return true;
+	}
+	function popcalendarCallBack()
+	{
+		if(document.getElementById("startday").value > document.getElementById("endday").value)
+		{
+			alert("开始时间不能大于结束时间.");
+			return false;
+		}
+		return false;
+	}
+	
+	function checkdate(tmpstr)
+	{
+		var patrn=/^\d{4}-\d{2}-\d{2}$/
+		if(!patrn.exec(tmpstr))
+		{
+			alert("时间格式是：2009-03-01");
+			return false;
+		}
+		return true;
+	}
+	
+	function checknum(tmpstr)
+	{
+		var patrn=/^\d+$/; 
+		if(!patrn.exec(tmpstr))
+		{
+			return false;
+		}
+		return true;
+	}
+	function checkform()
+	{
+		switch(document.getElementById("searchtype").value)
+		{
+			case '0':
+				if(!checknum(document.getElementById("searchtxt").value))
+				{
+					alert("必须填写数字");	
+					return false;
+				}
+				break;
+			case '1':
+			case '2':
+				break;
+		}
+		return true;
+	}
+</script>
+<%
+conn_sign.close 
+set conn_sign = nothing 
+Dvbbs.Footer()
+Dvbbs.PageEnd()
+%>
+
+<%
+
+function showpages(Total,MyPageSize)
+	Dim query,a,x,temp
+	Dim MaxPages:MaxPages=0
+	Dim MyPage:MyPage=1
+	Dim action
+	MaxPages=ceil(Total/MyPageSize)
+	
+	action="http://"&Request.ServerVariables("HTTP_HOST")&Request.ServerVariables("SCRIPT_NAME")
+	query=Split(Request.ServerVariables("QUERY_STRING"),"&")
+	For Each x In query
+		a=Split(x,"=")
+		If StrComp(a(0),"page",vbTextCompare)<>0 Then
+	 		temp=temp&a(0)& "="& a(1)&"&"
+	 	End If
+	Next
+	MyPage = int(Request.QueryString("page"))
+	
+	if (MyPage < 1 or MyPage > MaxPages) Then
+		MyPage=1
+	End If
+	
+	response.Write("<div align=center>")
+	response.Write("[<a href='" & action & "?" &temp&"page=1' title='第一页'><<</a>]")
+	if MyPage >1 then
+		response.Write("[<a href='"&action&"?"&temp&"page="&MyPage-1&"' title='上一页'><</a>]")
+	end if
+	if(MyPage>=5 and MaxPages-MyPage< 1) then 
+		response.Write("[<a href='"&action &"?"&temp&"page="&MyPage-4&"'>"&MyPage-4& "</a>]")
+	end if
+	if(MyPage>=4 and MaxPages-MyPage<2) then 
+		response.Write("[<a href='" & action & "?" & temp & "page="&MyPage-3& "'>"&MyPage-3& "</a>]")
+	end if
+	if MyPage>=3 then 
+		response.Write("[<a href='" & action & "?" & temp & "page="&MyPage-2& "'>["&MyPage-2& "</a>]")
+	end if
+	if MyPage>=2 then 
+		response.Write("[<a href='" & action & "?" & temp & "page="&MyPage-1& "'>["&MyPage-1& "</a>]")
+	end if
+	response.Write("[<font color=#cc0000>"&MyPage& "</font>]")
+	if MaxPages-MyPage>=1 then 
+		response.Write("[<a href='" & action & "?" & temp & "page="&MyPage+1& "'>"&MyPage+1& "</a>]")
+	end if
+	if MaxPages-MyPage>=2 then 
+		response.Write("[<a href='" & action & "?" & temp & "page="&MyPage+2& "'>"&MyPage+2& "</a>]")
+	end if
+	if (MyPage<3 and MaxPages-MyPage>=3) then 
+		response.Write("[<a href='" & action & "?" & temp & "page="&MyPage+3& "'>"&MyPage+3& "</a>]")
+	end if
+	if (MyPage<2 and MaxPages-MyPage>=4) then 
+		response.Write("[<a href='" & action & "?" & temp & "page="&MyPage+4& "'>"&MyPage+4& "</a>]")
+	end if
+	if (MyPage<1 and MaxPages-MyPage>=5) then 
+		response.Write("[<a href='" & action & "?" & temp & "page="&MyPage+5& "'>"&MyPage+5& "</a>]")
+	end if
+	if MyPage < MaxPages then
+		response.Write("[<a href='"&action&"?"&temp&"page="&MyPage+1&"' title='下一页'>></a>]")
+	end if
+	response.Write("[<a href='" & action & "?" & temp & "page="&MaxPages& "' title='最后页'>>></a>]")
+	response.Write("&nbsp;[<font color='#CC0000'><b>" &MyPage& "</b></font>/<b>"&MaxPages& "</b>]页&nbsp;[<b>共"&Total& "行</b>]&nbsp; [<b>" & MyPageSize& "</b>]行/页")
+	response.Write("</div>")
+End function 
+
+function ceil(num)  
+  dim t  
+  t=fix(num)  
+  if num=t then  
+  ceil=t  
+  else  
+  ceil=t+1  
+  end if  
+ end function 
+%>

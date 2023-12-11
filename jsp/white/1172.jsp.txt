@@ -1,0 +1,35 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_casetrack.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	String case_id =request.getParameter("case_id");
+	Ti_casetrackInfo ti_casetrackInfo = new Ti_casetrackInfo();
+%>
+<html>
+  <head>
+    
+  <title>案源追踪管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>案源追踪管理</h1>
+			</td>
+			<td>
+				&nbsp;
+			</td>
+		</tr>
+	</table>
+	
+	
+</body>
+
+</html>

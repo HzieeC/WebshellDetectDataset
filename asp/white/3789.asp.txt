@@ -1,0 +1,563 @@
+<!--#include file="const.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_class.asp
+' 更新日期：2008-09-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="120" align="left">问吧管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_index.asp?ChannelID=<%=ChannelID%>">管理首页</a>
+			 - <a href="admin_setting.asp?ChannelID=<%=ChannelID%>">问吧设置</a>
+			 - <a href="admin_list.asp?ChannelID=<%=ChannelID%>">问答列表</a>
+			 - <a href="admin_class.asp?ChannelID=<%=ChannelID%>">分类管理</a>
+			 - <a href="admin_class.asp?action=add&ChannelID=<%=ChannelID%>">添加分类</a>
+		</td>
+	</tr>
+</table>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+	<tr>
+		<th colspan="2">问吧分类管理</th>
+	</tr>
+	<tr>
+		<td class="tablerow2" colspan="2">
+		<B>注意</B>：删除分类同时将删除该分类下所有的相关信息。
+		</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">
+		<B>操作选项</B></td>
+		<td class="tablerow1"><a href="?ChannelID=<%=ChannelID%>">分类管理首页</a> | <a href="?action=add&ChannelID=<%=ChannelID%>">新建问吧分类</a> 
+		| <a href="?action=orders&ChannelID=<%=ChannelID%>">一级分类排序</a> 
+		</td>
+	</tr>
+</table>
+<%
+Dim Action
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+Case "savenew"
+	Call savenew()
+Case "savedit"
+	Call savedit()
+Case "add"
+	Call addCategory()
+Case "edit"
+	Call editCategory()
+Case "del"
+	Call delCategory()
+Case "orders"
+	Call ClassOrders()
+Case "updatorders"
+	Call UpdateOrders()
+Case "restore"
+	Call Restoration()
+Case Else
+	Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+Ask_CloseConn
+
+Sub showmain()
+	Dim Rs,SQL,i
+	Dim tdstyle
+	Response.Write " <table align=center class=""tableborder"" cellspacing=""1"" cellpadding=""2"">"
+	Response.Write " <tr>"
+	Response.Write " <th width=""50%"">问吧分类 </th>"
+	Response.Write " <th width=""50%"">管理选项</th>"
+	Response.Write "</tr>" & vbNewLine
+	SQL = "SELECT * FROM NC_Ask_Class ORDER BY rootid,orders"
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	Rs.Open SQL, Ask_Conn, 1, 1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum + 1
+	If Rs.BOF And Rs.EOF Then
+		Response.Write " <tr> <td align=""center"" colspan=""2"" class=""tablerow1"">您还没有添加任何分类！</td></tr>"
+	End If
+	i = 0
+	Do While Not Rs.EOF
+		If (i mod 2) = 0 Then
+			tdstyle = "class=""tablerow1"""
+		Else
+			tdstyle = "class=""tablerow2"""
+		End If
+		Response.Write " <tr>"
+		Response.Write " <td " & tdstyle & ">"
+		Response.Write " "
+		If Rs("depth") = 1 Then Response.Write "&nbsp;&nbsp;<font color=""#666666"">├</font>"
+		If Rs("depth") > 1 Then
+			For i = 2 To Rs("depth")
+				Response.Write "&nbsp;&nbsp;<font color=""#666666"">│</font>"
+			Next
+			Response.Write "&nbsp;&nbsp;<font color=""#666666"">├</font> "
+		End If
+		If Rs("parentid") = 0 Then Response.Write ("<b>")
+		Response.Write Rs("ClassName")
+		If Rs("child") > 0 Then Response.Write "(" & Rs("child") & ")"
+		Response.Write " </td>" & vbNewLine
+		Response.Write " <td " & tdstyle & " align=""center"">"
+		Response.Write "<a href=""?action=add&ChannelID="&ChannelID&"&editid="
+		Response.Write Rs("classid")
+		Response.Write """>添加分类</a>"
+		Response.Write " | <a href=""?action=edit&ChannelID="&ChannelID&"&editid="
+		Response.Write Rs("classid")
+		Response.Write """>分类设置</a>"
+		Response.Write " |"
+		Response.Write " "
+		If Rs("child") < 1 Then
+			Response.Write " <a href=""?action=del&ChannelID="&ChannelID&"&editid="
+			Response.Write Rs("classid")
+			Response.Write """ onclick=""{if(confirm('删除将包括该分类的所有信息，确定删除吗?')){return true;}return false;}"">删除分类</a>"
+		Else
+			Response.Write " <a href=""#"" onclick=""{if(confirm('该分类含有下属分类，必须先删除其下属分类方能删除本分类！')){return true;}return false;}"">"
+			Response.Write " 删除分类</a>"
+		End If
+		Response.Write " </td>" & vbNewLine
+		Response.Write "</tr>" & vbNewLine
+		Rs.movenext
+		i = i + 1
+	Loop
+	Rs.Close
+	Set Rs = Nothing
+	Response.Write "</table>"
+End Sub
+
+Sub addCategory()
+	Dim NewClassID
+	Dim Rs,SQL,i
+	SQL = "SELECT MAX(ClassID) FROM NC_Ask_Class"
+	Set Rs = NewAsp.Ask_Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		NewClassID = 1
+	Else
+		NewClassID = Rs(0) + 1
+	End If
+	If IsNull(NewClassID) Then NewClassID = 1
+	Rs.Close
+%>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+	<tr>
+		<th colspan="2">添加问吧分类</th>
+	</tr>
+	<form name="myform" method="POST" action="?action=savenew">
+	<input type="hidden" name="NewClassID" value="<%=NewClassID%>">
+	<input type="hidden" name="ChannelID" value="<%=ChannelID%>">
+	<tr>
+		<td width="20%" class="tablerow1"><strong>分类名称：</strong><br/>
+		<font color="red">添加多个分类请用回车分开</font></td>
+		<td width="80%" class="tablerow1">
+		<textarea name="ClassName" cols="50" rows="5"></textarea>
+		</td>
+	</tr>
+	<tr>
+		<td class="tablerow2"><strong>分类说明：</strong></td>
+		<td class="tablerow2">
+		<textarea name="Readme" cols="50" rows="5"></textarea></td>
+	</tr>
+	<tr>
+		<td class="tablerow1"><strong>所属分类：</strong></td>
+		<td class="tablerow1">
+<%
+	Response.Write " <select name=""class"">"
+	Response.Write "<option value=""0"">做为一级分类</option>"
+	SQL = "SELECT classid,depth,ClassName FROM NC_Ask_Class ORDER BY rootid,orders"
+	Set Rs = NewAsp.Ask_Execute(SQL)
+	Do While Not Rs.EOF
+		Response.Write "<option value=""" & Rs("classid") & """ "
+		If Request("editid") <> "" And CLng(Request("editid")) = Rs("classid") Then Response.Write "selected"
+		Response.Write ">"
+		If Rs("depth") = 1 Then Response.Write "&nbsp;&nbsp;├ "
+		If Rs("depth") > 1 Then
+			For i = 2 To Rs("depth")
+				Response.Write "&nbsp;&nbsp;│"
+			Next
+			Response.Write "&nbsp;&nbsp;├ "
+		End If
+		Response.Write Rs("ClassName") & "</option>" & vbCrLf
+		Rs.movenext
+	Loop
+	Rs.Close
+	Response.Write "</select>"
+	Set Rs = Nothing
+%>
+		</td>
+	</tr>
+	<tr>
+		<td class="tablerow2">　</td>
+		<td class="tablerow2">
+		<p align="center"><input type="button" onclick="javascript:history.go(-1)" value="返回上一页" name="B1" class=button>&nbsp;&nbsp;
+		<input type="submit" value="保存设置" name="B2" class=button></td>
+	</tr>
+	</form>
+</table>
+<%
+End Sub
+
+Sub editCategory()
+	Dim RsObj
+	Dim Rs,SQL,i
+	Set Rs = NewAsp.Ask_Execute("SELECT * FROM NC_Ask_Class WHERE classid = " & NewAsp.ChkNumeric(Request("editid")))
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = "数据库出现错误,没有此站点栏目!"
+		Rs.Close
+		Set Rs = Nothing
+		Exit Sub
+	End If
+%>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+	<tr>
+		<th colspan="2">编辑问吧分类</th>
+	</tr>
+	<form name="myform" method="POST" action="?action=savedit">
+	<input type="hidden" name="editid" value="<%=Request("editid")%>">
+	<input type="hidden" name="ChannelID" value="<%=ChannelID%>">
+	<tr>
+		<td width="20%" class="tablerow1"><strong>分类名称：</strong></td>
+		<td width="80%" class="tablerow1">
+		<input type="text" name="ClassName" id="ClassName" size="35" value="<% = Rs("ClassName")%>">
+		</td>
+	</tr>
+	<tr>
+		<td class="tablerow2"><strong>分类说明：</strong></td>
+		<td class="tablerow2">
+		<textarea name="Readme" cols="50" rows="5"><%=Server.HTMLEncode(Rs("readme")&"")%></textarea></td>
+	</tr>
+	<tr>
+		<td class="tablerow1"><strong>所属分类：</strong></td>
+		<td class="tablerow1">
+<%
+	Response.Write " <select name=""class"">"
+	Response.Write "<option value=""0"">做为一级分类</option>"
+	SQL = "SELECT classid,depth,ClassName FROM NC_Ask_Class ORDER BY rootid,orders"
+	Set RsObj = NewAsp.Ask_Execute(SQL)
+	Do While Not RsObj.EOF
+		Response.Write "<option value=""" & RsObj("classid") & """ "
+		If CLng(Rs("parentid")) = RsObj("classid") Then Response.Write "selected"
+		Response.Write ">"
+		If RsObj("depth") = 1 Then Response.Write "&nbsp;&nbsp;├ "
+		If RsObj("depth") > 1 Then
+			For i = 2 To RsObj("depth")
+				Response.Write "&nbsp;&nbsp;│"
+			Next
+			Response.Write "&nbsp;&nbsp;├ "
+		End If
+		Response.Write RsObj("ClassName") & "</option>" & vbCrLf
+		RsObj.movenext
+	Loop
+	RsObj.Close
+	Response.Write "</select>"
+	Set RsObj = Nothing
+%>
+		</td>
+	</tr>
+	<tr>
+		<td class="tablerow2"><strong>分类统计：</strong></td>
+		<td class="tablerow2">
+		未解决：<input type="text" name="AskPendNum" size="10" value="<%=Rs("AskPendNum")%>">
+		已解决：<input type="text" name="AskDoneNum" size="10" value="<%=Rs("AskDoneNum")%>">
+		投票：<input type="text" name="AskVoteNum" size="10" value="<%=Rs("AskVoteNum")%>">
+		分享：<input type="text" name="AskshareNum" size="10" value="<%=Rs("AskshareNum")%>">
+		</td>
+	</tr>
+	<tr>
+		<td class="tablerow1">　</td>
+		<td class="tablerow1">
+		<p align="center"><input type="button" onclick="javascript:history.go(-1)" value="返回上一页" name="B1" class="button">&nbsp;&nbsp;
+		<input type="submit" value="确定修改分类设置" name="B2" class="button"></td>
+	</tr>
+	</form>
+</table>
+<%
+Set Rs = Nothing
+End Sub
+
+Sub savenew()
+	If Trim(Request.Form("classname")) = "" Then
+		ErrMsg = ErrMsg + "<li>请输入分类名称。</li>"
+		Founderr = True
+	End If
+	If Not IsNumeric(Request.Form("class")) Then
+		ErrMsg = ErrMsg + "<li>请选择所属分类。</li>"
+		Founderr = True
+	End If
+	If Trim(Request.Form("Readme")) = "" Then
+		ErrMsg = ErrMsg + "<li>请输入分类说明。</li>"
+		Founderr = True
+	End If
+	If Founderr = True Then Exit Sub
+	Dim Rs,SQL,i
+	Dim newclassid,rootid,ParentID,depth,orders
+	Dim maxrootid,Parentstr,neworders
+	Dim m_strClassname,m_arrClassname,strClassname
+
+	m_strClassname = Replace(Trim(Request("classname")), vbCrLf, "$$$")
+	m_arrClassname = Split(m_strClassname, "$$$")
+
+	If Request("class") <> "0" Then
+		SQL = "SELECT rootid,classid,depth,orders,Parentstr FROM NC_Ask_Class WHERE classid=" & NewAsp.ChkNumeric(Request("class"))
+		Set Rs = NewAsp.Ask_Execute (SQL)
+		rootid = Rs(0)
+		ParentID = Rs(1)
+		depth = Rs(2)
+		orders = Rs(3)
+		If depth + 1 > 20 Then
+			ErrMsg = "<li>本系统限制最多只能有20级子分类</li>"
+			Founderr = True
+			Exit Sub
+		End If
+		Parentstr = Rs(4)
+		Set Rs = Nothing
+	Else
+		SQL = "SELECT MAX(rootid) FROM NC_Ask_Class"
+		Set Rs = NewAsp.Ask_Execute (SQL)
+		maxrootid = NewAsp.ChkNumeric(Rs(0)) + 1
+		If maxrootid =0 Then maxrootid = 1
+		Set Rs = Nothing
+	End If
+
+	SQL = "SELECT classid FROM NC_Ask_Class WHERE classid=" & NewAsp.ChkNumeric(Request("newclassid"))
+	Set Rs = NewAsp.Ask_Execute (SQL)
+	If Not (Rs.EOF And Rs.BOF) Then
+		ErrMsg = "<li>您不能指定和别的分类一样的序号。</li>"
+		Founderr = True
+		Exit Sub
+	Else
+		newclassid = NewAsp.ChkNumeric(Request("newclassid"))
+	End If
+	Set Rs = Nothing
+	
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Ask_Class"
+	Rs.Open SQL, Ask_Conn, 1, 3
+	For i = 0 To UBound(m_arrClassname)
+		strClassname = NewAsp.CheckStr(Trim(m_arrClassname(i)))
+		If strClassname <> "" Then
+			Rs.addnew
+			If Request("class") <> "0" Then
+				Rs("depth") = depth + 1
+				Rs("rootid") = rootid
+				Rs("parentid") = Request.Form("class")
+				If Parentstr = "0" Then
+					Rs("Parentstr") = Request.Form("class")
+				Else
+					Rs("Parentstr") = parentstr & "," & NewAsp.ChkNumeric(Request.Form("class"))
+				End If
+			Else
+				Rs("depth") = 0
+				Rs("rootid") = maxrootid
+				Rs("parentid") = 0
+				Rs("ParentStr") = 0
+			End If
+
+			Rs("child") = 0
+			Rs("classid") = newclassid
+			Rs("orders") = newclassid
+			Rs("classname") = strClassname
+			Rs("readme") = Trim(Request.Form("readme"))
+			Rs("Askmaster") = ""
+			Rs("c_setting") = ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,"
+			Rs("AskPendNum") = 0
+			Rs("AskDoneNum") = 0
+			Rs("AskVoteNum") = 0
+			Rs("AskshareNum") = 0
+			Rs.Update
+			newclassid = newclassid + 1
+			maxrootid = maxrootid + 1
+		End If
+	Next
+	Rs.Close
+	Set Rs = Nothing
+
+	CheckAndFixClass 0,1
+	DelAskedCahe("setup")
+	Succeed("<li>恭喜您！添加新的分类成功。</li>")
+End Sub
+
+Sub savedit()
+	If CLng(Request.Form("editid")) = CLng(Request.Form("class")) Then
+		ErrMsg = "所属分类不能指定自己"
+		Founderr = True
+		Exit Sub
+	End If
+	If Trim(Request.Form("classname")) = "" Then
+		ErrMsg = ErrMsg + "<li>请输入分类名称。</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	Dim newclassid,maxrootid,readme
+	Dim parentid,depth,child,ParentStr,rootid,iparentid,iParentStr
+	Dim trs,mrs
+	Dim Rs,SQL
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Ask_Class WHERE classid="& NewAsp.ChkNumeric(Request("editid"))
+	Rs.Open SQL,Ask_Conn,1,3
+	newclassid = Rs("classid")
+	parentid = Rs("parentid")
+	iparentid = Rs("parentid")
+	ParentStr = Rs("ParentStr")
+	depth = Rs("depth")
+	child = Rs("child")
+	rootid = Rs("rootid")
+	'判断所指定的分类是否其下属分类
+	If ParentID=0 Then
+		If CLng(Request("class"))<>0 Then
+		Set trs=NewAsp.Ask_Execute("SELECT rootid FROM NC_Ask_Class WHERE classid="&NewAsp.ChkNumeric(Request("class")))
+		If rootid=trs(0) Then
+			ErrMsg="您不能指定该问吧的下属分类作为所属分类"
+			Founderr = True
+			Exit Sub
+		End If
+		End If
+	Else
+		Set trs=NewAsp.Ask_Execute("SELECT classid FROM NC_Ask_Class WHERE ParentStr like '%"&ParentStr&","&newclassid&"%' And classid="&NewAsp.ChkNumeric(Request("class")))
+		If Not (trs.EOF And trs.BOF) Then
+			ErrMsg="您不能指定该问吧的下属分类作为所属分类"
+			Founderr = True
+			Exit Sub
+		End If
+	End If
+	If parentid = 0 Then
+		parentid = Rs("classid")
+		iparentid=0
+	End If
+	Rs("classname") = Trim(Request.Form("classname"))
+	Rs("parentid") = NewAsp.ChkNumeric(Request.Form("class"))
+	Rs("readme") =Trim( Request("readme"))
+	Rs("AskPendNum") = NewAsp.ChkNumeric(Request.Form("AskPendNum"))
+	Rs("AskDoneNum") = NewAsp.ChkNumeric(Request.Form("AskDoneNum"))
+	Rs("AskVoteNum") = NewAsp.ChkNumeric(Request.Form("AskVoteNum"))
+	Rs("AskshareNum") = NewAsp.ChkNumeric(Request.Form("AskshareNum"))
+	Rs.Update 
+	Rs.Close
+	Set Rs=nothing
+	
+	Set mrs=NewAsp.Ask_Execute("SELECT MAX(rootid) FROM NC_Ask_Class")
+	Maxrootid=mrs(0)+1
+	mrs.close:Set mrs=nothing
+	Succeed("<li>恭喜您！分类修改成功。</li>")
+	DelAskedCahe("setup")
+	CheckAndFixClass 0,1
+End Sub
+
+Sub delCategory()
+	Dim Rs,SQL,i
+	Dim ChildStr,nChildStr
+	Dim Rss,Rsc
+	On Error Resume Next
+	Set Rs = NewAsp.Ask_Execute("SELECT ParentStr,child,depth,parentid FROM NC_Ask_Class WHERE classid=" & NewAsp.ChkNumeric(Request("editid")))
+	If Not (Rs.EOF And Rs.BOF) Then
+		If Rs(1) > 0 Then
+			ErrMsg = "<li>该分类含有下属分类，请删除其下属分类后再进行删除本分类的操作</li>"
+			Founderr = True
+			Exit Sub
+		End If
+
+		If Rs(2) > 0 Then
+			NewAsp.Ask_Execute ("UPDATE NC_Ask_Class Set child=child-1 WHERE classid in (" & Rs(0) & ")")
+		End If
+		For i = 0 To Ubound(AllPostTable)
+			SQL = "DELETE FROM " & AllPostTable(i) & " WHERE classid=" & NewAsp.ChkNumeric(Request("editid"))
+			NewAsp.Ask_Execute(SQL)
+		Next
+		
+		NewAsp.Ask_Execute("DELETE FROM NC_Ask_Answer WHERE classid=" & NewAsp.ChkNumeric(Request("editid")))
+		NewAsp.Ask_Execute("DELETE FROM NC_Ask_Topic WHERE classid=" & NewAsp.ChkNumeric(Request("editid")))
+		NewAsp.Ask_Execute("DELETE FROM NC_Ask_Comment WHERE classid=" & NewAsp.ChkNumeric(Request("editid")))
+		NewAsp.Ask_Execute("DELETE FROM NC_Ask_Class WHERE classid=" & NewAsp.ChkNumeric(Request("editid")))
+		
+	End If
+	Set Rs = Nothing
+	NewAsp.Ask_Execute("UPDATE NC_Ask_Class Set child=0 WHERE child<0")
+	CheckAndFixClass 0,1
+	DelAskedCahe("setup")
+	Succeed ("恭喜您！分类删除成功。")
+End Sub
+
+Sub Restoration()
+	CheckAndFixClass 0,1
+	Response.Redirect Request.ServerVariables("HTTP_REFERER")
+End Sub
+
+Sub CheckAndFixClass(ParentID,orders)
+	Dim Rs,Child,ParentStr
+	If ParentID=0 Then
+		NewAsp.Ask_Execute("UPDATE NC_Ask_Class Set Depth=0,ParentStr='0' WHERE ParentID=0")
+	End If
+	Set Rs=NewAsp.Ask_Execute("SELECT classid,rootid,ParentStr,Depth FROM NC_Ask_Class WHERE ParentID="&ParentID&" ORDER BY rootid,orders")
+	Do while Not Rs.EOF
+		If Rs(2)<>"0" Then
+			ParentStr = Rs(2)&","&Rs(0)
+		Else
+			ParentStr = Rs(0)
+		End If
+		Ask_Conn.Execute "UPDATE NC_Ask_Class Set Depth="&Rs(3)+1&",ParentStr='"&ParentStr&"',rootid="&Rs(1)&" WHERE ParentID="&Rs(0)&"",Child
+		NewAsp.Ask_Execute("UPDATE NC_Ask_Class Set Child="&Child&",orders="&orders&" WHERE classid="&Rs(0)&"")
+		orders=orders+1
+		CheckAndFixClass Rs(0),orders
+		Rs.MoveNext
+	Loop
+	Set Rs=Nothing
+End Sub
+
+Sub ClassOrders()
+%>
+<table border="0" cellspacing="1" cellpadding="3" align="center"  class="tableborder">
+	<tr> 
+	<th>问吧一级分类重新排序修改(请在相应分类的排序表单内输入相应的排列序号)</th>
+	</tr>
+	<tr>
+	<td class="tablerow1"><table width="50%">
+<%
+	Dim Rs,SQL,i
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT * FROM NC_Ask_Class WHERE ParentID=0 ORDER BY rootid"
+	Rs.Open SQL,Ask_Conn,1,1
+	If Rs.Eof And Rs.Bof Then
+		Response.Write "还没有相应的问吧分类。"
+	Else
+		Do While Not Rs.Eof
+		Response.Write "<form action=""?action=updatorders&ChannelID=" & ChannelID & """ method=""post""><tr><td width=""50%""></td>"
+		Response.Write "<td width=""50%""><input type=""text"" name=""OrderID"" size=""4"" value="""&rs("rootid")&"""><input type=""hidden"" name=""cID"" value="""&rs("rootid")&""">&nbsp;&nbsp;<input type=""submit"" name=""Submit"" value=""修改"" class=""button""></td></tr></form>"
+		Rs.Movenext
+		Loop
+%>
+</table>
+<%
+	End If
+	Rs.Close
+	Set Rs=Nothing
+%>
+	</td>
+	</tr>
+</table>
+<%
+End Sub
+
+Sub UpdateOrders()
+	Dim cID,OrderID,Rs
+	cID = Replace(Request.Form("cID"),"'","")
+	OrderID = Replace(Request.Form("OrderID"),"'","")
+	Set Rs = NewAsp.Ask_Execute("SELECT classid FROM NC_Ask_Class WHERE rootid="&orderid)
+	If Rs.EOF And Rs.BOF Then
+		NewAsp.Ask_Execute("UPDATE NC_Ask_Class SET rootid="&OrderID&" WHERE rootid="&cID)
+		DelAskedCahe("setup")
+		Succeed ("设置成功")
+	Else
+		ErrMsg = "请不要和其他分类设置相同的序号"
+		Founderr = True
+	End If
+End Sub
+%>

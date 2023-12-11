@@ -1,0 +1,637 @@
+<%
+Const dbPathPart="../"
+%>
+<!-- #include file="../conobj.asp" -->
+<!-- #include file="../inc/md5.asp" -->
+<!-- #include file="../inc/func_common.asp" -->
+<!-- #include file="../inc/func_encrypt.asp" -->
+<!-- #include file="../cache/sysAdmin.asp" -->
+<!-- #include file="inc/function.asp" -->
+<%
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 ****
+
+
+
+
+' 检测超时退出
+If SA_exitMinute>0 Then
+	Dim exitOldTime,exitNewTime
+	exitNewTime = GetTimer()
+	exitOldTime = session(OT_SiteID &"exitOldTime")
+	If IsNumeric(exitOldTime)=False Then exitOldTime=0
+	If exitOldTime+SA_exitMinute*60<exitNewTime Then'
+		If exitTimeSkip<>"true" Then
+			If exitOldTime=0 Then
+				Call JS_AlertHrefEnd("请先登录。","admin_cl.asp?mudi=exit&nohrefStr=close")
+			Else
+				Call JS_AlertHrefEnd("您超过"& SA_exitMinute &"分钟没动静，为了后台安全，请重新登录。","admin_cl.asp?mudi=exit&nohrefStr=close")
+			End If
+		End If
+	Else
+		session(OT_SiteID &"exitOldTime") = exitNewTime
+	End If
+End If
+
+
+' 获取用户登录信息
+Dim userInfo,userArr,user_ID,user_name,user_pwd,user_ip,user_time
+user_ID		= ToInt(session(OT_SiteID &"memberID"))
+user_name	= RegExpStr(session(OT_SiteID &"memberUsername"),"sql")
+user_pwd	= RegExpStr(session(OT_SiteID &"memberUserpwd"),"sql")
+user_ip		= session(OT_SiteID &"memberUserIP")
+user_time	= session(OT_SiteID &"memberTime")
+
+'userInfo	= Trim(session(OT_SiteID &"memberInfo"))
+user_realname = Trim(session(OT_SiteID &"memberRealName"))
+'	If userInfo="" And SA_userSaveMode=2 Then
+If user_ID=0 And SA_userSaveMode=2 Then
+	userInfo	= Trim(request.cookies(OT_SiteID &"cookies")(OT_SiteID &"memberInfo"))
+	user_realname = Trim(request.cookies(OT_SiteID &"cookies")(OT_SiteID &"memberRealName"))
+
+	'	response.write(userInfo)
+	Call Base64_init()
+	userArr		= Split(encrypt_decode(Base64_Decode(userInfo),SA_adminLoginKey),Chr(9))
+	'userArr		= Split(urldecode(userInfo),Chr(9))
+	If UBound(userArr)>=4 Then
+		user_ID		= ToInt(userArr(0))
+		user_name	= RegExpStr(userArr(1),"sql")
+		user_pwd	= RegExpStr(userArr(2),"sql")
+		user_ip		= userArr(3)
+		user_time	= userArr(4)
+	End If
+
+	session(OT_SiteID &"memberID")		= user_ID
+	session(OT_SiteID &"memberUsername")= user_name
+	session(OT_SiteID &"memberUserpwd")	= user_pwd
+	session(OT_SiteID &"memberUserIP")	= user_ip
+	session(OT_SiteID &"memberTime")	= user_time
+End If
+
+
+Dim rightBody,menuFileID,menuTreeID,nohrefStr,mudi,dataType,dataTypeCN
+
+rightBody	="<body style='overflow-y: hidden; margin-top: 4px;'>"
+menuFileID	= 0
+menuTreeID	= 0
+nohrefStr	= ToGetStr("nohrefStr")
+mudi		= ToGetStr("mudi")
+dataType	= ToGetRegExpStr("dataType","sql")
+dataTypeCN	= ToGetStr("dataTypeCN")
+	'If dataType="" Then dataType=ToPostRegExpStr("dataType","sql")
+
+
+Dim memberexe,user_rightStr
+
+' 打开用户表
+' rightLevel:
+'	0只检查session/cookies是否有用户信息
+'	1只检查用户信息是否正确
+'	2只检查用户信息是否正确，获取权限信息
+'	5只检查用户信息是否正确，获取权限信息，判断在线登录状态
+'	10全部都检测
+Function OpenMemberexe(sqlPath,str,rightLevel)
+	rightStr = ""& session(OT_SiteID &"memberRight")
+	If rightLevel<=0 And Len(rightStr)>2 Then
+		If user_ID>0 And Len(user_pwd)>0 Then
+			rightStr = session(OT_SiteID &"memberRight")
+			Exit Function
+		Else
+			response.write(_
+			"<script language='javascript' type='text/javascript'>"&_
+			"alert('你还没有登陆或是登已经超时，请重新登录！');parent.document.location.href='admin_cl.asp?nohrefStr=close';"&_
+			"</script>"&_
+			"")
+		End If
+
+	Else
+		Set memberexe=conobj.execute("select top 1 MB_ID,MB_loginTime,MB_state,MB_itemNum,MB_groupID,MB_rightStr"& sqlPath &" from OT_member where MB_ID="& user_ID &" and MB_userpwd='"& user_pwd &"'")
+			If Not memberexe.EOF Then
+				If SA_loginMode=1 And CStr(memberexe("MB_loginTime"))<>CStr(user_time) Then
+					response.write(_
+					"<script language='javascript' type='text/javascript'>"&_
+					"alert('该账号登录时间不匹配！');parent.document.location.href='admin_cl.asp?nohrefStr=close';"&_
+					"</script>"&_
+					"")
+				End If
+				If memberexe("MB_state")=10 Then
+					response.write(_
+					"<script language='javascript' type='text/javascript'>"&_
+					"alert('该账号已被冻结，如有疑问请联系管理员！');parent.document.location.href='admin_cl.asp?nohrefStr=close';"&_
+					"</script>"&_
+					"")
+				End If
+
+				If rightLevel>=2 Or Len(rightStr)<=2 Then
+					If memberexe("MB_groupID")=-1 And memberexe("MB_rightStr")="admin" Then
+						user_rightStr="admin"
+
+					ElseIf memberexe("MB_groupID")=1 Then
+						user_rightStr="admin2"
+
+					Else
+						Set UGexe=conobj.execute("select top 1 MG_rightStr from OT_memberGroup where MG_ID="& memberexe("MB_groupID"))
+							If UGexe.EOF Then
+								response.write(_
+								"<script language='javascript' type='text/javascript'>"&_
+								"alert('抱歉！找不到你所在的用户组！');parent.document.location.href='admin_cl.asp?mudi=exit&nohrefStr=close'"&_
+								"</script>")
+								response.End
+							End If
+							user_rightStr=UGexe("MG_rightStr")
+							If Len(user_rightStr)<3 Then
+								response.write(_
+								"<script language='javascript' type='text/javascript'>"&_
+								"alert('抱歉！您尚未授权，请与管理员联系！');parent.document.location.href='admin_cl.asp?mudi=exit&nohrefStr=close'"&_
+								"</script>")
+								response.End
+							End If
+							user_rightStr=user_rightStr &"[修改用户名或密码]"	'加入公用菜单
+						UGexe.close
+						Set UGexe=Nothing
+
+					End If
+					session(OT_SiteID &"memberRight") = rightStr
+
+					If rightLevel>=5 Then
+						Set mgexe = conobj.execute("select top 1 MO_ID,MO_time,MO_computerCode from OT_memberOnline where MO_userID="& memberexe("MB_ID"))
+							If mgexe.EOF Then
+								response.write(_
+								"<script language='javascript' type='text/javascript'>"&_
+								"alert('登陆状态丢失！');parent.document.location.href='admin_cl.asp?nohrefStr=close';"&_
+								"</script>"&_
+								"")
+								response.End
+							End If
+							If DateAdd("n",SA_exitMinute,mgexe("MO_time"))<Now() And SA_exitMinute>0 Then
+								response.write(_
+								"<script language='javascript' type='text/javascript'>"&_
+								"alert('登陆状态时间超时！');parent.document.location.href='admin_cl.asp?nohrefStr=close';"&_
+								"</script>"&_
+								"")
+								response.End
+							End If
+							OT_computerCode = GetComputerCode()
+							If mgexe("MO_computerCode")<>OT_computerCode And SA_loginMode=1 Then
+								response.write(_
+								"<script language='javascript' type='text/javascript'>"&_
+								"alert('登陆信息不匹配！');parent.document.location.href='admin_cl.asp?nohrefStr=close';"&_
+								"</script>"&_
+								"")
+								response.End
+							End If
+							conobj.execute("update OT_memberOnline set MO_time="& SqlForTime(Now()) &" where MO_ID="& mgexe("MO_ID"))
+						mgexe.close
+						Set mgexe=Nothing
+					End If
+				End If
+
+			Else
+				Select Case str
+					Case "login"
+						If memberexe.EOF Then
+							response.write(_
+							"<script language='javascript' type='text/javascript'>"&_
+							"alert('请先登陆！');parent.document.location.href='admin_cl.asp?mudi=exit&nohrefStr=close'"&_
+							"</script>")
+							response.End
+						End If
+						
+				End Select
+
+			End If
+
+	End If
+
+End Function
+
+
+
+'关闭用户表
+Function CloseMemberexe()
+'	If TypeName(memberexe)="Connection" Then
+		memberexe.close
+		Set memberexe=Nothing
+'	End If
+End Function
+
+
+
+'判断是否有权限，有返回true，无返回false
+'多个用“,”逗号隔开，如：IsRight("权限1,权限2",mudi)
+Function IsAdminRight(mudi)
+	Select Case mudi
+		Case "alert"
+			If user_rightStr<>"admin" Then
+				Call JS_AlertEnd("您非管理员！")
+			End If
+
+		Case "alertBack"
+			If user_rightStr<>"admin" Then
+				Call JS_AlertBackEnd("您非管理员！")
+			End If
+
+		Case "jud"
+			If user_rightStr="admin" Then IsAdminRight=True Else IsAdminRight=False
+
+		Case Else
+			Call JS_AlertEnd("目的不明确！")
+			
+	End Select
+End Function
+
+
+Function IsMenuRight(mudi,str)
+	If user_rightStr="admin" Or (user_rightStr="admin2" And IsNumeric(str)=True) Or InStr(user_rightStr,"["& str &"]")>0 Or str="修改用户名或密码" Then
+		If mudi="jud" Then IsMenuRight=True
+	Else
+		Select Case mudi
+		Case "jud"
+			IsMenuRight=False
+
+		Case "alert"
+			Call JS_AlertEnd("您无该权限！")
+
+		Case "alertBack"
+			Call JS_AlertBackEnd("您无该权限！")
+
+		Case Else
+			Call JS_AlertEnd("目的不明确！")
+
+		End Select
+	End If
+End Function
+
+
+Function IsSecMenuRight(retMode,fileID,dataType)
+	dataTypeWhereStr=""
+	If fileID=57 Then	'当为动态页面（单一型）时
+		dataTypeWhereStr=" and MT_getDataID="& ToInt(dataType)
+	Else
+		If dataType<>"" Then dataTypeWhereStr=" and MT_getDataType='"& RegExpStr(dataType,"sql") &"'"
+	End If
+	Set secexe=conobj.execute("select MT_ID from OT_menuTree where MT_fileID="& fileID & dataTypeWhereStr)
+		If secexe.EOF Then
+			Select Case retMode
+			Case "jud"
+				IsSecMenuRight=False
+
+			Case "alert"
+				Call JS_AlertEnd("无此菜单["& fileID &"]["& dataType &"]！")
+
+			Case "alertBack"
+				Call JS_AlertBackEnd("无此菜单["& fileID &"]["& dataType &"]！")
+
+			Case "alertClose"
+				Call JS_AlertCloseEnd("无此菜单["& fileID &"]["& dataType &"]！")
+
+			Case Else
+				Call JS_AlertEnd("目的不明确！")
+
+			End Select
+		Else
+			judMenuIdExist=False
+			menuID=secexe("MT_ID")
+			menuTreeID = menuID
+			If InStr(user_rightStr,"["& menuID &"]")>0 Then judMenuIdExist=True
+			Do Until secexe.EOF
+				If InStr(user_rightStr,"["& secexe("MT_ID") &"]")>0 Then judMenuIdExist=True:Exit Do
+			secexe.moveNext()
+			Loop
+		End If
+	secexe.close
+	Set secexe=Nothing
+
+	If user_rightStr="admin" Or (user_rightStr="admin2" And IsNumeric(menuID)=True) Or judMenuIdExist=True Or menuID="修改用户名或密码" Then
+		If retMode="jud" Then IsSecMenuRight=True
+	Else
+		Select Case retMode
+		Case "jud"
+			IsSecMenuRight=False
+
+		Case "alert"
+			Call JS_AlertEnd("您无该权限["& fileID &"]["& dataType &"]["& menuID &"]！")
+
+		Case "alertBack"
+			Call JS_AlertBackEnd("您无该权限["& fileID &"]["& dataType &"]["& menuID &"]！")
+
+		Case "alertClose"
+			Call JS_AlertCloseEnd("您无该权限["& fileID &"]["& dataType &"]！")
+
+		Case Else
+			Call JS_AlertEnd("目的不明确！")
+
+		End Select
+	End If
+End Function
+
+
+
+
+
+
+'通用配置文件
+Function WebConfig()
+	response.write(_
+	"<meta http-equiv='Content-Type' content='text/html; charset="& OT_Charset &"' /><!-- big5  gb2312 gbk -->"&_
+	"<!-- 让IE8采用IE7兼容模式 -->"&_
+	"<meta http-equiv='X-UA-Compatible' content='IE=EmulateIE7' />"&_
+	"<!-- 插入常用JS -->"&_
+	"<script language='javascript' type='text/javascript' src='js/inc/common.js'></script>"&_
+	"<script language='javascript' type='text/javascript' src='js/inc/jquery.js'></script>"&_
+	"<script language='javascript' type='text/javascript' src='js/inc/ajaxrequest.js'></script>"&_
+	"<!-- 插入日历控件 -->"&_
+	"<script language='javascript' type='text/javascript' src='tools/My97DatePicker/WdatePicker.js'></script>"&_
+	"<!-- 插入CSS -->"&_
+	"<link href='style.css' type='text/css' rel='stylesheet' />"&_
+	"<link type='text/css' rel='stylesheet' href='stylePrint.css' media='print' />"&_
+	"")
+End Function
+
+
+
+
+
+
+'通用内容
+Function WebCommon()
+	response.write(_
+	"<noscript><iframe src='*.htm'></iframe></noscript><!-- 防止另存为 -->"&_
+
+	"<script language='javascript' type='text/javascript'>"&_
+	"//调整父窗口RightContentIframe的高度"& chr(13) &_
+	"function WindowHeight(num){"&_
+		"try {"&_
+			"if (navigator.userAgent.indexOf('Firefox') >= 0){parent.$id('RightK').style.height=5000 +'px';}"&_
+			"parent.$id('RightK').style.height=(document.body.scrollHeight<400 ? 400 : document.body.scrollHeight) + num + 20 +'px';"&_
+		"}catch (e) {}"&_
+	"}"&_
+	"</script>"&_
+
+	"<iframe id='DataDeal' name='DataDeal' src='about:blank' width='0' hei"&"ght='0' style='display:none'></iframe>"&_
+	"")
+End Function
+
+
+
+
+Function WebStyleTop2(title,bodyStr)
+	response.write(_
+	"<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' "&_
+	"   'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>"&_
+	"<html xmlns='http://www.w3.org/1999/xhtml' lang='en' xml:lang='en'>"&_
+	"<head>"&_
+		"<title>"& title &"</title>"&_
+		"")
+
+		Call WebConfig()
+
+	response.write(_
+	"</head>"&_
+	"")
+	If bodyStr<>"" Then
+		response.write("<body "& bodyStr &">")
+	ElseIf mudi="show" Or mudi="show2" Or mudi="robotManage" Or mudi="prManage" Or mudi="numManage" Or nohrefStr="close" Then
+		response.write("<body>")
+	Else
+		response.write(rightBody)
+	End If
+
+	Call WebCommon()
+
+End Function
+
+
+Function WebStyleTop(title)
+	Call WebStyleTop2(title,"")
+End Function
+
+
+Function WebStyleBottom()
+	response.write(_
+	"</body></html>"&_
+	"")
+End Function
+
+
+
+
+
+
+'******************** 通用表格框架 start ****************
+STTCInum=1
+Function ShareTableTopCheckID(str)
+	If str="" Then ShareTableTopCheckID="STTCInull"& STTCInum Else ShareTableTopCheckID=str
+	STTCInum = STTCInum + 1
+End Function
+
+Function ShareTableTop(img,IDname,CNname)
+	response.write(_
+	"<table style='width:99%;' align='center' cellpadding='0' cellspacing='0' border='0' class='tabWeb1' summary=''>"&_
+	"<tr><td style=""height:24px; padding-left:6px; background:url('images/right_titleBg.gif');"">"&_
+		"<table cellpadding='0' cellspacing='0' summary=''><tr>"&_
+		"<td style='padding-right:6px;'><img src='images/"& img &"' alt='' /></td>"&_
+		"<td style='font-weight:bold;padding-top:4px;letter-spacing:2px' class='fontMenu' id='"& ShareTableTopCheckID(IDname) &"'>"& CNname &"</td>"&_
+		"</table>"&_
+	"</td></tr>"&_
+	"<tr><td style='padding:5px'>"&_
+	"")
+End Function
+
+Function ShareTableBottom()
+	response.write(_
+	"</td></tr>"&_
+	"<tr><td style='height:11px;' class='tabColorB' colspan='20'></td></tr>"&_
+	"</table>"&_
+	"")
+End Function
+
+
+
+
+Function ShareTableTop2(img,IDname,CNname)
+	response.write(_
+	"<table style='width:99%;' align='center' cellpadding='0' cellspacing='0' border='0' summary='' class='tabList1'>"&_
+	"<tr><td style=""height:24px; background:url('images/right_titleBg.gif'); padding-left:6px"" colspan='30' class='border1_1'>"&_
+		"<table cellpadding='0' cellspacing='0' summary=''><tr>"&_
+		"<td style='padding-right:6px;'><img src='images/"& img &"' alt='' /></td>"&_
+		"<td style='font-weight:bold;padding-top:4px;letter-spacing:2px;' class='fontMenu' id='"& ShareTableTopCheckID(IDname) &"'>"& CNname &"</td>"&_
+		"</table>"&_
+	"</td></tr>"&_
+	"")
+End Function
+
+Function ShareTableItemTitle(perSZ,nameSZ)
+	perSZ=Split(perSZ,",")
+	nameSZ=Split(nameSZ,",")
+	response.write(_
+	"<tr class='tabColor1'>"&_
+	"")
+			For STIi=0 To UBound(perSZ)
+		response.write(_
+		"<td width='"& perSZ(STIi) &"' align='center' class='"& STIclass &" font1_2' style='padding:5px'>"& nameSZ(STIi) &"</td>")
+			Next
+	response.write(_
+	"</tr>"&_
+	"")
+End Function
+
+Dim showPageCount,showCount,page
+Function ShareTableBottom2()
+	response.write(_
+	"<tr class='tabColor2'><td style='height:3px;' colspan='30'></td></tr>"&_
+	"</table>"&_
+
+	"<table style='width:99%;' align='center' cellpadding='0' cellspacing='0' border='0' summary=''>"&_
+	"<tr><td>")
+
+	Call ShowNavigation("",showPageCount,showCount,"img")
+
+	response.write(_
+	"</td></tr>"&_
+	"</table>")
+End Function
+'******************** 通用表格框架 end ****************
+
+
+
+' 项目切换文字
+Function ItemSwitchCN(num,fieldName)
+	newStr = ""
+	If num=1 Then
+		Select Case fieldName
+			Case "stateAudit"
+				newStr = "<span class='font3_2' style='text-decoration:underline;'>已审核</span>"
+		
+			Case "state","userState","isMenu","isHome"
+				newStr = "<span class='font3_2' style='text-decoration:underline;'>显示</span>"
+		
+			Case "isLock","isUser","isRunCode"
+				newStr = "<span class='font3_2' style='text-decoration:underline;'>是</span>"
+		
+			Case "isRecom"
+				newStr = "<span class='font3_2' style='text-decoration:underline;'>推荐</span>"
+		
+			Case "isUse"
+				newStr = "<span class='font3_2' style='text-decoration:underline;'>启用</span>"
+		
+			Case "sign"
+				newStr = "<span class='font3_2'>√</span>"
+
+			Case Else
+				newStr = "<span class='font3_2'>"& fieldName &"</span>"
+
+		End Select
+
+	ElseIf num=0 Then
+		Select Case fieldName
+			Case "stateAudit"
+				newStr = "<span class='font2_2' style='text-decoration:underline;'>未审核</span>"
+		
+			Case "state","userState","isMenu","isHome"
+				newStr = "<span class='font2_2' style='text-decoration:underline;'>隐藏</span>"
+		
+			Case "isLock","isUser","isRunCode"
+				newStr = "<span class='font2_2' style='text-decoration:underline;'>否</span>"
+		
+			Case "isRecom"
+				newStr = "<span class='font2_2' style='text-decoration:underline;'>不推荐</span>"
+		
+			Case "isUse"
+				newStr = "<span class='font2_2' style='text-decoration:underline;'>禁用</span>"
+		
+			Case "sign"
+				newStr = "<span class='font2_2'>ㄨ</span>"
+
+			Case Else
+				newStr = "<span class='font2_2'>"& fieldName &"</span>"
+
+		End Select
+		
+	End If
+
+	ItemSwitchCN=newStr
+End Function
+
+
+' 项目切换代码
+Function ItemSwitch(tabName,dataID,fieldValue,fieldName,fieldName2)
+	If fieldName2="" Then fieldName2=fieldName
+	ItemSwitch = "<a id='"& fieldName2 & dataID &"' href='javascript:void(0);' class='font1_2' onclick=""DataDeal.location.href='share_switch.asp?mudi=switch&dataType="& dataType &"&fieldName="& fieldName &"&fieldName2="& fieldName2 &"&tabName="& tabName &"&dataID="& dataID &"';return false;"">"& ItemSwitchCN(fieldValue,fieldName2) &"</a>"
+End Function
+
+' 项目切换代码
+Function ItemSwitchColl(tabName,dataID,fieldValue,fieldName,fieldName2)
+	If fieldName2="" Then fieldName2=fieldName
+	ItemSwitchColl = "<a id='"& fieldName2 & dataID &"' href='javascript:void(0);' class='font1_2' onclick=""DataDeal.location.href='share_switchColl.asp?mudi=switch&dataType="& dataType &"&fieldName="& fieldName &"&fieldName2="& fieldName2 &"&tabName="& tabName &"&dataID="& dataID &"';return false;"">"& ItemSwitchCN(fieldValue,fieldName) &"</a>"
+End Function
+
+' 项目切换代码
+Function ItemSwitchUpdate(tabName,dataID,fieldValue,fieldName,fieldName2)
+	If fieldName2="" Then fieldName2=fieldName
+	ItemSwitchUpdate = "<a id='"& fieldName2 & dataID &"' href='javascript:void(0);' class='font1_2' onclick=""DataDeal.location.href='share_switchUpdate.asp?mudi=switch&dataType="& dataType &"&fieldName="& fieldName &"&fieldName2="& fieldName2 &"&tabName="& tabName &"&dataID="& dataID &"';return false;"">"& ItemSwitchCN(fieldValue,fieldName) &"</a>"
+End Function
+
+
+
+' 项目切换2文字
+function ItemSwitch2CN(name,fieldValue)
+	newStr = ""
+	If fieldValue=1 Then
+		newStr = "<span class='font3_2' style='text-decoration:underline;'>"& name &"</span>"
+	Else
+		newStr = "<span class='font1_2d fontDel'>"& name &"</span>"
+	End If
+
+	ItemSwitch2CN=newStr
+End Function
+
+
+' 项目切换代码_属性
+Function ItemSwitchAddi(tabName,dataID,name,fieldValue,fieldName,fieldName2)
+	If fieldName2="" Then fieldName2=fieldName &"_"& fieldName2 &"_"
+	ItemSwitchAddi = "<a id='"& fieldName2 & dataID &"' href='javascript:void(0);' class='font1_2' style='padding:0 3px 0 3px;' onclick=""DataDeal.location.href='share_switch.asp?mudi=switchAddi&dataType="& dataType &"&fieldName="& fieldName &"&fieldName2="& fieldName2 &"&tabName="& tabName &"&dataID="& dataID &"&name="& server.URLEncode(name) &"';return false;"">"& ItemSwitch2CN(name,fieldValue) &"</a>"
+End Function
+
+
+function ItemSwitchIsBlank(fieldName,fieldValue)
+	newStr = ""
+	If Len(""& fieldValue)=0 Then
+		Select Case fieldName
+			Case "reply"
+				newStr = "<span class='font2_2' style='text-decoration:underline;'>未回复</span>"
+		
+		End Select
+
+	Else
+		Select Case fieldName
+			Case "reply"
+				newStr = "<span class='font3_2' style='text-decoration:underline;'>已回复</span>"
+		
+		End Select
+		
+	End If
+
+	ItemSwitchIsBlank=newStr
+End Function
+
+
+' 是否显示必填标志
+Function IsWriteRepSign(num)
+	If num=True Then
+		IsWriteRepSign = "<span style='color:red;'>*</span>"
+	End If
+End Function
+
+' 颜色选择器
+Function UseColorBox(mode,str)
+	UseColorBox = "<img src='images/img_color.gif' style='cursor:pointer; margin:3px; vertical-align:top;' onclick=""OT_OpenColor('"& mode &"','"& str &"');"" alt='选择颜色' />"
+End Function
+%>

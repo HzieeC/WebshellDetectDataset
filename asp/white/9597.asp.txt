@@ -1,0 +1,347 @@
+<!--#include file="../../inc/setup.asp" -->
+<!--#include file="../../dbconnect/news.admin.inc.asp" -->
+<!--#include file="../../inc/SysLoginCheck.inc.asp" -->
+<!-- Powered by:赵振波 
+QQ:176189168
+Email:fy96@163.com-->
+<%	
+if Session("lx") = 1 then
+%>
+<%
+	getid=trim(Request.querystring("cataid"))
+	if getid="" or getid="0" or isNumeric(getid)=false then
+		mtitle="根栏目"
+		mtime = creattime
+		getid ="0"
+		
+	else
+		set rsp=server.CreateObject("adodb.recordset")
+		sqlp="Select * from newscata where id="&getid
+		rsp.Open sqlp,conn,1,3
+		if not rsp.EOF then
+			mtitle = rsp("title")
+			mtime = rsp("time")
+			gl = rsp("gl")				
+		end if
+		rsp.close
+		set rsp=nothing
+	end if
+%>
+
+<%
+	doid = trim(Request.querystring("doid"))
+	action = trim(Request.querystring("action"))	
+	dotitle = trim(Request.form("cat_mod_name"))
+	addtitle = trim(Request.form("cat_add_name"))
+	
+select case action
+	case "modify"
+		if dotitle="" then
+			response.write "<script language=javascript>"
+			response.write "alert('请正确填写栏目名称！');"
+			response.write "</script>"
+		else
+			sql="update newscata set title='"&dotitle&"' where id="&doid
+			conn.execute sql
+			
+			response.write "<script language=javascript>"
+			response.write "alert('栏目修改成功！');"
+			response.write "</script>"
+		end if
+case "admin"
+		gl = trim(Request.form("gl"))
+			sql="update newscata set gl='"&gl&"' where id="&doid
+			conn.execute sql
+			
+			response.write "<script language=javascript>"
+			response.write "alert('提交成功！');"
+			response.write "</script>"
+
+	case "add"
+		if addtitle="" then
+			response.write "<script language=javascript>"
+			response.write "alert('请填写栏目名称！');"
+			response.write "</script>"
+		else
+			set rsa=server.CreateObject("adodb.recordset")
+			sqla="Select * from newscata where id="&doid
+			rsa.Open sqla,conn,1,3
+			if not rsa.EOF then
+				arootid = rsa("rootid")	
+				alevel = rsa("level")
+			else
+				arootid = ""
+				alevel = "0"
+			end if
+			rsa.close
+			set rsa=nothing
+			
+			set rsc=server.CreateObject("adodb.recordset")
+			sqlc="select * from newscata where id is null"
+			rsc.open sqlc,conn,1,3
+			rsc.addnew
+				rsc("title")= addtitle
+				rsc("level") = alevel + 1
+				rsc("time") = now()
+				if arootid = "" then
+					rsc("rootid") = "*"
+				else
+					rsc("rootid") =arootid&",*"
+				end if
+			rsc.update
+				gid = rsc("id")
+				groot = rsc("rootid")
+				c_groot = replace(groot,"*",gid)
+				rsc("rootid") =c_groot
+			rsc.update	
+				
+			rsc.close
+			set rsc=nothing
+			
+			response.write "<script language=javascript>"
+			response.write "alert('栏目添加成功！');"
+			response.write "</script>"
+		end if
+			
+	case "del"
+		if doid <> "" then		
+			set rsb=server.CreateObject("adodb.recordset")
+			sqlb="Select * from newscata where id="&doid
+			rsb.Open sqlb,conn,1,3
+				if not rsb.EOF then
+					brootid = rsb("rootid")							
+
+					set rsd=server.CreateObject("adodb.recordset")	
+					sqld="Select * from newscata"
+					rsd.Open sqld,conn,1,3
+						do while not rsd.EOF
+							drootid = rsd("rootid")
+							delid =rsd("id")			
+							if InStr(brootid,",") < 1 then
+								del_name=split(drootid,",")
+								if del_name(0) = brootid then
+									rsd.Delete
+									rsd.Update
+							
+								'//删除栏目下面的所有产品记录
+									set rsf=Server.CreateObject("ADODB.RecordSet")
+									sqlf= "select * from news where cataid="&delid
+									rsf.Open sqlf,conn,1,3    
+									do while not rsf.EOF
+										dimagenum = rsf("imagenum")
+										dfirstImageName = rsf("firstImageName")
+										rsf.Delete
+										rsf.Update
+								
+       							'//删除产品图片
+										Set fdel = CreateObject("Scripting.FileSystemObject")	   
+											if dimagenum > 0 then
+												for i=1 to dimagenum
+													tempImageName = left(dfirstImageName,Instr(dfirstImageName,"_")-1)&"_"&i&".gif"
+													tempImageDir = Server.MapPath("../uppic/"&tempImageName)
+              
+													If (fdel.FileExists(tempImageDir)) Then
+														fdel.DeleteFile(tempImageDir)
+													end if              
+												next
+											end if
+										set fdel=nothing
+										rsf.MoveNext
+       								loop
+									rsf.Close
+									set rsf = nothing 
+								end if
+							else
+								if InStr(drootid,brootid) > 0 then
+									rsd.Delete
+									rsd.Update
+									
+									'// 删除栏目下面的所有新闻
+									sqlg= "select * from news where cataid="&delid
+									set rsg=Server.CreateObject("ADODB.RecordSet")
+									rsg.Open sqlg,conn,1,3
+									do while not rsg.EOF
+										gimagenum = rsg("imagenum")
+										gfirstImageName = rsg("firstImageName")
+										rsg.Delete
+										rsg.Update
+								
+									'// 删除图片       
+										Set fdel = CreateObject("Scripting.FileSystemObject")	   
+											if gimagenum > 0 then
+												for i=1 to gimagenum
+													tempImageName = left(gfirstImageName,Instr(gfirstImageName,"_")-1)&"_"&i&".gif"
+													tempImageDir = Server.MapPath("../uppic/"&tempImageName)
+              
+													If (fdel.FileExists(tempImageDir)) Then
+														fdel.DeleteFile(tempImageDir)
+													end if              
+												next
+											end if
+										set fdel=nothing
+										rsg.MoveNext
+       								loop
+									rsg.Close
+									set rsg = nothing
+								end if
+							end if
+          					rsd.MoveNext
+       					loop
+						response.write "<script language=javascript>"
+						response.write "alert('栏目删除成功！');"
+						response.write "</script>"
+					rsd.close
+					set rsd=nothing
+				else
+					response.write "<script language=javascript>"
+					response.write "alert('你要删除的栏目不存在或者已经被删除，请重新操作！');"
+					response.write "</script>"
+				end if
+			rsb.close
+			set rsb=nothing
+		end if
+end select
+%>
+
+<html>
+<head>
+<title>新闻栏目管理</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link rel="stylesheet" href="../../css/style.css" type="text/css">
+<script language="JavaScript">
+<!--
+function dodel(){
+if (confirm("注意：删除一个栏目，其下面的所有子栏目和产品将全部被清空，\n您确定要进行此操作吗？"))
+	{
+	document.del.submit();
+	}
+}
+//-->
+</script>
+</head>
+
+<body bgcolor="#FFFFFF" leftmargin="0" topmargin="0">
+<!--#include file="../../inc/top.asp" -->
+<table width="96%" border="0" align="center">
+  <form name="form1" method="post" action="addcata.asp">
+    <tr> 
+      <td width="55%" height="30"><%=homepage_title%> - <font color="#FF0000">新闻栏目管理</font></td>
+    </tr>
+  </form>
+</table>
+<table width="96%" border="0" cellspacing="0" cellpadding="0" align="center">
+  <tr>  
+    <td width="54%"> 
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" align="center">
+        <tr> 
+          <td bgcolor="#EFEFEF"> 
+            <table width="96%" border="0" align="center" cellpadding="0" cellspacing="0">
+              <tr> 
+                <td height="10"></td>
+              </tr>
+              <tr bgcolor="#FFFFFF"> 
+                <td style="BORDER-LEFT: #8A8A8A 1px solid; LINE-HEIGHT: 20px" bgcolor="#FFFFFF" valign="top" height="360"> 
+                  &nbsp;<a href="addcata.asp?cataid=0">根目录</a><br>
+                 <%
+		set rs=server.CreateObject("adodb.recordset")
+		sql="Select * from newscata order by rootid"
+		rs.Open sql,conn,1,3
+  
+		do while not rs.EOF
+			
+			tempcataStr="&nbsp;| |"
+			for i=1 to rs("level")-1
+				tempcataStr = tempcataStr&" |"
+			next
+			
+			tempcataStr = tempcataStr&"_<a href=addcata.asp?cataid="&trim(rs("id"))&">"&trim(rs("title"))&"</a><br>"  
+			
+			Response.Write tempcataStr
+			
+		rs.MoveNext
+		loop 
+		
+  		rs.Close()
+  		set rs=nothing
+		%>
+                </td>
+              </tr>
+              <tr> 
+                <td height="10"></td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>     
+    <td width="46%" align="center" valign="top" bgcolor="#799AE1"><br>
+        <table width="90%" border="0" cellpadding="0" cellspacing="0">
+          <tr> 
+            <td ><fieldset><legend>信息统计</legend>
+			&nbsp;&nbsp;&nbsp;&nbsp;栏目名称：<%=mtitle%><br>
+			&nbsp;&nbsp;&nbsp;&nbsp;发布时间：<%=mtime%><br>
+			</fieldset></td>
+          </tr>
+		  <form name="modify" method="post" action="addcata.asp?action=modify&doid=<%=getid%>">
+          <tr> 
+            <td align="center"><br>
+            <fieldset> <legend>修改当前类别</legend><br>
+            <input name="cat_mod_name" type="text" class="button1" value="<%=mtitle%>" size="16">
+            <input type="submit" value=" 修 改 " name="mod_submit" class="button2">
+            <br>
+            <br>
+            </fieldset> </td>
+          </tr>
+		  </form>
+		  <form name="addcata" method="post" action="addcata.asp?action=add&doid=<%=getid%>">
+          <tr>      
+          <td align="center" height="90"> <br>
+            <fieldset>
+			<legend>添加子类别</legend><br>
+            <input type="text" name="cat_add_name" class="button1" value="" size="16">
+            <input type="submit" value=" 添 加 " name="add_submit" class="button2">
+            <br>
+            <br>
+            </fieldset> </td>
+          </tr>
+		  </form>
+		  <form name="admin" method="post" action="addcata.asp?action=admin&doid=<%=getid%>">
+          <tr> 
+            <td align="center"><br>
+            <fieldset> <legend>当前类别管理员</legend><br>
+            <input name="gl" type="text" class="button1" value="<%=gl%>" size="16">
+            <input type="submit" value=" 修 改 " name="mod_submit" class="button2">
+            <br>
+            <br>
+            </fieldset> </td>
+          </tr>
+		  </form>
+		  <form name="del" method="post"  action="addcata.asp?action=del&doid=<%=getid%>">
+          <tr> 
+            <td height="60" align="center"> <br>
+              <input type="button" name="del_submit" value="删除当前类" class="button2" onClick="dodel()">
+              <br>
+              <font color="#FFFFFF">（注意：删除一个栏目，其下面的所有子栏目和新闻将全部清空，请慎重操作！）</font></td>
+          </tr>
+		 </form>
+        </table>
+			<script language=javascript>
+			<!--
+			if (abc=<%=getid%> < 1)
+			{
+				document.modify.mod_submit.disabled = true;
+				document.del.del_submit.disabled = true;
+			}
+			else
+			{
+				document.modify.mod_submit.disabled = false;
+				document.del.del_submit.disabled = false;
+			}
+			-->
+			</script>
+    </td>
+    </tr>
+  </table>
+  
+</body>
+</html><%end if%>

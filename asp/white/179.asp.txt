@@ -1,0 +1,428 @@
+<!--#include file="inc/conn.asp"-->
+<!--#include file="inc/function.asp"-->
+<!--#include file="../../inc/function.asp"-->
+<html>
+<head>
+<title>采集系统</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link rel="stylesheet" type="text/css" href="../images/Admin_css.css">
+<script language="JavaScript">
+<!--
+function CheckAll(form)  {
+  for (var i=0;i<form.elements.length;i++)    {
+    var e = form.elements[i];
+    if (e.name != 'chkall'){
+	e.checked = form.chkall.checked;
+	}
+   }
+  }
+//-->
+</script>
+</head>
+<body>
+<%
+dim StyleConn
+dim ActionName,ActionType,MdbName
+dim Dr,Rows,i
+dim rs,sql
+
+Select Case Request("action")
+	Case "LoadSkin"
+		Call LoadSkin()
+	Case "Load"
+		Call Load()
+	Case "ExportSkin"
+		Call ExportSkin()
+	Case "ClearLoadData"
+		Call ClearLoadData()
+	Case Else
+		Call Main()
+End Select
+
+Sub Main()
+	If Request("action")="LoadThis" Then
+		ActionName = "导入"
+		ActionType = "LoadSkin"
+		MdbName = "laoycai.mdb"
+	Else
+		Mdbname = "laoycai.mdb"
+		ActionName ="导出"
+		ActionType ="ExportSkin"
+	End If
+%>
+<table border="0" cellpadding="3" cellspacing="1" bgcolor="#f7f7f7" class="admintable">
+<form name="form1" method="post" action="?">
+<%
+
+	sql = "Select * from [Item] Order by ItemID desc"
+    Set rs = server.CreateObject("adodb.recordset")
+	If ActionType = "LoadSkin" Then
+		SkinConnection(MdbName)
+		rs.open sql,StyleConn,1,3
+	Else
+		rs.open sql,connItem,1,3
+	End If
+	'Response.Write sql
+    if not(rs.bof and rs.eof) then
+		Dr = rs.GetRows()
+%>
+  <tr>
+    <td colspan="5" class="admintitle">采集规则列表</td>
+  </tr>
+  <tr align="center">
+  <td width="5%" class="ButtonList">选择</td>
+    <td width="25%" class="ButtonList">项目名称</td>
+    <td width="27%" class="ButtonList">所属栏目</td>
+    <td width="35%"  class="ButtonList">上次采集</td>
+    <td width="8%"  class="ButtonList">状态</td>
+  </tr>
+<%
+		Rows = ubound(Dr,2)
+		for i=0 to Rows
+%>
+  <tr>
+      <td align="center" bgcolor="#FFFFFF" ><input name="ItemID" type="checkbox" class="noborder" value="<%=Dr(0,i)%>"></td>
+    <td bgcolor="#FFFFFF" ><%=Dr(1,i)%></td>
+    <td align="center" bgcolor="#FFFFFF" ><%Call Admin_ShowChannel_Name(Dr(4,i))%></td>
+    <td align="center" bgcolor="#FFFFFF" ><%
+       Set Rs=connItem.execute("select Top 1 CollecDate From Histroly Where ItemID=" & Dr(0,i) & " Order by HistrolyID desc")
+       If Not Rs.Eof Then
+          ItemCollecDate=rs("CollecDate")
+       Else
+          ItemCollecDate=""
+       End if
+       Set Rs=Nothing
+       if ItemCollecDate<>"" then
+          Response.Write ItemCollecDate
+       Else
+          Response.Write "尚无记录"
+       End If
+       %></td>
+    <td align="center" bgcolor="#FFFFFF" ><b>
+      <%If Dr(54,i)=True then
+                 Response.write "√"
+          Else
+                 Response.write "<font color=red>×</font>"
+          End If
+        %>
+    </b></td>
+  </tr>
+<%
+        next
+%>
+<tr>
+  <td height="25" align="center" bgcolor="#FFFFFF" class="td"><input name=chkall type=checkbox class="noborder" onClick="CheckAll(this.form)" value=on /></td>
+  <td height="25" bgcolor="#FFFFFF" class="td">全选</td>
+  <td height="25" colspan="3" bgcolor="#FFFFFF" class="td">&nbsp;</td>
+  </tr>
+
+<tr>
+  <td height="24" colspan="5" align="center" bgcolor="#FFFFFF">
+    <input type="submit" name="Submit" value=" <%=ActionName%>采集规则"><%If request("action")<>"LoadThis" then%>
+    <input type="submit" name="Submit" value=" 清空导出库 " onClick="action.value='ClearLoadData';">
+    <%end if%>
+    <input type="hidden" name="action" value="<%=ActionType%>"></td>
+  </tr>
+<%
+	else
+	Call Alert ("老Y提示：该规则库里没有采集规则!",-1)
+	end if
+%>
+</form>
+</table>
+<br>
+<%
+End Sub
+
+Sub Load()
+%>
+<form action="?action=LoadThis" method=post>
+  <table border="0" cellpadding="3"  cellspacing="1" bgcolor="#f7f7f7" class="admintable">
+    <tr>
+      <td colspan="2" class="admintitle">导入采集规则(第一步)</td>
+    </tr>
+    <tr>
+      <td width="20%" height="30" bgcolor="#FFFFFF" class="td">导入采集规则数据库名：</td>
+      <td width="80%" bgcolor="#FFFFFF" class="td"><input type="text" name="TemplateMdb" size="30" value="laoycai.mdb"></td>
+    </tr>
+    <tr>
+      <th colspan="2" align="left" bgcolor="#FFFFFF"><input type="submit" name="submit" value="下一步"></th>
+    </tr>
+  </table>
+</form>
+<%
+End Sub
+
+Sub SkinConnection(MdbName)
+	On Error Resume Next 
+	Set StyleConn = Server.CreateObject("ADODB.Connection")
+	StyleConn.open "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath("laoycai.mdb")
+	If Err.Number ="-2147467259"  Then 
+		Call Alert (""& MdbName &"数据库不存在。",-1)
+	End If
+End Sub
+
+Sub LoadSkin()
+	dim ItemID,ChannelID,oChannelID
+	dim tRs,tSql,nRs,nSql
+	MdbName = trim(Request.form("TemplateMdb"))
+	ItemID = Replace(Request.form("ItemID")," ","")
+
+	If ItemID = "" then
+		Call Alert ("请选择要导入的规则！",-1)
+	End If
+	
+	tSql = "Select * from [Item] Where ItemID in("& ItemID &")"
+	SkinConnection(MdbName)
+	Set tRs = StyleConn.Execute(tSql)
+	
+	Set nRs = Server.CreateObject("ADODB.RecordSet")
+	nRs.open "[Item]",connItem,1,3
+	
+	Do while Not tRs.Eof
+		nRs.AddNew
+		nRs("ItemName")=tRs(1)
+		nRs("ChannelID")=tRs(2)
+		nRs("ChannelDir")=tRs(3)
+		nRs("ClassID")=tRs(4)
+		nRs("SpecialID")=tRs(5)
+		nRs("WebName")=tRs(6)
+		nRs("WebUrl")=tRs(7)
+		nRs("ItemDemo")=tRs(8)
+		nRs("LoginType")=tRs(9)
+		nRs("LoginUrl")=tRs(10)
+		nRs("LoginPostUrl")=tRs(11)
+		nRs("LoginUser")=tRs(12)
+		nRs("LoginPass")=tRs(13)
+		nRs("LoginFalse")=tRs(14)
+		nRs("ListStr")=tRs(15)
+		nRs("LsString")=tRs(16)
+		nRs("LoString")=tRs(17)
+		nRs("ListPaingType")=tRs(18)
+		nRs("LPsString")=tRs(19)
+		nRs("LPoString")=tRs(20)
+		nRs("ListPaingStr1")=tRs(21)
+		nRs("ListPaingStr2")=tRs(22)
+		nRs("ListPaingID1")=tRs(23)
+		nRs("ListPaingID2")=tRs(24)
+		nRs("ListPaingStr3")=tRs(25)
+		nRs("HsString")=tRs(26)
+		nRs("HoString")=tRs(27)
+		nRs("HttpUrlType")=tRs(28)
+		nRs("HttpUrlStr")=tRs(29)
+		nRs("TsString")=tRs(30)
+		nRs("ToString")=tRs(31)
+		nRs("CsString")=tRs(32)
+		nRs("CoString")=tRs(33)
+		nRs("DateType")=tRs(34)
+		nRs("DsString")=tRs(35)
+		nRs("DoString")=tRs(36)
+		nRs("AuthorType")=tRs(37)
+		nRs("AsString")=tRs(38)
+		nRs("AoString")=tRs(39)
+		nRs("AuthorStr")=tRs(40)
+		nRs("CopyFromType")=tRs(41)
+		nRs("FsString")=tRs(42)
+		nRs("FoString")=tRs(43)
+		nRs("CopyFromStr")=tRs(44)
+		nRs("KeyType")=tRs(45)
+		nRs("KsString")=tRs(46)
+		nRs("KoString")=tRs(47)
+		nRs("KeyStr")=tRs(48)
+		nRs("NewsPaingType")=tRs(49)
+		nRs("NPsString")=tRs(50)
+		nRs("NPoString")=tRs(51)
+		nRs("NewsPaingStr")=tRs(52)
+		nRs("NewsPaingHtml")=tRs(53)
+		nRs("Flag")=tRs(54)
+		nRs("PaginationType")=tRs(55)
+		nRs("MaxCharPerPage")=tRs(56)
+		nRs("ReadLevel")=tRs(57)
+		nRs("Stars")=tRs(58)
+		nRs("ReadPoint")=tRs(59)
+		nRs("Hits")=tRs(60)
+		nRs("UpDateType")=tRs(61)
+		nRs("UpDateTime")=tRs(62)
+		nRs("IncludePicYn")=tRs(63)
+		nRs("DefaultPicYn")=tRs(64)
+		nRs("OnTop")=tRs(65)
+		nRs("Elite")=tRs(66)
+		nRs("Hot")=tRs(67)
+		nRs("SkinID")=tRs(68)
+		nRs("TemplateID")=tRs(69)
+		nRs("Script_Iframe")=tRs(70)
+		nRs("Script_Object")=tRs(71)
+		nRs("Script_Script")=tRs(72)
+		nRs("Script_Div")=tRs(73)
+		nRs("Script_Class")=tRs(74)
+		nRs("Script_Span")=tRs(75)
+		nRs("Script_Img")=tRs(76)
+		nRs("Script_Font")=tRs(77)
+		nRs("Script_A")=tRs(78)
+		nRs("Script_Html")=tRs(79)
+		nRs("CollecListNum")=tRs(80)
+		nRs("CollecNewsNum")=tRs(81)
+		nRs("Passed")=tRs(82)
+		nRs("SaveFiles")=tRs(83)
+		nRs("CollecOrder")=tRs(84)
+		nRs("LinkUrlYn")=tRs(85)
+		nRs("InputerType")=tRs(86)
+		nRs("Inputer")=tRs(87)
+		nRs("EditorType")=tRs(88)
+		nRs("Editor")=tRs(89)
+		nRs("ShowCommentLink")=tRs(90)
+		nRs("Script_Table")=tRs(91)
+		nRs("Script_Tr")=tRs(92)
+		nRs("Script_Td")=tRs(93)
+		nRs("Script_Tbody")=tRs(94)
+
+		nRs.Update
+		tRs.MoveNext
+	Loop
+	Session("AdminShowInfo") = "LoadCss.asp?action=Load"
+	Call Alert ("采集规则导入成功！","Admin_ItemStart.asp")
+End Sub
+
+Sub ExportSkin()
+	dim ItemID,ChannelID,oChannelID
+	dim tRs,tSql,nRs,nSql
+	
+	MdbName = trim(Request.form("TemplateMdb"))
+	ItemID = Replace(Request.form("ItemID")," ","")
+
+	If ItemID = "" then
+		Call Alert ("请选择要导出的规则！",-1)
+	End If
+
+	'源库
+	nSql = "Select * from [Item] Where ItemID in("& ItemID &")"
+	Set nRs = ConnItem.Execute(nSql)
+
+	'目标库
+	Set tRs = Server.CreateObject("ADODB.RecordSet")
+	SkinConnection(MdbName)
+	tRs.open "[Item]",StyleConn,1,3
+	
+	Do while Not nRs.Eof
+		tRs.AddNew
+		
+		tRs("ItemName")=nRs(1)
+		tRs("ChannelID")=nRs(2)
+		tRs("ChannelDir")=nRs(3)
+		tRs("ClassID")=nRs(4)
+		tRs("SpecialID")=nRs(5)
+		tRs("WebName")=nRs(6)
+		tRs("WebUrl")=nRs(7)
+		tRs("ItemDemo")=nRs(8)
+		tRs("LoginType")=nRs(9)
+		tRs("LoginUrl")=nRs(10)
+		tRs("LoginPostUrl")=nRs(11)
+		tRs("LoginUser")=nRs(12)
+		tRs("LoginPass")=nRs(13)
+		tRs("LoginFalse")=nRs(14)
+		tRs("ListStr")=nRs(15)
+		tRs("LsString")=nRs(16)
+		tRs("LoString")=nRs(17)
+		tRs("ListPaingType")=nRs(18)
+		tRs("LPsString")=nRs(19)
+		tRs("LPoString")=nRs(20)
+		tRs("ListPaingStr1")=nRs(21)
+		tRs("ListPaingStr2")=nRs(22)
+		tRs("ListPaingID1")=nRs(23)
+		tRs("ListPaingID2")=nRs(24)
+		tRs("ListPaingStr3")=nRs(25)
+		tRs("HsString")=nRs(26)
+		tRs("HoString")=nRs(27)
+		tRs("HttpUrlType")=nRs(28)
+		tRs("HttpUrlStr")=nRs(29)
+		tRs("TsString")=nRs(30)
+		tRs("ToString")=nRs(31)
+		tRs("CsString")=nRs(32)
+		tRs("CoString")=nRs(33)
+		tRs("DateType")=nRs(34)
+		tRs("DsString")=nRs(35)
+		tRs("DoString")=nRs(36)
+		tRs("AuthorType")=nRs(37)
+		tRs("AsString")=nRs(38)
+		tRs("AoString")=nRs(39)
+		tRs("AuthorStr")=nRs(40)
+		tRs("CopyFromType")=nRs(41)
+		tRs("FsString")=nRs(42)
+		tRs("FoString")=nRs(43)
+		tRs("CopyFromStr")=nRs(44)
+		tRs("KeyType")=nRs(45)
+		tRs("KsString")=nRs(46)
+		tRs("KoString")=nRs(47)
+		tRs("KeyStr")=nRs(48)
+		tRs("NewsPaingType")=nRs(49)
+		tRs("NPsString")=nRs(50)
+		tRs("NPoString")=nRs(51)
+		tRs("NewsPaingStr")=nRs(52)
+		tRs("NewsPaingHtml")=nRs(53)
+		tRs("Flag")=nRs(54)
+		tRs("PaginationType")=nRs(55)
+		tRs("MaxCharPerPage")=nRs(56)
+		tRs("ReadLevel")=nRs(57)
+		tRs("Stars")=nRs(58)
+		tRs("ReadPoint")=nRs(59)
+		tRs("Hits")=nRs(60)
+		tRs("UpDateType")=nRs(61)
+		tRs("UpDateTime")=nRs(62)
+		tRs("IncludePicYn")=nRs(63)
+		tRs("DefaultPicYn")=nRs(64)
+		tRs("OnTop")=nRs(65)
+		tRs("Elite")=nRs(66)
+		tRs("Hot")=nRs(67)
+		tRs("SkinID")=nRs(68)
+		tRs("TemplateID")=nRs(69)
+		tRs("Script_Iframe")=nRs(70)
+		tRs("Script_Object")=nRs(71)
+		tRs("Script_Script")=nRs(72)
+		tRs("Script_Div")=nRs(73)
+		tRs("Script_Class")=nRs(74)
+		tRs("Script_Span")=nRs(75)
+		tRs("Script_Img")=nRs(76)
+		tRs("Script_Font")=nRs(77)
+		tRs("Script_A")=nRs(78)
+		tRs("Script_Html")=nRs(79)
+		tRs("CollecListNum")=nRs(80)
+		tRs("CollecNewsNum")=nRs(81)
+		tRs("Passed")=nRs(82)
+		tRs("SaveFiles")=nRs(83)
+		tRs("CollecOrder")=nRs(84)
+		tRs("LinkUrlYn")=nRs(85)
+		tRs("InputerType")=nRs(86)
+		tRs("Inputer")=nRs(87)
+		tRs("EditorType")=nRs(88)
+		tRs("Editor")=nRs(89)
+		tRs("ShowCommentLink")=nRs(90)
+		tRs("Script_Table")=nRs(91)
+		tRs("Script_Tr")=nRs(92)
+		tRs("Script_Td")=nRs(93)
+		tRs("Script_Tbody")=nRs(94)
+		
+		tRs.Update
+		nRs.MoveNext
+	Loop
+	Call Alert ("导出采集规则成功",-1)
+End Sub
+
+Sub ClearLoadData()
+	MdbName = trim(Request.form("TemplateMdb"))
+	
+	dim tRs
+	Set tRs = Server.CreateObject("ADODB.RecordSet")
+	SkinConnection(MdbName)
+	tRs.open "[Item]",StyleConn,1,3
+	
+	Do while Not tRs.Eof
+		tRs.delete
+		tRs.MoveNext
+	Loop
+	tRs.Close:Set tRs = Nothing
+	Call Alert ("清空采集规则导出库完成","Admin_Itemlaoy.asp")
+End Sub
+%>
+<!--#include file="../Admin_Copy.asp"-->
+</body>
+</html>

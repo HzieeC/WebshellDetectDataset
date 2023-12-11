@@ -1,0 +1,99 @@
+<!-- #include file="conn.asp" -->
+<!-- #include file="bbsuser.asp" -->
+<!--#include file="touxianfun.asp" -->
+<%
+Dim Stream
+Dim FileName
+Dim FileExt
+Const adTypeBinary = 1
+
+id=cint(request.QueryString("id"))
+clubuser_id=getcookie("clubuser_id")
+cookiesbz=getcookie("bz")
+cookiesfbz=getcookie("bbsadmin")
+call FTBBS_HTML_MB(ft)
+downvalue=Application("FTBBSMB")(59,0)
+if downvalue=0 then
+topqs=1
+else
+topqs=jingyuantoqs(clubuser_id,downvalue,ft)
+end if
+
+sql="select * from "&ft&"clubuser where clubuser_id="&clubuser_id
+set rx=server.createobject("adodb.recordset")
+rx.open sql,conn,1,1
+if not rx.eof then
+jifen=rx("jingyuan")
+else
+jifen=0
+end if
+rx.close
+
+sql="select top 1 upload_pic,clubuser_id,sale from "&ft&"ftbbs_upload where id="&id
+set rs=conn.execute(sql)
+uploadfile=rs("upload_pic")
+FileName=split(uploadfile,"/")(1)
+userid=rs("clubuser_id")
+sale=int(rs("sale"))
+if sale>0 then '出售附件
+   if int(jifen)>=sale or clubuser_id=""&userid&"" or cookiesbz=1 or cookiesfbz=1 then
+      if clubuser_id=""&userid&"" or cookiesbz=1 or cookiesfbz=1 then
+	  
+	  else
+      sql="update "&ft&"clubuser set jingyuan=jingyuan-"&sale&" where clubuser_id="&clubuser_id
+      conn.execute(sql)
+      end if
+	  response.redirect uploadfile
+      'down
+   else
+   response.write "<script language='javascript'>"
+   response.write "alert('用户积分最少要"&sale&"才能下载该附件,请先进入交易中心在线充值后进行积分兑换!');"
+   response.write "history.go(-1);"
+   response.write "</script>"
+   response.end 
+   end if
+else
+  if topqs=1 or clubuser_id=""&userid&"" or cookiesbz=1 or cookiesfbz=1 then
+   response.redirect uploadfile
+   'down
+  else
+   response.write "<script language='javascript'>"
+   response.write "alert('你的积分太少,无法下载附件,请先进入交易中心在线充值后进行积分兑换!');"
+   response.write "history.go(-1);"
+   response.write "</script>"
+   response.end 
+  end if
+end if
+Sub down()
+   FileExt = Mid(FileName, InStrRev(FileName, ".") + 1)
+   FileExt = Trim(FileExt)
+   Select Case UCase(FileExt)
+   Case "ASP", "ASA", "ASPX", "ASAX", "MDB"
+     response.write "<script language='javascript'>"
+     response.write "alert('受保护的文件不能下载!');"
+     response.write "history.go(-1);"
+     response.write "</script>"
+     response.end 
+   End Select
+   '下载这个文件
+   Response.Clear
+   if lcase(FileExt)="gif" or lcase(FileExt)="jpg" or lcase(FileExt)="png" then
+   Response.ContentType = "image/*" '对图像文件不出现下载对话框
+   else
+   Response.ContentType = "application/ms-download"
+   end if
+   Response.AddHeader "content-disposition", "attachment; filename=" & FileName
+   Set Stream = server.CreateObject("ADODB.Stream")
+   Stream.Type = adTypeBinary
+   Stream.Open
+   Stream.LoadFromFile Server.MapPath(uploadfile)
+   While Not Stream.EOS
+    Response.BinaryWrite Stream.Read(1024 * 64)
+   Wend
+   Stream.Close
+   Set Stream = Nothing
+   Response.Flush
+   Response.End
+End Sub
+closedb
+%>

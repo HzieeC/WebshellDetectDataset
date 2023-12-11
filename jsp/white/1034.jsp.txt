@@ -1,0 +1,62 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="connections.DaoAritcle,java.util.Vector,javaBean.BeanAritcle"%>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统 - 管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<br><script language="JavaScript" src="<%=url%>/admin/include/showpage.js"></script>
+<table  border=0 align=center cellpadding=3 cellspacing=1 class=TableBorder>	<tr>	  <th width='5%' nowrap>选择</th>	  <th width='53%'>文章标题</th>	  <th width='15%' nowrap>管理操作</th>
+<th width='9%' nowrap>录 入 者</th>	  <th width='25%' nowrap>整理日期</th>	</tr><form name=selform method=post action="<%=url%>/servletsuserarticle"><input type=hidden name=ChannelID value='1'>
+<%
+	DaoAritcle dao=new DaoAritcle();
+	String sql="select * from aritcle where aritcleIssue=0";
+	BeanAritcle bean=null;
+	Vector ve=dao.AritcleBind(sql);
+	if(ve.size()==0){
+		out.println("<tr><td align=center colspan=6 class=TableRow2>还没有找到任何文章！</td></tr>");
+	}else{
+		for(int i=0;i<ve.size();i++){
+			bean=(BeanAritcle)ve.get(i);
+%>
+<tr>
+	<td align=center class=TableRow2><input type="checkbox" name="aritcleid" value="<%=bean.getAritcleId()%>"></td>
+	<td align=center class=TableRow2><%=bean.getTitle()%></td>
+	<td align=center class=TableRow2><a href='<%=url%>/servletsuserarticle?action=audting&id=<%=bean.getAritcleId()%>'>审核</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+	<a href='<%=url%>/servletsuserarticle?action=del&id=<%=bean.getAritcleId()%>'>删除</a></td>
+	<td align=center class=TableRow2><%=bean.getAuthor()%></td>
+	<td align=center class=TableRow2><%=bean.getUpdateTime()%></td>
+</tr>
+<%}%>
+<%}%>
+	<tr>
+	  <td colspan="6" class="TableRow1">
+	  <input class="Button" type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class="Button" type="button" name="chksel" value="反选" onClick="ContraSel(this.form)">
+	  管理选项：
+	  <select name="action">
+		<option value="0">请选择操作选项</option>
+		<option value="pldel">批量删除</option>
+		<option value="plaudting">批量审核</option>
+	  </select>
+	  <input class="Button" type="submit" name="Submit2" value="执行操作" onclick="return confirm('您确定执行该操作吗?')"></td>
+	</tr>
+	</form>
+</table>
+
+
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

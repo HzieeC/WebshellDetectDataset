@@ -1,0 +1,1012 @@
+<!--#include file="const.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_server.asp
+' 更新日期：2008-06-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="200" align="left">下载服务器管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_index.asp">管理首页</a>
+			 - <a href="admin_makehtml.asp?ChannelID=<%=ChannelID%>">生成HTML管理</a>
+			 - <a href="admin_list.asp?ChannelID=<%=ChannelID%>"><%=NewAsp.ModuleName%>管理</a>
+			 - <a href="../sys/admin_channel.asp?action=edit&ChannelID=<%=ChannelID%>">频道设置</a>
+			 - <a href="../sys/admin_class.asp?ChannelID=<%=ChannelID%>">分类管理</a>
+			 - <a href="../sys/admin_template.asp">模板管理</a>
+		</td>
+	</tr>
+</table>
+<br/>
+<table border="0" cellspacing="1" cellpadding="3" align="center" class="tableborder">
+<tr>
+	<th colspan="2">下载服务器管理说明</th>
+</tr>
+<tr>
+	<td class="tablerow2" colspan="2">
+		<ol>
+			<li>在这里您可以进行添加/删除下载服务器，请先添加服务器分类然后添加下载路径。</li>
+			<li>您可以添加多个下载路径，将会在下载信息页面显示。</li>
+			<li>建议添加后的服务器一级分类最好不要轻易删除，下载路径可以根据需要修改、删除或锁定。</li>
+		</ol>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1"><B>操作选项</B></td>
+	<td class="tablerow1"><a href="admin_server.asp?ChannelID=<%=ChannelID%>">服务器管理首页</a> | <a href="admin_server.asp?action=add&amp;ChannelID=<%=ChannelID%>">添加新的服务器</a>
+	| <a href="admin_server.asp?action=serverorders&amp;ChannelID=<%=ChannelID%>">服务器路径排序</a></td>
+</tr>
+</table>
+<br/>
+<script language="javascript">
+function setTopicStyle(){
+	var url='../script/setstyle.htm';
+	if(!detectMacXFF()){
+		showModalDialog(url,window, "dialogWidth:280px;dialogHeight:220px;toolbar=no;location=no;directories=no;status=no;menubar=no;scrollbars=no;resizable=no;scroll=no;help=0; status:0");
+	}else{
+		var feature="width=280,height=220,menubar=no,toolbar=no,location=no,";
+		feature+="scrollbars=no,scroll=no,resizable=no,status=no,modal=yes";
+		window.open(url,null,feature);
+	}
+}
+
+function cancelStyle(){
+	document.getElementById('topicStyle').value='';
+	document.getElementById('testStyle').innerHTML='<span style="background:#ffffff;font-size:14px">设置标题样式 ABC123</span>';
+}
+</script>
+<%
+If Not ChkAdmin("DownServer_"&ChannelID) Then
+	Call Transfer_error()
+End If
+
+Dim Action
+Action=LCase(Request("action"))
+Select Case Trim(Action)
+Case "del"
+	Call delDownServer()
+Case "savenew"
+	Call savenew()
+Case "savedit"
+	Call saveedit()
+Case "edit"
+	Call editDownServer()
+Case "add"
+	Call addDownServer()
+Case "serverorders"
+	Call serverorders()
+Case "updateorders"
+	Call updateorders()
+Case "lock"
+	Call isLock()
+Case "free"
+	Call FreeLock()
+Case Else
+	Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+NewAsp.PageEnd
+
+Sub showmain()
+	Dim Rs,SQL,i
+	Dim DownloadName,selfont
+	Dim iCount,lCount
+	iCount=1:lCount=2
+	Response.Write " <table id=""tablehovered"" class=""tableborder"" cellspacing=""1"" cellpadding=""2"" align=""center"">" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <th width=""35%"">服务器分类</th>" & vbNewLine
+	Response.Write " <th width=""45%"">操 作</th>" & vbNewLine
+	Response.Write " <th width=""10%"" noWrap>日下载数</th>" & vbNewLine
+	Response.Write " <th width=""10%"" noWrap>总共下载数</th>" & vbNewLine
+	Response.Write "</tr>" & vbNewLine
+	SQL = "SELECT * FROM NC_DownServer WHERE ChannelID=" & ChannelID & " ORDER BY rootid,orders"
+	SET Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	Rs.Open SQL, Conn, 1, 1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum + 1
+	Do While Not Rs.EOF
+		If (i mod 2) = 0 Then iCount=1:lCount=2 Else iCount=2:lCount=1
+		selfont = Rs("selfont") & ""
+		Response.Write " <tr>" & vbNewLine
+		Response.Write " <td width=""35%"" class=""tablerow"&iCount&" hovered"">" & vbNewLine
+		If Rs("isLock") = 1 Then
+			Response.Write " <img src='../images/locks.gif' border=""0"" align=""absMiddle"">"
+		End If
+		If Rs("depth") = 1 Then Response.Write "&nbsp;&nbsp;<font color=""#666666"">├</font>"
+		If Rs("depth") > 1 Then
+			For i = 2 To Rs("depth")
+				Response.Write "&nbsp;&nbsp;<font color=""#666666"">│</font>"
+			Next
+			Response.Write "&nbsp;&nbsp;<font color=""#666666"">├</font> "
+		End If
+		If Rs("parentid") = 0 Then Response.Write ("<b>[" & Rs("rootid") & "] ")
+		If Len(selfont) < 10 Then
+			DownloadName = Rs("DownloadName")
+		Else
+			DownloadName = "<span " & selfont & ">" & Rs("DownloadName") & "</span>"
+		End If
+		Response.Write Replace(DownloadName, "{$DownPoint}", Rs("DownPoint")&"")
+		If Rs("child") > 0 Then Response.Write "(" & Rs("child") & ")"
+		If Rs("parentid") = 0 Then Response.Write ("</b>")
+		Response.Write " </td>" & vbNewLine
+		Response.Write " <td class=""tablerow"&iCount&" hovered"" align=""right"">"
+		If Rs("depth") = 0 Then
+			Response.Write "<a href=""admin_server.asp?action=add&editid="
+			Response.Write Rs("downid")
+			Response.Write "&amp;ChannelID=" & ChannelID & """>添加下载服务器路径</a>" & vbNewLine
+		Else
+			Response.Write "<a href=""admin_server.asp?action=lock&editid="
+			Response.Write Rs("downid")
+			Response.Write "&amp;ChannelID=" & ChannelID & """>锁定服务器</a>"
+			Response.Write " | <a href=""admin_server.asp?action=free&editid="
+			Response.Write Rs("downid")
+			Response.Write "&amp;ChannelID=" & ChannelID & """>解除锁定</a>"
+		End If
+		Response.Write " | <a href=""admin_server.asp?action=edit&editid="
+		Response.Write Rs("downid")
+		Response.Write "&amp;ChannelID=" & ChannelID & """>服务器设置</a>" & vbNewLine
+		Response.Write " |" & vbNewLine
+		Response.Write " "
+		If Rs("child") = 0 Then
+			Response.Write " <a href=""admin_server.asp?action=del&editid="
+			Response.Write Rs("downid")
+			Response.Write "&amp;ChannelID=" & ChannelID & """ onclick=""{if(confirm('删除将包括该服务器的所有信息，确定删除吗?')){return true;}return false;}"">删除" & vbNewLine
+			Response.Write " "
+		Else
+			Response.Write "<a href=""#"" onclick=""{if(confirm('该服务器含有下载路径，必须先删除其下载路径方能删除本服务器！')){return true;}return false;}"">" & vbNewLine
+			Response.Write " 删除</a>" & vbNewLine
+			Response.Write " "
+		End If
+		Response.Write " </td>" & vbNewLine
+		Response.Write " <td class=""tablerow"&iCount&" hovered"" align=""center"">"
+		If Rs("depth") > 0 Then
+			Response.Write Rs("DayDownHits")
+		Else
+			Response.Write "&nbsp;"
+		End If
+		Response.Write " </td>" & vbNewLine
+		Response.Write " <td class=""tablerow"&iCount&" hovered"" align=""center"">"
+		If Rs("depth") > 0 Then
+			Response.Write Rs("AllDownHits")
+		Else
+			Response.Write "&nbsp;"
+		End If
+		Response.Write " </td>" & vbNewLine
+		Response.Write "</tr>" & vbNewLine
+		Rs.MoveNext
+		i = i + 1
+	Loop
+	Rs.Close
+	SET Rs = Nothing
+	Response.Write "</table>" & vbNewLine
+End Sub
+'================================================
+'过程名：addDownServer
+'作  用：添加服务器
+'================================================
+Sub addDownServer()
+	Dim Rs,SQL,i,RsObj
+	Dim ServerNum
+	On Error Resume Next
+	SET Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT MAX(downid) FROM NC_DownServer"
+	Rs.Open SQL, Conn, 1, 1
+	If Rs.BOF And Rs.EOF Then
+		ServerNum = 1
+	Else
+		ServerNum = Rs(0) + 1
+	End If
+	If IsNull(ServerNum) Then ServerNum = 1
+	Rs.Close
+	Response.Write "<form name=""myform"" action =""admin_server.asp?action=savenew"" method=""post"">" & vbNewLine
+	Response.Write "<input type=""hidden"" name=""newdownid"" value="""
+	Response.Write ServerNum
+	Response.Write """>" & vbNewLine
+	Response.Write "<input type=""hidden"" name=""ChannelID"" value="""
+	Response.Write ChannelID
+	Response.Write """>" & vbNewLine
+	Response.Write " <table border=""0"" cellspacing=""1"" cellpadding=""3"" align=""center"" class=""tableborder"">" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <th colspan=""2"">添加新的服务器</th>" & vbNewLine
+	Response.Write "</tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td width=""30%"" class=""tablerow1""><U>服务器名称</U></td>" & vbNewLine
+	Response.Write " <td width=""70%"" class=""tablerow1"">"
+	Response.Write " <input type=""text"" name=""DownloadName"" size=""60"">" & vbNewLine
+	Response.Write "</td>" & vbNewLine
+	Response.Write "</tr>" & vbNewLine
+	'-------增加标题样式
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow2""><U>服务器名称样式</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow2""><input type=""hidden"" name=""selfont"" id=""topicStyle""/>样式:&nbsp;"
+	Response.Write " <span id=""testStyle"" onclick=""javascript:setTopicStyle(this);"" style='background:#fff;cursor:pointer;font-size:14px'>设置标题样式 ABC123</span> " & vbNewLine
+	Response.Write "<input type=""checkbox"" name=""cancel"" onclick=""cancelStyle()""> 取消格式"
+	Response.Write "</td>" & vbNewLine
+	Response.Write "</tr>" & vbNewLine
+	'-------
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow1""><U>服务器路径</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow1"">" & vbNewLine
+	Response.Write " <input type=""text"" name=""DownloadPath"" size=""60"">" & vbNewLine
+	Response.Write "</td>" & vbNewLine
+	Response.Write "</tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow2""><U>所属类别</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow2"">" & vbNewLine
+	Response.Write " <select name=""servers"">" & vbNewLine
+	Response.Write "<option value=""0"">做为服务器分类</option>" & vbNewLine
+	SQL = "SELECT * FROM NC_DownServer WHERE ChannelID=" & ChannelID & " And depth=0 ORDER BY rootid"
+	Rs.Open SQL, Conn, 1, 1
+	Do While Not Rs.EOF
+		Response.Write "<option value=""" & Rs("downid") & """ "
+		If Len(Request("editid")) <> 0 And CLng(Request("editid")) = Rs("downid") Then Response.Write "selected"
+		Response.Write ">"
+		Response.Write Rs("DownloadName") & "</option>" & vbCrLf
+		Rs.MoveNext
+	Loop
+	Rs.Close
+	Response.Write "</select>"
+	Response.Write "</td></tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow1""><U>使用下载服务器的权限</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow1"">"
+	Response.Write " <select name=""UserGroup"">" & vbNewLine
+	SET RsObj = NewAsp.Execute("SELECT GroupName,Grades FROM NC_UserGroup ORDER BY Groupid")
+	Do While Not RsObj.EOF
+		Response.Write Chr(9) & Chr(9) & "<option value=""" & RsObj("Grades") & """"
+		If RsObj("Grades") = 0 Then Response.Write " selected"
+		Response.Write ">"
+		Response.Write RsObj("GroupName")
+		Response.Write "</option>" & vbCrLf
+		RsObj.MoveNext
+	Loop
+	SET RsObj = Nothing
+	Response.Write " </select> </td>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow2""><U>下载所需点数</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow2"">" & vbNewLine
+	Response.Write " <input type=""text"" name=""DownPoint"" size=""10"" value='0'>" & vbNewLine
+	Response.Write "</td>" & vbNewLine
+	Response.Write "</tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow1""><U>是否直接显示下载地址</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow1"">"
+	Response.Write " <input type=""radio"" name=""isDisp"" value=""0"" checked> 否&nbsp;&nbsp;"
+	Response.Write " <input type=""radio"" name=""isDisp"" value=""1""> 是"
+	Response.Write " </td>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow2""><U>是否外部连接</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow2"">"
+	Response.Write " <input type=radio name=""IsOuter"" value=""0"" checked> 否&nbsp;&nbsp;"
+	Response.Write " <input type=radio name=""IsOuter"" value=""1""> 是&nbsp;&nbsp;"
+	Response.Write " <input type=radio name=""IsOuter"" value=""2""> 迅雷专用下载地址&nbsp;&nbsp;"
+	Response.Write " <input type=radio name=""IsOuter"" value=""3""> 快车专用下载地址"
+	Response.Write " <br><font color=""red"">注意：如果是外部连接，请在“服务器路径”中输入要转向的URL；<br>&nbsp;&nbsp;&nbsp;&nbsp;如果选择“迅雷或快车专用下载地址”，"
+	Response.Write "请先注册<a href=""http://union.xunlei.com/"" target=""_blank""><font color=""blue"">迅雷联盟</font></a>|<a href=""http://union.flashget.com/"" target=""_blank""><font color=""blue"">快车联盟</font></a>，然后在<a href=""../sys/admin_setting.asp?action=plus""><font color=""blue"">联盟插件设置</font></a>中输入相应的联盟ID</font></td>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow1"">&nbsp;</td>" & vbNewLine
+	Response.Write " <td class=""tablerow1"">" & vbNewLine
+	Response.Write " <input type=""submit"" name=""Submit"" class=""button"" value=""添加服务器"">" & vbNewLine
+	Response.Write "</td>" & vbNewLine
+	Response.Write "</tr>" & vbNewLine
+	Response.Write "</table>" & vbNewLine
+	Response.Write "</form>" & vbNewLine
+	SET Rs = Nothing
+End Sub
+'================================================
+'过程名：editDownServer
+'作  用：编辑服务器
+'================================================selFont
+Sub editDownServer()
+	Dim Rs,SQL,i,RsObj
+	Dim Rs_e
+	On Error Resume Next
+	SET Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_DownServer WHERE downid=" & CLng(Request("editid"))
+	SET Rs_e = NewAsp.Execute(SQL)
+	Response.Write "<form name=""myform"" action =""admin_server.asp?action=savedit"" method=""post"">" & vbNewLine
+	Response.Write "<input type=""hidden"" name=""editid"" value="""
+	Response.Write Request("editid")
+	Response.Write """>" & vbNewLine
+	Response.Write "<input type=""hidden"" name=""ChannelID"" value="""
+	Response.Write ChannelID
+	Response.Write """>" & vbNewLine
+	Response.Write " <table border=""0"" cellspacing=""1"" cellpadding=""3"" align=""center"" class=""tableborder"">" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <th colspan=""2"">编辑服务器："
+	Response.Write Rs_e("DownloadName")
+	Response.Write "</th>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td width=""30%"" class=""tablerow1""><U>服务器名称</U></td>" & vbNewLine
+	Response.Write " <td width=""70%"" class=""tablerow1"">" & vbNewLine
+	Response.Write " <input type=""text"" name=""DownloadName"" size=""60"" value="""
+	Response.Write Rs_e("DownloadName")
+	Response.Write """>" & vbNewLine
+	Response.Write " </td>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	'-------增加标题样式
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow2""><U>服务器名称样式</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow2""><input type=""hidden"" name=""selfont"" id=""topicStyle"" value="""& Server.HTMLEncode(Rs_e("selfont") & "") &""">样式:&nbsp;"
+	Response.Write " <span id=""testStyle"" onclick=""javascript:setTopicStyle(this);"" style='background:#fff;cursor:pointer;font-size:14px'><span "& Rs_e("selfont") &">设置标题样式 ABC123</span></span> " & vbNewLine
+	Response.Write "<input type=""checkbox"" name=""cancel"" onclick=""cancelStyle()""> 取消格式"
+	Response.Write "</td>" & vbNewLine
+	Response.Write "</tr>" & vbNewLine
+	'-------
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow1""><U>服务器路径</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow1"">" & vbNewLine
+	Response.Write " <input type=""text"" name=""DownloadPath"" size=""60"" value="""
+	Response.Write Rs_e("DownloadPath")
+	Response.Write """>" & vbNewLine
+	Response.Write " </td>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow2""><U>所属类别</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow2"">" & vbNewLine
+	Response.Write " <select name=""servers"">" & vbNewLine
+	Response.Write " <option value=""0"">做为主服务器分类</option>" & vbNewLine
+	Response.Write " "
+	SQL = "SELECT * FROM NC_DownServer WHERE ChannelID=" & ChannelID & " ORDER BY rootid,orders"
+	SET Rs = NewAsp.Execute(SQL)
+	Do While Not Rs.EOF
+		Response.Write "<option value=""" & Rs("downid") & """ "
+		If Rs_e("parentid") = Rs("downid") Then Response.Write "selected"
+		Response.Write ">"
+		If Rs("depth") = 1 Then Response.Write "&nbsp;&nbsp;├ "
+		If Rs("depth") > 1 Then
+			For i = 2 To Rs("depth")
+				Response.Write "&nbsp;&nbsp;│"
+			Next
+			Response.Write "&nbsp;&nbsp;├ "
+		End If
+		Response.Write Rs("DownloadName") & "</option>" & vbCrLf
+		Rs.MoveNext
+	Loop
+	Rs.Close: SET Rs = Nothing
+	Response.Write " </select> </td>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow1""><U>使用下载服务器的权限</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow1"">"
+	Response.Write " <select name=""UserGroup"">" & vbNewLine
+	SET RsObj = NewAsp.Execute("SELECT GroupName,Grades FROM NC_UserGroup ORDER BY Groupid")
+	Do While Not RsObj.EOF
+		Response.Write Chr(9) & Chr(9) & "<option value=""" & RsObj("Grades") & """"
+		If Rs_e("UserGroup") = RsObj("Grades") Then Response.Write " selected"
+		Response.Write ">"
+		Response.Write RsObj("GroupName")
+		Response.Write "</option>" & vbCrLf
+		RsObj.MoveNext
+	Loop
+	SET RsObj = Nothing
+	Response.Write " </select> </td>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow2""><U>下载所需点数</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow2"">" & vbNewLine
+	Response.Write " <input type=""text"" name=""DownPoint"" size=""10"" value='"
+	Response.Write Rs_e("DownPoint")
+	Response.Write "'>" & vbNewLine
+	Response.Write "</td>" & vbNewLine
+	Response.Write "</tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow1""><U>是否直接显示下载地址</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow1"">"
+	Response.Write " <input type=""radio"" name=""isDisp"" value=""0"""
+	If Rs_e("IsDisp") = 0 Then Response.Write "  checked"
+	Response.Write "> 否&nbsp;&nbsp;"
+	Response.Write " <input type=""radio"" name=""isDisp"" value=""1"""
+	If Rs_e("IsDisp") = 1 Then Response.Write "  checked"
+	Response.Write "> 是"
+	Response.Write " </td>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow2""><U>是否外部连接</U></td>" & vbNewLine
+	Response.Write " <td class=""tablerow2"">"
+	Response.Write " <input type=""radio"" name=""IsOuter"" value=""0"""
+	If Rs_e("IsOuter") = 0 Then Response.Write "  checked"
+	Response.Write "> 否&nbsp;&nbsp;"
+	Response.Write " <input type=""radio"" name=""IsOuter"" value=""1"""
+	If Rs_e("IsOuter") = 1 Then Response.Write "  checked"
+	Response.Write "> 是&nbsp;&nbsp;"
+	Response.Write " <input type=""radio"" name=""IsOuter"" value=""2"""
+	If Rs_e("IsOuter") = 2 Then Response.Write "  checked"
+	Response.Write "> 迅雷专用下载地址&nbsp;&nbsp;"
+	Response.Write " <input type=""radio"" name=""IsOuter"" value=""3"""
+	If Rs_e("IsOuter") = 3 Then Response.Write "  checked"
+	Response.Write "> 快车专用下载地址&nbsp;&nbsp;"
+	Response.Write " <br><font color=""red"">注意：如果是外部连接，请在“服务器路径”中输入要转向的URL；<br>&nbsp;&nbsp;&nbsp;&nbsp;如果选择“迅雷或快车专用下载地址”，"
+	Response.Write "请先注册<a href=""http://union.xunlei.com/"" target=""_blank""><font color=""blue"">迅雷联盟</font></a>|<a href=""http://union.flashget.com/"" target=""_blank""><font color=""blue"">快车联盟</font></a>，然后在<a href=""../sys/admin_setting.asp?action=plus""><font color=""blue"">联盟插件设置</font></a>中输入相应的联盟ID</font></td>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <td class=""tablerow1"">&nbsp;</td>" & vbNewLine
+	Response.Write " <td class=""tablerow1"">" & vbNewLine
+	Response.Write " <input type=""submit"" name=""Submit"" class=""button"" value=""保存修改"">" & vbNewLine
+	Response.Write " </td>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	Response.Write " </table>" & vbNewLine
+	Response.Write "</form>" & vbNewLine
+	SET Rs_e = Nothing
+End Sub
+'================================================
+'过程名：savenew
+'作  用：保存新的服务器
+'================================================
+Sub savenew()
+	Dim Rs,SQL,i
+	Dim downid,rootid,ParentID
+	Dim depth,orders,Maxrootid
+	Dim strParent,neworders
+	Dim DownloadPath,Server_Url
+	
+	'On Error Resume Next
+	'保存添加服务器信息
+	If Request.Form("DownloadName") = "" Then
+		ErrMsg = ErrMsg + "<br>" + "<li>请输入服务器名称。"
+		FoundErr = True
+		Exit Sub
+	End If
+	If Request.Form("servers") = "" Then
+		ErrMsg = ErrMsg + "<br>" + "<li>请选择服务器。"
+		FoundErr = True
+		Exit Sub
+	End If
+	Server_Url = Replace(Trim(Request.Form("DownloadPath")), "\", "/")
+	If Right(Server_Url, 1) <> "/" Then
+		DownloadPath = Server_Url
+	Else
+		DownloadPath = Server_Url
+	End If
+	SET Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	If Request.Form("servers") <> "0" Then
+		SQL = "SELECT rootid,downid,depth,orders,strparent FROM NC_DownServer WHERE downid=" & Request("servers")
+		Rs.Open SQL, Conn, 1, 1
+		rootid = Rs(0)
+		ParentID = Rs(1)
+		depth = Rs(2)
+		orders = Rs(3)
+		If depth + 1 > 2 Then
+			ErrMsg = "<li>本系统限制最多只能有2级子服务器</li>"
+			FoundErr = True
+			Exit Sub
+		End If
+		strParent = Rs(4)
+		Rs.Close
+		neworders = orders
+		SQL = "SELECT MAX(orders) FROM NC_DownServer WHERE ParentID=" & Request("servers")
+		Rs.Open SQL, Conn, 1, 1
+		If Not (Rs.EOF And Rs.BOF) Then
+			neworders = Rs(0)
+		End If
+		If IsNull(neworders) Then neworders = orders
+		Rs.Close
+		NewAsp.Execute ("UPDATE NC_DownServer SET orders=orders+1 WHERE orders>" & CInt(neworders) & "")
+	Else
+		SQL = "SELECT MAX(rootid) FROM NC_DownServer"
+		Rs.Open SQL, Conn, 1, 1
+		If Rs.BOF And Rs.EOF Then
+			Maxrootid = 1
+		Else
+			Maxrootid = Rs(0) + 1
+		End If
+		If IsNull(Maxrootid) Then Maxrootid = 1
+		Rs.Close
+	End If
+	If Maxrootid = 0 Then Maxrootid = 1
+	
+	SQL = "SELECT downid FROM NC_DownServer WHERE downid=" & Request("newdownid")
+	Rs.Open SQL, Conn, 1, 1
+	If Not (Rs.EOF And Rs.BOF) Then
+		ErrMsg = "<li>您不能指定和别的服务器一样的序号。</li>"
+		FoundErr = True
+		Exit Sub
+	Else
+		downid = CLng(Request("newdownid"))
+	End If
+	Rs.Close
+	
+	SQL = "SELECT * FROM NC_DownServer"
+	Rs.Open SQL, Conn, 1, 3
+	Rs.AddNew
+	If Request("servers") <> "0" Then
+		Rs("depth") = depth + 1
+		Rs("rootid") = rootid
+		Rs("orders") = neworders + 1
+		Rs("parentid") = Request.Form("servers")
+		If strParent = "0" Then
+			Rs("strparent") = Request.Form("servers")
+		Else
+			Rs("strparent") = strParent & "," & Request.Form("servers")
+		End If
+	Else
+		Rs("depth") = 0
+		Rs("rootid") = Maxrootid
+		Rs("orders") = 0
+		Rs("parentid") = 0
+		Rs("strparent") = 0
+	End If
+	Rs("child") = 0
+	Rs("downid") = Request.Form("newdownid")
+	Rs("DownloadName") = Replace(Request.Form("DownloadName"), "|", "")
+	Rs("DownloadPath") = Replace(DownloadPath, "|", "")
+	Rs("isDisp") = Request.Form("isDisp")
+	Rs("UserGroup") = Request.Form("UserGroup")
+	Rs("ChannelID") = Request.Form("ChannelID")
+	Rs("DownPoint") = CLng(Request.Form("DownPoint"))
+	Rs("isLock") = 0
+	Rs("IsOuter") = NewAsp.ChkNumeric(Request.Form("IsOuter"))
+	Rs("selfont") = Trim(Request.Form("selfont"))
+	Rs("AllDownHits") = 0
+	Rs("DayDownHits") = 0
+	Rs("HitsTime") = Now()
+	Rs.UPDATE
+	Rs.Close
+	If Request("servers") <> "0" Then
+		If depth > 0 Then NewAsp.Execute ("UPDATE NC_DownServer SET child=child+1 WHERE downid in (" & strParent & ")")
+		NewAsp.Execute ("UPDATE NC_DownServer SET child=child+1 WHERE downid=" & Request("servers"))
+	End If
+	SucMsg = "<li>服务器添加成功！</li>"
+	Succeed (SucMsg)
+	SET Rs = Nothing
+End Sub
+'================================================
+'过程名：saveedit
+'作  用：保存编辑
+'================================================
+Sub saveedit()
+	Dim Rs,SQL,i
+	Dim newdownid,Maxrootid,ParentID
+	Dim depth,Child,strParent,rootid
+	Dim iparentid,istrparent
+	Dim trs,brs,mrs,k
+	Dim nstrparent,mstrparent,ParentSql
+	Dim boardcount,DownloadPath,Server_Url
+	
+	'On Error Resume Next
+	If CLng(Request("editid")) = CLng(Request("servers")) Then
+		ErrMsg = "<li>所属服务器不能指定自己</li>"
+		ReturnError (ErrMsg)
+		Exit Sub
+	End If
+	Server_Url = Replace(Trim(Request.Form("DownloadPath")), "\", "/")
+	If Right(Server_Url, 1) <> "/" Then
+		DownloadPath = Server_Url
+	Else
+		DownloadPath = Server_Url
+	End If
+	SET Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_DownServer WHERE downid=" & CLng(Request("editid"))
+	Rs.Open SQL, Conn, 1, 3
+	newdownid = Rs("downid")
+	ParentID = Rs("parentid")
+	iparentid = Rs("parentid")
+	strParent = Rs("strparent")
+	depth = Rs("depth")
+	Child = Rs("child")
+	rootid = Rs("rootid")
+	If ParentID = 0 Then
+		If CLng(Request("servers")) <> 0 Then
+			SET trs = NewAsp.Execute("SELECT rootid FROM NC_DownServer WHERE downid=" & Request("servers"))
+			If rootid = trs(0) Then
+				ErrMsg = "<li>您不能指定该服务器的下属服务器作为所属服务器</li>"
+				FoundErr = True
+				Exit Sub
+			End If
+		End If
+	Else
+		SET trs = NewAsp.Execute("select downid from NC_DownServer WHERE strparent like '%" & strParent & "%' and downid=" & Request("servers"))
+		If Not (trs.EOF And trs.BOF) Then
+			ErrMsg = "<li>您不能指定该服务器的下属服务器作为所属服务器</li>"
+			FoundErr = True
+			Exit Sub
+		End If
+	End If
+	If ParentID = 0 Then
+		ParentID = Rs("downid")
+		iparentid = 0
+	End If
+	Rs("DownloadName") = Replace(Request.Form("DownloadName"), "|", "")
+	Rs("DownloadPath") = Replace(DownloadPath, "|", "")
+	Rs("isDisp") = Request.Form("isDisp")
+	Rs("UserGroup") = Request.Form("UserGroup")
+	Rs("ChannelID") = Request.Form("ChannelID")
+	Rs("DownPoint") = NewAsp.CheckNumeric(Request.Form("DownPoint"))
+	Rs("isLock") = 0
+	Rs("IsOuter") = NewAsp.ChkNumeric(Request.Form("IsOuter"))
+	Rs("selfont") = Trim(Request.Form("selfont"))
+	Rs.UPDATE
+	Rs.Close
+	SET Rs = Nothing
+	SET mrs = NewAsp.Execute("select max(rootid) from NC_DownServer")
+	Maxrootid = mrs(0) + 1
+	If CLng(ParentID) <> CLng(Request("servers")) And Not (iparentid = 0 And CInt(Request("servers")) = 0) Then
+		If iparentid > 0 And CInt(Request("servers")) = 0 Then
+			NewAsp.Execute ("UPDATE NC_DownServer SET depth=0,orders=0,rootid=" & Maxrootid & ",parentid=0,strparent='0' WHERE downid=" & newdownid)
+			strParent = strParent & ","
+			SET Rs = NewAsp.Execute("SELECT count(*) FROM NC_DownServer WHERE strparent like '%" & strParent & "%'")
+			boardcount = Rs(0)
+			If IsNull(boardcount) Then
+				boardcount = 1
+			Else
+				boardcount = boardcount + 1
+			End If
+			NewAsp.Execute ("UPDATE NC_DownServer SET child=child-" & boardcount & " WHERE downid=" & iparentid)
+			For i = 1 To depth
+				SET Rs = NewAsp.Execute("SELECT parentid FROM NC_DownServer WHERE downid=" & iparentid)
+				If Not (Rs.EOF And Rs.BOF) Then
+					iparentid = Rs(0)
+					NewAsp.Execute ("UPDATE NC_DownServer SET child=child-" & boardcount & " WHERE downid=" & iparentid)
+				End If
+			Next
+			If Child > 0 Then
+				i = 0
+				SET Rs = NewAsp.Execute("SELECT * FROM NC_DownServer WHERE strparent like '%" & strParent & "%'")
+				Do While Not Rs.EOF
+					i = i + 1
+					mstrparent = Replace(Rs("strparent"), strParent, "")
+					NewAsp.Execute ("UPDATE NC_DownServer SET depth=depth-" & depth & ",rootid=" & Maxrootid & ",strparent='" & mstrparent & "' WHERE downid=" & Rs("downid"))
+					Rs.MoveNext
+				Loop
+			End If
+		ElseIf iparentid > 0 And CInt(Request("servers")) > 0 Then
+			SET trs = NewAsp.Execute("SELECT * FROM NC_DownServer WHERE downid=" & Request("servers"))
+			strParent = strParent & ","
+			SET Rs = NewAsp.Execute("SELECT COUNT(*) FROM NC_DownServer WHERE strparent like '%" & strParent & "%'")
+			boardcount = Rs(0)
+			If IsNull(boardcount) Then boardcount = 1
+			NewAsp.Execute ("UPDATE NC_DownServer SET orders=orders + " & boardcount & " + 1 WHERE rootid=" & trs("rootid") & " and orders>" & trs("orders") & "")
+			NewAsp.Execute ("UPDATE NC_DownServer SET depth=" & trs("depth") & "+1,orders=" & trs("orders") & "+1,rootid=" & trs("rootid") & ",ParentID=" & Request("servers") & ",strparent='" & trs("strparent") & "," & trs("downid") & "' WHERE downid=" & newdownid)
+			i = 1
+			SQL = "SELECT * FROM NC_DownServer WHERE strparent like '%" & strParent & "%' order by orders"
+			SET Rs = NewAsp.Execute(SQL)
+			Do While Not Rs.EOF
+				i = i + 1
+				istrparent = trs("strparent") & "," & trs("downid") & "," & Replace(Rs("strparent"), strParent, "")
+				NewAsp.Execute ("UPDATE NC_DownServer SET depth=depth+" & trs("depth") & "-" & depth & "+1,orders=" & trs("orders") & "+" & i & ",rootid=" & trs("rootid") & ",strparent='" & istrparent & "' WHERE downid=" & Rs("downid"))
+				Rs.MoveNext
+			Loop
+			ParentID = Request("servers")
+			If rootid = trs("rootid") Then
+				NewAsp.Execute ("UPDATE NC_DownServer SET child=child+" & i & " WHERE (not ParentID=0) and downid=" & ParentID)
+				For k = 1 To trs("depth")
+					SET Rs = NewAsp.Execute("SELECT parentid FROM NC_DownServer WHERE (not ParentID=0) and downid=" & ParentID)
+					If Not (Rs.EOF And Rs.BOF) Then
+						ParentID = Rs(0)
+						NewAsp.Execute ("UPDATE NC_DownServer SET child=child+" & i & " WHERE (not ParentID=0) and  downid=" & ParentID)
+					End If
+				Next
+				NewAsp.Execute ("UPDATE NC_DownServer SET child=child-" & i & " WHERE (not ParentID=0) and downid=" & iparentid)
+				For k = 1 To depth
+					SET Rs = NewAsp.Execute("SELECT parentid FROM NC_DownServer WHERE (not ParentID=0) and downid=" & iparentid)
+					If Not (Rs.EOF And Rs.BOF) Then
+						iparentid = Rs(0)
+
+						NewAsp.Execute ("UPDATE NC_DownServer SET child=child-" & i & " WHERE (not ParentID=0) and  downid=" & iparentid)
+					End If
+				Next
+			Else
+
+				NewAsp.Execute ("UPDATE NC_DownServer SET child=child+" & i & " WHERE downid=" & ParentID)
+				For k = 1 To trs("depth")
+					SET Rs = NewAsp.Execute("select parentid FROM NC_DownServer WHERE downid=" & ParentID)
+					If Not (Rs.EOF And Rs.BOF) Then
+						ParentID = Rs(0)
+						NewAsp.Execute ("UPDATE NC_DownServer SET child=child+" & i & " WHERE downid=" & ParentID)
+					End If
+				Next
+				NewAsp.Execute ("UPDATE NC_DownServer SET child=child-" & i & " WHERE downid=" & iparentid)
+				For k = 1 To depth
+					SET Rs = NewAsp.Execute("SELECT parentid FROM NC_DownServer WHERE downid=" & iparentid)
+					If Not (Rs.EOF And Rs.BOF) Then
+						iparentid = Rs(0)
+						NewAsp.Execute ("UPDATE NC_DownServer SET child=child-" & i & " WHERE downid=" & iparentid)
+					End If
+				Next
+			End If
+		Else
+			SET trs = NewAsp.Execute("SELECT * FROM NC_DownServer WHERE downid=" & Request("servers"))
+			SET Rs = NewAsp.Execute("SELECT COUNT(*) from NC_DownServer WHERE rootid=" & rootid)
+			boardcount = Rs(0)
+			ParentID = Request("servers")
+			NewAsp.Execute ("UPDATE NC_DownServer SET child=child+" & boardcount & " WHERE downid=" & ParentID)
+			For k = 1 To trs("depth")
+				SET Rs = NewAsp.Execute("SELECT parentid FROM NC_DownServer WHERE downid=" & ParentID)
+				If Not (Rs.EOF And Rs.BOF) Then
+					ParentID = Rs(0)
+					NewAsp.Execute ("UPDATE NC_DownServer SET child=child+" & boardcount & " WHERE downid=" & ParentID)
+				End If
+
+			Next
+			NewAsp.Execute ("UPDATE NC_DownServer SET orders=orders + " & boardcount & " + 1 WHERE rootid=" & trs("rootid") & " and orders>" & trs("orders") & "")
+			i = 0
+			SQL = "SELECT * FROM NC_DownServer WHERE rootid=" & rootid & " order by orders"
+			SET Rs = NewAsp.Execute(SQL)
+			Do While Not Rs.EOF
+				i = i + 1
+				If Rs("parentid") = 0 Then
+					If trs("strparent") = "0" Then
+						strParent = trs("downid")
+					Else
+						strParent = trs("strparent") & "," & trs("downid")
+					End If
+					NewAsp.Execute ("UPDATE NC_DownServer SET depth=depth+" & trs("depth") & "+1,orders=" & trs("orders") & "+" & i & ",rootid=" & trs("rootid") & ",strparent='" & strParent & "',parentid=" & Request("servers") & " WHERE downid=" & Rs("downid"))
+				Else
+					If trs("strparent") = "0" Then
+						strParent = trs("downid") & "," & Rs("strparent")
+					Else
+						strParent = trs("strparent") & "," & trs("downid") & "," & Rs("strparent")
+					End If
+					NewAsp.Execute ("UPDATE NC_DownServer SET depth=depth+" & trs("depth") & "+1,orders=" & trs("orders") & "+" & i & ",rootid=" & trs("rootid") & ",strparent='" & strParent & "' WHERE downid=" & Rs("downid"))
+				End If
+				Rs.MoveNext
+			Loop
+		End If
+	End If
+	SucMsg = "<li>服务器修改成功！</li>"
+	Succeed (SucMsg)
+	SET Rs = Nothing
+	SET mrs = Nothing
+	SET trs = Nothing
+End Sub
+'================================================
+'过程名：delDownServer
+'作  用：删除服务器
+'================================================
+Sub delDownServer()
+	Dim rsUsage
+	Dim Rs,SQL
+	'On Error Resume Next
+	SET Rs = NewAsp.Execute("SELECT strparent,child,depth,rootid FROM NC_DownServer WHERE downid=" & NewAsp.ChkNumeric(Request("editid")))
+	If Not (Rs.EOF And Rs.BOF) Then
+		If Rs(1) > 0 Then
+			ErrMsg = "该服务器含有下载路径，请删除其下载路径后再进行删除本服务器的操作"
+			FoundErr = True
+			Exit Sub
+		End If
+		If Rs("depth") = 0 Then
+			SET rsUsage = NewAsp.Execute("SELECT downid FROM NC_DownAddress WHERE downid=" & Rs("rootid"))
+			If Not (rsUsage.EOF And rsUsage.BOF) Then
+				ErrMsg = "该下载服务器正在使用中，不能删除!"
+				FoundErr = True
+				Exit Sub
+			End If
+			SET rsUsage = Nothing
+		End If
+		If Rs(2) > 0 Then
+			NewAsp.Execute ("UPDATE NC_DownServer SET child=child-1 WHERE downid in (" & Rs(0) & ")")
+		End If
+		SQL = "DELETE FROM NC_DownServer WHERE downid=" & NewAsp.ChkNumeric(Request("editid"))
+		NewAsp.Execute (SQL)
+	End If
+	SET Rs = Nothing
+	Succeed ("服务器删除成功！")
+End Sub
+'================================================
+'过程名：isLock
+'作  用：锁定服务器
+'================================================
+Sub isLock()
+	NewAsp.Execute ("UPDATE NC_DownServer SET isLock=1 WHERE downid in (" & Request("editid") & ")")
+	Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+'================================================
+'过程名：FreeLock
+'作  用：解除服务器锁定
+'================================================
+Sub FreeLock()
+	NewAsp.Execute ("UPDATE NC_DownServer SET isLock=0 WHERE downid in (" & Request("editid") & ")")
+	Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+'================================================
+'过程名：serverorders
+'作  用：服务器排序
+'================================================
+Sub serverorders()
+	Dim Rs,SQL,i
+	Dim trs,uporders,doorders
+	Dim iCount : iCount=1
+	Dim n : n=0
+	
+	Response.Write " <table id=""tablehovered"" border=""0"" cellspacing=""1"" cellpadding=""2"" class=""tableborder"" align=""center"">" & vbNewLine
+	Response.Write " <tr>" & vbNewLine
+	Response.Write " <th colspan=""2"">服务器路径重新排序修改(请在相应服务器的排序表单内输入相应的排列序号)" & vbNewLine
+	Response.Write " </th>" & vbNewLine
+	Response.Write " </tr>" & vbNewLine
+	SET Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_DownServer WHERE ChannelID=" & ChannelID & " ORDER BY RootID,orders"
+	Rs.Open SQL, Conn, 1, 1
+	If Rs.BOF And Rs.EOF Then
+		Response.Write "还没有相应的服务器。"
+	Else
+		Do While Not Rs.EOF
+			If (n mod 2) = 0 Then iCount=1 Else iCount=2
+			Response.Write "<form action=""admin_server.asp?action=updateorders"" method=""post""><tr><td width=""50%"" class=""tablerow"&iCount&" hovered"">"
+			If Rs("depth") = 1 Then Response.Write "&nbsp;&nbsp;<font color=""#666666"">├</font>"
+			If Rs("depth") > 1 Then
+				For i = 2 To Rs("depth")
+					Response.Write "&nbsp;&nbsp;<font color=""#666666"">│</font>"
+				Next
+				Response.Write "&nbsp;&nbsp;<font color=""#666666"">├</font> "
+			End If
+			If Rs("parentid") = 0 Then Response.Write ("<b>")
+			Response.Write Rs("DownloadName")
+			If Rs("child") > 0 Then Response.Write "(" & Rs("child") & ")"
+			Response.Write "</td><td width=""50%"" class=""tablerow"&iCount&" hovered"">"
+			If Rs("ParentID") > 0 Then
+				SET trs = NewAsp.Execute("SELECT COUNT(*) FROM NC_DownServer WHERE ParentID=" & Rs("ParentID") & " and orders<" & Rs("orders") & "")
+				uporders = trs(0)
+				If IsNull(uporders) Then uporders = 0
+				SET trs = NewAsp.Execute("SELECT COUNT(*) FROM NC_DownServer WHERE ParentID=" & Rs("ParentID") & " and orders>" & Rs("orders") & "")
+				doorders = trs(0)
+				If IsNull(doorders) Then doorders = 0
+				If uporders > 0 Then
+					Response.Write "<select name=uporders size=""1""><option value=""0"">↑</option>"
+					For i = 1 To uporders
+						Response.Write "<option value=" & i & ">↑" & i & "</option>"
+					Next
+					Response.Write "</select>"
+				End If
+				If doorders > 0 Then
+					If uporders > 0 Then Response.Write "&nbsp;"
+					Response.Write "<select name=doorders size=""1""><option value=""0"">↓</option>"
+					For i = 1 To doorders
+						Response.Write "<option value=" & i & ">↓" & i & "</option>"
+					Next
+					Response.Write "</select>"
+				End If
+				If doorders > 0 Or uporders > 0 Then
+					Response.Write vbNewLine & "<input type=""hidden"" name=""ChannelID"" value="""
+					Response.Write ChannelID
+					Response.Write """>" & vbNewLine
+					Response.Write "<input type=""hidden"" name=""editID"" value=""" & Rs("downid") & """>&nbsp;<input type=""submit"" name=""Submit"" class=""button"" value=""修 改"">"
+				End If
+			End If
+			Response.Write "&nbsp;</td></tr></form>"
+			uporders = 0
+			doorders = 0
+			n = n + 1
+			Rs.MoveNext
+		Loop
+	End If
+	Rs.Close
+	SET Rs = Nothing
+	Response.Write "</table>" & vbNewLine
+End Sub
+'================================================
+'过程名：updateorders
+'作  用：更新服务器排序
+'================================================
+Sub updateorders()
+	Dim Rs,SQL,i
+	Dim ParentID,orders,strParent
+	Dim Child,uporders,doorders
+	Dim oldorders,trs,ii
+	If Not IsNumeric(Request("editID")) Then
+		ReturnError ("非法的参数！")
+		Exit Sub
+	End If
+	If Request("uporders") <> "" And Not CInt(Request("uporders")) = 0 Then
+		If Not IsNumeric(Request("uporders")) Then
+			ReturnError ("非法的参数！")
+			Exit Sub
+		ElseIf CInt(Request("uporders")) = 0 Then
+			ReturnError ("请选择要提升的数字！")
+			Exit Sub
+		End If
+		SET Rs = NewAsp.Execute("SELECT ParentID,orders,strparent,child FROM NC_DownServer WHERE downid=" & Request("editID"))
+		ParentID = Rs(0)
+		orders = Rs(1)
+		strParent = Rs(2) & "," & Request("editID")
+		Child = Rs(3)
+		i = 0
+		If Child > 0 Then
+			SET Rs = NewAsp.Execute("SELECT COUNT(*) FROM NC_DownServer WHERE strparent like '%" & strParent & "%'")
+			oldorders = Rs(0)
+		Else
+			oldorders = 0
+		End If
+		SET Rs = NewAsp.Execute("SELECT downid,orders,child,strparent FROM NC_DownServer WHERE ParentID=" & ParentID & " and orders<" & orders & " order by orders desc")
+		Do While Not Rs.EOF
+			i = i + 1
+			If CInt(Request("uporders")) >= i Then
+				If Rs(2) > 0 Then
+					ii = 0
+					SET trs = NewAsp.Execute("SELECT downid,orders FROM NC_DownServer WHERE strparent like '%" & Rs(3) & "," & Rs(0) & "%' order by orders")
+					If Not (trs.EOF And trs.BOF) Then
+						Do While Not trs.EOF
+							ii = ii + 1
+							NewAsp.Execute ("UPDATE NC_DownServer SET orders=" & orders & "+" & oldorders & "+" & ii & " WHERE downid=" & trs(0))
+							trs.MoveNext
+						Loop
+					End If
+				End If
+				NewAsp.Execute ("UPDATE NC_DownServer SET orders=" & orders & "+" & oldorders & " WHERE downid=" & Rs(0))
+				If CInt(Request("uporders")) = i Then uporders = Rs(1)
+			End If
+			orders = Rs(1)
+			Rs.MoveNext
+		Loop
+		NewAsp.Execute ("UPDATE NC_DownServer SET orders=" & uporders & " WHERE downid=" & Request("editID"))
+		If Child > 0 Then
+			i = uporders
+			SET Rs = NewAsp.Execute("SELECT downid FROM NC_DownServer WHERE strparent like '%" & strParent & "%' order by orders")
+			Do While Not Rs.EOF
+				i = i + 1
+				NewAsp.Execute ("UPDATE NC_DownServer SET orders=" & i & " WHERE downid=" & Rs(0))
+				Rs.MoveNext
+			Loop
+		End If
+		SET Rs = Nothing
+		SET trs = Nothing
+	ElseIf Request("doorders") <> "" Then
+		If Not IsNumeric(Request("doorders")) Then
+			ReturnError ("非法的参数！")
+			Exit Sub
+		ElseIf CInt(Request("doorders")) = 0 Then
+			ReturnError ("请选择要下降的数字！")
+			Exit Sub
+		End If
+		SET Rs = NewAsp.Execute("SELECT ParentID,orders,strparent,child FROM NC_DownServer WHERE downid=" & Request("editID"))
+		ParentID = Rs(0)
+		orders = Rs(1)
+		strParent = Rs(2) & "," & Request("editID")
+		Child = Rs(3)
+		i = 0
+		If Child > 0 Then
+			SET Rs = NewAsp.Execute("SELECT COUNT(*) FROM NC_DownServer WHERE strparent like '%" & strParent & "%'")
+			oldorders = Rs(0)
+		Else
+			oldorders = 0
+		End If
+		SET Rs = NewAsp.Execute("SELECT downid,orders,child,strparent FROM NC_DownServer WHERE ParentID=" & ParentID & " and orders>" & orders & " order by orders")
+		Do While Not Rs.EOF
+			i = i + 1
+			If CInt(Request("doorders")) >= i Then
+				If Rs(2) > 0 Then
+					ii = 0
+					SET trs = NewAsp.Execute("SELECT downid,orders FROM NC_DownServer WHERE strparent like '%" & Rs(3) & "," & Rs(0) & "%' order by orders")
+					If Not (trs.EOF And trs.BOF) Then
+						Do While Not trs.EOF
+							ii = ii + 1
+							NewAsp.Execute ("UPDATE NC_DownServer SET orders=" & orders & "+" & ii & " WHERE downid=" & trs(0))
+							trs.MoveNext
+						Loop
+					End If
+				End If
+				NewAsp.Execute ("UPDATE NC_DownServer SET orders=" & orders & " WHERE downid=" & Rs(0))
+				If CInt(Request("doorders")) = i Then doorders = Rs(1)
+			End If
+			orders = Rs(1)
+			Rs.MoveNext
+		Loop
+		NewAsp.Execute ("UPDATE NC_DownServer SET orders=" & doorders & " WHERE downid=" & Request("editID"))
+		If Child > 0 Then
+			i = doorders
+			SET Rs = NewAsp.Execute("SELECT downid from NC_DownServer WHERE strparent like '%" & strParent & "%' ORDER BY orders")
+			Do While Not Rs.EOF
+				i = i + 1
+				NewAsp.Execute ("UPDATE NC_DownServer SET orders=" & i & " WHERE downid=" & Rs(0))
+				Rs.MoveNext
+			Loop
+		End If
+		SET Rs = Nothing
+		SET trs = Nothing
+	End If
+	Response.Redirect "admin_server.asp?action=serverorders&ChannelID=" & Request("ChannelID")
+End Sub
+%>

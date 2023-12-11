@@ -1,0 +1,406 @@
+<!--#include file="../conn.asp"-->
+<!--#include file="setup.asp"-->
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/check.asp"-->
+<!--#include file="../inc/cls_upload.asp"-->
+<%
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：Newasp Site Management System Version 3.0
+' 文件名称：upload.asp
+' 更新日期：2007-4-2
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2004-2007 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+Server.ScriptTimeOut = 18000
+Dim UploadObject,AllowFileSize,AllowFileExt
+Dim sUploadDir,SaveFileName,PathFileName,url
+Dim sAction,sType,SaveFilePath,UploadPath,m_strInstance,m_intMaxsize
+Dim m_strFiletype,m_strType,m_strFileExt,m_strRootPath,m_intshow,m_intRename
+Dim ChannelSetting,m_intThumbnail,m_intAutoRename,m_strUploadFileDir,m_strUploadPicDir
+
+UploadObject		= CInt(NewAsp.UploadSetting(0))   '上传文件对象 --- 0=无组件上传,1=Aspupload3.0组件,2=SA-FileUp 4.0组件
+AllowFileSize		= CLng(NewAsp.UploadSetting(1))
+AllowFileExt		= NewAsp.UploadSetting(2)
+AllowFileExt		= Replace(Replace(Replace(Replace(UCase(AllowFileExt), "ASP", ""), "ASPX", ""), "PHP", ""), "|", ",")
+url					= Split(Request.ServerVariables("SERVER_PROTOCOL"), "/")(0) & "://" & Request.ServerVariables("HTTP_HOST")
+sType				= UCase(Trim(Request.QueryString("sType")))
+m_strType			= UCase(Trim(Request.QueryString("m")))
+m_strInstance		= Trim(Request.QueryString("inst"))
+m_intshow			= NewAsp.ChkNumeric(Request.QueryString("s"))
+
+'--默认是否选择自动更名
+m_intRename			= 0
+
+If m_strInstance = "" Then m_strInstance = "content"
+m_strRootPath		= NewAsp.InstallDir
+
+If Len(NewAsp.Channel_Setting &"") < 30 Then NewAsp.Channel_Setting = "0|||1|||2|||3|||4|||0|||1|||UploadPic/|||UploadFile/|||"
+ChannelSetting = Split(NewAsp.Channel_Setting & "|||||||||||||||", "|||")
+m_intThumbnail = NewAsp.ChkNumeric(ChannelSetting(5))
+m_intAutoRename = NewAsp.ChkNumeric(ChannelSetting(6))
+m_strUploadPicDir = Replace(Trim(ChannelSetting(7)), "\", "/")
+m_strUploadFileDir = Replace(Trim(ChannelSetting(8)), "\", "/")
+If Len(m_strUploadPicDir) < 2 Then m_strUploadPicDir = "UploadPic/"
+If Right(m_strUploadPicDir,1) <> "/" Then m_strUploadPicDir = m_strUploadPicDir & "/"
+If Len(m_strUploadFileDir) < 2 Then m_strUploadFileDir = "UploadFile/"
+If Right(m_strUploadFileDir,1) <> "/" Then m_strUploadFileDir = m_strUploadFileDir & "/"
+
+
+Select Case ChannelID
+	Case 0
+		If stype = "AD" Then
+			UploadPath = "adfile/UploadPic/"
+			sUploadDir = NewAsp.InstallDir & UploadPath
+		ElseIf stype = "LINK" Then
+			UploadPath = "link/UploadPic/"
+			sUploadDir = NewAsp.InstallDir & UploadPath
+		Else
+			UploadPath = NewAsp.UploadSetting(3)
+			sUploadDir = NewAsp.InstallDir & UploadPath
+		End If
+		m_strRootPath = NewAsp.InstallDir
+	Case Else
+		If sType = "FILE" Then
+			UploadPath = m_strUploadFileDir
+		Else
+			UploadPath = m_strUploadPicDir
+		End If
+		sUploadDir = NewAsp.InstallDir & NewAsp.ChannelDir & UploadPath
+		m_strRootPath = NewAsp.InstallDir & NewAsp.ChannelDir
+End Select
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>文件上传</title>
+<style type="text/css">
+td,div,input,select,textarea,body {font-family:Verdana, 宋体, fantasy;font-size:12px;color:#2F969B;}
+body {margin:0 3px;padding:0;background-color:transparent;}
+form {margin:0;padding:0;}
+</style>
+<script type="text/javascript">
+// 文件上传成功接口操作
+function doInterfaceUpload(strValue){
+	if (strValue=="") return;
+	var objLinkUpload = parent.document.getElementsByName("UploadFileList")[0];
+	if (objLinkUpload){
+		if (objLinkUpload.value!=""){
+			objLinkUpload.value = objLinkUpload.value + "|";
+		}
+		objLinkUpload.value = objLinkUpload.value + strValue;
+		objLinkUpload.fireEvent("onchange");
+	}
+}
+</script>
+</head>
+<body leftMargin="0" topMargin="0" marginwidth="0" marginheight="0">
+<table style="width: 100%; height: 100%" cellspacing="0" cellpadding="0" align="center" border="0">
+    <tr valign="top">
+        <td class="TableRow1">
+<%
+sAction = UCase(Trim(Request.QueryString("action")))
+If sAction = "SAVE" Then
+	If Not ChkAdmin("UploadFile") Then
+		Response.Write ("<script>alert('对不起!您没有上传文件的权限');history.go(-1)</script>")
+		Response.End
+	End If
+	Select Case UploadObject
+		Case 0,1,2,3
+			Call UploadFile
+		Case 999
+			Response.Write ("<script>alert('本系统未开放上传功能!');history.go(-1)</script>")
+			Response.End
+		Case Else
+			Response.Write ("<script>alert('本系统未开放上传功能!');history.go(-1)</script>")
+			Response.End
+	End Select
+	SaveFilePath = UploadPath & SaveFilePath
+	If m_strType = "NEWS" Then
+		Call addUploadItem(m_strFileExt,m_strRootPath & SaveFilePath,SaveFilePath)
+		Response.Write "<script type=""text/javascript"">" & vbCrLf
+		Response.Write "doInterfaceUpload('" & SaveFilePath & "');" & vbCrLf
+		Response.Write "</script>" & vbCrLf
+	ElseIf m_strType = "INDEX" Then
+		Call addUploadItem(m_strFileExt,m_strRootPath & SaveFilePath,SaveFilePath)
+	Else
+		If sType = "IMAGE" And m_intshow = 1 Then
+			Call addUploadItem(m_strFileExt,m_strRootPath & SaveFilePath,SaveFilePath)
+		Else
+			If sType = "FILE" Then
+				Call OutFilesize(m_intMaxsize)
+			Else
+				Call OutScript(SaveFilePath)
+			End If
+		End If
+	End If
+%>
+<input type="text" name="file1" size="70" value="<%=m_strRootPath & SaveFilePath%>"> <input type="button" name="Submit4" onclick="javascript:history.go(-1)" value="继续上传文件" class="Button"><br>
+<font color="blue">恭喜你！文件上传成功。<a href="<%=Request.ServerVariables("HTTP_REFERER")%>">点击此处继续上传</a></font>
+<%
+Else
+	Call UploadMain
+End If
+%>
+        </td>
+    </tr>
+</table>
+</body>
+</html>
+<%
+Sub UploadFile()
+	Dim Upload,FilePath,sFilePath,FormName,File,F_FileName
+	Dim DrawInfo,Previewpath,strPreviewPath
+	Dim PreviewName,F_Viewname,MakePreview
+	sFilePath = CreatePath(sUploadDir) '按日期生成目录
+	FilePath = sUploadDir & sFilePath
+	'-- 是否生成缩略图片
+	MakePreview = True
+	Previewpath = NewAsp.InstallDir & NewAsp.ChannelDir
+	'--生成缩略图片路径
+	strPreviewPath = m_strUploadPicDir & sFilePath
+	PreviewPath = Previewpath & strPreviewpath
+
+	If CInt(NewAsp.UploadSetting(6)) = 1 Then
+		DrawInfo = NewAsp.UploadSetting(9)
+	ElseIf CInt(NewAsp.UploadSetting(6)) = 2 Then
+		DrawInfo = NewAsp.InstallDir & NewAsp.UploadSetting(14)
+		If Not NewAsp.FilePathExists(DrawInfo,1) Then
+			NewAsp.UploadSetting(6) = 1
+			DrawInfo = NewAsp.UploadSetting(9)
+		End If
+	Else
+		DrawInfo = ""
+	End If
+	If DrawInfo = "0" Then
+		DrawInfo = ""
+		NewAsp.UploadSetting(6) = 0
+	End If
+
+	Set Upload					= New UpFile_Cls
+	Upload.UploadType			= UploadObject							'设置上传组件类型
+	Upload.UploadPath			= FilePath								'设置上传路径
+	Upload.MaxSize				= AllowFileSize							'单位 KB
+	Upload.InceptMaxFile		= 10									'每次上传文件个数上限
+	Upload.InceptFileType		= AllowFileExt							'设置上传文件限制
+	'Upload.ChkSessionName		= "uploadfile"
+	'预览图片设置
+	Upload.MakePreview			= MakePreview
+	If sType = "IMAGE" Then
+		Upload.PreviewType			= CInt(NewAsp.UploadSetting(4))			'设置预览图片组件类型
+	Else
+		Upload.PreviewType			= 999									'设置预览图片组件类型
+	End If
+	Upload.PreviewImageWidth	= CInt(NewAsp.UploadSetting(7))				'设置预览图片宽度
+	Upload.PreviewImageHeight	= CInt(NewAsp.UploadSetting(8))				'设置预览图片高度
+	Upload.DrawImageWidth		= CInt(NewAsp.UploadSetting(17))			'设置水印图片或文字区域宽度
+	Upload.DrawImageHeight		= CInt(NewAsp.UploadSetting(18))			'设置水印图片或文字区域高度
+	Upload.DrawGraph			= CCur(NewAsp.UploadSetting(15))			'设置水印透明度
+	Upload.DrawFontColor		= NewAsp.UploadSetting(11)					'设置水印文字颜色
+	Upload.DrawFontFamily		= NewAsp.UploadSetting(12)					'设置水印文字字体格式
+	Upload.DrawFontSize			= CInt(NewAsp.UploadSetting(10))			'设置水印文字字体大小
+	Upload.DrawFontBold			= CInt(NewAsp.UploadSetting(13))			'设置水印文字是否粗体
+	Upload.DrawInfo				= DrawInfo									'设置水印文字信息或图片信息
+	Upload.DrawType				= CInt(NewAsp.UploadSetting(6))				'0=不加载水印 ，1=加载水印文字，2=加载水印图片
+	Upload.DrawXYType			= CInt(NewAsp.UploadSetting(19))			'"0" =左上，"1"=左下,"2"=居中,"3"=右上,"4"=右下
+	Upload.DrawSizeType			= CInt(NewAsp.UploadSetting(5))				'"0"=固定缩小，"1"=等比例缩小
+	If NewAsp.UploadSetting(16)<>"" Or NewAsp.UploadSetting(16)<>"0" Then
+		Upload.TransitionColor	= NewAsp.UploadSetting(16)				'透明度颜色设置
+	End If
+	'执行上传
+	Upload.SaveUpFile
+	If Upload.ErrCodes<>0 Then
+		Response.write ("<script>alert('错误："& Upload.Description & "');history.go(-1)</script>")
+		Exit Sub
+	End If
+	If Upload.Count>0 Then
+		For Each FormName In Upload.UploadFiles
+			Set File			= Upload.UploadFiles(FormName)
+			SaveFilePath		= sFilePath & File.FileName
+			F_FileName			= FilePath & File.FileName
+			m_strFileExt		= File.FileExt
+			'创建预览及水印图片
+			If Upload.PreviewType<>999 and File.FileType=1 then
+				PreviewName = "p" & Replace(File.FileName,File.FileExt,"") & "jpg"
+				F_Viewname = Previewpath & PreviewName
+				'创建预览图片:Call CreateView(原始文件的路径,预览文件名及路径,原文件后缀)
+				Upload.CreateView F_FileName,F_Viewname,File.FileExt
+				If CBool(MakePreview) And Upload.MakePreview Then
+					Call OutPreview(strPreviewPath & PreviewName)
+				End If
+			End If
+			Set File = Nothing
+		Next
+		m_intMaxsize = Upload.MaxSize
+	Else
+		Call OutAlertScript("请选择一个有效的上传文件。")
+		Exit Sub
+	End If
+	Set Upload = Nothing
+End Sub
+
+Sub UploadMain()
+%>        <table cellspacing="0" cellpadding="0" border="0">
+            <form action="?action=save&amp;ChannelID=<%=ChannelID%>&amp;sType=<%=sType%>&amp;m=<%=m_strType%>&amp;inst=<%=m_strInstance%>&amp;s=<%=m_intshow%>" method="post" enctype="multipart/form-data" name="myform">
+                <tr valign="top">
+                    <td valign="top" nowrap="nowrap" align="left"><input type="file" size="50" name="file1" /> <input type="submit" name="Submit" value="开始上传" />
+					<%
+					If m_intshow = 1 Then
+						If sType = "FILE" Then
+					%>
+					<input title="如果你要上传图片请点这里" type='button' name='upic' value='上传图片' onclick="{if(confirm('确定要切换到上传图片模式吗?')){location.href='?ChannelID=<%=ChannelID%>&amp;sType=image&amp;m=<%=m_strType%>&amp;inst=<%=m_strInstance%>&amp;s=<%=m_intshow%>';}return false;}">
+					<%
+					Else
+					%>
+					<input title="如果你要上传文件请点这里" type='button' name='ufile' value='上传文件' onclick="{if(confirm('确定要切换到上传文件模式吗?')){location.href='?ChannelID=<%=ChannelID%>&amp;sType=file&amp;m=<%=m_strType%>&amp;inst=<%=m_strInstance%>&amp;s=<%=m_intshow%>';}return false;}">
+					<%
+					End If
+					End If
+					%>
+					</td>
+                </tr>
+                <tr valign="top">
+                    <td class="TableRow1" valign="top" colspan="4">
+					<%
+					If m_strType = "FLASH" Or m_strType = "INDEX" Or sType = "FILE" Then
+						Response.Write "<input type=""hidden"" name=""NoThumbnail"" value=""1"" />" & vbNewLine
+					Else
+					%>
+					<input type="checkbox" name="NoThumbnail" value="1"<%If m_intThumbnail=0 Then Response.Write " checked=""checked"""%> /> 不生成缩略图
+					<%
+					End If
+					%>
+					<input type="checkbox" name="Rename" value="1"<%If m_intAutoRename=0 Then Response.Write " checked=""checked"""%> /> 不自动更名
+					允许上传的文件类型：<%=AllowFileExt%> 　大小：<font color="#ff0000"><strong><%=CStr(AllowFileSize)%></strong></font>&nbsp;KB</td>
+                </tr>
+            </form>
+        </table><%
+End Sub
+
+Sub OutScript(url)
+	Response.Write "<script type=""text/javascript"">" & vbCrLf
+	Response.Write "try{" & vbCrLf
+	Response.Write "parent.document.forms[0].Previewimg.value='" & url & "';" & vbCrLf
+	Response.Write "}" & vbCrLf
+	Response.Write "catch(e){}" & vbCrLf
+	Response.Write "</script>" & vbCrLf
+End Sub
+
+Sub OutPreview(url)
+	Response.Write "<script type=""text/javascript"">" & vbCrLf
+	Response.Write "try{" & vbCrLf
+	Response.Write "parent.document.forms[0].ImageUrl.value='" & url & "';" & vbCrLf
+	Response.Write "}" & vbCrLf
+	Response.Write "catch(e){" & vbCrLf
+	Response.Write "try{" & vbCrLf
+	Response.Write "parent.document.forms[0].Previewimg.value='" & url & "';" & vbCrLf
+	Response.Write "}" & vbCrLf
+	Response.Write "catch(e){}" & vbCrLf
+	Response.Write "}" & vbCrLf
+	Response.Write "</script>" & vbCrLf
+End Sub
+
+Sub OutFilesize(filesize)
+	Response.Write "<script language=javascript>" & vbCrLf
+	Response.Write "try{" & vbCrLf
+	Response.Write "parent.document.forms[0].filesize.value='" & Round(filesize/1024,2) & "';" & vbCrLf
+	Response.Write "}" & vbCrLf
+	Response.Write "catch(e){}" & vbCrLf
+	Response.Write "</script>" & vbCrLf
+End Sub
+
+Sub addUploadItem(sType,strPath,url)
+	Response.Write "<script type=""text/javascript"">" & vbCrLf
+	Call OutUploadScript(sType,strPath)
+	Response.Write "</script>" & vbCrLf
+End Sub
+
+Sub OutUploadScript(sType,strPath)
+	sType = LCase(sType)
+	Response.Write "var EditType="""";" & vbCrLf
+	Response.Write "try{" & vbCrLf
+	Response.Write "  var oEditor = parent.FCKeditorAPI.GetInstance('" & m_strInstance & "')" & vbCrLf
+	Response.Write "  EditType=""FCkEditor"";" & vbCrLf
+	Response.Write "}" & vbCrLf
+	Response.Write "catch(e){" & vbCrLf
+	Response.Write "  EditType=""UBBEditor"";" & vbCrLf
+	Response.Write "}" & vbCrLf
+	Response.Write "if (EditType==""UBBEditor""){parent.document.forms[0]." & m_strInstance & ".value+="
+	Select Case sType
+		Case "gif","jpg","png","bmp","jpeg","tif","iff"
+			Response.Write "'[img]" & strPath & "[/img]\n'}" & vbCrLf
+			Response.Write "else{oEditor.InsertHtml('<img src=""" & strPath & """ alt="""" />')}" & vbCrLf
+		Case "swf"
+			Response.Write "'[flash]" & strPath & "[/flash]\n'}" & vbCrLf
+			Response.Write "else{oEditor.InsertHtml('<object codebase=""http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=7,0,0,0"" classid=""clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"" width=""400"" height=""300""><param name=""movie"" value=""" & strPath & """ /><param name=""quality"" value=""high"" /><param name=""AllowScriptAccess"" value=""never"" /><embed src=""" & strPath & """ quality=""high"" pluginspage=""http://www.macromedia.com/go/getflashplayer"" type=""application/x-shockwave-flash"" width=""400"" height=""300"" /></object>')}" & vbCrLf
+		Case "mp3","wma"
+			Response.Write "'[wma]" & strPath & "[/wma]\n'}" & vbCrLf
+			Response.Write "else{oEditor.InsertHtml('<object classid=""CLSID:22d6f312-b0f6-11d0-94ab-0080c74c7e95""  id=""MediaPlayer"" width=""450"" height=""70""><param name=""howStatusBar"" value=""-1""><param name=""AutoStart"" value=""False""><param name=""Filename"" value=""" & strPath & """></object>')}" & vbCrLf
+		Case "rm","rmvb"
+			Response.Write "'[rm]" & strPath & "[/rm]\n'}" & vbCrLf
+			Response.Write "else{oEditor.InsertHtml('<object classid=""clsid:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA"" width=""400"" height=""300""><param name=""SRC"" value=""" & strPath & """ /><param name=""CONTROLS"" VALUE=""ImageWindow"" />"
+			Response.Write "<param name=""CONSOLE"" value=""one"" /><param name=""AUTOSTART"" value=""true"" /><embed src=""" & strPath & """ nojava=""true"" controls=""ImageWindow"" console=""one"" width=""400"" height=""300""></object><br/>"
+			Response.Write "<object classid=""clsid:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA"" width=""400"" height=""32"" /><param name=""CONTROLS"" value=""StatusBar"" /><param name=""AUTOSTART"" value=""true"" /><param name=""CONSOLE"" value=""one"" />"
+			Response.Write "<embed src=""" & strPath & """ nojava=""true"" controls=""StatusBar"" console=""one"" width=""400"" height=""24"" /></object><br/><object classid=""clsid:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA"" width=""400"" height=""32"" />"
+			Response.Write "<param name=""CONTROLS"" value=""ControlPanel"" /><param name=""AUTOSTART"" value=""true"" /><param name=""CONSOLE"" value=""one"" /><embed src=""" & strPath & """ nojava=""true"" controls=""ControlPanel"" console=""one"" width=""400"" height=""24"" autostart=""true"" loop=""false"" /></object>')}" & vbCrLf
+		Case "ra"
+			Response.Write "'[ra]" & strPath & "[/ra]\n'}" & vbCrLf
+			Response.Write "else{oEditor.InsertHtml('<object classid=""clsid:CFCDAA03-8BE4-11CF-B84B-0020AFBBCCFA"" id=""RAOCX"" width=""450"" height=""60""><param name=""_ExtentX"" value=""6694""><param name=""_ExtentY"" value=""1588""><param name=""AUTOSTART"" value=""true""><param name=""SHUFFLE"" value=""0""><param name=""PREFETCH"" value=""0"">"
+			Response.Write "<param name=""NOLABELS"" value=""0""><param name=""SRC"" value=""" & strPath & """><param name=""CONTROLS"" value=""StatusBar,ControlPanel""><param name=""LOOP"" value=""0""><param name=""NUMLOOP"" value=""0""><param name=""CENTER"" value=""0""><param name=""MAINTAINASPECT"" value=""0""><param name=""BACKGROUNDCOLOR"" value=""#000000""><embed src=""" & strPath & """ width=""450"" autostart=""true"" height=""60""></embed></object>')}" & vbCrLf
+		Case "asf","avi","wmv"
+			Response.Write "'[wmv]" & strPath & "[/wmv]\n'}" & vbCrLf
+			Response.Write "else{oEditor.InsertHtml('<object classid=""clsid:22D6F312-B0F6-11D0-94AB-0080C74C7E95"" codebase=""http://activex.microsoft.com/activex/controls/mplayer/en/nsmp2inf.cab#Version=6,0,02,902"" type=""application/x-oleobject"" standby=""Loading..."" width=""400"" height=""300"">"
+			Response.Write "<param name=""FileName"" VALUE=""" & strPath & """ /><param name=""ShowStatusBar"" value=""-1"" /><param name=""AutoStart"" value=""true"" /><embed type=""application/x-mplayer2"" pluginspage=""http://www.microsoft.com/Windows/MediaPlayer/"" src=""" & strPath & """ autostart=""true"" width=""400"" height=""300"" /></object>')}" & vbCrLf
+		Case Else
+			Response.Write "'[down=" & strPath & "]点击下载此文件[/down]\n'}" & vbCrLf
+			Response.Write "else{oEditor.InsertHtml('<a href=""" & strPath & """><img src=""" & NewAsp.InstallDir & "images/pic/download.gif"" border=""0"" style=""margin:0px 2px -4px 0px""/>点击下载此文件</a>')}" & vbCrLf
+	End Select
+End Sub
+
+'================================================
+' 函数名：CreatePath
+' 作  用：按月份自动创建文件夹
+' 参  数：fromPath ----原文件夹路径
+'================================================
+Function CreatePath(fromPath)
+	Dim uploadpath
+	uploadpath = Year(Now) & "-" & Month(Now) '以年月创建上传文件夹，格式：2007－8
+	uploadpath = Replace(uploadpath, ".", "_")
+	On Error Resume Next
+	If CreateFolderEx(Server.MapPath(fromPath & uploadpath)) Then
+		CreatePath = uploadpath & "/"
+	Else
+		CreatePath = ""
+	End If
+End Function
+
+Function CreateFolderEx(sPath)
+    On Error Resume Next
+	Dim strPath,fso
+    sPath = Replace(sPath, "\\", "\")
+	Err=False
+	Set fso = NewAsp.CreateAXObject(NewAsp.MainSetting(47))
+    If Trim(sPath) = "" Then Exit Function
+    If fso.FolderExists(sPath) Then
+        CreateFolderEx=True
+        Exit Function
+    End If
+
+    strPath = sPath
+    If Right(strPath, 1) = "\" Then strPath = Left(strPath, Len(strPath) - 1)
+    strPath = Left(strPath, InStrRev(strPath, "\") - 1)
+    If fso.FolderExists(strPath) = False Then
+        CreateFolderEx (strPath)
+    End If
+    If fso.FolderExists(sPath) = False Then fso.CreateFolder sPath
+
+    If Err Then
+          CreateFolderEx=False
+     Else
+          CreateFolderEx=True
+     End If
+	 Set fso = Nothing
+End Function
+%>

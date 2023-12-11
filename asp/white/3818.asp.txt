@@ -1,0 +1,801 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../inc/setup.asp"-->
+<!--#include file="../inc/const.asp"-->
+<!--#include file="../inc/check.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_admanage.asp
+' 更新日期：2008-11-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="100" align="left">系统广告管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_admanage.asp">管理首页</a>
+			 - <a href="?action=add">添加广告</a>
+			 - <a href="?action=board">添加广告位</a>
+			 - <a href="?action=create&stype=all&boardid=0" style="color:red;">生成所有广告JS文件</a>
+			 - <a href="admin_upload.asp?action=img&stype=ad" style="color:blue;">上传文件管理</a>
+			 - <a href="admin_data.asp">服务器信息</a>
+		</td>
+	</tr>
+</table>
+<%
+Dim maxperpage,totalrec,Pcount,pagelinks,pagenow,count
+Dim Action,listArry,SQLQuery,isEdit
+
+Action = LCase(Request("action"))
+If Not ChkAdmin("admanage") Then
+	Call Transfer_error()
+End If
+Select Case Trim(Action)
+Case "save"
+	Call saveAdvertise()
+Case "modify"
+	Call modifyAdvertise()
+Case "add"
+	isEdit = False
+	Call EditAdvertise(isEdit)
+Case "edit"
+	isEdit = True
+	Call EditAdvertise(isEdit)
+Case "del"
+	Call DelAdvertise()
+Case "board"
+	Call boardlist()
+Case "saveboard"
+	Call saveboard()
+Case "delboard"
+	Call delboard()
+Case "create"
+	Call CreateBoardJs()
+Case "lock"
+	Call isLock()
+Case Else
+	Call showmain()
+End Select
+If FoundErr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+	Dim i,iCount,lCount
+	Dim intWidth,intHeight
+	iCount=1:lCount=2
+	maxperpage = 20 '###每页显示数
+	count=NewAsp.ChkNumeric(Request("count"))
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+%>
+<table class="tableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+<tr>
+	<th nowrap="nowrap" width="20%">广告标题</th>
+	<th width="50%">广告图片代码</th>
+	<th nowrap="nowrap" width="10%">广告性质</th>
+	<th nowrap="nowrap" width="10%">操作选项</th>
+	<th nowrap="nowrap" width="10%">状 态</th>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="5" align="left" id="showNextPage">&nbsp;</td>
+</tr>
+<%
+	Call showAdlist()
+	If IsArray(listArry) Then
+		For i=0 To Ubound(listArry,2)
+			If Not Response.IsClientConnected Then Response.End
+			If (i mod 2) = 0 Then iCount=2:lCount=1 Else iCount=1:lCount=2
+			If CLng(listArry(8,i)) > 468 Then intWidth = 486 Else intWidth = CLng(listArry(8,i))
+			If CLng(listArry(7,i)) > 60 Then intHeight = 60 Else intHeight = CLng(listArry(7,i))
+%>
+<tr align="center">
+	<td class="tablerow<%=iCount%> hovered" nowrap="nowrap" align="left"><a href="?action=edit&id=<%=listArry(0,i)%>"><%=listArry(2,i)%></a></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap="nowrap">
+	<%
+			If CLng(listArry(10,i)) = 5 Then
+				Response.Write Left(Server.HTMLEncode(listArry(6,i)),200)
+			Else
+				If CLng(listArry(11,i)) = 1 Then
+					Response.Write "<embed src=" & NewAsp.CheckLinksUrl(listArry(4,i)) & " quality='high' pluginspage='http://www.macromedia.com/go/getflashplayer' type='application/x-shockwave-flash' width='" & intwidth & "' height='" & intHeight & "'></embed>"
+				Else
+					Response.Write "<a href=""" & listArry(3,i) & """ target=""_blank""><img src='" & NewAsp.CheckLinksUrl(listArry(4,i)) & "' width='" & intwidth & "' height='" & intHeight & "' border='0' alt='" & listArry(5,i) & "'></a>"
+				End If
+			End If
+	%>
+	</td>
+	<td class="tablerow<%=iCount%> hovered" nowrap="nowrap"><a href="?action=create&boardid=<%=listArry(1,i)%>" title="点击生成广告JS文件"><%=ReadBoardName(listArry(1,i))%></a><br/>
+	<%
+			Select Case CLng(listArry(10,i))
+			Case 1
+				Response.Write "漂浮广告"
+			Case 2
+				Response.Write "左边固定广告"
+			Case 3
+				Response.Write "右边固定广告"
+			Case 4
+				Response.Write "弹出广告"
+			Case 5
+				Response.Write "代码广告"
+			Case Else
+				Response.Write "普通广告"		
+			End Select
+	%>
+	</td>
+	<td class="tablerow<%=iCount%> hovered" nowrap="nowrap"><a href="?action=edit&id=<%=listArry(0,i)%>">编辑</a> |
+	<a href="?action=del&id=<%=listArry(0,i)%>" onclick="return confirm('广告删除后将不能恢复，您确定要删除该广告吗?')">删除</a></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap="nowrap"><%
+			If CLng(listArry(12,i)) > 0 Then
+				Response.Write "<a href='?action=lock&isLock=0&id="& listArry(0,i) &"' title='点击此处解除锁定' onclick=""{if(confirm('您确定要解除锁定吗?')){return true;}return false;}""><font color=""red"">"
+				Response.Write "锁定"
+				Response.Write "</font></a>"
+			Else
+				Response.Write "<a href='?action=lock&isLock=1&id="& listArry(0,i) &"' title='点击此处锁定广告' onclick=""{if(confirm('您确定要锁定该广告吗?')){return true;}return false;}"">正常</a>"
+			End If
+	%></td>
+</tr>
+<%
+		Next
+		listArry=Null
+	End If
+%>
+<tr>
+	<td class="tablerow<%=lCount%>" colspan="5" id="NextPageText"><var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+</table>
+<script type="text/javascript">
+document.getElementById("showNextPage").innerHTML = document.getElementById("NextPageText").innerHTML;
+</script>
+<%
+End Sub
+
+Sub showAdlist()
+	Dim Rs,SQL
+	If count=0 Then
+		totalrec=NewAsp.Execute("SELECT COUNT(*) FROM [NC_Adlist]")(0)
+	Else
+		totalrec=count
+	End If
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	pagelinks="?count="&totalrec&"&"
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT id,boardid,title,url,picurl,Readme,AdCode,height,width,startime,flag,isFlash,IsLock FROM [NC_Adlist] ORDER BY id DESC"
+	Rs.Open SQL,Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		listArry=Rs.GetRows(maxperpage)
+	Else
+		listArry=Null
+	End If
+	Rs.close()
+	Set Rs=Nothing
+End Sub
+
+Function ReadBoardName(ByVal boardid)
+	Dim rsBoard
+	Set rsBoard = NewAsp.Execute("SELECT BoardName FROM NC_AdBoard WHERE boardid="& boardid)
+	If rsBoard.BOF And rsBoard.EOF Then
+		Set rsBoard = Nothing
+		ReadBoardName = ""
+		Exit Function
+	End If
+	ReadBoardName = rsBoard("BoardName")
+	Set rsBoard = Nothing
+End Function
+
+Sub CreateBoardJs()
+	Dim rsBoard,sqlBoard,adNewasp
+	If LCase(Request("stype")) = "all" Then
+		sqlBoard = " ORDER BY boardid DESC"
+	Else
+		sqlBoard = " WHERE boardid=" & NewAsp.ChkNumeric(Request("boardid")) & " ORDER BY boardid DESC"
+	End If
+	If Not IsNumeric(Request.Form("boardid")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>广告位ID请输入整数！</li>"
+		Exit Sub
+	End If
+	Set rsBoard = NewAsp.Execute("SELECT boardid FROM NC_AdBoard " & sqlBoard & "")
+	If rsBoard.BOF And rsBoard.EOF Then
+		Set rsBoard = Nothing
+		Exit Sub
+	End If
+	Set adNewasp = new Admanage_Cls
+	Do While Not rsBoard.EOF
+		adNewAsp.adboardid = rsBoard("boardid")
+		adNewAsp.CreateJsFile
+		rsBoard.movenext
+	Loop
+	Set adNewasp = Nothing
+	rsBoard.Close:Set rsBoard = Nothing
+	Succeed("<li>恭喜您！生成广告JS文件完成。</li>")
+End Sub
+
+Sub boardlist()
+%>
+<table class="tableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+<tr>
+	<th>广告位名称</th>
+	<th>JS文件名</th>
+	<th>最多广告数</th>
+	<th>广告位价格</th>
+	<th>管理操作</th>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="6" align="left" id="showNextPage">&nbsp;</td>
+</tr>
+<%
+	Dim newboardid
+	Dim Rs,i,iCount,lCount
+	iCount=1:lCount=2
+	maxperpage = 20 '###每页显示数
+	count=NewAsp.ChkNumeric(Request("count"))
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+	Call showBoardlist()
+	If IsArray(listArry) Then
+		For i=0 To Ubound(listArry,2)
+			If Not Response.IsClientConnected Then Response.End
+			If (i mod 2) = 0 Then iCount=2:lCount=1 Else iCount=1:lCount=2
+%>
+<form action="admin_admanage.asp" method="post" name="form<%=listArry(0,i)%>">
+<input type="hidden" name="action" value="saveboard">
+<input type="hidden" name="boardid" value="<%=listArry(0,i)%>">
+<tr align="center">
+	<td class="tablerow<%=iCount%>"><input size="30" name="BoardName" value="<%=Server.HTMLEncode(listArry(1,i))%>" type="text" /></td>
+	<td class="tablerow<%=iCount%>"><input size="15" name="FileName" value="<%=Server.HTMLEncode(listArry(3,i))%>" type="text" /></td>
+	<td class="tablerow<%=iCount%>"><input size="8" name="Maxads" value="<%=listArry(4,i)%>" type="text" /> 条</td>
+	<td class="tablerow<%=iCount%>"><input size="8" name="AdRate" value="<%=listArry(2,i)%>" type="text" /> 元/月</td>
+	<td class="tablerow<%=iCount%>"><input class="button" type="submit" name="act" value="修改" />
+		<input class="button" type="submit" onclick="document.form<%=listArry(0,i)%>.action.value='create';" name="act" value="生成广告JS" />
+		<input class="button"<%If CLng(listArry(0,i))<4 Then Response.Write " disabled"%> type="submit" onclick="document.form<%=listArry(0,i)%>.action.value='delboard';return confirm('本次操作将删除此广告位下所有的广告信息。\n\n确定要删除当前广告位吗？')" name="submit2" value="删除" />
+	</td>
+</tr>
+</form>
+<%
+		Next
+		listArry=Null
+	End If
+	Set Rs = NewAsp.Execute("SELECT MAX(boardid) FROM NC_Adboard")
+	If Rs.BOF And Rs.EOF Then
+		newboardid = 1
+	Else
+		newboardid = Rs(0) + 1
+	End If
+	If IsNull(newboardid) Then newboardid = 1
+	Rs.close:Set Rs = nothing
+%>
+<tr>
+	<td class="tablerow<%=lCount%>" colspan="6" id="NextPageText"><var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+<form action="admin_admanage.asp" method="post" name="addform">
+<input type="hidden" name="action" value="saveboard" />
+<input type="hidden" name="boardid" value="<%=newboardid%>" />
+<tr align="center">
+	<td class="tablerow<%=iCount%>"><input size="30" name="BoardName" type="text" /></td>
+	<td class="tablerow<%=iCount%>"><input size="15" name="FileName" type="text" /></td>
+	<td class="tablerow<%=iCount%>"><input size="8" name="Maxads" type="text" /> 条</td>
+	<td class="tablerow<%=iCount%>"><input size="8" name="AdRate" type="text" /> 元/月</td>
+	<td class="tablerow<%=iCount%>"><input class="button" type="submit" name="act" value="添加广告位" /></td>
+</tr>
+</form>
+<tr>
+	<td class="tablerow<%=lCount%>" colspan="6"><b>说明：</b><br />
+	①、广告位名称任意填写；<br />
+	②、JS文件名的扩展名一定要是*.js,文件路径相对于站点根目录下在adfile目录；<br />
+	③、最多广告数，是指在此广告位显示多少条广告；<br />
+	④、广告位价格，供做广告者参考；<br />
+	⑤、JS文件的调用方法：&lt;script src=/adfile/ad.js&gt;&lt;/script&gt;</td>
+</tr>
+</table>
+<script type="text/javascript">
+document.getElementById("showNextPage").innerHTML = document.getElementById("NextPageText").innerHTML;
+</script>
+<%
+End Sub
+
+Sub showBoardlist()
+	Dim Rs,SQL
+	If count=0 Then
+		totalrec=NewAsp.Execute("SELECT COUNT(*) FROM [NC_Adboard]")(0)
+	Else
+		totalrec=count
+	End If
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	pagelinks="?action=board&count="&totalrec&"&"
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT boardid,BoardName,AdRate,FileName,Maxads FROM [NC_Adboard] ORDER BY boardid DESC"
+	Rs.Open SQL,Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		listArry=Rs.GetRows(maxperpage)
+	Else
+		listArry=Null
+	End If
+	Rs.close()
+	Set Rs=Nothing
+End Sub
+
+Sub saveboard()
+	Dim SQL
+	If Trim(Request.Form("BoardName")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>广告位名称不能为空！</li>"
+	End If
+	If Not IsNumeric(Request.Form("boardid")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>广告位ID请输入整数！</li>"
+	End If
+	If Not IsNumeric(Request.Form("AdRate")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>广告位价格请输入整数！</li>"
+	End If
+	If Not IsNumeric(Request.Form("Maxads")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>显示最多广告数请输入整数！</li>"
+	End If
+	If Trim(Request.Form("FileName")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>JS文件名不能为空！</li>"
+	End If
+	If LCase(Right(Trim(Request.Form("FileName")),3)) <> ".js" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请输入正确的JS文件名，扩展名一定要是*.js！</li>"
+	End If
+
+	If Founderr = True Then Exit Sub
+	If Trim(Request.Form("act")) = "修改" Then
+		NewAsp.Execute ("UPDATE NC_Adboard SET BoardName='"& NewAsp.CheckStr(Request.Form("BoardName")) & "',FileName='"& NewAsp.CheckStr(Request.Form("FileName")) & "',Maxads="& NewAsp.ChkNumeric(Request.Form("Maxads")) & ",AdRate="& NewAsp.ChkNumeric(Request.Form("AdRate")) & " WHERE boardid="& CLng(Request.Form("boardid")))
+		Succeed("<li>恭喜您！修改广告位成功</li>")
+	Else
+		SQL = "Insert into NC_Adboard (boardid,BoardName,Readme,AdRate,FileName,Maxads,useup) values (" &_
+		""& NewAsp.ChkNumeric(Request.Form("boardid")) & "," &_
+		"'"& NewAsp.CheckStr(Request.Form("BoardName")) & "'," &_
+		"''," &_
+		NewAsp.ChkNumeric(Request.Form("AdRate")) & "," &_
+		"'"& NewAsp.CheckStr(Request.Form("FileName")) & "'," &_
+		NewAsp.ChkNumeric(Request.Form("Maxads")) & "," &_
+		"0)"
+		NewAsp.Execute(SQL)
+		Succeed("<li>恭喜您！添加新的广告位成功</li>")
+	End If
+End Sub
+
+Sub delboard()
+	Dim Rs
+	If Not IsNumeric(Request.Form("boardid")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>广告位ID请输入整数！</li>"
+		Exit Sub
+	End If
+	On Error Resume Next
+	Set Rs = NewAsp.Execute("SELECT FileName FROM NC_AdBoard WHERE boardid=" & CLng(Request("boardid")))
+	If Not (Rs.BOF And Rs.EOF) Then
+		NewAsp.FileDelete("../../adfile/" & Rs("FileName"))
+	End If
+	Set Rs = Nothing
+	NewAsp.Execute("DELETE FROM NC_Adboard WHERE boardid="& CLng(Request.Form("boardid")))
+	NewAsp.Execute("DELETE FROM NC_Adlist WHERE boardid="& CLng(Request.Form("boardid")))
+	Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+Sub isLock()
+	If Trim(Request("id")) = "" Or Trim(Request("isLock")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！您选择了错误的系统参数。</li>"
+		Exit Sub
+	End If
+	NewAsp.Execute ("UPDATE NC_Adlist SET isLock="& NewAsp.ChkNumeric(Request("isLock")) &" WHERE id=" & NewAsp.ChkNumeric(Request("id")))
+	Response.redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+Sub DelAdvertise()
+	If Not IsNumeric(Request("id")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>ID请输入整数！</li>"
+		Exit Sub
+	End If
+	NewAsp.Execute("DELETE FROM NC_Adlist WHERE id="& NewAsp.ChkNumeric(Request("id")))
+	Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+Sub EditAdvertise(isEdit)
+	Dim Rs,SQL
+	Dim EditTitle
+	If isEdit Then
+		SQL = "SELECT * FROM NC_Adlist WHERE id=" & NewAsp.ChkNumeric(Request("id"))
+		Set Rs = NewAsp.Execute(SQL)
+		EditTitle = "编辑广告"
+	Else
+		EditTitle = "添加新的广告"
+	End If
+%>
+<script language = JavaScript>
+function showsetting(myform){
+	var tab = myform.flag.selectedIndex;
+	if(tab==5)  {
+		flagsetting1.style.display='none';
+		flagsetting2.style.display='none';
+		flagsetting3.style.display='none';
+		flagsetting4.style.display='none';
+		flagsetting5.style.display='none';
+		flagsetting6.style.display='none';
+		flagsetting7.style.display='';
+	}
+	if(tab==1||tab==2||tab==3||tab==4)    {
+		flagsetting1.style.display='';
+		flagsetting2.style.display = '';
+		flagsetting3.style.display='';
+		flagsetting4.style.display='';
+		flagsetting5.style.display='';
+		flagsetting6.style.display='';
+		flagsetting7.style.display='none';
+	}
+	if(tab==0){
+		flagsetting1.style.display='none';
+		flagsetting2.style.display = '';
+		flagsetting3.style.display='';
+		flagsetting4.style.display='';
+		flagsetting5.style.display='';
+		flagsetting6.style.display='';
+		flagsetting7.style.display='none';
+	}
+}
+
+function flagsetting(n){
+	if (n == 1){
+		flagsetting3.style.display='';
+		flagsetting4.style.display='';
+		flagsetting5.style.display='';
+		flagsetting7.style.display='none';
+		}
+	if (n == 2){
+		flagsetting3.style.display='none';
+		flagsetting4.style.display='none';
+		flagsetting5.style.display='';
+		flagsetting7.style.display='none';
+	}
+
+}
+function SelectPhoto(){
+  var arr=showModalDialog('Admin_selFile.asp?ChannelID=0&stype=ad&UploadDir=UploadPic', '', 'dialogWidth:800px; dialogHeight:600px; help: no; scroll: yes; status: no');
+  if(arr!=null){
+    var ss=arr.split('|');
+    document.myform.picurl.value=ss[0];
+  }
+}
+</script>
+<form action="admin_admanage.asp" method="post" name="myform">
+<%
+	If isEdit Then
+		Response.Write "<input type=""hidden"" name=""action"" value=""modify"">"
+		Response.Write "<input type=""hidden"" name=""id"" value="""& Request("id") &""">"
+	Else
+		Response.Write "<input type=""hidden"" name=""action"" value=""save"">"
+	End If
+%>
+<table class="tableborder" cellspacing="1" cellpadding="2" align="center" border="0">
+<tr>
+	<th colspan="2"><%=EditTitle%></th>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" width="20%"><b>广告位置:</b></td>
+	<td class="tablerow1" width="80%"><select id="boardid" name="boardid"><%
+	Dim oRs
+	Set oRs = NewAsp.Execute("SELECT boardid,BoardName FROM NC_Adboard")
+	Do While Not oRs.EOF
+		Response.Write "<option value="""& oRs("boardid") &""""
+		If isEdit Then
+			If oRs("boardid") = Rs("boardid") Then Response.Write " selected"
+		End If
+		Response.Write ">"
+		Response.Write oRs("BoardName")
+		Response.Write "</option>"
+	oRs.movenext
+	Loop
+	oRs.Close:Set oRs = Nothing
+%></select></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>广告类型:</b></td>
+	<td class="tablerow2"><select id="flag" onchange="showsetting(this.form)" name="flag">
+	<option value="0"<%If isEdit Then If Rs("flag") = 0 Then Response.Write " selected"%>>普通广告</option>
+	<option value="1"<%If isEdit Then If Rs("flag") = 1 Then Response.Write " selected"%>>漂浮广告</option>
+	<option value="2"<%If isEdit Then If Rs("flag") = 2 Then Response.Write " selected"%>>左边固定广告</option>
+	<option value="3"<%If isEdit Then If Rs("flag") = 3 Then Response.Write " selected"%>>右边固定广告</option>
+	<option value="4"<%If isEdit Then If Rs("flag") = 4 Then Response.Write " selected"%>>弹出广告</option>
+	<option value="5"<%If isEdit Then If Rs("flag") = 5 Then Response.Write " selected"%>>代码广告</option>
+	</select></td>
+</tr>
+<tr id="flagsetting1"<%If isEdit Then If Rs("flag")<>5 And Rs("flag")<>0 Then Response.Write (" style=""display:''"""):Else:Response.Write (" style=""display:'none'"""): End If:Else Response.Write " style=""display:none"""%>>
+	<td class="tablerow1" align="right"><b>广告设置:</b></td>
+	<td class="tablerow1">左边距：<input id="sidemargin" maxlength="5" size="6" name="sidemargin" value="<%If isEdit Then Response.Write Rs("sidemargin") Else Response.Write "10" End If%>" type="text" /> 上边距：<input id="topmargin" maxlength="5" size="6" name="topmargin" value="<%If isEdit Then Response.Write Rs("topmargin") Else Response.Write "100" End If%>" type="text" /></td>
+</tr>
+<tr id="flagsetting2"<%If isEdit Then If Rs("flag")=5 Then Response.Write " style=""display:none"""%>>
+	<td class="tablerow2" align="right"><b>图片或FLASH:</b></td>
+	<td class="tablerow2"><input type="radio" onClick="flagsetting(1)" name="isFlash" value="0"<%If isEdit Then If Rs("isFlash") = 0 Then Response.Write " checked" End If:Else Response.Write " checked" End If%> />图片&nbsp;&nbsp;
+	<input type="radio" onClick="flagsetting(2)" name="isFlash" value="1"<%If isEdit Then If Rs("isFlash") = 1 Then Response.Write " checked"%> />FLASH&nbsp;&nbsp;
+	<%If isEdit Then%><input type="checkbox" name="UpdateTime" value="yes" /> 更新成最新广告<%End If%></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>网站名称:</b></td>
+	<td class="tablerow1"><input id="title" size="30" name="title" value="<%If isEdit Then Response.Write Rs("title")%>" type="text" /></td>
+</tr>
+<tr id="flagsetting3"<%If isEdit Then If Rs("isFlash")=1 Or Rs("flag")=5 Then Response.Write " style=""display:none"""%>>
+	<td class="tablerow2" align="right"><b>网站连接URL:</b></td>
+	<td class="tablerow2"><input id="url" size="60" name="url" value="<%If isEdit Then Response.Write Rs("url") Else Response.Write "http://" End If%>" type="text" /></td>
+</tr>
+<tr id="flagsetting4"<%If isEdit Then If Rs("isFlash")=1 Or Rs("flag")=5 Then Response.Write " style=""display:none"""%>>
+	<td class="tablerow1" align="right"><b>连接注释:</b></td>
+	<td class="tablerow1"><input id="Readme" size="60" name="Readme" value="<%If isEdit Then Response.Write Rs("Readme")%>" type="text" /></td>
+</tr>
+<tr id="flagsetting5"<%If isEdit Then If Rs("flag")=5  Then Response.Write " style=""display:none"""%>>
+	<td class="tablerow2" align="right" width="20%"><b>图片或FLASH URL:</b></td>
+	<td class="tablerow2" width="80%"><input id="ImageUrl" size="60" name="picurl" value="<%If isEdit Then Response.Write Rs("picurl")%>" type="text" /> <input class="button" type="button" onclick='SelectPhoto()' name="selectpic" value="从已上传图片中选择" /></td>
+</tr>
+<tr id="flagsetting6"<%If isEdit Then If Rs("flag")=5  Then Response.Write " style=""display:none"""%>>
+	<td class="tablerow1" align="right"><b>上传文件:</b></td>
+	<td class="tablerow1"><iframe name="image" src="../upload.asp?stype=AD" frameborder="0" width="100%" scrolling="no" height="42" allowTransparency="true"></iframe></td>
+</tr>
+<tr id="flagsetting7"<%If isEdit Then If Rs("flag") <> 5 Then Response.Write " style=""display:none""" End If:Else Response.Write " style=""display:none""" End If%>>
+	<td class="tablerow2" align="right"><b>广告代码:</b><br />
+	支持HTML方法</td>
+	<td class="tablerow2"><textarea rows="10" cols="70" name="AdCode"><%If isEdit Then Response.Write Server.HTMLEncode(Rs("AdCode")&"")%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>文件尺寸:</b></td>
+	<td class="tablerow1">宽度：<input id="width" maxlength="5" size="6" name="width" value="<%If isEdit Then Response.Write Rs("width") Else Response.Write 100%>" type="text" /> 像素 * 高度：<input id="height" maxlength="5" size="6" name="height" value="<%If isEdit Then Response.Write Rs("height") Else Response.Write 100%>" type="text" /> 像素&nbsp;&nbsp; <font color="#0000ff">* 设置图片、FLASH、弹出窗口的大小</font></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>是否锁定广告:</b></td>
+	<td class="tablerow2"><input type="radio" name="isLock" value="0"<%If isEdit Then If Rs("isLock") = 0 Then Response.Write " checked" End If:Else Response.Write " checked" End If%> /> 否&nbsp;&nbsp;
+	<input type="radio" name="isLock" value="1"<%If isEdit Then If Rs("isLock") = 1 Then Response.Write " checked"%> /> 是&nbsp;&nbsp;</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="center" colspan="2"><input class="button" type="button" onclick="javascript:history.go(-1)" name="Submit1" value="返回上一页" />&nbsp;&nbsp;&nbsp;&nbsp; <input class="button" type="submit" name="Submit" value="保存广告" /></td>
+</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub checkSave()
+	If Trim(Request.Form("title")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>网站名称不能为空！</li>"
+	End If
+	If Trim(Request.Form("flag")) = 5 Then
+		If Trim(Request.Form("AdCode")) = "" Then
+			FoundErr = True
+			ErrMsg = ErrMsg + "<li>请输入广告代码！</li>"
+		End If
+	Else
+		If Trim(Request.Form("picurl")) = "" Then
+			FoundErr = True
+			ErrMsg = ErrMsg + "<li>URL不能为空！</li>"
+		End If
+	End IF
+	If Trim(Request.Form("height")) = "" Or Trim(Request.Form("width")) = ""  Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>文件尺寸不能为空！</li>"
+	End If
+	If Trim(Request.Form("sidemargin")) = "" Or Trim(Request.Form("topmargin")) = ""  Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请设置边距！</li>"
+	End If
+	If Trim(Request.Form("flag")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请设置广告类型！</li>"
+	End If
+End Sub
+
+Sub SaveAdvertise()
+	Call checkSave()
+	Dim Rs,SQL,adboardid
+	adboardid = NewAsp.ChkNumeric(Request.Form("boardid"))
+	If adboardid=0 Then 
+		Founderr = True
+		ErrMsg = "<li>请选择正确的广告位</li><li><a href=""?action=board"">点击这里添加新的广告位</a></li>"
+	End If
+	If Founderr = True Then Exit Sub
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Adlist WHERE (id is null)"
+	Rs.Open SQL,Conn,1,3
+	Rs.Addnew
+		Rs("boardid") = adboardid
+		Rs("title") = NewAsp.RequestForm(Request.Form("title"),100)
+		Rs("url") = Trim(Request.Form("url"))
+		Rs("picurl") = Trim(Request.Form("picurl"))
+		Rs("Readme") = NewAsp.RequestForm(Request.Form("Readme"),100)
+		Rs("AdCode") = Request.Form("AdCode")
+		Rs("height") = NewAsp.ChkNumeric(Request.Form("height"))
+		Rs("width") = NewAsp.ChkNumeric(Request.Form("width"))
+		Rs("topmargin") = Trim(Request.Form("topmargin"))
+		Rs("sidemargin") = Trim(Request.Form("sidemargin"))
+		Rs("startime") = Now()
+		Rs("flag") = NewAsp.ChkNumeric(Request.Form("flag"))
+		Rs("isFlash") = NewAsp.ChkNumeric(Request.Form("isFlash"))
+		Rs("IsLock") = NewAsp.ChkNumeric(Request.Form("IsLock"))
+	Rs.update
+	Rs.Close:Set Rs = Nothing
+	Dim adNewasp
+	Set adNewasp = new Admanage_Cls
+	adNewAsp.adboardid = adboardid
+	adNewAsp.CreateJsFile
+	Set adNewasp = Nothing
+	Succeed("<li>恭喜您！添加新的广告成功。</li>")
+End Sub
+
+Sub ModifyAdvertise()
+	Call checkSave()
+	Dim Rs,SQL,adboardid
+	adboardid = NewAsp.ChkNumeric(Request.Form("boardid"))
+	If adboardid=0 Then 
+		Founderr = True
+		ErrMsg = "<li>请选择正确的广告位</li><li><a href=""?action=board"">点击这里添加新的广告位</a></li>"
+	End If
+	If Founderr = True Then Exit Sub
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Adlist WHERE id=" & NewAsp.ChkNumeric(Request("id"))
+	Rs.Open SQL,Conn,1,3
+		Rs("boardid") = adboardid
+		Rs("title") = NewAsp.RequestForm(Request.Form("title"),100)
+		Rs("url") = Trim(Request.Form("url"))
+		Rs("picurl") = Trim(Request.Form("picurl"))
+		Rs("Readme") = NewAsp.RequestForm(Request.Form("Readme"),100)
+		Rs("AdCode") = Request.Form("AdCode")
+		Rs("height") = NewAsp.ChkNumeric(Request.Form("height"))
+		Rs("width") = NewAsp.ChkNumeric(Request.Form("width"))
+		Rs("topmargin") = Trim(Request.Form("topmargin"))
+		Rs("sidemargin") = Trim(Request.Form("sidemargin"))
+		If LCase(Request.Form("UpdateTime")) = "yes" Then Rs("startime") = Now()
+		Rs("flag") = NewAsp.ChkNumeric(Request.Form("flag"))
+		Rs("isFlash") = NewAsp.ChkNumeric(Request.Form("isFlash"))
+		Rs("IsLock") = NewAsp.ChkNumeric(Request.Form("IsLock"))
+	Rs.update
+	'AdvertiseID = Rs("id")
+	Rs.Close:Set Rs = Nothing
+	Dim adNewasp
+	Set adNewasp = new Admanage_Cls
+	adNewAsp.adboardid = adboardid
+	adNewAsp.CreateJsFile
+	Set adNewasp = Nothing
+	Succeed("<li>恭喜您！修改广告成功。</li>")
+End Sub
+
+Class Admanage_Cls
+	Private boardid
+	Private JsFileName
+	Private maxadnum
+
+	Private Sub Class_Initialize()
+		On Error Resume Next
+		boardid = 1
+	End Sub
+	
+	Public Property Let adboardid(ByVal NewValue)
+		boardid = CLng(NewValue)
+	End Property
+	Private Sub LoadAdBoardInfo()
+		Dim Rs
+		On Error Resume Next
+		Set Rs = NewAsp.Execute("SELECT fileName,maxads FROM NC_AdBoard WHERE boardid=" & boardid)
+		If Rs.BOF And Rs.EOF Then
+			JsFileName = "../../adfile/ad.js"
+			maxadnum = 1
+		Else
+			JsFileName = "../../adfile/" & Trim(Rs("fileName"))
+			maxadnum = Rs("maxads")
+		End If
+		Set Rs = Nothing
+	End Sub
+
+	Private Function ReadFlashAndPic(ByVal url, ByVal Picurl, _
+		ByVal width, ByVal height, _
+		ByVal Readme, ByVal isFlash)
+		
+		Dim strTemp
+		If CInt(isFlash) = 1 Then
+			
+			strTemp = "<embed src='" & Picurl & "' quality='high' pluginspage='http://www.macromedia.com/go/getflashplayer' type='application/x-shockwave-flash' width='" & width & "' height='" & height & "'></embed>"
+		Else
+			strTemp = "<a href='" & url & "' target='_blank'><img src='" & Picurl & "' width='" & width & "' height='" & height & "' border='0' alt='" & fixjs(Readme) & "'></a>"
+		End If
+		ReadFlashAndPic = strTemp
+	End Function
+
+	Public Function fixjs(ByVal str)
+		If str <> "" Then
+			str = Replace(str, "\", "\\")
+			str = Replace(str, Chr(34), "\""")
+			str = Replace(str, Chr(39), "\'")
+			str = Replace(str, Chr(13), "")
+			str = Replace(str, Chr(10), "")
+			str = Replace(str, vbNewLine, vbNullString)
+		End If
+		fixjs = str
+		Exit Function
+	End Function
+
+	Public Sub CreateJsFile()
+		Dim Rs, SQL, strTemp, i
+		Dim strFalshAndPic, strAdContent, strMargin
+		Dim strCommon
+		Dim strFloat
+		Dim strFixed2
+		Dim strFixed3
+		Dim strRunCode
+		Dim strAdcode
+		
+		strMargin = ""
+		Call LoadAdBoardInfo
+		On Error Resume Next
+		Set Rs = NewAsp.Execute("SELECT TOP " & maxadnum & " * FROM NC_Adlist WHERE isLock=0 And boardid=" & boardid & " ORDER BY startime DESC")
+		If Not (Rs.BOF And Rs.EOF) Then
+			i = 0
+			Do While Not Rs.EOF
+				i = i + 1
+				
+				Select Case CInt(Rs("flag"))
+				Case 1
+					strFalshAndPic = ReadFlashAndPic(Rs("url"), NewAsp.ReadFileUrl(Rs("Picurl")), Rs("width"), Rs("height"), Rs("Readme"), Rs("isFlash"))
+					strFloat = strFalshAndPic
+				Case 2, 3
+					If Rs("flag") = 3 Then strMargin = "style='right:" & Rs("sidemargin") & "px;POSITION:absolute;TOP:" & Rs("topmargin") & "px;'"
+					If Rs("flag") = 2 Then strMargin = "style='left:" & Rs("sidemargin") & "px;POSITION:absolute;TOP:" & Rs("topmargin") & "px;'"
+					strFalshAndPic = ReadFlashAndPic(Rs("url"), NewAsp.CheckLinksUrl(Rs("Picurl")), Rs("width"), Rs("height"), Rs("Readme"), Rs("isFlash"))
+					strFixed2 = strFixed2 & "document.all.lovexin" & Rs("id") & ".style.pixelTop+=percent;" & vbNewLine
+					strFixed3 = strFixed3 & "suspendcode" & Rs("id") & "=""<div id=lovexin" & Rs("id") & " " & strMargin & ">" & strFalshAndPic & "</div>""" & vbNewLine & "document.write(suspendcode" & Rs("id") & "); " & vbNewLine
+				Case 4
+					strRunCode = strRunCode & vbNewLine & "window.open(""" & NewAsp.InstallDir & "runads.asp?id=" & Rs("id") & """,""runads" & Rs("id") & """,""toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=no,width=" & Rs("Width") & ",height=" & Rs("Height") & ",top=" & Rs("topmargin") & ",left=" & Rs("sidemargin") & """);" & vbNewLine
+				Case 5
+					strAdContent = strAdContent & vbNewLine & Rs("Adcode") & vbNewLine
+					strAdcode = vbNewLine & "document.writeln(""<iframe scrolling='no' frameborder='0' marginheight='0' marginwidth='0' width='" & Rs("width") & "' height='" & Rs("height") & "' allowTransparency src=" & NewAsp.InstallDir & "adfile/ad" & boardid & ".htm></iframe>"");" & vbNewLine
+				Case Else
+					strFalshAndPic = ReadFlashAndPic(Rs("url"), NewAsp.CheckLinksUrl(Rs("Picurl")), Rs("width"), Rs("height"), Rs("Readme"), Rs("isFlash"))
+					strCommon = strCommon & "document.writeln(""" & strFalshAndPic & """);" & vbNewLine
+				End Select
+				Rs.MoveNext
+			Loop
+			NewAsp.CreatPathEx("../../adfile")
+		End If
+		Rs.Close: Set Rs = Nothing
+		strTemp = strCommon
+		If Trim(strFloat) <> "" Then
+			strTemp = strTemp & NewAsp.ReadTextFile("../script/float.inc")
+			strTemp = Replace(strTemp, "{$FloatCode}", strFloat)
+		End If
+		If Trim(strFixed2) <> "" Then
+			strTemp = strTemp & NewAsp.ReadTextFile("../script/fixed.inc")
+			strTemp = Replace(strTemp, "{$Scroll}", strFixed2)
+			strTemp = Replace(strTemp, "{$SuspendCode}", strFixed3)
+		End If
+		If Trim(strAdcode) <> "" Then
+			Dim strHtml, HtmlName
+			HtmlName = "../../adfile/ad" & boardid & ".htm"
+			strHtml = NewAsp.ReadTextFile("../script/html.inc")
+			strHtml = Replace(strHtml, "{$HtmlContent}", strAdContent)
+			NewAsp.CreatedTextFile HtmlName, strHtml
+			strTemp = strTemp & strAdcode
+		End If
+		strTemp = strTemp & strRunCode
+		NewAsp.CreatedTextFile JsFileName, strTemp
+	End Sub
+End Class
+%>

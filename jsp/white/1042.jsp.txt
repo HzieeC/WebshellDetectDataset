@@ -1,0 +1,218 @@
+<%@page contentType="text/html; charset=GBK"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>用户注册 - MianFeiZhe V1.0版</title>
+<meta name="keywords" content="MianFeiZhe V1.0版" />
+<meta name="description" content="MianFeiZhe V1.0版" />
+<link rel="shortcut icon" href="favicon.ico" />
+<meta http-equiv="Content-Type" content="text/html; charset=GB2312" />
+<link href="images/style.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript">
+		var req;
+		function validate() {
+			var idField = document.getElementById("username");
+			var url = "regservlets?name=" + escape(idField.value);
+			if(window.XMLHttpRequest) {//判断浏览器类型
+				req = new XMLHttpRequest();
+			} else if (window.ActiveXObject) {
+				req = new ActiveXObject("Microsoft.XMLHTTP");
+			}
+			req.open("GET", url, true);
+			req.onreadystatechange = callback;
+			req.send(null);
+		}
+
+		function callback() {
+			if(req.readyState == 4) {
+				if(req.status == 200) {
+					var msg = req.responseXML.getElementsByTagName("msg")[0];
+									setMsg(msg.childNodes[0].nodeValue);
+				}
+			}
+		}
+
+		
+		function setMsg(msg) {
+			mdiv = document.getElementById("usermsg");
+			if(msg == "pass") {
+				mdiv.innerHTML = "<img src='/web/images/note_ok.gif'>";
+			} else {
+				mdiv.innerHTML = "<img src='/web/images/note_error.gif'>";
+				return;
+			}
+		}
+
+		
+        function check(){
+          var pdiv=document.getElementById("pwdmsg");
+          if(document.frm.pwd.value.length>=6){
+            pdiv.innerHTML="<img src='/web/images/note_ok.gif'>";
+          }
+		  else
+		  {
+            pdiv.innerHTML = "<img src='/web/images/note_error.gif'>";
+			return;
+          }
+        }
+		function checkpwd(){
+			var pdiv2=document.getElementById("pwdmsg2");
+			if(document.frm.pwd.value==document.frm.pwd2.value){
+				pdiv2.innerHTML="<img src='/web/images/note_ok.gif'>";
+			}else{
+				pdiv2.innerHTML = "<img src='/web/images/note_error.gif'>";
+				return;
+			}
+		}
+		function ckEmail(){
+			var pdiv3=document.getElementById("ckemail");
+			var email=document.frm.email.value;
+			if(email.length<=3){
+				pdiv3.innerHTML = "<img src='/web/images/note_error.gif'>";
+				return;
+			}
+			else if(email.indexOf('@')==-1){
+				pdiv3.innerHTML = "<img src='/web/images/note_error.gif'>";
+				return;
+			}
+			else{
+				pdiv3.innerHTML="<img src='/web/images/note_ok.gif'>";
+			}
+		}
+		function ckQuestion(){//检查问题
+			var pdiv4=document.getElementById("ckquestion");
+			if(document.frm.question.value.length>0){
+				pdiv4.innerHTML = "<img src='/web/images/note_ok.gif'>";
+			}else{
+				pdiv4.innerHTML = "<img src='/web/images/note_error.gif'>";
+				return;
+			}
+		}
+		function ckAnswer(){
+			var pdiv5=document.getElementById("ckdaan");
+			if(document.frm.result.value.length>0&&document.frm.result.value!=document.frm.question.value){
+				pdiv5.innerHTML = "<img src='/web/images/note_ok.gif'>";
+			}else{
+				pdiv5.innerHTML = "<img src='/web/images/note_error.gif'>";
+				return;
+			}
+		}
+
+		function sub(){
+			if(document.frm.username.value.length<=2) {
+				return;
+			} 
+			else if(document.frm.userpwd.value.length<=5||document.frm.userpwd.value!=document.frm.pwd2.value){
+				return;
+			}
+			else if(document.frm.email.value.length<=3||document.frm.email.value.indexOf('@')==-1){
+				return;
+			}
+			else if(document.frm.question.value.length==0){
+				return;
+			}
+			else if(document.frm.result.value.length==0||document.frm.result.value==document.frm.question.value){
+				return;
+			}else{
+				frm.submit();
+			}
+		}
+
+</script>
+</head>
+
+<body >
+<div id="MainDiv">
+  <!--logo and links-->
+  <div id="Top">
+    <div id="Logo"><a href="<%=request.getContextPath()%>/index.html"><img src="images/logo.jpg" /></a></div>
+  <!-- login area-->
+  <div id="LoginDiv">
+
+  <!--底部内容-->
+<div id="Footer-bar" ></div>
+  <div style=" width:100%px;height:55px;position:absolute;top:30px;left:30px;"  >
+<table width="80%" border="0" align="center" cellpadding="0" cellspacing="4">
+  <tr>
+    <td height="45"></td>
+  </tr>
+
+  <tr>
+    <td height="10"></td>
+  </tr>
+  <tr>
+    <td class="td1"><form name="frm" method="post" action="regservlets">
+      <table width="100%" border="0" align="center" cellpadding="2" cellspacing="4" bordercolordark="#000000" bordercolorlight="#FFFFFF">
+        <tr>
+          <td width="15%"><div align="center">用 户 名：</div></td>
+          <td width="85%"><input name="username" type="text" id="username" class="inp" onMouseOver="this.style.borderColor='#9ecc00'" onMouseOut="this.style.borderColor='#84a1bd'" onblur="validate();" maxlength="20">&nbsp;&nbsp;*&nbsp;大于等于三位数&nbsp;&nbsp;<span id="usermsg"></span></td>
+        </tr>	
+		<input type="hidden" name="action" value="reg">
+        <tr>
+          <td><div align="center">你的密码：</div></td>
+          <td><input name="userpwd" type="password" id="pwd" class="inp" onMouseOver="this.style.borderColor='#9ecc00'" onMouseOut="this.style.borderColor='#84a1bd'" onblur="check();" maxlength="20">&nbsp;&nbsp;*&nbsp;密码位数大于等于六位数	<span id="pwdmsg"></span></td>
+        </tr>
+        <tr>
+          <td><div align="center">确认密码：</div></td>
+          <td><input name="pwd2" type="password" id="pwd2" class="inp" onMouseOver="this.style.borderColor='#9ecc00'" onMouseOut="this.style.borderColor='#84a1bd'"    onblur="checkpwd();" maxlength="20">&nbsp;&nbsp;*&nbsp;请输入相同密码&nbsp;&nbsp;<span id="pwdmsg2"></span></td>
+        </tr>
+		<tr>
+          <td><div align="center">邮箱地址：</div></td>
+          <td><input name="email" type="text" id="email" class="inp" onMouseOver="this.style.borderColor='#9ecc00'" onMouseOut="this.style.borderColor='#84a1bd'" onblur='ckEmail();' maxlength="30"> &nbsp;&nbsp;*&nbsp;格式为：xxx@xxx.com&nbsp;&nbsp;<span id="ckemail"></span></td>
+        </tr>
+		<tr>
+          <td><div align="center">密保问题：</div></td>
+          <td><input name="question" type="text" id="bgmname2" class="inp" onMouseOver="this.style.borderColor='#9ecc00'" onMouseOut="this.style.borderColor='#84a1bd'" onblur="ckQuestion();" maxlength="100">&nbsp;&nbsp;*&nbsp;如：你的铁哥们是谁？&nbsp;&nbsp<span id="ckquestion"></span></td>
+        </tr>
+				<tr>
+          <td><div align="center">密保答案：</div></td>
+          <td><input name="result" type="text" id="bgmname2" class="inp" onMouseOver="this.style.borderColor='#9ecc00'" onMouseOut="this.style.borderColor='#84a1bd'" onblur="ckAnswer();" maxlength="100">&nbsp;&nbsp;*&nbsp;如：张三&nbsp;&nbsp<span id="ckdaan"></span></td>
+        </tr>
+        <tr>
+          <td><div align="center">你的性别：</div></td>
+          <td><input name="sex" type="radio" id="sex" onMouseOver="this.style.borderColor='#9ecc00'" onMouseOut="this.style.borderColor='#84a1bd'" checked value='男'>男&nbsp;&nbsp;<input name="sex" type="radio" id="sex" onMouseOver="this.style.borderColor='#9ecc00'" onMouseOut="this.style.borderColor='#84a1bd'" value='女'>女&nbsp;&nbsp;&nbsp;</td>
+        </tr>
+        <tr>
+          <td><div align="center">主页地址：</div></td>
+          <td><input name="weburl" type="text" id="weburl2" value="http://" class="inp" onMouseOver="this.style.borderColor='#9ecc00'" onMouseOut="this.style.borderColor='#84a1bd'" maxlength="100">&nbsp;&nbsp;&nbsp;请正确写,http://&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;将会给你带来可观的访问量</td>
+        </tr>
+        <tr>
+          <td><div align="center">QQ：</div></td>
+          <td><input name="qq" type="text" id="bgmname2" class="inp" onMouseOver="this.style.borderColor='#9ecc00'" onMouseOut="this.style.borderColor='#84a1bd'" maxlength="20">&nbsp;&nbsp;&nbsp;你的QQ号码</td>
+        </tr>
+
+        <tr>
+          <td><div align="center"><input type="text" readonly name="bgmclass" maxlength="1" value="ipod" style="background-color: #FFFFFF; border-style: solid; border-color: #FFFFFF" class="heise13"></div></td>
+        </tr>
+        <tr>
+          <td colspan="2" align="center"><input id="btn1" type="button" name="Submit3" value="确  定" onclick="sub();">&nbsp;&nbsp;&nbsp;&nbsp;<input id="btn2" type="reset" name="Submit4" value="重  置"></td>
+        </tr></form>
+      </table>
+    </td>
+  </tr>
+</table>
+</div>
+</div>
+
+<div id="Footer-bar"></div>
+  <div id="Footer-bg">
+<p align="center" style="margin-top: 0px; margin-bottom: 0px">
+<TD align=middle width="100%" height=61 style="font-size: 12px; color: #000000; line-height: 120%; font-family: Tahoma,宋体">
+        <DIV align=center>
+          <div class="foottop"><a href="index.jsp">返回首页</a>
+ | <a href="">高级搜索</a>
+ | <a href="">加入链接</a>
+ | <a href="">网站地图</a>
+ | <a href="">RSS订阅</a></div>
+<div class="footbottom">
+<div>
+<p align="center">
+power by <a href="http://www.mianfeizhe.com">MianFeiZhe.Com</a> Copyright 2008-2010
+<br> 备案号:湘ICP备85020080号
+</p>
+</div>
+</div>
+      </DIV></TD>
+    </TR>
+  </TBODY>
+</TABLE>           
+</html>

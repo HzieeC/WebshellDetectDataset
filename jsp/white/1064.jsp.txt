@@ -1,0 +1,185 @@
+﻿<%@page import="java.util.Hashtable"%>
+<%@page import="com.bizoss.createIndex.search.B2CHelpIndexFiles"%>
+<%@page import="java.util.regex.Pattern"%>
+<%@page import="java.util.regex.Matcher"%>
+<%@page import="java.util.List"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-cn">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" /><title>用户注册</title>
+<meta name="Description" content="">
+<link type="text/css" rel="stylesheet" href="/templets/html/business/css/register.css">
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="/comms/business/newsReg.js"></script>
+</head>
+<body>
+<%!
+	public String clearHtml(String str){
+		// <[^> ]+> | </[^> ]+> 为匹配html的正则式
+		Pattern p = Pattern.compile( "<(.[^>]*)>");
+		Matcher m = p.matcher(str);
+		// 返回去除html 后的字符串
+		return m.replaceAll( " ");
+	} 
+%>
+<%
+		
+		String cust_id = randomId.GenTradeId(); 
+		String user_id = randomId.GenTradeId(); 
+		Hashtable paraMap = new Hashtable();
+		Hashtable contentMap = new Hashtable();
+		B2CHelpIndexFiles helpIndex=new B2CHelpIndexFiles();
+		    
+		paraMap.put("ch_attr", "P5w20y423R1k3ow|");
+	    List helpList = helpIndex.getHelpInfo(paraMap);
+		String  _title = "",_content="";
+		if (null != helpList && helpList.size() > 0) {
+			contentMap = (Hashtable) helpList.get(0);
+			if (contentMap.get("title") != null)
+				_title = contentMap.get("title").toString();
+			if (contentMap.get("content") != null)
+				_content = contentMap.get("content").toString();
+		}
+		%>
+<div id="register-step1" class="page uc_l_body  register">
+  <div id="body">
+    <div class="ucReg_header">
+      <div class="logo"><a  href="/"><img alt="全球领先的工业品采购与销售服务平台" src="/templets/html/business/images/jinse.gif" width="213" height="113"></a></div>
+      <div class="loginInfo">
+        <p class="zCtxt"><a href="/">首页</a> | <a href="#">帮助中心</a></p>
+        <p class="phone">如遇注册问题请拨打：<span class="phone_num">400-000-0000</span></p>
+      </div>
+    </div>
+    <div class="form user_form">
+      <div class="left"> <span class="regword">
+        <h3>注册基本信息填写</h3>
+        以下均为必填项 </span>
+        <div class="reg_item">
+          <form action="/doTradeReg.do" method="post" name="loginForm">
+            <ul>
+              <li id="email_list">
+                <div class="float_l">
+                  <label>邮箱：</label>
+                </div>
+                <div class="float_l">
+                  <input type="text" name="email" id="email" onblur="checkEmail()" class="ini" />
+                  <SPAN style="font-size: 12px;" id="p_email"></SPAN> <br />
+                  <small>登录及找回密码不会公开</small> </div>
+              </li>
+              <li id="email_list">
+                <div class="float_l">
+                  <label>用户名：</label>
+                </div>
+                <div class="float_l">
+                  <input type="text" id="loginid" maxLength="20" name="user_name" onblur="checkUser_name()" class="ini" />
+                  <SPAN style="font-size: 12px;" id="p_user_name"></SPAN> <br />
+                  <small>用户名不能为空</small> </div>
+              </li>
+              <li id="password_list">
+                <div class="float_l">
+                  <label>登录密码：</label>
+                </div>
+                <div class="float_l">
+                  <INPUT id="password" type="password" maxLength="20" name="passwd" onblur="checkPasswd1()"  class="ini"/>
+                  <SPAN style="font-size: 12px;" id="passwordLabel1"></SPAN> <br />
+                  <small>密码为大于6位的字母或数字</small> </div>
+              </li>
+              <li id="check_password_list">
+                <div class="float_l">
+                  <label>确认密码：</label>
+                </div>
+                <div class="float_l">
+                  <INPUT id="confirmPassword" type="password" maxLength="20" onblur="checkPasswd2()"  class="input_area0"/>
+                  <SPAN style="font-size: 12px;" id=confirmPassword1></SPAN> <br />
+                  <small>请确认两次输入的密码相同</small> </div>
+              </li>
+              <li id="check_authcode_list">
+                <div class="float_l">
+                  <label>验证码：</label>
+                </div>
+                <div class="float_l">
+                  <INPUT id="userrand" maxLength="4" name="userrand" type="text" onblur="checkUserrand()" class="yzm"/>
+                  <img name="rc" id="rc" src="/checkImage" style="vertical-align: middle;" onclick="changeCode()"/> <SPAN style="font-size: 12px;" id="valcodeIcon"></SPAN> </div>
+              </li>
+              <li id="check_agreement">
+                <div class="float_l" style=" padding-left:60px;"> 
+                同意以下协议<a href="/about/8diansc_help.html?ch_attr=7ndhx63Rk04X27U|3P5N12aL452k1PM|&info_id=M611Q4ep226Epmf" onclick="showService()" ><font style=" color:blue">《<%=_title %>》</font></a></div>
+				<textarea id="service_t" cols="5" style=" width:600px; height:90px; padding:2px; float:left;display: none; margin-top:8px">
+											<%=clearHtml(_content) %>	
+				</textarea>
+				
+              </li>
+             
+              <li>
+                <div id="commit">
+                  <label>&nbsp;</label>
+                  <input id="submit_btn_21" class="btn" onclick="Check_User_Login();" value="立即注册" type="button">
+                </div>
+              </li>
+            </ul>
+            <input type="hidden" name="jumpurl" id="jumpurl" value="/company_member.html" />
+            <input type="hidden" name="cookietime" value="7200" />
+            <input name="cust_state" id="cust_state" value="0" type="hidden" />
+            <input type="hidden" name="bpm_id" value="1378" />
+            <input type="hidden" name="cust_type" id="cust_type" value="0" />
+            <input type="hidden" name="user_type" id="user_type" value="0" />
+            <input type="hidden" name="state_code" id="state_code" value="c" />
+            <input type="hidden" name="user_state" id="user_state" value="0" />
+            <input type="hidden" id="use_vmoney" name="use_vmoney" value="0" />
+            <input type="hidden" id="user_class" name="user_class" value="0" />
+            <input type="hidden" id="cust_class" name="cust_class" value="0" />
+            <input type="hidden" id="cust_id" name="cust_id" value="<%=cust_id %>" />
+            <input type="hidden" id="user_id" name="user_id" value="<%=user_id %>" />
+          </form>
+        </div>
+      </div>
+      <div class="right">
+        <p class="right_login"><span class="loginText"><span>已经是用户？</span><a href="/business_signin.html">请登录</a> </span></p>
+        <div class="right_content">
+          <p>为什么要注册会员？</p>
+          <ul>
+            <li>获得质优购销信息</li>
+            <li>主动报价赢海量订单</li>
+            <li>精准匹配牵线商缘</li>
+          </ul>
+          <p>提供哪些服务？</p>
+          <ul>
+            <li>工业品平价商场服务</li>
+            <li>精准人工匹配服务</li>
+            <li>24小时专属客服服务</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <!--底部开始-->
+    <div class="footer">
+      <p>
+      <%
+						paraMap.put("ch_attr", "77f07U1647u8U0S|");
+					    helpList = helpIndex.getHelpInfo(paraMap);
+
+								if (null != helpList && helpList.size() > 0) {
+									for (int i = 0; i < helpList.size(); i++) {
+										contentMap = (Hashtable) helpList.get(i);
+										String info_id = "", title = "",hrefurl="";
+										if (contentMap.get("info_id") != null)
+											info_id = contentMap.get("info_id").toString();
+										if (contentMap.get("title") != null)
+											title = contentMap.get("title").toString();
+										hrefurl = "/about/business_help.html?info_id=" + info_id;
+										%>
+        <a href="<%=hrefurl%>"><%=title%></a>|
+        <%
+									}
+								}
+					 %>
+      </p>
+      <p>版权所有 (C) 贞龙科技 </p>
+      <p><img src="/templets/html/business/images/jc01.gif" /><img src="/templets/html/business/images/jc02.gif" /><img src="/templets/html/business/images/jc03.gif" /></p>
+    </div>
+    <!--底部结束-->
+  </div>
+</div>
+</body>
+</html>

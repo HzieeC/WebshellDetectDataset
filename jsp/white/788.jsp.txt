@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>用户管理</title>
+</head>
+<body>
+<div id="dataDiv" style="display:none">
+<input id="indexUrl" value="${contextPath}<ifa:constant namespace='cim' fieldName='USER_INDEX_URL'/>"/>
+<input id="saveFormUrl" value="${contextPath}<ifa:constant namespace='cim' fieldName='USER_FRESH_URL'/>.json"/>
+<input id="uniqueUrl" value="${contextPath}<ifa:constant namespace='cim' fieldName='USER_UNIQUE_URL'/>.json"/>
+<input id="queryAllDriver" value="${contextPath}<ifa:constant namespace='cim' fieldName='USER_QUERY_ALL_DRIVER_URL'/>.json"/>
+</div>
+<form id="userForm">
+<div class="userInfo" id="searchCon">
+						<h1>新增用户</h1>
+						<table class="yTable margintop">
+							<tr>
+                              <th>登陆名<span>*</span></th>
+							  <td><input name="loginName"  id="loginName" type="text" class="inputbox" maxlength="30"/><span></span></td>
+							  <th>密码<span>*</span></th>
+							  <td><input name="loginPassword" id="loginPassword" type="text" class="inputbox" maxlength="50"/><span id="passwordError"></span></td>
+						  </tr>
+							<tr>
+						      <th>姓名<span>*</span></th>
+							  <td><input name="name"  name="name" type="text" class="inputbox" maxlength="20"/><span></span></td>
+							  <th>性别 <span>*</span></th>
+							  <td>
+							      	<input type="radio" checked="checked" value="0" name="sex" id="sex1"/>男
+							      	&nbsp;&nbsp;&nbsp;&nbsp;
+									<input type="radio" value="1" name="sex" id="sex2"/>女	 
+									<span></span>  
+							  </td>
+						  </tr>
+							<tr>
+						      <th>手机号码<span>*</span></th>
+							  <td><input name="mobile" id="mobile" type="text" class="inputbox" maxlength="20"   onafterpaste="this.value=this.value.replace(/[^\d|-|+]/g,'')"/><span></span></td>
+                              <th>部门</th>
+							  <td><select class="inputbox" name="department" id="department">
+							         <option selected="selected" value="0">------------请选择-----------</option>
+						             <option value="1">教务处</option>
+						             <option value="2">502班</option>
+						             <option value="3">后勤处</option>
+						             <option value="4">学生处</option>
+						          </select>
+						          <span></span>
+						     </td>
+						  </tr>
+						  <tr>
+						   <th>角色名 <span>*</span></th>
+						   <td colspan="3">
+								<div class="uum_bottomsolid">
+										    <div class="uum_selected" style="float: left; width:120px; "> 选择角色
+										      <select style="height:140px;" multiple="multiple" name="role"  id="to_select_role" class="inputbox">
+										        <c:if test="${!empty allRoles}">
+										        <c:forEach items="${allRoles}" var="role">
+										       		 <option value="${role.code}" >${role.name}</option>
+										        </c:forEach>
+										        </c:if>
+										      </select>
+										    </div>
+										    <div class="uum_selected1" style="float: left; width:90px; padding-top: 70px; padding-left: 110px;">
+										      <input type="button" id="rightButton" class="buttonright" value=">>" name=""/>
+										      <input type="button" id="leftButton"class="buttonleft" value="<<" name=""/>
+										    </div>
+										    <div class="uum_selected2" style="float: left; width:120px; ">选择角色
+										      <select style="height:140px;" multiple="multiple" name="selectedRoles" id="selected_role" class="inputbox">
+										      </select>
+										      <span></span>
+										    </div>
+										    <div class="clear"></div>
+										  </div>
+										  </td>
+							 
+						  </tr>
+							<tr>
+                              <th>出生日期 </th>
+							  <td><input name="birthday" id="birthday" type="text" class="inputbox"  readonly="readonly"/><span></span></td>
+							  <th>邮箱</th>
+							  <td><input name="email" id="email" type="text" class="inputbox" maxlength="50"/><span></span></td>
+						  </tr>
+						  	<tr>
+                              <th>电话</th>
+							  <td><input name="phone" id="phone" type="text" class="inputbox" maxlength="20"  onafterpaste="this.value=this.value.replace(/[^\d|-]/g,'')"/><span></span></td>
+						      <th>传真</th>
+						      <td><input name="ext" id="ext" type="text" class="inputbox" maxlength="10"  onafterpaste="this.value=this.value.replace(/[^\d|-]/g,'')"/><span></span></td>
+						  </tr>
+						  	<tr>
+                              <th>教育背景</th>
+							  <td><input name="education" id="education" type="text" class="inputbox" maxlength="20" /><span></span></td>
+						      <th>班级职位</th>
+						      <td><input name="workLimit" id="workLimit" type="text" class="inputbox"  onafterpaste="this.value=this.value.replace(/[^\d]/g,'')"/><span></span></td>
+						  </tr>
+						  	<tr>
+                             <th>地址</th>
+							  <td><input name="address" id="address" type="text" class="inputbox" maxlength="50"/><span></span></td>
+						      <th>籍贯</th>
+						      <td><input name="origin" id="origin" type="text" class="inputbox" maxlength="20"/><span></span></td>
+						  </tr>
+						  	<tr>
+						      <th>地区</th>
+							  <td><input name="area" id="area" type="text" class="inputbox" maxlength="10" /><span></span></td>
+							  <th>邮政编码</th>
+						      <td><input name="zipCode" id="zipCode" type="text" class="inputbox" maxlength="10"  onafterpaste="this.value=this.value.replace(/[^\d]/g,'')"/><span></span></td>
+						  </tr>
+						  <tr>
+						   <th>入学日期</th>
+						      <td><input name="outDate" id="outDate" type="text" class="inputbox"  readonly="readonly"/><span></span></td>
+						  <th>地区</th>
+						      <td>
+						      <select name="districtId" id="districtId" style="width:200px">
+						    	    <option value="0">选择 </option>
+							    	<c:forEach items="${districtList}" var="item">
+							    	<option value="${item.districtId}"><c:out value="${item.districtName}"/></option>
+							    	</c:forEach>
+						    	</select>
+                           <span></span></td>
+						  </tr>
+						  <tr>
+						  	<th>学生号</th>
+						  	<td><input name="peopleCName" id="peopleCName" type="text" class="inputbox" maxlength="10" /><span></span>
+							<input type="hidden" id="peopleId" name="peopleId" value=""/>
+						  	</td>
+						  </tr>
+						  <tr>
+						    <th>备注</th>
+							  <td style="height: 100px;width: 250px;" colspan="3"><textarea name="remark" id="remark"  ></textarea><span></span></td>
+						  </tr>
+						</table>
+						<div class="Btn"> 
+							<a href="#" id="saveButton" class="bb"><div><span>保存 </span></div></a> 
+							<a href="#" id="cancleButton" class="bb"><div><span>取消</span></div></a> 
+						</div>
+</div>
+</form>
+<script type="text/javascript">
+  seajs.use("${scriptBasePath}/cimjs/user/userNew.js");
+</script>	
+</body>
+</html>

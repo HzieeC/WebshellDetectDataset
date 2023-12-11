@@ -1,0 +1,194 @@
+<!--#include file = "Startup.asp"-->
+<!-- #include file="Function.asp" -->
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<%
+
+
+call adminer()
+Call Header()
+Call ComeUrl()
+
+	' 取参数：新闻ID
+	Dim sNewsID,z_Action,z_file,d_class,D_Field,keyword,FoundErr,errmsg,z_FileName
+	sNewsID = Trim(Request("newsid"))
+	z_Action=Trim(Request("Action"))
+	z_FileName=	Session("FileName")
+	If z_FileName="News_Manage.asp?" Then
+		z_FileName=Left(z_FileName,15)
+	End If
+
+	If z_Action="" Then
+	founderr=true
+	errmsg=errmsg & "<br><li>参数不足！</li>"
+	Else
+		if z_Action="Del" then
+			call DelNews()
+		elseif z_Action="ConfirmDel" then
+			call ConfirmDel()
+		elseif z_Action="ClearRecyclebin" then
+			call ClearRecyclebin()
+		elseif z_Action="Restore" then
+			call Restore()
+		elseif z_Action="RestoreAll" then
+			call RestoreAll()
+		end if
+	End If
+	if FoundErr=True then
+	call WriteErrMsg()
+	end if
+	
+'彻底删除新闻
+Sub ConfirmDel()
+	if sNewsID="" then
+		founderr=true
+		errmsg=errmsg & "<br><li>请您选择要删除的新闻！！</li>"
+	end if
+	if FoundErr=True then
+		exit sub
+	end if
+	' 从新闻数据表中取出相关的上传文件
+	' 上传后保存到本地服务器的路径文件名，多个以"|"分隔
+	' 删除文件，要取带路径的文件名才可以，并且只要这个就可以了，原来存的原文件名或不带路径的保存文件名可用于其它地方使用
+	Dim sSavePathFileName,aSavePathFileName,i
+	sSql = "SELECT D_SavePathFileName FROM NewsData WHERE D_ID in ("& sNewsID &")"
+	oRs.Open sSql, oConn, 0, 1
+	If Not oRs.Eof Then
+		Do While Not oRs.Eof
+		sSavePathFileName = oRs("D_SavePathFileName")
+		' 把带"|"的字符串转为数组
+		aSavePathFileName = Split(sSavePathFileName, "|")
+
+		' 删除新闻相关的文件，从文件夹中
+		For i = 0 To UBound(aSavePathFileName)
+			' 按路径文件名删除文件
+			Call DoDelFile(aSavePathFileName(i))
+		Next
+		oRs.MoveNext
+		Loop
+	Else
+		GoError "无效的新闻ID，请点页面上的链接进行操作！"
+	End If
+	oRs.Close
+
+	' 删除新闻
+	sSql = "DELETE FROM NewsData WHERE D_ID in ("& sNewsID &")"
+	oConn.Execute sSql
+
+	' 3秒转向新闻列表页
+	response.write "<p align=center>彻底删除新闻成功，3秒后自动返回新闻列表页！<script>window.setTimeout(""location.href='"&z_FileName&"'"",3000);</script></p>"
+
+End Sub
+
+'删除选定的新闻到回收站
+Sub DelNews()
+	if sNewsID="" then
+		founderr=true
+		errmsg=errmsg & "<br><li>请您选择要删除的新闻！！</li>"
+	end if
+	if FoundErr=True then
+		exit sub
+	end if
+	sSql="Select D_Recycle,D_RecycleTime From NewsData Where D_ID in ("& sNewsID &")"
+	oRs.Open sSql,oConn,1,3
+	If Not oRs.Eof Then
+		Do While Not oRs.Eof
+			oRs("D_Recycle")=True
+			oRs("D_RecycleTime")=Now()
+			oRs.Update
+			oRs.MoveNext
+		Loop
+	Else
+		GoError "无效的新闻ID，请点页面上的链接进行操作！"
+	End If
+	oRs.Close
+	response.write "<p align=center>新闻删除成功，3秒后自动返回新闻列表页！<script>window.setTimeout(""location.href='"&z_FileName&"'"",3000);</script></p>"
+End Sub
+
+
+
+'清空回收站
+Sub ClearRecyclebin
+	sSql="Select D_Recycle,D_SavePathFileName From NewsData Where D_Recycle=True"
+	oRs.Open sSql,oConn,0,1
+	Dim sSavePathFileName,aSavePathFileName,i
+	If Not oRs.Eof Then
+		Do While Not oRs.Eof
+		sSavePathFileName = oRs("D_SavePathFileName")
+		' 把带"|"的字符串转为数组
+		aSavePathFileName = Split(sSavePathFileName, "|")
+
+		' 删除新闻相关的文件，从文件夹中
+		For i = 0 To UBound(aSavePathFileName)
+			' 按路径文件名删除文件
+			Call DoDelFile(aSavePathFileName(i))
+		Next
+		oRs.MoveNext
+		Loop
+	Else
+		GoError "无效的新闻ID，请点页面上的链接进行操作！"
+	End If
+	oRs.Close
+
+	sSql = "DELETE FROM NewsData WHERE D_Recycle=true"
+	oConn.Execute sSql
+	response.write "<p align=center>清除回收站成功，3秒后自动返回新闻回收站列表页！<script>window.setTimeout(""location.href='News_Recycle.asp'"",3000);</script></p>"
+
+End Sub
+
+
+
+
+'还原选定新闻
+Sub Restore()
+	if sNewsID="" then
+		founderr=true
+		errmsg=errmsg & "<br><li>请您选择要删除的新闻！！</li>"
+	end if
+	if FoundErr=True then
+		exit sub
+	end if
+	sSql="Select D_Recycle From NewsData Where D_ID in ("& sNewsID &")"
+	oRs.Open sSql,oConn,1,3
+	If Not oRs.Eof Then
+		Do While Not oRs.Eof
+			oRs("D_Recycle")=False
+			oRs.Update
+			oRs.MoveNext
+		Loop
+	Else
+		GoError "无效的新闻ID，请点页面上的链接进行操作！"
+	End If
+	oRs.Close
+	response.write "<p align=center>选定新闻还原成功，3秒后自动返回新闻回收站列表页！<script>window.setTimeout(""location.href='News_Recycle.asp'"",3000);</script></p>"
+End Sub
+
+
+
+'还原所有新闻
+Sub RestoreAll()
+	sSql="Select D_Recycle From NewsData Where D_Recycle=True"
+	oRs.Open sSql,oConn,1,3
+	If Not oRs.Eof Then
+		Do While Not oRs.Eof
+			oRs("D_Recycle")=False
+			oRs.Update
+			oRs.MoveNext
+		Loop
+	Else
+		GoError "无效的新闻ID，请点页面上的链接进行操作！"
+	End If
+	oRs.Close
+	response.write "<p align=center>还原所有新闻成功，3秒后自动返回新闻回收站列表页！<script>window.setTimeout(""location.href='News_Recycle.asp'"",3000);</script></p>"
+End Sub
+
+
+' 删除指定的文件
+Sub DoDelFile(sPathFile)
+	On Error Resume Next
+	Dim oFSO
+	Set oFSO = Server.CreateObject("Scripting.FileSystemObject")
+	oFSO.DeleteFile(Server.MapPath(sPathFile))
+	Set oFSO = Nothing
+End Sub
+
+%> 

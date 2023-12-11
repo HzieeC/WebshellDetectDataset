@@ -1,0 +1,115 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			Ext.QuickTips.init();
+			// 系统设置Form
+			var settingFormPanel = new Ext.FormPanel({
+				id: 'settingFormPanel',
+				renderTo: 'settingPanelDiv',
+		        labelWidth: 150,
+		        border: false,
+		        buttonAlign: 'center',
+		        style: 'border-bottom:0px;',
+		        bodyStyle: 'padding:10px;background-color:transparent;',
+		        url: '<%=baseUrl %>/loginAction.do?method=login',
+		        items:[new Ext.form.TextField ({// SMTP地址
+		        		inputType: 'textfiled',
+		                name: 'emailSmtpHost',
+		                fieldLabel: '邮箱服务器',
+		                anchor:'98%',
+		                allowBlank:false,
+		                maxLength: 20
+		           	}),new Ext.form.TextField ({// 账号
+			       		inputType: 'textfiled',
+			            name: 'emailAccount',
+			            fieldLabel: '邮箱账号',
+			            anchor:'98%',
+			            allowBlank:false,
+			            maxLength: 20
+			       	}),new Ext.form.TextField ({// 邮箱密码
+		        	    inputType: 'password',
+		                name:'emailPassword',
+		                fieldLabel:'邮箱密码',
+		                anchor:'98%',
+		                allowBlank:false,
+		                maxLength: 20
+					}),{
+			            xtype: 'checkboxgroup',
+			            itemCls: 'x-check-group-alt',
+			            columns: 1,
+			            fieldLabel:'成员资格',
+			            items: [
+			                {boxLabel: '任何人都可以注册', name: 'openRegister'}
+			            ]
+			        },new Ext.form.NumberField ({// 相册缩略图宽度
+			        	inputType: 'textfiled',
+		                name:'imageWidth',
+		                fieldLabel:'相册缩略图宽度',
+		                anchor:'98%',
+		                allowBlank:false,
+		                minValue: 30,
+		                maxValue: 800,
+		                decimalPrecision: 0
+					}),new Ext.form.NumberField ({// 相册缩略图高度
+			        	inputType: 'textfiled',
+		                name:'imageHeight',
+		                fieldLabel:'相册缩略图高度',
+		                anchor:'98%',
+		                allowBlank:false,
+		                minValue: 30,
+		                maxValue: 800,
+		                decimalPrecision: 0
+					})],
+					buttons: [{
+			            text:'保存',
+			            handler: function(){
+							if(settingFormPanel.getForm().isValid()){
+								// 发送请求-保存
+								Anynote.ajaxRequest({
+									baseUrl: '<%=baseUrl %>',
+									baseParams: {setting:Ext.util.JSON.encode(settingFormPanel.getForm().getValues())},
+									action: '/settingAction.do?method=saveSetting',
+									callback: function(jsonResult){
+										Ext.Msg.alert('提示', '保存成功，请重新启动服务器.');
+									},
+									showWaiting: true,
+									failureMsg: '保存失败.'
+								});
+				        	}
+						}
+			        },{
+			            text: '取消',
+			            handler: function(){
+			        		Anynote.tabPanel.remove(Anynote.tabPanel.getActiveTab());
+			            }
+			        }]
+		    });
+
+			// form初期化
+			var settingLoadMask = new Ext.LoadMask(Ext.get("settingPanelDiv"), {msg:"读取中..."});
+			settingLoadMask.show();
+			// 发送请求
+			Anynote.ajaxRequest({
+				baseUrl: '<%=baseUrl %>',
+				baseParams: {},
+				action: '/settingAction.do?method=getSetting',
+				callback: function(jsonResult){
+					var form = settingFormPanel.getForm();
+					form.setValues(jsonResult);
+					settingLoadMask.hide();
+				}
+			});
+		});
+	</script>
+</head>
+<body>
+	<div id="settingPanelDiv" style="width:70%;"></div>
+</body>
+</html>

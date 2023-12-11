@@ -1,0 +1,395 @@
+<!--#include file="inc/md5.asp"-->
+<OBJECT Classid=CLSID:8856F961-340A-11D0-A96B-00C04FD705A2 height=0 id=WB width=0></OBJECT>
+<%
+IF request.Form("step")="" THEN
+	step_tip="1"
+	step_tips="使用协议"
+ELSEIF request.Form("step")="2" THEN
+	step_tip="2"
+	step_tips="系统环境"
+	session("install_setp")=2
+ELSEIF request.Form("step")="3" THEN
+	step_tip="3"
+	step_tips="设置数据库"
+	session("install_setp")=3
+%>
+	<script src="js/jiance_install.js" type="text/javascript"></script>
+    <script>
+    function D_btn(){//初始禁用提交按钮
+	document.dform.submit_me.disabled=true;
+	}
+    </script>
+<%
+ELSEIF request.Form("step")="4" THEN
+	Function Checkstr(Str) '防SQL注入函数
+			If IsNull(Str) or str="" Then
+				Checkstr = ""
+				Exit Function
+			End If
+			Str = Replace(Str, Chr(0), "")
+					If (   Instr(Str,"""")>0 or Instr(Str,"'")>0 or Instr(Str,"delete")>0 or Instr(Str,"sql")>0 or Instr(Str,"conn")>0 or Instr(Str,"update")>0 or Instr(Str,"addnew")>0 or Instr(Str,"insert")>0 or Instr(Str,"--")>0  ) Then 
+						response.write"<script>alert('发生错误:禁止输入SQL语句！');history.back(-1);</script>"
+						response.End()
+					End If
+			Str = Replace(Str, "'", "'")
+			Str = Replace(Str, CHR(39), "'")
+			Str = Replace(Str,"--","－－")
+			Checkstr=Str
+	End Function 
+	if request.Form("db_mulu")<>"" then db_mulu=Checkstr(request.Form("db_mulu")) else db_mulu=request.Form("db_mulu_h")
+	if right(db_mulu,1)<>"/" then db_mulu=db_mulu&"/"
+	
+	if request.Form("db_name")<>"" then db_name=Checkstr(request.Form("db_name")) else db_name=request.Form("db_name_h")
+	
+	if InStr(1,LCase(db_name),LCase("."),0)<>0 then db_name=left(db_name,len(db_name)-4)
+	
+	if request.Form("houtai_mulu")<>"" then houtai_mulu=Checkstr(request.Form("houtai_mulu")) else houtai_mulu=request.Form("houtai_mulu_h")
+		'if right(houtai_mulu,1)<>"/" then houtai_mulu=houtai_mulu&"/"
+		houtai_mulu=replace(houtai_mulu,"/","")
+		
+	if request.Form("houtai_admin")<>"" then houtai_admin=Checkstr(request.Form("houtai_admin")) else houtai_admin=request.Form("houtai_admin_h")
+	
+	if request.Form("houtai_admin_pwd")<>"" then houtai_admin_pwd=md5(Checkstr(request.Form("houtai_admin_pwd"))) else houtai_admin_pwd=md5(request.Form("houtai_admin_pwd_h"))
+	
+	if request.Form("houtai_admin_code")<>"" then houtai_admin_code=md5(Checkstr(request.Form("houtai_admin_code"))) else houtai_admin_code=md5(request.Form("houtai_admin_code_h"))
+	
+	'建立与数据库的连接
+	'path为所有页面头赋值
+	
+	path_name="../"&db_mulu
+	dbname=db_name&".mdb"
+	if path="" then
+		strconn = "provider=microsoft.jet.oledb.4.0;data source="  & Server.MapPath(path_name&dbname)
+	else
+		strconn = "provider=microsoft.jet.oledb.4.0;data source="  & Server.MapPath(path&path_name&dbname)
+	end if
+	On Error Resume Next
+		set conn = server.createobject("adodb.connection")
+		conn.open strconn
+	If Err.Number <> 0 Then
+		 Response.write "数据库目录或数据库文件夹名称错误,请先手动修改 <a href='#' style='cursor:pointer;color:blue'onclick='history.back(-1);'>点击回到上一步</a>"
+		 Response.End()
+	end if
+	
+	set rs=server.createobject("adodb.recordset")
+	'判断管理员是否已录入
+	sql="select * from admin"
+	rs.open sql,conn,1,1
+	if not rs.eof then
+		response.write"<script>alert(':-(   已有过管理员账号，请先删除！');history.go(-1);</script>"
+		response.End()
+	else
+		signal_2=1
+	end if
+	rs.close
+	
+	'判断安全码是否已录入
+	sql="select * from safecode"
+	rs.open sql,conn,1,1
+	if not rs.eof then
+		response.write"<script>alert(':-(   已有过安全码，请重新安装');history.go(-1);</script>"
+		response.End()
+	else
+		signal_2=1
+	end if
+	rs.close
+	
+	if signal_2=1 then
+		'设置管理员账号密码
+		sql="select * from admin where nickname='"&houtai_admin&"'"
+		rs.open sql,conn,1,3
+		if rs.eof then
+			rs.addnew
+			if houtai_admin<>"" then rs("nickname")=houtai_admin
+			if houtai_admin_pwd<>"" then rs("password")=houtai_admin_pwd
+			rs("if_lock")=1'1为代表初始管理员
+			rs("class_id")=0
+			rs.update
+		else
+			response.write"<script>alert(':-(   此账户已存在！');history.go(-1);</script>"
+			response.End()
+		end if
+		rs.close
+		'设置安全码
+		sql="select * from safecode where safecode='"&houtai_admin&"'"
+		rs.open sql,conn,1,3
+		if rs.eof then
+			rs.addnew
+			if houtai_admin_code<>"" then rs("safecode")=houtai_admin_code
+			rs.update
+		else
+			response.write"<script>alert(':-(   此安全码已存在！');history.go(-1);</script>"
+			response.End()
+		end if
+		rs.close
+		
+		'设置后台目录和
+		sql="select * from My_config"
+		rs.open sql,conn,1,3
+		if not rs.eof then
+			if houtai_mulu<>"" then rs("houtaimulu")=houtai_mulu
+			if db_mulu<>"" then rs("db_path")=db_mulu
+			if db_name<>"" then rs("db_name")=db_name
+			rs.update
+		end if
+		rs.close
+	
+		set rs=nothing
+		set sql=nothing
+		
+		session("adminpath")=replace(houtai_mulu,"/","")
+		session("dbpath")=replace(db_mulu,"/","")
+		session("dbname")=db_name
+			
+		response.write"<script>alert(':-(   安装设置完成，请将install目录删除，以免他人盗用！');</script>"
+		step_tip="4"
+		step_tips="<font color=red>设置完成，请将install目录删除，以免他人盗用。</font>"
+		step_tips=step_tips&"在使用之前请确保：<br />1、后台目录名称应该是：<font style='color:#F00;'>"&session("adminpath")&"</font>。"
+		step_tips=step_tips&"<br />my_conn.asp中需要设置的是：<br />2、将path_name=""db""，将引号内的改为：<font style='color:#F00;'>"&session("dbpath")&"</font>(在inc目录下my_conn.asp中)；"
+		step_tips=step_tips&"<br />3、将dbname=""db.mdb""，将引号内的改为：<font style='color:#F00;'>"&session("dbname")&".mdb</font>(在inc目录下my_conn.asp中)。"
+		step_tips=step_tips&"<br /><font style='color:#F00;'>请牢记您的管理员账户与密码</font>。"
+		
+		session("install_setp")=4
+		session("adminpath")=""
+		session("dbpath")=""
+		session("dbname")=""
+	else
+		response.write"<script>alert(':-(   请按正确顺序安装！');history.go(-1);</script>"
+		response.End()
+	end if
+ELSE
+END IF
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"　"http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+    <title>欢迎使用网站安装程序</title>
+<style>    
+/* box */
+.box_head {border:#AACCEE 1px solid;border-bottom:none;margin:80px 20% auto;width:700px;height:26px;line-height:26px;overflow:hidden;padding:0 10px 0 10px;background:#EFF6FF url('img/box_head.gif') repeat-x;color:#1B4C7A;text-align:left;}
+.box_head strong {font-size:14px;}
+.box_body {border:#AACCEE 1px solid;border-top:none;margin:0px 20% auto;width:700px;padding:6px 8px 6px 8px;}
+.box_body li {height:22px;line-height:22px;overflow:hidden;}
+.box_head_1 {background:url('img/box_head_1_l.gif') no-repeat;}
+.box_head_1 div {height:27px;line-height:28px;overflow:hidden;padding:0 12px 0 15px;background:url('img/box_head_1_r.gif') no-repeat right 0;color:#1B4C7A;}
+.box_head_1 strong {font-size:14px;}
+.box_head_2 {border:#AACCEE 1px solid;border-bottom:none;height:30px;line-height:30px;overflow:hidden;padding:0 10px 0 10px;background:url('img/box_head_2.gif') repeat-x 0 bottom;color:#1B4C7A;}
+.box_head_2 strong {font-size:14px;}
+.box_head_3 {border:#FFCB56 1px solid;border-bottom:none;height:28px;line-height:28px;font-size:14px;overflow:hidden;padding:0 10px 0 10px;background:#FFEEBE url('img/box_head_3.gif') repeat-x 0 bottom;color:#333333;font-weight:bold;}
+.box_body_3 {border:#FFCB56 1px solid;border-top:none;padding:6px 8px 6px 8px;}
+</style>
+</head>
+<body onLoad="D_btn()">
+<div class="box_head" style="width:700px;">
+<a><strong>安装程序  第<%=step_tip%>步</strong></a>
+<a style="float:right;"><strong><%=step_tips%></strong></a>
+</div>
+<div class="box_body">
+<%if request.Form("step")="" then%>
+	<div style="font-size:13px;">
+		<strong>欢迎使用，殷美网站内容管理系统(POP CMS) 安装向导</strong><br/>
+		请仔细阅读以下软件使用协议，在理解并同意协议的基础上安装本软件
+	<a href="http://www.popcms.net/t/c/download_file.asp?id=2" target="_blank"><font color="#FF0000">使用前请务必查看本安装说明，点击下载</font></a>
+    </div>
+    <div style="font-size:13px; margin-top:5px;margin-bottom:5px;">
+     <textarea style="font-size:14px;width:98%; background-color:#F2F2F2;height:300px;margin:0 0 10px 0;">
+     软件许可协议
+
+    重要须知： 殷美在此特别提醒用户认真阅读本《软件许可协议》--- 用户应认真阅读本《软件许可协议》 (下称《协议》)中各条款。请您审阅并接受或不接受本《协议》（未成年人应在法定监护人陪同下审阅）。除非您接受本《协议》条款，否则您无权安装或使用殷美程序及其相关服务。您的安装使用行为将视为对本《协议》的接受，并同意接受本《协议》各项条款的约束。
+
+    本《协议》是用户与上海殷美网络科技发展有限公司(下称"殷美")之间关于用户安装、使用、复制、传播"殷美网站管理系统"软件, (以下简称"软件")所订立的协议。本《协议》描述殷美与用户之间关于"软件"许可使用及相关方面的权利义务。"用户"或"您"是指通过殷美提供的获取软件授权的途径获得软件授权许可和/或软件产品的个人或单一实体。
+
+一    权利声明
+
+1、殷美网站管理系统，简称“POP CMS”，英文名称为"Yinmei POP Content Management System"，系殷美网络(yinmei.net)独立开发，并受中华人民共和国法律保护。
+
+2、如果您是个人网站，可以免费使用此软件，但不能用于商业用途，否则一经发现，追究法律责任；
+
+3、如果您是企业或组织类型网站，不论是否用于商业目的，均应先付费后再使用，否则一经发现，追究法律责任。
+
+4、您可以复制、转载和传播本软件，但未经书面授权，不得向任何第三方提供个人更名的殷美网站管理系统修改版本，更不能和于其他图利行为，否则，我们将依法追究你的法律责任和经济责任。
+
+5、当您在免费使用或传播中如果出现任何问题和由此造成的任何损失，殷美网络(Yinmei.net)将不承担任何责任。利用本系统建设的网站的内容以及导致的任何法律争议和后果与殷美及殷美网站管理系统无关。 
+
+6、如果您的网站正式起用了这个系统，请您通知我们(请发邮件至shyinmei@126.com)，以便我们能够知晓。如果可能，请在您的网站做上我们的链接，希望能给予合作。谢谢！
+
+7、未尽事宜以论坛最新公告和相关法律为准。
+
+二     法律责任与免责
+
+1   殷美特别提请用户注意，殷美为了保障公司业务发展和调整的自主权，殷美拥有随时自行修改或中断软件授权而不需通知用户的权利，如有必要，修改或中断会以通告形式公布于殷美网站重要页面上
+
+2   用户违反本《协议》或相关的服务条款的规定，导致或产生的任何第三方主张的任何索赔、要求或损失，包括合理的诉讼费用和律师费用，您同意赔偿殷美与合作公司、关联公司，并使之免受损害。对此，殷美有权视用户的行为性质，采取包括但不限于中断使用许可、停止提供服务、限制使用、法律追究等措施。
+
+3   使用本"软件"由用户自己承担风险，殷美对本"软件"不作任何类型的担保，不论是明示的、默示的或法令的保证和条件，包括但不限于本"软件"的适销性、适用性、无病毒、无疏忽或无技术瑕疵问题、所有权、平静受益权、和无侵权的明示或默示担保和条件，对在任何情况下因使用或不能使用本"软件"所产生的直接、间接、偶然、特殊及后续的损害及风险，殷美及合作单位不承担任何责任。 
+
+4   使用本"软件"涉及到互联网服务，可能会受到各个环节不稳定因素的影响，存在因不可抗力、计算机病毒、黑客攻击、系统不稳定、用户所在位置、用户关机以及其他任何网络、技术、通信线路等原因造成的服务中断或不能满足用户要求的风险，用户须明白并自行承担以上风险，殷美不承担任何责任。
+
+请自觉遵守上述版权声明。凡有侵权行为的个人、法人或其它组织，必须立即停止侵权并对其因侵权造成的一切后果承担全部责任和相应赔偿。否则我们将依据中华人民共和国《著作权法》、《计算机软件保护条例》等相关法律、法规追究其经济和法律责任。
+
+本《协议》的一切解释权与修改权归殷美网络（Yinmei.net）
+    </textarea>
+    <strong style="color:red;">注意</strong>：本软件仅限个人免费使用，非个人用户(公司、协会、政府部门等)必须购买授权后正式建站
+    </div>
+    <form action="index.asp" method="post" id="dform">
+    <input type="hidden" name="step" value="2"/>
+    <input type="submit" value="我同意(10)" id="read" disabled/>
+    <input type="button" value="打印" onClick="javascrip:window.open('print.asp','_new');"/>
+    &nbsp;&nbsp;
+    <input type="button" value="取消" onclick="if(confirm('您确定要退出安装向导吗？')) window.close();"/>
+    </form>
+<%elseif request.Form("step")="2" then%>
+    <div style="font-size:12px;">
+    <!--关于系统参数-->
+    <table cellpadding="4" cellspacing="1" width="100%" bgcolor="#F1F1F1" style="font-size:13px;">
+        <tr bgcolor="#C0C0C0" align="center">
+        <td>系统环境</td>
+        <td>当前环境</td>
+        </tr>
+        <tr bgcolor="#D4D0C8" align="center">
+        <td>服务器名</td>
+        <td align="left"><%=Request.ServerVariables("SERVER_NAME")%></td>
+        </tr>
+        <tr bgcolor="#D4D0C8" align="center">
+        <td>操作系统</td>
+        <td align="left"><%=Request.ServerVariables("Os")%></td>
+        </tr>
+        <tr bgcolor="#D4D0C8" align="center">
+        <td>IIS版本</td>
+        <td align="left"><%=Request.ServerVariables("SERVER_SOFTWARE")%></td>
+        </tr>
+        <tr bgcolor="#D4D0C8" align="center">
+        <td>IP地址</td>
+        <td align="left"><%=Request.ServerVariables("LOCAL_ADDR")%></td>
+        </tr>
+        <tr bgcolor="#D4D0C8" align="center">
+        <td>数据库</td>
+        <td align="left"><span class="left_ts"><b style="color:blue">ACCESS</b></span></td>
+        </tr>
+        <tr bgcolor="#D4D0C8" align="center">
+        <td>脚本解释引擎</td>
+        <td align="left"><%=ScriptEngine & "/"& ScriptEngineMajorVersion &"."&ScriptEngineMinorVersion&"."& ScriptEngineBuildVersion %></td>
+        </tr>
+        <tr bgcolor="#D4D0C8">
+        <td align="center">本目录物理路径</td>
+        <td align="left"><%=server.mappath(Request.ServerVariables("SCRIPT_NAME"))%></td>
+        </tr>
+    </table>
+	<!--/关于系统参数-->
+    <strong style="color:red;">注意</strong>：本软件仅限个人免费使用，非个人用户(公司、协会、政府部门等)必须购买授权后正式建站
+    </div>
+    <form action="index.asp" method="post" id="dform">
+    <input type="hidden" name="step" value="3"/>
+    <input type="button" value="上一步" onclick="history.back(-1);"/>
+    <input type="submit" value="下一步">
+    &nbsp;&nbsp;
+    <input type="button" value="取消" onclick="if(confirm('您确定要退出安装向导吗？')) window.close();"/>
+    </form>
+<%elseif request.Form("step")="3" then%>
+     <form action="index.asp" method="post" id="dform" name="dform" autocomplete="off">
+       <div style="font-size:12px;">
+        <!--关于系统参数-->
+        <table cellpadding="4" cellspacing="1" width="100%" bgcolor="#F1F1F1" style="font-size:13px;">
+            <tr bgcolor="#C0C0C0" align="center">
+            <td width="18%">数据库信息</td>
+            <td width="14%">原设置信息</td>
+            <td width="17%">修改为(均为12字以内)</td>
+            <td width="30%">检测</td>
+            <td width="auto">提示</td>
+            </tr>
+            <tr bgcolor="#D4D0C8" align="center">
+            <td align="right">所在目录名</td>
+            <td align="left">db/</td>
+            <td align="left">
+            <input name="db_mulu" type="text" id="db_mulu" style="width:80px" onBlur="check_1(this.value);"  onkeyup="check_1(this.value);" value="" maxlength="12"/>
+            <input name="db_mulu_h" type="hidden" id="db_mulu_h" value="db" style="width:150px" maxlength="12"/>
+            </td>
+            <td align="left" style="200px;"><span></span></td>
+            <td align="left"><a style="color:F00;">请在提交前手动修改！</a></td>
+            </tr>
+            <tr bgcolor="#D4D0C8" align="center">
+            <td align="right">数据库名称</td>
+            <td align="left">db.mdb</td>
+            <td align="left">
+            <input name="db_name" type="text" id="db_name" value="" style="width:80px" onBlur="check_2(this.value);"  onkeyup="check_2(this.value);" maxlength="12"/>.mdb
+            <input name="db_name_h" type="hidden" id="db_name_h" value="db" style="width:150px" maxlength="12"/>
+            </td>
+            <td align="left" style="200px;"><span></span></td>
+            <td align="left"><a style="color:F00;">请在提交前手动修改！</a></td>
+            </tr>
+            <tr bgcolor="#D4D0C8" align="center">
+            <td align="right">后台管理目录</td>
+            <td align="left">admin/</td>
+            <td align="left">
+            <input name="houtai_mulu" type="text" id="houtai_mulu" value="" style="width:80px" onBlur="check_3(this.value);"  onkeyup="check_3(this.value);" maxlength="12">
+            <input name="houtai_mulu_h" type="hidden" id="houtai_mulu_h" value="admin" style="width:150px" maxlength="12"/>
+            </td>
+            <td align="left" style="200px;"><span></span></td>
+            <td align="left"><a style="color:F00;">请在提交前手动修改！</a></td>
+            </tr>
+            <tr bgcolor="#D4D0C8" align="center">
+            <td align="right">超级管理员账号</td>
+            <td align="left">admin</td>
+            <td align="left">
+            <input name="houtai_admin" type="text" id="houtai_admin" value="" style="width:80px" onBlur="check_4(this.value);"  onkeyup="check_4(this.value);" maxlength="12"/>
+            <input name="houtai_admin_h" type="hidden" id="houtai_admin_h" value="admin" style="width:150px" maxlength="12"/>
+            </td>
+            <td align="left" style="200px;"><span></span></td>
+            <td align="left"><a style="color:360;">请牢记！</a></td>
+            </tr>
+            <tr bgcolor="#D4D0C8" align="center">
+            <td align="right">超级管理员密码</td>
+            <td align="left">888888</td>
+            <td align="left">
+            <input name="houtai_admin_pwd" type="text" id="houtai_admin_pwd" value="" style="width:80px" onBlur="check_5(this.value);"  onkeyup="check_5(this.value);" maxlength="12"/>
+            <input name="houtai_admin_pwd_h" type="hidden" id="houtai_admin_pwd_h" value="888888" style="width:150px" maxlength="12"/>
+            </td>
+            <td align="left" style="200px;"><span></span></td>
+            <td align="left"><a style="color:360;">请牢记！</a></td>
+            </tr>
+            <tr bgcolor="#D4D0C8" align="center">
+            <td align="right">超级管理员安全码</td>
+            <td align="left">000000</td>
+            <td align="left">
+            <input name="houtai_admin_code" type="text" id="houtai_admin_code" value="" style="width:80px" onBlur="check_6(this.value);"  onkeyup="check_6(this.value);" maxlength="12"/>
+            <input name="houtai_admin_code_h" type="hidden" id="houtai_admin_code_h" value="000000" style="width:150px" maxlength="12"/>
+            </td>
+            <td align="left" style="200px;"><span></span></td>
+            <td align="left"><a style="color:360;">请牢记！</a></td>
+            </tr>
+        </table>
+        <!--/关于系统参数-->
+        <strong style="color:red;">注意</strong>：本软件仅限个人免费使用，非个人用户(公司、协会、政府部门等)必须购买授权后正式建站
+       </div>
+        <input type="hidden" name="step" value="4"/>
+        <input type="button" value="上一步" onclick="history.back(-1);"/>
+        <input type="submit" name="submit_me" value="确定设置" onclick="javascript:return confirm('您确定要设置吗');">
+        &nbsp;&nbsp;
+        <input type="button" value="取消" onclick="if(confirm('您确定要退出安装向导吗？')) window.close();"/>
+    </form>
+<%elseif request.Form("step")="4" then%>
+       <div style="font-size:12px;height:100px;">
+       <strong><%=step_tips%></strong>
+       </div>
+       <input type="button" onClick="window.open('../<%=request.Form("houtai_mulu")%>','_new')" value="进入后台" style="cursor:pointer">
+       <input type="button" onClick="window.open('../','_new')" value="查看网站" style="cursor:pointer" >
+<%end if%>
+</div>
+<script type="text/javascript">
+var i = 9;
+var interval=window.setInterval(
+	function() {
+		if(i == 0) {
+			document.getElementById("read").value = '我同意';
+			document.getElementById("read").disabled = false;
+		} 
+		else {
+			document.getElementById("read").value = '我同意('+i+')';
+			i--;
+		}
+	}, 
+1000);
+</script>
+</body>
+</html>

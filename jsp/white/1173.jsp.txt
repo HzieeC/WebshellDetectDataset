@@ -1,0 +1,76 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_case.*" %>
+<%@page import="com.bizoss.trade.ti_casetrack.*" %>
+<%@page import="java.util.*" %>
+<html>
+  <head>
+    <title>新增案源追踪管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+
+  <% 
+  	String case_id="";
+  	if(request.getParameter("case_id")!=null) case_id = request.getParameter("case_id");
+  	Ti_casetrackInfo ti_casetrackInfo = new Ti_casetrackInfo();
+  	List list = ti_casetrackInfo.getListByPk(case_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String contact_time="",contact_result="",operator_user="",contact_count="",operator_time="";
+  	if(map.get("contact_time")!=null) contact_time = map.get("contact_time").toString();
+  	if(map.get("contact_result")!=null) contact_result = map.get("contact_result").toString();
+  	if(map.get("operator_user")!=null) operator_user = map.get("operator_user").toString();
+  	if(map.get("contact_count")!=null) contact_count = map.get("contact_count").toString();
+  	if(map.get("operator_time")!=null) operator_time = map.get("operator_time").toString();
+	Ti_caseInfo caseInfo=new Ti_caseInfo();
+	List listtemp= caseInfo.getListByPk(case_id);
+	String title ="",user_name="";
+	if(listtemp!=null&&listtemp.size()>0){
+		title=((Hashtable)listtemp.get(0)).get("case_title").toString();
+	}
+	if(session.getAttribute("session_user_name")!=null){
+	     user_name =session.getAttribute("session_user_name").toString();
+	}
+  %>
+	
+	<h1>修改案源追踪管理</h1>
+	
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+		<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="10%">
+				案源标题：<font color="red">*</font>
+			</td>
+			<td><input name="" id="title" size="60" type="text" value="<%=title %>"/></td>
+		</tr>
+		<tr>
+			<td align="right" width="10%">
+				联系结果：<font color="red">*</font>
+			</td>
+			<td>
+				<textarea name="contact_result" id="contact_result"  cols="70" rows="5"><%=contact_result %></textarea>
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="8006" />
+	  			<input type="hidden" name="case_id" value="<%=case_id %>" />
+	  			<input name="operator_user" id="operator_user" value="<%=user_name %>" type="hidden" />
+				<input type="submit" class="buttoncss" name="tradeSub" value="提交" onclick="return checkSub();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='/program/admin/lawyerCase/index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

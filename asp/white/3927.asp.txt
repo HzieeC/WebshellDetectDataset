@@ -1,0 +1,222 @@
+<!--#include file="../conn.asp" -->
+<!--#include file="const.asp"-->
+<%
+Response.Expires = 0
+Response.AddHeader "pragma", "no-cache"
+Response.AddHeader "cache-ctrol", "no-cache"
+NewAsp.ChkPostAgent()
+If Not IsNumeric(Request("id")) And Request("id")<>"" then
+	Response.write"错误的系统参数!ID必须是数字"
+	Response.End
+End If
+Dim rsOnline,strUsername,statuserid,stridentitys,remoteaddr,onlinemany
+Dim Rs,SQL,Grades,strReferer,onlinemember,userid,m_strBrowser,CurrentStation,cid
+Dim delflag : delflag=False
+Application.Lock
+remoteaddr = NewAsp.UserTrueIP
+strReferer = NewAsp.RemoveHtml(Request.Querystring("Referer"))
+If strReferer = Empty Then
+	strReferer = "★直接输入或书签导入★"
+Else
+	strReferer = NewAsp.CheckStr(Left(strReferer,255))
+End If
+cid = NewAsp.ChkNumeric(Request.Querystring("cid"))
+CurrentStation = NewAsp.Checkstr(NewAsp.RemoveHtml(Request.Querystring("stat")))
+
+If NewAsp.membername = "" Then
+	Grades = 0
+	strUsername = "匿名用户"
+	userid = 0
+Else
+	Grades = CInt(NewAsp.membergrade)
+	strUsername = Trim(NewAsp.membername)
+	userid = CLng(NewAsp.memberid)
+End If
+Set Rs=NewAsp.Execute("SELECT GroupName FROM NC_UserGroup WHERE Grades = "& Grades)
+	stridentitys = Rs("GroupName")
+Rs.Close
+Set Rs=Nothing
+
+Call UserActiveOnline
+Application.UnLock
+'---- 删除超时用户
+NewAsp.Name="delOnline_time"
+If NewAsp.ObjIsEmpty() Then
+	delflag=True:NewAsp.Value=Now()
+Else
+	If DateDiff("s",NewAsp.Value,Now()) > 450 Then delflag=True
+End If
+If delflag Then
+	NewAsp.Value=Now()
+	If IsSQLDataBase = 1 Then
+		Conn.Execute("DELETE FROM NC_Online WHERE DateDIff(s,lastTime,GetDate()) > "& CLng(NewAsp.MainSetting(38)) &" * 60")
+	Else
+		Conn.Execute("DELETE FROM NC_Online WHERE DateDIff('s',lastTime,Now()) > "& CLng(NewAsp.MainSetting(38)) &" * 60")
+	End If
+End If
+onlinemany = Conn.Execute("SELECT COUNT(*) FROM NC_Online")(0)
+onlinemember = Conn.Execute("SELECT COUNT(*) FROM NC_Online WHERE userid > 0")(0)
+If CInt(Request.Querystring("id")) = 1 And Trim(Request.Querystring("id")) <> "" Then
+	Response.Write "document.writeln(" & chr(34) & ""& onlinemany &""& chr(34) & ");"
+ElseIf CInt(Request.Querystring("id")) = 2 And Trim(Request.Querystring("id")) <> "" Then
+	Response.Write "document.writeln(" & Chr(34) & ""& onlinemember &""& chr(34) & ");"
+ElseIf CInt(Request.Querystring("id")) = 3 And Trim(Request.Querystring("id")) <> "" Then
+	Response.Write "var objOnline=document.getElementById(""uponline"");" & vbNewLine
+	Response.Write "if (objOnline!=null) {" & vbNewLine
+	Response.Write "	objOnline.innerHTML="& Chr(34) & onlinemany & Chr(34) &";" & vbNewLine
+	Response.Write "}" & vbNewLine
+Else
+	Response.Write "document.writeln(" & Chr(34) & chr(34) & ");"
+End If
+
+NewAsp.PageEnd()
+
+Sub UserActiveOnline()
+	On Error Resume Next
+	Dim OnlineSQL
+	Dim StatUserID,UserSessionID
+	StatUserID = NewAsp.CheckStr(Trim(Request.Cookies(NewAsp.CookiesName&"_Online")("UserSessionID")))
+	If NewAsp.CheckNumeric(StatUserID) = 0 Then
+		StatUserID = Replace(NewAsp.UserTrueIP,".","")
+		UserSessionID = Replace(Startime,".","")
+		If IsNumeric(StatUserID) = 0 Or StatUserID = "" Then StatUserID = 0
+		StatUserID = Ccur(StatUserID) + Ccur(UserSessionID)
+		Response.Cookies(NewAsp.CookiesName&"_Online").path="/"
+		Response.Cookies(NewAsp.CookiesName&"_Online").Expires=DateAdd("d",365,Now())
+		Response.Cookies(NewAsp.CookiesName&"_Online")("UserSessionID") = StatUserID
+	End If
+	UserSessionID = Ccur(StatUserID)
+	m_strBrowser = NewAsp.platform&"|"&NewAsp.Browsers&" "&NewAsp.versions & "|"&NewAsp.AlexaToolbar
+	
+	SQL = "SELECT * FROM [NC_Online] WHERE id=" & UserSessionID
+	Set rsOnline = NewAsp.Execute(SQL)
+	If rsOnline.BOF And rsOnline.EOF Then
+		OnlineSQL = "INSERT INTO NC_Online(id,ChannelID,username,identitys,station,ip,browser,startTime,lastTime,userid,strReferer) VALUES (" & UserSessionID & "," & cid & ",'" & strUsername & "','" & stridentitys & "','" & CurrentStation & "','" & remoteaddr & "','" &m_strBrowser&"'," & NowString & "," & NowString & "," & userid & ",'" & strReferer & "')"
+		Call AddCountData
+	Else
+		OnlineSQL = "UPDATE NC_Online SET username='" & strUsername & "',identitys='" & stridentitys & "',station='" & CurrentStation & "',lastTime=" & NowString & ",userid=" & userid & " WHERE ID = " & UserSessionID
+		Call UpdateCountData
+	End If
+	rsOnline.close
+	Set rsOnline = Nothing
+	Conn.Execute(OnlineSQL)
+End Sub
+
+Function CheckInSQL(str)
+	If IsNull(str) Then Exit Function
+	On Error Resume Next
+	Dim s,Badstring,i
+	Badstring = " and | mid |exec|insert|select|delete|update|count|master|truncate|char|declare"
+	str = Replace(str, Chr(0), ""):		str = Replace(str, Chr(9), " ")
+	str = Replace(str, Chr(255), " "):	str = Replace(str, "　", " ")
+	str = Replace(str, "'", "''"):		str = Replace(str, "--", "－－")
+	str = Replace(str, "@", "＠"):		str = Replace(str, "*", "＊")
+	str = Replace(str, "%", "％"):		str = Replace(str, "^", "＾")
+	Badstring = Split(Badstring, "|")
+	s = LCase(str)
+	s = Replace(s, Chr(10), ""):s = Replace(s, Chr(13), "")
+	For i = 0 To UBound(Badstring)
+		If InStr(s, Badstring(i))>0 Then
+			CheckInSQL = ""
+			Exit Function
+		End If
+	Next
+	CheckInSQL = str
+End Function
+
+Sub AddCountData()
+	Dim strSQL,oRs
+	Dim rowname,cid,strAgent
+	On Error Resume Next
+	'If CInt(Request.Querystring("id")) = 1 Then Exit Sub
+	rowname = GetSearcher(strReferer)
+	If rowname = "3721" Then rowname = "C3721"
+	strAgent = CheckInSQL(Request.ServerVariables("HTTP_USER_AGENT"))
+
+	If IsSQLDataBase = 1 Then
+		strSQL = "SELECT id FROM [NC_SiteCount] WHERE Datediff(d,CountDate,GetDate())=0"
+	Else
+		strSQL = "SELECT id FROM [NC_SiteCount] WHERE Datediff('d',CountDate,Now())=0"
+	End If
+	'Set oRs = NewAsp.Execute(strSQL)
+	Set oRs = NewAsp.CreateAXObject("ADODB.Recordset")
+	oRs.Open strSQL,Conn,1,1
+	If oRs.BOF And oRs.EOF Then
+		If InStr(strAgent, "Alexa Toolbar") > 0 Then
+			strSQL = "INSERT INTO NC_SiteCount(UniqueIP,Pageview,CountDate," & rowname & ",AlexaToolbar) VALUES (1,1," & NowString & ",1,1)"
+		Else
+			strSQL = "INSERT INTO NC_SiteCount(UniqueIP,Pageview,CountDate," & rowname & ") VALUES (1,1," & NowString & ",1)"
+		End If
+	Else
+		If InStr(strAgent, "Alexa Toolbar") > 0 Then
+			strSQL = "UPDATE NC_SiteCount SET AlexaToolbar=AlexaToolbar+1 WHERE id=" & oRs("id")
+			Conn.Execute(strSQL)
+		End If
+		strSQL = "UPDATE NC_SiteCount SET UniqueIP=UniqueIP+1,Pageview=Pageview+1," & rowname & "=" & rowname & "+1 WHERE id=" & oRs("id")
+	End If
+	oRs.Close
+	Set oRs = Nothing
+	Conn.Execute(strSQL)
+	strSQL = Empty
+End Sub
+
+Sub UpdateCountData()
+	Dim strSQL,oRs
+	Dim rowname,cid,strAgent
+	On Error Resume Next
+	'If CInt(Request.Querystring("id")) = 1 Then Exit Sub
+	rowname = GetSearcher(strReferer)
+	If rowname = "3721" Then rowname = "C3721"
+	strAgent = CheckInSQL(Request.ServerVariables("HTTP_USER_AGENT"))
+
+	If IsSQLDataBase = 1 Then
+		strSQL = "SELECT id FROM [NC_SiteCount] WHERE Datediff(d,CountDate,GetDate())=0"
+	Else
+		strSQL = "SELECT id FROM [NC_SiteCount] WHERE Datediff('d',CountDate,Now())=0"
+	End If
+	Set oRs = NewAsp.CreateAXObject("ADODB.Recordset")
+	oRs.Open strSQL,Conn,1,1
+	If oRs.BOF And oRs.EOF Then
+		If InStr(strAgent, "Alexa Toolbar") > 0 Then
+			strSQL = "INSERT INTO NC_SiteCount(UniqueIP,Pageview,CountDate," & rowname & ",AlexaToolbar) VALUES (1,1," & NowString & ",1,1)"
+		Else
+			strSQL = "INSERT INTO NC_SiteCount(UniqueIP,Pageview,CountDate," & rowname & ") VALUES (1,1," & NowString & ",1)"
+		End If
+	Else
+		strSQL = "UPDATE NC_SiteCount SET Pageview=Pageview+1 WHERE id=" & oRs("id")
+	End If
+	oRs.Close
+	Set oRs = Nothing
+	Conn.Execute(strSQL)
+	strSQL = Empty
+End Sub
+
+Function GetSearcher(ByVal strUrl)
+	On Error Resume Next
+	If Len(strUrl) < 5 Then
+		GetSearcher = "DirectInput"
+		Exit Function
+	End If
+	If strUrl = "★直接输入或书签导入★" Or InStr(strUrl, ":") = 0 Then
+		GetSearcher = "DirectInput"
+		Exit Function
+	End If
+
+	Dim Searchlist,i,SearchName
+
+	strUrl = Left(strUrl, InStr(10, strUrl, "/") - 1)
+	strUrl = LCase(strUrl)
+	Searchlist = "google,baidu,yahoo,3721,zhongsou,sogou,vnet"
+
+	Searchlist = Split(Searchlist, ",")
+	For i = 0 To UBound(Searchlist)
+		If InStr(strUrl, Searchlist(i)) > 0 Then
+			SearchName = Searchlist(i)
+			Exit For
+		Else
+			SearchName = "other"
+		End If
+	Next
+	GetSearcher = SearchName
+End Function
+%>

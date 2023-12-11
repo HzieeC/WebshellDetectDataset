@@ -1,0 +1,222 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_teamorder.*" %>
+<%@ page import="com.bizoss.trade.ts_area.Ts_areaInfo" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo"%>
+<html>
+  <head>
+    
+    <title>团购订单管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>	
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js'></script>
+      <script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	  <script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	  <script type="text/javascript" src="js_area.js"></script>
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+
+  <% 
+  	String trade_id="";
+  	if(request.getParameter("trade_id")!=null) trade_id = request.getParameter("trade_id");
+  	Ti_teamorderInfo ti_teamorderInfo = new Ti_teamorderInfo();
+  	List list = ti_teamorderInfo.getListByPk(trade_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String order_no="",info_id="",num="",price="0",ship_price="0",user_name="",title="",total_price="",best_time="",pay_name="",ship_name="",user_id="",cellphone="",rand_no="",order_state="",area_attr="",address="",post_code="",name="",send_time="",remark="",invoice="",in_date="";
+  	if(map.get("order_no")!=null) order_no = map.get("order_no").toString();
+  	if(map.get("info_id")!=null) info_id = map.get("info_id").toString();
+  	if(map.get("user_name")!=null) user_name = map.get("user_name").toString();
+  	if(map.get("title")!=null) title = map.get("title").toString();
+  	if(map.get("num")!=null) num = map.get("num").toString();
+  	if(map.get("price")!=null) price = map.get("price").toString();
+  	if(map.get("total_price")!=null) total_price = map.get("total_price").toString();
+  	if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+  	if(map.get("cellphone")!=null) cellphone = map.get("cellphone").toString();
+  	if(map.get("rand_no")!=null) rand_no = map.get("rand_no").toString();
+  	if(map.get("order_state")!=null) order_state = map.get("order_state").toString();
+  	if(map.get("area_attr")!=null) area_attr = map.get("area_attr").toString();
+  	if(map.get("address")!=null) address = map.get("address").toString();
+  	if(map.get("post_code")!=null) post_code = map.get("post_code").toString();
+  	if(map.get("name")!=null) name = map.get("name").toString();
+  	if(map.get("send_time")!=null) send_time = map.get("send_time").toString();
+  	if(map.get("remark")!=null) remark = map.get("remark").toString();
+  	if(map.get("invoice")!=null) invoice = map.get("invoice").toString();
+  	if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+	if(map.get("best_time")!=null) best_time = map.get("best_time").toString();
+	if(map.get("ship_name")!=null) ship_name = map.get("ship_name").toString();
+	if(map.get("pay_name")!=null) pay_name = map.get("pay_name").toString();
+	if(map.get("ship_price")!=null) ship_price = map.get("ship_price").toString();
+	Ts_areaInfo ts_areaInfo = new Ts_areaInfo();
+	Map areaMap = ts_areaInfo.getAreaClass();
+	StringBuffer areaAttr = new StringBuffer();
+	if(!area_attr.equals("")){
+	  String areaIds[] = area_attr.split("\\|");	
+	  for(String areaId:areaIds){
+		 if(areaMap!=null){
+			if(areaMap.get(areaId)!=null){
+				areaAttr.append(areaMap.get(areaId).toString() + " ");
+			}                  
+		  }                 
+	   }		    
+	}
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	String s_order_state = tb_commparaInfo.getSelectItem("81",order_state);    
+  %>
+	
+	<h1>修改团购订单</h1>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	<input name="order_no" id="order_no" value="<%=order_no%>" type="hidden" />
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		<tr>
+			<td align="right" width="20%">
+				团购商品:
+			</td>
+			<td colspan="3">
+			<%=title%>
+			</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				订单号:
+			</td>
+			<td><%=order_no%></td>
+			<td align="right" width="20%">
+				单价<font color="red">*</font>
+			</td>
+			<td><input name="price" id="price" size="8" maxlength="8" value="<%=price %>" type="text"  onchange="countprice()" />
+		    </td>
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				团购数量<font color="red">*</font>
+			</td>
+			<td><input name="num" id="num" size="20" maxlength="20" value="<%=num %>" type="text" onchange="countprice()"/></td>
+		    <td align="right" width="20%">
+				总价<font color="red">*</font>
+			</td>
+			<td><input name="total_price" id="total_price" size="8" maxlength="8" value="<%=total_price %>" type="text" /></td>
+		
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				购买人:
+			</td>
+			<td><%=name %>
+			<td align="right" width="20%">
+				手机<font color="red">*</font>
+			</td>
+			<td><input name="cellphone" id="cellphone" size="20" maxlength="20" value="<%=cellphone %>" type="text" /></td>
+		</tr>
+		
+		<tr>
+		  <td align="right" width="20%">
+				订单状态<font color="red">*</font>
+			</td>
+			<td>
+			  <select name="order_state">
+					  <%=s_order_state %>
+			</select>			
+			</td>
+			<td align="right" width="20%">
+				随机码:
+			</td>
+			<td><%=rand_no%>
+			</td>			
+		</tr>
+		<tr>
+		<td align="right" width="20%">
+				邮编:
+			</td>
+			<td><input name="post_code" id="post_code" size="10" maxlength="10" value="<%=post_code %>" type="text" /></td>
+		
+			<td align="right" width="20%">
+				地区<font color="red">*</font>
+			</td>
+			<td width="80%">
+				<div id="areaId1" style="display:block;">
+					<font color="#CECECE"><%=areaAttr%></font>
+					<input type="button" class="button_css"name="Submit3" value="重新选择地区" style="cursor:pointer;" onClick="ChangeAreaStyle();"/>
+				</div>
+				<div id="areaId2" style="display:none;">
+					<select name="province" id="province" onclick="setCitys(this.value)">
+					  <option value="">省份</option> 
+					</select>
+					<select name="eparchy_code" id="eparchy_code" onclick="setAreas(this.value)">
+					  <option value="">地级市</option> 
+					 </select>
+					<select name="city_code" id="city_code" style="display:inline" >
+					 <option value="">市、县级市、县</option> 
+					</select>
+					<input name="area_attr" id="area_attr" type="hidden" value="<%=area_attr%>" />   
+				</div>  
+			</td>
+			
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				详细地址:
+			</td>
+			<td colspan="3"><input name="address" id="address" size="50" maxlength="100" value="<%=address %>" type="text" /></td>
+		</tr>
+		<tr>
+		  <td align="right" width="20%">
+				发货时间:
+			</td>
+			<td colspan="3">
+				<%=best_time %>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				配送方式:
+			</td>
+			<td >
+				<%=ship_name %>
+			</td>
+			<td align="right" width="20%">
+				运费:
+			</td>
+			<td>￥<%=ship_price%>
+			</td>			
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				支付方式:
+			</td>
+			<td colspan="3">
+				<%=pay_name %>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				备注说明:
+			</td>
+			<td colspan="3">
+			<textarea name="remark" id="remark" cols="60" rows="8" maxlength="100"  /><%=remark %></textarea></td>
+		</tr>
+		
+				
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="4859" />
+				<input type="hidden" name="name" value="<%=name %>" />
+	  			<input type="hidden" name="trade_id" value="<%=trade_id %>" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="return checkSub();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

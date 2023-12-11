@@ -1,0 +1,18 @@
+
+<%@page import="com.huigao.security.support.SecurityUserHolder"%>
+<%@page import="org.springframework.security.GrantedAuthority"%>
+<%
+	GrantedAuthority[] a = SecurityUserHolder.getCurrentUser().getAuthorities();
+	System.out.println("----------------------------------");
+	for(int i=0;i< a.length;i++) {
+		System.out.println(a[i].getAuthority());
+	}
+ %>
+
+
+<div id="daka-personmanage-main" style="width:100%;height:100%">
+	<div id="daka-personmanage-add"></div>
+</div>
+
+
+

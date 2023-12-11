@@ -1,0 +1,147 @@
+<%@ page language="java" import="java.util.*,com.bizoss.trade.ti_attach.*" pageEncoding="UTF-8"%>
+<%@ page import="org.apache.commons.fileupload.FileItem" %>  
+<%@ page import="java.util.List" %>  
+<%@ page import="org.apache.commons.fileupload.disk.DiskFileItemFactory" %>  
+<%@ page import="org.apache.commons.fileupload.servlet.ServletFileUpload" %>  
+<%@ page import="org.apache.commons.io.FilenameUtils" %>  
+<%@ page import="java.io.File" %>  
+<%@ page import="org.apache.commons.fileupload.FileUploadBase.SizeLimitExceededException" %> 
+<%@ page import="org.apache.commons.lang.StringUtils" %>
+<%@ page import="com.bizoss.frame.util.*"%>
+<%@ page import="com.bizoss.frame.dao.IbatisDbmImpl"%>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" />
+	<%   
+		request.setCharacterEncoding("UTF-8");
+		
+		String cust_id="",user_id="";
+		if(session.getAttribute("session_user_id")!=null) user_id = session.getAttribute("session_user_id").toString();
+		if(session.getAttribute("session_cust_id")!=null) cust_id = session.getAttribute("session_cust_id").toString();
+		
+		String attach_root_id="",callback="",type="";
+ 		
+    if(request.getParameter("attach_root_id")!=null){attach_root_id=request.getParameter("attach_root_id");}
+		if(request.getParameter("CKEditorFuncNum")!=null){callback=request.getParameter("CKEditorFuncNum");} 
+    if(request.getParameter("type")!=null){type=request.getParameter("type");}//file,img,flash 
+   
+ String f_ext="",uploaddir = "";
+		int f_size = 3;
+		String format_msg ="",format_size=""; 
+		
+		Config cg = new Config();
+		String rootpath = cg.getString("rootpath");
+   
+ if(type.equals("img"))
+    {
+    
+    f_size = Integer.parseInt(cg.getString("filesize"));
+ 
+        f_ext = cg.getString("imagesext");
+ 
+        uploaddir = cg.getString("imgsavepath");
+ 
+        format_msg = "图片格式不正确,限定为";
+ 
+   }
+    else if(type.equals("file"))
+  	{
+  	   f_size = Integer.parseInt(cg.getString("setfilesize"));
+ 
+  	   f_ext = cg.getString("fileext");
+       uploaddir = cg.getString("filepath");
+ 
+       format_msg = "文件格式不正确,限定为";
+  	}
+  	else if(type.equals("flash"))
+  	{
+  	   f_size = Integer.parseInt(cg.getString("flashsize"));
+ 
+  	   f_ext = cg.getString("flashext");
+       uploaddir = cg.getString("flashpath");
+ 
+       format_msg = "flash格式不正确,限定为";
+  	} 
+ 
+    
+    
+    String clientPath = "",backFile="";
+    String verify_code = "0",verify_mess = "";  
+    String filename="",_filename="",ext_name="";
+    
+    try {   
+        if (ServletFileUpload.isMultipartContent(request)){   
+        		
+        		final long MAX_SIZE = f_size * 1024 * 1024; 
+            ServletFileUpload servletFileUpload = new ServletFileUpload(new DiskFileItemFactory());
+            servletFileUpload.setSizeMax(MAX_SIZE);  
+            List<FileItem> fileItemsList = servletFileUpload.parseRequest(request);   
+    
+            filename =randomId.GenTradeId();
+   
+            for (FileItem item : fileItemsList){   
+                if (!item.isFormField()){   
+                    _filename = item.getName();
+                    ext_name = FilenameUtils.getExtension(_filename).toLowerCase();
+                  	if(f_ext.indexOf(ext_name)>-1 && !f_ext.equals("")){}else{
+	                  		verify_code = "1";
+	                  		verify_mess = format_msg+f_ext;
+	                  		break;
+                  	}
+                    
+                    filename += "." + ext_name;
+                    
+                    String clientdir = rootpath+uploaddir+ user_id+"/";
+                    FileIO.CreateFloder(clientdir);                                       
+                    clientPath = rootpath+uploaddir+ user_id+"/"  + filename;
+                    
+                    item.write(new File(clientPath)); 
+                    
+                    backFile = uploaddir+user_id+"/" + filename;
+                      
+                }   
+            }      
+        }   
+    }catch(Exception e){
+    		if (e instanceof SizeLimitExceededException) {
+			    verify_code = "1";
+          verify_mess = "文件大小限制为"+f_size+"M";
+			  }else{
+			  	verify_code = "1";
+        	verify_mess = "文件上传失败"+e;
+			  } 
+    }   
+    
+%>  
+
+<script type="text/javascript">
+<%
+ 	
+ 	if(verify_code.equals("0")){ //success
+	     
+	     if(!attach_root_id.equals(""))
+	     {
+	          String attach_id = randomId.GenTradeId();
+	          IbatisDbmImpl  dbDao = new IbatisDbmImpl();	
+            Hashtable aMap =new Hashtable();
+            aMap.put("attach_id",attach_id);
+	        aMap.put("attach_root_id",attach_root_id);	 
+	        aMap.put("attach_name",filename);	 
+	        aMap.put("file_path",backFile);
+	        aMap.put("cust_id",cust_id);
+			aMap.put("user_id",user_id);
+            dbDao.updateSql("insertTi_attachCk",aMap);       	          	                    
+ 	    }
+	
+%>
+   window.parent.CKEDITOR.tools.callFunction('<%=callback%>','<%=backFile%>', '');   
+<%
+	}else{
+%>
+		
+		alert('<%=verify_mess%>');
+		window.parent.CKEDITOR.tools.callFunction('<%=callback%>','', '');   
+<%
+	}
+%>
+
+</script> 
+

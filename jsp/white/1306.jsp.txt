@@ -1,0 +1,269 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.trade.ti_product.*" %>
+<%@ page import="java.util.*" %>
+<%@ page import="com.bizoss.trade.ts_area.Ts_areaInfo" %>
+<%@ page import="com.bizoss.trade.ti_attach.Ti_attachInfo" %>
+<%@ page import="com.bizoss.trade.ts_category.Ts_categoryInfo" %>
+<%@ page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<%@ page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Map ti_product = new Hashtable();
+	String s_title = "";
+	if(request.getParameter("s_title")!=null && !request.getParameter("s_title").equals("")){
+		s_title = request.getParameter("s_title");
+		ti_product.put("title",s_title); //标题
+	}
+
+	String state_c = "";
+	if(request.getParameter("state_c")!=null && !request.getParameter("state_c").equals("")){
+		state_c = request.getParameter("state_c"); //状态
+		ti_product.put("state_code",state_c);
+	}
+
+	String info_state = "";
+	if(request.getParameter("info_state")!=null && !request.getParameter("info_state").equals("")){
+		info_state = request.getParameter("info_state");//状态
+		ti_product.put("info_state_code",info_state);
+	}
+	
+	ti_product.put("m_state","1");//默认找出启用和禁用的产品信息
+
+	Ti_attachInfo  ti_attachInfo = new Ti_attachInfo(); 
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	Ts_categoryInfo  ts_categoryInfo  = new Ts_categoryInfo();
+	Ts_areaInfo ts_areaInfo = new Ts_areaInfo();
+
+	String state = tb_commparaInfo.getSelectItem("39",""); //    
+	Map catMap = ts_categoryInfo.getCatClassMap("2");
+	Map areaMap = ts_areaInfo.getAreaClass();
+
+	Ti_productInfo ti_productInfo = new Ti_productInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_productInfo.getListByPage(ti_product,Integer.parseInt(iStart),limit);
+	int counter = ti_productInfo.getCountByObj(ti_product);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?s_title="+s_title+"&state_c="+state_c+"&info_state="+info_state+"&iStart=",Integer.parseInt(iStart),limit);
+%>
+<html>
+  <head>
+    
+    <title>产品管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet"
+			type="text/css">
+		<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+		<script type="text/javascript" src="/js/thickbox.js"></script>
+	<script type="text/javascript" src="biz.js"></script>
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>产品管理</h1>
+			</td>
+			<td>
+				<a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a>
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	
+	<!--
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>-----------------</h4>
+		  <span>1----------------。</span><br/>
+		  <span>2----------------。</span>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+	  -->
+	  
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				标题:<input name="s_title" type="text" />
+				状态:<select name="state_c">
+						<option value="">请选择</option>	
+						<option value="c">启用</option>
+						<option value="d">禁用</option>
+					 </select>
+					 <select name="info_state">
+						<option value="">请选择</option>	
+						<option value="e">推荐</option>
+						<option value="f">置顶</option>
+						<option value="g">头条</option>
+					 </select>
+				
+				<input name="searchInfo" type="button" value="查询" onclick="searchForm()" />	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<select name="up_operating" id="up_operating" onchange="changeTime()">
+				  	<option value="">请选择...</option>	
+					<option value="-">删除</option>	
+					<option value="c">启用</option>
+					<option value="d">禁用</option>
+				  	<%=state%>
+				</select>	
+				<div id="b_g" style="display:none">
+				开始时间:<input type="text" name="s_start_date" id="s_start_date" class="Wdate" value="" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'s_end_date\',{d:-1})}',readOnly:true})" size="15"  width="150px" />
+				结束时间:<input type="text" name="s_end_date" id="s_end_date" class="Wdate" value="" onclick="WdatePicker({minDate:'#F{$dp.$D(\'s_start_date\',{d:1})}',readOnly:true})" size="15" width="150px" />
+				</div>
+				<input type="button" name="delInfo" onclick="operateInfo('up')" value="确定"  class="buttab" />
+			</td>
+			<td>
+				总计:<%=counter %>
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			
+		  	<th>图片</th>
+		  	
+		  	<th>产品</th>
+		  	
+		  	<th>发布时间</th>
+		  	
+			<th width="10%">修改</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		
+		
+		<% 
+			Hashtable map = new Hashtable();
+			for(int i=0;i<list.size();i++){
+			map = (Hashtable)list.get(i);
+			String cust_id="",product_id="",title="",class_attr="",area_attr="",state_code="",publish_date="",cust_name="";
+			String e = "",f = "",g ="";
+				if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+				if(map.get("cust_name")!=null) cust_name = map.get("cust_name").toString();
+				if(map.get("product_id")!=null) product_id = map.get("product_id").toString();
+				if(map.get("title")!=null) title = map.get("title").toString();
+				if(map.get("class_attr")!=null) class_attr = map.get("class_attr").toString();
+				if(map.get("area_attr")!=null) area_attr = map.get("area_attr").toString();
+				if(map.get("state_code")!=null) state_code = map.get("state_code").toString();
+				if(map.get("publish_date")!=null) publish_date = map.get("publish_date").toString();
+				if(publish_date.length()>19)publish_date=publish_date.substring(0,19);
+					
+				StringBuffer catAttr = new StringBuffer();
+				if(!class_attr.equals("")){
+				  String catIds[] =	class_attr.split("\\|");	
+				  for(String catId:catIds){
+					 if(catMap!=null && catMap.get(catId)!=null){
+							catAttr.append(catMap.get(catId).toString()+" ");
+					  }                 
+				   }		    
+				}
+				String img_path =  ti_attachInfo.getFilePathByAttachrootid(product_id);
+		
+				if(img_path.equals("")){
+					 img_path ="/program/admin/images/cpwu.gif";            
+				}   
+			
+				
+                StringBuffer areaAttr = new StringBuffer();
+					if(!area_attr.equals("")){
+					  String areaIds[] = area_attr.split("\\|");	
+					  for(String areaId:areaIds){
+						 if(areaMap!=null){
+							if(areaMap.get(areaId)!=null){
+								areaAttr.append(areaMap.get(areaId).toString() + " ");
+							}                  
+						  }                 
+					   }		    
+					}
+
+					if(map.get("e")!=null) e = map.get("e").toString();
+					if(map.get("f")!=null) f = map.get("f").toString();
+					if(map.get("g")!=null) g = map.get("g").toString();
+
+		%>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=product_id %>" /></td>
+			
+			<td width="10%"><img src="<%=img_path%>" border="0" width="85" height="85" /></td>
+
+		  	<td>
+				<a href="updateInfo.jsp?product_id=<%=product_id%>&s_title=<%=s_title%>&state_c=<%=state_c%>&info_state=<%=info_state%>&iStart=<%=Integer.parseInt(iStart)%>"><%=title%></a><br/>
+				
+				<div style="margin-top:8px;"></div>
+				<span style="color:#303A43;">会员:<%=cust_name%></span><br/>
+				<span style="color:#303A43;">分类:<%=catAttr.toString()%></span><br/>
+				<span style="color:#303A43;">地区:<%=areaAttr.toString()%></span><br/>
+				<div style="margin-top:8px;"></div>
+	            <span class="<%if(state_code.indexOf("c")>-1)out.print("blueon"); else out.print("blueoff");%>">启用</span> 
+	            <span class="<%if(state_code.indexOf("d")>-1)out.print("blueon"); else out.print("blueoff");%>">禁用</span> 
+				
+	            <span class="<%if(!e.equals(""))out.print("blueon"); else out.print("blueoff");%>">推荐</span>
+	            <span class="<%if(!f.equals(""))out.print("blueon"); else out.print("blueoff");%>">置顶</span>
+	            <span class="<%if(!g.equals(""))out.print("blueon"); else out.print("blueoff");%>">头条</span> 
+			</td>
+		  	
+		  	<td><%=publish_date%></td><!--产品发布时间-->
+		  	
+			<td width="10%">
+			<a href="updateInfo.jsp?product_id=<%=product_id%>&s_title=<%=s_title%>&state_c=<%=state_c%>&info_state=<%=info_state%>&iStart=<%=Integer.parseInt(iStart)%>"><img src="/program/admin/images/edit.gif" title="修改" /></a>
+			<a id="updateThisInfo<%=i %>" href="#" onclick="updateOneInfo('<%=i%>','<%=product_id%>','')">生成</a>
+			</td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=product_id%>','9858');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				
+			</td>
+			<td>
+				总计:<%=counter %>
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="9858" />
+	  </form>
+</body>
+
+</html>

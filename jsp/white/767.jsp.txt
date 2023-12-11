@@ -1,0 +1,12 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%  String basePath = request.getContextPath();%>
+
+<!-- 底部 -->
+<div id="article_div">
+	<!-- 分页 -->
+	<table>
+		<tr>
+			<td></td>
+		</tr>
+	</table>
+</div>

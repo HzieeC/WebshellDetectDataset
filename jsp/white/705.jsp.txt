@@ -1,0 +1,84 @@
+<%@ page language="java" contentType="text/html; charset=gb2312" pageEncoding="gb2312"%>
+<%@ taglib prefix="s" uri="/struts-tags"%>
+<%@ taglib prefix="sx" uri="/struts-dojo-tags"%>    
+<%
+String path = request.getContextPath();
+String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
+%>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <base href="<%=basePath%>">  
+    <title>增加产品</title>
+    <link href="./css/style.css" rel="stylesheet" type="text/css">
+    <meta http-equiv="Content- Type" content="text/html; charset=GB2312"/>
+	<meta http-equiv="pragma" content="no-cache">
+	<meta http-equiv="cache-control" content="no-cache">
+	<meta http-equiv="expires" content="0">    
+	<meta http-equiv="keywords" content="keyword1,keyword2,keyword3">
+	<meta http-equiv="description" content="This is my page">
+	<!--
+	<link rel="stylesheet" type="text/css" href="styles.css">
+	-->
+	  <s:head theme="xhtml"/>   
+  <sx:head parseContent="true"/>   
+  </head>
+  
+  <body>
+<s:form name="form" id="form" method="POST" action="productAction!save">
+  <table border="0" cellpadding="0" cellspacing="0" bgcolor="#0099FF">
+  <tr>
+  <td>   
+ <table width="100%" border="0" cellpadding="0" cellspacing="1">
+  <tr bgcolor="#FFFFFF"> 
+    <td colspan="3"><s:textfield  name="productname" label="产品名称" size="60"/></td>
+  </tr>
+  <tr bgcolor="#FFFFFF"> 
+    <td colspan="3">
+<s:doubleselect name="bigcategory" list="bigtypeList" listKey="bigtypename" listValue="bigtypename" doubleName="smallcategory" doubleList="smalltypeMap.get(top.bigtypeid)" doubleListKey="smalltypename" doubleListValue="smalltypename" label="类别"/>
+</td>
+  </tr>
+  <tr bgcolor="#FFFFFF"> 
+    <td colspan="3">
+         <iframe name=upload src="./upload/upload.jsp" width="800" height="220" scrolling=no frameborder=0></iframe>   
+    <s:textfield
+label="图片" 
+name="pic" 
+size="100"/> </td>
+  </tr>
+  <tr>
+  <td colspan="3" bgcolor="#FFFFFF"><s:textfield  name="price" label="价格" size="4"/></td><td bgcolor="#FFFFFF">元</td>
+  </tr>
+     <tr bgcolor="#FFFFFF">
+     <td>是否推荐</td><td>
+          <div align="right">
+            <s:radio  tooltip="是否推荐？"
+             label="推荐" 
+             list="#{'1':'推荐','0':'不推荐'}"   
+           name="recommend" 
+           value="1"
+           />
+          </div></td></tr> 
+  <tr bgcolor="#FFFFFF"> 
+    <td>产品简介:</td>
+    <td height="20">
+<sx:textarea name="introduce" ></sx:textarea>
+   </td>
+  </tr>  <tr bgcolor="#FFFFFF"> 
+    <td>技术参数:</td>
+    <td height="20">
+<sx:textarea name="parameter"></sx:textarea>
+   </td>
+  </tr>
+  
+  <tr bgcolor="#FFFFFF">
+  <td colspan="3"><s:submit value="增加" />
+  </td></tr>
+</table>
+</td>
+</tr></table>
+ </s:form> 
+</body>
+  
+</html>

@@ -1,0 +1,360 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@page import="com.bizoss.trade.ts_category.*" %>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo"%>
+<%@page import="java.net.URLDecoder"%>
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page"/>
+
+<%
+	String pri_key = bean.GenTradeId();
+
+	String info_id = bean.GenTradeId ();
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+	String selecttree = ts_categoryInfo.getCategoryTree("000000000000000","13","");
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	String s_price_unit = tb_commparaInfo.getSelectItem("18","");   
+	
+	String cust_id="",user_id="", seller="",shop_name1="",shop_addr1="",shop_phone1="",shop_web1="";
+	if(request.getParameter("info_id") != null) {
+		 info_id = request.getParameter("info_id").trim();
+	}
+	if(request.getParameter("cust_id") != null) {
+		 cust_id = request.getParameter("cust_id").trim();
+	}
+	if(session.getAttribute("session_user_id") != null) {
+		 user_id = session.getAttribute("session_user_id").toString();
+	}
+	if(request.getParameter("seller") != null) {
+		 seller = URLDecoder.decode(request.getParameter("seller"),"UTF-8");
+	}
+	if(request.getParameter("shop_name1") != null) {
+		 shop_name1 = URLDecoder.decode(request.getParameter("shop_name1"),"UTF-8");
+	}
+	if(request.getParameter("shop_addr1") != null) {
+		 shop_addr1 = URLDecoder.decode(request.getParameter("shop_addr1"),"UTF-8");
+	}
+	if(request.getParameter("shop_phone1") != null) {
+		 shop_phone1 = request.getParameter("shop_phone1").trim();
+	}
+	if(request.getParameter("shop_web1") != null) {
+		 shop_web1 = URLDecoder.decode(request.getParameter("shop_web1"),"UTF-8");
+	}
+%>
+
+<html>
+  <head>
+    <title>团购管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	<script type="text/javascript" src="/js/thickbox.js"></script>
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	 <script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_categoryInfo.js'></script>
+	<script type="text/javascript" src="index.js"></script>
+
+</head>
+
+<body>
+	<h1>新增团购</h1>
+	
+	
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>团购类型的解释</h4>
+		  <span>团购券交易：买家付款后获取商家提供的券和密码，用于领取商品。</span><br/>
+		  <span>邮购交易：买家购买商品需提供收货地址，卖家快递发送商品给买家。</span><br/>
+		  <span>限购数量为0则不限制购买数量。</span>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<input name="info_id" id="info_id" type="hidden" value="<%=info_id%>"/>
+
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		<tr>
+			<td align="right" width="10%">
+				卖家名称<font color="red">*</font>
+			</td>
+			<td colspan="3">
+				<div id="_seller">
+					<input name="seller" id="seller" value="<%=seller %>"  size="50" maxlength="50" type="text" />
+					<input type="button" class="button_s_css" value=" 搜索 "  onclick="showLinkCompany('add')" />
+				</div>
+				<div id="show_seller" style="display: none">
+					<select name="sort11" id="sort11" onclick="setSecondClass(this.value,'1','sort22','sort33');" >
+								  <option value="">请选择</option>
+					</select>	
+					<select name="sort22" id="sort22" onclick="setTherdClass(this.value,'1','sort33');">
+								  <option value="">请选择</option>
+					</select>	
+					<select name="sort33" id="sort33" >
+								  <option value="">请选择</option>
+					</select>
+					<input type="button" class="button_s_css" value=" 搜索 "  onclick="showLinkCompany('add')" />	
+				</div>
+				
+				</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				卖家联系方式<font color="red">*</font>
+			</td>
+			<td colspan="3">
+				<input name="contact" id="contact" type="hidden" />
+				<input name="con_num" id="con_num" type="hidden" value="2"/>
+						<input name="contact" id="contact" type="button" value="添加联系地址"
+							onclick="addContact()" style="cursor: pointer;" />
+						<div id="contactDiv">
+							<div id="div_shop1">
+								店名：<input type="text" name="shop_name1" value="<%=shop_name1 %>" id="shop_name1" size="30" maxlength="50"/>&nbsp;<br/>
+								地址：<input type="text" name="shop_addr1" value="<%=shop_addr1 %>" id="shop_addr1" size="50" maxlength="60"/><br/>
+								电话号码：<input type="text" name="shop_phone1" value="<%=shop_phone1 %>" id="shop_phone1" size="20" maxlength="20"/>&nbsp;网址：<input type="text" name="shop_web1" id="shop_web1" size="20" maxlength="20"/>&nbsp;
+								<a href="javascript:delContact(1)">删除</a>&nbsp;<br/>
+							</div>
+						</div>
+				
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="15%">
+				标题<font color="red">*</font>
+			</td>
+			<td colspan="3">
+				<textarea name="title" id="title" style="width:600px;height:60px;"></textarea><br/>
+				（字数限制在300字以内）
+			</td>
+		</tr>
+
+		 <tr>
+			<td align="right" width="15%">
+				商品缩略图:			
+			</td>
+			<td >
+			 <jsp:include page="/program/inc/uploadImgInc.jsp">
+					<jsp:param name="attach_root_id" value="<%=info_id%>" />
+					<jsp:param name="img_type" value="1" />
+				</jsp:include>
+
+			
+			</td>
+			<td align="right" width="15%">
+				商品分类:
+			</td>
+			<td >
+				 <select name="sort1" id="sort1" onclick="setSecondClass(this.value,'2','sort2','sort3');" >
+							  <option value="">请选择</option>
+				</select>	
+				<select name="sort2" id="sort2" onclick="setTherdClass(this.value,'2','sort3');">
+							  <option value="">请选择</option>
+				</select>	
+				<select name="sort3" id="sort3" >
+							  <option value="">请选择</option>
+				</select>	
+				<input type="hidden" name="cat_attr" id="cat_attr"/>		
+			</td>
+		</tr> 
+		<tr>
+			<td align="right" width="15%">
+				进价：
+			</td>
+			<td >
+				<input name="input_price" id="input_price" size="8" maxlength="8" type="text" value="0" onKeyUp="if(isNaN(value))this.value=''"/>
+			</td>
+			<td align="right" width="15%">
+				当前库存：
+			</td>
+			<td >
+				<input name="cur_store" id="cur_store" size="8" maxlength="8" type="text" value="0" onKeyUp="if(isNaN(value))this.value=''"/>
+			</td>
+		</tr>
+
+		<tr>
+			<td align="right" width="15%">
+				团购类型:
+			</td>
+			<td >
+				<select name="team_type" id="team_type">
+					<option value="">请选择</option>
+					<%=selecttree%>
+				</select>
+			</td>
+			<td align="right" width="10%">
+				交易类型:
+			</td>
+			<td>
+				<select name="type" id="type">
+					<option value="1">团购券交易</option>
+					<option value="2">邮购交易</option>
+				</select>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="15%">
+				商品重量<font color="red">*</font>
+			</td>
+			<td >
+				 <input type="text" name="weight" id="weight" size="8" maxlength="8" onkeyup= "{if(this.value== ' ')this.value= '0 ';if((/^((\d+)(\.\d{0,1})?)?$/).test(this.value))   this.oldValue=this.value;   else   this.value=this.oldValue;} " />千克
+			</td>
+			<td align="right" width="15%">
+				计价单位<font color="red">*</font>
+			</td>
+			<td >
+			   <select name="price_unit" id="price_unit">
+	            <option value="">请选择</option>
+	             <%=s_price_unit%>           
+	            </select>           
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="15%">
+				限购数量<font color="red">*</font>
+			</td>
+			<td>
+				<input name="limit_num" id="limit_num" size="8" maxlength="8" type="text" value="0" onKeyUp="if(isNaN(value))this.value=''"/>
+			</td>
+		
+			<td align="right" width="15%">
+				是否允许退货:
+			</td>
+			<td>
+				<input name="tuihuo" id="tuihuo1"  type="radio" value="0" />不允许
+				<input name="tuihuo" id="tuihuo2"  type="radio" value="1" checked="checked"/>允许
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="15%">
+				价格<font color="red">*</font>
+			</td>
+			<td><input name="price" id="price" size="8" maxlength="8" type="text" onkeyup= "{
+if(this.value== ' ')   this.value= '0 ';
+if((/^((\d+)(\.\d{0,1})?)?$/).test(this.value))   this.oldValue=this.value;   else   this.value=this.oldValue;
+} "/></td>
+			<td align="right" width="15%">
+				原价<font color="red">*</font>
+			</td>
+			<td><input name="old_price" id="old_price" size="8" maxlength="8" type="text" onkeyup= "{
+if(this.value== ' ')   this.value= '0 ';
+if((/^((\d+)(\.\d{0,1})?)?$/).test(this.value))   this.oldValue=this.value;   else   this.value=this.oldValue;
+} "/></td>
+		</tr>
+		
+		
+		<tr>
+			<td align="right" width="15%">
+				开始时间<font color="red">*</font>
+			</td>
+			<td>
+			<input id="start_date" name="start_date" type="text" class="Wdate"  onclick="WdatePicker({maxDate:'#F{$dp.$D(\'end_date\',{d:-1})}',dateFmt:'yyyy-MM-dd HH:mm:ss',readOnly:true})" />
+			</td>
+			<td align="right" width="15%">
+				结束时间<font color="red">*</font>
+			</td>
+			<td>
+			<input id="end_date" name="end_date" type="text" class="Wdate"  onclick="WdatePicker({minDate:'#F{$dp.$D(\'start_date\',{d:1})}',dateFmt:'yyyy-MM-dd HH:mm:ss',readOnly:true})" />
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="15%">
+				最低团购人数<font color="red">*</font>
+			</td>
+			<td><input name="down_num" id="down_num" size="8" maxlength="8" type="text" value="10" onKeyUp="if(isNaN(value))this.value=''"/></td>
+			<td align="right" width="15%">
+				单次限购数量<font color="red">*</font>
+			</td>
+			<td colspan="3"><input name="buy_limit" id="buy_limit" size="8" maxlength="8" type="text" value="2" onKeyUp="if(isNaN(value))this.value=''"/></td>
+			
+		</tr>
+		<!-- 
+		<tr>
+			<td align="right" width="15%">
+				是否免运费
+			</td>
+			<td>
+				<input name="is_freeshipping" type="radio" value="1" />是
+				<input name="is_freeshipping" type="radio" value="0" checked="checked"/>否
+			</td>
+			<td align="right" width="15%">
+				货到付款
+			</td>
+			<td colspan="3">
+				<input name="cash_on_delivery" type="radio" value="1" />是
+				<input name="cash_on_delivery" type="radio" value="0" checked="checked"/>否
+			</td>
+			
+		</tr>
+		 -->
+		
+			<tr>
+					<td align="right" width="10%">
+						提示:
+					</td>
+					<td colspan="3">
+				<textarea name="tip" id="tip" style="width:517px;height:47px;"></textarea>
+			</td>
+			</tr>
+				<tr>
+			<td align="right" width="15%">
+				亮点:
+			</td>
+			<td colspan="3">
+				<textarea name="highlight" id="highlight" style="width:517px;height:47px;"></textarea>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="15%">
+				团购详细<font color="red">*</font>
+			</td>
+			<td colspan="3">
+				<textarea name="content" id="content"></textarea>
+				<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+				<script type="text/javascript">
+				 CKEDITOR.replace( 'content',{
+			   	      filebrowserUploadUrl : '/program/inc/upload.jsp?type=file&attach_root_id=<%=pri_key%>',      
+                      filebrowserImageUploadUrl : '/program/inc/upload.jsp?type=img&attach_root_id=<%=pri_key%>',      
+                      filebrowserFlashUploadUrl : '/program/inc/upload.jsp?type=flash&attach_root_id=<%=pri_key%>'     
+                 });  
+			</script>	
+			</td>
+		</tr>
+		
+		
+		
+		
+		
+
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input name="user_id" id="user_id"  type="hidden" value="<%=user_id%>"/>
+				<input name="cust_id" id="cust_id"  type="hidden" value="<%=cust_id%>"/>
+				<input name="team_num" id="team_num" value="0" type="hidden" />
+				<input name="vmoney" id="vmoney" value="0"
+							type="hidden" />
+				<input type="hidden" name="is_freeshipping" value="0" />
+				<input type="hidden" name="cash_on_delivery" value="0" />
+				<input type="hidden" name="bpm_id" value="0777" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="checkSub('add');"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+		<script type="text/javascript">
+	setOneClass('2','sort1');
+	setOneClass('1','sort11');
+	</script>
+</body>
+
+</html>

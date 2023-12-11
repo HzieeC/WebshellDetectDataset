@@ -1,0 +1,121 @@
+<!--#include file="../../inc/conn.asp"-->
+<!--#include file="sha1.asp"-->
+<%
+'请将下面信息更改成自己申请的信息
+appid   = qqappid 'opensns.qq.com 申请到的appid
+appkey  = qqappkey  'opensns.qq.com 申请到的appkey
+callback = "http://"&siteurl&"/api/qq/get_access_token.asp" 'QQ登录成功后跳转的地址
+
+
+'登录成功后调用登录函数进行登录
+Sub DoLogin(userName,Password)
+Dim UserRS:Set UserRS=Server.CreateObject("Adodb.RecordSet")
+			 UserRS.Open "Select top 1 * From "&tbname&"_User Where UserName='" &UserName & "' And PassWord='" & PassWord & "'",Conn,1,3
+			 If UserRS.Eof And UserRS.BOf Then
+				UserRS.Close:Set UserRS=Nothing
+				Call Alert ("您输入的账号不存在或是密码不正确，请重输!",-1)
+			 ElseIf UserRS("yn")=0 Then
+				Call Alert ("您的帐号还没有通过审核!",-1)
+			 Else
+				Dim RndPassword:RndPassword=md5("l"&"a"&"o"&"y"&RndNumber(1,9999999999),32)
+				UserRS("LastIP") = GetIP
+                UserRS("LastTime") = Now()
+				UserRS("RndPassWord")=RndPassWord
+                UserRS.Update
+				Response.Cookies("Yao").path=SitePath
+                Response.Cookies("Yao").Expires=Date+30 
+				Response.Cookies("Yao")("UserName")=username
+				Response.Cookies("Yao")("UserPass")=PassWord
+				Response.Cookies("Yao")("RndPassword")=RndPassword
+				Response.Cookies("Yao")("ID")=UserRS("ID")
+			end if
+			UserRS.Close : Set UserRS=Nothing
+	If session("laoyqqurl")<>"" then
+        Response.redirect session("laoyqqurl")
+	else
+	Response.redirect SitePath
+	end if
+End Sub
+
+
+'生成时间戳 
+Function ToUnixTime(strTime, intTimeZone)
+If IsEmpty(strTime) or Not IsDate(strTime) Then strTime = Now
+If IsEmpty(intTimeZone) or Not isNumeric(intTimeZone) Then intTimeZone = 0
+ToUnixTime = DateAdd("h",-intTimeZone,strTime)
+ToUnixTime = DateDiff("s","1970-1-1 0:0:0", ToUnixTime)
+End Function
+
+'生成随机数
+Public Function MakeRandom(ByVal maxLen)
+	  Dim strNewPass,whatsNext, upper, lower, intCounter
+	  Randomize
+	 For intCounter = 1 To maxLen
+	   upper = 57:lower = 48:strNewPass = strNewPass & Chr(Int((upper - lower + 1) * Rnd + lower))
+	 Next
+	   MakeRandom = strNewPass
+End Function
+
+function is_valid_openid(openid, timestamp, sig)
+    dim str:str = openid & timestamp
+    dim signature:signature = b64_hmac_sha1(appkey,str)
+
+    is_valid_openid = (sig = signature)
+end function
+
+
+'根据url读取远程文件的内容
+Function file_get_contents(url)
+ Dim objXML:Set   objXML   =   server.CreateObject( "Microsoft.XMLHTTP")     
+	objXML.open   "GET ",   url,   False     
+	objXML.send() 
+	If objXml.Readystate=4 Then
+	 file_get_contents=     objXML.responSetext 
+	Else
+	 file_get_contents=0
+	End If
+ Set objXML=Nothing
+End Function 
+
+'将url变成集合
+function parse_str(str)
+dim objData,aryData,i,aryT
+set objData=Server.CreateObject("Scripting.Dictionary")
+aryData=split(str,"&")
+for i=0 to ubound(aryData)
+   aryT=split(aryData(i),"=")
+   if ubound(aryT)>0 then 
+    objData.add aryT(0),aryT(1)
+   else
+    objData.add aryT(0),""
+   end if
+next
+set parse_str=objData
+end function
+
+function get_user_info(access_token, access_token_secret, openid)
+    'get user info 的api接口，不要随便更改!!
+    dim url:url    = "http://openapi.qzone.qq.com/user/get_user_info"
+    get_user_info= do_get(url, access_token, access_token_secret, openid)
+end function
+
+
+function do_get(url,access_token, access_token_secret, openid)
+    dim sigstr:sigstr = "GET" & "&" & server.urlencode(url) & "&"
+
+    '必要参数, 不要随便更改!!
+	
+	'dim normalized_str:normalized_str="format=xml&oauth_consumer_key=" & appid & "&oauth_nonce=" &MakeRandom(10) &"&oauth_signature_method=HMAC-SHA1&oauth_timestamp=" & toUnixTime(now,8)& "&oauth_token=" &access_token & "&oauth_version=1.0&openid=" & openid&""  'xml返回
+	dim normalized_str:normalized_str="oauth_consumer_key=" & appid & "&oauth_nonce=" &MakeRandom(10) &"&oauth_signature_method=HMAC-SHA1&oauth_timestamp=" & toUnixTime(now,8)& "&oauth_token=" &access_token & "&oauth_version=1.0&openid=" & openid&""  'json 返回
+	
+	sigstr=sigstr & server.urlencode(normalized_str)
+	sigstr    = replace(replace(replace(sigstr,"%2E","."),"%5F","_"),"%2D","-") '采用php的 rawurlencode 所以要替换回来特殊符号
+
+    '签名,确保php版本支持hash_hmac函数
+    dim key:key = appkey & "&" & access_token_secret
+    dim signature:signature = b64_hmac_sha1(key,sigstr)
+    url    = url & "?" & normalized_str & "&oauth_signature="&server.urlencode(signature)
+
+    do_get=file_get_contents(url)
+end function
+%>

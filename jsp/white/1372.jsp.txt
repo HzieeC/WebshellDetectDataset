@@ -1,0 +1,112 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@ page import="com.bizoss.trade.tb_commpara.*"%> 
+<%@ page import="com.bizoss.trade.ts_link_group.*"%> 
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" /> 
+<html>
+<%
+	Hashtable ts_link_group = new Hashtable();
+	
+	String link_id = randomId.GenTradeId();
+	String cust_id="";	
+	if( session.getAttribute("session_cust_id") != null )
+	{
+		cust_id = session.getAttribute("session_cust_id").toString();
+	}	
+	
+	String group_id="";	
+	if( session.getAttribute("group_id") != null )
+	{
+		group_id = session.getAttribute("group_id").toString();
+		ts_link_group.put("group_id",group_id);
+	}
+//	Tb_commparaInfo compara = new Tb_commparaInfo();
+//	String selectString = compara.getSelectItem("78",""); //得到客服列表
+	
+	Ts_link_groupInfo linkGroupInfo = new Ts_link_groupInfo();	
+	String selectString = linkGroupInfo.getListByObj(ts_link_group); //得到链接分组的列表
+	%>
+  <head>
+    <title>友情链接管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script  type="text/javascript" src="link.js"></script>
+</head>
+
+<body>
+	<h1>新增友情链接</h1>
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="1" cellspacing="1" border="0" class="listtab">
+		
+
+	<input name="link_id" id="link_id" type="hidden" value="<%=link_id%>" />
+
+		
+		<tr>
+			<td align="right" width="15%">
+				链接名称<font color="red">*</font>
+			</td>
+			<td><input name="link_name" id="link_name" type="text" maxlength="20"/></td>
+		</tr>
+	
+		<tr>
+			<td align="right" width="10%">
+				链接分组<font color="red">*</font>
+			</td>
+			<td><select name="group_id" id="group_id">
+                 <option value="">请选择</option>         
+         	     <%=selectString%>
+              </select>
+			</td>
+		</tr>	
+		
+		<tr>
+			<td align="right" width="10%">
+				链接图片:
+			</td>
+			<td>
+				<jsp:include page="/program/inc/uploadImgInc.jsp">
+					<jsp:param name="attach_root_id" value="<%=link_id%>" />
+				</jsp:include>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				链接地址<font color="red">*</font>
+			</td>
+			<td><input name="link_url" id="link_url" type="text" value="http://" maxlength="50" size="40"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				排序<font color="red">*</font>
+			</td>
+			<td><input name="link_no" id="link_no" type="text" value="0" size="2" maxlength="2" onKeyUp="if(!/^[0-9][0-9]*$/.test(this.value))this.value=''"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				是否显示:
+			</td>
+			<td>
+				<input name="is_display" id="is_display" type="radio" value="0" checked/>是
+				<input name="is_display" id="is_display" type="radio" value="1" />否
+			</td>
+		</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="0726" />
+				<input type="submit" class="buttoncss" name="tradeSub" value="提交" onclick="return checkInfo()"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="javascript:history.back( )";/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

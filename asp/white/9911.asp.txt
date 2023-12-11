@@ -1,0 +1,105 @@
+<!--#include file="../../act_inc/ACT.User.asp"-->
+
+<%
+	On Error Resume Next
+	Err.Clear
+	Response.Buffer = True 
+	Response.Expires = -1 
+	Response.ExpiresAbsolute = Now() - 1 
+	Response.Expires = 0 
+	Response.CacheControl = "no-cache" 
+	response.Charset = "utf-8" 
+	Dim Digg_RS 
+	Dim TmpStr
+	Dim stype,DiggID,ModeID 
+	Dim ip,GetTime,Deltime,UserHS,ActUser
+	Set UserHS = New ACT_User
+	Set Digg_RS=Server.CreateObject("ADODB.RecordSet") 
+	ip = GetIP()
+	GetTime = Date()
+	stype = Rsql(request("post")) 
+	DiggID = ChkNumeric(Rsql(request("id")))
+	ModeID= ChkNumeric(request("ModeID")) 
+
+	Call diggs()
+	Sub diggs()
+	Dim Rs1,ActCMS_Digg
+	Set Rs1=ACTCMS.ACTEXE("Select PlusConfig,IsUse from Plus_ACT where PlusID='digg_act'")
+	ActCMS_Digg=Split(Rs1("PlusConfig"),"^@$@^")(0)
+	If stype="" or DiggID="" Or ModeID=0 Then 
+		echo("0") 
+		response.End() 
+	End If 
+	Select Case  stype
+		Case  "diggshow"
+			Set  Digg_RS=ACTCMS.ACTEXE("Select Digg from "&ACTCMS.ACT_C(ModeID,2)&" where ID="&DiggID&"")
+			If  not Digg_RS.eof then TmpStr = Digg_RS(0) Else TmpStr="0"
+				echo("document.write('"&TmpStr&"')")
+		Case  "downshow"
+			Set  Digg_RS=ACTCMS.ACTEXE("Select down from "&ACTCMS.ACT_C(ModeID,2)&" where ID="&DiggID&"")
+			If  not Digg_RS.eof then TmpStr = Digg_RS(0) Else TmpStr="0"
+				echo("document.write('"&TmpStr&"')")
+		Case  "digg"
+			If Rs1("IsUse")=1 Then 
+				echo("Close")
+				Exit Sub 
+			End If 
+			IF Cbool(UserHS.UserLoginChecked)=False And ActCMS_Digg="1" then
+			  echo "Login"
+			  Exit Sub 
+			  Response.End
+			Else
+				 IF Cbool(UserHS.UserLoginChecked)=False Then 
+				  ActUser= ""
+				 Else
+				  ActUser= UserHS.UserName
+				 End If 
+			End If
+			Deltime = DateDiff("D",2,GetTime)
+			ACTCMS.ACTEXE("DELETE  from Digg_ACT where DiggTime<"&Deltime)
+			set Digg_RS=ACTCMS.ACTEXE("Select * from Digg_ACT where ip = '"&ip&"'  and  NewsID = "&DiggID&"")
+			If   Not Digg_RS.eof  then
+				echo("ACT")&"|"&DiggID
+			Else 
+				ACTCMS.ACTEXE("Insert into Digg_ACT(users,ModeID,Digg,IP,NewsID,DiggTime) values('"&ActUser&"',"&ModeID&",1,'"&ip&"',"&DiggID&",'"&GetTime&"')")
+				ACTCMS.ACTEXE("Update "&ACTCMS.ACT_C(ModeID,2)&" set Digg=Digg+1 where ID="&DiggID&"")
+				set Digg_RS=ACTCMS.ACTEXE("Select Digg from "&ACTCMS.ACT_C(ModeID,2)&" where ID="&DiggID&"")
+				if not Digg_RS.eof then TmpStr = cstr(Digg_RS(0)) Else TmpStr="0"
+				echo(TmpStr)&"|"&DiggID
+			End  If 
+		Case  "down"
+			If Rs1("IsUse")="1" Then 
+				echo("Close")
+				Exit Sub 
+			End If 
+			IF Cbool(UserHS.UserLoginChecked)=False And ActCMS_Digg="1" then
+			  echo "Login"
+			  Exit Sub 
+			  Response.End
+			Else
+				 IF Cbool(UserHS.UserLoginChecked)=False Then 
+				  ActUser= ""
+				 Else
+				  ActUser= UserHS.UserName
+				 End If 
+			End If
+			Deltime = DateDiff("D",2,GetTime)
+			ACTCMS.ACTEXE("DELETE  from Digg_ACT where DiggTime<"&Deltime)
+			Set  Digg_RS=ACTCMS.ACTEXE("Select * from Digg_ACT where ip = '"&ip&"' and  NewsID = "&DiggID&"")
+			if  Not Digg_RS.eof  then
+				echo("ACT")&"|"&DiggID
+			Else 
+				ACTCMS.ACTEXE("Insert into Digg_ACT(users,ModeID,Digg,IP,NewsID,DiggTime) values('"&ActUser&"',"&ModeID&",2,'"&ip&"',"&DiggID&",'"&GetTime&"')")
+				ACTCMS.ACTEXE("Update "&ACTCMS.ACT_C(ModeID,2)&" set down=down+1 where ID="&DiggID&"")
+				set Digg_RS=ACTCMS.ACTEXE("Select down from "&ACTCMS.ACT_C(ModeID,2)&" where ID="&DiggID&"")
+				if not Digg_RS.eof then TmpStr = cstr(Digg_RS(0)) Else TmpStr="0"
+				echo(TmpStr)&"|"&DiggID
+			End  If 
+		Case  Else 
+			echo("err")
+	End  Select
+	End Sub 
+
+
+	Call CloseConn()
+%>

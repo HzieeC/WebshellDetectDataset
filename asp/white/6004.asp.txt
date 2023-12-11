@@ -1,0 +1,244 @@
+<!--#include file="conn.asp" -->
+<!--#include file="ftbbs_nav.asp" -->
+<!--#include file="inc/publicfun.asp" -->
+<!--#include file="pagefun.asp" -->
+<!-- #include file="bbsuser.asp" -->
+<!-- #include file="asp_md5.asp" -->
+<HTML><HEAD>
+<title>交易支付中心</title>
+<META http-equiv=Content-Type content=text/html;charset=gb2312>
+<meta http-equiv="Cache-Control" content="no-cache"/> 
+<script language=javascript src="inc/cookies.js"></script>
+<script>
+var stylecook = getCookie("STYLESHOW");
+var style;
+var strstyle;
+if(stylecook=="")
+{
+ stylecook=1;
+}
+else
+{
+ stylecook++;
+}
+style="main0"+stylecook+".css";
+strstyle="<link href=\"css/"+style+"\"  rel=\"stylesheet\" type=\"text/css\"> ";
+document.write(strstyle);
+</script>
+</HEAD>
+</head>
+<script language="JavaScript" src="inc/Main.js"></script>
+<body>
+<%	
+call FTBBS_HTML_MB(ft)
+defaulthome=Application("FTBBSMB")(31,0)
+wzrep = Application("FTBBSMB")(5,0)
+sp_id = Application("FTBBSMB")(62,0)
+spkey = Application("FTBBSMB")(63,0)
+returnurl = Application("FTBBSMB")(64,0)
+homepage=ft_home(defaulthome)
+'++++++++++++++++++++++++++++++++++++++++++++++
+ftbbs_clubuser_id=getcookie("clubuser_id")
+paymoney=request.form("paymoney")
+Randomize
+Random=Int((10000000000 - 1000000000 + 1) * Rnd + 1000000000)
+if not IsNumeric(paymoney) then
+   response.write "<script language='javascript'>"
+   response.write "alert('金钱必须为数字!');"
+   response.write "history.go(-1);"
+   response.write "</script>"
+   response.end
+end if
+if paymoney<100 then
+   response.write "<script language='javascript'>"
+   response.write "alert('金额最小必大于100');"
+   response.write "history.go(-1);"
+   response.write "</script>"
+   response.end
+end if
+'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	' 获取服务器日期，格式YYYYMMDD
+	Function CFTGetServerDate 
+		Dim strTmp, iYear,iMonth,iDate 
+		iYear = Year(Date) 
+		iMonth = Month(Date) 
+		iDate = Day(Date) 
+
+		strTmp = CStr(iYear)
+		If iMonth < 10 Then 
+			strTmp = strTmp & "0" & Cstr(iMonth)
+		Else 
+			strTmp = strTmp & Cstr(iMonth)
+		End If 
+		If iDate < 10 Then 
+			strTmp = strTmp & "0" & Cstr(iDate) 
+		Else 
+			strTmp = strTmp & Cstr(iDate) 
+		End If 
+		CFTGetServerDate = strTmp 
+	End Function
+
+	Dim request_text
+	Dim md5_sign
+
+	spid		= sp_id		' 这里替换为您的实际商户号
+	sp_key 	    = spkey  	' sp_key是32位商户密钥, 请替换为您的实际密钥
+
+	' 下面是请求参数
+	cmdno		= "1"				' 财付通支付为"1" (当前只支持 cmdno=1)	
+	bill_date	= CFTGetServerDate	' 交易日期 (yyyymmdd)	
+	bank_type	= "0"   			' 银行类型:	0		财付通
+							        '			1001	招商银行   
+							        '			1002	中国工商银行  
+							        '			1003	中国建设银行  
+							        '			1004	上海浦东发展银行   
+							        '			1005	中国农业银行  
+							        '			1006	中国民生银行  
+							        '			1008	深圳发展银行   
+							        '			1009	兴业银行   
+
+	desc		 = "论坛帐户充值"	' 商品名称
+	purchaser_id = ""				' 用户财付通帐号，如果没有可以置空
+	bargainor_id = spid				' 商户号
+	sp_billno	 = Random		' 商户生成的订单号(最多32位)	
+
+	' 重要:
+	' 交易单号(28位): 商户号(10位) + 日期(8位) + 流水号(10位), 必须按此格式生成, 且不能重复
+	' 如果sp_billno超过10位, 则截取其中的流水号部分加到transaction_id后部(不足10位左补0)
+	' 如果sp_billno不足10位, 则左补0, 加到transaction_id后部
+	transaction_id = spid & bill_date & sp_billno 
+
+	total_fee	 = request.form("paymoney")				' 总金额, 分为单位
+	fee_type	 = "1"				' 货币类型: 1 – RMB(人民币) 2 - USD(美元) 3 - HKD(港币)
+	return_url	 = returnurl ' 财付通回调页面地址, (最长255个字符)
+	attach		 = ftbbs_clubuser_id	' 商户私有数据, 请求回调页面时原样返回
+
+	' 生成MD5签名    
+	sign_text = "cmdno=" & cmdno & "&date=" & bill_date & "&bargainor_id=" & bargainor_id &_
+        "&transaction_id=" & transaction_id & "&sp_billno=" & sp_billno &_
+        "&total_fee=" & total_fee & "&fee_type=" & fee_type & "&return_url=" & return_url &_
+        "&attach=" & attach & "&key=" & sp_key
+
+	md5_sign = UCase(ASP_MD5(sign_text))        ' 转换为大写
+	if fee_type=2 then
+	unit= "USD(美元)"
+	elseif fee_type=3 then
+	unit= "HKD(港币)"
+	else
+	unit= "RMB(人民币)"
+	end if
+'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   ip=request.servervariables("remote_addr")
+   sql="insert into "&ft&"ftbbs_pay_log(clubuser_id,paytype,paymoney,payresults,payip,sp_billno) values('"&ftbbs_clubuser_id&"',0,'"&paymoney&"',0,'"&ip&"','"&sp_billno&"')"
+   conn.execute sql
+if paymoney<100 then
+   paymoney="0"&paymoney/100
+else
+   paymoney=paymoney/100
+end if
+
+if getcookie("ftbbstype")=1 then
+  response.write headhtml
+  tbwidth="980"
+else
+  tbwidth="840"
+  response.write "<div id=""CenterBody"" class=""width840"">"
+end if
+%>
+<table width="<%=tbwidth%>" border="0" cellspacing="0" cellpadding="0" align="center" class="maintbbg">
+  <tr>
+    <td> 
+      <table width="100%" border=0 cellpadding=2 cellspacing=1 class="maintbbg">
+        <tbody>
+          <tr> 
+            <td height="25" class="f12bg">&nbsp;<%=userinfo%></td>
+          </tr>
+          <tr> 
+            <td height="25" colspan="3" class="maintbtr3">&nbsp;<a href="<%=homepage%>">论坛首页</a> >> <a href="trans.asp">交易中心</a> >> <a href="tenpay.asp">在线充值</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </td>
+  </tr>
+</table>
+<table cellspacing=0 cellpadding=0 width="<%=tbwidth%>" align=center border=0>
+  <tbody>
+    <tr> 
+      <td height=5></td>
+    </tr>
+  </tbody>
+</table>
+<table width="<%=tbwidth%>" border=0 align="center" cellpadding=2 cellspacing=1 class="maintbbg">
+  <tbody>
+    <tr> 
+      <td height="27" class="f12bg">
+<div align="center">支付订单生成如下:</div></td>
+    </tr>
+    <tr> 
+      <td height="39" colspan="3" class="maintbtr3">
+	  <form action="https://www.tenpay.com/cgi-bin/v1.0/pay_gate.cgi">
+          <table width="60%" border="0" align="center" cellpadding="1" cellspacing="1" bgcolor="#FFFFFF">
+            <tr bgcolor="#FFFFFF" class="maintbtr3"> 
+              <td width="23%" height="30"> 
+                <div align="right">商品名称:</div></td>
+              <td width="77%"><%=desc%></td>
+            </tr>
+            <tr bgcolor="#FFFFFF" class="maintbtr3"> 
+              <td height="30"> 
+                <div align="right">订 单 号:</div></td>
+              <td><%=sp_billno%></td>
+            </tr>
+            <tr bgcolor="#FFFFFF" class="maintbtr3"> 
+              <td height="30"> 
+                <div align="right">支付金额:</div></td>
+              <td><%=paymoney%>元</td>
+            </tr>
+            <tr bgcolor="#FFFFFF" class="maintbtr3"> 
+              <td height="30"> 
+                <div align="right">货币类型:</div></td>
+              <td>
+			  <%=unit%>
+			  </td>
+            </tr>
+            <tr bgcolor="#FFFFFF" class="maintbtr3"> 
+              <td height="30"> 
+                <div align="right">交易日期:</div></td>
+              <td><%=bill_date%></td>
+            </tr>
+            <tr bgcolor="#FFFFFF" class="maintbtr3"> 
+              <td height="50"> 
+                <div align="right"></div></td>
+              <td>
+                <input type=hidden name="cmdno"				value="<%=cmdno%>">
+                <input type=hidden name="date"			    value="<%=bill_date%>">
+                <input type=hidden name="bank_type"			value="<%=bank_type%>">
+                <input type=hidden name="desc"				value="<%=desc%>">
+                <input type=hidden name="purchaser_id"		value="<%=purchaser_id%>">
+                <input type=hidden name="bargainor_id"		value="<%=bargainor_id%>">
+                <input type=hidden name="transaction_id"	value="<%=transaction_id%>">
+                <input type=hidden name="sp_billno"			value="<%=sp_billno%>">
+                <input type=hidden name="total_fee"			value="<%=total_fee%>">
+                <input type=hidden name="fee_type"			value="<%=fee_type%>">
+                <input type=hidden name="return_url"		value="<%=return_url%>">
+                <input type=hidden name="attach"			value="<%=attach%>">
+                <input type=hidden name="sign"				value="<%=md5_sign%>">
+                <input type="submit" name="Submit" value="财付通支付"></td>
+            </tr>
+          </table>
+        </form></td>
+    </tr>
+  </tbody>
+</table>
+<%
+if getcookie("ftbbstype")=1 then
+%>
+<!--#include file="inc/listbbstail.htm" -->
+<%
+else
+%>
+<!--#include file="inc/bbstail.htm" -->
+<%
+response.write "</div>"
+end if
+CloseDb
+%>

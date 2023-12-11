@@ -1,0 +1,70 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.createIndex.searchModel.LinkInterf" %>
+<%@page import="com.bizoss.frame.util.Config" %>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+
+<%!
+	LinkInterf linkInterf = new LinkInterf();
+	Config configs = new Config("indexmodel.properties");
+
+	public int createIndex(String index_model){
+		if(index_model.equals("")) return 1;
+		String index_str = configs.getString(index_model);
+		String file_path="",sql="";
+		if(!index_str.equals("") && index_str.indexOf("|") >-1){
+			String index_attr[] = index_str.split("\\|");
+			if(index_attr.length>1){
+				file_path = index_attr[0];
+				sql = index_attr[1];
+			}
+		}
+		
+		try{
+			if(!file_path.equals("") && !sql.equals("")){
+				linkInterf.createIndex(file_path,sql);
+				return 0;
+			}else{
+				return 1;
+			}
+		}catch(Exception e){
+			return 1;
+		}
+	}
+
+%>
+
+<%
+	request.setCharacterEncoding("UTF-8");
+	Tb_commparaInfo compara = new Tb_commparaInfo();
+	
+	
+
+	String index_model="";
+	int result_code = 0;
+	if(request.getParameter("index_model")!=null)
+	{
+		index_model  = request.getParameter("index_model");
+	}
+	if(index_model.equals("")){
+		List indexList = compara.getListByParamAttr("19");
+		if(indexList!=null && indexList.size()>0){
+			Hashtable indexMap = new Hashtable();
+			for(int i=0;i<indexList.size();i++){
+				indexMap = (Hashtable)indexList.get(i);
+				String para_code2 = "";
+				if(indexMap.get("para_code2")!=null) para_code2 = indexMap.get("para_code2").toString();
+				result_code = createIndex(para_code2);
+			}
+		}
+	}else{
+		result_code = createIndex(index_model);
+	}
+	
+
+	if(result_code==0){
+		out.println("更新成功。");
+	}else{
+		out.println("更新失败。");
+	}
+%>

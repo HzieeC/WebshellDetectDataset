@@ -1,0 +1,475 @@
+<!--#include file="../inc/mdb.asp"-->
+<%Admin="UserSee"%>
+<!--#include file="check.asp"-->
+<!--#include file="../inc/config.asp"-->
+<!--#include file="../inc/cmsfunction.asp"-->
+<!--#include file="../inc/md5.asp"-->
+<HTML>
+<HEAD>
+<META http-equiv=Content-Type content="text/html; charset=gb2312">
+<LINK href="../inc/admin.css" type=text/css rel=StyleSheet>
+<META content="MSHTML 6.00.2800.1126" name=GENERATOR>
+<TITLE>07ing管理系统——会员管理</TITLE>
+</HEAD>
+<body onkeydown=return(!(event.keyCode==78&&event.ctrlKey)) >
+<script>
+<!--
+function opencat(cat){
+  if(cat.style.display=="none"){
+    cat.style.display="";
+  	} else {
+    cat.style.display="none"; 
+  	}
+}
+//-->
+</script>
+<%
+'****************************************************
+' 07ing Ver8.0       Power by 07ing.net
+' Web: http://www.07ing.net,http://www.07ing.com
+' Copyright (C) 2006 07ing.net All Rights Reserved.
+'****************************************************
+if session("adminlogin")<>sessionvar then
+  Response.Write("<script language=javascript>alert('您尚未登陆或登陆超时，请重新登陆!！');this.top.location.href='admin.asp';</script>")
+  response.end
+else
+if request.QueryString("hx66")="checkinfo" then
+dim j,selUserID
+if not isempty(request("selUserID")) then
+   selUserID=request("selUserID")
+   set rs=server.createobject("adodb.recordset")
+       if request("action")="会员删除" then
+	  Conn.execute("delete from [User] where UserID in ("&selUserID&")")
+       elseif request("action")="会员激活" then
+	  Conn.execute("update [User] set userlock=0 where UserID in ("&selUserID&")")
+       elseif request("action")="会员锁定" then
+	  Conn.execute("update [User] set userlock=1 where UserID in ("&selUserID&")")
+       elseif request("action")="设为普通" then
+	  Conn.execute("update [User] set UserGrade=0 where UserID in ("&selUserID&")")
+       elseif request("action")="设为VIP" then
+	  Conn.execute("update [User] set UserGrade=1 where UserID in ("&selUserID&")")
+          conn.execute("update [User] set VipinDate=date() where UserID in ("&selUserID&")")
+          conn.execute("update [User] set VipendDate=date()+'"&viptime&"' where UserID in ("&selUserID&")")
+       else
+	   response.write "无效参数！"
+	 response.end
+       end if	
+    response.Write"<script language=javascript>alert(' 恭 喜 您 ！ 设 置 成 功 ！');this.location.href='admin_userlist.asp';</script>"		
+end if
+end if
+if request.QueryString("hx66")="Modifyinfo" then
+   userid=clng(request.QueryString("userid"))
+   if request("password")=request("pswpassword") then
+        password=request("password")
+   else
+        password=md5(request("password"))
+   end if
+   if request("psw")="" then
+        psw=request("pswpassword")
+   else
+        psw=md5(request("psw"))
+   end if
+   if request("answer")=request("oldanswer") then
+        answer=request("answer")
+   else
+        answer=md5(request("answer"))
+   end if
+   if password<>psw then
+	response.write"<SCRIPT language=JavaScript>alert(' 两 次 输 入 的 密 码 不 一 致， 请 返 回 ！ ');"
+	response.write"javascript:history.go(-1)</SCRIPT>"
+   response.end
+   end if
+   if trim(request.Form("vipindate"))<>"" and trim(request.Form("vipenddate"))<>"" then
+      if not(isdate(request.Form("vipindate")) and isdate(request.Form("vipenddate"))) then
+          response.write"<SCRIPT language=JavaScript>alert(' 您选择的不是一个有效的日期格式。');"
+	  response.write"javascript:history.go(-1)</SCRIPT>"
+	  response.end
+      end if
+   end if
+	sql="select * from [User] where userid="&userid
+  	set rs=server.createobject("adodb.recordset")
+  	rs.open sql,conn,1,3
+	rs("Password")=Password
+	rs("Question")=trim(request.Form("Question"))
+	rs("Answer")=Answer
+	rs("Email")=trim(request.Form("Email"))
+	rs("sex")=request.Form("sex")
+	rs("Homepage")=trim(request.Form("Homepage"))
+	rs("QQ")=trim(request.Form("QQ"))
+	rs("points")=trim(request.Form("points"))
+	rs("UserPhoto")=trim(request.Form("UserPhoto"))
+	rs("UserSign")=trim(request.Form("UserSign"))
+        if trim(request.Form("vipindate"))<>"" and trim(request.Form("vipenddate"))<>"" then
+	rs("vipindate")=trim(request.Form("vipindate"))
+	rs("vipenddate")=trim(request.Form("vipenddate"))
+        end if
+	rs.update
+	rs.close
+	set rs=nothing
+	response.Write"<script language=javascript>alert(' 恭 喜 您 ！ 资 料 修 改 成 功 ！');this.location.href='admin_userlist.asp';</script>"
+end if
+
+if request.QueryString("hx66")="deluser" then
+   uid=clng(request.QueryString("id"))
+   Conn.Execute "DELETE * FROM [User] WHERE userid="&uid
+   conn.execute("update allcount set usercount = usercount - 1")
+end if
+
+if request.QueryString("hx66")="zf" and isInteger(request.form("keyword")) then'==积分管理
+   dim akeyword,point,Grade,SQLFiltrate
+   akeyword=int(request.form("keyword"))
+   point=Trim(Request("point"))
+   Grade=cint(request.form("Grade"))
+   if Grade=1 then
+      SQLFiltrate="WHERE UserGrade=0"
+   elseif Grade=2 then
+      SQLFiltrate="WHERE UserGrade=1"
+   else
+      SQLFiltrate=""
+   end if
+   if point=0 then'===增加积分
+      sql="UPDATE [user] SET points = points + "&akeyword&" "&SQLFiltrate&""
+      conn.execute (sql)
+   elseif point=1 then'===减少积分
+      sql="UPDATE [user] SET points = points - "&akeyword&" "&SQLFiltrate&""
+      conn.execute (sql)
+   elseif point=2 then'===重计积分
+      sql="UPDATE [user] SET points = "&akeyword&" "&SQLFiltrate&""
+      conn.execute (sql)
+   elseif point=3 then'===初始积分
+      datafile=""&mdb&""  
+      Set Conn=Server.CreateObject("ADODB.Connection")
+      connstr="Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(""&datafile&"")
+      conn.Open connstr
+      on error resume next '忽略错误
+      conn.execute("ALTER TABLE [user] ALTER COLUMN [points] int default "&akeyword&"")
+   end if
+   conn.close
+   set conn=nothing
+   response.Write"<script language=javascript>alert(' 恭 喜 您 ！ 更 新 成 功 ！');this.location.href='admin_userlist.asp';</script>"		
+end if
+
+sub uSearch()%>
+<table align="center" width="98%" align="center" border="1" cellspacing="0" cellpadding="4" class=07ingbk style="border-collapse: collapse">
+<form name="keyword" method="POST" action="admin_userlist.asp" target="main">
+<tr class=07ingss>
+     <td width="100%" height="23" colspan="2">
+      <a href="?"><font color=#FFFFFF>会员列表</font></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="?hx66=uSearch"><font color=#FFFFFF>会员搜索</font></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="?hx66=upoints"><font color=#FFFFFF>积分管理</font></a></td>
+    </tr>
+    <tr class=07ingds>
+    <td>&nbsp;&nbsp;用户搜索：<input type="radio" name="hx66" value="username" checked class='inuptCG'>名称&nbsp;<input type='radio' name='hx66' value='LastLoginIP' class='inuptCG'>IP&nbsp;<input type='radio' name='hx66' value='Email' class='inuptCG'>E-mail&nbsp;&nbsp;<input type="text" name="keyword" size="25">&nbsp;<input type="submit" value="搜索用户" name="submit"></td>
+  </tr>
+</form>
+</table>
+<%end sub
+
+sub upoints()%>
+<table align="center" width="98%" align="center" border="1" cellspacing="0" cellpadding="4" class=07ingbk style="border-collapse: collapse">
+<tr class=07ingss>
+     <td width="100%" height="23">
+      <a href="?"><font color=#FFFFFF>会员列表</font></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="?hx66=uSearch"><font color=#FFFFFF>会员搜索</font></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="?hx66=upoints"><font color=#FFFFFF>积分管理</font></a></td>
+    </tr>
+  <form name="keyword" method="POST" action="admin_userlist.asp?hx66=zf" target="main">
+   <tr class=07ingds>
+    <td>
+&nbsp;&nbsp;用户积分管理：<input type="radio" name="point" value="0" checked>增加积分&nbsp;<input type="radio" name="point" value="1">减少积分&nbsp;<input type="radio" name="point" value="2">重计积分&nbsp;<input type="radio" name="point" value="3">新注册初始积分&nbsp;&nbsp;<input type="text" name="keyword" size="10">&nbsp;<select name="Grade" id="Grade">
+<option value="0" selected>全体会员</option><option value="1">普通用户</option><option value="2">VIP 用户</option></select>  <input type="submit" value="点击更新" name="submit"><BR><font color="#FF6600">⑴ 用户积分设置，必须输入正整数数字。<BR>⑵ 重计积分和新注册初始积分设定时，数字不能为空。<BR>⑴ 重计积分，是指已注册会员的现有积分全部重新设定为你的输入值。请慎操作！<BR>⑵ 以上操作都是对指定等级会员的批量操作！</font>
+    </td>
+  </tr>
+ </form>
+</table>
+<%end sub
+
+Dim CurPage,Url_Add
+Url_Add="?"
+If Request.QueryString("Page")<>"" Then
+   Curpage=Request.QueryString("Page")
+   If IsInteger(Curpage)=False OR Curpage<0 Then Curpage=1
+Else
+   Curpage=1
+End If
+if request.QueryString("hx66")="adminedit" then
+     call Modifyinfo()
+elseif request.QueryString("hx66")="uSearch" then
+     call uSearch()
+elseif request.QueryString("hx66")="upoints" then
+     call upoints()
+elseif request.QueryString("hx66")="users" then
+     Url_Add=Url_Add&"hx66=users&"
+     sql="select * from [User] where UserGrade=0 order by LoginTimes desc"
+     set rs=server.createobject("adodb.recordset")
+     rs.open sql,conn,1,1
+     call userlist()
+elseif request.QueryString("hx66")="vips" then
+     Url_Add=Url_Add&"hx66=vips&"
+     sql="select * from [User] where UserGrade=1 order by LoginTimes desc"
+     set rs=server.createobject("adodb.recordset")
+     rs.open sql,conn,1,1
+     call userlist()
+elseif request.QueryString("hx66")="job" then
+     Url_Add=Url_Add&"hx66=job&"
+     sql="select * from [User] where job_ok=True order by LoginTimes desc"
+     set rs=server.createobject("adodb.recordset")
+     rs.open sql,conn,1,1
+     call userlist()
+elseif request.QueryString("hx66")="blog" then
+     Url_Add=Url_Add&"hx66=blog&"
+     sql="select * from [User] where blog_ok>=1 order by LoginTimes desc"
+     set rs=server.createobject("adodb.recordset")
+     rs.open sql,conn,1,1
+     call userlist()
+elseif request.QueryString("hx66")="blogbit" then
+     Url_Add=Url_Add&"hx66=blogbit&"
+     sql="select * from [User] where blog_ok=2 order by LoginTimes desc"
+     set rs=server.createobject("adodb.recordset")
+     rs.open sql,conn,1,1
+     call userlist()
+elseif request.QueryString("hx66")="ulock" then
+     Url_Add=Url_Add&"hx66=ulock&"
+     sql="select * from [User] where userlock=0 order by LoginTimes desc"
+     set rs=server.createobject("adodb.recordset")
+     rs.open sql,conn,1,1
+     call userlist()
+elseif request.QueryString("hx66")="vlock" then
+     Url_Add=Url_Add&"hx66=vlock&"
+     sql="select * from [User] where userlock=1 order by LoginTimes desc"
+     set rs=server.createobject("adodb.recordset")
+     rs.open sql,conn,1,1
+     call userlist()
+elseif request.QueryString("hx66")="plock" then
+     Url_Add=Url_Add&"hx66=plock&"
+     sql="select * from [User] where userlock=2 order by LoginTimes desc"
+     set rs=server.createobject("adodb.recordset")
+     rs.open sql,conn,1,1
+     call userlist()
+elseif request.QueryString("hx66")="news" then
+     Url_Add=Url_Add&"hx66=news&"
+     sql="select * from [User] order by userid desc"
+     set rs=server.createobject("adodb.recordset")
+     rs.open sql,conn,1,1
+     call userlist()
+elseif request.QueryString("hx66")="time" then
+     Url_Add=Url_Add&"hx66=time&"
+     sql="select * from [User] order by LastLoginTime desc"
+     set rs=server.createobject("adodb.recordset")
+     rs.open sql,conn,1,1
+     call userlist()
+elseif request.QueryString("hx66")="points" then
+     Url_Add=Url_Add&"hx66=points&"
+     sql="select * from [User] order by points desc"
+     set rs=server.createobject("adodb.recordset")
+     rs.open sql,conn,1,1
+     call userlist()
+elseif request.QueryString("hx66")="" then
+     dim keyword,hx66
+     keyword=Trim(Request("keyword"))
+     hx66=Trim(Request("hx66"))
+     set rs=server.createobject("adodb.recordset")
+     if not isnull(keyword) and keyword<>"" then 
+     Url_Add=Url_Add&"hx66="&hx66&"&keyword="&keyword&"&"
+     sql="select * from [User]"
+     rs.filter = ""&hx66&" like '%"&keyword&"%'"
+     else
+     sql="select * from [User] order by LoginTimes desc"
+     end if
+     rs.open sql,conn,1,1
+     call userlist()
+end if
+
+sub userlist()
+%>
+<SCRIPT LANGUAGE=javascript>
+    //实现反向选择
+    <!--
+    function SelectAll() {
+	for (var i=0;i<document.selform.selUserID.length;i++) {
+		var e=document.selform.selUserID[i];
+		e.checked=!e.checked;
+	}
+    }
+    //-->
+</script>
+<table align="center" width="98%" align="center" border="0" cellspacing="1" cellpadding="4" class=07ingbk style="border-collapse: collapse">
+  <tr class=07ingss>
+     <td width="100%" height="23" colspan="11">
+      <a href="?"><font color=#FFFFFF>会员列表↓</font></a>(按登陆次数排列)&nbsp;&nbsp;&nbsp;&nbsp;<a href="?hx66=uSearch"><font color=#FFFFFF><B>·</B>会员搜索</font></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="?hx66=upoints"><font color=#FFFFFF><B>·</B>积分管理</font></a></td>
+  </tr>
+  <tr class=07ingds>
+     <td width="100%" height="30" colspan="11" align="center">
+      <a href="?">按登陆数</a>&nbsp;&nbsp;&nbsp;<a href="?hx66=time">按登陆时间</a>&nbsp;&nbsp;&nbsp;<a href="?hx66=news">按新注册</a>&nbsp;&nbsp;&nbsp;<a href="?hx66=points">按高积分</a>&nbsp;&nbsp;&nbsp;<a href="?hx66=users">普通会员</a>&nbsp;&nbsp;&nbsp;<a href="?hx66=vips">VIP会员</a>&nbsp;&nbsp;&nbsp;<a href="?hx66=ulock">正常的会员</a>&nbsp;&nbsp;&nbsp;<a href="?hx66=vlock">锁定的会员</a>&nbsp;&nbsp;&nbsp;<a href="?hx66=plock">待审的会员</a></td>
+  </tr>
+  <tr align="center" class=07ingqs>
+    <td width="5%">选择</td>
+    <td width="5%">详情</td>
+    <td width="13%" height="23">用户名</td>
+    <td width="12%">等级</td>
+    <td width="5%">性别</td>
+    <td width="19%">注册日期</td>
+    <td width="5%">登次</td>
+    <td width="19%">最后登录时间</td>
+    <td colspan="2">操作</td>
+    <td width="5%">状态</td>
+  </tr>
+<%
+if rs.eof and rs.bof then
+  Response.Write("<tr align=""center""><td class=07ingds colspan=11>当前没有会员！</td></tr>")
+Else
+   Dim u_Nums,MultiPages,i
+   rs.PageSize=adflperpage
+   rs.AbsolutePage=CurPage
+   u_Nums=rs.RecordCount
+   MultiPages="<tr><td class=07ingqs colspan=""11"" align=""center"">共有会员："&u_Nums&"个。&nbsp;&nbsp;"&MultiPage(u_Nums,adflperpage,CurPage,Url_Add)&"</td></tr>"
+Do Until Rs.EOF OR i=adflperpage
+%>
+<form name="selform" method="post" action="?hx66=checkinfo">
+  <tr align="center" class=07ingds>
+    <td align="center"><input type="checkbox" name="selUserID" id="selUserID" value="<%=rs("UserID")%>"></td>
+    <td align="center"><img alt='点击弹开详细信息框' onclick="opencat(help_open<%=i%>)" style='CURSOR: hand' src="../img/info.gif" hspace="0" border="0"align="absmiddle"></td>
+    <td height="21"><%=rs("UserName")%></td>
+    <td><%if rs("UserGrade")=1 then%><font color=red>(vip)</font><%else%>(普)<%end if%></td>
+    <td><%=rs("sex")%></td>
+    <td><%=rs("RegDate")%></td>
+    <td><%=rs("LoginTimes")%></td>
+    <td><%=rs("LastLoginTime")%></td>
+    <td><a href="?hx66=deluser&id=<%=rs("userid")%>">删除</a></td>
+    <td><a href="?hx66=adminedit&id=<%=rs("userid")%>">修改</a></td>
+    <td><%if rs("userlock")=0 then%>正常<%elseif rs("userlock")=1 then%><font color=red>锁定</font><%else%><font color=green>待审</font><%end if%></td>
+ </tr>
+<tr id="help_open<%=i%>" style="display: none" class="07ingds">
+  <td colspan="11">
+    <table width="100%" border="0" align="center" cellspacing="5" cellpadding="0" bgcolor="#FFFFFF" style='border:1px dashed #B7B7B7;' class=07ingbk>
+     <tr>
+       <td height="20" width="33%">会员ID编号：<%=rs("UserID")%></td>
+       <td height="20" width="33%">最后登录IP：<%=rs("LastLoginIP")%></td>
+       <td height="20" width="33%">会员积分：<%=rs("points")%></td>
+     </tr>
+     <tr>
+       <td>E-mail：<%=rs("email")%></td>
+       <td>QQ：<a href="http://friend.qq.com/cgi-bin/friend/user_show_info?ln=<%=rs("QQ")%>" target="_blank"><%=rs("QQ")%></a></td>
+       <td>web：<a href="<%=rs("Homepage")%>" target="_blank"><%=rs("Homepage")%></a></td>
+     </tr>
+     <tr>
+       <td>VIP开通日期：<%=rs("vipindate")%></td>
+       <td>VIP结束日期：<%=rs("vipenddate")%></td>
+       <td>省份：<%=rs("whe")%></td>
+     </tr>
+     <tr>
+       <td>生日：<%=rs("birthday")%></td>
+       <td>电话：<%=rs("phone")%></td>
+       <td>地址：<%=rs("address")%></td>
+     </tr>
+    </table>
+   </td>
+</tr>
+<%i=i+1
+rs.movenext
+loop
+end if
+rs.close
+set rs=nothing
+%>
+    <tr class=07ingds> 
+      <td colspan="11" height="30">
+本页全选：<input type="checkbox" name="checkbox" value="checkbox" onClick="javascript:SelectAll()"><BR><BR>  
+        <input onClick="{if(confirm('确定删除选定的用户吗?')){this.document.selform.submit();return true;}return false;}" type=submit value=会员删除 name=action class="button"> 
+        <input onClick="{if(confirm('确定激活选定的用户吗?')){this.document.selform.submit();return true;}return false;}" type=submit value=会员激活 name=action class="button"> 
+        <input onClick="{if(confirm('确定锁定选定的用户吗?')){this.document.selform.submit();return true;}return false;}" type=submit value=会员锁定 name=action class="button"> 
+        <input onClick="{if(confirm('确定用户为普通用户吗?')){this.document.selform.submit();return true;}return false;}" type=submit value=设为普通 name=action class="button"> 
+        <input onClick="{if(confirm('确定用户为VIP用户吗?' )){this.document.selform.submit();return true;}return false;}" type=submit value=设为VIP name=action class="button"> 
+      </td>
+    </tr></form>
+<%
+Response.Write(MultiPages)
+Response.Write("</table>")
+end sub
+ 
+sub Modifyinfo()
+userid=clng(request.QueryString("id"))
+sql="select * from [user] where userid="&userid
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,3%>
+<table align="center" width="98%" align="center" border="1" cellspacing="0" cellpadding="4" class=07ingbk style="border-collapse: collapse">
+         <tr class=07ingss>
+            <td colspan="2">修改用户资料</td>
+         </tr>
+         <form name="form2" method="post" action="?hx66=Modifyinfo&userid=<%=userid%>">
+          <tr class=07ingds>
+            <td width="95">用 户 名:</td>
+            <td><%=rs("username")%></span> </td>
+          </tr>
+          <tr class=07ingds>
+            <td>&nbsp;密&nbsp;&nbsp;&nbsp; 码:</td>
+            <td><input type="password" name="password" size=30 value="<%=rs("password")%>">
+          <input type=hidden name="pswpassword" value="<%=rs("password")%>">
+          </tr>
+          <tr class=07ingds>
+            <td>新密码确认:</td>
+            <td><input type="password" name="psw" size="30" value="" size=20 maxlength=13>&nbsp;不修改密码请留空</td>
+          </tr>
+          <tr class=07ingds>
+            <td>密码提示问题:</td>
+            <td><input name="Question" type="text" size="30" id="Question2" value="<%=rs("Question")%>"></td>
+          </tr>
+          <tr class=07ingds>
+            <td>密码提示答案:</td>
+            <td><input type=text name="answer" size=20 value="<%=rs("answer")%>">
+          <input type=hidden name="oldanswer" value="<%=rs("answer")%>">答案采用了MD5加密，如要修改可直接填写。</span></td>
+          </tr>
+          <tr class=07ingds>
+            <td>&nbsp;E-mail:</td>
+            <td><input name="Email" type="text" size="30" id="Email" value="<%=rs("Email")%>"></td>
+          </tr>
+          <tr class=07ingds>
+            <td>&nbsp;性&nbsp; 别:</td>
+            <td><input type="radio" name="sex" value="男" <%if rs("sex")="男" then response.Write"checked" end if%>>
+      男
+      <input name="sex" type="radio" value="女" <%if rs("sex")="女" then response.Write"checked" end if%>>
+      女</td>
+          </tr>
+          <tr class=07ingds>
+            <td>&nbsp;个人主页:</td>
+            <td><input name="Homepage" type="text" size="30" id="Homepage2" value="<%=rs("Homepage")%>"></td>
+          </tr>
+          <tr class=07ingds>
+            <td>&nbsp;QQ:</td>
+            <td><input name="QQ" type="text" size="30" id="QQ2" value="<%=rs("QQ")%>"></td>
+          </tr>
+          <tr class=07ingds>
+            <td>用户积分:</td>
+            <td><input name="points" type="text" size="30" id="points2" value="<%=rs("points")%>"></td>
+          </tr>
+          <tr class=07ingds>
+            <td>VIP开通日期:</td>
+            <td><input name="VipinDate" type="text" size="30" id="VipinDate" value="<%=rs("VipinDate")%>"> 日期格式：2005-5-15</td>
+          </tr>
+          <tr class=07ingds>
+            <td>VIP结束日期:</td>
+            <td><input name="VipendDate" type="text" size="30" id="VipendDate" value="<%=rs("VipendDate")%>"> 日期格式：2005-5-15</td>
+          </tr>
+          <tr class=07ingds>
+            <td>用户头像:</td>
+            <td><input name="UserPhoto" type="text" size="30" id="UserPhoto2" value="<%=rs("UserPhoto")%>"></td>
+          </tr>
+          <tr class=07ingds>
+            <td>用户签名:</td>
+            <td><textarea name="UserSign" cols="50" rows="6" id="UserSign2"><%=rs("UserSign")%></textarea>
+            </td>
+          </tr>
+          <tr align="center" class=07ingqs>
+            <td colspan="2"><input type="submit" name="Submit" value=" 修改 " class="button">
+                <input type="reset" name="Submit2" value=" 重填 " class="button"></td>
+          </tr></form>
+</table>
+<%
+rs.close
+set rs=nothing
+conn.close
+set conn=nothing
+end sub
+end if
+'****************************************************
+' 07ing Ver8.0       Power by 07ing.net
+' Web: http://www.07ing.net,http://www.07ing.com
+' Copyright (C) 2006 07ing.net All Rights Reserved.
+'****************************************************
+%>

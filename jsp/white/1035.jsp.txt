@@ -1,0 +1,72 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+ <TABLE width="99%" border=0 cellpadding=3 cellspacing=1 align=center class=tableBorder>
+<TR><form name="myform" method="post" action="<%=url%>/servletsvote?action=add">
+ <input type="Hidden" name="action" value='save'>
+  <TH colspan=2>添加新的投票</TH>
+</TR>
+<TR height="22">
+ <TD noWrap align="right" class=TableRow2>投票类型：</TD>
+ <TD width="85%" class=TableRow1>
+ <input type="radio" name="type" value="0" title="设置单选投票" checked>单选 
+ <input type="radio" name="type" value="1" title="设置多选投票" >多选</TD>
+</TR>
+<TR height="22">
+ <TD noWrap align="right" class=TableRow2>投票主题：</TD>
+ <TD class=TableRow1><input type=text name="title" size=50 value=""></TD>
+</TR>
+<TR height="22">
+ <TD noWrap align="right" class=TableRow2>投票选项1：</TD>
+ <TD class=TableRow1><input type=text name="option_1" size=20 value="">&nbsp;&nbsp;&nbsp;
+ </TD>
+</TR>
+<TR height="22">
+ <TD noWrap align="right" class=TableRow2>投票选项2：</TD>
+ <TD class=TableRow1><input type=text name="option_2" size=20 value="">&nbsp;&nbsp;&nbsp;
+ </TD>
+</TR>
+<TR height="22">
+ <TD noWrap align="right" class=TableRow2>投票选项3：</TD>
+ <TD class=TableRow1><input type=text name="option_3" size=20 value="">&nbsp;&nbsp;&nbsp;
+ </TD>
+</TR>
+<TR height="22">
+ <TD noWrap align="right" class=TableRow2>投票选项4：</TD>
+ <TD class=TableRow1><input type=text name="option_4" size=20 value="">&nbsp;&nbsp;&nbsp;
+ </TD>
+</TR>
+<TR height="22">
+ <TD noWrap align="right" class=TableRow2>投票选项5：</TD>
+ <TD class=TableRow1><input type=text name="option_5" size=20 value="">&nbsp;&nbsp;&nbsp;
+ </TD>
+</TR>
+
+ <tr>
+ <td height="22" align="right" class="TableRow2">&nbsp;</td>
+ <td align="center" class="TableRow1">
+ <input type="button" name="Submit1" onclick="javascript:history.go(-1)" value="返回上一页" class=button>　
+ <input type=reset name=Submit2 class=button value="清 除">　
+　<input type=Submit class=button value="保存投票" name=Submit>　
+ </td>
+ </tr></form>
+</table>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

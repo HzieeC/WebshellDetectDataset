@@ -1,0 +1,522 @@
+<!--#include file="const.asp"-->
+<!--#include file="../../inc/base64.asp"-->
+<%
+Dim XMLDom,dataNode,i,HtmlContent,m_strTitle,m_strDownName
+Dim Rs,SQL,ErrMsg,id,IsUseServer
+Dim softid,SoftName,downid,ClassID
+Dim DownFileName,PointNum,GroupSetting,UserGroup
+Dim DownloadUrl,User_Group,username
+Dim ReturnPoint,addPoint,SoftPointNum,IsOuter
+Dim UseDownRecord
+FoundErr= False
+IsUseServer = False
+UseDownRecord = 0
+'--是否开启返点功能,是=True,否=False
+ReturnPoint = False
+'-- 当软件不需要点数下载时返回用户的点数
+addPoint = 0
+softid = NewAsp.ChkNumeric(Request.Querystring("softid"))
+downid = NewAsp.ChkNumeric(Request.Querystring("downid"))
+id = NewAsp.ChkNumeric(Request.Querystring("id"))
+
+If softid = 0 Then
+	ErrMsg = "<li>错误的系统参数!请输入正确的软件ID</li>"
+	FoundErr=True
+	Call NewAsp.showError(ErrMsg)
+End If
+If Not NewAsp.CheckOutLinks Then
+	ErrMsg = NewAsp.MainSetting(50)
+	FoundErr=True
+	Call NewAsp.showError(ErrMsg)
+End If
+
+Sub main()
+	If FoundErr Then Exit Sub
+	Dim GroupName,gradeid,rootid
+
+	If Trim(NewAsp.membergrade) <> "" Then
+		gradeid = CInt(NewAsp.membergrade)
+	Else
+		gradeid = 0
+	End If
+	User_Group = 0
+	
+	GroupSetting = Split(NewAsp.UserGroupSetting(gradeid), "|||")
+	GroupName = GroupSetting(UBound(GroupSetting))
+	UseDownRecord = NewAsp.ChkNumeric(GroupSetting(42))
+	
+	If CInt(GroupSetting(31)) = 0 Then
+		ErrMsg = ErrMsg & "<li>对不起！你是" & GroupName & "；不能下载本站资源。</li>"
+		FoundErr=True
+		Call NewAsp.showError(ErrMsg)
+		Exit Sub
+	End If
+	On Error Resume Next
+	SQL = "SELECT ClassID,SoftName,SoftVer,PointNum,UserGroup,username,PauseDown FROM NC_SoftList WHERE ChannelID="& ChannelID &" And isAccept <> 0 And SoftID=" & SoftID
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.EOF And Rs.BOF Then
+		ErrMsg = "<li>对不起~！没有找到你想下载的软件。</li>"
+		FoundErr=True
+		Set Rs = Nothing
+		Exit Sub
+	Else
+		ClassID  = CLng(Rs("ClassID"))
+		SoftName =Trim( Rs("SoftName") &" "& Rs("SoftVer"))
+		m_strTitle=SoftName
+		PointNum = CLng(Rs("PointNum"))
+		UserGroup = CInt(Rs("UserGroup"))
+		username = Rs("username") & ""
+		If Rs("PauseDown") > 0 Then
+			ErrMsg = "<li>对不起！本软件暂时停止下载。</li>"
+			FoundErr=True
+			Exit Sub
+		End If
+		SoftPointNum = PointNum
+	End If
+	Set Rs = Nothing
+	Set Rs = NewAsp.Execute("SELECT UserGroup FROM NC_Classify WHERE ChannelID="& ChannelID &" And ClassID="& ClassID)
+	If Rs("UserGroup") > gradeid Then
+		ErrMsg = ErrMsg & "<li>您没有登录或者你的会员级别不够！</li><li>如果你是本站会员, 请先<a href=""users/"">登陆</a>后再下载!</li>"
+		FoundErr=True
+		Set Rs = Nothing
+		Exit Sub
+	End If
+	Set Rs = Nothing
+	If downid <> 0 Then
+		IsUseServer = True
+		SQL = "SELECT rootid,downid,DownloadName,DownloadPath,UserGroup,DownPoint,IsOuter FROM NC_DownServer WHERE ChannelID="& ChannelID &" And isLock=0 And downid=" & downid
+		Set Rs = NewAsp.Execute(SQL)
+		If Rs.EOF And Rs.BOF Then
+			ErrMsg = "<li>注意：您所下载的文件不存在。</li>"
+			FoundErr=True
+			Set Rs = Nothing
+			Exit Sub
+		Else
+			rootid = Rs("rootid")
+			DownloadUrl = Trim(Rs("DownloadPath"))
+			User_Group = Rs("UserGroup")
+			IsOuter = Rs("IsOuter")
+			m_strDownName=Trim(Rs("DownloadName")&"")
+			If User_Group > gradeid Then
+				ErrMsg = "<li>注意：此下载服务器是会员专用；</li><li>如果你是本站会员, 请先<a href=""users/"">登陆</a>后再下载!</li><li>或者你的会员级别不够，请联系管理员...</li>"
+				FoundErr=True
+				Set Rs = Nothing
+				Exit Sub
+			End If
+			If Rs("UserGroup") > 0 Then
+				PointNum = Rs("DownPoint")
+				CheckUserDownload softid,PointNum,User_Group,GroupName
+			Else
+				PointNum = PointNum
+			End If
+		End If
+		Set Rs = Nothing
+		If IsOuter <> 1 Then
+			SQL = "SELECT downid,DownFileName,DownText FROM NC_DownAddress WHERE ChannelID="& ChannelID &" And softid="& softid &" And downid="& rootid &" And id=" & id
+			Set Rs = NewAsp.Execute(SQL)
+			If Rs.EOF And Rs.BOF Then
+				ErrMsg = "<li>注意：您所下载的文件不存在。</li>"
+				FoundErr=True
+				Set Rs = Nothing
+				Exit Sub
+			Else
+				Dim strDownFileName,strDownText
+				strDownFileName = Rs("DownFileName") & ""
+				strDownText = Rs("DownText") & ""
+				If Len(strDownFileName) > 0 Then strDownFileName = Left(strDownFileName,10)
+				If InStr(1, strDownFileName, "://") > 0 Then
+					DownloadUrl = Trim(Rs("DownFileName"))
+				Else
+					DownloadUrl = Trim(DownloadUrl & Rs("DownFileName"))
+				End If
+				If InStr(strDownText, "###") > 0 Then
+					m_strTitle=Replace(strDownText, "###", "")
+				End If
+			End If
+			Set Rs = Nothing
+		
+		End If
+	Else
+		IsUseServer = False
+		SQL = "SELECT DownFileName,DownText FROM NC_DownAddress WHERE ChannelID="& ChannelID &" And softid="& softid &" And id=" & id
+		Set Rs = NewAsp.Execute(SQL)
+		If Rs.EOF And Rs.BOF Then
+			ErrMsg = "<li>注意：您所下载的文件不存在。</li>"
+			FoundErr=True
+			Set Rs = Nothing
+			Exit Sub
+		Else
+			DownloadUrl = Trim(Rs("DownFileName"))
+			m_strTitle=Replace(Rs("DownText") & "", "###", "")
+		End If
+		Set Rs = Nothing
+	End If
+	
+	If CInt(UserGroup) > 0 And User_Group = 0 Then
+		If Trim(NewAsp.memberName) = "" Then
+			ErrMsg =  "<li>此软件是会员软件，非会员不能下载。 如果你是本站会员请先<a href=""users/"">登陆</a>!</li>"
+			FoundErr=True
+			Exit Sub
+		End If
+		
+		CheckUserDownload softid,PointNum,UserGroup,GroupName
+	End If
+	If FoundErr=True Then Exit Sub
+	Dim hits
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT AllHits,DayHits,WeekHits,MonthHits,HitsTime FROM NC_SoftList WHERE softid="& softid
+	Rs.Open SQL,Conn,1,3
+	If Not(Rs.BOF And Rs.EOF) Then
+		hits = CLng(Rs("AllHits"))+1
+		Rs("AllHits").Value = hits
+		If DateDiff("Ww", Rs("HitsTime"), Now()) <= 0 Then
+			Rs("WeekHits").Value = Rs("WeekHits").Value + 1
+		Else
+			Rs("WeekHits").Value = 1
+		End If
+		If DateDiff("M", Rs("HitsTime"), Now()) <= 0 Then
+			Rs("MonthHits").Value = Rs("MonthHits").Value + 1
+		Else
+			Rs("MonthHits").Value = 1
+		End If
+		If DateDiff("D", Rs("HitsTime"), Now()) <= 0 Then
+			Rs("DayHits").Value = Rs("DayHits").Value + 1
+		Else
+			Rs("DayHits").Value = 1
+			Rs("HitsTime").Value = Now()
+		End If
+		Rs.Update
+	End If
+	Rs.Close:Set Rs = Nothing
+	If downid > 0 Then
+		Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+		SQL = "SELECT AllDownHits,DayDownHits,HitsTime FROM NC_DownServer WHERE downid="& downid
+		Rs.Open SQL,Conn,1,3
+		If Not(Rs.BOF And Rs.EOF) Then
+			hits = CLng(Rs("AllDownHits"))+1
+			Rs("AllDownHits").Value = hits
+			If DateDiff("D", Rs("HitsTime"), Now()) <= 0 Then
+				Rs("DayDownHits").Value = Rs("DayDownHits").Value + 1
+			Else
+				Rs("DayDownHits").Value = 1
+				Rs("HitsTime").Value = Now()
+			End If
+			Rs.Update
+		End If
+		Rs.Close:Set Rs = Nothing
+	End If
+	Call addMemberPoint()
+	If CInt(GroupSetting(34)) <> 0 And IsOuter<2 Then
+		RevealDownloadUrl(DownloadUrl)
+	Else
+		Dim IsThunderUnion,IsFlashGetDownload
+		IsThunderUnion=(NewAsp.PlusSetting(1)="1" And Len(NewAsp.PlusSetting(2))>0)
+		IsFlashGetDownload=(NewAsp.PlusSetting(3)="1" And Len(NewAsp.PlusSetting(4))>0)
+
+		If IsOuter = 2 And IsThunderUnion Then
+			ThunderDownloadUrl(ThunderEncode(DownloadUrl))
+			Exit Sub
+		ElseIf IsOuter = 3 And IsFlashGetDownload Then
+			FlashGetDownloadUrl(DownloadUrl)
+			Exit Sub
+		Else
+			Response.Redirect DownloadUrl
+		End If
+	End If
+End Sub
+
+Sub ThunderDownloadUrl(url)
+	'--WEB迅雷专用连接JS文件
+	'Response.Write "<script src='http://pstatic.xunlei.com/js/webThunderSpecial.js'></script>" & vbNewLine
+	'--迅雷5专用连接JS文件
+	Response.Write "<script src='http://pstatic.xunlei.com/js/webThunderDetect.js'></script>" & vbNewLine
+	Response.Write "<script>OnDownloadClick('" & url & "','',location.href,'" & NewAsp.PlusSetting(2) & "',2,'',4)</script>" & vbNewLine
+	'Response.Write "<script>window.setInterval(""window.close()"",3600);</script>" & vbCrLf
+End Sub
+
+Sub FlashGetDownloadUrl(url)
+	Dim m_strFlashGetUrl,m_strDownUrl
+	'--此处为文件实际下载地址
+	m_strDownUrl = url   
+	m_strFlashGetUrl = FlashgetEncode(m_strDownUrl,NewAsp.PlusSetting(4))
+	Response.Write "<script src=""http://ufile.kuaiche.com/Flashget_union.php?fg_uid=" & NewAsp.PlusSetting(4) & """></script>" & vbCrLf
+	Response.Write "<script>function ConvertURL2FG(url,fUrl,uid){	try{		FlashgetDown(url,uid);	}catch(e){		location.href = fUrl;		}}"& vbCrLf
+	Response.Write "function Flashget_SetHref(obj){obj.href = obj.fg;}</script>"& vbCrLf
+	Response.Write "<script>ConvertURL2FG('" & m_strFlashGetUrl & "','" & NewAsp.Get_CurrentUrl() & "'," & NewAsp.PlusSetting(4) & ")</script>" & vbCrLf
+	'Response.Write "<script>window.setInterval(""window.close()"",3600);</script>" & vbCrLf
+End Sub
+
+Sub CheckUserDownload(softid,PointNum,UserGroup,GroupName)
+	If FoundErr Then Exit Sub
+	Call GetUserTodayInfo
+	If CInt(NewAsp.membergrade) = 999 Then Exit Sub
+	
+	On Error Resume Next
+	Dim CookiesID,userpoint,UserGrade,DownCooliesID,strUserToday
+	Dim CookieSoftID,CookieDownID,UpdateUserInfo
+	UpdateUserInfo = True
+	If CInt(NewAsp.memberclass) > 0 Then
+		Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+		SQL = "SELECT userid,UserGrade,UserClass,ExpireTime FROM NC_User WHERE UserClass>0 And username='" & NewAsp.CheckBadstr(NewAsp.memberName) & "' And userid=" & CLng(NewAsp.memberid)
+		Rs.Open SQL,Conn,1,3
+		If Rs.BOF And Rs.EOF Then
+			ErrMsg = "<li>非法操作~！</li>"
+			FoundErr=True
+			Set Rs = Nothing
+			Exit Sub
+		Else
+			If DateDiff("D", CDate(Rs("ExpireTime")), Now()) > 0 Or Rs("UserClass") = 999 Then
+				ErrMsg = "<li>对不起！您的会员已到期，不能下载此软件；</li><li>如果你要下载此软件请联系管理员。</li>"
+				FoundErr=True
+				Set Rs = Nothing
+				Exit Sub
+			End If
+		End If
+		Rs.Close:Set Rs = Nothing
+		
+		If UseDownRecord = 2 Then
+			If ChkDownRecord(1) Then
+				UpdateUserInfo = False
+			Else
+				UpdateUserInfo = True
+			End If
+		End If
+		If UpdateUserInfo = True Then
+			If CLng(UserToday(0)) => CLng(GroupSetting(45)) And CLng(GroupSetting(45))>0 Then
+				FoundErr = True
+				ErrMsg =  "<li>您每天最多只能下载<font color=""red""><b>" & GroupSetting(45) & "</b></font>个软件，如果还要继续下载请明天再来吧！</li>"
+				Exit Sub
+			End If
+			strUserToday = NewAsp.ChkNumeric(UserToday(0))+1 &","& UserToday(1) &","& UserToday(2) &","& UserToday(3) &","& UserToday(4) &","& UserToday(5)
+			UpdateUserToday(strUserToday)
+		End If
+		If UseDownRecord = 2 Then
+			NewAsp.Execute ("UPDATE NC_UserDown SET isdown1=1 WHERE softid=" & softid & " And userid=" & CLng(NewAsp.memberid))
+		End If
+		Exit Sub
+	End If
+	
+	If UseDownRecord < 2 Then
+		CookiesID = "softid_" & softid
+		DownCooliesID = "downid_" & downid & "_" & softid
+		CookieSoftID = NewAsp.ChkNumeric(Request.Cookies("DownLoadSoft")(CookiesID))
+		CookieSoftID = CLng(CookieSoftID)
+		CookieDownID = NewAsp.ChkNumeric(Request.Cookies("DownLoadSoft")(DownCooliesID))
+		CookieDownID = CLng(CookieDownID)
+		If Trim(Request.Cookies("DownLoadSoft")) = "" Then
+			Response.Cookies("DownLoadSoft")("userip") = NewAsp.UserTrueIP
+			Response.Cookies("DownLoadSoft").Expires = Date + 1
+		End If
+		If CookieSoftID = softid And IsUseServer = False Then UpdateUserInfo = False
+		If CookieSoftID = softid And IsUseServer And User_Group = 0 Then UpdateUserInfo = False
+		If IsUseServer And CookieSoftID = softid And CookieDownID = downid And User_Group > 0 Then
+			 UpdateUserInfo = False
+		End If
+	End If
+
+	If PointNum < 1 Then
+		If UseDownRecord = 2 Then
+			'-- 打开所有下载记录
+			If ChkDownRecord(2) Then
+				UpdateUserInfo = False
+			Else
+				UpdateUserInfo = True
+			End If
+		End If
+		If UpdateUserInfo = True Then
+			If CLng(UserToday(0)) => CLng(GroupSetting(44)) And CLng(GroupSetting(44))>0 Then
+				FoundErr = True
+				ErrMsg = ErrMsg + "<li>您每天最多只能下载<font color=""red""><b>" & GroupSetting(44) & "</b></font>个软件，如果还要继续下载请明天再来吧！</li>"
+				Exit Sub
+			End If
+			strUserToday = NewAsp.ChkNumeric(UserToday(0))+1 &","& UserToday(1) &","& UserToday(2) &","& UserToday(3) &","& UserToday(4) &","& UserToday(5)
+			UpdateUserToday(strUserToday)
+		End If
+		If UseDownRecord = 2 Then
+			NewAsp.Execute ("UPDATE NC_UserDown SET isdown2=1 WHERE softid=" & softid & " And userid=" & CLng(NewAsp.memberid))
+		End If
+		Exit Sub
+	End If
+	If UseDownRecord > 0 Then
+		If ChkDownRecord(0) Then
+			UpdateUserInfo = False
+		Else
+			UpdateUserInfo = True
+		End If
+	End If
+	
+	If CInt(UserGroup) > 0 And UpdateUserInfo Then
+		If CLng(UserToday(0)) => CLng(GroupSetting(44)) And CLng(GroupSetting(44))>0 Then
+			FoundErr = True
+			Set Rs = Nothing
+			ErrMsg = "<li>您每天最多只能下载<font color=""red""><b>" & GroupSetting(44) & "</b></font>个软件，如果还要继续下载请明天再来吧！</li>"
+			Exit Sub
+		End If
+		Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+		SQL = "SELECT userid,UserGrade,userpoint,UserToday,ExpireTime FROM NC_User WHERE username='" & NewAsp.CheckBadstr(NewAsp.memberName) & "' And userid=" & CLng(NewAsp.memberid)
+		Rs.Open SQL,Conn,1,3
+		If Rs.BOF And Rs.EOF Then
+			ErrMsg = ErrMsg & "<li>非法操作~！</li>"
+			FoundErr=True
+			Set Rs = Nothing
+			Exit Sub
+		Else
+			userpoint = Rs("userpoint")
+			If userpoint < 0 Then
+				Rs("userpoint").Value = 0
+				Rs.Update
+				Set Rs = Nothing
+				Exit Sub
+			End If
+			UserGrade = Rs("UserGrade")
+			If UserGrade < UserGroup  Then
+				ErrMsg =  "<li>您的级别不够，下载此软件需要<font color=""blue"">"& GroupName &"</font>以上级别的会员；</li><li>如果你要下载此软件请联系管理员。</li>"
+				FoundErr=True
+				Set Rs = Nothing
+				Exit Sub
+			End If
+			
+			If userpoint < PointNum Then
+				ErrMsg = ErrMsg & "<li>对不起!您的点数不足。不能下载此软件</li><li>下载本软件所需的点数："& PointNum &"</li><li>如果你确实要下载此软件请到<a href=""users/"">会员中心</a>充值。</li>"
+				FoundErr=True
+				Set Rs = Nothing
+				Exit Sub
+			Else
+				Rs("userpoint").Value = CLng(Rs("userpoint") - PointNum)
+				Rs.Update
+				If UseDownRecord < 2 Then
+					Response.Cookies("DownLoadSoft")(CookiesID) = softid
+					Response.Cookies("DownLoadSoft")(DownCooliesID) = downid
+				End If
+			End If
+		End If
+		Rs.Close:Set Rs = Nothing
+		If UseDownRecord > 0 Then
+			NewAsp.Execute ("UPDATE NC_UserDown SET isdown1=1 WHERE softid=" & softid & " And userid=" & CLng(NewAsp.memberid))
+		End If
+		strUserToday = NewAsp.ChkNumeric(UserToday(0))+1 &","& UserToday(1) &","& UserToday(2) &","& UserToday(3) &","& UserToday(4) &","& UserToday(5)
+		UpdateUserToday(strUserToday)
+	End If
+End Sub
+
+Function ChkDownRecord(stype)
+	ChkDownRecord = False
+	If NewAsp.memberid = 0 Then Exit Function
+	Dim maxdaynum,IsDownRecord,isdown1,isdown2
+	IsDownRecord = True
+	maxdaynum = NewAsp.CheckNumeric(GroupSetting(43))
+
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_UserDown WHERE softid=" & softid & " And userid=" & CLng(NewAsp.memberid)
+	Rs.Open SQL,Conn,1,3
+	If Rs.BOF And Rs.EOF Then
+		Rs.Addnew
+		Rs("ChannelID").Value = ChannelID
+		Rs("userid").Value = NewAsp.memberid
+		Rs("UserName").Value = NewAsp.CheckBadstr(NewAsp.memberName)
+		Rs("softid").Value = softid
+		Rs("title").Value = Left(SoftName,255)
+		Rs("downtime").Value = Now()
+		Rs("lasttime").Value = Now()
+		Rs("downhits").Value = 1
+		Rs("isdown1").Value = 0
+		Rs("isdown2").Value = 0
+		Rs("isdel").Value = 0
+		Rs.Update
+		IsDownRecord = False
+	Else
+		isdown1 = Rs("isdown1").Value
+		isdown2 = Rs("isdown1").Value
+		Rs("downhits").Value = Rs("downhits").Value + 1
+		If DateDiff("D", Rs("lasttime"), Now()) < maxdaynum Then
+			If isdown1 = 0 And stype < 2 Then
+				IsDownRecord = False
+			Else
+				If isdown2 = 0 And stype = 2 Then
+					IsDownRecord = False
+				Else
+					IsDownRecord = True
+				End If
+			End If
+		Else
+			If maxdaynum <= 0 And isdown1 = 1 And stype < 2 Then
+				IsDownRecord = True
+			Else
+				If maxdaynum <= 0 And isdown2 = 1 And stype = 2 Then
+					IsDownRecord = True
+				Else
+					IsDownRecord = False
+				End If
+			End If
+			Rs("lasttime").Value = Now()
+			Rs("isdown1").Value = 0
+			Rs("isdown2").Value = 0
+		End If
+		Rs("title").Value = Left(SoftName,255)
+		Rs("isdel").Value = 0
+		Rs.Update
+	End If
+	Rs.Close:Set Rs = Nothing
+	If IsDownRecord Then
+		ChkDownRecord = True
+	Else
+		ChkDownRecord = False
+	End If
+End Function
+
+Sub addMemberPoint()
+	Dim CookiesID
+	If ReturnPoint Then
+		If SoftPointNum = 0 Then SoftPointNum = addPoint
+		If SoftPointNum > 0 Then
+			CookiesID = "Point_" & softid
+			If Trim(Request.Cookies("DownLoadSoft")) = "" Then
+				Response.Cookies("DownLoadSoft")("userip") = NewAsp.UserTrueIP
+				Response.Cookies("DownLoadSoft").Expires = Date + 1
+			End If
+			If Request.Cookies("DownLoadSoft")(CookiesID) <> "yes" Then
+				NewAsp.Execute ("UPDATE NC_User SET userpoint=userpoint+" & SoftPointNum & " WHERE username='" & Replace(username, "'", "") & "'")
+			End If
+			Response.Cookies("DownLoadSoft")(CookiesID) = "yes"
+		End If
+	End If
+End Sub
+
+Sub RevealDownloadUrl(url)
+	'TPL_FileName=Check_TPL_File(TPL_FilePath,"show",downid,ChannelID)
+	HtmlContent = NewAsp.LoadTemplate("download")
+	HtmlContent = Replace(HtmlContent, "{$pagetitle}", Replace(Trim(m_strTitle), "{$", "{ $"))
+	HtmlContent = Replace(HtmlContent, "{$channelid}", ChannelID)
+	HtmlContent = Replace(HtmlContent, "{$downid}", downid)
+	HtmlContent = Replace(HtmlContent, "{$softid}", softid)
+	HtmlContent = Replace(HtmlContent, "{$postid}", softid)
+	HtmlContent = Replace(HtmlContent, "{$channeldir}", NewAsp.ChannelPath)
+	TPL_Scan HtmlContent
+	Call TPL_Flush()
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Select Case sToken
+		Case "title"	:	TPL_Echo m_strTitle
+		Case "softname"	:	TPL_Echo m_strTitle
+		Case "tpoic"	:	TPL_Echo SoftName
+		Case "downname"	:	TPL_Echo m_strDownName
+		Case "link"		:	TPL_Echo DownloadUrl
+		Case "links"	:	TPL_Echo Request.ServerVariables("HTTP_REFERER")
+		Case "softid"	:	TPL_Echo softid
+		Case "downid"	:	TPL_Echo downid
+		Case "pointnum"	:	TPL_Echo PointNum
+		Case Else
+	End Select
+	If Err Then Err.Clear
+End Sub
+%>

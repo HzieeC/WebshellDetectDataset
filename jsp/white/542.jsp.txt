@@ -1,0 +1,103 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>无标题文档</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<script type="text/javascript" src="${ctx }/scripts/js/jquery-1.3.2.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jqPager/jquery.pager.js"></script><!-- 分页 -->
+    <script language="JavaScript" type="text/javascript" src="${ctx}/scripts/front/common/common_pager.js"></script><!-- 分页 -->
+
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/zxxw.css" rel="stylesheet" type="text/css" />
+<link rel="stylesheet" type="text/css" href="${ctx}/styles/jqPager/Pager.css" /><!-- 分页 --> 
+</head>
+<body>
+
+
+  	<input id="count" name="count" value="${pageInfo.count}" type="hidden" /><!-- 记录总数 -->
+	<input id="pageSize" name="pageSize" value="${pageInfo.pageSize}" type="hidden" /><!-- 每页显示记录数 -->
+	<input id="pageCount" name="pageCount" value="${pageInfo.pageCount}" type="hidden" /><!-- 总页数 -->
+	<input id="pageIndex" name="pageIndex" value="${pageInfo.pageIndex}" type="hidden" /><!-- 当前页数 -->
+	<input id="apptype" name="apptype" value="zxxw" type="hidden" />
+<div class="kuang_da">
+  <%@ include file="/WEB-INF/page/front/head.jsp" %>
+  <div class="dht0">
+    <!--咨询新闻右侧-->
+    <div class="zxxw_ycda">
+      <div class="zxxw_bt">商城新闻</div>
+      <div class="zxxw_ycxb">
+        <div class="zxxw_ychh">
+          <div class="zxxw_ychh_yc">
+            <ul>
+            <c:forEach items="${informationList}" var="informationlist" begin="0" end="9">
+              <li>
+                <dt><a href="${ctx }/zxxq.do?information.id=${informationlist.id }&information.type=${informationlist.type }">${informationlist.title }</a></dt>
+                <dd><fmt:formatDate pattern="yyyy-MM-dd" value="${informationlist.createTime}"/></dd>
+              </li>
+              </c:forEach>
+              
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="zxxw_lb">
+ 
+        <div class="liebiao">
+        
+              <div style="float:right;margin-bottom: 50px;">
+	 				<c:if test="${pageInfo.count == 0}">
+						<tr><td height="50" align="center" class="huisexiahuaxian"><span style="color:red;font-size:14px;">没有相关商品</span></td></tr>
+		  			</c:if>
+	      	 		<!--分页组件-->
+	      			<c:if test="${pageInfo.count > 0}">
+						<div id="pagerBot" style="margin-right: 0px;"></div>
+	  				</c:if>
+				</div>
+		
+      <!--     <div class="liebiao_sz">1</div>
+          <div class="konghang4"></div>
+          <div class="liebiao_sz">2</div>
+          <div class="konghang4"></div>
+          <div class="liebiao_sz">3</div>
+          <div class="konghang4"></div>
+          <div class="liebiao_sz">4</div>
+          <div class="konghang4"></div>
+          <div class="liebiao_sz">5</div>
+          <div class="konghang4"></div>
+          <div class="liebiao_xyy">下一页</div> -->
+        </div>
+        
+      </div><br /><br />
+    </div>
+    <!--咨询新闻左侧-->
+    <div class="zxxw_zyda" style="display:none;">
+      <div class="zxyc_dj">
+        <div class="zxyc_bt"> 商城新闻 </div>
+        <div class="zxyc_wz">
+          <div class="zxyc_wb">
+            <ul>
+              <li>艺术创意面包<br /></li>
+              <li>北海道脆皮吐司<br /></li>
+              <li>潘娜多妮面包<br /></li>
+              <li>乐斯福世界面包大赛亚太<br /></li>
+              <li>富士山面包<br /></li>
+              <li>聚焦复合式经营展望盈利<br /></li>
+              <li>顺南食品刘家祥：都市爱<br /></li>
+              <li>p网络促成烘焙坊高效完成<br /></li>
+            </ul>
+          </div>
+        </div>
+        </div>
+    </div>
+    <div style="width:100%; height:40px; float:left;"></div>
+  </div>
+  <%@ include file="/WEB-INF/page/front/footer.jsp" %>
+</div>
+</body>
+</html>

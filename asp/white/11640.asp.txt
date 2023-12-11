@@ -1,0 +1,870 @@
+
+<!--#include file="Conn.asp"-->
+<!--#include file="Config.asp"-->
+<!--#include file="Function.asp"-->
+
+<%
+dim strFileName,MaxPerPage,ShowSmallClassType
+dim totalPut,CurrentPage,TotalPages
+dim BeginTime,EndTime
+dim founderr, errmsg
+dim BigClassName,SmallClassName,keyword,strField
+dim rs,sql,sqlProduct,rsProduct,sqlSearch,rsSearch,sqlBigClass,rsBigClass
+BeginTime=Timer
+BigClassName=Trim(request("BigClassName"))
+SmallClassName=Trim(request("SmallClassName"))
+keyword=trim(request("keyword"))
+if keyword<>"" then 
+	keyword=replace(replace(replace(replace(keyword,"'","‘"),"<","&lt;"),">","&gt;")," ","&nbsp;")
+end if
+strField=trim(request("Field"))
+
+if request("page")<>"" then
+    currentPage=cint(request("page"))
+else
+	currentPage=1
+end if
+
+sqlBigClass="select * from BigClass order by BigClassID"
+Set rsBigClass= Server.CreateObject("ADODB.Recordset")
+rsBigClass.open sqlBigClass,conn,1,1
+
+'=================================================
+'过程名：ShowSmallClass_Tree
+'作  用：树形目录方式显示栏目
+'参  数：无
+'=================================================
+
+%>
+
+<SCRIPT language=javascript>
+function opencat(cat,img){
+	if(cat.style.display=="none"){
+	cat.style.display="";
+	img.src="img/class2.gif";
+	}	else {
+	cat.style.display="none"; 
+	img.src="img/class1.gif";
+	}
+}
+</Script>
+
+<%
+dim i,strsmallclass
+strsmallclass="<TABLE cellSpacing=0 cellPadding=0 width=99% border=0>"
+
+
+set rsbig = server.CreateObject ("adodb.recordset")
+		sql="select * from BigClass"
+		rsbig.open sql,conn,1,1
+if rsbig.eof and rsbig.bof then
+	Response.Write "栏目正在建设中……"
+else
+	i=1
+	do while not rsbig.eof
+
+strsmallclass=strsmallclass&"<TR><TD language=javascript onmouseup=""opencat(cat10"&i&"000,&#13;&#10; img10"&i&"000);"" id=item$pval[catID]) style=""CURSOR: hand"" width=34 height=24 align=center><IMG id=img10"&i&"000 src=img/class1.gif width=20 height=20></TD><TD width=662><a href='List_"&rsbig("BigClassID")&"_1.html'>"&rsbig("BigClassName")&"</a></TD></TR><TR>"
+strsmallclass=strsmallclass&"<TD id=cat10"&i&"000 "
+if rsbig("BigClassName")=BigClassName then 
+		     strsmallclass=strsmallclass&"style='DISPLAY' "   
+		    else  
+		     strsmallclass=strsmallclass&"style='DISPLAY: none' "
+		    end if 
+strsmallclass=strsmallclass&"colspan=2>"
+
+
+set rsSmall = server.CreateObject ("adodb.recordset")
+sqls="select * from SmallClass where BigClassName='" & rsbig("BigClassName") & "' order by SmallClassID"
+rsSmall.open sqls,conn,1,1
+if rsSmall.eof and rsSmall.bof then
+strsmallclass=strsmallclass&"没有小类"
+else
+	j=1
+	do while not rsSmall.eof
+
+strsmallclass=strsmallclass&"&nbsp;<IMG height=20 src=img/class3.gif width=26 align=absMiddle border=0><a href=Slist_"&rsSmall("SmallClassId")&"_1.html>" & rsSmall("SmallClassName") & "</a><BR>"
+
+	rsSmall.movenext
+	j=j+1
+	loop
+end if
+rsSmall.close
+set rsSmall=nothing
+
+strsmallclass=strsmallclass&"</TD></TR>"
+
+	rsbig.movenext
+	i=i+1
+	loop
+	rsbig.close
+    set rsbig=nothing
+end if
+
+strsmallclass=strsmallclass&"</TABLE>"
+
+'=================================================
+'过程名：ShowVote
+'作  用：显示网站调查
+'参  数：无
+'=================================================
+sub ShowVote()
+	dim sqlVote,rsVote,i
+	sqlVote="select top 1 * from Vote where IsSelected=True"
+	Set rsVote= Server.CreateObject("ADODB.Recordset")
+	rsVote.open sqlVote,conn,1,1
+	if rsVote.bof and rsVote.eof then 
+		response.Write "&nbsp;没有任何调查"
+	else
+		response.write "<form name='VoteForm' method='post' action='vote.asp' target='_blank'><td>"
+		response.write rsVote("Title") & "<br><br>"
+		if rsVote("VoteType")="Single" then
+			for i=1 to 8
+				if trim(rsVote("Select" & i) & "")="" then exit for
+				response.Write "<input type='radio' name='VoteOption' value='" & i & "'>" & rsVote("Select" & i) & "<br>"
+			next
+		else
+			for i=1 to 8
+				if trim(rsVote("Select" & i) & "")="" then exit for
+				response.Write "<input type='checkbox' name='VoteOption' value='" & i & "'>" & rsVote("Select" & i) & "<br>"
+			next
+		end if
+		response.write "<br><input name='VoteType' type='hidden'value='" & rsVote("VoteType") & "'>"
+		response.write "<input name='Action' type='hidden' value='Vote'>"
+		response.write "<input name='ID' type='hidden' value='" & rsVote("ID") & "'>"
+		response.write "<a href='javascript:VoteForm.submit();'><img src='images/voteSubmit.gif' width='52' height='18' border='0'></a>&nbsp;&nbsp;"
+        response.write "<a href='Vote.asp?Action=Show' target='_blank'><img src='images/voteView.gif' width='52' height='18' border='0'></a>"
+		response.write "</td></form>"
+	end if
+	rsVote.close
+	set rsVote=nothing
+end sub
+
+'=================================================
+'过程名：ShowClassGuide
+'作  用：显示栏目导航位置
+'参  数：无
+'=================================================
+sub ShowClassGuide()
+	strguide=  "&nbsp;<a href='Products.asp'>产品</a>&nbsp;&gt;&gt;"
+	if BigClassName="" and SmallClassName="" then
+		strguide=strguide& "&nbsp;所有产品"
+	else
+		if BigClassName<>"" then
+			strguide=strguide& "&nbsp;<a href='Product.asp?BigClassName=" & BigClassName & "'>" & BigClassName & "</a>&nbsp;&gt;&gt;&nbsp;"
+			if SmallClassName<>"" then
+				strguide=strguide& "<a href='Product.asp?BigClassName=" & BigClassName & "&SmallClassName=" & SmallClassName & "'>" & SmallClassName & "</a>"
+			else
+				strguide=strguide& "所有小类"
+			end if
+		end if
+	end if
+end sub
+
+'=================================================
+'过程名：ShowProductTotal
+'作  用：显示文章总数
+'参  数：无
+'=================================================
+sub ShowProductTotal()
+	dim sqlTotal
+	dim rsTotal
+	sqlTotal="select Count(*) from Product where Passed=True "
+	if BigClassName<>"" then
+		sqlTotal=sqlTotal & " and BigClassName='" & BigClassName & "' "
+		if SmallClassName<>"" then
+			sqlTotal=sqlTotal & " and SmallClassName='" & SmallClassName & "' "
+		end if	
+	end if
+	Set rsTotal= Server.CreateObject("ADODB.Recordset")
+	rsTotal.open sqlTotal,conn,1,1
+	if rsTotal.eof and rsTotal.bof then
+		totalPut=0
+		response.write "共有 0 个产品"
+	else
+		totalPut=rsTotal(0)
+		response.Write "共有 " & totalPut & " 个产品"
+	end if
+	rsTotal.close
+	set rsTotal=nothing
+end sub
+
+'=================================================
+'过程名：ShowProduct
+'=================================================
+
+	if TitleLen<0 or TitleLen>200 then
+		TitleLen=50
+	end if
+    if currentpage<1 then
+	   	currentpage=1
+    end if
+	if (currentpage-1)*MaxPerPage>totalput then
+		if (totalPut mod MaxPerPage)=0 then
+	   		currentpage= totalPut \ MaxPerPage
+		else
+		   	currentpage= totalPut \ MaxPerPage + 1
+		end if
+   	end if
+	if currentPage=1 then
+        sqlProduct="select top " & MaxPerPage	
+	else
+		sqlProduct="select "
+	end if
+
+	sqlProduct=sqlProduct & " ID,Product_Id,BigClassName,SmallClassName,IncludePic,Title,Price,Spec,Unit,Memo,DefaultPicUrl,UpdateTime,Hits from Product where Passed=True "
+	
+	if BigClassName<>"" then
+		sqlProduct=sqlProduct & " and BigClassName='" & BigClassName & "' "
+		if SmallClassName<>"" then
+			sqlProduct=sqlProduct & " and SmallClassName='" & SmallClassName & "' "
+		end if
+	end if
+	sqlProduct=sqlProduct & " order by UpdateTime desc"
+	Set rsProduct= Server.CreateObject("ADODB.Recordset")
+	rsProduct.open sqlProduct,conn,1,1
+	if rsProduct.bof and  rsProduct.eof then
+		strproduct("<br><li>没有任何产品</li>")
+	else
+		if currentPage=1 then
+			do while not rsProduct.eof
+		strproduct=""		
+		strproduct= strproduct & "<table width=100% border=0 cellspacing=3 cellpadding=0>"
+                strproduct= strproduct & "<tr>"
+                strproduct= strproduct & "<td width=25% rowspan=6>"
+                strproduct= strproduct & "<div align=center><a href=ProductShow.asp?ID=" & rsProduct("ID") & ">" 
+				
+				fileExt=lcase(getFileExtName(rsProduct("DefaultPicUrl")))
+				if fileext="jpg" or fileext="bmp" or fileext="png" or fileext="gif" then
+                strproduct= strproduct & "<img style='BORDER-LEFT-COLOR: #cccccc; BORDER-BOTTOM-COLOR: #cccccc; BORDER-TOP-COLOR: #cccccc; BORDER-RIGHT-COLOR: #cccccc' src=" & rsProduct("DefaultPicUrl") & " width=105 height=80 onload='javascript:DrawImage(this);'>" 
+				else
+				 if fileext="swf" then
+				    strproduct= strproduct & "<object  classid='clsid:D27CDB6E-AE6D-11cf-96B8-444553540000'  codebase='http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=5,0,0,0' width='105' height='84'>"
+					strproduct= strproduct &"<param name=movie value='"&rsProduct("DefaultPicUrl")&"'>"
+					strproduct= strproduct &"<param name=quality value=high>"
+					strproduct= strproduct &"<param name='Play' value='-1'>"
+					strproduct= strproduct &"<param name='Loop' value='0'>"
+					strproduct= strproduct &"<param name='Menu' value='-1'>"					
+					strproduct= strproduct &"<embed  src='"&rsProduct("DefaultPicUrl")&"' width='105' height='84' pluginspage='http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash' type='application/x-shockwave-flash'></embed> </object>"												
+			   end if
+		      end if			 
+				 
+                strproduct= strproduct & "</a></div></td>"
+                strproduct= strproduct & "<td width=12% height=12>"
+                strproduct= strproduct & "产品名称：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & "<a href=ProductShow.asp?ID=" & rsProduct("ID") & ">" & rsProduct("Title") & ""
+                strproduct= strproduct & "</a></td>"						
+				
+				'strproduct= strproduct & "</tr><tr>" 
+                'strproduct= strproduct & "<td width=12% height=12>"
+                'strproduct= strproduct & "产品售价：</td>"
+                'strproduct= strproduct & "<td>" & rsProduct("Price") & "元</td>"	
+				
+				strproduct= strproduct & "</tr><tr>"
+				strproduct= strproduct & "<td width=12% height=12>"
+                strproduct= strproduct & "产品规格：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & rsProduct("Spec") & ""
+                strproduct= strproduct & "</a></td>"
+				
+				strproduct= strproduct & "</tr><tr>"
+				strproduct= strproduct & "<td width=12% height=12>"
+                strproduct= strproduct & "产品备注：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & rsProduct("Memo") & ""
+                strproduct= strproduct & "</a></td>"			
+				
+                strproduct= strproduct & "</tr><tr>"
+                strproduct= strproduct & "<td height=12>"
+                strproduct= strproduct & "产品类别：</td>"
+                strproduct= strproduct & "<td><a href=Product.asp?BigClassName="& rsProduct("BigClassName")&">"&rsProduct("BigClassName")&"</a> → "
+                strproduct= strproduct & "<a href=Product.asp?BigClassName=" & rsProduct("BigClassName") & "&SmallClassName=" & rsProduct("SmallClassName") & ">" & rsProduct("SmallClassName") & ""
+                strproduct= strproduct & "</a></td>"
+                strproduct= strproduct & "</tr><tr>" 				
+
+			   
+                strproduct= strproduct & "<td height=12>产品信息：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & "<a href=ProductShow.asp?ID=" & rsProduct("ID") & " target=_blank><img src=Img/arrow_7.gif border=0></a></td>"
+                strproduct= strproduct & "</tr><tr>"
+                strproduct= strproduct & "<td colspan=2>"
+                strproduct= strproduct & "<table width=100% border=0 cellpadding=0 cellspacing=0>"
+                strproduct= strproduct & "<tr>" 
+                strproduct= strproduct & "<td width=50% height=12>"
+                strproduct= strproduct & "<div align=center></div></td>"
+                
+				strproduct= strproduct & "<td width=50% height=12>"
+                strproduct= strproduct & "<div align=center><input name='Product_Id' type='checkbox'    id='Product_Id' value="&cstr(rsProduct("Product_Id"))&"> 选取"
+                strproduct= strproduct & "</div></td>"
+				
+                strproduct= strproduct & "</tr>"
+                strproduct= strproduct & "</table>"
+                strproduct= strproduct & "</td>"
+                strproduct= strproduct & "</tr><tr>" 
+                strproduct= strproduct & "<td height=1 colspan=3 bgcolor=#CCCCCC></td>"
+                strproduct= strproduct & "</tr>"
+                strproduct= strproduct & "</table>"
+
+		rsProduct.movenext
+		i=i+1
+		if i>=MaxPerPage then exit do	
+	loop
+		else
+			if (currentPage-1)*MaxPerPage<totalPut then
+         	   	rsProduct.move  (currentPage-1)*MaxPerPage
+         		dim bookmark
+           		bookmark=rsProduct.bookmark
+            	do while not rsProduct.eof
+		strproduct=""		
+		strproduct= strproduct & "<table width=100% border=0 cellspacing=3 cellpadding=0>"
+                strproduct= strproduct & "<tr>"
+                strproduct= strproduct & "<td width=25% rowspan=6>"
+                strproduct= strproduct & "<div align=center><a href=ProductShow.asp?ID=" & rsProduct("ID") & ">" 
+				
+				fileExt=lcase(getFileExtName(rsProduct("DefaultPicUrl")))
+				if fileext="jpg" or fileext="bmp" or fileext="png" or fileext="gif" then
+                strproduct= strproduct & "<img style='BORDER-LEFT-COLOR: #cccccc; BORDER-BOTTOM-COLOR: #cccccc; BORDER-TOP-COLOR: #cccccc; BORDER-RIGHT-COLOR: #cccccc' src=" & rsProduct("DefaultPicUrl") & " width=105 height=80 onload='javascript:DrawImage(this);'>" 
+				else
+				 if fileext="swf" then
+				    strproduct= strproduct & "<object  classid='clsid:D27CDB6E-AE6D-11cf-96B8-444553540000'  codebase='http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=5,0,0,0' width='105' height='84'>"
+					strproduct= strproduct &"<param name=movie value='"&rsProduct("DefaultPicUrl")&"'>"
+					strproduct= strproduct &"<param name=quality value=high>"
+					strproduct= strproduct &"<param name='Play' value='-1'>"
+					strproduct= strproduct &"<param name='Loop' value='0'>"
+					strproduct= strproduct &"<param name='Menu' value='-1'>"					
+					strproduct= strproduct &"<embed  src='"&rsProduct("DefaultPicUrl")&"' width='105' height='84' pluginspage='http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash' type='application/x-shockwave-flash'></embed> </object>"												
+			   end if
+		      end if			 
+				 
+                strproduct= strproduct & "</a></div></td>"
+                strproduct= strproduct & "<td width=12% height=12>"
+                strproduct= strproduct & "产品名称：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & "<a href=ProductShow.asp?ID=" & rsProduct("ID") & ">" & rsProduct("Title") & ""
+                strproduct= strproduct & "</a></td>"						
+				
+				'strproduct= strproduct & "</tr><tr>" 
+                'strproduct= strproduct & "<td width=12% height=12>"
+                'strproduct= strproduct & "产品售价：</td>"
+                'strproduct= strproduct & "<td>" & rsProduct("Price") & "元</td>"	
+				
+				strproduct= strproduct & "</tr><tr>"
+				strproduct= strproduct & "<td width=12% height=12>"
+                strproduct= strproduct & "产品规格：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & rsProduct("Spec") & ""
+                strproduct= strproduct & "</a></td>"
+				
+				strproduct= strproduct & "</tr><tr>"
+				strproduct= strproduct & "<td width=12% height=12>"
+                strproduct= strproduct & "产品备注：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & rsProduct("Memo") & ""
+                strproduct= strproduct & "</a></td>"			
+				
+                strproduct= strproduct & "</tr><tr>"
+                strproduct= strproduct & "<td height=12>"
+                strproduct= strproduct & "产品类别：</td>"
+                strproduct= strproduct & "<td><a href=Product.asp?BigClassName="& rsProduct("BigClassName")&">"&rsProduct("BigClassName")&"</a> → "
+                strproduct= strproduct & "<a href=Product.asp?BigClassName=" & rsProduct("BigClassName") & "&SmallClassName=" & rsProduct("SmallClassName") & ">" & rsProduct("SmallClassName") & ""
+                strproduct= strproduct & "</a></td>"
+                strproduct= strproduct & "</tr><tr>" 				
+
+			   
+                strproduct= strproduct & "<td height=12>产品信息：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & "<a href=ProductShow.asp?ID=" & rsProduct("ID") & " target=_blank><img src=Img/arrow_7.gif border=0></a></td>"
+                strproduct= strproduct & "</tr><tr>"
+                strproduct= strproduct & "<td colspan=2>"
+                strproduct= strproduct & "<table width=100% border=0 cellpadding=0 cellspacing=0>"
+                strproduct= strproduct & "<tr>" 
+                strproduct= strproduct & "<td width=50% height=12>"
+                strproduct= strproduct & "<div align=center></div></td>"
+                
+				strproduct= strproduct & "<td width=50% height=12>"
+                strproduct= strproduct & "<div align=center><input name='Product_Id' type='checkbox'    id='Product_Id' value="&cstr(rsProduct("Product_Id"))&"> 选取"
+                strproduct= strproduct & "</div></td>"
+				
+                strproduct= strproduct & "</tr>"
+                strproduct= strproduct & "</table>"
+                strproduct= strproduct & "</td>"
+                strproduct= strproduct & "</tr><tr>" 
+                strproduct= strproduct & "<td height=1 colspan=3 bgcolor=#CCCCCC></td>"
+                strproduct= strproduct & "</tr>"
+                strproduct= strproduct & "</table>"
+
+		rsProduct.movenext
+		i=i+1
+		if i>=MaxPerPage then exit do	
+	loop
+        	else
+	        	currentPage=1
+           		do while not rsProduct.eof
+		strproduct=""		
+		strproduct= strproduct & "<table width=100% border=0 cellspacing=3 cellpadding=0>"
+                strproduct= strproduct & "<tr>"
+                strproduct= strproduct & "<td width=25% rowspan=6>"
+                strproduct= strproduct & "<div align=center><a href=ProductShow.asp?ID=" & rsProduct("ID") & ">" 
+				
+				fileExt=lcase(getFileExtName(rsProduct("DefaultPicUrl")))
+				if fileext="jpg" or fileext="bmp" or fileext="png" or fileext="gif" then
+                strproduct= strproduct & "<img style='BORDER-LEFT-COLOR: #cccccc; BORDER-BOTTOM-COLOR: #cccccc; BORDER-TOP-COLOR: #cccccc; BORDER-RIGHT-COLOR: #cccccc' src=" & rsProduct("DefaultPicUrl") & " width=105 height=80 onload='javascript:DrawImage(this);'>" 
+				else
+				 if fileext="swf" then
+				    strproduct= strproduct & "<object  classid='clsid:D27CDB6E-AE6D-11cf-96B8-444553540000'  codebase='http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=5,0,0,0' width='105' height='84'>"
+					strproduct= strproduct &"<param name=movie value='"&rsProduct("DefaultPicUrl")&"'>"
+					strproduct= strproduct &"<param name=quality value=high>"
+					strproduct= strproduct &"<param name='Play' value='-1'>"
+					strproduct= strproduct &"<param name='Loop' value='0'>"
+					strproduct= strproduct &"<param name='Menu' value='-1'>"					
+					strproduct= strproduct &"<embed  src='"&rsProduct("DefaultPicUrl")&"' width='105' height='84' pluginspage='http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash' type='application/x-shockwave-flash'></embed> </object>"												
+			   end if
+		      end if			 
+				 
+                strproduct= strproduct & "</a></div></td>"
+                strproduct= strproduct & "<td width=12% height=12>"
+                strproduct= strproduct & "产品名称：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & "<a href=ProductShow.asp?ID=" & rsProduct("ID") & ">" & rsProduct("Title") & ""
+                strproduct= strproduct & "</a></td>"						
+				
+				'strproduct= strproduct & "</tr><tr>" 
+                'strproduct= strproduct & "<td width=12% height=12>"
+                'strproduct= strproduct & "产品售价：</td>"
+                'strproduct= strproduct & "<td>" & rsProduct("Price") & "元</td>"	
+				
+				strproduct= strproduct & "</tr><tr>"
+				strproduct= strproduct & "<td width=12% height=12>"
+                strproduct= strproduct & "产品规格：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & rsProduct("Spec") & ""
+                strproduct= strproduct & "</a></td>"
+				
+				strproduct= strproduct & "</tr><tr>"
+				strproduct= strproduct & "<td width=12% height=12>"
+                strproduct= strproduct & "产品备注：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & rsProduct("Memo") & ""
+                strproduct= strproduct & "</a></td>"			
+				
+                strproduct= strproduct & "</tr><tr>"
+                strproduct= strproduct & "<td height=12>"
+                strproduct= strproduct & "产品类别：</td>"
+                strproduct= strproduct & "<td><a href=Product.asp?BigClassName="& rsProduct("BigClassName")&">"&rsProduct("BigClassName")&"</a> → "
+                strproduct= strproduct & "<a href=Product.asp?BigClassName=" & rsProduct("BigClassName") & "&SmallClassName=" & rsProduct("SmallClassName") & ">" & rsProduct("SmallClassName") & ""
+                strproduct= strproduct & "</a></td>"
+                strproduct= strproduct & "</tr><tr>" 				
+
+			   
+                strproduct= strproduct & "<td height=12>产品信息：</td>"
+                strproduct= strproduct & "<td>"
+                strproduct= strproduct & "<a href=ProductShow.asp?ID=" & rsProduct("ID") & " target=_blank><img src=Img/arrow_7.gif border=0></a></td>"
+                strproduct= strproduct & "</tr><tr>"
+                strproduct= strproduct & "<td colspan=2>"
+                strproduct= strproduct & "<table width=100% border=0 cellpadding=0 cellspacing=0>"
+                strproduct= strproduct & "<tr>" 
+                strproduct= strproduct & "<td width=50% height=12>"
+                strproduct= strproduct & "<div align=center></div></td>"
+                
+				strproduct= strproduct & "<td width=50% height=12>"
+                strproduct= strproduct & "<div align=center><input name='Product_Id' type='checkbox'    id='Product_Id' value="&cstr(rsProduct("Product_Id"))&"> 选取"
+                strproduct= strproduct & "</div></td>"
+				
+                strproduct= strproduct & "</tr>"
+                strproduct= strproduct & "</table>"
+                strproduct= strproduct & "</td>"
+                strproduct= strproduct & "</tr><tr>" 
+                strproduct= strproduct & "<td height=1 colspan=3 bgcolor=#CCCCCC></td>"
+                strproduct= strproduct & "</tr>"
+                strproduct= strproduct & "</table>"
+	
+		rsProduct.movenext
+		i=i+1
+		if i>=MaxPerPage then exit do	
+	loop
+	    	end if
+		end if
+	end if
+	rsProduct.close
+	set rsProduct=nothing
+
+
+
+ 
+	
+
+
+
+'=================================================
+'过程名：ShowSearchTerm
+'作  用：显示搜索条件信息
+'参  数：无
+'=================================================
+sub ShowSearchTerm()
+	response.write "&nbsp;产品搜索&nbsp;&gt;&gt; "
+	if BigClassName<>"" then
+		response.write "<a href='Product.asp?BigClassName=" & BigClassName & "'>" & BigClassName & "</a>&nbsp;&gt;&gt;&nbsp;"
+		if SmallClassName<>"" then
+			response.write "<a href='Product.asp?BigClassName=" & BigClassName & "&SmallClassName=" & SmallClassName & "'>" & SmallClassName & "</a>&nbsp;&gt;&gt;&nbsp;"
+		else
+			response.write "所有小类&nbsp;&gt;&gt;&nbsp;"
+		end if
+	end if
+	if keyword<>"" then
+	  select case strField
+		case "Title"
+			response.Write "名称中含有 <font color=red>"&keyword&"</font> 的产品"
+		case "Content"
+			response.Write "说明含有 <font color=red>"&keyword&"</font> 的产品"
+		case else
+			response.Write "名称中含有 <font color=red>"&keyword&"</font> 的产品"
+	  end select
+	else
+	  response.write "&nbsp;所有产品"
+	end if
+end sub
+
+'=================================================
+'过程名：SearchResultTotal
+'作  用：显示搜索结果总数
+'参  数：无
+'=================================================
+sub SearchResultTotal()
+	dim rsTotal,sqlTotal
+	sqlTotal="select count(*) from Product where Passed=True "
+	if BigClassName<>"" then
+		sqlTotal=sqlTotal & " and BigClassName='" & BigClassName & "' "
+		if SmallClassName<>"" then
+			sqlTotal=sqlTotal & " and SmallClassName='" & SmallClassName & "' "
+		end if	
+	end if
+	if keyword<>"" then
+		select case strField
+			case "Title"
+				sqlTotal=sqlTotal & " and Title like '%" & keyword & "%' "
+			case "Content"
+				sqlTotal=sqlTotal & " and Content like '%" & keyword & "%' "
+			case else
+				sqlTotal=sqlTotal & " and Title like '%" & keyword & "%' "
+		end select
+	end if
+	Set rsTotal= Server.CreateObject("ADODB.Recordset")
+	rsTotal.open sqlTotal,conn,1,1
+	if rsTotal.eof and rsTotal.bof then
+		totalPut=0
+		response.write "共有 0 个产品"
+	else
+		totalPut=rsTotal(0)
+		response.Write "共找到 " & totalPut & " 个产品"
+	end if
+end sub
+
+'=================================================
+'过程名：ShowSearchResult
+'作  用：分页显示搜索结果
+'参  数：无
+'=================================================
+sub ShowSearchResult()
+    if currentpage<1 then
+	   	currentpage=1
+    end if
+	if (currentpage-1)*MaxPerPage>totalput then
+		if (totalPut mod MaxPerPage)=0 then
+	   		currentpage= totalPut \ MaxPerPage
+		else
+		   	currentpage= totalPut \ MaxPerPage + 1
+		end if
+   	end if
+	if currentPage=1 then
+        sqlSearch="select top " & MaxPerPage	
+	else
+		sqlSearch="select "
+	end if
+
+	sqlSearch=sqlSearch & " * from Product where Passed=True "
+	if BigClassName<>"" then
+		sqlSearch=sqlSearch & " and BigClassName='" & BigClassName & "' "
+		if SmallClassName<>"" then
+			sqlSearch=sqlSearch & " and SmallClassName='" & SmallClassName & "' "
+		end if	
+	end if
+	if keyword<>"" then
+		select case strField
+			case "Title"
+				sqlSearch=sqlSearch & " and Title like '%" & keyword & "%' "
+			case "Content"
+				sqlSearch=sqlSearch & " and Content like '%" & keyword & "%' "
+			case else
+				sqlSearch=sqlSearch & " and Title like '%" & keyword & "%' "
+		end select
+	end if
+	sqlSearch=sqlSearch & " order by ID desc"
+	Set rsSearch= Server.CreateObject("ADODB.Recordset")
+	rsSearch.open sqlSearch,conn,1,1
+ 	if rsSearch.eof and rsSearch.bof then 
+       		response.write "<p align='center'><br><br>没有或没有找到任何产品</p>" 
+   	else 
+   		if currentPage=1 then 
+       		call SearchResultContent()
+   		else 
+       		if (currentPage-1)*MaxPerPage<totalPut then 
+       			rsSearch.move  (currentPage-1)*MaxPerPage 
+       			dim bookmark 
+       			bookmark=rsSearch.bookmark 
+       			call SearchResultContent()
+      		else 
+        		currentPage=1 
+       			call SearchResultContent()
+      		end if 
+	   	end if 
+   	end if 
+   	rsSearch.close 
+   	set rsSearch=nothing   
+end sub
+
+sub SearchResultContent()
+	dim i,strTemp
+    i=0
+	do while not rsSearch.eof
+		strTemp=""		
+		strTemp= strTemp & "<table width=100% border=0 cellspacing=3 cellpadding=0>"
+                strTemp= strTemp & "<tr>"
+                strTemp= strTemp & "<td width=25% rowspan=6>"
+                strTemp= strTemp & "<div align=center><a href=ProductShow.asp?ID=" & rsSearch("ID") & ">" 
+				
+				fileExt=lcase(getFileExtName(rsSearch("DefaultPicUrl")))
+				if fileext="jpg" or fileext="bmp" or fileext="png" or fileext="gif" then
+                strTemp= strTemp & "<img border=0 src=" & rsSearch("DefaultPicUrl") & " width=105 height=80>" 
+				else
+				 if fileext="swf" then
+				    strTemp= strTemp & "<object  classid='clsid:D27CDB6E-AE6D-11cf-96B8-444553540000'  codebase='http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=5,0,0,0' width='105' height='84'>"
+					strTemp= strTemp &"<param name=movie value='"&rsSearch("DefaultPicUrl")&"'>"
+					strTemp= strTemp &"<param name=quality value=high>"
+					strTemp= strTemp &"<param name='Play' value='-1'>"
+					strTemp= strTemp &"<param name='Loop' value='0'>"
+					strTemp= strTemp &"<param name='Menu' value='-1'>"
+					strTemp= strTemp &"<param name='wmode' value='transparent'>"
+					strTemp= strTemp &"<embed src='"&rsSearch("DefaultPicUrl")&"' width='105' height='84' pluginspage='http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash' type='application/x-shockwave-flash'></embed> </object>"												
+			   end if
+		      end if			 
+				 
+                strTemp= strTemp & "</a></div></td>"
+                strTemp= strTemp & "<td width=12% height=12>"
+                strTemp= strTemp & "产品名称：</td>"
+                strTemp= strTemp & "<td>"
+                strTemp= strTemp & "<a href=ProductShow.asp?ID=" & rsSearch("ID") & ">" & rsSearch("Title") & ""
+                strTemp= strTemp & "</a></td>"
+				
+				'strTemp= strTemp & "</tr><tr>" 
+                'strTemp= strTemp & "<td width=12% height=12>"
+                'strTemp= strTemp & "产品售价：</td>"
+                'strTemp= strTemp & "<td>" & rsSearch("Price") & "元</td>"				
+				
+				strTemp= strTemp & "</tr><tr>"
+				strTemp= strTemp & "<td width=12% height=12>"
+                strTemp= strTemp & "产品规格：</td>"
+                strTemp= strTemp & "<td>"
+                strTemp= strTemp & rsSearch("Spec") & ""
+                strTemp= strTemp & "</a></td>"
+				
+				strTemp= strTemp & "</tr><tr>"
+				strTemp= strTemp & "<td width=12% height=12>"
+                strTemp= strTemp & "产品备注：</td>"
+                strTemp= strTemp & "<td>"
+                strTemp= strTemp & rsSearch("Memo") & ""
+                strTemp= strTemp & "</a></td>"				
+				
+                strTemp= strTemp & "</tr><tr>"
+                strTemp= strTemp & "<td height=12>"
+                strTemp= strTemp & "产品类别：</td>"
+                strTemp= strTemp & "<td><a href=Product.asp?BigClassName=" & rsSearch("BigClassName") & ">" & rsSearch("BigClassName") & "</a> → "
+                strTemp= strTemp & "<a href=Product.asp?BigClassName=" & rsSearch("BigClassName") & "&SmallClassName=" & rsSearch("SmallClassName") & ">" & rsSearch("SmallClassName") & ""
+                strTemp= strTemp & "</a></td>"
+                strTemp= strTemp & "</tr><tr>" 
+
+			   
+                strTemp= strTemp & "<td height=12>产品信息：</td>"
+                strTemp= strTemp & "<td>"
+                strTemp= strTemp & "<a href=ProductShow.asp?ID=" & rsSearch("ID") & "><img src=Img/arrow_7.gif border=0></a></td>"
+                strTemp= strTemp & "</tr><tr>"
+                strTemp= strTemp & "<td colspan=2>"
+                strTemp= strTemp & "<table width=100% border=0 cellpadding=0 cellspacing=0>"
+                strTemp= strTemp & "<tr>" 
+                strTemp= strTemp & "<td width=50% height=12>"
+                strTemp= strTemp & "<div align=center></div></td>"
+                
+				strTemp= strTemp & "<td width=50% height=12>"
+                strTemp= strTemp & "<div align=center><input name='Product_Id' type='checkbox'    id='Product_Id' value="&cstr(rsSearch("Product_Id"))&"> 选取"
+                strTemp= strTemp & "</div></td>"
+				
+                strTemp= strTemp & "</tr>"
+                strTemp= strTemp & "</table>"
+                strTemp= strTemp & "</td>"
+                strTemp= strTemp & "</tr><tr>" 
+                strTemp= strTemp & "<td height=1 colspan=3 bgcolor=#CCCCCC></td>"
+                strTemp= strTemp & "</tr>"
+                strTemp= strTemp & "</table>"
+		response.write strTemp
+		rsSearch.movenext
+		i=i+1
+		if i>=MaxPerPage then exit do	
+	loop
+end sub 
+
+
+'=================================================
+'过程名：ShowSearch
+'作  用：显示文章搜索表单
+'参  数：ShowType ----显示方式。1为纵向，2为横向
+'=================================================
+
+	dim count,StrSearch
+	if ShowType<>1 and ShowType<>2 then
+		ShowType=1
+	end if
+	set rs=server.createobject("adodb.recordset")
+	sql = "select * from SmallClass order by SmallClassID asc"
+	rs.open sql,conn,1,1
+%>
+<script language = "JavaScript">
+var onecount;
+subcat = new Array();
+        <%
+        count = 0
+        do while not rs.eof 
+        %>
+subcat[<%=count%>] = new Array("<%= trim(rs("SmallClassName"))%>","<%= trim(rs("BigClassName"))%>","<%= trim(rs("SmallClassName"))%>");
+        <%
+        count = count + 1
+        rs.movenext
+        loop
+        rs.close
+        %>
+onecount=<%=count%>;
+
+function changelocation(locationid)
+    {
+    document.myform.SmallClassName.length = 1; 
+    var locationid=locationid;
+    var i;
+    for (i=0;i < onecount; i++)
+        {
+            if (subcat[i][1] == locationid)
+            { 
+                document.myform.SmallClassName.options[document.myform.SmallClassName.length] = new Option(subcat[i][0], subcat[i][2]);
+            }        
+        }
+    }    
+</script>
+<%StrSearch="<table border=0 cellpadding=2 cellspacing=0 align=center>"
+  StrSearch=StrSearch&"<form method=Get name=myform action=search.asp>"
+   StrSearch=StrSearch&" <tr>"
+     StrSearch=StrSearch&" <td height=28> <select name=Field size=1>"
+      StrSearch=StrSearch&"    <option value=Title selected size=12>  产品名称  </option>"
+     StrSearch=StrSearch&"     <option value=Content>  产品说明  </option>"
+      StrSearch=StrSearch&"  </select>" 
+
+     StrSearch=StrSearch&" </td>"
+    StrSearch=StrSearch&"</tr>"
+
+   StrSearch=StrSearch& " <tr>"
+     StrSearch=StrSearch& " <td height=28>" 
+   
+       StrSearch=StrSearch& " <input type=text name=keywords  size=12 value=关键字 maxlength=50 onFocus=this.select();>" 
+        StrSearch=StrSearch& "<input type=submit name=Submit  value=搜索> </td>"
+   StrSearch=StrSearch& " </tr>"
+ StrSearch=StrSearch& " </form>"
+StrSearch=StrSearch& "</table>"
+
+
+
+'=================================================
+'过程名：ShowAllClass
+'作  用：显示所有栏目（栏目导航）
+'参  数：无
+'=================================================
+
+
+	if rsBigClass.bof and rsBigClass.eof then 
+		strClassname= "&nbsp;没有任何栏目"
+		
+	else
+		dim sqlClass,rsClass,strClassName
+		rsBigClass.movefirst
+		strClassName=""
+		do while not rsBigClass.eof
+			strClassName=strClassName & "【<a href='List_" & rsBigClass("BigClassID") & "_1.html'><b>" & rsBigClass("BigClassName") & "</b></a>】<br><br>"
+			sqlClass="select * from SmallClass where BigClassName='" & rsBigClass("BigClassName") & "' Order by SmallClassID"
+			Set rsClass= Server.CreateObject("ADODB.Recordset")
+			rsClass.open sqlClass,conn,1,1
+			do while not rsClass.eof
+				strClassName=strClassName & "&nbsp;<a href='Slist_" & rsClass("SmallClassID") &"_1.html'>" & rsClass("SmallClassName") & "</a>&nbsp;"
+				rsClass.movenext
+			loop
+strClassName=strClassName & "<br><br>"
+			rsBigClass.movenext
+		loop
+		rsClass.close
+		set rsClass=nothing
+	end if
+
+
+
+'=================================================
+'过程名：ShowProductContent
+'作  用：显示文章具体的内容，可以分页显示
+'参  数：无
+'=================================================
+sub ShowProductContent()
+	dim ID,strContent,CurrentPage
+	dim ContentLen,MaxPerPage,pages,i,lngBound
+	dim BeginPoint,EndPoint
+	ID=rs("ID")
+	strContent=rs("Content")
+	response.write strContent
+end sub
+'=================================================
+'过程名：ShowUserLogin
+'作  用：显示用户登录表单
+'参  数：无
+'=================================================
+
+	dim strLogin
+	If Session("UserName")="" Then
+    	strLogin= "<table width='100%' border='0' cellspacing='0' cellpadding='0'>"
+		strLogin=strLogin & "<form action='UserLogin.asp' method='post' name='UserLogin' onSubmit='return CheckForm();'>"
+        strLogin=strLogin & "<tr><td height='25' align='right'>用户名：</td><td height='25'><input name='UserName' type='text' id='UserName' size='10' maxlength='20'></td></tr>"
+        strLogin=strLogin & "<tr><td height='25' align='right'>密&nbsp;&nbsp;码：</td><td height='25'><input name='Password' type='password' id='Password' size='10' maxlength='20'></td></tr>"
+        strLogin=strLogin & "<tr align='center'><td height='25' colspan='2'><input name='Login' type='submit' id='Login' value=' 登录 '> <input name='Reset' type='reset' id='Reset' value=' 清除 '>"
+        strLogin=strLogin & "</td></tr>"
+        strLogin=strLogin & "<tr><td height='20' align='center' colspan='2'><a href='UserReg.asp' target='_blank'>新用户注册</a>&nbsp;&nbsp;<a href='GetPassword.asp' target='_blank'>忘记密码？</a></td></tr>"      
+        strLogin=strLogin & "</form></table>"
+
+%>
+<script language=javascript>
+	function CheckForm()
+	{
+		if(document.UserLogin.UserName.value=="")
+		{
+			alert("请输入用户名！");
+			document.UserLogin.UserName.focus();
+			return false;
+		}
+		if(document.UserLogin.Password.value == "")
+		{
+			alert("请输入密码！");
+			document.UserLogin.Password.focus();
+			return false;
+		}
+	}
+</script>
+<%
+	Else 
+		strLogin= "欢迎您！" & Session("UserName") & "<br><br>"
+		strLogin=strLogin & "用户控制面板：<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='UserServer.asp'><b>进入会员中心</b></a><br><br>"
+	
+	end if
+
+%>
+
+

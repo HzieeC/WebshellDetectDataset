@@ -1,0 +1,138 @@
+<!--#include file="../../conn/conn.asp"-->
+<!--#include file="../../inc/Commoncode.asp"-->
+<!--#include file="../../inc/pay_md5.asp"-->
+<!--#include file="../../inc/base64.asp"-->
+<%v_oid=Request("v_oid")
+v_pmode=Request("v_pmode")
+v_pstatus=Request("v_pstatus")
+v_pstring=Request("v_pstring")
+v_md5str=Request("v_md5str")
+v_amount=Request("v_amount")
+v_moneytype=Request("v_moneytype")
+
+if request("v_md5str")="" then
+ Response.Write ("<script language=JavaScript>{alert('错误：对不起，订单数字指纹v_md5str不能为空！');location.href = 'javascript:history.go(-1)';}</script>")
+response.end
+end if
+
+set rs=server.CreateObject("adodb.recordset")
+query="select * from Job_pay_online where chk=1 and payflag=2"
+rs.open query,conn,1,1
+if not rs.eof then
+ipayno=rs("shbh")
+ipaykey=rs("pay_key")
+else
+Response.Write ("<script language=JavaScript>{alert('错误：对不起，系统配置错误！');location.href = 'javascript:history.go(-1)';}</script>")
+response.end
+end if
+rs.close  
+
+if ipayno="" then
+Response.Write ("<script language=JavaScript>{alert('错误：对不起，系统配置错误！');location.href = 'javascript:history.go(-1)';}</script>")
+response.end
+end if
+
+v_mid=replace(strAnsi2Unicode(Base64decode(strUnicode2Ansi(ipayno))),chr(13)&chr(10),"<br>")
+key=replace(strAnsi2Unicode(Base64decode(strUnicode2Ansi(ipaykey))),chr(13)&chr(10),"<br>")
+
+'md5校验
+'shuzi1 为正确数值串拼凑顺序
+shuzi1=v_oid&v_pstatus&v_amount&v_moneytype&key
+fff=ucase(trim(md5(shuzi1)))
+'按md5检验情况输出结果 
+if fff<>v_md5str then
+Response.Write ("<script language=JavaScript>{alert('错误：对不起，支付加密验证失败！');location.href = 'javascript:history.go(-1)';}</script>")
+response.end
+end if
+
+if  v_pstatus=20   then
+payok=true
+else
+payok=false
+end if
+''''''''''''''''
+query = "select * from JOB_pay_back where pay_oid='"&v_oid&"'"
+rs.Open query, conn, 1, 1
+If rs.RecordCount <> 1 Then
+Response.Write ("<script language=JavaScript>{alert('对不起，通讯故障，请与本站联系！');location.href = 'javascript:history.go(-1)';}</script>")
+response.end
+ElseIf rs("pay_isucceed") = 1 Then
+Response.Write ("<script language=JavaScript>{alert('对不起，该支付已经结算完毕！');location.href = 'javascript:history.go(-1)';}</script>")
+response.end
+End If
+rs.Close
+
+If payok Then
+''''''''''''''''''''''''''''''会员入款
+	conn.execute("Update JOB_pay_back set pay_isucceed =1,pay_pmode='"&v_pmode&"' where pay_oid='"&v_oid&"'")
+	sql="select * from job_member where member_login='"&Request.Cookies(FRHRCMS)("user_login")&"'"
+	rs.open sql,conn,1,3
+	If rs.RecordCount <> 1 Then
+	  payok=false
+	  rs.close
+	  set rs=nothing
+	else
+	rs("Member_balance")=rs("Member_balance")+fix(v_amount)
+	rs.update
+	rs.close
+	set rs=nothing
+	end if
+else
+    conn.execute("Update JOB_pay_back set pay_pstring='"&v_pstring&"',pay_isucceed=2 where pay_oid='"&v_oid&"'")
+end if
+conn.close
+set conn=nothing
+%>
+<HTML><HEAD><TITLE><%=pl_stenme%>-银行在线支付</TITLE>
+<META http-equiv=Content-Type content="text/html; charset=gb2312">
+<STYLE>TD {
+	FONT-SIZE: 9pt; LINE-HEIGHT: 14pt
+}
+</STYLE>
+
+<META content="MSHTML 6.00.2800.1226" name=GENERATOR></HEAD>
+<BODY bgColor=#ffffff leftMargin=0 topMargin=0 marginheight="0" marginwidth="0">
+<br>
+<br>
+<br>
+<TABLE height=400 cellSpacing=0 cellPadding=0 width=500 
+background=../pay_img/cmbchinabg.jpg border=0 align="center" style="border:#000000 1px double">
+  <TBODY> 
+  <TR>
+    <TD vAlign=top>
+      <TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+        <TBODY>
+        <TR>
+          <TD><IMG height=86 src="../pay_img/blank.gif" width=10></TD>
+          <TD>&nbsp;</TD></TR>
+        <TR>
+          <TD width=236><img height=1 src="../pay_img/blank.gif" 
+            width=236></TD>
+          <TD vAlign=top> 
+            <P><% if payok=true then %><font color="#FF0000"><b>恭喜您！</b></font><br>
+              <br>
+              您所支付的款项：<br>
+              <br>
+              人民币：<b><font color="#FF0000"><%=v_amount%></font>元</b><br>
+              <br>
+              已经成功转到您的会员号下！<br>
+			  <% else %>
+              <font color="#FF0000"><b><font color="#0000FF">对不起！</font></b></font><br>
+              <br>
+              您所支付的款项：<br>
+              <br>
+              人民币：<b><font color="#FF0000"><%=v_amount%></font>元</b><br>
+              <br>
+              因操作失败未能转到您的会员号下！ 
+			  <% end if %></P>
+	 <P>&nbsp;</P>
+	 </TD>
+	 </TR>
+	 </TBODY>
+	 </TABLE>
+	 </TD>
+	 </TR>
+	 </TBODY>
+	 </TABLE>
+	 </BODY>
+</HTML>

@@ -1,0 +1,214 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_reply.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Hashtable ti_reply = new Hashtable();
+
+	
+	String req_state="",req_title="";
+	
+
+	
+	if(request.getParameter("req_state")!=null && !request.getParameter("req_state").equals(""))
+	  {
+		req_state = request.getParameter("req_state");
+		ti_reply.put("state",req_state);
+	   }
+	   ti_reply.put("v_state","");
+	   if(request.getParameter("req_title")!=null && !request.getParameter("req_title").equals(""))
+	  {
+		req_title = request.getParameter("req_title");
+		ti_reply.put("title",req_title);
+	   }
+	
+
+	Ti_replyInfo ti_replyInfo = new Ti_replyInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_replyInfo.getListByPage(ti_reply,Integer.parseInt(iStart),limit);
+	int counter = ti_replyInfo.getCountByObj(ti_reply);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?iStart=",Integer.parseInt(iStart),limit);
+%>
+<html>
+  <head>
+    
+    <title>回答审核</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>回答审核</h1>
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	
+	<!--
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>-----------------</h4>
+		  <span>1----------------。</span><br/>
+		  <span>2----------------。</span>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+	  -->
+	  
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				
+				
+					问题:<input name="req_title" type="text" />&nbsp;
+		  		    状态:
+					<select name="req_state">
+						<option value="">请选择</option>	
+						<option value="0">未审批</option>
+						<option value="2">审批未通过</option>
+					</select>
+
+				<input name="searchInfo" type="button" value="搜索" onclick="return search();"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="updatestate('1')" value="审批通过" class="buttab"/>
+				<input type="button" name="delInfo" onclick="updatestate('2')" value="审批不通过" class="buttab"/>
+			    <input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter%>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			
+		  	<th>问题标题</th>
+		  	
+		  	<th>状态</th>
+		  	
+		  	
+		  	<th>最佳答案</th>
+			
+			<th>回答时间</th>
+		  	
+			<th width="10%">审批</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String trade_id="",ask_id="",state="",code="",contents="",good="",user_id="",cust_id="",in_date="",title="";
+		  			  	if(map.get("trade_id")!=null) trade_id = map.get("trade_id").toString();
+						if(map.get("ask_id")!=null) ask_id = map.get("ask_id").toString();
+						if(map.get("state")!=null) state = map.get("state").toString();
+						if(state.equals("0")){
+						code="未审批";
+						}
+						if(state.equals("1")){
+						code="审批通过";
+						}
+						if(state.equals("2")){
+						code="审批不通过";
+						}
+						if(state.equals("3")){
+						code="禁用";
+						}
+						if(map.get("contents")!=null) contents = map.get("contents").toString();
+						if(map.get("good")!=null) good = map.get("good").toString();
+						String goodstate="";
+						if(good.equals("0")){
+						goodstate="不是";
+						}
+						if(good.equals("1")){
+						goodstate="是";
+						}
+						if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+						if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+						if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+					   if(in_date.length()>19)in_date=in_date.substring(0,19);
+						if(map.get("title")!=null) title = map.get("title").toString();
+
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=trade_id %>" /></td>
+			
+		  	<td><%=title%></td>
+		  	
+		  	<td><%=code%></td>
+		  	
+		  
+		  	<td><%=goodstate%></td>
+			
+			<td><%=in_date%></td>
+		  	
+			<td width="10%"><a href="updateInfo.jsp?trade_id=<%=trade_id %>"><img src="/program/admin/images/edit.gif" title="修改" /></a></td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=trade_id%>','0194');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="updatestate('1')" value="审批通过" class="buttab"/>
+				<input type="button" name="delInfo" onclick="updatestate('2')" value="审批不通过" class="buttab"/>
+			    <input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="state" id="state" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="0194" />
+	  </form>
+</body>
+
+</html>

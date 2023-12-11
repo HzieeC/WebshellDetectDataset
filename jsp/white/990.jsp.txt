@@ -1,0 +1,43 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>恭喜你安装成功 - MianFeiZhe V1.0SQL版内容管理系统</title>
+<link href="style.css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+<!--
+.onetd{
+	text-align:right;
+	line-height:25px;
+}
+-->
+</style>
+<script src="jquery.js" language="javascript" type="text/javascript"></script>
+</head>
+
+<body>
+<div class="top boxcenter">正在安装: <em>MianFeiZhe V1.0SQL版</em></div>
+
+<div class="topstep boxcenter">
+	<div class="stepbox">
+		<ul>
+			<li>许可协议</li>
+			<li>检测环境</li>
+			<li>安装参数</li>
+			<li class="this">安装</li>
+		</ul>
+	</div>
+</div>
+<div class="main boxcenter">
+	<div class="boxtitle">
+		<span>安装完成</span>
+	</div>
+	<div class="setupinfo">		
+		恭喜你安装成功<br>
+		建议安装完成后删除install目录<br>
+		<a href="<%=request.getContextPath()%>" target="_blank">现在访问首页</a>
+	</div>
+	
+</div>
+</body>
+</html>

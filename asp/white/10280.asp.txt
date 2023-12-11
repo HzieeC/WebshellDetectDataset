@@ -1,0 +1,268 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<!--#include file="../inc/sendmail.asp"-->
+<%If FR_HR_Sql = True then Call SQLin()
+link="person_resumesend.asp?action="&request("action")&"&checks="&request("checks")&""%>
+<!--#include file="checkpmember.asp" -->
+<!--#include file="flagandexpend.asp" -->
+<%'是否可在线申请职位
+If CheckPFlag("Plimits",4)=False then
+response.write "<script language=javascript>alert('您所在的会员组不能在线申请职位，请联系网站客服进行升级！');location.href='javascript:history.back()';</script>"
+response.end()
+end if
+if trim(request("step"))="2" then
+action=CheckStr(trim(request("action")))
+checks=trim(request("checks"))
+resumes=trim(request("resumeid"))
+resumes=split(resumes,",")
+resumeid=int(trim(resumes(0)))
+resumename=trim(resumes(1))
+letter=CheckStrbox(trim(request("letter")))
+hire=split(checks,",")
+set rs=Server.CreateObject("Adodb.Recordset")
+set rst=Server.CreateObject("Adodb.Recordset")
+'1）存入人才的“工作申请记录”
+t=0 '成功发送数
+for i=0 to ubound(hire)
+id=trim(hire(i))
+sqlt="select * from job_p_mysend where mysend_hireid="&id&" and mysend_pmember='"&pmember_login&"'"
+rst.open sqlt,conn,1,3
+if rst.eof then
+select case action '取出相关信息
+	case "myfavorite"   '职位收藏夹中触发
+		sql="select * from job_p_myfavorite where myfavorite_id="&id
+		rs.open sql,conn,1,1
+		hireid=rs("myfavorite_hireid")
+		comname=rs("myfavorite_comname")
+		place=rs("myfavorite_place")
+		cmember=rs("myfavorite_cmember")
+		rs.close
+	case "hire"   '职位信息触发
+		sql="select * from job_c_hire where hire_id="&id
+		rs.open sql,conn,1,1
+		hireid=rs("hire_id")
+		comname=rs("hire_comname")
+		place=rs("hire_place")
+		cmember=rs("hire_cmember")
+		rs.close		
+end select
+If CheckPFlag("Plimits",5)=False then
+	If CheckPFlag("Pdianshus",2)=False then
+		response.write "<script language=javascript>alert('恭喜您成功发送"&t&"个职位申请！\n由于您申请的数量已达到上限（或无可用点数），暂不能继续申请，如需继续发送职位申请请联系网站客服进行升级！');location.href='javascript:window.close()';</script>"
+		response.end()
+	else
+		Call PayLog(pmember_login,1,"申请"&comname&"发布的“"&place&"”职位扣点",Group_Pdianshus(2),0)
+	end if
+else
+	Call PayLog(pmember_login,1,"申请"&comname&"发布的“"&place&"”职位",0,0)
+end if
+rst.addnew
+rst("mysend_hireid")=hireid
+rst("mysend_comname")=comname
+rst("mysend_place")=place
+rst("mysend_resumeid")=resumeid
+rst("mysend_resumename")=resumename
+rst("mysend_pmember")=pmember_login
+rst("mysend_cmember")=cmember
+rst("mysend_date")=now()
+rst.update 
+'修改申请的职位数量
+conn.Execute("Update JOB_member set Member_mysendnums=Member_mysendnums+1 where Member_login = '"&pmember_login&"' and Member_typeid=1")
+set rsw=conn.execute("select * from JOB_P_resume where resume_id="&resumeid)
+	names=rsw("resume_name")
+	sex=rsw("resume_sex")
+	birth=rsw("resume_birth")
+	edu=rsw("resume_edu")
+	rsw.close
+set rsw=nothing		
+if cmember<>"" then  '如果该职位是企业会员发布的，则存入该会员的“收到的应聘简历”
+	sql="select * from job_c_myreceive"
+	rs.open sql,conn,3,3
+	rs.addnew
+	rs("myreceive_resumeid")=resumeid
+	rs("myreceive_name")=names
+	rs("myreceive_sex")=sex
+	rs("myreceive_birth")=birth
+	rs("myreceive_edu")=edu
+	rs("myreceive_hireid")=hireid
+	rs("myreceive_place")=place
+	rs("myreceive_pmember")=pmember_login
+	rs("myreceive_cmember")=cmember
+	rs("myreceive_read")=0
+	rs("myreceive_content")=letter
+	rs("myreceive_date")=now()
+	rs.update 
+	rs.close
+set rse=conn.execute("select Member_email from JOB_Member where Member_login='"&cmember&"' and Member_typeid=2")
+	email=rse(0)
+set rse=nothing
+'发送应聘邮件通知
+Call SendMail(email,""&SiteName&"提醒您:贵公司发布的“"&place&"”职位有人应聘了！",""&comname&"，您好!此信为系统提醒邮件，不必回复，谢谢！<br>"&letter&"")
+end if
+'修改职位的收到简历数
+conn.execute ("update job_c_hire set hire_receiveresume=hire_receiveresume+1 where hire_id="&hireid)
+t=t+1 '记录成功数
+Call IncomeIntegral(pmember_login,1,-Group_Pintegrals(2))
+end if
+rst.close
+next
+set rs=nothing
+set rst=nothing
+response.write("<script language=javascript>alert('成功发送"&t&"个职位申请，"&ubound(hire)+1-t&"个重复！');location.href='javascript:window.close()';</script>")
+response.end
+end if%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>发送应聘意向-<%=SiteTitle%></title>
+<link href="../member/css.css" rel="stylesheet" type="text/css" />
+<script language="JavaScript">
+<!--
+function CoverLetter_Click(letterID,LetterCount)
+{
+ for (var i=1;i<=LetterCount;i++)
+ {
+  if (i == letterID)  //当前项
+   {
+     document.all["Lable"+i.toString()].style.fontWeight = "bold";
+     document.all["TDLetter"+i.toString()].style.backgroundImage = "url('../images/button_01.gif')";
+    }
+  else //其他
+   {                 
+    document.all["Lable"+i.toString()].style.fontWeight = "normal";
+    document.all["TDLetter"+i.toString()].style.backgroundImage = "url('../images/button_02.gif')";
+   }
+   document.all.letter.value = document.all["Hidden"+letterID].value.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,"\"").replace(/&amp;/g,"&");
+  }
+}
+function reset_resume()
+{
+ for(i=0;i<document.sendresume.elements.length;i++) 
+	{
+		if (document.sendresume.elements[i].name=="resumelang")
+		{		
+			if (document.sendresume.elements[i].checked==true) 
+			{
+				document.sendresume.elements[i].checked=false;
+			}
+		}
+	}
+}
+function Juge()
+{
+ var flag=false; //是否有选择
+ for(i=0;i<document.sendresume.elements.length;i++) 
+	{
+		if (document.sendresume.elements[i].name=="resumeid")
+		{		
+			if (document.sendresume.elements[i].checked==true) 
+			{
+				flag=true;
+				break;
+			}
+		}
+	}
+	if (flag==false)
+	{
+		alert("请选择一份简历！");
+		return false;
+	}
+ var flag=false; //是否有选择
+}
+//-->
+</script>
+</head>
+<body>
+<div class="memmenul">
+<div class="leftmenutit"><span>申请职位</span></div>
+<table width="98%" border="0" align="center" cellpadding="0" cellspacing="0" class="mtable">
+	<tr>
+		<td colspan="2" class="mtitle"><img src="../images/biao_01.gif"> 您要申请的职位如下：</td>
+	</tr>
+	<tr class="tdcolors">
+	  <td>&nbsp;&nbsp;招聘职位</td>
+	  <td>公司名称</td>
+    </tr>
+<%
+action=CheckStr(trim(request("action")))
+checks=trim(request("checks"))
+set rst=server.createobject("adodb.recordset")
+select case action
+case "myfavorite"  '职位收藏夹中触发
+	myfavorite=split(checks,",")
+	for i=0 to ubound(myfavorite)
+		id=trim(myfavorite(i))
+		sql="select myfavorite_place,myfavorite_comname,myfavorite_hireid from job_p_myfavorite where myfavorite_id="&id
+		rst.open sql,conn,1,1
+		response.write "<tr>"               
+		response.write "<td align=center><a href='../company/hire.asp?hireid="&rst("myfavorite_hireid")&"' target='_blank'>"&rst("myfavorite_place")&"</a></td>"
+		response.write "<td align=center>"&rst("myfavorite_comname")&"</td>"
+		response.write "</tr>"
+		rst.close
+	next
+case "hire"  '职位信息触发
+	hire=split(checks,",")
+	for i=0 to ubound(hire)
+		id=trim(hire(i))
+		sql="select hire_id,hire_comname,hire_place from job_c_hire where hire_id="&id
+		rst.open sql,conn,1,1
+		response.write "<tr>"
+		response.write "<td>&nbsp;&nbsp;<a href='../company/hire.asp?hireid="&rst("hire_id")&"' target='_blank'>"&rst("hire_place")&"</a></TD>"
+		response.write "<td>"&rst("hire_comname")&"</td>"
+		response.write "</tr>"
+		rst.close
+	next
+end select
+%>	
+	<tr>
+	  <td colspan="2" class="mtitle"><img src="../images/biao_01.gif"> 请选择一份适合该职位的完整简历提交</td>
+    </tr>
+<%
+sql="select * from job_p_resume where resume_pmember='"&pmember_login&"' order by resume_announcedate desc"
+rst.open sql,conn,1,1
+if rst.eof then
+%>
+	<tr>
+		<td colspan="2">您还没有填写过简历，请先填写完整的简历再提交申请。 <input onClick="javascript:location.href='person_baseinfo.asp'" type="button" value="马上填写简历"></td>
+	</tr>
+<%else%>
+<form name="sendresume" method="POST" action="person_resumesend.asp?step=2&action=<%=action%>&checks=<%=checks%>" onSubmit="return Juge()">
+<%for i=1 to rst.recordcount%>
+	<tr>
+		<td><input onClick='reset_resume()' type="radio" value='<%=rst("resume_id")%>,<%=rst("resume_title")%>' name="resumeid" <%if rst("resume_personinfo")<>1 or rst("resume_education")<>1 or rst("resume_train")<>1 or rst("resume_work")<>1 or rst("resume_careerwill")<>1 then%>disabled="disabled"<%end if%>><%=rst("resume_title")%></td>
+		<td>
+<%if rst("resume_chinese")=1 then%>中文<%if rst("resume_personinfo")<>1 or rst("resume_education")<>1 or rst("resume_train")<>1 or rst("resume_work")<>1 or rst("resume_careerwill")<>1 then%><STRONG>-&nbsp;<SPAN class=tit>不完整</SPAN></STRONG><span class="tdcolor">(填写完整后方可使用)</span><%end if%>  <A href="cnpreview.asp?rid=<%=rst("resume_id")%>" target=_blank>预览</A> <A href="person_baseinfo.asp?rid=<%=rst("resume_id")%>">修改</A><%end if%></td>
+	</tr>
+<%
+rst.movenext
+next
+rst.close
+%>
+<%end if%>
+	<tr>
+		<td colspan="2" class="mtitle"><img src="../images/biao_01.gif"> 附加求职信</td>
+	</tr>
+<%
+sql="select letter_title,letter_content from job_p_letter where letter_pmember='"&pmember_login&"' order by letter_id"
+rst.open sql,conn,1,1
+if not rst.eof then
+for i=1 to rst.recordcount
+%>
+	<tr>
+		<td id="TDLetter<%=i%>" colspan="2" style="cursor:pointer;" onclick='JavaScript: CoverLetter_Click("<%=i%>","<%=rst.recordcount%>");'>求职信<%=i%>: <input type='hidden' value="<%=rst("letter_content")%>" name="Hidden<%=i%>"><span id='Lable<%=i%>' title="附加该求职信内容"><%=rst("letter_title")%></span></td>
+	</tr>
+<%
+rst.movenext
+next
+end if
+rst.close
+%>
+<tr><td colspan="2" valign="middle">求职信内容：<br /><textarea name="letter" cols="90" rows="4" id="letter"></textarea></td></tr>
+<tr><td colspan="2"><input name="btnApply" type="submit" class="inputa2" id="btnApply" value="提交申请"></td></tr>
+</form>
+</table>
+</div>
+<%conn.close:set conn=nothing%>

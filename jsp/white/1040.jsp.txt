@@ -1,0 +1,148 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="java.util.Vector"%>
+<%@ page import="java.text.SimpleDateFormat,java.util.Date"%>
+<%@ page import="javaBean.AddSortB"%>
+<%
+	String url = request.getContextPath();
+%>
+<%!
+	public String time(){
+		Date date=new Date();
+		SimpleDateFormat sim=new SimpleDateFormat("yyyy-MM-dd k:mm:ss");
+		String now=sim.format(date);
+		return now;
+	}
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>添加文章</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript">
+</script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+
+<br style="overflow: hidden; line-height: 3px" />
+
+
+<script src="include/checknews.js" type="text/javascript"></script>
+
+<div onkeydown="CtrlEnter()">
+<table  border="0" align="center" cellpadding="3" cellspacing="1" class="TableBorder">
+        <tr>
+          <th colspan="4">添加文章</th>
+        </tr>
+		<form method="Post" name="myform" action="<%=url%>/servletsaritcle">
+<input type="Hidden" name="action" value="save"><input type=hidden name=ChannelID value='1'>
+        <tr>
+          <td width="15%" align="right" nowrap class="TableRow2"><b>所属分类：</b></td>
+          <td width="30%" class="TableRow1">
+<select name="listname">
+<%
+	Vector ve=(Vector)request.getAttribute("listName");
+	if(ve!=null){
+		for(int i=0;i<ve.size();i++){
+			AddSortB model=(AddSortB)ve.get(i);
+			out.println("<option value='"+model.getClassId()+"'>"+model.getClassName()+"</option>");
+		}
+	}else{
+		out.println("<option value='0'>没有添加分类</option>");
+	}
+%>
+</select>
+		  </td>
+          <td width="15%" align="right" nowrap class="TableRow2"></td>
+          <td width="40%" class="TableRow1"></td>
+        </tr>
+        <tr>
+          <td align="right" class="TableRow2"><b>文章标题：</b></td>
+          <td colspan="3" class="TableRow1"><select name="BriefTopic" id="BriefTopic">
+			  
+            <option value="0">选择话题</option>
+			<option value="1">[图文]</option>
+			<option value="2">[组图]</option>
+			<option value="3">[新闻]</option>
+			<option value="4">[推荐]</option>
+			<option value="5">[注意]</option>
+			<option value="6">[转载]</option>
+			
+          </select> <input name="title" type="text" id="title" size="60" value=""> 
+          <font color=red>*</font></td>
+        </tr>
+	<tr>
+          <td align="right" class="TableRow2"><b>副 标 题：</b></td>
+          <td colspan="3" class="TableRow1"><input name="subtitle" type="text" id="subtitle" size="60" value=""></td>
+        </tr>
+        <tr>
+          <td align="right" class="TableRow2"><b>相关文章：</b></td>
+          <td colspan="3" class="TableRow1"><input name="related" type="text" id="Related" size="60" value=""></td>
+        </tr>
+        <tr>
+          <td align="right" class="TableRow2"><b>文章作者：</b></td>
+          <td colspan="3" class="TableRow1"><input name="author" type="text" size="30" value="佚名">
+		    <select name="font2" onChange="author.value=this.value;">
+			<option value="" selected>选择作者</option>
+			 <option value="佚名">佚名</option> <option value="本站">本站</option> <option value="不详">不详</option> <option value="未知">未知</option>
+			</select></td>
+        </tr>
+        <tr>
+          <td align="right" class="TableRow2"><b>文章来源：</b></td>
+          <td colspan="3" class="TableRow1"><input name="comeFrom" type="text" size="30" value="本站整理">
+		  	<select name="font1" onChange="comeFrom.value=this.value;">
+			<option value="" selected>选择来源</option>
+			 <option value="本站整理">本站整理</option> <option value="本站原创">本站原创</option> <option value="不详">不详</option> <option value="转载">转载</option>
+			</select></td>
+        </tr>
+        <tr>
+          <td align="right" class="TableRow2"><b>文章内容：</b></td>
+          <td colspan="3" class="TableRow1">
+<div>	<INPUT type="hidden" name="content1" value=""><IFRAME ID="eWebEditor1" src="<%=url%>/eWebEditor.jsp?id=content1&style=standard" frameborder="0" scrolling="no" width="650" height="350"></IFRAME></div></td>
+        </tr>
+        <tr>
+          <td align="right" class="TableRow2"><b>初始点击数：</b></td>
+          <td class="TableRow1"><input name="allHits" type="text" id="allHits" size="15" value="0"> 
+          <font color=red>*</font></td>
+          <td align="right" class="TableRow2"><b>文章星级：</b></td>
+          <td class="TableRow1"><select name="star">
+		
+			<option value="5">★★★★★</option>
+			<option value="4">★★★★</option>
+			<option value="3" selected>★★★</option>
+			<option value="2">★★</option>
+			<option value="1">★</option>
+		
+          </select></td>
+        </tr>
+	<tr>
+          <td align="right" class="TableRow2"><b>更新时间：</b></td>
+          <td class="TableRow1"><input name="writeTime" type="text" id="writeTime" size="25" value="<%=time()%>"> 
+          <font color="red">*</font></td>
+      <td width="15%" align="right" nowrap class="TableRow2"></td>
+	  <td width="40%" class="TableRow1"></td>
+        </tr>
+	<tr>
+          <td align="right" class="TableRow2"><b>其它选项：</b></td>
+          <td class="TableRow1" colspan="3"><input name="isTop" type="checkbox" id="isTop" value="1">
+            文章推荐
+		<input name="imgsave" type="checkbox" value="0" id="imgsave">提取第一张图片
+	    <input name="isAccept" type="checkbox" id="isAccept" value="1" checked> 
+            立即发布（<font color="blue">否则审核后才能发布。</font>）
+	    </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" class="TableRow2">
+	  <input type="button" name="Submit4" onclick="javascript:history.go(-1)" value="返回上一页" class="Button">
+	  <input type="submit" name="btnSubmit" value="保存文章"></td>
+        </tr></form>
+      </table>
+</div>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

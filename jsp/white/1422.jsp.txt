@@ -1,0 +1,117 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@page import="com.bizoss.trade.ts_category.*" %>
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page"/>
+
+<%
+    String cust_id="",s_user_id="",s_user_name="";	
+	if( session.getAttribute("session_cust_id") != null )
+	{
+		cust_id = session.getAttribute("session_cust_id").toString();
+	}
+	if( session.getAttribute("session_user_id") != null )
+	{
+		s_user_id = session.getAttribute("session_user_id").toString();
+	}
+	if( session.getAttribute("session_user_name") != null )
+	{
+		s_user_name = session.getAttribute("session_user_name").toString();
+	}
+	String pri_key = bean.GenTradeId();
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+	String selecttree = ts_categoryInfo.getCategoryTree("000000000000000","7","");
+%>
+
+<html>
+  <head>
+    <title>提问管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<h1>新增提问</h1>
+	
+	<!--
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>-----------------</h4>
+		  <span>1----------------。</span><br/>
+		  <span>2----------------。</span>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+	  -->
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<input name="trade_id" id="trade_id" type="hidden" value="<%=pri_key%>"/>
+    <input name="user_id" id="user_id" size="20" value="<%=s_user_id%>" type="hidden" />
+	<input name="user_name" id="user_name" value="<%=s_user_name%>" type="hidden" />
+	<input name="in_date" id="in_date" value="" type="hidden" />
+	<input type="hidden" name="cust_id" id="cust_id" size="20" value="<%=cust_id%>" />		
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="10%">
+				标题:<font color="red">*</font>
+			</td>
+			<td><input name="title" id="title" size="20" maxlength="20" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				内容:<font color="red">*</font>
+			</td>
+			<td><input name="contents" id="contents" size="20" maxlength="20" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				回复:<font color="red">*</font>
+			</td>
+			<td><input name="reply" id="reply" value="0" type="text" /></td>
+		</tr>
+		
+		<td align="right" width="10%">
+				类型:<font color="red">*</font>
+			</td>
+
+			 <td align="left" >
+					  <table cellspacing="0" cellpadding="0" border="0" align="left" class="listtab1">
+										<tr>
+										  <td colspan="3">
+											<select name="s_cat_attr" id="s_cat_attr">
+												  <option value="">请选择...</option>
+												   <%=selecttree%>
+											</select>
+										  </td>
+										</tr>
+				    </table>
+		
+		<tr>
+			<td align="right" width="10%">
+				回答数量:
+			</td>
+			<td><input name="reply_num" id="reply_num" value="0" type="text" /></td>
+		</tr>
+		
+		
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="0566" />
+				<input type="submit" class="buttoncss" name="tradeSub" value="提交" onclick="return checkSub();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

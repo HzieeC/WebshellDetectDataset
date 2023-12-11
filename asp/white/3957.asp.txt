@@ -1,0 +1,258 @@
+<!--#include file="../../inc/ubbcode.asp"-->
+<!--#include file="const.asp"-->
+<%
+Response.ContentType="text/html"
+Response.Expires = -9999
+Response.AddHeader "pragma", "no-cache"
+Response.AddHeader "cache-ctrol", "no-cache"
+NewAsp.ChkPostAgent()
+
+Dim XMLDom,dataNode,CurrentPage,Pcount
+Dim HtmlContent,ArticleID,PageMode,m_strMaxlen,m_strMessage
+Dim PointNum,UserGroup,User_Group,m_strMinContent
+Dim m_strContent,m_strBackLinks,m_strNextLinks,classid
+
+Sub Main()
+	ArticleID=NewAsp.ChkNumeric(Request("id"))
+	CurrentPage=NewAsp.ChkNumeric(Request("page"))
+	If ArticleID=0 Then ArticleID=NewAsp.ChkNumeric(Request("ArticleID"))
+	If CurrentPage=0 Then CurrentPage=1
+	ubb.BasePath = NewAsp.ChannelPath
+	ubb.setUbbcode = Join(NewAsp.setUserEditor,"|")
+	ubb.Keyword = NewAsp.KeywordList
+	m_strMaxlen=NewAsp.ChkNumeric(TPL_Config(12))
+	m_strMessage=TPL_Config(15)
+	m_strMessage=Replace(m_strMessage, "{$installdir}", NewAsp.MainsiteDir)
+	m_strMessage=Replace(m_strMessage, "{$channeldir}", NewAsp.ChannelPath)
+	m_strMessage=Replace(m_strMessage, "{$channelid}", ChannelID)
+	PageMode=0
+	LoadArticleData()
+	If CheckUserRead (ArticleID, PointNum, UserGroup, User_Group) Then
+		Response.Write m_strContent
+	Else
+		m_strContent = ""
+	End If
+
+End Sub
+
+Sub LoadArticleData()
+	Dim Rs,SQL
+	SQL = "SELECT A.ArticleID,A.ClassID,A.[content],A.UserGroup,A.PointNum,A.HtmlFileDate,A.AutoPages,C.ClassName,C.UserGroup As User_Group,C.ParentID,C.ParentStr,C.HtmlFileDir,C.ChildStr FROM [NC_Article] A INNER JOIN [NC_Classify] C On A.ClassID=C.ClassID WHERE A.ChannelID="&CLng(ChannelID)&" And A.isAccept>0 And A.ArticleID="&CLng(ArticleID)
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		Set Rs = Nothing
+		Response.End
+	End If
+	Set XMLDom = NewAsp.RecordsetToxml(Rs,"row","xml")
+	Rs.Close:Set Rs = Nothing
+	Set dataNode = XMLDom.documentElement.selectSingleNode("row")
+	If Not dataNode Is Nothing Then
+		ubb.Pagination = NewAsp.ChkNumeric(dataNode.selectSingleNode("@autopages").text)
+		ArticleID=CLng(dataNode.selectSingleNode("@articleid").text)
+		classid=CLng(dataNode.selectSingleNode("@classid").text)
+		PointNum=CLng(dataNode.selectSingleNode("@pointnum").text)
+		UserGroup=CLng(dataNode.selectSingleNode("@usergroup").text)
+		User_Group=CLng(dataNode.selectSingleNode("@user_group").text)
+		m_strContent=ubb.UbbCode(dataNode.selectSingleNode("@content").text)
+		m_strMinContent=m_strContent
+		ContentPagination(m_strContent)
+		dataNode.selectSingleNode("@content").text=m_strContent
+	End If
+End Sub
+
+Sub ContentPagination(strText)
+	Dim ContentLen, Paginate
+	Dim arrContent, strContent, i
+	Dim m_strFileUrl,m_strFileExt,TempContent
+
+	strContent = strText
+	strContent = Replace(strContent, "[NextPage]", "[page_break]")
+	strContent = Replace(strContent, "[Page_Break]", "[page_break]")
+	ContentLen = Len(strContent)
+
+	If InStr(strContent, "[page_break]") <= 0 Then
+		TempContent = strContent
+		m_strContent = TempContent
+	Else
+		arrContent = Split(strContent, "[page_break]")
+
+		Paginate = UBound(arrContent) + 1
+		Pcount = Paginate
+		If CurrentPage = 0 Then
+			CurrentPage = 1
+		Else
+			CurrentPage = CLng(CurrentPage)
+		End If
+		If CurrentPage < 1 Then CurrentPage = 1
+		If CurrentPage > Paginate Then CurrentPage = Paginate
+
+		strContent = arrContent(CurrentPage - 1)
+
+		TempContent = TempContent & strContent
+		If PageMode=0 Then
+			TempContent = TempContent & "</p><p align=""center""><b>"
+
+			If IsURLRewrite Then
+				m_strFileExt = NewAsp.HtmlExtName
+				m_strFileUrl = ArticleID & "_"
+			Else
+				m_strFileExt = ""
+				m_strFileUrl = "show.asp?id=" & ArticleID & "&page="
+			End If
+
+			If CurrentPage > 1 Then
+				If NewAsp.IsCreateHtml=0 Then
+					If IsURLRewrite And (CurrentPage-1) = 1 Then
+						m_strBackLinks = CheckURLRewrite(NewAsp.ChannelPath,ArticleID & m_strFileExt)
+						TempContent = TempContent & "<a href="""& m_strBackLinks & """>上一页</a>&nbsp;&nbsp;"
+					Else
+						m_strBackLinks = m_strFileUrl & CurrentPage - 1 & m_strFileExt
+						TempContent = TempContent & "<a href="""& m_strBackLinks & """>上一页</a>&nbsp;&nbsp;"
+					End If
+				Else
+					m_strBackLinks = GetHtmlPageFile(CurrentPage - 1)
+					TempContent = TempContent & "<a href="""& m_strBackLinks & """>上一页</a>&nbsp;&nbsp;"
+				End If
+			Else
+				m_strBackLinks="javascript:"
+			End If
+			For i = 1 To Paginate
+				If i = CurrentPage Then
+					TempContent = TempContent & "<font color=""red"">[" & CStr(i) & "]</font>&nbsp;"
+				Else
+					If NewAsp.IsCreateHtml=0 Then
+						If IsURLRewrite And i = 1 Then
+							TempContent = TempContent & "<a href="""& CheckURLRewrite(NewAsp.ChannelPath,ArticleID & m_strFileExt) & """>[" & i & "]</a>&nbsp;"
+						Else
+							TempContent = TempContent & "<a href="""& m_strFileUrl & i & m_strFileExt & """>[" & i & "]</a>&nbsp;"
+						End if
+					Else
+						TempContent = TempContent & "<a href="""& GetHtmlPageFile(i) & """>[" & i & "]</a>&nbsp;"
+					End If
+				End If
+			Next
+			If CurrentPage < Paginate Then
+				If NewAsp.IsCreateHtml=0 Then
+					m_strNextLinks = m_strFileUrl & CurrentPage + 1 & m_strFileExt
+					TempContent = TempContent & "&nbsp;<a href="""& m_strNextLinks & """>下一页</a>"
+				Else
+					m_strNextLinks = GetHtmlPageFile(CurrentPage + 1)
+					TempContent = TempContent & "&nbsp;<a href="""& m_strNextLinks & """>下一页</a>"
+				End If
+			Else
+				m_strNextLinks = "javascript:"
+			End If
+
+			TempContent = TempContent & "</b></p>"
+		End If
+		m_strContent = TempContent
+	End If
+End Sub
+
+Function GetHtmlPageFile(page)
+	Dim strHtmlFile
+	strHtmlFile = NewAsp.HtmlDestination(NewAsp.InfoDestination, NewAsp.ChannelDir, dataNode.selectSingleNode("@htmlfiledate").text,dataNode.selectSingleNode("@htmlfiledir").text,classid,ArticleID,page,"html")
+	GetHtmlPageFile = Mid(strHtmlFile, InStrRev(strHtmlFile, "/") + 1)
+End Function
+
+Function CheckUserRead(ByVal ArticleID, ByVal PointNum, ByVal UserGroup, ByVal User_Group)
+	Dim Message, CookiesID
+	Dim SQL
+	Dim GroupSetting, GroupName, gradeid
+	CheckUserRead = False
+	If CInt(NewAsp.membergrade) = 999 Then
+		CheckUserRead = True
+		Exit Function
+	End If
+	If CInt(NewAsp.membergrade) <> 0 Then
+		gradeid = CInt(NewAsp.membergrade)
+	Else
+		gradeid = 0
+	End If
+	GroupSetting = Split(NewAsp.UserGroupSetting(gradeid), "|||")
+	GroupName = GroupSetting(UBound(GroupSetting))
+	If CInt(User_Group) > CInt(gradeid) Or CInt(UserGroup) > CInt(gradeid) Then
+		Message = m_strMessage
+		Call showMessage(Message)
+		Exit Function
+	End If
+	On Error Resume Next
+	Dim rsMember
+	If CInt(NewAsp.memberclass) > 0 Then
+		Set rsMember = NewAsp.CreateAXObject("ADODB.Recordset")
+		SQL = "SELECT userid,UserGrade,UserClass,ExpireTime FROM NC_User WHERE UserClass>0 And username='" & NewAsp.membername & "' And userid=" & CLng(NewAsp.memberid)
+		rsMember.Open SQL, Conn, 1, 3
+		If rsMember.BOF And rsMember.EOF Then
+			Message = "<li>非法操作~！</li>"
+			Call showMessage(Message)
+			Set rsMember = Nothing
+			Exit Function
+		Else
+			If DateDiff("D", CDate(rsMember("ExpireTime")), Now()) > 0 Or CInt(rsMember("UserClass")) = 999 Then
+				Message = "<li>对不起！您的会员已到期，不能阅览此文章；</li><li>如果你要阅览此文章请联系管理员。</li>"
+				Call showMessage(Message)
+				Set rsMember = Nothing
+				Exit Function
+			Else
+				Set rsMember = Nothing
+				CheckUserRead = True
+				Exit Function
+			End If
+		End If
+		rsMember.Close: Set rsMember = Nothing
+		CheckUserRead = True
+		Exit Function
+	End If
+	CookiesID = "ArticleID_" & ArticleID
+	If Trim(Request.Cookies("ReadArticle")) = "" Then
+		Response.Cookies("ReadArticle")("userip") = NewAsp.UserTrueIP
+		Response.Cookies("ReadArticle").Expires = Date + 1
+	End If
+
+	If CLng(Request.Cookies("ReadArticle")(CookiesID)) <> CLng(ArticleID) And CInt(UserGroup) > 0 Then
+		Set rsMember = NewAsp.CreateAXObject("ADODB.Recordset")
+		SQL = "SELECT userid,UserGrade,userpoint,ExpireTime FROM NC_User WHERE username='" & NewAsp.membername & "' And userid=" & CLng(NewAsp.memberid)
+		rsMember.Open SQL, Conn, 1, 3
+		If rsMember.BOF And rsMember.EOF Then
+			Message = "<li>非法操作~！</li>"
+			Call showMessage(Message)
+			Set rsMember = Nothing
+			Exit Function
+		Else
+			If CInt(rsMember("UserGrade")) < CInt(UserGroup) Then
+				Message = "<li>您的级别不够，阅览此文章需要<font color=""blue"">" & GroupName & "</font>以上级别的会员；</li><li>如果你要阅览此文章请联系管理员。</li>"
+				Call showMessage(Message)
+				Set rsMember = Nothing
+				Exit Function
+			End If
+
+			If CLng(rsMember("userpoint")) < CLng(PointNum) Then
+				Message = "<li>对不起!您的点数不足。不能阅览此文章</li><li>阅览此文章所需的点数：" & PointNum & "</li><li>如果你确实要阅览此文章请到<a href=""" & NewAsp.MainsiteDir & "users/"" class=""style1"" target=""_blank"">会员中心</a>充值。</li>"
+				Call showMessage(Message)
+				Set rsMember = Nothing
+				Exit Function
+			End If
+			rsMember("userpoint") = CLng(rsMember("userpoint") - PointNum)
+			rsMember.Update
+			Response.Cookies("ReadArticle")(CookiesID) = ArticleID
+		End If
+		rsMember.Close: Set rsMember = Nothing
+	End If
+	CheckUserRead = True
+End Function
+
+Sub showMessage(str)
+	If m_strMaxlen>0 Then
+		If m_strMaxlen=1 Then
+			m_strMinContent=""
+		Else
+			m_strMinContent=NewAsp.RemoveHtml(m_strMinContent)
+			If Len(m_strMinContent)>0 Then m_strMinContent=NewAsp.CutString(m_strMinContent,m_strMaxlen)
+		End If
+	End If
+	Response.Write m_strMinContent
+	Response.Write "<br/><br/>" & vbCrLf
+	Response.Write str
+	Response.End
+End Sub
+%>

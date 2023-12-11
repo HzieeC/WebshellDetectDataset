@@ -1,0 +1,643 @@
+<%@ Language=VBScript %>
+<!--#include file="cominc/conndb.asa"-->
+<!--#include file="cominc/function.asp"-->
+<!--#include file="cominc/md5.asp"-->
+<!--#include file="cominc/template.asp"-->
+
+<%
+PageShowSize = 10            '每页显示多少个页
+MyPageSize   = 15        '每页显示多少条
+
+if Dreamsun_name="" Then response.redirect "UserMng.asp?comurl="&server.urlencode(GetUrl)
+
+If Not IsNumeric(Request("Curpage")) Or IsEmpty(Request("Curpage")) Or Request("Curpage") <=0 Then
+MyPage=1
+Else
+MyPage=Int(Abs(Request("Curpage")))
+End if
+shopid=CheckNum(Request.QueryString("shopid"))
+bigtypeid=0
+
+webTitle="用户中心 - "&SiteName
+indexStr=" class=selected"
+
+'输出头部
+response.write echo_header()
+%>
+<div id="container">
+<div id="main">
+	<div id="mainTop">
+		<div id="maindh">
+			<div id="maindh_l"></div>
+			<div id="maindh_m"><a href="comindex.asp"><%=SiteName%>首页</a>&nbsp;&raquo;&nbsp;用户中心</div>
+			<div id="maindh_r"><A HREF="ucenter.asp?Action=addshop">登记商铺</A> | <A HREF="ucenter.asp?Action=myadd">我的发布</A> | <A HREF="ucenter.asp?Action=myshop">我的商铺</A> | <A HREF="ucenter.asp?Action=myinfo">商铺资讯</A> | <A HREF="ucenter.asp?Action=myreview">我的点评</A> | <A HREF="ucenter.asp?Action=myphoto">我的图片</A></div>
+		</div>
+	</div>
+<%
+Dim Action,cz
+    Action=CheckStr(Request.QueryString("Action"))
+    cz=CheckStr(Request.QueryString("cz"))
+
+    Select Case Action
+        Case "addshop"
+            Call addshop()
+        Case "myadd"
+		    Call myadd()
+		Case "myreview"
+		    Call myreview()
+		Case "myphoto"
+		    Call myphoto()
+		Case "myshop"
+			Call myshop()
+		Case "myinfo"
+		    Call myinfo()
+		Case "exit"
+		    Call userexit()
+		Case Else 
+			Call myadd()
+    End Select
+
+'-----------------------定义用户修改密码\个人信息界面
+Sub addshop()
+%><div id="mainBody">
+		<div id="mainBodyLeft">
+			<div id="allpic" class="sidebar">
+			  <div class="title bt2">
+				<ul>
+				  <li class="current"><span>添加说明</span></li>
+				</ul>
+			  </div>
+			  <div class="txt2">
+			 增加前，请选择合适的大分类，大分类下面再选择小分类。为了您添加的商铺能够被检索到，建议填写标准名称（防止重复添加），完善店铺信息。
+				 <div class="clear"></div>
+			  </div>
+			</div>
+		</div>
+<div id="mainBodyRight">
+			<div id="list">
+			  <div class="title bt2">
+				<ul>
+				  <li class="current"><span>增加商铺</span></li>
+				</ul>
+			  </div>
+<div class="txt">
+<%
+typeid=CheckNum(Request.QueryString("typeid"))
+If typeid=0 Then 
+%>
+<script type="text/javascript">
+function selectpanel(obj) {
+    if(obj.value) {
+        document.location.href='ucenter.asp?Action=addshop&typeid='+obj.value;
+    }
+}
+</script>
+<select id="panel" onchange="selectpanel(this);" size="15" style="width:200px;">
+
+<%
+	If Not IsArray(Arr_Category) Then GetTypeCache()
+	If Not IsArray(Arr_Category) Then Call backmsg("版块分类信息有错误，请检查","")
+	if ubound(Arr_Category,1)=0 then Response.Write("还没有版块分类")
+	For i=0 To Ubound(Arr_Category,2)
+		nowtype=""
+		If Int(Arr_Category(2,i))=0 Then
+		If Int(typeid)=Int(Arr_Category(0,i)) Then nowtype=" class=""selected"""
+		%>
+<option value="<%=Arr_Category(0,i)%>">★→<%=Arr_Category(1,i)%></option>
+		<%
+		End If
+	Next
+%>  
+</select>
+<%
+Else
+%>
+
+<table  border="0" cellspacing="0" cellpadding="0" class="cssraindemo1" id="table1">
+<tr>
+<td colspan="2"><CENTER><H4>在【<%=GetBoardName(typeid)%>】分类中登记商铺</H4></CENTER><BR></td>
+</tr>
+<form name="myform" class="democss" action="post.asp?cz=addshop" OnSubmit="return checkaddshop(this)" method=POST><tr>
+<td align="right">商铺分类:</td><td><select name="typeid">
+<%
+	If Not IsArray(Arr_Category) Then GetTypeCache()
+	If Not IsArray(Arr_Category) Then Call backmsg("版块分类信息有错误，请检查","")
+	if ubound(Arr_Category,1)=0 then Response.Write("还没有版块分类")
+	For i=0 To Ubound(Arr_Category,2)
+		nowtype=""
+		If Int(Arr_Category(2,i))=typeid Then
+		%>
+		<option value="<%=Arr_Category(0,i)%>"><%=Arr_Category(1,i)%></option>
+		<%
+		End If
+	Next
+%>  
+</select>* 请选择商铺所属类型。如无合适的 请  <input type="submit" value="返回上页" onclick="window.history.back()" class="submit"/> 重新选择</td>
+<tr>
+<tr>
+  <td align="right">商铺名称:</td><td><input type="text" id="shop_name" name="shop_name" class="t_input" size=40 /> *例如：小肥羊火锅</td></tr>
+<tr>
+  <td align="right">联系人:</td><td><input type="text" id="shop_subname" name="shop_subname" class="t_input" size=20 />*填写真实姓名</td></tr>
+<tr><td align="right">所属区域:</td><td><select name="areaid">
+<%
+	If Not IsArray(Arr_Area) Then GetAreaCache()
+	If Not IsArray(Arr_Area) Then Call backmsg("地区分类信息有错误，请检查","")
+	if ubound(Arr_Area,1)=0 then Response.Write("还没有地区分类")
+	For i=0 To Ubound(Arr_Area,2)
+		%>
+		<option value="<%=Arr_Area(0,i)%>"><%=Arr_Area(1,i)%></option>
+		<%
+	Next
+%>  
+</select></td></tr>
+<tr><td align="right">商铺地址:</td><td><input type="text" id="shop_addr" name="shop_addr" class="t_input" size=40/>*</td></tr>
+<tr><td align="right">固定电话:</td><td><input type="text" id="shop_telephone" name="shop_telephone"  class="t_input" size=20/>*</td></tr>
+<tr><td align="right">手    机:</td><td><input type="text" id="shop_telephone2" name="shop_telephone2" class="t_input" size=20/>*</td></tr>
+<tr><td align="right">商铺介绍:</td><td><textarea rows="8" cols="60" name="shop_content"></textarea></td></tr>
+ <tr><td colspan="2" align="center"> <input  value="提交发布" class="submit" type="image" id="submit" value=""  src="images/spdj.gif"/>
+   <input type="submit" value="返回上页" onclick="window.history.back()" class="submit"/></td></tr>
+   </form>
+  
+</table>
+
+<BR>
+<%
+End If
+%>
+			  </div>
+			</div>	
+		</div>
+	</div>
+<%
+End Sub 
+Sub myadd()
+%>
+	<div id="mainBody">
+		<div id="mainBodyLeft">
+			<div id="allpic" class="sidebar">
+			  <div class="title bt2">
+				<ul>
+				  <li class="current"><span>我的发布</span></li>
+				</ul>
+			  </div>
+			  <div class="txt2">
+			  这里写备注！
+				 <div class="clear"></div>
+			  </div>
+			</div>
+		</div>
+		<div id="mainBodyRight">
+			<div id="finershop">
+			  <div class="title bt2">
+				  <ul>
+					<li class="current"><span>我的发布</span></li>
+				  </ul>
+			  </div>
+			<div id="con_shop_1" class="txt">
+				<dl>
+<%
+set adoRS=server.createobject("adodb.recordset")
+sql="select shop_addtime,shop_name,shop_subname,shop_id,shop_photo from "&shopTable&" where shop_addname='"&Dreamsun_name&"' order by shop_addtime desc,shop_id desc"
+adoRS.open sql,conn,1,1
+SQLQueryNums=SQLQueryNums+1
+	If adoRS.eof And adoRS.bof Then
+		response.write "<CENTER>我还没有添加过店铺，现在添加一个试试看</CENTER>"
+	Else
+		adoRS.PageSize     = MyPageSize
+		MaxPages         = adoRS.PageCount
+		adoRS.absolutepage = MyPage
+		Totalcount            = adoRS.RecordCount
+		for i=1 to adoRS.PageSize
+			If not adoRS.eof Then
+				shop_photo=adoRS("shop_photo")
+				If shop_photo="" Or IsNull(shop_photo) Then shop_photo="images/noimg.gif"
+				IsHot=IsHot&"<dd> <a href=""shop.asp?shopid="&adoRS("shop_id")&""" target=""_blank""><img src="""&shop_photo&""" alt="""&adoRS("shop_name")&""" width=""100"" height=""75"" /></a><p><a href=""shop.asp?shopid="&adoRS("shop_id")&""" target=""_blank"" title="""&adoRS("shop_name")&""">"&adoRS("shop_name")&adoRS("shop_subname")&"</a></p></dd>"
+				adoRS.MoveNext
+			end if
+		Next
+		multipage=viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=myadd","当前总数:","ucenter.asp")
+%>
+<%response.write IsHot%>
+<%	End If 
+adoRS.close
+Set adoRS=Nothing
+%>
+          </dl>
+          <div class="clear"></div><div class="pages"><div class="plist"><%=multipage%></div></div>
+        </div>
+		</div>
+	</div>
+<%
+End Sub
+Sub myreview()
+%>
+	<div id="mainBody">
+		<div id="mainBodyLeft">
+			<div id="allpic" class="sidebar">
+			  <div class="title bt2">
+				<ul>
+				  <li class="current"><span>我的点评</span></li>
+				</ul>
+			  </div>
+			  <div class="txt2">
+			  这里写备注！
+				 <div class="clear"></div>
+			  </div>
+			</div>
+		</div>
+		<div id="mainBodyRight">
+			<div id="finershop">
+			  <div class="title bt2">
+				  <ul>
+					<li class="current"><span>我的点评</span></li>
+				  </ul>
+			  </div>
+			<div id="con_shop_1" class="txt">
+				<dl>
+<%
+set adoRS=server.createobject("adodb.recordset")
+sql="select r.*,s.shop_addtime,s.shop_name,s.shop_subname,s.shop_id,s.shop_photo from "&reviewTable&" as r,"&shopTable&" as s where r.r_addname='"&Dreamsun_name&"' and r.r_shopid=s.shop_id order by r.r_addtime desc,r_id desc"
+adoRS.open sql,conn,1,1
+SQLQueryNums=SQLQueryNums+1
+	If adoRS.eof And adoRS.bof Then
+		response.write "<CENTER>我还没有点评过店铺，现在添加一个试试看</CENTER>"
+	Else
+		adoRS.PageSize     = MyPageSize
+		MaxPages         = adoRS.PageCount
+		adoRS.absolutepage = MyPage
+		Totalcount            = adoRS.RecordCount
+		for i=1 to adoRS.PageSize
+			If not adoRS.eof Then
+				shop_photo=adoRS("shop_photo")
+				If shop_photo="" Or IsNull(shop_photo) Then shop_photo="images/noimg.gif"
+				IsHot=IsHot&"<dd> <a href=""shop.asp?shopid="&adoRS("shop_id")&""" target=""_blank""><img src="""&shop_photo&""" alt="""&adoRS("shop_name")&""" width=""100"" height=""75"" /></a><p><a href=""shop.asp?shopid="&adoRS("shop_id")&""" target=""_blank"" title="""&adoRS("shop_name")&""">点评"&adoRS("shop_name")&adoRS("shop_subname")&"</a></p></dd>"
+				adoRS.MoveNext
+			end if
+		Next
+		multipage=viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=myreview","当前总数:","ucenter.asp")
+%>
+<%response.write IsHot%>
+<%	End If 
+adoRS.close
+Set adoRS=Nothing
+%>
+          </dl>
+          <div class="clear"></div><div class="pages"><div class="plist"><%=multipage%></div></div>
+        </div>
+		</div>
+	</div>
+<%
+End Sub 
+Sub myphoto()
+%>
+	<div id="mainBody">
+		<div id="mainBodyLeft">
+			<div id="allpic" class="sidebar">
+			  <div class="title bt2">
+				<ul>
+				  <li class="current"><span>我的图片</span></li>
+				</ul>
+			  </div>
+			  <div class="txt2">
+			  这里写备注！
+				 <div class="clear"></div>
+			  </div>
+			</div>
+		</div>
+		<div id="mainBodyRight">
+			<div id="finershop">
+			  <div class="title bt2">
+				  <ul>
+					<li class="current"><span>我的图片</span></li>
+				  </ul>
+			  </div>
+			<div id="con_shop_1" class="txt">
+				<dl>
+<%
+set adoRS=server.createobject("adodb.recordset")
+sql="select p.*,s.shop_name,s.shop_subname,s.shop_id from "&photoTable&" as p,"&shopTable&" as s where p.photo_addname='"&Dreamsun_name&"' and p.photo_shop_id=s.shop_id order by p.photo_addtime desc,p.photo_id desc"
+adoRS.open sql,conn,1,1
+SQLQueryNums=SQLQueryNums+1
+	If adoRS.eof And adoRS.bof Then
+		response.write "<CENTER>我还没有上传过图片，现在添加一个试试看</CENTER>"
+	Else
+		adoRS.PageSize     = MyPageSize
+		MaxPages         = adoRS.PageCount
+		adoRS.absolutepage = MyPage
+		Totalcount            = adoRS.RecordCount
+		for i=1 to adoRS.PageSize
+			If not adoRS.eof Then
+				shop_photo=adoRS("photo_url")
+				IsHot=IsHot&"<dd> <a href=""page.asp?cz=showpic&pid="&adoRS("photo_id")&""" target=""_blank""><img src="""&shop_photo&""" alt="""&adoRS("shop_name")&""" width=""100"" height=""75"" /></a><p><a href=""shop.asp?shopid="&adoRS("shop_id")&""" target=""_blank"" title="""&adoRS("shop_name")&""">"&adoRS("photo_name")&"</a></p></dd>"
+				adoRS.MoveNext
+			end if
+		Next
+		multipage=viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=myphoto","当前总数:","ucenter.asp")
+%>
+<%response.write IsHot%>
+<%	End If 
+adoRS.close
+Set adoRS=Nothing
+%>
+          </dl>
+          <div class="clear"></div><div class="pages"><div class="plist"><%=multipage%></div></div>
+        </div>
+		</div>
+	</div>
+<%
+End Sub
+Sub myshop()
+%>
+	<div id="mainBody">
+		<div id="mainBodyLeft">
+			<div id="allpic" class="sidebar">
+			  <div class="title bt2">
+				<ul>
+				  <li class="current"><span>我的店铺</span></li>
+				</ul>
+			  </div>
+			  <div class="txt2">
+			 认领您的店铺后，您可以在这里管理您的店铺，完善店铺信息。认领方式请参考店铺展示页面。<BR>升级为VIP店铺后，您的店铺管理功能将更加强大，而且更有利于被检索到。通过网络进行全方位展示推广。<BR><BR>
+				 <div class="clear"></div>
+			  </div>
+			</div>
+		</div>
+		<div id="mainBodyRight">
+			<div id="list">
+			  <div class="title bt2">
+				  <ul>
+					<li class="current"><span>我的店铺</span></li>
+				  </ul>
+			  </div>
+			<div class="txt">
+<%
+Set rs1 = Server.CreateObject("ADODB.Recordset") 
+rs1.Open "Select * From "&shopTable&" where shop_own='"&Dreamsun_name&"'", conn,1,3
+SQLQueryNums=SQLQueryNums+1
+If rs1.bof And rs1.eof Then
+	Call backmsg("您还没有认领店铺，不能进入管理","")
+Else
+	shop_name=rs1("shop_name") 
+	shop_subname = rs1("shop_subname")
+	shop_type = rs1("shop_type")
+	shop_area = rs1("shop_area")
+	shop_addr = rs1("shop_addr")
+	shop_map = rs1("shop_map")
+	shop_url = rs1("shop_url")
+	shop_video = rs1("shop_video")
+	shop_telphone = rs1("shop_telphone")
+	shop_telphone2 = rs1("shop_telphone2")
+	shop_mobile = rs1("shop_mobile")
+	shop_content = rs1("shop_content")
+	shop_addname = rs1("shop_addname")
+	shop_id = rs1("shop_id")
+	shop_photo = rs1("shop_photo")
+End If 
+rs1.close
+set rs1=nothing
+%>
+<CENTER><H4>管理我的商铺</H4></CENTER><BR><form name="myform" class="democss" action="post.asp?cz=savemyshop" OnSubmit="return checkaddshop(this)" method=POST>
+  <dl>
+	<dt>商铺名称:</dt>
+    <dd><input type="text" id="shop_name" name="shop_name" class="t_input" value="<%=shop_name%>" size=40/> *例如：小肥羊</dd>
+	<dt>分 店 名:</dt>
+    <dd><input type="text" id="shop_subname" name="shop_subname" value="<%=shop_subname%>" class="t_input" size=20/> 所属分类
+<select name="typeid">
+<%
+	If Not IsArray(Arr_Category) Then GetTypeCache()
+	If Not IsArray(Arr_Category) Then Call backmsg("版块分类信息有错误，请检查","")
+	if ubound(Arr_Category,1)=0 then Response.Write("还没有版块分类")
+	For i=0 To Ubound(Arr_Category,2)
+		nowtype=""
+		If Int(Arr_Category(2,i))=GetBigTypeid(shop_type) Then
+		selected=""
+		If shop_type=Arr_Category(0,i) Then selected=" selected"
+		%><option value="<%=Arr_Category(0,i)%>"<%=selected%>><%=Arr_Category(1,i)%></option>
+		<%
+		End If
+	Next
+%></select>
+	</dd>
+
+    <dt>商铺地址:</dt>
+    <dd><input type="text" id="shop_addr" name="shop_addr" value="<%=shop_addr%>" class="t_input" size=40/> &nbsp;所属区域:<select name="areaid">
+<%
+	If Not IsArray(Arr_Area) Then GetAreaCache()
+	If Not IsArray(Arr_Area) Then Call backmsg("地区分类信息有错误，请检查","")
+	if ubound(Arr_Area,1)=0 then Response.Write("还没有地区分类")
+	For i=0 To Ubound(Arr_Area,2)
+	selected=""
+	If shop_area=Arr_Area(0,i) Then selected=" selected"
+		%>
+		<option value="<%=Arr_Area(0,i)%>"<%=selected%>><%=Arr_Area(1,i)%></option>
+		<%
+	Next
+%>  
+</select>
+<%
+If shop_area="" Then 
+	showming="提交"
+Else
+	showming="修改"
+End If 
+
+%>
+&nbsp;<A HREF="shop_map.asp?action=mapmark&shopid=<%=shop_id%>" target=blank><%=showming%>地图标注</A></dd>
+    <dt>联系电话:</dt>
+    <dd><input type="text" id="shop_telephone" name="shop_telephone"  class="t_input" value="<%=shop_telphone%>" size=20/>&nbsp;&nbsp; 备用电话:<input type="text" id="shop_telephone2" name="shop_telephone2" class="t_input" value="<%=shop_telphone2%>" size=20/></dd>
+    <dt>移动联系:</dt>
+    <dd><input type="text" id="shop_mobile" name="shop_mobile"  class="t_input" value="<%=shop_mobile%>" size=20/>&nbsp;&nbsp; 互联网址:<input type="text" id="shop_url" name="shop_url" class="t_input" value="<%=shop_url%>" size=20/></dd>
+	
+	<dt>店铺图片:</dt>
+    <dd><select name="shop_photo" onChange="document.getElementById('showimages').src = this.value">
+	<option value="">不需要图片</option>
+<%
+set adoRS=server.createobject("adodb.recordset")
+sql="select * from "&photoTable&" where photo_shop_id="&shop_id&" order by photo_addtime desc,photo_id desc"
+adoRS.open sql,conn,1,1
+SQLQueryNums=SQLQueryNums+1
+	If adoRS.eof And adoRS.bof Then
+		response.write "暂没有该类信息"
+	Else
+		do while not adoRS.eof
+		selected=""
+		If adoRS("photo_url")=shop_photo Then selected=" selected"
+	%>		<option value="<%=adoRS("photo_url")%>"<%=selected%>><%=adoRS("photo_name")%></option>
+	<%
+		adoRS.movenext
+		loop
+	End If 
+adoRS.close
+Set adoRS=Nothing
+If shop_photo="" Then shop_photo="images/noimg.gif"
+%></select> 更多图片<A HREF="page.asp?cz=uploadpic&shopid=<%=shop_id%>" target=_blank class="red">请上传</A></dd>
+    <dt>商铺介绍:</dt>
+    <dd><textarea rows="8" cols="50" name="shop_content"><%=shop_content%></textarea>&nbsp;<img src="<%=shop_photo%>" name=showimages id="showimages" width=130 height=110></dd>
+  </dl>
+  <div align=center><BR><input type="hidden" value="<%=shop_id%>" name="shop_id"/>
+    <input type="submit" value="提交修改" class="submit"/>
+    <input type="reset" value="清除重来" class="submit"/>
+  </div>
+</form><BR>
+          <div class="clear"></div>
+        </div>
+		</div>
+	</div>
+<%
+End Sub
+Sub myinfo()
+%>
+	<div id="mainBody">
+		<div id="mainBodyLeft">
+			<div id="allpic" class="sidebar">
+			  <div class="title bt2">
+				<ul>
+				  <li class="current"><span>店铺资讯</span></li>
+				</ul>
+			  </div>
+			  <div class="txt2"><BR><A HREF="ucenter.asp?Action=myinfo&cz=edit">添加资讯</A><BR>
+				 <div class="clear"></div>
+			  </div>
+			</div>
+		</div>
+		<div id="mainBodyRight">
+			<div id="list">
+			  <div class="title bt2">
+				  <ul>
+					<li class="current"><span>店铺资讯</span></li>
+				  </ul>
+			  </div>
+			<div class="txt">
+<%
+Set rs1 = Server.CreateObject("ADODB.Recordset") 
+rs1.Open "Select * From "&shopTable&" where shop_own='"&Dreamsun_name&"'", conn,1,3
+SQLQueryNums=SQLQueryNums+1
+If rs1.bof And rs1.eof Then
+	Call backmsg("您还没有认领店铺，不能进入管理","")
+Else
+	shop_name=rs1("shop_name") 
+	shop_id = rs1("shop_id")
+End If 
+rs1.close
+set rs1=Nothing
+
+If cz="editsave" Then 
+	news_id=CheckNum(Request.Form("news_id"))
+	news_title=CStr(Request.Form("news_title"))
+	news_shop=CStr(Request.Form("shop_id"))
+	news_type=Request.Form("news_type")
+	news_content=Request.Form("news_content")
+	If news_title="" Or Len(news_title)>100 Then response.write backmsg("名称太短或者太长","")
+	If news_content="" Then response.write backmsg("要有正文！","")
+	Set rs = Server.CreateObject("ADODB.Recordset")
+	'判断是修改还是添加
+	If news_id=0 Then'如果是添加
+		acts="添加"
+		sql = "SELECT * FROM "&newsTable&" where (news_id is null)" 
+		rs.OPEN sql,Conn,1,3
+		SQLQueryNums=SQLQueryNums+1
+		rs.addnew
+		rs("news_addtime")=Now()
+		rs("news_addname")=Dreamsun_name
+		rs("news_type")=news_type
+		rs("news_ischeck")=1
+		rs("news_shop")=news_shop
+	Else
+		acts="修改"
+		sql = "SELECT * FROM "&newsTable&" where news_id="&news_id
+		rs.OPEN sql,Conn,1,3
+	End If 
+	rs("news_title")=news_title
+	rs("news_content")=news_content
+	rs("news_type")=news_type
+	rs.update
+	rs.close
+	set rs=Nothing
+	conn.close
+	set conn=nothing
+	response.write backmsg("恭喜，新闻资讯"&acts&"成功！","ucenter.asp?Action=myinfo")
+
+ElseIf cz="list" Or cz="" Then 
+%>
+<ul class="newslist t14160">
+<%
+set adoRS=server.createobject("adodb.recordset")
+sql="select news_addtime,news_title,news_id from "&newsTable&" where news_shop="&shop_id&" order by news_addtime desc,news_id desc"
+SQLQueryNums=SQLQueryNums+1
+adoRS.open sql,conn,1,1
+	If adoRS.eof And adoRS.bof Then
+		response.write "<CENTER>暂时没有资讯，请添加</CENTER>"
+	Else
+		adoRS.PageSize     = MyPageSize
+		MaxPages         = adoRS.PageCount
+		adoRS.absolutepage = MyPage
+		Totalcount            = adoRS.RecordCount
+		for i=1 to adoRS.PageSize
+			If not adoRS.eof Then 
+			%><li><span><A HREF="ucenter.asp?Action=myinfo&cz=edit&id=<%=adoRS("news_id")%>">编辑</A> 删除</span><A HREF="news_read.asp?id=<%=adoRS("news_id")%>" target=_blank><%=adoRS("news_title")%></A></li>
+			<%adoRS.MoveNext
+			end if
+		Next
+		multipage=viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=myinfo","当前总数:","ucenter.asp")
+		%>
+</ul><div class="clear"></div>
+<div class="pages"><div class="plist"><%=multipage%></div></div>
+<%	End If 
+adoRS.close
+Set adoRS=Nothing
+
+ElseIf cz="edit" Then
+	id=CheckNum(Request.QueryString("id"))
+	If id=0 Then 
+		shuoming="添加"
+	Else
+		shuoming="管理"
+		Set rs1 = Server.CreateObject("ADODB.Recordset") 
+		rs1.Open "Select * From "&newsTable&" where news_id="&id, conn,1,3 
+			news_ischeck = rs1("news_ischeck")
+			If news_ischeck<1 Then response.write backmsg("本新闻已经被回收或者尚未审核，请返回！","")
+			news_title=rs1("news_title") 
+			news_addtime = rs1("news_addtime")
+			news_addname = rs1("news_addname")
+			news_content = rs1("news_content")
+			news_type = rs1("news_type")
+		rs1.close
+		set rs1=Nothing
+	End If 
+%>
+<CENTER><H4><%=shuoming%>我的商铺资讯</H4></CENTER>
+<form name="myform" class="democss" action="ucenter.asp?Action=myinfo&cz=editsave" OnSubmit="return checkaddinfo(this)" method=POST>
+  <dl>
+	<dt>信息标题:</dt>
+    <dd><input type="text" id="news_title" name="news_title" class="t_input" value="<%=news_title%>" size=60/>
+	信息分类：<select name="news_type">
+                <option value="0"<%If news_type=0 Then response.write " selected"%>>通知公告</option>
+                <option value="1"<%If news_type=1 Then response.write " selected"%>>新闻信息</option>
+                <option value="2"<%If news_type=2 Then response.write " selected"%>>其他资料</option>
+            </select>
+	</dd>
+
+  </dl><input type="hidden" id="news_id" name="news_id" value="<%=id%>"/>
+<div align=center>
+<textarea rows="14" cols="60" name="news_content" id="news_content" style="display:none"><%=news_content%></textarea>	<iframe id="FCK_Frame" src="cominc/editor/fckeditor.html?InstanceName=news_content&amp;Toolbar=Default" width="620" height="350" frameborder="no" scrolling="no"></iframe>
+
+ <BR> <BR><input type="hidden" value="<%=shop_id%>" name="shop_id"/>
+    <input type="submit" value="提交修改" class="submit"/>
+    <input type="reset" value="清除重来" class="submit"/>
+  </div>
+</form><%
+End If 
+%>		  
+		  <div class="clear"></div>
+        </div>
+		</div>
+	</div>
+<%
+End Sub
+%>
+</div>
+</div>
+<%
+'输出尾部信息
+response.write echo_bottom()
+%>

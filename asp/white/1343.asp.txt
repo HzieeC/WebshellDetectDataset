@@ -1,0 +1,143 @@
+<!--#include file="../inc/mdb.asp"-->
+<!--#include file="../inc/config.asp"-->
+<!--#include file="../inc/md5.asp"-->
+<%
+'****************************************************
+' 零柒。蜀工作室网站管理系统 Power by 07ing.com
+' Web: http://www.07ing.net, http://www.07ing.com
+' Copyright (C) 2006 零柒。蜀工作室 All Rights Reserved.
+'****************************************************
+Response.Buffer = True
+Response.ExpiresAbsolute = Now() - 1
+Response.Expires = 0
+Response.CacheControl = "no-cache" 
+response.Charset="gb2312"
+function GetMessUser(user)
+	GetMessUser=conn.Execute("select count(id) from message where incept='"&user&"' and flag=0")(0)
+end function
+dim name,pwd,CookieDate,userhidden,UserLogined
+if request.form("slogin")="ok" then
+  name=unescape(request.form("name"))
+  CookieDate=unescape(request.form("cookieDate"))
+  userhidden=unescape(request.form("userhidden"))
+  if request.form("name")="" then
+    response.write(escape("<div>用户名不能为空！</div>"))
+  elseif InStr(name," ")<>0 or InStr(name,"'")<>0 or InStr(name,"`")<>0 or InStr(name,"=")<>0 or InStr(name,"-")<>0 or InStr(name,",")<>0 or InStr(name,"""")<>0 then 
+    Response.Write(escape("<div>用户名非法！</div>"))
+  elseif request.form("pwd")="" then
+    response.write(escape("<div>密码不能为空！</div>"))
+  else
+    pwd=md5(unescape(request.form("pwd")))
+    set rs=server.createobject("adodb.recordset")
+    sql="select * from [User] where username='" & name & "' and password='" & pwd &"'"
+    rs.open sql,conn,1,3
+    if rs.bof and rs.eof then
+       response.write(escape("<div>您输入的用户名或密码错误！</div>"))
+    else
+       if rs("userlock")=1 then
+          response.write(escape("<div>此账号已被锁定，请和管理员联系！</div>"))
+       elseif rs("userlock")=2 then
+          response.write(escape("<div>此账号尚未通过审核验证！</div>"))
+       else
+	  rs("LastLoginIP")=userip
+	  rs("LastLoginTime")=now()
+	  rs("LoginTimes")=rs("LoginTimes")+1
+	  rs.update
+          Response.Cookies(Uservar&"HX_USER")("User_Name")=name
+	  Response.Cookies(Uservar&"HX_USER")("User_Pwd")=pwd
+          Response.Cookies(Uservar&"HX_USER")("uid")=rs("userid")
+          Response.Cookies(Uservar&"HX_USER")("Grade")=rs("userGrade")
+          Response.Cookies(Uservar&"HX_USER")("LoginTimes")=rs("LoginTimes")
+          Response.Cookies(Uservar&"HX_CHECK")("uid")=rs("userid")
+          Response.Cookies(Uservar&"HX_USER")("Md5Name") = md5(wdsn&name)
+          Response.Cookies(Uservar&"HX_USER")("userhidden")=userhidden
+          select case CookieDate
+		case 0
+			Response.Cookies(Uservar&"HX_USER")("CookieDate") = CookieDate
+		case 1
+		   	Response.Cookies(Uservar&"HX_USER").Expires=Date+1
+			Response.Cookies(Uservar&"HX_USER")("CookieDate") = CookieDate
+		case 2
+			Response.Cookies(Uservar&"HX_USER").Expires=Date+31
+			Response.Cookies(Uservar&"HX_USER")("CookieDate") = CookieDate
+		case 3
+			Response.Cookies(Uservar&"HX_USER").Expires=Date+365
+			Response.Cookies(Uservar&"HX_USER")("CookieDate") = CookieDate
+	  end select
+                Response.Cookies(Uservar&"HX_CHECK")("uid")=rs("userid")
+                Response.Cookies(Uservar&"HX_CHECK").Expires=Date+365
+          rs.close
+          set rs=nothing
+       end if
+    end if
+  end if
+end if
+if request.QueryString("hx66")="logout" then
+	Response.Cookies(Uservar&"HX_USER")("User_Name")=""
+	Response.Cookies(Uservar&"HX_USER")("User_Pwd")=""
+        Response.Cookies(Uservar&"HX_USER")("uid")=""
+        Response.Cookies(Uservar&"HX_CHECK")("uid")=""
+        Response.Cookies(Uservar&"HX_USER")("Grade")=""
+        Response.Cookies(Uservar&"HX_USER")("LoginTimes")=""
+        Response.Cookies(Uservar&"HX_USER")("userhidden")=""
+        Response.Cookies(Uservar&"HX_USER")("Md5Name") = ""
+end if
+if Request.Cookies(Uservar&"HX_USER")("User_Name")="" or isnull(Request.Cookies(Uservar&"HX_USER")("User_Name")) or Request.Cookies(Uservar&"HX_USER")("User_Pwd")="" or isnull(Request.Cookies(Uservar&"HX_USER")("User_Pwd")) then
+UserLogined=False
+else
+function ReplaceBadChar(strChar)
+	if strChar="" then
+		ReplaceBadChar=""
+	else
+                ReplaceBadChar=replace(replace(replace(replace(replace(replace(replace(strChar,"'",""),"*",""),"?",""),"(",""),")",""),"<",""),".","")
+	end if
+end function
+userid=clng(request.Cookies(Uservar&"HX_USER")("uid"))
+username=ReplaceBadChar(request.Cookies(Uservar&"HX_USER")("User_Name"))
+password=ReplaceBadChar(request.Cookies(Uservar&"HX_USER")("User_Pwd"))
+sql="select UserName,points,UserPhoto from [User] where userid=" & userid &" and UserName='" & Username & "' and password='" & password & "'"
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,1
+IF not Rs.eof Then
+  UserLogined=True
+  Hx66_name=rs(0)
+  Hx66_points=rs(1)
+  Hx66_Photo=rs(2)
+End IF
+  rs.close
+  set rs=nothing
+End IF
+if UserLogined=True then
+showuser="<div class=""Tab_left""><ul>"
+showuser=showuser&"<li class=""other_7"">欢迎您："&Hx66_name&"</li>"
+showuser=showuser&"<li class=""other_7"">您的积分："&Hx66_points&"</li>"
+showuser=showuser&"<li class=""other_7""><a title=""查看短信"" href="""&InstallDir&"User/Messager.asp?action=inbox"" onclick=""HxWindow(this.href,'MS','500','450','yes','yes','center');return false"">您的短信："&GetMessUser(Hx66_name)&"</a></li>"
+showuser=showuser&"<li class=""other_7""><a href="""&InstallDir&"User/user_main.asp"">会员中心</a>&nbsp;&nbsp;<a href=""#"" onclick=""javascript:goutRequest();"">安全退出</a></li>"
+showuser=showuser&"</ul></div>"
+showuser=showuser&"<div class=""Tab_right"">"
+if Hx66_Photo<>"" then
+        if lcase(left(Hx66_Photo,7))="http://" then
+          Hx66_Photo=Hx66_Photo
+        else
+          Hx66_Photo=InstallDir&Hx66_Photo
+        end if
+   showuser=showuser&"<img src="""&Hx66_Photo&""" width=""75"" height=""75"" alt="""" /></div>"
+else
+   showuser=showuser&"<img src="""&InstallDir&"img/face/09.gif"" width=""75"" height=""75"" alt="""" /></div>"
+end if
+else
+showuser="<div class=""Tab_left""><ul><li class=""other_7"">用户名:<input type=""text"" name=""username"" id=""username"" value="""" size=""15"" maxlength=""20"" /><select style=display:none id=""cookieDate""><option value=""0"">不存</option><option value=""1"">一天</option><option value=""2"">一月</option><option value=""3"">一年</option></select></li>"
+showuser=showuser&"<li class=""other_7"">密&nbsp;&nbsp;码:<input type=""password"" name=""password"" id=""password"" value="""" size=""15"" maxlength=""20"" />&nbsp;"
+showuser=showuser&"<select id=""userhidden"" style=display:none><option value=""0"">正常</option><option value=""1"">隐身</option></select></li>"
+showuser=showuser&"<li class=""other_7""><input type=""hidden"" name=""slogin"" id=""slogin"" value=""ok"" />"
+showuser=showuser&"<input type=""image"" src="""&InstallDir&"img/login.gif"" onclick=""javascript:sendRequest();"" />&nbsp;<a href="""&InstallDir&"User/UserReg.asp"" target=""_blank""><img src="""&InstallDir&"img/reg.gif"" alt="""" /></a></li></ul></div>"
+end if
+Response.Write(escape(showuser))
+conn.close
+set conn=nothing
+'****************************************************
+' 零柒。蜀工作室网站管理系统 Power by 07ing.com
+' Web: http://www.07ing.net, http://www.07ing.com
+' Copyright (C) 2006 零柒。蜀工作室 All Rights Reserved.
+'****************************************************
+%>

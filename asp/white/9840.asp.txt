@@ -1,0 +1,596 @@
+<!--#include file="../act_inc/ACT.User.asp"-->
+<!--#include file="../ACT_inc/ACT.M.ASP"-->
+ <!--#include file="../editor/user.asp"-->
+<% 
+'=====================================================================
+' 软件名称：ACTCMS网站管理系统
+' 更新日期：2008大年初一
+'=====================================================================
+' Copyright 2003-2007 fycms.com - All Rights Reserved.
+' actcms is a trademark of fycms.com
+'=====================================================================
+  	dim ClassID,rs,ClassName,Title,Keywords,CopyFrom,Content,ID,PicUrl,isAccept,action
+	dim ActCMS_DIY,ModeID,ACT_DIY,UserHS,U_Simple,sh ,author
+  	
+	Set UserHS = New ACT_User
+	IF Cbool(UserHS.UserLoginChecked)=false then
+	  echo "<script>top.location.href ='login.asp' ;</script>"
+	  Response.end
+	End If	
+	ID=ChkNumeric(actcms.s("ID"))
+	sh=ChkNumeric(actcms.s("sh"))
+	If UserHS.G_Simple="" Then 
+		U_Simple="Simple"
+	Else
+		U_Simple=UserHS.G_Simple
+	End If 
+  ModeID=ChkNumeric(actcms.ACT_L(Rsql(ACTCMS.G("ClassID")),10))
+	if ModeID="0" then response.Redirect "ACT.manage.asp"
+  	Set ACT_DIY = ActCMS.actexe("Select ACT_DiY from Mode_Act where ModeID="& ModeID)
+    ActCMS_DIY=Split(ACT_DIY("ACT_DiY"),"§") 
+ 
+ 	 action=request("action")
+	 select case action
+	 
+		case "adds","edit"
+			call adds()
+		case "addSave"
+			call Saveadd()
+		case "editSave"
+			call Saveedit()
+ 		case else
+			call adds()
+	end select
+	
+	
+
+	sub Saveedit()
+	dim Save_SQL,IF_NULL,i
+		 Title=Trim(ACTCMS.S("Title"))
+		 Keywords=Trim(ACTCMS.S("Keywords"))
+		 CopyFrom=Trim(ACTCMS.S("CopyFrom"))
+		 author=Trim(ACTCMS.S("author"))
+ 		 Content=ACTCMS.G("Content")
+		 PicUrl=ACTCMS.S("PicUrl")
+		 isAccept=ACTCMS.S("isAccept")
+ 		 IF_NULL=ACTCMS.Act_MX_Arr(ModeID,1)
+		 If IsArray(IF_NULL) Then
+			For I=0 To Ubound(IF_NULL,2)
+			 If IF_NULL(2,I)=0 And Trim(ACTCMS.G(IF_NULL(0,I)))="" Then  Call  ACTCMS.ALERT(IF_NULL(1,I)&"不能为空","")
+			Next
+		 End If
+				 If UserHS.G_A_SH="0" And isAccept=0 Then 
+				 	isAccept=0 
+				 elseIf isAccept=1 Then 
+					isAccept=1
+				else
+					isAccept=2
+				end if
+			If UserHS.G_A_SH="1" Then isAccept=2:Else:isAccept=0 
+				
+				  If Title="" Then
+					Call ACTCMS.alert("请输入简短标题","")
+				    Exit Sub
+				  End IF
+				  If Content="" Then
+					Content=" "
+ 				  End IF
+		Set Save_SQL=Server.CreateObject("Adodb.Recordset")		  
+		Save_SQL.Open "Select * From "&ACTCMS.ACT_C(ModeID,2)&"  Where    articleinput='"& UserHS.UserName &"' and ID=" & ChkNumeric(ACTCMS.G("ID")),Conn,1,3
+		if Save_SQL.eof then echo "error":response.end
+		if Save_SQL("isAccept")="0" then echo "该文章已经审核通过.不能再继续修改":response.end
+		Save_SQL("Title") = Title'简短标题
+		Save_SQL("isAccept") = isAccept
+	'	Save_SQL("Content") = Content'内容
+	 	If actcms.ACT_C(modeid,18)="0" Then  	Save_SQL("Content") = Content'内容
+
+		Save_SQL("CopyFrom") = CopyFrom'来源
+		Save_SQL("actlink") = 0'作者
+		if author="" then 
+			Save_SQL("author") = UserHS.UserName
+		else 
+			Save_SQL("author") = author
+		end if 
+		Save_SQL("Keywords") = Keywords'关键字
+ 		Save_SQL("addtime")=now
+		Save_SQL("ArticleInput") = UserHS.UserName
+		Save_SQL("upip") = getip()
+ 		'If isAccept=0 Then  Conn.Execute("Update "&UserHS.TableName(UserHS.UModeID)&" Set ArticleNum=ArticleNum+1 Where UserName='" & UserHS.UserName & "'")'暂放
+
+			If IsArray(IF_NULL) Then
+				For I=0 To Ubound(IF_NULL,2)
+ 					If IF_NULL(3,I)="NumberType" Then 
+					   If actcms.regexField(ACTCMS.S(IF_NULL(0,I)),"^\d+$")=True Then 
+						   Save_SQL("" & IF_NULL(0,I) & "" )= ACTCMS.S(IF_NULL(0,I))
+					   End If 
+					ElseIf IF_NULL(3,I)="DateType" Then 
+						If IsDate(ACTCMS.S(IF_NULL(0,I)))=False Then 
+							Save_SQL("" & IF_NULL(0,I) & "")= Now()
+						Else 
+							Save_SQL("" & IF_NULL(0,I) & "")=ACTCMS.S(IF_NULL(0,I))
+						End If 
+					Else 
+						Save_SQL("" & IF_NULL(0,I) & "")=ACTCMS.S(IF_NULL(0,I))
+					End If 
+				Next
+			End If
+
+
+ 	    Save_SQL("PicUrl")=PicUrl
+ 		Save_SQL.update
+	    Save_SQL.Close:Set Save_SQL=Nothing
+
+
+
+		If actcms.ACT_C(modeid,18)="1" Then 
+
+ 			Call actcms.CreateFolder(ACTCMS.ActSys&"cache/"&ModeID&"/")
+			Call noSaveFile("by www.fycms.com",ACTCMS.ActSys&"cache/"&ModeID&"/index.html")
+			Call noSaveFile(Content,ACTCMS.ActSys&"cache/"&ModeID&"/"&md5(AcTCMSN&addtime&id,32)&".txt")
+
+		End If 
+
+
+
+		call ACTCMS.alert("修改成功!","ACT.manage.asp")
+				
+	end sub
+	sub Saveadd()
+	dim TGGroupID,NewsID,Save_SQL
+		 ClassID=Rsql(ACTCMS.G("ClassID"))
+		
+		 Title=Trim(ACTCMS.S("Title"))
+  		
+		 Keywords=Trim(ACTCMS.S("Keywords"))
+		 CopyFrom=Trim(ACTCMS.S("CopyFrom"))
+		 author=Trim(ACTCMS.S("author"))
+		 Content=ACTCMS.G("Content")
+		 PicUrl=ACTCMS.S("PicUrl")
+		 isAccept=ACTCMS.S("isAccept")
+				  if ClassID="" Then ClassID=0
+				  If ClassID=0 Then
+					Call ACTCMS.alert("请选择栏目","")
+				    Exit Sub
+				  End IF
+				  If Title="" Then
+					Call ACTCMS.alert("请输入简短标题","")
+				    Exit Sub
+				  End IF
+		 TGGroupID=Conn.Execute("Select TGGroupID From Class_Act Where ClassID=" & ClassID &"")(0)
+		IF InStr(TGGroupID,UserHS.GroupID)=0 Then		
+			call ACTCMS.alert("该栏目禁止投稿或您没有这个权限,请不要从外部提交数据!","")
+			Exit Sub
+		End IF	
+
+				If isAccept="1" Then 
+					isAccept=1
+				elseif UserHS.G_A_SH="0" And isAccept=0 Then 
+				 	isAccept=0 
+					'Call ACTCMS.isAcceptOK(ModeID,UserHs.GroupID,UserHS.UserName,Title)
+				else
+					isAccept=2
+				end If
+				  If Content="" Then
+					Content=" "
+ 				  End IF
+		Dim ChkFileName,strFileName,IF_NULL,i
+
+		IF_NULL=ACTCMS.Act_MX_Arr(ModeID,1)
+		If IsArray(IF_NULL) Then
+			For I=0 To Ubound(IF_NULL,2)
+			 If IF_NULL(2,I)=0 And Trim(ACTCMS.G(IF_NULL(0,I)))="" Then  Call  ACTCMS.ALERT(IF_NULL(1,I)&"不能为空","")
+			Next
+		End If
+
+		strFileName=ACTCMS.ACT_L(ClassID,16)
+			If Instr(strFileName,"{y}") > 0 Then strFileName = Replace(strFileName,"{y}",Right("0" & Year(Now), 2))
+			If Instr(strFileName,"{yy}") > 0 Then strFileName = Replace(strFileName,"{yy}", Year(Now))
+			If Instr(strFileName,"{m}") > 0 Then strFileName = Replace(strFileName,"{m}",Right("0" & Month(Now), 2))
+			If Instr(strFileName,"{time}") > 0 Then strFileName = Replace(strFileName,"{time}", hour(time))
+			If Instr(strFileName,"{d}") > 0 Then strFileName = Replace(strFileName,"{d}",Right("0" & Day(Now), 2))
+			If Instr(strFileName,"{date}") > 0 Then strFileName = Replace(strFileName,"{date}",Year(Now) & "-" & Month(Now) & "-" & Day(Now))
+			If Instr(strFileName,"{enname}") > 0 Then strFileName = Replace(strFileName,"{enname}",Actcms.ACT_L(classid,3))
+			If Instr(strFileName,"{md5}") > 0 Then strFileName = Replace(strFileName,"{md5}",MD5(Now,32))
+			If Instr(strFileName,"{rnd}") > 0 Then strFileName = Replace(strFileName,"{rnd}",ACTCMS.GetRandomize(10))
+			If Instr(strFileName,"{pinyin}") > 0 Then strFileName = Replace(strFileName,"{pinyin}",ACTCMS.GetEn(ACTCMS.PinYin(delhtml(Title))))
+
+		If Instr(strFileName,".")>0 Then '截取扩展名
+			Dim Tmps,TmpUs : Tmps = Split(strFileName,".") : TmpUs = Tmps(Ubound(Tmps)-1)
+			strFileName=TmpUs
+		End If 
+		If Right(strFileName,1)="/" Then 
+			strFileName=Left(strFileName, Len(strFileName) - 1)
+		End If 
+ 	
+		If InStr(strFileName, "//") > 0   Then
+			strFileName = Replace(strFileName, "//","/")
+		End If 
+
+		set ChkFileName = actcms.actexe("select ID From "&ACTCMS.ACT_C(ModeID,2)&" where ClassID=" & ClassID &" and FileName='"& strFileName &"' order by ID desc")
+		if Not ChkFileName.eof then
+			Call ACTCMS.alert("文件名重复","")
+			Response.end
+		End If
+		Set Save_SQL = server.CreateObject("adodb.recordset")
+		Save_SQL.Open "Select * from "&ACTCMS.ACT_C(ModeID,2)&" where 1=0",Conn,1,3
+		
+		Save_SQL.AddNew
+		Save_SQL("ClassID") = ClassID
+		Save_SQL("Title") = Title'简短标题
+		Save_SQL("isAccept") = isAccept
+		Save_SQL("TemplateUrl") = ACTCMS.ACT_L(ClassID,5)
+		If actcms.ACT_C(modeid,18)="0" Then  	Save_SQL("Content") = Content'内容
+
+		'Save_SQL("Content") = Content'内容
+		Save_SQL("CopyFrom") = CopyFrom'
+		Save_SQL("Keywords") = Keywords'关键字
+		Save_SQL("addtime")=now
+		Save_SQL("ArticleInput") = UserHS.UserName
+		if author="" then 
+			Save_SQL("author") = UserHS.UserName
+		else 
+			Save_SQL("author") = author
+		end if 
+		Save_SQL("actlink") = 0'作者
+		Save_SQL("userid") = UserHS.userid'作者
+		Save_SQL("delif") = 0
+			If IsArray(IF_NULL) Then
+				For I=0 To Ubound(IF_NULL,2)
+ 					If IF_NULL(3,I)="NumberType" Then 
+					   If actcms.regexField(ACTCMS.S(IF_NULL(0,I)),"^\d+$")=True Then 
+						   Save_SQL("" & IF_NULL(0,I) & "" )= ACTCMS.S(IF_NULL(0,I))
+					   End If 
+					ElseIf IF_NULL(3,I)="DateType" Then 
+						If IsDate(ACTCMS.S(IF_NULL(0,I)))=False Then 
+							Save_SQL("" & IF_NULL(0,I) & "")= Now()
+						Else 
+							Save_SQL("" & IF_NULL(0,I) & "")=ACTCMS.S(IF_NULL(0,I))
+						End If 
+					Else 
+						Save_SQL("" & IF_NULL(0,I) & "")=ACTCMS.S(IF_NULL(0,I))
+					End If 
+				Next
+			End If
+
+
+		Save_SQL("userip") = getip()
+ 	  Save_SQL("FileName") = strFileName'文件名
+	  Save_SQL("PicUrl")=PicUrl
+ 		Save_SQL.update
+
+			Set rs=ACTCMS.actexe("Select top 1 id,classid,FileName from "&ACTCMS.ACT_C(ModeID,2)&"  order by id desc")
+			If Not rs.eof Then ID = rs("ID")
+			If Instr(strFileName,"{id}") > 0 Then 
+				strFileName = Replace(rs("FileName"),"{id}",rs("id"))
+				ACTCMS.actexe("Update "&ACTCMS.ACT_C(ModeID,2)&" set FileName='"&strFileName&"' where id="&id)
+			End If 
+
+
+
+		If actcms.ACT_C(modeid,18)="1" Then 
+
+ 			Call actcms.CreateFolder(ACTCMS.ActSys&"cache/"&ModeID&"/")
+			Call noSaveFile("by www.fycms.com",ACTCMS.ActSys&"cache/"&ModeID&"/index.html")
+			Call noSaveFile(Content,ACTCMS.ActSys&"cache/"&ModeID&"/"&md5(AcTCMSN&addtime&id,32)&".txt")
+
+		End If 
+
+
+
+	    Save_SQL.Close:Set Save_SQL=Nothing
+	    echo "<script>if (confirm('添加成功，继续添加吗?')){location.href='ACT.Add.asp?action=add&ClassID=" & ClassID &"';}else{location.href='ACT.manage.asp';}</script>"
+		
+	end sub
+	sub adds()
+	Dim KeywordArr,I
+	Set Rs=server.CreateObject("adodb.recordset") 
+	KeywordArr=Split(ActCMS_DIY(4), "-")
+
+	IF Action = "edit" Then
+	id=ChkNumeric(ACTCMS.G("ID"))
+	Rs.Open "Select * From "&ACTCMS.ACT_C(ModeID,2)&"  Where articleinput='"& UserHS.UserName &"' and ID=" & id,Conn,1,3
+		IF Rs.eof Then 
+			call Actcms.alert("非法提交数据,试图更改其他用户内容!","ACT.manage.asp")
+			Response.End
+		Else
+			Title=RS("Title")
+			ClassID=RS("ClassID")
+			If RS("Content") <> "" Then Content=Server.HTMLEncode(RS("Content"))
+			Keywords=RS("Keywords")
+ 			CopyFrom=RS("CopyFrom")
+			isAccept=RS("isAccept")
+			PicUrl=RS("PicUrl")
+			Rs.close
+ 	End IF
+	else
+ 		ClassID=Rsql(ACTCMS.G("ClassID"))
+ 		CopyFrom=ActCMS_DIY(8)
+	   If UBound(KeywordArr)=>0 Then Keywords=KeywordArr(0)
+	end if
+		Rs.OPen "Select * from class_Act  where ClassID=" & ClassID &"",Conn,1,1
+		IF Not Rs.eof Then
+			ClassID = Rs("ClassID"):ClassName = Rs("ClassName")
+		End IF
+	%>	
+ <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>会员中心</title>
+<script language="JavaScript" src="main.js"></script>
+<%=writejs("../")%>
+<script type='text/javascript' src='../ACT_INC/js/time/WdatePicker.js'></script>
+<script type='text/javascript' src='../ACT_INC/main.js'></script>
+<script type="text/javascript" src="../ACT_INC/js/swfobject.js"></script>
+ <script type="text/javascript">
+var U="<%=ACTCMS.strToAsc(Rsql(Trim(Request.Cookies(AcTCMSN)("UserName"))))%>";
+var P="<%=ACTCMS.strToAsc(Rsql(Trim(Request.Cookies(AcTCMSN)("PassWord"))))%>";
+</script>
+ <link href="images/css.css" rel="stylesheet" type="text/css" />
+ </head>
+<body style="background-color:#fff">
+<div id="head">
+  <div id="logo"><a href="index.asp" alt=""><img src="images/logo_member.gif" alt="actcms"></a></div><div id="banner"></div>
+</div>
+<div id="membermenu">
+<!--#include file="menu.asp"-->
+</div>
+ 
+
+<div id="main">
+<div id="left">
+  <div id="treemenu">
+    <h5>信息管理</h5>
+    <ul>
+        <li><a href="ACT.Add.asp?action=add&ClassID=<%= ClassID %>">发布信息</a></li>
+        <li><a href="ACT.manage.asp?sh=0">审核通过</a></li>
+        <li><a href="ACT.manage.asp?sh=1">草稿</a></li>
+        <li><a href="ACT.manage.asp?sh=2">待审核</a></li>
+        <li><a href="ACT.manage.asp?sh=3">被退稿</a></li>
+        <li><a href="ACT.manage.asp?sh=999">已删除</a></li>
+    </ul>
+  </div>
+  <ol>
+    <li class="local"><a href="<%= AcTCMS.Domain%>">返回网站首页</a></li>
+    <li class="exit"><a href="Checklogin.asp?Action=LoginOut">退出登录</a></li>
+  </ol>
+</div>
+<div id="right">
+
+<p id="position"><strong>当前位置：</strong><a href="index.asp">会员中心</a><a href="ACT.manage.asp">信息管理</a><a href="?ClassID=<%= ClassID %>&sh=<%= sh %>"><%= actcms.ACT_L(ClassID,2) %></a>添加/修改 信息</p>
+<div class="clear"></div>
+<div class="clear"></div>
+<form action="act.add.asp?action=<%= Action %>Save&ClassID=<%= ClassID %>&ID=<%= ID %>" method="post" name="actcmsform" >
+<table cellpadding="0" cellspacing="1" class="table_form">
+<caption>发布信息</caption>
+    <tr> 
+      <th width="20%"><font color="red">*</font> <strong>标题：</strong><br />    </th>
+      <td><input type="text" name="Title"   value="<%= Title %>" size="50" class="inputtitle"  />  </td>
+    </tr>
+<tr> 
+      <th width="20%">    <strong>栏目：</strong><br />    </th>
+      <td><b><%= ClassName %></b>  </td>
+    </tr>
+    
+ 	<%  
+	If ActCMS_DIY(5)="0" Then
+%>   
+<tr> 
+      <th width="20%">   <strong>关键字：</strong><br />    </th>
+      <td><input type="text" name="Keywords" id="Keywords" value="<%= Keywords %>" size="50"     max="80"  />
+  <input id=Tags type="checkbox" name="Tags" value="1"><label for=Tags>加到Tags中</label>    
+<%
+		  For I = 0 To UBound(KeywordArr)
+			echo  "<a href=""javascript:SetValue('add','Keywords','"&","&KeywordArr(I) &"')"">【<font color=""blue"">" & KeywordArr(I) & "</font>】</a>"
+		  Next
+	%>      
+        </td>
+    </tr>
+ 
+   <%Else
+		echo "<input type=""hidden"" id=""Keywords"" name=""Keywords"" value="""&Keywords&""">"
+	End If 
+
+ 
+	If ActCMS_DIY(7)="0" Then 
+  %>   
+    
+<tr> 
+      <th width="20%">  <strong>作者：</strong><br />    </th>
+      <td><input type="" name="author" id="author" value="<%= author %>" size="50"   />  </td>
+    </tr>
+  <%   Else
+		echo "<input type=""hidden"" id=""CopyFrom"" name=""author"" value="""&author&""">"
+	End If 
+	
+	
+	
+	If ActCMS_DIY(9)="0" Then 
+  %>   
+    
+<tr> 
+      <th width="20%">  <strong>来源：</strong><br />    </th>
+      <td><input type="" name="CopyFrom" id="CopyFrom" value="<%= CopyFrom %>" size="50"   />  </td>
+    </tr>
+  <%   Else
+		echo "<input type=""hidden"" id=""CopyFrom"" name=""CopyFrom"" value="""&CopyFrom&""">"
+	End If 
+	
+   If UserHS.G_UserUpFilesTF="1" Then
+  %>   
+    
+<tr> 
+      <th width="20%">  <strong>上传图片：</strong><br />    </th>
+      <td><input   name="PicUrl" type="text" id="PicUrls" value="<%= PicUrl %>" size="50"   /> 
+ 	  
+ <iframe src="Upload_Admin.asp?ModeID=<%=ModeID%>&instr=2&instrname=PicUrls" name="image" width='250' height="30" scrolling="No" frameborder="0" id="image"></iframe> 
+
+
+	  
+	  </td>
+    </tr>
+  <%  
+	End If 
+	
+	'-----------------------------------------自定义字段开始-------------------------------------------------------------------------
+	 %>
+    
+
+
+
+
+   <% 	 '
+If Action="edit" Then 
+	If actcms.ACT_C(ModeID,16)="0" Then 
+	    echo M.ACT_MXEdit(ModeID,ID) 
+	Else
+		echo  M.ReplaceFormEdit(ModeID,id,LTemplate(actcms.ACTSYS&"act_inc/cache/"&ModeID&"/"&ACTCMS.ACT_C(1,2)&"-mode.inc"))
+	 
+    End If 
+
+   Else 
+	If actcms.ACT_C(ModeID,16)="0" Then 
+
+	   echo   M.ACT_NoRormMXList(ModeID)
+	Else
+		echo  M.ReplaceForm(ModeID,LTemplate(actcms.ACTSYS&"act_inc/cache/"&ModeID&"/"&ACTCMS.ACT_C(1,2)&"-mode.inc"))
+	 
+    End If 
+   End If %> 
+  
+    
+  <% 	'-----------------------------------------自定义字段结束-------------------------------------------------------------------------
+ %>  
+    
+    
+    
+<tr> 
+      <th width="20%">  <strong>状态：</strong><br />    </th>
+      <td>
+      
+<input <% IF isAccept = 0 Then echo "Checked" %> name="isAccept" id="IsAcceptTF1" type="radio" value="0" ><label for="IsAcceptTF1">投搞</label>
+      <input <% IF isAccept = 1 Then echo "Checked" %> type="radio" name="isAccept" id="IsAcceptTF2" value="1"><label for="IsAcceptTF2">草稿</label>
+     &nbsp;&nbsp; <% If UserHS.G_A_SH="1" Then echo "当前系统状态：<font color=red>发布内容需要管理员审核才能显示</font>" else echo "当前系统状态：<font color=green>发布内容不需要管理员审核</font>" %>      
+      </td>
+    </tr>
+<% 
+If ActCMS_DIY(25)="0" Then
+
+%>
+
+<tr>
+  <th colspan="2" ><div align="left"><font color="#ff0000">如果内容较长可以使用分页标签：</font>
+        <input name="button"  type="button"  class="button_style" style="cursor:hand;" onClick="insertHTMLToEditor('[NextPage]','content1');" value="[NextPage]">
+    点击插入，注意大小写</div></th>
+  </tr>
+<tr> 
+
+<tr> 
+       <th width="20%">    <strong>批量上传图片：</strong><br />   </th>
+      <td>
+<div id="sapload">
+    
+    </div>
+ 
+ <script type="text/javascript">
+// <![CDATA[
+var so = new SWFObject("<%=actcms.actsys%>act_inc/sapload.swf", "sapload", "450", "25", "9", "#ffffff");
+so.addVariable('types','<%=Replace(UserHS.G_UpFileType,"/",";")%>');
+so.addVariable('isGet','1');
+so.addVariable('args','myid=Upload;ModeID=1;U='+U+";"+';P='+P+";"+'Yname=content1');
+so.addVariable('upUrl','Upload.asp');
+so.addVariable('fileName','Filedata');
+so.addVariable('maxNum','10');
+so.addVariable('maxSize','100.0107421875');
+so.addVariable('etmsg','1');
+so.addVariable('ltmsg','1');
+so.addParam('wmode','transparent');
+so.write("sapload");
+ 	function sapLoadMsg(t){
+		var actup=t.split('|');
+		 {
+
+				if (actup.length==2)
+				{
+ 				insertHTMLToEditor(actup[1],actup[0]);
+				}
+				else
+				{
+				addImage(actup[0], actup[1], actup[2], actup[3]);
+				}
+ 		}
+		}
+
+// ]]>
+</script> 
+ </td>
+
+</tr>
+
+<tr> 
+       <th  colspan="2">     
+       
+   <%=writeeditor(ModeID,"content1","content","",Content)%>
+	 
+	 
+ </th>
+    </tr>
+ <%  Else
+		echo "<input type=""hidden"" id=""Content"" name=""Content"" value="""&Content&""">"
+	  End If
+
+%>
+    <tr> 
+      <td></td>
+      <td> 
+  <input type=button onclick=CheckForm() class="button_style"  name=Submit1 value="    保存    " />
+  &nbsp;&nbsp; 
+  <input type="reset" name="button" class="button_style" id="button" value="  清除  ">
+       &nbsp;&nbsp; <input type="reset" class="button_style" name="Submit2" value="  返回  " onClick="javascript:history.back()">   
+    </td>
+    </tr>
+</table>
+</form>
+
+  </div>
+</div>
+ <% end sub  %>
+<script language="JavaScript" type="text/javascript">
+<%=insertjs()%>
+function CheckForm()
+{ var form=document.actcmsform;
+  
+	 if (form.Title.value=='')
+    { alert("请填写标题!");   
+	  form.Title.focus();    
+	   return false;
+    }
+	<%=checkeditpost(ModeID,1)%>
+	    form.Submit1.value="正在提交数据,请稍等...";
+		form.Submit1.disabled=true;	
+		form.Submit2.disabled=true;	
+	    form.submit();
+        return true;
+	}
+
+  function SetValue(type,objname,strvalue)
+{ 
+	var obj=document.getElementById(objname)
+	if (type=="add"){
+		obj.value=',,,'+obj.value
+		obj.value=obj.value.replace(strvalue,'');
+		obj.value=obj.value+strvalue;
+		obj.value=obj.value.replace(',,,','');
+		obj.value=obj.value.replace(',,','');
+		}
+	else if (type=="+"){obj.value=parseInt(obj.value)+parseInt(strvalue);}
+	else{obj.value=strvalue;}
+	obj.focus(); 
+ return; 
+}	
+  
+ 
+  </script>
+<!--#include file="foot.asp"-->
+</body>
+</html>

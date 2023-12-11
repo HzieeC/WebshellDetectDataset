@@ -1,0 +1,143 @@
+<!--#include file="const.asp"-->
+<!--#include file="common.asp"-->
+<%
+Dim specialid,specialname,specialdir,classname
+Dim HtmlFilePath,HtmlFileName,BuildHtmlDone
+BuildHtmlDone=0
+
+Sub main()
+	maxperpage=NewAsp.ChkNumeric(TPL_Config(1))
+	If maxperpage=0 Then maxperpage=20
+	i=0:n=0:BuildHtmlDone=0
+	If IsNowOutputText Then
+		pagenow=NewAsp.ChkNumeric(Request("page"))
+		m_intOrder=NewAsp.ChkNumeric(Request("order"))
+		specialid=NewAsp.ChkNumeric(Request("specialid"))
+	Else
+		Pcount=0
+	End If
+	If pagenow=0 Then pagenow=1
+	Dim Rs
+	Set Rs = NewAsp.Execute("SELECT SpecialID,SpecialName,SpecialDir FROM [NC_Special] WHERE ChannelID="&ChannelID&" And specialid="&specialid)
+	If Rs.BOF And Rs.EOF Then
+		Response.Write "<meta http-equiv=""refresh"" content=""5;url=/"" />" & vbNewLine
+		Response.Write "<p align=""center"" style=""font-size: 16px;color: red;"">对不起，该页面发生了错误，无法访问! 系统两秒后自动转到网站首页......</p>" & vbNewLine
+		Set Rs = Nothing
+		Response.End
+	Else
+		specialname = Rs("specialname")
+		specialid =Rs("specialid")
+		specialdir=Rs("specialdir")
+		classname=SpecialName
+	End If
+	Rs.Close:Set Rs = Nothing
+	If NewAsp.IsCreateHtml=0 Then
+		If IsURLRewrite Then
+			m_strLinks=CheckURLRewrite(NewAsp.ChannelPath,"special-[page]-"&specialid&NewAsp.HtmlExtName)
+		Else
+			m_strLinks="special.asp?specialid="&specialid&"&order="&m_intOrder&"&"
+		End If
+	Else
+		Dim strChannDir
+		If NewAsp.BindDomain=0 Then
+			strChannDir=NewAsp.ChannelDir
+		End If
+		m_strLinks=NewAsp.HtmlDestination(NewAsp.moreDestination, strChannDir, m_intOrder,SpecialDir&"/",specialid,specialid,pagenow,"page")
+		HtmlFileName=NewAsp.HtmlDestination(NewAsp.moreDestination, NewAsp.ChannelDir, m_intOrder,SpecialDir&"/",specialid,specialid,pagenow,"html")
+	End If
+
+	m_strTitle=classname
+	
+	TPL_FileName=Check_TPL_File(TPL_FilePath,"special",specialid,0)
+	
+	HtmlContent = NewAsp.LoadTemplate(TPL_FilePath&"\"&TPL_FileName)
+	If Len(TPL_Config(9))>1 Then
+		HtmlContent = Replace(HtmlContent, "{$pagetitle}", m_strTitle&TPL_Config(9))
+	Else
+		HtmlContent = Replace(HtmlContent, "{$pagetitle}", m_strTitle)
+	End If
+	HtmlContent = Replace(HtmlContent, "{$title}", specialname)
+	HtmlContent = Replace(HtmlContent, "{$channelid}", ChannelID)
+	HtmlContent = Replace(HtmlContent, "{$specialid}", specialid)
+	HtmlContent = Replace(HtmlContent, "{$classid}", 0)
+	TPL_Scan HtmlContent
+	Topiclist=Null
+End Sub
+
+Sub showTopiclist()
+	If Not IsObject(Conn) Then ConnectionDatabase
+	Dim Rs,SQL
+	
+	SQLQuery=" And A.isAccept=1 And A.specialid="&specialid
+
+	On Error Resume Next
+	
+	If m_intOrder=1 Then
+		m_strOrder="A.softid"
+	ElseIf m_intOrder=2 Then
+		m_strOrder="A.Allhits"
+	ElseIf m_intOrder=3 Then
+		m_strOrder="A.SoftSize"
+	Else
+		m_strOrder="A.SoftTime"
+	End If
+	totalrec=Newasp.Execute("SELECT COUNT(*) FROM NC_SoftList A WHERE A.ChannelID="&ChannelID&" "&SQLQuery&"")(0)
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	If pagenow>=Pcount Then BuildHtmlDone=1
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT "& SQLField &" FROM [NC_SoftList] A INNER JOIN [NC_Classify] C on A.ClassID=C.ClassID WHERE A.ChannelID=" &ChannelID& " "&SQLQuery&" ORDER BY "&m_strOrder&" DESC"
+	Rs.Open SQL,Conn,1,1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum+1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		Topiclist=Rs.GetRows(maxperpage)
+	Else
+		Topiclist=Null:BuildHtmlDone=1
+	End If
+	Rs.close():Set Rs=Nothing
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	Select Case sTokenName
+		Case "pagenow=1"	:	If pagenow=1 Then TPL_Scan sTemplate
+		Case "pagenow=0"	:	If pagenow>1 Then TPL_Scan sTemplate
+		Case "topiclist"
+			Call showTopiclist()
+			If IsArray(Topiclist) Then
+				For i=0 To UBound(Topiclist,2)
+					n=n+1:If (n Mod 2) = 0 Then im=2 Else im=1
+					If (i Mod 2) = 0 Then m=1 Else m=2
+					TPL_Scan sTemplate
+				Next
+			End If
+	End Select
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+		Case "topiclist"
+			ParseTopiclistNode		sTokenName
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Select Case sToken
+		Case "i"			:	TPL_Echo i+1
+		Case "moremenu"		:	TPL_Echo moremenu(sVariant)
+		Case "typemenu"		:	TPL_Echo typemenu(sVariant)
+		Case "totalrec"		:	TPL_Echo totalrec
+		Case "pagenow"		:	TPL_Echo pagenow
+		Case "pagecount"	:	TPL_Echo Pcount
+	End Select
+	Set Node = Nothing
+	If Err Then Err.Clear
+End Sub
+%>

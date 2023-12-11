@@ -1,0 +1,47 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<html>
+  <head>
+    <title>新增案源级别策略</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="ti_membercurrency.js"></script>
+	<script type="text/javascript" src="/js/jquery-1.4.4.min.js"></script>
+</head>
+
+<body>
+	<h1>新增案源级别策略</h1>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">		
+		<tr>
+			<td align="right" width="10%">
+				案源级别名称<font color="red">*</font>
+			</td>
+			<td>
+			<input type="text" name="case_levelname" id="case_levelname" value="">
+			<SPAN id="p_user_name"></SPAN>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				扣除金额<font color="red">*</font>
+			</td>
+			<td>
+			<input type="text" name="deductions" id="deductions" value="" >
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="6734" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="return submitForm();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

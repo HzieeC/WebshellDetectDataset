@@ -1,0 +1,45 @@
+<%--
+	会员充值列表页面
+	@author 广州酷趣信息科技有限公司,lp
+	@since Nov 7, 2011 3:12:10 PM
+ --%>
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>Member prepaid phone list</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/customer/list_vipLevel.js"></script>
+</head> 
+<body>
+	<table id="dataGrid"></table>
+	<div id="edit" closed="true">
+		<iframe frameborder="0" id="editDataPage" width="600px" height="300px"></iframe>
+	</div>
+<!-- 语言设置-->
+<input type="hidden" id="BasicInformation" value="<s:text name="BasicInformation"/>"/>
+<input type="hidden" id="Operation" value="<s:text name="Operation"/>"/>
+<input type="hidden" id="Edit" value="<s:text name="Edit"/>"/>
+<input type="hidden" id="Delete" value="<s:text name="Delete"/>"/>
+<input type="hidden" id="LevelID" value="<s:text name="listvipLevel.LevelID"/>"/>
+<input type="hidden" id="LevelName" value="<s:text name="listvipLevel.LevelName"/>"/>
+<input type="hidden" id="Discount" value="<s:text name="listvipLevel.Discount"/>"/>
+<input type="hidden" id="Remark" value="<s:text name="Remark"/>"/>
+<input type="hidden" id="New" value="<s:text name="listvipLevel.New"/>"/>
+<input type="hidden" id="CustomerCode" value="<s:text name="listvipLevel.VIDMember"/>"/>
+<input type="hidden" id="Wanttodelete" value="<s:text name="Wanttodelete"/>"/>
+<input type="hidden" id="DeletedSuccessful" value="<s:text name="DeletedSuccessful"/>"/>
+<input type="hidden" id="DeleteFailed" value="<s:text name="DeleteFailed"/>"/>
+<input type="hidden" id="SystemError" value="<s:text name="SystemError"/>"/>
+<input type="hidden" id="Save" value="<s:text name="Save"/>"/>
+
+</body>
+</html>

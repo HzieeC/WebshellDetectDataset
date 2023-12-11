@@ -1,0 +1,143 @@
+<!--#include file="conn.asp"-->
+<!--#include file="config.asp"-->
+<!--#include file="include/header.asp"-->
+<title>我的购物车</title>
+<%
+  if request.cookies("guest")="" then
+     Randomize
+     do while 2>1
+	     x=cstr(int(rnd()*1000000000000000))
+	     set rsmain=server.CreateObject("adodb.recordset")
+	     rsmain.open "select * from orders where username='"&x&"'",conn,1,1
+	     if rsmain.eof then
+            exit do                     
+         end if
+     loop    
+     response.cookies("guest")=x
+  end if
+dim id,action
+action=request.QueryString("action")
+if request.cookies("Huibo")("username")<>"" and request.cookies("Huibo")("username")<>"游客" then
+   username=trim(request.cookies("Huibo")("username"))
+else
+   username=trim(request.cookies("guest"))
+end if   
+id=request.QueryString("id")
+
+set rsvip=server.CreateObject("adodb.recordset")
+if request.Cookies("Huibo")("username")<>"" and request.Cookies("Huibo")("username")<>"游客" then
+rsvip.open "select vip from [user] where username='"&username&"' ",conn,1,1
+grpid=rsvip("vip")
+
+set rsgrp=server.CreateObject("adodb.recordset")
+rsgrp.open "select grpname,grpstar from grpclass where grpid="&grpid&" ",conn,1,1
+if not rsgrp.eof and not rsgrp.bof then
+grpname=rsgrp("grpname")
+grpstar=rsgrp("grpstar")
+elseif grpvip=1 then
+grpname="普通会员"
+grpstar=1
+else
+grpname="会员级别已被删除"
+end if
+rsgrp.close
+set rsgrp=nothing
+else
+grpname="非注册会员"
+grpstar=1
+end if
+
+select case action
+case "del"
+conn.execute "delete from orders where actionid="&request.QueryString("actionid")
+if request.QueryString("ll")=22 then
+response.redirect "profile.asp?action=addtocart"
+else
+response.redirect "addto.asp?action=show"
+end if
+response.End
+
+case "add"
+set rs=server.CreateObject("adodb.recordset")
+
+rs.open "select istj,price2,price1,price3,price4,price5 from product where id="&id&" ",conn,1,1
+if request.Cookies("vip")="" then
+strprice2=rs("price1")
+end if 
+if request.Cookies("vip")="1" then
+strprice2=rs("price2")
+end if
+if request.Cookies("vip")="19" then
+strprice2=rs("price3")
+end if
+if request.Cookies("vip")="20" then
+strprice2=rs("price4")
+end if
+if request.Cookies("vip")="21" then
+strprice2=rs("price5")
+end if
+
+rs.close
+set rs=nothing
+if request.form("productnum")<>"" then
+Quatity= cint(Request.form("productnum"))
+else
+Quatity=1
+end if
+style=request.form("style")
+if Quatity<=0 then
+Quatity=1
+end if
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select name,stock from product where id="&id&"",conn,1,1
+ if cint(rs("stock"))<Quatity then
+response.write "<script language=javascript>alert('对不起,"&rs("name")&"商品只剩下"&rs("stock")&"份,现在您最多只能购买"&rs("stock")&"份！');history.go(-1);</script>"
+response.end
+end if
+rs.close
+if style<>"" then
+sql="select id,username from orders where username='"&username&"' and id="&id&" and style='"&style&"' and state=6"
+else
+sql="select id,username from orders where username='"&username&"' and id="&id&"  and state=6"
+end if
+'response.write sql
+
+rs.open sql,conn,1,1
+if not rs.eof and not rs.bof then
+response.write "<script language=javascript>alert('此相同样式商品已存在于您的购物车中！');history.go(-1);</script>"'
+response.end
+rs.close
+set rs=nothing
+else
+
+rs.close
+
+rs.open "select id,username,productnum,style,state,paid,score from orders",conn,1,3
+rs.addnew
+rs("id")=id 
+rs("username")=username 
+rs("state")=6 
+rs("paid")=strprice2*Quatity 
+rs("productnum")=Quatity 
+rs("style")=style 
+rs("score")=strscore*Quatity 
+rs.update
+rs.close
+response.Redirect "addto.asp?action=show"
+set rs=nothing
+end if
+
+case "show"
+%>
+<table width="960" border="0" align="center" cellpadding="0" cellspacing="0">
+  <tr>
+    <td width="185" valign="top"><!--#include file="usermenu.asp"--></td>
+    <td valign="top"><%
+addtocart()
+end select
+%></td>
+  </tr>
+</table>
+<!--#include file="disuser.asp"-->
+
+ <!--#include file="include/footer.asp"-->

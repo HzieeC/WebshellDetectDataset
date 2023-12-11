@@ -1,0 +1,52 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<head>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/default/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/good/goodSpecification/edit_goodSpecificationVal.js"></script>
+</head>
+<body>
+
+    <table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+					
+					<form id="saveForm" method="post" action="">
+			    		<s:hidden name="goodSpecificationVal.id" id="id" />
+			    		<s:hidden name="goodSpecificationVal.state" />
+			    		<s:hidden name="goodSpecificationVal.goodSpecificationId"/>
+				    	<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">
+							<tr>
+								<td class='gridtitle'>值名称：</td>
+								<td class='gridbody'>
+									<s:textfield id="value" name="goodSpecificationVal.value"/>
+								</td>
+							</tr>
+							
+							<!-- 
+								<tr>
+								<td class='gridtitle'>序号：</td>
+								<td class='gridbody'>
+									<s:textfield id="sort" name="goodSpecificationVal.sort"/>
+								</td>
+							</tr>
+							 -->
+						</table>
+					</form>
+				</div>
+	    	</td>
+	    </tr>
+	</table>
+
+</body>
+</html>
+

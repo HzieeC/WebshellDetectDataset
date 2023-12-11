@@ -1,0 +1,104 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="javaBean.BeanAD" %>
+<%@ page import="java.util.Calendar"%>
+<%!
+	public String time(){
+		Calendar cal=Calendar.getInstance();
+		int year=cal.get(Calendar.YEAR);
+		int month=(cal.get(Calendar.MONTH))+1;
+		int day=cal.get(Calendar.DATE);
+		int hour=cal.get(Calendar.HOUR);
+		int minute=cal.get(Calendar.MINUTE);
+		int second=cal.get(Calendar.SECOND);
+		return ""+year+"-"+month+"-"+day+" "+hour+":"+minute+":"+second;
+	}
+%>
+<%
+	String url = request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+
+
+<br>
+
+<script language=javascript>
+function checkPost(){
+	try{
+		if (GetContentLength()==0){
+			alert("公告内容不能为空!");
+			return false
+		}
+	}
+	catch(e){
+		if (Trim(document.forms[0].content.value)=="") {
+			alert("公告内容不能为空!");
+			document.forms[0].content.focus();
+			return false
+		}
+	}
+	if (document.forms[0].title.value==""){
+		alert("公告标题不能为空！");
+		document.forms[0].title.focus();
+		return false;
+	}
+}
+</script>
+<%
+	BeanAD bean=(BeanAD)request.getAttribute("adlist");
+%>
+<div onkeydown=CtrlEnter()>
+<table width="100%"  border="0" align="center" cellpadding="3" cellspacing="1" class="TableBorder">
+  <tr>
+    <th colspan="2">添加公告</th>
+  </tr>
+    	<form method=Post name="myform" action="<%=url%>/servletsad" onSubmit="return checkPost();">
+<input type="Hidden" name="action" value="save">
+  <tr>
+    <td width="20%" align="right" class="TableRow2"><strong>公告标题：</strong></td>
+    <td width="80%" class="TableRow1"><input name="title" type="text" id="title" size="50" value="<%=bean.getTitle()%>"> 
+      <span class="style1">* </span></td>
+  </tr>
+  <tr>
+    <td align="right" class="TableRow2"><strong>公告内容：</strong></td>
+    <td class="TableRow1">
+<div>
+<textarea name="content" cols="100" rows="20">
+<%=bean.getContent()%>
+</textarea>
+</div></td>
+  </tr>
+  <tr>
+    <td align="right" class="TableRow2"><strong>发布人：</strong></td>
+    <td class="TableRow1"><input name="writer" type="text" id="writer" size="15" value='<%=bean.getWriter()%>'> 
+	<span class="style1">* </span>	
+	<strong>发布日期：</strong><input name="time" type="text" id="time" size="25" value='<%=time()%>' readonly> 
+      <span class="style1">* </span> 
+	  <input type='hidden' name='type' value='更新公告'>
+	  <input type="hidden" name="id" value="<%=bean.getID()%>">
+      </td>
+  </tr>
+  <tr>
+    <td align="right" class="TableRow2">&nbsp;</td>
+    <td align="center" class="TableRow1">
+    <input type="button" name="Submit4" onclick="javascript:history.go(-1)" value="返回上一页" class=Button>
+    <input name="Submit1" type="submit" class="Button" value="保存公告" class=Button></td>
+  </tr></form>
+</table>
+</div>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

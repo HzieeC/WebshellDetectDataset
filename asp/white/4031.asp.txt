@@ -1,0 +1,193 @@
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/check.asp"-->
+<!--#include file="inc/head.inc"-->
+<%
+Call InnerLocation("帐号充值")
+Const IsUseCard = True
+If Not IsUseCard Then
+	ErrMsg = ErrMsg + "<li>对不起！本站暂不开放会员充值功能。</li>"
+	Founderr = True
+End If
+
+Dim Rs,SQL,strChinaeBank,UserGroup,i
+Dim carid,stype
+'strChinaeBank = Split(NewAsp.ChinaeBank, "|||")
+UserGroup = NewAsp.ChkNumeric(NewAsp.membergrade)
+Dim Action:Action = LCase(Request("action"))
+
+If Founderr = False Then
+	Select Case Trim(Action)
+	Case "add"
+		Call AddCard
+	Case "save"
+		Call SaveCard
+	Case Else
+		Call showmain
+	End Select
+End If
+If Founderr = True Then
+	Call ToErrors(ErrMsg)
+End If
+
+Sub showmain()
+
+End Sub
+
+Sub AddCard()
+
+	stype = NewAsp.ChkNumeric(Request("type"))
+	carid = NewAsp.ChkNumeric(Request.Form("carid"))
+	If carid = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请选择要充值的卡号！</li>"
+		Exit Sub
+	End If
+	Set Rs = NewAsp.Execute("SELECT * FROM NC_Card WHERE IsConsume=0 And UserGroup="& UserGroup &" And CardID=" & carid)
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>错误的系统参数，没有找到相关充值卡！</li>"
+		Set Rs = Nothing
+		Exit Sub
+	End If
+%>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="Usertableborder">
+<tr>
+	<th colspan="2">确定购买充值卡 </th>
+</tr>
+<form name="myform" method="post" action="?action=save">
+<input type="hidden" name="carid" value="<%=Rs("CardID")%>">
+<input type="hidden" name="CardMoney" value="<%=Rs("CardMoney")%>">
+<tr>
+	<td width="20%" class="Usertablerow1" align="right">充值卡类型：</td>
+	<td width="80%" class="Usertablerow1">
+<%
+	If Rs("cardType") = 0 Then
+		Response.Write "计点充值卡"
+	Else
+		Response.Write "计时充值卡"
+	End If
+%>
+	</td>
+</tr>
+<tr>
+	<td class="Usertablerow2" align="right">充值卡面值：</td>
+	<td class="Usertablerow2"><%=FormatCurrency(Rs("CardMoney"),2,-1)%> 元</td>
+</tr>
+<%
+If Rs("cardType") = 0 Then
+%>
+<tr>
+	<td class="Usertablerow1" align="right">可充值点数：</td>
+	<td class="Usertablerow1"><%=Rs("addPoint")%> 点</td>
+</tr>
+<%
+Else
+%>
+<tr>
+	<td class="Usertablerow1" align="right">可使用天数：</td>
+	<td class="Usertablerow1"><%=Rs("UseDayNum")%> 天</td>
+</tr>
+<%
+End If
+%>
+<tr>
+	<td class="Usertablerow2" colspan="2" align="center"><input type="button" name="B2" onclick="javascript:history.go(-1)" value="返回上一页" class="button">
+	<input type="submit" value="确定充值请点下一步" class="buttom"></td>
+</tr>
+</form>
+</table>
+<%
+	Rs.Close:Set Rs = Nothing
+End Sub
+
+Sub SaveCard()
+	Dim CardMoney,totalnumber
+	carid = NewAsp.ChkNumeric(Request.Form("carid"))
+	CardMoney = NewAsp.CheckNumeric(Request.Form("CardMoney"))
+	Call PreventRefresh  '防刷新
+	If carid = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请选择要充值的卡号！</li>"
+		Exit Sub
+	End If
+	totalnumber = NewAsp.Execute("SELECT Count(CardID) FROM NC_Card WHERE IsConsume>1 And username='"& MemberName &"'")(0)
+	totalnumber = CLng(totalnumber)
+	If totalnumber > 10 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>对不起！你购买的点卡还没有支付，请不要重复购买。</li>"
+		Exit Sub
+	End If
+	If Founderr = True Then Exit Sub
+	SQL = "SELECT TOP 1 * FROM NC_Card WHERE IsConsume=0 And UserGroup="& UserGroup & " And CardID="& carid
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	Rs.Open SQL,Conn,1,3
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>购买充值卡时发生意外错误！</li><li>请返回重新选择卡号订购</li><li>如有问题，请联系本站管理人员</li>"
+		Set Rs = Nothing
+		Exit Sub
+	Else
+		Rs("IsConsume").Value = 2
+		Rs("username").Value = MemberName
+		Rs("addTime").Value = Now()
+		Rs.Update
+%>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="Usertableborder">
+<tr>
+	<th colspan="2">充值卡信息</th>
+</tr>
+<input type="hidden" name="carid" value="<%=Rs("CardID")%>">
+<tr>
+	<td class="Usertablerow1" align="right">充值卡号：</td>
+	<td class="Usertablerow1"><font color="blue"><%=Rs("CardMark")%></font></td>
+</tr>
+<tr>
+	<td class="Usertablerow2" align="right">充值时间：</td>
+	<td class="Usertablerow2"><font color="red"><%=Now%></font></td>
+</tr>
+<tr>
+	<td width="20%" class="Usertablerow1" align="right">充值卡类型：</td>
+	<td width="80%" class="Usertablerow1">
+<%
+	If Rs("cardType") = 0 Then
+		Response.Write "计点充值卡"
+	Else
+		Response.Write "计时充值卡"
+	End If
+%>
+	</td>
+</tr>
+<tr>
+	<td class="Usertablerow2" align="right">充值卡面值：</td>
+	<td class="Usertablerow2"><%=FormatCurrency(Rs("CardMoney"),2,-1)%> 元</td>
+</tr>
+<%
+If Rs("cardType") = 0 Then
+%>
+<tr>
+	<td class="Usertablerow1" align="right">可充值点数：</td>
+	<td class="Usertablerow1"><%=Rs("addPoint")%> 点</td>
+</tr>
+<%
+Else
+%>
+<tr>
+	<td class="Usertablerow1" align="right">可使用天数：</td>
+	<td class="Usertablerow1"><%=Rs("UseDayNum")%> 天</td>
+</tr>
+<%
+	
+End If
+%>
+<tr>
+	<td class="Usertablerow1" colspan="2"><li>恭喜您！订购充值卡成功，请记住以上充值卡详细信息。</li>
+	<li>我们会在接收到你的汇款后立即为您的帐号进行充值，汇款后请到本站<a href="confirm.asp"><font color="red">提交交费确认</font></a></li>
+	<li><a href="payment.asp">查看付款方式</a></li></td>
+</tr>
+</table>
+<%
+	End If
+	Rs.Close:Set Rs = Nothing
+End Sub
+%>
+<!--#include file="inc/foot.inc"-->

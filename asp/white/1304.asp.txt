@@ -1,0 +1,527 @@
+<%
+'****************************************************
+' 花香盈路网站管理系统HxCMS V8.0 Power by HxCMS.Net
+' Web: http://www.Hxcms.net, http://www.Hx66.com.cn
+' Copyright (C) 2006 HxCMS.Net All Rights Reserved.
+'****************************************************
+dim ArticleID,FoundErr,Pay,ErrMsg
+FoundErr=False
+Pay=trim(request("ck"))
+ArticleID=md5(trim(request("id"))+123)
+	if rs("Grade")>0 then
+		if UserLogined<>True then 
+			FoundErr=True
+			ErrMsg=ErrMsg & "<font color='red'>·</font>你还没注册？或者没有登录？这篇文章要求至少是本站的注册用户才能阅读！<br>"
+			ErrMsg=ErrMsg & "<font color='red'>·</font>如果你还没注册，请赶紧<a href='../User/UserReg.asp'> <font color='red'>点此注册</font></a> ！<br>"
+			ErrMsg=ErrMsg & "<font color='red'>·</font>如果你已经注册但还没登录，请赶紧 <font color='red'>在右侧登录</font> ！<br><br>"
+		else
+			if int(Hx66_Grade)+1<RS("Grade") then
+				FoundErr=True
+				ErrMsg=ErrMsg & "<p align='center'><br><font color=red><b>对不起，你的权限不够，不能阅读此文章!</b></font></p><br>"
+			else
+				if rs("points")>0 then
+					if Request.Cookies("hx66")("Pay_Art" & ArticleID)<>"yes" then
+						if Hx66_points<rs("points") then
+							FoundErr=True
+							ErrMsg=ErrMsg &"<p align='center'><br>对不起，阅读本文需要消耗 <b><font color=red>" & rs("points") & "</font></b> "& moneyname &"！"
+							ErrMsg=ErrMsg &"而你目前只有 <b><font color=blue>" & Hx66_points & "</font></b> "& moneyname &"可用。"& moneyname &"不足，无法阅读本文。请与我们联系进行充值。</p>"
+						else
+							if Pay="1" then
+                                                             conn.execute ("UPDATE [user] SET points = points - "&rs("points")&" where userid="&Hx66_uid)
+                                                             call SaveLog(Hx66_name,"阅读文章："&art_title,"-"&rs("points"))
+							     response.Cookies("hx66")("Pay_Art" & ArticleID)="yes"
+                                                             Response.Cookies("hx66").Expires=date+365
+							else
+							     FoundErr=True
+							     ErrMsg=ErrMsg &"<p align='center'><br>阅读本文需要消耗 <b><font color='red'>" & rs("points") & "</font></b> "& moneyname &"！"
+							     ErrMsg=ErrMsg &"你目前尚有 <b><font color=blue>" & Hx66_points & "</font></b> "& moneyname &"可用。阅读本文后，你将剩下 <b><font color=green>" & Hx66_points-rs("points") & "</font></b> "& moneyname &""
+							     ErrMsg=ErrMsg &"<br>你确实愿意花费 <b><font color=red>" & rs("points") & "</font></b> "& moneyname &"来阅读本文吗？"
+							     ErrMsg=ErrMsg &"<br><br><a href=""javascript:void(0)"" onclick=""javascript:doClick_body('"&rs("art_id")&"','1','art');"">我愿意</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='Index.asp'>我不愿意</a></p><br>"
+							end if
+						end if
+					end if
+				end if
+			end if
+		end if
+	end if
+
+if FoundErr=True then
+   ErrMsg="<p align=left><b>内容预览：</b></p><div style='background: #FFFFFF;width:100%;border: 1px dashed #CCCCCC;'>" & left(rs("art_content"),200) & "……</div>" & ErrMsg
+   ShowArt= ErrMsg
+else
+   dim PaginationType
+   PaginationType=rs("PaginationType")
+   select case PaginationType
+	  case 0    '不分页显示
+		ShowArt= rs("art_content")
+	  case 1    '自动分页显示
+		ShowArt=AutoPagination()
+	  case 2    '手动分页显示
+		ShowArt=ManualPagination()
+  end select
+end if
+
+'=================================================
+'过程名：ManualPagination
+'作  用：采用手动分页方式显示文章内容
+'参  数：无
+'Web:   http://www.HxCms.Net
+'=================================================
+Function ManualPagination()
+dim ArtID,strContent,CurrentPage
+dim ContentLen,MaxPerPage,pages,i
+dim arrContent
+ArtID=rs("art_id")
+strContent=rs("art_content")
+ContentLen=len(strContent)
+CurrentPage=trim(request("Page"))
+if Instr(strContent,"[NextPage]")<=0 then
+	ManualPagination= strContent
+	ManualPagination=ManualPagination& "</p><p align='center'><font color='red'><b>[1]</b></font></p>"
+else
+	arrContent=split(strContent,"[NextPage]")
+	pages=Ubound(arrContent)+1
+	if CurrentPage="" then
+		CurrentPage=1
+	else
+	CurrentPage=Cint(CurrentPage)
+	end if
+	if CurrentPage<1 then CurrentPage=1
+	if CurrentPage>pages then CurrentPage=pages
+	ManualPagination= arrContent(CurrentPage-1)
+	ManualPagination=ManualPagination& "</p><p align='center'><b>"
+	if CurrentPage>1 then
+		ManualPagination=ManualPagination& "<a href=""javascript:void(0)"" onclick=""javascript:gobodyPage('"&ArtID&"','"&CurrentPage-1&"','art');"">上一页</a>&nbsp;"
+	end if
+	for i=1 to pages
+		if i=CurrentPage then
+			ManualPagination=ManualPagination& "<font color='red'>[" & cstr(i) & "]</font>&nbsp;"
+		else
+			ManualPagination=ManualPagination& "<a href=""javascript:void(0)"" onclick=""javascript:gobodyPage('"&ArtID&"','"&i&"','art');"">["& i &"]</a>&nbsp;"
+		end if
+	next
+	if CurrentPage<pages then
+		ManualPagination=ManualPagination& "<a href=""javascript:void(0)"" onclick=""javascript:gobodyPage('"&ArtID&"','"&CurrentPage+1&"','art');"">下一页</a>"
+	end if
+	ManualPagination=ManualPagination& "</b></p>"
+end if
+end Function
+'=================================================
+'过程名：AutoPagination
+'作  用：采用自动分页方式显示文章内容
+'参  数：无
+'Web:   http://www.HxCms.Net
+'=================================================
+Function AutoPagination()
+dim ArtID,strContent,CurrentPage
+dim ContentLen,MaxPerPage,pages,i,lngBound
+dim BeginPoint,EndPoint
+ArtID=rs("art_id")
+strContent=rs("art_content")
+ContentLen=len(strContent)
+CurrentPage=trim(request("Page"))
+if ContentLen<=rs("MaxCharPerPage") then
+	AutoPagination= strContent
+	AutoPagination=AutoPagination& "</p><p align='center'><font color='red'><b>[1]</b></font></p>"
+else
+	if CurrentPage="" then
+		CurrentPage=1
+	else
+		CurrentPage=Cint(CurrentPage)
+	end if
+	pages=ContentLen\rs("MaxCharPerPage")
+	if rs("MaxCharPerPage")*pages<ContentLen then
+		pages=pages+1
+	end if
+	lngBound=ContentLen  '最大误差范围
+	if CurrentPage<1 then CurrentPage=1
+	if CurrentPage>pages then CurrentPage=pages
+
+	dim lngTemp
+	dim lngTemp1,lngTemp1_1,lngTemp1_2,lngTemp1_1_1,lngTemp1_1_2,lngTemp1_1_3,lngTemp1_2_1,lngTemp1_2_2,lngTemp1_2_3
+	dim lngTemp2,lngTemp2_1,lngTemp2_2,lngTemp2_1_1,lngTemp2_1_2,lngTemp2_2_1,lngTemp2_2_2
+	dim lngTemp3,lngTemp3_1,lngTemp3_2,lngTemp3_1_1,lngTemp3_1_2,lngTemp3_2_1,lngTemp3_2_2
+	dim lngTemp4,lngTemp4_1,lngTemp4_2,lngTemp4_1_1,lngTemp4_1_2,lngTemp4_2_1,lngTemp4_2_2
+	dim lngTemp5,lngTemp5_1,lngTemp5_2
+	dim lngTemp6,lngTemp6_1,lngTemp6_2
+		
+	if CurrentPage=1 then
+		BeginPoint=1
+	else
+		BeginPoint=rs("MaxCharPerPage")*(CurrentPage-1)+1
+			
+		lngTemp1_1_1=instr(BeginPoint,strContent,"</table>",1)
+		lngTemp1_1_2=instr(BeginPoint,strContent,"</TABLE>",1)
+		lngTemp1_1_3=instr(BeginPoint,strContent,"</Table>",1)
+		if lngTemp1_1_1>0 then
+			lngTemp1_1=lngTemp1_1_1
+		elseif lngTemp1_1_2>0 then
+			lngTemp1_1=lngTemp1_1_2
+		elseif lngTemp1_1_3>0 then
+			lngTemp1_1=lngTemp1_1_3
+		else
+			lngTemp1_1=0
+		end if
+							
+		lngTemp1_2_1=instr(BeginPoint,strContent,"<table",1)
+		lngTemp1_2_2=instr(BeginPoint,strContent,"<TABLE",1)
+		lngTemp1_2_3=instr(BeginPoint,strContent,"<Table",1)
+		if lngTemp1_2_1>0 then
+			lngTemp1_2=lngTemp1_2_1
+		elseif lngTemp1_2_2>0 then
+			lngTemp1_2=lngTemp1_2_2
+		elseif lngTemp1_2_3>0 then
+			lngTemp1_2=lngTemp1_2_3
+		else
+			lngTemp1_2=0
+		end if
+			
+		if lngTemp1_1=0 and lngTemp1_2=0 then
+			lngTemp1=BeginPoint
+		else
+			if lngTemp1_1>lngTemp1_2 then
+				lngtemp1=lngTemp1_2
+			else
+				lngTemp1=lngTemp1_1+8
+			end if
+		end if
+
+		lngTemp2_1_1=instr(BeginPoint,strContent,"</p>",1)
+		lngTemp2_1_2=instr(BeginPoint,strContent,"</P>",1)
+		if lngTemp2_1_1>0 then
+			lngTemp2_1=lngTemp2_1_1
+		elseif lngTemp2_1_2>0 then
+			lngTemp2_1=lngTemp2_1_2
+		else
+			lngTemp2_1=0
+		end if
+						
+		lngTemp2_2_1=instr(BeginPoint,strContent,"<p",1)
+		lngTemp2_2_2=instr(BeginPoint,strContent,"<P",1)
+		if lngTemp2_2_1>0 then
+			lngTemp2_2=lngTemp2_2_1
+		elseif lngTemp2_2_2>0 then
+			lngTemp2_2=lngTemp2_2_2
+		else
+			lngTemp2_2=0
+		end if
+			
+		if lngTemp2_1=0 and lngTemp2_2=0 then
+			lngTemp2=BeginPoint
+		else
+			if lngTemp2_1>lngTemp2_2 then
+				lngtemp2=lngTemp2_2
+			else
+				lngTemp2=lngTemp2_1+4
+			end if
+		end if
+
+		lngTemp3_1_1=instr(BeginPoint,strContent,"</ur>",1)
+		lngTemp3_1_2=instr(BeginPoint,strContent,"</UR>",1)
+		if lngTemp3_1_1>0 then
+			lngTemp3_1=lngTemp3_1_1
+		elseif lngTemp3_1_2>0 then
+			lngTemp3_1=lngTemp3_1_2
+		else
+			lngTemp3_1=0
+		end if
+			
+		lngTemp3_2_1=instr(BeginPoint,strContent,"<ur",1)
+		lngTemp3_2_2=instr(BeginPoint,strContent,"<UR",1)
+		if lngTemp3_2_1>0 then
+			lngTemp3_2=lngTemp3_2_1
+		elseif lngTemp3_2_2>0 then
+			lngTemp3_2=lngTemp3_2_2
+		else
+			lngTemp3_2=0
+		end if
+					
+		if lngTemp3_1=0 and lngTemp3_2=0 then
+			lngTemp3=BeginPoint
+		else
+			if lngTemp3_1>lngTemp3_2 then
+				lngtemp3=lngTemp3_2
+			else
+				lngTemp3=lngTemp3_1+5
+			end if
+		end if
+			
+		if lngTemp1<lngTemp2 then
+			lngTemp=lngTemp2
+		else
+		lngTemp=lngTemp1
+		end if
+		if lngTemp<lngTemp3 then
+			lngTemp=lngTemp3
+		end if
+
+		if lngTemp>BeginPoint and lngTemp<=BeginPoint+lngBound then
+			BeginPoint=lngTemp
+		else
+			lngTemp4_1_1=instr(BeginPoint,strContent,"</li>",1)
+			lngTemp4_1_2=instr(BeginPoint,strContent,"</LI>",1)
+			if lngTemp4_1_1>0 then
+				lngTemp4_1=lngTemp4_1_1
+			elseif lngTemp4_1_2>0 then
+				lngTemp4_1=lngTemp4_1_2
+			else
+				lngTemp4_1=0
+			end if
+				
+			lngTemp4_2_1=instr(BeginPoint,strContent,"<li",1)
+			lngTemp4_2_1=instr(BeginPoint,strContent,"<LI",1)
+			if lngTemp4_2_1>0 then
+				lngTemp4_2=lngTemp4_2_1
+			elseif lngTemp4_2_2>0 then
+				lngTemp4_2=lngTemp4_2_2
+			else
+				lngTemp4_2=0
+			end if
+				
+			if lngTemp4_1=0 and lngTemp4_2=0 then
+				lngTemp4=BeginPoint
+			else
+				if lngTemp4_1>lngTemp4_2 then
+					lngtemp4=lngTemp4_2
+				else
+					lngTemp4=lngTemp4_1+5
+				end if
+			end if
+				
+			if lngTemp4>BeginPoint and lngTemp4<=BeginPoint+lngBound then
+				BeginPoint=lngTemp4
+			else					
+				lngTemp5_1=instr(BeginPoint,strContent,"<img",1)
+				lngTemp5_2=instr(BeginPoint,strContent,"<IMG",1)
+				if lngTemp5_1>0 then
+					lngTemp5=lngTemp5_1
+				elseif lngTemp5_2>0 then
+					lngTemp5=lngTemp5_2
+				else
+					lngTemp5=BeginPoint
+				end if
+					
+				if lngTemp5>BeginPoint and lngTemp5<BeginPoint+lngBound then
+					BeginPoint=lngTemp5
+				else
+					lngTemp6_1=instr(BeginPoint,strContent,"<br>",1)
+					lngTemp6_2=instr(BeginPoint,strContent,"<BR>",1)
+					if lngTemp6_1>0 then
+						lngTemp6=lngTemp6_1
+					elseif lngTemp6_2>0 then
+						lngTemp6=lngTemp6_2
+					else
+						lngTemp6=0
+					end if
+					
+					if lngTemp6>BeginPoint and lngTemp6<BeginPoint+lngBound then
+						BeginPoint=lngTemp6+4
+					end if
+				end if
+			end if
+		end if
+	end if
+
+	if CurrentPage=pages then
+		EndPoint=ContentLen
+	else
+	EndPoint=rs("MaxCharPerPage")*CurrentPage
+	if EndPoint>=ContentLen then
+		EndPoint=ContentLen
+	else
+		lngTemp1_1_1=instr(EndPoint,strContent,"</table>",1)
+		lngTemp1_1_2=instr(EndPoint,strContent,"</TABLE>",1)
+		lngTemp1_1_3=instr(EndPoint,strContent,"</Table>",1)
+		if lngTemp1_1_1>0 then
+			lngTemp1_1=lngTemp1_1_1
+		elseif lngTemp1_1_2>0 then
+			lngTemp1_1=lngTemp1_1_2
+		elseif lngTemp1_1_3>0 then
+			lngTemp1_1=lngTemp1_1_3
+		else
+			lngTemp1_1=0
+		end if
+							
+		lngTemp1_2_1=instr(EndPoint,strContent,"<table",1)
+		lngTemp1_2_2=instr(EndPoint,strContent,"<TABLE",1)
+		lngTemp1_2_3=instr(EndPoint,strContent,"<Table",1)
+		if lngTemp1_2_1>0 then
+			lngTemp1_2=lngTemp1_2_1
+		elseif lngTemp1_2_2>0 then
+			lngTemp1_2=lngTemp1_2_2
+		elseif lngTemp1_2_3>0 then
+			lngTemp1_2=lngTemp1_2_3
+		else
+			lngTemp1_2=0
+		end if
+			
+		if lngTemp1_1=0 and lngTemp1_2=0 then
+			lngTemp1=EndPoint
+		else
+			if lngTemp1_1>lngTemp1_2 then
+				lngtemp1=lngTemp1_2-1
+			else
+				lngTemp1=lngTemp1_1+7
+			end if
+		end if
+
+		lngTemp2_1_1=instr(EndPoint,strContent,"</p>",1)
+		lngTemp2_1_2=instr(EndPoint,strContent,"</P>",1)
+		if lngTemp2_1_1>0 then
+			lngTemp2_1=lngTemp2_1_1
+		elseif lngTemp2_1_2>0 then
+			lngTemp2_1=lngTemp2_1_2
+		else
+			lngTemp2_1=0
+		end if
+						
+		lngTemp2_2_1=instr(EndPoint,strContent,"<p",1)
+		lngTemp2_2_2=instr(EndPoint,strContent,"<P",1)
+		if lngTemp2_2_1>0 then
+			lngTemp2_2=lngTemp2_2_1
+		elseif lngTemp2_2_2>0 then
+			lngTemp2_2=lngTemp2_2_2
+		else
+			lngTemp2_2=0
+		end if
+			
+		if lngTemp2_1=0 and lngTemp2_2=0 then
+			lngTemp2=EndPoint
+		else
+			if lngTemp2_1>lngTemp2_2 then
+				lngTemp2=lngTemp2_2-1
+			else
+				lngTemp2=lngTemp2_1+3
+			end if
+		end if
+
+		lngTemp3_1_1=instr(EndPoint,strContent,"</ur>",1)
+		lngTemp3_1_2=instr(EndPoint,strContent,"</UR>",1)
+		if lngTemp3_1_1>0 then
+			lngTemp3_1=lngTemp3_1_1
+		elseif lngTemp3_1_2>0 then
+			lngTemp3_1=lngTemp3_1_2
+		else
+			lngTemp3_1=0
+		end if
+			
+		lngTemp3_2_1=instr(EndPoint,strContent,"<ur",1)
+		lngTemp3_2_2=instr(EndPoint,strContent,"<UR",1)
+		if lngTemp3_2_1>0 then
+			lngTemp3_2=lngTemp3_2_1
+		elseif lngTemp3_2_2>0 then
+			lngTemp3_2=lngTemp3_2_2
+		else
+			lngTemp3_2=0
+		end if
+					
+		if lngTemp3_1=0 and lngTemp3_2=0 then
+			lngTemp3=EndPoint
+		else
+			if lngTemp3_1>lngTemp3_2 then
+				lngtemp3=lngTemp3_2-1
+			else
+				lngTemp3=lngTemp3_1+4
+			end if
+		end if
+			
+		if lngTemp1<lngTemp2 then
+			lngTemp=lngTemp2
+		else
+			lngTemp=lngTemp1
+		end if
+		if lngTemp<lngTemp3 then
+			lngTemp=lngTemp3
+		end if
+
+		if lngTemp>EndPoint and lngTemp<=EndPoint+lngBound then
+			EndPoint=lngTemp
+		else
+			lngTemp4_1_1=instr(EndPoint,strContent,"</li>",1)
+			lngTemp4_1_2=instr(EndPoint,strContent,"</LI>",1)
+			if lngTemp4_1_1>0 then
+				lngTemp4_1=lngTemp4_1_1
+			elseif lngTemp4_1_2>0 then
+				lngTemp4_1=lngTemp4_1_2
+			else
+				lngTemp4_1=0
+			end if
+				
+			lngTemp4_2_1=instr(EndPoint,strContent,"<li",1)
+			lngTemp4_2_1=instr(EndPoint,strContent,"<LI",1)
+			if lngTemp4_2_1>0 then
+				lngTemp4_2=lngTemp4_2_1
+			elseif lngTemp4_2_2>0 then
+				lngTemp4_2=lngTemp4_2_2
+			else
+				lngTemp4_2=0
+			end if
+				
+			if lngTemp4_1=0 and lngTemp4_2=0 then
+				lngTemp4=EndPoint
+			else
+				if lngTemp4_1>lngTemp4_2 then
+					lngtemp4=lngTemp4_2-1
+				else
+					lngTemp4=lngTemp4_1+4
+				end if
+			end if
+				
+			if lngTemp4>EndPoint and lngTemp4<=EndPoint+lngBound then
+				EndPoint=lngTemp4
+			else					
+				lngTemp5_1=instr(EndPoint,strContent,"<img",1)
+				lngTemp5_2=instr(EndPoint,strContent,"<IMG",1)
+				if lngTemp5_1>0 then
+					lngTemp5=lngTemp5_1-1
+				elseif lngTemp5_2>0 then
+					lngTemp5=lngTemp5_2-1
+				else
+					lngTemp5=EndPoint
+				end if
+					
+				if lngTemp5>EndPoint and lngTemp5<EndPoint+lngBound then
+					EndPoint=lngTemp5
+				else
+					lngTemp6_1=instr(EndPoint,strContent,"<br>",1)
+					lngTemp6_2=instr(EndPoint,strContent,"<BR>",1)
+					if lngTemp6_1>0 then
+						lngTemp6=lngTemp6_1+3
+					elseif lngTemp6_2>0 then
+						lngTemp6=lngTemp6_2+3
+					else
+						lngTemp6=EndPoint
+					end if
+					
+					if lngTemp6>EndPoint and lngTemp6<EndPoint+lngBound then
+						EndPoint=lngTemp6
+					end if
+				end if
+			end if
+		end if
+	end if
+	end if
+	AutoPagination=AutoPagination& mid(strContent,BeginPoint,EndPoint-BeginPoint)
+	AutoPagination=AutoPagination& "</p><p align='center'><b>"
+	if CurrentPage>1 then
+		AutoPagination=AutoPagination& "<a href=""javascript:void(0)"" onclick=""javascript:gobodyPage('"&ArtID&"','"&CurrentPage-1&"','art');"">上一页</a>&nbsp;"
+	end if
+	for i=1 to pages
+		if i=CurrentPage then
+			AutoPagination=AutoPagination& "<font color='red'>[" & cstr(i) & "]</font>&nbsp;"
+		else
+			AutoPagination=AutoPagination& "<a href=""javascript:void(0)"" onclick=""javascript:gobodyPage('"&ArtID&"','"&i&"','art');"">["& i &"]</a>&nbsp;"
+		end if
+	next
+	if CurrentPage<pages then
+		AutoPagination=AutoPagination& "<a href=""javascript:void(0)"" onclick=""javascript:gobodyPage('"&ArtID&"','"&CurrentPage+1&"','art');"">下一页</a>"
+	end if
+	AutoPagination=AutoPagination& "</b></p>"
+end if
+end Function
+'****************************************************
+' 花香盈路网站管理系统HxCMS V8.0 Power by HxCMS.Net
+' Web: http://www.Hxcms.net, http://www.Hx66.com.cn
+' Copyright (C) 2006 HxCMS.Net All Rights Reserved.
+'****************************************************
+%>

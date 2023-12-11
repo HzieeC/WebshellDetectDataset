@@ -1,0 +1,173 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<%@ page contentType="text/html; charset=GBK" %>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>用户管理 - MianFeiZhe内容网站管理系统</title>
+<meta name="description" content="mianfeizhe内容管理系统">
+<meta name="keywords" content="用户管理 ,mianfeizhe内容管理系统">
+<meta name="MSSmartTagsPreventParsing" content="TRUE">
+<meta http-equiv="MSThemeCompatible" content="Yes">
+<link href="<%=url%>/skin/default/style.css" rel="stylesheet" type="text/css">
+<script language="JavaScript" type="text/javascript" src="/inc/main.js"></script>
+</head>
+<body>
+<div class="globalBody">
+  <table border="0" align="center" cellpadding="0" cellspacing="0" class="tableborder">
+    <tr>
+      <td class="masthead">
+        <div class="siteLogo"><a href="/"><img src="<%=url%>/images/logo.jpg" width="180" height="60" border="0"></a></div>
+        <div class="bannerad"><script language="JavaScript" type="text/javascript" src="adfile/banner.js"></script></div>
+        <div class="mastheadLinks">
+          <ul>
+            <li><img src="<%=url%>/skin/default/top_home.gif" border="0"> <a onclick="this.style.behavior='url(#default#homepage)';this.sethomepage('http://www.mianfeizhe.com');return false;" href="http://www.mianfeizhe.com" title="将本站设为你的首页">设为首页</a></li>
+            <li><img src="<%=url%>/skin/default/top_gift.gif" border="0"> <a href="javascript:window.external.AddFavorite(location.href,document.title)" title="将本站加入到你的收藏夹">加入收藏</a></li>
+            <li><img src="<%=url%>/skin/default/top_mail.gif" border="0"> <a href="mailto:master@newasp.net">联系我们</a></li>
+          </ul>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="siteCatalog">
+        <div class="siteNav1">栏目名称</div>
+      </td>
+    </tr>
+  </table>
+</div>
+<div class="globalBody">
+<script language="JavaScript1.2">
+<!--
+function showsubmenu(sid) {
+	var whichEl = eval("submenu" + sid);
+	var switchFolder = eval("switchFolder" + sid);
+	var plusMinus = eval("plusMinus" + sid);
+	if (whichEl.style.display == "none"){
+		eval("submenu" + sid + ".style.display='';");
+		if (sid == 2) {
+			plusMinus.src="images/icon/ftv2mlastnode.gif";
+		}else{
+			plusMinus.src="images/icon/ftv2mnode.gif";
+			switchFolder.src="images/icon/ftv2folderopen.gif";
+		}
+	}else{
+		eval("submenu" + sid + ".style.display='none';");
+		if (sid == 2) {
+			plusMinus.src="images/icon/ftv2plastnode.gif";
+		}else{
+			plusMinus.src="images/icon/ftv2pnode.gif";
+			switchFolder.src="images/icon/ftv2folderclosed.gif";
+		}
+	}
+}
+//-->
+</script>
+<script language="javascript">
+<!--
+function setFrameHeight(obj)
+{
+ var win=obj;
+ if (document.getElementById)
+ {
+  if (win && !window.opera)
+  {
+   if (win.contentDocument && win.contentDocument.body.offsetHeight)
+
+    win.height = win.contentDocument.body.offsetHeight;
+   else if(win.Document && win.Document.body.scrollHeight)
+    win.height = win.Document.body.scrollHeight;
+  }
+ }
+}
+-->
+</script>
+<table border="0" align="center" height="100" cellspacing="0" cellpadding="0" class="tableborder">
+  <tr valign="top">
+    <td width="15%" id="frame" name="frame" class="UserLeft">
+<!--树型菜单开始-->
+<table width="150" border="0" align="center" cellpadding="0" cellspacing="0">
+  <tr>
+    <td height="5"></td>
+  </tr>
+  <tr>
+    <td height="16"><img src="images/icon/user_manager.gif" width="22" height="16" align="absmiddle" /><strong><a href="main.jsp" target="main">用户控制面板</a></strong></td>
+  </tr>
+</table>
+<table width="150" border="0" align="center" cellpadding="0" cellspacing="0">
+  <tr>
+    <td onclick="showsubmenu(1)"><img id="plusMinus1" src="images/icon/ftv2mnode.gif" width="16" height="22" align="absmiddle" /><img id="switchFolder1" src="images/icon/ftv2folderopen.gif" width="24" height="16" align="texttop" />发布信息管理</td>
+  </tr>
+  <tr>
+    <td style="display:" id="submenu1"><table width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr>
+        <td><img src="images/icon/ftv2vertline.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/ftv2node.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/ftv2folderclosed.gif" width="24" height="16" align="texttop" /><a href="aritcle.jsp" target="main" class="treemenu">发布文章</a></td>
+      </tr>
+      <tr>
+        <td><img src="images/icon/ftv2vertline.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/ftv2node.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/ftv2folderclosed.gif" width="24" height="16" align="texttop" /><a href="aditcleManage.jsp" target="main" class="treemenu">管理文章</a></td>
+      </tr>
+    </table></td>
+  </tr>
+</table>
+
+<table width="150" border="0" align="center" cellpadding="0" cellspacing="0">
+  <tr>
+    <td onclick="showsubmenu(2)"><img id="plusMinus2" src="images/icon/ftv2mlastnode.gif" width="16" height="22" align="absmiddle" /><img id="switchFolder2" src="images/icon/menu_user.gif" width="22" height="16" align="texttop" />个人设置</td>
+  </tr>
+  <tr>
+    <td style="display:" id="submenu2"><table width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr>
+        <td><img src="images/icon/ftv2blank.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/ftv2node.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/bieming2.gif" width="22" height="16" align="texttop" /><a href="changepwd.jsp" target="main" class="treemenu">修改密码</a></td>
+      </tr>
+      <tr>
+        <td><img src="images/icon/ftv2blank.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/ftv2node.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/usericon.gif" width="22" height="16" align="texttop" /><a href="changeinfo.jsp" target="main" class="treemenu">修改资料</a></td>
+      </tr>
+      <tr>
+        <td><img src="images/icon/ftv2blank.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/ftv2node.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/user_help.gif" width="22" height="16" align="texttop" /><a href="" target="main" class="treemenu">帮　助</a></td>
+      </tr>
+      <tr>
+        <td><img src="images/icon/ftv2blank.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/ftv2lastnode.gif" width="16" height="22" align="absmiddle" /><img src="images/icon/logout.gif" width="22" height="16" align="texttop" /><a href="loginout.jsp" target="_top" class="treemenu">退出系统</a></td>
+      </tr>
+    </table></td>
+  </tr>
+</table>
+<!--树型菜单结束-->
+    </td>
+    <td width="85%" height="100%" class="UserRight">
+    <iframe id="main" style="width: 100%;" name="main" src="<%=url%>/user/main.jsp" scrolling="no" frameborder="0" marginheight="0" marginwidth="0" onload="Javascript:setFrameHeight(this)"></iframe>
+<br><br style="overflow: hidden; line-height: 10px">
+    </td>
+  </tr>
+</table>
+</div><!-- End globalBody -->
+<div class="globalBody">
+  <table border="0" align="center" cellpadding="0" cellspacing="0" class="tableborder">
+    <tr>
+      <td class="pageBottom">
+        <a href="">关于本站</a> - 
+        <a href="">网站帮助</a> - 
+        <a href="">广告合作</a> - 
+        <a href="">下载声明</a> - 
+        <a href="<%=url%>/link/link.jsp" target="_blank">友情连接</a> - 
+        <a href="">网站地图</a> -
+        <a href="<%=url%>/admin/admin_login.jsp" target="_blank">管理登陆</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="pageFooter">
+        <div class="footLogo">
+          <a href="<%=url%>" target="_blank"><img src="<%=url%>/images/logo.jpg" width="190" height="73" border="0"></a>
+        </div>
+        <div class="footInfo"> 
+          Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+          <br><a href="http://www.mianfeizhe.com" target="_blank" class="navmenu">MianFeiZhe内容管理系统 3.1.0</a>
+          <script language="JavaScript" type="text/javascript" src="/adfile/footer.js"></script>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+</body>
+</html>
+<script language="JavaScript" type="text/javascript" src="/count.asp"></script>

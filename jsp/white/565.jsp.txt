@@ -1,0 +1,102 @@
+	<%@ page contentType="text/html;charset=UTF-8" %>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<script type="text/javascript" src="${ctx }/scripts/js/jquery-1.3.2.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jqPager/jquery.pager.js"></script><!-- 分页 -->
+    <script language="JavaScript" type="text/javascript" src="${ctx}/scripts/front/common/common_pager.js"></script><!-- 分页 -->
+	<script type="text/javascript" src="${ctx}/scripts/front/yhzx.js"></script>
+	
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/hyzx.css" rel="stylesheet" type="text/css" />
+<link rel="stylesheet" type="text/css" href="${ctx}/styles/jqPager/Pager.css" /><!-- 分页 --> 
+
+	<input id="count" name="count" value="${pageInfo.count}" type="hidden" /><!-- 记录总数 -->
+	<input id="pageSize" name="pageSize" value="${pageInfo.pageSize}" type="hidden" /><!-- 每页显示记录数 -->
+	<input id="pageCount" name="pageCount" value="${pageInfo.pageCount}" type="hidden" /><!-- 总页数 -->
+	<input id="pageIndex" name="pageIndex" value="${pageInfo.pageIndex}" type="hidden" /><!-- 当前页数 -->
+	<input id="apptype" name="apptype" value="send" type="hidden" />
+
+
+<!-- 	修改收货地址 -->
+   <div class="gdttda">
+       <div class="hyzx_bt">
+	       <div class="zxyc_dh">
+		       <div class="zxyc_zz"><a href="javascript:void(0);" onclick="showListDiv()" style="color: #FFFFFF; font-size: 14px;">信息列表</a></div><div class="zxyc_zz"><a href="javascript:void(0);" onclick="showSendDiv()" style="color: #FFFFFF; font-size: 14px;">发信息</a></div>
+		       <div class="sr3_t_right right"></div>
+	       </div>
+	       <div id="sendInfor" style="display:none;">  
+		   	   <form action="" name="saveSendInfor" id="saveSendInfor" method="post">
+		   	       <div style="margin-left:100px;margin-top:100px;">
+		   	       	   <input type="hidden" id="recipientId" value="${loginCustomer.operatorId }"/>
+			   	   	   <p>标题：<input type="text" size="40" name="message.title" id="title"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;收件人：<input type="text" id="recipientName" name="message.recipientName" value="${loginCustomer.operatorName }"/></p>
+			   	   	   <p>内容：<textarea name="message.content" id="content" cols="60" rows="3"></textarea></p>
+			   	   	   <P style="float:right;margin-right:200px;"><input type="button" value="发送" onclick="submitSendForm()"/></P>
+		   	       </div>
+		   	   </form>
+		   </div> <!-- sendInfor结束 -->  
+		   <div id="listInfor">
+		   	   <table width="100%" height="100%" border="0" cellpadding="0" cellspacing="0" class="huisesibiankuang" align="left">
+			   <tr>
+				   <td width="100%" align="right" valign="top">
+					   <table width="100%" border="0" cellpadding="0" cellspacing="0">
+						   <tr><td height="20"></td></tr>
+						   <!-- 表头 -->
+						   <!-- 主体 -->
+						   <tr>
+						       <td>
+							        <table width="98%" border="0" cellpadding="0" cellspacing="0">
+							          <tr bgcolor="#F6F6F6">
+							            <td height="33" align="center" background="${ctx }/styles/front/images/dingdanzhongxin2222_08.gif">
+								            <table width="100%" height="17" border="0" cellpadding="0" cellspacing="0">
+								              <tr>
+								              	<td width="100" align="center">标题</td>
+								              	<td width="200" align="center">内容</td>
+								              	<td width="100" align="center">收件人</td>
+								                <td width="100" align="center">发件时间</td>
+								                <td width="100" align="center">操作</td>
+								              </tr>
+								            </table>
+							            </td>
+							          </tr>
+							          <c:forEach items="${messageList}" var="list" varStatus="i">
+								      <tr>
+							            <td align="center" class="huisexiahuaxian">
+								            <table width="100%" height="22" border="0" cellpadding="0" cellspacing="0" style=" border-bottom:1px dotted #CCCCCC;">
+								              <tr style="font-size:14px;">
+								                <td width="100" align="center" align="center" class="youbianhuisekuang" style="font-size:12px;line-height:18px">${list.title }&nbsp;</td>
+								              	<td width="200" align="center" class="youbianhuisekuang" style="font-size:12px;line-height:18px">${list.content }&nbsp;</td>
+								              	<td width="100" align="center" class="youbianhuisekuang" style="font-size:12px;line-height:18px">${list.recipientName }&nbsp;</td>
+								                <td width="100" align="center" height="35" align="center" class="youbianhuisekuang" style="font-size:12px;"><fmt:formatDate pattern="yyyy-MM-dd HH:mm:ss" value="${list.createTime }"/>&nbsp;</td>
+								              	<td width="100" align="center" class="youbianhuisekuang" style="font-size:12px;"><a href="javascript:void(0);" onclick="deleteMessage('${list.id }')">删除</a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="javascript:void(0);" onclick="showMessage('${list.id }')">查看</a></td>
+								              </tr>
+								            </table>
+							            </td>
+								      </tr>
+								      </c:forEach>
+								      <c:if test="${size == 0}">
+								          <tr>
+								            <td height="50" align="center">
+									            <table width="779" height="17" border="0" cellpadding="0" cellspacing="0">
+									              <tr><td height="50" align="center"><span style="color:red;font-size:14px;">没有相关信息</span></td></tr>
+									            </table>
+								            </td>
+								          </tr>
+							          </c:if>
+							        </table>
+							        <c:if test="${size > 0}">
+								       <div id="pagerBot" style="margin-right: 0px;"></div><!--分页组件-->
+								    </c:if>
+						       </td>
+						   </tr>
+						   <!-- 主体 -->
+					   </table>
+				   </td>
+			   </tr>
+			 </table>
+		   </div>	<!-- listInfor结束 -->   
+		   
+       </div>
+   </div>

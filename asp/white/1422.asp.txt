@@ -1,0 +1,513 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../Connections/conn1.asp" -->
+<%
+Dim MM_editAction
+MM_editAction = CStr(Request.ServerVariables("SCRIPT_NAME"))
+If (Request.QueryString <> "") Then
+  MM_editAction = MM_editAction & "?" & Server.HTMLEncode(Request.QueryString)
+End If
+
+' boolean to abort record edit
+Dim MM_abortEdit
+MM_abortEdit = false
+%>
+<%
+' IIf implementation
+Function MM_IIf(condition, ifTrue, ifFalse)
+  If condition = "" Then
+    MM_IIf = ifFalse
+  Else
+    MM_IIf = ifTrue
+  End If
+End Function
+%>
+<%
+If (CStr(Request("MM_update")) = "form2") Then
+  If (Not MM_abortEdit) Then
+    ' execute the update
+    Dim MM_editCmd
+
+    Set MM_editCmd = Server.CreateObject ("ADODB.Command")
+    MM_editCmd.ActiveConnection = MM_conn1_STRING
+    MM_editCmd.CommandText = "UPDATE product SET product_order = ? WHERE Product_Id = ?" 
+    MM_editCmd.Prepared = true
+    MM_editCmd.Parameters.Append MM_editCmd.CreateParameter("param1", 5, 1, -1, MM_IIF(Request.Form("product_order"), Request.Form("product_order"), null)) ' adDouble
+    MM_editCmd.Parameters.Append MM_editCmd.CreateParameter("param2", 5, 1, -1, MM_IIF(Request.Form("MM_recordId"), Request.Form("MM_recordId"), null)) ' adDouble
+    MM_editCmd.Execute
+    MM_editCmd.ActiveConnection.Close
+
+    ' append the query string to the redirect URL
+    Dim MM_editRedirectUrl
+    MM_editRedirectUrl = "admin_product_list.asp"
+    If (Request.QueryString <> "") Then
+      If (InStr(1, MM_editRedirectUrl, "?", vbTextCompare) = 0) Then
+        MM_editRedirectUrl = MM_editRedirectUrl & "?" & Request.QueryString
+      Else
+        MM_editRedirectUrl = MM_editRedirectUrl & "&" & Request.QueryString
+      End If
+    End If
+    Response.Redirect(MM_editRedirectUrl)
+  End If
+End If
+%>
+<%
+Dim menulist__MMColParam
+menulist__MMColParam = "3"
+If (Request("MM_EmptyValue") <> "") Then 
+  menulist__MMColParam = Request("MM_EmptyValue")
+End If
+%>
+<%
+Dim menulist
+Dim menulist_cmd
+Dim menulist_numRows
+
+Set menulist_cmd = Server.CreateObject ("ADODB.Command")
+menulist_cmd.ActiveConnection = MM_conn1_STRING
+menulist_cmd.CommandText = "SELECT Menu_Id, Menu_name, Menu_order, Menu_type FROM menu WHERE Menu_type = ? ORDER BY Menu_order ASC" 
+menulist_cmd.Prepared = true
+menulist_cmd.Parameters.Append menulist_cmd.CreateParameter("param1", 200, 1, 1, menulist__MMColParam) ' adVarChar
+
+Set menulist = menulist_cmd.Execute
+menulist_numRows = 0
+%>
+<%
+Dim productlist__MMColParam
+productlist__MMColParam = "1"
+If (Request.QueryString("m_id") <> "") Then 
+  productlist__MMColParam = Request.QueryString("m_id")
+End If
+%>
+<%
+Dim productlist
+Dim productlist_cmd
+Dim productlist_numRows
+
+Set productlist_cmd = Server.CreateObject ("ADODB.Command")
+productlist_cmd.ActiveConnection = MM_conn1_STRING
+productlist_cmd.CommandText = "SELECT Menu_id, product_color, product_count, product_current, Product_Id, product_img, product_Oorc, product_order, product_original, product_ruler, product_seo, product_stock, product_title FROM product WHERE Menu_id = ? ORDER BY product_order ASC" 
+productlist_cmd.Prepared = true
+productlist_cmd.Parameters.Append productlist_cmd.CreateParameter("param1", 5, 1, -1, productlist__MMColParam) ' adDouble
+
+Set productlist = productlist_cmd.Execute
+productlist_numRows = 0
+%>
+<%
+Dim Repeat1__numRows
+Dim Repeat1__index
+
+Repeat1__numRows = -1
+Repeat1__index = 0
+menulist_numRows = menulist_numRows + Repeat1__numRows
+%>
+<%
+Dim Repeat2__numRows
+Dim Repeat2__index
+
+Repeat2__numRows = 20
+Repeat2__index = 0
+productlist_numRows = productlist_numRows + Repeat2__numRows
+%>
+<%
+'  *** Recordset Stats, Move To Record, and Go To Record: declare stats variables
+
+Dim productlist_total
+Dim productlist_first
+Dim productlist_last
+
+' set the record count
+productlist_total = productlist.RecordCount
+
+' set the number of rows displayed on this page
+If (productlist_numRows < 0) Then
+  productlist_numRows = productlist_total
+Elseif (productlist_numRows = 0) Then
+  productlist_numRows = 1
+End If
+
+' set the first and last displayed record
+productlist_first = 1
+productlist_last  = productlist_first + productlist_numRows - 1
+
+' if we have the correct record count, check the other stats
+If (productlist_total <> -1) Then
+  If (productlist_first > productlist_total) Then
+    productlist_first = productlist_total
+  End If
+  If (productlist_last > productlist_total) Then
+    productlist_last = productlist_total
+  End If
+  If (productlist_numRows > productlist_total) Then
+    productlist_numRows = productlist_total
+  End If
+End If
+%>
+<%
+Dim MM_paramName 
+%>
+<%
+' *** Move To Record and Go To Record: declare variables
+
+Dim MM_rs
+Dim MM_rsCount
+Dim MM_size
+Dim MM_uniqueCol
+Dim MM_offset
+Dim MM_atTotal
+Dim MM_paramIsDefined
+
+Dim MM_param
+Dim MM_index
+
+Set MM_rs    = productlist
+MM_rsCount   = productlist_total
+MM_size      = productlist_numRows
+MM_uniqueCol = ""
+MM_paramName = ""
+MM_offset = 0
+MM_atTotal = false
+MM_paramIsDefined = false
+If (MM_paramName <> "") Then
+  MM_paramIsDefined = (Request.QueryString(MM_paramName) <> "")
+End If
+%>
+<%
+' *** Move To Record: handle 'index' or 'offset' parameter
+
+if (Not MM_paramIsDefined And MM_rsCount <> 0) then
+
+  ' use index parameter if defined, otherwise use offset parameter
+  MM_param = Request.QueryString("index")
+  If (MM_param = "") Then
+    MM_param = Request.QueryString("offset")
+  End If
+  If (MM_param <> "") Then
+    MM_offset = Int(MM_param)
+  End If
+
+  ' if we have a record count, check if we are past the end of the recordset
+  If (MM_rsCount <> -1) Then
+    If (MM_offset >= MM_rsCount Or MM_offset = -1) Then  ' past end or move last
+      If ((MM_rsCount Mod MM_size) > 0) Then         ' last page not a full repeat region
+        MM_offset = MM_rsCount - (MM_rsCount Mod MM_size)
+      Else
+        MM_offset = MM_rsCount - MM_size
+      End If
+    End If
+  End If
+
+  ' move the cursor to the selected record
+  MM_index = 0
+  While ((Not MM_rs.EOF) And (MM_index < MM_offset Or MM_offset = -1))
+    MM_rs.MoveNext
+    MM_index = MM_index + 1
+  Wend
+  If (MM_rs.EOF) Then 
+    MM_offset = MM_index  ' set MM_offset to the last possible record
+  End If
+
+End If
+%>
+<%
+' *** Move To Record: if we dont know the record count, check the display range
+
+If (MM_rsCount = -1) Then
+
+  ' walk to the end of the display range for this page
+  MM_index = MM_offset
+  While (Not MM_rs.EOF And (MM_size < 0 Or MM_index < MM_offset + MM_size))
+    MM_rs.MoveNext
+    MM_index = MM_index + 1
+  Wend
+
+  ' if we walked off the end of the recordset, set MM_rsCount and MM_size
+  If (MM_rs.EOF) Then
+    MM_rsCount = MM_index
+    If (MM_size < 0 Or MM_size > MM_rsCount) Then
+      MM_size = MM_rsCount
+    End If
+  End If
+
+  ' if we walked off the end, set the offset based on page size
+  If (MM_rs.EOF And Not MM_paramIsDefined) Then
+    If (MM_offset > MM_rsCount - MM_size Or MM_offset = -1) Then
+      If ((MM_rsCount Mod MM_size) > 0) Then
+        MM_offset = MM_rsCount - (MM_rsCount Mod MM_size)
+      Else
+        MM_offset = MM_rsCount - MM_size
+      End If
+    End If
+  End If
+
+  ' reset the cursor to the beginning
+  If (MM_rs.CursorType > 0) Then
+    MM_rs.MoveFirst
+  Else
+    MM_rs.Requery
+  End If
+
+  ' move the cursor to the selected record
+  MM_index = 0
+  While (Not MM_rs.EOF And MM_index < MM_offset)
+    MM_rs.MoveNext
+    MM_index = MM_index + 1
+  Wend
+End If
+%>
+<%
+' *** Move To Record: update recordset stats
+
+' set the first and last displayed record
+productlist_first = MM_offset + 1
+productlist_last  = MM_offset + MM_size
+
+If (MM_rsCount <> -1) Then
+  If (productlist_first > MM_rsCount) Then
+    productlist_first = MM_rsCount
+  End If
+  If (productlist_last > MM_rsCount) Then
+    productlist_last = MM_rsCount
+  End If
+End If
+
+' set the boolean used by hide region to check if we are on the last record
+MM_atTotal = (MM_rsCount <> -1 And MM_offset + MM_size >= MM_rsCount)
+%>
+<%
+' *** Go To Record and Move To Record: create strings for maintaining URL and Form parameters
+
+Dim MM_keepNone
+Dim MM_keepURL
+Dim MM_keepForm
+Dim MM_keepBoth
+
+Dim MM_removeList
+Dim MM_item
+Dim MM_nextItem
+
+' create the list of parameters which should not be maintained
+MM_removeList = "&index="
+If (MM_paramName <> "") Then
+  MM_removeList = MM_removeList & "&" & MM_paramName & "="
+End If
+
+MM_keepURL=""
+MM_keepForm=""
+MM_keepBoth=""
+MM_keepNone=""
+
+' add the URL parameters to the MM_keepURL string
+For Each MM_item In Request.QueryString
+  MM_nextItem = "&" & MM_item & "="
+  If (InStr(1,MM_removeList,MM_nextItem,1) = 0) Then
+    MM_keepURL = MM_keepURL & MM_nextItem & Server.URLencode(Request.QueryString(MM_item))
+  End If
+Next
+
+' add the Form variables to the MM_keepForm string
+For Each MM_item In Request.Form
+  MM_nextItem = "&" & MM_item & "="
+  If (InStr(1,MM_removeList,MM_nextItem,1) = 0) Then
+    MM_keepForm = MM_keepForm & MM_nextItem & Server.URLencode(Request.Form(MM_item))
+  End If
+Next
+
+' create the Form + URL string and remove the intial '&' from each of the strings
+MM_keepBoth = MM_keepURL & MM_keepForm
+If (MM_keepBoth <> "") Then 
+  MM_keepBoth = Right(MM_keepBoth, Len(MM_keepBoth) - 1)
+End If
+If (MM_keepURL <> "")  Then
+  MM_keepURL  = Right(MM_keepURL, Len(MM_keepURL) - 1)
+End If
+If (MM_keepForm <> "") Then
+  MM_keepForm = Right(MM_keepForm, Len(MM_keepForm) - 1)
+End If
+
+' a utility function used for adding additional parameters to these strings
+Function MM_joinChar(firstItem)
+  If (firstItem <> "") Then
+    MM_joinChar = "&"
+  Else
+    MM_joinChar = ""
+  End If
+End Function
+%>
+<%
+' *** Move To Record: set the strings for the first, last, next, and previous links
+
+Dim MM_keepMove
+Dim MM_moveParam
+Dim MM_moveFirst
+Dim MM_moveLast
+Dim MM_moveNext
+Dim MM_movePrev
+
+Dim MM_urlStr
+Dim MM_paramList
+Dim MM_paramIndex
+Dim MM_nextParam
+
+MM_keepMove = MM_keepBoth
+MM_moveParam = "index"
+
+' if the page has a repeated region, remove 'offset' from the maintained parameters
+If (MM_size > 1) Then
+  MM_moveParam = "offset"
+  If (MM_keepMove <> "") Then
+    MM_paramList = Split(MM_keepMove, "&")
+    MM_keepMove = ""
+    For MM_paramIndex = 0 To UBound(MM_paramList)
+      MM_nextParam = Left(MM_paramList(MM_paramIndex), InStr(MM_paramList(MM_paramIndex),"=") - 1)
+      If (StrComp(MM_nextParam,MM_moveParam,1) <> 0) Then
+        MM_keepMove = MM_keepMove & "&" & MM_paramList(MM_paramIndex)
+      End If
+    Next
+    If (MM_keepMove <> "") Then
+      MM_keepMove = Right(MM_keepMove, Len(MM_keepMove) - 1)
+    End If
+  End If
+End If
+
+' set the strings for the move to links
+If (MM_keepMove <> "") Then 
+  MM_keepMove = Server.HTMLEncode(MM_keepMove) & "&"
+End If
+
+MM_urlStr = Request.ServerVariables("URL") & "?" & MM_keepMove & MM_moveParam & "="
+
+MM_moveFirst = MM_urlStr & "0"
+MM_moveLast  = MM_urlStr & "-1"
+MM_moveNext  = MM_urlStr & CStr(MM_offset + MM_size)
+If (MM_offset - MM_size < 0) Then
+  MM_movePrev = MM_urlStr & "0"
+Else
+  MM_movePrev = MM_urlStr & CStr(MM_offset - MM_size)
+End If
+%>
+
+<!--#include file="../config.asp" -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title><%=web_title%>后台管理系统</title>
+<link href="lihua.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript">
+function GP_popupConfirmMsg(msg) { //v1.0
+  document.MM_returnValue = confirm(msg);
+}
+</script>
+</head>
+
+<body>
+<!--#include file="admin_head.asp" -->
+<table width="997" border="0" align="center" cellpadding="0" cellspacing="0">
+  <tr>
+    <td height="500" valign="top"><br />
+     
+        <table width="997" border="0" align="center" cellpadding="5" cellspacing="0" class="admintab">
+          <tr>
+            <td width="909"> <% If Not menulist.EOF Or Not menulist.BOF Then %><% 
+While ((Repeat1__numRows <> 0) AND (NOT menulist.EOF)) 
+%>
+                <a href="admin_product_list.asp?m_id=<%=(menulist.Fields.Item("Menu_Id").Value)%>"><%=(menulist.Fields.Item("Menu_name").Value)%></a>&nbsp;&nbsp;
+                <% 
+  Repeat1__index=Repeat1__index+1
+  Repeat1__numRows=Repeat1__numRows-1
+  menulist.MoveNext()
+Wend
+%><% Else %>
+暂无商品分类信息！
+    <% End If ' end Not menulist.EOF Or NOT menulist.BOF %>
+              </td>
+            <td width="66"><a href="admin_product_update.asp">添加商品</a></td>
+          </tr>
+                <tr><td colspan="2">
+
+                <table width="100%" border="0" align="center" cellpadding="5" cellspacing="0" class="admintab">
+                     <% If Not productlist.EOF Or Not productlist.BOF Then %>
+                  <tr>
+                    <td width="100%"> <% 
+While ((Repeat2__numRows <> 0) AND (NOT productlist.EOF)) 
+%>
+                          <table width="100%" border="0" cellpadding="2" cellspacing="2" class="adminpro">
+                            <form id="form2" name="form2" method="POST" action="<%=MM_editAction%>">
+                              <tr>
+                                <td width="16%" rowspan="5"><img src="../upload/proimg/<%=(productlist.Fields.Item("product_img").Value)%>" width="140" height="160" /></td>
+                                <td width="61%" height="32">品名：<%=(productlist.Fields.Item("product_title").Value)%></td>
+                                <td width="23%">排序：
+                                  <input name="product_order" type="text" id="product_order" value="<%=(productlist.Fields.Item("product_order").Value)%>" size="10" maxlength="4" />
+                                  <input type="submit" name="button" id="button" value="排序" /></td>
+                              </tr>
+                              <tr>
+                                <td height="32">状态：
+                                  <%if CStr(productlist.Fields.Item("product_Oorc").Value)=CStr("1") then%>
+                                  热卖中
+                                  <% Else %>
+                                  商品下架
+                                  <% End If %></td>
+                                <td>浏览量：<%=(productlist.Fields.Item("product_count").Value)%></td>
+                              </tr>
+                              <tr>
+                                <td height="32" colspan="2">库存：<%=(productlist.Fields.Item("product_stock").Value)%>&nbsp; 原价：<%=(productlist.Fields.Item("product_original").Value)%>&nbsp; 现价：<%=(productlist.Fields.Item("product_current").Value)%></td>
+                              </tr>
+                              <tr>
+                                <td height="32" colspan="2">尺寸：<%=(productlist.Fields.Item("product_ruler").Value)%>&nbsp; 颜色：<%=replace((productlist.Fields.Item("product_color").Value),"images","../images")%>&nbsp; 站内推广：<%if CStr(productlist.Fields.Item("product_seo").Value)=CStr("1") then%>推广<% Else %>不推广<% End If %></td>
+                              </tr>
+                              <tr>
+                                <td colspan="2"><table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                  <tr>
+                                    <td width="74%">&nbsp;</td>
+                                    <td width="26%"><a href="admin_product_append.asp?p_id=<%= productlist.Fields.Item("Product_Id").Value %>">更新</a> <a href="admin_del.asp?tab=Product&id=<%= productlist.Fields.Item("Product_Id").Value %>" class="adminyc" onclick="GP_popupConfirmMsg('信息删除将无法恢复，确认删除吗？');return document.MM_returnValue">删除</a> <a href="admin_product_img_list.asp?p_id=<%= productlist.Fields.Item("Product_Id").Value %>">商品图</a></td>
+                                  </tr>
+                                </table></td>
+                              </tr>
+                              <input type="hidden" name="MM_update" value="form2" />
+                              <input type="hidden" name="MM_recordId" value="<%= productlist.Fields.Item("Product_Id").Value %>" />
+                            </form>
+                          </table>
+                          <% 
+  Repeat2__index=Repeat2__index+1
+  Repeat2__numRows=Repeat2__numRows-1
+  productlist.MoveNext()
+Wend
+%></td>
+                  </tr>
+                  <tr> 
+                        <td align="center">
+                      <table border="0">
+                        <tr>
+                          <td><% If MM_offset <> 0 Then %>
+                              <a href="<%=MM_moveFirst%>">第一页</a>
+                              <% End If ' end MM_offset <> 0 %></td>
+                          <td><% If MM_offset <> 0 Then %>
+                              <a href="<%=MM_movePrev%>">前一页</a>
+                              <% End If ' end MM_offset <> 0 %></td>
+                          <td><% If Not MM_atTotal Then %>
+                              <a href="<%=MM_moveNext%>">下一个</a>
+                              <% End If ' end Not MM_atTotal %></td>
+                          <td><% If Not MM_atTotal Then %>
+                              <a href="<%=MM_moveLast%>">最后一页</a>
+                              <% End If ' end Not MM_atTotal %></td>
+                        </tr>
+                    </table></td>
+                  </tr> 
+				     <% End If ' end Not productlist.EOF Or NOT productlist.BOF %>
+                </table></td>
+          </tr>
+        </table>
+    </td>
+  </tr>
+</table>
+<!--#include file="admin_copyright.asp" -->
+</body>
+</html>
+<%
+menulist.Close()
+Set menulist = Nothing
+%>
+<%
+productlist.Close()
+Set productlist = Nothing
+%>

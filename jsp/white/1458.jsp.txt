@@ -1,0 +1,31 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@page import="com.bizoss.trade.ts_memlevel.*" %>
+
+
+<%
+	String cust_id="",user_id="";	
+	if( session.getAttribute("session_cust_id") != null )
+	{
+		cust_id = session.getAttribute("session_cust_id").toString();
+	}
+	if( session.getAttribute("session_user_id") != null )
+	{
+		user_id = session.getAttribute("session_user_id").toString();
+	}
+	
+	String user_class = "";
+    if(request.getParameter("user_class")!=null && !request.getParameter("user_class").equals("")){
+		user_class = request.getParameter("user_class");
+	}	
+	Ts_memlevelInfo memlevelInfo = new Ts_memlevelInfo();		
+	Boolean isExisted = memlevelInfo.checkUser_class(user_class);
+	
+%>
+
+<%
+	if(isExisted){
+%>
+<span id="checkCustDataRemote">1</span>
+<%}else{%>
+<span id="checkCustDataRemote">0</span>
+<%}%>

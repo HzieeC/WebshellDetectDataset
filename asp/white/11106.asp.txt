@@ -1,0 +1,159 @@
+<!--#include virtual="/Module/Includes/Conn.asp" -->
+<!-- #Include virtual="/Module/Includes/Config.asp" -->
+<!--#include virtual="/Module/Includes/PubFunc.asp" -->
+<%
+SetLimit=session("Limit")
+call checklimit(SetLimit,"5")'调用验证管理员权限的函数
+response.Clear()
+delflag=request.form("delflag")
+if delflag="OK" then
+	del=request.form("del")
+	if del<>"" then
+  		conn.execute("delete  from SmsRec where id in ("&del&") ")
+	else%>
+		<script language="javascript">
+			alert("请选择要删除的记录");
+			window.history.back();
+		</script>
+	<%
+	response.end
+	end if
+end if
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>后台管理机票系统</title>
+<link rel="stylesheet" type="text/css" href="../Style/Style.css" />
+
+</head>
+<div class="txt_title">收到的短信</div>
+
+<%
+'Option Explicit
+Dim objHttpRequest	'XML文档对象
+Dim objXmlDoc	    'XML文档对象
+Dim root
+
+Dim SendNum         '发送号码
+Dim RecvNum         '接收号码
+Dim RecvTime        '接收时间
+Dim RecvMsg         '接收信息
+
+URL = "http://"&SmsUrl&"/SDK/Sms_Recv.asp?CorpID="&ComId&"&LoginName="&SmsName&"&XML=1&passwd="&SmsPw
+
+
+'调用MSXML，发送请求
+set objHttpRequest = CreateObject("MSXML2.ServerXMLHTTP" )
+
+if objHttpRequest is Nothing Then
+ '返回错误
+ response.write "create Msxl2.ServerXMLHTTP error"
+ response.end
+end if
+
+Set objXmlDoc = CreateObject("Msxml2.DOMDocument")
+If objXmlDoc Is Nothing Then
+ '返回错误
+ response.write "create Msxl2.DoMDocument error"
+ response.end
+End If
+objXmlDoc.async = false
+
+
+'发出请求
+objHttpRequest.open "GET",URL,False
+objHttpRequest.send()
+if objHttpRequest.status <> 200  then
+ '返回错误
+ response.write "Open Request Error"
+ response.end
+end if
+
+
+'加载Xml流
+bResult = objXmlDoc.loadXML(objHttpRequest.responseText)
+If bResult = False Then
+		'写错误日志
+   response.write "load response xml error"
+   response.end
+End If
+
+'获取信息
+set rs=server.CreateObject("adodb.recordset")
+
+set root = objXmlDoc.documentElement
+for i=1 to root.childNodes.length
+  set node = root.childNodes.item(i)
+  if not node is Nothing then
+    set node2= node.childNodes.item(0)
+    SendNum = node2.nodeTypedValue   'SendNum
+    set node2= node.childNodes.item(1)
+    RecvNum = node2.nodeTypedValue   'RecvNum
+    set node2= node.childNodes.item(2)
+    RecvTime = node2.nodeTypedValue   'RecvTime
+    set node2= node.childNodes.item(3)
+    RecvMsg = node2.nodeTypedValue   'RecvMsg
+	
+	sql="select * from SmsRec where Id=-1"
+	rs.open sql,conn,1,3
+	rs.addnew
+	rs("SendMobile")=SendNum
+	rs("RecMobile")=RecvNum
+	rs("RecTime")=RecvTime
+	rs("RecText")=RecvMsg
+	rs.update
+	rs.close
+    'response.write SendNum&"-"&RecvNum&"-"&RecvTime&"-"&RecvMsg&"<BR>"
+  end if
+next
+
+
+'释放资源
+Set objXmlDoc = Nothing
+Set objHttpRequest = Nothing
+%>
+<table cellspacing="1" cellpadding="0">
+  <tr>
+    <td width="4%" height="25" align="center" bgcolor="#C3E7F9">编辑</td>
+	<td width="20%" align="center" bgcolor="#C3E7F9">发送时间</td>
+    <td width="15%" align="center" bgcolor="#C3E7F9">发送号码</td>
+    <td width="18%" align="center" bgcolor="#C3E7F9">接收号码</td>
+    <td width="43%" bgcolor="#C3E7F9">&nbsp;&nbsp;短信内容</td>
+  </tr>
+  <form name="form1" method="post" action="#">
+  <input type="hidden" name="delflag" value="OK">
+  <%
+  sql="select * from SmsRec order by id desc"
+  rs.open sql,conn,1,3
+  if not rs.eof then
+  do while not rs.eof 
+  %>
+  <tr>
+    <td height="25" align="center" bgcolor="#FFFFFF"><input type="checkbox" name="del" value="<%=rs("id")%>">
+	</td>
+	<td align="center" bgcolor="#FFFFFF"><%=rs("RecTime")%></td>
+    <td align="center" bgcolor="#FFFFFF"><%=rs("SendMobile")%></td>
+    <td align="center" bgcolor="#FFFFFF"><%=rs("RecMobile")%></td>
+    <td bgcolor="#FFFFFF"><%=rs("RecText")%></td>
+  </tr>
+  <%
+  rs.movenext
+  loop%>
+  <tr>
+    <td height="25" colspan="5" bgcolor="#FFFFFF">&nbsp;&nbsp;<input type="Submit" value=" 删 除 "></td>
+  </tr> 
+  <%else%>
+  <tr>
+    <td height="25" colspan="5" bgcolor="#FFFFFF">&nbsp;&nbsp;当前没有记录</td>
+  </tr>  
+  <%end if
+  %>
+</table>
+<%
+set rs=nothing
+conn.close
+set conn=nothing
+%>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<%
+'***************************************
+'页面防刷新模块              
+'淘模板博客  
+'***************************************
+Class AntiRefresh
+Private IPArr,DateArr
+Private m_BufferSize
+Private m_CacheItemAvailTime
+
+Private Sub Class_Initialize()
+   Application.Lock()
+   m_BufferSize=100
+   m_CacheItemAvailTime=1
+  
+End Sub
+Private Sub Class_Terminate()
+   Application.UnLock()
+End Sub
+Public Property Get CacheItemAvailTime
+   CacheItemAvailTime=m_CacheItemAvailTime
+End Property
+Public Property Let CacheItemAvailTime(Value)
+   m_CacheItemAvailTime=Value
+End Property
+
+Public Property Get BufferSize
+   BufferSize=m_BufferSize
+End Property
+
+Public Property Let BufferSize(Value)
+   m_BufferSize=Value
+End Property
+
+Private Sub EnsureArr()
+   If IsArray(Application(VarNameDateArr)) Then
+    DateArr=Application(VarNameDateArr)
+   Else
+    ReDim DateArr(BufferSize)
+   End If
+  
+   If IsArray(Application(VarNameIPArr)) Then
+    IPArr=Application(VarNameIPArr)
+   Else
+    ReDim IPArr(BufferSize)
+   End If
+End Sub
+
+Public Function IsValidAccess()
+   Dim ip,i
+   ip=GetIP()
+   IsValidAccess=True
+   EnsureArr()
+   For i=1 To BufferSize
+    If IPArr(i)=ip Then
+     If DateDiff("s",CDate(DateArr(i)),Now()) < CacheItemAvailTime Then
+       IsValidAccess=False
+       Exit Function
+     End If   
+    End If
+   Next
+   Call QueueHandle()
+   DateArr(1)=Now()
+   IPArr(1)=ip
+   Application(VarNameIPArr)=IPArr
+   Application(VarNameDateArr)=DateArr
+End Function
+
+Public Function ClearCache()
+   Set Application(VarNameDateArr)=Nothing
+   Set Application(VarNameIPArr)=Nothing
+End Function
+
+Private Sub QueueHandle()
+   Dim i,j
+  
+   For i=BufferSize-1 To 1 Step -1
+    DateArr(i+1)=DateArr(i)
+   Next
+   For j=BufferSize-1 To 1 Step -1
+    IPArr(j+1)=IPArr(j)
+   Next
+End Sub
+
+Private Function GetIP()
+   Dim strIPAddr
+   If Request.ServerVariables("HTTP_X_FORWARDED_FOR") = "" OR InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), "unknown") > 0 Then
+    strIPAddr = Request.ServerVariables("REMOTE_ADDR")
+   ElseIf InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ",") > 0 Then
+    strIPAddr = Mid(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), 1, InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ",")-1)
+   ElseIf InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ";") > 0 Then
+    strIPAddr = Mid(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), 1, InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ";")-1)
+   Else
+    strIPAddr = Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+   End If
+   GetIP = (Trim(Mid(strIPAddr, 1, 30)))
+End Function
+
+End Class 
+%>
+
+
+<%
+Const VarNameDateArr="www_domai_net_App_DataArr" '队列名称
+Const VarNameIPArr="www_domai_net_App_IPArr"     '队列名称
+Dim objAntiRefresh
+Set objAntiRefresh= new AntiRefresh
+objAntiRefresh.BufferSize=100   '队列大小
+objAntiRefresh.CacheItemAvailTime=0.8 '间隔时间
+If Not objAntiRefresh.IsValidAccess() Then
+Set objAntiRefresh=Nothing
+Response.Write("<script>alert('温馨提示:您的访问频率过快请稍等...')</Script>")
+Response.End()
+End If
+Set objAntiRefresh=Nothing
+%>

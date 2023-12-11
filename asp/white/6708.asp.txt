@@ -1,0 +1,210 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp"-->
+<%
+if session("class_id")="" then
+	response.write"<script>alert('权限不够！');window.open('guanli.asp','_parent')</script>"
+	response.End()
+end if
+%>
+<link href="css/skin.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript" src="js/showdiv.js"></script>
+<div onselectstart="return false" onpaste="return false"  oncontextmenu=return(false) align="center" style="text-align:center;background-color:#fff;border:0px #cccccc  solid; border-color:#666666">
+<script>
+function close_xiugai_success(pop_id,PO2){
+	parent.document.getElementById('bianhao').value=PO2;
+	parent.document.getElementById('popDiv').style.display='none';
+	parent.document.getElementById('bg').style.display='none';
+	parent.document.getElementById('popIframe').style.display='none';
+	parent.document.getElementById('changeprice_iframe').src="";
+	parent.document.getElementById('search_form').submit();
+}
+function close_xiugai_success2(pop_id,wwc){
+	parent.document.getElementById('key').value=0;
+	parent.document.getElementById('popDiv').style.display='none';
+	parent.document.getElementById('bg').style.display='none';
+	parent.document.getElementById('popIframe').style.display='none';
+	parent.document.getElementById('changeprice_iframe').src="";
+	parent.document.getElementById('search_form').submit();
+}
+</script>
+<%
+'table_name="My_Order_List"
+'table_name2="My_cp"
+asp_name="dingdan_check.asp"
+dd_id=request("pop_id")
+Order_Po=request("PO")
+'cp_bianhao=request("cp_bianhao")
+'判断该订单号之前是否有未完成(待发货)的订单,如有则提醒先处理之前的订单
+	set rs=server.createobject("adodb.recordset")
+	sql="select * from My_Order_List where SMT_key=0 and if_sent=0 and SMT_id<"&dd_id&" order by SMT_id asc"
+	rs.open sql,conn,1,1
+	if not rs.eof or not rs.bof then
+		jilu=rs.recordcount
+		PO2=rs("Order_Po")
+		tixing=1
+	else
+		tixing=0
+	end if
+	rs.close
+	'遍历该订单下所有产品
+	set rs1=server.createobject("adodb.recordset")
+	sql1="select * from My_Order_Details where Order_Po='"&Order_Po&"'"
+	rs1.open sql1,conn,1,1
+	k=1
+	do while not rs1.eof
+		cp_bianhao=rs1("cp_bianhao")
+		xinghao=rs1("xinghao")
+		colors=rs1("colors")
+		'根据cp_bianhao获取会员的订购产品详情
+		sql="select top 1 * from My_cp where cp_bianhao='"&cp_bianhao&"'"
+		rs.open sql,conn,1,1
+		if not rs.eof or not rs.bof then
+			cpname=rs("SMT_scatitle")
+			cpjl=rs("cpjl")
+			buy_qty=rs("buy_qty")
+		else
+		end if
+		rs.close
+		'获取单位
+		sql="select top 1 * from unit_class where unit_ID="&cpjl
+		rs.open sql,conn,1,1
+		units=rs("unit_name")
+		rs.Close
+		set rs=nothing
+		set sql=nothing
+		buy_str=buy_str&k&". "&cpname&"("&xinghao&"，"&colors&"；数量:"&cpjl&buy_qty&units&")<br>"
+	k=k+1
+	rs1.movenext
+	loop
+	rs1.close
+	set rs1=nothing
+	set sql1=nothing
+%>
+<%if request("action")="fh" then
+	if session("class_id")=0 or session("class_id")=1 or session("class_id")=2 then
+		fahuo_tishi=request("fahuo_tishi")
+			conn.execute("update My_Order_List set if_sent=1,fahuo_tishi='"&fahuo_tishi&"' where if_sent=0 and SMT_key=0 and SMT_id="&dd_id&"")
+		if fahuo_tishi<>"" then kuaididanhao="<br>快递单号是:<font style='color:#36C'>"&fahuo_tishi&"</font>"	
+		set rs=server.createobject("adodb.recordset")
+		'先获取网站参数
+		sql="select site_url,site_email,my_smtp,my_smtp_name,my_smtp_pwd from My_config"
+		rs.open sql,conn,1,1
+			site_url=rs("site_url")
+			email=rs("site_email")
+			my_smtp=rs("my_smtp")'SMT邮箱
+			my_smtp_name=rs("my_smtp_name")'SMT邮箱账户
+			my_smtp_pwd=rs("my_smtp_pwd")'SMT邮箱密码
+		rs.close
+		
+		'在获取先前保存的数据
+		sql="select coname,cotel,cofax,email,one_key_seo,seo_mails,seo_title from My_company"
+		rs.open sql,conn,1,1
+			coname=rs("coname")
+			tel1=rs("cotel")
+			fax=rs("cofax")
+			email=rs("email")
+		rs.close
+
+		'根据dd_id获取会员的基本信息
+		sql="select top 1 * from My_Order_List where SMT_id="&dd_id&""
+		rs.open sql,conn,1,1
+		if not rs.eof or not rs.bof then
+			member_bianhao=rs("SMT_bianhao")
+		else
+		end if
+		rs.close
+			
+		sql="select top 1 * from members where SMT_bianhao='"&member_bianhao&"'"
+		rs.open sql,conn,1,1
+		if not rs.eof or not rs.bof then
+		member_mail=rs("SMT_mail")
+		member_nickname=rs("SMT_nickname")
+		else
+		end if
+		rs.close
+		set rs=nothing
+		set sql=nothing
+		
+		Call send_mail()
+		
+		response.write"<script>alert(':-)   发货成功！\r\n\邮件已成功提醒!\r\n\r\n\请将订单设为已完成!');</script>"
+	%>
+	<script>
+    parent.window.location.reload()//刷新父页面
+    </script>
+	<%
+	else
+		response.write"<script>alert('权限不够/参数错误！');history.back(-1)</script>"
+		response.End()
+	end if
+end if
+
+
+	Function send_mail()
+		'先获取SMTP的信息
+		emailtitle="[发货提醒邮件]-"&coname&""
+		emailcontent="尊敬的 "&member_nickname&" ：您在本网站订购的(订单号为:"&PO2&")：<br><font style='color:#36C'>"&buy_str&"</font>已经于 "&Now()&" 发货。"&kuaididanhao&"<br><br><br>该邮件由系统自动发送，请勿直接回复。<br><br>感谢您对"&coname&"("&site_url&")的支持!<br><br>"&coname&"<br>"&site_url&"<br>联系电话: "&tel1&"<br>传真: "&fax&"<br>邮箱: "&email&"" '正文
+		
+		Set JMail = Server.CreateObject("JMail.Message")
+			JMail.ISOEncodeHeaders = True'是否将信头编码成iso-8859-1字符集. 缺省是True  
+			JMail.Silent = True'如果JMail.silent设置为true,ErrorCode包含的是错误代码 
+			JMail.Charset = "gb2312"'设置标题和内容编码，如果标题有中文，必须设定编码为gb2312 
+			
+			JMail.From = email ' 发送者邮箱 
+			JMail.FromName = coname ' 发送者姓名 
+			JMail.MailServerUserName = my_smtp_name ' 身份验证的用户名 
+			JMail.MailServerPassword = my_smtp_pwd ' 身份验证的密码 
+			
+			
+			JMail.AddRecipient member_mail , member_nickname '加入新的收件人 
+			JMail.Subject = emailtitle 
+			JMail.Body = emailcontent 
+			
+			JMail.HTMLBody = "<html><body style='font-size:14px;'><br>"&emailcontent 
+			JMail.appendHTML "<br><br></body></html>" 
+			JMail.Body = "很抱歉，您的邮件系统无法正常显示HTML格式信件。" 
+			JMail.appendText " " 
+			
+			if JMail.Send( my_smtp ) then '执行邮件发送（通过邮件服务器地址）
+				'response.Write 2'ok
+			else 
+				'response.Write 1'失败
+			end if 
+			'response.Write HTMLBody
+			'response.End()
+			JMail.Close() 
+		Set JMail = Nothing 
+	End function
+
+%>
+	<form method="post"> 
+	<div style="margin-top:0px;">
+		<div style="border:1px #dedede  solid; width:100%; margin-top:10px;">
+			<%if tixing=1 then%>
+			<li style="list-style:none; margin-top:15px;cursor:pointer;padding-bottom:5px; font-size:14px; font:黑体;color:#FF0000">
+			本订单之前有 <font style="color:#C09;font-size:20px;font-weight:bold; text-decoration:underline;"><%=jilu%></font> 个订单<font style="color:#900;font-size:16px;font-weight:bold; text-decoration:underline;">尚未发货</font>，是否忽略，先处理本订单？
+			</li>
+			<li style="list-style:none;margin-top:15px;cursor:pointer;padding-bottom:5px; font-size:12px; color:#999999">
+			<input type="hidden" name="action" value="fh">
+			<input type="hidden" name="pop_id" value="<%=dd_id%>">
+            快递单号/发货单号<input id="fahuo_tishi" name="fahuo_tishi" type="text" value="<%=fahuo_tishi%>"  style="width:120px; margin:2px;" maxlength="30">(如顺丰XXX、圆通XXX)<br />
+			<input type="button" name="Submit1" value="看看这些订单" onclick="close_xiugai_success2(<%=dd_id%>,'wwc')" style="background:url(images/btn/cn_button01_2.gif);border:1px solid #EEE;color:#FFF;height:23px;cursor:pointer;" title="查看待发货订单">
+			<input type="button" name="Submit1" value="查看最早的订单" onclick="close_xiugai_success(<%=dd_id%>,'<%=PO2%>')" style="background:url(images/btn/cn_button01_1.gif);border:1px solid #EEE;color:#FFF;height:23px;cursor:pointer;" title="查看最早下单的待发货订单">
+			<input type="submit" name="Submit2" value="忽略其他订单，先给本订单发货" style="background:url(images/btn/cn_button01.gif);border:1px solid #EEE;color:#FFF;height:23px;cursor:pointer;" onClick="javascript:return confirm('确定设为发货吗(请保证货物已发出)?如有货单号，请填后再操作。');">
+			</li>
+			<li style="text-align:left;list-style:none;margin-top:5px;cursor:pointer;padding-bottom:5px;font-size:12px;font:黑体;color:#390">
+			如果是按照下单顺序发货，请点击“查看最早的订单”按钮后，搜索到的是最早的订单。
+			</li>
+			<%else%>
+			<li style="list-style:none;margin-top:15px;cursor:pointer;padding-bottom:5px; font-size:12px;color:#999999;height:130px; line-height:40px;">
+            快递单号/发货单号<input id="fahuo_tishi" name="fahuo_tishi" type="text" value="<%=fahuo_tishi%>"  style="width:120px; margin:2px;" maxlength="30">(如顺丰XXX、圆通XXX)<br />
+            <input type="hidden" name="action" value="fh">
+			<input type="hidden" name="pop_id" value="<%=dd_id%>">
+			<input type="hidden" name="cp_id" value="<%=cp_id%>">
+			<input type="submit" name="Submit0" value="为本订单发货" style="background:url(images/btn/cn_button02.gif);border:1px solid #EEE;color:#FFF;height:23px;cursor:pointer;" onClick="javascript:return confirm('确定设为发货吗(请保证货物已发出)?如有货单号，请填后再操作。');">
+			</li>
+			<%end if%>
+		</div>
+	</div>
+	</form>
+</div>		

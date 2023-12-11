@@ -1,0 +1,277 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<head>
+	<title>编辑商品</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/default/easyui.css">
+	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/common/common.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/good/good/edit_good.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/common/upload.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/ckeditor/ckeditor.js"></script>
+</head>
+
+<body>
+    <table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+					<form id="goodForm" method="post" action="">
+						<s:hidden name="good.id" id="id" />
+			    		<s:hidden name="good.creatorId" />
+			    		<s:hidden name="good.creatorName" />
+			    		<s:hidden name="good.createTime" />
+			    		<s:hidden name="good.modifierId" />
+			    		<s:hidden name="good.modifierName" />
+			    		<s:hidden name="good.modifyTime" />
+			    		<s:hidden name="good.state" />
+			    		<s:hidden name="imgIdStr" id="imgIdStr"/>	
+			    					
+			    		<div class="easyui-tabs" fit="true" plain="true" style="height:470px;width:300px;">
+							<div title="基本信息" style="padding:10px;">
+								<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">
+							    	<tr></tr>
+							    	<tr>
+										<td class='gridtitle' width="20%"><s:text name="editgood.ItemNo"/>:</td>
+										<td class='gridbody'>
+											<s:textfield name="good.code" id="code"/><font color="red">*</font>
+										</td>
+										<td class='gridtitle'><s:text name="editgood.tradename"/>:</td>
+										<td class='gridbody'>
+											<s:textfield name="good.name" id="name"/><font color="red">*</font>
+										</td>
+									</tr>
+									<tr>
+										<td  class='gridtitle'><s:text name="editgood.ProductTypeName"/>:</td>
+										<td class='gridbody'>
+											<s:textfield name="good.goodTypeName" id="goodTypeName" onclick="selectType(this)" readonly="true"/><font color="red">*</font>
+											<s:hidden name="good.goodTypeId" id="goodTypeId" />
+										</td>
+										<td  class='gridtitle'><s:text name="editgood.Unit"/>:</td>
+										<td class='gridbody'>
+											<s:textfield name="good.unit" id="unit" /><font color="red">*</font>
+										</td>
+									</tr>
+									 <tr>
+										<td  class='gridtitle'>品牌:</td>
+										<td class='gridbody'>
+											<s:textfield  name="good.shape" id="shape" />
+										</td>
+										<td  class='gridtitle'><s:text name="editgood.Stock"/>:</td>
+										<td class='gridbody'>
+											<s:textfield  name="good.stock" id="stock" onchange="common.checkNumber(this);" /><font color="red">*</font>
+										</td>
+									</tr>
+									<tr>
+										<td class='gridtitle'><s:text name="editgood.Weight"/></td>
+										<td class='gridbody'>
+											<s:textfield  name="good.weight" id="weight" onchange="common.checkNumber(this);" /><font color="red">*</font>
+										</td>
+										<td  class='gridtitle'><s:text name="editgood.Price"/>:</td>
+										<td class='gridbody'>
+											<s:textfield name="good.price" id="price" onchange="common.checkNumber(this);" /><font color="red">*</font>
+										</td>
+									</tr>
+									<tr>
+										<td class='gridtitle'><s:text name="editgood.Uploadphotos"/></td>
+										<td class='gridbody' colspan="5">
+										<a href="javascript:void(0);" onclick="upload.open(this,'Good')"><s:text name="editgood.SelectImage"/></a>
+										<c:if test="${good.pic != null && good.pic != ''}">
+											<img id="pic" border="0" src="${ctx}${good.pic }" width="130px" height="130px"/>
+											&nbsp;&nbsp;<a href="javascript:void(0);" onclick="deletePic(this)"><s:text name="Delete"/></a>
+										</c:if>
+										<input type="hidden" name="picId" id="fileUploadId" value="${good.picId}" /><%-- name必须为fileUploadId --%>
+										<input type="hidden" name="good.pic" id="picPath"  class="picPath" value="${good.pic }" >
+										</td>
+									</tr>
+									<tr>
+										<td  class='gridtitle'><s:text name="Remark"/>:</td>
+										<td class='gridbody' colspan="5">
+											<textarea id="remark" name="good.remark" cols="60" rows="10">${good.remark}&nbsp;</textarea>
+										</td>
+									</tr>
+							    	
+							    </table>
+							</div>
+							
+							<div title="商品规格" style="padding:10px;">
+								<c:if test="${goodSpecificationList == null}">
+								<a href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-add" onclick="showSpecification()">选择规格项</a>
+								<br><br>
+								说明： 1、没有规格则默认生成一个货品;2、编号为空则自动生成编号，以商品的编号+“-”+序号;<br><br>
+								 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3、浮动金额是在商品销售价的基础上增加或减少。<br><br> 
+								 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4、规格一旦设定不可更改，可另建商品<br><br> 
+								&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5、<font color="red">库存总和请与“基本信息”中的‘初始数量’相等;</font>
+								</c:if>
+								<div id="wareList">
+								<c:if test="${goodSpecificationList != null}">
+									<table width='80%' border='1' cellpadding='0' cellspacing='1' class='gdcn-table-bgcolor' style='margin-top: 10px;'>
+										<thead>
+											<!-- <th width='15%'>货号</th> -->
+											<c:forEach items="${goodSpecificationList}" var="goodSpecification">
+											<th width='10%'>${goodSpecification.name}</th>
+											</c:forEach>
+											<th width='10%'>库存</th>
+											<th width='10%'>浮动金额</th>
+											<th width='10%'>原价/现价</th>
+											<c:if test="${good.showType == '1'}">
+												<th width='10%'>图片</th> 
+											</c:if>
+											<th width='8%'>操作</th>
+										</thead>
+										<c:forEach items="${wareList}" var="ware">
+											<c:if test="${ware.showwhether}">
+												<tr>
+													<input type="hidden" name="wareIdStr" value="${ware.id}"/>
+												    <input type='hidden' name='wareCodeArr' value="${ware.code}">
+													
+													<c:if test="${ware.goodSpecificationVal1 != null}">
+														<td class='gridbody' style='text-align: center;'>${ware.goodSpecificationVal1}
+															<input type='hidden' name='wareSpecificationValId1Arr' value="${ware.goodSpecificationValId1}">
+														</td>
+													</c:if>
+													<c:if test="${ware.goodSpecificationVal2 != null}">
+														<td class='gridbody' style='text-align: center;'>${ware.goodSpecificationVal2}
+															<input type='hidden' name='wareSpecificationValId2Arr' value="${ware.goodSpecificationValId2}">
+														</td>
+													</c:if>
+													<c:if test="${ware.goodSpecificationVal3 != null}">
+														<td class='gridbody' style='text-align: center;'>${ware.goodSpecificationVal3}
+															<input type='hidden' name='wareSpecificationValId3Arr' value="${ware.goodSpecificationValId3}">
+														</td>
+													</c:if>
+													<td class='gridbody' style='text-align: center;'><input type='text' name='stockArr' size='10' value="${ware.stock}"></td>
+													<td class='gridbody' style='text-align: center;'><input type='text' name='priceDiscountArr' size='10' value="${ware.priceDiscount}"></td>
+													<td class='gridbody' style='text-align: center;'>${good.weight} / ${ware.goodPrice}</td>
+													<c:if test="${good.showType == '1'}">
+														<td class='gridbody' style='text-align: center;'>
+															<a href="javascript:void(0);" onclick="upload.open(this,'Ware')">上传</a>
+															<c:if test="${ware.pic != null && ware.pic  != ''}">
+																<img id="pic" border="0" src="${ctx}${ware.pic}" width="30px" height="40px"/>
+																&nbsp;&nbsp;<a href="javascript:void(0);" onclick="deletePic(this)">删除</a>
+															</c:if>
+															<input type='hidden' name='picIdWareArr' id='fileUploadId' value='${ware.picId}' />
+															<input type='hidden' name='picWareArr' id='picPath' value='${ware.pic }' class='picPath'>
+														</td> 
+													</c:if>
+													<td class='gridbody' style='text-align: center;'><a href='javascript:void(0)' class='deleteWare' onclick="deleteWare(this)">删除</a></td>
+												</tr>
+											</c:if>
+										</c:forEach>
+										
+									</table>
+								</c:if>
+								</div>
+								<c:if test="${goodSpecificationList != null}">
+								<a href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-add" onclick="showSpecification2()">增加规格项</a>
+								&nbsp;&nbsp;<font color="red">要增加的规格项库存需为0,否则可能造成该商品的期初数据不准确</font>
+								<div id="wareList2">
+												<br><br>
+												说明： 1、没有规格则默认生成一个货品;2、编号为空则自动生成编号，以商品的编号+“-”+序号;<br><br>
+											 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3、浮动金额是在商品销售价的基础上增加或减少。<br><br> 
+											 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4、规格一旦设定不可更改，可另建商品<br><br> 
+											&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5、<font color="red">库存总和请与“基本信息”中的‘初始数量’相等;</font>
+								</div>
+								</c:if>
+							</div>
+							
+							<div title="商品相册" style="padding:10px;">
+								<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">
+									<tr></tr>
+									<tr>
+										<td class='gridtitle' width="10%"><s:text name="editgood.Uploadphotos1"/></td>
+										<td class='gridbody' colspan="5">
+										<a href="javascript:void(0);" onclick="upload.open(this,'Good')"><s:text name="editgood.SelectImage"/></a>
+										<c:if test="${good.pic1 != null && good.pic1 != ''}">
+											<img id="pic" border="0" src="${ctx}${good.pic1 }" width="130px" height="130px"/>
+											&nbsp;&nbsp;<a href="javascript:void(0);" onclick="deletePic(this)"><s:text name="Delete"/></a>
+										</c:if>
+										<input type="hidden" name="pic1Id" id="fileUploadId" value="${good.pic1Id}" /><%-- name必须为fileUploadId --%>
+										<input type="hidden" name="good.pic1" id="picPath"  class="picPath" value="${good.pic1 }" >
+										</td>
+									</tr>
+									<tr>
+										<td class='gridtitle'><s:text name="editgood.Uploadphotos2"/></td>
+										<td class='gridbody' colspan="5">
+										<a href="javascript:void(0);" onclick="upload.open(this,'Good')"><s:text name="editgood.SelectImage"/></a>
+										<c:if test="${good.pic2 != null && good.pic2 != ''}">
+											<img id="pic" border="0" src="${ctx}${good.pic2 }" width="130px" height="130px"/>
+											&nbsp;&nbsp;<a href="javascript:void(0);" onclick="deletePic(this)"><s:text name="Delete"/></a>
+										</c:if>
+										<input type="hidden" name="pic2Id" id="fileUploadId" value="${good.pic2Id}" /><%-- name必须为fileUploadId --%>
+										<input type="hidden" name="good.pic2" id="picPath"  class="picPath" value="${good.pic2 }" >
+										</td>
+									</tr>
+									<tr>
+										<td class='gridtitle'><s:text name="editgood.Uploadphotos3"/></td>
+										<td class='gridbody' colspan="5">
+										<a href="javascript:void(0);" onclick="upload.open(this,'Good')"><s:text name="editgood.SelectImage"/></a>
+										<c:if test="${good.pic3 != null && good.pic3 != ''}">
+											<img id="pic" border="0" src="${ctx}${good.pic3 }" width="130px" height="130px"/>
+											&nbsp;&nbsp;<a href="javascript:void(0);" onclick="deletePic(this)"><s:text name="Delete"/></a>
+										</c:if>
+										<input type="hidden" name="pic3Id" id="fileUploadId" value="${good.pic3Id}" /><%-- name必须为fileUploadId --%>
+										<input type="hidden" name="good.pic3" id="picPath"  class="picPath" value="${good.pic3 }" >
+										</td>
+									</tr>
+									<tr>
+										<td class='gridtitle'><s:text name="editgood.Uploadphotos4"/></td>
+										<td class='gridbody' colspan="5">
+										<a href="javascript:void(0);" onclick="upload.open(this,'Good')"><s:text name="editgood.SelectImage"/></a>
+										<c:if test="${good.pic4 != null && good.pic4 != ''}">
+											<img id="pic" border="0" src="${ctx}${good.pic4 }" width="130px" height="130px"/>
+											&nbsp;&nbsp;<a href="javascript:void(0);" onclick="deletePic(this)"><s:text name="Delete"/></a>
+										</c:if>
+										<input type="hidden" name="pic4Id" id="fileUploadId" value="${good.pic4Id}" /><%-- name必须为fileUploadId --%>
+										<input type="hidden" name="good.pic4" id="picPath"  class="picPath" value="${good.pic4 }" >
+										</td>
+									</tr>
+									<tr>
+										<td class='gridtitle'><s:text name="editgood.Uploadphotos5"/></td>
+										<td class='gridbody' colspan="5">
+										<a href="javascript:void(0);" onclick="upload.open(this,'Good')"><s:text name="editgood.SelectImage"/></a>
+										<c:if test="${good.pic5 != null && good.pic5 != ''}">
+											<img id="pic" border="0" src="${ctx}${good.pic5 }" width="130px" height="130px"/>
+											&nbsp;&nbsp;<a href="javascript:void(0);" onclick="deletePic(this)"><s:text name="Delete"/></a>
+										</c:if>
+										<input type="hidden" name="pic5Id" id="fileUploadId" value="${good.pic5Id}" /><%-- name必须为fileUploadId --%>
+										<input type="hidden" name="good.pic5" id="picPath"  class="picPath" value="${good.pic5 }" >
+										</td>
+									</tr>
+								</table>
+							</div>	
+																
+						</div>
+						<center>
+							<a href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-save" onclick="submitSaveForm()">保存</a>
+						</center>
+					</form>
+				</div>
+	    	</td>
+	    </tr>
+	</table>
+	
+<!-- 语言设置-->
+<input type="hidden" id="Savedsuccessfully" value="<s:text name="Savedsuccessfully"/>"/>
+<input type="hidden" id="catalogue" value="<s:text name="editgood.catalogue"/>"/>
+<input type="hidden" id="Savefailed" value="<s:text name="Savefailed"/>"/>
+<input type="hidden" id="SystemError" value="<s:text name="SystemError"/>"/>
+<input type="hidden" id="Delete" value="<s:text name="Delete"/>"/>
+<input type="hidden" id="PleaseinputItemNo" value="<s:text name="editgood.PleaseinputItemNo"/>"/>
+<input type="hidden" id="Pleaseenterthe" value="<s:text name="editgood.Pleaseenterthe"/>"/>
+<input type="hidden" id="Pleasechoosetheproduct" value="<s:text name="editgood.Pleasechoosetheproduct"/>"/>
+<input type="hidden" id="Pleaseenterthegoods" value="<s:text name="editgood.Pleaseenterthegoods"/>"/>
+<input type="hidden" id="Pleaseenterthesale" value="<s:text name="editgood.Pleaseenterthesale"/>"/>
+<input type="hidden" id="Weight" value="<s:text name="goods.Weight"/>"/>
+	
+</body>
+</html>
+

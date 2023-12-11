@@ -1,0 +1,142 @@
+<!--#include file="Adn_Conn.asp"-->
+<%Dim action,Adnimid,UserName,Password,UserTrueIP
+action=Trim(Request("action"))
+Adnimid = Adn_CLng(Request("id"))
+UserName = Trim(NoSqlHack(Request("UserName")))
+Password = Trim(NoSqlHack(Request("Password")))
+UserTrueIP = Adn_Ip()
+Call OpenConn()
+%><html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=gb2312" />
+<TITLE>管理页面</TITLE>
+<link href="skins/css/adn_main.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<%
+Select Case action
+Case "add"
+   Call Add()
+Case "edit"
+   Call Edit()
+Case "del"
+   Conn.Execute("Delete from [adnim_admin] where admin_id="&Adnimid)
+   Response.Redirect"adn_master.asp"
+Case "add_save"
+	If UserName = "" Then Call Adn_Err("用户名不能为空！")
+	If Password = "" Then Call Adn_Err("密码不能为空！")
+	Set rs=Conn.Execute(" Select * from adnim_admin where admin_name='"&UserName&"' ")
+	If Not(rs.bof and rs.eof) Then Set rs=nothing:Call Adn_Err(""&UserName&"已经存在,请更换名字！")
+	Set rs=nothing		
+	Conn.Execute("Insert Into [adnim_admin] (admin_id,admin_name,admin_pass,LastLoginIP,LastLoginTime,RndPassword) values ("&Adn_MaxId("admin")&",'"&UserName&"','"&MD5(Password, 16)&"','"&UserTrueIP&"','"&Now()&"','"&Password&"')")
+	Response.Redirect"adn_master.asp"
+Case "edit_save"
+	If UserName = "" Then Call Adn_Err("用户名不能为空！")
+	If Password = "" Then Call Adn_Err("密码不能为空！")
+	Set rs = Server.CreateObject("adodb.recordset")
+	sql = "Select * from adnim_admin where admin_id="&Adnimid&" "
+	rs.Open sql, Conn, 1, 3
+	If Not (rs.bof And rs.eof) Then
+		rs("admin_name")=UserName
+		if Password<>rs("admin_pass") then
+		rs("admin_pass")=MD5(Password, 16)
+		end if
+		rs.update
+	Else
+		Adn_Err("对不起,未查询到该管理员的相关记录!")		
+	End If
+	rs.close
+	set rs=nothing
+	Response.Redirect"adn_master.asp"
+	'conn.execute("update adnim_admin set admin_name='"&maxid&"',admin_pass='"&MD5(Password, 16)&"' where admin_id="&Adnimid&" ")	  
+Case Else
+	Call main()
+End Select
+%>
+<%Sub main%>
+<table width="100%" border="0" cellspacing="1" cellpadding="0">
+<tr>
+<th colspan=6 class="title">网站管理员列表 <a href="?action=add"><font color="red">添加新管理员</font></a></th>
+</tr>
+<tr style="text-align:center;">
+  <td width="40" class="td1" style="text-align:left; padding-left:10px;">ID</td>
+  <td class="td1" style="padding-left:10px;">管理员名称</td>
+  <td width="100" class="td1" style="padding-left:10px;">最后登录IP</td>
+  <td width="130" class="td1" style="padding-left:10px;"><span class="td1" style="text-align:left; padding-left:10px;">最后登录时间</span></td>
+  <td width="100" class="td1" style="padding-left:10px;">常规操作</td>
+</tr>
+<%
+Set rs = Server.CreateObject("adodb.recordset")
+sql = "select * from adnim_admin order by admin_id desc"
+rs.Open sql, Conn, 1, 1
+If Not(rs.bof And rs.eof) Then
+    Do while not rs.eof
+%>
+<tr style="text-align:center;">
+  <td width="40" class="td1" style="text-align:left; padding-left:10px;"><%=rs("admin_id")%>.</td>
+  <td width="165" class="td1" style="text-align:left; padding-left:10px;"><%=rs("admin_name")%></td>
+  <td width="100" class="td1" style="text-align: center;"><%=rs("LastLoginIP")%></td>
+  <td width="150" class="td1" style="text-align: center;"><%=rs("LastLoginTime")%></td>
+  <td width="100" class="td1" style="text-align:center; padding-left:10px;"><a href="?action=edit&id=<%=rs("admin_id")%>">修改</a> <a href="?action=del&id=<%=rs("admin_id")%>" onClick="return confirm('确定要删除吗?');">删除</a></td>
+</tr>
+<%
+    rs.movenext  
+    loop
+Else
+    Response.Write("没有分类")  
+End If
+rs.Close
+set rs=nothing
+Call CloseConn()'关闭数据库连接
+%>
+<tr style="text-align:center;">
+  <td colspan="5" class="td1" style="text-align:right; padding-left:10px;"><a href="?action=add">添加新管理员</a></td>
+  </tr>
+</table>
+<%End Sub
+Sub Add%>
+<table width="100%" border="0" cellspacing="1" cellpadding="0">
+<form method="post" action="?action=add_save">
+<tr>
+<th colspan=6 class="title">网站管理员添加</th>
+</tr>
+<tr>
+  <td class="td1" style="text-align:left; padding-left:10px; height:30px">管理员名称：<input type="text" name="UserName"></td>
+</tr>
+<tr>
+  <td class="td1" style="text-align:left; padding-left:10px; height:30px">管理员密码：<input type="text" name="Password"></td>
+</tr>
+<tr>
+  <td  class="td2" style="text-align: center; padding-left:10px; height:30px"><input type="submit" name="Submit" value="提交"> <input type="reset" name="Submit2" value="重置"></td>
+</tr>
+</form>
+</table>
+<%End Sub
+Sub Edit()
+	Set rs=conn.execute("select * from adnim_admin where admin_id="&Adnimid)
+	If Not(rs.bof and rs.eof) Then
+%>
+<table width="100%" border="0" cellspacing="1" cellpadding="0">
+<form method="post" action="?action=edit_save&id=<%=rs("admin_id")%>">
+<tr>
+<th colspan=6 class="title">网站管理员修改</th>
+</tr>
+<tr>
+  <td class="td1" style="text-align:left; padding-left:10px; height:30px">管理员名称：<input name="UserName" type="text" value="<%=rs("admin_name")%>" style="font-size:12px; width:160px;"></td>
+</tr>
+<tr>
+  <td class="td1" style="text-align:left; padding-left:10px; height:30px">管理员密码：<input name="Password" type="password" value="<%=rs("admin_pass")%>" style="font-size:12px; width:160px;"> 不修改请直接提交</td>
+</tr>
+<tr >
+<td class="td2" style="text-align: center; padding-left:10px; height:30px"><input type="submit" name="Submit" value="提交"> <input type="reset" name="Submit2" value="重置"></td>
+</tr>
+</form>
+</table><%
+	Else
+		Adn_Err("对不起,未查询到该管理员的相关记录!")
+	End If
+	Set rs=nothing
+End Sub
+%>
+</body>
+</html>

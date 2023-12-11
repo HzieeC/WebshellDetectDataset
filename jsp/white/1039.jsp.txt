@@ -1,0 +1,114 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="pagination.PaginationGBook,javaBean.BeanGuestBook,java.util.ArrayList"%>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<script type="text/javascript">
+	function openM(id){
+		//var myid=id;
+		window.showModalDialog("guestbook.jsp?id="+escape(id.value),"留言信息","dialogWidth=500px;dialogHeight=400px");
+	}
+</script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+
+<form name=selform method=post action="<%=url%>/servletsguestbook?action=del">
+<table  border=0 align=center cellpadding=3 cellspacing=1 class=TableBorder>	<tr>	  <th width='5%' nowrap>选择</th>	  <th width='30%'>留 言 主 题</th>	  <th width='15%' nowrap>作 者</th>	  <th width='15%' nowrap>发表时间</th>	
+<th width='15%' nowrap>IP地址</th>
+<th width='27%' nowrap>管 理 操 作</th>	</tr>
+<% 
+	String pageCurrent = request.getParameter("pageCurrent");
+	if (pageCurrent == null) {
+		pageCurrent = "0";
+	}
+	PaginationGBook pa=new PaginationGBook();
+	String sqlstr="select count(*) from GuestBook";
+	pa.setSum(sqlstr);//查询出总共有多少
+	pa.setPageSize(15);//设置每页显示多少数量
+	pa.setPageCount();
+	pa.setPageCurrent(Integer.parseInt(pageCurrent));//设置当前页
+	
+	String sql="select TOP "+pa.getPageSize()+" * from GuestBook where id not in (select top "+pa.getPageSize()*pa.getPageCurrent()+" id from GuestBook) order by writeTime desc";
+	pa.setAlist(sql);
+	
+	int CurrentPage=pa.getPageCurrent();
+	int count=pa.getPageCount();
+%>
+<%
+	ArrayList alist=pa.getAlist();
+	if(alist==null){
+		out.println("<td align='center' colspan='5' class='TableRow2'>没有任何留言</td>");
+	}else{	
+		 for(int i=0;i<alist.size();i++){
+			BeanGuestBook bean=(BeanGuestBook)alist.get(i);
+%>
+<tr>
+	  <td class="TableRow1" align="center"><input type="checkbox" name="id" value="<%=bean.getId()%>"></td>	  
+	  <td class="TableRow1" title="点击此处查看所有留言信息"><u><span onclick="openM(this)" id="myid" value="<%=bean.getId()%>"><%=bean.getTitle()%></span></u></td>
+
+	  <td class="TableRow1" align="center"><%=bean.getUserName()%></td>
+	  <td class="TableRow1" align="center" nowrap><%=bean.getWriteTime()%></td>
+	  <td class="TableRow1" align="center"><%=bean.getIp()%></td>
+	  <td class="TableRow1" align="center">
+	  <%if(bean.getAuditing()==0){%>
+	  <a href="<%=url%>/servletsguestbook?action=accept&id=<%=bean.getId()%>" onclick="{if(confirm('确定要审核吗?')){return true;}return false;}" title='点击取消留言审核'><font color='red'>未审核</font></a> |
+	  
+	  <%}else{%>
+		<a href="<%=url%>/servletsguestbook?action=refuse&id=<%=bean.getId()%>" onclick="{if(confirm('确定要取消审核吗?')){return true;}return false;}" title='点击取消留言审核'><font color='blue'>已审核</font></a> |
+	   <%}%>
+	  
+	  <a href="<%=url%>/servletsguestbook?action=delete&id=<%=bean.getId()%>" onclick="{if(confirm('留言删除后将不能恢复，您确定要删除该留言吗?')){return true;}return false;}">删除</a></td>
+
+</tr>
+	<%}%>
+<%}%>
+	<tr>
+	  <td colspan="6" class="TableRow1">
+	  <input class=Button type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class=Button type="button" name="chksel" value="反选" onClick="ContraSel(this.form)">
+	  <input class=Button type="submit" name="Submit2" value="删 除" onclick="return confirm('留言删除后将不能恢复\n您确定执行该操作吗?');">
+	  </td>
+	</tr>
+	</form>
+	<tr><td align='center' class='TableRow2' colspan=6 >
+
+<%
+	if(pa.getPageCurrent()==0&&pa.getSum()>pa.getPageSize()){%>
+	首页
+	<a href="<%=url%>/admin/admin_book.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	上一页
+	<a href="<%=url%>/admin/admin_book.jsp?pageCurrent=<%=count-1%>">尾页</a>
+		
+	<%}else if(pa.getPageCurrent()==(pa.getPageCount()-1)&&pa.getSum()>pa.getPageSize()){%>
+		<a href="<%=url%>/admin/admin_book.jsp?pageCurrent=0">首页</a>
+		下一页
+		<a href="<%=url%>/admin/admin_book.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+		尾页
+	<%}else if(pa.getSum()<=pa.getPageSize()){%>
+		首页 下一页 上一页 尾页
+	<%}else{%>
+	<a href="<%=url%>/admin/admin_book.jsp?pageCurrent=0">首页</a>
+	<a href="<%=url%>/admin/admin_book.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	
+	<a href="<%=url%>/admin/admin_book.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+	
+	<a href="<%=url%>/admin/admin_book.jsp?pageCurrent=<%=count-1%>">尾页</a>
+	<% }  %>
+
+</td>
+</table>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

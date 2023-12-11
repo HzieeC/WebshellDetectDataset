@@ -1,0 +1,427 @@
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/common.asp"-->
+<!--#include file="../inc/chkinput.asp"-->
+<!--#include file="../inc/cls_email.asp"-->
+<!--#include file="../inc/md5.asp"-->
+<!--#include file="../api/cls_api.asp"-->
+<%
+Dim m_strQuestion,m_strAnswerName
+If CheckLogin Then
+	Response.Status = "301 Moved Permanently"
+	Response.AddHeader "Location", "index.asp"
+	Response.Flush:Response.End
+End If
+
+If LCase(Request("action")) = "reg" Then
+	Call RegNewMember()
+	If Founderr = True Then
+		Call ToErrors(ErrMsg)
+	End If
+Else
+	Call Main()
+End If
+Call TPL_Flush()
+NewAsp.PageEnd()
+
+Sub Main()
+	Dim strHTML
+	strHTML = NewAsp.LoadTemplate("users\reg")
+	strHTML = Replace(strHTML, "{$pagetitle}",  TPL_Config(4))
+	strHTML = Replace(strHTML, "{$channelid}", 0)
+	strHTML = Replace(strHTML, "{$classid}", 0)
+	TPL_Scan strHTML
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Select Case sToken
+		Case "question"		:	TPL_Echo m_strQuestion
+		Case "answername"	:	TPL_Echo m_strAnswerName
+	End Select
+	If Err Then Err.Clear
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	Select Case sTokenName
+		Case "action=0"		:	If Len(Request("action")&"")<3  Then TPL_Scan sTemplate
+		Case "action=1"		:	If NewAsp.CheckStr(Request("action")) = "apply" Then TPL_Scan sTemplate
+		Case "checkcode=1"	:	If CLng(NewAsp.MainSetting(22)) = 1 Then TPL_Scan sTemplate
+		Case "checkask=1"
+			If CLng(NewAsp.MainSetting(31)) = 1 And Len(NewAsp.MainSetting(32)) > 1 And Len(NewAsp.MainSetting(33)) > 0 Then 
+				If checkask=True Then 
+					TPL_Scan sTemplate
+				End If
+			End If
+	End Select
+End Sub
+
+Function checkask()
+	Dim Asklist,n
+	Asklist=Split(NewAsp.MainSetting(32),",")
+	If UBound(Asklist)>=0 And Trim(Asklist(0))<>"" Then
+		Randomize()
+		n = CInt(UBound(Asklist)*Rnd(now()))
+		If n>UBound(Asklist) Then n=UBound(Asklist)
+		m_strQuestion=Asklist(n)
+		m_strAnswerName=md5(n,16)
+		checkask=True
+	Else
+		checkask=False
+	End If
+End Function
+
+Sub RegNewMember()
+	Dim Rs,SQL
+	Dim UserPassWord,strUserName,strGroupName,Password
+	Dim rndnum,num1
+	Dim Question,Answer,usersex,sex
+	On Error Resume Next
+	If CLng(NewAsp.MainSetting(15))=0 Then
+		ErrMsg = TPL_Config(8)
+		FoundErr = True
+		Exit Sub
+	End If
+	If NewAsp.CheckPost = False Then
+		ErrMsg = ErrMsg + "<li>您提交的数据不合法，请不要从外部提交注册。</li>"
+		FoundErr = True
+	End If
+	If Trim(Request.Form("username")) = "" Then
+		ErrMsg = ErrMsg + "<li>登录账号不能为空！</li>"
+		Founderr = True
+	End If
+	If NewAsp.IsValidStr(Request.Form("username")) = False Then
+		ErrMsg = ErrMsg + "<li>登录账号中含有非法字符！</li>"
+		Founderr = True
+	Else
+		strUserName = NewAsp.CheckBadstr(Trim(Request.Form("username")))
+	End If
+	If NewAsp.strLength(strUserName)<CLng(NewAsp.MainSetting(27)) Or NewAsp.strLength(strUserName)>CLng(NewAsp.MainSetting(28)) Then
+		ErrMsg = ErrMsg + "<li>用户名长度不能小于<font color=""red"">"&NewAsp.MainSetting(27)&"</font>或大于<font color=""red"">"&NewAsp.MainSetting(28)&"</font>！</li>"
+		Founderr = True
+	End If
+	If Not CheckUserNameString(strUserName) Then
+		ErrMsg = ErrMsg + "<li>您的用户名含有非法字符，禁止注册！</li>"
+		Founderr = True
+	End If
+	If Trim(Request.Form("nickname")) = "" Then
+		ErrMsg = ErrMsg + "<li>用户昵称不能为空！</li>"
+		Founderr = True
+	End If
+	If NewAsp.IsValidStr(Request.Form("nickname")) = False Then
+		ErrMsg = ErrMsg + "<li>用户昵称含有非法字符！</li>"
+		Founderr = True
+	End If
+	If NewAsp.IsValidPassWord(Request.Form("password1")) = False Then
+		ErrMsg = ErrMsg + "<li>密码中含有非法字符！</li>"
+		Founderr = True
+	End If
+	If Trim(Request.Form("password1")) <> Trim(Request.Form("password2")) Then
+		ErrMsg = ErrMsg + "<li>您输入的密码和确认密码不一致！</li>"
+		Founderr = True
+	End If
+	If IsValidEmail(Request.Form("usermail")) = False Then
+		ErrMsg = ErrMsg + "<li>您的Email有错误！</li>"
+		Founderr = True
+	End If
+	If Not CheckEmailString(Request.Form("usermail")) Then
+		ErrMsg = ErrMsg + "<li>您的Email含有非法字符，禁止使用！</li>"
+		Founderr = True
+	End If
+	If Trim(Request.Form("usersex")) = "" Then
+		ErrMsg = ErrMsg + "<li>您的姓别不能为空！</li>"
+		Founderr = True
+	Else
+		usersex = NewAsp.CheckBadstr(Request.Form("usersex"))
+	End If
+	If usersex = "女" Then
+		sex = 0
+	Else
+		sex = 1
+	End If
+	If CLng(NewAsp.MainSetting(22)) = 1 Then
+		If Not NewAsp.CodeIsTrue() Then
+			ErrMsg = ErrMsg + "<li>您输入的验证码和系统产生的不一致，请重新输入。</li>"
+			Founderr = True
+		End If
+	End If
+	If CLng(NewAsp.MainSetting(31)) = 1 And Len(NewAsp.MainSetting(32)) > 1 And Len(NewAsp.MainSetting(33)) > 0 Then
+		Dim Asklist,n,Canreg
+		Canreg=False
+		Asklist=Split(NewAsp.MainSetting(33),",")
+		For n=0 To UBound(Asklist)
+			If Request.Form(md5(n,16))>"" Then
+				If Trim(LCase(Request.Form(md5(n,16)))) <> Trim(LCase(Asklist(n))) Then
+					ErrMsg = ErrMsg + "<li>注册答案错误，请返回刷新页面后重新输入，或者联系管理员。</li>"
+					Founderr = True
+					Exit Sub
+				Else
+					Canreg=True
+				End If				
+				Exit For
+			End If
+		Next
+		If Not Canreg Then
+			ErrMsg = ErrMsg + "<li>注册答案不能为空，请返回刷新页面后重新输入，或者联系管理员。</li>"
+			Founderr = True
+		End If
+	End If
+	'判断同一IP注册间隔时间
+	If IsDate(Session("regtime")) Then
+		If Not IsNull(Session("regtime")) Or CLng(NewAsp.MainSetting(29)) > 0 Then
+			If DateDiff("s",Session("regtime"),Now()) < CLng(NewAsp.MainSetting(29)) Then
+				ErrMsg = ErrMsg + "<li>本站限制每次注册距离时间为"&NewAsp.MainSetting(29)&"秒，请稍后注册。</li>"
+				Founderr = True
+				Exit Sub
+			End If
+		End If
+	End If
+	Set Rs = NewAsp.Execute("SELECT username FROM NC_User WHERE username='" & strUserName & "'")
+	If Not (Rs.BOF And Rs.EOF) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！此用户已经存在,请换一个用户名再试！</li>"
+		Exit Sub
+	End If
+	Rs.Close:Set Rs = Nothing
+	Set Rs = NewAsp.Execute("SELECT username FROM NC_Admin WHERE username='" & strUserName & "'")
+	If Not (Rs.BOF And Rs.EOF) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！此用户已经存在,请换一个用户名再试！</li>"
+		Exit Sub
+	End If
+	Rs.Close:Set Rs = Nothing
+	If CLng(NewAsp.MainSetting(18)) = 1 Then
+		Set Rs = NewAsp.Execute("SELECT userid FROM NC_User WHERE usermail='" & NewAsp.CheckStr(Request("usermail")) & "'")
+		If Not Rs.EOF Then
+			FoundErr = True
+			ErrMsg = ErrMsg + "<li>对不起！本系统已经限制一个邮箱只能注册一个账号。</li><li>此邮箱["&Request("usermail")&"]已经占用，请您换一个邮箱再注册吧。</li>"
+		End If
+		Rs.Close:Set Rs = Nothing
+	End If
+	If CLng(NewAsp.MainSetting(17)) = 1 Then
+		Randomize
+		Do While Len(rndnum) < 8
+			num1 = CStr(Chr((57 - 48) * rnd + 48))
+			rndnum = rndnum & num1
+		loop
+		UserPassWord = rndnum
+	Else
+		UserPassWord = Trim(Request.Form("password2"))
+	End If
+	Password = md5(UserPassWord,16)
+	Question = Trim(Request.Form("question"))
+	Answer = Trim(Request.Form("answer"))
+	If Question = "" Then Question = NewAsp.GetRandomCode(16)
+	If Answer = "" Then Answer = NewAsp.GetRandomCode(16)
+	If Founderr = True Then Exit Sub
+	'-----------------------------------------------------------------
+	'系统整合
+	'-----------------------------------------------------------------
+	Dim API_NewAsp,API_SaveCookie,SysKey
+	If API_Enable Then
+		Set API_Newasp = New API_Conformity
+		API_NewAsp.NodeValue "action","reguser",0,False
+		API_NewAsp.NodeValue "username",strUserName,1,False
+		Md5OLD = 1
+		SysKey = Md5(API_NewAsp.XmlNode("username") & API_ConformKey,16)
+		Md5OLD = 0
+		API_NewAsp.NodeValue "syskey",SysKey,0,False
+		API_NewAsp.NodeValue "password",UserPassWord,0,False
+		API_NewAsp.NodeValue "email",NewAsp.CheckStr(Request.Form("usermail")),1,False
+		API_NewAsp.NodeValue "question",Question,1,False
+		API_NewAsp.NodeValue "answer",Answer,1,False
+		API_NewAsp.NodeValue "gender",sex,0,False
+		API_NewAsp.SendHttpData
+		If API_NewAsp.Status = "1" Then
+			Founderr = True
+			ErrMsg =  ErrMsg & API_NewAsp.Message
+			Exit Sub
+		Else
+			API_SaveCookie = API_NewAsp.SetCookie(SysKey,strUserName,Password,1)
+		End If
+		Set API_NewAsp = Nothing
+	End If
+	'-----------------------------------------------------------------
+	If Founderr = True Then Exit Sub
+	
+	Set Rs = NewAsp.Execute("SELECT GroupName FROM NC_UserGroup WHERE Groupid=3")
+	If Rs.BOF And Rs.EOF Then
+		strGroupName = "普通会员"
+	Else
+		strGroupName = NewAsp.CheckBadstr(Rs(0))
+		If Len(strGroupName) = 0 Then strGroupName = "普通会员"
+	End If
+	Rs.Close:Set Rs = Nothing
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_User WHERE (userid is null)"
+	Rs.Open SQL,Conn,1,3
+	Rs.Addnew
+		Rs("username") = strUserName
+		Rs("password") = Password
+		Rs("nickname") = NewAsp.CheckBadstr(Request.Form("nickname"))
+		Rs("UserGrade") = 1
+		Rs("UserGroup") = strGroupName
+		Rs("UserClass") = 0
+		If CLng(NewAsp.MainSetting(16)) = 1 Then
+			Rs("UserLock") = 1
+		Else
+			Rs("UserLock") = 0
+		End If
+		Rs("UserFace") = "face/1.gif"
+		Rs("userpoint") = CLng(NewAsp.MainSetting(30))
+		Rs("usermoney") = 0
+		Rs("savemoney") = 0
+		Rs("prepaid") = 0
+		Rs("experience") = 10
+		Rs("charm") = 10
+		Rs("TrueName") = NewAsp.CheckBadstr(Request.Form("username"))
+		Rs("usersex") = usersex
+		Rs("usermail") = NewAsp.CheckStr(Request.Form("usermail"))
+		Rs("oicq") = ""
+		Rs("question") = Question
+		Rs("answer") = md5(Answer,16)
+		Rs("JoinTime") = Now()
+		Rs("ExpireTime") = Now()
+		Rs("LastTime") = Now()
+		Rs("Protect") = 0
+		Rs("usermsg") = 0
+		Rs("userlastip") = NewAsp.UserTrueIP
+		If CLng(NewAsp.MainSetting(16)) = 0 And CLng(NewAsp.MainSetting(17)) = 0 Then
+			Rs("userlogin") = 1
+		Else
+			Rs("userlogin") = 0
+		End If
+		Rs("UserToday") = "0,0,0,0,0,0,0,0,0,0,0"
+		Rs("usersetting") = ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"
+		Rs("ip") = NewAsp.UserTrueIP
+		Rs("Badness") = 0
+		Rs("isask") = 0
+	Rs.update
+	Rs.Close
+	SQL = "SELECT userid,username,password,nickname,UserGrade,UserGroup,UserClass,usermail,UserLock,JoinTime,userlogin FROM NC_user WHERE username = '" & NewAsp.CheckBadstr(Request.Form("username")) & "' ORDER BY userid DESC"
+	Rs.Open SQL, Conn, 1, 3
+	If Rs("UserLock") = 0 And CLng(NewAsp.MainSetting(17)) = 0 Then
+		Response.Cookies(NewAsp.CookiesName)("userid") = Rs("userid")
+		Response.Cookies(NewAsp.CookiesName)("username") = Rs("username")
+		Response.Cookies(NewAsp.CookiesName)("password") = Rs("password")
+		Response.Cookies(NewAsp.CookiesName)("nickname") = Rs("nickname")
+		Response.Cookies(NewAsp.CookiesName)("UserGrade") = Rs("UserGrade")
+		Response.Cookies(NewAsp.CookiesName)("UserGroup") = Rs("UserGroup")
+		Response.Cookies(NewAsp.CookiesName)("UserClass") = Rs("UserClass")
+		Response.Cookies(NewAsp.CookiesName)("userlastip") = NewAsp.UserTrueIP
+		Response.Cookies(NewAsp.CookiesName)("UserLogin") = Rs("UserLogin")
+		Response.Cookies(NewAsp.CookiesName)("RegDateTime") = NewAsp.FormatToDate(Rs("JoinTime"),"yyyy-MM-dd hh:mm:ss")
+		Response.Cookies(NewAsp.CookiesName)("usermail") = Rs("usermail")
+		Response.Cookies(NewAsp.CookiesName).path="/"
+		'-----------------------------------------------------------------
+		'系统整合
+		'-----------------------------------------------------------------
+		If API_Enable Then
+			Response.Write API_SaveCookie
+			Response.Flush
+		End If
+		'-----------------------------------------------------------------
+	End If
+	Rs.Close
+	Set Rs = Nothing
+	Session("regtime")=Now()
+	'发送注册邮件
+	Dim username,useremail,topic,mailbody,strMessage
+	If CLng(NewAsp.MainSetting(10))>0 And CLng(NewAsp.MainSetting(19))=1 Then
+		username = strUserName
+		useremail = Trim(Request.Form("usermail"))
+		topic = "您在 " & NewAsp.MainSetting(1) & " 的注册资料"
+		mailbody = NewAsp.ReadTextFile(NewAsp.TemplatePath&"users\reginfo.html")
+		mailbody = Replace(mailbody,"{$sitename}", NewAsp.MainSetting(1), 1, -1, 1)
+		mailbody = Replace(mailbody,"{$siteurl}", NewAsp.MainDomain, 1, -1, 1)
+		mailbody = Replace(mailbody,"{$username}", username, 1, -1, 1)
+		mailbody = Replace(mailbody,"{$topic}", topic, 1, -1, 1)
+		mailbody = Replace(mailbody,"{$password}", UserPassWord, 1, -1, 1)
+		If cmEmail.ErrCode = 0 Then
+			cmEmail.SendMail useremail,topic,mailbody
+			If cmEmail.Count>0 Then
+				strMessage = "<li>您的注册信息已经发往您的邮箱，[" & Request("usermail") & "] 请注意查收。</li>"
+			Else
+				strMessage = "<li>由于系统错误，给您发送的注册资料未成功。</li>"
+			End If
+		Else
+			strMessage = "<li>由于系统错误，给您发送的注册资料未成功。</li>"
+		End If
+	Else
+		strMessage = "<li>系统未开启邮件功能，请记住您的注册信息。</li>"
+	End If
+	If CLng(NewAsp.MainSetting(16)) = 1 Then
+		strMessage = strMessage & "<li>请等待管理员认证……</li>"
+	End If
+	'--显示注册成功信息
+	Dim strHTML
+	strHTML=NewAsp.ReadTextFile(NewAsp.TemplatePath&"users\regsuc.html")
+	strHTML=Replace(strHTML, "{$message}", strMessage)
+	strHTML=Replace(strHTML, "{$username}", Request("username"))
+	'系统整合
+	If API_Enable Then
+		If API_ReguserUrl <> "0" Then
+			strHTML=Replace(strHTML, "{$links}", API_ReguserUrl)
+		End If
+	End If
+	strHTML=Replace(strHTML, "{$links}", "index.asp")
+	Response.Write strHTML
+	'-----------------------------------------------------------------
+	'系统整合
+	'-----------------------------------------------------------------
+	If API_Enable Then
+		If Len(API_ReguserUrl) > 1 Then
+			Response.Write "<script language=""JavaScript"">"
+			Response.Write "setTimeout(""window.location='"& API_ReguserUrl &"'"",1000);"
+			Response.Write "</script>"
+		End If
+	End If
+	'-----------------------------------------------------------------
+End Sub
+
+Function CheckEmailString(str)
+	CheckEmailString=False
+	If str="" Then Exit Function
+	If Len(NewAsp.MainSetting(34))<2 Then
+		CheckEmailString=True
+		Exit Function
+	End If
+	Dim arr,s,i
+	s=NewAsp.MainSetting(34)
+	arr=Split(s, ",")
+	For i=0 To UBound(arr)
+		If ""<>arr(i) And InStr(LCase(str), LCase(arr(i)))>0 Then
+			CheckEmailString=False
+			Exit Function
+		End If
+	Next
+	CheckEmailString=True
+End Function
+
+Function CheckUserNameString(str)
+	CheckUserNameString=False
+	If str="" Then Exit Function
+	If Len(NewAsp.MainSetting(35))<2 Then
+		CheckUserNameString=True
+		Exit Function
+	End If
+	Dim arr,s,i
+	s=NewAsp.MainSetting(35)
+	arr=Split(s, ",")
+	For i=0 To UBound(arr)
+		If ""<>arr(i) And InStr(LCase(str), LCase(arr(i)))>0 Then
+			CheckUserNameString=False
+			Exit Function
+		End If
+	Next
+	CheckUserNameString=True
+End Function
+
+%>

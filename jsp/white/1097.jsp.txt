@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page import="com.bizoss.frame.dao.MenuInfo"%>
+<%
+	String user_id = "";	
+	if( session.getAttribute("session_user_id") != null ){
+		user_id = session.getAttribute("session_user_id").toString();
+	}
+	
+  MenuInfo menuinfo = new MenuInfo();
+  String menu_id = "",menu_name = "";
+  if (request.getParameter("menu_id") != null){
+    menu_id = request.getParameter("menu_id");
+    menu_name = menuinfo.getMenuName(menu_id);
+  }
+	
+	String webtitle = "";
+%>
+<html>
+<head>
+	<title><%=menu_name%></title>
+	<meta http-equiv="x-ua-compatible" content="ie=7" />
+	<script src="/program/member/integralDetails/integralDetails.js"></script>
+	<script language="javascript" type="text/javascript" src="/templets/html/lawyer/js/WdatePicker.js"></script>
+<link rel="stylesheet" rev="stylesheet" href="/templets/html/8diansc/css/main_right.css" type="text/css" />
+</head>
+<body>
+  	<%
+		  if( !user_id.equals( "" ) || user_id != "" ){
+		%>
+			<%@ include file="view.jsp"%>
+		<%
+		 }else{
+		%>
+	<script type="text/javascript">
+				window.open("/8diansc_signin.html");
+			</script>
+		<%
+		  }
+		%>	
+
+<div class="clear"></div>
+</body>
+</html>

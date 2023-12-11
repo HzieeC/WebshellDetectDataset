@@ -1,0 +1,1034 @@
+<!--#include file = admin_chk.asp -->
+<%
+if Request.Cookies("admindj")<>"1" then
+       say_word="权限不足，你没有此功能的管理权限"
+        response.write "<script>alert('"&say_word&"');history.go(-1);</Script>"
+       Response.end
+end if
+%>
+
+
+<!--#include file = ../Include/cgsail_pub_cls.asp -->
+
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=gb2312'>
+<!--#include file = language.asp -->
+<link rel="stylesheet" type="text/css" href="../images/admin/style.css">
+</head>
+
+<body onLoad="show_date_cho(show_date)">
+<table  align="center" width="100%" cellpadding="5" border="1" style="border-collapse: collapse" bordercolor="#E5E5E5" bgcolor="#FFFFFF">
+  <tr>
+  <th height=25 >批量生成静态页面</th>
+  </tr> 
+  <tr>
+  <td align="center" class="forumRaw">
+<%
+
+if_html=config("file_html")
+
+if if_html<>1 then
+       say_word="要批量处理静态网页，请先在后台中设置：[设置]-->[生成静态网页]！"
+        response.write "<script>alert('"&say_word&"');history.go(-1);</Script>"
+       Response.end
+end if
+
+
+select_lm=trim(request("select_lm"))
+done_action=trim(request("done_action"))
+db_news_del=request("db_news_del")   
+create_time=trim(request("create_time"))
+
+
+'增一个功能，对时间段进行查询--2006-9-11
+select_year_1=request("select_year_1")
+select_month_1=request("select_month_1")
+select_day_1=request("select_day_1")
+
+select_year_2=request("select_year_2")
+select_month_2=request("select_month_2")
+select_day_2=request("select_day_2")
+
+if select_year_1="" then select_year_1=year(date()-60)
+if select_month_1="" then select_month_1=month(date()-60)
+if select_day_1="" then select_day_1=day(date()-60)
+
+if select_year_2="" then select_year_2=year(date())
+if select_month_2="" then select_month_2=month(date())
+if select_day_2="" then select_day_2=day(date())  '只取本月份的公文
+
+
+d1=select_year_1&"-"&select_month_1&"-"&select_day_1
+d2=select_year_2&"-"&select_month_2&"-"&select_day_2
+
+if not isdate(d1) or not isdate(d2) then
+  response.redirect "javascript:history.back()"
+end if
+
+yymmdd_1=CDate(select_year_1&"-"&select_month_1&"-"&select_day_1)
+yymmdd_2=CDate(select_year_2&"-"&select_month_2&"-"&select_day_2)
+
+if yymmdd_1>yymmdd_2 then  '调整顺序,保持日期1比日期2早.
+   d_temp=yymmdd_2
+   yymmdd_2=yymmdd_1
+   yymmdd_1=d_temp
+end if
+
+
+yymmdd_1=yymmdd_1
+yymmdd_2=yymmdd_2+1  
+
+'分页显示中要带回这个日期,否则,下一面不再是这个时段了.
+'p_d1=request("p_d1")
+'p_d2=request("p_d2")
+
+'if p_d1<>"" and p_d2<>"" then 
+'  yymmdd_1=p_d1
+'  yymmdd_2=p_d2
+'  select_year_1=year(cdate(yymmdd_1))
+'  select_month_1=month(cdate(yymmdd_1))
+'  select_day_1=day(cdate(yymmdd_1))
+
+  
+'  select_year_2=year(cdate(yymmdd_2)-1)
+'  select_month_2=month(cdate(yymmdd_2)-1)
+'  select_day_2=day(cdate(yymmdd_2)-1)
+
+'else
+'  p_d1=yymmdd_1
+'  p_d2=yymmdd_2
+'end if
+
+
+'加一天,原因是在调试中发现比如在fabuday<=2006-9-11时,只有2006-9-10符合要求.
+
+
+
+'豪-输出时间结束。
+%>
+
+<script Language="JavaScript" Type="text/javascript">
+
+<!--
+
+//显示显示选择日期图层
+function show_date_cho(i)
+{ 
+var xx=document.form1.create_time.options[document.form1.create_time.selectedIndex].value;
+
+   if(xx=="cho_time") 
+	 { 	
+		i.style.display = ""; 
+	 }
+	 else
+	  { 
+         i.style.display = "none";  
+	  }
+}
+
+//结束，显示选择日期图层
+
+
+
+//提交验证函数
+function Form_Validator(theForm)
+{
+
+
+  if (theForm.select_lm.selectedIndex == 0)
+  {
+    alert("请选择文章栏目！");
+    theForm.select_lm.focus();
+    return (false);
+  }
+
+  if (theForm.create_time.selectedIndex == 0)
+  {
+    alert("请选择时间段！");
+    theForm.create_time.focus();
+    return (false);
+  }
+
+  return (true);
+}
+
+
+
+
+//-->
+</script>
+
+
+
+<form name="form1" method="POST" onSubmit="return Form_Validator(this)">
+ 文章栏目：<select size="1" id="id1" name="select_lm" >
+ <option value="">请选择文章栏目</option>
+ <option value="lm=0" <%if select_lm="lm=0" then response.write " selected"%>>全部文章栏目</option>
+					  <%					  
+					  html_lm_sql = "select * from ["&CgsailPrefix&"lm] where lm<>'' order by id_desc,id asc"
+					  Set html_lm_rs = Server.CreateObject("ADODB.RecordSet")
+					  html_lm_rs.Open html_lm_sql,conn,1,1
+					  while not html_lm_rs.eof
+					        %>
+					        <option value="lm=<%=html_lm_rs("id")%>"  <%  if select_lm="lm="&html_lm_rs("id")  then response.write " selected" %>>1级:&nbsp;<%=html_lm_rs("lm")%></option>
+							
+							<%
+							html_lm_sql2 = "select * from ["&CgsailPrefix&"lm] where lmid='"&html_lm_rs("id")&"' order by id_desc,id asc"
+							Set html_lm_rs2 = Server.CreateObject("ADODB.RecordSet")
+							html_lm_rs2.Open html_lm_sql2,conn,1,1
+							while not html_lm_rs2.eof
+							%>
+							   <option value="lm2=<%=html_lm_rs2("id")%>" <% if select_lm="lm2="&html_lm_rs2("id")  then response.write " selected" %>>&nbsp;&nbsp;&nbsp;2级:&nbsp;<%=html_lm_rs2("lm2")%></option>
+								<%
+								Set html_lm_rs33 = Server.CreateObject("ADODB.RecordSet")
+								html_lm_rs33.Open "select * from ["&CgsailPrefix&"lm] where lmid='"&html_lm_rs2("id")&"' and lm3<>'' order by id_desc,id asc",conn,1,1
+								while not html_lm_rs33.eof
+								%>
+									<option value="lm3=<%=html_lm_rs33("id")%>" <% if select_lm="lm3="&html_lm_rs33("id") then response.write " selected" %>>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3级:&nbsp;<%=html_lm_rs33("lm3")%></option>
+								<%
+								html_lm_rs33.movenext
+								wend
+                                html_lm_rs33.close
+								set html_lm_rs33=nothing
+
+							html_lm_rs2.movenext
+							wend
+
+							html_lm_rs2.close
+							set html_lm_rs2=nothing
+
+					  html_lm_rs.movenext
+					  wend 
+
+					  html_lm_rs.close
+					  set html_lm_rs=nothing
+					 
+					%>
+					
+					</select>
+
+					
+					<!-- 时间段 ,豪--特别声明一下：ACCESEE数据库的时间要用#时间串#来表示，但在SQL数据库中只需用'时间串'。区别就在#与单引号。真是，调了几个小时。TMM的。 -->
+		<%now_day=cdate(date())%>
+		&nbsp;文章的时间段：<select size="1" id="create_time" name="create_time" onChange="show_date_cho(show_date)" >
+        <option value="">请选择时间段</option>
+
+        <option value="[time]<=#<%=now_day+1%>#" <%if create_time="[time]<=#"&now_day+1&"#" then response.write " selected"%>>全部的时间段</option>
+		<option value="cho_time" <%if create_time="cho_time" then response.write " selected" %>>自定义时间段</option>
+		<!-- 之内的时间 -->
+		<option value="[time]>=#<%=now_day-7%>#" <%if create_time="[time]>=#"&now_day-7&"#" then response.write " selected" %>>一星期内的文章</option>
+		<option value="[time]>=#<%=now_day-15%>#" <%if create_time="[time]>=#"&now_day-15&"#" then response.write " selected" %>>半个月内的文章</option>
+		<option value="[time]>=#<%=now_day-30%>#" <%if create_time="[time]>=#"&now_day-30&"#" then response.write " selected" %>>一个月内的文章</option>
+        <option value="[time]>=#<%=now_day-60%>#" <%if create_time="[time]>=#"&now_day-60&"#" then response.write " selected" %>>二个月内的文章</option>
+		<option value="[time]>=#<%=now_day-182%>#" <%if create_time="[time]>=#"&now_day-182&"#" then response.write " selected" %>>半年内的文章</option>
+        <option value="[time]>=#<%=now_day-365%>#" <%if create_time="[time]>=#"&now_day-365&"#" then response.write " selected" %>>1年内的文章</option>
+		<option value="[time]>=#<%=now_day-730%>#" <%if create_time="[time]>=#"&now_day-730&"#" then response.write " selected" %>>2年内的文章</option>
+		<option value="[time]>=#<%=now_day-1095%>#" <%if create_time="[time]>=#"&now_day-1095&"#" then response.write " selected" %>>3年内的文章</option>
+<!-- 以后的文章 -->
+		<option value="[time]<#<%=now_day-7%>#" <%if create_time="[time]<#"&now_day-7&"#" then response.write " selected" %>>一星期以前的文章</option>
+		<option value="[time]<#<%=now_day-15%>#" <%if create_time="[time]<#"&now_day-15&"#" then response.write " selected" %>>半个月以前的文章</option>
+		<option value="[time]<#<%=now_day-30%>#" <%if create_time="[time]<#"&now_day-30&"#" then response.write " selected" %>>一个月以前的文章</option>
+        <option value="[time]<#<%=now_day-60%>#" <%if create_time="[time]<#"&now_day-60&"#" then response.write " selected" %>>二个月以前的文章</option>
+		<option value="[time]<#<%=now_day-182%>#" <%if create_time="[time]<#"&now_day-182&"#" then response.write " selected" %>>半年以前的文章</option>
+        <option value="[time]<#<%=now_day-365%>#" <%if create_time="[time]<#"&now_day-365&"#" then response.write " selected" %>>1年以前的文章</option>
+		<option value="[time]<#<%=now_day-730%>#" <%if create_time="[time]<#"&now_day-730&"#" then response.write " selected" %>>2年以前的文章</option>
+        <option value="[time]<#<%=now_day-1095%>#" <%if create_time="[time]<#"&now_day-1095&"#" then response.write " selected" %>>3年以前的文章</option>
+       
+		</select>
+		</td></tr>
+		<tr><td>
+
+
+
+<!-- 自选时间段 -->
+<!--  增加--查找从某年某月某日到某年某月某日的选择 2006-9-11-->
+
+	<div id="show_date" align="center" style="DISPLAY:none" >
+	<BR>
+        自定义时间段：从          
+       <select name="select_year_1" >
+ 	  <%
+	    begin_year=2000
+		end_year=year(date())
+       for year_hao=begin_year  to end_year 
+		    response.write "<option value="&year_hao
+			 if  year_hao=cint(select_year_1) then response.write " selected"
+			response.write ">"&year_hao&"</option>"
+	    next
+		%>
+       </select>
+       年
+      <select name="select_month_1" >
+ 	  <%
+       for month_hao=1  to 12 
+		    response.write "<option value="&month_hao
+			 if  month_hao=cint(select_month_1) then response.write " selected"
+			response.write ">"&month_hao&"</option>"
+	    next
+		%>
+      </select>
+      月
+      <select name="select_day_1" >
+ 	  <%
+       for day_hao=1  to 31 
+		    response.write "<option value="&day_hao
+			 if  day_hao=cint(select_day_1) then response.write " selected"
+           response.write ">"&day_hao&"</option>"
+	    next
+		%>
+      </select>
+      日
+	 &nbsp;到
+
+       <select name="select_year_2" >
+ 	  <%
+	    begin_year=2000
+		end_year=year(date())
+       for year_hao=begin_year  to end_year 
+		    response.write "<option value="&year_hao
+			 if  year_hao=cint(select_year_2) then response.write " selected"
+			response.write ">"&year_hao&"</option>"
+	    next
+		%>
+       </select>
+       年
+      <select name="select_month_2" >
+ 	  <%
+       for month_hao=1  to 12 
+		    response.write "<option value="&month_hao
+			 if  month_hao=cint(select_month_2) then response.write " selected"
+			response.write ">"&month_hao&"</option>"
+	    next
+		%>
+      </select>
+      月
+      <select name="select_day_2" >
+ 	  <%
+       for day_hao=1  to 31 
+		    response.write "<option value="&day_hao
+			 if  day_hao=cint(select_day_2) then response.write " selected"
+           response.write ">"&day_hao&"</option>"
+	    next
+		%>
+      </select>
+      日
+  
+	  </div>
+    <!--  结束--查找从某年某月某日到某年某月某日的选择 -->
+		
+					
+					<!-- 结束时间段 -->
+         
+  <tr>
+  <td align="center" class="forumRow">
+                    <input name="done_action" type="hidden" value="">
+
+					<input name="b1" type="submit" value="批量生成静态网页" onClick="done_action.value='add_html'">
+					&nbsp;&nbsp;&nbsp;
+					<input name="b2" type="submit" value="批量删除静态网页" onClick="done_action.value='del_html'">
+					&nbsp;&nbsp;&nbsp;
+					<input name="db_news_del" type="checkbox" value="1" onclick='if(confirm("严重警告：\n如果你“勾选”后，指定栏目和属于这个栏目下的所有子栏目中的文章\n将从数据库中删除，而且此操作后将不能再恢复所删除的文章！")){return true;}return false;'>同时删除数据库中的文章
+					<input name="b3" type="button" value=" 返 回 " onClick="javascript:history.back()">
+	</form>
+</td></tr><tr><td>
+
+<div align="left" class="style2">
+操作说明：<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;一、1. 批量生成/删除静态网页时，将按指定的条件批量生成/删除静态网页文件。<FONT COLOR="#FF0000"><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. 如果你“勾选”了同时删除数据库中的文章，那么执行后指定的文章将永久被删除，而且不能恢复。</FONT><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;二、批量生成或删除文章时，如果：1. 选中三级栏目时，仅对三级栏目执行。<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. 选中某个二级栏目，这个二级栏目的文章和属于这个二级栏目下所有的三级栏目文章也相应执行相同的操作。<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3. 选中某个一级栏目，这个一级栏目文章和属于这个一级栏目下的所有二级栏目文章和属于这个一级栏目下的所有三级栏目文章都会执行相同的操作。
+<HR size="1" color="#FFCCCC">
+</div>
+
+
+<%
+
+if done_action<>""  and select_lm<>"" then 
+
+'批量增加/删除文章的静态网页文件，方便网站管理静态网页和节省服务器空间。
+
+  response.write "<b>执行结果如下：</b><BR><BR>"
+
+   '输出查询时间段的内容
+   if create_time="cho_time" then 
+        where_date_sql=" ([time]>= #"&yymmdd_1&"# and  [time]<= #"&yymmdd_2&"#) "  '奇怪：在ACCESS数据库，必须用 #时间字符串# 来表示。给#符号搞死我。
+       ' where_date_sql=" ([time]>= '"&yymmdd_1&"' and  [time]<= '"&yymmdd_2&"') "  '奇怪：如果是在SQL数据库。用这个是正常的。但在ACCESS数据库，不能正常运行。
+   else
+       where_date_sql=" "&create_time '奇怪：本语句在SQL数据库调试是正常运行的。但在ACCESS数据库，不能正常运行。
+   end if
+
+  if select_lm<>"lm=0" then 
+       array_select_lm=split(select_lm,"=")  '由于SQL语句不认识lm=1333中的后面数字是文本或字符，所以只能分隔出来，并做处理。
+       where_lm_sql=" where "&array_select_lm(0)&"='"&array_select_lm(1)&"'" 
+	   '选择栏目， 如果lm=0 则表示选择全部。
+	   news_where_sql=where_lm_sql&" and "&where_date_sql
+  else
+       news_where_sql=" where "&where_date_sql
+  end if
+
+
+
+   news_sql = "select id from ["&CgsailPrefix&"news] "&news_where_sql
+   news_sql=news_sql&" order by id desc "
+  Set news_rs = Server.CreateObject("ADODB.RecordSet")
+  news_rs.Open news_sql,conn,1,1
+
+  shi_hao=0
+
+  if news_rs.recordcount=0 then response.write "<font color=red>没有文章存在！</font>"
+  do while not news_rs.eof
+        
+		shi_hao=shi_hao+1
+        done_news_id=news_rs("id")
+        response.write shi_hao&"、"
+        if done_action="add_html" then
+		 
+		    
+  		  aa=create_html_file(done_news_id)   ''批量增加文章的静态网页文件。
+
+		end if
+		if  done_action="del_html"  then
+
+		    del_html_file(done_news_id)   '批量删除文章的静态网页文件。 {20080607}___ cgsail添加  清空“file_path” “file_name”字段数据
+			conn.Execute "update ["&CgsailPrefix&"news] set [file_path]='' , [file_name]=''  where ID="&done_news_id
+           
+		   
+		    if   db_news_del=1 then   '同时删除数据库中的文章
+			       conn.Execute "delete from ["&CgsailPrefix&"news] where ID="&done_news_id   '----不能删除数据库中的文章。取消
+                   conn.Execute "delete from ["&CgsailPrefix&"NewsPL] where newsid="&done_news_id '--不能删除数据库的文章评论。取消
+             end if 
+		end if
+		news_rs.movenext
+  loop
+  news_rs.close
+  set  news_rs=nothing
+'结束处理批量增加/删除文章的静态网页文件。
+
+end if    ' 结束 done_action<>""
+
+%>
+</td></tr></table>
+</body>
+</html>
+<%
+conn.close
+set conn=nothing
+%>
+
+
+<%
+function   create_html_file(html_news_id)   ' 创建静态文件的子过程,参数是文章的ID号
+  
+  news_id=html_news_id  '取出文章的ID号
+
+
+  if news_id="" or not isnumeric(clng(news_id)) then
+       create_html_file=""   '返回空值的函数值。
+       exit function
+  end if  
+
+  sql = "select * from ["&CgsailPrefix&"news] where id="&news_id 
+  sql=sql&" order by id desc "
+  Set rs = Server.CreateObject("ADODB.RecordSet")
+  rs.Open sql,conn,1,3
+  
+  if rs.recordcount=0 then
+         create_html_file=""   '返回空值的函数值。
+       exit function
+  end if  
+
+  lm1=rs("lm")
+  lm2=rs("lm2")
+ lm3 =rs("lm3")
+  'filename=rs("html")  '无作用
+  title=rs("title")
+  htitle=rs("htitle")
+  titlecolor=rs("titlecolor")
+  content=rs("content")
+  zz=rs("zz")
+  piczz=rs("piczz")
+  tj=rs("tj")
+  pic=rs("pic")
+  url=rs("url")
+  xgnews=rs("xgnews")
+  ontop=rs("ontop")
+  MaxCharPerPage=rs("MaxCharPerPage")
+  PaginationType=rs("PaginationType")
+
+
+ 
+'豪-----增加:写入静态文件
+
+'步骤一:取出静态文件的路径和文件名:
+'豪气冲天--2006-8-27日增，取出配置文件中的是否生成静态html文件的设置
+
+
+file_html=config("file_html")
+file_type=config("file_type")
+file_rule=config("file_rule")
+nextpage_string=config("nextpage")
+page_css=config("page_css")
+
+if file_html=1 then   '如果需要写入静态网页
+
+    addnews_time=rs("time")    '取出添加文章时的时间
+    yyyy=cstr(year(addnews_time))
+    mm_month=cstr(month(addnews_time))
+	dd_day=day(addnews_time)
+    hh=hour(addnews_time)  
+	mm=minute(addnews_time)
+	ss=second(addnews_time)
+	if len(mm_month)<2 then mm_month="0"&mm_month
+	if len(dd_day)<2 then dd_day="0"&dd_day
+	if len(hh)<2 then hh="0"&hh
+	if len(mm)<2 then mm="0"&mm
+	if len(ss)<2 then ss="0"&ss
+
+    file_rule=replace(file_rule,"年",yyyy)
+	file_rule=replace(file_rule,"月",mm_month)
+	file_rule=replace(file_rule,"日",dd_day)
+	file_rule=replace(file_rule,"时间",hh&mm&ss)
+	file_rule=replace(file_rule,"扩展名",file_type)
+   '根据配置的命名规则,取出当前静态文件的文件路径和文件名.
+    
+
+	root_path=finddir(request.servervariables("URL"))   '取出系统程序的工作目录.
+
+
+'豪--结束步聚一:,取出配置静态文件.
+
+'步骤二:取出栏目的目录名称和栏目的命名,栏目的ID号,和模板的ID号:
+    if lm3<>"0"   then 
+		lm_id=clng(lm3)
+	end if
+
+    if lm3="0"  and lm2<>"" then
+	   lm_id=clng(lm2)
+    end if
+
+    if lm3="0"  and lm2="0" and lm1<>"0" then
+		lm_id=clng(lm1)
+    end if
+
+    '取出栏目的相关设置:
+	  if vartype("lm_id")=vbString  then lm_id=clng(lm_id)  '如果不是数字型,则要把字符型转为数字型
+		set get_lm_rs = Server.CreateObject("ADODB.RecordSet")
+		get_lm_rs.Open "select * from ["&CgsailPrefix&"lm] where id="&lm_id&" order by id desc",conn,1,1
+		if get_lm_rs.recordcount<>0 then
+			lm_path=get_lm_rs("lm_path")
+			lm_mb=trim(get_lm_rs("mb"))
+		    lm_color=trim(get_lm_rs("fontcolor"))
+   	     lm_name=trim(get_lm_rs("lm"))&trim(get_lm_rs("lm2"))&trim(get_lm_rs("lm3"))
+		else
+		    lm_path=""
+			lm_mb=""
+			lm_color=""
+			lm_name=""
+	   end if
+	   get_lm_rs.close
+	   set get_lm_rs=nothing
+
+       
+	   '如果模板设置不正确,则退出,不生成静态文件
+
+	   if lm_mb="" or isNull(lm_mb) or isEmpty(lm_mb) then 
+         rs.close
+		 set rs=nothing
+
+        '2006-9-22日--改为退出函数。防止批量因出错而中止后面的文章生成。
+
+		 response.write "<font color="&lm_color&">["&lm_name&"]</font>&nbsp;<a href='news_view.asp?newsid="&news_id&"' target='_blank'><font color='"&titlecolor&"'>"&title&"</a>，<font color='red'>静态网页创建失败,原因是：栏目["&lm_name&"]的模板还没有设置!</font><BR>"
+
+
+		  create_html_file=""
+		  exit function  '2006-9-22日--改为退出函数。防止批量因出错而中止后面的文章生成。
+
+	   end if
+       '结束判断模板的ID号是否为空。
+
+      '如果lm中有模板有设置，但是newsmb中没有存在这个模板ID时，则退出，不生成静态文件。
+       news_mb_sql = "select * from ["&CgsailPrefix&"mb] where id="&clng(lm_mb)
+       Set news_mb_rs = Server.CreateObject("ADODB.RecordSet")
+       news_mb_rs.Open news_mb_sql,conn,1,1
+
+	   '不存在模板时，则不能生成静态网页，并退出。
+	   if news_mb_rs.recordcount=0 then 
+
+	     news_mb_rs.close
+		 set news_mb_rs=nothing
+         rs.close
+		 set rs=nothing
+
+          
+
+         '2006-9-22修改，修正因模板错误而不中断运行批量生成程序。
+
+		 response.write "<font color="&lm_color&">["&lm_name&"]</font>&nbsp;<a href='news_view.asp?newsid="&news_id&"' target='_blank'><font color='"&titlecolor&"'>"&title&"</a>，<font color='red'>静态网页创建失败,原因是：栏目["&lm_name&"]的模板[mb="&lm_mb&"]不存在，请设置正确的模板!</font><BR>"
+          create_html_file=""
+		  exit function  '2006-9-22日--改为退出函数。防止批量因出错而中止后面的文章生成。
+
+      else
+        
+
+       title="<font color="&rs("titlecolor")&">"&title&"</font>"
+       webtitle=rs("title")
+       htitle=trim(rs("htitle"))
+       if htitle="" then htitle="&nbsp;"
+	   
+       piczz=trim(rs("piczz"))              '2007_12_28  增加一个图片来源
+	   if piczz="" then piczz="不详"
+	   
+		updown=news_mb_rs("updown")
+	    nr=news_mb_rs("mid")
+
+
+        Set rs4 = Server.CreateObject("ADODB.RecordSet")   '廖2008-6-1新增，页头页尾调用开始
+		rs4.Open "select * from ["&CgsailPrefix&"config]",conn,1,1
+		if rs4.recordcount<>0 then
+		  top=rs4("top")
+		  down=rs4("down")
+		  nr=replace(nr,"$$通用页头$$",top)
+		  nr=replace(nr,"$$通用页尾$$",down)
+		rs4.close
+		set rs4=nothing 
+		end if        '廖2008-6-1新增，页头页尾调用结束  
+		
+		nr=replace(nr,"$$页标题$$",webtitle)
+        nr=replace(nr,"$$标题$$",title)
+ 	    nr=replace(nr,"$$副标题$$",htitle)
+        nr=replace(nr,"$$栏目名$$",lm_name)
+        nr=replace(nr,"$$时间$$",rs("time"))
+        nr=replace(nr,"$$来源$$",rs("zz"))
+		nr=replace(nr,"$$图片来源$$",piczz)   '2007_12_28  增加一个图片来源
+        nr=replace(nr,"$$编辑$$",rs("adduser"))  '豪-2006-9-16-增加一个编辑
+        nr=replace(nr,"$$网站目录$$",HeadNavigation())  '豪-2006-10-23-增加一个网站目录，代替绝对路径。方便网站的转移时，不必再修改模板
+        nr=replace(nr,"$$newsid$$",news_id) '2。5版的newsid标签。
+		nr=replace(nr,"$$产品分类$$",producttree(0))
+	   
+
+     if Instr(nr,"$$会员阅读$$")>0 then    '豪--增2006-9-29,会员阅读限制
+        uuu_path="<script language=""javascript"" src="""&root_path&"js_news_read.asp?news_id="&news_id&"""></script>"
+	    nr=replace(nr,"$$会员阅读$$",uuu_path)
+	 end if
+     
+     if Instr(nr,"$$路径$$")>0 then 
+        uuu_path="<script language=""javascript"" src="""&root_path&"js_news_lmpath.asp?news_id="&news_id&"""></script>"
+	    nr=replace(nr,"$$路径$$",uuu_path)
+	 end if
+	 if Instr(nr,"$$心情投票$$")>0 then 
+        uuuu_path="<script language=""javascript""> var infoid ="""&news_id&""";var classid = ""news"";</script> <script language = ""JavaScript"" src =""mood.js""></script>"
+	    nr=replace(nr,"$$心情投票$$",uuuu_path)
+	 end if
+
+     if Instr(nr,"$$访问量$$")>0 then 
+        out_hit="<script language=""javascript"" src="""&root_path&"js_news_hit.asp?action=1&news_id="&news_id&"""></script>"
+	    nr=replace(nr,"$$访问量$$",out_hit)
+	 end if
+ 
+
+     if Instr(nr,"$$上下条$$")>0 then 
+        uuu="<script language=""javascript"" src="""&root_path&"js_news_updown.asp?updown="&updown&"&news_id="&news_id&"&lm_id="&lm_id&"""></script>"
+   
+	   nr=replace(nr,"$$上下条$$",uuu)
+	 end if
+
+
+
+         news_mb_rs.close
+		 set news_mb_rs=nothing
+
+	   end if
+       
+
+
+
+'结束步骤二.
+
+
+
+'步骤四:取出文章的内容,并根据是否有分页符进行内容截取,并生成若个的静态文件.
+   '080705___增加自动分页功能
+  IF PaginationType=1 Then                                      '判断分页类型                              
+       Content=SplitNewsPage(Content,MaxCharPerPage)            '自动分页函数
+   End IF
+   '自动分页功能增加结束
+   
+if right(content,len(nextpage_string))=nextpage_string then content=left(content,len(content)-len(nextpage_string))  '去掉最后一个分页符.防止一个人无意在最后加一个分页符.导至下面数组出错
+
+
+if content<>"" then
+   array_content=split(content,nextpage_string)
+else
+    array_content=split(content&"&nbsp;",nextpage_string)
+end if
+
+
+
+  max_page_numbers=ubound(array_content) 
+
+  if max_page_numbers=0  then  only_one_page="yes" 
+
+'取出本文章有多少页
+
+  for page=0 to max_page_numbers    'n_html--表示第几个页面。
+     
+    content=array_content(page)
+ 
+
+   if max_page_numbers>0 then  '只有一页时,不显示分页状态条.
+      content=content&"</p><p align='right'><b>"
+    select case page_Css
+      case "1"
+           content=content&"共["&max_page_numbers+1&"]页："
+          for p=0 to max_page_numbers
+		       if p=0 then 
+			        content=content&"&nbsp;<a href=""@@静态文件@@.@@扩展名@@"">[第"&p+1&"页]</a>&nbsp;"
+			    else
+                    content=content&"&nbsp;<a href=""@@静态文件@@_"&p&".@@扩展名@@"">[第"&p+1&"页]</a>&nbsp;"
+			    end if
+          next
+	  case "2"
+          content=content&"第<font color='red'>["&page+1&"]</font>页&nbsp;"
+
+             '显示第一页
+		      if page=0 then 
+			        content=content&"&nbsp;<a href=""@@静态文件@@_"&(page+1)&".@@扩展名@@"">[下一页]>></a>&nbsp;"
+              end if
+             
+			 '显示上一页及下一页
+			  if page<>0 and page<>max_page_numbers  then
+
+			      '显示上一页及首页
+                   if page=1 then 
+			              content=content&"&nbsp;<a href=""@@静态文件@@.@@扩展名@@"">[首页]</a>&nbsp;"
+                  else
+			              content=content&"&nbsp;<a href=""@@静态文件@@_"&(page-1)&".@@扩展名@@"">[上一页]</a>&nbsp;"
+				  end if
+                   '显示下页及尾页
+                 if page=max_page_numbers-1 then
+				        content=content&"&nbsp;<a href=""@@静态文件@@_"&(page+1)&".@@扩展名@@"">[尾页]</a>&nbsp;"
+                 else
+				        content=content&"&nbsp;<a href=""@@静态文件@@_"&(page+1)&".@@扩展名@@"">[下一页]</a>&nbsp;"
+			     end if
+
+			end if
+              '结束显示上一页及下一页
+              
+			  '显示最后一页
+		    if page=max_page_numbers then
+			        if page=1 then 
+			              content=content&"&nbsp;<a href=""@@静态文件@@.@@扩展名@@""><<[首页]</a>&nbsp;"
+                   else
+			              content=content&"&nbsp;<a href=""@@静态文件@@_"&(page-1)&".@@扩展名@@""><<[上一页]</a>&nbsp;"
+				   end if
+
+		   end if 
+			  
+              '显示总页数
+              content=content&"共["&max_page_numbers+1&"]页"
+	  case "3"
+	
+          if Page>=1 then
+                   if page=1 then 
+			              content=content&"&nbsp;<a href=""@@静态文件@@.@@扩展名@@"">[上一页]</a>&nbsp;"
+                   else
+			              content=content&"&nbsp;<a href=""@@静态文件@@_"&(page-1)&".@@扩展名@@"">[上一页]</a>&nbsp;"
+				   end if		    
+			end if
+		  			  
+		   for l=0 to max_page_numbers
+			if l=Page then
+				Content=Content&  "<font color='red'>[" & cstr(l+1) & "]</font>&nbsp;"
+			else
+				if l=0 then
+				content=content&"&nbsp;<a href=""@@静态文件@@.@@扩展名@@"">[" & (l+1) & "]</a>&nbsp;"
+				else
+				Content=Content&  "<a href=""@@静态文件@@_"&(l)&".@@扩展名@@"">[" & (l+1) & "]</a>&nbsp;"
+				end if
+			end if
+		   next
+		   if Page<max_page_numbers then
+			    Content=Content&  "&nbsp;<a href=""@@静态文件@@_"&(page+1)&".@@扩展名@@"">下一页</a>"
+		  end if
+
+     end select
+    content=content&"&nbsp;&nbsp;</b></p>"
+  end if   '结束:只有一页时,不显示分页状态条.
+'结束步骤四.
+
+
+'步骤六:根据lm的模板生成静态文件
+ 
+ '以下内容多数是news_view.asp中截取出来，以便生成静态文件。
+
+  if config("ggso")="1" then
+  	content=content&GoogleSo()
+  end if
+  
+
+
+'相关内容
+webxgnews=chkhtm(trim(rs("xgnews")))
+if webxgnews="" then webxgnews=left(rs("title"),5)
+if webxgnews<>"" then
+	webxgnews=replace(webxgnews,"[","")
+	webxgnews=replace(webxgnews,"]","")
+end if
+
+if pl()=1 then ppll="<BR><hR size=1><script language=""javascript"" src="""&root_path&"js_news_pl.asp?id="&news_id&"""></script>"
+
+
+'这句是用来记来点击次数的。可以做成JS调用，以便静态网页使用。
+
+write_hit="<script language=""javascript"" src="""&root_path&"js_news_hit.asp?action=0&news_id="&news_id&"""></script>" 
+
+
+	pp=""
+	pp=pp&"&nbsp;"
+	pp=pp&"<a name=pl><img src="&root_path&"images/bbstitle.gif></a><a href=#pl onclick='window.open("""&root_path&"NewsPL.asp?id="&rs("id")&""",""newsview"",""width=680,height=400,top=70,left=150,scrollbars=yes"" )'  title='"&rs("title")&"'>发表,查看评论(<script charset='gb2312' TYPE='text/javascript' language='javascript' src='"&root_path&"js-pls.asp?newsid="&rs("id")&" '></script>)</a>&nbsp;"
+	pp=pp&"<img border='0' src='"&root_path&"images/print.gif' width='16' height='16'><a href='javascript:window.print()'>打印本页</a>&nbsp;"
+	pp=pp&"<img border='0' src='"&root_path&"images/soso.gif'><a href="&root_path&"soso.asp?word="&left(rs("title"),5)&" target=_blank>搜索相关信息</a>"
+
+
+'步骤三:创建静态文件的目录
+
+     '把命名规则中的栏目替换为栏目名称：
+      
+	file_rule=replace(file_rule,"栏目",lm_path)
+
+   array_file=split(file_rule,"/")  '取出文件的各级目录名称和文件名
+   file_path=replace(file_rule,array_file(ubound(array_file)),"")  '取出文件的目录
+   file_name=array_file(ubound(array_file))  '取出文件的文件名
+
+
+	if request("id")<>"" and rs("file_path")<>"" and rs("file_name")<>"" then  '新增的文章，目录按规则定
+       
+		  db_more_file_name=rs("file_name")   '文件名是数组形式保存：file1|file2|file3
+		  array_db_more_file_name=split(db_more_file_name,"|")
+          db_file_name=array_db_more_file_name(0)   '仅取出第一个文件名称
+
+		  db_file_path=rs("file_path")
+	      old_file=db_file_path&db_file_name
+
+	   ' 判断：如果栏目与原栏目不相同或文件扩展名与原扩展名不相同，则新建目录和新创建文件
+
+	   array_db_file_path=split(db_file_path,"/")
+	   array_db_file_name=split(db_file_name,".")
+
+       old_lm_path=array_db_file_path(0)&"/"&array_db_file_path(1) '旧栏目的目录
+	   new_lm_path=array_file(0)&"/"&array_file(1)  '新栏目的目录
+
+	   old_file_ext=array_db_file_name(1)  '旧的文件名扩展名
+	   new_file_ext=file_type   '新的文件名扩展名
+
+       if old_lm_path=new_lm_path and old_file_ext=new_file_ext then
+          del_old_file="not"
+	      
+		   '假如保留原有路径和名称，则重定义file_rule的值。
+           array_old_file=split(old_file,"/")  '取出文件的各级目录名称和文件名
+		   redim array_file(ubound(array_old_file))
+
+           array_file=split(old_file,"/")  '取出文件的各级目录名称和文件名
+           file_path=db_file_path  '取出文件的目录
+           file_name=db_file_name  '取出文件的文件名
+
+       else
+          del_old_file="yes"
+	   end if
+       
+	end if
+
+
+
+'(一):静态文件存放目录:
+    wl_root_path=server.mappath(root_path)&"\"   '栏目物理存放的目录 '把静态文件存放在：./html目录之下。可改其它目录名。这里调用的是服务器的物理路径
+
+
+  '创建这两个目录
+    dim  fileobj, folder
+    set fileobj=Server.Createobject("Scripting.FileSystemObject")
+
+   '建立目录时，只能逐级一步步来建立
+
+      wl_file_path=wl_root_path
+
+      for n_mulu=0 to ubound(array_file)-1
+	    
+		wl_file_path=wl_file_path&"\"&array_file(n_mulu)
+        
+		'创建指定规则的目录
+		if not fileobj.folderexists(wl_file_path)  then
+	       set folder=fileobj.CreateFolder(wl_file_path) 
+        end if
+      next
+
+   '所有的目录创建完毕
+
+   '要保存的文件的物理路径和名称是:
+   if only_one_page="yes"  then 
+         wl_file_name=wl_file_path&"\"&array_file(ubound(array_file))
+		 this_write_file=array_file(ubound(array_file))   '当前文件名
+	else
+	    a_create_file=split(array_file(ubound(array_file)),".") 
+		 if page=0 then 
+              create_file=a_create_file(0)&"."&a_create_file(1)
+		else
+              create_file=a_create_file(0)&"_"&page&"."&a_create_file(1)
+		end if
+         wl_file_name=wl_file_path&"\"&create_file
+         this_write_file=create_file  '当前的文件名
+	end if
+
+'结束步骤三.
+
+
+
+
+'创建静态文件
+
+'如果旧文件不符合现有的规则，则删除旧文件：
+
+if del_old_file="yes" then
+ 
+  '豪-修改,2006-9-16,应该删除所有的分页文件,不应只是一个文件.
+	will_del_path=rs("file_path")
+	array_will_file_name=split(rs("file_name") ,"|")
+	for file_n=0 to ubound(array_will_file_name)
+	    will_del_file_name=array_will_file_name(file_n)
+         wl_del_file=wl_root_path&will_del_path&will_del_file_name
+	   If fileobj.FileExists(wl_del_file) Then
+	       fileobj.DeleteFile(wl_del_file) '跳转到静态文件
+	  end if
+	 next 
+
+  '豪-修改结束,2006-9-16,应该删除所有的分页文件,不应只是一个文件.
+
+end if
+
+
+'创建新文件：
+
+Set file_output= fileobj.Createtextfile(wl_file_name,true)
+
+
+    out_html_nr=replace(nr,"$$内容$$",content)   '不能用nr=这个参数。否则第二次没有$$内容$$这个替换值了。
+
+    out_html_nr=out_html_nr&write_hit '把阅读次数写入HTML文件中
+    if  only_one_page<>"yes"  then  '把分页网页中的@@静态文件@@替换成文件名：
+      array_page_file_name=split(file_name,".")
+      out_html_nr=replace(out_html_nr,"@@静态文件@@",root_path&file_path&array_page_file_name(0)) 
+      out_html_nr=replace(out_html_nr,"@@扩展名@@",array_page_file_name(1)) 
+    end if 
+
+
+
+     out_html_nr=replace(out_html_nr,"$$评论$$",ppll) 
+     out_html_nr=replace(out_html_nr,"$$打印$$",pp)  
+     out_html_nr=replace(out_html_nr,"$$工具栏$$",pp)   
+
+ '豪-增2006-9-16,取消下句,增JS调用相关内容
+ 'out_html_nr=replace(out_html_nr,"$$相关$$",html_xgnews)  
+
+   if Instr(out_html_nr,"$$相关$$")>0 then 
+        uuu_xg="<script language=""javascript"" src="""&root_path&"js_news_xg.asp?news_id="&news_id&"""></script>"
+	    out_html_nr=replace(out_html_nr,"$$相关$$",uuu_xg)
+	 end if
+'增加JS相关结束
+
+   if trim(url)<>"" then out_html_nr="<html>"&vbCrLf&"<head>"&vbCrLf&"<meta http-equiv=""refresh"" content=""5; url="&url&""">"&vbCrLf&"</head>"&vbCrLf&"<body>"&vbCrLf&write_hit&vbCrLf&"</body></html>"  '如果只是跳转，则生成转到别的网页去的内容。
+
+'阿蚊少-08-06-08,增加解决相对路径问题,可解决大部分问题,部分不能处理请使用绝对路径
+       out_html_nr=an_Replace(out_html_nr,root_path)
+
+       file_output.writeline out_html_nr  '把内容写入静态文件中。
+
+ file_output.close
+set fileobj=nothing
+'创建文件结束
+
+'结束步骤六.
+    if  only_one_page<>"yes"  then  '如果有多页时，保存在数据库的文件名用数组形式表示：
+        out_to_db_file_name=out_to_db_file_name& this_write_file&"|"  '以数组形式保存文件名
+    else
+        out_to_db_file_name=this_write_file
+    end if
+
+  next  '结束循环,page的循环。生成几个静态文件（要对文件个数进行判断）
+
+'步骤七:把相关的目录和文件名存放入["&CgsailPrefix&"news]表中
+
+  
+    rs("file_path")=file_path
+
+    if right(out_to_db_file_name,1)="|" then  out_to_db_file_name=left(out_to_db_file_name,len(out_to_db_file_name)-1)  '把左边第1个“|”分隔符删除。
+
+    rs("file_name")=out_to_db_file_name
+
+    rs.update
+
+'结束步骤七.
+
+end if   '如果要生成静态文件.判断结束.
+
+'豪----增加:生成静态文件结束
+
+
+     rs.close
+    set rs=nothing
+
+    aaa=split(out_to_db_file_name,"|")
+    create_html_file=file_path&aaa(0) '返回创建成功时的文件路径和名称
+	
+	response.write "<font color="&lm_color&">["&lm_name&"]</font>&nbsp;<a href='"&root_path&create_html_file&"' target='_blank'><font color='"&titlecolor&"'>"&webtitle&"</font></a> <font color=red style='font-size:18px'> <b>√</b></font>&nbsp;&nbsp;<font color=999999> 静态网页创建成功!</font><BR>"
+
+end function    '结束创建静态文件的子函数
+
+
+'删除静态文件或数据库中的文章的函数。
+function  del_html_file(html_news_id)   ' 删除静态文件的子过程,参数是文章的ID号
+  
+  delid=html_news_id  '取出文章的ID号
+  if delid="" or not isnumeric(clng(delid)) then
+         del_html_file=false   '返回的函数值。
+       exit function
+  end if  
+
+'豪-增加-2006-9-16--删除静态文件
+  html_url_sql = "select id,title,titlecolor,file_path,file_name from ["&CgsailPrefix&"news] where id="&clng(delid)
+  Set html_url_rs = Server.CreateObject("ADODB.RecordSet")
+  html_url_rs.Open  html_url_sql,conn,1,3
+ if  html_url_rs("file_path")<>"" and html_url_rs("file_name")<>"" then  '判断静态文件
+   
+    array_file_name=split(html_url_rs("file_name"),"|")
+    file_path=html_url_rs("file_path")
+    title=html_url_rs("title")
+    titlecolor=html_url_rs("titlecolor")
+  '判断是否有文件存在，如果存在，则调用静态文件，不存在，调用数据库显示
+	root_path=finddir(request.servervariables("URL"))   '取出系统程序的工作目录.
+
+	wl_root_path=server.mappath(root_path)&"\"   '栏目物理存放的目录 
+    
+	 set fileobj=Server.Createobject("Scripting.FileSystemObject")
+
+	for file_n=0 to ubound(array_file_name)
+	    file_name=array_file_name(file_n)
+         wl_file=wl_root_path&file_path&file_name
+	   If fileobj.FileExists(wl_file) Then
+	       fileobj.DeleteFile(wl_file) '跳转到静态文件
+	  end if
+	 next 
+    set fileobj=nothing
+
+
+end if  '结束判断html_url_rs("file_path")<>"" 的条件.
+  html_url_rs.close
+  set html_url_rs=nothing
+
+   '豪-增加结束-2006-9-16-删除静态文件
+  	response.write "&nbsp;<a href='"&root_path&"news_view.asp?newsid="&delid&"' target='_blank'><font color='"&titlecolor&"'>"&title&"</font></a> <font color=red style='font-size:18px'> <b>√</b></font>&nbsp;&nbsp;<font color=999999> 静态网页删除成功!</font><BR>"
+
+   del_html_file=true  '删除文章成功，返回这个值给调用的语句。
+end function  '结束--删除静态文件的子过程
+%>

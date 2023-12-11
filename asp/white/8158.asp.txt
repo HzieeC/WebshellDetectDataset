@@ -1,0 +1,496 @@
+<!--#include file="setup.asp"-->
+<!--#include file="check.asp"-->
+<!--#include file="inc/md5.asp"-->
+<%
+If Not CheckAdmin("999") Then
+    Server.Transfer("showerr.asp")
+    Response.End
+End If
+'=====================================================================
+' 作者声明：转载请保留版权信息，鄙视不要脸的人
+'=====================================================================
+' 程序名称：逐鹿科技发布系统
+' 程序作者：嘬後dè選萚 QQ：63661063 嘬後dè選萚 QQ：63661063
+' 文件名称：Admin_Master.asp
+' 更新日期：2007-6-5
+'=====================================================================
+' 联系方式：Tel：15858171675，QQ：63661063，www.zhaosf3000ok.com
+' 程序开发：嘬後dè選萚,嘬後dè選萚
+' 官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=====================================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=====================================================================
+Dim selAdminID
+Dim strClass
+titlename="系统管理员"
+Admin_header
+Response.Write "<table cellpadding=2 cellspacing=1 border=0 class=tableBorder align=center>" & vbCrLf
+Response.Write " <tr>" & vbCrLf
+Response.Write " <th height=22 colspan=6>管理员管理</th>" & vbCrLf
+Response.Write " </tr>" & vbCrLf
+Response.Write " <tr>" & vbCrLf
+Response.Write " <td " & LeftClass & "> <b>管理选项：</b> <a href=admin_master.asp>管理首页</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href=admin_master.asp?action=add>添加管理员</a>"
+Response.Write " </td>" & vbCrLf
+Response.Write " </tr>" & vbCrLf
+Response.Write " </table><br>" & vbCrLf
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+Case "renew"
+        Call UpdateFlag
+Case "del"
+        Call del
+Case "pasword"
+        Call pasword
+Case "newpass"
+        Call newpass
+Case "add"
+        Call addadmin
+Case "edit"
+        Call userinfo
+Case "savenew"
+        Call savenew
+Case "active"
+        Call ActiveLock
+Case Else
+        Call userlist
+End Select
+If FoundErr = True Then
+        ReturnError(ErrMsg)
+End If
+Admin_footer
+CloseConn
+Private Sub userlist()
+        Response.Write "<table cellpadding=""2"" cellspacing=""1"" border=""0"" class=""tableBorder"" align=center>" & vbCrLf
+        Response.Write " <tr>" & vbCrLf
+        Response.Write "<th><B>用户名</B></th>" & vbCrLf
+        Response.Write "<th><B>上次登陆时间</B></th>" & vbCrLf
+        Response.Write "<th><B>上次登陆IP</B></th>" & vbCrLf
+        Response.Write "<th><B>级别</B></th>" & vbCrLf
+        Response.Write "<th><B>操作</B></th>" & vbCrLf
+        Response.Write "<th><B>状态</B></th>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Set Rs = tee5.Execute("select * from Gq_Admin order by Logintime desc")
+        Do While Not Rs.EOF
+        Response.Write " <tr>" & vbCrLf
+        Response.Write " <td " & CenterClass & "><a href=""?id="
+        Response.Write Rs("id")
+        Response.Write "&action=edit"">"
+        Response.Write Rs("AdminName")
+        Response.Write "</a></td>" & vbCrLf
+        Response.Write "<td align=center " & CenterClass & ">"
+        Response.Write Rs("Logintime")
+        Response.Write "</td>" & vbCrLf
+        Response.Write "<td align=center " & CenterClass & ">"
+        Response.Write Rs("Loginip")
+        Response.Write "</td>" & vbCrLf
+        Response.Write "<td align=center " & CenterClass & ">"
+        If Rs("status")="高级管理员" then
+        Response.Write "<font color=red>"
+        Response.Write Rs("status")
+        Response.Write "</font>"
+        Else
+        Response.Write Rs("status")
+        End If
+        Response.Write "</td>" & vbCrLf
+        Response.Write "<td align=center " & CenterClass & "><a href=""?action=Active&id=" & Rs("id") & "&lock="
+        If Rs("isLock") = 0 Then
+                Response.Write "1"" onclick=""return confirm('您确定要锁定此管理员吗?')"">锁定管理员</a> | "
+        Else
+                Response.Write "0"" onclick=""return confirm('您确要激活此管理员吗?')"">激活管理员</a> | "
+        End If
+
+
+        Response.Write "<a href=""?id="
+        Response.Write Rs("id")
+        Response.Write "&action=pasword"" title='修改管理员信息'>"
+        Response.Write "修改</a>&nbsp;|&nbsp;"
+        Response.Write "<a href=""?action=del&id="
+        Response.Write Rs("id")
+        Response.Write "&name="
+        Response.Write Rs("AdminName")
+        Response.Write """ onclick=""return confirm('此操作将删除该管理员\n 您确定执行此操作吗?')"">删除</a>&nbsp;|&nbsp;<a href=""?id="
+        Response.Write Rs("id")
+        Response.Write "&action=edit"">编辑权限</a></td>" & vbCrLf
+        Response.Write "<td align=center " & CenterClass & ">"
+        If Rs("isLock") = 0 Then
+                Response.Write "正常"
+        Else
+                Response.Write "<font color=red>锁定<font>"
+        End If
+        Response.Write "</td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Rs.movenext
+        i = i + 1
+        Loop
+        Rs.Close
+        Set Rs = Nothing
+        Response.Write " </table>" & vbCrLf
+End Sub
+
+Private Sub del()
+        If Trim(Request("id")) <> "" Then
+        tee5.Execute ("delete from Gq_Admin where AdminName<>'" & LoginName & "' And id=" & Request("id"))
+        Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+        Else
+        ErrMsg = "<li>错误的系统参数！</li>"
+        Founderr = True
+        Exit Sub
+        End If
+End Sub
+
+Private Sub ActiveLock()
+        If Trim(Request("lock")) <> "" And Trim(Request("id")) <> "" Then
+        tee5.Execute ("update Gq_Admin set isLock="&Request("lock")&" where AdminName<>'" & LoginName & "' And id=" & Request("id"))
+        Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+        Else
+        ErrMsg = "<li>错误的系统参数！</li>"
+        Founderr = True
+        Exit Sub
+        End If
+End Sub
+
+Private Sub pasword()
+        Dim oldpassword
+        If Not CheckAdmin("9999") Then
+        ErrMsg = "<li>您没有此操作权限!</li><li>如有什么问题请联系站长？</li>"
+        Founderr = True
+        Exit Sub
+        End If
+        Set Rs = tee5.Execute("select * from Gq_Admin where id=" & Request("id"))
+        oldpassword = Rs("password")
+        Response.Write "<table cellpadding=""2"" cellspacing=""1"" border=""0"" class=""tableBorder"" align=center>" & vbCrLf
+        Response.Write "<form action=""?action=newpass"" method=post>" & vbCrLf
+        Response.Write " <tr>" & vbCrLf
+        Response.Write " <th colspan=2 height=23>管理员资料管理－－密码修改" & vbCrLf
+        Response.Write " </th>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr >" & vbCrLf
+        Response.Write " <td width=""26%"" " & RightClass & ">后台登陆名称：</td>" & vbCrLf
+        Response.Write " <td width=""74%"" " & LeftClass & ">" & vbCrLf
+        Response.Write " <input type=hidden name=""oldLoginName"" value="""
+        Response.Write Rs("AdminName")
+        Response.Write """>" & vbCrLf
+        Response.Write " <input type=text size=25 name=""LoginName2"" value="""
+        Response.Write Rs("AdminName")
+        Response.Write """>" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr >" & vbCrLf
+        Response.Write " <td width=""26%"" " & RightClass & ">后台登陆密码：</td>" & vbCrLf
+        Response.Write " <td width=""74%"" " & LeftClass & ">" & vbCrLf
+        Response.Write " <input type=""password"" size=25 name=""password2"">"
+        Response.Write " (如果不修改密码请留空)" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr>" & vbCrLf
+        Response.Write " <td width=""26%"" " & RightClass & ">管理员级别：</td>" & vbCrLf
+        Response.Write " <td width=""74%"" " & LeftClass & ">" & vbCrLf
+        Response.Write " <input type=radio name=AdminGrade value='0' "
+        If Rs("AdminGrade") = 0 Then Response.Write " checked"
+        Response.Write " > 普通管理员&nbsp;&nbsp;" & vbCrLf
+        Response.Write " <input type=radio name=AdminGrade value='999' "
+        If Rs("AdminGrade") = 999 Then Response.Write " checked"
+        Response.Write " > 高级管理员 （拥有最高权限）" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr>" & vbCrLf
+        Response.Write " <td " & RightClass & ">是否激活管理员：</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & ">" & vbCrLf
+        Response.Write " <input type=radio name=isLock value='1' "
+        If Rs("isLock") = 1 Then Response.Write " checked"
+        Response.Write " > 否&nbsp;&nbsp;" & vbCrLf
+        Response.Write " <input type=radio name=isLock value='0' "
+        If Rs("isLock") = 0 Then Response.Write " checked"
+        Response.Write " > 是" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr>" & vbCrLf
+        Response.Write " <td " & RightClass & ">限制一个管理员登陆：</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & ">" & vbCrLf
+        Response.Write " <input type=radio name=isAloneLogin value='0' "
+        If Rs("isAloneLogin") = 0 Then Response.Write " checked"
+        Response.Write " > 否&nbsp;&nbsp;" & vbCrLf
+        Response.Write " <input type=radio name=isAloneLogin value='1' "
+        If Rs("isAloneLogin") = 1 Then Response.Write " checked"
+        Response.Write " > 是" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr align=""center"">" & vbCrLf
+        Response.Write " <td colspan=""2"" " & CenterClass & ">" & vbCrLf
+        Response.Write " <input type=hidden name=id value="""
+        Response.Write Request("id")
+        Response.Write """>" & vbCrLf
+        Response.Write " <input type=button name=Submit4 onclick='javascript:history.go(-1)' value='返回上一页' class=Button> <input type=""submit"" name=""Submit"" value="" 更 新 "" class=""button"">" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " </form>" & vbCrLf
+        Response.Write " </table>" & vbCrLf
+Rs.Close
+Set Rs = Nothing
+End Sub
+
+Private Sub newpass()
+        Dim passnw
+        Dim usernw
+        Dim aduser
+        Dim oldpassword
+        If Not CheckAdmin("9999") Then
+        ErrMsg = "<li>您没有此操作权限!</li><li>如有什么问题请联系站长？</li>"
+        Founderr = True
+        Exit Sub
+        End If
+        Set Rs = tee5.Execute("select * from Gq_Admin where id=" & Request("id"))
+        oldpassword = Rs("password")
+        If Request("LoginName2") = "" Then
+        ErrMsg = "<li>请输入管理员名字。<a href=?>［ <font color=red>返回</font> ］</a>"
+        Founderr = True
+        Exit Sub
+        Else
+        usernw = Trim(Request("LoginName2"))
+        End If
+        If Request("password2") = "" Then
+        passnw = "没有修改"
+        Else
+        passnw = Request("password2")
+        End If
+        Set Rs = CreateObject("adodb.recordset")
+        SQL = "select * from Gq_Admin where AdminName='" & Trim(Request("oldLoginName")) & "'"
+        Rs.Open SQL, conn, 1, 3
+        If Not Rs.EOF And Not Rs.bof Then
+        Rs("AdminName") = usernw
+        If Request("password2") <> "" Then Rs("password") = md5(Request("password2"))
+        If CInt(Request.Form("AdminGrade")) = 999 Then
+                Rs("status") = "高级管理员"
+        Else
+                Rs("status") = "普通管理员"
+        End If
+        Rs("AdminGrade") = Request.Form("AdminGrade")
+        Rs("isLock") = Request.Form("isLock")
+        Rs("isAloneLogin") = Request.Form("isAloneLogin")
+        Succeed ("<li>管理员资料更新成功，请记住更新信息。<br> 管理员名称：" & Request("LoginName2") & " <BR> 管理员密码：" & passnw & "")
+        Rs.update
+        End If
+        Rs.Close
+        Set Rs = Nothing        
+End Sub
+
+Private Sub addadmin()
+        If Not CheckAdmin("9999") Then
+        ErrMsg = "<li>您没有此操作权限!</li><li>如有什么问题请联系站长？</li>"
+        Founderr = True
+        Exit Sub
+        End If
+        Response.Write "<table cellpadding=""2"" cellspacing=""1"" border=""0"" class=""tableBorder"" align=center>" & vbCrLf
+        Response.Write "<form action=""?action=savenew"" method=post>" & vbCrLf
+        Response.Write " <tr>" & vbCrLf
+        Response.Write " <th colspan=2 height=23>管理员管理－－添加管理员" & vbCrLf
+        Response.Write " </th>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr >" & vbCrLf
+        Response.Write " <td width=""26%"" " & RightClass & ">后台登陆名称：</td>" & vbCrLf
+        Response.Write " <td width=""74%"" " & LeftClass & ">" & vbCrLf
+        Response.Write " <input type=text name=""LoginName2"">" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr>" & vbCrLf
+        Response.Write " <td width=""26%"" " & RightClass & ">后台登陆密码：</td>" & vbCrLf
+        Response.Write " <td width=""74%"" " & LeftClass & ">" & vbCrLf
+        Response.Write " <input type=""password"" name=""password2"">" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr>" & vbCrLf
+        Response.Write " <td width=""26%"" " & RightClass & ">管理员级别：</td>" & vbCrLf
+        Response.Write " <td width=""74%"" " & LeftClass & ">" & vbCrLf
+        Response.Write " <input type=radio name=AdminGrade value='0' checked> 普通管理员&nbsp;&nbsp;" & vbCrLf
+        Response.Write " <input type=radio name=AdminGrade value='999'> 高级管理员 （拥有最高权限）" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr>" & vbCrLf
+        Response.Write " <td " & RightClass & ">限制一个管理员登陆：</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & ">" & vbCrLf
+        Response.Write " <input type=radio name=isAloneLogin value='0' checked> 否&nbsp;&nbsp;" & vbCrLf
+        Response.Write " <input type=radio name=isAloneLogin value='1'> 是" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr>" & vbCrLf
+        Response.Write " <td width=""26%"" " & RightClass & ">是否激活管理员：</td>" & vbCrLf
+        Response.Write " <td width=""74%"" " & LeftClass & ">" & vbCrLf
+        Response.Write " <input type=radio name=isLock value='1' checked> 否&nbsp;&nbsp;" & vbCrLf
+        Response.Write " <input type=radio name=isLock value='0'> 是" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <tr align=""center"">" & vbCrLf
+        Response.Write " <td colspan=""2"" " & CenterClass & ">" & vbCrLf
+        Response.Write " <input type=button name=Submit4 onclick='javascript:history.go(-1)' value='返回上一页' class=Button>  <input type=""submit"" name=""Submit"" value="" 添 加 "" class=""button"">" & vbCrLf
+        Response.Write " </td>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " </form>" & vbCrLf
+        Response.Write " </table>" & vbCrLf
+End Sub
+
+Private Sub savenew()
+        Dim adminuserid
+        If Not CheckAdmin("9999") Then
+        ErrMsg = "<li>您没有此操作权限!</li><li>如有什么问题请联系站长？</li>"
+        Founderr = True
+        Exit Sub
+        End If
+        If Request.Form("LoginName2") = "" Then
+        ErrMsg = "请输入后台登陆用户名！"
+        Founderr = True
+        Exit Sub
+        Else
+        adminuserid = Request.Form("LoginName2")
+        End If
+        If Request.Form("password2") = "" Then
+        ErrMsg = "请输入后台登陆密码！"
+        Founderr = True
+        Exit Sub
+        End If
+        Set Rs = tee5.Execute("select AdminName from Gq_Admin where AdminName='" & Replace(Request.Form("LoginName2"), "'", "") & "'")
+        If Not (Rs.EOF And Rs.bof) Then
+        ErrMsg = "您输入的用户名已经在管理用户中存在！"
+        Founderr = True
+        Exit Sub
+        End If
+        Set Rs = Server.CreateObject("adodb.recordset")
+        SQL = "select * from Gq_Admin where (id is null)"
+        Rs.open SQL,conn,1,3
+        Rs.addnew
+        Rs("AdminName") = Replace(Request.Form("LoginName2"), "'", "")
+        If CInt(Request.Form("AdminGrade")) = 999 Then
+                Rs("status") = "高级管理员"
+        Else
+                Rs("status") = "普通管理员"
+        End If
+        Rs("password") = md5(Request.Form("password2"))
+        Rs("isLock") = Request.Form("isLock")
+        Rs("AdminGrade") = Request.Form("AdminGrade")
+        Rs("Authority") = ",,,,,,,,,,,,,,,"
+        Rs("LoginTime") = Now()
+        Rs("Loginip") = tee5.GetUserIP
+        Rs("RandomCode") = tee5.GetRandomCode
+        Rs("isAloneLogin") = Request.Form("isAloneLogin")
+        Rs.update
+        Rs.close:set Rs=Nothing
+        Succeed ("添加成功，请到管理员管理给予相应的权限，如需修改请返回管理员管理！<br> 管理员名称：" & adminuserid & "<br> 管理员密码：" & Request.Form("password2") & "")
+End Sub
+
+Private Sub userinfo()
+        Dim AdminFlag,rsChannel
+        Dim ChanID,ModuleName,strModules
+        Set Rs = tee5.Execute("SELECT id,Authority FROM Gq_Admin WHERE id=" & Request("id"))
+        AdminFlag = Rs("Authority")
+        Rs.Close
+        Set Rs = Nothing
+        Response.Write " <table border=0 align=center cellpadding=3 cellspacing=1 class=tableborder>" & vbCrLf
+        Response.Write "  <tr>" & vbCrLf
+        Response.Write " <th colspan=6>管理员权限管理(请选择相应的权限分配给管理员)</th>" & vbCrLf
+        Response.Write " </tr>" & vbCrLf
+        Response.Write " <form name=myform method=post action=?action=renew>" & vbCrLf
+        Response.Write " <input type=hidden name=id value=""" & Request("id") & """>" & vbCrLf
+        Response.Write "  <tr>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""SiteConfig"" "
+           If InStr(AdminFlag, "SiteConfig") <> 0 Then Response.Write "checked"
+        Response.Write " > 系统设置</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""GameType"" "
+           If InStr(AdminFlag, "GameType") <> 0 Then Response.Write "checked"
+        Response.Write "> 游戏类型</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""MenuList"" "
+           If InStr(AdminFlag, "MenuList") <> 0 Then Response.Write "checked"
+        Response.Write "> 导航管理</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""Advertise"" "
+           If InStr(AdminFlag, "Advertise") <> 0 Then Response.Write "checked"
+        Response.Write "> 广告管理</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""CreateHtml"" "
+           If InStr(AdminFlag, "CreateHtml") <> 0 Then Response.Write "checked"
+        Response.Write "> 生成HTML</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""Copyright"" "
+           If InStr(AdminFlag, "Copyright") <> 0 Then Response.Write "checked"
+        Response.Write "> 版权设置</td>" & vbCrLf
+        Response.Write "</tr>" & vbCrLf
+        Response.Write "  <tr>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""GameList"" "
+           If InStr(AdminFlag, "GameList") <> 0 Then Response.Write "checked"
+        Response.Write " > 私服管理</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""AddGameList"" "
+           If InStr(AdminFlag, "AddGameList") <> 0 Then Response.Write "checked"
+        Response.Write "> 添加私服</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""GameColl"" "
+           If InStr(AdminFlag, "GameColl") <> 0 Then Response.Write "checked"
+        Response.Write "> 私服采集</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""JzList"" "
+           If InStr(AdminFlag, "JzList") <> 0 Then Response.Write "checked"
+        Response.Write "> 家族管理</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""ArticleList"" "
+           If InStr(AdminFlag, "ArticleList") <> 0 Then Response.Write "checked"
+        Response.Write "> 文章管理</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""SoftList"" "
+           If InStr(AdminFlag, "SoftList") <> 0 Then Response.Write "checked"
+        Response.Write "> 下载管理</td>" & vbCrLf
+        Response.Write "</tr>" & vbCrLf
+        Response.Write "  <tr>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""BackupData"" "
+           If InStr(AdminFlag, "BackupData") <> 0 Then Response.Write "checked"
+        Response.Write " > 数据备份</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""RestoreData"" "
+           If InStr(AdminFlag, "RestoreData") <> 0 Then Response.Write "checked"
+        Response.Write "> 数据恢复</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""CompressData"" "
+           If InStr(AdminFlag, "CompressData") <> 0 Then Response.Write "checked"
+        Response.Write "> 数据压缩</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""SpaceSize"" "
+           If InStr(AdminFlag, "SpaceSize") <> 0 Then Response.Write "checked"
+        Response.Write "> 空间占用</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""FriendLink"" "
+           If InStr(AdminFlag, "FriendLink") <> 0 Then Response.Write "checked"
+        Response.Write "> 连接管理</td>" & vbCrLf
+        Response.Write " <td " & LeftClass & "><input type=""checkbox"" name=""AdminFlag"" "
+        Response.Write "value=""ChangePassword"" "
+           If InStr(AdminFlag, "ChangePassword") <> 0 Then Response.Write "checked"
+        Response.Write "> 修改密码</td>" & vbCrLf
+        Response.Write "</tr>" & vbCrLf
+        Response.Write " <tr>" & vbCrLf
+        Response.Write "<td colspan=6 " & CenterClass & ">" & vbCrLf
+        Response.Write "<input class=Button type=button name=Submit4 onclick='javascript:history.go(-1)' value='返回上一页'> 　　" & vbCrLf
+	Response.Write "<input class=Button type=button value='全选' onClick=""CheckAll(this.form)"">"
+	Response.Write "<input class=Button type=button value='撤消' onClick=""CheckCel(this.form)"">"
+	Response.Write "<input class=Button type=button value='反选' onClick=""CheckSel(this.form)""> "
+        Response.Write "<input class=Button type=""submit"" name=""Submit"" value=""更新管理员权限""></td>" & vbCrLf
+        Response.Write "</tr>" & vbCrLf
+        Response.Write "</form>" & vbCrLf
+        Response.Write "</table>" & vbCrLf
+End Sub
+Private Sub UpdateFlag()
+        Dim Sucmsg
+        Set Rs = Server.CreateObject("adodb.recordset")
+        SQL = "SELECT * FROM Gq_Admin WHERE id=" & Request("id")
+        Rs.Open SQL, conn, 1, 3
+        If Not (Rs.EOF And Rs.BOF) Then
+        Rs("Authority") = Replace(Replace(Request("AdminFlag"), "'", ""), " ", "")
+        Rs.update
+        End If
+        Rs.Close
+        Set Rs = Nothing
+        Sucmsg = "<li>管理员更新成功，请记住更新信息。"
+        Succeed (Sucmsg)
+End Sub
+%>
+

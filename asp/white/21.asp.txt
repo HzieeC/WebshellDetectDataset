@@ -1,0 +1,598 @@
+<!--#include file="../Conn.asp"-->
+<!--#include file="AdnCms.Security.asp"-->
+<!--#include file="AdnCms.Function.asp"-->
+<!--#include file="AdnCms.Cache.asp"-->
+<!--#include file="AdnCms.Fso.asp"-->
+<!--#include file="AdnCms.XmlHttp.asp"-->
+<!--#include file="AdnCms.Md5.asp"-->
+<!--#include file="AdnCms.Version.asp"-->
+<!--#include file="../Cache/AdnCms.Admin.asp"-->
+<!--#include file="../Cache/AdnCms.Class.asp"-->
+<!--#include file="../Cache/AdnCms.Player.asp"-->
+<!--#include file="../Ubb/ubb.asp"-->
+<%
+Class AdnCms_Front
+	Public Content
+	Private CacheName,labelRule,regEx,Match,Matches,AdnLable(2)
+	
+	Public Sub Class_Initialize()'类开始执行的语句
+		Set regEx = New RegExp   '建立正则表达式
+		regEx.IgnoreCase = True  '设置是否区分字符大小写
+		regEx.Global = True      '设置全局可用性
+	End Sub
+	
+	Public Sub Class_Terminate()'类结束
+		Set regExpObj = nothing
+		Set strDictionary = nothing
+	End Sub
+	
+	Public Function ReadSkin(Byval MoBan_Path)
+		Content = GetSkinCache(MoBan_Path)
+		Content = ReplaceStr(Content,"{$SiteHeader}",GetSkinCache(Config(0)&"Skin/"&Config(12)&"/"&AdminId(21)&"Adn_Header.html"))
+		Content = ReplaceStr(Content,"{$SiteFooter}",GetSkinCache(Config(0)&"Skin/"&Config(12)&"/"&AdminId(21)&"Adn_Footer.html"))		
+	End Function
+	
+	Public Function ReadAll()
+		Content = ReplaceStr(Content,"{$InstallDir}",Config(0))
+		Content = ReplaceStr(Content,"{$SiteName}",Config(8))
+		Content = ReplaceStr(Content,"{$SiteUrl}",Config(9))
+		Content = ReplaceStr(Content,"{$Email}",Config(18))	
+		Content = ReplaceStr(Content,"{$KeyWord}",Config(15))
+		Content = ReplaceStr(Content,"{$Description}",Config(16))
+		Content = ReplaceStr(Content,"{$Copyright}",Config(13))
+		Content = ReplaceStr(Content,"{$Tong}",Config(14))
+		Content = ReplaceStr(Content,"{$BeiAn}",AdminId(14))
+		Content = ReplaceStr(Content,"{$AdnimPlayer}","<script language=""javascript"" type=""text/javascript"" src="""&Config(0)&"Js/AdnCms.Js.js""></script>")
+		Content = ReplaceStr(Content,"{$Css}","<link href="""&Config(0)&"skin/"&Config(12)&"/style.css"" rel=""stylesheet"" type=""text/css"" />")
+		Content = ReplaceStr(Content,"{$QvodChannel}","<a href=""qvodcha://"&Config(8)&"|http://"&Config(9)&"/Channel.xml"">QVOD频道订阅</a>")
+		Content = ReplaceStr(Content,"{$QvodAdd}","<a href=""qvodadd://"&Config(8)&"|http://"&Config(9)&"/"">加入QVOD收藏</a>")
+		Content = ReplaceStr(Content,"{$Titele}",Config(8))
+		Content = ReplaceStr(Content,"{$AdnVersion}","<a href=""http://www.feifeicms.com/"" target=""_blank"">AdnCms "&Formatnumber(veision,1)&"</a>")
+		'
+		regEx.Pattern = "\{\$AdnFlash\(([\s\S]*?)\)}"
+		Set Matches = regEx.Execute(Content)
+		For Each Match In Matches
+		flashstr=Split(Match.SubMatches(0),",")
+		Content=ReplaceStr(Content,Match.value,Flashslide(flashstr(0),flashstr(1)))
+		Next:Set matches = Nothing
+		'
+		regEx.Pattern = "\{\$ClassShu\(([\s\S]*?)\)}"
+		Set Matches = regEx.Execute(Content)
+		For Each Match In Matches
+		Content=ReplaceStr(Content,Match.value,GetTongJi(Cint(Match.SubMatches(0))))
+		Next:Set matches = Nothing
+		'
+		regEx.Pattern = "【AdnLink\((.*?)\)】([\s\S]*?)【\/AdnLink】"
+		Set Matches = regEx.Execute(Content)
+		For Each Match In Matches
+		Content=ReplaceStr(Content,Match.value,GetFriend(Adn_CLng(Match.SubMatches(0)),Match.SubMatches(1)))
+		Next:Set matches = Nothing
+		'
+		regEx.Pattern = "【AdnMenu\((.*?)\)】([\s\S]*?)【\/AdnMenu】"
+		Set Matches = regEx.Execute(Content)
+		For Each Match In Matches
+		Content=ReplaceStr(Content,Match.value,GetMenu(Adn_CLng(Match.SubMatches(0)),Match.SubMatches(1)))
+		Next:Set matches = Nothing										
+	End Function
+	
+	Public Function ReadAdnList()
+        If StrContent<>"" Then Content=StrContent
+		regEx.Pattern = "【AdnList\((.*?)\)】([\s\S]*?)【\/AdnList】"
+		Set Matches = regEx.Execute(Content)
+		For Each Match In Matches
+			Content=ReplaceStr(Content,Match.value,GetListAll(Match.SubMatches(0), Match.SubMatches(1)))'
+		Next:Set matches = Nothing
+		'
+		regEx.Pattern = "【AdnSpecial\((.*?)\)】([\s\S]*?)【\/AdnSpecial】"
+		Set Matches = regEx.Execute(Content)
+		For Each Match In Matches
+		Content=ReplaceStr(Content,Match.value,GetSpecialList(Match.SubMatches(0), Match.SubMatches(1)))
+		Next:Set matches = Nothing
+	End Function
+		
+	Public Function ReadAdnClass(StrContent)
+		Content=ReplaceStr(StrContent,"{$ClassId}",List_Id)
+		Content=ReplaceStr(Content,"{$ClassName}",GetClassName(List_Id))
+        regEx.Pattern = "【AdnClass\((.*?)\)】([\s\S]*?)【\/AdnClass】"
+		Set Matches = regEx.Execute(Content)
+		For Each Match In Matches
+		Content=ReplaceStr(Content,Match.value,GetClassAndSearch(Match.SubMatches(0), Match.SubMatches(1),"AdnClass"))
+		Next:Set matches = Nothing
+		Content=ReplaceStr(Content,"{$Page}",PageStr)
+	End Function
+	
+	Public Function ReadAdnSearch(StrContent)
+		regEx.Pattern = "【AdnSearch\((.*?)\)】([\s\S]*?)【\/AdnSearch】"
+		Set Matches = regEx.Execute(StrContent)
+		For Each Match In Matches
+		Content=ReplaceStr(StrContent,Match.value,GetClassAndSearch(Match.SubMatches(0), Match.SubMatches(1),"Search"))
+		Next:Set matches = Nothing
+		Content=ReplaceStr(Content,"{$Page}",PageStr)
+		Content=ReplaceStr(Content,"{$SearchKeyword}",SearchKeyword)
+	End Function
+	
+	Public Function ReadAdnSpecial(StrContent)
+        Set rs = Server.CreateObject("adodb.recordset")
+		sql = " Select * from adnim_special where special_id="&special_id&" "
+		rs.Open sql, Conn, 1, 1
+		If Not(rs.bof And rs.eof) Then
+            Content=ReplaceStr(StrContent,"{$SpecialName}",rs("special_name"))
+			Content=ReplaceStr(Content,"{$SpecialId}",rs("special_id"))
+			Content=ReplaceStr(Content,"{$SpecialIntro}",rs("special_intro"))	
+			Content=ReplaceStr(Content,"{$SpecialPic}",rs("special_pic"))
+			Content=ReplaceStr(Content,"{$SpecialLink}",GetSpecialLink(rs("special_id")))			
+		Else 
+		    Content = "没有记录"
+		End If
+		rs.Close
+		Set rs=nothing
+	End Function
+		
+	Public Function ReadData(StrContent)
+        Content=ReplaceStr(StrContent,"{$ShowPlayer}","<div id=""ShowPlayer"" style=""display: none;"">播放器加载中...</div>")
+		Call FrontObj.ReadAdnList
+		Set rs = Server.CreateObject("adodb.recordset")
+		sql = " Select data_id,class_id,server_id,special_id,data_name,data_title,data_actor,data_director,data_erea,data_picurl,data_intro,data_lastdate,data_hits,data_elite,data_status,data_inputer,data_year,data_language,data_continu,data_color from adnim_data where data_status=1 and data_id="&Data_Id&" "
+		rs.Open sql, Conn, 1, 1
+		If Not(rs.bof And rs.eof) Then
+			List_Id=rs("class_id")
+			Content=GetListLable(0,0,0,1,Content,2)
+			'
+			regEx.Pattern = "\{\$Intro\(([\s\S]*?)\)}"
+			Set Matches = regEx.Execute(StrContent)
+			For Each Match In Matches
+			Content=ReplaceStr(Content,Match.value,GetSubStr(ReplaceHtml(rs("data_intro")),Clng(Match.SubMatches(0)),True))
+			Next:Set matches = Nothing
+			'
+			regEx.Pattern = "【AdnServer\((.*?)\)】([\s\S]*?)【\/AdnServer】"
+			Set Matches = regEx.Execute(Content)
+			For Each Match In Matches
+			Content=ReplaceStr(Content,Match.value,GetPlayList2(Adn_CLng(Match.SubMatches(0)), Match.SubMatches(1)))
+			Next:Set matches = Nothing		
+		Else 
+		    Content = "没有记录"
+		End If
+		rs.Close
+		Set rs=nothing
+	End Function
+	
+	Public Function ReadPlayer(StrContent)
+		Set rs=Conn.Execute(" Select adnim_url.*,adnim_data.data_id,class_id,data_name,data_title,data_color from adnim_url,adnim_data where adnim_url.data_id="&data_id&" and adnim_url.server_id="&server_id&" and adnim_url.data_id=adnim_data.data_id")
+		If Not(rs.bof And rs.eof) Then
+		    If (player_id=2 or player_id=4 or player_id=6) and GetPlayJiAll(rs("url_intro"))>ji_id Then Call GetDiziNext(rs("url_intro"),data_id,server_id,player_id,ji_id)
+			Content=ReplaceStr(StrContent,"{$PlayerName}",rs("data_name"))
+			Content=ReplaceStr(Content,"{$ShowPlayer}",GetPlayer(rs("url_intro"),server_id,player_id,ji_id))	
+			Content=ReplaceStr(Content,"{$PlayerDizi}",GetServerLink(rs("url_intro"),data_id,server_id,player_id,1))
+			Content=ReplaceStr(Content,"{$ShowNumber}",ShowNumber)
+			Content=ReplaceStr(Content,"{$DataId}",data_id)
+			Content=ReplaceStr(Content,"{$DataUrl}",GetDataLink(rs("class_id"),data_id))
+			Content=ReplaceStr(Content,"{$DataName}","<a href="""&GetDataLink(rs("class_id"),data_id)&""" target=""_blank"">"&GetColor(rs("data_name"),rs("data_color"))&"</a>")
+			Content=ReplaceStr(Content,"{$DataMing}",rs("data_name"))
+			Content=ReplaceStr(Content,"{$DataTitle}",rs("data_title"))
+			Content=ReplaceStr(Content,"{$ClassId}",rs("class_id"))		
+			Content=ReplaceStr(Content,"{$ClassUrl}",GetListLink(rs("class_id")))
+			Content=ReplaceStr(Content,"{$ClassName}","<a href="""&GetListLink(rs("class_id"))&""" target=""_blank"">"&GetClassName(rs("class_id"))&"</a>")
+			Content=ReplaceStr(Content,"{$ClassMing}",GetClassName(rs("class_id")))
+			If Instr(Content,"{$ShowAll}")>0 Then Content=ReplaceStr(Content,"{$ShowAll}",GetPlayJiAll(rs("url_intro")))
+			If Instr(Content,"{$ShowServer}")>0 Then Content=ReplaceStr(Content,"{$ShowServer}",GetServerName(server_id))
+			regEx.Pattern = "【AdnServer\((.*?)\)】([\s\S]*?)【\/AdnServer】"
+			Set Matches = regEx.Execute(Content)
+			For Each Match In Matches
+			Content=ReplaceStr(Content,Match.value,GetPlayList2(Adn_CLng(Match.SubMatches(0)), Match.SubMatches(1)))
+			Next:Set matches = Nothing
+		Else
+		    Content="该片暂无播放地址，请留言,本站将尽快添加！"
+		End If
+		rs.close
+		Set rs=nothing
+	End Function			
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''	
+    Public Function GetListAll(Strtype,StrContent)'strtype 标签参数,strList 循环内容
+        Dim ListAll(10),TopStr,WhereStr,EliteStr,ContinuStr,List_Html:List_Html=""
+		If ubound(Split(StrType,","))<>11 Then GetListAll="循环标签不正确,请参考4.0的标签说明":Exit Function
+		ListAll(0)=Adn_CLng(Split(StrType,",")(0))'标题
+		ListAll(1)=Adn_CLng(Split(StrType,",")(1))'主演
+		ListAll(2)=Adn_CLng(Split(StrType,",")(2))'内容
+		ListAll(3)=Adn_CLng(Split(StrType,",")(3))'show时间样式
+		ListAll(4)=Adn_CLng(Split(StrType,",")(4))'排序
+		ListAll(5)=Adn_CLng(Split(StrType,",")(5))'循环数量
+		ListAll(6)=Adn_CLng(Split(StrType,",")(6))'起点位置
+		ListAll(7)=Adn_CLng(Split(StrType,",")(7))'时间范围
+		ListAll(8)=Split(StrType,",")(8)'分类ID
+		ListAll(9)=Split(StrType,",")(9)'专题ID
+		If ListAll(5)>0 Then TopStr="Top "&ListAll(5)+ListAll(6)&"" End If
+		If IsNumeric(ListAll(8)) Then'分类
+			If ListAll(8)="-1" Then
+			    If Clng(data_id)>0 Then ListAll(8)=GetClassId(data_id) Else ListAll(8)=Adn_CLng(List_Id)'判断内容页/列表页
+			Else 
+			    ListAll(8)=Adn_CLng(ListAll(8))
+			End If
+			If ListAll(8)>0 Then WhereStr="and (class_id="&ListAll(8)&" or class_id in (select class_id from adnim_class where class_bigid="&ListAll(8)&"))"		
+		Else
+			If Instr(ListAll(8),"|")>0 Then WhereStr="and class_id in("&Replace(ListAll(8),"|",",")&")" End If
+		End If
+		If isNul(ListAll(9))=False Then'专题不为空
+		    If IsNumeric(ListAll(9)) Then
+			    If ListAll(9)="-1" Then ListAll(9)=Adn_CLng(Special_Id) Else ListAll(9)=Adn_CLng(ListAll(9))
+				If ListAll(9)=0 Then 
+				    WhereStr=WhereStr&" and Special_id>0" 
+				ElseIf ListAll(9)>0 Then 
+				    WhereStr=WhereStr&" and Special_id="&ListAll(9)&""
+				End If
+		    Else
+			    If Instr(ListAll(9),"|")>0 Then WhereStr=" and Special_id in("&Replace(ListAll(9),"|",",")&")" End If
+			End If
+		End If				
+		If Config(1)="SQL" and ListAll(7)=1 Then
+		    'WhereStr=WhereStr& " and  DateDiff(d,data_lastdate,getdate())=0"
+			WhereStr=WhereStr& " and data_lastdate>='"&(date()-1)&"'"
+		ElseIf Config(1)="SQL" and ListAll(7)=2 Then
+		    'WhereStr=WhereStr& " and  DateDiff(w,data_lastdate,getdate())=0"
+			WhereStr=WhereStr& " and data_lastdate>='"&(date()-7)&"'"
+		ElseIf Config(1)="SQL" and ListAll(7)=3 Then
+		    'WhereStr=WhereStr& " and  DateDiff(m,data_lastdate,getdate())=0"
+			WhereStr=WhereStr& " and data_lastdate>='"&(date()-30)&"'"
+		ElseIf Config(1)="ACCESS" and ListAll(7)=1 Then
+		    WhereStr=WhereStr& " and  DateDiff('d',data_lastdate,#"&now()&"#)=0"
+		ElseIf Config(1)="ACCESS" and ListAll(7)=2 Then
+		    'WhereStr=WhereStr& " and  DateDiff('w',data_lastdate,#"&now()&"#)=0"
+			WhereStr=WhereStr& " and  DateDiff('d',data_lastdate,#"&now()&"#)<7"
+		ElseIf Config(1)="ACCESS" and ListAll(7)=3 Then
+		    'WhereStr=WhereStr& " and  DateDiff('m',data_lastdate,#"&now()&"#)=0"
+			WhereStr=WhereStr& " and  DateDiff('d',data_lastdate,#"&now()&"#)<30"
+		End If
+		If Split(StrType,",")(10)="True" Then WhereStr=WhereStr&" and data_elite=1" End If   '是否推荐
+		If Split(StrType,",")(11)="True" Then WhereStr=WhereStr&" and data_continu>0" End If '是否连载
+		Sql = "Select "&TopStr&" data_id,class_id,server_id,special_id,data_name,data_title,data_actor,data_director,data_erea,data_picurl,data_intro,data_lastdate,data_hits,data_elite,data_status,data_inputer,data_year,data_language,data_continu,data_color from adnim_data where data_status=1 "&WhereStr&" "&GetOrderStr(ListAll(4))&" "
+		'GetListAll=Sql:Exit Function
+		Set rs = Server.CreateObject("adodb.recordset")
+		rs.Open Sql, Conn, 1, 1
+		If Not (rs.bof and rs.eof) Then
+		    If (ListAll(6)>0) and (ListAll(5)<rs.RecordCount) Then m=rs.RecordCount-1 Else m=rs.RecordCount
+			For i=1 To m
+			    If i>=ListAll(6) Then List_Html=List_Html&GetListLable(ListAll(0),ListAll(1),ListAll(2),ListAll(3),ReplaceStr(StrContent,"{$Number}",i),1)'调用替换标签的函数
+				rs.movenext
+			Next
+		Else
+		    List_Html="对不起无相关数据!"
+		End If
+		rs.Close
+		Set rs=nothing
+		GetListAll=List_Html
+	End Function
+	
+    Public Function GetClassAndSearch(StrType,StrContent,Strtype2)'处理列表与搜索页的标签
+	    Dim Keyword:Keyword=SearchKeyword
+	    If ubound(Split(StrType,","))<>5 Then GetClassAndSearch="列表/搜索循环标签参数不正确,请参考4.0的标签说明":Exit Function
+	    Dim CS_Type(6),WhereStr,List_Html:List_Html=""
+		CS_Type(0)=Adn_CLng(Split(StrType,",")(0))'标题
+		CS_Type(1)=Adn_CLng(Split(StrType,",")(1))'主演
+		CS_Type(2)=Adn_CLng(Split(StrType,",")(2))'内容
+		CS_Type(3)=Adn_CLng(Split(StrType,",")(3))'show时间方式
+		CS_Type(4)=Adn_CLng(Split(StrType,",")(4))'排序
+		CS_Type(5)=Adn_CLng(Split(StrType,",")(5))'每页数量
+		If Strtype2="AdnClass" Then
+		    WhereStr="and (class_id="&List_Id&" or class_id in (select class_id from adnim_class where class_bigid="&List_Id&"))"
+		Else
+		    WhereStr="and "&GetSearchStr(SearchType,Keyword)&""
+		End If
+		Sql = "Select data_id,class_id,server_id,special_id,data_name,data_title,data_actor,data_director,data_erea,data_picurl,data_intro,data_lastdate,data_hits,data_elite,data_status,data_inputer,data_year,data_language,data_continu,data_color from adnim_data where data_status=1 "&WhereStr&" "&GetOrderStr(CS_Type(4))&" "
+		Set rs = Server.CreateObject("adodb.recordset")
+		rs.Open Sql, Conn, 1, 1
+		If Not (rs.bof and rs.eof) Then
+			rs.pagesize=CS_Type(5)     '每页数量
+			If CurrentPage>rs.PageCount Then CurrentPage=rs.PageCount
+			rs.AbsolutePage=CurrentPage '当前分页
+			For i=1 To rs.pagesize
+				List_Html=List_Html&GetListLable(CS_Type(0),CS_Type(1),CS_Type(2),CS_Type(3),ReplaceStr(StrContent,"{$Number}",i),1)'调用替换标签的函数
+				rs.movenext
+				If rs.eof Then Exit For
+			Next
+			If Strtype2="AdnClass" Then
+			PageStr=GetPageClass(List_Id, CurrentPage, CS_Type(5), rs.PageCount, rs.recordcount)	
+			Else				
+			PageStr=GetPageSearch("Search.asp?t="&SearchType&"&k="&SearchKeyword&"",CurrentPage, CS_Type(5), rs.PageCount, rs.RecordCount)
+			End If
+		Else
+		    List_Html="<li>对不起，该分类无任何数据!</li>"
+		End If
+		rs.Close
+		Set rs=nothing
+		GetClassAndSearch=List_Html
+	End Function
+
+	'***************************************
+	'函数名：GetListLable
+	'说  明：替换所有标签的公用函数
+	'参  数: strList 替换前的模板源代码
+	'参  数: strType 1=替换循环标签 2=替换内容页
+	'****************************************
+	Public Function GetListLable(str1,str2,str3,str4,strList,strType)
+		Dim PicUrl,List_str
+		If Instr(rs("data_picurl"),"http://")>0 Then PicUrl=Trim(rs("data_picurl")) Else PicUrl=AdminId(26)&Config(0)&Trim(rs("data_picurl")) End If
+		List_str=ReplaceStr(strList,"{$DataId}",rs("data_id"))
+		List_str=ReplaceStr(List_str,"{$ClassId}",rs("class_id"))
+		List_str=ReplaceStr(List_str,"{$ClassName}","<a href="""&GetListLink(rs("class_id"))&""" target=""_blank"">"&GetClassName(rs("class_id"))&"</a>")'
+		List_str=ReplaceStr(List_str,"{$ClassMing}",GetClassName(rs("class_id")))
+		List_str=ReplaceStr(List_str,"{$DataUrl}",GetDataLink(rs("class_id"),rs("data_id")))
+		List_str=ReplaceStr(List_str,"{$ClassUrl}",GetListLink(rs("class_id")))
+		List_str=ReplaceStr(List_str,"{$Director}",GetReplace(rs("data_director")))
+		List_str=ReplaceStr(List_str,"{$Erea}",GetReplace(rs("data_erea")))
+		List_str=ReplaceStr(List_str,"{$Hits}",rs("data_hits"))
+		List_str=ReplaceStr(List_str,"{$Inputer}",rs("data_inputer"))
+		List_str=ReplaceStr(List_str,"{$PicUrl}",PicUrl)
+		If Instr(List_str,"{$Hot}")>0 and rs("data_hits") > Cint(Config(10)) Then
+		List_str=ReplaceStr(List_str,"{$Hot}","<img src="""&Config(0)&"Images/Hot.gif"" border=""0"" />")
+		Else
+		List_str=ReplaceStr(List_str,"{$Hot}","")
+		End If
+		If Instr(List_str,"{$Elite}")>0 and rs("data_elite") = 1 Then
+		List_str=ReplaceStr(List_str,"{$Elite}","<img src="""&Config(0)&"Images/Elite.gif"" border=""0"" />")
+		Else
+		List_str=ReplaceStr(List_str,"{$Elite}","")
+		End If	
+		If Instr(List_str,"{$New}")>0 and DateDiff("D", rs("data_lastdate"), Now()) < Cint(AdminId(22)) Then
+		List_str=ReplaceStr(List_str,"{$New}","<img src="""&Config(0)&"Images/New.gif"" border=""0"" />")
+		Else
+		List_str=ReplaceStr(List_str,"{$New}","")
+		End If
+		regEx.Pattern = "\{\$Pic\(([\s\S]*?)\)}"
+		Set Matches = regEx.Execute(List_str)
+		For Each Match In Matches
+		List_str=ReplaceStr(List_str,Match.value,GetPic(Match.SubMatches(0),PicUrl,rs("data_name")))
+		Next:Set matches = Nothing
+		List_str=ReplaceStr(List_str,"{$Year}",GetReplace(rs("data_year")))
+		List_str=ReplaceStr(List_str,"{$Language}",GetReplace(rs("data_language")))
+		If DateDiff("D", rs("data_lastdate"), Now()) < Cint(AdminId(22)) Then
+		List_str=ReplaceStr(List_str,"{$Time}","<font color=red>"&GetTimeStr(rs("data_lastdate"),str4)&"</font>")
+		Else
+		List_str=ReplaceStr(List_str,"{$Time}",GetTimeStr(rs("data_lastdate"),str4))
+		End If
+		List_str=ReplaceStr(List_str,"{$DataTitle}",rs("data_title"))
+		If Instr(List_str,"{$ActorLink}")>0 Then List_str=ReplaceStr(List_str,"{$ActorLink}",GetActorLink(rs("data_actor")))
+		If Instr(List_str,"{$DirectorLink}")>0 Then List_str=ReplaceStr(List_str,"{$DirectorLink}",GetDirectorLink(rs("data_director")))	
+		If strType=1 Then
+		List_str=ReplaceStr(List_str,"{$DataName}","<a href="""&GetDataLink(rs("class_id"),rs("data_id"))&""" target=""_blank"">"&GetColor(GetSubStr(rs("data_name"),str1,True),rs("data_color"))&"</a>")
+		List_str=ReplaceStr(List_str,"{$DataMing}",GetSubStr(rs("data_name"),str1,True))
+		List_str=ReplaceStr(List_str,"{$Actor}",GetSubStr(rs("data_actor"),str2,True))
+		List_str=ReplaceStr(List_str,"{$Intro}",GetSubStr(ReplaceHtml(rs("data_intro")),str3,True))
+		List_str=ReplaceStr(List_str,"{$Continu}",GetContinu(rs("data_continu")))
+		'List_str=ReplaceStr(List_str,"{$Time}",Month(rs("data_lastdate"))&"-"&Day(rs("data_lastdate")))'Year(rs("data_lastdate"))&"-"&	
+		Else
+		List_str=ReplaceStr(List_str,"{$DataName}",rs("data_name"))
+		List_str=ReplaceStr(List_str,"{$DataMing}",rs("data_name"))
+		List_str=ReplaceStr(List_str,"{$Actor}",rs("data_actor"))
+		List_str=ReplaceStr(List_str,"{$Intro}",ubbcode(rs("data_intro")))'server.htmlencode
+		List_str=ReplaceStr(List_str,"{$Continu}",GetContinu(rs("data_continu")))
+		If Instr(List_str,"{$ServerName}")>0 Then List_str=ReplaceStr(List_str,"{$ServerName}",GetPlayList(rs("data_id"),rs("data_name"),1))
+		If Instr(List_str,"{$ServerDizi}")>0 Then List_str=ReplaceStr(List_str,"{$ServerDizi}",GetPlayList(rs("data_id"),rs("data_name"),2))
+		If Instr(List_str,"{$UrlName}")>0 Then List_str=ReplaceStr(List_str,"{$UrlName}",GetPlayList(rs("data_id"),rs("data_name"),3))
+		If Instr(List_str,"{$UrlDizi}")>0 Then List_str=ReplaceStr(List_str,"{$UrlDizi}",GetPlayList(rs("data_id"),rs("data_name"),4))
+		End If
+		GetListLable=List_str
+	End Function
+
+	'***************************************
+	'函数名：GetPlayList
+	'作  用：处理显示所有与播放地址相关的标签
+	'参  数: url_type 1={$ServerName} 2={$ServerDizi} 3={$UrlName} 4={$UrlDizi}
+	'****************************************
+	Public Function GetPlayList(data_id,data_name,url_type)
+	    On Error Resume Next
+		Dim Ser_Sql,ServerName,Server_Id,ServerIdStr : Ser_Sql="" : ServerName=""
+		If url_type=3 or url_type=4 Then Ser_Sql="Top 1"
+		If Config(1)="SQL" Then ServerIdStr="server_id" Else ServerIdStr="adnim_url.server_id" End If
+		Set rss = Server.CreateObject("adodb.recordset")
+		sql = "Select "&Ser_Sql&" adnim_url.server_id,url_id,url_intro,data_id,adnim_server.server_id,server_name,server_playerid,server_orderid from adnim_url,adnim_server where data_id="&data_id&" and adnim_url.server_id=adnim_server.server_id and server_typeid>0 order by server_orderid asc"
+		rss.Open sql, Conn, 1, 1
+		If Not(rss.bof And rss.eof) Then
+			Select Case url_type
+			Case 1'{$ServerName}
+				Do while not rss.eof
+				ServerName=ServerName&"<li class=""sn"&rss(""&ServerIdStr&"")&"""><a href="""&Config(0)&"Player.asp?"&data_id&","&rss(""&ServerIdStr&"")&","&rss("server_playerid")&",1.html"" target=""_blank"">"&rss("server_name")&"</a></li>"
+				rss.movenext
+				Loop
+				ServerName="<ul>"&ServerName&"</ul>"
+			Case 2'{$ServerDizi}
+				Do while not rss.eof
+				ServerName=ServerName&"<h1>"&rss("server_name")&"</h1><ul class=""udall ud"&rss(""&ServerIdStr&"")&""">"&GetServerLink(rss("url_intro"),data_id,rss(""&ServerIdStr&""),rss("server_playerid"),0)&"</ul>"
+				rss.movenext
+				Loop
+			Case 3'{$UrlName}
+				ServerName="<ul><li><a href="""&Config(0)&"Player.asp?"&data_id&","&rss(""&ServerIdStr&"")&","&rss("server_playerid")&",1.html"" target=""_blank"">"&rss("server_name")&"</a></li></ul>"
+			Case 4'{$UrlDizi}
+				ServerName="<ul class=""udall ud"&rss(""&ServerIdStr&"")&""">"&GetServerLink(rss("url_intro"),data_id,rss(""&ServerIdStr&""),rss("server_playerid"),0)&"</ul>"
+			End Select
+		Else
+			ServerName="<li>请谅解！该片暂无观看地址！</li>"
+		End If
+		rss.Close
+		Set rss=nothing
+		GetPlayList=ServerName
+	End Function
+	
+    Public Function GetPlayList2(Strtype,StrlistAll)
+	    On Error Resume Next
+		Dim Strlist,Strlist2,Urllist,PlayDizi,PlayDizi2
+		Dim WhereSql,Server_Id,Server_i,Server_n
+		If Strtype>0 Then WhereSql="and adnim_url.server_id="&Strtype&""
+		If Config(1)="SQL" Then ServerIdStr="server_id" Else ServerIdStr="adnim_url.server_id" End If
+		Set rss = Server.CreateObject("adodb.recordset")
+		sql = "Select adnim_url.server_id,url_id,url_intro,data_id,adnim_server.server_id,server_name,server_playerid,server_orderid from adnim_url,adnim_server where data_id="&data_id&" and adnim_url.server_id=adnim_server.server_id and server_typeid>0 "&WhereSql&" order by server_orderid asc"
+		rss.Open sql, Conn, 1, 1
+		If Not(rss.bof And rss.eof) Then
+		    Server_n=rss.recordcount:Strlist2=""
+			For Server_i=1 To Server_n
+				Strlist=ReplaceStr(StrlistAll,"{$ServerI}",Server_i)
+				Strlist=ReplaceStr(Strlist,"{$ServerN}",Server_n)
+				Strlist=ReplaceStr(Strlist,"{$ServerId}",rss(""&ServerIdStr&""))
+				Strlist=ReplaceStr(Strlist,"{$ServerForm}",rss("server_name"))
+				Strlist=ReplaceStr(Strlist,"{$ServerLink}",""&Config(0)&"Player.asp?"&data_id&","&rss(""&ServerIdStr&"")&","&rss("server_playerid")&",1.html")
+				regEx.Pattern = "【AdnUrl】([\s\S]*?)【/AdnUrl】"
+				Set Matches = regEx.Execute(Strlist)
+				For Each Match In Matches
+				Urllist=Match.SubMatches(0)
+				If Instr(rss("url_intro"),"$$$")>0 Then
+					ji_a=Split(rss("url_intro"),"$$$") : ji_b=ubound(ji_a):PlayDizi2=""
+					For ji=0 to ji_b
+						PlayDizi=ReplaceStr(Urllist,"{$UrlMing}",GetPlayName(ji_a(ji),ji+1,ji_b+1))
+						PlayDizi=ReplaceStr(PlayDizi,"{$UrlLink}",GetPlayUrl(data_id,rss(""&ServerIdStr&""),rss("server_playerid"),ji+1))
+						If Instr(PlayDizi,"{$UrlPath}")>0 Then PlayDizi=ReplaceStr(PlayDizi,"{$UrlPath}",GetDiziJi(ji_a(ji),rss(""&ServerIdStr&""),rss("server_playerid")))
+						PlayDizi2=PlayDizi2&PlayDizi
+					Next
+					Urllist=ReplaceStr(PlayDizi2,"{$UrlTong}",ji_b+1)
+				Else
+					Urllist=ReplaceStr(Urllist,"{$UrlMing}",GetPlayName(rss("url_intro"),1,1))
+					Urllist=ReplaceStr(Urllist,"{$UrlLink}",GetPlayUrl(data_id,rss(""&ServerIdStr&""),rss("server_playerid"),1))
+					If Instr(Urllist,"{$UrlPath}")>0 Then Urllist=ReplaceStr(Urllist,"{$UrlPath}",GetDiziJi(rss("url_intro"),rss(""&ServerIdStr&""),rss("server_playerid")))
+					Urllist=ReplaceStr(Urllist,"{$UrlTong}",1)
+				End If
+				Strlist=ReplaceStr(Strlist,Match.value,Urllist)
+				Next:Set matches = Nothing
+			Strlist2=Strlist2&Strlist
+			rss.movenext
+			Next
+		Else
+			Strlist2=""
+		End If
+		rss.Close
+		Set rss=nothing
+		GetPlayList2=Strlist2
+	End Function	
+
+	Public Function GetTongJi(str)
+		If str=0 Then'所有
+			Set Shu=Conn.Execute("select count(data_id) from adnim_data")
+		ElseIf str=999 Then'今日
+			If Config(1)="SQL" Then
+			Set Shu=Conn.Execute(" select count(data_id) from adnim_data where datediff(d,data_lastdate,getdate())=0 ")
+			Else
+			Set Shu=Conn.Execute(" select count(*) from adnim_data where datediff('d',data_lastdate,now())=0 ")
+			End If
+		Else
+		    If str=-1 Then str=Adn_CLng(List_Id)
+			Set Shu=Conn.execute(" select count(data_id) from adnim_data where (class_id="&str&" or class_id in (select class_id from adnim_class where class_bigid="&str&")) ")
+		End If
+		GetTongJi=Shu(0)
+		Set Shu=Nothing
+	End Function
+	
+	Public Function GetFriend(strtype,strlist)
+	    Dim Friend_I,Friend_Html,Lits_Html,Where_Link,Cache_Friend:Friend_I=0:Friend_Html="":Cache_Friend="Cache_Friend"
+		If Cint(Config(19))=1 and CacheObj.ChkCache(Cache_Friend) Then'开启缓存+有缓存
+			 Friend_Html = CacheObj.GetCache(Cache_Friend)
+		Else
+		    If strtype=1 Then Where_Link="where link_typeid=1" Else Where_Link="where link_typeid=0"
+			Set rs = Conn.Execute("Select * from adnim_link "&Where_Link&" order by link_orderid asc")
+			If Not(rs.bof And rs.eof) Then
+			Do while not rs.eof
+			Friend_I=Friend_I+1
+			Lits_Html=ReplaceStr(strlist,"{$LinkI}",Friend_I)
+			Lits_Html=ReplaceStr(Lits_Html,"{$LinkName}",rs("link_name"))
+			Lits_Html=ReplaceStr(Lits_Html,"{$LinkUrl}",rs("link_url"))
+			Lits_Html=ReplaceStr(Lits_Html,"{$LinkLogo}",rs("link_logo"))
+			Lits_Html=ReplaceStr(Lits_Html,"{$LinkIntro}",rs("link_intro"))
+			Friend_Html=Friend_Html&Lits_Html
+			rs.movenext
+			Loop
+			End If
+			rs.close:Set rs=nothing
+			CacheObj.SetCache Cache_Friend,FriendLink'写入友链缓存
+		End If
+		GetFriend=Friend_Html
+	End Function
+	
+	Public Function GetMenu(strtype,strlist)
+		Dim Menu_I,Menu_Html,Lits_Html,Class_bigid,WhereStr:Menu_I=0:Menu_Html=""
+		If Not isNum(strtype) Then GetMenu="指定分类错误":Exit Function	
+		If Cint(strtype)=-1 Then
+			Class_bigid="and class_bigid="&Adn_CLng(List_Id)&""
+		ElseIf Cint(strtype)=0 Then
+			Class_bigid="and class_bigid=0"
+		ElseIf Cint(strtype)=999 Then
+			Class_bigid=""			
+		Else
+			Class_bigid="and class_bigid="&strtype&""
+		End If
+		Set rs = Conn.Execute("Select * from adnim_class where class_orderid>0 "&Class_bigid&" order by class_orderid asc")
+		If Not(rs.bof And rs.eof) Then
+			Do while not rs.eof
+			Menu_I=Menu_I+1
+			Lits_Html=ReplaceStr(strlist,"{$MenuI}",Menu_I)
+			Lits_Html=ReplaceStr(Lits_Html,"{$MenuId}",rs("class_id"))
+			Lits_Html=ReplaceStr(Lits_Html,"{$MenuName}",rs("class_name"))
+			Lits_Html=ReplaceStr(Lits_Html,"{$MenuEnName}",rs("class_dir"))
+			Lits_Html=ReplaceStr(Lits_Html,"{$MenuUrl}",GetListLink(rs("class_id")))
+			If Instr(Lits_Html,"{$MenuCss}")>0 Then
+				If List_Id=rs("class_id") Then 'or GetClassBigID(List_Id)=rs("class_id")
+				Lits_Html=ReplaceStr(Lits_Html,"{$MenuCss}","adn_menu")
+				Else
+				Lits_Html=ReplaceStr(Lits_Html,"{$MenuCss}","")
+				End If
+			End If
+			Menu_Html=Menu_Html&Lits_Html
+			rs.movenext
+			Loop
+		End If
+		rs.close:Set rs=nothing
+		GetMenu=Menu_Html
+	End Function
+	
+    Public Function GetSpecialList(StrType,StrList)
+		Dim Cache_Special:Cache_Special="Cache_Special"
+		If Cint(Config(19))=1 and CacheObj.ChkCache(Cache_Special) Then
+			 Special_Html = CacheObj.GetCache(Cache_Special)
+		Else
+			Dim Special(3),WhereStr,Special_I,Special_Html,Lits_Html:Special_I=0
+			If ubound(Split(StrType,","))<>2 Then GetSpecialList="专题列表标签不正确,请参考4.0的标签说明":Exit Function
+			Special(0)=Adn_CLng(Split(StrType,",")(0))'标题
+			Special(1)=Adn_CLng(Split(StrType,",")(1))'简介
+			Special(2)=Adn_CLng(Split(StrType,",")(2))'范围		
+			If Special(2)>0 Then
+			    Set rs = Conn.Execute("Select Top "&Special(2)&" * from adnim_special order by special_orderid asc")
+			Else
+			    Set rs = Conn.Execute("Select * from adnim_special order by special_orderid asc")
+			End If
+			If Not(rs.bof And rs.eof) Then
+				Do while not rs.eof
+				Special_I=Special_I+1
+				Lits_Html=ReplaceStr(StrList,"{$SpecialI}",Special_I)
+				Lits_Html=ReplaceStr(Lits_Html,"{$SpecialName}",GetSubStr(rs("special_name"),Special(0),True))
+				Lits_Html=ReplaceStr(Lits_Html,"{$SpecialIntro}",GetSubStr(rs("special_intro"),Special(1),True))
+				Lits_Html=ReplaceStr(Lits_Html,"{$SpecialPic}",rs("special_pic"))
+				Lits_Html=ReplaceStr(Lits_Html,"{$SpecialLink}",Config(0)&"Special.asp?SpecialId="&rs("special_id"))
+				Special_Html=Special_Html&Lits_Html
+				rs.movenext
+				Loop
+			Else
+			    Special_Html="暂无任何专题列表!"
+			End If
+			rs.close:Set rs=nothing
+			Call CacheObj.SetCache(Cache_Special,Special_Html)
+		End If
+		GetSpecialList=Special_Html
+	End Function	
+End Class
+
+Dim Lable_Cache,Lable_Str,MoBan_Path,i,List_Id,Data_Id
+Dim CacheObj,FrontObj
+Set CacheObj = New AdnCms_Cache
+Set FrontObj = New AdnCms_Front
+Call OpenConn()
+
+Sub Moban_Index_Str(MoBan_Path)
+	With FrontObj : .ReadSkin(MoBan_Path) : .ReadAll : .ReadAdnList : End With
+End Sub
+
+Sub Moban_Special_Str(MoBan_Path)
+	With FrontObj : .ReadSkin(MoBan_Path) : .ReadAll : .ReadAdnList : End With
+End Sub
+
+Sub Moban_Class_Str(MoBan_Path)
+	With FrontObj : .ReadSkin(MoBan_Path) : .ReadAll : .ReadAdnList : End With
+End Sub
+
+Sub Moban_Data_Str(MoBan_Path)
+	With FrontObj : .ReadSkin(MoBan_Path) : .ReadAll : End With
+End Sub
+%>

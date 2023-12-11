@@ -1,0 +1,66 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=7"/>
+	<sf:ResourceGroup type="css">
+	<sf:Resource path="/css/css.css"></sf:Resource>
+	</sf:ResourceGroup>
+	<script src="${contextPath}/i18n.js"></script>
+	<script src="${contextPath}/sysConfig.js"></script>
+	<script type="text/javascript" src="${contextPath}/resources/base/sea.js" ></script>
+	<script type="text/javascript" src="${contextPath}/resources/base/config.js" ></script>
+	<title>Hertz-CDS</title>
+</head>
+<body>
+<div class="Container">
+	<tiles:insertAttribute name="header"/>
+	<div class="Tbody" id="tbodyCon">
+    <div class="mainBar">
+    
+      <div class="mainCon">
+      <!-- iframeCon -->
+        <div class="iframeCon">
+          <div class="RpadBar">
+            <div id="RightHeight">
+            <tiles:insertAttribute name="rightContent"/>
+              </div>
+          </div>
+        </div>
+         <!-- iframeCon -->
+        <!-- 箭头开始 -->
+        <div class="arrowBtn" id="arrowBtnCon">
+          <div class="btn"><img id="switchImage" src="${contextPath}/images/btn_arrow01.gif" style="cursor:pointer;" onclick="switchHandler(this)" /></div>
+        </div>
+        <!-- 箭头结束 -->
+         </div>
+    </div>
+     <!-- 菜单开始 -->
+     <div class="sideBar" id="sideBarCon" style="background:url(../images/left_bg.jpg) no-repeat left top; ">
+		<div id="leftMenuCon" style="overflow: auto;">
+			<div class="box">
+				<h2>二级折叠菜单</h2>
+				<input type="hidden" value='<tiles:insertAttribute name="menuId"/>' id="menuId">
+				<ul class="menu" id="leftMenu">
+				</ul>
+			</div>
+		</div>
+	</div>
+     <!-- 菜单结束 -->
+	</div>
+	<tiles:insertAttribute name="foot"/>
+	<input type="hidden"  id="reservationTimerReminder" value="${contextPath}<ifa:constant namespace='cim' fieldName='RESERVATION_TIMER_REMINDER'/>.json"/>
+	<input type="hidden" id="dispatcherTimerReminder" value="${dispatcherTimerReminder}" />
+	<input type="hidden" id="timerCycle" value="${timerCycle}" />
+	<div id="dispatcherTips" style="display: none;"></div>
+</div>
+<script type="text/javascript" src="${contextPath}/js/layout.js"></script>
+<script type="text/javascript">
+	seajs.contextPath = '${contextPath}';
+	seajs.restEmpty = '${empty_path_variable}';
+	seajs.use("${scriptBasePath}/seaJsExtends/timerReminder.js");
+</script>
+</body>
+</html>

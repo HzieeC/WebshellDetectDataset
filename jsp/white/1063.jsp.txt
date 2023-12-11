@@ -1,0 +1,95 @@
+﻿
+<%@page import="java.util.Hashtable"%>
+<%@page import="com.bizoss.createIndex.search.B2CHelpIndexFiles"%>
+<%@page import="java.util.List"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-cn">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>用户登录</title>
+<link type="text/css" rel="stylesheet" href="/templets/html/business/css/register.css">
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="/comms/business/signin.js"></script>
+</head>
+<body>
+<div class="ucReg_header">
+  <div class="logo"><a  href="/"><img alt="全球领先的工业品采购与销售服务平台" src="/templets/html/business/images/jinse.gif" width="213" height="113"></a></div>
+  <div class="loginInfo">
+    <p class="zCtxt"><a href="/">首页</a> | <a href="#">帮助中心</a></p>
+    <p class="phone">如遇注册问题请拨打：<span class="phone_num">4000-000-000</span></p>
+  </div>
+</div>
+<div class="signCont">
+  <div class="signMain">
+  <h3><em>登录后，你可以享受以下服务:</em></h3>
+  <ul>
+  <li style="color:#047F54; font-weight:bold"> 如果您是供应商 </li>
+  <li><img border="0" class="valign"  src="/templets/html/business/images/icon-001.gif">发布产品信息 </li>
+  <li><img border="0" class="valign"  src="/templets/html/business/images/icon-002.gif">吸引无数买家注意</li>
+  <li><img border="0" class="valign"  src="/templets/html/business/images/icon-003.gif">在线宣传您的公司 </li>
+  <li><img border="0" class="valign"  src="/templets/html/business/images/icon-004.gif">提升企业知名度</li>
+  </ul>
+  
+   <ul>
+  <li style="color:#b30000; font-weight:bold"> 如果您是采购商  </li>
+  <li><img border="0" class="valign"  src="/templets/html/business/images/icon-001.gif">发布求购商情 </li>
+  <li><img border="0" class="valign"  src="/templets/html/business/images/icon-005.gif">坐等供应商找上门来</li>
+  <li><img border="0" class="valign"  src="/templets/html/business/images/icon-006.gif">查看供应商的详细联系方式 </li>
+  </ul>
+  
+  </div>
+<form name="loginForm" method="post" action="/doTradeReg.do">
+    <div class="signBar">
+      <div id="advanced_search_warning" class="messageStackError larger" style="display:none"></div>
+      <strong class="f16">用户登录</strong>
+      <p>
+        <label class="f14">用户名：</label>
+       <input type="text" id="user_name" name="user_name"  class="text" />
+      </p>
+      <p>
+        <label class="f14">密　码：</label>
+        <input type="password" id="passwd" name="passwd" class="text" />
+      </p>
+      <p>
+        <input value="立即登录"   class="btn_dLu btn_4char" type="submit" onclick="formSub();">
+        </p>
+      <p class="zCe">还不是会员？<a href="/business_register.html">立即免费注册</a></p>
+       	<input type="hidden" name="cookietime" value="3600" />
+		<input type="hidden" name="jumpurl" value="/company_member.html" />
+		<input type="hidden" name="bpm_id" value="2627" />
+		<input type="hidden" name="md5passwd" id="md5passwd"  />
+    </div>
+  </form>
+</div>
+<!--底部开始-->
+<div class="footer">
+		<p>
+					<%
+						Hashtable paraMap = new Hashtable();
+								Hashtable contentMap = new Hashtable();
+								B2CHelpIndexFiles helpIndex=new B2CHelpIndexFiles();
+						paraMap.put("ch_attr", "77f07U1647u8U0S|");
+					    List helpList = helpIndex.getHelpInfo(paraMap);
+
+								if (null != helpList && helpList.size() > 0) {
+									for (int i = 0; i < helpList.size(); i++) {
+										contentMap = (Hashtable) helpList.get(i);
+										String info_id = "", title = "",hrefurl="";
+										if (contentMap.get("info_id") != null)
+											info_id = contentMap.get("info_id").toString();
+										if (contentMap.get("title") != null)
+											title = contentMap.get("title").toString();
+										hrefurl = "/about/business_help.html?info_id=" + info_id;
+										%>
+										<a href="<%=hrefurl%>"><%=title%></a>|
+										<%
+									}
+								}
+					 %>
+				</p>
+<p>版权所有 (C) 贞龙科技 </p>
+<p><img src="/templets/html/business/images/jc01.gif" /><img src="/templets/html/business/images/jc02.gif" /><img src="/templets/html/business/images/jc03.gif" /></p>
+</div>
+<!--底部结束-->
+</body>
+</html>

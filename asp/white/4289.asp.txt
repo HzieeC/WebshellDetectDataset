@@ -1,0 +1,227 @@
+<!--#include file="../include/MDB2.asp"-->
+<%
+	'功能：付完款后跳转的页面
+	'版本：2.0
+	'日期：2008-10-24
+	'作者：支付宝公司销售部技术支持团队
+	'联系：0571-26888888
+	'版权：支付宝公司
+	'修改：网络延迟 Q544299512 Blog-www.evdoor.net 提供建站等服务
+	'本文件请不要自行修改，技术支持网络延迟，有问题请联系上方QQ
+%>
+
+<!--#include file="alipayto/Alipay_md5.asp"-->
+<!--#include file="alipay_Config.asp"-->
+<%
+	'key="4lo77ohrajg6mz7781zr0ye7l3z53sb5"      '支付宝安全教研码
+	'partner="2088002069477670"  '支付宝合作id
+
+	out_trade_no	= DelStr(Request("out_trade_no"))  '获取定单号
+    total_fee		= DelStr(Request("total_fee"))     '获取支付的总价格
+	product_sub     = DelStr(Request("subject"))	   '获取待审核网站id字符串，稍后截取
+	trade_no        = DelStr(Request("trade_no"))
+	url_ids         = Split(product_sub,"-")
+	uflag           = url_ids(1)                       '获取充值和自动审核表示，s表示审核，c表示充值
+	url_id          = FormatNumber(url_ids(0),0,,,0)		   '得到待审网站的id，留作下面网站审核状态更改使用，并转换成数字数据类型
+	'response.Write url_id
+	'如需获取其它参数，可填写 参数 =DelStr(Request.Form("获取参数名"))
+
+'**********************判断消息是不是支付宝发出********************
+alipayNotifyURL = "http://notify.alipay.com/trade/notify_query.do?"
+alipayNotifyURL = alipayNotifyURL &"partner=" & partner & "&notify_id=" & request("notify_id")
+	Set Retrieval = Server.CreateObject("Msxml2.ServerXMLHTTP.3.0")
+    Retrieval.setOption 2, 13056 
+    Retrieval.open "GET", alipayNotifyURL, False, "", "" 
+    Retrieval.send()
+    ResponseTxt = Retrieval.ResponseText
+	Set Retrieval = Nothing
+'*******************************************************************
+
+'*******获取支付宝GET过来通知消息,判断消息是不是被修改过************
+For Each varItem in Request.QueryString
+	mystr=varItem&"="&Request(varItem)&"^"&mystr
+Next 
+If mystr<>"" Then 
+	mystr=Left(mystr,Len(mystr)-1)
+End If 
+mystr = SPLIT(mystr, "^")
+Count=ubound(mystr)
+'对参数排序
+For i = Count TO 0 Step -1
+	minmax = mystr( 0 )
+	minmaxSlot = 0
+	For j = 1 To i
+		mark = (mystr( j ) > minmax)
+		If mark Then 
+			minmax = mystr( j )
+			minmaxSlot = j
+		End If 
+	Next    
+	If minmaxSlot <> i Then 
+		temp = mystr( minmaxSlot )
+		mystr( minmaxSlot ) = mystr( i )
+		mystr( i ) = temp
+	End If
+Next
+'构造md5摘要字符串
+For j = 0 To Count Step 1
+	value = SPLIT(mystr( j ), "=")
+	If  value(1)<>"" And value(0)<>"sign" And value(0)<>"sign_type"  Then
+		If j=Count Then
+			md5str= md5str&mystr( j )
+		Else 
+			md5str= md5str&mystr( j )&"&"
+		End If 
+	End If 
+Next
+md5str=md5str&key
+mysign=md5(md5str)
+'********************************************************
+
+If mysign=Request("sign") and ResponseTxt="true"   Then 
+
+	if uflag="s" then
+	  set rs1=server.CreateObject("adodb.recordset")
+	  sql="select * from JE_Web where JE_WEBID="&url_id
+	  rs1.open sql,conn,3,3
+      rs1("check")=1
+	  rs1.update
+	  'response.Write "shenhe<br>"
+	 end if
+	 
+	 if uflag="c" then
+	 if total_fee=1 then
+	 t_fee=100
+	 'response.Write "100<br>"
+	 elseif total_fee=2 then
+	 t_fee=300
+	 'response.Write "300<br>"
+	 elseif total_fee=5 then
+	 t_fee=1000
+	 'response.Write "1000<br>"
+	 end if
+	  set rss1=server.CreateObject("adodb.recordset")
+	  sqll="select * from JE_User where JE_UserID="&url_id
+	  rss1.open sqll,conn,3,3
+      rss1("JE_Points")=rss1("JE_Points")+t_fee
+	  rss1.update
+	  'response.Write "chongzhi<br>"
+	 end if
+	  
+	  '更新支付日志
+	  set rs1=server.CreateObject("adodb.recordset")
+	  sql="select * from paylog where payoutno='"&out_trade_no&"'"
+	  rs1.open sql,conn,3,3
+	  rs1("payno")=trade_no
+      rs1("paystate")=1
+	  rs1.update
+	  
+	  
+	  '//////////////////邮件发送
+
+sql="select * from about where ID = 1"
+set mrs = conn.execute(sql)
+
+on error resume next
+Server.ScriptTimeOut=5000
+Dim   aJMail   
+Set   aJMail=Server.CreateObject("JMail.Message")   
+If   aJMail   Is   Nothing     Then  
+response.write "温馨小提示：服务器不支持JMail.Message组件，请立即安装此组件，此组件用于邮件发送!"
+Response.End   
+End   If
+
+'==================================================
+' 参数设置开始
+if uflag="s" then
+sqll="select * from JE_Web where JE_WEBID="&url_id
+set mrss = conn.execute(sqll)
+
+sqlll="select * from JE_User where JE_UserID="&mrss("JE_UserID")
+set mrsss = conn.execute(sqlll)
+end if
+if uflag="c" then
+sqlll="select * from JE_User where JE_UserID="&url_id
+set mrsss = conn.execute(sqlll)
+end if
+
+myemail=mrsss("JE_Email")    '用来接收邮件的邮箱,可以与SMTP服务器发信邮箱不同
+smtpserver =mrs("stmp")    '发送邮件所使用的SMTP服务器，例如smtp.126.com
+smtpuser =mrs("eid")   '与SMTP服务器对应的邮箱用户名
+smtppwd =mrs("epw")   '与SMTP服务器对应的邮箱密码
+smtpemail =mrs("email")   'SMTP服务器发信邮箱，与发送服务器对应
+' 参数设置结束
+'==================================================
+sendname = mrs("name")  '发件人名字
+email = myemail  '收件人邮箱
+
+if uflag="s" then
+
+zhuti = mrsss("JE_User")&"您好，您在ASP友链平台提交的站点成功处理"    '邮件标题
+mailbody="<strong>您的用户名：</strong>"&mrsss("JE_User")&"<br>"&"<strong>自助审核的站点：</strong>"&mrss("JE_WEBUrl")&"<br>"&"<strong>自助审核状态：</strong>成功处理审核<br>"&"<strong>"&mrs("name")&"的地址：</strong>"&"http://"&mrs("web")&"<br>"&"<strong><font color=red>友情提醒：登陆本站更新网站资料可以把您的网站资料提升到首页！可以让更多的网友第一时间关注您的网站！</font></strong>"   '内容部分1，可使用变量
+'response.Write "mail-s<br>"
+end if
+
+if uflag="c" then
+zhuti = mrsss("JE_User")&"您好，您的充值处理成功"    '邮件标题
+mailbody="<strong>您的用户名：</strong>"&mrsss("JE_User")&"<br>"&"<strong>充值金额：</strong>"&total_fee&"元（"&t_fee&"个元宝）<br>"&"<strong>处理状态：</strong>成功处理<br>"&"<strong>"&mrs("name")&"的地址：</strong>"&"http://"&mrs("web")&"<br>"&"<strong><font color=red>友情提醒：登陆本站更新网站资料可以把您的网站资料提升到首页！可以让更多的网友第一时间关注您的网站！</font></strong>"   '内容部分1，可使用变量
+'response.Write "mail-c<br>"
+end if 
+
+if sendname <> "" and email <> "" then
+set jmail= server.CreateObject ("Jmail.message")  '调用Jmail组件
+jmail.Silent = true
+jmail.Charset = "GB2312"
+JMail.ContentType = "text/html"
+'=================================
+'调用变量内容
+jmail.From = smtpemail
+jmail.FromName = sendname  
+jmail.ReplyTo = email
+jmail.Subject = zhuti   
+jmail.AddRecipient myemail
+jmail.Body = mailbody    
+jmail.MailServerUserName = smtpuser
+jmail.MailServerPassWord = smtppwd
+isgo = jmail.Send(smtpserver)   '发送邮件
+'=================================
+if isgo then
+	'response.Write "mail-chenggong<br>"
+	Response.Write ("<script language=javascript>alert('支付处理成功，通知邮件发送成功，感谢您的支持和关注');this.location.href='../user/index.asp';</script>")
+	Response.End
+else
+'response.Write "mail-shibai<br>"
+	Response.Write ("<script language=javascript>alert('支付处理成功，通知邮件发送失败');this.location.href='../user/index.asp';</script>")
+   	Response.End 
+end if
+jmail.Close
+set jmail = nothing
+end if
+mrs.close
+set mrs=nothing
+	  '//////////////////邮件发送结束
+	  'Response.write "<script>alert('支付处理成功');location.href='/index.asp'< /script>"  'response.write "付款成功页面" 
+	  
+	  
+Else
+	response.write "<script>alert('支付处理失败，请联系管理获悉详情');location.href='../user/index.asp'</script>"          '这里可以指定你需要显示的内容
+End If 
+
+
+Function DelStr(Str)
+	If IsNull(Str) Or IsEmpty(Str) Then
+		Str	= ""
+	End If
+	DelStr	= Replace(Str,";","")
+	DelStr	= Replace(DelStr,"'","")
+	DelStr	= Replace(DelStr,"&","")
+	DelStr	= Replace(DelStr," ","")
+	DelStr	= Replace(DelStr,"　","")
+	DelStr	= Replace(DelStr,"%20","")
+	DelStr	= Replace(DelStr,"--","")
+	DelStr	= Replace(DelStr,"==","")
+	DelStr	= Replace(DelStr,"<","")
+	DelStr	= Replace(DelStr,">","")
+	DelStr	= Replace(DelStr,"%","")
+End Function
+%>

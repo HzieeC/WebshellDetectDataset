@@ -1,0 +1,208 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<%@page import="util.ServletHelp"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String accountCategoryId = request.getParameter("accountCategoryId");
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 全局参数
+			var baseParams = {start:0, limit:<%=Constants.PAGE_SIZE %>};
+
+			// 笔记分类数据源
+		    var accountCategoryListStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/accountCategoryAction.do?method=queryForPaging',
+		        root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['categoryId', 'categoryName', 'status'],
+		        baseParams: baseParams,
+		        pruneModifiedRecords: true,
+		        autoLoad: true
+		    });
+
+		    // 工具栏
+		    var accountCategoryListToolbar = new Ext.Toolbar({
+		    	renderTo: 'accountCategoryListToolBarDiv',
+		    	items: [
+				    new Ext.Button({
+					    id: 'accountCategoryList-add-button',
+						text: '添加',
+						iconCls: 'report_add'
+					}),
+					new Ext.Button({
+					    id: 'accountCategoryList-delete-button',
+					    text: '删除',
+						iconCls: 'report_delete'
+					}),
+					new Ext.Button({
+					    id: 'accountCategoryList-save-button',
+					    text: '保存',
+						iconCls: 'report_disk'
+					})
+				]
+			});
+
+	     	// 类别数据源
+	        var statusStore = new Ext.data.ArrayStore({  
+	            fields : ['status', 'statusName'],  
+	            data : <%=ServletHelp.getArrayFromMap(Constants.ACCOUNT_TYPE_MAP, null)%>,
+	            sortInfo: {field: "status", direction: "ASC"}
+	        });
+	        var statusCombo = new Ext.form.ComboBox({
+				id :'statusCombo', 
+				triggerAction: 'all', 
+				typeAhead: true, 
+				store: statusStore, 
+				mode : 'local',
+				valueField: 'status', 
+				displayField: 'statusName', 
+				editable: false, 
+				lazyRender: true,
+				allowBlank:false
+			});
+			// 笔记数据表格
+			var sm = new Ext.grid.CheckboxSelectionModel();
+			var accountCategoryListGrid = new Ext.grid.EditorGridPanel({
+				id: 'accountCategoryListGrid',
+				renderTo: 'accountCategoryListGridDiv',
+				border: false,
+				columnLines: true,
+				stateful: true,
+			    autoScroll: 'auto',
+		        store: accountCategoryListStore,
+		        loadMask: true,
+		        cm: new Ext.grid.ColumnModel({
+		            defaults: {
+		                width: 120,
+		                sortable: true
+		            },
+			        columns: [
+						sm,
+						new Ext.grid.RowNumberer({header:'№'}),
+			            {id:'categoryId',header: 'ID', width: 50, sortable: true, dataIndex: 'categoryId', hidden:true},
+			            {id:'status',header: '收支类别', width: 80, sortable: true, dataIndex: 'status', editor: statusCombo,renderer: function(value, cellmeta,record){return statusComboRenderer(value, cellmeta,record);}},
+			            {id:'categoryName',header: '收支名称', width: 300, sortable: true, dataIndex: 'categoryName', editor: new Ext.form.TextField({allowBlank:false, maxLength: 20})}
+			        ]
+		        }),
+		        sm: sm,
+		        columnLines: true,
+		        bbar: new Ext.PagingToolbar({
+					pageSize: <%=Constants.PAGE_SIZE %>,
+					store: accountCategoryListStore,
+					displayInfo: true,
+					displayMsg: Anynote.PAGINGTOOLBAR_DISPLAYMSG, 
+					emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+					doLoad: function(start){
+						baseParams.start = start;
+						this.store.load({params: baseParams});
+					}
+		        })
+		    });
+
+			// 设置Grid高度和宽度
+			Anynote.resizeGridTo("accountCategoryListGrid", 0, 56);
+
+			// 添加按钮
+			$("#accountCategoryList-add-button").click(function(){
+				var record = new Ext.data.Record({
+					categoryId: "",
+					categoryName: "",
+					status: "1"
+				});
+				accountCategoryListStore.insert(0, record);
+				accountCategoryListGrid.getView().refresh();
+				accountCategoryListGrid.getSelectionModel().selectRow(0);
+
+			});
+
+			// 删除按钮
+			$("#accountCategoryList-delete-button").click(function(){
+				var records = Ext.getCmp("accountCategoryListGrid").getSelectionModel().getSelections();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一条数据.");
+				}else{
+					Ext.Msg.confirm("警告", "确定要删除收支项目及其下的所有账目信息吗？", function(btn){
+						if(btn=="yes"){
+							var accountCategoryIds = "";
+							for(var i=0;i<records.length;i++){
+								var record = records[i];
+								if(record.get("categoryId")!=""){
+									accountCategoryIds = accountCategoryIds + record.get("categoryId") + ",";
+								}else{
+									accountCategoryListStore.remove(record);
+								}
+							}
+							if(accountCategoryIds!=""){
+								var params = {};
+								params.accountCategoryIds = accountCategoryIds;
+								// 发送请求
+								Anynote.ajaxRequest({
+									baseUrl: '<%=baseUrl %>',
+									baseParams: params,
+									action: '/accountCategoryAction.do?method=delete',
+									callback: function(jsonResult){
+										Ext.getCmp("accountCategoryListGrid").getStore().reload();
+									},
+									showWaiting: true,
+									showMsg: false,
+									failureMsg: '删除失败.'
+								});
+							}
+						}
+					});
+				}
+			});
+
+			// 保存按钮
+			$("#accountCategoryList-save-button").click(function(){
+				var records = accountCategoryListStore.getModifiedRecords();
+				// 验证
+				for(var i=0;i<records.length;i++){
+					if(records[i].get("categoryName")==""){
+						Ext.Msg.alert("提示", "请输入分类名称.");
+						return;
+					}
+				}
+				if(records.length != 0){
+					var params = {};
+					params.jsonArr = Anynote.convertRecordsToJson(records);
+					// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: params,
+						action: '/accountCategoryAction.do?method=save',
+						callback: function(jsonResult){
+							Ext.getCmp("accountCategoryListGrid").getStore().reload();
+						},
+						showWaiting: true,
+						failureMsg: '保存失败.'
+					});
+				}
+			});
+
+			// 类型ComboBox设值
+			function statusComboRenderer(value, cellmeta,record){
+				var index = statusStore.find(Ext.getCmp('statusCombo').valueField,value);
+				var record = statusStore.getAt(index);
+				var displayText = "";
+				if(record==null){
+					displayText = value;
+				}else{
+					displayText = record.data.statusName;
+				}
+				return displayText;
+			}
+		});
+	</script>
+</head>
+<body>
+<div id="accountCategoryListDiv">
+	<div id="accountCategoryListToolBarDiv"></div>
+	<div id="accountCategoryListGridDiv" style="width:100%;height:100%;"></div>
+</div>
+</body>
+</html>

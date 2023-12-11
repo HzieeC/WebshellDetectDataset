@@ -1,0 +1,465 @@
+<%
+Dim CgsailThumb
+Set CgsailThumb=New Thumb
+
+
+Public Function IsObjInstalled(strClassString)
+		On Error Resume Next
+		IsObjInstalled = False
+		Err = 0
+		Dim xTestObj:Set xTestObj = Server.CreateObject(strClassString)
+		If 0 = Err Then IsObjInstalled = True
+		Set xTestObj = Nothing
+		Err = 0
+End Function
+Public Function IsExpired(strClassString)
+		On Error Resume Next
+		IsExpired = True
+		Err = 0
+		Dim xTestObj:Set xTestObj = Server.CreateObject(strClassString)
+	
+		If 0 = Err Then
+			Select Case strClassString
+				Case "Persits.Jpeg"
+					If xTestObjResponse.Expires > Now Then
+						IsExpired = False
+					End If
+				Case "wsImage.Resize"
+					If InStr(xTestObj.errorinfo, "已经过期") = 0 Then
+						IsExpired = False
+					End If
+				Case "SoftArtisans.ImageGen"
+					xTestObj.CreateImage 500, 500, RGB(255, 255, 255)
+					If Err = 0 Then
+						IsExpired = False
+					End If
+			End Select
+		End If
+		Set xTestObj = Nothing
+		Err = 0
+End Function 
+
+
+'SK采集通用添加水印及生成缩略图类
+'-----------------------------------------------------------------------------------------------
+Class Thumb
+		'为图片添加水印
+		Function AddWaterMark(FileName)
+			Dim strMarkSettingSql, MarkSettingRs, objFileSystem, strFileExtName, objImage
+			If InStr(FileName, ":") = 0 Then                                            
+				FileName = Server.MapPath(FileName)
+			End If
+			If FileName <> "" And Not IsNull(FileName) Then                           
+				strFileExtName = ""
+				If InStr(FileName, ".") <> 0 Then
+					strFileExtName = LCase(Trim(Mid(FileName, InStrRev(FileName, ".") + 1)))
+				End If
+				If strFileExtName <> "jpg" And strFileExtName <> "gif" And strFileExtName <> "bmp" And strFileExtName <> "png" Then 
+					Exit Function
+				End If
+				Set objFileSystem = Server.CreateObject("Scripting.FileSystemObject")
+				If objFileSystem.FileExists(FileName) Then             
+					strMarkSettingSql = "select * from ["&CgsailPrefix&"config]"
+					Set MarkSettingRs = conn.Execute(strMarkSettingSql)
+					If MarkSettingRs("MarkComponent") <> "0" Then                   
+						Select Case MarkSettingRs("MarkComponent")
+							Case "1"                                                           
+								If IsObjInstalled("Persits.Jpeg") Then                    
+									If IsExpired("Persits.Jpeg") Then
+										Response.Write ("对不起，Persits.Jpeg组件已过期!")
+										Response.End
+									End If
+														
+									If MarkSettingRs("MarkType") = "1" Then             
+										AddWordMark 1, MarkSettingRs("MarkText"), MarkSettingRs("MarkFontColor"), MarkSettingRs("MarkFontName"), MarkSettingRs("MarkFontBond"), MarkSettingRs("MarkFontSize"), MarkSettingRs("MarkPosition"), FileName
+									Else                                               
+										AddPhotoMark 1, MarkSettingRs("MarkWidth"), MarkSettingRs("MarkHeight"), MarkSettingRs("MarkPicture"), MarkSettingRs("MarkOpacity"), MarkSettingRs("MarkTranspColor"), MarkSettingRs("MarkPosition"), FileName
+									End If
+								End If
+							Case "2"                                                  
+								If strFileExtName = "png" Then                        
+									Exit Function
+								End If
+								If IsObjInstalled("wsImage.Resize") Then             
+									If IsExpired("wsImage.Resize") Then
+										Response.Write ("对不起，sImage.Resize组件已过期!")
+										Response.End
+									End If
+									If MarkSettingRs("MarkType") = "1" Then             
+										AddWordMark 2, MarkSettingRs("MarkText"), MarkSettingRs("MarkFontColor"), MarkSettingRs("MarkFontName"), MarkSettingRs("MarkFontBond"), MarkSettingRs("MarkFontSize"), MarkSettingRs("MarkPosition"), FileName
+									Else                                               
+										AddPhotoMark 2, MarkSettingRs("MarkWidth"), MarkSettingRs("MarkHeight"), MarkSettingRs("MarkPicture"), MarkSettingRs("MarkOpacity"), MarkSettingRs("MarkTranspColor"), MarkSettingRs("MarkPosition"), FileName
+									End If
+								End If
+							Case "3"                                                    
+								If IsObjInstalled("SoftArtisans.ImageGen") Then           
+									If IsExpired("SoftArtisans.ImageGen") Then
+										Response.Write ("对不起，SoftArtisans.ImageGen组件已过期!")
+										Response.End
+									End If
+									If MarkSettingRs("MarkType") = "1" Then             
+										AddWordMark 3, MarkSettingRs("MarkText"), MarkSettingRs("MarkFontColor"), MarkSettingRs("MarkFontName"), MarkSettingRs("MarkFontBond"), MarkSettingRs("MarkFontSize"), MarkSettingRs("MarkPosition"), FileName
+									Else                                               
+										AddPhotoMark 3, MarkSettingRs("MarkWidth"), MarkSettingRs("MarkHeight"), MarkSettingRs("MarkPicture"), MarkSettingRs("MarkOpacity"), MarkSettingRs("MarkTranspColor"), MarkSettingRs("MarkPosition"), FileName
+									End If
+								End If
+						End Select
+					End If
+					Set MarkSettingRs = Nothing
+				End If
+				Set objFileSystem = Nothing
+			End If
+		End Function
+		'为图片添加文字水印函数
+		Function AddWordMark(MarkComponentID, MarkText, MarkFontColor, MarkFontName, MarkFontBond, MarkFontSize, MarkPosition, FileName)
+			Dim objImage, x, y, Text, TextWidth, FontColor, FontName, FondBond, FontSize, OriginalWidth, OriginalHeight
+			If InStr(FileName, ":") = 0 Then                                                            
+				FileName = Server.MapPath(FileName)
+			End If
+				
+			Text = Trim(MarkText)
+			If Text = "" Then
+				Exit Function
+			End If
+			FontColor = Replace(MarkFontColor, "#", "&H")
+			FontName = MarkFontName
+			If MarkFontBond = "1" Then
+				FondBond = True
+			Else
+				FondBond = False
+			End If
+			   
+			FontSize = CInt(MarkFontSize)
+		
+			Select Case MarkComponentID
+				Case 1
+					If Not IsObjInstalled("Persits.Jpeg") Then
+						Exit Function
+					End If
+					Set objImage = Server.CreateObject("Persits.Jpeg")
+					objImage.Open FileName
+					objImage.Canvas.Font.Color = FontColor
+					objImage.Canvas.Font.Family = FontName
+					objImage.Canvas.Font.Bold = FondBond
+					objImage.Canvas.Font.size = FontSize
+					TextWidth = objImage.Canvas.GetTextExtent(Text)                                    
+					
+					If objImage.OriginalWidth < TextWidth Or objImage.OriginalHeight < FontSize Then    
+						Exit Function
+					End If
+					GetPostion CInt(MarkPosition), x, y, objImage.OriginalWidth, objImage.OriginalHeight, TextWidth, FontSize
+					
+					With objImage.Canvas
+					  .Print x, y, Text
+					End With
+					objImage.Save FileName
+		
+				Case 2
+					If Not IsObjInstalled("wsImage.Resize") Then
+						Exit Function
+					End If
+					Set objImage = Server.CreateObject("wsImage.Resize")
+					objImage.LoadSoucePic CStr(FileName)
+					objImage.TxtMarkFont = CStr(FontName)
+					objImage.TxtMarkBond = FondBond
+					objImage.TxtMarkHeight = FontSize
+					FontColor = "&H" & Mid(FontColor, 7) & Mid(FontColor, 5, 2) & Mid(FontColor, 3, 2)  
+					objImage.AddTxtMark CStr(FileName), CStr(Text), CLng(FontColor), 1, 1
+				Case 3
+					If Not IsObjInstalled("SoftArtisans.ImageGen") Then
+						Exit Function
+					End If
+					Set objImage = Server.CreateObject("SoftArtisans.ImageGen")
+					objImage.LoadImage FileName
+					objImage.Font.Height = FontSize
+					objImage.Font.name = FontName
+					FontColor = "&H" & Mid(FontColor, 7) & Mid(FontColor, 5, 2) & Mid(FontColor, 3, 2)  
+					objImage.Font.Color = CLng(FontColor)
+					objImage.Text = Text
+					GetPostion CInt(MarkPosition), x, y, objImage.Width, objImage.Height, objImage.TextWidth, objImage.TextHeight 
+					objImage.DrawTextOnImage x, y, objImage.TextWidth, objImage.TextHeight
+					objImage.SaveImage 0, objImage.ImageFormat, FileName
+			End Select
+			Set objImage = Nothing
+		End Function
+
+		Function AddPhotoMark(MarkComponentID, MarkWidth, MarkHeight, MarkPicture, MarkOpacity, MarkTranspColor, MarkPosition, FileName)
+			Dim objImage, objMark, x, y, OriginalWidth, OriginalHeight, Position
+			If InStr(FileName, ":") = 0 Then                                                            
+				FileName = Server.MapPath(FileName)
+			End If
+			If IsNull(MarkWidth) Or MarkWidth = "" Then
+				MarkWidth = 0
+			Else
+				MarkWidth = CInt(MarkWidth)
+			End If
+			If IsNull(MarkHeight) Or MarkHeight = "" Then
+				MarkHeight = 0
+			Else
+				MarkHeight = CInt(MarkHeight)
+			End If
+			If Trim(MarkPicture) = "" Or IsNull(MarkPicture) Then
+				Exit Function
+			End If
+			If IsNull(MarkOpacity) Or MarkOpacity = "" Then
+				MarkOpacity = 1
+			Else
+				MarkOpacity = CSng(MarkOpacity)
+			End If
+			If MarkTranspColor <> " " Then                                                              
+				MarkTranspColor = Replace(MarkTranspColor, "#", "&H")
+			Else
+			    '
+			End If
+			Select Case MarkComponentID
+				Case 1
+					If Not IsObjInstalled("Persits.Jpeg") Then
+						Exit Function
+					End If
+					Set objImage = Server.CreateObject("Persits.Jpeg")
+					Set objMark = Server.CreateObject("Persits.Jpeg")
+					objImage.Open FileName
+					If objImage.OriginalWidth < MarkWidth Or objImage.OriginalHeight < MarkHeight Then 
+						Exit Function
+					End If
+					objMark.Open Server.MapPath(MarkPicture)
+					GetPostion CInt(MarkPosition), x, y, objImage.OriginalWidth, objImage.OriginalHeight, MarkWidth, MarkHeight 
+					If MarkTranspColor <> " " Then
+						objImage.DrawImage x, y, objMark, MarkOpacity, MarkTranspColor
+					Else
+						objImage.DrawImage x, y, objMark, MarkOpacity
+					End If
+					objImage.Save FileName
+				Case 2
+					If Not IsObjInstalled("wsImage.Resize") Then
+						Exit Function
+					End If
+					Set objImage = Server.CreateObject("wsImage.Resize")
+					objImage.LoadSoucePic CStr(FileName)
+					objImage.LoadImgMarkPic Server.MapPath(MarkPicture)
+					objImage.GetSourceInfo OriginalWidth, OriginalHeight
+					GetPostion CInt(MarkPosition), x, y, OriginalWidth, OriginalHeight, MarkWidth, MarkHeight
+					If MarkTranspColor = " " Then
+						MarkTranspColor = 0
+					Else
+						MarkTranspColor = "&H" & Mid(MarkTranspColor, 7) & Mid(MarkTranspColor, 5, 2) & Mid(MarkTranspColor, 3, 2)
+					End If
+					objImage.AddImgMark CStr(FileName), Int(x), Int(y), CLng(MarkTranspColor), Int(CSng(MarkOpacity) * 100)
+				Case 3
+					If Not IsObjInstalled("SoftArtisans.ImageGen") Then
+						Exit Function
+					End If
+					Set objImage = Server.CreateObject("SoftArtisans.ImageGen")
+					objImage.LoadImage FileName
+					Select Case CInt(MarkPosition)
+						Case 1
+							Position = 3
+						Case 2
+							Position = 5
+						Case 3
+							Position = 1
+						Case 4
+							Position = 6
+						Case 5
+							Position = 8
+					End Select
+					If MarkTranspColor <> " " Then
+						MarkTranspColor = "&H" & Mid(MarkTranspColor, 7) & Mid(MarkTranspColor, 5, 2) & Mid(MarkTranspColor, 3, 2)
+						objImage.AddWaterMark Server.MapPath(MarkPicture), Position, CSng(MarkOpacity), CLng(MarkTranspColor)
+					Else
+						objImage.AddWaterMark Server.MapPath(MarkPicture), Position, CSng(MarkOpacity)
+					End If
+					objImage.SaveImage 0, objImage.ImageFormat, FileName
+			End Select
+			Set objImage = Nothing
+			Set objMark = Nothing
+		End Function
+		Function GetPostion(MarkPosition, x, y, ImageWidth, ImageHeight, MarkWidth, MarkHeight)
+			Select Case CInt(MarkPosition)
+				Case 1
+					x = 1
+					y = 1
+				Case 2
+					x = 1
+					y = Int(ImageHeight - MarkHeight - 1)
+				Case 3
+					x = Int((ImageWidth - MarkWidth) / 2)
+					y = Int((ImageHeight - MarkHeight) / 2)
+				Case 4
+					x = Int(ImageWidth - MarkWidth - 1)
+					y = 1
+				Case 5
+					x = Int(ImageWidth - MarkWidth - 1)
+					y = Int(ImageHeight - MarkHeight - 1)
+			End Select
+		End Function
+		'由原图片根据数据里保存的设置生成缩略图
+		Function CreateThumbs(FileName,ThumbFileName)
+			Dim strSql, RsThumbSetting
+			strSql = "Select ThumbComponent,RateTF,ThumbWidth,ThumbHeight,ThumbRate from ["&CgsailPrefix&"config]"
+			Set RsThumbSetting = conn.Execute(strSql)
+			CreateThumbs = False
+			If RsThumbSetting("ThumbComponent") <> "0" And (Not IsNull(RsThumbSetting("ThumbComponent"))) Then
+				If RsThumbSetting("RateTF") = "0" Then
+					CreateThumbs = CreateThumb(FileName, CInt(RsThumbSetting("ThumbWidth")), CInt(RsThumbSetting("ThumbHeight")), 0, ThumbFileName)
+				Else
+					CreateThumbs = CreateThumb(FileName, 0, 0, CSng(RsThumbSetting("ThumbRate")), ThumbFileName)
+				End If
+			End If
+			Set RsThumbSetting = Nothing
+		End Function
+		'由原图片生成指定宽度和高度的缩略图
+		Function CreateThumb(FileName, Width, Height, Rate, ThumbFileName)
+			Dim strSql, RsSetting, objImage, iWidth, iHeight, strFileExtName
+			CreateThumb = False
+			If IsNull(FileName) Then                                    '如果原图片未指定直接退出
+				Exit Function
+			ElseIf FileName = "" Then
+				Exit Function
+			End If
+			If InStr(FileName, ".") <> 0 Then
+				strFileExtName = LCase(Trim(Mid(FileName, InStrRev(FileName, ".") + 1)))
+			End If
+			If strFileExtName <> "jpg" And strFileExtName <> "gif" And strFileExtName <> "bmp" And strFileExtName <> "png" Then '文件不是可用图片则退出
+				Exit Function
+			End If
+			If IsNull(ThumbFileName) Then                          
+				Exit Function
+			ElseIf ThumbFileName = "" Then
+				Exit Function
+			End If
+			If IsNull(Width) Then                                
+				Width = 0
+			ElseIf Width = "" Then
+				Width = 0
+			End If
+			If IsNull(Rate) Then                                   
+				Rate = 0
+			ElseIf Rate = "" Then
+				Rate = 0
+			End If
+			If IsNull(Height) Then                               
+				Height = 0
+			ElseIf Height = "" Then
+				Height = 0
+			End If
+			If InStr(FileName, ":") = 0 Then      
+				FileName = Server.MapPath(FileName)
+			End If
+			If InStr(ThumbFileName, ":") = 0 Then
+				ThumbFileName = Server.MapPath(ThumbFileName)
+			End If
+			Width = CInt(Width)
+			Height = CInt(Height)
+			Rate = CSng(Rate)
+			
+			strSql = "Select ThumbComponent from ["&CgsailPrefix&"config]"
+			Set RsSetting = conn.Execute(strSql)
+			Select Case CInt(RsSetting("ThumbComponent"))
+				Case 0                                               
+					Exit Function
+				Case 1
+					If Not IsObjInstalled("Persits.Jpeg") Then
+						Exit Function
+					End If
+					If IsExpired("Persits.Jpeg") Then
+						Response.Write ("对不起，Persits.Jpeg组件已过期！")
+						Response.End
+					End If
+					Set objImage = Server.CreateObject("Persits.Jpeg")
+					objImage.Open FileName
+					If Rate = 0 And (Width <> 0 Or Height <> 0) Then
+						If Width < objImage.OriginalWidth And Height < objImage.OriginalHeight Then
+							If Width = 0 And Height <> 0 Then
+								objImage.Width = objImage.OriginalWidth / objImage.OriginalHeight * Height
+								objImage.Height = Height
+							ElseIf Width <> 0 And Height = 0 Then
+								objImage.Width = Width
+								objImage.Height = objImage.OriginalHeight / objImage.OriginalWidth * Width
+							ElseIf Width <> 0 And Height <> 0 Then
+								objImage.Width = Width
+								objImage.Height = Height
+							End If
+						End If
+					ElseIf Rate <> 0 Then
+						objImage.Width = objImage.OriginalWidth * Rate
+						objImage.Height = objImage.OriginalHeight * Rate
+					End If
+					objImage.Save ThumbFileName
+				Case 2
+					If Not IsObjInstalled("wsImage.Resize") Then  
+						Exit Function
+					End If
+					If IsExpired("wsImage.Resize") Then
+						Response.Write ("对不起，wsImage.Resize组件已过期！")
+						Response.End
+					End If
+					If strFileExtName = "png" Then   
+						Exit Function
+					End If
+					Set objImage = Server.CreateObject("wsImage.Resize")
+					objImage.LoadSoucePic CStr(FileName)
+					If Rate = 0 And (Width <> 0 Or Height <> 0) Then
+						objImage.GetSourceInfo iWidth, iHeight
+						If Width < iWidth And Height < iHeight Then
+							If Width = 0 And Height <> 0 Then
+								objImage.OutputSpic CStr(ThumbFileName), 0, Height, 2
+							ElseIf Width <> 0 And Height = 0 Then
+								objImage.OutputSpic CStr(ThumbFileName), Width, 0, 1
+							ElseIf Width <> 0 And Height <> 0 Then
+								objImage.OutputSpic CStr(ThumbFileName), Width, Height, 0
+							Else
+								objImage.OutputSpic CStr(ThumbFileName), 1, 1, 3
+							End If
+						Else
+							objImage.OutputSpic CStr(ThumbFileName), 1, 1, 3
+						End If
+					ElseIf Rate <> 0 Then
+						objImage.OutputSpic CStr(ThumbFileName), Rate, Rate, 3
+					Else
+						objImage.OutputSpic CStr(ThumbFileName), 1, 1, 3
+					End If
+				Case 3
+					If Not IsObjInstalled("SoftArtisans.ImageGen") Then
+						Exit Function
+					End If
+					If IsExpired("SoftArtisans.ImageGen") Then
+						Response.Write ("对不起，SoftArtisans.ImageGen组件已过期！")
+						Response.End
+					End If
+					Set objImage = Server.CreateObject("SoftArtisans.ImageGen")
+					objImage.LoadImage FileName
+					If Rate = 0 And (Width <> 0 Or Height <> 0) Then
+						If Width < objImage.Width And Height < objImage.Height Then
+							If Width = 0 And Height <> 0 Then
+								objImage.CreateThumb , CLng(Height), 0, True
+							ElseIf Width <> 0 And Height = 0 Then
+								objImage.CreateThumb CLng(Width), objImage.Height / objImage.Width * Width, 0, False
+							ElseIf Width <> 0 And Height <> 0 Then
+								objImage.CreateThumb CLng(Width), CLng(Height), 0, False
+							End If
+						End If
+					ElseIf Rate <> 0 Then
+						objImage.CreateThumb CLng(objImage.Width * Rate), CLng(objImage.Height * Rate), 0, False
+					End If
+					objImage.SaveImage 0, objImage.ImageFormat, ThumbFileName
+				Case 4
+					If Not IsObjInstalled("CreatePreviewImage.cGvbox") Then       
+						Exit Function
+					End If
+					Set objImage = Server.CreateObject("CreatePreviewImage.cGvbox")
+					objImage.SetImageFile = FileName                           
+					If Rate = 0 And (Width <> 0 Or Height <> 0) Then
+						objImage.SetPreviewImageSize = Width                  
+					ElseIf Rate <> 0 Then
+						objImage.SetPreviewImageSize = objImage.SetPreviewImageSize * Rate            
+					End If
+					objImage.SetSavePreviewImagePath = ThumbFileName            
+					If objImage.DoImageProcess = False Then                    
+						Exit Function
+					End If
+			End Select
+			CreateThumb = True
+		End Function
+End Class
+ %>

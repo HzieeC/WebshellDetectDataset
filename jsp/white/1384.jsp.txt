@@ -1,0 +1,117 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@ page contentType="text/html; charset=UTF-8" deferredSyntaxAllowedAsLiteral="true" %>  
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo"%>
+<%@page import="java.net.URLDecoder"%>
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page"/>
+
+<%
+	String task_id = bean.GenTradeId();
+	
+	String user_id="";
+	if( session.getAttribute("session_user_id") != null )
+	{
+		user_id = session.getAttribute("session_user_id").toString();
+	}
+	
+   Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo();
+   
+	String cust_id = "";
+	if(request.getParameter("cust_id")!=null && !request.getParameter("cust_id").equals("")){
+		cust_id = request.getParameter("cust_id");
+	}
+	String cust_name = "";
+	if(request.getParameter("cust_name")!=null && !request.getParameter("cust_name").equals("")){
+		cust_name = URLDecoder.decode(request.getParameter("cust_name"),"UTF-8");
+	}
+	String tasks ="";
+	if(!cust_name.equals(""))
+	 	tasks = tb_commparaInfo.getSelectItem("116","updateCustWeb");
+	else
+		tasks = tb_commparaInfo.getSelectItem("116","");
+%>
+
+<html>
+  <head>
+    <title>新增任务</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	<script type="text/javascript" src="/js/thickbox.js"></script>
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script type="text/javascript" src="task.js"></script>
+	<script type="text/javascript" src="/program/admin/js/judgment.js" charset="UTF-8"></script>
+</head>
+
+<body onload="init_tr()">
+	<h1>新增任务</h1>
+	
+	<form action="/doTradeReg.do" method="post" name="addForm" target="_self" >
+	
+	<table width="100%" cellpadding="1" cellspacing="1" border="0" class="listtab">
+		<tr>
+			<td align="right" width="15%">
+				任务名称<font color="red">*</font>
+			</td>
+			<td colspan="3">
+				<select name="task_method"  id="task_method" onchange="showCust_tr(this.value)">
+					<option value="">请选择</option>
+					<%=tasks %>
+				</select>
+			</td>
+		</tr>
+		<tr id ="cust_tr" style="display: none">
+			<td align="right" width="15%">
+				会员参数:
+			</td>
+			<td colspan="3">
+				<input type="text" name="task_param_bak" id="task_param_bak" value="<%=cust_name %>"  /><!-- 请按照：<font color="red">参数名=参数值|</font>的格式配置 -->
+				<input type="hidden" name="task_param" id="task_param" value="<%=cust_id %>" />
+				<input type="button" class="button_s_css" value=" 搜索 "  onclick="showLinkCompany()" />	
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="15%">
+				执行时间:
+			</td>
+			<td colspan="3">
+				 <input name="start_exec_time" type="text" id="start_exec_time" class="Wdate"  onclick="WdatePicker({minDate:'%y-%M-#{%d}',readOnly:true})" size="15"  width="150px"/>
+			</td>
+		</tr>
+		
+		
+		<tr>
+			<td align="right" width="15%">
+				任务说明:
+			</td>
+			<td colspan="3">
+				<textarea rows="3" cols="50" name="task_desc" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this)"></textarea>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="15%">
+				备注:
+			</td>
+			<td colspan="3">
+				<input type="text" name="remark" value="" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this)" />
+			</td>
+		</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input name="task_id" id="task_id" type="hidden" value="<%=task_id%>"/>
+				<input name="oper_userid" id="oper_userid" type="hidden" value="<%=user_id%>"/>
+				<input type="hidden" name="bpm_id" value="3397" />
+				<input type="hidden" name="is_exec" value="0" />
+				<input type="hidden" name="task_name" id="task_name" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="subform()" />&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

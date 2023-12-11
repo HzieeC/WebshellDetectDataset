@@ -1,0 +1,61 @@
+<!--#include file="Conn.asp" -->
+<!--#include file="Comm/Site_Class.asp" -->
+<%
+Response.Expires = -1 
+Response.ExpiresAbsolute = Now() - 1 
+Response.cachecontrol = "no-cache"
+
+If Session("ComId") = "" Or Session("UserType") <> "Company" Then
+	strMsg = "只有企业用户才能进行此操作，请先登录"
+Else
+	Set Qsite = New Site_Class
+	Qsite.SiteConfig()
+	Qsite.arrMember = Qsite.Member_Info()
+
+	Dim PerId,strMsg,PoolQuantity
+	Dim IsLock
+	
+	Set Rs = Conn.Execute("select * from CompanyTbl where ComId = "& Session("ComId"))
+	If Rs.Eof Then
+		IsLock = "1"
+	Else
+		IsLock = Rs("IsLock")
+	End If
+	Set Rs = Nothing
+
+	PerId = Trim(Request.QueryString("PerId"))
+	
+	If IsLock = "1" Then
+		strMsg = "您的帐号已被管理员锁定，暂时无法使用此功能！"
+	Else
+		If Qsite.arrMember(8 , Session("MemberType")) <> "1" Then
+			strMsg = "您当前的会员类型无法使用此功能，请联系我们的管理员升级您的帐号！"
+		Else
+			PoolQuantity = Conn.Execute("select count(PoolId) as PoolQuantity from CompanyPerPoolTbl where ComId = "& Session("ComId"))
+			PoolQuantity = PoolQuantity("PoolQuantity")
+			If CLng(PoolQuantity) >= CLng(Qsite.arrMember(9 , Session("MemberType"))) Then
+				strMsg = "您的人才库的数量已经达到上限，请联系我们的管理员升级您的帐号！"
+			Else
+				If PerId = "" Or IsNull(PerId) Or Not IsNumeric(PerId) Then
+					strMsg = "请先选择要加入人才库的人才"
+				Else
+					
+					
+					Set Rs = Conn.Execute("select * from CompanyPerPoolTbl where PerId = "& PerId &" and ComId = "& Session("ComId"))
+					If Not Rs.Eof Then
+						strMsg = "人才库中此人才已存在"
+					Else
+						Conn.Execute("insert into CompanyPerPoolTbl (PerId , ComId , AddDate) values ("& PerId &" , "& Session("ComId") &" , '"& Qsite.FormatDate(Now()) &"')")
+						strMsg = "操作成功，已成功加入人才库"
+					End If
+					Set Rs = Nothing
+				End If
+			End If
+		End If
+	End If
+End If
+%>
+<script language="javascript">
+	alert("<%=strMsg%>");
+	window.close();
+</script>

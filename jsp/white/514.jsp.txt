@@ -1,0 +1,41 @@
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>站留言</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/message/list_acceptMessage.js"></script>
+</head> 
+<body>
+	<input id="loginId" type="hidden" name="loginId" value="${loginId}">
+	<input id="loginName" type="hidden" name="loginName" value="${loginName}">
+	
+	<table id="dataGrid"></table>
+	<div id="edit" closed="true">
+		<iframe frameborder="0" id="editDataPage" width="500px" height="200px"></iframe>
+	</div>
+<!-- 语言设置-->
+<input type="hidden" id="BasicInformation" value="<s:text name="BasicInformation"/>"/>
+<input type="hidden" id="Operation" value="<s:text name="Operation"/>"/>
+<input type="hidden" id="Lookup" value="<s:text name="Lookup"/>"/>
+<input type="hidden" id="Delete" value="<s:text name="Delete"/>"/>
+<input type="hidden" id="Title" value="<s:text name="acceptMessage.Title"/>"/>
+<input type="hidden" id="Content" value="<s:text name="acceptMessage.Content"/>"/>
+<input type="hidden" id="Sender" value="<s:text name="acceptMessage.Sender"/>"/>
+<input type="hidden" id="Status" value="<s:text name="acceptMessage.Status"/>"/>
+<input type="hidden" id="Newinformation" value="<s:text name="acceptMessage.Newinformation"/>"/>
+<input type="hidden" id="Return" value="<s:text name="Return"/>"/>
+<input type="hidden" id="Wanttodelete" value="<s:text name="Wanttodelete"/>"/>
+<input type="hidden" id="DeletedSuccessful" value="<s:text name="DeletedSuccessful"/>"/>
+<input type="hidden" id="DeleteFailed" value="<s:text name="DeleteFailed"/>"/>
+<input type="hidden" id="SystemError" value="<s:text name="SystemError"/>"/>
+<input type="hidden" id="unread" value="<s:text name="acceptMessage.unread"/>"/>
+<input type="hidden" id="MarkRead" value="<s:text name="acceptMessage.MarkRead"/>"/> 		
+</body>
+</html>

@@ -1,0 +1,143 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.trade.ti_financestrategy.*" %>
+<%@ page import="com.bizoss.frame.util.PageTools" %>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID"
+	scope="page" />
+<%
+	Ti_financestrategyInfo ti_financestrategyInfo=new Ti_financestrategyInfo();
+		Hashtable ts_link_group = new Hashtable();
+		String cust_calss_name="";
+		String case_id = randomId.GenTradeId();
+		String cust_id = "";
+		if (session.getAttribute("session_cust_id") != null) {
+			cust_id = session.getAttribute("session_cust_id").toString();
+		}
+		String selelctlist = ti_financestrategyInfo.getSelectString("");
+		
+		Map ti_financestrategy = new Hashtable();
+		String memerberleave = "";
+	if(request.getParameter("memerberleave")!=null && !request.getParameter("memerberleave").equals("")){
+		memerberleave = request.getParameter("memerberleave");
+		ti_financestrategy.put("memerberleave",memerberleave);
+	}
+	String iStart = "0";
+	int limit = 20;
+	List list = ti_financestrategyInfo.getListByPage(ti_financestrategy,Integer.parseInt(iStart),limit);
+	int counter = 10;
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?memerberleave="+memerberleave+"&iStart=",Integer.parseInt(iStart),limit);
+%>
+<html>
+  <head>    
+    <title>等级策略管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="filter.js"></script>
+  </head>
+  
+  <body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>等级策略</h1>
+			</td>
+			<td>
+				<a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a>
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	  
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				按级别名称
+				<select id="memerberleave" name="memerberleave" >
+				<option value="">请选择</option>
+				<%=selelctlist %>
+			</select>
+				<input name="searchInfo" type="button" value="查询" onClick="searcher();"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td></td></tr>
+	</table>
+	<%
+		int listsize = 0;
+		if(list != null&& list.size() > 0){
+			listsize = list.size();
+		
+	 %>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onClick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onClick="selectAll()"></th>
+			
+			<th>级别代码</th>
+			
+			<th>级别名称</th>
+
+			<th>充值金额</th>
+			
+			<th>编辑权限</th>		  	
+			
+	  		<th width="10%">删除</th>
+		</tr>
+		<%
+			for(int i = 0; i < listsize; i++){
+				Hashtable fmap = (Hashtable)list.get(i);
+				String smemerberleave="",spayment="",scust_calss_name="";
+				smemerberleave = fmap.get("memerberleave").toString();
+				spayment = fmap.get("payment").toString();
+				scust_calss_name=fmap.get("cust_class_name").toString();
+		 %>
+		 
+		 <tr>
+		 	<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=smemerberleave %>" /></td>
+		  	<td><%=smemerberleave%></td>
+		  	<td><%=scust_calss_name %></td>
+			<td><%=spayment%></td>
+			<td width="10%"><a href="updateInfo.jsp?memerberleave=<%=smemerberleave%>"><img src="/program/admin/images/edit.gif" title="修改"/></a></td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=smemerberleave%>','5799');"><img src="/program/admin/images/delete.gif" title="删除"/></a></td>
+		 </tr>
+		<%
+		}
+		 %>
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onClick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter%>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td></td></tr><tr><td valign="top"><br></td></tr>
+	</table>
+	<%
+	}
+	 %>
+	 <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>"/>	 
+	  <input type="hidden" name="pkid" id="pkid" value=""/>
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="5799" />
+	  </form>
+</body>
+
+</html>

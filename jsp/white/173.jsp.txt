@@ -1,0 +1,200 @@
+<%
+/* *
+ 功能：支付宝会员登录完成后跳转返回的页面（返回页）
+ 版本：3.0
+ 日期：2010-07-26
+ 说明：
+ 以下代码只是为了方便商户测试而提供的样例代码，商户可以根据自己网站的需要，按照技术文档编写,并非一定要使用该代码。
+ 该代码仅供学习和研究支付宝接口使用，只是提供一个参考。
+
+ //***********页面功能说明***********
+ 该页面可在本机电脑测试
+ 该页面称作“返回页”，是由支付宝服务器同步调用
+ 可放入HTML等美化页面的代码和订单交易完成后的数据库更新程序代码
+ 建议：
+ 在商户网站会员数据库中增加一个字段：user_id（支付宝用户唯一ID），
+ 若返回的信息不止有参数user_id，那么再增加支付宝会员信息的数据表。
+ 会员信息的数据表中的唯一ID号是商户网站会员数据表中的
+ //********************************
+ * */
+%>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ page import="java.util.*"%>
+<%@ page import="com.alipay.loginUtil.*"%>
+<%@ page import="com.alipay.config.*"%>
+<%@ page import="com.bizoss.trade.ti_personal.*"%>
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page" />
+<html>
+  <head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>支付宝会员免注册登录返回信息</title>
+<style type="text/css">
+.font_content{
+    font-family:"宋体";
+    font-size:14px;
+    color:#FF6600;
+}
+.font_title{
+    font-family:"宋体";
+    font-size:16px;
+    color:#FF0000;
+    font-weight:bold;
+}
+table{
+    border: 1px solid #CCCCCC;
+}
+</style>
+  </head>
+  <body>
+  
+
+  
+<%
+	String key = AlipayConfig.key;
+	
+	String alipay_user_id = bean.GenTradeId();
+	
+	//获取支付宝GET过来反馈信息
+	Map params = new HashMap();
+	Map requestParams = request.getParameterMap();
+	for (Iterator iter = requestParams.keySet().iterator(); iter.hasNext();) {
+		String name = (String) iter.next();
+		String[] values = (String[]) requestParams.get(name);
+		String valueStr = "";
+		for (int i = 0; i < values.length; i++) {
+			valueStr = (i == values.length - 1) ? valueStr + values[i]
+					: valueStr + values[i] + ",";
+		}
+		//乱码解决，这段代码在出现乱码时使用。如果mysign和sign不相等也可以使用这段代码转化
+		valueStr = new String(valueStr.getBytes("ISO-8859-1"), "UTF-8");
+		params.put(name, valueStr);
+	}
+	
+	//判断responsetTxt是否为ture，生成的签名结果mysign与获得的签名结果sign是否一致
+	//responsetTxt的结果不是true，与服务器设置问题、合作身份者ID、notify_id一分钟失效有关
+	//mysign与sign不等，与安全校验码、请求时的参数格式（如：带自定义参数等）、编码格式有关
+	String mysign = AlipayNotify.GetMysign(params,key);
+	String responseTxt = AlipayNotify.Verify(request.getParameter("notify_id"));
+	String sign = request.getParameter("sign");
+	
+	//写日志记录（若要调试，请取消下面两行注释）
+	String sWord = "responseTxt=" + responseTxt + "\n return_url_log:sign=" + sign + "&mysign=" + mysign + "\n return回来的参数：" + AlipayBase.CreateLinkString(params);
+	//AlipayBase.LogResult(sWord);
+	
+
+    //获取支付宝的通知返回参数
+	String user_id = request.getParameter("user_id");		//获取支付宝用户唯一ID号
+	String email ="";
+	//以下返回时获取到的信息与商家开通的合同权限有关。若有疑问请咨询客户经理。
+	if(request.getParameter("email") != null && !request.getParameter("email").equals("")){
+	 email = new String(request.getParameter("email").getBytes("ISO-8859-1"), "UTF-8");		    //获取支付宝账号，邮箱或手机格式
+	}
+
+	String user_type = request.getParameter("user_type");	//获取支付宝用户类型，1：公司注册账户；2：个人注册账户
+	String user_status = request.getParameter("user_status");//获取支付宝用户状态，T：正常状态；B：账户被冻结；W：未激活用户；Q：快速注册用户；C：账户被注销
+	
+	Ti_personalInfo personalInfo = new Ti_personalInfo();
+	if(mysign.equals(sign)){
+	
+	String personal_real_name = "";
+	String personal_user_name = "";
+	String personal_user_id = "";
+	String personal_user_email= "";
+		if(email != null && !email.equals("")){
+			if(personalInfo.checkUserEmail(email)){
+			
+				List personalList = personalInfo.getUserByEmail(email);
+				
+				if(personalList != null && personalList.size() > 0){
+					int listSize = personalList.size();
+						for(int i = 0; i < listSize; i++){
+							Map personalMap = (HashMap)personalList.get(i);
+								if(personalMap != null && personalMap.size() > 0){
+									personal_user_name = personalMap.get("user_name").toString();
+									personal_user_id = personalMap.get("user_id").toString();
+									personal_user_email = personalMap.get("email").toString();
+								}
+						}
+				}
+			
+			} else {
+			
+			 int id = email.indexOf("@");
+			  if (id != -1) {
+			  personal_user_name = email.substring(0, id); 
+			  personal_user_name = personalInfo.getFourRandnumUserName(personal_user_name);
+			  }else{
+				personal_user_name = alipay_user_id.substring(0,10);
+			  }
+  
+				
+				personal_user_id = alipay_user_id;
+				personal_user_email = email;
+				
+				
+				Map alipayUser = new HashMap();
+				alipayUser.put("alipay_user_name",personal_user_name);
+				//alipayUser.put("alipay_real_name",personal_real_name);
+				alipayUser.put("alipay_email",personal_user_email);
+				//alipayUser.put("alipay_address",province + "  "+ city + "  "+ address);
+				
+
+
+				alipayUser.put("alipay_user_id",alipay_user_id);
+				
+				
+					
+				personalInfo.registerAlipayUser(alipayUser);
+				
+	
+
+				
+			}
+			
+		Cookie cookie1 = new Cookie("session_user_id", personal_user_id); 
+		cookie1.setMaxAge(60*60*24*10);
+		cookie1.setPath("/");
+		response.addCookie(cookie1);
+
+		Cookie cookie2 = new Cookie("session_user_name", personal_user_name); 
+		cookie2.setMaxAge(60*60*24*10);
+		cookie2.setPath("/");
+		response.addCookie(cookie2);
+
+		Cookie cookie3 = new Cookie("session_user_type", "a"); 
+		cookie3.setMaxAge(60*60*24*10);
+		cookie3.setPath("/");
+		response.addCookie(cookie3);
+
+					
+		}	
+
+
+		
+%>
+
+
+
+
+<table align="center" width="350" cellpadding="5" cellspacing="0">
+	<tr>
+	    <td align="center" class="font_title">亲爱的商城会员：<%=user_id%>：<br />您已经登录成功.<br />正在跳转到会员页面...</td>
+	</tr>
+
+</table>
+<%
+	
+	response.sendRedirect("/index.html");
+
+	}else{
+%>
+<table align="center" width="350" cellpadding="5" cellspacing="0">
+  <tr>
+    <td align="center" class="font_title">系统出错，验证失败</td>
+  </tr>
+</table>
+<%
+	}
+%>
+  </body>
+</html>

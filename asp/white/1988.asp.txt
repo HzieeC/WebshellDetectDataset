@@ -1,0 +1,86 @@
+<!--#Include File="CONN.ASP"-->
+<!--#Include File="inc/Const.asp"-->
+<!--#Include File="Dv_Plus_Invite_ClsMain.asp"-->
+<%
+Dim DI_Stats,DI_Script_Name,DI_Code_q,DI_obj
+DI_Stats = "验证邀请码"
+DI_Script_Name = Request.ServerVariables("Script_Name")
+Dvbbs.LoadTemplates("")
+Dvbbs.Stats = DI_Stats
+Dvbbs.Nav
+Dvbbs.Head_Var 0,0,DI_Stats,DI_Script_Name
+DI_Code_q = Dvbbs.CheckStr(Request("DI_Code"))
+Set DI_obj = New Cls_DI
+DI_obj.Load_Setup()
+	If DI_obj.DI_IsOPen=0 Then '判断邀请码插件开关
+		Response.Redirect "showerr.asp?ErrCodes=<li>邀请码：管理员已关闭邀请码插件！<li>请<a href=reg.asp>点击这里</a>进行注册！&action=OtherErr"
+		Response.End
+	End If
+If DI_Code_q = "" Or IsNull(DI_Code_q) Then
+	Call showForm()
+Else
+	Call main(DI_Code_q)
+End If
+
+Dvbbs.Footer()
+Dvbbs.PageEnd()
+
+Sub main(DI_Code_q)
+DI_obj.UpdateCodeStats(1)
+Dim Sql,Rs
+	Sql = "Select Top 1 * From [Dv_Plus_Invite] Where DI_Code='"& DI_Code_q &"'"
+	Set Rs = Dvbbs.Execute(Sql)
+	If Not Rs.Eof Then
+		If Rs("DI_IsFail")="1" Then
+			Rs.Close:Set Rs = Nothing
+			Response.Redirect "showerr.asp?ErrCodes=<li>输入的邀请码正在使用，等待 "& DI_obj.DI_TempMinute &" 分钟后重试！&action=OtherErr"
+			Response.End
+		ElseIf Rs("DI_IsFail")="0" Then '未使用
+			Session("DI_Code") = DI_Code_q
+			Dvbbs.Execute("Update [Dv_Plus_Invite] Set DI_IsFail=1,DI_TempDate = '"&DI_obj.GetTempDate()&"' Where DI_ID="&Rs("DI_ID"))
+			Session("DI_Verify") = True
+			Rs.Close:Set Rs = Nothing
+		ElseIf Rs("DI_IsFail")="2" Then '已使用
+			Rs.Close:Set Rs = Nothing
+			Response.Redirect "showerr.asp?ErrCodes=<li>输入的邀请码已使用，不能注册！&action=OtherErr"
+			Response.End
+		ElseIf Rs("DI_IsFail")="3" Then '已过期
+			Rs.Close:Set Rs = Nothing
+			Response.Redirect "showerr.asp?ErrCodes=<li>输入的邀请码已过期，不能注册！&action=OtherErr"
+			Response.End
+		Else
+			Rs.Close:Set Rs = Nothing
+			Response.Redirect "showerr.asp?ErrCodes=<li>输入的邀请码错误或已过期，不能注册！&action=OtherErr"
+			Response.End
+		End If
+	Else
+		Rs.Close:Set Rs = Nothing
+		Response.Redirect "showerr.asp?ErrCodes=<li>输入的邀请码错误，不能注册！&action=OtherErr"
+		Response.End
+	End If
+	If Session("DI_Verify") Then _
+		Response.Redirect("Reg.asp")
+End Sub
+
+Sub showForm()
+%>
+<form method="post" action="<%=DI_Script_Name%>">
+<table class="tableborder1" cellspacing="1">
+	<tr><th><%=DI_Stats%></th></tr>
+	<%If DI_obj.DI_Readme<>"" Then%>
+	<tr>
+		<td class="tablebody1">
+		<%=DI_obj.DI_Readme%>
+		</td>
+	</tr>
+	<%End If%>
+	<tr>
+		<td class="tablebody1">
+			<li>请输入邀请码：<input type="text" name="DI_Code" value=""/>&nbsp;<input type="submit" value="点击提交"/></li>
+		</td>
+	</tr>
+</table>
+</form>
+<%
+End Sub
+%>

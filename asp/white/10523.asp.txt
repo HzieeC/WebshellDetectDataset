@@ -1,0 +1,165 @@
+﻿<!--#include file="../lib/base.asp"-->
+<!--#include file="../theme.asp"-->
+<%
+dim act:act=lcase(sdcms.fget("act",0))
+select case act
+	case "db":checkdb()
+	case "reg":checkreg()
+	case else
+		dim invite:invite=sdcms.getint(sdcms.fget("invite",1),0)
+		if invite>0 then sdcms.setsession "invitecode",invite
+		sdcms.show theme_userreg
+end select
+
+sub checkreg()
+	dim t0,t1,data
+	t0=sdcms.enhtml(sdcms.fget("uid",0))
+	t1=sdcms.enhtml(sdcms.fget("code",0))
+	if sdcms.strlen(t0)=0 then
+		sdcms.echo "&#29992;&#25143;&#21517;&#19981;&#33021;&#20026;&#31354;"
+		exit sub
+	end if
+	if not(sdcms.checkstr(t0,"username")) then
+		sdcms.echo "&#29992;&#25143;&#21517;&#19981;&#31526;&#21512;&#35201;&#27714;"
+		exit sub
+	end if
+	if sdcms.strlen(t1)=0 then
+		sdcms.echo "&#39564;&#35777;&#30721;&#19981;&#33021;&#20026;&#31354;"
+		exit sub
+	end if
+	data=sdcms.db.dbload(1,"islock,id,somecode,point","sd_user","username='"&t0&"'","")
+	if ubound(data)<0 then
+		sdcms.echo "&#28608;&#27963;&#22833;&#36133;&#65306;&#36134;&#25143;&#19981;&#23384;&#22312;"
+	else
+		if data(2,0)<>t1 then
+			sdcms.echo "&#28608;&#27963;&#22833;&#36133;&#65306;&#39564;&#35777;&#30721;&#38169;&#35823;"
+			exit sub
+		end if
+		if data(0,0)=0 then
+			sdcms.db.dbupdate "sd_user","id="&data(1,0)&"",array(array("islock",1,1,0))
+			if sdcms.getsys("str_active")>0 then
+				sdcms.stra_point data(1,0),data(3,0),4,""
+			end if
+			sdcms.go "login.asp?msg="&server.urlencode("账户已激活，请登录")
+		else
+			sdcms.echo "&#36134;&#25143;&#24050;&#28608;&#27963;&#65292;&#35831;&#21247;&#37325;&#22797;&#25805;&#20316;"
+		end if
+	end if	
+end sub
+
+sub checkdb()
+	if not(sdcms.getsys("isreg")) then
+		sdcms.echo "0&#31995;&#32479;&#26410;&#24320;&#21551;&#20250;&#21592;&#27880;&#20876;&#21151;&#33021;"
+		exit sub
+	end if
+	dim t0,t1,t1_1,t2,t3,data,invite
+	t0=sdcms.enhtml(sdcms.fpost("username",0))
+	t1=sdcms.enhtml(sdcms.fpost("password",0))
+	t1_1=sdcms.enhtml(sdcms.fpost("repass",0))
+	t2=sdcms.enhtml(sdcms.fpost("email",0))
+	t3=sdcms.enhtml(sdcms.fpost("imgcode",0))
+	invite=sdcms.getint(sdcms.loadsession("invitecode"),0)
+	if invite>0 then
+		dim userdata,userpoint
+		userdata=sdcms.db.dbload(1,"point","sd_user","id="&invite&"","")
+		if ubound(userdata)=0 then
+			userpoint=userdata(0,0)
+		else
+			invite=0
+			userpoint=0
+		end if
+	end if
+	if sdcms.strlen(t0)=0 then
+		sdcms.echo "1username"
+		exit sub
+	end if
+	if not(sdcms.checkstr(t0,"username")) then
+		sdcms.echo "1username"
+		exit sub
+	end if
+	dim baduser:baduser=sdcms.getsys("baduser")
+	if sdcms.strlen(baduser)>0 then
+		baduser="|"&baduser&"|"
+		if instr(baduser,"|"&t0&"|")>0 then
+			sdcms.echo "1username"
+			exit sub
+		end if
+	end if
+	data=sdcms.db.dbcount("sd_user","username='"&t0&"'")
+	if data>0 then
+		sdcms.echo "1username"
+		exit sub
+	end if
+	if sdcms.strlen(t1)=0 then
+		sdcms.echo "1password"
+		exit sub
+	end if
+	if not(sdcms.checkstr(t1,"password")) then
+		sdcms.echo "1password"
+		exit sub
+	end if
+	if t0=t1 then
+		sdcms.echo "1password"
+		exit sub
+	end if
+	if sdcms.strlen(t1_1)=0 then
+		sdcms.echo "1repass"
+		exit sub
+	end if
+	if t1<>t1_1 then
+		sdcms.echo "1repass"
+		exit sub
+	end if
+	if sdcms.strlen(t2)=0 then
+		sdcms.echo "1email"
+		exit sub
+	end if
+	if not(sdcms.checkstr(t2,"email")) then
+		sdcms.echo "1email"
+		exit sub
+	end if
+	data=sdcms.db.dbcount("sd_user","email='"&t2&"'")
+	if data>0 then
+		sdcms.echo "1email"
+		exit sub
+	end if
+	if sdcms.strlen(t3)=0 then
+		sdcms.echo "1code"
+		exit sub
+	end if
+	if sdcms.loadsession("imgcode")<>t3 then
+		sdcms.echo "1code"
+		exit sub
+	end if
+	dim groupid:groupid=sdcms.getsys("groupid")
+	dim useract:useract=sdcms.getsys("ispass")
+	dim somecode:somecode=sdcms.getrnd(10)
+	data=array(array("[username]",t0,20,1),array("[password]",md5(t1),16,1),array("email",t2,50,1),array("groupid",groupid,0,0),array("islock",useract,2,0),array("createdate",now(),0,1),array("createip",sdcms.getip,50,1),array("logintimes",0,1,0),array("somecode",somecode,50,1),array("[percent]",23,2,0),array("amount",0,2,0),array("point",0,2,0),array("isvip",0,2,0),array("avatar",0,0,0))
+	sdcms.db.insert "sd_user",data
+	if sdcms.getsys("str_reg")>0 then
+		dim new_userid:new_userid=sdcms.db.insertid("id","sd_user")
+		sdcms.stra_point new_userid,0,1,""
+	end if
+	if invite>0 and sdcms.getsys("str_invite")>0 then
+		sdcms.stra_point invite,userpoint,5,t0
+	end if
+	sdcms.setsession "invitecode",""
+	select case useract
+		case "0"
+			dim subject,body
+			subject=sdcms.getsys("regtitle")
+			body=sdcms.dehtml(sdcms.getsys("regcontent"))
+			body=replace(body,"{webname}",sdcms.getsys("webname"))
+			body=replace(body,"{url}","{weburl}/user/reg.asp?act=reg&uid="&left(t0,20)&"&code="&somecode&"")
+			body=replace(body,"{weburl}",weburl)
+			sdcms.sendmail t2,subject,body
+			sdcms.echo "2&#36134;&#25143;&#27880;&#20876;&#25104;&#21151;&#65292;&#35831;&#26597;&#25910;&#37038;&#31665;&#40;"&t2&"&#41;&#65292;&#24182;&#28608;&#27963;&#24744;&#30340;&#36134;&#25143;&#65281;"
+		case "-1"
+			sdcms.echo "3&#36134;&#25143;&#27880;&#20876;&#25104;&#21151;&#65292;&#38656;&#35201;&#31649;&#29702;&#21592;&#23457;&#26680;&#21518;&#25165;&#33021;&#30331;&#24405;&#65281;"
+		case "1"
+			sdcms.resetuserinfo("u.username='"&t0&"'")
+			sdcms.echo "4&#36134;&#25143;&#27880;&#20876;&#25104;&#21151;&#65281;"
+	end select
+end sub
+sdcms.db.dbclose
+%>

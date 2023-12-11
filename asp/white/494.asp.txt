@@ -1,0 +1,660 @@
+<!--#Include File="../Inc/Const.Asp"-->
+<!--#Include File="Inc/Class_Content.Asp"-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=GBK" />
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<title>内容管理</title>
+<script language="JavaScript" type="text/javascript" src="js/jquery-1.5.1.min.js"></script>
+<script language="JavaScript" type="text/javascript" src="js/common.js"></script>
+<script language="JavaScript" type="text/javascript" src="Images/ajax.js"></script>
+<script type="text/javascript" src="DatePicker/wdatepicker.js"></script>
+<link href="Images/Style.Css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<%
+
+If Len(Request.Form("oContent")) > 0 And Request("Act") = "UpDate" Then Session("Content_IN_Cache") = Request.Form("oContent")
+
+Dim U
+Set U = New Cls_Content
+
+Dim Rs,Ns,Sql,Style,i,childid
+Dim ID
+    ID = Request("ID")
+Dim Key
+    Key = Request("Key")
+Dim Page
+    Page = Request("Page")
+Dim PageNums
+	PageNums = Request("pagenums")
+	if Len(PageNums)>0 then Session("Content_PageNums") = PageNums
+Dim Orders
+    Orders = Request("Orders")
+Dim DFieldKey
+    DFieldKey = Request("DFieldKey")
+Dim DFieldOrders
+    DFieldOrders = Request("DFieldOrders")
+If len(ID) > 0 And Not IsNumeric(ID) Then : Response.Write "编号只能是数字!" : Conn.Close : Set Conn = Nothing : Set U = Nothing : Response.End '// 检测ID
+If Len(Page) = 0 Or Not IsNumeric(ID) Then Page = 1
+If Page < 1 Then Page = 1
+If LCase(Orders) <> "asc" Then Orders = "Desc"
+If Len(DFieldKey) = 0 Then DFieldKey = "Title"
+If Len(DFieldOrders) = 0 Then DFieldOrders = "ID"
+If Instr("[id],[cid],[title],[commend],[views],[comments],[Modifytime],[filepath],[display]" , "[" & Lcase(DFieldKey) & "]") = 0 Then Key = ""
+If Instr("[id],[cid],[title],[commend],[views],[comments],[Modifytime],[filepath],[display]" , "[" & Lcase(DFieldOrders) & "]") = 0 Then DFieldOrders = "ID"
+Page = Int(Page) : Key = Replace(Key,"'","")
+Dim JumpUrl
+    JumpUrl = "&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders
+
+Select Case Request("Act")
+Case "Guide"
+	If Len(ID) = 0 Then
+		Call U.Initialize()
+		Call Main_Guide(0)
+	Else
+		U.vID = ID
+		Call U.SetValue()
+		Call Main_Guide(1)
+	End If
+Case "UpDate"
+dim j,cid
+cid = split(request("oCid"),",")
+j=ubound(cid)
+for i=0 to j
+if cid(i)>0 then
+U.vCid = cid(i)
+	If U.GetValue() Then
+		If Len(ID) = 0 Then
+			If Not U.Create() Then
+				'Alert U.LastError,"Admin_Content.Asp?Page=" & Page & JumpUrl
+			Else
+				'Alert "","Admin_Content.Asp?Page=" & Page & JumpUrl
+			End If
+		Else
+			U.vID = ID
+			If Not U.Modify() Then
+				Alert U.LastError,"Admin_Content.Asp?Page=" & Page & JumpUrl
+			Else
+				Alert "","Admin_Content.Asp?Page=" & Page & JumpUrl
+			End If
+		End If
+	Else
+		Alert U.LastError,"Admin_Content.Asp?Page=" & Page & JumpUrl
+	End If
+	end if
+Next
+Alert "","Admin_Content.Asp?Page=" & Page & JumpUrl
+Case "Delete"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Delete() Then
+			Alert U.LastError,"Admin_Content.Asp?Page=" & Page & JumpUrl
+		Else
+			Alert "","Admin_Content.Asp?Page=" & Page & JumpUrl
+		End If
+	Else
+		Call Main()
+	End If
+Case "Change"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Change() Then Alert U.LastError,""
+	End If
+	Call Main()
+Case "DOCreate"
+	ID = Split(Replace(Replace(Request("ids"),"'","")," ",""),",")
+	For i = 0 To Ubound(ID)
+		Call CreateContent(ID(i),0)
+	Next
+	Call Main()
+Case "DODelete"
+	ID = Replace(Replace(Request("ids"),"'","")," ","")
+	Call U.DeleteAll(ID)
+	Call Main()
+Case "DOMove"
+	ID = Replace(Replace(Request("ids"),"'","")," ","")
+	Call U.EchoMoveHtml(ID)
+Case "DOMoveit"
+	Dim Tmp
+	Dim Tocid : Tocid = Request("Tocid")
+	Call U.MoveContent(Tocid,ID)
+	Call Main()
+Case Else
+	Call Main()
+End Select
+
+Set U = Nothing
+If IsObject(Conn) Then Conn.Close : Set Conn = Nothing
+
+Sub Main()
+If Len(Key) > 0 Then
+	If Instr(",ID,Cid,Commend,Views,Comments,Orders,Display,","," & DFieldKey & ",") > 0 Then
+		If Len(Key) > 0 And IsNumeric(Key) Then set rs = db("select [ChildID] From [{pre}channel] where [ID]="&Key&" ",1)
+		If Len(rs(0))=0 then childid=Key else childid=rs(0)
+		If Len(Key) > 0 And IsNumeric(Key) Then Sql = "[" & DFieldKey & "] in (" & childid & ")"
+	Else
+		Sql = "[" & DFieldKey & "] Like '%" & Key & "%'"
+	End If
+End If
+
+Dim SQLCID
+If Len(getLogin("admin","managechannel")) = 0 Then
+	SQLCID = "CID=0"
+Else
+	If Cstr(getLogin("admin","managechannel")) <> Cstr("0") Then
+		SQLCID = "CID IN (" & getLogin("admin","managechannel") & ")"
+	End If
+End If
+
+' 栏目权限
+If Len(SQL) > 0 Then
+	If LEN(SQLCID) > 0 Then SQL = SQL & " and " & SQLCID
+Else
+	If LEN(SQLCID) > 0 Then SQL = SQLCID
+ENd If
+
+Set Rs = New DataList
+Rs.Field = "[ID],[Cid],[Title],[Commend],[Views],[Modifytime],[Filepath],[Display],[Indexpic],[publishTime],[SID],[Commend1],[Commend2]"
+Rs.Table = "[{pre}Content]"
+Rs.Where = SQL
+Rs.Order = "[" & DFieldOrders & "] " & Orders & ""
+Rs.AbsolutePage = Page
+if not isnumeric(Session("Content_PageNums")) then Session("Content_PageNums")=15
+Rs.PageSize = Session("Content_PageNums")
+Rs.List()
+%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+		<td colspan=8><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<form name=frmSearch method=post action=Admin_Content.Asp>
+					<tr>
+						<td class=css_main><a href=Admin_Content.Asp>内容管理</a> <a href=Admin_Content.Asp?Act=Guide&Page=<%=Page%><%=JumpUrl%>>添加内容</a></td>
+						<td class=css_search><select name=DFieldKey id=DFieldKey>
+								<option value="ID" <%If Lcase(DFieldKey) = "id" Then Response.Write "selected='selecte'" %>>编号</option>
+								<option value="Cid" <%If Lcase(DFieldKey) = "cid" Then Response.Write "selected='selected'" %>>栏目</option>
+								<option value="Title" <%If Lcase(DFieldKey) = "title" Then Response.Write "selected='selected'" %>>标题</option>
+								<option value="Display" <%If Lcase(DFieldKey) = "display" Then Response.Write "selected='selected'" %>>前台显示</option>
+							</select>
+							<input name=Key type=text id=Key size=10 value="<%=Key%>">
+							<input type=submit name=Submit value=搜></td>
+					</tr>
+				</form>
+			</table></td>
+	</tr>
+	<form name=frm method=post action=Admin_Content.Asp>
+		<tr>
+		  <td width="33" class='css_top'><input type="checkbox" name="chkall" id="chkall" class="checkbox"></td>
+			<td width="41" class='css_top'>编号</td>
+			<td width="623" class='css_top'>标题</td>
+			<td width="75" class='css_top'><a href='Admin_Content.Asp?Page=<%=Page%>&DFieldOrders=Views&Orders=<%If Lcase(DFieldOrders) = Lcase("Views") And Orders = "Desc" Then Response.Write "Asc" Else Response.Write "Desc" %>'>浏览</a></td>
+			<td width="235" class='css_top'><a href='Admin_Content.Asp?Page=<%=Page%>&DFieldOrders=Modifytime&Orders=<%If Lcase(DFieldOrders) = Lcase("Modifytime") And Orders = "Desc" Then Response.Write "Asc" Else Response.Write "Desc" %>'>最后修改</a></td>
+			<td width="56" class='css_top'><a href='Admin_Content.Asp?Page=<%=Page%>&DFieldOrders=Commend&Orders=<%If Lcase(DFieldOrders) = Lcase("Commend") And Orders = "Desc" Then Response.Write "Asc" Else Response.Write "Desc" %>'>推荐</a></td>
+			<td width="41" class='css_top'><a href='Admin_Content.Asp?Page=<%=Page%>&DFieldOrders=Display&Orders=<%If Lcase(DFieldOrders) = Lcase("Display") And Orders = "Desc" Then Response.Write "Asc" Else Response.Write "Desc" %>'>状态</a></td>
+			<td width="93" class='css_top'>管理</td>
+		</tr>
+		<%
+		If Rs.Eof Then
+		%>
+		<tr align="center" class=css_norecord>
+			<td colspan=8>没有任何记录！</td>
+		</tr>
+		<%
+		Else
+		Dim Hivepic
+		For i = 0 To UBound(Rs.Data,2)
+		If Len(Rs.Data(8,i)) > 0 Then Hivepic = " <font color=#FFB9B9>图</font>" Else Hivepic = ""
+		%>
+		<tr>
+		  <td width="33" class='css_list'><input type="checkbox" name="ids" value="<%=Rs.Data(0,i)%>" class="checkbox"></td>
+			<td width="41" class='css_list'><%=Rs.Data(0,i)%></td>
+		  <td bgcolor="#F8FCF1" class='css_list'><div align="left"> [<a href=Admin_Content.Asp?Key=<%=Rs.Data(1,i)%>&DFieldKey=Cid><%=GetChannel(Rs.Data(1,i),"Name")%></a>] &nbsp;<a href="Admin_Content.Asp?Act=Guide&ID=<%=Rs.Data(0,i)%>&Page=<%=Page%><%=JumpUrl%>"><%=Rs.Data(2,i)%></a> <a href="<%="../redirect.asp?" & Rs.Data(0,i)%>" target="_blank"><font color=#999999>预</font></a><%=Hivepic%> </div></td>
+		  <td width="75" class='css_list'><%=Rs.Data(4,i)%></td>
+			<td width="235" class='css_list'><%=Rs.Data(5,i)%></td>
+			<td width="56" class='css_list'><span id="ContentCommend<%=Rs.Data(0,i)%>" style="cursor:hand;" onclick="ContentCommend(<%=Rs.Data(0,i)%>);">
+		  <%
+			Select Case Cstr(LCase(Rs.Data(3,i)))
+			Case "0" Response.Write "普通"
+			Case "1" Response.Write "<font color=red>推荐</font>"
+			Case Else Response.Write Rs.Data(2,i)
+			End Select
+			%></span></td>
+			<td width="41" class='css_list'><span id="ContentState<%=Rs.Data(0,i)%>" style="cursor:hand;" onclick="ContentState(<%=Rs.Data(0,i)%>);">
+		  <%
+			Select Case Cstr(LCase(Rs.Data(7,i)))
+			Case "0" Response.Write "<font color=blue>隐藏</font>"
+			Case "1" Response.Write "显示"
+			Case Else Response.Write Rs.Data(7,i)
+			End Select
+			%></span></td>
+			<td width="93" class='css_list'><input name=modify type=button onclick="location.href='Admin_Content.Asp?Act=Guide&ID=<%=Rs.Data(0,i)%>&Page=<%=Page%><%=JumpUrl%>';" value=修改>
+		  <input name=delete type=button onclick="if(confirm('您确定要删除这条记录吗?')){location.href='Admin_Content.Asp?Act=Delete&ID=<%=Rs.Data(0,i)%>&Page=<%=Page%><%=JumpUrl%>';}" value=删除></td>
+		</tr>
+		<%
+		Next
+		End If
+		%>
+		<tr class=css_page_list>
+			<td colspan=8><%If Createhtml=1 Then%>
+				<input type="button" class="inputs" onclick="ContentDo('DOCreate');" value="生成" />
+				<%End If%>
+				<input name="" type="button" class="inputs" onclick="ContentDo('DODelete');" value="删除" />
+				<input name="" type="button" class="inputs" onclick="ContentDo('DOMove');" value="移动" />
+				&nbsp;
+				<select name='Jcid' onchange='location.href=this.options[this.selectedIndex].value;' >
+					<option value='Admin_Content.Asp' selected style='background-color:#F0F9E3;'>不指定栏目</option>
+					<%=SelectList(0," ")%>
+				</select>
+				<select name='pagenums' onchange='location.href=this.options[this.selectedIndex].value;' >
+					<option value='Admin_Content.Asp' selected style='background-color:#F0F9E3;'>每页显示数量</option>
+					<option value='Admin_Content.Asp?pagenums=10&Key=<%=Server.UrlENCode(Key)%>&DFieldKey=<%=DFieldKey%>&Orders=<%=Orders%>&DFieldOrders=<%=DFieldOrders%>'>10</option>
+					<option value="Admin_Content.Asp?pagenums=20&Key=<%=Server.UrlENCode(Key)%>&DFieldKey=<%=DFieldKey%>&Orders=<%=Orders%>&DFieldOrders=<%=DFieldOrders%>">20</option>
+					<option value="Admin_Content.Asp?pagenums=25&Key=<%=Server.UrlENCode(Key)%>&DFieldKey=<%=DFieldKey%>&Orders=<%=Orders%>&DFieldOrders=<%=DFieldOrders%>">25</option>
+					<option value="Admin_Content.Asp?pagenums=30&Key=<%=Server.UrlENCode(Key)%>&DFieldKey=<%=DFieldKey%>&Orders=<%=Orders%>&DFieldOrders=<%=DFieldOrders%>">30</option>
+					<option value="Admin_Content.Asp?pagenums=50&Key=<%=Server.UrlENCode(Key)%>&DFieldKey=<%=DFieldKey%>&Orders=<%=Orders%>&DFieldOrders=<%=DFieldOrders%>">50</option>
+					<option value="Admin_Content.Asp?pagenums=80&Key=<%=Server.UrlENCode(Key)%>&DFieldKey=<%=DFieldKey%>&Orders=<%=Orders%>&DFieldOrders=<%=DFieldOrders%>">80</option>
+					<option value="Admin_Content.Asp?pagenums=100&Key=<%=Server.UrlENCode(Key)%>&DFieldKey=<%=DFieldKey%>&Orders=<%=Orders%>&DFieldOrders=<%=DFieldOrders%>">100</option>
+				</select>
+				<%=PageList(Rs.PageCount,Page,Rs.RecordCount,15,"Admin_Content.Asp?Page={p}&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders)%></td>
+		</tr>
+	</form>
+</table>
+<%
+Set Rs = Nothing
+End Sub
+
+Sub Main_Guide(T)
+	%>
+<%If IsNull(U.vCommend) Then U.vCommend=""%> <%If IsNull(U.vIsComment) Then U.vIsComment=""%> <%If IsNull(U.vDisplay) Then U.vDisplay=""%> <%If IsNull(U.vStyle) Then U.vStyle=""%> <%If IsNull(U.vColor) Then U.vColor=""%>
+<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	<tr class=css_menu>
+		<td colspan=6><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+				<tr>
+					<td class=css_main><a href=Admin_Content.Asp?Page=<%=Page%><%=JumpUrl%>>内容管理</a></td>
+				</tr>
+			</table></td>
+	</tr>
+	<form name='frm' id="frm" method='post' action='Admin_Content.Asp?Act=UpDate&ID=<%=ID%>&Page=<%=Page%><%=JumpUrl%>'>
+		<tr>
+			<td width="94" class="css_col12_content"><div align="right"> <font color=red>栏目：</font> </div></td>
+			<td colspan="5" class="css_col22"><%If IsNull(U.vCid) Then U.vCid=""%> <%If Not IsNumeric(U.vCid) Then U.vCid="" Else U.vCid = Int(U.vCid)%>
+			 <%
+			 If Int(request("ID"))>0 then
+			 response.Write SelectChannel(U.vCid," class='css_select' name=""oCid"" type=""text"" id=""oCid"" ",getLogin("admin","managechannel"))
+			 else
+			 for i=1 to 5
+			 response.Write SelectChannel(0," class='css_select' name=""oCid"" type=""text"" id=""oCid"" ",getLogin("admin","managechannel"))
+			 Next
+			 response.Write "可以同时发布在五个栏目"
+			 end if
+			 %> </td>
+		</tr>
+		<tr>
+			<td class=css_col11_content><div align="right"> <font color=red>标题：</font> </div></td>
+			<td colspan="5" class=css_col21><input name="oTitle" type="text" class="css_input" id="oTitle" <%if len(u.vtitle) = 0 then%>onblur="ChkTitle();"<%End If%> value="<%=U.vTitle%>" size="70" />
+				<input name="oCommend" type="checkbox" value="1" <%If U.vCommend = 1 Then Response.Write "checked='checked'"%> /> 一级推荐
+				<input name="oCommend1" type="checkbox" value="1" <%If U.vCommend1 = 1 Then Response.Write "checked='checked'"%> /> 二级推荐
+				<input name="oCommend2" type="checkbox" value="1" <%If U.vCommend2 = 1 Then Response.Write "checked='checked'"%> /> 三级推荐
+				<input name="oIsComment" type="checkbox" value="1" <%If U.vIsComment = 1 Then Response.Write "checked='checked'"%> /> 评论
+				<input name="oDisplay" type="checkbox" value="1" <%If U.vDisplay = 1 Then Response.Write "checked='checked'"%> /> 发布			</td>
+		</tr>
+		<tr>
+			<td class=css_col11_content><div align="right"> <font color=red>子标题：</font> </div></td>
+			<td colspan="5" class=css_col21><input name="SubTitle" type="text" class="css_input" id="SubTitle" value="<%=U.vSubTitle%>" size="70" />			</td>
+		</tr>
+		<tr>
+		  <td class=css_col12_content><div align="right">选择专题：</div></td>
+		  <td colspan="5" class=css_col21>
+		  <select name="oSid" id="oSid">
+		  	<option value="0">请选择专题</option>
+			<%
+			Dim rs
+			Set rs = db("select [ID],[SpecialName] From [{pre}Special] order by [Order] asc",1)
+			Do While Not rs.eof
+				Response.Write "<option value="&rs("ID")&" "
+				 If rs("ID")=U.vSid Then Response.Write "Selected=selected" 
+				Response.Write ">"&rs("SpecialName")&"</option>"
+			rs.movenext
+			Loop
+			%>
+		  </select>
+		  </td>
+	  </tr>
+		<tr>
+			<td class=css_col12_content><div align="right"> 属性： </div></td>
+			<td colspan="5" class=css_col22><table border="0" cellpadding="0" cellspacing="0">
+					<tr>
+						<td>作者：<input name="oAuthor" type="text" class='css_input' id="oAuthor" value="<%=U.vAuthor%>" size="6">
+							<select name="select" onchange="frm.oAuthor.value=this.value;">
+								<option>清空</option>
+								<%
+								Author = Split(Author,",")
+								For i = 0 To Ubound(Author)
+								Response.Write "<option value='" & Author(i) & "' "
+								If LCase(Author(i)) = LCase(U.vAuthor) Then Response.Write "selected"
+								Response.Write " >" & Author(i) & "</option>"
+								Next
+								%>
+							</select>						</td>
+						<td width="10">&nbsp;</td>
+						<td>来源：</td>
+						<td><input name="oSource" type="text" class='css_input' id="oSource" value="<%=U.vSource%>" size="6" />
+							<select name="select2" onchange="frm.oSource.value=this.value;">
+								<option>清空</option>
+								<%
+								Source = Split(Source,",")
+								For i = 0 To Ubound(Source)
+								Response.Write "<option value='" & Source(i) & "' "
+								If LCase(Source(i)) = LCase(U.vSource) Then Response.Write "selected"
+								Response.Write " >" & Source(i) & "</option>"
+								Next
+								%>
+							</select>						</td>
+						<td width="10"></td>
+						<td>浏览：</td>
+						<td><input class='css_input' name="oViews" type="text" id="oViews" value="<%=U.vViews%>" size=2 />						</td>
+						<td width="10">&nbsp;</td>
+						<td width="10">&nbsp;</td><td><select class='css_select' name="oStyle" type="text" id="oStyle">
+					<option value="" <%If U.vStyle = "" Then Response.Write "selected"%>>样式</option>
+					<option value="strong" <%If U.vStyle = "strong" Then Response.Write "selected"%>>粗体</option>
+					<option value="em" <%If U.vStyle = "em" Then Response.Write "selected"%>>斜体</option>
+				</select></td><td width="10">&nbsp;</td>
+						<td><select class='css_select' name="oColor" type="text" id="oColor">
+					<option value="" <%If U.vColor = "" Then Response.Write "selected"%>>颜色</option>
+					<option value="#FF0000" style="background-color:#FF0000;" <%If U.vColor = "#FF0000" Then Response.Write "selected"%>></option>
+					<option value="#0000FF" style="background-color:#0000FF;" <%If U.vColor = "#0000FF" Then Response.Write "selected"%>></option>
+					<option value="#00FFFF" style="background-color:#00FFFF;" <%If U.vColor = "#00FFFF" Then Response.Write "selected"%>></option>
+					<option value="#FF9900" style="background-color:#FF9900;" <%If U.vColor = "#FF9900" Then Response.Write "selected"%>></option>
+					<option value="#339966" style="background-color:#339966;" <%If U.vColor = "#339966" Then Response.Write "selected"%>></option>
+				</select></td>
+					</tr>
+				</table></td>
+		</tr>
+		<%
+		If T = 0 Then 
+			Style=""
+		Else
+			If ChangDiyname = 1 Then Style="" Else Style=" style='display:none;'"
+		End If
+		%>
+		<tr<%=Style%>>
+			<td class=css_col11_content><div align="right"> 文件名： </div></td>
+			<td colspan="5" class=css_col21><input name="oDiyname" type="text" class="css_input" id="odiyname" onblur="ChkDiyname('<%=U.vID%>');" value="<%=U.vDiyname%>" size="32" />
+				<input name="oAutopinyin" type="checkbox" id="oAutopinyin" value="Yes" <%If Autopinyin = 1 And Len(U.vTitle)=0 Then Response.Write "checked='checked'"%> />
+				将标题转换成拼音 (如果填写了文件名则不转换成拼音) </td>
+		</tr>
+		<tr>
+			<td class=css_col12_content><div align="right"> 关键字： </div></td>
+			<td colspan="5" class=css_col22><input name="oKeywords" type="text" class='css_input' id="oKeywords" value="<%=Server.HtmlEnCode(U.vKeywords)%>" size="32" />
+				 (多个关键字请用英文状态下的逗号分隔) </td>
+		</tr>
+		<tr id='trjumpurl'>
+			<td class=css_col11_content><div align="right"> 跳转地址： </div></td>
+			<td colspan="4" class=css_col21><input name="oJumpurl" type="text" <%If Len(U.vJumpurl) = 0 Then Response.Write "disabled='disabled'"%> class="css_input" id="oJumpurl" value="<%=U.vJumpurl%>" size="54" ><input name="checkbox" type="checkbox" onclick="if (this.checked) {HideObj('trcontent');frm.oJumpurl.disabled=false;if(frm.oJumpurl.value.length==0){frm.oJumpurl.value='http://';ShowObj('trdescription');}} else {ShowObj('trcontent');HideObj('trdescription');frm.oJumpurl.disabled=true;frm.oJumpurl.value='';}" value="checkbox" <%If Len(U.vJumpurl) > 0 Then Response.Write "checked='checked'"%> /> 跳转			</td>
+			<td width="160" rowspan="3" class=css_col21><div id="indexpicimg" align="center"> <%If Len(U.vIndexpic) > 0 Then%> <img src="<%=U.vIndexpic%>" height=95 width=150 /> <%Else%> <img src="Images/nopic.gif" height=95 width=150 /> <%End If%> </div></td>
+		</tr>
+		<tr>
+			<td class=css_col11_content><div align="right"> 形象图： </div></td>
+			<td colspan="4" class=css_col21><input class='css_input' name="oIndexpic" type="text" id="oIndexpic" value="<%=U.vIndexpic%>" size=32 >
+				<select name="indexpiclist" id="indexpiclist" onchange="frm.oIndexpic.value=this.value; if(this.value.length>0){indexpicimg.innerHTML='<img src=' + this.value + ' height=95 width=150 />';}else{indexpicimg.innerHTML='<img src=Images/nopic.gif height=95 width=150 />';}">
+					<option value="">不指定文章形象图</option>
+					<%
+					If T = 1 Then
+						Dim Pic
+						Set Pic = DB("Select [Dir],[Ext] From [{pre}Upload] Where [Aid]=" & U.vID & " Order By [Time] Desc",1)
+						Do While Not Pic.EOf
+							If Instr("gif,jpg,jpeg,bmp,png",LCase(Pic(1))) Then
+								Response.Write "<option value='" & Pic(0) & "' "
+								If LCase(Pic(0)) = LCase(U.vIndexpic) Then Response.Write "selected"
+								Response.Write " >" & Replace(LCase(Pic(0)),"/uploadfile","") & "</option>"
+							End If
+							Pic.MoveNext
+						Loop
+					End If
+					%>
+				</select><span id="error"></span>		</td>
+		</tr>
+		<tr>
+			<td class=css_col11_content><div align="right"> 上传文件： </div></td>
+			<td class=css_col21><iframe name='uploadframe' src="Upload.Asp" width="372" height="24" frameborder="0" scrolling="no" border="0"></iframe></td>
+			<td class=css_col21 width=70><center><a href="javascript:multiup();" style="color:blue">批量上传</a></center></td>
+			<td width="88" class="css_col21" onclick="" style="cursor: hand;"><div align="center"> <%If CCUnionID > 0 Then%>
+					<object width='86' height='22'>
+						<param name='wmode' value='transparent' />
+						<param name='allowScriptAccess' value='always' />
+						<param name='movie' value='http://union.bokecc.com/flash/plugin_16.swf?userID=<%=CCUnionID%>&type=5ucms' />
+						<embed src='http://union.bokecc.com/flash/plugin_16.swf?userID=<%=CCUnionID%>&type=5ucms' type='application/x-shockwave-flash' width='86' height='22' allowfullscreen=true ></embed>
+					</object>
+					<%Else%>&nbsp;<%End If%> </div></td>
+			<td width="88" class=css_col21><div align="center">
+					<input name="oRemotepic" type="checkbox" id="oRemotepic" value="Save" <% If Remotepic = 1 Then Response.Write "checked='checked'"%> />
+					远程抓图 </div></td>
+		</tr>
+		<tr style='display:block;' id="trdescription">
+			<td class=css_col11_content><div align="right"> 描述： </div></td>
+			<td colspan="5" class=css_col21><textarea name="oDescription" style="width:99.2%;" rows="3" class='css_textarea' id="oDescription" type="text"><%=U.vDescription%></textarea>			</td>
+		</tr>
+		<%
+		if U.vID = 0 Or U.vFormID=0 Then
+		%>
+		<tr>
+			<td class=css_col11_content><div align="right"> 文档模型： </div></td>
+			<td colspan="5" class=css_col21 style="padding:0px 0px 5px 5px;">
+			<select name="oFormID" id="oFormID" onchange="getField();">
+				<option value="0">请选择文档模型</option>
+				<%
+				Dim FormRs
+				Set FormRs = db ("select [ID],[Name] From [{pre}UserForm] where [Status]=1 Order By [Order] asc",1)
+				Do While Not FormRs.Eof
+					response.Write "<option value="&FormRs(0)&">"&FormRs(1)&"</option>"&vbcrlf
+				FormRs.MoveNext
+				Loop
+				%>
+			</select>
+			</td>
+		</tr>
+		<tr id="extmode" style="display:none">
+			<td class=css_col11_content><div align="right">自定义字段：</div></td>
+			<td colspan="5" class=css_col21 style="padding:0px 0px 5px 5px;" id="myField"></td>
+		</tr>
+		<%
+		Else
+		%>
+		<tr id="_modeindexs">
+			<td class=css_col11_content><div align="right"> 自定义字段： <input type="hidden" name="oFormID" id="oFormID" value="<%=U.vFormID%>" /></div></td>
+			<td colspan="5" class=css_col21 id="_modeindex" style="padding:0px 0px 5px 5px;"></td><script>modeext(<%=U.vFormID%>,<%=U.vID%>);</script>
+		</tr>
+		<%End If%>
+		<tr>
+			<td class=css_col11_content><div align="right"> 定时发布： </div></td>
+			<td colspan="5" class=css_col21 id="_modeindex" style="padding:0px 0px 5px 5px;"><input type="text" name="oPublishTime" id="oPublishTime" onclick="WdatePicker({isShowClear:false,readOnly:true,dateFmt:'yyyy-MM-dd HH:mm:ss',minDate:'%y-%M-#{%d-1}',maxDate:'#{%y+1}-%M-%d'})" size="30" value="<%=U.vPublishTime%>" /></td>
+		</tr>
+		<tr id="trcontent"  <%If Len(U.vJumpurl) > 0 Then Response.Write " style='display:none;'"%> >
+			<td class=css_col11_content><div align="right"> <font color=red>内容：<br/><br/><a href="javascript:multiup();" style="color:blue">批量上传</a></font></div></td>
+			<td colspan="5" class=css_col21><%=CreateEditor("oContent",U.vContent,"FCKEditor",Array("100%","450","Default"))%> <div><span id="saveinfo" style="color:#666666"></span><a href="javascript:;" onclick="cmsdata('save');">保存数据</a> <a href="javascript:;" onclick="cmsdata('his')">恢复数据</a><script>setInterval("cmsdata('save')",30000);</script></div></td>
+		</tr>
+		<tr class=css_page_list>
+			<td colspan=6><input name='Submit' type='button' onclick="ChkPost()" value='保存'>			</td>
+		</tr>
+	</form>
+</table>
+
+<script>
+function multiup(){
+	_get('multiup').style.top='158px';
+	_get('multiup').style.left='520px';
+	_get('multiup').style.display='';
+}
+
+</script>
+<div id="multiup" style="display:none;position:absolute;z-index:2;">
+ <script language="javascript">
+function challs_flash_update(){ //Flash 初始化函数
+	var a={};
+	//定义变量为Object 类型
+
+	a.title = "上传文件"; //设置组件头部名称
+	
+	a.FormName = "Filedata";
+	//设置Form表单的文本域的Name属性
+	
+	a.url="update.asp"; 
+	//设置服务器接收代码文件
+	
+	a.parameter=""; 
+	//设置提交参数，以GET形式提交
+	
+	a.typefile=["Images (*.gif,*.png,*.jpg,*jpeg)","*.gif;*.png;*.jpg;*.jpeg;",
+				"GIF (*.gif)","*.gif;",
+				"PNG (*.png)","*.png;",
+				"JPEG (*.jpg,*.jpeg)","*.jpg;*.jpeg;",
+				"DOC (*.xls,*.doc,*.docx,*.ppt)","*.xls;*.doc;*.docx;*.ppt;",
+				"FILE (*.rar,*.zip,*.mp3)","*.rar;*.zip;*.mp3"];
+	//设置可以上传文件 数组类型
+	//"Images (*.gif,*.png,*.jpg)"为用户选择要上载的文件时可以看到的描述字符串,
+	//"*.gif;*.png;*.jpg"为文件扩展名列表，其中列出用户选择要上载的文件时可以看到的 Windows 文件格式，以分号相隔
+	//2个为一组，可以设置多组文件类型
+	
+	a.UpSize=0;
+	//可限制传输文件总容量，0或负数为不限制，单位MB
+	
+	a.fileNum=0;
+	//可限制待传文件的数量，0或负数为不限制
+	
+	a.size=100;
+	//上传单个文件限制大小，单位MB，可以填写小数类型
+	
+	a.FormID=['select','select2'];
+	//设置每次上传时将注册了ID的表单数据以POST形式发送到服务器
+	//需要设置的FORM表单中checkbox,text,textarea,radio,select项目的ID值,radio组只需要一个设置ID即可
+	//参数为数组类型，注意使用此参数必须有 challs_flash_FormData() 函数支持
+	
+	a.autoClose=1;
+	//上传完成条目，将自动删除已完成的条目，值为延迟时间，以秒为单位，当值为 -1 时不会自动关闭，注意：当参数CompleteClose为false时无效
+	
+	a.CompleteClose=true;
+	//设置为true时，上传完成的条目，将也可以取消删除条目，这样参数 UpSize 将失效, 默认为false
+	
+	a.repeatFile=true;
+	//设置为true时，可以过滤用户已经选择的重复文件，否则可以让用户多次选择上传同一个文件，默认为false
+	
+	a.returnServer=true;
+	//设置为true时，组件必须等到服务器有反馈值了才会进行下一个步骤，否则不会等待服务器返回值，直接进行下一步骤，默认为false
+	
+	a.MD5File = 0;
+	//设置MD5文件签名模式，参数如下 ,注意：FLASH无法计算超过100M的文件,在无特殊需要时，请设置为0
+	//0为关闭MD5计算签名
+	//1为直接计算MD5签名后上传
+	//2为计算签名，将签名提交服务器验证，在根据服务器反馈来执行上传或不上传
+	//3为先提交文件基本信息，根据服务器反馈，执行MD5签名计算或直接上传，如果是要进行MD5计算，计算后，提交计算结果，在根据服务器反馈，来执行是否上传或不上传
+	
+	a.loadFileOrder=true;
+	//选择的文件加载文件列表顺序，TRUE = 正序加载，FALSE = 倒序加载
+	
+	a.mixFileNum=0;
+	//至少选择的文件数量，设置这个将限制文件列表最少正常数量（包括等待上传和已经上传）为设置的数量，才能点击上传，0为不限制
+	
+	a.ListShowType = 1;
+	//文件列表显示类型：1 = 传统列表显示，2 = 缩略图列表显示（适用于图片专用上传）
+	
+	//a.InfoDownRight = "等待上传：%1%个  已上传：%2%个";
+	//右下角统计信息的文本设置,文本中的 %1% = 等待上传数量的替换符号，%2% = 已经上传数量的替换符号
+	
+	a.TitleSwitch = true;
+	//是否显示组件头部
+	
+	a.ForceFileNum=0;
+	//强制条目数量，已上传和待上传条目相加等于为设置的值（不包括上传失败的条目），否则不让上传, 0为不限制，设置限制后mixFileNum,autoClose和fileNum属性将无效！
+	
+	a.autoUpload = false;
+	//设置为true时，用户选择文件后，直接开始上传，无需点击上传，默认为false;
+	
+	a.adjustOrder = true;
+	//设置为true时，用户可以拖动列表，重新排列位置
+	
+	a.deleteAllShow = true;
+	//设置是否显示，全部清除按钮
+	 
+	return a ;
+	//返回Object
+}
+
+function challs_flash_onCompleteData(a){ //获取服务器反馈信息事件
+		if(a.indexOf("err")==-1)
+		{
+			var ext = a.split(".")[1];
+			if(ext!="gif" && ext!="png" && ext!="jpg" && ext!="jpeg")
+			{
+				var oEditor = FCKeditorAPI.GetInstance('oContent');
+				oEditor.InsertHtml( a );
+			}else{
+			var oEditor = FCKeditorAPI.GetInstance('oContent');
+			oEditor.InsertHtml('<img src="' + a + '" />');
+			document.frm.indexpiclist.options[document.frm.indexpiclist.length]=new Option(a,a);
+			document.frm.indexpiclist.selectedIndex+=1;
+			document.getElementById('indexpicimg').innerHTML='<img src=' + a + ' height=95 width=150 />';
+			document.frm.oIndexpic.value=a;
+			document.getElementById('error').innerHTML='';
+			}
+		}else
+		{
+			var err = a.split("|");
+			document.getElementById('error').innerHTML=err[1];
+		}
+}
+
+function challs_flash_onCompleteAll(){ //上传文件列表全部上传完毕事件
+	_get('multiup').style.display='none';
+}
+
+</script>
+<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=10,0,0,0" width="408" height="320" id="update" align="middle">
+<param name="allowFullScreen" value="false" />
+    <param name="allowScriptAccess" value="always" />
+	<param name="movie" value="update.swf" />
+    <param name="quality" value="high" />
+    <param name="bgcolor" value="#ffffff" />
+    <embed src="update.swf" quality="high" bgcolor="#ffffff" width="408" height="320" name="update" align="middle" allowScriptAccess="always" allowFullScreen="false" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer" />
+  </object>
+<div style="margin: 10px -3px;"><a href="javascript:;" onclick="_get('multiup').style.display='none';"><img src="images/close.gif" border="0" /></a></div>
+</div>
+<%
+End Sub
+
+Function SelectList(ID,LeftText)
+Dim Rs,Sql,ChildCount,nc
+Set Rs = Server.Createobject("Adodb.Recordset")
+Sql = "Select [ID],[Name],[ChildID],[NeedCreate],[FatherID] From [{pre}Channel] Where [OutSideLink]=0 and [FatherID]="&ID&" Order By [NeedCreate] Desc,[Order] Desc"  '起始栏目
+Set Rs = DB(Sql,1)
+Do While Not Rs.EOF
+	'ChildCount = DB("Select Count(*) from [{pre}Channel] where [FatherID] = " & Rs(0)&"",0)  '子栏目数量
+	if rs("NeedCreate")=1 then 
+	nc="★" 
+	else nc=""
+	end if
+	Response.Write("<option value='Admin_Content.Asp?Page=1&Key=" & Rs(0) & "&DFieldKey=Cid' ")
+	If DFieldKey="Cid" And Cstr(Key)=Cstr(Rs(0)) Then response.Write "selected"
+	response.Write ">" & LeftText & Rs(1)&"</option>"
+	'Response.Write("<option value=""" & Rs(0) & """>" & LeftText & Rs(1) & nc &"</option>" & vbcrlf)
+	 Call SelectList(Rs(0),LeftText & "&nbsp; |-")  '递归
+	Rs.MoveNext
+Loop
+Rs.Close
+Set Rs = Nothing
+End Function
+%>
+<script language="JavaScript">
+<!--
+function InsertCC(s){
+	try{
+		var oEditor = FCKeditorAPI.GetInstance('oContent');
+		oEditor.InsertHtml(s);
+	}
+	catch(e){
+	}
+}
+//-->
+</script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<%@page import="com.bizoss.trade.ti_orderinfo.Ti_orderinfoInfo"%>
+<%@page import="com.bizoss.trade.ti_teambuy.Ti_teambuyInfo"%>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ page import="java.util.*"%>
+<%@ page import="com.alipay.util.*"%>
+<%@ page import="com.alipay.config.*"%>
+<%@ page import="com.bizoss.trade.ti_teamorder.*"%>
+<%@page import="com.bizoss.trade.ti_finance.*"%>
+<%@page import="com.bizoss.trade.ti_comm_give.Ti_comm_giveInfo"%>
+<%
+	String key = AlipayConfig.key;
+	//获取支付宝GET过来反馈信息
+	Map params = new HashMap();
+	Map requestParams = request.getParameterMap();
+	for (Iterator iter = requestParams.keySet().iterator(); iter.hasNext();) {
+		String name = (String) iter.next();
+		String[] values = (String[]) requestParams.get(name);
+		String valueStr = "";
+		for (int i = 0; i < values.length; i++) {
+			valueStr = (i == values.length - 1) ? valueStr + values[i]
+					: valueStr + values[i] + ",";
+		}
+		valueStr = new String(valueStr.getBytes("ISO-8859-1"), "UTF-8");
+		params.put(name, valueStr);
+	}
+
+	String mysign = AlipayNotify.GetMysign(params,key);
+	String responseTxt = AlipayNotify.Verify(request.getParameter("notify_id"));
+	String sign = request.getParameter("sign");
+	
+	//获取支付宝的通知返回参数，可参考技术文档中页面跳转同步通知参数列表(以下仅供参考)//
+	String trade_no = request.getParameter("trade_no");				//支付宝交易号
+	String order_no = request.getParameter("out_trade_no");	//获取订单号
+	String only_kind = request.getParameter("body");//唯一标识团购的订单
+	String price = request.getParameter("price");//唯一标识团购的订单
+	if(only_kind==null){
+		only_kind="";
+	}
+	String trade_status = request.getParameter("trade_status");		//交易状态
+	//获取支付宝的通知返回参数，可参考技术文档中页面跳转同步通知参数列表(以上仅供参考)//
+	Ti_teamorderInfo teamorderInfo=null;
+	Ti_groupVoucherInfo groupVoucherInfo=null;
+	Ti_teambuyInfo ti_teambuyInfo=null;
+	Ti_comm_giveInfo comm_giveInfo=null;
+	Ti_financeInfo financeInfo =null;
+	 int teamOrderState=0;
+	 String comm_state_code=null;
+	 List smsList=null;
+	Ti_orderinfoInfo orderInfo	 =null;
+	int sOld_trade_status=0;
+	List temp=null;
+	 String trade_state_code="0";
+	if(!only_kind.equals("lawyer")){
+	   teamorderInfo = new Ti_teamorderInfo();
+	   groupVoucherInfo =new Ti_groupVoucherInfo();
+	   ti_teambuyInfo=new Ti_teambuyInfo();
+       comm_giveInfo = new Ti_comm_giveInfo();
+	   financeInfo = new Ti_financeInfo();
+	   teamOrderState=teamorderInfo.getTeambuyStateByID(order_no);
+	   comm_state_code = comm_giveInfo.getStateCodeByCustId(order_no);
+	   smsList=teamorderInfo.getListByPk(order_no);
+			
+			 //订单状态
+	  orderInfo=new Ti_orderinfoInfo();
+	  sOld_trade_status=orderInfo.getOrderStateByID(order_no); //查询订单状态	
+	  temp=orderInfo.getOrderInfoByID(order_no);
+	
+	}
+	
+	
+	if(mysign.equals(sign) && responseTxt.equals("true")){//验证成功
+		if(trade_status.equals("WAIT_BUYER_PAY")){
+		//该判断表示买家已在支付宝交易管理中产生了交易记录，但没有付款
+						Map map = new HashMap();
+						map.put("order_no",order_no);
+				if (only_kind.equals("1")){ //团购订单
+						map.put("order_state","0");
+						teamorderInfo.updateTeambuyStateByOnliePay(map);//修改订单状态
+						map.put("trade_state_code","0");
+						comm_giveInfo.updateCommStateByOnliePay(map);
+				}else{
+						map.put("order_state","0");
+						orderInfo.updateOrderStateByOnliePay(map);//修改订单状态
+				}
+			
+			out.println("success");	//请不要修改或删除
+		}
+		if(trade_status.equals("WAIT_SELLER_SEND_GOODS")){
+		//该判断表示买家已在支付宝交易管理中产生了交易记录且付款成功，但卖家没有发货
+					Map map = new HashMap();
+					map.put("order_no",order_no);
+				if (only_kind.equals("1")){ //团购订单
+				  if(teamOrderState==0){
+					   	//判断该订单是配送还是发送券，若是发送券，则获取手机号，发送券和密码
+				Map tempmap=groupVoucherInfo.checkTeamOrderType(order_no);
+				if(tempmap!=null&&"1".equals(tempmap.get("type").toString())){
+					groupVoucherInfo.insertTi_groupVoucher(tempmap);
+					map.put("order_state","3");
+					teamorderInfo.updateGroupVoucherNumByOrderNo(order_no);
+				}else{
+					 map.put("order_state","1");
+				}					
+						teamorderInfo.updateTeambuyStateByOnliePay(map);//修改订单状态
+						ti_teambuyInfo.updateTeamNumByOrderNo(order_no); ////更新购买人数及购买数量
+						financeInfo.updateTi_financeUsevmoneyByOrderNO(order_no);//如果订单使用虚拟币付款，需修改虚拟币
+						map.put("trade_state_code","1");
+						trade_state_code=comm_giveInfo.updateCommStateByOnliePay(map);		
+			           if (trade_state_code.equals("1")){
+			             map.put("use_vmoney","10");
+						 financeInfo.updateUse_MoneyByOnliePay(map);//修改虚拟币
+			           }	
+		 			}
+				}else{
+						map.put("order_state","1");
+						orderInfo.updateOrderStateByOnliePay(map);//修改订单状态
+						if(temp!=null&&temp.size()>0){
+							map=(HashMap)temp.get(0);
+							financeInfo.updatePointByOnliePay(map);//修改积分
+						}
+				}
+			out.println("success");	//请不要修改或删除
+		}
+		if(trade_status.equals("WAIT_BUYER_CONFIRM_GOODS")){
+		//该判断表示卖家已经发了货，但买家还没有做确认收货的操作
+				Map mapz = new HashMap();
+				mapz.put("order_no",order_no);
+				mapz.put("order_state","2");
+				orderInfo.updateOrderStateByOnliePay(mapz);//修改订单状态
+			out.println("success");	//请不要修改或删除
+		} 
+		if(trade_status.equals("TRADE_FINISHED")){
+			//判断该笔订单是否在商户网站中已经做过处理（可参考“集成教程”中“3.4返回数据处理”）
+					Map map = new HashMap();
+					map.put("order_no",order_no);
+			if (only_kind.equals("1")){ //团购订单
+				  if(teamOrderState==0){
+					    	//判断该订单是配送还是发送券，若是发送券，则获取手机号，发送券和密码
+				Map tempmap=groupVoucherInfo.checkTeamOrderType(order_no);
+				if(tempmap!=null&&"1".equals(tempmap.get("type").toString())){
+					groupVoucherInfo.insertTi_groupVoucher(tempmap);
+					map.put("order_state","3");
+					teamorderInfo.updateGroupVoucherNumByOrderNo(order_no);
+				}else{
+					 map.put("order_state","1");
+				}					
+							teamorderInfo.updateTeambuyStateByOnliePay(map);//修改订单状态
+						ti_teambuyInfo.updateTeamNumByOrderNo(order_no); ////更新购买人数及购买数量
+						financeInfo.updateTi_financeUsevmoneyByOrderNO(order_no);//如果订单使用虚拟币付款，需修改虚拟币
+						map.put("trade_state_code","1");
+						trade_state_code=comm_giveInfo.updateCommStateByOnliePay(map);		
+			           if (trade_state_code.equals("1")){
+			             map.put("use_vmoney","10");
+						 financeInfo.updateUse_MoneyByOnliePay(map);//修改虚拟币
+			           }	
+		 			}
+				}else if(only_kind.equals("lawyer")){
+					map.put("cust_id",order_no);
+					map.put("type",only_kind);
+					map.put("price",price);
+					financeInfo.updateUse_MoneyByCust_id(map);
+				}else{
+					map.put("order_state","3");
+					orderInfo.updateOrderStateByOnliePay(map);//修改订单状态
+				}
+			out.println("success");	//请不要修改或删除
+		}
+		
+	}else{//验证失败
+		out.println("fail");
+	}
+%>
+<script type="text/javascript">
+	window.location.href="/index.html";
+</script>

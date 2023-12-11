@@ -1,0 +1,964 @@
+
+<!--#include file="inc/setup.asp"-->
+
+<%
+Dim cmsrs,Rs,Sql,SqlItem,RsItem,Action,FoundErr,Num,SuccNum,ErrNum,Frs,RSNum,Inum,ii
+Dim HistrolyID,ItemID,ChannelID,ClassID,SpecialID,ArticleID,Title,CollecDate,NewsUrl,Result
+Dim  Arr_Histroly,Arr_ArticleID,i_Arr,Del,Flag,NewsID,DelFlag
+Dim MaxPerPage,CurrentPage,AllPage,HistrolyNum,i_His,lx,radiobutton,lb,rslb
+'----是否登陆
+%>
+<html>
+<head>
+<title>SK采集系统</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link rel="stylesheet" type="text/css" href="css/Admin_Style.css">
+<style type="text/css">
+.ButtonList {
+	BORDER-RIGHT: #000000 2px solid; BORDER-TOP: #ffffff 2px solid; BORDER-LEFT: #ffffff 2px solid; CURSOR: default; BORDER-BOTTOM: #999999 2px solid; BACKGROUND-COLOR: #e6e6e6
+}
+</style>
+<%
+
+SuccNum=Trim(Request("SuccNum"))
+ErrNum=Trim(Request("ErrNum"))
+RSNum=Trim(Request("RSNum"))
+Inum=Trim(Request("INum"))
+HistrolyID=Trim(Request("HistrolyID"))
+DelFlag=Trim(Request("DelFlag"))
+if SuccNum="" or ErrNum="" or RSNum="" or Inum="" then
+SuccNum=0 : ErrNum=0 : RSNum=0 : Inum=0
+end if
+MaxPerPage=20
+FoundErr=False
+Action=LCase(Trim(Request("Action")))
+lx=Request("radiobutton")
+if lx="" or lx=0 then lx=1
+'输出图片地址
+if Trim(Request("Urlsc"))="ok" then
+	if lx=3 then Set FRS = ConnItem.execute("select * from SK_photo")
+	if lx=5 then Set FRS = ConnItem.execute("select * from SK_DownLoad")
+	if lx=3  then
+		while not FRS.eof
+		   PhotoUrl= PhotoUrl & vbcrlf & frs("PhotoUrl")
+			PicUrls=Split(frs("PicUrls"),"|||")
+			for i=0 to Ubound(PicUrls)
+			 pic_temp=Replace(PicUrls(i),"图片" & i+1 &"|","")
+			 pic_1 = pic_1 & vbcrlf & pic_temp
+			next 
+			pic_2 = pic_2 & vbcrlf & pic_1
+			pic_1=""
+			Frs.movenext
+			SuccNum=SuccNum+1
+		wend
+	end if
+	if lx=5  then
+		while not FRS.eof
+		PhotoUrl= PhotoUrl & vbcrlf & frs("PhotoUrl")
+			PicUrls=Split(frs("DownUrls"),"|||")
+			for i=0 to Ubound(PicUrls)
+			 pic_temp=Replace(PicUrls(i),"下载地址" & i+1 &"|","")
+			 pic_1 = pic_1 & vbcrlf & pic_temp
+			next 
+			pic_2 = pic_2 & vbcrlf & pic_1
+			pic_1=""
+			Frs.movenext
+			SuccNum=SuccNum+1
+		wend
+	end if
+	Response.Write PhotoUrl
+	Response.Write pic_2
+	if lx =3 then call FSOSaveFile(PhotoUrl & pic_2,"photo.txt")
+	if lx =5 then call FSOSaveFile(PhotoUrl & pic_2,"soft.txt")
+	Frs.close
+	set frs=nothing
+	response.write  "<script>alert('提示:本次共输出 " & SuccNum &  " 条地址;');location.href='sk_checkdatabase.asp?radiobutton="& lx &"'</script>"  
+		
+end if 
+select case Action
+case "ok"
+	select case DelFlag
+	case "审核入库所选记录"
+	If HistrolyID="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请选择要发布的记录</li>"
+	Else
+		Call OpenConn()
+      HistrolyID=Replace(HistrolyID," ","")
+	  	 if lx=1 then	
+			 Set FRS = Server.CreateObject("ADODB.RECORDSET")
+			  FRS.Open "select * from SK_Article Where ArticleID in(" & HistrolyID & ")", ConnItem, 1, 3
+			  If Not FRS.EOF Then
+				  while not FRS.eof
+				  InsertIntoBase 1,FRS
+				  FRS.movenext
+				  wend
+			  End if
+			  ConnItem.execute("Delete From SK_Article Where ArticleID in(" & HistrolyID & ")")
+			  FRS.close
+			  set FRS=nothing
+		 end if
+		 if lx=3 then
+		 	  Set FRS = Server.CreateObject("ADODB.RECORDSET")
+			  FRS.Open "select * from SK_photo Where ID in(" & HistrolyID & ")", ConnItem, 1, 3
+			  If Not FRS.EOF Then
+				  while not FRS.eof
+				  InsertIntoBase_photo FRS
+				  FRS.movenext
+				  wend
+			  End if
+			 ConnItem.execute("Delete From SK_photo Where ID in(" & HistrolyID & ")")
+			  FRS.close
+			  set FRS=nothing
+		 end if
+		 if lx=5 then
+		 	  Set FRS = Server.CreateObject("ADODB.RECORDSET")
+			  FRS.Open "select * from SK_download Where ID in(" & HistrolyID & ")", ConnItem, 1, 3
+			  If Not FRS.EOF Then
+				  while not FRS.eof
+				  InsertIntoBase_down FRS
+				  FRS.movenext
+				  wend
+			  End if
+			  ConnItem.execute("Delete From SK_download Where ID in(" & HistrolyID & ")")
+			  FRS.close
+			  set FRS=nothing
+		 end if
+		Call CloseConn()
+		  Call NumMsg()
+	End if 
+	case "审核入库全部记录"
+		Call OpenConn()
+		select case lx
+		case 1
+			SQLstr="select * from SK_Article order by ArticleID DESC"
+		case 3
+			SQLstr="select  * from SK_photo order by ID DESC"
+		case 5
+			SQLstr="select * from SK_download order by ID DESC"
+		end select
+		if SQLstr<>"" then
+			Set FRS = Server.CreateObject("ADODB.RECORDSET")
+			FRS.Open SQLstr, ConnItem, 1, 3
+			  If Not FRS.EOF Then
+				  while not FRS.eof
+				  	if lx=1 then InsertIntoBase 1,FRS
+					if lx=3 then InsertIntoBase_photo FRS 
+					if lx=5 then InsertIntoBase_down FRS
+					FRS.movenext
+				  wend 
+		 	  end if	  
+				if lx=1 then ConnItem.execute("Delete From SK_Article")
+				if lx=3 then ConnItem.execute("Delete From sk_photo")
+				if lx=5 then ConnItem.execute("Delete From sk_download")
+		 	  FRS.close
+		 	  set FRS=nothing
+		End if
+		
+		Call CloseConn()
+		
+		Response.Write  "<script>alert('提示:本次共操作 " & SuccNum + ErrNum & " 篇文章\n其中成功入库 " & SuccNum & " 篇,重复而不允许入库 "&ErrNum & " 篇;');location.href='sk_checkdatabase.asp?radiobutton="& lx &"'</script>"  
+	case "删除所选记录"
+		if HistrolyID<>""  then 
+			if lx=1 then ConnItem.execute("Delete From SK_Article Where ArticleID in(" & HistrolyID & ")")
+ 			if lx=2 then ConnItem.execute("Delete From SK_photo Where ID in(" & HistrolyID & ")")
+			if lx=3 then ConnItem.execute("Delete From SK_download Where ID in(" & HistrolyID & ")")
+			if lx=4 then ConnItem.execute("Delete From SK_Flash Where ID in(" & HistrolyID & ")")
+		end if
+		If Request("page")<>"" then
+			CurrentPage=Cint(Request("Page"))
+		Else
+			CurrentPage=1
+		End if 
+		If CurrentPage=0 then CurrentPage=1
+		response.write "<meta http-equiv=""refresh"" content=""0;url=sk_checkdatabase.asp?radiobutton="& lx &"&page="& CurrentPage &""">"
+	case "删除全部记录"
+		if lx=1 then ConnItem.execute("Delete From SK_Article")
+		if lx=2 then ConnItem.execute("Delete From sk_photo")
+		if lx=3 then ConnItem.execute("Delete From sk_download")
+		if lx=4 then ConnItem.execute("Delete From SK_Flash")
+		response.write "<meta http-equiv=""refresh"" content=""0;url=sk_checkdatabase.asp?radiobutton="& lx &""">"
+		response.end
+	case "图片地址替换"
+	    picurl_th=Trim(Request("picurl_th"))
+	    Set FRS = Server.CreateObject("ADODB.RECORDSET")
+		FRS.Open "select * from SK_photo", ConnItem, 1, 3
+			while not FRS.eof
+			PhotoUrl=Split(frs("PhotoUrl"),"/")
+			Photo_Url=picurl_th & PhotoUrl(Ubound(PhotoUrl))
+			'PhotoUrl= PhotoUrl & vbcrlf & frs("PhotoUrl")
+			PicUrls=Split(frs("PicUrls"),"|||")
+			for i=0 to Ubound(PicUrls)
+			 pic_temp=Replace(PicUrls(i),"图片" & i+1 &"|","")
+			 pic_temp=Split(pic_temp,"/")
+			 pic_temp1=picurl_th & pic_temp(Ubound(pic_temp))
+			 
+			 If i=0 then
+				PicUrls_i="图片1|" & pic_temp1
+			 Else
+			   PicUrls_i= PicUrls_i & "|||" & "图片" & i  & "|" & pic_temp1
+			 End if
+			next 
+		    frs("PhotoUrl")=Photo_Url
+			frs("PicUrls")=PicUrls_i
+			PicUrls_i=""
+			Frs.update
+			Frs.movenext
+			SuccNum=SuccNum+1
+		wend
+		Frs.close
+		set frs=nothing
+		response.write  "<script>alert('提示:本次共替换 " & SuccNum &  " 条地址;');location.href='sk_checkdatabase.asp?radiobutton=3'</script>"
+	case "软件地址替换"	
+		picurl_th=Trim(Request("picurl_th"))
+		if picurl_th<>"" then
+	    Set FRS = Server.CreateObject("ADODB.RECORDSET")
+		FRS.Open "select * from SK_DownLoad", ConnItem, 1, 3
+			while not FRS.eof
+			if frs("PhotoUrl")<>"" then
+			PhotoUrl=Split(frs("PhotoUrl"),"/")
+			Photo_Url= picurl_th & PhotoUrl(Ubound(PhotoUrl))
+			end if
+			PicUrls=Split(frs("DownUrls"),"|||")
+			for i=0 to Ubound(PicUrls)
+			 pic_temp=Replace(PicUrls(i),"下载地址" & i+1 &"|","")
+			 pic_temp=Split(pic_temp,"/")
+			 pic_temp1=picurl_th & pic_temp(Ubound(pic_temp))
+			 
+			 If i=0 then
+				PicUrls_i="下载地址1|" & pic_temp1
+			 Else
+			   PicUrls_i= PicUrls_i & "|||" & "下载地址" & i  & "|" & pic_temp1
+			 End if
+			next 
+		    frs("PhotoUrl")=Photo_Url
+			frs("DownUrls")=PicUrls_i
+			PicUrls_i=""
+			Frs.update
+			Frs.movenext
+			SuccNum=SuccNum+1
+		wend
+		Frs.close
+		set frs=nothing
+		end if
+		response.write  "<script>alert('提示:本次共替换 " & SuccNum &  " 条地址;');location.href='sk_checkdatabase.asp?radiobutton=5'</script>"
+	end select
+case "del"
+		Response.Flush()
+		if HistrolyID<>""  then 
+			Select Case lx
+			Case 1
+				ConnItem.execute("Delete From SK_Article Where ArticleID in(" & HistrolyID & ")")
+			Case 2
+				ConnItem.execute("Delete From SK_photo Where ID in(" & HistrolyID & ")")
+			Case 3
+				ConnItem.execute("Delete From SK_DownLoad Where ID in(" & HistrolyID & ")")
+			Case 4
+				ConnItem.execute("Delete From SK_Flash Where ID in(" & HistrolyID & ")")
+			End Select	
+		End if
+		If Request("page")<>"" then
+			CurrentPage=Cint(Request("Page"))
+		Else
+			CurrentPage=1
+		End if 
+		If CurrentPage=0 then CurrentPage=1
+		response.write "<meta http-equiv=""refresh"" content=""0;url=sk_checkdatabase.asp?radiobutton="& lx &"&page="& CurrentPage &""">"
+Case else
+    call top()
+	select case lx
+	case 1
+	   Call Main1()'新闻
+	case 2
+	   Call Main2()'图片
+	Case 3
+	   Call Main3()'软件
+	Case 4
+	   Call Main4()'动漫
+	case else
+	   Call Main1()
+	end select
+end select
+
+if FoundErr=True then  Call WriteErrMsg(ErrMsg)
+sub NumMsg()
+		   response.write  "<script>alert('提示:本次共操作 " & SuccNum + ErrNum & " 篇文章\n其中成功入库 " & SuccNum & " 篇,重复而不允许入库 "&ErrNum & " 篇;');</script>" 
+		   response.write "<meta http-equiv=""refresh"" content=""0;url=sk_checkdatabase.asp?radiobutton="& lx &""">"	   
+end sub
+%>
+<%sub top()%>
+<SCRIPT language=javascript>
+function unselectall(thisform)
+{
+    if(thisform.chkAll.checked)
+	{
+		thisform.chkAll.checked = thisform.chkAll.checked&0;
+    } 	
+}
+
+function CheckAll(thisform)
+{
+	for (var i=0;i<thisform.elements.length;i++)
+    {
+	var e = thisform.elements[i];
+	if (e.Name != "chkAll"&&e.disabled!=true)
+		e.checked = thisform.chkAll.checked;
+    }
+}
+//-->
+</script>
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
+<br />
+<table cellpadding="0" cellspacing="1" border="0" width="100%" class="tableBorder" align=center>
+  <tr class="topbg">
+	<td height="22" colspan="2" align="center"><strong>已 采 数 据 查 看</strong></td>
+  </tr>
+</table>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder">
+  <tr class="tdbg"> 
+    <td height="30" width="65"><strong>管理导航：</strong></td>  
+    <td height="30"><a href="sk_checkDatabase.asp">管理首页</a>&nbsp;&nbsp;|&nbsp;&nbsp;数据查看   </td>     
+  </tr>         
+</table>    
+<table width="100%" align="center"  border="0" cellspacing="0" cellpadding="0" class="tableBorder">
+
+  <tr>
+    <td height=30 align="center">
+选择采集模块：
+<%
+Set Rs=server.createobject("adodb.recordset")
+Rs.Open "select * from SK_cj where Flag=1 order by id asc", ConnItem, 1, 3
+while not rs.eof
+	If Skcj.ChkNumeric(rs("ID"))=Skcj.ChkNumeric(lx) then
+		Response.Write "<input name=""radiobutton"" type=""radio"" value="""& rs("ID") &""" checked  onClick=""location.href='?radiobutton="& rs("ID") &"';"" >"
+	Else
+		Response.Write "<input name=""radiobutton"" type=""radio"" value="""& rs("ID") &""" onClick=""location.href='?radiobutton="& rs("ID") &"';"" >"
+	End if
+	Response.Write(Rs("CjName")&"采集")
+	rs.movenext
+wend
+rs.close : Set rs=nothing
+%> </td>
+  </tr>
+</table>
+<%end sub %>
+<%
+'---------文章------------------
+Sub Main1
+%>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder" >
+    <tr> 
+      <td height="22" colspan="2" class="title"> <div align="center"><strong>所 有 记 录</strong></div></td>
+    </tr>
+</table>
+
+ <!--列表-->
+ <table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder">
+  <form name="form1" method="POST" action="sk_checkDatabase.asp">
+    <tr class="tdbg" style="padding: 0px 2px;"> 
+      <td width="57" height="22" align="center" class=ButtonList>选择</td>
+      <td width="142" align="center" class=ButtonList>文章来源</td>
+      <td width="358" align="center" class=ButtonList>新闻标题</td>
+      <td width="110" height="22" align="center" class=ButtonList>栏目</td>
+      <td width="90" height="22" align="center" class=ButtonList>操作</td>
+    </tr>
+    <%                          
+Set RsItem=server.createobject("adodb.recordset")
+SqlItem="select * from SK_Article" 
+If Request("page")<>"" then
+    CurrentPage=Cint(Request("Page"))
+Else
+    CurrentPage=1
+End if 
+
+SqlItem=SqlItem  &  " order by ArticleID DESC"
+RsItem.open SqlItem,ConnItem,1,1
+If (Not RsItem.Eof) and (Not RsItem.Bof) then
+   RsItem.PageSize=MaxPerPage
+   Allpage=RsItem.PageCount
+   If Currentpage>Allpage Then Currentpage=1
+   HistrolyNum=RsItem.RecordCount
+   RsItem.MoveFirst
+   RsItem.AbsolutePage=CurrentPage
+   i_His=0
+   Do While not RsItem.Eof
+%>
+    <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#cccccc'" style="padding: 0px 2px;"> 
+      <td width="57" align="center"> <input type="checkbox" value="<%=RsItem("ArticleID")%>" name="HistrolyID" onClick="unselectall(this.form)" style="border: 0px;background-color: #E1F4EE;">      </td>
+      <td width="142" align="center"> <%=left(RsItem("CopyFrom"),8)%> </td>
+      <td width="358" align="left"><a href="show.asp?id=<% = RsItem("ArticleID") %>&lx=1" target="_blank"><%=RsItem("Title")%></a></td>
+      <td width="110" align="center"><%Call Admin_ShowClass_Name(RsItem("ChannelID"),RsItem("ClassID"))%></td>
+      <td width="90" align="center"> <a href="sk_checkDatabase.asp?Action=Del&Page=<%= CurrentPage %>&HistrolyID=<%=RsItem("ArticleID")%>&radiobutton=<%=lx%>" onclick='return confirm("确定要删除此记录吗？");'>删除</a>      </td>
+    </tr>
+    <%         
+           i_His=i_His+1
+           If i_His > MaxPerPage Then
+              Exit Do
+           End If
+        RsItem.Movenext         
+   Loop         
+%>
+    <tr class="tdbg"> 
+      <td colspan=8 height="30">
+        <input name="Action" type="hidden" id="Action" value="ok"> 
+		<input name="radiobutton" type="hidden" id="Action" value="<%=lx%>"> 
+		<input name="page" type="hidden" value="<%=CurrentPage %>"> 
+        <input name="chkAll" type="checkbox" id="chkAll" onclick=CheckAll(this.form) value="checkbox" style="border: 0px;background-color: #E1F4EE;">
+        全选 </td>
+    </tr>
+    <tr class="tdbg"> 
+      <td colspan=8 height="30" align=center><input name="DelFlag" type="submit" class="lostfocus" style="cursor: hand;background-color: #cccccc;" onclick='return confirm("确定要审核入库所选记录吗？");' value="审核入库所选记录">
+	  <input name="DelFlag" type="submit" class="lostfocus" style="cursor: hand;background-color: #cccccc;" onclick='return confirm("确定要审核入库全部记录吗？");' value="审核入库全部记录">        
+        &nbsp;&nbsp;&nbsp;&nbsp; <input name="DelFlag" type="submit" class="lostfocus" style="cursor: hand;background-color: #cccccc;"  onclick='return confirm("确定要删除选中的记录吗？");' value="删除所选记录"> 
+        &nbsp;&nbsp;&nbsp;&nbsp; <input name="DelFlag" type="submit" class="lostfocus" style="cursor: hand;background-color: #cccccc;" onclick='return confirm("确定要删除所有的记录吗？");' value="删除全部记录"> 
+      &nbsp;&nbsp;
+	  </td></tr>
+    <tr class="tdbg"> 
+      <td colspan=8 height="30">注意：入库后的数据自动删除！ </td>
+    </tr>
+    <%Else%>
+    <tr class="tdbg"> 
+      <td colspan='9' class="tdbg" align="center"><br>
+        系统中暂无记录！</td>
+    </tr>
+    <%End  If%>
+    <%         
+RsItem.Close         
+Set RsItem=nothing           
+%>
+  </form>
+</table>  
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder" >
+    <tr> 
+      <td height="22" colspan="2" class="tdbg">
+<%
+Response.Write ShowPage("sk_checkDatabase.asp?Action="& Action,HistrolyNum,MaxPerPage,True,True," 个记录")
+%>
+
+      </td>
+    </tr>
+</table>
+
+<!--列表-->       
+</body>         
+</html>
+<%End Sub
+'---------文章------------------
+%>
+
+<%
+'-------------软件列表------------------
+Sub Main3
+%>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder" >
+    <tr> 
+      <td height="22" colspan="2" class="title"> <div align="center"><strong>所 有 记 录</strong></div></td>
+    </tr>
+</table>
+
+ <table class="tableBorder" border="0" align="center" cellspacing="1" width="100%" cellpadding="0">
+  <form name="form1" method="POST" action="sk_checkDatabase.asp">
+    <tr class="tdbg" style="padding: 0px 2px;"> 
+      <td width="57" height="22" align="center" class=ButtonList>选择</td>
+      <td width="142" align="center" class=ButtonList>文件所在</td>
+      <td width="358" align="center" class=ButtonList>软件标题</td>
+      <td width="110" height="22" align="center" class=ButtonList>栏目</td>
+      <td width="90" height="22" align="center" class=ButtonList>操作</td>
+    </tr>
+    <%                         
+Set RsItem=server.createobject("adodb.recordset")
+SqlItem="select * from SK_DownLoad" 
+If Request("page")<>"" then
+    CurrentPage=Cint(Request("Page"))
+Else
+    CurrentPage=1
+End if 
+SqlItem=SqlItem  &  " order by ID DESC"
+RsItem.open SqlItem,ConnItem,1,1
+If (Not RsItem.Eof) and (Not RsItem.Bof) then
+   RsItem.PageSize=MaxPerPage
+   Allpage=RsItem.PageCount
+   If Currentpage>Allpage Then Currentpage=1
+   HistrolyNum=RsItem.RecordCount
+   RsItem.MoveFirst
+   RsItem.AbsolutePage=CurrentPage
+   i_His=0
+   Do While not RsItem.Eof
+%>
+    <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#cccccc'" style="padding: 0px 2px;"> 
+      <td width="57" align="center"> <input type="checkbox" value="<%=RsItem("ID")%>" name="HistrolyID" onClick="unselectall(this.form)" style="border: 0px;background-color: #E1F4EE;">      </td>
+      <td width="142" align="center"> 
+
+	 <% %> </td>
+      <td width="358" align="left"><a href="show.asp?id=<% = RsItem("ID") %>&lx=3" target="_blank"><%=RsItem("Title")%></a></td>
+      <td width="110" align="center"><% Call Admin_ShowClass_Name(3,RsItem("tID")) %></td>
+      <td width="90" align="center"> <a href="sk_checkDatabase.asp?Action=Del&Page=<%= CurrentPage %>&HistrolyID=<%=RsItem("ID")%>&radiobutton=<%=lx%>" onclick='return confirm("确定要删除此记录吗？");'>删除</a>      </td>
+    </tr>
+    <%         
+           i_His=i_His+1
+           If i_His > MaxPerPage Then
+              Exit Do
+           End If
+        RsItem.Movenext         
+   Loop         
+%>
+    <tr class="tdbg"> 
+      <td colspan=8 height="30">
+        <input name="Action" type="hidden" id="Action" value="ok"> 
+		<input name="radiobutton" type="hidden" id="Action" value="<%=lx%>">
+		<input name="page" type="hidden" value="<%=CurrentPage %>"> 
+        <input name="chkAll" type="checkbox" id="chkAll" onclick=CheckAll(this.form) value="checkbox" style="border: 0px;background-color: #E1F4EE;">
+        全选 </td>
+    </tr>
+    <tr class="tdbg"> 
+      <td colspan=8 height="30" align=center> 
+     </td>
+    </tr>
+	<tr class="tdbg"> 
+      <td colspan=8 height="30" align=center>
+        &nbsp;&nbsp; <input type="submit"class="lostfocus" value="删除所选记录" name="DelFlag"  onclick='return confirm("确定要删除选中的记录吗？");' class="lostfocus" style="cursor: hand;background-color: #cccccc;"> 
+		&nbsp;&nbsp; <input type="submit" value="删除全部记录" name="DelFlag" onclick='return confirm("确定要删除所有的记录吗？");' class="lostfocus" style="cursor: hand;background-color: #cccccc;"> 
+       &nbsp;&nbsp; <input type="button" class="lostfocus" value="输出全部软件地址" name="DelFlag" onClick="window.location.href='SK_checkDatabase.asp?Urlsc=ok&radiobutton=5'" style="cursor: hand;background-color: #cccccc;">
+	   <br>
+	   <input name="picurl_th" type="text" class="lostfocus" value="" size="80" maxlength="150">
+	   &nbsp;&nbsp; <input type="submit" class="lostfocus" value="软件地址替换" name="DelFlag" onClick='return confirm("确定要替换所有下载地址吗？");' style="cursor: hand;background-color: #cccccc;">
+    </tr>
+    <tr class="tdbg"> 
+      <td colspan=8 height="30"> </td>
+    </tr>
+    <%Else%>
+    <tr class="tdbg"> 
+      <td colspan='9' class="tdbg" align="center"><br>
+        系统中暂无记录！</td>
+    </tr>
+    <%End  If%>
+    <%         
+RsItem.Close         
+Set RsItem=nothing           
+%>
+  </form>
+</table>  
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder" >
+    <tr> 
+      <td height="22" colspan="2" class="tdbg">
+<%
+Response.Write ShowPage("sk_checkDatabase.asp?Action="& Action &"&radiobutton="& lx,HistrolyNum,MaxPerPage,True,True," 个记录")
+%>
+
+      </td>
+    </tr>
+</table>
+
+        
+</body>         
+</html>
+<%End Sub%>
+<%
+'-------------动漫列表------------------
+Sub Main4
+%>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder" >
+    <tr> 
+      <td height="22" colspan="2" class="title"> <div align="center"><strong>所 有 记 录</strong></div></td>
+    </tr>
+</table>
+
+ <table class="tableBorder" border="0" align="center" cellspacing="1" width="100%" cellpadding="0">
+  <form name="form1" method="POST" action="sk_checkDatabase.asp">
+    <tr class="tdbg" style="padding: 0px 2px;"> 
+      <td width="57" height="22" align="center" class=ButtonList>选择</td>
+      <td width="142" align="center" class=ButtonList>文件所在</td>
+      <td width="358" align="center" class=ButtonList>软件标题</td>
+      <td width="110" height="22" align="center" class=ButtonList>栏目</td>
+      <td width="90" height="22" align="center" class=ButtonList>操作</td>
+    </tr>
+    <%                         
+Set RsItem=server.createobject("adodb.recordset")
+SqlItem="select * from SK_Flash" 
+If Request("page")<>"" then
+    CurrentPage=Cint(Request("Page"))
+Else
+    CurrentPage=1
+End if 
+SqlItem=SqlItem  &  " order by ID DESC"
+RsItem.open SqlItem,ConnItem,1,1
+If (Not RsItem.Eof) and (Not RsItem.Bof) then
+   RsItem.PageSize=MaxPerPage
+   Allpage=RsItem.PageCount
+   If Currentpage>Allpage Then Currentpage=1
+   HistrolyNum=RsItem.RecordCount
+   RsItem.MoveFirst
+   RsItem.AbsolutePage=CurrentPage
+   i_His=0
+   Do While not RsItem.Eof
+%>
+    <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#cccccc'" style="padding: 0px 2px;"> 
+      <td width="57" align="center"> <input type="checkbox" value="<%=RsItem("ID")%>" name="HistrolyID" onClick="unselectall(this.form)" style="border: 0px;background-color: #E1F4EE;">      </td>
+      <td width="142" align="center"> 
+
+	 <% %> </td>
+      <td width="358" align="left"><a href="show.asp?id=<% = RsItem("ID") %>&lx=4" target="_blank"><%=RsItem("Title")%></a></td>
+      <td width="110" align="center"><% Call Admin_ShowClass_Name(4,RsItem("tID")) %></td>
+      <td width="90" align="center"> <a href="sk_checkDatabase.asp?Action=Del&Page=<%= CurrentPage %>&HistrolyID=<%=RsItem("ID")%>&radiobutton=<%=lx%>" onclick='return confirm("确定要删除此记录吗？");'>删除</a>      </td>
+    </tr>
+    <%         
+           i_His=i_His+1
+           If i_His > MaxPerPage Then
+              Exit Do
+           End If
+        RsItem.Movenext         
+   Loop         
+%>
+    <tr class="tdbg"> 
+      <td colspan=8 height="30">
+        <input name="Action" type="hidden" id="Action" value="ok"> 
+		<input name="radiobutton" type="hidden" id="Action" value="<%=lx%>">
+		<input name="page" type="hidden" value="<%=CurrentPage %>"> 
+        <input name="chkAll" type="checkbox" id="chkAll" onclick=CheckAll(this.form) value="checkbox" style="border: 0px;background-color: #E1F4EE;">
+        全选 </td>
+    </tr>
+    <tr class="tdbg"> 
+      <td colspan=8 height="30" align=center> 
+     </td>
+    </tr>
+	<tr class="tdbg"> 
+      <td colspan=8 height="30" align=center>
+        &nbsp;&nbsp; <input type="submit"class="lostfocus" value="删除所选记录" name="DelFlag"  onclick='return confirm("确定要删除选中的记录吗？");' class="lostfocus" style="cursor: hand;background-color: #cccccc;"> 
+		&nbsp;&nbsp; <input type="submit" value="删除全部记录" name="DelFlag" onclick='return confirm("确定要删除所有的记录吗？");' class="lostfocus" style="cursor: hand;background-color: #cccccc;"> 
+       &nbsp;&nbsp; <input type="button" class="lostfocus" value="输出全部软件地址" name="DelFlag" onClick="window.location.href='SK_checkDatabase.asp?Urlsc=ok&radiobutton=5'" style="cursor: hand;background-color: #cccccc;">
+	   <br>
+	   <input name="picurl_th" type="text" class="lostfocus" value="" size="80" maxlength="150">
+	   &nbsp;&nbsp; <input type="submit" class="lostfocus" value="软件地址替换" name="DelFlag" onClick='return confirm("确定要替换所有下载地址吗？");' style="cursor: hand;background-color: #cccccc;">
+    </tr>
+    <tr class="tdbg"> 
+      <td colspan=8 height="30"> </td>
+    </tr>
+    <%Else%>
+    <tr class="tdbg"> 
+      <td colspan='9' class="tdbg" align="center"><br>
+        系统中暂无记录！</td>
+    </tr>
+    <%End  If%>
+    <%         
+RsItem.Close         
+Set RsItem=nothing           
+%>
+  </form>
+</table>  
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder" >
+    <tr> 
+      <td height="22" colspan="2" class="tdbg">
+<%
+
+Response.Write ShowPage("sk_checkDatabase.asp?Action="& Action &"&radiobutton="& lx,HistrolyNum,MaxPerPage,True,True," 个记录")
+%>
+
+      </td>
+    </tr>
+</table>  
+</body>         
+</html>
+<%End Sub%>
+
+<%
+'-------------图片列表------------------
+Sub Main2
+%>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder" >
+    <tr> 
+      <td height="22" colspan="2" class="title"> <div align="center"><strong>所 有 记 录</strong></div></td>
+    </tr>
+</table>
+ <table   align="center"  class="tableBorder" border="0" cellspacing="1" width="100%" cellpadding="0">
+  <form name="form1" method="POST" action="sk_checkDatabase.asp">
+    <tr class="tdbg" style="padding: 0px 2px;"> 
+      <td width="57" height="22" align="center" class=ButtonList>选择</td>
+      <td width="142" align="center" class=ButtonList>文件所在</td>
+      <td width="358" align="center" class=ButtonList>图片标题</td>
+      <td width="110" height="22" align="center" class=ButtonList>栏目</td>
+      <td width="90" height="22" align="center" class=ButtonList>操作</td>
+    </tr>
+    <%                          
+Set RsItem=server.createobject("adodb.recordset")
+SqlItem="select * from sk_photo" 
+If Request("page")<>"" then
+    CurrentPage=Cint(Request("Page"))
+Else
+    CurrentPage=1
+End if 
+SqlItem=SqlItem  &  " order by ID DESC"
+RsItem.open SqlItem,ConnItem,1,1
+If (Not RsItem.Eof) and (Not RsItem.Bof) then
+   RsItem.PageSize=MaxPerPage
+   Allpage=RsItem.PageCount
+   If Currentpage>Allpage Then Currentpage=1
+   HistrolyNum=RsItem.RecordCount
+   RsItem.MoveFirst
+   RsItem.AbsolutePage=CurrentPage
+   i_His=0
+   Do While not RsItem.Eof
+%>
+    <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#cccccc'" style="padding: 0px 2px;"> 
+      <td width="57" align="center"> <input type="checkbox" value="<%=RsItem("ID")%>" name="HistrolyID" onClick="unselectall(this.form)" style="border: 0px;background-color: #E1F4EE;">      </td>
+      <td width="142" align="center"> 
+</td>
+      <td width="358" align="left"><a href="show.asp?id=<% = RsItem("ID") %>&lx=2" target="_blank"><%=RsItem("Title")%></a></td>
+      <td width="110" align="center"><%
+	  set lb=ConnItem.execute("select top 1 * from SK_Class where ClassID="& RsItem("TID")&"") 
+	  if not lb.eof then Response.Write lb("ClassName")
+	  lb.close
+	  set lb=nothing
+	  %></td>
+      <td width="90" align="center"> <a href="sk_checkDatabase.asp?Action=del&Page=<%= CurrentPage %>&HistrolyID=<%=RsItem("ID")%>&radiobutton=<%=lx%>" onclick='return confirm("确定要删除此记录吗？");'>删除</a>      </td>
+    </tr>
+    <%         
+           i_His=i_His+1
+           If i_His > MaxPerPage Then
+              Exit Do
+           End If
+        RsItem.Movenext         
+   Loop         
+%>
+    <tr class="tdbg"> 
+      <td colspan=8 height="30">
+        <input name="Action" type="hidden" id="Action" value="ok"> 
+		<input name="radiobutton" type="hidden" id="Action" value="<%=lx%>"> 
+		<input name="page" type="hidden" value="<%=CurrentPage %>"> 
+        <input name="chkAll" type="checkbox" id="chkAll" onclick=CheckAll(this.form) value="checkbox" style="border: 0px;background-color: #E1F4EE;">
+        全选 </td>
+    </tr>
+    <tr class="tdbg"> 
+      <td colspan=8 height="30" align=center>
+        &nbsp;&nbsp; <input type="submit" value="删除所选记录" name="DelFlag"  onclick='return confirm("确定要删除选中的记录吗？");' class="lostfocus" style="cursor: hand;background-color: #cccccc;"> 
+		&nbsp;&nbsp; <input type="submit" value="删除全部记录" name="DelFlag" onclick='return confirm("确定要删除所有的记录吗？");' class="lostfocus" style="cursor: hand;background-color: #cccccc;"> 
+       &nbsp;&nbsp; <input type="button" class="lostfocus" value="输出全部图片地址" name="DelFlag" onClick="window.location.href='SK_checkDatabase.asp?Urlsc=ok&radiobutton=2'" style="cursor: hand;background-color: #cccccc;">
+	   <br>
+	   <input name="picurl_th" type="text"  class="lostfocus" value="" size="80" maxlength="150">
+	   &nbsp;&nbsp; <input type="submit" value="图片地址替换" class="lostfocus" name="DelFlag" onClick="" style="cursor: hand;background-color: #cccccc;">
+    </tr>
+	
+    <tr class="tdbg"> 
+      <td colspan=8 height="30">
+	  </td>
+    </tr>
+    <%Else%>
+    <tr class="tdbg"> 
+      <td colspan='9' class="tdbg" align="center"><br>
+        系统中暂无记录！</td>
+    </tr>
+    <%End  If%>
+    <%         
+RsItem.Close         
+Set RsItem=nothing           
+%>
+  </form>
+</table>  
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder" >
+    <tr> 
+      <td height="22" colspan="2" class="tdbg">
+<%
+Response.Write ShowPage("sk_checkDatabase.asp?Action="& Action &"&radiobutton="& lx,HistrolyNum,MaxPerPage,True,True," 个记录")
+%>
+
+      </td>
+    </tr>
+</table>     
+</body>         
+</html>
+<%End Sub
+Sub InsertIntoBase(collectlx,FRS)
+Response.Flush()
+Dim oMaxID
+set rslb=Conn.Execute("select top 1 * from Ok3w_Class Where ID=" & FRS("ClassID")) 
+if not rslb.eof then
+	   Set CMSRS=Server.CreateObject("ADODB.RECORDSET")
+	   CMSRS.Open "Select top 1 * From Ok3w_Article Where Title='" & FRS("Title") & "' And ClassID=" & FRS("ClassID") & "",Conn,1,3
+	   If CMSRS.EOF Then
+	   	   CMSRS.addnew
+		   
+		   	oMaxID = Conn.Execute("select max(ID) from Ok3w_Article")(0)
+			If IsNull(oMaxID) Then
+				oMaxID = 0
+			End If
+			
+		   	CMSRS("ID") =  oMaxID+1
+			CMSRS("ChannelID") = 1
+			CMSRS("ClassID") = FRS("ClassID")
+			CMSRS("SortPath") = Conn.Execute("select SortPath from Ok3w_Class where ID=" & FRS("ClassID"))(0)
+			CMSRS("Title") = FRS("Title")
+			CMSRS("TitleColor") = ""
+			CMSRS("TitleURL") = ""
+			CMSRS("Keywords") = FRS("Keyword")
+			CMSRS("Description") = ""
+			CMSRS("Content") = Replace(Replace(FRS("Content"), "../../upfiles/", "upfiles/"),"[NextPage]","[Ok3w_NextPage]")
+			CMSRS("Author") = FRS("Author")
+			CMSRS("ComeFrom") = FRS("CopyFrom")
+			CMSRS("AddTime") = FRS("UpdateTime")
+			CMSRS("Inputer") = "Ok3w.Net"
+			CMSRS("IsPass") = 1
+			CMSRS("IsPic") = 0
+			If Not IsNull(FRS("picpath")) Then CMSRS("PicFile") = Replace(FRS("picpath"),"../../","")
+			If CMSRS("PicFile")<>"" Then CMSRS("IsPic") = 1
+			CMSRS("IsTop") = 0
+			CMSRS("IsCommend") = 0
+			CMSRS("IsDelete") = 0
+			CMSRS("IsMove") = 0
+			CMSRS("IsPlay") = 0
+			CMSRS("IsUserAdd") = 0
+			CMSRS("GiveJifen") = 0
+			CMSRS("vUserGroupID") = 0
+			CMSRS("vUserMore") = 1
+			CMSRS("vUserJifen") = 0
+			CMSRS("Hits") = FRS("Hits")
+		
+		   CMSRS.update
+		   SuccNum = SuccNum + 1
+	   Else
+	       ErrNum = ErrNum + 1
+	   End if
+	   Inum=Inum+1
+	   CMSRS.close
+	   Set CMSRS = Nothing
+end if
+rslb.close
+set rslb=nothing
+end sub
+
+Sub InsertIntoBase_photo(FRS)
+Response.Flush()
+set rslb=Conn.Execute("select top 1 * from ks_Class Where ID='" & FRS("Tid") &"'")
+if not rslb.eof then 
+	    Set CMSRS=Server.CreateObject("ADODB.RECORDSET")
+	   	CMSRS.Open "Select top 1 * From KS_Photo Where Title='" & FRS("Title") & "' And Tid='" & FRS("Tid") & "'",Conn,1,3
+	   	If CMSRS.EOF Then
+	   	   CMSRS.addnew
+		   	NewsID=GetInfoID_CMS(2)
+		    CMSRS("PicID")=NewsID
+			CMSRS("Tid")=FRS("Tid")
+			CMSRS("KeyWords")=FRS("KeyWords")
+			CMSRS("Title")=FRS("Title")
+			CMSRS("PhotoUrl")=FRS("PhotoUrl")
+			CMSRS("PicUrls")=FRS("PicUrls")
+			CMSRS("PictureContent")=FRS("PictureContent")
+			CMSRS("Author")=FRS("Author")
+			CMSRS("Origin")=FRS("Origin")
+			CMSRS("Rank")="★★★★★"
+			CMSRS("Hits")=FRS("Hits")
+			CMSRS("HitsByDay")=MakeRandom(1)
+			CMSRS("HitsByWeek")=MakeRandom(2)
+			CMSRS("HitsByMonth")=MakeRandom(3)
+			CMSRS("AddDate")=FRS("AddDate")
+			CMSRS("TemplateID")=rslb("ArticleTemplateID")
+			CMSRS("PictureFsoType")=rslb("ArticleFsoType")
+			CMSRS("Fname")=NewsID & ".htm"
+			CMSRS("PictureInput")=FRS("PictureInput")
+			CMSRS("RefreshTF")=0
+			CMSRS("Recommend")=0
+			CMSRS("Rolls")=0
+			CMSRS("Strip")=0
+			CMSRS("Popular")=0
+			CMSRS("Verific")=1
+			CMSRS("Comment")=1
+			CMSRS("Score")=MakeRandom(3)
+			CMSRS("Slide")=0
+			CMSRS("BeyondSavePic")=0
+			CMSRS("DelTF")=0
+			CMSRS("OrderID")=1
+		   CMSRS.update
+		   SuccNum = SuccNum + 1
+	   	Else
+	       ErrNum = ErrNum + 1
+	   	End if
+	   	CMSRS.close
+	    Set CMSRS = Nothing
+End if	   
+rslb.close
+set rslb=nothing
+end sub
+
+Sub InsertIntoBase_down(FRS)
+Response.Flush()
+	   set rslb=Conn.Execute("select top 1 * from ks_Class Where ID='" & FRS("Tid") &"'") 
+	   if not rslb.eof then ArticleTemplateID=rslb("ArticleTemplateID") : ArticleFsoType=rslb("ArticleFsoType") 
+	   Set CMSRS=Server.CreateObject("ADODB.RECORDSET")
+	   CMSRS.Open "Select top 1 * From KS_download Where Title='" & FRS("Title") & "' And Tid='" & FRS("Tid") & "'",Conn,1,3
+	   If CMSRS.EOF Then
+	   	   CMSRS.addnew
+		  	DownID=GetInfoID_CMS(3)
+			CMSRS("DownID")=DownID
+			CMSRS("Tid")=fRS("Tid")
+			CMSRS("KeyWords")=fRS("KeyWords")
+			CMSRS("Title")=fRS("Title")
+			CMSRS("DownVersion")="" '版本信息
+			CMSRS("DownLB")="国产软件"  '下载类别
+			CMSRS("DownYY")=""    '下载语言
+			CMSRS("DownSQ")= "免费版"     '下载授权
+			CMSRS("DownPT")= "Win9x/NT/2000/XP"     '下载平台
+			CMSRS("DownSize")="0KB"    '大小
+			CMSRS("YSDZ")="http://"        '演示地址
+			CMSRS("ZCDZ")="http://"     '注册地址
+			CMSRS("JYMM")=""       '解压密码
+			CMSRS("PhotoUrl")=fRS("PhotoUrl")
+			CMSRS("BigPhoto")=""   '软件大图
+			CMSRS("FlagUrl")=0            '0、默认方式 1、镜像服务器方式
+			CMSRS("DownUrls")=fRS("DownUrls")   '下载地址，若是默认方式，则以|||隔开
+			CMSRS("DownContent")=fRS("DownContent") '下载简介
+			CMSRS("Author")=fRS("Author")    '下载作者
+			CMSRS("Origin")=fRS("Origin")    '下载来源
+			CMSRS("Rank")="★★★"      '阅读等级
+			CMSRS("Hits")=fRS("Hits")          '总浏览数
+			CMSRS("HitsByDay")=MakeRandom(1)  '日浏览数
+			CMSRS("HitsByWeek")=MakeRandom(2)  '周浏览数
+			CMSRS("HitsByMonth")=MakeRandom(3)  '月浏览数
+			CMSRS("AddDate")=fRS("AddDate")       '更新时间
+			CMSRS("TemplateID")=ArticleTemplateID            '模板ID
+			CMSRS("DownFsoType")=ArticleFsoType      '
+			CMSRS("Fname")=DownID &".htm"
+			if fRS("DownInput")<>"" then
+			CMSRS("DownInput")=fRS("DownInput")
+			else
+			CMSRS("DownInput")=""
+			end if
+			CMSRS("RefreshTF")=0
+			CMSRS("Recommend")=0
+			CMSRS("Popular")=0
+			CMSRS("Verific")=1
+			CMSRS("Comment")=0
+			CMSRS("DelTF")=0
+			CMSRS("OrderID")=1
+			CMSRS("InfoPurview")=0'查看权限0继承栏目权限,1所有会员,2指定会员组
+			CMSRS("ArrGroupID")="" '指定会员组的查看权限
+			CMSRS("ReadPoint")=0  '阅读点数
+			CMSRS("ChargeType")=0  '重复收费方式
+			CMSRS("PitchTime")=24   '重复收费小时数
+			CMSRS("ReadTimes")=10    '重复收费查看次数
+			CMSRS("DividePercent")=0   
+		   CMSRS.update
+		   SuccNum = SuccNum + 1
+	   Else
+	       ErrNum = ErrNum + 1
+	   End if
+	   rslb.close
+	   set rslb=nothing
+	   CMSRS.close
+	   Set CMSRS = Nothing
+end sub
+'===============================================
+'函数名：FSOSaveFile
+'作  用：生成文件
+'参  数： Content内容,路径 注意虚拟目录
+'===============================================
+Sub FSOSaveFile(Content, LocalFileName)
+    Dim FSO, FileObj
+    Set FSO = Server.CreateObject("Scripting.FileSystemObject")
+    Set FileObj = FSO.CreateTextFile(Server.MapPath(LocalFileName), True) '创建文件
+    FileObj.Write Content
+    FileObj.Close     '释放对象
+    Set FileObj = Nothing
+    Set FSO = Nothing
+End Sub
+'Call CloseConn()
+Call CloseConnItem()
+%>
+

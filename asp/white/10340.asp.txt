@@ -1,0 +1,231 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../Inc/Commoncode.asp" -->
+<!--#include file="../inc/CommonFunction.asp"-->
+<%
+If FR_HR_Sql = True then Call SQLin()
+Dim Action
+if Request.Form("stype")<>"" then
+Response.Cookies(FRHRCMS)("stype")=trim(Request.Form("stype"))
+else
+Response.Cookies(FRHRCMS)("stype")=""
+end if
+if Request.Form("keyword")<>"" then
+Response.Cookies(FRHRCMS)("keyword")=trim(Request.Form("keyword"))
+else
+Response.Cookies(FRHRCMS)("keyword")=""
+end if
+Action=trim(Request("Action"))
+Select Case Action
+	Case "Add"
+		Call SaveData()
+	Case Else
+		Call main()
+End Select
+Sub main()
+Cid=6
+Response.Cookies(FRHRCMS)("ChannelID") = Cid
+'读取频道名称
+set rs=conn.execute("select ChannelName,ChannelID,Meta_Keywords,Meta_Description from JOB_Channel where ChannelID="&Cid&"")
+if not rs.eof then
+ChannelName=rs("ChannelName")
+ChannelID=rs("ChannelId")
+ChannelKeywords=rs("Meta_Keywords")
+ChannelDescription=rs("Meta_Description")
+else
+Response.Write("频道ID出错!")
+Response.end()
+end if
+set rs=nothing
+'读取模版内容
+html=LoadTemplate(Cid,1,0)
+'读取分页
+if request("page")<>"" then
+	if cint(request("page"))<1 then
+	Response.Cookies(FRHRCMS)("Page")=1
+	else
+	Response.Cookies(FRHRCMS)("Page")=cint(request("page"))
+	end if
+else        
+	Response.Cookies(FRHRCMS)("Page")=1        
+end if
+%>
+<%if GuestBook_EnableVisitor = True or Request.Cookies(FRHRCMS)("user_login")<>"" then
+	if Request.Cookies(FRHRCMS)("user_login")<>"" then
+	set rst=conn.Execute("select * from JOB_member where Member_login='"&Request.Cookies(FRHRCMS)("user_login")&"'")
+	memberlogin=Request.Cookies(FRHRCMS)("user_login")
+	memberemail=rst("Member_email")
+	rst.close
+	set rst=nothing
+	else
+	memberlogin="匿名"
+	end if
+GBook="<table width='100%' border='0' cellpadding='2' cellspacing='1' bgcolor='#F5F5F5' class='mcomlefttab'><form name='guestbook' action='"&InstallDir&"guestbook/index.asp?Action=Add' method='post' onSubmit='return Juge(this)'>"& vbCrLf
+GBook=GBook&"<tr>"& vbCrLf
+GBook=GBook&"<td width='11%' align='center' valign='middle' bgcolor='#FFFFFF'>用户名/呢称</td>"& vbCrLf
+GBook=GBook&"<td width='89%' valign='top' bgcolor='#FFFFFF'><input name='username' type='text' id='username' value='"&memberlogin&"' size='20'"
+	if Request.Cookies(FRHRCMS)("user_login")<>"" then
+	GBook=GBook&" 'disabled' />"& vbCrLf
+	else
+	GBook=GBook&" />"& vbCrLf
+	end if
+GBook=GBook&"<input type=hidden name=ismember value='' />"& vbCrLf
+GBook=GBook&"<a href='../Register.asp'>注册</a>/<a href='../index.asp'>登陆</a> </td>"& vbCrLf
+GBook=GBook&"</tr>"& vbCrLf
+GBook=GBook&"<tr>"& vbCrLf
+GBook=GBook&"<td align=center valign=middle bgcolor=#FFFFFF>邮箱地址</td>"& vbCrLf
+GBook=GBook&"<td valign=top bgcolor=#FFFFFF><input name=email type=text id=email value='"&memberemail&"' size=20 />"& vbCrLf
+GBook=GBook&"请正确填写您常用的邮箱地址<input name=emailok type=checkbox id=emailok value=1 checked=checked />"& vbCrLf
+GBook=GBook&"选择 管理员回复后将发邮件通知您</td>"& vbCrLf
+GBook=GBook&"</tr>"& vbCrLf
+GBook=GBook&"<tr>"& vbCrLf
+GBook=GBook&"<td align=center valign=middle bgcolor=#FFFFFF>留言主题</td>"& vbCrLf
+GBook=GBook&"<td valign=top bgcolor=#FFFFFF><input name=title type=text id=title size=40 /></td>"& vbCrLf
+GBook=GBook&"</tr>"& vbCrLf
+GBook=GBook&"<tr>"& vbCrLf
+GBook=GBook&"<td align=center valign=middle bgcolor=#FFFFFF>留言内容</td>"& vbCrLf
+GBook=GBook&"<td valign=top bgcolor=#FFFFFF><textarea name=Content cols=80 rows=8 id=Content></textarea></td>"& vbCrLf
+GBook=GBook&"</tr>"& vbCrLf
+GBook=GBook&"<tr>"& vbCrLf
+GBook=GBook&"<td align=center valign=middle bgcolor=#FFFFFF>&nbsp;</td>"& vbCrLf
+GBook=GBook&"<td valign=top bgcolor=#FFFFFF>"& vbCrLf
+GBook=GBook&"<input name=Submit type=submit class=inputs70 value='我写好了' />"& vbCrLf
+GBook=GBook&"<input name=Submit type=reset class=inputs value='重 置' />"& vbCrLf
+GBook=GBook&"</td>"& vbCrLf
+GBook=GBook&"</tr></form>"& vbCrLf
+GBook=GBook&"</table>"& vbCrLf
+else
+GBook=GBook&"暂未开启游客留言功能，请<a href='../Register.asp'>注册</a>/<a href='../index.asp'>登陆</a>后留言！"& vbCrLf
+end if
+html=ReplaceLableFlag(ReplaceAllLabel(html))
+html=Replace(html,"{$FR_留言列表}",""&GuestBookList(Cid,20)&"")
+html=Replace(html,"{$FR_频道地址}",FormatLink(0,ChannelId,0,0,0))
+html=Replace(html,"{$FR_频道名称}",ChannelName)
+html=Replace(html,"{$FR_频道关键词}",ChannelKeywords)
+html=Replace(html,"{$FR_频道描述}",ChannelDescription)
+html=Replace(html,"{$FR_频道编号}",Cid)
+html=Replace(html,"{$FR_本站公告}",""&Announcehtml(Cid,0)&"")
+html=Replace(html,"{$FR_签写留言}",GBook)
+Response.Write(CreateHTMLReplace(html))
+
+End Sub
+Sub SaveData()
+if ChkPost=False then
+Response.Write ("<script language=JavaScript>{alert('请勿非法提交数据！');window.close();}</script>")
+Response.End
+end if
+Titles=Replace_Text(Trim(Request.Form("Title")))
+Content=Replace_Text(Trim(Request.Form("Content")))
+If GuestBook_ManageRubbish<>"" then
+	GB_ManageRubbish=split(GuestBook_ManageRubbish,"|")
+	For gbmr=0 to ubound(GB_ManageRubbish)
+		If InStr(Content,Trim(GB_ManageRubbish(gbmr)))>0 then
+		Response.Write ("<script language=JavaScript>{alert('留言内容包含非法字符！');window.close();}</script>")
+		Response.End
+		End If
+	Next
+End If
+username=Replace_Text(Trim(Request.Form("username")))
+email=Trim(Request.Form("email"))
+emailok=Request.Form("emailok")
+if emailok<>1 then
+	emailok=0
+end if
+If Titles="" Then
+	Response.Write ("<script language=JavaScript>{alert('请输入留言主题！');history.back();}</script>")
+	Response.End 
+End If
+If Content="" Then
+	Response.Write ("<script language=JavaScript>{alert('请输入留言内容！');history.back();}</script>")
+	Response.End
+Else
+End If
+
+set rs=Server.CreateObject(FR_HR_RS)
+sql="select * from JOB_GuestBook"
+rs.open sql,conn,1,3
+rs.AddNew
+rs("Title")=Titles
+rs("Content")=Content
+rs("username")=username
+rs("UserEmail")=email
+rs("AddTime")=now()
+rs("pass")=0
+rs("hfemail")=emailok
+rs("ismember")=0
+rs.update
+rs.close
+set rs=nothing
+Response.Write ("<script language=JavaScript>{alert('留言成功！');window.location='"&InstallDir&"guestbook/index.asp';}</script>")
+Response.End
+end sub
+Function GuestBookList(Cid,PerPageNumber)
+Dim NewsRS, NewsSql, totalPut, Page
+Set NewsRS = Server.CreateObject(FR_HR_RS)
+NewsSql="select * from JOB_GuestBook where pass=1"
+stype=Request.Cookies(FRHRCMS)("stype")
+keyword=Request.Cookies(FRHRCMS)("keyword")
+If stype<>"" Then
+	if stype="stitle" then
+	NewsSql=NewsSql&" and title like '%"&keyword&"%'"
+	else
+	NewsSql=NewsSql&" and Content like '%"&keyword&"%'"
+	end if
+end if
+NewsSql=NewsSql&" order by id desc"
+NewsRS.open NewsSql,conn,1,1
+	if NewsRS.eof and NewsRS.bof then
+	html="暂无任何留言！"
+	else
+	totalPut=NewsRS.recordcount
+	'读取页数
+	Page=Request.Cookies(FRHRCMS)("Page")
+		if Page<>1 then
+		NewsRS.move (Page-1)*PerPageNumber
+		end if
+	html="<table width='100%' border=0 cellpadding=2 cellspacing=1 bgcolor=#F5F5F5 class='mcomlefttab'>"
+	i=0
+	do while not NewsRS.eof
+	i=i+1
+	id=NewsRS("id")
+	Titles=NewsRS("Title")
+	if stype="stitle" and keyword<>"" then
+	Titles=Replace(Titles,keyword,"<font color=#FF0000>"&keyword&"</font>")
+	end if
+	Content=NewsRS("Content")
+	if stype<>"stitle" and keyword<>"" then
+	Content=Replace(Content,keyword,"<font color=#FF0000>"&keyword&"</font>")
+	end if
+	username=NewsRS("username")
+	dateandtime=NewsRS("AddTime")
+	reContent=NewsRS("reContent")
+		if isnull(reContent) then
+		reContent="尚未回复！"
+		end if
+	html=html&"<tr>"
+	html=html&"<td colspan=2 bgcolor=#F0F7FF>留言主题："&Titles&"</td>"
+	html=html&"<td width=15% bgcolor=#F0F7FF>留言人："&username&"</td>"
+	html=html&"<td width=17% bgcolor=#F0F7FF>"&dateandtime&"</td>"
+	html=html&" </tr>"
+	html=html&"<tr>"
+	html=html&"<td width=7% align=center valign=middle bgcolor=#FFFFFF>内容</td>"
+	html=html&"<td colspan=3 valign=top bgcolor=#FFFFFF>"&Content&"<br />            <span class=STYLE1>回复：</span>"&reContent&"</td>"
+	html=html&"</tr>"
+		if i>=Cint(PerPageNumber) then exit do
+	NewsRS.movenext
+	loop
+	html=html&"<tr>"
+	html=html&"<td colspan=4 align=center valign=middle bgcolor=#FFFFFF>"
+		If totalput>0 Then
+		html=html&Htmlpages(Cid,0,0,totalPut,PerPageNumber,true,"条留言",Page)
+		End If
+	html=html&"</td>"
+	html=html&"</tr>" 
+	html=html&"</table>"
+	end if
+NewsRS.close
+set NewsRS=nothing
+GuestBookList=html
+End Function
+Call CloseConn()
+%>

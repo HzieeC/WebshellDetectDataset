@@ -1,0 +1,451 @@
+<%@Language=VBScript  CODEPAGE="936"%>
+<!--#include file="cominc/conndb.asa"-->
+<!--#include file="cominc/function.asp"-->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+</head>
+<%
+server_v1=Cstr(Request.ServerVariables("HTTP_REFERER"))
+server_v2=Cstr(Request.ServerVariables("SERVER_NAME"))
+'if mid(server_v1,8,len(server_v2))<>server_v2 then
+if instr(server_v1,server_v2)=0 then
+	response.write "<br><br><center><table border=1 cellpadding=20 bordercolor=black bgcolor=#EEEEEE width=450>"
+	response.write "<tr><td style='font:9pt Verdana'>"
+	response.write server_v1&" - 提示您，我们不接受来自站点外部提交的数据."
+	response.write "</td></tr></table></center>"
+	response.end
+end if
+comurl=server_v1
+cz=Checkstr(Request.QueryString("cz"))
+If cz<>"" Then 
+	Select Case cz
+		Case "mapmark"
+			Call mapmark()
+		Case "uploadpic"
+			Call checkuser()
+			Call uploadpic()
+		Case "addshop"
+			Call checkuser()
+			Call addshop()
+		Case "savemyshop"
+			Call checkuser()
+			Call savemyshop()
+		Case "CheckBugSave"
+			Call CheckBugSave()
+		Case "GetOwnSave"
+			Call GetOwnSave()
+
+	End Select
+End If 
+
+
+'纠错
+Sub CheckBugSave()
+	shopid=checkNum(Trim(request.form("shopid")))
+	If shopid=0 Then Response.Write backMsg("参数丢失","")
+	content=Trim(request.form("content"))
+	If content="" Or Len(content)<10 Then Response.Write backMsg("填写不完整或者字符数少于10个","")
+
+	Set rs= Server.CreateObject("ADODB.Recordset")
+		sql="select shop_addinfo,isFoucs from "&shopTable&" where shop_id="&shopid&""
+		rs.open sql,conn,3,2
+		shop_addinfo=rs("shop_addinfo")
+		rs("shop_addinfo")=shop_addinfo&"<HR>"&content
+		rs("isFoucs")=1
+		rs.update
+		rs.close
+	Set rs=Nothing
+	response.write backmsg("恭喜！纠错提交成功！","shop.asp?shopid="&shopid&"")
+End Sub 
+'认领
+Sub GetOwnSave()
+	shopid=checkNum(Trim(request.form("shopid")))
+	If shopid=0 Then Response.Write backMsg("参数丢失","")
+	If Dreamsun_name="" Then Response.Write backMsg("请先登录后再来认领。","UserMng.asp")
+	content=Trim(request.form("content"))
+	If content="" Or Len(content)<10 Then Response.Write backMsg("填写不完整或者字符数少于10个","")
+
+	Set rs= Server.CreateObject("ADODB.Recordset")
+		sql="select shop_addinfo,isFoucs from "&shopTable&" where shop_id="&shopid&""
+		rs.open sql,conn,3,2
+		shop_addinfo=rs("shop_addinfo")
+		rs("shop_addinfo")=shop_addinfo&"<HR>"&content&"<br>提交用户："&Dreamsun_name
+		rs("isFoucs")=1
+		rs.update
+		rs.close
+	Set rs=Nothing
+	response.write backmsg("恭喜！提交成功！","shop.asp?shopid="&shopid&"")
+End Sub 
+
+
+Sub addshop()
+	shop_name=Trim(request.form("shop_name"))
+	shop_subname=Trim(request.form("shop_subname"))
+	shop_addr=Trim(request.form("shop_addr"))
+	areaid=Int(Trim(request.form("areaid")))
+	typeid=Int(Trim(request.form("typeid")))
+	shop_telephone=Trim(request.form("shop_telephone"))
+	shop_telephone2=Trim(request.form("shop_telephone2"))
+	shop_content=Trim(request.form("shop_content"))
+	shop_content=server.htmlencode(shop_content)
+
+	If typeid=0 Or shop_name="" Or shop_content="" Or areaid=0 Then Response.Write backMsg("信息填写不完善","")
+	Set rs= Server.CreateObject("ADODB.Recordset")
+		sql="select * from "&shopTable&""
+		rs.open sql,conn,3,2
+		rs.addnew
+		rs("shop_name")=shop_name
+		rs("shop_subname")=shop_subname
+		rs("shop_addip")=reip()
+		rs("shop_addr")=shop_addr
+		rs("shop_area")=areaid
+		rs("shop_type")=typeid
+		rs("shop_telphone")=shop_telephone
+		rs("shop_telphone2")=shop_telephone2
+		rs("shop_addname")=Dreamsun_Name
+		rs("shop_addtime")=now()
+		rs("shop_ischeck")=default_shop_ischeck
+		rs("isFoucs")=1
+		rs("shop_ck")=1
+		rs("shop_sort1")=0
+		rs("shop_sort2")=0
+		rs("shop_sort3")=0
+		rs("shop_sort4")=0
+		rs("shop_sort")=0
+		rs("shop_average")=0
+		rs("shop_review")=0
+		rs("shop_photonum")=0
+		rs("shop_content")=shop_content
+		rs.update
+		newid=rs("shop_id")
+		rs.close
+	Set rs=Nothing
+	'增加完店铺后，需要进行数据统计
+	'1，统计该用户的信息。
+	conn.execute "update "&userTable&" set postshop=postshop+1,coin=coin+"&coin_addshop&" where username='"&Dreamsun_Name&"'",RowsAffected 
+	If RowsAffected=0 Then 
+		Call GetUserCount(Dreamsun_Name)
+	End If 
+	'2，统计站点信息。
+	Call GetSiteCount()
+
+	Session("posttime") = Now()
+	If default_shop_ischeck=1 Then 
+		response.write backmsg("恭喜！提交店铺成功！","shop.asp?shopid="&newid)
+	Else
+		response.write backmsg("恭喜！提交店铺成功！我们会在24小时内审核完毕！","comindex.asp")
+	End If 
+
+End Sub
+'认领后的店铺编辑修改。
+Sub savemyshop()
+	shop_id=Trim(request.form("shop_id"))
+	shop_name=Trim(request.form("shop_name"))
+	shop_subname=Trim(request.form("shop_subname"))
+	shop_addr=Trim(request.form("shop_addr"))
+	areaid=Int(Trim(request.form("areaid")))
+	typeid=Int(Trim(request.form("typeid")))
+	shop_telephone=Trim(request.form("shop_telephone"))
+	shop_telephone2=Trim(request.form("shop_telephone2"))
+	shop_mobile=Trim(request.form("shop_mobile"))
+	shop_url=Trim(request.form("shop_url"))
+	shop_photo=Trim(request.form("shop_photo"))
+	shop_content=Trim(request.form("shop_content"))
+	shop_content=server.htmlencode(shop_content)
+
+	If typeid=0 Or shop_name="" Or shop_content="" Or areaid=0 Then Response.Write backMsg("信息填写不完善","")
+	Set rs= Server.CreateObject("ADODB.Recordset")
+		sql="select * from "&shopTable&" where shop_id="&shop_id&""
+		rs.open sql,conn,3,2
+		shop_own=rs("shop_own")
+		If shop_own<>Dreamsun_name Then Response.Write backMsg("您不是该店铺的拥有者，请勿越权使用","")
+		rs("shop_name")=shop_name
+		rs("shop_subname")=shop_subname
+		rs("shop_addr")=shop_addr
+		rs("shop_area")=areaid
+		rs("shop_type")=typeid
+		rs("shop_telphone")=shop_telephone
+		rs("shop_telphone2")=shop_telephone2
+		rs("shop_mobile")=shop_mobile
+		rs("shop_url")=shop_url
+		rs("shop_photo")=shop_photo
+		rs("shop_content")=shop_content
+		rs.update
+		rs.close
+	Set rs=Nothing
+	response.write backmsg("恭喜！修改店铺成功！",comurl)
+End Sub
+'提交地图标注
+Sub mapmark()
+	shopid=checkNum(Trim(request.form("shopid")))
+	If shopid=0 Then Response.Write backMsg("参数丢失","")
+	lng=checkNum(Trim(request.form("lng")))
+	lat=checkNum(Trim(request.form("lat")))
+	If lng=0 Or lat=0 Then Response.Write backMsg("请先标注，再提交！","")
+	shop_map=lng&","&lat&","&"1"
+	sql="update ["&shopTable&"] set shop_map='"&shop_map&"' where shop_id="&shopid&""
+	conn.execute(sql)
+	response.write backmsg("恭喜！标注成功！","shop.asp?shopid="&shopid&"")
+End Sub 
+
+
+
+Sub uploadpic()
+	shopid=Int(Trim(request.QueryString("shopid")))
+	Server.ScriptTimeOut = 999
+	stat_FileUpLoad = True
+	memName="zd"
+	UP_FileSize="1024000000"
+	F_path="UPLOAD/"
+
+	Dim upl, FSOIsOK
+	FSOIsOK = 1
+	Set upl = Server.CreateObject("Scripting.FileSystemObject")
+	If Err<>0 Then
+		Err.Clear
+		FSOIsOK = 0
+	End If
+	Dim D_Name, F_Name
+	If FSOIsOK = 1 Then
+		D_Name = DateToStr(Now(), "yem")
+		If upl.FolderExists(Server.MapPath(F_path & D_Name)) = False Then
+			upl.CreateFolder Server.MapPath(F_path & D_Name)
+		End If
+	Else
+		D_Name = "All_Files"
+	End If
+	Set upl = Nothing
+	F_path=F_path & D_Name &"/"
+
+	Dim FileUP
+	Set FileUP = New Upload_File
+	'FileUP.GetDate(-1)
+	Dim F_File, F_Type
+	Set F_File = FileUP.File("File")
+	photo_name=CheckStr(FileUP.Form("photo_name"))
+	photo_type=CheckNum(FileUP.Form("photo_type"))
+	photo_content=CheckStr(FileUP.Form("photo_content"))
+	photo_addip=reip()
+	If shopid=0 Then Response.Write backMsg("参数丢失","")
+	If photo_type=0 Or photo_type="" Then Response.Write backMsg("请选择图片类型","")
+	If photo_name="" Then Response.Write backMsg("请完善图片名称","")
+
+	F_Type =FixName(F_File.FileExt)
+	randomize timer
+	F_Name = DateToStr(Now(), "YmdHIS")&Int(8999*Rnd +1000)&"."&LCase(F_Type)
+	If F_File.FileSize > Int(UP_FileSize) Then
+		Response.Write("<div style=""padding:6px""><a href='javaScript:history.back(-1)'>文件大小超出，重新上传</a></div>")
+	ElseIf IsvalidFile(LCase(F_Type)) = False Then
+		Response.Write("<div style=""padding:6px""><a href='javaScript:history.back(-1)'>文件格式"&LCase(F_Type)&"非法，请返回重新上传</a></div>")
+	Else
+		F_File.SaveAs Server.MapPath(F_path & F_Name)
+		'上传完成，写入数据库
+		sql="insert into ["&photoTable&"] (photo_name,photo_url,photo_type,photo_addtime,photo_addname,photo_content,photo_size,photo_addip,photo_shop_id) values ('"&photo_name&"','"&F_path & F_Name&"',"&photo_type&",'"&Now()&"','"&Dreamsun_Name&"','"&photo_content&"',"&F_File.FileSize&",'"&photo_addip&"',"&shopid&")"
+		conn.execute(sql)
+		'统计图片信息
+		rss=conn.execute("Select Count(*) from ["&photoTable&"] where photo_shop_id="&shopid&"")
+		getmm=rss(0)
+		if isnull(getmm) then getmm=0
+		'更新商家图片信息
+		If CanModifyPhoto=1 Then sqlStr=",shop_photo='"&F_path & F_Name&"'"
+		sql="update ["&shopTable&"] set shop_photonum="&getmm&" "&sqlStr&" where shop_id="&shopid&""
+		conn.execute(sql)
+
+		'增加完图片后，需要进行数据统计
+		'1，统计该用户的信息。
+		conn.execute "update "&userTable&" set postphoto=postphoto+1,coin=coin+"&coin_addphoto&" where username='"&Dreamsun_Name&"'",RowsAffected 
+		If RowsAffected=0 Then 
+			Call GetUserCount(Dreamsun_Name)
+		End If 
+		'2，统计站点信息。
+		Call GetSiteCount()
+		Response.Write backmsg("恭喜，上传成功！","shop.asp?shopid="&shopid)
+	End If
+	Set F_File = Nothing
+	Set FileUP = Nothing
+End Sub 
+
+
+'====== Upload_5xSoft Class ====================================
+'  化境ASP无组件上传类 2.0
+'     版权归原作者所有。
+'     舜子于 2005-10-20 修改
+'============================================================
+dim Data_5xsoft
+
+Class Upload_File
+  
+dim objForm,objFile,Version
+
+Public function Form(strForm)
+   strForm=lcase(strForm)
+   if not objForm.exists(strForm) then
+     Form=""
+   else
+     Form=objForm(strForm)
+   end if
+ end function
+
+Public function File(strFile)
+   strFile=lcase(strFile)
+   if not objFile.exists(strFile) then
+     set File=new FileInfo
+   else
+     set File=objFile(strFile)
+   end if
+ end function
+
+
+Private Sub Class_Initialize 
+  dim RequestData,sStart,vbCrlf,sInfo,iInfoStart,iInfoEnd,tStream,iStart,theFile
+  dim iFileSize,sFilePath,sFileType,sFormValue,sFileName
+  dim iFindStart,iFindEnd
+  dim iFormStart,iFormEnd,sFormName
+  Version="化境HTTP上传程序 Version 2.0"
+  set objForm=Server.CreateObject("Scripting.Dictionary")
+  set objFile=Server.CreateObject("Scripting.Dictionary")
+  if Request.TotalBytes<1 then Exit Sub
+  set tStream = Server.CreateObject("adodb.stream")
+  set Data_5xsoft = Server.CreateObject("adodb.stream")
+  Data_5xsoft.Type = 1
+  Data_5xsoft.Mode =3
+  Data_5xsoft.Open
+  Data_5xsoft.Write  Request.BinaryRead(Request.TotalBytes)
+  Data_5xsoft.Position=0
+  RequestData =Data_5xsoft.Read 
+
+  iFormStart = 1
+  iFormEnd = LenB(RequestData)
+  vbCrlf = chrB(13) & chrB(10)
+  sStart = MidB(RequestData,1, InStrB(iFormStart,RequestData,vbCrlf)-1)
+  iStart = LenB (sStart)
+  iFormStart=iFormStart+iStart+1
+  while (iFormStart + 10) < iFormEnd 
+	iInfoEnd = InStrB(iFormStart,RequestData,vbCrlf & vbCrlf)+3
+	tStream.Type = 1
+	tStream.Mode =3
+	tStream.Open
+	Data_5xsoft.Position = iFormStart
+	Data_5xsoft.CopyTo tStream,iInfoEnd-iFormStart
+	tStream.Position = 0
+	tStream.Type = 2
+	tStream.Charset ="UTF-8"
+	sInfo = tStream.ReadText
+	tStream.Close
+	'取得表单项目名称
+	iFormStart = InStrB(iInfoEnd,RequestData,sStart)
+	iFindStart = InStr(22,sInfo,"name=""",1)+6
+	iFindEnd = InStr(iFindStart,sInfo,"""",1)
+	sFormName = lcase(Mid (sinfo,iFindStart,iFindEnd-iFindStart))
+	'如果是文件
+	if InStr (45,sInfo,"filename=""",1) > 0 then
+		set theFile=new FileInfo
+		'取得文件名
+		iFindStart = InStr(iFindEnd,sInfo,"filename=""",1)+10
+		iFindEnd = InStr(iFindStart,sInfo,"""",1)
+		sFileName = Mid (sinfo,iFindStart,iFindEnd-iFindStart)
+		theFile.FileName=getFileName(sFileName)
+		theFile.FilePath=getFilePath(sFileName)
+		theFile.FileExt=getFileExt(sFileName)
+		'取得文件类型
+		iFindStart = InStr(iFindEnd,sInfo,"Content-Type: ",1)+14
+		iFindEnd = InStr(iFindStart,sInfo,vbCr)
+		theFile.FileType =Mid (sinfo,iFindStart,iFindEnd-iFindStart)
+		theFile.FileStart =iInfoEnd
+		theFile.FileSize = iFormStart -iInfoEnd -3
+		theFile.FormName=sFormName
+		if not objFile.Exists(sFormName) then
+		  objFile.add sFormName,theFile
+		end if
+	else
+	'如果是表单项目
+		tStream.Type =1
+		tStream.Mode =3
+		tStream.Open
+		Data_5xsoft.Position = iInfoEnd 
+		Data_5xsoft.CopyTo tStream,iFormStart-iInfoEnd-3
+		tStream.Position = 0
+		tStream.Type = 2
+		tStream.Charset ="gb2312"
+	        sFormValue = tStream.ReadText 
+	        tStream.Close
+		if objForm.Exists(sFormName) then
+		  objForm(sFormName)=objForm(sFormName)&", "&sFormValue		  
+		else
+		  objForm.Add sFormName,sFormValue
+		end if
+	end if
+	iFormStart=iFormStart+iStart+1
+	wend
+  RequestData=""
+  set tStream =nothing
+End Sub
+
+Private Sub Class_Terminate  
+ if Request.TotalBytes>0 then
+	objForm.RemoveAll
+	objFile.RemoveAll
+	set objForm=nothing
+	set objFile=nothing
+	Data_5xsoft.Close
+	set Data_5xsoft =nothing
+ end if
+End Sub
+   
+ 
+ Private function getFilePath(FullPath)
+  If FullPath <> "" Then
+   GetFilePath = left(FullPath,InStrRev(FullPath, "\"))
+  Else
+   GetFilePath = ""
+  End If
+ End  function
+ 
+ Private function getFileName(FullPath)
+  If FullPath <> "" Then
+   GetFileName = mid(FullPath,InStrRev(FullPath, "\")+1)
+  Else
+   GetFileName = ""
+  End If
+ End  function
+ 
+ Private function getFileExt(FullPath)
+  If FullPath <> "" Then
+		GetFileExt = mid(FullPath,InStrRev(FullPath, ".")+1)
+	Else
+		GetFileExt = ""
+  End If
+ End function
+ 
+End Class
+
+Class FileInfo
+  dim FormName,FileName,FilePath,FileSize,FileType,FileStart,FileExt
+  Private Sub Class_Initialize 
+    FileName = ""
+    FilePath = ""
+    FileSize = 0
+    FileStart= 0
+    FormName = ""
+    FileType = ""
+    FileExt=""
+  End Sub
+  
+ Public function SaveAs(FullPath)
+    dim dr,ErrorChar,i
+    SaveAs=true
+    if trim(fullpath)="" or FileStart=0 or FileName="" or right(fullpath,1)="/" then exit function
+    set dr=CreateObject("Adodb.Stream")
+    dr.Mode=3
+    dr.Type=1
+    dr.Open
+    Data_5xsoft.position=FileStart
+    Data_5xsoft.copyto dr,FileSize
+    dr.SaveToFile FullPath,2
+    dr.Close
+    set dr=nothing 
+    SaveAs=false
+  end function
+  End Class
+
+%>

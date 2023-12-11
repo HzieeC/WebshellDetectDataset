@@ -1,0 +1,194 @@
+<!--#include file="../ACT.Function.asp"-->
+<!--#include file="../../ACT_inc/cls_pageview.asp"-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>1</title>
+<link href="../Images/style.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+<% 
+	Dim sql, sqlCount,Sqls,intPageSize, strPageInfo,arrRecordInfo, i,pages,intPageNow,strLocalUrl
+	Dim ShowErr,ModeID:ModeID = ChkNumeric(request("ModeID"))
+	 if ModeID=0 or ModeID="" Then ModeID=1
+		If Not ACTCMS.ACTCMS_QXYZ(ModeID,"","") Then   Call Actcms.Alert("对不起，您没有"&ACTCMS.ACT_C(ModeID,1)&"系该项操作权限！","")
+
+		IF Request.QueryString("Action") = "del" Then
+		Dim ID:ID = Request("ID")
+			IF ID = "" Then
+				Call Actcms.ActErr("请指定要删除的Tags","","1")
+ 				Response.end
+			End IF
+		If instr(ID,",")>0 then
+			ID=replace(ID," ","")
+			Sql="delete from Tags_ACT where ID in (" & ID & ")"
+		Else
+			Sql="delete from Tags_ACT where ID=" &  ChkNumeric(ID) & ""
+		End if
+		Conn.Execute sql:Set Conn=nothing
+ 	    Call Actcms.ActErr("删除成功","ACT_Mode/ACT.Tags.asp?ModeID="&ChkNumeric(request("ModeID"))&"","")
+ 		Response.end
+	  End IF
+	  
+	  Select Case Request.QueryString("Action")
+	  		Case "edit"
+				call edit()
+			case "save"
+				call saves()
+			Case Else
+				call main()
+		end select
+		sub main()
+	 Dim ACT_TypeDiY,TypeDiY,Manage
+	strLocalUrl = request.ServerVariables("SCRIPT_NAME")
+	intPageNow = request.QueryString("page")
+	intPageSize =20
+	pages = "ModeID="&Request("ModeID")&"&page"
+	Sqls = " where ModeID = "& ModeID
+	sql = "SELECT [ID], [TagsChar], [AddTime], [Hits], [ClicksTime]" & _
+		" FROM [Tags_ACT]" &Sqls& _
+		" ORDER BY [ID] DESC"
+	sqlCount = "SELECT Count([ID])" & _
+			" FROM [Tags_ACT]"&Sqls
+		Dim clsRecordInfo
+		Set clsRecordInfo = New Cls_PageView
+			clsRecordInfo.intRecordCount = 2816
+			clsRecordInfo.strSqlCount = sqlCount
+			clsRecordInfo.strSql = sql
+			clsRecordInfo.intPageSize = intPageSize
+			clsRecordInfo.intPageNow = intPageNow
+			clsRecordInfo.strPageUrl = strLocalUrl
+			clsRecordInfo.strPageVar = pages
+		clsRecordInfo.objConn = Conn		
+		arrRecordInfo = clsRecordInfo.arrRecordInfo
+		strPageInfo = clsRecordInfo.strPageInfo
+		Set clsRecordInfo = nothing
+	 %><form name="Article" method="post" action="?Action=">
+  <table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+    <tr>
+      <td colspan="8" class="bg_tr">您现在的位置：文章中心 &gt;&gt; <font class="bg_tr">Tags管理</font></td>
+    </tr>
+    <tr>
+      <td width="30" align="center" class="td_bg">选中 </td>
+      <td width="50" align="center" class="td_bg">ID</td>
+      <td width="300" align="center" class="td_bg">Tags</td>
+      <td width="100" align="center" class="td_bg">点击频率</td>
+      <td width="200" align="center" class="td_bg">最后使用时间</td>
+      <td width="200" align="center" class="td_bg">添加时间时间</td>
+      <td width="141" colspan="2" align="center" class="td_bg">管理操作</td>
+    </tr>
+	 <%
+		Dim bgColor
+		If IsArray(arrRecordInfo) Then
+			For i = 0 to UBound(arrRecordInfo, 2)
+			bgColor="#FFFFFF"
+			if i mod 2=0 then bgColor="#DFEFFF"
+	%>
+    <tr onMouseOver=overColor(this) onMouseOut=outColor(this)>
+      <td align="center" class="td_bg" >
+	  <input type="checkbox" name="ID" value="<%= arrRecordInfo(0,i) %>">	  </td>
+      <td align="center" class="td_bg" ><%= arrRecordInfo(0,i) %></td>
+      <td class="td_bg" ><%= arrRecordInfo(1,i) %></td>
+      <td align="center" class="td_bg" ><%= arrRecordInfo(3,i) %></td>
+      <td align="center" class="td_bg" ><%= arrRecordInfo(4,i) %></td>
+      <td align="center" class="td_bg" ><%= arrRecordInfo(2,i) %></td>
+      <td colspan="2" align="center" class="td_bg">
+	  <a href="?Action=edit&id=<%= arrRecordInfo(0,i) %>">修改</a>┆
+	  <a href="?Action=del&ID=<%= arrRecordInfo(0,i) %>&ModeID=<%= ModeID %>" onClick="return confirm('确认删除此Tags吗?')">删除</a>	  </td>
+    </tr>
+	<% 
+	Next
+	End If
+	%>
+    <tr >
+      <td height="30" colspan="8" class="td_bg">
+	 <label for=chk>
+		<input id="chk" type="checkbox" name="chkall" value="checkbox" onClick="CheckAll(this.form)">选择全部</label>
+	  
+	  <input type="button" class="act_btn"  name="yd" value="批量删除" onClick="delpost()"></td>
+    </tr>
+    <tr >
+      <td height="25" colspan="8" align="center" class="td_bg"><%= strPageInfo%></td>
+    </tr>
+  </table>
+</form>
+<p>
+  <script language="javascript">
+function CheckAll(form)  
+  {  
+ for (var i=0;i<form.elements.length;i++)  
+    {  
+    var e = Article.elements[i];  
+   if (e.name != 'chkall')  
+      e.checked = Article.chkall.checked;  
+   }  
+  }
+//CSS背景控制
+function overColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg1"
+		Obj.bgColor="";
+	}
+	
+}
+function outColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg";
+		Obj.bgColor="";
+	}
+}
+ 
+
+
+function delpost(){
+    document.Article.method="post";
+    document.Article.action="?Action=del&ModeID=<%= ModeID %>";
+{
+	if(confirm('确认要删除选中的Tags吗?')){
+	this.document.Article.submit();
+	return true;}return false;
+}
+	}
+
+
+
+
+
+
+
+</script>
+  <% end sub
+Sub edit() 
+	Dim Rs
+	Set Rs=server.CreateObject("adodb.recordset") 
+	Rs.OPen "Select * from Tags_ACT Where ID = "&ChkNumeric(Request.QueryString("ID")) ,Conn,1,1
+%>
+</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<form name="form1" method="post" action="?action=save&id=<%= Rs("id") %>">
+  <input name="TagsChar" type="text" value="<%= Rs("TagsChar") %>">
+  <input type="submit" class="act_btn" name="Submit2" value="提交">
+</form>
+<%end sub 
+
+
+sub saves()
+Dim Rs
+	Set Rs=server.CreateObject("adodb.recordset") 
+	Rs.OPen "Select * from Tags_ACT Where ID = "&ChkNumeric(Request.QueryString("ID")) ,Conn,1,3
+	Rs("TagsChar") = Request.Form("TagsChar")
+	Rs.Update
+	Rs.Close:Set Rs = Nothing	
+	response.Redirect "?ModeID=1"
+end sub
+CloseConn %>
+</body>
+</html>

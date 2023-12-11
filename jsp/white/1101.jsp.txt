@@ -1,0 +1,331 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_personal.Ti_personalInfo" %>
+<%@ page import="com.bizoss.trade.ti_orderinfo.Ti_orderinfoInfo" %>
+<%@page import="com.bizoss.trade.ti_attach.Ti_attachInfo" %>
+<%@page import="com.bizoss.trade.ti_goods.Ti_goodsInfo"  %>
+<%@page import="com.bizoss.trade.ti_collect.Ti_collectInfo" %>
+<%@page import="com.bizoss.trade.ti_custcomment.Ti_custcommentInfo" %>
+<%@page import="com.bizoss.trade.ti_newscomment.Ti_newscommentInfo" %>
+<%@ page import="com.bizoss.trade.ti_evaluate.Ti_evaluateInfo" %>
+<%@page import="com.bizoss.trade.ti_finance.Ti_financeInfo" %>
+<%@page import="com.bizoss.trade.ti_teamorder.Ti_groupVoucherInfo"%>
+<%@page import="com.bizoss.frame.util.Config"%>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.trade.util.VerificationUtil" %>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" /> 
+<%!
+public String getPartLength(String key,int num){if(key.equals("")) return "";
+		if(key.length()>num) key = key.substring(0,num)+"...";
+		return key;
+	}
+public String getDateStr(String in_date, String type) {
+		if (in_date.equals(""))
+			return "";
+		if (in_date.length() >= 8) {
+			String yeard = in_date.substring(0, 4);
+			String monthd = in_date.substring(5, 7);
+			String dayd = in_date.substring(8, 10);
+			if (type.equals("")) {
+				in_date = yeard + "-" + monthd + "-" + dayd;
+			} else {
+				in_date = monthd + "-" + dayd;
+			}
+		}
+		return in_date;
+	}
+%>
+<% 
+   
+	Config configa = new Config();
+	configa.init();
+	//String rootpath = configa.getString("rootpath");
+	String goods_article_path = configa.getString("goods_article_path");
+
+	String cust_id = "";	
+	if( session.getAttribute("session_cust_id") != null ){
+		cust_id = session.getAttribute("session_cust_id").toString();
+	}
+	
+	Ti_personalInfo ti_personalInfo = new Ti_personalInfo();	
+	List list = ti_personalInfo.getPorsonalInfosByPK(cust_id);
+	
+	//获得用户基本信息  	
+	Hashtable map = new Hashtable();
+	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+	String nike_name="",email="",cellphone="",last_login="",user_id="";
+	if(map.get("nike_name")!=null) nike_name = map.get("nike_name").toString();
+	if(map.get("email")!=null) email = map.get("email").toString();
+	if(map.get("cellphone")!=null) cellphone = map.get("cellphone").toString();
+	if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+	if(map.get("last_login")!=null) {
+		last_login = map.get("last_login").toString();
+		last_login=last_login.substring(0,19);
+	}
+	String verification_id = randomId.GenTradeId();
+	
+	//订单信息
+	Ti_orderinfoInfo ti_orderinfoInfo = new Ti_orderinfoInfo();
+	//等待买家付款
+	Map params1 = new Hashtable();
+	params1.put("order_state","0"); 
+	params1.put("user_id",user_id);
+	int counter1 = ti_orderinfoInfo.getPersonalCountByObj(params1);
+	//买家已付款
+	Map params2 = new Hashtable();
+	params2.put("order_state","1"); 
+	params2.put("user_id",user_id);
+	int counter2 = ti_orderinfoInfo.getPersonalCountByObj(params2);
+	//卖家已发货
+	Map params3 = new Hashtable();
+	params3.put("order_state","2"); 
+	params3.put("user_id",user_id);
+	int counter3 = ti_orderinfoInfo.getPersonalCountByObj(params3);
+	//交易成功
+	Map params4 = new Hashtable();
+	params4.put("order_state","3"); 
+	params4.put("user_id",user_id);
+	int counter4 = ti_orderinfoInfo.getPersonalCountByObj(params4);
+	//无效的订单
+	Map params5 = new Hashtable();
+	params5.put("order_state","4"); 
+	params5.put("user_id",user_id);
+	int counter5 = ti_orderinfoInfo.getPersonalCountByObj(params5);
+	//退货中的订单
+	Map params6 = new Hashtable();
+	params6.put("order_state","5"); 
+	params6.put("user_id",user_id);
+	int counter6 = ti_orderinfoInfo.getPersonalCountByObj(params6);
+	//待付款和待发货订单
+	Map params7 = new Hashtable();
+	params7.put("order_state","6"); 
+	params7.put("user_id",user_id);
+	int counter7 = ti_orderinfoInfo.getPersonalCountByObj(params7);
+	
+	int order_counter = counter1 + counter2 + counter3 + counter4 + counter5 + counter6 + counter7;
+	
+	Ti_attachInfo  ti_attachInfo = new Ti_attachInfo(); 
+	String img_path =  ti_attachInfo.getFilePathByAttachrootid(user_id);
+	if(img_path.equals(""))
+	{
+		 img_path ="/templets/html/www/images/touxiang.png";            
+	}  
+	//验证信息
+	VerificationUtil verificationUtil = new VerificationUtil();
+	boolean bl = verificationUtil.isVerificationSuccess(cust_id,"2",email);
+	// 获取热销商品 和推荐新品
+	Ti_goodsInfo goodsInfo = new Ti_goodsInfo();
+	Map hotGoods=new Hashtable();
+	hotGoods.put("cust_id","100000000000000");
+	List hotgoodslist = goodsInfo.getHotGoodsList(hotGoods);
+	List newgoodslist = goodsInfo.getNewGoodsList(hotGoods);
+	//收藏信息
+	Ti_collectInfo ti_collectInfo = new Ti_collectInfo();
+	//商品收藏数
+	Map product_ti_collect = new Hashtable();
+	product_ti_collect.put("user_id",user_id);
+	product_ti_collect.put("info_type","0");
+	int product_counter = ti_collectInfo.getCountByObj(product_ti_collect);
+	//资讯收藏数
+	Map news_ti_collect = new Hashtable();
+	news_ti_collect.put("user_id",user_id);
+	news_ti_collect.put("info_type","2");
+	int news_counter = ti_collectInfo.getCountByObj(news_ti_collect);
+	//店铺收藏数
+	Map business_ti_collect = new Hashtable();
+	business_ti_collect.put("user_id",user_id);
+	business_ti_collect.put("info_type","1");
+	int business_counter = ti_collectInfo.getCountByObj(business_ti_collect);
+	//商品评价
+	Map ti_custcomment = new Hashtable();
+	ti_custcomment.put("user_id",user_id);
+	ti_custcomment.put("com_type","0");
+	Ti_custcommentInfo ti_custcommentInfo = new Ti_custcommentInfo();
+	int product_comment_counter = ti_custcommentInfo.getCountByObj(ti_custcomment);
+	//资讯评价
+	Map ti_newscomment = new Hashtable();
+	ti_newscomment.put("user_id",user_id);
+	Ti_newscommentInfo ti_newscommentInfo = new Ti_newscommentInfo();
+	int newscomment_counter = ti_newscommentInfo.getCountByObjAdmin(ti_newscomment);
+	//交易评价
+    Ti_evaluateInfo ti_evaluateInfo = new Ti_evaluateInfo();    
+  	Map params_evaluate = new Hashtable();
+    params_evaluate.put("send_user_id",user_id); 
+	int counter_evaluate = ti_evaluateInfo.getCountByObj(params_evaluate);
+	//我的积分
+	Map ti_finance = new Hashtable();	
+	Ti_financeInfo ti_financeInfo = new Ti_financeInfo();
+	List list_finance = ti_financeInfo.getListByPk(cust_id);
+	Hashtable mapp = new Hashtable();
+  	if(list_finance!=null && list_finance.size()>0) mapp = (Hashtable)list_finance.get(0);
+	String inter="0";
+	if(mapp.get("inter")!=null) inter = mapp.get("inter").toString();
+	//我的优惠券
+	Ti_groupVoucherInfo groupVoucherInfo = new Ti_groupVoucherInfo();
+	Map paramsVouche = new Hashtable();
+	paramsVouche.put("user_id",user_id);
+	int voucher_counter = groupVoucherInfo.getCountByObj(paramsVouche);
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>个人中心首页</title>
+<link rel="stylesheet" rev="stylesheet" href="/templets/html/8diansc/css/Home.css" type="text/css"/>
+<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+<script type="text/javascript" src="/js/jquery.js"></script>
+<script type="text/javascript" src="/js/thickbox.js"></script>
+<script type="text/javascript" src="/templets/html/www/js/menu_qiehuan.js"></script>
+<script type="text/javascript">
+function reinitIframe(){
+	var iframe = parent.document.getElementById("contentFrame");
+	try{
+		var bHeight = iframe.contentWindow.document.body.scrollHeight;
+		var dHeight = iframe.contentWindow.document.documentElement.scrollHeight;
+		var height = Math.max(bHeight, dHeight);
+		iframe.height =  height;
+	}catch (ex){
+	
+	}
+}
+
+function openAvatarPage(val){
+   var title = "会员头像上传";
+   var gURL = "/program/plugins/upload/uploadImg/index.jsp?height=400&width=600&attach_root_id=<%=user_id%>&img_type=0";    
+   TB_show(title,gURL,false);
+}
+function verification(r){
+	document.getElementById("verification_user").value="<%=cust_id%>"
+	if(r == 1){}else if(r == 2){
+		document.getElementById("verification_target").value="<%=email%>"
+		document.getElementById("verification_type").value="2";
+		document.getElementById("verification_state").value='0';
+	}
+	document.indexForm.submit();
+}
+</script>
+</head>
+<body onload="reinitIframe()">
+
+    <div class="touxiang">
+      <div id="avatar_position" class="user"> <a href="#"><img src="<%=img_path%>" id="avatar_img_contaner" border="0" width="107" height="107" /></a>
+        <p><a href="javascript:openAvatarPage();">修改头像</a></p>
+      </div>
+      <div class="user_xinxi">
+        <p><strong><%=nike_name %></strong>，欢迎您！上一次登录时间：<%=last_login%>
+        	
+        	<%if(bl){%>邮箱已验证<%}else{%><a href="javascript:verification(2);">邮箱验证</a><%}%></p>
+        <div class="remind">
+          <div class="remind_left">
+		  <!--
+            <dl>
+              <dt>订单提醒：</dt>
+              <dd>待处理订单(<%=counter1%>)</a></dd>
+              <dd> 待评价商品(<%=counter4%>)</a></dd>
+              <dd>待晒单商品(<%=counter7%>)</a></dd>
+            </dl>
+			-->
+            <dl>
+              <dt>我的评价：</dt>
+              <dd>商品评价(<%=product_comment_counter%>)</a></dd>
+              <dd>资讯评价(<%=newscomment_counter%>)</a></dd>
+			  <dd>交易评价(<%=counter_evaluate%>)</a></dd>
+            </dl>
+            <dl>
+              <dt> 我的收藏：</dt>
+              <dd> 商品收藏(<%=product_counter%>)</a></dd>
+              <dd> 资讯收藏(<%=news_counter%>) </a></dd>
+              <dd style="display:none;"><a href="#"> 店铺收藏(<%=business_counter%>)</a></dd>
+            </dl>
+          </div>
+          <div class="remind_right">
+            <!--
+			<dl>
+              <dt>订单总数：</dt>
+              <dd><%=order_counter%></a>个</dd>
+            </dl>
+			-->
+            <dl>
+              <dt>我的积分：</dt>
+              <dd><%=inter%></a>分</dd>
+            </dl>
+            <dl>
+              <dt>优惠券：</dt>
+              <dd><%=voucher_counter%></a>张</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id=con>
+      <ul id=tags>
+        <li ><a onClick="selectTag('tagContent0',this)" 
+  href="javascript:void(0)">热销商品</a> </li>
+        <li class=selectTag><a onClick="selectTag('tagContent1',this)" 
+  href="javascript:void(0)">新品推荐</a> </li>
+        <!-- <li><a onClick="selectTag('tagContent2',this)" href="javascript:void(0)">疯狂抢购</a> </li> -->
+      </ul>
+      <div id=tagContent>
+        <div class=tagContent id=tagContent0>
+          <% 
+          String goods_name = "", sale_price="", image_path="", infoUrl="", publish_date="", goods_id="";
+          if(hotgoodslist!=null&&hotgoodslist.size() > 0 ){
+               for(int a = 0; a != 4&&a<hotgoodslist.size(); a++){
+                   Hashtable maps = (Hashtable)hotgoodslist.get(a);
+                   
+                   if(maps.get("goods_name")!=null) goods_name = maps.get("goods_name").toString();
+                   if(maps.get("sale_price")!=null) sale_price = maps.get("sale_price").toString();
+                   if(maps.get("image_path")!=null) image_path = maps.get("image_path").toString();
+                   if(maps.get("goods_id")!=null) goods_id = maps.get("goods_id").toString();
+                   if(maps.get("publish_date")!=null) publish_date = maps.get("publish_date").toString();
+                   goods_name = getPartLength(goods_name , 10);
+                   infoUrl = goods_article_path + getDateStr(publish_date,"") + "/" + goods_id	+ ".html";
+               
+           %>
+          <dl>
+            <dt><a href="<%=infoUrl %>" target="_blank"><img src="<%=image_path %>"  border="0" width="150" height="104"/></a></dt>
+            <dd><a href="<%=infoUrl %>" target="_blank"><%=goods_name %></a></dd>
+            <dd>惊爆价：<strong>￥<%=sale_price %></strong></dd>
+          </dl>
+          
+          <%
+          }
+           } %>
+        </div>
+        <div class="tagContent selectTag" id=tagContent1>
+        <%
+        String goods_names = "", sale_prices="", image_paths="", infoUrls="", publish_dates="", goods_ids="";
+          if(newgoodslist!=null&&newgoodslist.size() > 0){
+               for(int a = 0; a != 4&&a<newgoodslist.size(); a++){
+                   Hashtable maps = (Hashtable)newgoodslist.get(a);
+                   
+                   if(maps.get("goods_name")!=null) goods_names = maps.get("goods_name").toString();
+                   if(maps.get("sale_price")!=null) sale_prices = maps.get("sale_price").toString();
+                   if(maps.get("image_path")!=null) image_paths = maps.get("image_path").toString();
+                   if(maps.get("goods_id")!=null) goods_ids = maps.get("goods_id").toString();
+                   if(maps.get("publish_date")!=null) publish_dates = maps.get("publish_date").toString();
+                   goods_names = getPartLength(goods_names , 10);
+                   infoUrls = goods_article_path + getDateStr(publish_dates,"") + "/" + goods_ids+ ".html";
+         %>
+          <dl>
+            <dt><a href="<%=infoUrls %>" target="_blank"><img src="<%=image_paths %>" border="0" width="150" height="104"/></a></dt>
+            <dd><a href="<%=infoUrls %>" target="_blank"><%=goods_names%></a></dd>
+            <dd>惊爆价：<strong><%=sale_prices %></strong></dd>
+          </dl>
+          <%}
+          } %>
+          
+        </div>
+      </div>
+    </div>
+     <form action="/program/member/index/8diansc/sendemail.jsp" name="indexForm" method="post">
+   	<input type="hidden" name="tijiao" value="tijiao" />
+  	<input name="verification_id" id="verification_id" type="hidden" value="<%=verification_id%>"/>
+  	<input type="hidden" name="verification_target" id="verification_target" value="" />
+  	<input type="hidden" name="verification_type" id="verification_type" value="" />
+  	<input type="hidden" name="verification_user" id="verification_user" value="" />
+  	<input type="hidden" name="verification_state" id="verification_state" value="" />
+  </form>
+</body>
+</html>

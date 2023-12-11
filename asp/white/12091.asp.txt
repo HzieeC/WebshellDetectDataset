@@ -1,0 +1,187 @@
+<%
+Dim userexe
+
+' 写入session和cookies
+function Users_SetCookies(name,value)
+	If name="userID" Or name="username" Or name="userpwd" Or name="usermail" Then
+		session(OT_SiteID & name)			= value
+	End If
+	If name="userID" Or name="username" Or name="userInfo" Then
+		response.cookies(OT_SiteID & name)	= value
+	End If
+End Function
+
+' 写入session和cookies
+function Users_GetCookies(name)
+	If name<>"userInfo" Then
+		str = session(OT_SiteID & name)
+	End If
+	If str="" And (name="userID" Or name="username" Or name="userInfo") Then
+		str = request.cookies(OT_SiteID & name)
+	End If
+	Users_GetCookies = ""& str
+End Function
+
+
+' 获取会员信息
+function Users_Get()
+'	response.write(OT_SiteID)
+'	response.End()
+	userID		= session(OT_SiteID &"userID")
+	username	= session(OT_SiteID &"username")
+	userpwd		= session(OT_SiteID &"userpwd")
+	usermail	= session(OT_SiteID &"usermail")
+	If userID>0 And username<>"" And userpwd<>"" Then
+		userInfoStr = userID & Chr(9) & username & Chr(9) & userpwd & Chr(9) & usermail
+	Else
+		userInfoStr = Users_GetCookies("userInfo")
+		Call Base64_init()
+		userInfoStr = encrypt_decode(Base64_Decode(userInfoStr),US_loginKey)
+	End If
+	Users_Get = userInfoStr
+'		userArr		= Split(userInfoStr,Chr(9))
+'		If UBound(userArr)>=3 Then
+'			userID		= ToInt(userArr(0))
+'			username	= RegExpStr(userArr(1),"sql")
+'			userpwd		= RegExpStr(userArr(2),"sql")
+'			mail		= userArr(3)
+'		End If
+End Function
+
+
+' 更新会员信息
+Function Users_Update(user_ID,user_name,user_pwd,user_mail)
+	session(OT_SiteID &"userID")	= user_ID
+'	session(OT_SiteID &"username")	= user_name
+	session(OT_SiteID &"userpwd")	= user_pwd
+	session(OT_SiteID &"usermail")	= user_mail
+	Call Users_SetCookies("username",user_name)
+	Call Base64_init()
+	Call Users_SetCookies("userInfo",Base64_Encode(encrypt_encode(user_ID & Chr(9) & user_name & Chr(9) & user_pwd & Chr(9) & user_mail,US_loginKey)))
+'	response.write("alert('"& Users_GetCookies("username") &"|"& Users_GetCookies("userInfo") &"');")
+End Function
+
+
+' 清空会员信息
+Function Users_Delete()
+	session(OT_SiteID &"userID")	= Empty
+'	session(OT_SiteID &"username")	= Empty
+	session(OT_SiteID &"userpwd")	= Empty
+	session(OT_SiteID &"usermail")	= Empty
+	Call Users_SetCookies("username",Empty)
+	Call Users_SetCookies("userInfo",Empty)
+End Function
+
+
+
+' 打开用户表
+' modeStr：模式（jud:有存在返回true，否则返回false；alertBack:如不存在提示并返回）
+' sqlStr：附加打开的用户字段,要以","号开头（如：,UE_type,UE_status）
+' whereStr：子条件句
+Function Users_Open(modeStr,sqlStr,whereStr)
+	If modeStr="" Then modeStr="alertBack"
+
+	userID		= 0
+	username	= ""
+	userpwd		= ""
+	userInfoStr = Users_Get()
+	userArr		= Split(userInfoStr,Chr(9))
+	If UBound(userArr)>=3 Then
+		userID		= ToInt(userArr(0))
+		username	= RegExpStr(userArr(1),"sql")
+		userpwd		= RegExpStr(userArr(2),"sql")
+	End If
+
+	Set userexe=conobj.execute("select UE_ID"& sqlStr &" from OT_users where UE_ID="& userID &" and UE_userpwd='"& SqlForStr(userpwd) &"'"& whereStr)
+'	response.write("select UE_ID"& sqlStr &" from OT_users where UE_ID="& userID &" and UE_userpwd='"& SqlForStr(userpwd) &"'"& whereStr)
+'	response.End()
+		If userexe.EOF Then
+'	response.write(OT_SiteID)
+'	response.End()
+			judErrStr = JS_ModeDeal(modeStr,false,"请先登录","userLogin.asp")
+				If judErrStr<>"" Then
+					Users_Open = judErrStr
+					Exit Function
+				End If
+		Else
+			if US_exitMinute>0 Then
+				userExitNewTime = GetTimer()
+				userExitOldTime = ToInt(session("userExitOldTime"))
+				If userExitOldTime+US_exitMinute*60<userExitNewTime Then
+					judErrStr = JS_ModeDeal(modeStr,false,"您超过"& US_exitMinute &"分钟没动静，请重新登录。","Users_deal.asp?mudi=exit")
+					If judErrStr<>"" Then
+						Users_Open = judErrStr
+						Exit Function
+					End If
+				Else
+					session("userExitOldTime") = userExitNewTime
+				End If
+			End If
+
+			If modeStr="jud" Then
+				Users_Open = True
+				Exit Function
+			End If
+
+			OT_userIP	= GetUserIp()
+			OT_computerCode = GetComputerCode()
+			Set onlinerec = server.CreateObject("ADODB.recordset")
+			onlinerec.open "select top 1 UO_time,UO_computerCode,UO_ip from OT_userOnline where UO_userID="& userexe("UE_ID") &" and UO_ip='"& OT_userIP &"'",conobj,0,2
+				If onlinerec.EOF Then
+					judErrStr = JS_ModeDeal(modeStr,false,"在线状态丢失（可能该账号已在其他地方登录，或被清空在线状态），请重新登录。","users_deal.php?mudi=onlineClear")
+					If judErrStr<>"" Then
+						Users_Open = judErrStr
+						Exit Function
+					End If
+				End If
+				onlinerec("UO_time")			= Now()
+				onlinerec("UO_computerCode")	= OT_computerCode
+				onlinerec("UO_ip")				= OT_userIP
+				onlinerec.update()
+			onlinerec.close()
+			Set onlinerec=Nothing
+		End If
+
+End Function
+
+
+' 关闭用户表
+function Users_Close()
+	userexe.close()
+	Set userexe=Nothing
+End Function
+
+
+
+
+
+
+
+Function Users_AddOnline(userTime,user_ID,computerCode,userIP)
+	Set onlinerec=server.CreateObject("ADODB.recordset")
+	onlinerec.open "select top 1 UO_time,UO_userID,UO_computerCode,UO_ip from OT_userOnline where UO_userID="& user_ID,conobj,0,2
+	If onlinerec.EOF Then onlinerec.addNew()
+	onlinerec("UO_time")		= userTime
+	onlinerec("UO_userID")		= user_ID
+	onlinerec("UO_computerCode")= computerCode
+	onlinerec("UO_ip")			= userIP
+	onlinerec.update()
+	onlinerec.close()
+	Set onlinerec=Nothing
+End Function
+
+
+Function Users_UpdateOnline(userTime,user_ID,computerCode,userIP)
+	Set onlinerec=server.CreateObject("ADODB.recordset")
+	onlinerec.open "select top 1 UO_time,UO_userID,UO_computerCode,UO_ip from OT_userOnline where UO_userID="& user_ID,conobj,0,2
+	If onlinerec.EOF Then onlinerec.addNew()
+	onlinerec("UO_time")		= userTime
+	onlinerec("UO_userID")		= user_ID
+	onlinerec("UO_computerCode")= computerCode
+	onlinerec("UO_ip")			= userIP
+	onlinerec.update()
+	onlinerec.close()
+	Set onlinerec=Nothing
+End Function
+
+%>

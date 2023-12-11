@@ -1,0 +1,31 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@page import="com.bizoss.trade.ts_custclass.*" %>
+
+
+<%
+	String cust_id="",user_id="";	
+	if( session.getAttribute("session_cust_id") != null )
+	{
+		cust_id = session.getAttribute("session_cust_id").toString();
+	}
+	if( session.getAttribute("session_user_id") != null )
+	{
+		user_id = session.getAttribute("session_user_id").toString();
+	}
+	
+	String cust_class = "";
+    if(request.getParameter("cust_class")!=null && !request.getParameter("cust_class").equals("")){
+		cust_class = request.getParameter("cust_class");
+	}	
+	Ts_custclassInfo custClassInfo = new Ts_custclassInfo();		
+	Boolean isExisted = custClassInfo.checkCust_class(cust_class);
+	
+%>
+
+<%
+	if(isExisted){
+%>
+<span id="checkCustDataRemote">1</span>
+<%}else{%>
+<span id="checkCustDataRemote">0</span>
+<%}%>

@@ -1,0 +1,101 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<!--#include file="../inc/md5.asp"-->
+<!--#include file="../API/API_Config.asp"-->
+<!--#include file="../API/API_Function.asp"-->
+<%link="company_email.asp"%>
+<!--#include file="checkcmember.asp" -->
+<%step=trim(request("step"))
+if step="Modify" then
+email=Replace(request("email"),"'","")
+Member_sendemail=request("sendemail")
+if Member_sendemail="" then
+	Member_sendemail=0
+end if
+if email="" then
+	response.write("<script language=JavaScript>{alert('请输入新Email地址！');location.href = 'javascript:history.back()';}</script>")
+	Response.end()
+else
+	set rs=server.createobject("adodb.recordset")
+	sql="select member_login,member_email from JOB_member where member_email='"&email&"' and member_login<>'"&cmember_login&"'"
+	rs.open sql,conn,1,1  
+		if not rs.eof then
+			response.write("<script language=JavaScript>{alert('该邮箱已经有人使用了！');location.href = 'javascript:history.back()';}</script>")
+			Response.end()
+		end if
+	rs.close
+	set rs=nothing
+	conn.execute("update job_member set member_email='"&email&"',Member_sendemail='"&Member_sendemail&"' where member_login='"&cmember_login&"'")
+	'添加对整合接口的支持
+	If API_Enable Then
+		'重置错误状态和信息
+		FoundErr = False
+		ErrMsg = ""
+		set sMyXmlHTTP=server.createobject("MSXML2.ServerXMLHTTP")
+		sMyXmlHTTP.setTimeouts API_Timeout, API_Timeout, API_Timeout * 6, API_Timeout * 6
+		For intIndex = 0 To UBound(ArrUrls)
+		sMyXmlHTTP.open "POST",ArrUrls(intIndex),false
+		sMyXmlHTTP.setRequestHeader "Content-Type", "text/xml; charset=gb2312"
+		sMyXmlHTTP.Send "<root><appid>finereason</appid><action>update</action><syskey>"&MD5(cmember_login & API_SysKey, 16)&"</syskey><username>"&cmember_login&"</username><password></password><email>"&email&"</email><question></question><answer></answer></root>"
+		If sMyXmlHTTP.readyState = 4 And sMyXmlHTTP.Status = 200 Then
+			Dim objRecXml
+			Set objRecXml = Server.CreateObject("Microsoft.XMLDOM")
+			objRecXml.Async = False
+			objRecXml.Load (sMyXmlHTTP.ResponseXML)
+			If objRecXml.documentElement.selectSingleNode("//status").Text <> "0" Then
+				FoundErr = True
+				ErrMsg = objRecXml.documentElement.selectSingleNode("//message").Text & " [APIError-API-" & intIndex & "]"
+			End If
+		End If
+		If FoundErr Then
+			call Show_Err()
+			Exit For
+		End If
+		Next
+	End If
+	response.write("<script language=JavaScript>{alert('修改完成！');location.href = 'company_email.asp';}</script>")
+	Response.end()
+end if
+end if%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>修改邮箱--<%=SiteTitle%></title>
+<script src="../js/main.js" language="javascript"></script>
+<link href="../member/css.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div class="memmenul">
+<div class="leftmenutit"><span>修改邮箱</span></div>
+<%
+set rs=server.createobject("ADODB.Recordset")
+sql="select member_login,member_email,Member_sendemail from job_member where member_login='"&cmember_login&"'"
+rs.open sql,conn,1,1
+email=rs("member_email")
+Member_sendemail=rs("Member_sendemail")
+rs.close
+set rs=nothing
+%>
+<table width="98%" border="0" cellspacing="0" cellpadding="0" class="mtable" align="center">
+<form name="form1" action="company_email.asp?step=Modify" method="post" onSubmit="return sendreg()">
+  <tr>
+    <td>旧的E_mail: <%=email%></td>
+  </tr>
+  <tr>
+    <td>新的E_mail：<input name="email" type="text" value="<%=email%>" class="inputr" id="email" onBlur="return checkEmails();" /> <span id="emails"></span></td>
+  </tr>
+  <tr>
+    <td><input name="sendemail" type="checkbox" value="1" <%if Member_sendemail=1 then%>checked="checked"<%end if%> /> 接受来自 <a href="<%=siteurl%>" target="_blank"><%=sitename%></a> 的消息邮件 </td>
+  </tr>
+  <tr>
+    <td><input name="Submit" type="submit" class="inputs" value="保　存">　
+  <input name="Submit2" type="button" class="inputs" value="返　回" onClick="window.history.back();"></td>
+  </tr>
+</form>
+</table>
+</div>
+<%
+conn.close:set conn=nothing%>

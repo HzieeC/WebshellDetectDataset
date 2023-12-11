@@ -1,0 +1,243 @@
+<!--#include file="conn/conn.asp"-->
+<!--#include file="inc/Commoncode.asp"-->
+<!--#include file="inc/md5.asp"-->
+<!--#include file="API/API_Config.asp"-->
+<%If FR_HR_Sql = True then Call SQLin()
+response.expires = 0
+response.expiresabsolute = now() - 0
+response.addHeader "pragma","no-cache"
+response.addHeader "cache-control","private"
+Response.CacheControl = "no-cache"
+
+Function isletternumber(strng)
+ isletternumber = false
+ Dim regEx, Match ' Create variables.
+ Set regEx = New RegExp   ' Create a regular expression object (stupid, huh?)
+ regEx.Pattern = "^[A-Za-z0-9]{4,20}$" ' Sets pattern.
+ regEx.IgnoreCase = True   ' Set case insensitivity.
+ Set Match = regEx.Execute(strng)   ' Execute search.
+ if match.count then isletternumber= true
+End Function
+Function Usertype(LC)
+Select Case LC
+	Case 1:Usertype="p"
+	Case 2:Usertype="c"
+	Case 3:Usertype="s"
+	Case 4:Usertype="t"
+	Case else:Usertype=""
+End Select
+End Function
+Action=trim(Request("Action"))
+Select Case Action
+	Case "unlogin"
+		Call UserUnLogin()
+	Case "login"
+		Call UserLogin()
+	Case "loginout"
+		Call UserLoginout()
+End Select
+Call CloseConn
+
+Sub UserUnLogin()
+LoginChannel=Replace(request.querystring("LoginChannel"),"'","")
+if Request.Cookies(FRHRCMS)("user_type")<>"" then
+	set rs=server.createobject(FR_HR_Rs)
+	sql="select * from job_Member where Member_login='"&Request.Cookies(FRHRCMS)("user_login")&"'"
+	rs.open sql,conn,1,3
+	if not rs.eof then
+		Member_balance=rs("Member_balance")
+		Member_integral=rs("Member_integral")
+		Member_consumenums=rs("Member_consumenums")
+		Member_flag=rs("Member_flag")
+		Member_startdate=rs("Member_startdate")
+		Member_enddate=rs("Member_enddate")
+	end if
+	rs.close
+	set rs=nothing
+	viewlogin="<table width='90%' border='0' cellpadding='0' cellspacing='0' align='center'>"
+	viewlogin=viewlogin&"<tr>"
+	viewlogin=viewlogin&"<td align='left'>欢迎"&left(Request.Cookies(FRHRCMS)("user_login"),8)&"登录会员中心！</td>"
+	viewlogin=viewlogin&"</tr><tr>"
+	viewlogin=viewlogin&"<td align='left'>当前余额："&Member_balance&"元 <a href="&InstallDir&"onlinepay/index.asp target='_blank'><font color='#FF0000'>在线充值</font></a></td>"
+	viewlogin=viewlogin&"</tr><tr>"
+	viewlogin=viewlogin&"<td align='left'>当前积分："&Member_integral&"个积分</td>"
+	viewlogin=viewlogin&"</tr><tr>"
+	viewlogin=viewlogin&"<td>"
+	Userlink="member/index.asp"
+	viewlogin=viewlogin&"<input type='button' name='Submit' value='进入管理中心' class='inputs90' onclick=window.open('"&InstallDir&Userlink&"');  />&nbsp;&nbsp;"
+	viewlogin=viewlogin&"<input type='button' name='Submit' value='退 出' class='inputs' onclick='return loginout();' /></td>"
+	viewlogin=viewlogin&"</tr>"
+	viewlogin=viewlogin&"</table>"
+
+Response.Write("mcenter.innerHTML="""&viewlogin&"""")
+end if
+End Sub
+
+Sub UserLogin()
+LoginChannel=Replace(request.querystring("LoginChannel"),"'","")
+'用户登录后检测用户身份
+trueIP=Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+If trueIP="" Then trueIP=Request.ServerVariables("REMOTE_ADDR")
+member_login=Replace(trim(request("login")),"'","")
+'if not isletternumber(member_login) then
+' response.write ("<script language=JavaScript>{alert('用户名：要求为4-20个字母或数字！请重新输入。');history.back();}<//script>")
+' response.End 
+'end if
+member_pwd=Md5(Replace(trim(request("pwd")),"'",""),32)
+member_apipwd=Md5(Replace(trim(request("pwd")),"'",""),16)
+set rs=server.createobject("ADODB.Recordset")
+sql="select * from job_Member where Member_login='"&member_login&"'"
+rs.open sql,conn,1,3
+if rs.eof then
+	rs.close
+	set rs=nothing
+	Response.Write ("<script language=JavaScript>{alert('用户名错误，请重新登录！');history.back();}</script>")
+	Response.End 
+else
+	If LoginChannel<>0 and cint(LoginChannel)<>cint(rs("Member_typeid")) and LoginChannel<4 then
+		rs.close
+		set rs=nothing
+		Response.Write ("<script language=JavaScript>{alert('对不起用户类型不正确，请返"&LoginChannel&gdfgdgfd&"回首页登录！');location.href ='"&InstallDir&"index.asp';}</script>")
+		Response.End
+	End If
+	If member_pwd<>rs("Member_pwd") then
+		rs.close
+		set rs=nothing
+		Response.Write ("<script language=JavaScript>{alert('密码错误，请重新登录！');history.back();}</script>")
+		Response.End 
+	Else
+	Member_Auditing=rs("Member_Auditing")
+	If Member_Auditing<>1 Then
+		 response.write("<script>alert('您的帐号还没有通过审核，无法登录！');history.back();</script>")
+		 response.End()
+	End If
+	if isnull(rs("Member_LoginIP")) or rs("Member_LoginIP")="" then
+	Response.Cookies(FRHRCMS)("LoginIP")=trueIP
+	else
+	Response.Cookies(FRHRCMS)("LoginIP")=rs("Member_LoginIP")
+	end if
+	if isnull(rs("Member_logindate")) or rs("Member_logindate")="" then
+	Response.Cookies(FRHRCMS)("LoginTimes")=now()
+	else
+	Response.Cookies(FRHRCMS)("LoginTimes")=rs("Member_logindate")
+	end if
+	Response.Cookies(FRHRCMS)("user_login")=member_login
+	Response.Cookies(FRHRCMS)("user_pass")=member_pwd
+	Memberlogintype=rs("Member_typeid")
+	if Memberlogintype<>0 and Memberlogintype<>"" then
+		if rs("Member_name")<>"" then
+			Response.Cookies(FRHRCMS)("user_name")=rs("Member_name")
+		end if
+		Response.Cookies(FRHRCMS)("user_type")=Usertype(Memberlogintype)&"member"
+		Set frs=conn.execute("select Group_Pdianshu,Group_Pintegral from JOB_Group where Group_membertype="&rs("Member_typeid")&" and Group_id="&rs("Member_groupid")&"")
+		if not frs.eof then
+			Group_dianshus=split(frs("Group_Pdianshu"),",")
+			Group_integrals=split(frs("Group_Pintegral"),",")
+			FoundErr=True
+		end if
+		set frs=nothing
+	else
+		Response.Cookies(FRHRCMS)("user_type")="member"
+	end if
+	rs("Member_LoginIP")=trueIP
+		If IsNumeric(rs("Member_LoginNum")) Then
+			rs("Member_LoginNum")=rs("Member_LoginNum")+1
+		Else
+			rs("Member_LoginNum")=1
+		End If
+	rs("Member_logindate")=now()
+	rs.Update
+	End If
+	rs.close
+	set rs=nothing
+	If FoundErr=True Then
+		if PayPoint(member_login,Memberlogintype,-Group_dianshus(6),0)=True then
+			Call PayLog(member_login,Memberlogintype,"于"&Now()&"登录系统赠点",Group_dianshus(6),0)
+			Call IncomeIntegral(member_login,Memberlogintype,-Group_integrals(6))
+		end if
+	End If
+	
+	'6月28日之前注册的用户，登录时发送信息到论坛注册
+	'添加对整合接口的支持
+	If API_Enable Then
+		'重置错误状态和信息
+		FoundErr = False
+		ErrMsg = ""		
+		'判断登录用户上次登录的时间和他注册的时间
+		sqlreg="select Member_email,Member_LoginIP from JOB_Member where Member_login='"&member_login&"' and datediff("&FR_HR_d&",Member_regdate,'2009-6-30')>0 and datediff("&FR_HR_d&",Member_logindate,'2009-6-30')>0 and member_login<>'will2011'"
+		set rsreg=Server.CreateObject("ADODB.RecordSet")
+		rsreg.open sqlreg,conn,1,1
+		if not rsreg.eof then
+			member_pwd=request("pwd")
+			Member_email=rsreg("Member_email")			
+			trueIP=rsreg("Member_LoginIP")			
+			'把数据发送到论坛注册
+			set sMyXmlHTTP=server.createobject("MSXML2.ServerXMLHTTP")
+			sMyXmlHTTP.setTimeouts API_Timeout, API_Timeout, API_Timeout * 6, API_Timeout * 6
+			Dim intIndex
+			For intIndex = 0 To UBound(ArrUrls)
+			sMyXmlHTTP.open "POST",ArrUrls(intIndex),false
+			sMyXmlHTTP.setRequestHeader "Content-Type", "text/xml; charset=gb2312"
+			sMyXmlHTTP.Send "<root><appid>0596bc</appid><action>reguser</action><syskey>"&MD5(member_login & API_SysKey, 16)&"</syskey><username>"&member_login&"</username><password>"&member_pwd&"</password><email>"&Member_email&"</email><question>默认问题</question><answer>默认答案</answer><userip>"&trueIP&"</userip><jointime>"&Now()&"</jointime><userstatus>0</userstatus></root>"
+				If sMyXmlHTTP.readyState = 4 And sMyXmlHTTP.Status = 200 Then
+					'Response.Write BytesToBstr(sMyXmlHTTP.ResponseBody, "gb2312")
+					Dim objRecXml
+					Set objRecXml = Server.CreateObject("Microsoft.XMLDOM")
+					objRecXml.Async = False
+					objRecXml.Load (sMyXmlHTTP.ResponseXML)
+					If Err Then
+						FoundErr = True
+						ErrMsg = "用户服务目前不可用。[APIError-HTTP1-" & intIndex & "]"
+						Err.Clear
+					ElseIf objRecXml.parseError.errorCode <> 0 Then
+						FoundErr = True
+						ErrMsg = "用户服务目前不可用。[APIError-XmlParse-" & intIndex & "]"
+						Err.Clear
+					End If
+				ElseIf sMyXmlHTTP.readyState = 4 And sMyXmlHTTP.Status <> 200 Then
+					FoundErr = True
+					ErrMsg = BytesToBstr(sMyXmlHTTP.ResponseBody, "gb2312")
+				End If
+				If FoundErr Then
+					If intIndex > 0 Then
+						RollbackUser intIndex
+					End If
+					Exit For
+				End If
+			Next
+		end if
+		rsreg.close
+		set rsreg=nothing
+	End If
+	
+	'输出整合登陆脚本
+	If API_Enable Then
+		Dim iIndex
+		For iIndex = 0 To UBound(ArrUrls)
+			Response.Write "<script language=""JavaScript"" src=""" & ArrUrls(iIndex) & "?syskey=" & MD5(member_login&API_SysKey,16) & "&username=" & member_login & "&password=" & member_apipwd & "&savecookie=1""></script>" & vbCrLf
+		Next
+	End If
+	Response.Write ("<script language=JavaScript>{location.href = 'javascript:history.go(-1)';}</script>")
+	Response.End
+end if
+End Sub
+Sub UserLoginout()
+LoginChannel=Replace(request.querystring("LoginChannel"),"'","")
+login = Request.Cookies(FRHRCMS)("user_login")
+If API_Enable Then
+	Dim iIndex
+	For iIndex = 0 To UBound(ArrUrls)
+		Response.Write "<script language=""JavaScript"" src=""" & ArrUrls(iIndex) &"?syskey=" & LCase(MD5(login&API_SysKey,16)) & "&username=" & login &"""></script>"
+	Next
+End If
+Response.Cookies(FRHRCMS)("user_types")=""
+Response.Cookies(FRHRCMS)("user_type")=""
+Response.Cookies(FRHRCMS)("user_login")=""
+Response.Cookies(FRHRCMS)("user_truePWD")=""
+Response.Cookies(FRHRCMS)("user_pass")=""
+Response.Cookies(FRHRCMS)("user_name")=""
+Response.Cookies(FRHRCMS)("self_link")=""
+Response.Cookies(FRHRCMS)("self_path")=""
+Response.Write ("<script language=JavaScript>{alert('成功退出，“确定”返回！');location.href ='"&InstallDir&"index.asp';}</script>")
+Response.End
+End Sub%>

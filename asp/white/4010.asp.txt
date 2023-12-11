@@ -1,0 +1,287 @@
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/check.asp"-->
+<!--#include file="inc/head.inc"-->
+<%
+Call InnerLocation("好友管理")
+
+Dim Rs,SQL,i
+
+If CInt(GroupSetting(4)) = 0 Then
+	ErrMsg = ErrMsg + "<li>对不起！您没有使用好友管理的权限，如有什么问题请联系管理员。</li>"
+	Founderr = True
+End If
+Dim Action:Action = LCase(Request("action"))
+Select Case Trim(Action)
+	Case "add","add"
+		Call FriendAdd()
+	Case "移动","move"
+		Call MoveFriend()
+	Case "删除","del"
+		Call FriendDel()
+	Case "清空好友","delall"
+		Call DelAllFriend()
+	Case Else
+		Call showmain()
+End Select
+If Founderr = True Then
+	Call ToErrors(ErrMsg)
+End If
+Sub showmain()
+	If Founderr = True Then Exit Sub
+	Dim PageListNum,totalrec,Pcount,CurrentPage,page_count
+	PageListNum = 20
+	page_count = 0
+	CurrentPage = NewAsp.ChkNumeric(Request("page"))
+	If CurrentPage=0 Then CurrentPage=1
+	totalrec = NewAsp.Execute("SELECT COUNT(FriendID) FROM NC_Friend WHERE username='"& Membername &"'")(0)
+	If totalrec Mod PageListNum = 0 Then
+		Pcount = totalrec \ PageListNum
+	Else
+		Pcount = totalrec \ PageListNum + 1
+	End If
+	If CurrentPage > Pcount Then CurrentPage = Pcount
+	If CurrentPage < 1 Then CurrentPage = 1
+%>
+<form action="friend.asp" method="post" name="inbox">
+<table class="Usertableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="6">&gt;&gt; 我的好友 &lt;&lt;</th>
+	</tr>
+	<tr>
+		<td class="Usertablerow2" align="center" width="15%"><b class="userfont2">组 别</b></td>
+		<td class="Usertablerow2" align="center" width="25%"><b class="userfont2">用户名</b></td>
+		<td class="Usertablerow2" align="center" width="30%"><b class="userfont2">邮 箱</b></td>
+		<td class="Usertablerow2" align="center" width="10%"><b class="userfont2">OICQ</b></td>
+		<td class="Usertablerow2" align="center" width="10%"><b class="userfont2">发短信</b></td>
+		<td class="Usertablerow2" align="center" width="10%"><b class="userfont2">操 作</b></td>
+	</tr>
+            <%
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "select F.FriendID,F.userid,F.Friend,F.grouping,U.usermail,U.HomePage,U.oicq From [NC_Friend] F inner join [NC_User] U on F.Friend=U.username where F.userid="&memberid
+	SQL = SQL+" ORDER BY F.addtime DESC"
+	Rs.Open SQL,Conn,1,1
+	If Rs.EOF And Rs.BOF Then
+		Rs.Close:Set Rs = Nothing
+	Else
+		Rs.Move (CurrentPage - 1) * Cint(PageListNum)
+		SQL = Rs.GetRows(PageListNum)
+		Rs.Close:Set Rs = Nothing
+		For i=0 To Ubound(SQL,2)
+%>
+	<tr>
+		<td class="Usertablerow1" align="center"><b class="userfont2"><%
+		If CInt(SQL(3,i)) = 0 Then
+			Response.Write "陌生人"
+		ElseIf CInt(SQL(3,i)) = 1 Then
+			Response.Write "我的好友"
+		ElseIf CInt(SQL(3,i)) = 2 Then
+			Response.Write "黑名单"
+		Else
+			Response.Write "黑名单"
+		End If
+%></b></td>
+		<td class="Usertablerow1" align="center"><a title="浏览 <%=SQL(2,i)%> 的个人资料" target="_blank" href="userlist.asp?name=<%=SQL(2,i)%>"><%=SQL(2,i)%></a></td>
+		<td class="Usertablerow1" align="center"><a href="mailto:<%=SQL(4,i)%>"><%=SQL(4,i)%></a></td>
+		<td class="Usertablerow1" align="center"><a title="<%=SQL(2,i)%> 的 Oicq:<%=SQL(6,i)%>" target="_blank" href="http://search.tencent.com/cgi-bin/friend/user_show_info?ln=<%=SQL(6,i)%>"><img border="0" alt="" src="images/oicq.gif" /></a></td>
+		<td class="Usertablerow1" align="center"><a title="给 <%=SQL(2,i)%> 发短信" href="message.asp?action=new&amp;touser=<%=SQL(2,i)%>"><img border="0" alt="" src="images/message.gif" /></a></td>
+		<td class="Usertablerow1" align="center"><input type="checkbox" name="id" value="<%=SQL(0,i)%>" /></td>
+	</tr>
+    <%
+			page_count = page_count+1
+		Next
+	End If
+%>
+	<tr>
+		<td class="Usertablerow1" align="center" colspan="6"><%Response.Write ShowPages (CurrentPage,Pcount,totalrec,PageListNum,"")%></td>
+	</tr>
+	<tr>
+		<td class="Usertablerow2" align="center" colspan="6"><input type="checkbox" onclick="CheckAll2(this.form)" name="chkall" value="on" />选中所有显示记录&nbsp; <select name="grouping">
+		<option value="" selected="selected">批量移动到...</option>
+		<option value="0">陌生人</option>
+		<option value="1">我的好友</option>
+		<option value="2">黑名单</option>
+		</select>&nbsp; <input class="button" type="submit" onclick="{if(confirm('确定移动选定的纪录吗?')){this.document.inbox.submit();return true;}return false;}" name="action" value="移动" />&nbsp; <input class="button" type="button" onclick="showsub('addfriend')" name="action" value="添加好友" />&nbsp; <input class="button" type="submit" onclick="{if(confirm('确定删除选定的纪录吗?')){this.document.inbox.submit();return true;}return false;}" name="action" value="删除" />&nbsp; <input class="button" type="submit" onclick="{if(confirm('确定清除所有的纪录吗?')){this.document.inbox.submit();return true;}return false;}" name="action" value="清空好友" /></td>
+	</tr>
+</table>
+</form>
+<div id="addfriend" style="display: none"><br style="overflow: hidden; line-height: 10px" />
+<form action="?action=add" method="post" name="myform">
+<table class="Usertableborder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th>&gt;&gt; 添加好友 &lt;&lt;</th>
+	</tr>
+	<tr>
+		<td class="Usertablerow1" align="center"><b class="userfont2">好友：</b><input size="45" name="friend" type="text" /> <b class="userfont2">组别：</b><select name="grouping">
+		<option value="0" selected="selected">请选择....</option>
+		<option value="0">陌生人</option>
+		<option value="1">我的好友</option>
+		<option value="2">黑名单</option>
+		</select> <input class="button" type="submit" value="添加" />&nbsp;<input class="button" type="reset" name="Clear" value="清除" /><br />
+		<div><b>注意：</b><%If CLng(GroupSetting(6)) <> 0 Then%>你最多只能添加 <b class="userfont1"><%=GroupSetting(6)%></b>位好友，<%End If%>黑名单组，拒收所有来自黑名单的短信。</div>
+		</td>
+	</tr>
+</table>
+</form>
+</div>
+
+<%
+End Sub
+'================================================
+' 过程名：FriendDel
+' 作  用：批量删除好友
+'================================================
+Sub FriendDel()
+	If NewAsp.CheckPost=False Then
+		ErrMsg = Postmsg
+		Founderr = True
+		Exit Sub
+	End If
+	Dim FriendID,fixid
+	FriendID = Replace(Request.form("id"),"'","")
+	FriendID = Replace(FriendID,"""","")
+	FriendID = Replace(FriendID,";","")
+	FriendID = Replace(FriendID,"--","")
+	FriendID = Replace(FriendID,")","")
+	FriendID = Replace(FriendID,"@","")
+	FriendID = Replace(FriendID,"$","")
+	FriendID = Replace(FriendID,"#","")
+	FriendID = Replace(FriendID,"%","")
+	FriendID = Replace(FriendID,"=","")
+	fixid = Replace(FriendID,",","")
+	fixid = Trim(Replace(fixid," ",""))
+	If FriendID = "" Or IsNull(FriendID) Then
+		ErrMsg = ErrMsg + "<li>无效的系统参数。</li>"
+		Founderr = True
+		Exit Sub
+	ElseIf Not IsNumeric(fixid) Then
+		ErrMsg = ErrMsg + "<li>无效的系统参数。</li>"
+		Founderr = True
+		Exit Sub
+	Else
+		NewAsp.Execute("DELETE FROM NC_Friend WHERE userid="&memberid&" And FriendID in ("&FriendID&")")
+		Call ToSucceed("<li>好友删除成功！</li>")
+	End If
+End Sub
+'================================================
+' 过程名：DelAllFriend
+' 作  用：删除所有好友
+'================================================
+Sub DelAllFriend()
+	If NewAsp.CheckPost=False Then
+		ErrMsg = Postmsg
+		Founderr = True
+		Exit Sub
+	End If
+	NewAsp.Execute("Delete From NC_Friend where userid="& NewAsp.memberid)
+	Call ToSucceed("<li>好友清空成功！</li>")
+End Sub
+'================================================
+' 过程名：FriendAdd
+' 作  用：添加好友
+'================================================
+Sub FriendAdd()
+	Call PreventRefresh
+	Dim grouping,strIncept,FriendName,TotalFriend
+	If NewAsp.CheckPost=False Then
+		ErrMsg = Postmsg
+		Founderr = True
+		Exit Sub
+	End If
+	If Trim(Request("friend")) = "" Then
+		ErrMsg = ErrMsg + "<li>请选择要添加好友的名称！</li>"
+		Founderr = True
+	Else
+		strIncept = NewAsp.CheckBadstr(Request("friend"))
+		strIncept = split(strIncept,",")
+	End If
+	If Trim(Request("grouping"))<>"" And IsNumeric(Request("grouping")) then 
+		grouping = CInt(Request("grouping"))
+	Else
+		grouping = 0
+	End If
+	If Founderr = True Then Exit Sub
+	For i = 0 To Ubound(strIncept)
+		If i >= 5 Then Exit For
+		FriendName = Trim(strIncept(i))
+		SQL="SELECT username FROM [NC_User] WHERE username='"&FriendName&"'"
+		Set Rs = NewAsp.Execute(SQL)
+		If Rs.EOF And Rs.BOF Then
+			ErrMsg = ErrMsg + "<li>没有找到<font color=""red"">" & FriendName & "</font>这个用户，操作未成功。</li>"
+			Founderr = True
+			Exit Sub
+		Else
+			FriendName = Rs(0)
+		End If
+		Rs.close
+		If NewAsp.membername = Trim(FriendName) Then
+			ErrMsg = ErrMsg + "<li>对不起！不能把自已添加为好友。</li>"
+			Founderr = True
+			Exit Sub
+		End If
+		If CLng(GroupSetting(6)) <> 0 Then
+			TotalFriend = NewAsp.Execute("SELECT Count(FriendID) FROM NC_Friend WHERE userid="& memberid &" And username='"& Membername &"'")(0)
+			If CLng(TotalFriend) >= CLng(GroupSetting(6)) Then
+				ErrMsg = ErrMsg + "<li>对不起！你最多只能添加 <font color=red><b>" & GroupSetting(6) & "</b></font> 位好友。</li>"
+				Founderr = True
+				Exit Sub
+			End If
+		End  If
+		SQL = "SELECT FriendID FROM NC_Friend Where userid="& memberid &" And friend='"& FriendName &"'"
+		Set Rs = NewAsp.Execute(SQL)
+		If Rs.EOF And Rs.BOF Then
+			SQL = "INSERT into NC_Friend (userid,UserName,Friend,addTime,grouping) VALUES ("& memberid &",'"& Membername &"','"& FriendName &"',"& NowString &","& grouping &") "
+			NewAsp.Execute(SQL)
+		Else
+			ErrMsg = ErrMsg + "<li><font color=red>" & FriendName & "</font>这个用户已经添加过了，请不要重复添加，谢谢！。</li>"
+			Founderr = True
+			Exit Sub
+		End If
+	Next
+	Call ToSucceed("<li>恭喜您！添加好友成功。</li>")
+End Sub
+'================================================
+' 过程名：MoveFriend
+' 作  用：移动好友到其它组
+'================================================
+Sub MoveFriend()
+	If NewAsp.CheckPost=False Then
+		ErrMsg = Postmsg
+		Founderr = True
+		Exit Sub
+	End If
+	Dim grouping
+	Dim FriendID,fixid
+	If Trim(Request("grouping"))<>"" And IsNumeric(Request("grouping")) Then
+		grouping = CInt(Request("grouping"))
+	Else
+		ErrMsg = ErrMsg + "<li>好友分组不能为空。</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	FriendID = Replace(Request.form("id"),"'","")
+	FriendID = Replace(FriendID,"""","")
+	FriendID = Replace(FriendID,";","")
+	FriendID = Replace(FriendID,"--","")
+	FriendID = Replace(FriendID,")","")
+	FriendID = Replace(FriendID,"@","")
+	FriendID = Replace(FriendID,"$","")
+	FriendID = Replace(FriendID,"#","")
+	FriendID = Replace(FriendID,"%","")
+	FriendID = Replace(FriendID,"=","")
+	fixid = Replace(FriendID,",","")
+	fixid = Trim(Replace(fixid," ",""))
+	If FriendID = "" Or IsNull(FriendID) Then
+		ErrMsg = ErrMsg + "<li>无效的系统参数。</li>"
+		Founderr = True
+		Exit Sub
+	ElseIf Not IsNumeric(fixid) Then
+		ErrMsg = ErrMsg + "<li>无效的系统参数。</li>"
+		Founderr = True
+		Exit Sub
+	Else
+		NewAsp.Execute("Update NC_Friend SET grouping = "&grouping&" WHERE userid="&memberid&" And FriendID in ("&FriendID&")")
+		Call ToSucceed("<li>恭喜您！移动好友分组成功。</li>")
+	End If
+End Sub
+%>
+<!--#include file="inc/foot.inc"-->

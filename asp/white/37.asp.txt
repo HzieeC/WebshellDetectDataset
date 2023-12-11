@@ -1,0 +1,523 @@
+<%Server.ScriptTimeout=900%>
+<!--#include file="../Include/AdnCms.Front.asp"-->
+<!--#include file="Adn_Function.asp"-->
+<%If CheckAdmin<>True Then
+	Response.Redirect "Adn_Login.asp"
+	Response.End
+End If%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<TITLE>网站生成管理</TITLE>
+<link href="skins/css/adn_main.css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+h1{font-size:14px; color:#FF0000;}
+td{text-align:left}
+form{padding:0;margin:0}
+</style>
+</head>
+<body> 
+<%Dim Action
+Dim StrTemp,StrPath,CurrentPage,AllPages,PageStr
+Action=Trim(Request.QueryString("action"))
+Special_Id=Adn_CLng(Request.Form("SpecialId"))
+List_Id=Adn_CLng(Request("ClassId"))
+CurrentPage=Adn_CLng(Request.QueryString("Page")) : If CurrentPage<1 Then CurrentPage=1
+Data_Id=Adn_CLng(Request.QueryString("dataid"))
+PageType=Trim(Request.QueryString("PageType"))
+Call OpenConn()
+Select  Case Lcase(Action)
+	Case "special" : CheckHtml : makeSpecial : ClearObj
+	Case "allspecial" : CheckHtml : makeAllSpecial : ClearObj
+	Case "data" : CheckHtml : makeDataClass : ClearObj
+	Case "dataid" : CheckHtml : makeDataById : ClearObj
+	Case "alldata" : CheckHtml : makeAllData : ClearObj
+	Case "class" : CheckHtml : makeClass : ClearObj
+	Case "allclass" : CheckHtml : makeAllClass : ClearObj
+	Case "index" : CheckHtml : makeIndex : ClearObj
+	Case "day" : CheckHtml : makeDataDay : ClearObj
+	Case "other" : makeOther : ClearObj
+	Case "othernew" : CheckHtml : makeOtherData : ClearObj
+	Case "othertime" : CheckHtml : makeOtherData : ClearObj
+	Case "otherid" : CheckHtml : makeOtherData : ClearObj
+	Case "map" : makeMap : ClearObj
+	Case "site" : CheckHtml : makeSite
+	Case Else : main
+End Select
+
+Function GetClassTongJi(str)
+	Set Shu=Conn.Execute(" Select count(data_id) from adnim_data where (class_id="&str&" or class_id in (select class_id from adnim_class where class_bigid="&str&")) ")
+	GetClassTongJi=Shu(0)
+	Set Shu=Nothing
+End Function
+
+Sub	makeMap
+    Dim allmovie,allclass,sqltop,alldata:allmovie=""
+	if Adn_CLng(Config(10))>0 Then sqltop="Top "&Adn_CLng(Config(10))&""
+	Set cs=Conn.Execute("select class_id,class_name from adnim_class where class_orderid>0 order by class_id asc")
+	If Not(cs.bof And cs.eof) Then
+		Do while not cs.eof
+		    allclass="":allclass="<h1><a href='"&GetListLink(cs("class_id"))&"' target='_blank' title='"&cs("class_name")&"'>"&cs("class_name")&"</a><sup>("&GetClassTongJi(cs("class_id"))&")</sup><span></span></h1>"
+			Set ms=Conn.Execute("Select "&sqltop&" data_id,class_id,data_name,data_lastdate from adnim_data where class_id="&cs("class_id")&" and data_status=1 order by data_lastdate desc")
+			If Not(ms.bof And ms.eof) Then
+			alldata=""
+			Do while not ms.eof
+			alldata=alldata&"<li><a href='"&GetDataLink(ms("class_id"),ms("data_id"))&"' target='_blank' title='"&ms("data_name")&"'>"&GetSubStr(ms("data_name"),Config(11),True)&"</a></li>"
+			ms.movenext
+			loop
+			Else
+			alldata="<li>该分类没有数据!</li>"
+			End If
+			ms.close
+			Set ms=nothing
+			allmovie=allmovie&"<ul>"&allclass&""&alldata&"</ul>"
+		cs.movenext
+		loop
+	Else
+		allmovie="<ul><li>没有作何分类</li></ul>"
+	End If
+	Set cs=nothing
+	Call Moban_Index_Str("../Skin/"&Config(12)&"/"&AdminId(21)&"adn_all.html")
+	StrTemp = FrontObj.Content	
+	StrTemp=replace(StrTemp,"{$AllMovie}",allmovie)
+	Call MakeHtml("../All.html",StrTemp)
+	divwrite "<p style='font-size:14px;'>全部电影地图页生成成功．．．<a target='_blank' href='../all.html'><font color=red>浏览全部电影地图页</font></a></p>"	
+End Sub
+
+Sub	makeOther
+    dim jstype,jsname,jspath,StrTemp:StrTemp=""
+    jstype=Trim(Request.Form("jstype"))
+    jsname=Trim(Request.Form("jsname"))
+	custom=Trim(Request.Form("custom"))
+	cpath=Trim(Request.Form("cpath"))
+	If jstype="New" Then
+		jspath= "../Skin/"&Config(12)&"/"&AdminId(21)&"adn_new.html"
+	ElseIf jstype="Hot" Then
+		jspath= "../Skin/"&Config(12)&"/"&AdminId(21)&"adn_hot.html"    
+	ElseIf jstype="Elite" Then
+		jspath= "../Skin/"&Config(12)&"/"&AdminId(21)&"adn_elite.html" 
+	ElseIf jstype="Custom" Then 
+		jspath= "../Skin/"&Config(12)&"/Custom/"&custom 	
+	Else
+		Response.Write("参数不正确,请返回!") 
+		Response.End()
+	End If
+	Call Moban_Index_Str(jspath)
+	StrTemp = FrontObj.Content
+	If jsname="js" Then
+		StrTemp=Replace(StrTemp,vbCrLf,"")
+		StrTemp="document.write('" & StrTemp & "')"
+		Call MakeHtml("../Js/"&jstype&".js",StrTemp) '生成JS文件
+		divwrite "<p style='font-size:14px; color:#FF0000'>"&jstype&"."&jsname&" 生成成功．．．JS调用代码如下：<br><br>"&Server.htmlencode("<script language=""javascript"" src=""{$InstallDir}JS/"&jstype&".js""></script>")&"</p>"
+	ElseIf jsname="Custom" Then	
+		Call MakeHtml(cpath,StrTemp) '生成自定义页面
+		divwrite "自定义页面"&custom&" 生成成功．．．" 
+	Else
+		Call MakeHtml("../Js/"&jstype&"."&jsname,StrTemp)'生成其它格式的文件
+		divwrite ""&jstype&"."&jsname&" 生成成功．．．" 
+	End If	
+End Sub
+
+Sub	makeAllClass
+    Call CheckClassHtml
+    Dim CrsPageCount
+	Set Crs = Server.CreateObject("adodb.recordset")
+	Sql="Select class_id,class_name,class_orderid from adnim_class where class_orderid>0 order by class_orderid asc"
+	Crs.Open sql, Conn, 1, 1
+	If Not (Crs.bof And Crs.eof) Then   
+		AllClassi=0
+		Crs.pagesize=1'每页数据
+		CrsPageCount=Crs.PageCount'总页数
+		If CurrentPage>Crs.PageCount Then CurrentPage=Crs.PageCount
+		Crs.AbsolutePage=CurrentPage
+		CurrentClassPage=CurrentPage
+		Response.Write("总共需要生成 <font color='red'><b>"&Crs.recordcount&"</b></font> 个栏目,当前正在生成第 <font color='red'><b>"&CurrentPage&"</b></font> 个栏目,")
+		Do while not Crs.eof and AllClassi<Crs.pagesize
+			List_Id=Crs("class_id"):makeClass
+			AllClassi=AllClassi+1	
+		Crs.movenext
+		Loop	
+	Else
+		Adn_Err("暂时没有数据无需生成！")
+	End If
+	Crs.Close
+	Set Crs=nothing
+	If PageType="alldataok" or PageType="allclassok" Then'判断是否有接着生成任务
+		Call AllPageGo(CurrentClassPage,CrsPageCount,"?action=allclass","allclassok")	
+	Else
+		Call AllPageGo(CurrentClassPage,CrsPageCount,"?action=allclass","allok")	
+	End If
+End Sub
+
+Sub	makeClass
+    Call CheckClassHtml
+    If List_Id<1 Then Adn_Err("请选择分类！")
+	sql = "Select class_id from adnim_data where (class_id="&List_Id&" or class_id in (select class_id from adnim_class where class_bigid="&List_Id&")) and data_status=1 order by data_id desc"
+	Set rh = Server.CreateObject("adodb.recordset")
+    rh.Open sql, Conn, 1, 1
+    If Not(rh.bof And rh.eof) Then
+	    classi=0:Pageurl="?action=class&ClassId="&List_Id&""
+		rh.pagesize=GetClassNumber(List_Id)'每页数据
+		If CurrentPage>rh.PageCount Then CurrentPage=rh.PageCount
+		rh.AbsolutePage=CurrentPage
+		Response.Write("该分类共有 <font color='red'><b>"&rh.PageCount&"</b></font> 个分页需要生成<br>")
+		For classi=1 to rh.PageCount
+		CurrentPage=classi:makeClassById
+		Next
+	Else
+	    DivWrite "暂无分类不需要生成" 
+	End If
+	rh.close:Set rh=nothing
+End Sub
+
+Sub	makeClassById
+    Dim StrTemp:StrTemp=""
+    If List_Id<1 Then Adn_Err("请选择分类！")
+	Lable_Cache="Lable_Cache_List_"&List_Id
+	If Cint(Config(19))=1 and CacheObj.ChkCache(Lable_Cache) Then '直接替换缓存模板值
+		StrTemp = CacheObj.GetCache(Lable_Cache)
+		Call FrontObj.ReadAdnClass(StrTemp)
+	Else
+		Call Moban_Class_Str(Config(0)&"Skin/"&Config(12)&"/"&AdminId(21)&GetClassSkin(List_Id))
+		If Cint(Config(19))=1 Then Call CacheObj.SetCache(Lable_Cache,FrontObj.Content)
+		Call FrontObj.ReadAdnClass(FrontObj.Content)
+	End If
+	StrTemp = FrontObj.Content
+	If Config(22)="2" Then
+	StrPath=GetClassEn(List_Id)&"/"&GetListPath(0, list_id, CurrentPage)&"."&Config(26)'Xj/index.html
+	Else
+	StrPath=Config(28)&"/"&GetListPath(1, list_id, CurrentPage)&"."&Config(26)         'List/List_2_5.html
+	End If
+    Call MakeHtml ("../"&StrPath,StrTemp) '生成文件
+	DivWrite "分类<font color='red'>"&StrPath&"</font>生成完毕 <a target='_blank' href='../"&StrPath&"'><font color=red>浏览此分类</font></a><br>" 
+End Sub
+
+Sub	makeAllData
+	sql = "Select data_id,class_id from adnim_data where data_status=1 order by data_id desc"
+	Set rh = Server.CreateObject("adodb.recordset")
+    rh.Open sql, Conn, 1, 1
+    If Not(rh.bof And rh.eof) Then
+	    datai=0
+		rh.pagesize=Adn_CLng(AdminId(10))'每页数据
+		If CurrentPage>rh.PageCount Then CurrentPage=rh.PageCount
+		rh.AbsolutePage=CurrentPage
+		Response.Write("总共需要生成 <font color='red'><b>"&rh.recordcount&"</b></font> 部电影，每页生成 <font color='red'><b>"&rh.pagesize&"</b></font> 部电影，共需要分 <font color='red'><b>"&rh.PageCount&"</b></font> 页生成，当前正在生成 <font color='red'><b>"&CurrentPage&"</b></font> 页<br>")
+		Do while not rh.eof and datai<rh.pagesize	
+		List_Id=rh("class_id"):Data_Id=rh("data_id"):makeDataById
+		datai=datai+1:rh.movenext 
+		Loop
+		If PageType="alldataok" Then'判断是否有接着生成任务
+			Call AllPageGo(CurrentPage,rh.PageCount,"?action=alldata","alldataok")	
+		Else
+			Call AllPageGo(CurrentPage,rh.PageCount,"?action=alldata","allok")	
+		End If		
+	Else
+	    DivWrite "暂无数据不需要生成"
+	End If
+	rh.close:Set rh=nothing
+End Sub
+
+Sub	makeDataDay
+    Dim datatime:datatime=Adn_CLng(AdminId(3))
+    If Config(1)="SQL" Then
+	Sql="select data_id,class_id,data_lastdate from adnim_data where data_lastdate>='"&(date()-datatime)&"' and data_status=1 order by data_id desc"
+	Else
+    Sql="select data_id,class_id,data_lastdate from adnim_data where data_lastdate between #"&(date()-datatime)&"# and #"&(date()+datatime)&"# and data_status=1 order by data_id desc"
+	End If
+	Set rh = Server.CreateObject("adodb.recordset")
+    rh.Open sql, Conn, 1, 1
+    If Not(rh.bof And rh.eof) Then
+	    datai=0
+		rh.pagesize=Adn_CLng(AdminId(10))'每页数据
+		If CurrentPage>rh.PageCount Then CurrentPage=rh.PageCount
+		rh.AbsolutePage=CurrentPage
+		Response.Write("总共需要生成 <font color='red'><b>"&rh.recordcount&"</b></font> 部电影，每页生成 <font color='red'><b>"&rh.pagesize&"</b></font> 部电影，共需要分 <font color='red'><b>"&rh.PageCount&"</b></font> 页生成，当前正在生成 <font color='red'><b>"&CurrentPage&"</b></font> 页<br>")
+		Do while not rh.eof and datai<rh.pagesize	
+		List_Id=rh("class_id"):Data_Id=rh("data_id"):makeDataById
+		datai=datai+1:rh.movenext 
+		Loop
+		Call AllPageGo(CurrentPage,rh.PageCount,"?action=day&datatime="&Data_Time&"","alldataok")
+	Else
+	    DivWrite "暂无数据不需要生成"
+	End If
+	rh.close:Set rh=nothing
+End Sub
+
+Sub	makeDataClass
+    If List_Id<1 Then Adn_Err("请选择分类！")
+	sql = "Select data_id,class_id from adnim_data where (class_id="&List_Id&" or class_id in (select class_id from adnim_class where class_bigid="&List_Id&")) and data_status=1 order by data_id desc"
+	Set rh = Server.CreateObject("adodb.recordset")
+    rh.Open sql, Conn, 1, 1
+    If Not(rh.bof And rh.eof) Then
+	    datai=0
+		rh.pagesize=Adn_CLng(AdminId(10))'每页数据
+		If CurrentPage>rh.PageCount Then CurrentPage=rh.PageCount
+		rh.AbsolutePage=CurrentPage
+		Response.Write("总共需要生成 <font color='red'><b>"&rh.recordcount&"</b></font> 部电影，每页生成 <font color='red'><b>"&rh.pagesize&"</b></font> 部电影，共需要分 <font color='red'><b>"&rh.PageCount&"</b></font> 页生成，当前正在生成 <font color='red'><b>"&CurrentPage&"</b></font> 页<br>")
+		Do while not rh.eof and datai<rh.pagesize	
+		List_Id=rh("class_id"):Data_Id=rh("data_id"):makeDataById
+		datai=datai+1:rh.movenext 
+		Loop
+		'Call CreatePageGo(CurrentPage,rh.PageCount,"?action=data&ClassId="&List_Id&"")
+		Call AllPageGo(CurrentPage,rh.PageCount,"?action=data&ClassId="&List_Id&"","allok")
+	Else
+	    DivWrite "暂无数据不需要生成"
+	End If
+	rh.close:Set rh=nothing
+End Sub
+
+Sub	makeOtherData
+    Dim BeginID,EndID,BeginDate,EndDate,pagestr
+	Select  Case Lcase(Action)
+	Case "othernew"
+		BeginID=Adn_CLng(Request("BeginID"))
+		If BeginID<1 Then Adn_Err("请输入生成范围！")
+		Sql="select top "&BeginID&" data_id,class_id from adnim_data order by data_id desc"
+		'pagestr="?action="&action&"&BeginID="&BeginID&""
+	Case "othertime"
+		BeginDate=Request("BeginDate")
+		EndDate=Request("EndDate")
+		If Config(1)="SQL" Then
+		Sql="select data_id,class_id,data_lastdate from adnim_data where data_lastdate>='"&BeginDate&"' and data_lastdate<='"&EndDate&"' order by data_id desc"
+		Else
+		Sql="select data_id,class_id,data_lastdate from adnim_data where data_lastdate between #"&BeginDate&"# and #"&EndDate&"# order by data_id desc"
+		End If 
+		'pagestr="?action="&action&"&BeginID="&BeginID&""   
+	Case "otherid"
+		BeginID=Adn_CLng(Request("BeginID"))
+		EndID=Adn_CLng(Request("EndID"))
+		Sql="select data_id,class_id from adnim_data where data_id between "&BeginID&" and "&EndID&" order by data_id desc"
+		'pagestr="?action="&action&"&BeginID="&BeginID&"&EndID="&EndID&""	
+	Case Else : Adn_Err("请输入生成范围！")	
+	End Select
+    pagestr="?action="&Action&"&BeginID="&BeginID&"&EndID="&EndID&"&BeginDate="&BeginDate&"&EndDate="&EndDate&""	
+	Set rh = Server.CreateObject("adodb.recordset")
+    rh.Open sql, Conn, 1, 1
+    If Not(rh.bof And rh.eof) Then
+	    datai=0
+		rh.pagesize=Adn_CLng(AdminId(10))'每页数据
+		If CurrentPage>rh.PageCount Then CurrentPage=rh.PageCount
+		rh.AbsolutePage=CurrentPage
+		Response.Write("总共需要生成 <font color='red'><b>"&rh.recordcount&"</b></font> 部电影，每页生成 <font color='red'><b>"&rh.pagesize&"</b></font> 部电影，共需要分 <font color='red'><b>"&rh.PageCount&"</b></font> 页生成，当前正在生成 <font color='red'><b>"&CurrentPage&"</b></font> 页<br>")
+		Do while not rh.eof and datai<rh.pagesize	
+		List_Id=rh("class_id"):Data_Id=rh("data_id"):makeDataById
+		datai=datai+1:rh.movenext 
+		Loop
+		Call AllPageGo(CurrentPage,rh.PageCount,pagestr,"allok")
+	Else
+	    DivWrite "暂无数据不需要生成"
+	End If
+	rh.close:Set rh=nothing
+End Sub
+
+Sub	makeDataById
+    Dim StrTemp:StrTemp=""
+    Lable_Cache="Lable_Cache_Data"
+	StrPath=GetDataLink(List_Id,Data_Id)
+	If Config(0)<>"/" Then StrPath=Replace(StrPath,Config(0),"/")
+	If Config(23)="3" Then StrPath=StrPath&"index."&Config(27)
+	If Cint(Config(19))=1 and CacheObj.ChkCache(Lable_Cache) Then
+		StrTemp = CacheObj.GetCache(Lable_Cache)
+		Call FrontObj.ReadData(StrTemp)
+	Else
+		Call Moban_Data_Str(Config(0)&"Skin/"&Config(12)&"/"&AdminId(21)&"Adn_Data.html")
+		If Cint(Config(19))=1 Then Call CacheObj.SetCache(Lable_Cache,FrontObj.Content)
+		Call FrontObj.ReadData(FrontObj.Content)
+	End If
+	StrTemp = FrontObj.Content
+    Call MakeHtml (".."&StrPath,StrTemp) '生成文件
+	DivWrite "内容<font color='red'>"&StrPath&"</font>生成成功 <a target='_blank' href='.."&StrPath&"'><font color=red>浏览→"&StrPath&"</font></a><br>" 
+End Sub
+
+Sub	makeAllSpecial
+    Set rh = Conn.Execute("Select * from adnim_special order by special_orderid asc")
+    If Not(rh.bof And rh.eof) Then
+		Do while not rh.eof
+		Special_Id=rh("special_id"):makeSpecial
+		rh.movenext
+		Loop
+	Else
+	    DivWrite "暂无专题不需要生成" 
+	End If
+	rh.close:Set rh=nothing	
+End Sub
+
+Sub	makeSpecial
+    Dim StrTemp:StrTemp=""
+    If Special_Id<1 Then Adn_Err("请选择专题！")
+	StrPath=GetSpecialLink(Special_Id):Lable_Cache="Lable_Cache_Special_"&Special_Id:If Config(0)<>"/" Then StrPath=Replace(StrPath,Config(0),"/")
+	If Cint(Config(19))=1 and CacheObj.ChkCache(Lable_Cache) Then
+		StrTemp = CacheObj.GetCache(Lable_Cache)
+		Call FrontObj.ReadAdnSpecial(StrTemp)
+    Else
+	    Call Moban_Special_Str(Config(0)&"Skin/"&Config(12)&"/"&AdminId(21)&GetSpecialSkin(Special_Id)) 
+		If Cint(Config(19))=1 Then Call CacheObj.SetCache(Lable_Cache,FrontObj.Content)'写入缓存
+		Call FrontObj.ReadAdnSpecial(FrontObj.Content)
+	End If
+	StrTemp = FrontObj.Content
+    Call MakeHtml (".."&StrPath,StrTemp) '生成文件
+	DivWrite "<p style='font-size:14px; '>专题<font color='red'>"&GetSpecialName(Special_Id)&"</font>生成完毕．．．<a target='_blank' href='.."&StrPath&"'><font color=red>浏览此专题页</font></a></p>" 
+End Sub
+
+Sub makeIndex
+	Lable_Cache = "Lable_Cache_Index":
+	If Cint(Config(19))=1 and CacheObj.ChkCache(Lable_Cache) Then '直接替换缓存模板值
+	    StrTemp = CacheObj.GetCache(Lable_Cache)
+    Else
+	    Call Moban_Index_Str(Config(0)&"Skin/"&Config(12)&"/"&AdminId(21)&"Adn_Index.html") 
+		If Cint(Config(19))=1 Then Call CacheObj.SetCache(Lable_Cache,FrontObj.Content)'写入缓存
+		StrTemp = FrontObj.Content	
+	End If
+	Call MakeHtml ("../Index."&Config(25)&"",StrTemp) '生成文件
+	divwrite "<p style='font-size:14px; '>网站首页生成完毕．．．<a target='_blank' href='../Index."&Config(25)&"'><font color=red>浏览首页</font></a></p>" 	
+End Sub
+
+Sub CheckHtml
+	If Config(17)<>"html" Then  DivWrite "<h1 style='margin-top:50px;height:200px;'>网站运行模式为动态，不允许生成</h1>":response.end
+End Sub
+
+Sub CheckClassHtml
+	If Adn_CLng(Config(21))<>1 Then
+		If PageType="alldataok" Then
+			Call AllPageGo(CrsPageCount,CrsPageCount,"?action="&action&"","allclassok")
+		Else
+			DivWrite "<h1 style='margin-top:50px;height:200px;'>网站列表页为动态模式，不允许生成</h1>"
+		End If
+		Response.end
+	End If
+End Sub
+
+Sub DivWrite(str)
+	response.write(str)
+	response.Flush()
+End Sub
+
+Sub ClearObj
+	Set CacheObj = Nothing
+	Set FrontObj = Nothing
+End Sub
+
+Sub AllPageGo(Pagei,Pages,PageUrl,PageNextType)
+	If Pagei>=Pages Then
+	    If PageNextType="alldataok" Then
+	        Response.Write("<script language='javascript'>self.location='?action=allclass&PageType=alldataok';</script>")
+		ElseIf PageNextType="allclassok" Then
+		    Call makeIndex:Call makeAllSpecial:Call makeMap
+		    Response.Write("<p style='font-size:14px;font-weight:bold;color:#009900'>恭喜您!!所有作务已经生成完成！</p>")
+		Else
+		    Response.Write("<script language=javascript>alert('所有生成作务已经完成!');</script>")
+		End If
+	Else
+	    Response.Write("<br>暂停"&AdminId(11)&"秒后继续生成 <meta http-equiv='refresh' content="&AdminId(11)&";url='"&PageUrl&"&Page="&Pagei+1&"&PageType="&PageNextType&"'>")
+	End If	
+End Sub
+
+Function GetListPath(iListFileType, iClassID, iCurrentPage)
+    If iListFileType=0 And iCurrentPage=1 Then
+	GetListPath = "Index"
+	Else
+	GetListPath = Config(28)&"_" & iClassID & "_" & iCurrentPage
+	End If
+End Function
+
+Function GetClassNumber(strid)'取分类分页数量
+    Lable_Cache="Cache_List_Num_"&strid
+	If Cint(Config(19))=1 and CacheObj.ChkCache(Lable_Cache) Then
+	    GetClassNumber=CacheObj.GetCache(Lable_Cache)
+	Else
+		StrType=GetSkinCache(Config(0)&"Skin/"&Config(12)&"/"&AdminId(21)&GetClassSkin(strid))
+		StrType=GetContent(StrType,"【AdnClass(",")】",0)
+		If ubound(Split(StrType,","))<>5 Then 
+		GetClassNumber=15
+		Else
+		GetClassNumber=Adn_CLng(Split(StrType,",")(5))
+		End If
+		If Cint(Config(19))=1 Then Call CacheObj.SetCache(Lable_Cache,GetClassNumber)
+	End If
+End Function
+Sub Main()
+If Lcase(Config(17))="html" and Cint(Config(19))=1 Then Call CacheObj.ClearAll
+randomize
+list=ubound(Split(GetFolderlist("../Skin/"&Config(12)&"/Custom/"),","))'自定义个数
+Dim rndmsg:rndmsg="msg"&int(2100*rnd)
+%>
+<table width="100%" border="0" cellspacing="1" cellpadding="0">
+<tr><th colspan=2 class="title">网站生成选项</th></tr>
+<tr><td class="td2">
+<table width="100%" height="150" border="0 "align="center" cellpadding="5" cellspacing="1" style="background: #cad9ea;">
+<tr bgcolor="#FFFFFF">
+<form action="?action=special" method="post">
+<td width="10%" ><select name='specialid' ><%Call GetSpecial(0)%></select></td>
+<td width="90%" ><input type="submit" value="生成选中专题页" > <input type="button"  value="生成全部专题页" onClick="javascript:self.location='?action=allspecial';"></td>
+</form>
+</tr>	
+<tr bgcolor="#FFFFFF" >
+<form action="?action=class" method="post">
+<td ><select name="ClassId" ><option value="">请选择分类</option><%=Adn_Class_Name(0,"","")%></select></td>
+<td ><input type="submit" value="生成选中栏目页" > <input type="button"  value="生成全部栏目页" onClick="javascript:self.location='?action=allclass';"></td>
+</form>
+</tr>		
+<tr bgcolor="#FFFFFF" >
+<form action="?action=data" method="post">
+	<td ><select name="ClassId" ><option value="">请选择分类</option><%=Adn_Class_Name(0,"","")%></select></td>
+	<td ><input type="submit" value="生成选中内容页" > <input type="button" value="生成全部内容页" onClick="javascript:self.location='?action=alldata';"></td>
+</form>
+</tr>
+<tr bgcolor="#FFFFFF">
+	<td colspan="2" ><input type="button" value="生成首页HTML" onClick="javascript:window.open('?action=index','<%=rndmsg%>');">&nbsp;&nbsp;<input type="button" value="生成地图页" onClick="javascript:window.open('?action=map','<%=rndmsg%>');">&nbsp;&nbsp;<input type="button" value="一键生成全站" onClick="javascript:self.location='?action=alldata&PageType=alldataok';">&nbsp;&nbsp;<input type="button" value="一键生成当天" class="btn"  onClick="javascript:self.location='?action=day';"></td>
+</tr>
+</table></td></tr>
+</table>
+<table width="100%" border="0" cellspacing="1" cellpadding="0">
+<tr><th colspan=2 class="title">辅助生成选项</th></tr>
+<tr><td class="td2">
+<table width="100%" height="120" border="0 "align="center" cellpadding="5" cellspacing="1" style="background: #cad9ea;">
+<tr bgcolor="#FFFFFF">
+	<td colspan="2" ><form action="?action=othernew" method="post" name="form4" id="form4">生成内容页最新<input size="10" value="50" name="BeginID" >篇电影<input id="submit" type="submit" value="开始生成" name="submit" ></form></td>
+</tr>
+<tr bgcolor="#FFFFFF">
+	<td colspan="2" ><form action="?action=othertime" method="post" name="form5" id="form5">生成更新时间为<input size="10" value="<%=date()%>" name="BeginDate" /> 到 <input title="不包含此日期" maxlength="20" size="10" value="<%=date()+1%>" name="EndDate" /> 的内容页<input id="submit" type="submit" value="开始生成" name="submit" /></form></td>
+</tr>
+<tr bgcolor="#FFFFFF">
+	<td colspan="2" ><form action="?action=otherid" method="post" name="form6" id="form6">生成内容页ID号<input id="BeginID" size="10" value="1" name="BeginID" /> 到 <input id="EndID" maxlength="10" size="10" value="100" name="EndID" /> 的内容页<input id="submit3" type="submit" value="开始生成" name="submit3" /></form></td>
+</tr>
+</table></td></tr>
+</table>
+<table width="100%" border="0" cellspacing="1" cellpadding="0">
+<tr><th colspan=2 class="title">生成前台调用</th></tr>
+<tr>
+<form method="post" action="?action=other" target="<%=rndmsg%>">
+<td width="300" class="td1" style="text-align:left; padding-left:10px;"><input name="jstype" type="hidden" value="New"><input name="jsname" type="radio" style="border:none" value="js" checked>.Js <input type="radio" name="jsname" value="html" style="border:none">.Html <input type="radio" name="jsname" value="htm" style="border:none">.Htm <input type="radio" name="jsname" value="shtml" style="border:none">.Shtml <input type="radio" name="jsname" value="shtm" style="border:none">.Shtm</td>
+<td class="td1" style="padding-left:10px;"><input name='submit2' type='submit' id='submit2' value='生成调用最新'></td>
+</form>
+</tr>
+<tr>
+<form method="post" action="?action=other" target="<%=rndmsg%>">
+<td width="270"  class="td1" style="text-align:left; padding-left:10px;"><input name="jstype" type="hidden" value="Hot"><input name="jsname" type="radio" style="border:none" value="js" checked>.Js <input type="radio" name="jsname" value="html" style="border:none">.Html <input type="radio" name="jsname" value="htm" style="border:none">.Htm <input type="radio" name="jsname" value="shtml" style="border:none">.Shtml <input type="radio" name="jsname" value="shtm" style="border:none">.Shtm</td>
+<td class="td1" style="padding-left:10px;"><input name='submit2' type='submit' id='submit2' value='生成调用热门'></td>
+</form>
+</tr>
+<tr>
+<form method="post" action="?action=other" target="<%=rndmsg%>">
+<td width="270" class="td1" style="text-align:left; padding-left:10px;"><input name="jstype" type="hidden" value="Elite"><input name="jsname" type="radio" style="border:none" value="js" checked>.Js <input type="radio" name="jsname" value="html" style="border:none">.Html <input type="radio" name="jsname" value="htm" style="border:none">.Htm <input type="radio" name="jsname" value="shtml" style="border:none">.Shtml <input type="radio" name="jsname" value="shtm" style="border:none">.Shtm</td>
+<td class="td1" style="padding-left:10px;"><input name='submit2' type='submit' id='submit2' value='生成调用推荐'></td>
+</form>
+</tr>
+<%If list>0 Then%>
+<tr>
+<form method="post" action="?action=other" target="<%=rndmsg%>">
+<input name="jstype" type="hidden" value="Custom">
+<input name="jsname" type="hidden" value="Custom">
+<td width="270" class="td1" style="padding-left:10px;">自定义模板保存路径：<input name="cpath" type="text" value="../<%=Split(GetFolderlist("../Skin/"&Config(12)&"/Custom/"),",")(0)%>" style="color:#FF0000"></td>
+<td class="td1" style="padding-left:10px;"><select name="custom" onChange="cpath.value='../'+this.options[this.selectedIndex].value;"><%For i=0 to (list-1)%><option value="<%=Split(GetFolderlist("../Skin/"&Config(12)&"/Custom/"),",")(i)%>">../Skin/<%=Config(12)%>/Custom/<%=Split(GetFolderlist("../Skin/"&Config(12)&"/Custom/"),",")(i)%><%Next%></option></select>　<input type='submit' value='生成自定义模板'></td>
+</form>
+</tr>
+<tr bgcolor="#FFFFFF">
+	<td colspan="2" ><iframe style="z-index:1;visibility:inherit;width:100%;height:100px;" name="<%=rndmsg%>" frameborder=0 scrolling=yes style="background: #ffffff"></iframe></td>
+</tr>
+<%End If%>
+</table>
+<%End Sub%> 
+<%Call CloseConn()%>
+</body>
+</html>

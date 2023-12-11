@@ -1,0 +1,367 @@
+<!--#include file="../inc/AspCms_SettingClass.asp" -->
+<%
+CheckLogin()
+Server.ScriptTimeOut=36000
+dim action : action=getForm("action","get")
+dim actType : actType=getform("actType","get")
+select case action
+	case "day" : checkRunMode : makeByDay
+	case "all" : checkRunMode : makeAll
+	case "index" : checkRunMode : makeIndex
+	case "about" : checkRunMode : makeAllAbout
+	case "alllist" : checkRunMode : makeAllList
+	case "allcontent" : checkRunMode : makeAllContent
+	case "list" : checkRunMode : makeListBySort
+	case "content" : checkRunMode : makeContentBySortID	
+	case "baidu" : makeBaiduMap
+	case "google" : makeGoogleMap
+	case "rss" : makeRss
+	case "site" : makeSiteMap
+end select
+
+Sub checkRunMode
+	if runmode<>1 then die"<br><br>当前模式不是静态模式，不能生成！<a href=""../_system/AspCms_SiteSetting.asp"">点击此处修改运行模式</a><br><a href=""javascript:history.go(-1)"">点击此处返回</a><br><br>"
+End Sub
+
+Sub makeAll()
+	'delAllHtml		
+	'if isExistFile(sitePath&"/"&"index.html") then delFile sitePath&"/"&"index.html"	'删除首页	
+	'if not isnul(htmlDir) and isExistFolder(sitePath&"/"&htmlDir) then delFolder(sitePath&"/"&htmlDir)
+	makeIndex()
+	makeAllAbout()
+	makeAllList()
+	makeAllContent()
+	alertMsgAndGo "生成全站成功","AspCms_MakeHtml.asp?actType="&actType	
+End Sub
+
+Sub makeByDay
+	dim rs,sql,EditTime,SortIDs
+	EditTime=getForm("EditTime", "post")
+	if not isdate(EditTime) then alertMsgAndGo "请输入正确的日期","-1"	
+	sql="select * from {prefix}Content where ContentStatus=1 and LanguageID="&cint(rCookie("languageID"))&" and DateDiff('d', EditTime, '"&EditTime&"')<=0 order by ContentID"
+	set rs=conn.Exec(sql,"r1")	
+	Do While not rs.Eof
+		'echo "生成"""&rs("ContentID")&"""成功<br>"
+		makeContent rs("ContentID"), 1, 1	
+		rs.movenext
+	Loop
+	
+	sql="select SortPath from {prefix}Sort where SortID in(select SortID from {prefix}Content where ContentStatus=1 and LanguageID="&cint(rCookie("languageID"))&" and DateDiff('d', EditTime, '"&EditTime&"')<=0 group by SortID)"	
+	set rs=conn.Exec(sql,"r1")	
+	Do While not rs.Eof
+		SortIDs=SortIDs&rs(0)
+		rs.moveNext
+	Loop
+	if not isnul(SortIDs) then 
+		sql="select SortID from {prefix}Sort where SortID in("&SortIDs&")"
+		set rs=conn.Exec(sql,"r1")		
+		Do While not rs.Eof	
+			makeList( rs(0))
+			rs.moveNext
+		Loop	
+	end if
+	rs.close : set rs =nothing
+	makeIndex()
+	alertMsgAndGo "更新成功","AspCms_MakeHtml.asp?actType="&actType	
+End Sub
+
+'生成所有列表页
+Sub makeAllList()
+	dim rs,sql
+	sql = "select SortID,SortType,SortName from {prefix}Sort where SortType<>1 and SortType<>7 and GroupID<3 and LanguageID="&cint(rCookie("languageID"))&" order by SortID"
+	set rs=conn.Exec(sql,"r1")	
+	Do While not rs.Eof
+		makeList( rs("SortID"))
+		'echo "生成"""&rs("SortID")&rs("SortName")&"""成功<br>"
+		rs.movenext
+	Loop
+	rs.close : set rs =nothing		
+	if action<>"all" then alertMsgAndGo "生成列表页成功","AspCms_MakeHtml.asp?actType="&actType	
+End Sub
+
+'按条件生成列表页
+Sub makeListBySort()
+	dim rs,sql,SortID
+	SortID=getForm("lsortid","post")
+	if SortID=0 then alertMsgAndGo "请选择栏目","AspCms_MakeHtml.asp?actType="&actType	
+	if not isnum(SortID) then alertMsgAndGo "分类ID不正确","AspCms_MakeHtml.asp?actType="&actType	
+	dim sortids	
+	sortids=getSubSort(SortID, 1)
+	sql="select SortID,SortType,SortName from {prefix}Sort where SortType<>1 and SortType<>7 and GroupID<3 and LanguageID="&cint(rCookie("languageID"))&" and SortID in ("&sortids&") order by SortID"
+	set rs=conn.Exec(sql,"r1")
+	Do While not rs.Eof
+		makeList( rs("SortID"))
+		'echo "生成"""&rs("SortName")&"""成功<br>"
+		rs.movenext
+	Loop
+	rs.close : set rs =nothing
+	
+	'for each SortID in sortids
+'		if isnum(SortID) then makeList(SortID)
+'	next
+	alertMsgAndGo "生成指定列表页成功","AspCms_MakeHtml.asp?actType="&actType	
+End Sub
+
+'生成首页
+Sub makeIndex
+	dim templateobj,templatePath : set templateobj = new TemplateClass	
+	templatePath=sitePath&"/"&"templates/"&setting.defaultTemplate&"/"&setting.htmlFilePath&"/index.html"	
+	'die templatePath
+	if not CheckTemplateFile(templatePath) then echo "index.html"&err_16	
+	with templateObj 
+		.content=loadFile(templatePath) 
+		.parseHtml()		
+		.parseCommon		
+		createTextFile  .content, sitePath&setting.LanguagePath&"index"&FileExt,""
+	end with	
+	set templateobj =nothing
+	
+	if action<>"all" and action<>"day" then alertMsgAndGo "生成首页成功","AspCms_MakeHtml.asp?actType="&actType		
+End Sub
+
+'生成所有内容页
+Sub makeAllContent
+	dim rs,sql
+	sql="select * from {prefix}Content where ContentStatus=1 and GroupID<3 and LanguageID="&cint(rCookie("languageID"))&" order by ContentID"
+	set rs=conn.Exec(sql,"r1")	
+	Do While not rs.Eof
+		'echo "生成"""&rs("ContentID")&"""成功<br>"
+		makeContent rs("ContentID"), 1, 1	
+		rs.movenext
+	Loop
+	rs.close : set rs =nothing
+	
+	if action<>"all" then alertMsgAndGo "生成内容页成功","AspCms_MakeHtml.asp?actType="&actType	
+End Sub
+
+'按分类生成
+Sub makeContentBySortID
+	dim rs,sql,SortID
+	SortID=getForm("csortid","post")
+	if SortID=0 then alertMsgAndGo "请选择栏目","AspCms_MakeHtml.asp?actType="&actType	
+	sql="select * from {prefix}Content where ContentStatus=1 and GroupID<3 and SortID in("&getSubSort(SortID, 1)&") and LanguageID="&cint(rCookie("languageID"))
+	set rs=conn.Exec(sql,"r1")	
+	Do While not rs.Eof		
+		'echo "生成"""&rs("ContentID")&"""成功<br>"
+		makeContent rs("ContentID"), 1, 1	
+		rs.movenext
+	Loop
+	rs.close : set rs =nothing	
+	if action<>"all" then alertMsgAndGo "生成指定内容页成功","AspCms_MakeHtml.asp?actType="&actType	
+End Sub
+
+'生成所有单页
+Sub makeAllAbout
+	dim rs,sql
+	sql = "select SortID,SortType from {prefix}Sort where SortType=1 and GroupID<3 and LanguageID="&cint(rCookie("languageID"))
+	set rs=conn.exec(sql,"r1")
+	do while not rs.Eof
+		makeAbout rs("SortID"), 0, 1
+		rs.movenext
+	loop
+	rs.close : set rs =nothing	
+	if action<>"all" then alertMsgAndGo "生成所有单页成功","AspCms_MakeHtml.asp?actType="&actType
+End Sub
+
+
+Sub makeBaiduMap
+	Dim makenum
+	if isNul(makenum) then makenum=1000 else makenum=clng(makenum)
+	allmakenum=getForm("allmakenum","get") : if isNul(allmakenum) then allmakenum=5000 else allmakenum=clng(allmakenum)
+	dim vDes,vName,i,j,rsObj,baiduStr,allmakenum,pagenum,xmlUrl,dt
+	
+	dim TemplateObj : set TemplateObj= new TemplateClass
+	set rsObj=conn.Exec("select top "&allmakenum&" ContentID,a.SortID,a.GroupID,a.Exclusive,Title,Title2,TitleColor,IsOutLink,OutLink,Author,ContentSource,ContentTag,Content,ContentStatus,IsTop,Isrecommend,IsImageNews,IsHeadline,IsFeatured,ContentOrder,IsGenerated,Visits,a.AddTime,ImagePath,IndexImage,DownURL,PageFileName,a.PageDesc,SortType,SortURL,SortFolder,SortFileName,SortName,ContentFolder,ContentFileName,b.GroupID from {prefix}Content as a,{prefix}Sort as b where a.LanguageID="&setting.languageID&"and a.SortID=b.SortID and ContentStatus=1  order by a.addtime desc","r1")
+	
+	rsObj.pagesize=makenum
+	pagenum=rsObj.pagecount
+	for i=1 to pagenum
+		rsObj.absolutepage=i
+		baiduStr =  "<?xml version=""1.0"" encoding=""utf-8"" ?>"&vbcrlf&_
+						"<document>"&vbcrlf&_
+						"<webSite>http://"&setting.siteUrl&sitePath&setting.languagePath&"</webSite>"&vbcrlf&_
+						"<webMaster>"&setting.siteTitle&"</webMaster>"&vbcrlf&_
+						"<updatePeri>1800</updatePeri>"&vbcrlf
+		for j=1 to rsObj.pagesize
+			vDes=rsObj("ContentTag") : if isNul(vDes) then vDes=""
+			vName=rsObj("Title") : if isNul(vName) then vName=""
+			Dim link
+				link="http://"&setting.siteUrl&TemplateObj.getContentLink(rsObj("SortID"),rsObj("ContentID"),rsObj("SortFolder"),rsObj("a.GroupID"),rsObj("ContentFolder"),rsObj("ContentFileName"),rsObj("AddTime"),rsobj("PageFileName"),rsObj("b.GroupID"))
+	
+			baiduStr = baiduStr & "<item>"&vbcrlf&_
+								  "<title>"&server.htmlencode(vName)&"</title>"&vbcrlf&_
+								  "<link>"&link&"</link>"&vbcrlf&_  
+								  "<text>"&server.htmlencode(filterStr(left(vDes, 300),"html"))&"</text>"&vbcrlf
+			If left(rsObj("ImagePath"), 7) = "http://"  Then
+				baiduStr = baiduStr & "<image>"&rsObj("ImagePath")&"</image>"&vbcrlf
+			Else
+				baiduStr = baiduStr & "<image>http://"&setting.siteUrl&sitePath&rsObj("ImagePath")&"</image>"&vbcrlf
+			End If
+			dt=rsObj("AddTime")
+			baiduStr = baiduStr & "<keywords>"&rsObj("Title")&","&rsObj("Author")&"</keywords>"&vbcrlf&_
+								  "<author>"&setting.siteTitle&"</author>"&vbcrlf&_
+								  "<source>"&setting.siteTitle&"</source>"&vbcrlf&_
+								  "<pubDate>"&formatDate(dt,1)&"</pubDate>"&vbcrlf&_
+								  "</item>"&vbcrlf
+			rsObj.movenext
+			if rsObj.eof then exit for
+		next
+		baiduStr = baiduStr + "</document>"&vbcrlf
+		if i=1 then xmlUrl="" else xmlUrl="_"&i
+		createTextFile baiduStr,sitePath&setting.languagePath&"baidu"&xmlUrl&".xml","utf-8"
+		echo "http://"&setting.siteUrl&sitePath&setting.languagePath&"baidu"&xmlUrl&".xml"&" 生成完毕 <a target='_blank' href='"&sitePath&setting.languagePath&"baidu"&xmlUrl&".xml'><font color=red>浏览</font></a><br>"
+	next
+	rsObj.close : set rsObj=nothing : echo "生成完毕"
+	echo  "请通过<a href='http://news.baidu.com/newsop.html' target='_blank'>http://news.baidu.com/newsop.html</a>提交!"		
+	die"<br><a href=""javascript:history.go(-1)"">返回</a>！"
+End Sub
+
+Sub makeGoogleMap
+	Dim makenum
+	if isNul(makenum) then makenum=1000 else makenum=clng(makenum)
+	allmakenum=getForm("allmakenum","get") : if isNul(allmakenum) then allmakenum=5000 else allmakenum=clng(allmakenum)
+	dim i,j,rsObj,googleStr,allmakenum,pagenum,xmlUrl,googleDateArray,googleDate 
+	dim TemplateObj : set TemplateObj= new TemplateClass
+	set rsObj=conn.Exec("select top "&allmakenum&" ContentID,a.SortID,a.GroupID,a.Exclusive,Title,Title2,TitleColor,IsOutLink,OutLink,Author,ContentSource,ContentTag,Content,ContentStatus,IsTop,Isrecommend,IsImageNews,IsHeadline,IsFeatured,ContentOrder,IsGenerated,Visits,a.AddTime,ImagePath,IndexImage,DownURL,PageFileName,a.PageDesc,SortType,SortURL,SortFolder,SortFileName,SortName,ContentFolder,ContentFileName,b.GroupID from {prefix}Content as a,{prefix}Sort as b where a.LanguageID="&setting.languageID&"and a.SortID=b.SortID and ContentStatus=1  order by a.addtime desc","r1")
+	rsObj.pagesize=makenum
+	pagenum=rsObj.pagecount
+	for i=1 to pagenum
+		rsObj.absolutepage=i
+		Dim link	
+		googleStr =  "<?xml version=""1.0"" encoding=""UTF-8""?>"&vbcrlf&_
+						"<urlset xmlns=""http://www.google.com/schemas/sitemap/0.84"">"&vbcrlf&_
+						"<url>"&vbcrlf&_
+						"<loc>http://"&setting.siteUrl&sitePath&setting.languagePath&"</loc>"&vbcrlf&_
+						"</url>"&vbcrlf
+		for j=1 to rsObj.pagesize
+				googleDateArray=rsObj("AddTime")
+				googleDate=formatDate(googleDateArray,1)				
+		link="http://"&setting.siteUrl&TemplateObj.getContentLink(rsObj("SortID"),rsObj("ContentID"),rsObj("SortFolder"),rsObj("a.GroupID"),rsObj("ContentFolder"),rsObj("ContentFileName"),rsObj("AddTime"),rsobj("PageFileName"),rsObj("b.GroupID"))
+				googleStr = googleStr & "<url>"&vbcrlf&_
+									  "<loc>"&link&"</loc>"&vbcrlf&_
+									  "<lastmod>"&googleDate&"</lastmod>"&vbcrlf&_
+									  "</url>"&vbcrlf
+				rsObj.movenext
+				if rsObj.eof then exit for
+		next
+		googleStr = googleStr + "</urlset>"&vbcrlf
+		if i=1 then xmlUrl="" else xmlUrl="_"&i
+		createTextFile googleStr,sitePath&setting.languagePath&"google"&xmlUrl&".xml","utf-8"			
+		echo "http://"&setting.siteUrl&sitePath&setting.LanguagePath&"google"&xmlUrl&".xml"&" 生成完毕 <a target='_blank' href='"&sitePath&setting.LanguagePath&"google"&xmlUrl&".xml'><font color=red>浏览</font></a><br>"
+	next
+	rsObj.close : set rsObj=nothing : echo "生成完毕"
+	echo  "请通过<a href='http://www.google.com/webmasters/tools/' target='_blank'>http://www.google.com/webmasters/tools/</a>提交!"
+	die"<br><a href=""javascript:history.go(-1)"">返回</a>！"
+End Sub
+
+
+Sub makeSiteMap	
+	dim templateobj,templatePath : set templateobj=new TemplateClass	
+	templatePath=sitePath&"/templates/"&setting.defaultTemplate&"/"&setting.htmlFilePath&"/sitemap.html"	
+	if not CheckTemplateFile(templatePath) then echo templatePath&err_16 : exit Sub
+	with templateObj 
+		.content=loadFile(templatePath) 
+		.parseHtml()		
+		.parseCommon		
+		createTextFile .content ,sitePath&setting.languagePath&"sitemap.html",""
+	end with
+	set templateobj =nothing : terminateAllObjects
+	alertMsgAndGo "SiteMap生成成功!","-1" 
+End Sub
+
+Sub makeRssMap	
+	dim templateobj,templatePath : set templateobj=new TemplateClass	
+	templatePath=sitePath&"/templates/"&setting.defaultTemplate&"/"&setting.htmlFilePath&"/rssmap.html"	
+	if not CheckTemplateFile(templatePath) then echo templatePath&err_16 : exit Sub
+
+	with templateObj 
+		.content=loadFile(templatePath) 
+		.parseHtml()	
+		.parseRssList("")	
+		.parseCommon		
+		createTextFile .content ,sitePath&setting.languagePath&"rssmap.html",""
+	end with
+	set templateobj =nothing 
+End Sub
+
+Sub makeRss
+	Dim rssStr,rssStr1,rssStr2,rssStr3,sortid
+	Dim rs	
+	dim templateobj,templatePath : set templateobj=new TemplateClass	
+
+	set rs=conn.exec("select SortID,SortName,SortURL,SortType,SortFolder,PageKeyWords,PageDesc from {prefix}Sort where SortType<>7 and LanguageID="&rCookie("LanguageID"),"r1")
+
+	do while not rs.eof
+		rssStr1="<?xml version=""1.0"" encoding=""gb2312"" ?>"&vbcrlf&_
+		"<rss version=""2.0"">"&vbcrlf&_
+		"<channel>"&vbcrlf&_
+		"<title><![CDATA["&rs("SortName")&"_"&setting.siteTitle&"]]></title>"&vbcrlf&_
+		"<link>http://"&setting.siteUrl&"</link>"&vbcrlf&_
+		"<description><![CDATA["&setting.siteDesc&"]]></description>"&vbcrlf&_
+		"<language>zh-cn</language>"&vbcrlf&_
+		"<generator><![CDATA[Rss Powered By "&setting.siteUrl&"]]></generator>"&vbcrlf&_
+		"<webmaster>"&setting.companyEmail&"</webmaster>"&vbcrlf
+		rssStr3="</channel>"&vbcrlf&_
+		"</rss>"&vbcrlf
+
+		Dim rsObj,sql
+		rssStr2=""
+		sql="select top 100 ContentID,a.SortID,a.GroupID,a.Exclusive,Title,Title2,TitleColor,IsOutLink,OutLink,Author,ContentSource,ContentTag,Content,ContentStatus,IsTop,Isrecommend,IsImageNews,IsHeadline,IsFeatured,ContentOrder,IsGenerated,Visits,a.AddTime,ImagePath,IndexImage,DownURL,PageFileName,a.PageDesc,SortType,SortURL,SortFolder,SortFileName,SortName,ContentFolder,ContentFileName,b.GroupID from {prefix}Content as a,{prefix}Sort as b where a.LanguageID="&setting.languageID&"and a.SortID=b.SortID and a.SortID="&rs("SortID")&" and ContentStatus=1 order by a.addtime desc"
+		set rsObj=conn.Exec(sql,"r1")
+		do while not rsObj.eof
+			rssStr2=rssStr2&"<item>"&vbcrlf&_
+				"<title><![CDATA["&rsObj("Title")&"]]></title>"&vbcrlf&_
+				"<link>http://"&setting.siteUrl&TemplateObj.getContentLink(rsObj("SortID"),rsObj("ContentID"),rsObj("SortFolder"),rsObj("a.GroupID"),rsObj("ContentFolder"),rsObj("ContentFileName"),rsObj("AddTime"),rsobj("PageFileName"),rsObj("b.GroupID"))&"</link>"&vbcrlf&_
+				"<description><![CDATA["&left(dropHtml(decodeHtml(rsObj("Content"))),100)&"]]></description>"&vbcrlf&_
+				"<pubDate>"&formatDate(rsObj("AddTime"),1)&"</pubDate>"&vbcrlf&_
+				"<category>"&rs("SortName")&"</category>"&vbcrlf&_
+				"<author>"&rsObj("Author")&"</author>"&vbcrlf&_
+				"<comments>"&setting.siteTitle&"</comments>"&vbcrlf&_
+			"</item>"&vbcrlf
+			rsObj.movenext
+		loop
+		rssStr=rssStr1&rssStr2&rssStr3
+		createTextFile rssStr,sitePath&setting.languagePath&"rss/"&rs("SortID")&".xml",""	
+		rs.movenext
+	loop
+	rsObj.close : set rsObj=nothing
+	rs.close : set rs=nothing
+	
+	set templateobj =nothing 
+	makeRssMap()	
+	alertMsgAndGo "RSS生成成功!","-1" 
+End Sub
+
+
+
+Sub delAllHtml
+	dim styles,style
+	styles=split("news,down,pic,product,about,",",")	
+	if isExistFile(sitePath&"/"&"index.html") then delFile sitePath&"/"&"index.html"	'删除首页	
+	for each style in styles
+		if style="news" or style="down" or style="pic" or style="product" then Delhtml(style&"list")	'删除列表页
+		Delhtml(style)			'删除详细页				
+	next	
+	'删除指定的生成目录
+	styles=""
+	styles=conn.exec("select SortFolder from {prefix}Sort where not isnull(SortFolder)","arr")
+	for each style in styles
+		'if not isnul(style) then echo "/"&sitePath&style&"<br>"
+		'Delhtml(style)			'删除详细页			
+		if not isnul(style) and isExistFolder("/"&sitePath&style) then delFolder("/"&sitePath&style)	
+	next
+End Sub
+
+
+'根据目录删除html文件
+Sub delhtml(str)
+	dim fileListArray,fileAttr,i
+	fileListArray= getFileList("/"&sitePath&str)
+	if instr(fileListArray(0),",")>0 then		
+		for  i = 0 to ubound(fileListArray)
+			fileAttr=split(fileListArray(i),",")	
+			if GetExtend(fileAttr(0))=replace(FileExt,".","") then delFile fileAttr(4)	
+		next		
+	end if
+End Sub
+%>

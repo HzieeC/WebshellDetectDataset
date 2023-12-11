@@ -1,0 +1,233 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>前台编辑订单退货信息</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/hyzx.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/tt.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/easyui.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/form.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/icon.css" rel="stylesheet" type="text/css" />
+
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	
+<script type="text/javascript" src="${ctx }/scripts/front/yhzx.js"></script>
+</head>
+
+<body>
+   <div class="kuang_da">
+  <%@ include file="/WEB-INF/page/front/head.jsp" %>
+  <div class="dht0">
+    <div class="dizhilanda">您现在的位置：<a href="${ctx }/index.do">首页</a>&gt; <a href="#"><strong>退货订单</strong></a></div>
+    <div class="zxyc_dh">
+      <div class="zxyc_zz">退货订单</div>
+      <div class="sr3_t_right right"></div>
+    </div>
+  </div>
+  <div style="width:980px; float:left;  ">
+    <table width="100%" cellspacing="1" cellpadding="0" border="0" class="gdcn-table-bgcolor">
+      <tbody>
+        <tr>
+          <input type="hidden" id="handlerId" value="1" name="orders.handlerId"/>
+          <input type="hidden" id="orders_handlerName" value="admin" name="orders.handlerName"/>
+          <td class="gridtitle">单号</td>
+          <td class="gridbody"><input type="text" style="border:0px" id="code" value="${orders.code }" readonly="readonly" name="orders.code"/>
+          </td>
+          <td class="gridtitle">下单日期</td>
+          <td class="gridbody"><input type="text" size="30" onkeydown="checkKey()" readonly="readonly" style="border: 0px;" id="deliveryTime" name="orders.deliveryTime" value="<fmt:formatDate pattern="yyyy-MM-dd HH:mm:ss" value="${orders.createTime}"/>"/>
+          </td>
+          <td class="gridtitle">联系人</td>
+          <td class="gridbody"><input type="text" style="border:0px" id="linkman" value="${orders.linkman }" readonly="readonly" name="orders.linkman"/>
+          </td>
+        </tr>
+        <tr>
+          <td class="gridtitle">公司名称</td>
+          <td class="gridbody">
+          	<input type="text" style="border:0px" id="customerId" value="${loginCustomer.companyName }" readonly="readonly" name="customer.companyName"/>
+          </td>
+          <td class="gridtitle">收货人</td>
+          <td class="gridbody"><input type="text" style="border:0px" id="customerName" value="${orders.customerName }" readonly="readonly" name="orders.linkman"/>
+          </td>
+          <td class="gridtitle">收货地址</td>
+          <td class="gridbody"><input style="border:0px" value="${orders.deliveryAddress }" id="deliveryAddress" readonly="readonly" size="30" name="orders.deliveryAddress"/>
+          </td>
+        </tr>
+        <tr>
+          <td class="gridtitle">邮编</td>
+          <td class="gridbody"><input type="text" style="border:0px" id="postCode" readonly="readonly" value="${orders.postCode }" name="orders.postCode"/>
+          </td>
+          <td class="gridtitle">手机</td>
+          <td class="gridbody"><input type="text" style="border:0px" id="deliveryMobile" readonly="readonly" value="${orders.deliveryMobile }" name="orders.deliveryMobile"/>
+          </td>
+          <td class="gridtitle">固定电话</td>
+          <td class="gridbody"><input type="text" style="border:0px" id="deliveryTelphone" value="${orders.deliveryTelphone }" readonly="readonly" name="orders.deliveryTelphone"/>
+          </td>
+        </tr>
+        <tr>
+          <!-- <td class='gridtitle'>货品估计重量</td>
+						<td class='gridbody'>
+							<input type="text" name="orderGood.weighttotle" value="" readonly="readonly" id="weighttotle" style="border:0px"/>
+						</td> -->
+          <td class="gridtitle">配送方式</td>
+          <td class="gridbody">
+            <input type="hidden" id="orders_deliveryId" value="${orders.deliveryId }" name="orders.deliveryId"/>
+            <input type="text" style="border:0px" id="orders_deliveryName" readonly="readonly" value="${orders.deliveryName }" name="orders.deliveryName"/>
+          </td>
+          <td class="gridtitle">配送费用</td>
+          <td colspan="3" class="gridbody"><input type="text" readonly="readonly" style="border:0px" id="deliveryFee" value="${orders.deliveryFee }" name="orders.deliveryFee"/>
+          </td>
+        </tr>
+        <tr>
+          <input type="hidden" id="isTax" value="0" name="orders.isTax"/>
+          <!--
+           				<td class='gridtitle'>是否含税</td> 
+					    <td class='gridbody'>
+					    	<input type="radio" name="isTax" value="1" onclick="selectTax('1')" />是
+					    	<input type="radio" name="isTax" value="0" onclick="selectTax('0')" checked="checked"/>否
+					    </td>
+					     -->
+          <td class="gridtitle">折扣</td>
+          <td class="gridbody"><input type="text" style="border:0px" id="discount" value="<c:if test="${orders.discount != '' && orders.discount != '0.00' }">${orders.discount }</c:if><c:if test="${orders.discount == '' && orders.discount == '0.00' }">100</c:if>" size="2" name="orders.discount"/>
+            <font size="4" color="red">%</font> </td>
+          <td class="gridtitle">支付方式</td>
+          <td colspan="3" class="gridbody">
+            <input type="hidden" id="paymentId" value="${orders.paymentId }" name="orders.paymentId"/>
+	        <input type="hidden" id="paymentCode" value="${orders.paymentCode }" name="orders.paymentCode"/>
+	        <input type="text" style="border:0px" id="paymentName" readonly="readonly" value="${orders.paymentName }" name="orders.paymentName"/>
+          </td>
+        </tr>
+        <tr>
+          <td class="gridtitle">订单合计</td>
+          <!-- 订单合计金额 -->
+          <td colspan="5" class="gridbody">
+            <!--  111.0 -->
+            <input type="text" style="border:0px" id="orderMoney" readonly="readonly" value="${orders.orderMoney }" name="orders.orderMoney"/>
+          </td>
+          <input type="hidden" id="taxMoney" value="0" name="orders.taxMoney"/>
+
+        </tr>
+        <tr>
+          <td class="gridtitle"><font color="red">提醒</font></td>
+          <td class="gridbody"><input type="text" id="remind" value="" name="orders.remind"/>
+          </td>
+          <td class="gridtitle">商品详情</td>
+          <td colspan="3" class="gridbody"><input type="text" id="remark" value="" size="50" name="orders.remark"/>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="width:980px; float:left; padding:10px 0;">
+    <div class="panel datagrid" style="width: auto;">
+      <div class="datagrid-wrap panel-body panel-body-noheader" title="" style="width: 978px; height: auto;">
+         <div class="datagrid-toolbar">
+              <a href="javascript:void(0)" onclick="returnOrders('${orders.id }')" style="float: left;" class="l-btn l-btn-plain"><span class="l-btn-left"><span class="l-btn-text icon-cancel" style="padding-left: 20px;">退货</span></span></a></div>
+          </div>
+        <div class="datagrid-view" style="width: 980px; ">
+          <div class="datagrid-view1" style="width: 54px; float:left;">
+            <div class="datagrid-header" style="width: 54px; height: 22px;">
+              <div class="datagrid-header-inner" style="">
+                <table cellspacing="0" cellpadding="0" border="0" style="height: 23px;">
+                  <tbody>
+                    <tr>
+                      <td rowspan="1"><div class="datagrid-header-rownumber"></div></td>
+                      <td field="ck"><div class="datagrid-header-check">
+                          <input type="checkbox" name="box" onclick="selectAll('list','box','strValue')"/>
+                          <input type="hidden" name="strValue" id='strValue' size="50"/>
+                        </div></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="datagrid-body" style="">
+              <div class="datagrid-body-inner" style="padding-bottom: 0px;">
+                <table cellspacing="0" cellpadding="0" border="0">
+                  <tbody>
+                  <%int i = 1;%>
+                    <c:forEach items="${oglist}" var="good">
+	                    <tr datagrid-row-index="0" style="height: 22px;" class="">
+	                      <td class="datagrid-td-rownumber"><div class="datagrid-cell-rownumber"><%=i++ %></div></td>
+	                      <td field="ck"><div class="datagrid-cell-check " style="width:undefinedpx;text-align:left;">
+	                          <input type="checkbox" name="list" id="${good.id }" value="${good.id }" onclick="selectSome(this.id,'strValue')"/>
+	                        </div></td>
+	                    </tr>
+	                 </c:forEach>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="datagrid-footer" style="width: 54px; ">
+              <div class="datagrid-footer-inner" style="display: none;"></div>
+            </div>
+          </div>
+          <div class="datagrid-view2" style="width: 926px; left: 54px;">
+            <div class="datagrid-header" style="width: 980px; height: 22px;">
+              <div class="datagrid-header-inner" style="">
+                <table cellspacing="0" cellpadding="0" border="0" style="height: 23px;">
+                  <tbody>
+                    <tr>
+                      <td field="code" class=""><div class="datagrid-cell" style="width: 100px; text-align: left; cursor: default;"><span>商品编号</span><span class="datagrid-sort-icon">&nbsp;</span></div></td>
+                      <td field="name" class=""><div class="datagrid-cell" style="width: 276px; text-align: left; cursor: e-resize;"><span>商品名称</span><span class="datagrid-sort-icon">&nbsp;</span></div></td>
+                      <td field="unit"><div class="datagrid-cell" style="width: 60px; text-align: left;"><span>单位</span><span class="datagrid-sort-icon">&nbsp;</span></div></td>
+                      <td field="unit"><div class="datagrid-cell" style="width: 60px; text-align: left;"><span>规格</span><span class="datagrid-sort-icon">&nbsp;</span></div></td>
+                      <td field="price"><div class="datagrid-cell" style="width: 60px; text-align: left;"><span>标准价格</span><span class="datagrid-sort-icon">&nbsp;</span></div></td>
+                      <td field="weight"><div class="datagrid-cell" style="width: 60px; text-align: left;"><span>优惠价格</span><span class="datagrid-sort-icon">&nbsp;</span></div></td>
+                      <td field="number"><div class="datagrid-cell" style="width: 60px; text-align: left;"><span>订购数量</span><span class="datagrid-sort-icon">&nbsp;</span></div></td>
+                      <td field="total"><div class="datagrid-cell" style="width: 100px; text-align: left;"><span>小计</span><span class="datagrid-sort-icon">&nbsp;</span></div></td>
+                     <!--  <td field="shape"><div class="datagrid-cell" style="width: 48px; text-align: left;"><span>GST</span><span class="datagrid-sort-icon">&nbsp;</span></div></td> -->
+                      <td field="remark" class=""><div class="datagrid-cell" style="width: 137px; text-align: left; cursor: default;"><span>&nbsp;</span><span class="datagrid-sort-icon">操作</span></div></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="datagrid-body" style="">
+              <table cellspacing="0" cellpadding="0" border="0">
+                <tbody>
+                  <c:forEach items="${oglist}" var="good">
+	                  <tr datagrid-row-index="0" style="height: 22px;" class="">
+	                    <td field="code"><div class="datagrid-cell " style="width:100px;text-align:left;">${good.code }</div></td>
+	                    <td field="name"><div class="datagrid-cell " style="width:276px;text-align:left;">${good.name }</div></td>
+	                    <td field="unit"><div class="datagrid-cell " style="width:60px;text-align:left;">${good.unit }</div></td>
+	                    <td field="unit"><div class="datagrid-cell " style="width:60px;text-align:left;">${good.standard }</div></td>
+	                    <td field="price"><div class="datagrid-cell " style="width:60px;text-align:left;">${good.price }</div></td>
+	                    <td field="weight"><div class="datagrid-cell " style="width:60px;text-align:left;">${good.money/good.number }</div></td>
+	                    <td field="number"><div class="datagrid-cell " style="width:60px;text-align:left;">${good.number }</div></td>
+	                    <td field="total"><div class="datagrid-cell " style="width:100px;text-align:left;">${good.money }</div></td>
+	                    <!-- <td field="shape"><div class="datagrid-cell " style="width:48px;text-align:left;">${good.standard }</div></td> -->
+	                    <td field="remark" align="center">
+		                    <div class="datagrid-cell " style="width:137px;text-align:left;">
+		                    	<c:if test="${good.isReturn == '0' || good.isReturn == ''}"><a href="javascript:void(0);" onclick="returnOrdersGoods('${good.id }','${orders.id }')">退货</a></c:if>
+		                        <c:if test="${good.isReturn == '1'}"><span style="color: red;">退货处理中</span></c:if>
+		                        <c:if test="${good.isReturn == '2'}"><span style="color: red;">退货成功</span></c:if>
+		                    </div>
+	                    </td>
+	                  </tr>
+                  </c:forEach>
+                </tbody>
+              </table>
+            </div>
+            <div class="datagrid-footer" style="width: 1080px;">
+              <div class="datagrid-footer-inner" style="display: none;"></div>
+            </div>
+          </div>
+          <div class="datagrid-resize-proxy"></div>
+          <table width="100%" id="dataGrid" style="display: none;">
+          </table>
+        </div>
+      </div>
+    </div>
+  
+  <%@ include file="/WEB-INF/page/front/footer.jsp" %>
+  </div>
+</body>
+</html>

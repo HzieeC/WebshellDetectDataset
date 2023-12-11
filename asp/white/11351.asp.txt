@@ -1,0 +1,97 @@
+<!--#include file="../INC/incadmin.asp"-->
+<!--#include file="../INC/md5.asp"-->
+<%
+Dim Founderr,ErrMsg
+Founderr = False
+ErrMsg = ""
+
+If not ChkPost Then
+	ErrMsg = "您不能从外部提交信息！"
+	Call WriteErrMsg()
+	Response.End()
+End If
+
+Action = ReplaceBadChar(Request("Action"))
+Select Case Action
+	Case "Login":	Call Do_Login()
+	Case "Logout":	Call Do_Logout()
+	Case Else:
+End Select
+
+
+Sub Do_Login()
+	Code = trim(Request.Form("Code"))
+	If Session("SysCode") <> Code Then
+		Session("SysCode") = ""
+		ErrMsg = "<LI>请输入正确的验证码！</LI>"
+		Call WriteErrMsg()
+		Response.End()
+	End IF
+	Session("SysCode") = ""
+	
+	UserName = ReplaceBadChar(Request.Form("UserName"))
+	PasswordTemp = Request.Form("Password")
+	if UserName = "" then
+		Founderr = True
+		ErrMsg = ErrMsg &"<LI>请输入用户名！</LI>"
+	end if
+	if PasswordTemp = "" then
+		Founderr = True
+		ErrMsg = ErrMsg &"<LI>请输入密码！</LI>"
+	end if
+	If Founderr Then
+		Call WriteErrMsg()
+		Response.End()
+	End If
+
+	Password = md5(ReplaceBadChar(PasswordTemp), 32)
+	AdminIP = GetUserIP()
+		
+	sql="select ID,Password,IsLogin from Pulb_Admin where AdminName='"&UserName&"'"
+	set rs=server.CreateObject("adodb.recordset")
+	rs.open sql,Conn,1,1
+	if not rs.eof and not rs.bof then
+		if Password = rs(1) then
+			if rs(2) then
+				isPass = 1
+			else
+				isPass = 2
+			end if
+		else
+			isPass = 3
+		end if
+	else
+		isPass = 4
+	end if
+	rs.close
+	set rs = nothing
+	
+	if isPass = 1 then
+		Response.Cookies("AdminAuth")("AdminID") = AdminID
+		Response.Cookies("AdminAuth")("UserName") = UserName
+		Response.Redirect"./"
+		Response.End()
+	elseif isPass = 2 then
+		Founderr = True
+		ErrMsg = "<LI>帐号被锁定，不能登陆！</LI>"
+	elseif isPass = 3 then
+		Founderr = True
+		ErrMsg = "<LI>密码错误！</LI>"
+	else
+		Founderr = True
+		ErrMsg = "<LI>用户不存在！</LI>"
+	end if
+	set rs = nothing
+	CloseDB
+	If Founderr Then
+		Call WriteErrMsg()
+		Response.End()
+	End If
+End Sub
+
+Sub Do_Logout()
+	Response.Cookies("AdminAuth")("AdminID") = Empty
+	Response.Cookies("AdminAuth")("UserName") = Empty
+	Response.Redirect ("login.asp")
+End Sub
+%>

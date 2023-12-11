@@ -1,0 +1,186 @@
+<!--#include file="inc/conn.asp"-->
+<!--#include file="inc/function.asp"-->
+<!--#include file="inc/clsCache.asp"-->
+<%
+Dim Action,ItemID,CollecType
+Dim SqlItem,RsItem
+Dim Arr_Item,Arr_Filters,Arr_Histrolys,myCache,CollecTest,Content_View
+Dim CacheTemp
+FoundErr=False
+
+CacheTemp=Lcase(trim(request.ServerVariables("SCRIPT_NAME")))
+CacheTemp=left(CacheTemp,instrrev(CacheTemp,"/"))
+CacheTemp=replace(CacheTemp,"\","_")
+CacheTemp=replace(CacheTemp,"/","_")
+CacheTemp="ansir" & CacheTemp
+
+'检察表单
+Call Delnews()
+Call CheckForm()
+If FoundErr<>True Then
+   Call SetCache()
+   If FoundErr<>True Then
+      If CollecType=0 Then
+         ErrMsg= "<meta http-equiv=""refresh"" content=""3;url=Admin_ItemCollecSteady.asp?ItemNum=1&ListNum=1&ListSuccesNum=0&ListFalseNum=0&newsNumAll=0"">"
+      ElseIf CollecType=1 Then
+         ErrMsg="<meta http-equiv=""refresh"" content=""3;url=Admin_ItemCollecFast.asp?ItemNum=1&ListNum=1&newsSuccesNum=0&newsFalseNum=0&ImagesNumAll=0"">"
+      ElseIf CollecType=2 Then
+         ErrMsg="<meta http-equiv=""refresh"" content=""3;url=Admin_ItemCollecScreen.asp?Action=GetList"">"
+      End If
+   End If
+End If
+If FoundErr=True Then
+   Call WriteErrMsg(ErrMsg)
+Else
+   Call Main()
+End If
+%>
+
+<%Sub Main%>
+<html>
+<head>
+<title>采集系统</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link rel="stylesheet" type="text/css" href="../css/Style.css">
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder">
+  <tr> 
+    <th height="22" colspan="2" align="center" class="tableHeaderText"><strong>采 集 系 统 采 集 管 理</strong></th>
+  </tr>
+</table>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder">
+  <tr> 
+    <td width="65" height="30"><strong>管理导航：</strong></td>
+    <td height="30"><a href="Admin_ItemStart.asp">管理首页</a> >> 信息采集 >> 初始化数据</td>         
+  </tr>         
+</table>
+<br>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder" >
+    <tr> 
+      <td height="100" colspan="2" align=center>
+      <br>
+      <br>
+      <br>
+      欢迎使用信息采集系统，正在初始化数据，请稍后...
+      <br>
+      <br>
+<%=ErrMsg%>
+      </td>
+    </tr>
+</table>
+<!--#include file="../inc/copy.asp"-->  </body>         
+</html>
+<%End Sub
+
+Sub CheckForm()
+
+   '提取表单
+   Action=trim(Request.Form("Action"))
+   ItemID=Trim(Request.Form("ItemID"))
+   CollecType=Trim(Request.Form("CollecType"))
+   CollecTest=Trim(Request.Form("CollecTest"))
+   Content_View=Trim(Request.Form("Content_View"))
+   '检察表单
+   If Action<>"Start" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>参数不足!</li>"
+   End If
+   If ItemID="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请您选择项目!</li>"
+   Else
+      If Instr(ItemID,",")>0 Then
+         ItemID=Replace(ItemID," ","")
+      End If
+   End If 
+   If CollecType="" Then
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><li>请您选择采集模式!</li>"
+   Else
+      CollecType=Clng(CollecType)
+      If CollecType<>0 And CollecType<>1 And CollecType<>2 Then
+         FoundErr=True
+         ErrMsg=ErrMsg & "<br><li>您选择的采集模式无效!</li>"
+      End If
+   End If
+   If CollecTest="yes" Then
+      CollecTest=True
+   Else
+      CollecTest=False
+   End If
+   If Content_View="yes" Then
+      Content_View=True
+   Else
+      Content_View=False
+   End If
+End Sub
+Sub SetCache()
+   '项目信息
+   SqlItem ="select * from Item where ItemID in(" & ItemID & ")"
+   Set RsItem=Server.CreateObject("adodb.recordset")
+   RsItem.Open SqlItem,ConnItem,1,1
+   If Not RsItem.Eof Then
+      Arr_Item=RsItem.GetRows()
+   End If
+   RsItem.Close
+   Set RsItem=Nothing
+
+   Set myCache=new clsCache
+   myCache.name=CacheTemp & "items"
+   Call myCache.clean()
+   If IsArray(Arr_Item)=True Then
+      myCache.add Arr_Item,Dateadd("n",1000,now)
+   Else
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br>发生意外错误！"
+   End If
+   
+   '过滤信息
+   SqlItem ="select * from Filters where Flag=True"
+   Set RsItem=Server.CreateObject("adodb.recordset")
+   RsItem.Open SqlItem,ConnItem,1,1
+   If Not RsItem.Eof Then
+      Arr_Filters=RsItem.GetRows()
+   End If
+   RsItem.Close
+   Set Rsitem=Nothing
+
+   myCache.name=CacheTemp & "filters"
+   Call myCache.clean()
+   If IsArray(Arr_Filters)=True Then
+      myCache.add Arr_Filters,Dateadd("n",1000,now)
+   End If
+
+   '历史记录
+   SqlItem ="select newsUrl,Title,CollecDate,Result from Histroly"
+   Set RsItem=Server.CreateObject("adodb.recordset")
+   RsItem.Open SqlItem,ConnItem,1,1
+   If Not RsItem.Eof Then
+      Arr_Histrolys=RsItem.GetRows()
+   End If
+   RsItem.Close
+   Set RsItem=Nothing
+
+   myCache.name=CacheTemp & "histrolys"
+   Call myCache.clean()
+   If IsArray(Arr_Histrolys)=True Then
+      myCache.add Arr_Histrolys,Dateadd("n",1000,now)
+   End If
+
+   '其它信息
+   myCache.name=CacheTemp & "collectest"
+   Call myCache.clean()
+   myCache.add CollecTest,Dateadd("n",1000,now)
+
+   myCache.name=CacheTemp & "contentview"
+   Call myCache.clean()
+   myCache.add Content_View,Dateadd("n",1000,now)
+
+   set myCache=nothing
+End Sub
+
+Sub Delnews()
+   ConnItem.execute("Delete From [newsList]")
+End Sub
+%>

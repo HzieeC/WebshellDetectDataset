@@ -1,0 +1,100 @@
+<!--#include file="../Conn.asp"-->
+<!--#include file="../Cache/AdnCms.Admin.asp"-->
+<!--#include file="AdnCms.Security.asp"-->
+<!--#include file="AdnCms.Function.asp"-->
+<%Response.Charset="gb2312"
+Dim Action,Gb_user,Gb_oicq,Gb_content,Gb_intro,Gb_id,Gb_code,Page,GbPage
+Action=Trim(Request.QueryString("action"))
+Gb_id=Adn_CLng(Request("gb_id"))
+Page=Adn_CLng(Request("page")) : If Page<1 Then page=1
+Call OpenConn()
+If Action="addsave" Then'新加
+	Gb_user=Left(EncodeHtml(Bad_Url(NoSqlHack(Request.Form("gb_user")))),50)
+	Gb_oicq=Adn_CLng(Trim(Request.Form("gb_oicq")))
+	Gb_content=EncodeHtml(Bad_Url(NoSqlHack(Request.Form("gb_content"))))
+	Gb_code=Trim(Request.Form("gb_code"))
+	If Trim(Session("AdnCheckCode")) = "" Then
+	    Response.Write "err1"
+	ElseIf Gb_code <> Session("AdnCheckCode") Then
+        Response.Write "err2"
+	ElseIf GetTimeSpan("LastGbTime")<40 Then 
+        Response.Write "wait"
+	Else
+		Conn.Execute("Insert Into adnim_gb (gb_id,gb_user,gb_oicq,gb_content,gb_lastdate,gb_top) values ('"&Adn_MaxId("gb")&"','"&ReplaceHtml(Gb_user)&"',"&Gb_oicq&",'"&ReplaceHtml(Gb_content)&"','"&now()&"',0)")
+		Response.Write "ok"
+	    SetSessionTime "LastGbTime",Now()
+	End If
+ElseIf Action="comment" Then'置顶
+	If CheckAdmin=True Then Conn.Execute(" Update [adnim_gb] Set gb_top=1 Where gb_id="&Gb_id&" ")
+	Response.Write"ok"
+ElseIf Action="recomment" Then'取消置顶
+    If CheckAdmin=True Then Conn.Execute(" Update [adnim_gb] Set gb_top=0 Where gb_id="&Gb_id&" ")
+	Response.Write"ok"
+ElseIf Action="del" Then'删除留言
+	If CheckAdmin=True Then Conn.Execute(" Delete from adnim_gb Where gb_id="&Gb_id&" ")
+	Response.Write"ok"
+ElseIf Action="regb" Then'回复留言
+    Gb_intro=EncodeHtml(Bad_Url(NoSqlHack(Request.Form("gb_intro"))))
+	If CheckAdmin=True Then Conn.Execute(" Update [adnim_gb] Set gb_intro='"&Gb_intro&"' Where gb_id="&Gb_id&" ")
+	Response.Write"ok"
+ElseIf Action="delregb" Then'删除回复
+	If CheckAdmin=True Then Conn.Execute(" Update [adnim_gb] Set gb_intro='' Where gb_id="&Gb_id&" ")
+	Response.Write"ok"
+Else
+	Set rs = Server.CreateObject("adodb.recordset")
+	sql="select gb_id,gb_user,gb_oicq,gb_content,gb_intro,gb_lastdate,gb_top from adnim_gb order by gb_top desc,gb_lastdate desc"
+	rs.Open sql, Conn, 1, 1
+	If Not(rs.bof And rs.eof) Then
+	    rs.pagesize=Adn_CLng(AdminId(8))'每页数量
+		pageall=rs.pagecount   '总页数
+	    rscount=rs.recordcount '总记录数
+		If page>rs.PageCount Then page=rs.PageCount
+		rs.absolutepage=page
+		For i=1 to rs.pagesize
+            Response.Write("<ul><li class='gb_user'>访客:"&DecodeHtml(rs("gb_user"))&"</li>")
+			Response.Write("<li class='gb_lastdate'>"&rs("gb_lastdate")&"</li>")
+			Response.Write("<li class='gb_content'>"&server.htmlencode(DecodeHtml(rs("gb_content")))&"</li>")
+			If rs("gb_intro")<>"" Then
+			Response.Write("<li class='gb_intro'>"&DecodeHtml(rs("gb_intro"))&"</li>")
+			Else
+			Response.Write("<li class='gb_intro' style='display:none' id='"&rs("gb_id")&"'></li>")
+			End If
+			If CheckAdmin=True Then'管理员权限
+			    Response.Write("<li class='gb_admin'>")
+			    If rs("gb_top")=1 Then
+			    Response.Write("<a href=""javascript:"" onclick=""GbookList("&rs("gb_id")&","&page&",'recomment');"">取消置顶</a> ")
+				Else
+				Response.Write("<a href=""javascript:"" onclick=""GbookList("&rs("gb_id")&","&page&",'comment');"">置顶</a> ")
+				End If
+			    If rs("gb_intro")<>"" Then
+				Response.Write("<a href=""javascript:"" class='delregb' onclick=""GbookList("&rs("gb_id")&","&page&",'delregb');"">删除回复</a> ")
+				Else
+				Response.Write("<a href=""javascript:"" class='regb' onclick=""ReGbook("&rs("gb_id")&","&page&");"">回复</a> ")
+				End If				
+				Response.Write("<a href=""javascript:"" class='del' onclick=""GbookList("&rs("gb_id")&","&page&",'del');"">删除</a> ")
+				Response.Write("<a target=blank href='tencent://message/?uin="&rs("gb_oicq")&"&Site=留言回复&Menu=yes' title='"&rs("gb_oicq")&"'>QQ留言</a> ")
+				Response.Write("</li>")
+			End If
+			Response.Write("</ul>")	
+		    rs.movenext
+		    If rs.eof Then Exit For
+		Next
+		Call GbookPage
+	Else
+		Response.Write("暂时没有访客留言")
+	End If
+	rs.close
+	Set rs=nothing
+	If CheckAdmin=True Then Session("Gbadmin")=CheckAdmin Else Session("Gbadmin")=""	
+End If
+Call CloseConn()
+Sub GbookPage
+    Dim ll,nn,ii:ll=page-5:nn=page+5
+	If ll<1 Then ll=1:If nn>pageall Then nn=pageall
+    Response.Write "<div class=""gb_page"">共"&pageall&"页 <a href=""javascript:"" onclick=""AdnGbook(1);"" >首页</a> <a href=""javascript:"" onclick=""AdnGbook("&page-1&");"">前一页</a>"
+	For ii=ll To nn
+		If page=ii Then Response.Write" <font color=""#FF0000"">"&ii&"</font>" Else Response.Write " <a href=""javascript:"" onclick=""AdnGbook("&ii&");return false;"">"&ii&"</a>"
+	Next
+	Response.Write " <a href=""javascript:"" onclick=""AdnGbook("&page+1&");"">下一页</a> <a href=""javascript:"" onclick=""AdnGbook("&pageall&")"">尾页</a></div>"
+End Sub
+%>

@@ -1,0 +1,171 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_finance.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.frame.util.RandomID"%>
+<%@page import="com.bizoss.trade.ti_returnmoney.Ti_returnmoneyInfo"%>
+
+<%
+	request.setCharacterEncoding("UTF-8");
+	Map ti_finance = new Hashtable();
+	String session_cust_id="",session_user_id="";
+	if(session.getAttribute("session_cust_id")!=null){
+	  session_cust_id=session.getAttribute("session_cust_id").toString(); 
+	}
+	if(session.getAttribute("session_user_id")!=null){
+	  session_user_id=session.getAttribute("session_user_id").toString(); 
+	}
+	Ti_financeInfo ti_financeInfo = new Ti_financeInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	Hashtable mapf = new Hashtable();
+	mapf.put("cust_id",session_cust_id);
+	mapf.put("finance_type","1");
+	mapf.put("account_type","1");
+	List list = ti_financeInfo.getListByPk2(mapf);
+	Hashtable mapp = new Hashtable();
+  if(list!=null && list.size()>0) mapp = (Hashtable)list.get(0);
+	String  vmoney="0";
+	String cust_name = "";		 
+	if(mapp.get("use_vmoney")!=null) vmoney = mapp.get("use_vmoney").toString();	
+		
+		
+	Map ti_returnmoney = new Hashtable();
+	ti_returnmoney.put("cust_id",session_cust_id);
+	
+	//0：积分 1：虚拟币
+	Ti_returnmoneyInfo returnmoneyInfo = new Ti_returnmoneyInfo();
+	List listt = returnmoneyInfo.getListByPage(ti_returnmoney,Integer.parseInt(iStart),limit);
+	int counter = returnmoneyInfo.getCountByObj(ti_returnmoney);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?iStart=",Integer.parseInt(iStart),limit);
+	
+	RandomID randomID = new RandomID();
+	String _trade_id = randomID.GenTradeId();
+%>
+
+<html>
+  <head>
+    
+    <title>申请提现管理</title>
+	<link rel="stylesheet" rev="stylesheet" href="/templets/html/8diansc/css/main_right.css" type="text/css" />
+		<link href="/program/company/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="inter.js"></script>
+</head>
+
+<body>
+	<tr>
+        <td><table width="100%" border="0" cellpadding="0" cellspacing="0" class="table_main">
+            <tr>
+              <th width="5%" height="40" align="center"><img src="/program/member/index/images/icon1.gif" ></th>
+              <th width="65%"><h3>申请提现管理</h3></th>
+			  <th width="30%"></th>
+            </tr>
+          </table>
+	
+	<form action="/doTradeReg.do" method="post" name="returnForm">
+		<input type="hidden" name="bpm_id" value="5888" />
+		<input type="hidden" name="return_state" value="0" />
+		<input type="hidden" name="cur_vmoney" id="cur_vmoney" value="<%=vmoney %>" />
+		<input name="trade_id" id="trade_id" value="<%=_trade_id %>" type="hidden"  />
+ 		<input name="cust_id" id="cust_id" type="hidden" value="<%=session_cust_id%>" />
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left"><br>
+		  		<h2 style="color:#FF4524">您当前的账户总额为：<%=vmoney%>元</h2>
+		  		<h3>
+		  			请输入要提取的金额：
+		  			<input name="use_vmoney" id="use_vmoney" value="0" type="text" onkeyup="if(isNaN(this.value))this.value='0';" size="5" maxlength="5" />元
+					<br/>
+					请输入您的银行账号：
+		  			<input name="bank_no" id="bank_no" value="" type="text" onkeyup="if(isNaN(this.value))this.value='0';" />
+					<br/>
+					请输入您的银行名称：
+		  			<input name="bank_name" id="bank_name" value="" type="text" onkeyup= "value=value.replace(/[^\w\u4E00-\u9FA5]/g,'');"  onbeforepaste= "clearSBC();"   />
+					
+				<input type="button" class="buttoncss" name="tradeSub" value="申请"  onclick="return submitReturnForm();" />
+				</h3>
+		  </td>
+        </tr>
+        
+      </table>
+      
+      	
+      	</form>
+      <br/>
+     <form action="index.jsp" method="post"  > 
+	<% 
+		int listsize = 0;
+		if(listt!=null && listt.size()>0){
+			listsize = listt.size();
+	%>  
+	  
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="table_main" border="0">
+		<tr bgcolor="#e7e7e7">
+		  <td align="center"><strong>提现金额</strong></td>
+		  <td align="center"><strong>收款账号</strong></td>	
+		  <td align="center"><strong>收款银行</strong></td>			
+		  <td align="center"><strong>收款时间</strong></td>
+		  <td align="center"><strong>当前状态</strong></td>			  	
+		</tr>		
+		<% 
+		  		for(int i=0;i<listt.size();i++){
+		  			Hashtable map = (Hashtable)listt.get(i);
+		  			String trade_id="",cust_id="",use_vmoney="",bank_no="",bank_name="",
+		  			return_state="",return_date="";
+	  			  	if(map.get("trade_id")!=null) trade_id = map.get("trade_id").toString();
+					if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+					if(map.get("use_vmoney")!=null) use_vmoney = map.get("use_vmoney").toString();
+					if(map.get("bank_no")!=null) bank_no = map.get("bank_no").toString();
+					if(map.get("bank_name")!=null) bank_name = map.get("bank_name").toString();
+					if(map.get("return_time")!=null) return_date = map.get("return_time").toString();
+					if(return_date.length()>19)return_date=return_date.substring(0,19);
+					if(map.get("return_state")!=null) return_state = map.get("return_state").toString();
+
+		  %>
+		
+		<tr>
+		  <td align="center"><%=use_vmoney%></td>
+		  <td align="center"><%=bank_no%></td>
+		  <td align="center"><%=bank_name%></td>
+		  <td align="center"><%=return_date%></td>
+		  <td align="center">
+		  	<%
+		  		if(return_state.equals("0"))
+		  			out.print("正在处理");
+		  		if(return_state.equals("1"))
+		  			out.print("提现成功");
+		  		if(return_state.equals("2"))
+		  			out.print("提现失败");
+		  	%>
+		  </td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	 
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		}else{
+	%>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td>当前无提现记录！</td></tr>
+	</table>
+	<%}%>
+	</form>
+	
+</body>
+</html>

@@ -1,0 +1,689 @@
+<%
+
+' 最近更新
+Dim maxTypeID,typeCNarr()
+Function OTCMS_NewList(num)
+	Dim hrefStr
+
+	If SYS_homeNewIsType=1 Then
+		Set typecnexe=conobj.execute("select IT_ID,IT_theme,IT_level from OT_infoType where IT_type='news' order by IT_ID DESC")
+			If Not typecnexe.EOF Then
+				maxTypeID=typecnexe("IT_ID")
+				ReDim typeCNarr(maxTypeID)
+				Do Until typecnexe.EOF
+					typeCNarr(typecnexe("IT_ID"))=typecnexe("IT_theme")
+				typecnexe.movenext
+				Loop
+			End If
+		typecnexe.close
+		Set typecnexe=Nothing
+	End If
+	
+	If SYS_homeNewTopMode>0 Then
+		Set newexe = conobj.execute("select top 1 IF_ID,IF_time,IF_theme,IF_themeColor,IF_URL,IF_contentKey from OT_info where IF_state=1 and IF_isAudit=1 and IF_isTop=1 and IF_isNew=1 order by IF_time DESC,IF_ID")
+'		Set newexe = conobj.execute("select IF1.IF_ID,IF2.IF_time,IF2.IF_theme,IF2.IF_themeColor,IF2.IF_URL,IF2.IF_contentKey from (select top 1 IF_ID from OT_info where IF_state=1 and IF_isAudit=1 and IF_isTop=1 and IF_isNew=1 order by IF_time DESC,IF_ID) as IF1 inner join OT_info as IF2 on IF1.IF_ID=IF2.IF_ID order by IF2.IF_time DESC,IF2.IF_ID")
+			If Not newexe.EOF Then
+				If newexe("IF_URL")<>"" Then hrefStr=newexe("IF_URL") Else hrefStr=Url_NewsShowID(newexe("IF_ID"),0)
+				If SYS_homeNewTopMode=1 Then
+					response.write(_
+					"<div class='headRow'>"& vbcrlf &_
+						"<h1><a href='"& hrefStr &"' title="""& ReplaceStr(newexe("IF_theme"),"input") &""" target='_blank'>"& newexe("IF_theme") &"</a></h1>"& vbcrlf &_
+						"<span class='note'>"& StrLen(newexe("IF_contentKey"),164) &"</span><a href='"& hrefStr &"' class='font2_2' target='_blank'>阅读全文>></a>"& vbcrlf &_
+					"</div>"& vbcrlf &_
+					"")
+				End If
+			End If
+		newexe.close
+	End If
+
+			response.write("<ul>")
+	If num<=0 Then num=10
+'	Set newexe = conobj.execute("select top "& num &" IF_ID,IF_time,IF_theme,IF_themeColor,IF_URL,IF_typeStr from OT_info where IF_state=1 and IF_isAudit=1 and IF_isNew=1 order by IF_time DESC,IF_ID")
+	Set newexe = conobj.execute("select IF1.IF_ID,IF2.IF_time,IF2.IF_theme,IF2.IF_themeColor,IF2.IF_URL,IF2.IF_typeStr from (select top "& num &" IF_ID from OT_info where IF_state=1 and IF_isAudit=1 and IF_isNew=1 order by IF_time DESC,IF_ID) as IF1 inner join OT_info as IF2 on IF1.IF_ID=IF2.IF_ID order by IF2.IF_time DESC,IF2.IF_ID")
+		Do Until newexe.EOF
+			If newexe("IF_URL")<>"" Then hrefStr=newexe("IF_URL") Else hrefStr=Url_NewsShowID(newexe("IF_ID"),0)
+			typeArr = Split(newexe("IF_typeStr"),",")
+			If UBound(typeArr)>=2 Then
+				typeID = typeArr(UBound(typeArr)-1)
+			End If
+
+			response.write("<li>")
+			If SYS_homeNewIsDate=1 Then
+				If DateDiff("d",newexe("IF_time"),Date())=0 Then newTimeClass = "font2_1" Else newTimeClass = "font1_1"
+				response.write("<div class='right "& newTimeClass &"'>&nbsp;"& Month(newexe("IF_time")) &"-"& Day(newexe("IF_time")) &"</div>")
+			End If
+			If SYS_homeNewIsType=1 Then
+				If newexe("IF_typeStr")="announ" Then
+					response.write("<a href='"& Url_NewsListStr(newexe("IF_typeStr"),0) &"' class='font2_1'>["& OTCMS_InfoTypeCN(newexe("IF_typeStr")) &"]</a>")
+				Else
+					response.write("<a href='"& Url_NewsListID("",typeID,0) &"' class='font2_1'>["& OTCMS_InfoTypeCN(newexe("IF_typeStr")) &"]</a>")
+				End If
+			End If
+			response.write("<a href='"& hrefStr &"' class='font1_1' style='color:"& newexe("IF_themeColor") &"' target='_blank' title="""& ReplaceStr(newexe("IF_theme"),"input") &""">"& newexe("IF_theme") &"</a></li>")
+		newexe.movenext()
+		Loop
+			response.write("</ul>"& vbcrlf)
+	newexe.close
+	Set newexe=Nothing
+
+End Function
+
+Function OTCMS_InfoTypeCN(typeStr)
+	Dim newStr
+	newStr = ""
+	tsArr = Split(typeStr,",")
+	For i=1 To UBound(tsArr)-1
+		tsArr(i) = ToInt(tsArr(i))
+		If ToInt(tsArr(i))<=maxTypeID Then
+			If typeCNarr(tsArr(i))<>"" Then
+				newStr = typeCNarr(tsArr(i))
+			End If
+		End If
+	Next
+	If typeStr="announ" Then
+		newStr=SYS_homeAnnounName
+	ElseIf newStr="" Then
+		newStr="已不存在"
+	End If
+	OTCMS_InfoTypeCN=newStr
+End Function
+
+
+
+' 幻灯片
+Function OTCMS_FlashBox(style,w,h,num)
+	Dim imgStr,hrefStr,textStr
+
+	If num=0 Then
+		If style=4 Then
+			num = 15
+		Else
+			num = 6
+		End If
+	End If
+'	Set flashexe = conobj.execute("select top "& num &" IF_ID,IF_img,IF_theme,IF_URL from OT_info where IF_state=1 and IF_isAudit=1 and IF_isFlash=1 order by IF_time DESC,IF_ID")
+	Set flashexe = conobj.execute("select IF1.IF_ID,IF2.IF_img,IF2.IF_theme,IF2.IF_URL from (select top "& num &" IF_ID from OT_info where IF_state=1 and IF_isAudit=1 and IF_isFlash=1 order by IF_time DESC,IF_ID) as IF1 inner join OT_info as IF2 on IF1.IF_ID=IF2.IF_ID order by IF2.IF_time DESC,IF2.IF_ID")
+		Do Until flashexe.EOF
+			imgStr = imgStr & server.URLEncode(InfoImgUrl(flashexe("IF_img"),InfoImgDir)) &"|"
+			textStr = textStr & ReplaceStr(Replace(flashexe("IF_theme"),"""","%22"),"js") &"|"
+			If flashexe("IF_URL")<>"" Then hrefStr=hrefStr & flashexe("IF_URL") &"|" Else hrefStr=hrefStr & Url_NewsShowID(flashexe("IF_ID"),0) &"|"
+		flashexe.movenext()
+		Loop
+	flashexe.close
+	Set flashexe=Nothing
+
+	If imgStr<>"" Then
+		imgStr = Left(imgStr,Len(imgStr)-1)
+		hrefStr = Left(hrefStr,Len(hrefStr)-1)
+		textStr = Left(textStr,Len(textStr)-1)
+	End If
+
+	flashSkinColor = Replace(SYS_skinColor,"#","")
+	response.write(_
+		"<script language='javascript' type='text/javascript'>"&_
+		"var flashdns	= 'tools/flashImgTrun/';"& vbcrlf &_
+		"var pic_width	= "& w &";		// 宽"& vbcrlf &_
+		"var pic_height	= "& h &";		// 高"& vbcrlf &_
+		"var button_pos	= 4;		// 按扭位置 1左 2右 3上 4下"& vbcrlf &_
+		"var stop_time	= 4000;		// 图片停留时间(1000为1秒钟)"& vbcrlf &_
+		"var show_text	= "& SYS_isHomeFlashTheme &";		// 是否显示文字标签 1显示 0不显示"& vbcrlf &_
+		"var txtcolor	= '000000'; // 文字色"& vbcrlf &_
+		"var bgcolor	= 'd5d5d5'; // 背景色"& vbcrlf &_
+		"var config='0xffffff'+	// 文字颜色"& vbcrlf &_
+		"		'|2'+			// 文字位置"& vbcrlf &_
+		"		'|0x"& flashSkinColor &"'+	// 文字背景颜色"& vbcrlf &_
+		"		'|60'+			// 文字背景透明度"& vbcrlf &_
+		"		'|0xffffff'+	// 按键文字颜色"& vbcrlf &_
+		"		'|0x"& flashSkinColor &"'+	// 按键默认颜色"& vbcrlf &_
+		"		'|0x000033'+	// 按键当前颜色"& vbcrlf &_
+		"		'|4'+			// 自动播放时间(秒)"& vbcrlf &_
+		"		'|2'+			// 图片过渡效果"& vbcrlf &_
+		"		'|1'+			// 是否显示按钮"& vbcrlf &_
+		"		'|_blank'+		// _blank打开窗口"& vbcrlf &_
+		"		'';"& vbcrlf &_
+		"imgStr		= """& imgStr &""";"& vbcrlf &_
+		"hrefSrr	= """& hrefStr &""";"& vbcrlf &_
+		"textStr	= """& textStr &""";"& vbcrlf &_
+
+		"OT_FlashImgTrun("& style &");"& vbcrlf &_
+
+		"</script>"& vbcrlf &_
+		"")
+
+End Function
+
+
+' 相关文章(标签)
+Function OTCMS_MarkNews(newsId,markStr,num)
+	Dim whereStr
+
+	whereStr = ""
+	If markStr<>"" Then
+		markArr = Split(markStr,",")
+		whereStr = whereStr &" and (1=2"
+		markNum = 0
+		For Each mark In markArr
+			markNum = markNum + 1
+			If markNum>8 Then Exit For
+			If mark<>"" Then
+				whereStr = whereStr &" or IF_themeKey like '%"& mark &"%'"
+			End If
+		Next
+		whereStr = whereStr &")"
+	End If
+
+	response.write("<ul>")
+	If num>0 Then
+'		Set itemexe = conobj.execute("select top "& num &" IF_ID,IF_time,IF_theme,IF_themeColor,IF_URL from OT_info where IF_state=1 and IF_isAudit=1"& whereStr &" order by IF_"& orderName &" DESC,IF_ID")
+		Set itemexe = conobj.execute("select IF1.IF_ID,IF2.IF_time,IF2.IF_theme,IF2.IF_themeColor,IF2.IF_URL from (select top "& (num+1) &" IF_ID from OT_info where IF_state=1 and IF_isAudit=1"& whereStr &" order by IF_time DESC,IF_ID) as IF1 inner join OT_info as IF2 on IF1.IF_ID=IF2.IF_ID order by IF2.IF_time DESC,IF2.IF_ID")
+			For i=1 To num
+				If itemexe.EOF Then Exit For
+				If itemexe("IF_ID")=newsId Then
+					i=i-1
+				Else
+					If itemexe("IF_URL")<>"" Then hrefStr=itemexe("IF_URL") Else hrefStr=Url_NewsShowID(itemexe("IF_ID"),0)
+					response.write(_
+					"<li>"& vbcrlf &_
+						"<div class='right'>&nbsp;"& Month(itemexe("IF_time")) &"-"& Day(itemexe("IF_time")) &"</div>"& vbcrlf &_
+						"<a href='"& hrefStr &"' class='font1_2' style='color:"& itemexe("IF_themeColor") &"' target='_blank' title="""& ReplaceStr(itemexe("IF_theme"),"input") &""">"& itemexe("IF_theme") &"</a>"& vbcrlf &_
+					"</li>"& vbcrlf &_
+					"")
+				End If
+			itemexe.movenext()
+			Next
+		itemexe.close
+		Set itemexe=Nothing
+	End If
+	response.write("</ul>"& vbcrlf)
+
+End Function
+
+
+' 栏目项目
+Function OTCMS_FontItem(typeStr,typeLevel,num,judDate)
+	Dim whereStr,orderName,hrefStr,dataStr
+
+	whereStr = ""
+	orderName = "time"
+	If typeStr="announ" Then
+		whereStr	= " and IF_type1ID=-1"
+
+	ElseIf typeStr="recom" Then
+		whereStr	= " and IF_isRecom=1"
+
+	ElseIf Left(typeStr,5)="recom" Then
+		If typeLevel>=1 And typeLevel<=3 Then
+			whereStr	= " and IF_isRecom=1 and IF_type"& typeLevel &"ID="& Right(typeStr,Len(typeStr)-5) &""
+		Else
+			whereStr	= " and IF_isRecom=1 and IF_typeStr like '%,"& Right(typeStr,Len(typeStr)-5) &",%'"
+		End If
+
+	ElseIf typeStr="new" Then
+		whereStr	= ""
+
+	ElseIf Left(typeStr,3)="new" Then
+		If typeLevel>=1 And typeLevel<=3 Then
+			whereStr	= " and IF_type"& typeLevel &"ID="& Right(typeStr,Len(typeStr)-3) &""
+		Else
+			whereStr	= " and IF_typeStr like '%,"& Right(typeStr,Len(typeStr)-3) &",%'"
+		End If
+
+	ElseIf typeStr="readNum" Then
+		orderName	= "readNum"
+		whereStr	= ""
+
+	ElseIf Left(typeStr,7)="readNum" Then
+		orderName	= "readNum"
+		If typeLevel>=1 And typeLevel<=3 Then
+			whereStr	= " and IF_type"& typeLevel &"ID="& Right(typeStr,Len(typeStr)-7) &""
+		Else
+			whereStr	= " and IF_typeStr like '%,"& Right(typeStr,Len(typeStr)-7) &",%'"
+		End If
+
+	Else
+		If typeLevel>=1 And typeLevel<=3 Then
+			whereStr	= " and IF_type"& typeLevel &"ID="& typeStr &""
+		Else
+			whereStr	= " and IF_typeStr like '%,"& typeStr &",%'"
+		End If
+
+	End If
+
+	response.write("<ul>"& vbcrlf)
+	If num>0 Then
+'		Set itemexe = conobj.execute("select top "& num &" IF_ID,IF_time,IF_theme,IF_themeColor,IF_URL from OT_info where IF_state=1 and IF_isAudit=1"& whereStr &" order by IF_"& orderName &" DESC,IF_ID")
+		Set itemexe = conobj.execute("select IF1.IF_ID,IF2.IF_time,IF2.IF_theme,IF2.IF_themeColor,IF2.IF_URL from (select top "& num &" IF_ID from OT_info where IF_state=1 and IF_isAudit=1"& whereStr &" order by IF_"& orderName &" DESC,IF_ID) as IF1 inner join OT_info as IF2 on IF1.IF_ID=IF2.IF_ID order by IF2.IF_"& orderName &" DESC,IF2.IF_ID")
+			Do Until itemexe.EOF
+				If judDate=True Or judDate=1 Then
+					dataStr="<div class='right'>&nbsp;"& Month(itemexe("IF_time")) &"-"& Day(itemexe("IF_time")) &"</div>"
+				Else
+					dataStr = ""
+				End If
+				If itemexe("IF_URL")<>"" Then hrefStr=itemexe("IF_URL") Else hrefStr=Url_NewsShowID(itemexe("IF_ID"),0)
+				response.write(_
+				"<li>"& vbcrlf &_
+					 dataStr &_
+					"<a href='"& hrefStr &"' class='font1_2' style='color:"& itemexe("IF_themeColor") &"' target='_blank' title="""& ReplaceStr(itemexe("IF_theme"),"input") &""">"& itemexe("IF_theme") &"</a>"& vbcrlf &_
+				"</li>"& vbcrlf &_
+				"")
+			itemexe.movenext()
+			Loop
+		itemexe.close
+		Set itemexe=Nothing
+	End If
+	response.write("</ul>"& vbcrlf)
+
+End Function
+
+
+' 栏目项目（含图片）
+Function OTCMS_ImgItem(typeStr,typeLevel,num,judGet)
+	Dim whereStr,newStr,hrefStr
+
+	whereStr = ""
+	newStr = ""
+	orderName = "time"
+	If typeStr="announ" Then
+		whereStr	= " and IF_type1ID=-1"
+
+	ElseIf typeStr="recom" Then
+		whereStr	= " and IF_isRecom=1"
+
+	ElseIf typeStr="readNum" Then
+		orderName	= "readNum"
+		whereStr	= ""
+
+	Else
+		If typeLevel>=1 And typeLevel<=3 Then
+			whereStr	= " and IF_type"& typeLevel &"ID="& typeStr &""
+		Else
+			whereStr	= " and IF_typeStr like '%,"& typeStr &",%'"
+		End If
+
+	End If
+
+	If num>0 Then numStr=" top "& num Else numStr=""
+
+'	Set itemexe = conobj.execute("select"& numStr &" IF_ID,IF_theme,IF_img,IF_contentKey,IF_URL from OT_info where IF_state=1 and IF_isAudit=1 and IF_isHomeThumb=1"& whereStr &" order by IF_time DESC,IF_ID")
+	Set itemexe = conobj.execute("select IF1.IF_ID,IF2.IF_theme,IF2.IF_img,IF2.IF_contentKey,IF2.IF_URL from (select"& numStr &" IF_ID from OT_info where IF_state=1 and IF_isAudit=1 and IF_isHomeThumb=1"& whereStr &" order by IF_time DESC,IF_ID) as IF1 inner join OT_info as IF2 on IF1.IF_ID=IF2.IF_ID order by IF2.IF_time DESC,IF2.IF_ID")
+		Do Until itemexe.EOF
+			If itemexe("IF_URL")<>"" Then hrefStr=itemexe("IF_URL") Else hrefStr=Url_NewsShowID(itemexe("IF_ID"),0)
+			newStr = newStr &_
+				"<div class='imgRow'>"& vbcrlf &_
+					"<div class='a'>"& vbcrlf &_
+						"<div class='img'><a href='"& hrefStr &"' class='font1_2' target='_blank'><img src='"& InfoImgUrl(itemexe("IF_img"),InfoImgDir) &"' onerror=""if (this.value!='1'){this.value='1';this.src='inc_img/noPic.gif';}"" alt="""& ReplaceStr(itemexe("IF_theme"),"input") &""" /></a></div>"& vbcrlf &_
+					"</div>"& vbcrlf &_
+					"<div class='b'>"& vbcrlf &_
+						"<h2><a href='"& hrefStr &"' class='font1_2' target='_blank' title="""& ReplaceStr(itemexe("IF_theme"),"input") &""">"& itemexe("IF_theme") &"</a></h2>"& vbcrlf &_
+						"<span>"& StrLen(itemexe("IF_contentKey"),130) &"&nbsp;<a href='"& hrefStr &"' class='font2_2' target='_blank'>阅读全文>></a></span>"& vbcrlf &_
+					"</div>"& vbcrlf &_
+				"</div><div class='clear'></div>"& vbcrlf &_
+				""
+				' 
+		itemexe.moveNext()
+		Loop
+	itemexe.close
+	Set itemexe=Nothing
+
+	If judGet=True Then
+		OTCMS_ImgItem = newStr
+	Else
+		response.write(newStr)
+	End If
+End Function
+
+
+' 信息栏目
+Function OTCMS_ItemList(num)
+	Dim imgStr,hrefStr,numStr,dataNum,adNum
+
+	If num>0 Then numStr=" top "& num Else numStr=""
+
+	Set typeexe = conobj.execute("select"& numStr &" IT_ID,IT_level,IT_isHomeImg,IT_openMode,IT_theme,IT_mode,IT_webID,IT_URL,IT_homeNum,IT_isItemDate from OT_infoType where IT_isHome=1 order by IT_rank ASC,IT_ID")
+		dataNum = 1
+		adNum = 0
+		Do Until typeexe.EOF
+			If typeexe("IT_isHomeImg")=1 Then imgStr=OTCMS_ImgItem(typeexe("IT_ID"),typeexe("IT_level"),1,true) Else imgStr = ""
+			If typeexe("IT_mode")="url" Then
+				moreHref=typeexe("IT_URL")
+			ElseIf typeexe("IT_mode")="web" Then
+				moreHref=dbPathPart &"dynWeb.asp?dataID="& typeexe("IT_webID")
+			Else
+				moreHref=Url_NewsListID("",typeexe("IT_ID"),0)
+			End If
+			If typeexe("IT_openMode")="_blank" Then moreHref2="var a=window.open('"& moreHref &"');" Else moreHref2="document.location.href='"& moreHref &"';"
+				response.write(_
+				"<div class='itemBox'>"& vbcrlf &_
+				"<dl>"& vbcrlf &_
+					"<dt><div class='more'><a href='"& moreHref &"' target='"& typeexe("IT_openMode") &"'>"& StyleModeWeb("more") &"</a></div><span class='pointer' onclick="""& moreHref2 &""">"& typeexe("IT_theme") &"</span></dt>"& vbcrlf &_
+					"<dd class='listArrow3'>"& vbcrlf &_
+						"<ul>"& vbcrlf &_
+							imgStr & vbcrlf &_
+							"")
+							Call OTCMS_FontItem(typeexe("IT_ID"),typeexe("IT_level"),typeexe("IT_homeNum"),typeexe("IT_isItemDate")) 
+						response.write(vbcrlf &_
+						"</ul>"& vbcrlf &_
+					"</dd>"& vbcrlf &_
+				"</dl>"& vbcrlf &_
+				"</div>"& vbcrlf &_
+				"")
+		If dataNum Mod 2 = 0 Then response.write("<div class='clear'></div>")
+		If dataNum Mod 4 = 0 Then
+			If adNum<2 Then
+				adNum = adNum + 1
+				response.write(_
+				"<div class='adClass leftAd1'>"& vbcrlf &_
+					"<script type='text/javascript'>OTnews_ads('ot00"& adNum+5 &"');</script>"&_
+				"</div>"& vbcrlf &_
+				"<div class='clear'></div>"& vbcrlf &_
+				"")
+			End If
+		End If
+		dataNum = dataNum + 1
+		typeexe.movenext()
+		Loop
+	typeexe.close
+	Set typeexe=Nothing
+	response.write("<div class='clear'></div>"& vbcrlf)
+
+End Function
+
+
+
+
+
+' 信息栏目(首页三栏式)
+Function OTCMS_ItemList3(num)
+	Dim imgStr,hrefStr,numStr,dataNum,adNum
+
+	If num>0 Then numStr=" top "& num Else numStr=""
+	Set typeexe = conobj.execute("select"& numStr &" IT_ID,IT_level,IT_isHomeImg,IT_openMode,IT_theme,IT_homeNum,IT_isItemDate from OT_infoType where IT_isHome=1 order by IT_rank ASC,IT_ID")
+		dataNum = 1
+		adNum = 0
+		Do Until typeexe.EOF
+			If typeexe("IT_isHomeImg")=1 Then imgStr=OTCMS_ImgItem(typeexe("IT_ID"),typeexe("IT_level"),1,true) Else imgStr = ""
+			moreHref=Url_NewsListID("",typeexe("IT_ID"),0)
+			If typeexe("IT_openMode")="_blank" Then moreHref2="var a=window.open('"& moreHref &"');" Else moreHref2="document.location.href='"& moreHref &"';"
+			If dataNum Mod 3 = 0 Then divMarRight=" style='margin-right:0px;'" Else divMarRight=""
+				response.write(_
+				"<div class='itemBox3' "& divMarRight &">"& vbcrlf &_
+				"<dl>"& vbcrlf &_
+					"<dt><div class='more'><a href='"& moreHref &"' target='"& typeexe("IT_openMode") &"'>"& StyleModeWeb("more") &"</a></div><span class='pointer' onclick="""& moreHref2 &""">"& typeexe("IT_theme") &"</span></dt>"& vbcrlf &_
+					"<dd class='listArrow3'>"& vbcrlf &_
+						"<ul>"& vbcrlf &_
+							imgStr & vbcrlf &_
+							"")
+
+							Call OTCMS_FontItem(typeexe("IT_ID"),typeexe("IT_level"),typeexe("IT_homeNum"),typeexe("IT_isItemDate"))
+
+						response.write(vbcrlf &_
+						"</ul>"& vbcrlf &_
+					"</dd>"& vbcrlf &_
+				"</dl>"& vbcrlf &_
+				"</div>"& vbcrlf &_
+				"")
+		If dataNum Mod 3 = 0 Then response.write("<div class='clear'></div>")
+		If dataNum Mod 6 = 0 Then
+			If adNum<2 Then
+				adNum = adNum + 1
+				response.write(_
+				"<div class='adClass mainAd1'>"& vbcrlf &_
+					"<script type='text/javascript'>OTnews_ads('ot00"& adNum+5 &"');</script>"& vbcrlf &_
+				"</div>"& vbcrlf &_
+				"<div class='clear'></div>"& vbcrlf &_
+				"")
+			End If
+		End If
+		dataNum = dataNum + 1
+		typeexe.movenext()
+		Loop
+	typeexe.close
+	Set typeexe=Nothing
+	response.write("<div class='clear'></div>"& vbcrlf)
+
+End Function
+
+
+
+' 最新留言
+Function OTCMS_NewMessage(num)
+	If SYS_isHomeMessage=0 Then
+		Exit Function
+	End If
+
+	response.write(_
+	"<div class='height5'></div>"& vbcrlf &_
+	"<div class='clear'></div>"& vbcrlf &_
+		"<div class='typeBox'>"& vbcrlf &_
+		"<dl>"& vbcrlf &_
+			"<dt><span class='pointer' onclick=""var a=window.open('message.asp');"">"& SYS_homeMessageName &"</span></dt>"& vbcrlf &_
+			"<dd>"&_
+			"")
+'	Set messexe=conobj.execute("select top "& num &" MA_ID,MA_username,MA_content,MA_reply from OT_message where MA_state=1 order by MA_time DESC,MA_ID")
+	Set messexe=conobj.execute("select MA1.MA_ID,MA2.MA_username,MA2.MA_content,MA2.MA_isReply from (select top "& num &" MA_ID from OT_message where MA_state=1 order by MA_time DESC,MA_ID) as MA1 inner join OT_message as MA2 on MA1.MA_ID=MA2.MA_ID order by MA2.MA_time DESC")
+		Do Until messexe.EOF
+			If messexe("MA_isReply")=0 Then repStr="" Else repStr="<span class='font2_2'>[已回]</span>"
+			response.write(_
+			"<div class='newMessItemNo'>"& vbcrlf &_
+				"<b>"& messexe("MA_username") &"</b>:"& vbcrlf &_
+				"<div>"& StrLen(Replace(RegExpStr(messexe("MA_content"),"html"),"&nbsp;",""),SYS_homeMessageLen) & repStr &"</div>"& vbcrlf &_
+			"</div>"& vbcrlf &_
+			"")
+		messexe.movenext()
+		Loop
+	messexe.close
+	Set messexe=Nothing
+
+			response.write(_
+			"</dd>"& vbcrlf &_
+		"</dl>"& vbcrlf &_
+		"</div>"& vbcrlf &_
+		"<div class='clear'></div>"& vbcrlf &_
+		"")
+End Function
+
+
+
+' 最新评论
+Function OTCMS_NewReply(num)
+	If SYS_isHomeReply=0 Then
+		Exit Function
+	End If
+
+	response.write(_
+	"<div class='height5'></div>"& vbcrlf &_
+	"<div class='clear'></div>"& vbcrlf &_
+		"<div class='typeBox'>"& vbcrlf &_
+		"<dl>"& vbcrlf &_
+			"<dt>"& SYS_homeReplyName &"</dt>"& vbcrlf &_
+			"<dd>"& vbcrlf &_
+			"")
+'	Set replyexe=conobj.execute("select top "& num &" IM_ID,IM_infoID,IM_username,IM_content,IM_reply from OT_infoMessage where IM_state=1 order by IM_time DESC,IM_ID")
+	Set replyexe=conobj.execute("select IM1.IM_ID,IM2.IM_infoID,IM2.IM_username,IM2.IM_content,IM2.IM_isReply from (select top "& num &" IM_ID from OT_infoMessage where IM_state=1 order by IM_time DESC,IM_ID) as IM1 inner join OT_infoMessage as IM2 on IM1.IM_ID=IM2.IM_ID order by IM2.IM_time DESC")
+		Do Until replyexe.EOF
+			If replyexe("IM_isReply")=0 Then repStr="" Else repStr="<span class='font2_2'>[已回]</span>"
+			response.write(_
+			"<div class='newMessItem'>"& vbcrlf &_
+				"<a href='"& Url_NewsShowID(replyexe("IM_infoID"),0) &"' target='_blank'>"& vbcrlf &_
+					"<b>"& replyexe("IM_username") &"</b>:"& vbcrlf &_
+					"<div>"& StrLen(Replace(RegExpStr(replyexe("IM_content"),"html"),"&nbsp;",""),SYS_homeReplyLen) & repStr &"</div>"& vbcrlf &_
+				"</a>"& vbcrlf &_
+			"</div>"& vbcrlf &_
+			"")
+		replyexe.movenext()
+		Loop
+	replyexe.close
+	Set replyexe=Nothing
+
+			response.write(_
+			"</dd>"& vbcrlf &_
+		"</dl>"& vbcrlf &_
+		"</div>"& vbcrlf &_
+		"<div class='clear'></div>"& vbcrlf &_
+		"")
+End Function
+
+
+
+' 投票
+Function OTCMS_VoteBox()
+	response.write(_
+	"<div class='height5'></div>"& vbcrlf &_
+	"<div class='clear'></div>"& vbcrlf &_
+	"")
+	Set voteexe=conobj.execute("select VT_ID,VT_mode,VT_theme,VT_content from OT_vote where VT_state=1 order by VT_rank DESC")
+		If Not voteexe.EOF Then
+			response.write(_
+			"<div class='typeBox'>"& vbcrlf &_
+			"<dl>"& vbcrlf &_
+				"<dt>调查投票</dt>"& vbcrlf &_
+				"<dd>"& vbcrlf &_
+				"")
+			Do Until voteexe.EOF
+				If voteexe("VT_mode")=2 Then voteMode="checkbox" Else voteMode="radio"
+				response.write(_
+				"<form id='voteForm"& voteexe("VT_ID") &"' name='voteForm"& voteexe("VT_ID") &"' method='post' action='deal.asp?mudi=vote&dataID="& voteexe("VT_ID") &"' onsubmit='return CheckVoteForm("& voteexe("VT_ID") &")'>"& vbcrlf &_
+				"<div id='voteResultBox"& voteexe("VT_ID") &"' class='voteItem' style='display:none;'></div>"& vbcrlf &_
+				"<div id='voteBox"& voteexe("VT_ID") &"' class='voteItem'>"& vbcrlf &_
+					"<h3>"& voteexe("VT_theme") &"</h3>"& vbcrlf &_
+					"")
+				voteArr=Split(voteexe("VT_content"),Chr(13)&Chr(10))
+				For i=0 To UBound(voteArr)
+					response.write(_
+					"<div><label><input type='"& voteMode &"' name='voteItem"& voteexe("VT_ID") &"' value='"& i &"' style='margin:2px;*margin:0px;' />"& Split(voteArr(i),"|")(0) &"</label></div>"& vbcrlf &_
+					"")
+				Next
+
+
+				response.write(vbcrlf &_
+				"<div class='voteBtn'><input type='submit' value='投票' />&nbsp;&nbsp;&nbsp;&nbsp;<input type='button' value='查看' onclick='ReadVoteResult("& voteexe("VT_ID") &")' /></div>"& vbcrlf &_
+				"</div>"& vbcrlf &_
+				"</form>"& vbcrlf &_
+				"")
+			voteexe.movenext()
+			Loop
+				response.write(_
+				"</dd>"& vbcrlf &_
+			"</dl>"& vbcrlf &_
+			"</div>"& vbcrlf &_
+			"<div class='clear'></div>"& vbcrlf &_
+			"")
+		End If
+	voteexe.close
+	Set voteexe=Nothing
+End Function
+
+
+
+' 滚动图片
+Function OTCMS_MarImgBox(num)
+	If SYS_isHomeMarImg=0 Then
+		Exit Function
+	End If
+
+	If num>0 Then numStr=" top "& num Else numStr=""
+'	Set marexe=conobj.execute("select"& numStr &" IF_ID,IF_theme,IF_URL,IF_img from OT_info where IF_state=1 and IF_isAudit=1 and IF_isImg=1 order by IF_time DESC,IF_ID")
+	Set marexe=conobj.execute("select IF1.IF_ID,IF2.IF_theme,IF2.IF_URL,IF2.IF_img from (select"& numStr &" IF_ID from OT_info where IF_state=1 and IF_isAudit=1 and IF_isImg=1 order by IF_time DESC,IF_ID) as IF1 inner join OT_info as IF2 on IF1.IF_ID=IF2.IF_ID order by IF2.IF_time DESC,IF2.IF_ID")
+		If Not marexe.EOF Then
+			response.write(_
+			"<div class='height5'></div>"& vbcrlf &_
+			"<div class='clear'></div>"& vbcrlf &_
+
+			"<div class='imgBox list'>"& vbcrlf &_
+				"<div id='caseMarX' style='overflow:hidden; width:100%; height:100%;'>"& vbcrlf &_
+					"<div style='width:10000px;'>"& vbcrlf &_
+					"<table cellpadding='0' cellspacing='0'>"& vbcrlf &_
+					"<tr>"& vbcrlf &_
+						"<td id='caseMarX1'>"& vbcrlf &_
+							"<table cellpadding='0' cellspacing='0'><tr>"& vbcrlf &_
+							"")
+								Do Until marexe.EOF
+									If marexe("IF_URL")<>"" Then hrefStr=marexe("IF_URL") Else hrefStr=Url_NewsShowID(marexe("IF_ID"),0)
+									response.write(_
+									"<td>"& vbcrlf &_
+										"<div class='a'>"& vbcrlf &_
+											"<a href='"& hrefStr &"' class='font1_2' target='_blank'>"& vbcrlf &_
+												"<img src='"& InfoImgUrl(marexe("IF_img"),InfoImgDir) &"' alt="""& ReplaceStr(marexe("IF_theme"),"input") &""" onerror=""if (this.value!='1'){this.value='1';this.src='inc_img/noPic.gif';}"" /><br />"& vbcrlf &_
+												"<div>"& marexe("IF_theme") &"</div>"& vbcrlf &_
+											"</a>"& vbcrlf &_
+										"</div>"& vbcrlf &_
+									"</td>"& vbcrlf &_
+									"")
+								marexe.movenext()
+								Loop
+							response.write(_
+							"</tr></table>"& vbcrlf &_
+						"</td>"& vbcrlf &_
+						"<td id='caseMarX2'></td>"& vbcrlf &_
+						"<td id='caseMarX3'></td>"& vbcrlf &_
+					"</tr>"& vbcrlf &_
+					"</table>"& vbcrlf &_
+					"</div>"& vbcrlf &_
+				"</div>"& vbcrlf &_
+			"</div>"& vbcrlf &_
+			"<div class='clear'></div>"& vbcrlf &_
+			"")
+		End If
+	marexe.close
+	Set marexe=Nothing
+End Function
+
+
+
+' 淘宝客排行
+Function OTCMS_TbkRank()
+	Set tbkRankexe=conobj.execute("select TR_ID,TR_img,TR_title,TR_content1,TR_content2 from OT_tbkRank where TR_state=1 order by TR_rank ASC")
+		If Not tbkRankexe.EOF Then
+			response.write(_
+			"<div id='mainBody'>")
+			tbkRankNum=0
+			Do Until tbkRankexe.EOF
+				tbkRankNum = tbkRankNum + 1
+				response.write(_
+				"<div class='tbkRankBox'>"& vbcrlf &_
+					"<div class='tbkRankNum'>"& tbkRankNum &"</div>"& vbcrlf &_
+					"<div class='tbkRankImg tbkRankBg'><img src='"& InfoImgDir & tbkRankexe("TR_img") &"' alt="""& ReplaceStr(tbkRankexe("TR_title"),"input") &""" /></div>"& vbcrlf &_
+					"<div class='tbkRankTitle'>"& tbkRankexe("TR_title") &"</div>"& vbcrlf &_
+					"<div class='tbkRankSell'>"& tbkRankexe("TR_content1") &"</div>"& vbcrlf &_
+					"<div class='tbkRankShop'>"& tbkRankexe("TR_content2") &"</div>"& vbcrlf &_
+				"</div>"& vbcrlf &_
+				"")
+			tbkRankexe.movenext()
+			Loop
+			response.write(_
+			"</div>"& vbcrlf &_
+			"<div class='clear'></div>"& vbcrlf &_
+			"<div class='height5'></div>"& vbcrlf &_
+			"<div class='clear'></div>"& vbcrlf &_
+			"")
+		End If
+	tbkRankexe.close
+	Set tbkRankexe=Nothing
+
+End Function
+
+
+' 淘宝客框架
+Function OTCMS_TbkFrame()
+	Set tbkFrameexe=conobj.execute("select TF_ID,TF_widthStr,TF_frameStr,TF_mode from OT_tbkFrame where TF_state=1 order by TF_rank ASC")
+		Do Until tbkFrameexe.EOF
+			widthArr = Split(tbkFrameexe("TF_widthStr"),"|OT|")
+			frameArr = Split(tbkFrameexe("TF_frameStr"),"|OT|")
+			response.write(_
+			"<table width='960' cellpadding='0' cellspacing='0'><tr>"& vbcrlf &_
+			"")
+				For n=0 To tbkFrameexe("TF_mode")-1
+			response.write(_
+			"<td width='"& widthArr(n) &"'>"& frameArr(n) &"</td>"& vbcrlf &_
+			"")
+				Next
+			response.write(_
+			"</tr></table>"& vbcrlf &_
+			"")
+		tbkFrameexe.movenext()
+		Loop
+	tbkFrameexe.close
+	Set tbkFrameexe=Nothing
+
+End Function
+%>

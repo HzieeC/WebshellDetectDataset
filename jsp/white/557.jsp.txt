@@ -1,0 +1,104 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+
+<html>
+<head>
+	<title>Login</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	<link rel="stylesheet" type="text/css" href="${ctx }/styles/login.css" />
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx }/scripts/system/login/login.js"></script>
+</head>
+<body>
+<div class="wraper auto_center">
+<div id="header">
+    <ul class="xmwidth auto_center">
+        <li class="top">&nbsp;</li>
+        <li class="nav" >
+            <div>
+            	<img  src="Images/index/login2.png" alt="LOGO" style=" padding-top:40px; position:absolute;  hight:180px;" />
+            </div>
+        </li>
+    </ul>
+</div>
+<div id="mainContent" class="xmwidth auto_center">
+  <div class="float_right" style="width:300px; margin-top:30px;">
+  <dl style="width:350px; height:240px; position: relative">
+      <dd style="width:350px; height:240px; overflow:hidden;font: smaller;">
+        <div class="border" id="login" style="height:200px;">
+       	<form action="${ctx }/SysLogin!login.do" name="loginForm" id="loginForm" method="post" onsubmit="return checkForm();">
+       
+          <s:hidden id="errorInfo" name="errorInfo"></s:hidden><!-- 登陆信息 -->
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="line-height:2.5em;">
+            <tr>
+              <!-- <td width="28%" align="right"><font size="0.75em"><s:text name="login.emali"/>：</font></td> -->
+              <td width="28%" align="right"><font size="0.75em">Emali：</font></td>
+              <td width="72%"><input name="sysUser.code" type="text" class="text"  id="UserName" style="width:120px;height: 1.45em;" onfocus="checkLogin()"/>&nbsp;&nbsp;<span id="showmsgUserA"></span></td>
+            </tr>
+            <tr>
+              <!-- <td align="right"><font size="0.75em"><s:text name="login.pwd"/>：</font></td> -->
+              <td align="right"><font size="0.75em">Password：</font></td>
+              <td><input name="sysUser.pwd" type="password" class="text" id="password" style="width:120px;height: 1.45em;" /></td>
+            </tr>
+            <tr>
+              <!-- <td align="right"><font size="0.75em"><s:text name="login.yzm"/>：</font></td> -->
+              
+              <td align="right"><font size="0.75em">VerificationCode：</font></td>
+              <td><input name="checkA" type="text" class="text" id="code" size="4" style="width:60px;height: 1.45em;" />&nbsp;&nbsp;&nbsp;&nbsp;
+              <span id="showcheckA" style="background-image: url(${ctx}/Images/fuzzy.jpg);"></span>&nbsp;&nbsp;&nbsp;<a href="#" onclick="showcheck()"><font size="0.75em" color="blue"><s:text name="login.vague"/></font></a></td>
+            </tr>
+          </table>
+          <p align="center">
+            <input name="submit" type="submit" class="buttun" value="<s:text name="login.login"/>" style="background-image:url(${ctx }/Images/index/buttun.gif); border:0; height:25px; width:62px;" />
+            &nbsp;&nbsp;&nbsp;&nbsp;
+            <input name="Register" type="button" class="buttun" value="<s:text name="login.regist"/>" onclick="javascript:register()" style="background-image:url(${ctx }/Images/index/buttun.gif); border:0; height:25px; width:62px;" />
+          </p>
+        </form>
+		</div>
+        </dd>
+  </dl>
+  </div>
+   <!-- 
+ <div id="rigesiter">
+    <dl>
+      <dd>
+          <ul>
+         
+              <img src="Images/jiemian.jpg" width="300" height="234" style="padding-right: 100px;"/>
+     
+      </ul></dd>
+      </dl>
+  </div>
+   -->
+   
+   <div id="rigesiter">
+    <dl>
+      <dd>
+          <ul>
+              <li><img src="Images/202_2.gif" width="60" height="78" />&nbsp;&nbsp;Agents</li>
+              <li><img src="Images/202_2.gif" width="60" height="78" />&nbsp;&nbsp;Regional Manager</li>
+              <li><img src="Images/202_2.gif" width="60" height="78" />&nbsp;&nbsp;System Administrator</li>
+      </ul></dd>
+      </dl>
+  </div>
+   
+   
+  <div class="clear"></div>
+</div>
+<div id="footer">
+	<br>
+  	<p  align="center"><!--<s:text name="login.qt"/><br>--> <a href="http://www.kuquo.com/" target="_blank"><s:text name="login.kq"/></a></p>
+</div>
+</div>
+<!-- 语言设置-->	
+<input type="hidden" id="Pleaseenteremail" value="<s:text name="login.Pleaseenteremail"/>"/>
+<input type="hidden" id="Yourmailbox" value="<s:text name="login.Yourmailbox"/>"/>
+<input type="hidden" id="Pleaseenterpassword" value="<s:text name="login.Pleaseenterpassword"/>"/>
+<input type="hidden" id="EnterValidationCode" value="<s:text name="login.EnterValidationCode"/>"/>
+<input type="hidden" id="Authcodeerror" value="<s:text name="login.Authcodeerror"/>"/>
+
+</body>
+</html>

@@ -1,0 +1,550 @@
+﻿<%
+''' SDCMS 模板解析
+''' ==================================================================
+''' 版权所有 http://www.sdcms.cn
+''' ------------------------------------------------------------------
+''' 这不是一个自由软件！您只能在不用于商业目的的前提下对程序代码进行修改和使用；
+''' 未经授权不允许对程序代码以任何形式任何目的的再发布。
+''' ==================================================================
+''' 编写: 爱·哲学 IT平民
+''' 修改：IT平民 in 2012.08
+
+dim html_page_total:html_page_total=1
+class sdcms_template
+
+	private isgzip_,iscache_,templatepath_,templatecode_,cachepath_,htmlpath_,templatename_,cachename_,htmlname_,cacheext_,templateext_,htmlext_
+	private templatedata,html,reg,labeldata,matches,matchess,match,matchs,fso,i,j,k
+	private t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10
+	private u0,u1,u2
+	private tag_top,tag_field,tag_table,tag_group,tag_where,tag_order,tag_sql,tag_pagesize,tag_iscache,tag_page,tag_htmlurl,tag_pagenumber,tag_var,tag_join,tag_isadminurl,tag_auto
+	private p,votearray,resultarray,percentarray
+	private loop_eof,loop_subject
+
+	public property let isgzip(t0)
+		isgzip_=t0
+	end property
+	
+	public property let iscache(t0)
+		iscache_=t0
+	end property
+
+	public property let templatepath(t0)
+		templatepath_=t0
+	end property
+	
+	public property let templatecode(t0)
+		templatecode_=t0
+	end property
+
+	public property let cachepath(t0)
+		cachepath_=t0
+	end property
+	
+	public property let htmlpath(t0)
+		htmlpath_=t0
+	end property
+
+	public property let templatename(t0)
+		templatename_=t0
+	end property
+	
+	public property let cachename(t0)
+		cachename_=t0
+	end property
+	
+	public property let htmlname(t0)
+		htmlname_=t0
+	end property
+	
+	public property let templateext(t0)
+		templateext_=t0
+	end property
+	
+	public property let cacheext(t0)
+		cacheext_=t0
+	end property
+	
+	public property let htmlext(t0)
+		htmlext_=t0
+	end property
+	
+	private sub class_initialize()
+		isgzip_=false
+		iscache_=false
+		templateext="html"
+		cacheext="asp"
+		htmlext="html"
+		set reg=new regexp
+		reg.ignorecase=true
+		reg.global=true
+		set labeldata=server.createobject("scripting.dictionary")
+		set fso=server.createobject("scripting.filesystemobject")
+	end sub
+	
+	private sub class_terminate()
+		set fso=nothing
+		set labeldata=nothing
+		set reg=nothing
+	end sub
+	
+	public sub assign(byval t0,byval t1)
+		if len(t0)<=0 then exit sub
+		if labeldata.exists(t0) then
+			labeldata.item(t0)=t1
+		else
+			labeldata.add t0,t1
+		end if
+	end sub
+	
+	public sub load()
+		if templatepath_="" or templatename_="" then exit sub
+		if iscache_ then
+			if cachename_="" then cachename_=templatename_
+			dim cachefilename:cachefilename=cachepath_&cachename_&"."&cacheext_
+			if fso.fileexists(server.mappath(cachefilename)) then
+				templatedata=getfile(cachefilename)
+			else
+				get_templatedata
+				if not fso.folderexists(server.mappath(cachepath_)) then
+					sdcms.newfolder cachepath_
+				end if
+				createfile cachepath_,cachename_&"."&cacheext_,templatedata
+			end if
+		else
+			get_templatedata
+		end if
+	end sub
+	
+	public sub loadcode()
+		if templatecode_="" then exit sub
+		get_tempdate()
+	end sub
+	
+	public sub display()
+		get_html
+		sdcms.echo html
+	end sub
+	
+	public sub createhtml()
+		if htmlpath_="" or htmlname_="" then exit sub
+		if html="" then get_html
+		if not fso.folderexists(server.mappath(htmlpath_)) then
+			sdcms.newfolder htmlpath_
+		end if
+		createfile htmlpath_,htmlname_&"."&htmlext_,html
+		if html_page_total=0 then html_page_total=1
+		sdcms.echo "1"&html_page_total
+	end sub
+	
+	public sub template_parsing()
+		if templatedata="" then exit sub
+		if instr(templatedata,"{}")>0 then
+			templatedata=replace(templatedata,"{}","\u0073\u0064\u0063\u006d\u0073\u0063\u0068\u0061\u0072")
+		end if
+		
+		if instr(templatedata,"pagesize=""")>0 then
+			templatedata=replace(templatedata,"{showpage}",texttoasp("=sdcms.page.showpage"))
+			templatedata=templatedata&texttoasp("html_page_total=sdcms.page.show_page_total")
+		end if
+		
+		analysis_include()
+		analysis_static()
+		
+		reg.pattern="\{dim\s+(.+?)\}"
+		templatedata=reg.replace(templatedata,texttoasp("dim $1"))
+		
+		reg.pattern="\{var\s+(.+?)\}"
+		set matches=reg.execute(templatedata)
+		if matches.count>0 then
+			for each match In matches
+				templatedata=replace(templatedata,match.value,eval(match.submatches(0)))
+			next
+		end if
+		analysis_if
+		analysis_for
+		analysis_loop
+
+		reg.pattern="sdcms\[([a-zA-Z0-9_""()]*)\]"
+		templatedata=reg.replace(templatedata,"sdcms.getsys(""$1"")")
+
+		reg.pattern="\{asp\s+(.+?)\}"
+		templatedata=reg.replace(templatedata,texttoasp("=$1"))
+		
+		reg.pattern="rs(show|class)\[([a-zA-Z0-9_]*)\]"
+		templatedata=reg.replace(templatedata,"rs$1(""$2"")")
+		
+		reg.pattern="\{([a-zA-Z0-9_().,"" >]*)\}"
+		templatedata=reg.replace(templatedata,texttoasp("=$1"))
+
+		if instr(templatedata,"\u0073\u0064\u0063\u006d\u0073\u0063\u0068\u0061\u0072")>0 then
+			templatedata=replace(templatedata,"\u0073\u0064\u0063\u006d\u0073\u0063\u0068\u0061\u0072","{}")
+		end if
+		
+		if iscache_ then
+			if instr(templatedata,"if not in_sdcms then")<0 then
+				templatedata=texttoasp("if not in_sdcms then response.write(""template load fail""):response.end() end if")&templatedata
+			end if
+		end if
+	end sub
+	
+	public sub get_templatedata()
+		dim templatefilename:templatefilename=templatepath_&templatename_&"."&templateext_
+		if fso.fileexists(server.mappath(templatefilename)) then
+			templatedata=getfile(templatefilename)
+		else
+			sdcms.echo templatefilename&":&#27169;&#26495;&#25991;&#20214;&#19981;&#23384;&#22312;":sdcms.die
+		end if
+		template_parsing
+	end sub
+	
+	public sub get_tempdate()
+		templatedata=templatecode_
+		template_parsing
+	end sub
+
+	private sub analysis_include()
+		reg.pattern="{sdcms:include\(['""](.+?)['""]\)}"
+		set matches=reg.execute(templatedata)
+		if matches.count>0 then
+			for each match In matches
+				templatedata=replace(templatedata,match.value,getfile(templatepath_&match.submatches(0)))
+			next
+			analysis_include
+		else
+			exit sub
+		end if
+	end sub
+	
+	private sub analysis_static
+		dim labeltag:labeltag=labeldata.keys
+		dim labelval:labelval=labeldata.items
+		if labeldata.count>0 then
+			for i=0 to labeldata.count-1
+				templatedata=replace(templatedata,labeltag(i),labelval(i))
+			next
+		end if
+	end sub
+	
+	private sub analysis_if
+		reg.pattern="\{if\s+(.+?)\}"
+		templatedata=reg.replace(templatedata,texttoasp("if $1 then"))
+		reg.pattern="\{elseif\s+(.+?)\}"
+		templatedata=reg.replace(templatedata,texttoasp("elseif $1 then"))
+		reg.pattern="\{else\}"
+		templatedata=reg.replace(templatedata,texttoasp("else"))
+		reg.pattern="\{/if\}"
+		templatedata=reg.replace(templatedata,texttoasp("end if"))
+	end sub
+
+	private sub analysis_for
+		reg.pattern="\{for\s+(.+?)\}"
+		templatedata=reg.replace(templatedata,texttoasp("for $1"))
+		reg.pattern="\{/for\}"
+		templatedata=reg.replace(templatedata,texttoasp("next"))
+	end sub
+	
+	public function regexists(byval t0,byval t1)
+		reg.pattern=t0
+		regexists=reg.test(t1)
+	end function
+	
+	private sub analysis_loop()
+		t7="\{sdcms:([a-zA-Z0-9_]*)\s+(.+?)\}([\s\S.]*?)\{/sdcms:\1\}"
+		reg.pattern=t7
+		set matchs=reg.execute(templatedata)
+		if matchs.count>0 then
+			for each match In matchs
+				t8=match.submatches(0)
+				get_tag(match.submatches(1))
+				getloop match.submatches(2),t8
+				u0=md5(tag_sql)
+				t9="\$"
+				t10=tag_auto
+				if tag_pagesize<>0 then
+					t1=texttoasp("sdcms.page.field="""&tag_field&"""")
+					t1=t1&texttoasp("sdcms.page.table="""&tag_table&"""")
+					t1=t1&texttoasp("sdcms.page.join="""&tag_join&"""")
+					t1=t1&texttoasp("sdcms.page.where="""&tag_where&"""")
+					t1=t1&texttoasp("sdcms.page.order="""&tag_order&"""")
+					t1=t1&texttoasp("sdcms.page.pagesize="&tag_pagesize&"")
+					if iscache_ then
+						t1=t1&texttoasp("sdcms.page.page=page")
+					else
+						t1=t1&texttoasp("sdcms.page.page="&page&"")
+					end if
+					t1=t1&texttoasp("sdcms.page.htmlurl="""&tag_htmlurl&"""")
+					t1=t1&texttoasp("sdcms.page.pagenumber="&tag_pagenumber&"")
+					t1=t1&texttoasp("sdcms.page.isadminurl="&tag_isadminurl&"")
+					t1=t1&texttoasp("set "&t8&"=sdcms.page.getrs")
+					if len(loop_eof)>0 then
+						t1=t1&texttoasp("if "&t8&".eof then")
+						t1=t1&loop_eof
+						t1=t1&texttoasp("end if")
+					end if
+					t1=t1&texttoasp("for i=1 to "&t8&".pagesize")
+					t1=t1&texttoasp("if "&t8&".eof or "&t8&".bof then exit for")
+					
+					t2=texttoasp(""&t8&".movenext")
+					t2=t2&texttoasp("next")
+					t2=t2&texttoasp("set "&t8&"=nothing")
+				else
+					t1=texttoasp("set "&t8&"=sdcms.db.exedb("""&tag_sql&""")")
+
+					if len(loop_eof)>0 then
+						t1=t1&texttoasp("if "&t8&".eof then")
+						t1=t1&loop_eof
+						t1=t1&texttoasp("end if")
+					end if
+
+					t1=t1&texttoasp(""&t10&"=1")
+					t1=t1&texttoasp("while not "&t8&".eof")
+					if tag_var<>"" then
+					if instr(tag_var,":")<0 then
+						t1=t1&texttoasp("dim "&tag_var&":"&tag_var&"="&t8&"("""&tag_var&""")")
+					else
+						dim tag_var_arr:tag_var_arr=split(tag_var,":")
+						t1=t1&texttoasp("dim "&tag_var_arr(0)&":"&tag_var_arr(0)&"="&t8&"("""&tag_var_arr(1)&""")")
+					end if
+						
+					end if
+					t2=texttoasp(""&t10&"="&t10&"+1")
+					t2=t2&texttoasp(""&t8&".movenext")
+					t2=t2&texttoasp("wend")
+					t2=t2&texttoasp("set "&t8&"=nothing")
+				end if
+
+				t3=loop_subject
+				reg.pattern="\{"&t9&t8&"\[[a-zA-Z0-9_,()]\]\}"
+				t3=reg.replace(t3,texttoasp("="&t8&"(""$1"")"))
+
+				reg.pattern="\{([^:\s+]+?)\}"
+				t3=reg.replace(t3,texttoasp("=$1"))
+				
+				reg.pattern=""&t9&t8&"\[([a-zA-Z0-9_""]*)\]"
+				t3=reg.replace(t3,""&t8&"(""$1"")")
+				
+				if tag_pagesize<>0 then
+					templatedata=replace(templatedata,match.value,t1&t3&t2)
+				else
+					if iscache_ then
+						templatedata=replace(templatedata,match.value,t1&t3&t2)
+					else
+						if tag_iscache then
+							if sdcms.checkcache(u0,0) then
+								u1=sdcms.loadcache(u0,0)
+							else
+								u1=asptohtml(t1&t3&t2)
+								sdcms.setcache u0,u1,0
+							end if
+							templatedata=replace(templatedata,match.value,u1)
+						else
+							templatedata=replace(templatedata,match.value,t1&t3&t2)
+						end if
+					end if
+				end if
+			next
+		end if
+		if regexists(t7,templatedata) then analysis_loop  
+	end sub
+	
+	private sub get_tag(byval t0)
+		dim match1,matchs1
+		if t0="" then exit sub
+		tag_top=10
+		tag_field="*"
+		tag_table=""
+		tag_group=""
+		tag_where=""
+		tag_order=""
+		tag_sql=""
+		tag_pagesize=0
+		tag_page=1
+		tag_htmlurl=""
+		tag_pagenumber=5
+		tag_iscache=false
+		tag_var=""
+		tag_join=""
+		tag_isadminurl=1
+		tag_auto="i"
+		
+		reg.pattern="([a-zA-Z0-9_]*)=[""](.+?)[""]"
+		set matchs1=reg.execute(t0)
+		if matchs1.count>0 then
+			for each match1 In matchs1
+				execute("tag_"&match1.submatches(0)&"="""&match1.submatches(1)&"""")
+			next
+		end if
+		if tag_group<>"" then
+			tag_group=" group by "&tag_group
+		end if
+		if tag_where<>"" then
+			reg.pattern="\[([a-zA-Z0-9_().]*)\]"
+			tag_where=reg.replace(tag_where,"""&$1&""")
+		end if
+		if tag_order<>"" then
+			reg.pattern="\[([a-zA-Z0-9_().]*)\]"
+			tag_order=reg.replace(tag_order,"""&$1&""")
+		end if
+		if tag_htmlurl<>"" then
+			'reg.pattern="\[([a-zA-Z0-9_().][^page]*)\]"
+			'tag_htmlurl=reg.replace(tag_htmlurl,"""&$1&""")
+		end if
+
+		if left(tag_order,3)="rnd" then
+			if datatype then
+				randomize
+				dim orderid
+				if len(tag_order)>4 then orderid=right(tag_order,len(tag_order)-4)
+				if len(orderid)=0 then orderid="id"
+				tag_order="rnd(-("&orderid&" +"&rnd()&"))"
+			else
+				tag_order="newid()"
+			end if
+		end if
+		if tag_sql="" and tag_pagesize=0 then
+			if tag_where<>"" then
+				tag_where=" where "&tag_where
+			end if
+			if tag_order<>"" then
+				tag_order=" order by "&tag_order
+			end if
+			if tag_top=0 then
+				tag_sql="select "&tag_field&" from ["&tag_table&"] "&tag_join&tag_where&tag_group&tag_order
+			else
+				tag_sql="select top "&tag_top&" "&tag_field&" from ["&tag_table&"] "&tag_join&tag_where&tag_group&tag_order
+			end if
+		end if
+		if tag_iscache<>"" then
+			if tag_iscache="true" then
+				tag_iscache=true
+			else
+				tag_iscache=false
+			end if
+		end if
+	end sub
+	
+	private sub getloop(byval t0,byval t1)
+		reg.pattern="{"&t1&":eof}([\s\S]+?){/"&t1&":eof}"
+		set matchess=reg.execute(t0)
+		if matchess.count>0 then
+			for each matchs In matchess
+				loop_eof=matchs.submatches(0)
+				loop_subject=reg.replace(t0,"")
+			next
+		else
+			loop_eof=""
+			loop_subject=t0
+		end if
+	end sub
+	
+	private function getfile(t0)
+		if t0="" then
+			getfile=""
+			exit function
+		end if
+		getfile=sdcms.loadfile(t0)
+	end function
+	
+	private sub createfile(t0,t1,t2)
+		if t0="" then exit sub
+		sdcms.newfile t0,t1,t2,""
+	end sub
+	
+	private function texttoasp(t0)
+		texttoasp="<"&"%"&t0&"%"&">"
+	end function
+	
+	private function asptohtml(byval t0)
+		on error resume next
+		dim temparray,pos,i,asp,match1
+		html=""
+		reg.pattern="<"&"%(.+?)%"&">"
+		set matchs=reg.execute(t0)
+		if matchs.count>0 then
+			redim temparray(matchs.count*2)
+			pos=1
+			i=0
+			for each match1 in matchs
+				if match1.FirstIndex+1-pos>0 then
+					temparray(i)="html=html&mid(t0,"&pos&","&match1.FirstIndex+1-pos&")"
+					i=i+1
+				end if
+				pos=match1.FirstIndex+1+match1.Length
+				if left(match1.submatches(0),1)="=" then	'<\%=*%\>
+					temparray(i)="html=html&"&mid(match1.submatches(0),2)
+				else
+					temparray(i)=match1.submatches(0)
+				end if
+				i=i+1
+			next
+			temparray(i)="html=html&mid(t0,"&pos&")"
+			redim preserve temparray(i)
+			asp=join(temparray,vbCrLf)
+		else
+			asp="html=html&t0"
+		end if
+		execute asp
+		if err then
+			asptohtml=err.description
+			err.clear
+		else
+			asptohtml=html
+		end if
+	end function
+
+	private function aspexecute(byval t0)
+		on error resume next
+		execute(t0)
+		if err then
+			sdcms.echo err.description:err.clear:sdcms.die
+		end if
+	end function
+	
+	private function gzip(byval t0)
+		t0=replace(t0,chr(8),"")
+		t0=replace(t0,chr(9),"")
+		t0=replace(t0,chr(10),"")
+		t0=replace(t0,chr(11),"")
+		t0=replace(t0,chr(12),"")
+		t0=replace(t0,chr(13)&chr(10),"")
+		t0=replace(t0,chr(22),"")
+		gzip=t0
+	end function
+	
+	private sub get_html()
+		if templatedata="" then exit sub
+		dim temparray,pos,j,asp,match1
+		html=""
+		reg.pattern="<"&"%(.+?)%"&">"
+		set matchs=reg.execute(templatedata)
+		if matchs.count>0 then
+			redim temparray(matchs.count*2)
+			pos=1
+			i=0
+			for each match1 in matchs
+				if match1.FirstIndex+1-pos>0 then
+					temparray(i)="html=html&mid(templatedata,"&pos&","&match1.firstindex+1-pos&")"
+					i=i+1
+				end if
+				pos=match1.firstindex+1+match1.length
+				if left(match1.submatches(0),1)="=" then	'<\%=*%\>
+					temparray(i)="html=html&"&mid(match1.submatches(0),2)
+				else
+					temparray(i)=match1.submatches(0)
+				end if
+				i=i+1
+			next
+			temparray(i)="html=html&mid(templatedata,"&pos&")"
+			redim preserve temparray(i)
+			asp=join(temparray,vbcrlf)
+		else
+			asp="html=html&templatedata"
+		end if
+		aspexecute asp
+		if isgzip_ then
+			html=gzip(html)
+		end if
+	end sub
+
+end class
+%>

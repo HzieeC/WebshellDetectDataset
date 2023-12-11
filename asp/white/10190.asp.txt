@@ -1,0 +1,352 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../../inc/sendmail.asp" -->
+<!--#include file="../checkvalid.asp"-->
+<%
+'************************************************************
+'	Software name: 智能招聘人才管理系统
+'	软件名称：智能招聘-仿中华英才网模板
+'	购买商业版联系方式QQ:2323449069
+'	Web: http://www.tao128.com/znzp/
+'	Copyright (C) IQhr Platform. All Rights Reserved.
+'	版权所有 未经智能招聘系统授权不得用于任何商业用途
+'
+'	文件名称：Admin_Guestbook.asp
+'	作    用：网站留言管理
+'	最后更新：IQhr-Mr.John
+'	最新版本请访问：http://www.tao128.com/znzp/
+'************************************************************
+If Not FRAdminLevel(109) Then
+	Call ErrorMsg()
+End If
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+if request("pass")<>"" then
+	if Chkrequest(request("pass")) then
+	pass=replace_text(request("pass"))
+	end if
+end if
+
+Dim Action
+Dim page,i
+Dim totalPut
+const MaxPerpage=20
+strFileName="Admin_Guestbook.asp?pass="&pass&""
+sUploadDir=UpFilesPath("Guestbook")
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>智能招聘人才管理系统 后台管理系统</title>
+<link href="../css/style.css" rel="stylesheet" type="text/css" />
+<script language="javascript" src="../Inc/Admin.js"></script><script language="JavaScript" type="text/JavaScript">
+function ConfirmDel(ID,Name)
+{
+   if(confirm("您确定要删除留言【"+Name+"】吗？\n\n警告：此操作不可恢复，请慎重操作！"))
+     location.href="<%=strFileName%>&Action=Del&id="+ID
+}
+function unSelectAll()
+{
+    if(document.form1.chkAll.checked){
+	document.form1.chkAll.checked = document.form1.chkAll.checked&0;
+    } 	
+}
+function SelectAll(form)
+{
+  for (var i=0;i<form.elements.length;i++)
+    {
+    var e = form.elements[i];
+    if (e.Name != "chkAll"&&e.disabled!=true&&e.zzz!=1)
+       e.checked = form.chkAll.checked;
+    }
+}
+</script></head>
+<body>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <tr class="topbg">
+    <th height="22" align="center" class="tableHeaderText"><strong >网站留言管理</strong></th>
+  </tr>
+  <tr class="tdbg">
+    <td height="24"><span class="bodytitle"><font color="ff6600"><b class="style1">　管理选项</b></font>：</span>&nbsp;<span class="forumRowHighlight"><a href="Admin_Guestbook.asp?hf=1">已回复留言</a> | <a href="Admin_Guestbook.asp?hf=0">未回复留言</a> | <a href="Admin_Guestbook.asp?pass=1">允许前台显示留言</a> | <a href="Admin_Guestbook.asp?pass=0">不允许前台显示留言</a> | [<a href="javascript:location.reload()">刷新页面</a>]</span></td>
+  </tr>
+  <tr class="tdbg">
+    <td height="21"><B>注意</B>：<BR>
+      <font color=blue>①回复时，回复信息系统将自动的发邮件到用户的邮箱！ 操作时请完整填写表单信息。</font><BR>
+      <font color=red>②如果此条信息<B>不想前台显示</B>，则在此设置，默认是不在前台显示的。</font><br>
+      <font color=red>③已经回复的信息再点回复即是修改已经回复的信息。</font></td>
+  </tr>
+</table>
+<%
+Action=trim(Request("Action"))
+Select Case Action
+	Case "Modify"
+		Call ShowData()
+	Case "SaveData"
+		Call SaveData()
+	Case "unpass"
+		Call unpass()
+	Case "setpass"
+		Call setpass()
+	Case "Del"
+		Call Del()
+	Case Else
+		Call main()
+End Select
+
+if FoundErr=True then
+	call Show_Err()
+end if
+%>
+<!--#include file="../inc/copy.asp"-->
+<%
+Conn.Close
+Set Conn=Nothing
+%>
+<%
+sub main()
+if request("hf")<>"" then
+	if Chkrequest(request("hf")) then
+	hf=replace_text(request("hf"))
+	end if
+end if
+Set rs= Server.CreateObject(FR_HR_RS)
+sql="select * from job_guestbook"
+if pass>"" then sql=sql&" where pass="&pass&""
+if hf>"" then sql=sql&" where hf="&request("hf")&""
+sql=sql&" order by ID desc"
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>暂无任何留言，请添加后再进行管理！</li>"
+		exit sub
+	else
+		totalPut=rs.recordcount
+		if (page-1)*MaxPerpage>totalput then
+			if (totalPut mod MaxPerpage)=0 then
+				page= totalPut \ MaxPerpage
+			else
+				page= totalPut \ MaxPerpage + 1
+			end if
+		end if
+		if page=1 then
+			Call MainInfo()
+		else
+			if (page-1)*MaxPerpage<totalPut then
+				rs.move  (page-1)*MaxPerpage
+				dim bookmark
+				bookmark=rs.bookmark
+				Call MainInfo()
+			else
+				page=1
+				Call MainInfo()
+			end if
+		end if
+	end if
+	rs.close
+	set rs=nothing
+End Sub
+%>
+<%Sub MainInfo()%>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder mt10">
+<form name="form1" method="Post" action="<%=strFileName%>">
+	  <tr class="title" align="center">
+		<td width="5%" height="22" class=tableHeaderText><strong>编号</strong></td>
+		<td width="41%" class=tableHeaderText><strong>留言主题</strong></td> 
+		<td width="15%" class=tableHeaderText><strong>留言时间</strong></td>
+		<td width="11%" class=tableHeaderText><strong>用户名/昵称</strong></td>
+		<td width="13%" class=tableHeaderText><strong>是否前台显示</strong></td>
+		<td width="10%" class=tableHeaderText><strong>操作选项</strong></td>
+	    <td width="5%" class=tableHeaderText><strong>选中</strong></td>
+	  </tr>
+	<%
+		do while not rs.eof
+		ID=Rs("id")
+		Titles=rs("Title")
+		Content=rs("Content")
+		username=rs("username")
+		dateandtime=rs("AddTime")
+	%>
+	  <tr class="tdbg" align="center">
+		<td align="center"><%=ID%></td>
+		<td align="left" title="<%=Titles%>"><%=left(Titles,22)%>...<a href="#" onClick="document.getElementById('<%=ID%>').style.display='block';">查看</a></td> 
+		<td align="center"><%=dateandtime%></td>
+		<td align="center"><%=username%></td>
+		<td align="center"><span class="forumRowHighlight">
+        <%if rs("pass")="1" then%>
+        <a href="Admin_Guestbook.asp?Action=unpass&pass=<%=pass%>&id=<%=rs("id")%>"><font color="#FF0000">已允许前台显示</font></a>
+        <%else%>
+        <a href="Admin_Guestbook.asp?Action=setpass&pass=<%=pass%>&id=<%=rs("id")%>"><font color="#FF0000">不允许前台显示</font></a>
+        <%end if%>
+		</span></td>
+		<td align="center">
+		  <a href="Admin_Guestbook.asp?Action=Modify&ID=<%=ID%>">
+<%if rs("hf")="1" then%><font color="#FF0000">已回复</font><%else%>回复<%end if%></a> 
+<a href="javascript:ConfirmDel(<%=ID%>,'<%=Titles%>');">删除</a></td>
+	    <td align="center"><input name="ID" type="checkbox" class="checkbox" value="<%=ID%>" /></td>
+	  </tr>
+	  	  <tr class="tdbg" align="center" id="<%=id%>" style="display:none;">
+		<td align="left">&nbsp;</td>
+	    <td colspan="5" align="left"><strong>留言内容：</strong><%=Content%></td>
+	    <td align="left"><a href="#" onClick="document.getElementById('<%=ID%>').style.display='none';">关闭</a></td>
+  	  </tr>
+	<%
+		i=i+1
+		if i>=MaxPerPage then exit do
+		rs.movenext
+		loop
+	%>
+		  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'" align="center">
+	    <td colspan="7" align="right"><input name="chkAll" type="checkbox" class="checkbox" onClick="SelectAll(this.form)" value="checkbox" />
+          <input name="Action" type="hidden" value="Del" />
+          选中所有项目&nbsp;&nbsp;&nbsp;&nbsp;将选定的项目:&nbsp;
+<input name="submit" type="submit" class="inputs" value="批量删除" /></td>
+	    </tr>
+		  <tr class="tdbg" onMouseOut="this.style.backgroundColor=''" onMouseOver="this.style.backgroundColor='#BFDFFF'" align="center">
+		    <td colspan="7"><%If totalput>0 Then
+	Call Showpage(strFileName,totalput,MaxPerPage,false,true,"条留言")
+End If%></td>
+	      </tr>
+</form>
+</table>
+<%End Sub%>
+<%
+Sub ShowData()
+	ID=trim(request.QueryString("ID"))
+	If ID<>"" Then
+		If IsNumeric(ID)=False Then
+			FoundErr=True
+			ErrMsg=ErrMsg & "<br><li>参数错误！</li>"
+			Exit Sub
+		End If
+		sql="select * from JOB_Guestbook where ID=" & ID
+		set rs=server.CreateObject (FR_HR_RS)
+		rs.open sql,conn,1,1
+		if rs.bof and rs.eof then
+			FoundErr=True
+			ErrMsg=ErrMsg & "<br><li>此留言不存在或者已经删除！</li>"
+			Exit Sub
+		else
+			Titles=Rs("Title")
+			Content=Rs("reContent")
+		end if
+		rs.Close
+		Set rs=Nothing
+	End If
+%>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder mt10">
+  <form name="form1" method="post" action="<%=strFileName%>">
+    <tr class="title">
+      <th height="22" colspan="4" align="center" ><strong>回复留言</strong></th>
+    </tr>
+    <tr class="tdbg">
+      <td width="11%" height="22" align="right"><strong>留言主题：</strong></td>
+      <td width="89%"><%=Titles%></td>
+    </tr>
+    
+    <tr class="tdbg">
+      <td height="40" align="right"><strong>留言内容：</strong></td>
+      <td><textarea name="Content" style="display:none"><%=Content%></textarea><iframe ID="eWebEditor1" src="../editor/ewebeditor.asp?id=content&style=standard&originalfilename=d_originalfilename &savefilename=d_savefilename &savepathfilename=d_savepathfilename" frameborder="0" scrolling="no" width="100%" HEIGHT="350"></iframe></td>
+    </tr>
+    <tr class="tdbg">
+      <td height="40" colspan="2" align="center"><input name="id" type="hidden" value="<%=id%>" />
+          <input name="Action" type="hidden" value="SaveData" />
+          <input name="btnSave" type="submit" class="inputs" style="cursor:hand;" value="发布留言回复" />
+        &nbsp;
+        <input name="btnCancel" type="button" class="inputs" style="cursor:hand;" onClick="window.location.href='<%=strFileName%>'" value=" 取 消 " />      </td>
+    </tr>
+  </form>
+</table>
+<%End Sub%>
+<%
+sub SaveData()
+id=trim(request("id"))
+if id<>"" And IsNumeric(id)=False then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>参数错误！</li>"
+	Exit Sub
+	id=CLng(id)
+end if
+content=request.form("Content")
+set rs=server.createobject("adodb.recordset")
+sql="select * from job_guestbook where id="&id&""
+rs.open sql,conn,1,3
+username=rs("username")
+UserEmail=rs("UserEmail")
+title=rs("title")
+hfemail=rs("hfemail")
+rs("reContent")=content
+rs("retime")=now()
+rs("hf")=1
+rs.update
+rs.close
+if hfemail=1 then
+Call SendMail(UserEmail,""&username&",您的留言管理员已回复！",""&username&"您好，您在<a href="&siteurl&" target=_blank>"&sitename&"</a>提交的主题为"&title&"的留言，管理员已回复，<a href="&siteurl&InstallDir&"guestbook target=_blank>现在就登陆查看</a>！")
+end if
+response.write"<SCRIPT language=JavaScript>alert('回复留言成功！');</script>"
+response.redirect strFileName
+response.End()
+end sub
+%>
+<%
+sub unpass()
+id=trim(Request("id"))
+if id="" then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>参数不足！</li>"
+	exit sub
+end if
+conn.execute("update job_guestbook set pass=0 where id="&id&"")
+response.redirect strFileName
+response.End()
+end sub
+sub setpass()
+id=trim(Request("id"))
+if id="" then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>参数不足！</li>"
+	exit sub
+end if
+conn.execute("update job_guestbook set pass=1 where id="&id&"")
+response.redirect strFileName
+response.End()
+end sub
+sub Del()
+	id=trim(Request("id"))
+	if id="" then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>参数不足！</li>"
+		exit sub
+	end if
+	sql="select * from JOB_Guestbook where id In("& id &")"
+    set rs=server.CreateObject ("Adodb.recordset")
+	rs.open sql,conn,1,3
+	if rs.bof and rs.eof then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>留言不存在或者已被删除！</li>"
+		exit sub
+	else
+		Do While Not(rs.Eof)
+			rs.delete
+			rs.update
+			rs.MoveNext
+		Loop
+	end if
+	rs.close
+	set rs=nothing
+    response.redirect strFileName
+	response.End()
+end sub
+%>

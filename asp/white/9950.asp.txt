@@ -1,0 +1,25 @@
+
+		  <TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+            <TBODY>
+              <TR>
+                <TD><IMG height=38 src="imgbly/tit_sel.gif" width=210></TD>
+              </TR>
+              <TR>
+                <TD align=center><table width="180" border=0 align="center" cellpadding=0 
+                        cellspacing=1 
+                        style="BORDER-RIGHT: #e3e3e3 1px solid; BORDER-TOP: #e3e3e3 1px solid; BORDER-LEFT: #e3e3e3 1px solid; BORDER-BOTTOM: #e3e3e3 1px solid">
+                    <tbody>
+                      <tr>
+                        <td style="PADDING-BOTTOM: 8px; PADDING-TOP: 8px"><table border="0" cellpadding="2" cellspacing="0" align="center">
+                            <form method="Get" name="myform" action="search.asp">
+                              <tr>
+                                <td height="28"><input type="text" name="keyword"  style="BORDER-RIGHT: #b7b7b7 1px solid; BORDER-TOP: #b7b7b7 1px solid; BORDER-LEFT: #b7b7b7 1px solid; WIDTH: 120px; BORDER-BOTTOM: #b7b7b7 1px solid" size=12 value="¹Ø¼ü×Ö" maxlength="50" onFocus="this.select();">
+                                    <input type="submit" name="Submit"  value="ËÑË÷">
+                                </td>
+                              </tr>
+                            </form>
+                        </table></td>
+                      </tr>
+                  </table></TD>
+              </TR>
+          </TABLE>

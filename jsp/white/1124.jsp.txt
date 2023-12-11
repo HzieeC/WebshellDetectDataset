@@ -1,0 +1,431 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@ page import="com.bizoss.trade.ts_category.*" %>
+<%@ page import="com.bizoss.trade.ts_categoryattr.*" %>
+<%@ page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<%@ page import="com.bizoss.trade.ti_payment.*" %>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" />  
+<%
+	 
+	String biz_id = randomId.GenTradeId();
+	//out.println("biz_id="+biz_id);
+	String class_attr = "";
+	if (request.getParameter("class_attr") != null){
+		class_attr = request.getParameter("class_attr");
+		//out.println("class_attr"+class_attr);
+	}
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+	Map catMap = ts_categoryInfo.getCatClassMap("12");
+	Ti_paymentInfo payment = new Ti_paymentInfo();
+	
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	String currency = tb_commparaInfo.getSelectItem("36","");   
+	String biz_type = tb_commparaInfo.getSelectItem("35","");   
+													
+	String catAttr[] = class_attr.split("\\|");
+	String cat_names = "";  
+	if(!class_attr.equals("")){
+      String catIds[] =	class_attr.split("\\|");	
+      for(String catId:catIds){
+         if(catMap!=null){
+             if(catMap.get(catId)!=null){
+              cat_names +=catMap.get(catId).toString()+" > ";
+			  //out.println("cat_names="+cat_names);                 
+             }                  
+         }                 
+      }		    
+	}
+  
+  //-------- get cat attr  
+  
+	Ts_categoryattrInfo ts_categoryattrInfo = new Ts_categoryattrInfo();
+	List attList = new ArrayList();
+	if(!catAttr[catAttr.length-1].equals("")){
+		attList = ts_categoryattrInfo.getListByClassId(catAttr[catAttr.length-1]);
+		
+	}  
+	 //out.println(attList);
+	List attrValueList = new ArrayList();
+	int attrsize = 0,valuesize = 0;
+	String cust_id="",publish_user_id="";
+	if(session.getAttribute("session_cust_id")!=null){
+		cust_id  = session.getAttribute("session_cust_id").toString();
+		//out.println("cust_id="+cust_id);
+	}
+	if(session.getAttribute("session_user_id")!=null){
+		publish_user_id  = session.getAttribute("session_user_id").toString();
+		//out.println("publish_user_id="+publish_user_id);
+	}                     
+    
+	String area_attr = "";
+	List paymentlist = payment.getCustPayment("100000000000000");
+%>	
+<html>
+  <head>
+    <title>发布商机信息</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+		<script type="text/javascript" src="/js/jquery.js"></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+    <script type="text/javascript" src="biz.js"></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js'></script>
+	<script type="text/javascript" src="/program/admin/js/judgment.js" charset="UTF-8"></script>
+ </head>
+
+<body>
+	<h1>发布商机信息</h1>
+	     
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	 <table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>产品属性</h4>
+		  <span>产品属性填写的越少，越容易流失被搜索到的机会！建议您尽可能完整填写！</span><br/>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+      
+	<table width="100%" cellpadding="1" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td  colspan="4">
+		   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;
+		   <span style="font-size:14px;font-weight:bold;">基本信息</span>			
+		   </td>
+		</tr>
+
+		<tr>
+			<td align="right" width="20%">
+				你选择的类目:			
+			</td>
+			<td  colspan="3">
+			   <font color="red"><%=cat_names%></font> 
+				 &nbsp;&nbsp;<input class="button_css" type="button" value ="返回，重新选择类目" onClick="window.location.href='addInfo.jsp'">	
+			</td>
+		</tr>
+		
+		<tr>
+			<td colspan="4">			 		 					
+			
+			<%
+			if( attList != null && attList.size() > 0 ) {
+				attrsize = attList.size();
+				Hashtable attrmap = new Hashtable();
+				for( int i = 0; i < attrsize; i++ ){
+				 attrmap = ( Hashtable )attList.get(i);
+				 String attr_id = "",attr_name = "",default_tag ="", con_type="",attrStr = "",isfill="";
+				 if( attrmap.get("attr_id") != null ){
+					 attr_id = attrmap.get( "attr_id" ).toString();
+					
+				 }
+				 if( attrmap.get("attr_name") != null ){
+					 attr_name = attrmap.get( "attr_name" ).toString();
+					
+				 }
+				 if( attrmap.get("default_tag") != null ) { // if fill in or not
+					 default_tag = attrmap.get("default_tag" ).toString();
+					
+				 }
+				 if( attrmap.get("con_type") != null ){
+					 con_type = attrmap.get( "con_type" ).toString();
+				 }
+				 if( default_tag.equals( "0" )){
+					 isfill = " <span style='color:red;'>*</span>";
+				 }				 
+			%>
+						
+			<table width="100%" border="0" cellspacing="0" cellpadding="0">
+				<tr>
+				  <td width="28%" height="35" align="right" style="background:#F9F9F9;">
+					 &nbsp;<%=attr_name%><%=isfill%>
+				  </td>
+				  <td width="48%" style="background:#F9F9F9;">					  
+					  <input type="hidden" name="attr_id<%=i%>" id="attr_id<%=i%>" value="<%=attr_id%>" /> 
+					  <input type="hidden" name="attr_name<%=i%>" id="attr_name<%=i%>" value="<%=attr_name%>" />
+					  <input type="hidden" name="con_type<%=i%>" id="con_type<%=i%>" value="<%=con_type%>" />
+					  <input type="hidden" name="default_tag<%=i%>" id="default_tag<%=i%>" value="<%=default_tag%>" />
+					<%
+						String attrValue = "";	
+						if(con_type.equals("0")){ 
+							attrValue = ts_categoryattrInfo.getSelectItems(attr_id,"");
+															
+					%>	
+							   <select class="input" name="attr_value<%=i%>" id="attr_value<%=i%>" style="height:20px;">
+							   <option value="">请选择</option>
+									 <%=attrValue%>
+							   </select>
+					<%			
+							}
+							if( con_type.equals( "1") ){ 
+					 %>
+								<input class="input" maxlength="30" type="text" name="attr_value<%=i%>" id="attr_value<%=i%>"  value="" size="30" maxlength="100" />
+					<%			
+							}
+							if( con_type.equals( "2") ){
+							attrValueList = ts_categoryattrInfo.getListByPk( attr_id );
+							if( attrValueList != null && attrValueList.size() > 0 ) {
+		   
+								Hashtable valuemap = (Hashtable)attrValueList.get(0);
+								String default_value="";                           
+								if( valuemap.get("default_value") != null ){
+									default_value = valuemap.get("default_value").toString();
+								}
+								String attrValues[] =	default_value.split("\\|");
+								valuesize = attrValues.length;
+								for( int j = 0; j < valuesize; j++ ) {
+						 %>
+									<input class="input" type="checkbox" name="attr_value<%=i%>" id="attr_value<%=i%>_<%=j%>" value="<%=attrValues[j]%>" /><%=attrValues[j]%>	
+																		
+							 <%	   
+								}
+							 %>  	
+							  <input type="hidden" name="valuesize<%=i%>" id="valuesize<%=i%>" value="<%=valuesize%>" /> 
+							  <%
+							}
+						}
+					%>		
+					
+					<span class="STYLE5"></span>
+				  </td>
+				  <td width="36%"></td>
+					</tr>
+			  </table>
+			<%		
+					}
+				}
+			%>
+						
+			<input type="hidden" name="attrsize" id="attrsize" value="<%=attrsize%>" />
+			</td>
+		</tr>
+	    
+		<tr>
+			<td align="right" width="20%">
+				 信息类型<font color="red">*</font>
+			</td>
+			<td colspan="3">
+				  <select name="biz_type" id="biz_type">
+					<option value="">请选择</option>
+					<%=biz_type%>
+				 </select>		
+			 </td>
+		</tr>
+
+	
+		
+
+		<tr>
+			<td align="right" width="20%">
+				 信息标题<font color="red">*</font>
+			</td>
+			<td colspan="3">
+				  <input type="text" name="title" id="title" size="62" maxlength="100" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+			 </td>
+		</tr>
+
+		<tr>
+			<td align="right" width="20%">
+				产品图片:			
+			</td>
+			<td colspan="3">
+			 <jsp:include page="/program/inc/uploadImgInc.jsp">
+					<jsp:param name="attach_root_id" value="<%=biz_id%>" />
+					<jsp:param name="img_type" value="1" />
+					<jsp:param name="req_type" value="sale" />
+				</jsp:include>
+			</td>
+		</tr> 
+
+		<tr>
+			<td align="right" width="20%">
+				详细说明<font color="red">*</font>					
+			</td>
+			<td colspan="3">
+			  <textarea name="content"></textarea>
+			<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+			<script type="text/javascript">
+				 //CKEDITOR.replace('content');
+			   CKEDITOR.replace( 'content',{
+			   	     filebrowserUploadUrl : '/program/inc/upload.jsp?type=file&attach_root_id=<%=biz_id%>',      
+                filebrowserImageUploadUrl : '/program/inc/upload.jsp?type=img&attach_root_id=<%=biz_id%>',      
+                filebrowserFlashUploadUrl : '/program/inc/upload.jsp?type=flash&attach_root_id=<%=biz_id%>'     
+            });  
+			</script>
+			
+			</td>
+	</tr>      
+    
+	<tr>
+		<td  colspan="4">
+	   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">交易信息</span>			
+		</td>
+	</tr>
+
+
+	<tr>
+	  <td align="right" width="20%">商品价格<font color="red">*</font></td>	   
+	  <td width="28%">
+		 <input type="text" name="biz_price" id="biz_price" size="30" maxlength="15" onkeyup="if(isNaN(this.value))this.value=''"/>
+	  </td>
+	  <td width="12%" align="right">币种:</td>
+	  <td width="50%">
+		 <select name="currency" id="currency">
+			<option value="">请选择</option>
+			<%=currency%>
+		 </select>			  
+	  </td>
+	</tr>
+
+	<tr>
+	  <td align="right" width="20%">最小量<font color="red">*</font></td>	   
+	  <td width="28%">
+		 <input type="text" name="mini_supply" id="mini_supply" size="30" maxlength="50" onKeyUp="if(isNaN(value))this.value=''" />
+	  </td>
+	  <td width="12%" align="right">商品总量<font color="red">*</font></td>
+	  <td width="50%">
+		<input name="max_supply" id="max_supply" type="text" maxlength="50" size="30" onKeyUp="if(isNaN(value))this.value=''" />
+	  </td>
+	</tr>
+    
+    
+	<tr>
+	  <td align="right" width="20%">计量单位:</td>	   
+	  <td width="28%">
+		 <input type="text" name="units" id="units" size="30" maxlength="50" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+	  </td>
+	  <td width="12%" align="right">行销方式:</td>
+	  <td width="50%">
+		<input name="market_type" id="market_type" type="text" maxlength="50" size="30" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+	  </td>
+	</tr>
+    
+	<tr>
+	 <td align="right" width="20%">成交方式:</td>	   
+	  <td width="28%">
+		 <input type="text" name="transaction_mode" id="transaction_mode" size="30" maxlength="50" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+	  </td>
+	  <td width="12%" align="right">交货期:</td>
+	  <td width="50%">
+		 <input name="delivery_date" id="delivery_date" type="text" maxlength="50" size="30" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+	  </td>
+	</tr>
+    
+    
+	<tr>
+	 <td align="right" width="20%">货物始发地:</td>	   
+	  <td width="28%">
+		 <input type="text" name="logistics" id="logistics" size="30" maxlength="50" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />	     
+	  </td>
+	  <td width="12%" align="right">经销批发:</td>
+	  <td width="50%">
+		<input type="text" name="wholesale" id="wholesale" size="30" maxlength="50" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />          			 
+	  </td>
+	  </tr>
+    
+    
+      <tr>
+		 <td align="right" width="20%">货物产地:</td>	   
+		  <td width="28%">
+			 <input type="text" name="product_spec" id="product_spec" size="30" maxlength="50" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+		  </td>
+		  <td width="12%" align="right">产品认证:</td>
+		  <td width="50%">
+			<input name="certify_req" id="certify_req" type="text" maxlength="50" size="30" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+		  </td>
+	  </tr>
+
+<tr>
+		 <td align="right"  width="20%">产品规格:</td>	   
+		  <td width="28%">
+			 <input type="text" name="sale_spec" id="sale_spec" size="30" maxlength="50" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+		  </td>
+		  <td width="12%" align="right" >保质期:</td>
+		  <td width="50%">
+			<input name="qua_date" id="qua_date" type="text" maxlength="50" size="30" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); " />
+		  </td>
+	  </tr>
+	  
+	  <tr>
+		 <td align="right"  width="20%">保修期:</td>	   
+		  <td width="28%">
+			 <input type="text" name="rep_date" id="rep_date" size="30" maxlength="50" onkeyup="inputNoHorns(this)"   onbeforepaste= "inputNoHorns(this); "/>
+		  </td>
+		  <td width="12%" align="right" >支付方式:</td>
+		  <td width="50%">
+		  <%
+		  	String pay_name="",pay_id="";
+		  	int paylistsize = 0;
+		  	if (paymentlist!=null && paymentlist.size()>0)
+		  	{
+		  		paylistsize = paymentlist.size();
+		  		for (int i = 0; i < paymentlist.size(); i++) 
+		  		{
+						Hashtable objMap = (Hashtable) paymentlist.get(i);
+						if (objMap.get("pay_id") != null) pay_id = objMap.get("pay_id").toString();
+						if (objMap.get("pay_name") != null) pay_name = objMap.get("pay_name").toString();
+			%>
+			<input type="checkbox" name="payment<%=i%>" id="payment<%=i%>" value="<%=pay_id%>" /><%=pay_name%> 
+			<%
+					}
+		  	}
+		  %>
+			 
+		  </td>
+	  </tr>
+
+	<tr>
+		<td  colspan="4">
+	   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">其他信息</span>			
+		</td>
+	</tr>
+	
+	<tr>
+		<td align="right" width="20%">
+			信息有效期<font color="red">*</font>			
+		</td>
+		<td colspan="3">    
+			<input type="radio" name="end_date" id="end_date1" value="10" checked="checked"/>10天
+			<input type="radio" name="end_date" id="end_date2" value="20" />20天
+			<input type="radio" name="end_date" id="end_date3" value="30" />1个月	
+			<input type="radio" name="end_date" id="end_date4" value="90" />3个月	
+			<input type="radio" name="end_date" id="end_date5" value="180" />6个月
+			<input type="radio" name="end_date" id="end_date6" value="365" />一年
+			<input type="radio" name="end_date" id="end_date7" value="730" />两年
+			<input type="radio" name="end_date" id="end_date8" value="1095" />三年
+			<input type="radio" name="end_date" id="end_date9" value="36500" />永久
+		</td>
+	</tr>
+
+    
+	
+     
+	</table>
+	 	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="3784" />
+				<input type="hidden" name="cust_id" id="cust_id" value="<%=cust_id%>" />
+				<input type="hidden" name="user_id" id="user_id" value="<%=publish_user_id%>" />
+				<input type="hidden" name="biz_id" id="biz_id" value="<%=biz_id%>" />	
+				<input type="hidden" name="class_attr" id="class_attr" value="<%=class_attr%>" /> 
+				<input type="hidden" name="state_code" id="state_code" value="c" />
+				<input type="hidden" name="attr_desc" id="attr_desc" value="" />          
+				<input type="hidden" name="state_flag" id="state_flag" value="" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onClick="subForm()"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onClick="window.location.href='index.jsp';"/>
+				<input type="hidden" name="paylistsize" id="paylistsize" value="<%=paylistsize %>" />
+	 			<input type="hidden" name="payid" id="payid" value="" />
+			</td>
+		</tr>
+	</table>
+	
+	
+                                                                                                
+	</form>
+
+</body>
+
+</html>
+

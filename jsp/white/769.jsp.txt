@@ -1,0 +1,133 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%  String basePath = request.getContextPath();%>
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" type="text/css" href="<%=basePath%>/css/all.css" />
+<style type="text/css">
+.footer_pages_some{
+	background:#FFFFFF;
+}
+</style>
+<script type="text/javascript" src="<%=basePath%>/js/jquery-1.7.1.min.js"></script>
+<script type="text/javascript">
+
+	//记录页数
+	var pageNum = 1;
+	
+	var allPages = 1;
+
+	//截取标题的位数
+	var weishu = 15;
+	$(document).ready(function(){
+		//加载文章列表	参数是第几页
+		if(isNaN(pageNum)){
+			pageNum = 1;
+		}
+		$('#currentPage').html(pageNum);
+		//加载文章列表
+		loadArticle(pageNum);
+	});
+	
+	//下一页
+	function loadNext(){
+		if(isNaN(pageNum)){
+			pageNum = 1;
+		}
+		if(pageNum!=allPages){
+			$('#currentPage').html(++pageNum);
+			loadArticle(pageNum);
+		}
+	}
+	
+	//上一页
+	function loadPrev(){
+		if(isNaN(pageNum)){
+			pageNum = 1;
+		}
+		if(pageNum!=1){
+			loadArticle(--pageNum);	
+		}
+		$('#currentPage').html(pageNum);
+	}
+	
+	
+	//得到多少页，多少条数据
+	function getArticleNumAdPages(msg){
+		var obj = eval(msg);
+		allPages = obj[0].pages;
+		$('#allnum').html(obj[0].num);
+		$('#allpage').html(obj[0].pages);
+	}
+	
+	//加载文章列表page为第几页
+	function loadArticle(page){
+		//清空原来的列表
+		$('#article_table').html('');
+		//加载文章列表
+		$.ajax({
+			contentType: "application/x-www-form-urlencoded; charset=utf-8",
+			url: '<%=basePath%>/selectArticleList',
+			data: 'page='+page,
+			type: 'post',
+			success:function(msg){
+				//分割字符串
+				var splits = msg.split("#####");
+				//分割
+				var liststr = splits[0];
+				var pagesstr = splits[1];
+				
+				//加载记录数量
+				getArticleNumAdPages(pagesstr);
+				//解析json字符串
+				var obj = eval(liststr);
+				var len = obj.length;
+				for(var i=0;i<len;i=i+2){
+					var astr1 = "";
+					var astr2 = "";
+					//保存id和标题
+					var id = '';
+					var title = '';
+					var date = '';
+					if(obj[i]!=undefined){
+						id = obj[i].id;
+						title = obj[i].title;
+						title = title.substr(0,weishu)+'...';
+						date = obj[i].date;
+						astr1 = '<a href="javascript:clickArticle('+id+')" class="article_a">'+title+'（'+date+'）'+'</a>';
+					}
+					if(obj[i+1]!=undefined){
+						id = obj[i+1].id;
+						title = obj[i+1].title;
+						title = title.substr(0,weishu)+'...';
+						date = obj[i+1].date;
+						astr2 = '<a href="javascript:clickArticle('+id+')" class="article_a">'+title+'（'+date+'）'+'</a>';
+					}
+					//添加文章标题
+					$('#article_table').append('<tr><td class="oushu">'+ astr1+'</td><td class="jishu">'+astr2+'</td></tr>');
+				}
+			}
+		});
+	}
+</script>
+</head>
+<body>
+
+<!-- 文章列表 -->
+<div id="article_div" class="article_div_footerpage">
+	<hr style="height:1px;border:none;border-top:1px dashed #0066CC;" />
+	<table id="article_table" class="article_table"></table>
+	
+	<span style="float:right;">
+		<a href="javascript:loadNext();">下一页</a>
+		<a href="javascript:loadPrev();">上一页</a>
+		当前第&nbsp;<span id="currentPage"></span>&nbsp;页
+		一共有&nbsp;<span id="allnum"></span>&nbsp;篇
+		一共有&nbsp;<span id="allpage"></span>&nbsp;页
+		<a href="<%=basePath%>/admin/loginout">退出登录</a>
+	</span>
+</div>
+
+</body>
+</html>

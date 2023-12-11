@@ -1,0 +1,261 @@
+<!--#include file="admin_inc.asp"-->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+viewHead "友情链接管理" & "-" & menuList(5,0)
+
+dim action : action = getForm("action", "get")
+dim errorInfo,errorSort : errorInfo="信息填写不完整，请检查" : errorSort="排序必须为数字"
+dim keyword:keyword=ReplaceStr(getForm("keyword", "both"),"'","")
+
+Select  case action
+	case "last" : moveToLast
+	case "next" : moveToNext
+	case "del" : delLink
+	case "delall" : delAll
+	case "editall" : editAllLink
+	case "edit" : main : edit
+	case "save" : saveEdit
+	case "add" : addLink
+	case "hide" : hideLink
+	case else : main : add
+End Select 
+viewFoot
+
+dim id
+Sub main
+	dim Qe,linkArray,i,n,m_id:id=getForm("id","get")
+	Set Qe =  mainClassobj.createObject("MainClass.DataPage")
+	Qe.Query "SELECT * FROM {pre}link "&ifthen(keyword<>"","WHERE m_name LIKE '%"&keyword&"%' OR m_des LIKE '%"&keyword&"%' OR m_url LIKE '%"&keyword&"%'","")&" ORDER BY m_sort ASC"
+	Qe.pagesize=1000
+	linkArray = Qe.GetRows()
+%>
+<div id="append_parent"></div>
+<div class="container" id="cpcontainer">
+<!--当前导航-->
+<script type="text/JavaScript">if(parent.$('admincpnav')) parent.$('admincpnav').innerHTML='后台首页&nbsp;&raquo;&nbsp;<%=menuList(5,0)%>&nbsp;&raquo;&nbsp;友情链接管理';</script>
+<%
+	if Qe.recordcount>0 then  
+		n=ubound(linkArray,2)
+%>
+<form action="" method="post" name="linkform">
+<table class="tb">
+<tr class="thead"><th colspan="7"><em style="font-weight:bold">友情链接管理</em>&nbsp;&nbsp;<em style="color:#000;">关键字：<input name="keyword" type="text" id="keyword" size="20" value="<%=keyword%>"> <input type="submit" name="selectBtn" value="查 询..." class="btn" onclick="location.href='?keyword='+escape($('keyword').value);" /></em></th></tr>
+    <TR align="center">
+	  <TD>&nbsp;</TD>
+      <TD width="6%">ID</TD>
+      <TD>名称</TD>
+      <TD>网址</TD>
+      <TD>类型</TD>
+      <TD>排序</TD>
+      <TD>操作</TD>
+    </TR>
+	<%
+	for i=0 to n
+		m_id= trim(linkArray(0,i))
+	%>
+     <TR align="center" <%if id=m_id then %> class="editlast"<%end if%>>
+	  <TD>&nbsp;</TD>
+      <TD><input type="checkbox" value="<%=m_id%>" name="m_id" class="checkbox" /><%=m_id%></TD>
+      <TD><input type="text" name="m_name<%=m_id%>" value="<%=linkArray(2,i)%>" size="20"/></TD>
+      <TD><input name="m_url<%=m_id%>" type="text" value="<%=linkArray(4,i)%>"  size="30"/></TD>
+      <td><% if linkArray(1,i)="font" then%>文字链接<%elseif linkArray(1,i)="pic" then%>图片链接<%elseif InSTr(linkArray(1,i),"hide")>0 then%><font color=red>已被隐藏</font><%end if%></td>
+      <TD><input name="m_sort<%=m_id%>" type="text" value="<%=linkArray(6,i)%>"  size="10"/></TD>
+      <TD><a href="?action=last&id=<%=m_id%>">上移</a> <a href="?action=next&id=<%=m_id%>">下移</a> <a href="?action=edit&id=<%=m_id%>">编辑</a> <a  onclick="if(confirm('确定要删除吗')){return true;}else{return false;}" href="?action=del&id=<%=m_id%>">删除</a>&nbsp;<a href="?action=hide&id=<%=m_id%>&m_type=<%=linkArray(1,i)%>"><%if InSTr(linkArray(1,i),"hide")>0 then%>显示<%else%>隐藏<%end if%></a></TD>
+    </TR>
+		<%
+        next
+        %>
+    <tr><td  colspan="6"><label>全选<input type="checkbox" name="chkall" id="chkall" class="checkbox" onclick="checkAll(this.checked,'input','m_id')" /></label><label>反选<input type="checkbox" name="chkothers" id="chkothers" class="checkbox" onclick="checkOthers('input','m_id')" /></label><input type="submit" value="批量删除" onclick="if(confirm('确定要删除吗')){linkform.action='?action=delall';}else{return false}" class="btn"  />&nbsp;&nbsp;<input type="submit" value="批量修改选中友情链接" name="Submit"  class="btn"  onclick="linkform.action='?action=editall';"/></td></tr>
+</TABLE>
+</form> 
+	<%
+	else 
+		echo "<table lass='tb'  ><tr><td><font color='red'>没有任何记录</font></td></tr></table>"
+	end if
+	set Qe = nothing
+End Sub
+
+Sub add
+%>
+<form action="?action=add" method="post" >
+<table class="tb mt20">
+<tr class="thead"><th colspan="2">添加友情链接</th></tr>
+    <TR>
+      <TD vAlign=center width="20%" >网站名称：</TD>
+      <TD ><input type="text" size="50" name="m_name" /><font color="red">＊</font></TD>
+    </TR>
+    <TR>
+      <TD >网站地址：</TD>
+      <TD ><input type="text" size="50" name="m_url" /><font color="red">＊</font></TD>
+    </TR>
+    <TR>
+      <TD >链接类型：</TD>
+      <TD ><select name="m_type"  style=" width:100px"  onChange="selectPicLink(this,'pic');">
+        <option value="font">文字链接</option>
+        <option value="pic">图片链接</option>
+      </select><font color="red">＊</font></TD>
+    </TR>
+    <TR id="tr_m_pic" style="display:none">
+      <TD >LOGO地址：</TD>
+      <TD ><input type="text" size="50" name="m_pic" /></TD>
+    </TR>
+    <TR>
+      <TD >排序：</TD>
+      <TD ><input type="text" size="20" name="m_sort"/></TD>
+    </TR>
+    <TR>
+      <TD >网站介绍：</TD>
+      <TD ><textarea name="m_des" cols="50" rows="4" ></textarea></TD>
+    </TR>
+    <TR  >
+      <TD></TD> <TD><input type="submit" value="添加友情链接" class="btn" />
+      &nbsp;<input type="button" value="返   回"  class="btn" onClick="javascript:history.go(-1)" /></TD>
+    </TR>
+</td></tr></table>
+</form>
+<%
+End Sub
+
+Sub edit
+	id=getForm("id","get")
+	dim rsObj : set rsObj=conn.db("select * from {pre}link where m_id="&id,"execute")
+%>
+<form action="?action=save&id=<%=id%>" method="post" name="editlink" >
+<table class="tb mt20">
+<tr class="thead"><th colspan="2">编辑友情链接</th></tr>
+    <TR>
+      <TD vAlign=center width="20%" >网站名称：</TD>
+      <TD ><input type="text" size="50" name="m_name"  value="<%=rsObj("m_name")%>"/><font color="red">＊</font></TD>
+    </TR>
+    <TR>
+      <TD >网站地址：</TD>
+      <TD ><input type="text" size="50" name="m_url" value="<%=rsObj("m_url")%>"/><font color="red">＊</font></TD>
+    </TR>
+    <TR>
+      <TD >链接类型：</TD>
+      <TD ><select name="m_type"  style=" width:100px"  onChange="selectPicLink(this,'pic');">
+        <option value="font<%if InStr(rsObj("m_type"),"-hide")>0 then%>-hide<%end if%>" <%if InStr(rsObj("m_type"),"font")>0 then%>selected<%end if%>>文字链接</option>
+        <option value="pic<%if InStr(rsObj("m_type"),"-hide")>0 then%>-hide<%end if%>" <%if InStr(rsObj("m_type"),"pic")>0 then%>selected<%end if%>>图片链接</option>
+      </select><font color="red">＊</font></TD>
+    </TR>
+    <TR id="tr_m_pic" <%if rsObj("m_type")="pic" then%>style="display:block"<%else%>style="display:none"<%end if%>>
+      <TD >LOGO地址：</TD>
+      <TD ><input type="text" size="50" name="m_pic" value="<%=rsObj("m_pic")%>"/></TD>
+    </TR>
+    <TR>
+      <TD >排序：</TD>
+      <TD ><input type="text" size="20" name="m_sort" value="<%=rsObj("m_sort")%>"/></TD>
+    </TR>
+    <TR>
+      <TD >网站介绍：</TD>
+      <TD ><textarea name="m_des" cols="50" rows="4" ><%=rsObj("m_des")%></textarea></TD>
+    </TR>
+    <TR >
+      <td></td><TD><input type="submit" value="修改友情链接" class="btn" name="m_eidtlinksubmit" />
+      &nbsp;<input type="button" value="返   回"  class="btn" onClick="javascript:history.go(-1)" /></TD>
+    </TR>
+</td></tr></table>
+</form>
+<script>editlink.m_eidtlinksubmit.focus()</script>
+<%
+End Sub
+
+Sub moveToLast
+	id=getForm("id","get")
+	dim cur,cou,flag
+	cur=conn.db("select m_sort from {pre}link where m_id="&id,"execute")(0)
+	cou=conn.db("select count(*) from {pre}link  where m_sort<"&cur,"execute")(0)
+	if cou>0 then 
+		flag=conn.db("select top 1 m_sort from {pre}link  where m_sort<"&cur&" order by m_sort desc","execute")(0)
+		conn.db "update {pre}link set m_sort="&flag&" where m_id="&id,"execute" 
+	else
+		conn.db "update {pre}link set m_sort=m_sort-1 where m_id="&id,"execute" 
+	end if
+	alertMsg "","admin_link.asp?id="&id
+End Sub
+
+
+Sub moveToNext
+	id=getForm("id","get")
+	dim cur,cou,flag
+	cur=conn.db("select m_sort from {pre}link where m_id="&id,"execute")(0)
+	cou=conn.db("select count(*) from {pre}link  where m_sort>"&cur,"execute")(0)
+	if cou>0 then 
+		flag=conn.db("select top 1 m_sort from {pre}link  where m_sort>"&cur&" order by m_sort asc","execute")(0)
+		conn.db "update {pre}link set m_sort="&flag&" where m_id="&id,"execute" 
+	else
+		conn.db "update {pre}link set m_sort=m_sort+1 where m_id="&id,"execute" 
+	end if
+	alertMsg "","admin_link.asp?id="&id
+End Sub
+
+Sub delAll
+	dim ids : ids=replaceStr(getForm("m_id","post")," ","")
+	conn.db "delete from {pre}link where m_id in ("&ids&")","execute" 
+	alertMsg "","admin_link.asp"
+End Sub
+
+Sub delLink
+	id=getForm("id","get")
+	conn.db "delete from {pre}link where m_id="&id,"execute" 
+	alertMsg "","admin_link.asp?id="&id
+End Sub
+
+Sub hideLink
+	dim m_t:id=Clng(getForm("id","get")):m_t=ReplaceStr(getForm("m_type","get"),"'","")
+	if m_t="" then
+		m_t="font-hide"
+	elseif InStr(m_t,"-hide")>0 then
+		m_t=replace(m_t,"-hide","")
+	else
+		m_t=m_t&"-hide"
+	end if
+	conn.db "UPDATE {pre}link SET m_type='"&m_t&"' where m_id="&id,"execute"
+	alertMsg "","admin_link.asp?id="&id
+End Sub
+
+Sub editAllLink
+	dim ids,m_name,m_sort,m_url,sqlStr
+	ids = split(replaceStr(getForm("m_id","post")," ",""),",")
+	For Each id In ids
+		m_name = getForm("m_name"&id,"post")
+		if   isNul(m_name)   then  die errorInfo
+		m_sort = getForm("m_sort"&id,"post") : if isNul(m_sort) then m_sort=conn.db("select max(m_sort) from {pre}link","execute")(0)+1		
+		m_url = getForm("m_url"&id,"post")
+		if isNul(m_url) then die errorInfo
+		if not isNum(m_sort) then die errorSort
+		sqlStr = "update {pre}link set m_name='"&m_name&"',m_url='"&m_url&"',m_sort="&m_sort&" where m_id="&id
+		conn.db sqlStr,"execute" 
+	Next
+	alertMsg "","admin_link.asp" 
+End Sub
+
+Sub saveEdit
+	dim m_name,m_sort,m_url,m_des,m_type,m_pic,sqlStr : id=getForm("id","get")
+	m_name = getForm("m_name","post"):m_url = getForm("m_url","post"):m_type = getForm("m_type","post"):m_des=getForm("m_des","post") : m_pic=getForm("m_pic","post")
+	if   isNul(m_name)  or isNul(m_url)  then  die errorInfo
+	m_sort = getForm("m_sort","post") : if isNul(m_sort) then m_sort=conn.db("select max(m_sort) from {pre}link","execute")(0)+1
+	if not isNum(m_sort) then die errorSort
+	sqlStr = "update  {pre}link set m_type='"&m_type&"',m_name='"&m_name&"',m_pic='"&m_pic&"',m_url='"&m_url&"',m_des='"&m_des&"',m_sort="&m_sort&" where m_id="&id
+	conn.db sqlStr,"execute" 
+	alertMsg "","admin_link.asp" 
+End Sub
+
+Sub addLink
+	dim m_name,m_sort,m_url,m_des,m_type,m_pic,sqlStr
+	m_name = getForm("m_name","post"):m_url = getForm("m_url","post"):m_type = getForm("m_type","post"):m_des=getForm("m_des","post") : m_pic=getForm("m_pic","post")
+	if   isNul(m_name)  or isNul(m_url)  then  die errorInfo
+	m_sort = getForm("m_sort","post") : if isNul(m_sort) then  m_sort=conn.db("select max(m_sort) from {pre}link","execute")(0)+1
+	if not isNum(m_sort) then m_sort=1
+	sqlStr = "insert into  {pre}link(m_type,m_name,m_pic,m_url,m_des,m_sort) values ('"&m_type&"','"&m_name&"','"&m_pic&"','"&m_url&"','"&m_des&"',"&m_sort&")"
+	conn.db sqlStr,"execute" 
+	alertMsg "","admin_link.asp" 
+End Sub
+%>

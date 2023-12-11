@@ -1,0 +1,808 @@
+<%
+Function Adn_CLng(ByVal str1)'将字符转为整型数值
+    If IsNumeric(str1) Then
+        Adn_CLng = Fix(CDbl(str1))
+    Else
+        Adn_CLng = 0
+    End If
+End Function
+
+Function Adn_CDate(ByVal str1)'将字符转为日期
+    If IsDate(str1) Then
+        Adn_CDate = CDate(str1)
+    Else
+        Adn_CDate = Now
+    End If
+End Function
+
+Function Adn_MaxId(str)'当前表中最大ID值-str ---- 表名
+	Set mrs=Conn.Execute("Select max("&str&"_id) from adnim_"&str&"")
+	If IsNull(mrs(0)) then
+	    Adn_MaxId = 1  
+	Else 
+	    Adn_MaxId = mrs(0) + 1 
+	End if 
+	Set mrs = Nothing
+End Function
+
+Sub Adn_Err(ErrMsg)'JS提示框
+	Response.Write("<script language=""javascript"">")
+	Response.Write("alert('"&ErrMsg&"');history.back()")
+	Response.Write("</script>")
+	Response.End
+End Sub
+
+Function Adn_Ip()'获取用户真实IP
+    Dim UserTrueIP
+	UserTrueIP = Request.ServerVariables("HTTP_X_FORWARDED_FOR")'获取用户来源IP
+	If UserTrueIP = "" Then UserTrueIP = Request.ServerVariables("REMOTE_ADDR")
+	UserTrueIP = ReplaceBadChar(UserTrueIP)
+	Adn_Ip=UserTrueIP
+End Function
+
+Function Adn_Replace(strChar)'过滤非法的SQL字符
+    If strChar = "" Or IsNull(strChar) Then
+        Adn_Replace = ""
+        Exit Function
+    End If
+    Dim strBadChar, arrBadChar, tempChar, i
+    strBadChar = "',;," & Chr(34) & "," & Chr(0) & ""
+    arrBadChar = Split(strBadChar, ",")
+    tempChar = strChar
+    For i = 0 To UBound(arrBadChar)
+        tempChar = Replace(tempChar, arrBadChar(i), "")
+    Next
+    tempChar = Replace(tempChar, "@@", "@")
+    Adn_Replace = tempChar
+End Function
+
+Function Adn_Time(s_Time, n_Flag) 
+   Dim y, m, d, h, mi, s 
+   Adn_Time = "" 
+   If IsDate(s_Time) = False Then Exit Function 
+   y = cstr(year(s_Time)) 
+   m = cstr(month(s_Time)) 
+   If len(m) = 1 Then m = "0" & m 
+   d = cstr(day(s_Time)) 
+   If len(d) = 1 Then d = "0" & d 
+   h = cstr(hour(s_Time)) 
+   If len(h) = 1 Then h = "0" & h 
+   mi = cstr(minute(s_Time)) 
+   If len(mi) = 1 Then mi = "0" & mi 
+   s = cstr(second(s_Time)) 
+   If len(s) = 1 Then s = "0" & s 
+   select Case n_Flag 
+   Case 1 
+     Adn_Time = y & "-" & m & "-" & d & " " & h & ":" & mi & ":" & s 
+   Case 2 
+     Adn_Time = y & "-" & m & "-" & d
+   Case 3 
+     Adn_Time = m & "月" & d & "日" 
+   Case 4 
+     Adn_Time = y & "年" & m & "月" & d & "日" 
+   Case 5 
+     Adn_Time = y & m & d & h & mi & s
+   Case 6
+     Adn_Time = m & "-" & d 	 
+   End select 
+End Function
+
+'==================================================
+'函数名：GetPicurl
+'作  用：保存远程图片并生成路径
+'参  数：picurl ------远程图片地址
+'参  数：filepath ------自定义保存目录(默认Upload)
+'==================================================
+Function GetPicurl(picurl,filepath)
+    Up_Dir=Adn_UpDir(Now())
+	If IsFolder(filepath&Up_Dir)=False Then'检测文件夹是否存在
+	    Call CreateFolder (filepath&Up_Dir)'新建文件夹
+	End if
+	re_data_picurl=filepath&Up_Dir&GenerateRandomFileName(picurl)'新文件名与相对保存路径
+	If SaveRemoteFile(picurl, re_data_picurl) = True Then
+	    GetPicurl=Replace(re_data_picurl,"../","")
+		If Cint(AdminId(27))=1 Then Call ImgWriter(re_data_picurl)
+	Else
+	    GetPicurl="Images/Nopic.gif"
+	End If	
+End Function
+Function Adn_UpDir(dtnow)'按年月生成保存路径  dtnow=Now()
+	Adn_UpDir = Year(dtnow) & Right("0" & Month(dtnow), 2) & "/"
+End Function
+
+'**************************************************
+'函数名：GetSubStr
+'作  用：截字符串，汉字一个算两个字符，英文算一个字符
+'参  数：str   ----原字符串
+'        strlen ----截取长度
+'        bShowPoint ---- 是否显示省略号
+'返回值：截取后的字符串
+'**************************************************
+Function GetSubStr(ByVal str, ByVal strlen, bShowPoint)
+    If str = "" Then
+        GetSubStr = ""
+        Exit Function
+    End If
+    Dim l, t, c, i, strTemp
+    str = Replace(Replace(Replace(Replace(str, "&nbsp;", " "), "&quot;", Chr(34)), "&gt;", ">"), "&lt;", "<")
+    l = Len(str)
+    t = 0
+    strTemp = str
+    strlen = Adn_CLng(strlen)
+    For i = 1 To l
+        c = Abs(Asc(Mid(str, i, 1)))
+        If c > 255 Then
+            t = t + 2
+        Else
+            t = t + 1
+        End If
+        If t >= strlen Then
+            strTemp = Left(str, i)
+            Exit For
+        End If
+    Next
+    strTemp = Replace(Replace(Replace(Replace(strTemp, " ", "&nbsp;"), Chr(34), "&quot;"), ">", "&gt;"), "<", "&lt;")
+    If strTemp <> str And bShowPoint = True Then
+        strTemp = strTemp & "…"
+    End If
+    GetSubStr = strTemp
+End Function
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Function GetSkinCache(Byval MoBan_Path)'获取模板的缓存值
+	Dim CacheName : CacheName="Skin_"&MoBan_Path
+	If Cint(Config(19))=1 Then
+		If (CacheObj.ChkCache(CacheName)) Then  GetSkinCache = CacheObj.GetCache(CacheName) Else GetSkinCache = GetMoBan(MoBan_Path) : CacheObj.SetCache CacheName,GetSkinCache
+	Else
+		GetSkinCache = GetMoBan(MoBan_Path)
+	End If
+End Function
+
+Function GetClassSkin(strid)'取分类绑定模板
+    GetClassSkin="adn_list.html"
+    Set rs = Conn.Execute("Select class_id,class_skin from adnim_class where class_id="&strid&"")
+	If Not rs.eof Then GetClassSkin=rs("class_skin")
+	Set rs=nothing
+End Function
+
+Function GetClassName(class_id)'取分类中文名
+	GetClassName=Eval("Class_N_"&class_id)
+End Function
+
+Function GetClassEn(class_id)'取分类英文名
+	GetClassEn=Eval("Class_E_"&class_id)
+End Function
+
+Function GetClassId(data_id)'取分类Id
+	Set rcs = Conn.Execute("Select class_id,data_id from adnim_data where data_id="&Clng(data_id)&"")
+	If Not rcs.eof Then GetClassId=rcs("class_id") Else GetClassId=0
+	Set rcs=nothing
+End Function
+
+Function GetSpecialSkin(strid)'取分类绑定模板
+    GetSpecialSkin="adn_special.html"
+    Set rs = Conn.Execute("Select special_id,special_skin from adnim_special where special_id="&strid&"")
+	If Not rs.eof Then GetSpecialSkin=rs("special_skin")
+	Set rs=nothing
+End Function
+
+Function ReplaceStr(Byval str,Byval finStr,Byval repStr)'替换模板标签
+	On Error Resume Next : If IsNull(repStr) Then repStr=""
+	ReplaceStr = Replace(str,finStr,repStr)
+	If Err Then ReplaceStr = "标签参数错误" : Err.Clear
+End Function
+
+Function isNul(str)
+	if isnull(str) or str = "" then isNul = true else isNul = false 
+End Function
+
+Function isNum(str)
+	if not isNul(str) then isNum=isnumeric(str) else isNum=false
+End Function
+
+Function GetServerName(server_id)'取服务器组中文名
+    GetServerName="未知"
+    Set rs_c = Conn.Execute("Select server_id,server_name from adnim_server where server_id="&server_id&"")
+	If Not rs_c.eof Then GetServerName=rs_c("server_name")
+	Set rs_c=nothing
+End Function
+
+Function GetServerAll(server_id)'取服务器组共用
+    GetServerAll=""
+    Set rs_c = Conn.Execute("Select server_id,server_all from adnim_server where server_id="&server_id&"")
+	If Not rs_c.eof Then GetServerAll=rs_c("server_all")
+	Set rs_c=nothing
+End Function
+
+Function GetReplace(str)'替换空字符
+	If str="" or IsNull(str) Then str="未知" End If
+	GetReplace=str
+End Function
+
+Function GetColor(dataname,datacolor)
+    Dim str
+	If len(datacolor)<>0 Then str="<font color="""&datacolor&""">"&dataname&"</font>" Else str=dataname End If
+	GetColor=str
+End Function
+
+Function GetPic(PicStr,PicUrl,PicName)
+    Img=Split(PicStr,",")
+    GetPic="<img src="""&PicUrl&""" alt="""&PicName&""" width="""&Img(0)&""" height="""&Img(1)&""" border=""0"" onerror=""javascript:this.src='"&Config(0)&"Images/nobody.gif';""/>"
+End Function
+
+Function GetContinu(str)
+ 	'If str>0 Then GetContinu="连载至"&str Else GetContinu="完结" End If
+	If Data_Id>0 Then
+		If str>0 Then GetContinu="连载至"&str Else GetContinu="完结" End If
+	Else
+		If str>0 Then GetContinu="["&str&"]" End If
+	End If
+End Function
+
+Function GetFirstSeparatorToEnd(ByVal str, separator)'截取从第一个分隔符到结尾的字符串,str   ----原字符串,separator ----分隔符
+    GetFirstSeparatorToEnd = Right(str, Len(str) - InStr(str, separator))
+End Function
+
+Function GetOrderStr(StrTemp)'处理前台排序
+	Select Case StrTemp'推序方法 1,2,3,4,5,6
+	Case 1 : GetOrderStr="order by data_id desc"
+	Case 2 : GetOrderStr="order by data_id asc"
+	Case 3 : If Config(1)="SQL" Then GetOrderStr="order by data_lastdate desc" Else GetOrderStr="order by data_lastdate desc,data_id" End If
+	Case 4 : If Config(1)="SQL" Then GetOrderStr="order by data_lastdate asc" Else GetOrderStr="order by data_lastdate asc,data_id" End If
+	Case 5 : GetOrderStr="order by data_hits desc,data_id" 
+	Case 6 : GetOrderStr="order by data_hits asc"
+	Case Else : GetOrderStr=""
+	End Select
+End Function
+	
+Function GetSearchStr(StrTemp,KeyWord)'处理搜索
+    If Config(1)="SQL" Then KeyWord=GetLikeSql(KeyWord)
+	Select Case StrTemp
+	Case "name"
+	If Config(1)="SQL" Then GetSearchStr="data_name like '%"&KeyWord&"%'" Else GetSearchStr="InStr(1,LCase(data_name),LCase('"&KeyWord&"'),0)<>0"
+	Case "actor"
+	If Config(1)="SQL" Then GetSearchStr="data_actor like '%"&KeyWord&"%'" Else GetSearchStr="InStr(1,LCase(data_actor),LCase('"&KeyWord&"'),0)<>0"
+	Case "director"
+	If Config(1)="SQL" Then GetSearchStr="data_director like '%"&KeyWord&"%'" Else GetSearchStr="InStr(1,LCase(data_director),LCase('"&KeyWord&"'),0)<>0"				
+	Case "year"
+	GetSearchStr="data_year="&Adn_CLng(KeyWord)&""
+	Case "language"
+	If Config(1)="SQL" Then GetSearchStr="data_language like '%"&KeyWord&"%'" Else GetSearchStr="InStr(1,LCase(data_language),LCase('"&KeyWord&"'),0)<>0"
+	Case "erea"
+	If Config(1)="SQL" Then GetSearchStr="data_erea like '%"&KeyWord&"%'" Else GetSearchStr="InStr(1,LCase(data_erea),LCase('"&KeyWord&"'),0)<>0"
+	Case "inputer"
+	If Config(1)="SQL" Then GetSearchStr="data_inputer like '%"&KeyWord&"%'" Else GetSearchStr="InStr(1,LCase(data_inputer),LCase('"&KeyWord&"'),0)<>0"	
+	Case Else
+	If Config(1)="SQL" Then
+	GetSearchStr="data_name like '%"&KeyWord&"%' or data_actor like '%"&KeyWord&"%' or data_director like '%"&KeyWord&"%' or data_year="&Adn_CLng(KeyWord)&" or data_erea like '%"&KeyWord&"%' or data_language like '%"&KeyWord&"%'"
+	Else
+	GetSearchStr="InStr(1,LCase(data_name),LCase('"&KeyWord&"'),0)<>0 or InStr(1,LCase(data_actor),LCase('"&KeyWord&"'),0)<>0 or InStr(1,LCase(data_director),LCase('"&KeyWord&"'),0)<>0 or InStr(1,LCase(data_erea),LCase('"&KeyWord&"'),0)<>0 or InStr(1,LCase(data_language),LCase('"&KeyWord&"'),0)<>0"
+	End If
+	End Select	
+End Function
+
+Function GetLikeSql(str)
+    If isNul(str) Then Exit Function
+	str=Replace(str,"'","''")
+	str=Replace(str,"[","[[]")
+	str=Replace(str,"%","[%]")
+	str=Replace(str,"_","[_]")
+	GetLikeSql=str
+End Function
+		
+Function GetTimeStr(s_Time,StrTemp)'处理显示时间方式
+    If StrTemp=1 Then
+	GetTimeStr=Adn_Time(s_Time,1)
+	ElseIf StrTemp=2 Then
+	GetTimeStr=Adn_Time(s_Time,2)
+	ElseIf StrTemp=4 Then
+	GetTimeStr=Adn_Time(s_Time,4)
+	ElseIf StrTemp=5 Then
+	GetTimeStr=Adn_Time(s_Time,3)
+	Else
+	GetTimeStr=Adn_Time(s_Time,6)			
+	End If
+End Function
+
+Function GetActorLink(Str)'主演链接
+    On Error Resume Next:dim StrTemp
+    If Str<>"" Then
+	    Stra=Split(Str," "):Strb=Ubound(Stra)
+		For i=0 to Strb
+		StrTemp=StrTemp&"<a href="""&Config(0)&"Search.asp?t=actor&k="&Stra(i)&""" target=""_blank"">"&Stra(i)&"</a> "
+		Next
+	Else
+	    StrTemp="未知"
+	End If
+	GetActorLink=StrTemp
+End Function
+
+Function GetDirectorLink(Str)'导演链接
+    On Error Resume Next:dim StrTemp
+    If Str<>"" Then
+	    Stra=Split(Str," "):Strb=Ubound(Stra)
+		For i=0 to Strb
+		StrTemp=StrTemp&"<a href="""&Config(0)&"Search.asp?t=director&k="&Stra(i)&""" target=""_blank"">"&Stra(i)&"</a> "
+		Next
+	Else
+	    StrTemp="未知"
+	End If
+	GetDirectorLink=StrTemp
+End Function
+
+Function GetSpecialLink(Byval typeId)'得到专题链接
+	If Config(17)="html" Then  
+		 GetSpecialLink=Config(0)&"Special/Special_"&typeId&".html"
+	Else
+	    GetSpecialLink=Config(0)&"Special.asp?SpecialId="&typeId
+	End If
+End Function
+
+Function GetListLink(Byval typeId)'得到分类链接
+	Dim linkStr
+	If Config(17)="asphtml" Then  
+		 linkStr=Config(0)&"List_"&typeId&"_1.html"
+	ElseIf Config(17)="html" and Config(21)="1" and Config(22)="1" Then 'html模式+全部生成+List/List_2_5.html
+		linkStr=Config(0)&Config(28)&"/"&Config(28)&"_"&typeId&"_1."&Config(26)
+	ElseIf Config(17)="html" and Config(21)="1" and Config(22)="2" Then 'html模式+全部生成+Xj/index.html
+		linkStr=Config(0)&GetClassEn(typeId)&"/Index."&Config(26)
+	Else
+	    linkStr=Config(0)&"List.asp?ClassId="&typeId
+	End If
+	GetListLink=linkStr
+End Function
+
+Function GetDataLink(Byval ListId,Byval DataId)'得到数据链接
+	Dim linkStr
+	If Config(17)="asphtml" Then  
+		 linkStr=Config(0)&"Data_"&DataId&".html"
+	ElseIf Config(17)="html" Then
+		If Config(24)="2" Then
+		    linkStr=MD5(DataId, 16)&"."&Config(27)                            'Md5(dataid).html
+		ElseIf Config(24)="3" Then
+		    linkStr=GetClassEn(ListId)&"_"&DataId&"."&Config(27)              'Xj_1358.html			
+		Else
+		    linkStr=DataId&"."&Config(27)                                     '1358.html    	
+		End If
+		'
+		If Config(23)="2" Then
+		    linkStr=Config(0)&GetClassEn(ListId)&"/"&linkStr                 'XJ/1358.html
+		ElseIf Config(23)="3" Then
+		    linkStr=Config(0)&GetClassEn(ListId)&"/"&DataId&"/"              'XJ/1358/			
+		Else
+		    linkStr=Config(0)&Config(29)&"/"&linkStr                         'Html/1358.html    	
+		End If	
+	Else
+	    linkStr=Config(0)&"Data.asp?DataId="&DataId
+	End If
+	GetDataLink=linkStr
+End Function
+
+'***************************************
+'函数名：GetServerLink
+'说  明：分析得出内容页或播放页的某一组的播放地址链接组
+'stype ：0=内容页调用　1=播放页调用
+'****************************************
+Function GetServerLink(url_intro,data_id,server_id,player_id,stype)
+    Dim ji_a,ji_b,playcss,target,PlayDizi:PlayDizi=""
+	If stype=0 Then target=" target=""_blank""" Else target=""
+	'url_path=Config(0)&"Player.asp?"&data_id&","&server_id&","&player_id
+    If Instr(url_intro,"$$$")>0 Then
+		ji_a=Split(url_intro,"$$$") : ji_b=ubound(ji_a)
+		For i=0 to ji_b
+			If stype=1 and i+1=ji_id Then playcss=" class=""adn_play""" Else playcss=""
+			PlayDizi=PlayDizi&"<li"&playcss&"><a href="""&GetPlayUrl(data_id,server_id,player_id,i+1)&""""&target&">"&GetPlayName(ji_a(i),i+1,ji_b+1)&"</a></li>"
+		Next
+	Else
+		PlayDizi="<li><a href="""&GetPlayUrl(data_id,server_id,player_id,1)&""""&target&">"&GetPlayName(url_intro,1,1)&"</a></li>"
+	End If
+	If Cint(AdminId(17))=0 Then'原窗口
+		PlayDizi=Replace(PlayDizi,"Player.asp","Play.asp")
+	    PlayDizi=Replace(PlayDizi,"<a href=""","<a href=""#"" onclick=""$ShowPlayer('")
+	    PlayDizi=Replace(PlayDizi,""" target=""_blank"">","',"&AdminId(24)&","&AdminId(25)&");"">")
+	    PlayDizi=Replace(PlayDizi,".html","")
+	ElseIf Cint(AdminId(17))=2 Then	'弹窗
+	    PlayDizi=Replace(PlayDizi,"Player.asp","Play.asp")
+	    PlayDizi=Replace(PlayDizi,"<a href=""","<a href=""#"" onclick=""$AdnPlayer('")
+	    PlayDizi=Replace(PlayDizi,""" target=""_blank"">","',"&AdminId(24)&","&AdminId(25)&");"">")
+	    PlayDizi=Replace(PlayDizi,".html","")	
+	End If
+	GetServerLink=PlayDizi
+End Function
+Function GetPlayJiAll(url_intro)'总集数统计
+     If Instr(url_intro,"$$$")>0 Then GetPlayJiAll=ubound(Split(url_intro,"$$$"))+1 Else GetPlayJiAll=1
+End Function
+Function GetPlayName(DiziStr,DiziI,DiziN)'单集名称 DiziStr=按$$$分开的集地址
+	DiziStr = Replace(Replace(DiziStr,"|bdhd://","$bdhd://"),"|qvod://","$qvod://")
+    If DiziN>1 Then GetPlayName="第"&DiziI&"集" Else GetPlayName="全集" End If
+	If Instr(DiziStr,"$")>0 Then
+	    GetPlayName=Split(DiziStr,"$")(0)
+	End If
+End Function
+Function GetPlayUrl(data_id,server_id,player_id,ji_id)'单集链接
+    GetPlayUrl=Config(0)&"Play.asp?"&data_id&","&server_id&","&player_id&","&ji_id	
+	If player_id=17 Then 
+	    GetPlayUrl=Replace(GetPlayUrl,"Play.asp","Down.asp")
+	Else
+	    If AdminId(17)=1 Then GetPlayUrl=Replace(GetPlayUrl,"Play.asp","Player.asp")&".html"
+	End If
+End Function
+Function GetPlayer(UrlIntro,ServerId,PlayerId,Jiid)
+    Dim Playurl,Playhtml,PlayWidth,PlayHeight
+	PlayWidth=Cint(AdminId(24)):PlayHeight=Cint(AdminId(25))
+	PlayUrl=GetDiziArr(UrlIntro,ServerId,PlayerId,Jiid)
+	Playhtml="<script language=""javascript"">var StrHtml;var url="""&playurl&""";var nexturl="""&NextUrl&""";var nextpath="""&NextPath&""";</script>"&chr(13)
+	playhtml=playhtml&"<center id=""playbox""><div id=""playlist"" style=""width:100%; text-align:center; clear:both;""><script language=""javascript"" src=""play/"&PlayerId&".js""></script><script language=""javascript"">$ShowPlayer("&PlayWidth&","&PlayHeight&");</script></div></center>"
+	GetPlayer=playhtml
+End Function
+Function GetDiziArr(UrlIntro,ServerId,PlayerId,Jiid)'分割单集地址 返回值nextwebpage,nexturl
+    GetDiziArr="http://www.feifeicms.com"
+	If Urlintro<>"" Then
+		If Instr(UrlIntro,"$$$")>0 Then play_url=Split(UrlIntro,"$$$")(ji_id-1) Else play_url=rs("url_intro") End If
+		GetDiziArr=GetDiziJi(play_url,ServerId,PlayerId)
+	End If
+End Function
+Function GetDiziJi(DiziStr,ServerId,PlayerId)'获取分集地址 DiziStr=按$$$分开的集地址
+	DiziStr = Replace(Replace(DiziStr,"|bdhd://","$bdhd://"),"|qvod://","$qvod://")
+    Dim DiZiUrl,ServerAll : DiZiUrl=DiziStr
+	If Instr(DiZiUrl,"$")>0 Then
+		DiZiUrl=GetFirstSeparatorToEnd(DiZiUrl,"$")
+	End If
+	If PlayerId=1 or PlayerId=2 or PlayerId=4 or PlayerId=7 or PlayerId=8 or PlayerId=15 or PlayerId=17 Then
+	    DiZiUrl=GetServerAll(ServerId)&DiZiUrl
+	End If
+	GetDiziJi=Trim(DiZiUrl)
+End Function
+Function GetDiziNext(UrlIntro,DataId,ServerId,PlayerId,JiId)'处理播放地址下一集
+    If JiId<1 Then JiId=1
+    Dim weburl:weburl="http://"&Request.ServerVariables("Http_Host")&Request.ServerVariables("Url")&"?"
+	Dim jiall:jiall=GetPlayJiAll(UrlIntro)
+	Dim JiNext:JiNext=JiId+1
+	If JiNext>jiall Then JiNext=jiall
+	NextUrl=weburl&DataId&","&ServerId&","&PlayerId&","&JiNext&".html"
+	NextPath=GetDiziJi(Split(UrlIntro,"$$$")(JiNext-1),ServerId,PlayerId)
+	'Dim JiPrev:JiPrev=JiId-1
+	'If JiPrev<1 Then JiPrev=1
+	'PrevUrl=weburl&DataId&","&ServerId&","&PlayerId&","&JiPrev&".html"
+	'PrevPath=GetDiziJi(Split(UrlIntro,"$$$")(JiPrev-1),ServerId,PlayerId)	
+End Function
+
+'**************************************************
+'函数名：GetPageClass
+'作  用：显示“上一页 下一页”等信息
+'        StrUrl    ----链接ListID
+'        CurrentPage  ----当前分页
+'        PageListLen  ----每页数量 10页
+'        TotalPages   ----总页数
+'返回值：“上一页 下一页”等信息的HTML代码
+'**************************************************
+Function GetPageClass(StrUrl,CurrentPage,PageListLen,TotalPages,NumberAll)
+	Dim FirstPage,PrevPage,NextPage,EndPage,PageStr,PageInfo
+	If CurrentPage=1 Then
+		FirstPage="首页 " : PrevPage="上一页"
+	Else
+		FirstPage="<a href='"&GetPageUrl(StrUrl,1,"List")&"'>首页</a> " : PrevPage="<a  href='"&GetPageUrl(StrUrl,CurrentPage-1,"List")&"'>上一页</a> "
+	End if 
+	If CurrentPage=TotalPages then 
+		NextPage=" 下一页" : EndPage=" 尾页"
+	Else
+		NextPage=" <a href='"&GetPageUrl(StrUrl,CurrentPage+1,"List")&"'>下一页</a>" : EndPage=" <a href='"&GetPageUrl(StrUrl,TotalPages,"List")&"'>尾页</a>"
+	End If
+	PageStr=GetPageGo(StrUrl,CurrentPage,TotalPages,"List")
+	PageInfo="共"&TotalPages&"页 "&NumberAll&"部 页次:"&CurrentPage&"/"&TotalPages&"页 "&FirstPage&PrevPage&GetPageNumber(StrUrl,CurrentPage,TotalPages,"List")&NextPage&EndPage&PageStr
+	GetPageClass=PageInfo
+End Function
+
+Function GetPageSearch(StrUrl,CurrentPage,PageListLen,TotalPages,NumberAll)
+	Dim FirstPage,PrevPage,NextPage,EndPage,PageStr,PageInfo
+	If CurrentPage=1 Then
+		FirstPage="首页 " : PrevPage="上一页"
+	Else
+		FirstPage="<a href='"&StrUrl&"'>首页</a> " : PrevPage="<a  href='"&StrUrl&"&Page="&CurrentPage-1&"'>上一页</a> "
+	End if 
+	If CurrentPage=TotalPages then 
+		NextPage=" 下一页" : EndPage=" 尾页"
+	Else
+		NextPage=" <a href='"&StrUrl&"&Page="&CurrentPage+1&"'>下一页</a>" : EndPage=" <a href='"&StrUrl&"&Page="&TotalPages&"'>尾页</a>"
+	End If
+	PageStr=GetPageGo(StrUrl,CurrentPage,TotalPages,"Search")
+	PageInfo="共"&TotalPages&"页 "&NumberAll&"部 页次:"&CurrentPage&"/"&TotalPages&"页 "&FirstPage&PrevPage&GetPageNumber(StrUrl,CurrentPage,TotalPages,"Search")&NextPage&EndPage&PageStr
+	GetPageSearch=PageInfo
+End Function
+
+Function GetPageNumber(StrUrl,CurrentPage,TotalPage,LinkType)
+	Dim Jmaxpages,strTemp
+	If (CurrentPage - 4) <= 0 Or TotalPage < 10 Then
+		Jmaxpages = 1
+		Do While (Jmaxpages < 10)
+			If Jmaxpages = CurrentPage Then
+				strTemp = strTemp & " <font color=""FF0000"">" & Jmaxpages & "</font> "
+			Else
+				strTemp = strTemp & "<a href=""" & GetPageUrl(StrUrl,Jmaxpages,LinkType) & """>" & Jmaxpages & "</a> "
+			End If
+			If Jmaxpages = TotalPage Then Exit Do
+			Jmaxpages = Jmaxpages + 1
+		Loop
+	ElseIf (CurrentPage + 4) >= TotalPage Then
+		Jmaxpages = TotalPage - 8
+		Do While (Jmaxpages <= TotalPage)
+			If Jmaxpages = CurrentPage Then
+				strTemp = strTemp & "<font color=""FF0000"">" & Jmaxpages & "</font> "
+			Else
+				strTemp = strTemp & "<a href=""" & GetPageUrl(StrUrl,Jmaxpages,LinkType) & """>" & Jmaxpages & "</a> "
+			End If
+			Jmaxpages = Jmaxpages + 1
+		Loop
+	Else
+		Jmaxpages = CurrentPage - 4
+		Do While (Jmaxpages < CurrentPage + 5)
+			If Jmaxpages = CurrentPage Then
+				strTemp = strTemp & "<font color=""FF0000"">" & Jmaxpages & "</font> "
+			Else
+				strTemp = strTemp & "<a href=""" & GetPageUrl(StrUrl,Jmaxpages,LinkType) & """>" & Jmaxpages & "</a> "
+			End If
+			Jmaxpages = Jmaxpages + 1
+		Loop
+	End If
+	GetPageNumber=strTemp
+    'Dim m,x,y,strTemp
+	'x=CurrentPage-3 : If x<1 Then x=1
+	'y=CurrentPage+3 : If y>TotalPage Then y=TotalPage
+	'For m=x to y
+		'If CurrentPage=m Then 
+		'strTemp = strTemp & " <font color=""FF0000"">" & m & "</font> " 
+		'Else 
+		'strTemp = strTemp & " <a href=""" & GetPageUrl(StrUrl,m,LinkType) & """>" & m & "</a> "
+		'End If
+	'Next		
+End Function
+
+Function GetPageGo(ListId,CurrentPage,TotalPage,LinkType)
+	Dim PageStr
+    Select Case LinkType
+    Case "List"
+	If Config(17)="asphtml" Then  
+		 PageStr=" <span>转到第<Input type='text' name='page' size='3' maxlength='5' value='" & CurrentPage & "' onKeyPress=""if (event.keyCode==13) window.location='"&Config(0)&"List_"&ListId&"_'+this.value+'.html';"">页</span>"
+	ElseIf Config(17)="html" and Config(21)="1" and Config(22)="1" Then 'html模式+全部生成+List/List_2_5.html
+		 PageStr=" <span>转到第<Input type='text' name='page' size='3' maxlength='5' value='" & CurrentPage & "' onKeyPress=""if (event.keyCode==13) window.location='"&Config(0)&Config(28)&"/"&Config(28)&"_"&ListId&"_'+this.value+'."&Config(26)&"';"">页</span>"
+	ElseIf Config(17)="html" and Config(21)="1" and Config(22)="2" Then 'html模式+全部生成+Xj/index.html
+		'linkStr=Config(0)&GetClassEn(ListId)&"/Index."&Config(26)
+		PageStr=" <span>转到第<input type='text' name='page' size='3' maxlength='5' value='" & CurrentPage & "' onKeyPress=""gopage(this.value,"&TotalPage&");"" />页</span>" & vbCrLf
+        PageStr = PageStr & "<script language='javascript'>" & vbCrLf
+        PageStr = PageStr & "function gopage(page,totalpage){" & vbCrLf
+		PageStr = PageStr & "  if (event.keyCode==13){" & vbCrLf
+        PageStr = PageStr & "  if(Math.abs(page)>totalpage) page=totalpage;" & vbCrLf
+		PageStr = PageStr & "  if(Math.abs(page)>1) window.location='"&Config(0)&GetClassEn(ListId)&"/"&Config(28)&"_"&ListId&"_'+page+'."&Config(26)&"';" & vbCrLf
+        PageStr = PageStr & "  else  window.location='"&Config(0)&GetClassEn(ListId)&"/Index."&Config(26)&"';" & vbCrLf
+        PageStr = PageStr & "  }" & vbCrLf
+		PageStr = PageStr & "  }" & vbCrLf
+        PageStr = PageStr & "</script>" & vbCrLf
+	Else
+		PageStr=" <span>转到第<Input type='text' name='page' size='3' maxlength='5' value='" & CurrentPage & "' onKeyPress=""if (event.keyCode==13) window.location='"&Config(0)&"List.asp?ClassId="&ListId&"&Page='+this.value;"">页</span>"
+	End If
+    Case "Search"
+	    PageStr=" <span>转到第<Input type='text' name='page' size='3' maxlength='5' value='" & CurrentPage & "' onKeyPress=""if (event.keyCode==13) window.location='"&ListId&"&Page='+this.value;"">页</span>"
+    End Select	
+	GetPageGo = PageStr
+End Function
+
+'**************************************************
+'函数名：GetPageUrl
+'作  用：生成相对应的分页链接
+'参  数：ListId----分类ID或search路径
+'**************************************************
+Function GetPageUrl(ListId,Page,LinkType)'
+	Dim linkStr
+Select Case LinkType
+Case "List"	
+	If Config(17)="asphtml" Then  
+		 linkStr=Config(0)&"List_"&ListId&"_"&Page&".html"
+	ElseIf Config(17)="html" and Config(21)="1" and Config(22)="1" Then 'html模式+全部生成+List/List_2_5.html
+		linkStr=Config(0)&Config(28)&"/"&Config(28)&"_"&ListId&"_"&Page&"."&Config(26)
+	ElseIf Config(17)="html" and Config(21)="1" and Config(22)="2" Then 'html模式+全部生成+Xj/index.html
+	    If Page=1 Then
+		    linkStr=Config(0)&GetClassEn(ListId)&"/Index."&Config(26)
+		Else
+		    linkStr=Config(0)&GetClassEn(ListId)&"/"&Config(28)&"_"&ListId&"_"&Page&"."&Config(26)
+		End If
+	Else
+	    linkStr=Config(0)&"List.asp?ClassId="&ListId&"&Page="&Page
+	End If
+Case "Search"
+	    linkStr=ListId&"&Page="&Page
+End Select		
+	GetPageUrl=linkStr
+End Function
+
+'**************************************************
+'函数名：ShowPage
+'作  用：显示“上一页 下一页”等信息
+'参  数：sFileName  ----链接地址
+'        TotalNumber ----总数量
+'        MaxPerPage  ----每页数量
+'        CurrentPage ----当前页
+'        ShowTotal   ----是否显示总数量
+'        ShowAllPages ---是否用下拉列表显示所有页面以供跳转。
+'        strUnit     ----计数单位
+'        ShowMaxPerPage  ----是否显示每页信息量选项框
+'返回值：“上一页 下一页”等信息的HTML代码
+'**************************************************
+Function ShowPage(sfilename, totalnumber, MaxPerPage, CurrentPage, ShowTotal, ShowAllPages, strUnit, ShowMaxPerPage)
+    Dim TotalPage, strTemp, strUrl, i
+
+    If totalnumber = 0 Or MaxPerPage = 0 Or IsNull(MaxPerPage) Then
+        ShowPage = ""
+        Exit Function
+    End If
+    If totalnumber Mod MaxPerPage = 0 Then
+        TotalPage = totalnumber \ MaxPerPage
+    Else
+        TotalPage = totalnumber \ MaxPerPage + 1
+    End If
+    If CurrentPage > TotalPage Then CurrentPage = TotalPage
+    strTemp = "<div class=""show_page"">"
+    If ShowTotal = True Then
+        strTemp = strTemp & "共 <b>" & totalnumber & "</b> " & strUnit & "&nbsp;&nbsp;&nbsp;"
+    End If
+    
+    If ShowMaxPerPage = True Then
+        strUrl = JoinChar(sfilename) & "MaxPerPage=" & MaxPerPage & "&"
+    Else
+        strUrl = JoinChar(sfilename)
+    End If
+    If CurrentPage = 1 Then
+        strTemp = strTemp & "首页 | 上一页 |"
+    Else
+        strTemp = strTemp & "<a href='" & strUrl & "page=1'>首页</a> |"
+        strTemp = strTemp & "  <a href='" & strUrl & "page=" & (CurrentPage - 1) & "'>上一页</a> | "
+    End If
+    strTemp = strTemp & " "
+    If ShowAllPages = True Then
+        Dim Jmaxpages
+        If (CurrentPage - 4) <= 0 Or TotalPage < 10 Then
+            Jmaxpages = 1
+            Do While (Jmaxpages < 10)
+                If Jmaxpages = CurrentPage Then
+                    strTemp = strTemp & "<font color=""FF0000"">" & Jmaxpages & "</font> "
+                Else
+                    If strUrl <> "" Then
+                        strTemp = strTemp & "<a href=""" & strUrl & "page=" & Jmaxpages & """>" & Jmaxpages & "</a> "
+                    End If
+                End If
+                If Jmaxpages = TotalPage Then Exit Do
+                Jmaxpages = Jmaxpages + 1
+            Loop
+        ElseIf (CurrentPage + 4) >= TotalPage Then
+            Jmaxpages = TotalPage - 8
+            Do While (Jmaxpages <= TotalPage)
+                If Jmaxpages = CurrentPage Then
+                    strTemp = strTemp & "<font color=""FF0000"">" & Jmaxpages & "</font> "
+                Else
+                    If strUrl <> "" Then
+                        strTemp = strTemp & "<a href=""" & strUrl & "page=" & Jmaxpages & """>" & Jmaxpages & "</a> "
+                    End If
+                End If
+                Jmaxpages = Jmaxpages + 1
+            Loop
+        Else
+            Jmaxpages = CurrentPage - 4
+            Do While (Jmaxpages < CurrentPage + 5)
+                If Jmaxpages = CurrentPage Then
+                    strTemp = strTemp & "<font color=""FF0000"">" & Jmaxpages & "</font> "
+                Else
+                    If strUrl <> "" Then
+                        strTemp = strTemp & "<a href=""" & strUrl & "page=" & Jmaxpages & """>" & Jmaxpages & "</a> "
+                    End If
+                End If
+                Jmaxpages = Jmaxpages + 1
+            Loop
+        End If
+    End If
+    If CurrentPage >= TotalPage Then
+        strTemp = strTemp & "| 下一页 | 尾页"
+    Else
+        strTemp = strTemp & " | <a href='" & strUrl & "page=" & (CurrentPage + 1) & "'>下一页</a> |"
+        strTemp = strTemp & "<a href='" & strUrl & "page=" & TotalPage & "'>  尾页</a>"
+    End If
+	If ShowMaxPerPage = True Then
+        strTemp = strTemp & "&nbsp;&nbsp;&nbsp;<Input type='text' name='MaxPerPage' size='3' maxlength='4' value='" & MaxPerPage & "' onKeyPress=""if (event.keyCode==13) window.location='" & JoinChar(sfilename) & "page=" & CurrentPage & "&MaxPerPage=" & "'+this.value;"">" & strUnit & "/页"
+    Else
+        strTemp = strTemp & "&nbsp;<b>" & MaxPerPage & "</b>" & strUnit & "/页"
+    End If
+    If ShowAllPages = True Then
+            strTemp = strTemp & "&nbsp;&nbsp;转到第<Input type='text' name='page' size='3' maxlength='5' value='" & CurrentPage & "' onKeyPress=""if (event.keyCode==13) window.location='" & strUrl & "page=" & "'+this.value;"">页"
+    End If
+    strTemp = strTemp & "</div>"
+    ShowPage = strTemp
+End Function
+
+'**************************************************
+'函数名：JoinChar
+'作  用：向地址中加入 ? 或 &
+'参  数：strUrl  ----网址
+'返回值：加了 ? 或 & 的网址
+'**************************************************
+Function JoinChar(ByVal strUrl)
+    If strUrl = "" Then
+        JoinChar = ""
+        Exit Function
+    End If
+    If InStr(strUrl, "?") < Len(strUrl) Then
+        If InStr(strUrl, "?") > 1 Then
+            If InStr(strUrl, "&") < Len(strUrl) Then
+                JoinChar = strUrl & "&"
+            Else
+                JoinChar = strUrl
+            End If
+        Else
+            JoinChar = strUrl & "?"
+        End If
+    Else
+        JoinChar = strUrl
+    End If
+End Function
+'幻灯
+Function Flashslide(Slidewidth,Slideheight)
+	dim images,pic,links,texts
+	flashslide="<script type=text/javascript>" &vbcrlf
+	flashslide=flashslide&"var swf_width="&Slidewidth&"" &vbcrlf
+	flashslide=flashslide&"var swf_height="&Slideheight&"" &vbcrlf
+	Set Rs=Server.CreateObject("Adodb.RecordSet")
+	sql="select * from adnim_slide Order by slide_orderid asc"
+	Rs.open sql,Conn,1,1
+	Do while not Rs.eof
+		if Instr(LCase(RS("slide_pic")),"http://")<>0 then
+		images=Rs("slide_pic")
+		else
+		images=Config(0)&Rs("slide_pic")
+		end if
+		pic=pic&images
+		links=links&RS("slide_url")
+		texts=texts&Rs("slide_name")
+		RS.movenext   
+		If not Rs.eof Then pic=pic&"|":links=links&"|":texts=texts&"|" End if
+	loop
+	RS.close
+	Set RS = Nothing
+	flashslide=flashslide&"var files='"&pic&"'" &vbcrlf
+	flashslide=flashslide&"var links='"&links&"'" &vbcrlf
+	flashslide=flashslide&"var texts='"&texts&"'" &vbcrlf
+	flashslide=flashslide&"document.write('<object classid=""clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"" codebase=""http://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,0,0"" width=""'+ swf_width +'"" height=""'+ swf_height +'"">');" &vbcrlf
+	flashslide=flashslide&"document.write('<param name=""movie"" value="""&Config(0)&"Images/Flash.swf""><param name=""quality"" value=""high"">');" &vbcrlf
+	flashslide=flashslide&"document.write('<param name=""menu"" value=""false""><param name=""wmode"" value=""opaque"">');" &vbcrlf
+	flashslide=flashslide&"document.write('<param name=""FlashVars"" value=""bcastr_file='+files+'&bcastr_link='+links+'&bcastr_title='+texts+'"">');" &vbcrlf
+	flashslide=flashslide&"document.write('<embed src="""&Config(0)&"Images/Flash.swf"" wmode=""opaque"" FlashVars=""bcastr_file='+files+'&bcastr_link='+links+'&bcastr_title='+texts+'& menu=""false"" quality=""high"" width=""'+ swf_width +'"" height=""'+ swf_height +'"" type=""application/x-shockwave-flash"" pluginspage=""http://www.macromedia.com/go/getflashplayer"" />'); document.write('</object>');" &vbcrlf
+	flashslide=flashslide&"</script>" &vbcrlf
+End Function
+'－－－－－－－－－－－－－－－评论留言
+Function GetTimeSpan(sessionName)'时间限制
+	dim lastTime : lastTime=session(sessionName)
+	if isNul(lastTime) then lastTime=0
+	GetTimeSpan=DateDiff("s",lasttime,now())
+End Function
+Sub SetSessionTime(sessionName,sessionValue)'写入用户操作时间
+	session(sessionName)=sessionValue
+End Sub
+'添加水印功能
+Sub ImgWriter(SaveImgPath)
+    On Error Resume Next
+	Dim Jpeg,FontX,FontY
+	Set Jpeg = Server.CreateObject("Persits.Jpeg")
+	Jpeg.Open Server.MapPath(SaveImgPath)
+	FontY=Jpeg.Height-50
+	Jpeg.Canvas.Font.Color = &HFFFFFF
+	Jpeg.Canvas.Font.Family = "Arial"
+	Jpeg.Canvas.Font.Size = 26
+	Jpeg.Canvas.Font.ShadowColor = &H333333
+	Jpeg.Canvas.Font.ShadowXoffset = -1
+	Jpeg.Canvas.Font.ShadowYoffset = 1
+	Jpeg.Canvas.Font.Bold = True
+	Jpeg.Canvas.Print 40, FontY, Config(9)'水印内容
+	Jpeg.Canvas.Pen.Color = &Heeeeee
+	Jpeg.Canvas.Pen.Width = 1
+	Jpeg.Canvas.Brush.Solid = False
+	Jpeg.Canvas.Bar 0, 0, Jpeg.Width, Jpeg.Height
+	Jpeg.Save Server.MapPath(SaveImgPath)
+	Jpeg.Close
+End Sub
+%>

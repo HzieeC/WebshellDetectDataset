@@ -1,0 +1,75 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title></title>
+<%-- <script src="${contextPath}/js/jquery-2.0.0.min.js"></script> --%>
+<script src="${contextPath}/js/plugins/jquery/jquery-1.9.1.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script src="${contextPath}/js/plugins/jquery/jquery-ui.js"></script>
+	<link href="${contextPath}/js/plugins/jquery/jquery-ui.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script> 
+<link href="${contextPath}/js/plugins/tooltipster/css/tooltipster.css" rel="stylesheet" type="text/css" >
+<script src="${contextPath}/js/plugins/tooltipster/js/jquery.tooltipster.min.js"></script> 
+
+
+</head>
+<body>
+<div class="userInfo">
+	<h1><fmt:message key="questionManagement"/></h1>
+<form id="dispatcherSearchForm">
+		<table class="yTable margintop">
+				<tr  >
+					<th ><fmt:message key="questionName"/></th>
+					<td><input name="name" id="name" type="text" class="inputbox"/></td>
+					<th ><fmt:message key="category"/></th>
+					<td><input name="category" id="category" type="text" class="inputbox"/></td>
+					<th><fmt:message key="type"/></th>
+					<td ><select id="type" name="type"  class="inputbox">
+					    <option selected="selected" value="" ><fmt:message key="all"/></option>
+					      <option value="" ><fmt:message key="usable"/></option>
+					       <option value="" ><fmt:message key="jsedit"/></option>
+					 
+					</select><img src="css/img/s.gif"  class="helpTip" id="pointTip" title="可用为：试题可以组卷用，禁用是该试题为禁止使用状态"></img></td>
+					
+				</tr>
+				
+				
+		
+				
+		</table>
+		<div class="Btn">
+				<input id="search" type="button" value="<fmt:message key="search"/>" /> 
+				<input id="new" type="button" value="<fmt:message key="new"/>" />
+				<input id="import" type="button" value="<fmt:message key="import"/>" />
+				<input id="export" type="button" value="<fmt:message key="export"/>" />
+				 <input id="reset" type="button" value="<fmt:message key="reset"/>" />
+			</div>
+</form>
+
+	
+	<br/>
+	<div id="searchResult" class="xTable" style="width:100%;"></div>
+</div>
+<script type="text/javascript">
+$(document).ready(function() {
+			 $('#pointTip').tooltip();
+		});
+  seajs.use("${scriptBasePath}/question/index.js");
+</script>
+</body>
+</html>

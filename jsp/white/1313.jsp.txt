@@ -1,0 +1,242 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_casepre.*" %>
+<%@page import="java.net.URLDecoder" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="java.net.URLEncoder"%>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Hashtable ti_casepre = new Hashtable();
+
+	String req_tittle="",req_srcurl="",req_content="";
+	String req_in_date="";
+	String req_state="";
+	if(request.getParameter("req_tittle")!=null && !request.getParameter("req_tittle").equals("")){
+		req_tittle = request.getParameter("req_tittle");
+		ti_casepre.put("tittle",req_tittle);
+	}
+	if(request.getParameter("req_srcurl")!=null && !request.getParameter("req_srcurl").equals("")){
+		req_srcurl = request.getParameter("req_srcurl");
+		ti_casepre.put("src_url",req_srcurl);
+	}
+	if(request.getParameter("tittle")!=null && !request.getParameter("tittle").equals("")){
+		req_tittle = request.getParameter("tittle");
+		req_tittle=new String(req_tittle.getBytes("ISO-8859-1"), "UTF-8")  ;
+		ti_casepre.put("tittle",req_tittle);
+	}
+	
+	if(request.getParameter("req_in_date")!=null && !request.getParameter("req_in_date").equals("")){
+		req_in_date = request.getParameter("req_in_date");
+		ti_casepre.put("in_date",req_in_date);
+	}
+
+	if(request.getParameter("req_content")!=null && !request.getParameter("req_content").equals("")){
+		req_content = request.getParameter("req_content");
+		ti_casepre.put("content",req_content);
+	}
+	req_state = "0";
+	
+	if(request.getParameter("req_state")!=null &&request.getParameter("req_state").equals("")){
+		req_state = "";
+	}else{
+		if(request.getParameter("req_state")!=null && !request.getParameter("req_state").equals("")){
+			req_state = request.getParameter("req_state");
+			ti_casepre.put("state",req_state);
+		}
+	}
+
+	Ti_casepreInfo ti_casepreInfo = new Ti_casepreInfo();
+	String iStart = "0";
+	int limit = 50;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_casepreInfo.getListByPage(ti_casepre,Integer.parseInt(iStart),limit);
+	int counter = ti_casepreInfo.getCountByObj(ti_casepre);
+	
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?tittle="+req_tittle+"&req_state="+req_state+"&req_in_date="+req_in_date+"&req_srcurl="+req_srcurl+"&iStart=",Integer.parseInt(iStart),limit);
+%>
+<html>
+  <head>
+<title>案源线索管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+		<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+			<h1>案源线索管理</h1>
+			</td>
+			<td>
+			&nbsp;
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				
+				
+					标题:<input name="req_tittle" type="text" value="<%=req_tittle %>"/>&nbsp;
+		  		    内容:<input name="req_content" type="text" value="<%=req_content %>"/>&nbsp;
+					
+			</td>
+			
+		</tr>
+		<tr>
+			<td align="left" >
+		状态:<select name="req_state">
+						<option value="0" <%if(req_state.equals("0"))out.println("checked"); %>>未追踪
+							<option value="" <%if(req_state.equals(""))out.println("checked"); %>>全部线索							 
+							<option value="1" <%if(req_state.equals("1"))out.println("checked"); %>>追踪中
+							<option value="2" <%if(req_state.equals("2"))out.println("checked"); %>>结束
+						</select> &nbsp;
+					来源:<select name="req_srcurl">
+						<option value="" <%if(req_srcurl.equals(""))out.println("checked"); %>>请选择
+							<option value="china.findlaw.cn" <%if(req_srcurl.equals("china.findlaw.cn"))out.println("checked"); %>>china.findlaw.cn						 
+							<option value="www.lawtime.cn" <%if(req_srcurl.equals("www.lawtime.cn"))out.println("checked"); %>>www.lawtime.cn
+							<option value="www.9ask.cn" <%if(req_srcurl.equals("www.9ask.cn"))out.println("checked"); %>>www.9ask.cn
+						</select> &nbsp;
+						
+					时间:<input name="req_in_date" type="text" size="15" value="<%=req_in_date %>" onclick="WdatePicker({readOnly:true})"/>&nbsp;
+				<input name="searchInfo" type="button" value="搜索" onclick="return search();"/>
+					</td>
+			
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="70%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+				<input type="button" name="updateStates" onclick="altertest(1)" value="追踪中" class="buttab"/>
+				<input type="button" name="updateStates" onclick="altertest(2)" value="结束" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条，每页<%=limit%>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			 <!--th width="5%">修改</th-->
+	  		<th>删除</th>
+		  	<th  width="25%">标题</th>
+		  		<!--th width="20%">源地址</th-->
+		  	<th  width="25%">地区</th>
+		  	<th  width="10%">状态</th>
+		  	
+		  
+		  	<th>时间</th>
+			
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String id="",tittle="",content="",area_name="",in_date="",state="",src_url="",allcontent="";
+	  			  	if(map.get("id")!=null) id = map.get("id").toString();
+				  	if(map.get("tittle")!=null){
+				  		 tittle = map.get("tittle").toString();
+				  		 if(tittle.length()>20)
+				  		 	tittle=tittle.substring(0,20)+"...";
+				  	}
+				  	if(map.get("area_name")!=null) {
+				  		area_name = map.get("area_name").toString();
+				  	if(map.get("content")!=null) {
+				  		content = map.get("content").toString();
+				  		allcontent=content;
+				  		 
+				  		if(area_name.length()>13)
+				  			area_name =area_name.substring(0,13);
+				  	}
+				  	if(content.length()>80)
+				  			content =content.substring(0,80)+"  <font color='#8C008C'>更多详细内容</font> >>>";
+				  	}
+				  	if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+					  if(in_date.length()>16)in_date=in_date.substring(0,16);
+				  	if(map.get("state")!=null) {
+				  		state = map.get("state").toString();
+				  		if(state.equals("0"))
+				  		{
+				  			state="未追踪";
+				  			tittle="<font style='color:#000'>"+tittle+"</font>";
+				  		}
+				  		if(state.equals("1"))
+				  		{
+				  			state="<font color='red'>追踪中</font>";
+				  			tittle="<font color='red'>"+tittle+"</font>";
+				  		}
+				  		if(state.equals("2")){
+				  			state="<font color='green'>结束</font>";
+				  			tittle="<S><font color='green'>"+tittle+"</font></S>";
+				  		}	
+				  	}
+				  	if(map.get("src_url")!=null) src_url = map.get("src_url").toString();
+
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=id %>" /></td>
+			<!--td width="5%"><a href="updateInfo.jsp?id=<%=id %>"><img src="/program/admin/images/edit.gif" title="修改" /></a></td-->
+	  		<td><a href="javascript:deleteOneInfo('<%=id%>','1192');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+		  	<td width="50%"><a href="updateInfo.jsp?id=<%=id %>" style="font-size:14px;font-weight:bold" title="<%=allcontent%>"><%=tittle%></a>
+		  		<br>&nbsp;&nbsp;&nbsp;&nbsp; <%=content%> 
+		  		<br>[来源]：<a href="javascript:showUrl('<%=src_url%>')" style="color:#0000B7"><%=src_url%></a>
+		  		</td>
+		  	<!--td width="20%"><a href="javascript:showUrl('<%=src_url%>')"><%=src_url%></a></td-->
+		  	<td width="10%"><%=area_name%></td>
+		  	<td  width="10%"><%=state%></td>
+		  	<td width="20%"><%=in_date%></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="state" id="state" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="1192" />
+	  </form>
+</body>
+
+</html>

@@ -1,0 +1,122 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="../inc/md5.asp"-->
+<!--#include file="consts.asp" -->
+<div style="font-size:12px; color:#666">
+<%
+	dim tab_name
+	tab_name="members"
+	dim sql
+	dim rs
+	user=Checkstr(trim(request("user")))
+		if user="" then
+			err_str= "@请输入用户名/手机号/会员卡号<br>"
+		end if	
+	regjm=Checkstr(trim(request("regjm")))
+		if regjm="" then
+			err_str= err_str&"@请输入验证码<br>"
+		else
+			If regjm=Empty Or Trim(Session("GetCode"))<>regjm Then
+				err_str= err_str&"@验证码输入错误<br>"
+			end if
+		end if
+	safecode2=Checkstr(trim(request("safecode")))
+		if safecode2="" then
+			err_str= err_str&"@请输入安全码<br>"
+		end if
+	safecode=md5(Checkstr(trim(request("safecode"))))
+	page_name=Checkstr(trim(request("page_name")))
+	if user<>"" and regjm<>"" and safecode2<>"" then
+		set rs=server.createobject("adodb.recordset")
+		sql="select * from "&tab_name&" where SMT_key=1 and safe_code='"&safecode&"' and (SMT_user='"&user&"' or SMT_colxother='"&user&"' or SMT_bianhao='"&user&"')"
+		rs.open sql,conn,1,1
+		if not(rs.bof and rs.eof) then%>
+			<%'发送重置密码页面到指定邮箱
+            reset_pwd_mail=rs("SMT_mail")
+            colxr=rs("SMT_colxr")
+            colxrsex=rs("SMT_colxrsex")
+            send_mail()
+            %>
+			<script>
+			function reflesh_me(){
+				parent.window.location.reload()//刷新父页面（即回到当前页面）
+			}
+			</script>
+			<%
+			response.write "<script>alert('操作成功!\r\n\r\n请至您注册时填写的邮箱收取邮件，及时修改密码。\r\n\r\n如果忘记邮件,请人工索取密码。');reflesh_me();</Script>"
+		else
+		err_str="输入错误!"
+		end if
+		
+		conn.close
+		rs.close
+		set rs=nothing
+		set conn=nothing
+	else
+	end if
+	if err_str<>"" then
+		err_str= err_str&"<a style=cursor:pointer href='get_pwd.asp'>[返回上一步]<a>"
+		response.Write err_str
+		Response.End 
+	end if
+%>
+<%
+	'==============================
+	'根据日期生成随机验证码
+	'==============================
+	Private Function Getname()
+		Dim y, m, d, h, mm, S, r
+		Randomize
+		y = Year(Now)
+		m = right("0" & Month(Now),2)
+		d = right("0" & Day(Now),2)
+		h = right("0" & Hour(Now),2)
+		mm =right("0" & Minute(Now),2)
+		S = right("0" & Second(Now),2)
+		r = 0
+		r = CInt(Rnd() * 10000)
+		S = right("0000" & r,4)
+		Getname = y & m & d & h & mm & S & r
+		Getname_md5=md5(Getname)
+		session("Getname_md5")=Getname_md5
+	End Function
+
+	Function send_mail()
+		Call Getname()
+		conn.execute("update members set change_pwd_code='"&session("Getname_md5")&"',if_change_pwd_code=1 where SMT_mail='"&reset_pwd_mail&"'")
+		'先获取SMTP的信息
+		emailaddr=reset_pwd_mail'收件人邮箱
+		emailname=colxr&colxrsex'收件人称呼
+		emailtitle="[密码重置]来自"&coname&"网站的邮件"
+		emailcontent="亲爱的 "&emailname&"：<br>请点击以下链接完成密码修改：<br><a href='"&site_url&"/reset_pwd.asp?regcode="&session("Getname_md5")&"&uid="&reset_pwd_mail&"' target=_blank style='color:#36C;font-size:14px;'>"&site_url&"/reset_pwd.asp?regcode="&session("Getname_md5")&"&uid="&reset_pwd_mail&"</a><br>如果你的邮箱不支持链接点击，请将以上链接地址拷贝到你的浏览器地址栏中。此邮件由系统自动产生，请勿回复。如果您申请了发送多封激活邮件，请以最后的一封为准。"
+		session("Getname_md5")=""
+		Set JMail = Server.CreateObject("JMail.Message")
+			JMail.ISOEncodeHeaders = True'是否将信头编码成iso-8859-1字符集. 缺省是True  
+			JMail.Silent = True'如果JMail.silent设置为true,ErrorCode包含的是错误代码 
+			JMail.Charset = "gb2312"'设置标题和内容编码，如果标题有中文，必须设定编码为gb2312 
+			'JMail.ContentType = "text/html" '如果发内嵌附件一定要注释掉这行，重要！ 
+			JMail.From = email ' 发送者邮箱 
+			JMail.FromName = coname ' 发送者姓名 
+			JMail.MailServerUserName = my_smtp_name ' 身份验证的用户名 
+			JMail.MailServerPassword = my_smtp_pwd ' 身份验证的密码 
+			'加入新的收件人 
+			JMail.AddRecipient reset_pwd_mail, emailname 
+			JMail.Subject = emailtitle 
+			JMail.Body = emailcontent 
+			
+			JMail.HTMLBody = "<html><body style='font-size:14px;'><br>"&emailcontent 
+			JMail.appendHTML "<br><br></body></html>" 
+			'如果对方信箱不支持HTML格式邮件，我们仍需要给他一个友善的提示 
+			JMail.Body = "很抱歉，您的邮件系统无法正常显示HTML格式信件。" 
+			JMail.appendText " " 
+			if JMail.Send( my_smtp ) then '执行邮件发送（通过邮件服务器地址）smtp.域名.com 不一定是邮件服务器 
+				'response.Write("邮件发送成功") 
+			else 
+				response.write"<script>alert('邮件发送失败,请联系管理员。');</script>"
+			end if 
+			JMail.Close() 
+		Set JMail = Nothing 
+	End function
+%>
+</div>

@@ -1,0 +1,133 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" import="java.util.*" pageEncoding="utf-8"%>
+<%@ page import="com.bizoss.trade.ti_goods.Ti_goodsInfo" %>
+<%
+ 	request.setCharacterEncoding("utf-8");
+  String cat_id="",brand_id="",info="",cust_id="",type="";
+	if(request.getParameter("cat_id") != null) {
+		 cat_id = request.getParameter("cat_id");
+	}
+  if(request.getParameter("brand_id") != null) {
+		 brand_id = request.getParameter("brand_id");
+	}
+  if(request.getParameter("info") != null) {
+		 info = request.getParameter("info");
+	}
+  if(request.getParameter("cust_id") != null) {
+		 cust_id = request.getParameter("cust_id");
+ 	}
+  
+  Ti_goodsInfo  ti_goodsInfo =  new Ti_goodsInfo();
+  List glist = ti_goodsInfo.getListForTable(cat_id,cust_id,info,brand_id);	
+  %>     
+<html>
+
+    <head>
+        <meta http-equiv="x-ua-compatible" content="ie=7" />
+        <script type="text/javascript" src="/js/commen.js"></script>
+        <link href="/program/company/index/css/style.css" rel="stylesheet" type="text/css">
+        <title>more college</title>
+        <script>
+        	
+        	 var globalVal = '';
+           function linkGoodsOpr()
+           {
+             var size =document.getElementById("listsize").value;
+             var innerHTMLStr = "";
+             var link_goods = "";
+             var k = 1;            
+             for(var i=0;i<size;i++)
+             {
+                 if(document.getElementById('checkone'+i).checked)
+                 {
+                   var goods_id = document.getElementById('checkone'+i).value;
+                   link_goods += goods_id + "|";
+                   var goods_name = document.getElementById('chechGoodsName'+i).value;
+                   setDivHtml(k,goods_name,goods_id);
+                   innerHTMLStr += globalVal;
+                   k++;
+                 }             
+             } 
+			 if(link_goods!=""){
+			  document.getElementById("goods_cat_group").value = link_goods;
+			 }
+            
+           	 document.getElementById("goods_table").innerHTML= "<table width='100%' border='0' cellspacing='0' cellpadding='0' >" + innerHTMLStr + "</table>";
+             TB_remove();
+           }
+           
+           function setDivHtml(k,goods_name,goods_id){
+           	 globalVal = "<tr id='spandiv"+k+"'><td width='5%' height='35' align='right' style='background:#F9F9F9;'><font color='#666666'>"+k+":</font>"+"</td><td width='55%' style='background:#F9F9F9;'><font color='#666666'>"+goods_name+"</font></td>"+"<td width='40%'>&nbsp;<img src='/program/company/index/images/cross.png' style='vertical-align:middle;cursor:pointer;' title=移除关联商品 onclick=moveout('"+k+"','"+goods_id+"') /></td></tr>";
+           }
+           
+           function moveout(k,goods_id){
+		       
+           		var goods_cat_group = document.getElementById("goods_cat_group").value;
+           		goods_cat_group = goods_cat_group.replace(goods_id+'|','');
+           		document.getElementById("goods_cat_group").value = goods_cat_group;
+           		document.getElementById("spandiv"+k).style.display='none';
+           }
+        </script>
+    </head>
+
+    <body>
+    
+		<div style="width:600px;">
+		   <table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+				<tr>
+					<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+					<th>货号</th>
+			  	<th>商品名</th>
+					<th>销售价</th>
+					<th>当前库存</th>
+				</tr>
+				<% 
+		     int listsize=0;
+		     if(glist!=null && glist.size()>0){
+		        listsize =  glist.size();     
+		        for(int i = 0;i < listsize;i++){ 
+		        Hashtable gMap =(Hashtable)glist.get(i);
+		        String goods_no="",goods_id ="",goods_name="",sale_price="",stock_num="";
+		        if (gMap.get("goods_no") != null){
+							goods_no = gMap.get("goods_no").toString();
+						}
+						if (gMap.get("goods_id") != null){
+							goods_id = gMap.get("goods_id").toString();
+						}
+						if (gMap.get("sale_price") != null){
+							sale_price = gMap.get("sale_price").toString();
+						}
+						if (gMap.get("stock_num") != null){
+							stock_num = gMap.get("stock_num").toString();
+						}
+						if (gMap.get("goods_name") != null){
+							goods_name = gMap.get("goods_name").toString();
+						  if(goods_name.length()>35){
+		             goods_name = goods_name.substring(0,35);				  
+						  }
+						}  
+		   	%>		
+				<tr>
+					<td width="5%" align="center">
+						<input type="checkbox" name="checkone<%=i%>" id="checkone<%=i%>" value="<%=goods_id%>" />
+						<input type="hidden" name="chechGoodsName" id="chechGoodsName<%=i%>" value="<%=goods_name%>" />
+					</td>
+					<td><%=goods_no%></td>
+			  	<td><%=goods_name%></td>
+			  	<td><%=sale_price%></td>
+			  	<td><%=stock_num%></td>
+				</tr>
+				<%
+		   			}	  
+			  	}
+			  %>  
+			</table> 
+			</div>
+			<br/>
+			<div style="text-align:center;">
+				<input type="button" class="buttoncss" value="确定" onclick="linkGoodsOpr();">
+	      <input type="hidden" name="listsize" id="listsize" value="<%=listsize%>">
+      </div> 
+    </body>
+</html>

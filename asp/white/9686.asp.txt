@@ -1,0 +1,811 @@
+<!--#include file="../ACT.Function.asp"-->
+<!--#include file="ACT.M.ASP"-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>模型管理</title>
+<link href="../Images/style.css" rel="stylesheet" type="text/css">
+
+
+
+
+</head>
+<body>
+<% 	Dim Action,ModeID,Rs,directory,MakeFolderDir,ContentExtension,AutoPage,admintemplatevalue,usertemplatevalue,umr,def
+	Dim language,languager,languagedef,languagecontent,umrdef,ifxml
+	ModeID = ChkNumeric(Request("ModeID"))
+	umr = ChkNumeric(Request("umr"))
+	def = ChkNumeric(Request("def"))
+	umrdef = ChkNumeric(Request("umrdef"))
+	
+	languager= ChkNumeric(Request("languager"))
+	language= ChkNumeric(Request("language"))
+	languagedef= ChkNumeric(Request("languagedef"))
+	ifxml= ChkNumeric(Request("ifxml"))
+ 	Action = Request.QueryString("A")
+	 if ModeID=0 or ModeID="" Then ModeID=1
+	Select Case Action
+		   Case "AddSave","ESave"
+		   		Call AddSave()
+			Case "Add","E"
+				Call AddEdit()
+			Case Else
+				Call Main()
+	End Select
+	
+	IF Action = "Del" Then
+	If Not ACTCMS.ChkAdmin() Then  Call Actcms.Alert("对不起，您没有操作权限！","")
+	Dim rs1
+		IF ModeID  > 1 Then
+			Set rs1=actcms.actexe("select id,classid,modeid from class_act where modeid="& ModeID)
+			Do While Not rs1.eof
+						Dim rsp
+						Set rs = ACTCMS.actexe("Select * From "&ACTCMS.ACT_C(rs1("modeid"),2)&" Where ClassID =" & rs1("classid") & "")
+						Do While Not rs.eof
+									Set rsp = ACTCMS.actexe("Select * from Upload_Act  Where ArtileID=" & rs("id") & " and modeid="&rs1("modeid")&"")
+										If Not  rsp.eof  Then
+											Do While Not rsp.eof
+											Call ACTCMS.DeleteFile(Rsp("UpfileDir"))
+											Conn.execute("Delete from Upload_Act  Where id= "&Rsp("id"))
+											rsp.movenext
+											loop
+										End If 
+									Dim Tmps,TmpUs 
+									If Right(ACTCMS.ACT_C(rs1("modeid"),10),1)<>"/" Then 
+											Call ACTCMS.DeleteFile(ACTCMS.ActSys&ACTCMS.ACT_C(rs1("modeid"),6)&rs("FileName")&ACTCMS.ACT_C(rs1("modeid"),11))
+									Else
+											Call ACTCMS.DeleteFile(ACTCMS.ActSys&ACTCMS.ACT_C(rs1("modeid"),6)&rs("FileName")&"/Index"&ACTCMS.ACT_C(rs1("modeid"),11))
+									End If 
+
+									Conn.execute("Delete from Comment_Act  Where acticleID=" & rs("id") & " and ModeID="&rs1("modeid")&"")
+									Conn.execute("Delete from Digg_ACT  Where NewsID=" & rs("id") & " and modeid="&rs1("modeid")&"")
+									Conn.execute("Delete from "&ACTCMS.ACT_C(rs1("modeid"),2)&"  Where ID=" & rs("id") & "")
+						rs.movenext
+						loop
+
+									Conn.execute("Delete from class_act  Where ID=" & rs1("id") )
+
+			rs1.movenext
+			loop
+			ACTCMS.ACTEXE("Delete From Mode_Act Where ModeID=" & ModeID)	
+ 
+			Call Actcms.ActErr("删除模型成功","Mode/ACT.MX.asp","")	
+ 		Else
+		 	Call Actcms.ActErr("系统定义的模型不允许删除","Mode/ACT.MX.asp","1")	
+ 		End IF
+	End IF
+	
+	
+	Sub AddSave()
+		 Dim ModeName,ModeTable,sql,ChannelRS,ChannelRSSql,ModeNote,ModeStatus,IFmake,RefreshFlag
+		 Dim UpfilesDir,RecyleIF,CommentCode,Commentsize,WriteComment,CommentTemp
+		 Dim usermb,adminmb
+		 ModeName = ACTCMS.S("ModeName")
+		 ModeTable = ACTCMS.S("ModeTable")
+		 ModeNote = ACTCMS.S("ModeNote")
+ 		 usermb=ChkNumeric(ACTCMS.S("usermb"))
+		 adminmb=ChkNumeric(ACTCMS.S("adminmb"))
+		 ModeStatus = ACTCMS.S("ModeStatus")
+		 IFmake = ACTCMS.S("IFmake")
+		 languagecontent = ACTCMS.S("languagecontent")
+		 RefreshFlag = ChkNumeric(ACTCMS.S("RefreshFlag"))
+		 UpfilesDir = ACTCMS.S("UpfilesDir")
+		 RecyleIF = ACTCMS.S("RecyleIF")
+		 directory = ACTCMS.S("directory")
+		 MakeFolderDir = ACTCMS.S("MakeFolderDir")
+		 ContentExtension = ACTCMS.S("ContentExtension")
+ 		 AutoPage = ChkNumeric(ACTCMS.S("AutoPage"))
+		 CommentCode = ChkNumeric(ACTCMS.S("CommentCode"))
+		 Commentsize = ChkNumeric(ACTCMS.S("Commentsize"))
+		 WriteComment = ChkNumeric(ACTCMS.S("WriteComment"))
+ 
+		 
+		 CommentTemp = ACTCMS.S("CommentTemp")
+ 		 Call Actcms.CreateFolder(actcms.actsys&"act_inc/cache/"&ModeID&"/")
+	
+		 
+		 If adminmb="1" Then 
+ 			admintemplatevalue=	ACTCMS.FFile(request.form("admintemplatevalue"),actcms.actsys&"act_inc/cache/"&ModeID&"/"&ACTCMS.ACT_C(ModeID,2)&"-mode.inc")
+		 End If 
+
+		
+		 If usermb="1" Then 
+ 			usertemplatevalue=	ACTCMS.FFile(request.form("usertemplatevalue"),actcms.actsys&"act_inc/cache/"&ModeID&"/"&ACTCMS.ACT_C(ModeID,2)&"-usermode.inc")
+		 End If 
+
+
+
+		 IF ACTCMS.S("ModeName") = "" Then
+		 	Call ACTCMS.Alert("模型名称不能为空!",""):Exit Sub
+		 End If
+		 IF ACTCMS.S("directory") = "" Then
+		 	Call ACTCMS.Alert("内容目录不能为空!",""):Exit Sub
+		 End If
+		 
+	 
+
+		 Set ChannelRS = Server.CreateObject("adodb.recordset")
+		 if Action="AddSave" Then
+			 If Not ACTCMS.ChkAdmin() Then   Call Actcms.Alert("对不起，您没有操作权限！","")
+			 IF ACTCMS.S("ModeTable") = "" Then
+				Call ACTCMS.Alert("数据表为空!",""):Exit Sub
+			 End If
+			 
+			If actcms.defaultField(ModeName,"")=True Then  Call ACTCMS.Alert("数据库中已存在该字段\n或该字段是系统关键字!", "")
+
+			 If Not ACTCMS.ACTEXE("SELECT ModeName FROM Mode_Act Where ModeName='" & ModeName & "' order by ModeID desc").eof Then
+				Call ACTCMS.Alert("系统已存在该模型名称!",""):Exit Sub
+			 End if	
+
+			 If Not ACTCMS.ACTEXE("SELECT ModeTable FROM Mode_Act Where ModeTable='" & ModeTable & "' order by ModeID desc").eof Then
+				Call ACTCMS.Alert("系统已存在该数据表!",""):Exit Sub
+			 End if	
+
+
+			 If Not ACTCMS.ACTEXE("SELECT ModeTable FROM Mode_Act Where directory='" & directory & "' order by ModeID desc").eof Then
+				Call ACTCMS.Alert("系统已存在该内容目录!",""):Exit Sub
+			 End if	
+
+
+			  ChannelRSSql = "select * from Mode_Act"
+			  ChannelRS.Open ChannelRSSql, Conn, 1, 3
+			  ChannelRS.AddNew
+		 	  ChannelRS("ModeTable") = ModeTable
+			  ChannelRS("ModeName") = ModeName
+			  ChannelRS("ModeNote") = ModeNote
+			  ChannelRS("ModeStatus") = ModeStatus
+			  ChannelRS("IFmake") = IFmake
+			  ChannelRS("RecyleIF") = RecyleIF
+			  ChannelRS("AutoPage") = AutoPage
+			  ChannelRS("UpfilesDir") = UpfilesDir&directory
+			  ChannelRS("directory") = directory
+			  ChannelRS("MakeFolderDir") = MakeFolderDir
+			  ChannelRS("ContentExtension") = ContentExtension
+			  ChannelRS("RefreshFlag") = RefreshFlag
+			  ChannelRS("CommentCode") = CommentCode
+			  ChannelRS("Commentsize") = Commentsize
+			  ChannelRS("WriteComment") = WriteComment
+			  ChannelRS("CommentTemp") = CommentTemp
+  			  ChannelRS("usermb")=usermb
+			  ChannelRS("adminmb")=adminmb
+			  ChannelRS("ifxml")=ifxml
+			  ChannelRS("languagecontent")=languagecontent
+			  ChannelRS("ACT_DiY")="§0§0-1-0-1§0§actcms§0§§0§§0§§0§Simple§§§0§0§0§1§0§0§0§栏目首页.html§列表分页.html§内容详细页.html§0§"
+			  ChannelRS.Update
+			  ChannelRS.Close:Set ChannelRS = Nothing			
+				 Dim sqlformat:If  DataBaseType="access" Then sqlformat=" CONSTRAINT PrimaryKey PRIMARY KEY"
+ 				 Sql="CREATE TABLE "&ModeTable&" ([ID] int IDENTITY (1, 1) NOT NULL "&sqlformat&" ,"&_
+				"ClassID int Default 0,"&_
+				"Title varchar(250),"&_
+				"IntactTitle varchar(250),"&_
+				"ActLink tinyint,"&_
+ 				"Intro text,"&_
+				"Content text,"&_
+				"allpic text,"&_
+				"Hits int Default 0,"&_
+				"rev tinyint Default 0,"&_
+				"ChargeType tinyint Default 0,"&_
+				"InfoPurview tinyint Default 0,"&_
+				"arrGroupID varchar(250),"&_
+				"pinyin varchar(250),"&_
+				"ReadPoint  int Default 0,"&_
+				"PitchTime  int Default 0,"&_
+				"ReadTimes  int Default 0,"&_
+				"DividePercent  int Default 0,"&_
+				"KeyWords varchar(100),"&_
+ 				"CopyFrom varchar(250),"&_
+				"addtime datetime,"&_
+				"UpTime datetime,"&_
+				"publishtime datetime,"&_
+				"TemplateUrl varchar(100),"&_
+				"FileName varchar(200),"&_
+				"isAccept tinyint,"&_
+				"delif tinyint Default 0,"&_
+				"UserID  int Default 0,"&_
+				"ArticleInput varchar(250),"&_
+				"Author varchar(250),"&_
+				"Slide tinyint Default 0,"&_
+				"PicUrl varchar(200),"&_
+				"UserIP varchar(200),"&_
+				"upIP varchar(200),"&_
+				"Ismake tinyint,"&_
+				"Digg int Default 0,"&_
+				"down int Default 0,"&_
+				"ATT SmallInt Default 0,"&_
+				"OrderID int Default 10,"&_
+				"commentscount int Default 0,"&_
+				"IStop tinyint Default 0"&_
+				")"
+			ACTCMS.ACTEXE(sql)
+			Application.Contents.RemoveAll
+
+			Set rs=ACTCMS.actexe("Select top 1 ModeID from Mode_Act order by ModeID desc")
+			If Not rs.eof Then ModeID = rs("ModeID")
+
+			actcms.actexe("insert Into DiyMenu_ACT(MenuName,MenuUrl,OpenWay,AdminID) values('<font color=green>添加"&ModeName&"</font>','ACT_Mode/ACT.Add.asp?ModeID="&ModeID&"','main','1')")
+
+
+
+
+
+
+
+
+		Call actcms.CreateFolder(actcms.actsys&rep(directory,".",""))
+
+		If IFmake=0 Then 
+			rewriteurl="""""&actcms.acturl&"""&directory&"/index.asp?id="" & ID & ""&page="""
+		Else 
+ 			execute("contentrewriteurl=Content"&modeid&"_rewrite_url")
+			If Instr(contentrewriteurl,"{id}") > 0 Then contentrewriteurl = Replace(contentrewriteurl,"{id}","""&id")
+			If Instr(contentrewriteurl,"{classid}") > 0 Then contentrewriteurl = Replace(contentrewriteurl,"{classid}","""&id")
+			If Instr(contentrewriteurl,"{modeid}") > 0 Then contentrewriteurl = Replace(contentrewriteurl,"{modeid}","""&id")
+			If Instr(contentrewriteurl,"{pinyinnum}") > 0 Then contentrewriteurl = Replace(contentrewriteurl,"{pinyinnum}","""&id")
+			rewriteurl="""""&actcms.domain&"""&contentrewriteurl&"&""/"""
+		End If 
+
+ 		plustemplate=LTemplate("art.txt")
+		plustemplate=rep(plustemplate,"{modeid}",modeid)
+		plustemplate=rep(plustemplate,"{rewriteurl}",rewriteurl)
+
+			If actcms.ACT_C(modeid,18)="1" Then
+				 plustemplate=rep(plustemplate,"{getcontent}","TypeContent=actcms.Htmljapan(actcms.HTMLCode(getcontentxml(modeid,id,rs(""addtime""))))")
+			Else 
+				plustemplate=rep(plustemplate,"{getcontent}","If RS(""Content"") <> """" Then TypeContent=actcms.Htmljapan(RS(""Content""))")
+			End If 
+
+
+
+ 		Call noSaveFile(plustemplate,actcms.actsys&rep(directory,".","")&"/index.asp")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			Call Actcms.ActErr("添加成功","Mode/ACT.MX.asp","")
+ 		 Else
+			If Not ACTCMS.ACTCMS_QXYZ(ModeID,"","") Then   Call Actcms.Alert("对不起，您没有"&ACTCMS.ACT_C(ModeID,1)&"系统该项操作权限！","")
+				If Not ACTCMS.ACTEXE("SELECT ModeName FROM Mode_Act Where ModeID <>" & ModeID & " AND  ModeName='" & ModeName & "' order by ModeID desc").eof Then
+					Call ACTCMS.Alert("系统已存在该模型名称!",""):Exit Sub
+				 End if	
+
+				If Not ACTCMS.ACTEXE("SELECT ModeName FROM Mode_Act Where ModeID <>" & ModeID & " AND  directory='" & directory & "' order by ModeID desc").eof Then
+					Call ACTCMS.Alert("系统已存在该内容目录!",""):Exit Sub
+				 End if	
+
+
+				  ChannelRSSql = "select * from Mode_Act Where ModeID=" &ModeID
+				  ChannelRS.Open ChannelRSSql, Conn, 1, 3
+				  if ChannelRS.eof then Call ACTCMS.Alert("错误!",""):Exit Sub
+			 End if 
+			
+			 If ChkNumeric(ACTCMS.S("adminmb"))="1" Then 
+				Call ACTCMS.FFile(request.form("admintemplatevalue"),actcms.actsys&"act_inc/cache/"&ModeID&"/"&ACTCMS.ACT_C(ModeID,2)&"-mode.inc")
+			 End If 
+		
+ 
+
+		 If usermb="1" Then 
+ 			usertemplatevalue=	ACTCMS.FFile(request.form("usertemplatevalue"),actcms.actsys&"act_inc/cache/"&ModeID&"/"&ACTCMS.ACT_C(ModeID,2)&"-usermode.inc")
+		 End If 
+ 		  ChannelRS("ModeName") = ModeName
+		  ChannelRS("ModeNote") = ModeNote
+		  ChannelRS("ModeStatus") = ModeStatus
+		  ChannelRS("IFmake") = IFmake
+		  ChannelRS("RecyleIF") = RecyleIF
+		  ChannelRS("UpfilesDir") = UpfilesDir
+		  ChannelRS("directory") = directory
+		  ChannelRS("MakeFolderDir") = MakeFolderDir
+		  ChannelRS("ContentExtension") = ContentExtension
+		  ChannelRS("AutoPage") = AutoPage
+		  ChannelRS("RefreshFlag") = RefreshFlag
+		  ChannelRS("CommentCode") = CommentCode
+		  ChannelRS("Commentsize") = Commentsize
+		  ChannelRS("WriteComment") = WriteComment
+		  ChannelRS("CommentTemp") = CommentTemp
+ 		  ChannelRS("usermb")=usermb
+		  ChannelRS("adminmb")=adminmb
+		  ChannelRS("ifxml")=ifxml
+		  
+		  ChannelRS("languagecontent")=languagecontent
+ 		  ChannelRS.Update
+		  ChannelRS.Close:Set ChannelRS = Nothing	
+		  Application.Contents.RemoveAll
+		Dim plustemplate,rewriteurl
+		Call actcms.CreateFolder(actcms.actsys&rep(directory,".",""))
+
+		If IFmake=0 Then 
+			rewriteurl="""""&actcms.acturl&"""&directory&"/index.asp?id="" & ID & ""&page="""
+		Else 
+			Dim contentrewriteurl
+			execute("contentrewriteurl=Content"&modeid&"_rewrite_url")
+			If Instr(contentrewriteurl,"{id}") > 0 Then contentrewriteurl = Replace(contentrewriteurl,"{id}","""&id")
+			If Instr(contentrewriteurl,"{classid}") > 0 Then contentrewriteurl = Replace(contentrewriteurl,"{classid}","""&id")
+			If Instr(contentrewriteurl,"{modeid}") > 0 Then contentrewriteurl = Replace(contentrewriteurl,"{modeid}","""&id")
+			If Instr(contentrewriteurl,"{pinyinnum}") > 0 Then contentrewriteurl = Replace(contentrewriteurl,"{pinyinnum}","""&id")
+			rewriteurl="""""&actcms.domain&"""&contentrewriteurl&"&""/"""
+		End If 
+
+ 		plustemplate=LTemplate("art.txt")
+		plustemplate=rep(plustemplate,"{modeid}",modeid)
+		plustemplate=rep(plustemplate,"{rewriteurl}",rewriteurl)
+
+			If actcms.ACT_C(modeid,18)="1" Then
+				 plustemplate=rep(plustemplate,"{getcontent}","TypeContent=actcms.Htmljapan(actcms.HTMLCode(getcontentxml(modeid,id,rs(""addtime""))))")
+			Else 
+				plustemplate=rep(plustemplate,"{getcontent}","If RS(""Content"") <> """" Then TypeContent=actcms.Htmljapan(RS(""Content""))")
+			End If 
+
+
+
+ 		Call noSaveFile(plustemplate,actcms.actsys&rep(directory,".","")&"/index.asp")
+
+		Call noSaveFile("by www.fycms.com",ACTCMS.ActSys&"cache/"&ModeID&"/index.html")
+
+
+  		  Call Actcms.ActErr("修改成功&nbsp;&nbsp;<a href=Mode/ACT.MX.asp>点击这里返回管理首页</a>","Mode/ACT.MX.asp","")
+	End Sub
+	Sub Main()
+	%>	
+<table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+  <tr>
+    <td class="bg_tr">您现在的位置：模型管理 &gt;&gt; 浏览</td>
+  </tr>
+  <tr>
+    <td>当前模型： <a href="?A=Add">添加模型</a> | <a href="ModeList.asp?A=1">导出内容模型</a> | <a href="ModeList.asp?A=2">导入内容模型</a></td>
+  </tr>
+</table>
+<table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+  <tr>
+    <td align="center" class="bg_tr">模型ID</td>
+    <td align="center" class="bg_tr">模型名称</td>
+    <td align="center" class="bg_tr">表名</td>
+    <td align="center" class="bg_tr">描述</td>
+    <td align="center" class="bg_tr">状态</td>
+	<td align="center" class="bg_tr">生成Html</td>
+    <td  align="center" class="bg_tr" nowrap>操作</td>
+  </tr>
+<% 
+	  Set Rs =ACTCMS.ACTEXE("SELECT ModeID, ModeName,ModeTable, ModeStatus, IFmake,ModeNote  FROM Mode_Act order by ModeID asc")
+	 If Rs.EOF  Then
+	 	echo	"<tr><td colspan=""6"" align=""center"">没有记录</td></tr>"
+	 Else
+		Do While Not Rs.EOF	
+			 %>
+
+  <tr  onMouseOver=overColor(this) onMouseOut=outColor(this)>
+    <td align="center"><%= Rs("ModeID") %></td>
+    <td align="center"><%= Rs("ModeName") %></td>
+    <td align="center"><%= Rs("ModeTable") %></td>
+    <td align="center"><%= Rs("ModeNote") %></td>
+    <td align="center"><% IF Rs("ModeStatus") = 0 Then echo "<font color=green>正常</font>" else  echo "<font color=red>禁用</font>" %></td>
+    <td align="center">
+	<% Select Case  Rs("IFmake")
+		Case "0" 
+			echo "<font color=red>不生成(动态浏览) </font>" 
+		Case "1" 
+			echo "<font color=green>生成(静态)</font>"
+		Case "2"
+			echo "<font color=green>伪静态</font>"
+	  End Select 
+	%>
+	</td>
+	<td align="center">
+	<a href="Act.DiY.asp?ModeID=<%=Rs("ModeID")%>">自定义显示</a> ┆ <a href="ACT.ListM.ASP?A=L&ModeID=<%=Rs("ModeID")  %>">字段列表</a> ┆ <a href="?A=E&ModeID=<%=Rs("ModeID")  %>" >修改</a> ┆ <a href="?A=Del&ModeID=<%=Rs("ModeID")  %>"  onClick="{if(confirm('确定删除该模型吗,注意!!!删除模型同时会删除该模型下的所有栏目和文章,如果文章比较多,可以先删除文章,然后再删除模型')){return true;}return false;}">删除</a></td>
+  </tr>
+  <% 
+		
+		Rs.movenext
+		Loop
+	End if	 %>
+</table>	
+	
+	
+<% 	
+ 
+	End Sub
+	Sub AddEdit()
+	Dim ModeTable,ModeName,IFmake,RecyleIF,UpfilesDir,ModeStatus,RefreshFlag,ModeNote,A,WriteComment,CommentCode,Commentsize
+	Dim CommentTemp,usermb,adminmb
+	if Action="Add" Then
+	UpfilesDir="UpFiles/"
+	AutoPage=0
+	A="AddSave"
+	ContentExtension=".html"
+	WriteComment=3
+	CommentCode=0
+	Commentsize=0
+	MakeFolderDir="html/"
+ 	CommentTemp="plus/Comment.html"
+	languagecontent=LTemplate(actcms.actsys&"act_inc/lan.txt")
+	RefreshFlag=2
+	Else
+	Set Rs=server.CreateObject("adodb.recordset") 
+	Rs.OPen "Select * from Mode_Act Where ModeID = "&ModeID&" order by ModeID desc",Conn,1,1
+	ModeTable = Rs("ModeTable")
+	ModeName = Rs("ModeName")
+	IFmake = Rs("IFmake")
+	RecyleIF = Rs("RecyleIF")
+	UpfilesDir=Rs("UpfilesDir")
+	ModeStatus=Rs("ModeStatus")
+	RefreshFlag=Rs("RefreshFlag")
+	ModeNote=Rs("ModeNote")
+	directory=Rs("directory")
+	MakeFolderDir=Rs("MakeFolderDir")
+	ContentExtension=Rs("ContentExtension")
+	AutoPage=Rs("AutoPage")
+	WriteComment=Rs("WriteComment")
+	CommentCode=Rs("CommentCode")
+	Commentsize=Rs("Commentsize")
+	CommentTemp=Rs("CommentTemp")
+     usermb=Rs("usermb")
+	adminmb=Rs("adminmb")
+	ifxml=Rs("ifxml")
+	
+ 	If adminmb="1" Then 
+ 		admintemplatevalue=Server.HTMLEncode(LTemplate(actcms.ACTSYS&"act_inc/cache/"&ModeID&"/"&ACTCMS.ACT_C(ModeID,2)&"-mode.inc"))
+ 	End If 
+	
+	If usermb="1" Then 
+ 		usertemplatevalue=Server.HTMLEncode(LTemplate(actcms.ACTSYS&"act_inc/cache/"&ModeID&"/"&ACTCMS.ACT_C(ModeID,2)&"-usermode.inc"))
+	End If 
+	If request("def")="1" Then 
+			admintemplatevalue=Server.HTMLEncode(M.ACT_NoRormMXList(ModeID))
+			adminmb=1
+ 	End If 
+
+	If adminmb=1 Then def=1
+	If usermb=1 Then umrdef=1
+	If language=1 Then languagedef=1
+	If request("umr")="1" Then 
+			usertemplatevalue=Server.HTMLEncode(M.ACTUser_MXList(ModeID))
+			usermb=1
+ 	End If 
+	If rs("languagecontent")<>"" Then 
+			languagecontent=rs("languagecontent")
+			languagedef=1
+			language=1
+	Else 
+		languagecontent=LTemplate(actcms.actsys&"act_inc/lan.txt")
+ 	End If 
+	A="ESave"
+	end If
+  %>
+<form id="form1" name="form1" method="post" action="?A=<%= A %>&ModeID=<%= Request.QueryString("ModeID") %>">
+
+  <table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+    <tr>
+      <td colspan="2" class="bg_tr">您现在的位置：<a href="?">模型管理</a> &gt;&gt; 添加/修改 </td>
+    </tr>
+    <tr>
+      <td width="24%" align="right" >模型状态：&nbsp;&nbsp;</td>
+      <td width="76%" >
+	  <input <% IF ModeStatus = 0 Then echo "Checked" %> id="ModeStatus1" type="radio" name="ModeStatus" value="0" />
+     <label for="ModeStatus1"><font color=green> 正常 </font></label>
+       <input <% IF ModeStatus = 1 Then echo "Checked" %>  id="ModeStatus2" type="radio" name="ModeStatus" value="1" /><label for="ModeStatus2"><font color=red> 关闭 </font></label>
+    </td>
+    </tr>
+    <tr>
+      <td height="25" align="right" >模型名称：&nbsp;&nbsp;</td>
+      <td height="25" ><input name="ModeName" type="text" class="Ainput"  id="ModeName" value="<%=ModeName %>" />
+	  <font color="#ff0066">*</font></td>
+    </tr>
+    <tr>
+      <td height="25" align="right" >数据表名称：&nbsp;&nbsp;</td>
+      <td height="25" ><input <% if A="ESave" then echo "disabled" %> name="ModeTable" type="text" class="Ainput"  id="ModeTable" value="<%= ModeTable %>" />
+        <font color="#ff0066">*</font></td>
+    </tr>
+
+    <tr>
+      <td height="25" align="right" >内容页目录：&nbsp;&nbsp;</td>
+      <td height="25" >
+	  <input name="directory" type="text" class="Ainput"  id="directory" value="<%= directory %>" size="30" maxlength="250" />
+      *内容页访问的目录<font color="#ff0066">*</font></td>
+    </tr>
+	<tr>
+      <td height="25" align="right" >模型描述：&nbsp;&nbsp;</td>
+      <td height="25" ><input name="ModeNote" type="text" class="Ainput"  id="ModeNote" value="<%= ModeNote %>" size="40" maxlength="250" />
+       简单的描述.不能超过250个字符</td>
+    </tr>
+
+	<tr>
+      <td height="25" align="right" >文件生成存放目录：&nbsp;&nbsp;</td>
+      <td height="25" ><input name="MakeFolderDir" type="text" class="Ainput"  id="MakeFolderDir" value="<%= MakeFolderDir %>" size="40" maxlength="250" /> 不能以 / 开始,留空也可以
+	 </td>
+    </tr>
+
+ 
+
+    <tr>
+      <td height="25" align="right" >是否生成HTML：&nbsp;&nbsp;</td>
+      <td height="25" >
+	  
+	    <input <% IF IFmake = 1 Then echo "Checked" %> id="IFmake1" type="radio" name="IFmake" value="1"  />
+        <label for="IFmake1">生成(静态)</label>
+	  <input <% IF IFmake = 0 Then echo "Checked" %> id="IFmake2" type="radio" name="IFmake" value="0"  /><label for="IFmake2">不生成(动态浏览)</label>	  
+	
+	    <input <% IF IFmake = 2 Then echo "Checked" %> id="IFmake3" type="radio" name="IFmake" value="2"  />
+		    <label for="IFmake3"><font color=green>伪静态(需要服务器支持)</font></label>
+      <a href="http://sighttp.qq.com/authd?IDKEY=dc9d9487c8c797974fec7124ec2248094ab916ca5fbed43c/" target="_blank"><font color="red">ACTCMS官方伪静态空间</font></a> </td>
+    </tr>
+
+  
+
+   <tr>
+      <td height="25" align="right" >内容存储方式：&nbsp;&nbsp;</td>
+      <td height="25" >
+	  <input  <% IF ifxml = 0 Then echo "Checked" %> id="ifxml1" type="radio" name="ifxml" value="0">
+        <label for="ifxml1"><font color=green>数据库</font></label>
+      <input  <% IF ifxml = 1 Then echo "Checked" %> id="ifxml2"  type="radio" name="ifxml" value="1"> 
+     <label for="ifxml2"><font color=red>文件方式存储(不支持内容搜索)</font></label>
+
+
+	 <!-- <a href="datatofile.asp">数据转换</a> -->
+	 </td>
+    </tr>
+
+
+
+
+
+    <tr>
+      <td height="25" align="right" >自动分页：&nbsp;&nbsp;</td>
+      <td height="25" >	 
+      <input name="AutoPage" type="text" class="Ainput"  id="AutoPage" value="<%= AutoPage %>" size="30">
+	  为0则不设置自动分页</td>
+    </tr>
+
+    <tr>
+      <td height="25" align="right" >删除文章：&nbsp;&nbsp;</td>
+      <td height="25" >
+	  <input  <% IF RecyleIF = 0 Then echo "Checked" %> id="RecyleIF1" type="radio" name="RecyleIF" value="0">
+        <label for="RecyleIF1">放入回收站</label>
+      <input  <% IF RecyleIF = 1 Then echo "Checked" %> id="RecyleIF2"  type="radio" name="RecyleIF" value="1"> 
+     <label for="RecyleIF2">彻底删除</label>
+	 </td>
+    </tr>
+
+
+
+    <tr>
+      <td height="25" align="right" >后台文件上传目录：&nbsp;&nbsp;</td>
+      <td height="25" ><input name="UpfilesDir" type="text" class="Ainput"  id="UpfilesDir" value="<%= UpfilesDir %>" size="30">
+	 </td>
+    </tr>
+
+
+
+    <tr>
+      <td height="25" align="right" >内容文件扩展名：&nbsp;&nbsp;</td>
+      <td height="25" ><input name="ContentExtension" type="text" class="Ainput"  id="ContentExtension" value="<%= ContentExtension %>" size="50">
+	  </td>
+    </tr>
+
+
+  
+
+ 
+	<tr>
+      <td height="25" align="right" >后台添加文章，同时发布选项：&nbsp;&nbsp;</td>
+      <td height="25" >
+	  <input id="RefreshFlag1" <% IF RefreshFlag = 1 Then echo "Checked" %> type="radio" name="RefreshFlag" value="1" >
+ <label for="RefreshFlag1">仅发布内容页</label> 
+  <input id="RefreshFlag2"  <% IF RefreshFlag = 2 Then echo "Checked" %> type="radio" name="RefreshFlag" value="2" >
+  <label for="RefreshFlag2">发布栏目页+内容页+首页</label> 
+  <input id="RefreshFlag3"  <% IF RefreshFlag = 3 Then echo "Checked" %> type="radio" name="RefreshFlag" value="3" >
+  <label for="RefreshFlag3">发布首页+内容页</label>
+  </td>
+    </tr>
+    <tr>
+      <td align="right" >评论选项：</td>
+      <td ><table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td><input <% IF WriteComment = 0 Then echo "Checked" %>  type="radio" value="0" name="WriteComment" id="WriteComment1" />
+<label for="WriteComment1"><font color="red">关闭本模型的所有信息评论</font></label><br />
+<input <% IF WriteComment = 1 Then echo "Checked" %>  type="radio" value="1" name="WriteComment" id="WriteComment2"  />
+<label for="WriteComment2">本模型只允许<font color="green">会员</font>评论，且评论内容需要后台的审核</label>
+<br />
+<input <% IF WriteComment = 2 Then echo "Checked" %>  type="radio" value="2" name="WriteComment" id="WriteComment3"  />
+<label for="WriteComment3">本模型只允许<font color="green">会员</font>评论，且评论内容不需要后台审核</label>
+<br />
+<input <% IF WriteComment = 3 Then echo "Checked" %>  type="radio" value="3" name="WriteComment" id="WriteComment4"  />
+<label for="WriteComment4">本模型允许<font color="green">会员</font>，<font color="red">游客</font>评论，且评论内容需要后台审核</label>
+<br />
+<input <% IF WriteComment = 4 Then echo "Checked" %>  type="radio" value="4" name="WriteComment" id="WriteComment5"  />
+<label for="WriteComment5">本模型允许<font color="green">会员</font>，<font color="red">游客</font>评论，且评论内容不需要后台审核<br>
+</label></td>
+  </tr>
+  <tr>
+    <td height="50" style="height:30">评论需要验证码：
+      <INPUT <% IF CommentCode = 0 Then echo "Checked" %>   type="radio"  value="0" name="CommentCode" id="CommentCode1">
+<label for="CommentCode1">是</label>
+<INPUT <% IF CommentCode = 1 Then echo "Checked" %>  type="radio" value="1" name="CommentCode" id="CommentCode2">
+<label for="CommentCode2">否</label></td>
+  </tr>
+  <tr>
+    <td height="50">评论字数控制：<input name="Commentsize" type="text" class="Ainput"  id="Commentsize" value="<%=Commentsize%>" size="8" maxlength="5"> 
+	不限制请输入&quot;0&quot; </td>
+  </tr>
+   <tr>
+    <td height="50">评论页模板：<input name="CommentTemp" type="text" class="Ainput"  id="CommentTemp" value="<%=CommentTemp%>" size="40" maxlength="59"> 
+	<input class="ACT_btn" type="button"  onClick="OpenWindowAndSetValue('../include/print/SelectPic.asp?CurrPath=<%=ACTCMS.ActSys%><%=actcms.SysThemePath&"/"&actcms.NowTheme%>',500,320,window,document.form1.CommentTemp);" value="选择模板...">	</td>
+  </tr>
+  
+</table></td>
+    </tr>
+
+
+
+<!--  -->
+    <tr>
+      <td height="25" align="right" >后台录入表单模板</td>
+      <td height="25" >
+	  <input <% IF adminmb = 0 Then echo "Checked" %> id="adminmb1" type="radio" name="adminmb" value="0"  onclick="adminmbq(0)"  />
+        <label for="adminmb1">自动录入表单</label>
+
+        <input  <% IF adminmb = 1 Then echo "Checked" %> id="adminmb2"  type="radio" name="adminmb" value="1"  onclick="adminmbq(1)"  />
+        <label for="adminmb2">手动录入表单</label>
+		
+		 
+		&nbsp; <span id="amr"><a href="?A=E&ModeID=<%= Request.QueryString("ModeID") %>&def=1&umr=<%=request("umr")%>">载入默认</a></span>
+		
+		 
+		</td>
+    </tr>
+    <tr id="adminmbs" 
+	<%If adminmb=0 Then echo "style=""DISPLAY: none"""%>
+	>
+      <td height="25" colspan="2" align="center" >
+	  
+        <textarea name="admintemplatevalue" style="width:98%" rows="10"><%=admintemplatevalue%></textarea>	  </td>
+    </tr>
+
+
+    <tr>
+      <td height="25" align="right" >前台投稿表单模板：</td>
+      <td height="25" > 
+	  <input <% IF usermb = 0 Then echo "Checked" %> id="usermb1" type="radio" name="usermb" value="0"  onclick="usermbq(0)"  />
+        <label for="usermb1">自动录入表单</label>
+
+        <input  <% IF usermb = 1 Then echo "Checked" %> id="usermb2"  type="radio" name="usermb" value="1"  onclick="usermbq(1)"  />
+        <label for="usermb2">手动录入表单</label>
+		 
+		&nbsp;<span id="umr"><a href="?A=E&ModeID=<%= Request.QueryString("ModeID") %>&umr=1&umrdef=<%=request("umrdef")%>">载入默认</a></span>
+		 
+		</td>
+    </tr>
+    <tr id="usermbs" <%If usermb=0 Then echo "style=""DISPLAY: none"""%>
+	>
+      <td height="25" colspan="2" align="center" >
+	  <textarea name="usertemplatevalue" style="width:98%" rows="10"><%=usertemplatevalue%></textarea>	  </td>
+    </tr>
+
+<!--  -->
+
+    <tr>
+      <td height="25" align="right" >语言包：<br />注意.翻译的名称不能带有 = 符号</td>
+      <td height="25" > 
+	  <textarea name="languagecontent" style="width:98%" rows="10"><%=languagecontent%></textarea>	
+		 
+		</td>
+    </tr>
+   
+    <tr>
+      <td align="right" >&nbsp;</td>
+      <td ><input type=button onclick=CheckForm() class="ACT_btn"  name=Submit1 value="  保存  " />
+      <input type="reset" name="Submit2" class="ACT_btn" value="  重置  " /></td>
+    </tr>
+  </table>
+</form><br>
+<script language="JavaScript" type="text/javascript">
+		function adminmbq(q)
+				{ if (q==0)
+				  {
+					 adminmbs.style.display="none";
+					 amr.style.display="none";
+				  }
+				  else
+					{
+			    	adminmbs.style.display="";
+			    	amr.style.display="";
+
+					 }
+				}
+
+		function usermbq(q)
+				{ if (q==0)
+				  {
+					 usermbs.style.display="none";
+					 umr.style.display="none";
+ 				  }
+				  else
+					{
+			    	usermbs.style.display="";
+			    	umr.style.display="";
+
+					 }
+				}
+
+ 
+		function languageq(q)
+				{ if (q==0)
+				  {
+					  languages.style.display="none";
+					 languager.style.display="none";
+ 				  }
+				  else
+					{
+			    	languages.style.display="";
+			    	languager.style.display="";
+
+					 }
+				}
+				
+function CheckForm()
+{ var form=document.form1;
+	
+	 if (form.ModeName.value=='')
+		{ alert("请输入模型名称!");   
+		  form.ModeName.focus();    
+		   return false;
+		} 
+	 if (form.ModeTable.value=='')
+		{ alert("请输入数据表名称!");   
+		  form.ModeTable.focus();    
+		   return false;
+		} 	    form.Submit1.value="正在提交数据,请稍等...";
+		form.Submit1.disabled=true;
+		form.Submit2.disabled=true;		
+	    form.submit();
+        return true;
+	}
+	function OpenWindowAndSetValue(Url,Width,Height,WindowObj,SetObj)
+{
+	var ReturnStr=showModalDialog(Url,WindowObj,'dialogWidth:'+Width+'pt;dialogHeight:'+Height+'pt;status:yes;help:no;scroll:yes;');
+	if (ReturnStr!='') SetObj.value=ReturnStr;
+	return ReturnStr;
+}	
+
+</script>
+<script language="javascript">usermbq(<%=umrdef%>);</script>
+<script language="javascript">adminmbq(<%=def%>);</script>
+ 
+<% end sub  %>
+<script language="JavaScript" type="text/javascript">
+function overColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg1"
+		Obj.bgColor="";
+	}
+	
+}
+function outColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg";
+		Obj.bgColor="";
+	}
+}
+</script>
+
+</body>
+</html>

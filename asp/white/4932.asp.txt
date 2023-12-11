@@ -1,0 +1,9 @@
+<!--#include file="conn.asp"-->
+<!--#include file="../SK_Session.asp"-->
+<!--#include file="function.asp"-->
+<!--#include file="SK_Funcls.asp"-->
+<!--#include file="ubbcode.asp"-->
+<%
+dim Skcj
+Set Skcj= New FunCls
+%>

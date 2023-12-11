@@ -1,0 +1,90 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="author" content="Chomo" />
+<meta http-equiv="X-UA-Compatible" content="IE=7">
+<title>登陆页面</title>
+<link rel="stylesheet" type="text/css" href="css/login/tripoli.simple.css" media="screen, projection, print">
+<link rel="stylesheet" type="text/css" href="css/login/base.css" media="screen, projection, print">
+<link rel="stylesheet" type="text/css" href="css/login/layout.css" media="screen, projection, print">
+<link rel="stylesheet" type="text/css" href="css/login/style.css" media="screen, projection, print">
+<link rel="stylesheet" type="text/css" href="css/login/theme.css" media="screen, projection, print">
+<link rel="stylesheet" type="text/css" href="css/login/icons.css" media="screen, projection, print">
+<script type="text/javascript" src="css/login/jquery.min.js"></script>
+<link rel="stylesheet" type="text/css" href="css/login/js.css" media="screen, projection, print">
+<link href="${contextPath}/css/css.css" rel="stylesheet" type="text/css" />
+<link href="${contextPath}/css/validator/validator.css"  rel="stylesheet" type="text/css"></link>
+</head>
+<script type="text/javascript">
+//layout.js等多个自定义js中会使用到此变量
+var imagesBasePath = '${imagesBasePath}';
+var contextPath = '${contextPath}';
+</script>
+<body class="bodybg"><div align="left"><br /></div><div align="left"> 
+	<!-- Content --> 
+	</div><div id="login" class="content">	
+		<div class="roundedBorders login-box">
+			<!-- Title -->
+			<div id="title" class="b2">
+				<h2>登&nbsp;&nbsp;录</h2>
+				<!-- TitleActions -->
+				<div id="titleActions">
+					<div class="actionBlock">
+					<a href="#">忘记密码 ?</a>
+					</div>
+				</div>
+				<!-- /TitleActions -->
+			</div>
+			<!-- Title -->
+	
+			<!-- Inner Content -->
+			<div id="innerContent">
+				<form  method="post" id="loginFrom">
+					<div class="field">
+						<label for="loginName">用户</label>
+						<input type="text" class="text" id="username" name="loginName" >
+					</div>
+					<div class="field">
+						<label for="password">密码</label>
+						<input type="password" class="text" id="password" name="password" >
+					</div>
+					<div class="clearfix login-submit">
+						<span class="fleft">
+							<input type="checkbox" name="remember-me" id="remember-me">
+							<label for="remember-me">记住我</label>
+						</span>
+						<span class="fright">
+							<button class="button" type="submit" id="submit"><strong>确定</strong></button>
+						</span>
+					</div>
+				</form>
+			</div>
+			<!-- /Inner Content -->
+			<div class="bBottom"><div></div></div>
+		</div>
+	</div>
+
+<script>
+$(document).ready(function(){
+$("#submit").bind("click",submit);
+ document.onkeydown=keyListener;
+});
+function submit(){
+var formObj = $("#loginFrom");
+url="${contextPath}/loginAction.do";
+	formObj.attr("action",url);
+	formObj.submit();
+}
+//监听回车
+function keyListener(e){
+    e = e ? e :event;
+    if(e.keyCode == 13){
+    	submit();
+    }
+}
+</script>
+</body>  
+</html>

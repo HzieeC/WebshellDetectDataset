@@ -1,0 +1,66 @@
+<%@ page contentType="text/html; charset=GBK" isELIgnored="false" %>
+<%@ page import="java.util.ArrayList,connections.DaoGG,javaBean.BeanGG" %>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>免费者内容管理系统-管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<table border=0 align=center cellpadding=2 cellspacing=1 class=tableBorder>
+  <tr>
+    <th><a href='admin_admanage.asp' Class=showtitle><strong>广告管理</strong></a></th></tr>
+  <tr height=25>
+    <td class=TableRow1><B>说明：</B><br> 
+①、本系统所有广告代码都将生成JS文件，文件位于/adfile/目录下面.<br>
+②、你可以任意增加广告位,然后在模板的相应位置调用此JS文件即可。
+    </td>
+  </tr>
+</table>
+<br>
+<table border=0 align=center cellpadding=3 cellspacing=1 class=tableborder>
+<tr>
+	<th width='20%' nowrap>网站名称</th>
+	<th width='50%'>广告调用JS代码</th>
+	<th width='10%' nowrap> 广告性质 </th>
+	<th width='20%' nowrap> 操作选项 </th>
+</tr>
+<%
+	DaoGG dao=new DaoGG();
+	ArrayList alist=dao.selAll();
+	BeanGG bean=null;
+	for(int i=0;i<alist.size();i++){
+		bean=(BeanGG)alist.get(i);
+%>
+<tr>	<td class=TableRow2><a href='<%=url%>/servletsads?action=edit&id=<%=bean.getId()%>' title='点击此处修改该广告'>
+	<%if(bean.getWebName().length()>10){
+		String frist=bean.getWebName().substring(0,10);	
+		String end=bean.getWebName().substring(10,bean.getWebName().length());
+		out.println(frist+"<br/>"+end);
+}else{
+	out.println(bean.getWebName());
+}%></a></td>	
+
+<td align=center class=TableRow2><xmp><%=bean.getJs()%></xmp></td>
+
+<td align=center nowrap class=TableRow2><%=bean.getBoardid()%></a><br><font color=blue><%=bean.getFlag()%></font></td>
+	<td align=center class=TableRow2><a href='<%=url%>/servletsads?action=edit&id=<%=bean.getId()%>'>编辑广告</a>
+	<a href='<%=url%>/servletsads?action=del&id=<%=bean.getId()%>' onclick="{if(confirm('广告删除后将不能恢复，您确定要删除该广告吗?')){return true;}return false;}">删除广告</a></td>
+</tr>
+<%}%>
+
+
+</table><br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

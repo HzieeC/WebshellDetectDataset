@@ -1,0 +1,216 @@
+<%@ page language="java" pageEncoding="UTF-8"%>
+<%@ page import="org.springframework.security.context.SecurityContextHolder"%>
+<%@ page import="com.huigao.pojo.Users"%>
+<%@ taglib prefix='c' uri='http://java.sun.com/jsp/jstl/core' %>
+<%
+	String path = request.getContextPath();
+	String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
+%>
+<HTML>
+	<HEAD>
+		<base href="<%=basePath%>">
+    	<title>WeTogether员工考勤管理及任务管理系统1.0登录页面</title>
+		<link rel="shortcut icon" href="favicon.ico" />
+		<link rel="Bookmark" href="favicon.ico" />
+		<LINK href="css/global.css" type=text/css rel=STYLESHEET>
+		<style type="text/css">
+			<!--
+			.STYLE1 {
+				color: #000000;
+				font-weight: bold;
+			}
+			-->
+			a:link {text-decoration: underline;}
+			a:visited {text-decoration: underline;}
+			a:hover {text-decoration: underline;}
+			a:active {text-decoration: underline;}
+			
+		</style>
+		<script>
+			function check(){
+				var frm = document.form1;
+				if(frm.j_username.value==""){
+					alert("用户名不能为空!");
+					document.form1.j_username.focus();
+					return false;
+				}else if(frm.j_password.value==""){
+				    alert("登录密码不能为空!");
+				    frm.j_password.focus();
+				    return false;
+				}else {
+					return true;
+				}
+			}
+		</script>
+	</HEAD>
+	<BODY bgColor=#ffffff leftMargin=0 topMargin=0 rightMargin=0 marginheight="0" marginwidth="0" onload="javascript:document.form1.j_username.focus();">
+		<CENTER>
+			<DIV style="WIDTH: 100%; BACKGROUND-COLOR: #ffffff">
+				<IMG height=3 src="images/spacer.gif" width=1>
+				<BR>
+				<TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+					<TBODY>
+						<TR>
+							<TD vAlign=top align="center">
+								<TABLE id=mouseovers cellSpacing=0 cellPadding=0 width="776"
+									border=0>
+									<TBODY>
+										<TR>
+											<TD vAlign=top noWrap align=center height=60></TD>
+										</TR>
+									</TBODY>
+								</TABLE>
+							</TD>
+						</TR>
+						<TR>
+							<TD align="center" bgColor="#ffffff" colSpan=4 height=3>
+								<IMG height=10 src="images/spacer.gif" width=1>
+							</TD>
+						</TR>
+					</TBODY>
+				</TABLE>
+			</DIV>
+			<DIV id=content>
+				<DIV class=module_darkgray>
+					<DIV class=bottomedge_darkgray>
+						<DIV class=topleft_darkgray></DIV>
+						<DIV class=topright_darkgray></DIV>
+						<DIV class=moduleborder>
+							<DIV class=module_inset_darkgray>
+								<DIV class=bottomedge_inset_darkgray>
+									<DIV class=topleft_inset_darkgray></DIV>
+									<DIV class=topright_inset_darkgray></DIV>
+									<DIV style="LEFT: 735px; PADDING-TOP: 5px; POSITION: absolute">
+										<IMG height=20 src="images/white_lock.gif" width=14 border=0>
+									</DIV>
+									<DIV style="PADDING-LEFT: 35px; PADDING-BOTTOM: 20px; PADDING-TOP: 40px; align: left; font-size: 20;font-family: '幼圆'"><img src="images/xietong.gif">WeTogether员工考勤管理及任务管理系统1.0</DIV>
+									<DIV style="PADDING-RIGHT: 15px; PADDING-LEFT: 35px">
+										<TABLE cellSpacing=0 cellPadding=0 width=689 border=0>
+											<TBODY>
+												<TR>
+													<TD style="PADDING-RIGHT: 20px" width=318>
+														<TABLE cellSpacing=0 cellPadding=0 border=0>
+															<TBODY>
+																<TR>
+																	<TD style="MARGIN-BOTTOM: 10px" vAlign=top>
+																		<strong>用户登录</strong>
+																	</TD>
+																</TR>
+																<TR>
+																	<TD class=content_gray_bold>请输入您的用户名和密码登录系统。</TD>
+																</TR>
+															</TBODY>
+														</TABLE>
+														<!-- Begin Form -->
+														<form method="post" action="j_spring_security_check" name="form1" onsubmit="return check()">
+															<TABLE cellSpacing=0 cellPadding=0 width=318 border=0>
+																<TBODY>
+																	<TR>
+																		<TD height=15>
+																		</TD>
+																	</TR>
+																	<TR>
+																		<TD align=left>
+																			<SPAN class=content_black_bold>用户名</SPAN>
+																			<BR>
+																			<FONT class=form>
+																			<INPUT class=form value="${SPRING_SECURITY_LAST_USERNAME}" size="25" name="j_username" id="j_username"></FONT>
+																			<font color="red">${param.error=='true'? '用户名或密码错误' : ''}</font>
+																		</TD>
+																	</TR>
+																	<TR>
+																		<TD height=8>
+																		</TD>
+																	</TR>
+																	<TR>
+																		<TD align=left>
+																			<SPAN class=content_black_bold>密码</SPAN>
+																			<BR>
+																			<FONT class=form>
+																			<INPUT class=form value="${users.password}" type="password" name="j_password" id="j_password" size="25">
+																			</FONT>
+																		</TD>
+																	</TR>
+																	<TR>
+																		<TD height=10>
+																			<IMG height=10 alt="" src="images/spacer.gif" width=1 border=0 />
+																		</TD>
+																	</TR>
+																	<tr>  
+															            <td colspan="2"><input type="checkbox" name="_spring_security_remember_me">保存密码 
+															            &nbsp;&nbsp;
+															            </td>  
+															        </tr> 
+																	<TR>
+																		<TD colspan="2" noWrap align=right>
+																			<span style="padding-right: 20px;"><input type="submit" value="提  交"/></span>
+																		</TD>
+																	</TR>
+																</TBODY>
+															</TABLE>
+														</form>
+													</TD>
+													<!-- End Form -->
+													<TD vAlign=top>
+														<TABLE cellSpacing=0 cellPadding=0 border=0>
+															<TBODY>
+																<TR>
+																	<TD style="BACKGROUND-COLOR: #e3e3e3" width=2
+																		height=200></TD>
+																</TR>
+															</TBODY>
+														</TABLE>
+													</TD>
+													<TD style="PADDING-LEFT: 30px" vAlign=top width=318>
+														<!-- Message 2 -->
+														<TABLE cellSpacing=0 cellPadding=0 border=0>
+															<TBODY>
+																<TR>
+																	<TD class=content_gray vAlign=top>
+																		<embed width="330" height="152" src="images/banner.swf" menu="false" />
+																		<br/>
+																		为了更合理的管理公司,让公司有良好的规章制度
+																		<br />
+																		促进公司健康良好的发展.
+																		<br />
+																		<br />
+																	</TD>
+																</TR>
+															</TBODY>
+														</TABLE>
+													</TD>
+												</TR>
+											</TBODY>
+										</TABLE>
+									</DIV>
+								</DIV>
+							</DIV>
+						</DIV>
+					</DIV>
+				</DIV>
+			</DIV>
+			<DIV>
+				<TABLE cellSpacing=0 cellPadding=0 width=776 align=center border=0>
+					<TBODY>
+						<TR>
+							<TD vAlign=top align="center" width=776><img src="images/spider.gif" style="margin-bottom:-5px;">蜘蛛工作室出品&nbsp; &nbsp;<img src="images/logo.gif" style="margin-bottom:-5px;"><a href="http://www.zhzhcn.cn/" > 汇高网讯科技（北京）有限公司</a>版权所有&nbsp;&nbsp;<a href="<%=path %>/copyRight/copyRight.html">版权声明</a></TD>
+						</TR>
+					</TBODY>
+				</TABLE>
+			</DIV>
+			<!-- END content_gray -->
+			<TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+				<TBODY>
+					<TR>
+						<TD align="center">
+							<FONT class=disclaimer face="Geneva, Verdana, Arial, Helvetica"
+								color=#999999 size=1>©&nbsp;Copyright 2008-2009  </FONT>
+							<BR>
+							<BR>
+						</TD>
+					</TR>
+				</TBODY>
+			</TABLE>
+		</CENTER>
+	</BODY>
+</HTML>

@@ -1,0 +1,887 @@
+<%@ CODEPAGE=65001 %>
+<%
+'///////////////////////////////////////////////////////////////////////////////
+'//              Z-Blog
+'// 作    者:    朱煊&Sipo
+'// 版权所有:    RainbowSoft Studio
+'// 技术支持:    rainbowsoft@163.com
+'// 程序名称:    
+'// 程序版本:    
+'// 单元名称:   自动安装脚本
+'// 开始时间:   2006-8-17
+'// 最后修改:    
+'// 备    注:    
+'///////////////////////////////////////////////////////////////////////////////
+%>
+<% Option Explicit %>
+<% On Error Resume Next %>
+<% Response.Charset="UTF-8" %>
+<%Response.Buffer=False
+Sub ErrorHandle
+On Error Resume Next
+Response.CodePage=65001
+Err.Clear
+End Sub
+Call ErrorHandle
+
+Const ZB_VERSION="1.8 Walle Build 100427"
+
+'--------------------------------------------------------------------
+Const adOpenForwardOnly=0
+Const adOpenKeyset=1
+Const adOpenDynamic=2
+Const adOpenStatic=3
+
+Const adLockReadOnly=1
+Const adLockPessimistic=2
+Const adLockOptimistic=3
+Const adLockBatchOptimistic=4
+
+Const ForReading=1
+Const ForWriting=2
+Const ForAppending=8
+
+Const adTypeBinary=1
+Const adTypeText=2
+
+Const adModeRead=1
+Const adModeReadWrite=3
+
+Const adSaveCreateNotExist=1
+Const adSaveCreateOverWrite=2
+'--------------------------------------------------------------------
+Public objConn
+
+Dim IsNeedUpdateDataBase
+Dim IsNeedCreateCustom
+Dim IsNeedCreateOption
+
+Dim BlogPath
+BlogPath=Server.MapPath("install.asp")
+BlogPath=Left(BlogPath,Len(BlogPath)-Len("install.asp"))
+
+Dim UpdateDataBaseMsg
+UpdateDataBaseMsg=""
+
+Dim fso2
+Set fso2=Server.CreateObject("Scripting.FileSystemObject")
+IF Not fso2.FileExists(BlogPath&"installzblog.xml") Then
+ Response.Write "没有找到安装包，请手动删除install.asp文件。"
+ Response.End
+End If
+Set fso2=Nothing
+
+'*********************************************************
+' 目的：    
+'*********************************************************
+Function DelXML()
+    Dim fso
+	set fso=Server.CreateObject("Scripting.FileSystemObject")
+    IF fso.FileExists(Blogpath&"installzblog.xml") Then
+    fso.DeleteFile Blogpath&"installzblog.xml",True
+    End If
+End Function
+'*********************************************************
+
+
+
+'*********************************************************
+' 目的：    
+'*********************************************************
+Function UpdateFiles()
+
+			On Error Resume Next
+
+			Dim strC_CUSTOM,strZC_BLOG_THEME
+			
+			Response.Write UpdateDataBaseMsg
+
+			Dim objXmlFile,objXmlFiles,i,item,objStream,objFSO,FileName,astrPath,ulngPath,strTmpPath,bytestr,objXmlfolder,BAKFolderName
+			Set objXmlFile = Server.CreateObject("Microsoft.XMLDOM")
+			objXmlFile.async=False
+			objXmlFile.load(BlogPath&"installzblog.xml")
+
+			Randomize
+			BAKFolderName=Year(Now) & Right("0"&Month(Now),2) & Right("0"&Day(Now),2) & Right("0"&Hour(Now),2) & Right("0"&Minute(Now),2) & Right("0"&Second(Now),2) & Int(9 * Rnd) & Int(9 * Rnd) & Int(9 * Rnd) & Int(9 * Rnd) & Right(FileName,Len(FileName)-InStrRev(FileName,".")+1)
+			
+			If objXmlFile.readyState=4 Then
+				If objXmlFile.parseError.errorCode = 0 Then
+				
+					Set objXmlfolder=objXmlFile.documentElement.SelectNodes("folder")
+					Set objFSO = Server.CreateObject("Scripting.FileSystemObject") 
+					for each item in objXmlfolder
+						If Not objFSO.FolderExists(BlogPath&item.selectSingleNode("path").text) Then 
+							objFSO.CreateFolder(BlogPath&item.selectSingleNode("path").text) 
+							Response.Write "创建 " & item.selectSingleNode("path").text & vbCrlf
+						End If 
+					next
+					Set objFSO =Nothing
+					Set objXmlfolder=Nothing
+
+					Set objXmlFiles=objXmlFile.documentElement.SelectNodes("files")
+					for each item in objXmlFiles
+					Set objStream = CreateObject("ADODB.Stream")
+						With objStream
+						.Type = 1
+						.Mode = 3
+						.Open
+						.Write item.selectSingleNode("content").nodeTypedvalue
+							If instr(item.selectSingleNode("path").text,"c_custom.asp")>0 Then
+								If IsNeedCreateCustom=True Then
+									.SaveToFile BlogPath & item.selectSingleNode("path").text,2
+								End If
+							ElseIf instr(item.selectSingleNode("path").text,"c_option.asp")>0 Then
+								If IsNeedCreateOption=True Then
+									.SaveToFile BlogPath & item.selectSingleNode("path").text,2
+								Else
+									Dim tmpSng
+									tmpSng=LoadFromFile(BlogPath & "c_option.asp","utf-8")
+									Call SaveValueForSetting(tmpSng,True,"String","ZC_BLOG_VERSION",ZB_VERSION)
+									Call SaveToFile(BlogPath & "c_option.asp",tmpSng,"utf-8",false)
+								End If
+							ElseIf InStr(item.selectSingleNode("path").text,"\THEMES\default\TEMPLATE\")>0 Then
+								Set objFSO=Server.CreateObject("Scripting.FileSystemObject")
+								Call LoadValueForSetting(LoadFromFile(BlogPath & "c_custom.asp","utf-8"),True,"String","ZC_BLOG_THEME",strZC_BLOG_THEME)
+								If (strZC_BLOG_THEME<>"default") Or (Not objFSO.FileExists(BlogPath & item.selectSingleNode("path").text)) Then
+									.SaveToFile BlogPath & item.selectSingleNode("path").text,2
+								End If
+							ElseIf instr(item.selectSingleNode("path").text,"\PLUGIN\Totoro\include.asp")>0 Then
+								If (IsNeedCreateOption=True) Or (Not objFSO.FileExists(BlogPath & item.selectSingleNode("path").text)) Then
+									.SaveToFile BlogPath & item.selectSingleNode("path").text,2
+								End If
+							ElseIf instr(item.selectSingleNode("path").text,"p_include.asp")>0 Then
+								If IsNeedCreateOption=True Then
+									.SaveToFile BlogPath & item.selectSingleNode("path").text,2
+								End If
+							ElseIf instr(item.selectSingleNode("path").text,"p_theme.asp")>0 Then
+								If IsNeedCreateOption=True Then
+									.SaveToFile BlogPath & item.selectSingleNode("path").text,2
+								End If
+							ElseIf instr(item.selectSingleNode("path").text,"zblog.mdb")>0 Then
+								If IsNeedCreateCustom=True Then
+									.SaveToFile BlogPath & item.selectSingleNode("path").text,2
+								End If
+							ElseIf instr(item.selectSingleNode("path").text,"INCLUDE\")>0 Then
+								Set objFSO=Server.CreateObject("Scripting.FileSystemObject")
+								If Not objFSO.FileExists(BlogPath & item.selectSingleNode("path").text) Then 
+									.SaveToFile BlogPath & item.selectSingleNode("path").text,2
+								End If 
+							Else
+							'其他覆盖
+								.SaveToFile BlogPath & item.selectSingleNode("path").text,2
+							End If
+						Response.Write "释放 " & item.selectSingleNode("path").text & vbCrlf
+						.Close
+						End With
+						Set objStream = Nothing
+					next
+					Set objXmlFile=Nothing
+					
+					Response.Write "安装完成!"
+					
+					UpdateFiles=True
+				Else
+					Response.Write "文件包出错"
+				End If
+			End If
+			
+End Function
+'*********************************************************
+
+
+
+'*********************************************************
+' 目的：    
+'*********************************************************
+Function UpdateCustom()
+
+	Dim tmpSng
+	Dim objFSO
+	Set objFSO=Server.CreateObject("Scripting.FileSystemObject")
+	If objFSO.FileExists(BlogPath & "c_custom.asp") Then
+
+		tmpSng=LoadFromFile(BlogPath & "/c_custom.asp","utf-8")
+		If InStr(tmpSng,"ZC_BLOG_THEME")=0 Then
+			tmpSng=Replace(tmpSng,"%"&">","Const ZC_BLOG_THEME=""default"""&vbCrlf&"%"&">",1,1,1)
+			Call SaveValueForSetting(tmpSng,True,"String","ZC_BLOG_CSS","default2")
+			Call SaveToFile(BlogPath & "/c_custom.asp",tmpSng,"utf-8",false)
+		End If
+	End If 
+
+End Function
+'*********************************************************
+
+
+
+
+
+'*********************************************************
+' 目的：    Load Value For Setting
+'*********************************************************
+Function LoadValueForSetting(strContent,bolConst,strTypeVar,strItem,ByRef strValue)
+
+	Dim i,j,s,t
+	Dim strConst
+	Dim objRegExp
+	Dim Matches,Match
+
+	If bolConst=True Then strConst="Const"
+
+	Set objRegExp=New RegExp
+	objRegExp.IgnoreCase =True
+	objRegExp.Global=True
+
+
+	If strTypeVar="String" Then
+
+		objRegExp.Pattern="(^|\r\n|\n)(( *)" & strConst & "( *)" & strItem & "( *)=( *))(.+?)(\r\n|\n|$)"
+		Set Matches = objRegExp.Execute(strContent)
+		If Matches.Count=1 Then
+
+			t=Matches(0).Value
+			t=Replace(t,VbCrlf,"")
+			t=Replace(t,Vblf,"")
+			objRegExp.Pattern="( *)""(.*)""( *)($)"
+			Set Matches = objRegExp.Execute(t)
+
+			If Matches.Count>0 Then
+
+				s=Trim(Matches(0).Value)
+				s=Mid(s,2,Len(s)-2)
+				s=Replace(s,"""""","""")
+				strValue=s
+
+				LoadValueForSetting=True
+				Exit Function
+
+			End If
+		End If
+
+	End If
+
+	If strTypeVar="Boolean" Then
+
+		objRegExp.Pattern="(^|\r\n|\n)(( *)" & strConst & "( *)" & strItem & "( *)=( *))([a-z]+)( *)(\r\n|\n|$)"
+		Set Matches = objRegExp.Execute(strContent)
+		If Matches.Count=1 Then
+			t=Matches(0).Value
+			t=Replace(t,VbCrlf,"")
+			t=Replace(t,Vblf,"")
+			objRegExp.Pattern="( *)((True)|(False))( *)($)"
+			Set Matches = objRegExp.Execute(t)
+
+			If Matches.Count>0 Then
+
+				s=Trim(Matches(0).Value)
+				s=LCase(Matches(0).Value)
+				If InStr(s,"true")>0 Then
+					strValue=True
+				ElseIf InStr(s,"false")>0 Then
+					strValue=False
+				End If
+
+				LoadValueForSetting=True
+				Exit Function
+
+			End If
+		End If
+
+	End If
+
+	If strTypeVar="Numeric" Then
+
+		objRegExp.Pattern="(^|\r\n|\n)(( *)" & strConst & "( *)" & strItem & "( *)=( *))([0-9.]+)( *)(\r\n|\n|$)"
+		Set Matches = objRegExp.Execute(strContent)
+		If Matches.Count=1 Then
+			t=Matches(0).Value
+			t=Replace(t,VbCrlf,"")
+			t=Replace(t,Vblf,"")
+			objRegExp.Pattern="( *)([0-9.]+)( *)($)"
+			Set Matches = objRegExp.Execute(t)
+
+			If Matches.Count>0 Then
+
+				s=Trim(Matches(0).Value)
+				If IsNumeric(s)=True Then
+
+					strValue=s
+
+					LoadValueForSetting=True
+					Exit Function
+
+				End If
+
+			End If
+		End If
+
+	End If
+
+	LoadValueForSetting=False
+
+End Function
+'*********************************************************
+
+
+'*********************************************************
+' 目的：    Save Value For Setting
+'*********************************************************
+Function SaveValueForSetting(ByRef strContent,bolConst,strTypeVar,strItem,strValue)
+
+	Dim i,j,s,t
+	Dim strConst
+	Dim objRegExp
+
+	If bolConst=True Then strConst="Const"
+
+	Set objRegExp=New RegExp
+	objRegExp.IgnoreCase =True
+	objRegExp.Global=True
+
+	If strTypeVar="String" Then
+
+		strValue=Replace(strValue,"""","""""")
+		strValue=""""& strValue &""""
+
+		objRegExp.Pattern="(^|\r\n|\n)(( *)" & strConst & "( *)" & strItem & "( *)=( *))(.+?)(\r\n|\n|$)"
+		If objRegExp.Test(strContent)=True Then
+			strContent=objRegExp.Replace(strContent,"$1$2"& strValue &"$8")
+			SaveValueForSetting=True
+			Exit Function
+		End If
+
+	End If
+
+	If strTypeVar="Boolean" Then
+
+		strValue=Trim(strValue)
+		If LCase(strValue)="true" Then
+			strValue="True"
+		Else
+			strValue="False"
+		End If
+
+		If objRegExp.Test(strContent)=True Then
+			objRegExp.Pattern="(^|\r\n|\n)(( *)" & strConst & "( *)" & strItem & "( *)=( *))([a-z]+)( *)(\r\n|\n|$)"
+			strContent=objRegExp.Replace(strContent,"$1$2"& strValue &"$9")
+			SaveValueForSetting=True
+			Exit Function
+		End If
+
+
+	End If
+
+	If strTypeVar="Numeric" Then
+
+		strValue=Trim(strValue)
+		If IsNumeric(strValue)=False Then
+			strValue=0
+		End If
+
+		If objRegExp.Test(strContent)=True Then
+			objRegExp.Pattern="(^|\r\n|\n)(( *)" & strConst & "( *)" & strItem & "( *)=( *))([0-9.]+)( *)(\r\n|\n|$)"
+			strContent=objRegExp.Replace(strContent,"$1$2"& strValue &"$9")
+			SaveValueForSetting=True
+			Exit Function
+		End If
+
+	End If
+
+	SaveValueForSetting=False
+
+End Function
+'*********************************************************
+
+
+
+'*********************************************************
+' 目的：    Load Text form File
+' 输入：    
+' 输入：    
+' 返回：    
+'*********************************************************
+Function LoadFromFile(strFullName,strCharset)
+
+	On Error Resume Next
+
+	Dim objStream
+
+	Set objStream = Server.CreateObject("ADODB.Stream")
+	With objStream
+	.Type = adTypeText
+	.Mode = adModeReadWrite
+	.Open
+	.Charset = strCharset
+	.Position = objStream.Size
+	.LoadFromFile strFullName
+	LoadFromFile=.ReadText
+	.Close
+	End With
+	Set objStream = Nothing
+
+	Err.Clear
+
+End Function
+'*********************************************************
+
+
+'*********************************************************
+' 目的：    Save Text to File
+' 输入：    
+' 输入：    
+' 返回：    
+'*********************************************************
+Function SaveToFile(strFullName,strContent,strCharset,bolRemoveBOM)
+
+	On Error Resume Next
+
+	Dim objStream
+
+	Set objStream = Server.CreateObject("ADODB.Stream")
+	With objStream
+	.Type = adTypeText
+	.Mode = adModeReadWrite
+	.Open
+	.Charset = strCharset
+	.Position = objStream.Size
+	.WriteText = strContent
+	.SaveToFile strFullName,adSaveCreateOverWrite
+	.Close
+	End With
+	Set objStream = Nothing
+
+	Err.Clear
+
+End Function
+'*********************************************************
+
+
+Function UpdateDateBase()
+
+	If IsNeedUpdateDataBase=False Then Exit Function
+
+	Dim tmpSng
+	Dim ZC_DATABASE_PATH
+	tmpSng=LoadFromFile(BlogPath & "/c_custom.asp","utf-8")
+	Call LoadValueForSetting(tmpSng,True,"String","ZC_DATABASE_PATH",ZC_DATABASE_PATH)
+	Dim strDbPath
+	strDbPath=BlogPath & ZC_DATABASE_PATH
+	
+	Set objConn = Server.CreateObject("ADODB.Connection")
+	objConn.Open "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDbPath
+	
+	If Not CheckUpdateDB("[log_IsTop]","[blog_Article]") Then
+		objConn.execute("ALTER TABLE [blog_Article] ADD COLUMN [log_IsTop] YESNO DEFAULT FALSE")
+		objConn.execute("UPDATE [blog_Article] SET [log_IsTop]=FALSE")
+	End If
+
+	If Not CheckUpdateDB("[log_Tag]","[blog_Article]") Then
+		objConn.execute("ALTER TABLE [blog_Article] ADD COLUMN [log_Tag] VARCHAR(255)")
+	End If
+
+	If Not CheckUpdateDB("[tag_ID]","[blog_Tag]") Then
+		objConn.execute("CREATE TABLE [blog_Tag] (tag_ID AutoIncrement primary key,tag_Name VARCHAR(255),tag_Intro text,tag_ParentID int,tag_URL VARCHAR(255),tag_Order int,tag_Count int)")
+	End If
+
+	If Not CheckUpdateDB("[coun_ID]","[blog_Counter]") Then
+		objConn.execute("CREATE TABLE [blog_Counter] (coun_ID AutoIncrement primary key,coun_IP VARCHAR(20),coun_Agent text,coun_Refer VARCHAR(255),coun_PostTime TIME DEFAULT Now())")
+	End If
+
+	If Not CheckUpdateDB("[key_ID]","[blog_Keyword]") Then
+		objConn.execute("CREATE TABLE [blog_Keyword] (key_ID AutoIncrement primary key,key_Name VARCHAR(255),key_Intro text,key_URL VARCHAR(255))")
+	End If
+
+	If Not CheckUpdateDB("[ul_Quote]","[blog_UpLoad]") Then
+		objConn.execute("ALTER TABLE [blog_UpLoad] ADD COLUMN [ul_Quote] VARCHAR(255)")
+		objConn.execute("ALTER TABLE [blog_UpLoad] ADD COLUMN [ul_DownNum] int DEFAULT 0")
+	End If
+
+	UpdateDataBaseMsg= "数据库升级成功" & vbcrlf
+
+	Dim objRS,log_Intro,log_Content,log_ID
+	Set objRS=objConn.Execute("SELECT [log_ID],[log_Intro],[log_Content] FROM [blog_Article] WHERE [log_Intro] LIKE '%UPLOAD%' OR [log_Content] LIKE '%UPLOAD%' ")
+	If (Not objRS.bof) And (Not objRS.eof) Then
+		Do While Not objRS.EOF
+			log_ID=Update_Replace16betaUploadStr(objRS("log_ID"))
+			log_Intro=Update_Replace16betaUploadStr(objRS("log_Intro"))
+			log_Content=Update_Replace16betaUploadStr(objRS("log_Content"))
+			objConn.Execute("UPDATE [blog_Article] SET [log_Intro]='"&FilterSQL(log_Intro)&"',[log_Content]='"&FilterSQL(log_Content)&"' WHERE [log_ID]="&log_ID)
+		objRS.MoveNext
+		Loop
+	End If
+	Set objRS=Nothing
+
+	objConn.Close
+	Set objConn=Nothing	
+End Function
+
+
+'*********************************************************
+' 目的：    
+'*********************************************************
+Function Update_Replace16betaUploadStr(str)
+		Dim objRegExp,Matches,i,FileID,objRS,tmpstr
+		Set objRegExp = New RegExp
+                objRegExp.IgnoreCase = True
+                objRegExp.Global = True
+                objRegExp.Pattern = "\[UPLOAD=(\d+)\]"
+		Set Matches = objRegExp.Execute(Str)
+		For i = 0 To Matches.Count - 1
+                        FileID=Matches(i).SubMatches(0)
+			Set objRS=objConn.Execute("SELECT [ul_ID],[ul_FileName] FROM [blog_UpLoad] WHERE [ul_ID]="&FileID&" ")
+			If (Not objRS.bof) And (Not objRS.eof) Then tmpstr=objRS("ul_FileName")
+			Set objRS=Nothing
+			str=Replace(str,"[UPLOAD="&FileID&"]","<a href="""&ZC_BLOG_HOST&"upload/"&tmpstr&""">"&tmpstr&"</a>")
+			UpdateDataBaseMsg=UpdateDataBaseMsg&"完成由[UPLOAD="&FileID&"]--><a href="""&ZC_BLOG_HOST&"upload/"&tmpstr&""">"&tmpstr&"</a>的转换<br/>"
+        Next
+		Set Matches = Nothing
+		Set objRegExp=Nothing
+		Update_Replace16betaUploadStr=str
+End Function
+'*********************************************************
+
+
+'*********************************************************
+' 目的：    
+'*********************************************************
+Function CheckUpdateDB(a,b)
+	Err.Clear
+	On Error Resume Next
+	Dim Rs
+	Set Rs=objConn.execute("SELECT "&a&" FROM "&b)
+	Set Rs=Nothing
+	If Err.Number=0 Then
+	CheckUpdateDB=True
+	Else
+	Err.Clear
+	CheckUpdateDB=False
+	End If	
+End Function
+'*********************************************************
+
+
+'*********************************************************
+' 目的：    检查引用
+' 输入：    SQL值（引用）
+' 返回：    
+'*********************************************************
+Function FilterSQL(strSQL)
+
+	FilterSQL=CStr(Replace(strSQL,chr(39),chr(39)&chr(39)))
+
+End Function
+'*********************************************************
+
+%><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-cn" lang="zh-cn">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta http-equiv="Content-Language" content="zh-cn" />
+	<meta http-equiv="pragma" content="no-cache">
+	<meta http-equiv="cache-control" content="no-cache,must-revalidate">
+	<meta http-equiv="expires" content="0">
+	<title>Z-Blog自动安装升级程序</title>
+<style type="text/css">
+<!--
+*{
+	font-size:12px;
+}
+body{
+	margin:0;
+	padding:0;
+	color: #000000;
+	font-size:12px;
+	background:#EDF5FB;
+	font-family:"宋体","黑体";
+}
+h1,h2,h3,h4,h5,h6{
+	font-size:18px;
+	padding:0;
+	margin:0;
+}
+a{
+	text-decoration: none;
+}
+a:link {
+	color:#0066CC;
+	text-decoration: none;
+}
+a:visited {
+	color:#0066CC;
+	text-decoration: none;
+}
+a:hover {
+	color:#FF7F50;
+	text-decoration: underline;
+}
+a:active {
+	color:#FF7F50;
+	text-decoration: underline;
+}
+p{
+	margin:0;
+	padding:5px;
+}
+table {
+	border-collapse: collapse;
+	border:1px solid #333333;
+	background:#ffffff;
+	margin-top:10px;
+}
+td{
+	border:1px solid #333333;
+	margin:0;
+	padding:3px;
+}
+img{
+	border:0;
+}
+hr{
+	border:0px;
+	border-top:1px solid #666666;
+	background:#666666;
+	margin:2px 0 4px 0;
+	padding:0;
+	height:0px;
+}
+img{
+	margin:0;
+	padding:0;
+}
+form{
+	margin:0;
+	padding:0;
+}
+
+
+#frmLogin{
+	position:absolute;
+	left: 50%;
+	top: 40%;
+	margin: -150px 0px 0px -300px;
+	padding:0;
+	overflow:hidden;
+	width:600px;
+	height:400px;
+	background-color:white;
+	border:1px solid #B3C3CD;
+}
+
+#frmLogin h3{
+	padding:12px 0 8px 0;
+	margin:1px 1px 0 1px;
+	text-align:center;
+	color:black;
+	background:#A1B0B9;
+	font-size:22px;
+	height:30px;
+}
+
+#divHeader{
+	background:#CFD9DF;
+	margin:0 1px 0 1px;
+	padding:8px;
+}
+#divMain{
+	height:300px;
+}
+#divFooter{
+	border-top:1px solid #A1B0B9;
+	margin:0 1px 0 1px;
+	text-align:center;
+	padding:2px;
+}
+
+#divMain_Top{
+	padding:8px;
+	padding-bottom:0;	
+}
+#divMain_Center{
+	padding:5px;
+}
+#divMain_Bottom{
+	text-align:right;
+	padding:5px;
+}
+#txaContent{
+	border:1px solid #A1B0B9;
+	background:#FFFFFF;
+}
+-->
+</style>
+</head>
+<body>
+
+
+<form id="frmLogin" method="post" action="install.asp?ok=true">
+<h3>Z-Blog <%=ZB_VERSION%> 自动安装程序</h3>
+<div id="divHeader"><a href="http://www.rainbowsoft.org/zblog/" target="_blank">Z-Blog主页</a> | <a href="http://bbs.rainbowsoft.org" target="_blank">Zblogger社区</a> | <a href="http://wiki.rainbowsoft.org/" target="_blank">Z-Wiki</a> | <a href="http://blog.rainbowsoft.org/" target="_blank">菠萝阁</a> | <a href="http://show.rainbowsoft.org/" target="_blank">菠萝秀</a> | <a href="http://download.rainbowsoft.org/" target="_blank">菠萝的海</a> | <a href="http://host.rainbowsoft.org/" target="_blank">DBS博客主机</a></div>
+<div id="divMain">
+<%
+Dim ok
+ok=Request.QueryString("ok")
+If TypeName(ok)="Empty" Then
+%>
+<div id="divMain_Top">Z-Blog软件最终用户许可协议:</div>
+<div id="divMain_Center">
+<textarea id="txaContent" readonly="readonly" style="width:585px;height:220px;">
+本《Z-Blog软件最终用户许可协议》（以下简称《协议》）是您与RainbowSoft Studio之间关于下载、安装、使用、复制Z-Blog软件的法律协议。本《协议》描述RainbowSoft Studio与您之间关于Z-Blog许可使用及相关方面的权利义务。
+
+请您仔细阅读本《协议》，用户可选择不使用Z-Blog，用户使用Z-Blog的行为将被视为对本《协议》全部内容的认可，并同意接受本《协议》各项条款的约束。
+
+1 知识产权声明
+
+1.1	Z-Blog是由RainbowSoft Studio的Z-Blog团队开发，表情图片由2S-SPACE STUDIO友情提供。Z-Blog的一切版权等知识产权，以及与Z-Blog相关的所有信息内容，包括但不限于：文字表述及其组合、商标、图标图饰、界面设计、版面框架、有关数据、印刷材料、电子文档等均受著作权法和国际著作权条约以及其他知识产权法律法规的保护。除了任何软件作者授权许可协议所提供的明确书面许可外，拥有本Z-Blog并不赋予您任何有关这些专利、商标、版权或其它知识产权的许可。
+
+2 Z-Blog授权范围
+
+2.1	对每份许可协议，用户可以在一台计算机、终端机、工作站或其他数字电子仪器（下简称“计算机”）上安装、使用、显示、运行本Z-Blog。
+2.2	保留权利：未明示授权的其他一切权利仍归RainbowSoft Studio所有，用户使用其他权利时须另外取得RainbowSoft Studio的书面同意。
+
+3 用户使用须知
+
+3.1	用户在遵守法律及本协议的前提下可依据本《协议》使用本Z-Blog。用户无权实施包括但不限于下列行为：
+3.1.1	不得删除本Z-Blog及其他副本上所有关于版权的信息、内容；
+3.1.2	对于本Z-Blog的源代码、文字、图片等相关信息，未经RainbowSoft Studio书面同意，用户不得借助Z-Blog发展与之有关的衍生产品、作品、服务，不得向任何第三方公开发布修改后的软件。
+3.1.3	用户不得利用本Z-Blog发表、传播、储存侵害他人知识产权、商业秘密权等合法权利的内容。
+3.2	本Z-Blog同大多数Blog系统一样，可能受到各种安全问题的侵扰。如：下载安装其它软件中含有“特洛伊木马”等病毒，威胁到用户计算机信息和数据的安全，继而影响本Z-Blog的正常使用等。用户应加强信息安全意识，注意加强密码保护以免遭致损失。
+3.3	用户自行下载、安装、使用非RainbowSoft Studio开发并正式发布的其它任何由本Z-Blog衍生的软件将可能导致不可预知的风险，建议用户不要轻易下载、安装、使用，由此产生的一切法律责任与纠纷一概与RainbowSoft Studio无关。
+3.4	RainbowSoft Studio保留在任何时候为您提供本Z-Blog的修改、升级版本的权利，以及为修改或升级服务收取费用的权利。
+
+4 法律责任与免责
+
+4.1	RainbowSoft Studio特别提请用户注意，RainbowSoft Studio拥有随时自行修改或中断软件授权而不需通知用户的权利，如有必要，修改或中断会以通告形式公布于RainbowSoft Studio网站重要页面上。
+4.2	用户违反本协议或相关的服务条款的规定，RainbowSoft Studio有权视用户的行为性质采取包括但不限于中断使用许可、停止提供服务、限制使用、法律追究等措施。同时，RainbowSoft Studio会视司法部门的要求，协助调查。
+4.3	使用本Z-Blog涉及到互联网服务因素，可能会受到各个环节不稳定因素的影响，存在因不可抗力、计算机病毒、黑客攻击、系统不稳定、用户所在位置、用户关机以及其他任何网络、技术、通信线路等原因造成的服务中断或不能满足用户要求的风险，用户须明白并自行承担以上风险。在适用法律允许的最大范围内，RainbowSoft Studio在任何情况下不就因使用或不能使用本Z-Blog产品及所发生的特殊的、意外的、非直接或间接的损失承担赔偿责任，即使用户已事先被RainbowSoft Studio告知该损害发生的可能性。
+4.4	用户因第三方如电信部门的通讯线路故障、技术问题、网络、电脑故障、系统不稳定性及其他各种不可抗力原因而遭受的经济损失，RainbowSoft Studio不承担责任。
+4.5	因技术故障等不可抗事件影响到服务的正常运行的，RainbowSoft Studio承诺在第一时间内与相关单位配合及时处理进行修复，但用户因此而遭受的经济损失，RainbowSoft Studio不承担责任。
+
+</textarea>
+</div>
+<%If IsEmpty(Request.QueryString("update")) Then%>
+<div id="divMain_Bottom">
+<input name="chkRemember" id="chkRemember" type="checkbox" onclick="if(this.checked==true){document.getElementById('btnUpt').disabled=false;document.getElementById('btnNew').disabled=false;}else{document.getElementById('btnUpt').disabled=true;document.getElementById('btnNew').disabled=true;}" /><label for="chkRemember">我已阅读并同意</label>&nbsp;&nbsp;
+<input class="button" id="btnUpt" disabled type="button" value="自动升级BLOG程序&gt;&gt;" onclick="window.location='install.asp?update'"/>
+&nbsp;&nbsp;
+<input class="button" id="btnNew"  disabled type="submit" value="全新安装BLOG程序&gt;&gt;"  onclick='return window.confirm("全新安装模式将覆盖您所有已存在文件并且不进行备份，按[确定]继续安装");'/>
+</div>
+<%Else%>
+<div id="divMain_Bottom">
+请选择您当前的Z-BLOG版本：
+		<select Name="CurrentVersion" id="CurrentVersion" >
+		<option selected value="12">Z-Blog 1.2</option>
+		<option value="13">Z-Blog 1.3</option>
+		<option value="14">Z-Blog 1.4</option>
+		<option value="15">Z-Blog 1.5</option>
+		<option value="15Plus">Z-Blog 1.5 Plus</option>
+		<option value="16Beta">Z-Blog 1.6 Beta</option>
+		<option value="16Final">Z-Blog 1.6 Final</option>
+		<option value="17Squirrel">Z-Blog 1.7 Squirrel</option>
+		<option value="17Laputa">Z-Blog 1.7 Laputa</option>
+		<option value="18Terminator">Z-Blog 1.8 Terminator</option>
+		<option value="18Devo">Z-Blog 1.8 Devo</option>
+		<option value="18Spirit">Z-Blog 1.8 Spirit</option>
+		<option value="18Arwen">Z-Blog 1.8 Arwen</option>
+		<option value="18Walle">Z-Blog 1.8 Walle</option>
+	</select>
+&nbsp;&nbsp;
+<input class="button" type="button" value="开始升级BLOG程序&gt;&gt;" onclick="var ver=document.getElementById('CurrentVersion').options[document.getElementById('CurrentVersion').selectedIndex].value;if(window.confirm('您选择了'+document.getElementById('CurrentVersion').options[document.getElementById('CurrentVersion').selectedIndex].text+',按[确定]开始升级')){window.location='install.asp?ok=true&ver='+ver;}"/>
+</div>
+<%End If%>
+<%
+Else
+	Select Case Request.QueryString("ver")
+		Case "12"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=True
+		Case "13"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=True
+		Case "14"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=True
+		Case "15"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=True
+		Case "15Plus"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=True
+		Case "16Beta"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=True
+		Case "16Final"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=True
+		Case "17Squirrel"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=True
+		Case "17Laputa"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=True
+		Case "18Terminator"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=True
+		Case "18Devo"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=False
+		Case "18Spirit"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=False
+		Case "18Arwen"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=False
+		Case "18Walle"
+			IsNeedUpdateDataBase=True
+			IsNeedCreateCustom=False
+			IsNeedCreateOption=False
+		Case Else
+			IsNeedUpdateDataBase=False
+			IsNeedCreateCustom=True
+			IsNeedCreateOption=True
+	End Select
+%>
+<div id="divMain_Top">创建目录和释放文件到当前空间:</div>
+<div id="divMain_Center">
+<textarea method="POST" id="txaContent" readonly="readonly" style="width:585px;height:220px;">
+<%
+   
+	Call UpdateDateBase()
+	Call UpdateFiles()
+	Call UpdateCustom()
+	Call DelXML()
+%>
+</textarea>
+</div>
+<div id="divMain_Bottom">
+<%
+If Request.QueryString("ver")=Empty Or Request.QueryString("ver")="" Then
+%>
+<input class="button" type="button" value="进入BLOG设置向导&gt;&gt;" onclick="window.location='default.asp'"/>
+<%
+Else
+%>
+<input class="button" type="button" value="进入BLOG&gt;&gt;" onclick="window.location='default.asp'"/>
+<%
+End If
+%>
+</div>
+<%
+End If
+%>
+</div>
+<div id="divFooter">Powered By <a href="http://www.rainbowsoft.org/" target="_blank" title="RainbowSoft Studio">RainbowSoft Studio</a></div>
+</form>
+</body>
+</html>

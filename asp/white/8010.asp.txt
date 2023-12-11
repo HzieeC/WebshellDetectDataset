@@ -1,0 +1,275 @@
+<!--#include file="up.asp"-->
+<%
+dim come,here,b,bad,pagenum,renum,topictype,contentok,lastaddtime,canadd,num,outtime,pagesetup,addtime,umarkuserid
+dim content,face,voteyn,votetype,canvote,vote,voten,bodyvote,topic,topicok,uptype,topicinfo,retopic,content2,lasttopic,bbsid,adminid
+adminid=Replace(Request.Form("adminid"),"'","''")
+come=Request.ServerVariables("HTTP_REFERER")
+here=Request.ServerVariables("SERVER_NAME")
+if mid(come,8,len(here))<>here then response.redirect"index.asp"
+if isnull(lguserid) or lguserid="" then:Response.Redirect"login.asp"
+if checknum(session(prefix&"usertype2"))=1 or checknum(session(prefix&"usertype2"))=3 then
+tl=" 操 作 失 败"
+mes="<b>对不起，您不能发帖。</b><br>·您被管理员禁止发言。"
+call sendinfo(tl,mes)
+call down
+response.end
+end if
+%>
+<%
+checklg()
+
+lgname=conn.execute("select top 1 name from [user] where userid="&lguserid&"")(0)
+function checkbad(str)
+if isnull(str) then exit function 
+bad=split(application(prefix&"badcontent"), "|")
+for b=0 to ubound(bad)
+str=Replace(str,bad(b),string(len(bad(b)),"*")) 
+next
+checkbad=str
+end function
+
+function strLength(str)
+dim rep,str1,i,lens
+set rep=new regexp
+rep.Global=true
+rep.IgnoreCase=true
+rep.Pattern="[\u4E00-\u9FA5\uF900-\uFA2D]"
+set str1=rep.Execute(str)
+for each i in str1
+lens=lens+1
+next
+lens=lens + len(str)
+strLength=lens
+end function
+
+
+pagenum=checknum(request.querystring("pagenum"))
+topictype=checknum(request.querystring("topictype"))
+content=checkbad(left(Request.Form("content"),25600))
+content=replace(content,"|","&#124;")
+content=replace(content,"'","''")
+contentok=Replace(content," ","")
+face=replace(replace(request.form("face"),"|",""),"'","")
+if face="" or len(face)>6 then face="face1"
+canadd=true
+
+if session("adminid")<>adminid or not isnumeric(adminid) or adminid="" then
+canadd=false
+mes="·验证码错误，请输入正确的四位验证码！<br>"
+end if
+
+lastaddtime=session(prefix&"lasttime")
+if lastaddtime+2/8640>now() then
+canadd=false
+mes=mes&"·本论坛为了防止灌水，限制了同一人发帖的时间间隔为 <b>20</b> 秒。<br>"
+end if
+
+if strLength(contentok)<5 or len(contentok)>51200 then
+canadd=false
+mes=mes&"·帖子内容太少，系统认为是灌水文章。<br>"
+end if
+
+topic=Replace(left(Request.Form("topic"),50),"'","''")
+topic=checkbad(Replace(topic,"|","│"))
+topicok=Replace(topic," ","")
+topicok=replace(topicok,chr(-24159),"")
+topicok=replace(topicok,chr(-23299),"")
+if topicok=""  or contentok="" then
+canadd=false
+mes=mes&"·请填写完整帖子主题和内容。<br>"
+end if
+
+if canadd=false then
+tl=" 发 送 失 败"
+mes="<b>对不起，帖子发送失败，可能存在以下问题：</b><br>"&mes&"·<a href='javascript:history.go(-1)'><img src=pic/re.gif align=absmiddle border=0> 返回重新填写</a><br>"
+call sendinfo(tl,mes)%><meta http-equiv=refresh content='3;url=javascript:history.go(-1)'>
+<%
+call down
+response.end
+end if
+
+
+function uptypecheck(byval str)
+dim ary,pos
+ary=split(str,"[upload=")
+if ubound(ary)>=1 then
+pos=instr(ary(1),"[/upload]")
+if pos=0 then exit function
+uptypecheck=left(ary(1),3)
+end if
+end function
+uptype=uptypecheck(content)
+
+
+select case topictype
+case 1
+
+
+voteyn=request.form("voteyn")
+canvote=false
+if voteyn=1 then
+canvote=true
+votetype=checknum(request.form("votetype"))
+vote=replace(request.Form("vote"),"|","│")
+vote=replace(vote,"'","''")
+vote=split(vote,chr(13)&chr(10))
+voten=ubound(vote)
+if voten>checknum(application(prefix&"voten"))-1 then voten=checknum(application(prefix&"voten"))-1
+for i=0 to voten
+if not (vote(i)="" or vote(i)=" ") then
+bodyvote=bodyvote&"|"&vote(i)
+num=num&"|0"
+end if
+next
+if bodyvote="" then
+canvote=false
+end if
+outtime=checknum(request.form("outtime"))+now()+timeset/24
+end if
+if canvote=true then face="vote"
+topicinfo=face&"|"&topic&"|"&lgname&"|"
+
+if uptype<>"" and instr(application(prefix&"uploadtype"),uptype)>0 then
+topicinfo=topicinfo&"<img src=pic/"&uptypecheck(contentok)&".gif border=0 align=absmiddle>"
+end if
+
+set rs = Server.CreateObject("ADODB.Recordset")
+dim sql
+sql="select top 1 id,userid,topicinfo,bd,edittime,totable from [topic]"
+rs.open sql,conn,0,2
+rs.addnew
+rs("userid")=lguserid
+rs("topicinfo")=topicinfo
+rs("bd")=bd
+rs("edittime")=now()+timeset/24
+rs("totable")=totable
+rs.update
+id=rs("id")
+rs.close
+set rs=nothing
+
+
+
+addtime=now()+timeset/24
+content2=topicinfo&"|"&content&"|"&addtime
+
+conn.execute("insert into  [bbs"&totable&"] (id,userid,content,bd,edittime,ip)values("&id&","&lguserid&",'"&content2&"',"&bd&",'"&addtime&"','"&ip&"')")
+bbsid=conn.execute("select top 1 bbsid from [bbs"&totable&"]")(0)
+
+
+if canvote=true then
+conn.execute("insert into vote values("&id&",'"&bodyvote&"','"&num&"',"&votetype&",'"&outtime&"','')")
+end if
+conn.execute("update config set todaynum=todaynum+1,topicnum=topicnum+1,allnum=allnum+1")
+content2=replace(lefttrue(content,15),"'","")
+lasttopic=lguserid&"|"&lgname&"|"&addtime&"|"&content2&"|"&face&"|"&id&"|"&totable&"|1"
+conn.execute("update [bdinfo] set todaynum=todaynum+1,topicnum=topicnum+1,lasttopic='"&lasttopic&"' where id="&bd&" and followid<>0")
+conn.execute("update [user] set mark=mark+10,alltopicnum=alltopicnum+1 where userid="&lguserid&"")
+
+'更新上传文件
+if uptype<>"" and instr(application(prefix&"uploadtype"),uptype)>0 then
+url=bd&"|"&id&"|"&content2
+conn.execute("update [upload] set bbsid="&bbsid&",totable="&totable&",url='"&url&"' where name='"&lgname&"' and totable=0")
+end if
+
+tl=" 发 帖 成 功"
+mes="<b>您已经成功的发出了帖子，请选择您的要进行的操作。</b><br>·<span id=sdown></span> 秒钟后将自动调转到"&bdinfo(0)&"。<br>·<a href=showbbs.asp?bd="&bd&"&id="&id&"&totable="&totable&">回到我所发表的帖子。</a><br>·<a href='topiclist.asp?bd="&bd&"'>返回到"&bdinfo(0)&"。</a><br>·<a href='index.asp'>返回到首页。</a>"
+call sendinfo(tl,mes)
+
+case 2
+dim bid
+
+bid=checknum(request.querystring("bid"))
+'检测帖子是否正常
+set rs=conn.execute("select top 1 type,renum from topic where id="&bid&"")
+
+if (rs("type")=2 and usertype<=2) or (rs("type")=2 and usertype=3 and instr("|"&adminbd&"|","|"&bd&"|")=0) then
+canadd=false
+mes="·该帖子已经被锁定。<br>"
+end if
+
+if rs("type")=3 then
+canadd=false
+mes="·该帖子已经被被删除。<br>"
+end if
+
+renum=rs("renum")
+set rs=nothing
+
+
+if canadd=false then
+tl=" 回 复 失 败"
+mes="<b>对不起，您不能成功地回复帖子，可能存在以下问题：</b><br>"&mes&"·<a href='javascript:history.go(-1)'><img src=pic/re.gif align=absmiddle border=0> 返回重新填写</a><br>"
+call sendinfo(tl,mes)
+%>
+<meta http-equiv=refresh content='3;url=javascript:history.go(-1)'>
+<%
+call down
+response.end
+end if
+
+
+pagesetup=checknum(application(prefix&"showbbspage"))
+renum=int(renum)+1
+If renum/pagesetup > (renum\pagesetup) then
+pagenum=(renum\pagesetup)+1
+else pagenum=(renum\pagesetup)
+End If
+
+addtime=now()+timeset/24
+topicinfo=face&"||"&lgname&"|"
+content2=topicinfo&"|"&content&"|"&addtime
+
+conn.execute("insert into [bbs"&totable&"] (bid,userid,content,bd,edittime,ip)values("&bid&","&lguserid&",'"&content2&"',"&bd&",'"&addtime&"','"&ip&"')")
+bbsid=conn.execute("select max(bbsid) from [bbs"&totable&"] ")(0)
+
+
+content2=replace(lefttrue(content,15),"'","")
+retopic=content2&"|"&lgname&"|"&lguserid
+conn.execute("update topic set retopic='"&retopic&"',renum=renum+1,edittime='"&addtime&"' where id="&bid&"")
+conn.execute("update config set todaynum=todaynum+1,allnum=allnum+1")
+lasttopic=lguserid&"|"&lgname&"|"&addtime&"|"&content2&"|"&face&"|"&bid&"|"&totable&"|"&pagenum
+conn.execute("update bdinfo set todaynum=todaynum+1,lasttopic='"&lasttopic&"' where id="&bd&" and followid<>0")
+conn.execute("update [user] set mark=mark+5,alltopicnum=alltopicnum+1 where userid="&lguserid&"")
+umarkuserid=conn.execute("select top 1 userid from topic where id="&bid&"")(0)
+conn.execute("update [user] set mark=mark+3 where userid="&umarkuserid&"")
+'更新上传文件
+if uptype<>"" and instr(application(prefix&"uploadtype"),uptype)>0 then
+url=bd&"|"&bid&"|"&content2
+conn.execute("update [upload] set bbsid="&bbsid&",totable="&totable&",url='"&url&"' where name='"&lgname&"' and totable=0")
+end if
+tl=" 回 复 成 功"
+mes="<b>您已经成功的回复帖子，请选择您的要进行的操作。</b><br>·<span id=sdown></span> 秒钟后将自动调转到"&bdinfo(0)&"。<br>·<a href=showbbs.asp?topage="&pagenum&"&bd="&bd&"&id="&bid&"&totable="&totable&">回到我所回复的帖子。</a><br>·<a href='topiclist.asp?bd="&bd&"'>返回到"&bdinfo(0)&"。</a><br>·<a href='index.asp'>返回到首页。</a>"
+call sendinfo(tl,mes)
+%>
+<%
+end select
+
+'检测用户等级
+dim rs1,mark,graden
+set rs1=conn.execute("select top 1 mark,grade from [user] where userid="&lguserid&"")
+mark=rs1(0)
+graden=rs1(1)
+if graden<13 then
+graden=mark\200
+if graden>13 then graden=13
+conn.execute("update [user] set grade="&graden&" where userid="&lguserid&"")
+end if
+
+session(prefix&"lasttime")=now()
+set rs=conn.execute("select maxtopic,todaynum from config")
+if rs("maxtopic")<rs("todaynum") then
+conn.execute("update config set maxtopic=todaynum")
+end if
+set rs=nothing
+%><meta http-equiv=refresh content=9;url=topiclist.asp?bd=<%=bd%>>
+<script>
+function countDown(secs){
+sdown.innerText=secs;
+if(--secs>0)
+ setTimeout("countDown("+secs+")",1000);
+  }
+countDown(10);
+</script><%
+call down
+%>

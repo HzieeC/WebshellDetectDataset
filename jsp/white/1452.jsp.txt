@@ -1,0 +1,68 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page"/>
+
+<%
+	String pri_key = bean.GenTradeId();
+%>
+
+<html>
+  <head>
+    <title>客服组管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<h1>新增客服组</h1>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<input name="group_id" id="group_id" type="hidden" value="<%=pri_key%>"/>
+
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="10%">
+				新组名<font color="red">*</font>
+			</td>
+			<td><input name="group_name" id="group_name" size="20" maxlength="" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				新组类型<font color="red">*</font>
+			</td>
+			
+			<td  align="left">
+					<select name="group_type" id="group_type" >
+						<option value="1">客服组</option>
+						<option value="2">律师组</option>
+						<option value="3">律所组</option>
+					</select>
+					
+			</td>
+		</tr>
+   	
+		<tr>
+			<td align="right" width="15%">
+				备注:
+			</td>
+			<td  colspan="5" >
+			<textarea name="remark" rows="5" cols="56"></textarea> 
+			</td>
+		</tr>
+	
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="9895" /><!-- 9952 -->
+				<input type="submit" class="buttoncss" name="tradeSub" value="提交" onclick="return checkSub('addForm');"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

@@ -1,0 +1,137 @@
+<!--#include file="alipaymd5.asp"-->
+<%
+'/***************************************************************************************************************
+	'* FileName:	myAlipay.asp
+	'* Description:	Asp网店与支付宝集成类,提供网店与支付宝结算系统集成的业务接口;接口使用前提：必须成功获得支付宝个人或企业认证，拥有通过认证的Email
+	'* Copyright:	Copyright (c) 2005/7/25 (说明：本接口根据支付宝开发团队提供的Java接口改编,所以保持了java接口名称,以方便某些用户的系统转换)
+	'* Company:		淘宝网支付宝开发者论坛(http://dev.alipay.com)、5HD图展平台(http://www.5hd.cn)
+	'* Author:		yeaome(小叶/叶老四)
+	'* Version:		Ver 2.0.0
+	'* Contact_Me:	wangwang:yeaome ; QQ:38355624 ; MSN:yeaome@msn.com ; Mobile:13923706355/0755-83302844
+'****************************************************************************************************************/
+
+Class myAlipay
+
+	Public REQUEST_URL				'支付宝交易处理地址
+	Public GENERATE_BUTTON_CODE_URL	'生成支付宝交易处理地址的链接
+	Public REQUEST_PAYTO_URL		'payto连接地址
+	Public DEFAULT_ENCODING			'默认编码
+	Public DEFAULT_PARTNER			'保留字段
+
+	Private alipayVer				'版本编号
+	Private md5Obj					'MD5加密算法对象(私有)
+
+
+	'构造函数,初始化各必要变量
+	Public Sub myAlipay_Initialize()
+		REQUEST_URL					= "https://www.alipay.com/trade/i_buy.do?"
+		GENERATE_BUTTON_CODE_URL	= "https://www.alipay.com/trade/i_link.do?"
+		REQUEST_PAYTO_URL			= "https://www.alipay.com/payto:"
+		DEFAULT_ENCODING			= "GBK"
+		DEFAULT_PARTNER				= "2088002072851513"
+		Call getDateVersion()
+		
+		'创建md5Obj实例,方便在generateTradeMD5接口中使用
+		Set md5Obj					= New MD5
+		md5Obj.MD5_Initialize()
+	End Sub
+
+	'请求生成支付宝交易处理地址的链接,返回生成“支付宝交易URL”(需要请求支付宝i_link地址)
+	Public Function getTradeButtonURL(s1,s2,s3,s4,s5,s6)
+		Dim strTemp,strURL,xmlObject
+		strTemp				= GENERATE_BUTTON_CODE_URL & "goodsBid=" & s1
+		strTemp				= strTemp & "&ordinaryFee=" & s2
+		strTemp				= strTemp & "&expressFee=" & s3
+		strTemp				= strTemp & "&sellerEmail=" & s4
+		strTemp				= strTemp & "&goodsTitle=" & s5
+		strTemp				= strTemp & "&securityCode=" & s6
+		getTradeButtonURL	= getHTTPURL(strTemp)
+	End Function
+
+
+	'通过MD5算法等自动组合生成“支付宝交易URL”(不需要请求支付宝i_link地址)
+	Public Function generateTradeButtonURL(s1,s2,s3,s4,s5,s6)
+		Dim strTemp,strURL
+		strTemp					= REQUEST_URL & "a=" & s1
+		strTemp					= strTemp & "&b=" & s2
+		strTemp					= strTemp & "&c=" & s3
+		strTemp					= strTemp & "&d=" & s4
+		strTemp					= strTemp & "&e=" & s5
+		strTemp					= strTemp & "&v=" & alipayVer
+		strTemp					= strTemp & "&f=" & generateTradeMD5(s5,s1,s2,s3,s4,s6)
+		generateTradeButtonURL	= strTemp
+	End Function
+
+	
+	'通过MD5算法等自动组合生成“支付宝payto交易URL”(最新payto接口，强烈建议使用本接口开发，同时它支持返回通知)
+	Public Function generatePaytoURL(s1,s2,s3,s4,s5,s6,s7,s8,s9)
+		Dim strTemp,strURL
+		strTemp					= REQUEST_PAYTO_URL & s4 & "?"
+		strTemp					= strTemp & "&cmd=" & s7
+		strTemp					= strTemp & "&subject=" & s8
+		strTemp					= strTemp & "&body=" & s9
+		strTemp					= strTemp & "&order_no=" & s5
+		strTemp					= strTemp & "&price=" & s1
+		strTemp					= strTemp & "&ordinary_fee=" & s2
+		strTemp					= strTemp & "&express_fee=" & s3
+		strTemp					= strTemp & "&ac=" & generatePaytoMD5(s1,s2,s3,s4,s5,s6,s7,s8,s9)
+		strTemp					= strTemp & "&partner=" & DEFAULT_PARTNER
+		generatePaytoURL		= strTemp
+	End Function
+
+	'获取时间形式的版本号
+	Public Sub getDateVersion()
+		alipayVer		= "1.0_" & Year(Date()) & Right(("0" & Month(Date())),2) & Right(("0" & Day(Date())),2)
+	End Sub
+
+	'取得交易的MD5加密串,已经解决中文加密问题
+	Public Function generateTradeMD5(s1,s2,s3,s4,s5,s6)
+		Dim strTemp
+		strTemp		= "goodsTitle" & s1 & "goodsBid" & s2 & "ordinaryFee" & s3 & "expressFee" & s4 & "sellerEmail" & s5 & s6
+		generateTradeMD5	= md5Obj.md5(strTemp)
+	End Function
+
+	'取得payto交易的MD5加密串,已经解决中文加密问题
+	Public Function generatePaytoMD5(s1,s2,s3,s4,s5,s6,s7,s8,s9)
+		Dim strTemp
+		strTemp		= "cmd" & s7 & "subject" & s8 & "body" & s9 & "order_no" & s5 & "price" & s1 & "ordinary_fee" & s2 & "express_fee" & s3 & "seller" & s4 & "partner2088002072851513" & s6
+		generatePaytoMD5	= md5Obj.md5(strTemp)
+	End Function
+
+	'私有接口,取得请求后返回的html
+	Public Function getHTTPURL(strPath)
+        Dim strTemp
+		strTemp			= GetBody(strPath)
+        getHTTPURL		= BytesToBstr(strTemp,"GB2312")
+	End function
+
+	'私有接口,取得请求后返回的html Stream
+	Private Function GetBody(strURL)
+		On Error Resume Next
+        Set Retrieval		= CreateObject("Microsoft.XMLHTTP") 
+        With Retrieval 
+			.Open "GET", strURL, False, "", "" 
+			.Send 
+			GetBody	= .ResponseBody
+        End With 
+        Set Retrieval		= Nothing
+	End Function
+
+	'私有接口,转换Stream-->String
+	Private Function BytesToBstr(strBody,strCharset)
+        Dim streamObj
+        set streamObj		= Server.CreateObject("ADODB.Stream")
+        streamObj.Type		= 1
+        streamObj.Mode		= 3
+        streamObj.Open
+        streamObj.Write strBody
+        streamObj.Position	= 0
+        streamObj.Type		= 2
+        streamObj.Charset	= strCharset
+        BytesToBstr			= streamObj.ReadText 
+        streamObj.Close
+        Set streamObj		= Nothing
+	End Function
+
+End Class
+%> 

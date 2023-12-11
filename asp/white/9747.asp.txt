@@ -1,0 +1,645 @@
+<!--#include file="../ACT.Function.asp"-->
+<!--#include file="../../ACT_inc/cls_pageview.asp"-->
+<!--#include file="../include/ACT.F.asp"-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>文章管理</title>
+<link href="../Images/style.css" rel="stylesheet" type="text/css">
+<%
+'--------禁止缓存------------  
+Response.Expires   =   -1   
+Response.ExpiresAbsolute   =   Now()   -   1   
+Response.cachecontrol   =   "no-cache"   
+%>
+</head>
+<body>
+<% 
+	Dim ShowErr,ModeID,ModeName,Item,pages,urlact,ClassID,Action,ID,Page,url
+	Dim LmID,gltj,title
+	 
+	 ModeID = ChkNumeric(Request("ModeID"))
+	 if ModeID=0 or ModeID="" Then ModeID=1
+	 ModeName= ACTCMS.ACT_C(ModeID,1) 
+	 ClassID=Request("ClassID")
+	 LmID=ClassID
+	 
+	 Page=ChkNumeric(Request("page"))
+	 If Page = 0 Then Page = 1
+	 ID = Request("ID")
+	 title=request("title")
+	 Action=Request("Action")
+
+  	 urlact = "Action="&Action&"&title="&title&"&ClassID="&ClassID&"&ModeID="&ModeID&"&page="&Page
+  	 url = "&ClassID="&LMID&"&ModeID="&ModeID&"&page="&Page
+
+	
+'========================管理操作=======================================	
+If request("A") <> "" Then
+	dim cs
+	cs=request("cs")
+			If ChkNumeric(ID)>0  Then
+			If Not ACTCMS.ACTCMS_QXYZ(ModeID,"3",ACT_CL(ID)) Then   Call Actcms.Alert("对不起，你没有该栏目下的相应操作权限","")
+			Else
+				If ClassID<>"" Then
+				If Not ACTCMS.ACTCMS_QXYZ(ModeID,"3",ClassID) Then   Call Actcms.Alert("对不起，你没有该栏目下的相应操作权限","")
+				End If
+			End If
+			select case request("A")
+				case "top"	'置顶
+					Conn.execute("Update "&ACTCMS.ACT_C(ModeID,2)&" set Istop="&cs&" where ID ="&ID&"")
+				case "tt"	'头条、推荐
+					ACTCMS.ActExe("Update "&ACTCMS.ACT_C(ModeID,2)&" set ATT="&cs&" where ID ="&ID&"")
+				case "hd"	'幻灯
+					Conn.execute("Update "&ACTCMS.ACT_C(ModeID,2)&" set Slide="&cs&" where ID ="&ID&"")
+				case "pl"	'评论
+					Conn.execute("Update "&ACTCMS.ACT_C(ModeID,2)&" set rev="&cs&" where ID ="&ID&"")
+				case "sh"	'审核
+					Conn.execute("Update "&ACTCMS.ACT_C(ModeID,2)&" set isAccept="&cs&" where ID ="&ID&"")
+				case "del"	'删除、清空、批量删除
+					Call del(cs)
+				case "isAccept"	'批量审核
+					Call isAccept()
+				case "NoAccept"	'批量取消审核
+					Call NoAccept()
+				case "tg"	'批量退稿
+					Call tg()
+				case "px"	'批量退稿
+					Call px()
+ 			end select
+			set conn=nothing
+			echo("<script language=javascript>{history.back();}</script>")
+			response.end
+			
+End If
+
+
+
+
+'=======================================================================
+
+	Sub px()
+			Dim i,OrderID
+ 			ID = Split(actcms.s("AFID"),","):OrderID = Split(actcms.s("OrderID"),",")
+			 For I = LBound(ID) To UBound(ID)
+ 					Conn.execute("Update "&ACTCMS.ACT_C(ModeID,2)&"  set OrderID="&ChkNumeric(OrderID(I))&" where    ID = "&ChkNumeric(ID(I))&"")
+			Next 
+			set conn=Nothing
+  		response.Redirect("?"&urlact)
+	End sub
+
+
+
+	sub del(cs)
+ 		Dim Rsd,Rsp
+		IF ID = "" Then
+ 			Call Actcms.ActErr("请先选定文章！","ACT_Mode/ACT.Manage.asp?"& pages,"1")
+			response.End
+		End IF
+		IF  ACTCMS.ACT_C(ModeID,7) = 0 Then '回收站删除
+			ID = Split(ID,",")
+			 For I = LBound(ID) To UBound(ID)
+				If  ACTCMS.ACTCMS_QXYZ(ModeID,"4",ACT_CL(ID(i))) Then 
+					Conn.execute("Update "&ACTCMS.ACT_C(ModeID,2)&" set delif=1 where ID = "&ID(I)&"")
+				End If 	
+			Next 
+			set conn=Nothing
+			Call Actcms.ActErr("文章已经移动到回收站,必要时您可以从回收站中恢复","ACT_Mode/ACT.Manage.asp?"& urlact,"")
+		Else'彻底删除
+			ID = Split(ID,",")
+			 For I = LBound(ID) To UBound(ID)
+				set Rsd=ACTCMS.ActExe("Select * from "&ACTCMS.ACT_C(ModeID,2)&"  Where ID=" & ID(I) & "")
+				If rsd.eof And rsd.bof Then
+					Call Actcms.ActErr("参数错误","","1")
+ 				Else
+					If  ACTCMS.ACTCMS_QXYZ(ModeID,"4",Rsd("classid")) Then  
+						Set Rsp = server.CreateObject("adodb.recordset")'删除图片
+						Rsp.open "Select * from Upload_Act Where ArtileID=" & ID(I) & " and modeid="&ModeID&"", conn, 1, 3
+						If Not  rsp.eof  Then
+							Do While Not rsp.eof
+							Call ACTCMS.DeleteFile(Rsp("UpfileDir"))
+							Conn.execute("Delete from Upload_Act  Where id= "&Rsp("id"))
+							rsp.movenext
+							loop
+						End If 
+						Dim Tmps,TmpUs 
+						If Right(ACTCMS.ACT_C(ModeID,10),1)<>"/" Then 
+								Call ACTCMS.DeleteFile(ACTCMS.ActSys&ACTCMS.ACT_C(ModeID,6)&Rsd("FileName")&ACTCMS.ACT_C(ModeID,11))
+						Else
+						Call ACTCMS.DeleteFile(ACTCMS.ActSys&ACTCMS.ACT_C(ModeID,6)&Rsd("FileName")&"/Index"&ACTCMS.ACT_C(ModeID,11))
+						End If 
+						Conn.execute("Delete from "&ACTCMS.ACT_C(ModeID,2)&"  Where ID=" & ID(I) & "")
+						Conn.execute("Delete from Comment_Act  Where ID=" & ID(I) & " and ModeID="&ModeID&"")
+						Conn.execute("Delete from Digg_ACT  Where NewsID=" & ID(I) & " and ModeID="&ModeID&"")
+					End If 
+				End If 
+		 	 Next
+				Set  conn=nothing	
+		End If
+		Call Actcms.ActErr("文章已经彻底删除！","ACT_Mode/ACT.Manage.asp?"& urlact,"")
+  	End sub
+%>
+
+<%	sub isAccept()'批量审核通过
+		Dim AcceptID,Rss
+		If ID<>"" Then 
+			AcceptID = ID
+		Else 
+			AcceptID =Request.Form("ID")
+		End If
+		'Dim AcceptID,Rss:AcceptID =Request.Form("ID")
+		IF AcceptID = "" Then
+			Call Actcms.ActErr("请先选定文章！","1")
+			response.End
+		End IF		
+			 AcceptID = Split(AcceptID,",")
+			 For I = LBound(AcceptID) To UBound(AcceptID)
+				 If  ACTCMS.ACTCMS_QXYZ(ModeID,"3",ACT_CL(AcceptID(i))) Then '只通过该栏目下的文章.无权限的将忽略
+					 Set Rss= ACTCMS.ACTEXE("Select userid,Title From "&ACTCMS.ACT_C(ModeID,2)&" Where  ID=" & CLng(AcceptID(i)))
+					' Call ACTCMS.isAcceptOK(Rss(1),Rss(2),ModeID)
+				 	 Conn.execute("Update "&ACTCMS.ACT_C(ModeID,2)&" set isAccept=0 where ID = "&CLng(AcceptID(i))&"")
+				 End If 
+			 Next
+		set conn=nothing
+		'urlact = "Action=ListisAccept&ClassID="&ClassID&"&Page="&Page&"&ModeID="&ModeID
+		response.Redirect("?"&urlact)
+	End sub
+
+	sub NoAccept()'批量取消审核
+		Dim NoAcceptID
+		If ID<>"" Then 
+			NoAcceptID = ID
+		Else 
+			NoAcceptID =Request.Form("ID")
+		End If
+ 		'Dim NoAcceptID:NoAcceptID =Request.Form("ID")
+		IF NoAcceptID = "" Then
+ 			Call Actcms.ActErr("请先选定文章！","ACT_Mode/ACT.Manage.asp?"& urlact,"1")
+			.End
+		End IF		
+		 NoAcceptID = Split(NoAcceptID,",")
+		 For I = LBound(NoAcceptID) To UBound(NoAcceptID)
+			If  ACTCMS.ACTCMS_QXYZ(ModeID,"3",ACT_CL(NoAcceptID(i))) Then '只通过该栏目下的文章.无权限的将忽略
+				Conn.execute("Update "&ACTCMS.ACT_C(ModeID,2)&" set isAccept=2 where ID = "&NoAcceptID(i)&"")
+ 			End If 
+		 Next
+ 		set conn=nothing
+		response.Redirect("?"&urlact)
+	End sub
+
+	sub tg()'批量退稿
+		Dim TG_ID:TG_ID =Request.Form("ID")
+		IF TG_ID = "" Then
+			Call Actcms.ActErr("请先选定文章！","1","")
+			.End
+		End IF		
+		 TG_ID = Split(TG_ID,",")
+		 For I = LBound(TG_ID) To UBound(TG_ID)
+			If  ACTCMS.ACTCMS_QXYZ(ModeID,"3",ACT_CL(TG_ID(i))) Then '只通过该栏目下的文章.无权限的将忽略
+				Conn.execute("Update "&ACTCMS.ACT_C(ModeID,2)&" set isAccept=3 where ID = "&TG_ID(i)&"")
+			End If 
+		 Next
+		set conn=nothing
+		response.Redirect("?"&urlact)
+	End sub
+
+	Dim strLocalUrl
+	strLocalUrl = request.ServerVariables("SCRIPT_NAME")
+	
+	Dim intPageNow
+	intPageNow = request("page")
+	
+	Dim intPageSize, strPageInfo
+	intPageSize = 20
+	
+	Dim arrRecordInfo, i
+	Dim sql, sqlCount,Sqls
+	 
+	 pages = "Action="&Request("Action")&"&title="& request("title")&"&ClassID="& request("ClassID")&"&UserID="& request("UserID")&"&ModeID="&ModeID&"&page"
+	'If  ClassID<>"" Then ClassID=" classid='"&Request.QueryString("ClassID")&"' and  "
+	If  LmID<>"" Then gltj=" classid="&LmID&" and  "
+	
+	Select Case Request.QueryString("Action")
+ 		Case "ListisAccept"
+			Sqls = "  where "&gltj&"  isAccept=0 and delif=0 "
+		Case "ListNoAccept"
+			Sqls = "  where "&gltj&"  isAccept=2 and delif=0 "
+		Case "Listcg"
+			Sqls = "  where "&gltj&"  isAccept=1 and delif=0 "
+		Case "Listtg"
+			Sqls = "  where "&gltj&"  isAccept=3 and delif=0 "
+		Case "Lististop"
+			Sqls = "  where "&gltj&"  istop=1 and delif=0 "
+		Case "Listpic"
+			Sqls = "  where "&gltj&"   picurl<>'' and delif=0 "
+		Case "Slide"
+			Sqls = "  where "&gltj&"  Slide=1 and delif=0 "
+		Case "sh"
+			Sqls = "  where "&gltj&"  isAccept>0 and delif=0 "
+		Case "MyArticle"
+			Sqls="  where "&gltj&"  ArticleInput='"&RSQL(Request.Cookies(AcTCMSN)("AdminName"))&"' and delif=0 "
+		Case "UserID"
+			Sqls="  where "&gltj&"  ArticleInput='"&RSQL(request("UserID"))&"' and delif=0 "
+		Case "t"
+			If Request("ClassID")="" Then 
+				Sqls = " where title Like '%" & RSQL(request("title")) & "%' "
+			Else 
+				Sqls = " where classid="&LmID&" and title Like '%" & request("title") & "%' "
+			End If 
+		Case Else
+			Sqls = " where delif=0 and  isAccept=0 "
+			pages = "ModeID="&ModeID&"&page"
+	End Select
+	
+	sql = "SELECT [ID], [Title], [ArticleInput], [Hits], [isAccept], [IStop],  [ClassID], [FileName],[ACTLINK],[Ismake],[InfoPurview],[ReadPoint],[picurl],[Slide],[ATT],[rev],[UserID],[OrderID]" & _
+		" FROM ["&ACTCMS.ACT_C(ModeID,2)&"]" &Sqls& _
+		"ORDER BY [IsTop] DESC,[OrderID] desc,[ID] DESC "
+   	sqlCount = "SELECT Count([ID])" & _
+			" FROM ["&ACTCMS.ACT_C(ModeID,2)&"]"&Sqls
+		Dim clsRecordInfo
+		Set clsRecordInfo = New Cls_PageView
+			clsRecordInfo.intRecordCount = 2816
+			clsRecordInfo.strSqlCount = sqlCount
+			clsRecordInfo.strSql = sql
+			clsRecordInfo.intPageSize = intPageSize
+			clsRecordInfo.intPageNow = intPageNow
+			clsRecordInfo.strPageUrl = strLocalUrl
+			clsRecordInfo.strPageVar = pages
+		clsRecordInfo.objConn = Conn		
+		arrRecordInfo = clsRecordInfo.arrRecordInfo
+		strPageInfo = clsRecordInfo.strPageInfo
+		Set clsRecordInfo = nothing
+ 	 %>
+<table width="99%" border="0" align="center" cellpadding="2" cellspacing="1"  class="table">
+  <tr>
+    <td  class="bg_tr"><strong>您现在的位置：<%= ModeName %>系统管理 &gt;&gt; <%= ModeName %>管理</strong>
+  选择模型:<select name='ModeID' style='width:110px' onChange="location=this.value;">
+  <%=AF.ACT_URL_Mode(ModeID,"&ClassID="&request("ClassID"))%>
+  </select>
+  
+  </td>
+  </tr>
+
+  <tr>
+    <td ><%= ModeName %>选项：<a href="ACT.Add.asp?Action=add&ModeID=<%=ModeID%>&ClassID=<%=request("ClassID")%>"><font color=red>添加信息</font></a>┆<a href="?ModeID=<%=ModeID%>">所有文章</a> ┆ <a href="?ModeID=<%=ModeID%>&Action=ListisAccept">已审</a>┆ <a href="?ModeID=<%=ModeID%>&Action=ListNoAccept">未审</a>┆ <a href="?ModeID=<%=ModeID%>&Action=Listcg">草稿</a>   ┆ <a href="?ModeID=<%=ModeID%>&Action=Listtg">退稿</a>┆<a href="?ModeID=<%=ModeID%>&Action=Lististop">置顶<%= ModeName %></a> ┆<a href="?ModeID=<%=ModeID%>&Action=Listpic">图片<%= ModeName %></a>┆<a href="?ModeID=<%=ModeID%>&Action=Slide">幻灯</a>┆</td>
+  </tr>
+</table>
+
+<table width='99%'  border='0' align="center" cellpadding='0' cellspacing='1' class="table">
+   <tr> 
+          <form name='form3' Action='?Action=t&ClassID=<%=Request.QueryString("ClassID")%>' method='post'>
+		  <input type="hidden" id="ModeID" name="ModeID" value="<%=ModeID%>">
+		  <input type="hidden" id="ClassID" name="ClassID" value="<%=Request.QueryString("ClassID")%>">
+
+          <td>
+          	<table width='720' border='0' cellpadding='0' cellspacing='0'>
+          	<tr>
+          	<td width='90' align='center'>请选择栏目：</td>
+          	<td width='160'>
+<select name="ClassID" size="1" onChange="javascript:window.location=this.options[this.selectedIndex].value;">
+<option value='?ModeID=<%=ModeID%>' >全部</option>
+      <% 	 echo Classmake(ModeID)
+		%>
+    </select>        </td>
+        <td width='70'>
+          关键字：        </td>
+          <td width='160'>
+          	<input type='text' name='title' value='' class="Ainput" style='width:150'>  </td>
+          <td>
+            <input  name="Submit"  type="submit" class="ACT_btn" value="  搜索  ">
+		  </td>
+          </tr>
+        </table>
+          </td>
+        </form>
+  </tr>
+</table>
+
+  <table width="99%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+<form name="Article" method="post" Action="?ModeID=<%= ModeID %>">
+   <input type="hidden" name="Action" value="ListisAccept">
+   <input type="hidden" name="ClassID" value="<%=ClassID%>">
+
+    <tr>
+      <td width="30" align="center" class="bg_tr">选中 </td>
+      <td width="30" align="center" class="bg_tr">ID</td>
+      <td width="44" align="center" class="bg_tr">排序</td>
+      <td width="500" align="center" class="bg_tr">文章标题</td>
+	  <td width="80"  align="center" class="bg_tr">栏目</td> 
+	  <td width="60" align="center" class="bg_tr">录入者</td> 
+	  <td width="70" align="center" class="bg_tr">点击数</td> 
+	  <td width="46" align="center" class="bg_tr">审核</td> 
+	  <td width="54" align="center" class="bg_tr">生成</td> 
+      <td width="150" colspan="2" align="center" class="bg_tr">管理操作</td>
+    </tr>
+	 <%
+		Dim bgColor
+		If IsArray(arrRecordInfo) Then
+			For i = 0 to UBound(arrRecordInfo, 2)
+			bgColor="#FFFFFF"
+			if i mod 2=0 then bgColor="#DFEFFF"
+			Dim Rs ,ClassName,ClasseName
+			  Set Rs = server.CreateObject("adodb.recordset")
+					Rs.Open "select ClassName,ClasseName from Class_Act where ClassID="& arrRecordInfo(6,i) &"",Conn,1,1
+					if  Not Rs.bof then
+							ClassName =Rs("ClassName")
+							ClasseName =Rs("ClasseName")
+					Else
+							ClassName ="<font color=red>程序出现错误</font>"
+							ClasseName ="<font color=red>意外错误</font>"
+					End if 
+	%>
+    <tr onMouseOver=overColor(this) onMouseOut=outColor(this)>
+      <td align="center" >
+	  <input type="checkbox" name="ID" value="<%= arrRecordInfo(0,i) %>">	  </td>
+      <td align="center" ><%= arrRecordInfo(0,i) %></td>
+      <td align="center" >
+	  <input name="OrderID" type="text" class="Ainput" id="OrderID" value="<%= arrRecordInfo(17,i) %>" size="4" maxlength="50">
+	  <input name="AFID" type="hidden" id="AFID" value="<%= arrRecordInfo(0,i) %>">
+	  </td>
+      <td ><a target="_blank" href="<%
+	  ID = arrRecordInfo(0,i)
+	  
+	  If arrRecordInfo(8,i) = 1 Then
+		echo arrRecordInfo(7,i)
+		Else
+	 echo  ACTCMS.actsys&actcms.act_c(ModeID,5)&"/index.asp?id=" &arrRecordInfo(0,i) 
+	  End if%>"><%= arrRecordInfo(1,i) %></a>&nbsp;<%
+	  If arrRecordInfo(12,i)<>"" Then 
+			echo "<font color=red title=""图片文章""  style=""cursor:default"">图</font>"
+	  End If 
+	  If arrRecordInfo(13,i)=1 Then 
+			echo "&nbsp;<font color=green title=""幻灯片文章""  style=""cursor:default"">幻</font>"
+	  End If 
+
+	  If arrRecordInfo(8,i)=1 Then 
+			echo "&nbsp;<font color=green title=""转向链接""  style=""cursor:default"">转</font>"
+	  End If 
+
+	  %></td>
+      
+	  <td align="center">
+	 <a href="?Action=t&ModeID=<%=ModeID%>&ClassID=<%= arrRecordInfo(6,i) %>"><%= classname %></a>	  </td>
+    
+	  <td align="center">
+	  <a href="?Action=UserID&ModeID=<%=ModeID%>&UserID=<%= arrRecordInfo(2,i) %>"><%= arrRecordInfo(2,i) %></a></a></td>
+  
+      <td align="center" ><%= arrRecordInfo(3,i) %></td>
+	 
+  
+	 
+      <td align="center" ><% '0已审  1草稿  2待审 3退稿
+	  
+	   Select Case(arrRecordInfo(4,i))
+	  			Case 0
+					echo "<a title='取消审核' href='?A=sh&cs=2&ID="&ID&url&"'>已审</a>"	
+				Case 1
+					echo "<a title='置为待审' href='?A=sh&cs=2&ID="&ID&url&"'><font color=red>草稿</font></a>"
+				Case 2
+					echo "<a title='置为已审' href='?A=sh&cs=0&ID="&ID&url&"'><font color=red>待审</font></a>"	
+				Case 3
+					echo "<a title='置为待审' href='?A=sh&cs=2&ID="&ID&url&"'><font color=red>退稿</font></a>"
+		 End Select	
+	   %></td>
+	   
+      <td align="center" >
+	<%IF arrRecordInfo(9,i) = 1 Then 
+	  echo "<font color=red><b>√</b></font>"
+	  Else
+	  echo "<font color=red><b>×</b></font>"
+	  End If %>
+	  </td>
+      <td  colspan="2" align="center" >
+<%if request.QueryString("Action") ="ListNoAccept" then %>
+		  <a href="ACT.Add.asp?Action=edit&actcms=sh&ID=<%= arrRecordInfo(0,i) %><%=url%>">审核</a>
+ <%if  ACTCMS.ACT_C(ModeID,7)="1" then  %>
+      <a href="?A=del&ID=<%= arrRecordInfo(0,i) %><%=url%>" onClick="return confirm('确认删除此文章吗?此操作不可恢复')">删除</a>
+      <%Else  %>
+      <a href="?A=del&ID=<%= arrRecordInfo(0,i) %><%=url%>" onClick="return confirm('确认删除此文章吗?删除后您可以从回收站还原!')">删除</a>
+      <%end if%>			  <a href="?A=sh&cs=3&ID=<%= arrRecordInfo(0,i) %><%=url%>">退稿</a> 
+	    <%Else  %>
+	  <a href="ACT.Add.asp?Action=edit&ID=<%= arrRecordInfo(0,i) %>&ModeID=<%=ModeID%>">修改</a>
+	 
+   <%if  ACTCMS.ACT_C(ModeID,7)="1" then  %>
+      <a href="?A=del&ID=<%= arrRecordInfo(0,i) %><%=url%>" onClick="return confirm('确认删除此文章吗?此操作不可恢复')">删除</a>
+      <%Else  %>
+      <a href="?A=del&ID=<%= arrRecordInfo(0,i) %><%=url%>" onClick="return confirm('确认删除此文章吗?删除后您可以从回收站还原!')">删除</a>
+      <%end if%>	  
+	  
+	  
+ 	<% if arrRecordInfo(5,i) = 1 Then %>
+	  <b>
+	  <a title="取消置顶" href="?A=top&cs=0&ID=<%= arrRecordInfo(0,i) %><%=url%>">
+		<font color="#008000">顶</font></a></b>
+   <% ELse
+   	%><a title="置顶" href="?A=top&cs=1&ID=<%= arrRecordInfo(0,i) %><%=url%>">顶</a> 
+<%
+	 end if%> 
+		 
+		 <% if arrRecordInfo(14,i) = 1 Then %>
+	  <b>
+	  <a title="取消头条" href="?A=tt&cs=0&ID=<%= arrRecordInfo(0,i) %><%=url%>">
+		<font color="#FF0000">头</font></a></b>
+   <% ELse
+   	%><a title="头条" href="?A=tt&cs=1&ID=<%= arrRecordInfo(0,i) %><%=url%>">头</a> 
+	<%
+	 end if%>
+	 
+	 <% if arrRecordInfo(14,i) = 2 Then %>
+	  <b>
+	  <a title="取消推荐" href="?A=tt&cs=0&ID=<%= arrRecordInfo(0,i) %><%=url%>">
+		<font color="#865802">荐</font></a></b>
+   <% ELse
+   	%><a title="推荐" href="?A=tt&cs=2&ID=<%= arrRecordInfo(0,i) %><%=url%>">荐</a> 
+	<%
+	 end if%>
+	
+	 <% if arrRecordInfo(12,i)<>"" Then %>
+		 <% if arrRecordInfo(13,i) = 1 Then %>
+		<a title="取消幻灯" href="?A=hd&cs=0&ID=<%= arrRecordInfo(0,i) %><%=url%>"><b>
+			<font color="#0066FF">幻</font></b></a>
+	   <% ELse%>
+		<a title="幻灯" href="?A=hd&cs=1&ID=<%= arrRecordInfo(0,i) %><%=url%>">幻</a> 
+		<%end if%>
+	
+	<%Else %>
+
+	<font  disabled="disabled">幻 </font>
+	<%end if%>
+	 
+	 <% if arrRecordInfo(15,i) = 1 Then %>
+	  <b>
+	  <a title="关闭评论" href="?A=pl&cs=0&ID=<%= arrRecordInfo(0,i) %><%=url%>">
+		<font color="#FF00FF">评</font></a></b>
+   <% ELse
+   	%><a title="允许评论" href="?A=pl&cs=1&ID=<%= arrRecordInfo(0,i) %><%=url%>">评</a> 
+<%
+	 end if%>
+		 
+		 
+		 <%End If  %>
+ 	  </td>
+    </tr>
+	<% 
+	Next
+	End If
+	%>
+    <tr >
+      <td height="30" colspan="11" >
+<label for="chkAll"><input name="ChkAll" type="checkbox" id="ChkAll" onClick="CheckAll(this.form)" value="checkbox">
+		&nbsp;选中本页显示的所有文章</label>
+        <select name="A">
+			<option value="0">请选择操作选项</option>
+			<option value="del">批量删除</option>
+  			<option value="isAccept">批量审核</option>
+			<option value="NoAccept">取消审核</option>
+ 		</select>
+		<input class="act_btn" type="submit" name="submit_button1" value="执行操作" onClick="return confirm('您确定执行该操作吗?');">
+ 		<input class="act_btn" type="button" name="submit_button3" value="批量排序" onClick="px()">
+		<input class="act_btn" type="button" name="submit_button3" value="批量设置" onClick="yd()">
+        <input class="act_btn" type="button" name="submit_button3" value="生成HTML" onClick="make()">
+		排序数字越大越排前面
+ 	  <%if request.QueryString("Action") ="sh" then %>
+	  <input type="button" class="act_btn" name="tg" value=" 退稿 " onClick="tgpost()">
+<%end if %>
+	   	  </td>
+    </tr>
+    <tr >
+      <td height="66" colspan="11" align="center" ><%= strPageInfo%></td>
+    </tr></form>
+
+  </table>
+
+<script language="javascript">
+ 
+//CSS背景控制
+function overColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg1"
+		Obj.bgColor="";
+	}
+	
+}
+
+function GetCheckfolderItem()
+{
+	var allSel='';
+	if(document.Article.ID.value) return document.Article.ID.value;
+	for(i=0;i<document.Article.ID.length;i++)
+	{
+		if(document.Article.ID[i].checked)
+		{
+			if(allSel=='')
+			allSel=document.Article.ID[i].value;
+			else
+			allSel=allSel+","+document.Article.ID[i].value;
+		}
+	}
+	return allSel;
+}
+
+function yd()
+{
+ 	var ID = GetCheckfolderItem();
+	if(ID=='') {
+		alert("至少要选择一篇文章");
+		return false;
+	}
+		location = "ACT.SetArticle.asp?A=Del&ModeID=<%=Modeid%>&ID="+ID+"";
+}
+
+ function px()
+{
+	var form=document.Article;
+	form.action="?A=px&ModeID=<%=Modeid%>&page=<%=request("page")%>";
+    form.submit();
+}
+
+
+
+function make()
+{
+ 	var ID = GetCheckfolderItem();
+	if(ID=='') {
+		alert("至少要选择一篇文章");
+		return false;
+	}
+		location = "../include/ACT.C.asp?RefreshFlag=Make&ModeID=<%=Modeid%>&ID="+ID+"";
+}
+
+function tgpost()
+{
+ 	var ID = GetCheckfolderItem();
+	if(ID=='') {
+		alert("至少要选择一篇文章");
+		return false;
+	}
+		location = "?A=tg&ID="+ID+"";
+}
+
+
+
+function CheckAll(form)
+		  {  
+		 for (var i=0;i<form.elements.length;i++)  
+			{  
+			   var e = Article.elements[i];  
+			   if (e.name != 'ChkAll'&&e.type=="checkbox")  
+			   e.checked = Article.ChkAll.checked;  
+		   }  
+	  }
+
+function outColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg";
+		Obj.bgColor="";
+	}
+}
+ 
+</script>
+
+
+<% 
+	Function  ACT_CL(ID)
+		ACT_CL=ACTCMS.ACTEXE("Select ClassID From "&ACTCMS.ACT_C(ModeID,2)&" Where ID=" & ID)(0)
+	End Function  
+	Function  Classmake(ModeID)
+		 Dim FolderRS,selected
+		 Set FolderRS = actcms.actexe("Select * from Class_act where rootid=0 and ACTLINK=1 Order by Orderid desc,ID desc")
+		 IF FolderRS.Eof Then
+		 Classmake=("<option value='?ModeID="&ModeID&"'>还没有添加任何栏目</option>")
+		 Else 
+		 do while Not FolderRS.Eof
+			If Request("ClassID")=FolderRS("ClassID") Then selected=" selected=""selected""" Else selected=""
+			 Classmake=Classmake&"<option value='?Action="&Action&"&ModeID="&FolderRS("ModeID")&"&ClassID="&FolderRS("ClassID")&"' "&selected&">"& FolderRS("ClassName") & "</option>"& vbCrLf
+			 Classmake=Classmake&(GetChildClassList(FolderRS("ClassID"),""))
+			 FolderRS.MoveNext
+		 Loop
+		 End IF
+
+	 End  Function 
+	 Function GetChildClassList(ClassID,Str)
+	       Dim Sql,RsTempObj,TempImageStr,ImageStr,CheckStr,selected
+	        TempImageStr = "&nbsp;└"
+	        Sql = "Select * from Class_act where rootid=" & ClassID & "  and ACTLINK=1"
+	        ImageStr = Str & "&nbsp;└"
+	        Set RsTempObj = Conn.Execute(Sql)
+	            do while Not RsTempObj.Eof
+					If Request("ClassID")=RsTempObj("ClassID") Then selected=" selected=""selected""" Else selected=""
+					   GetChildClassList = GetChildClassList  & "<option value='?Action="&Action&"&ModeID="&RsTempObj("ModeID")&"&ClassID="&RsTempObj("ClassID")&"' "&selected&">"& ImageStr & TempImageStr &" "& RsTempObj("ClassName")& "</option>"& vbCrLf
+					   GetChildClassList = GetChildClassList & GetChildClassList(RsTempObj("ClassID"),ImageStr)
+					   RsTempObj.MoveNext
+	           loop
+	       Set RsTempObj = Nothing
+	 End Function 
+
+CloseConn 
+%>
+</body>
+</html>

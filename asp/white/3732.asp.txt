@@ -1,0 +1,135 @@
+<!--#include file="admin_inc.asp"-->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+viewHead "备份、压缩、还原数据库" & "-" & menuList(4,0)
+
+dim action : action = getForm("action", "get")
+
+Select  case action
+	case "del" : delBak
+	case "bakup" : bakUp
+	case "delall" : delAll
+	case "restore" : restore
+	case "compress" : compress
+	case else : main
+End Select 
+viewFoot
+
+
+Sub main
+	dim path,fileListArray,i,arrayLen,fileAttr
+	path = "../inc/databasebak"
+	if not isExistFolder(path) then createFolder path,"folderdir"
+	fileListArray= getFileList(path)
+	arrayLen = ubound(fileListArray)
+%>
+<div id="append_parent"></div>
+<div class="container" id="cpcontainer">
+<!--当前导航-->
+<script type="text/JavaScript">if(parent.$('admincpnav')) parent.$('admincpnav').innerHTML='后台首页&nbsp;&raquo;&nbsp;<%=menuList(4,0)%>&nbsp;&raquo;&nbsp;备份、压缩、还原数据库';</script>
+<%
+if instr(fileListArray(0),",")>0 then
+%>
+<form action="?action=delall" method="post">
+<table class="tb">
+<tr class="thead"><th colspan="5">备份、压缩、还原数据库(此功能只对access数据库有效)</th></tr>
+    <TR >
+      <TD  align="center">ID</TD>
+      <TD align="center">备份文件名</TD>
+      <TD align="center">文件大小</TD>
+       <TD align="center">备份时间</TD>
+       <TD  align="center">操作</TD>
+    </TR>
+		<%
+        for  i = 0 to arrayLen
+            fileAttr=split(fileListArray(i),",")
+        %>
+      <TR align="center">
+      <TD><input type="checkbox" value="<%=fileAttr(4)%>" name="id"  checked="true" class="checkbox" /></TD>
+      <TD><%=fileAttr(0)%></TD>
+       <TD><%=fileAttr(2)%></TD>
+        <TD><% isCurrentDay(fileAttr(3))%></TD>
+       <TD><a href="?action=restore&path=<%=fileAttr(4)%>">还原</a>  <a href="?action=del&path=<%=fileAttr(4)%>">删除</a></TD>
+    </TR>
+		<%
+        next
+        %> 
+    <tr><td colspan="5"  >全选<input type="checkbox" name="chkall" id="chkall" class="checkbox" onclick="checkAll(this.checked,'input','id')" />反选<input type="checkbox" name="chkothers" id="chkothers" class="checkbox" onclick="checkOthers('input','id')" /><input type="submit" value="批量删除" onclick="if(confirm('确定要删除吗')){return true;}else{return false}" class="btn"  />&nbsp;&nbsp;</td></tr>
+</TABLE>
+</form> 
+    <%
+	else
+		echo "<table class=""tb""><tr class=""thead""><th colspan=""5"">备份、压缩、还原数据库</th></tr><tr  ><td colspan=""5"" algin=""center"">没有备份文件</td></tr></table>"
+	end if
+	%>
+<table>
+<tr><td colspan="2">
+<input type="button"  onClick="self.location.href='?action=bakup'"  value="备份数据库" class="btn" />
+<input type="button"  onClick="self.location.href='?action=compress'"  value="压缩数据库" class="btn"  />
+</td></tr></table>
+<%
+End Sub
+
+Sub chkType
+	if databasetype <> 0 then alertMsg "您的数据库非access,不能使用此功能","admin_database.asp":die ""
+End Sub
+
+Sub  delBak
+	chkType
+	dim path
+	path = getForm("path","get")
+	delFile path
+	alertMsg "","admin_database.asp"
+End Sub
+
+
+Sub bakUp
+	chkType
+	dim timeStr
+	timeStr = timeToStr(now())
+	moveFile accessFilePath,"../inc/databasebak/"&timeStr&"_bak.asp",""
+	alertMsg "备份成功","admin_database.asp"
+End Sub
+
+
+Sub restore
+	chkType
+	dim path
+	path = getForm("path","get")
+	moveFile path,accessFilePath,""
+	alertMsg "恢复成功","admin_database.asp"
+End Sub
+
+
+Sub compress
+	chkType
+	dim engineObj,tempDbPath
+	tempDbPath = "../inc/maxcms2.asp"
+	conn.Class_Terminate
+	set engineObj = server.CreateObject("JRO.JetEngine")
+	engineObj.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & server.MapPath(accessFilePath),"Provider=Microsoft.Jet.OLEDB.4.0;Data Source="& server.MapPath(tempDbPath)
+	moveFile tempDbPath,accessFilePath,"del" 
+	set engineObj = Nothing
+	alertMsg "压缩成功","admin_database.asp"
+End Sub
+
+Sub delAll
+	chkType
+	dim ids,idsArray,arrayLen,i
+	ids=replace(getForm("id","post")," ","")
+	idsArray = split(ids,",") : arrayLen=ubound(idsArray)
+	for i=0 to arrayLen
+		delFile idsArray(i)
+	next
+	alertMsg "删除完毕","admin_database.asp"
+End Sub
+
+
+%>

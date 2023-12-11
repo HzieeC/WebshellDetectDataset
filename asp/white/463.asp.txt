@@ -1,0 +1,566 @@
+<%
+Class Cls_Template
+
+	Dim Reg
+	Dim Page
+	Dim CID
+	Dim SID
+	Dim Rule
+	Dim Content
+	Dim Template
+	Dim Cachetimei
+	
+	Private Sub Class_Initialize()
+		Set Reg = New RegExp
+		Reg.Ignorecase = True
+		Reg.Global = True
+		Page = 0
+		CID = 0
+		SID = 0
+		Rule = ""
+		Content = ""
+		Template = "" ' 模板路径
+		Cachetimei = -1 ' 标签缓存时间
+	End Sub
+	
+	Private Sub Class_Terminate()
+		'Set Reg = Nothing
+	End Sub
+
+	' 载入模板
+	Public Function Load(ByVal Templatefile)
+		Template = Templatefile
+		If Templatecache = 1 Then
+			If ChkCache("LoadTemplate_" & Server.Mappath(Template)) Then
+				Content = GetCache("LoadTemplate_" & Server.Mappath(Template))
+			Else
+				Call Loadfile
+				Call SetCache("LoadTemplate_" & Server.Mappath(Template), Content)
+			End If
+		Else
+			Call Loadfile
+		End If
+	End Function
+	
+	' 检测SQL缓存
+	Function ChkCacheSQL(ByVal CacheName)
+		If Cachetimei <= 0 Then ChkCacheSQL = False: Exit Function
+		Dim CacheData
+		ChkCacheSQL = False
+		CacheName = LCase(Filterstr(CacheName))
+		CacheData = Application(Cacheflag & CacheName)
+		If Not IsArray(CacheData) Then Exit Function
+		If Not IsDate(CacheData(1)) Then Exit Function
+		If DateDiff("s", CDate(CacheData(1)), Now()) < 60 * Cachetime Then ChkCacheSQL = True
+	End Function
+
+	' 标签分析,有缓存有效期判断
+	Public Function  Parser()
+		If Not IsNumeric(Page) Then Page = 0 Else Page = Int(Page)
+		Parser_My ' 自定义标签
+		Parser_Sys ' 系统标签
+		Parser_Com ' 列表标签
+		Parser_IF ' IF ELSE END
+	End Function
+	
+	' 自定义标签
+	Public Function Parser_My()
+		On Error Resume Next
+		If GetCache("MyLableState") = "No" Then Content = RegReplace(Content, "{My:([\s\S]*?)}", ""): Exit Function
+		If Not ChkCache("MyLable") Then
+			Dim Rs
+			Set Rs = DB("Select [Name],[Code] From [{pre}Label]", 1)
+			If Not Rs.Eof Then
+				Call SetCache("MyLable", Rs.Getrows())
+				Call SetCache("MyLableState", "Yes")
+				Rs.Close: Set Rs = Nothing
+			Else
+				Rs.Close: Set Rs = Nothing
+				Call SetCache("MyLableState", "No")
+				Content = RegReplace(Content, "{My:([\s\S]*?)}", ""): Exit Function
+			End If
+		End If
+		Dim Ns, i, j
+		Ns = GetCache("MyLable")
+		Dim Matches, Match, MyValue
+		Reg.Pattern = "{My:([\s\S]*?)}"
+		Set Matches = Reg.Execute(Content)
+		For Each Match In Matches
+			If Len(Replace(Match.SubMatches(0), " ", "")) > 0 Then
+				MyValue = Lang_Parser_My_1 & " <font color=red>" & Replace(Match.SubMatches(0), " ", "") & "</font> " & Lang_Parser_My_2
+				For i = 0 To UBound(Ns, 2)
+					If LCase(Ns(0, i)) = LCase(Replace(Match.SubMatches(0), " ", "")) Then
+						MyValue = Ns(1, i)
+						If InStr(MyValue, "＄＄＄") > 0 Then
+							Randomize
+							j = Round(UBound(Split(MyValue, "＄＄＄")) * Rnd) '随机值第一个到最后一个
+							MyValue = Split(MyValue, "＄＄＄")(j)
+						End If
+						Exit For
+					End If
+				Next
+			End If
+			Content = Replace(Content, Match.Value, MyValue) ' 替换
+			If Err Then Err.Clear: Response.Write "<font color=red>" & Lang_Parser_My_Error & "[" & AspArr(i) & "]</font>": Response.End
+		Next
+	End Function
+	
+	' 分析系统标签
+	Public Function Parser_Sys()
+		On Error Resume Next
+		Dim Matches, Match, SysValue
+		Reg.Pattern = "{Sys:([\s\S]*?)}"
+		Set Matches = Reg.Execute(Content)
+		For Each Match In Matches
+			If InStr(LCase(Match.SubMatches(0)), "database") = 0 Then
+				If Len(Replace(Match.SubMatches(0), " ", "")) > 0 Then Execute ("SysValue = " & Replace(Match.SubMatches(0), " ", "")) Else SysValue = ""
+			Else
+				SysValue = ""
+			End If
+			Content = Replace(Content, Match.Value, SysValue) ' 替换
+			If Err Then Err.Clear: Response.Write "<font color=red>" & Lang_Parser_Sys_Error & "[" & AspArr(i) & "]</font>": Response.End
+		Next
+		reg.pattern = "<(.*?)(src=|href=|value=|background=)""(images/|css/|js/)(.*?)""(.*?)>"
+		content = reg.replace(content, "<$1$2""" & httpurl & installdir & templatedir & "/$3$4""$5>")
+		reg.pattern = "{tag:goto}"
+		content = reg.replace(content, httpurl & installdir & "redirect.asp?")
+	End Function
+	
+	
+	' 列表标签
+	Public Function Parser_Com()
+		On Error Resume Next
+		Dim Matches, Match
+		Dim Rs, i, j
+		Dim Matche, BackValue
+		Dim TagLabs, Tagsstr, Loopstr
+		Dim Tag_Cache, Tag_Row
+		Dim Tag_Aid, Tag_Cid, Tag_Type,Tag_Sid, Tag_Display, Tag_Mode, Tag_Keys, Tag_Order
+		Dim Tag_SQL, Tag_Table, Tag_Where, Tag_Field
+		Reg.Pattern = "<!--(.+?):\{(.+?)\}-->([\s\S]*?)<!--\1-->"
+		Set Matches = Reg.Execute(Content)
+		For Each Match In Matches
+			TagLabs = Match.SubMatches(0)	  ' 标签
+			Tagsstr = Match.SubMatches(1)	  ' 属性
+			Loopstr = Match.SubMatches(2)	  ' innerText
+			
+			If LCase(TagLabs) <> "page" Then ' 分页标签
+				' 共用属性
+				Tag_Cache = GetAttr(Tagsstr, "cache", True)  ' 缓存时间 def:defcachetime
+				Tag_Row = GetAttr(Tagsstr, "row", True)	' 列数量 def:10
+				Tag_Field = GetAttr(Tagsstr, "field", True)  ' 所有字段
+				Tag_Display = GetAttr(Tagsstr, "Display", True) '栏目显示
+				If Len(Tag_Cache) = 0 Or Not IsNumeric(Tag_Cache) Then Tag_Cache = -1 ' 标签不用缓存
+				If Len(Tag_Row) = 0 Or Not IsNumeric(Tag_Row) Then Tag_Row = 10
+				If Int(Tag_Row) < 1 Then Tag_Row = 1
+				If Len(Tag_Field) = 0 Then Tag_Field = "*"
+				Tag_Cache = Int(Tag_Cache): Tag_Row = Int(Tag_Row)
+				' 内容Content专用属性
+				Tag_Aid = GetAttr(Tagsstr, "aid", True)	' 这个文章不显示出来
+				Tag_Cid = GetAttr(Tagsstr, "cid", True)	' 栏目ID,多用个,号分隔
+				Tag_Sid = GetAttr(Tagsstr, "sid", True)'专题ID
+				Tag_Type = GetAttr(Tagsstr, "type", True)   ' 类型: text/images def:text
+				Tag_Mode = GetAttr(Tagsstr, "mode", True)   ' 类型(推荐,热门,相关)
+				Tag_Keys = GetAttr(Tagsstr, "keys", True)   ' 关键字
+				Tag_Order = GetAttr(Tagsstr, "order", False)  ' 排序 def:[id] desc[组合查询可用]
+				Tag_SQL = GetAttr(Tagsstr, "sql", False)	' 单独SQL查询
+				Tag_Table = GetAttr(Tagsstr, "table", True)  ' 组合查询,表
+				Tag_Where = GetAttr(Tagsstr, "where", False)  ' 组合查询,条件
+				' 默认设置
+				If LCase(Tag_Table) = "channel" And Len(Tag_Where) = 0 And Len(Tag_Display) = 0 Then Tag_Where = "[FatherID]=0 And [OutSideLink]=0 And [Order]>=0"
+				If LCase(Tag_Table) = "channel" And Len(Tag_Where) = 0 And Len(Tag_Display) = 1 Then Tag_Where = "[FatherID]=0 And [Display]=1 And [OutSideLink]=0 And [Order]>=0"
+				If LCase(Tag_Table) = "channel" And Len(Tag_Order) = 0 Then Tag_Order = "[Order] Desc,[ID] Desc"
+
+				' SQL查询组合
+				If Len(Tag_SQL) = 0 Then
+					If Len(Tag_Table) > 0 Then
+						If Len(Tag_Where) > 0 Then Tag_Where = " Where " & Tag_Where & " "
+						If Len(Tag_Order) = 0 Then
+							If LCase(Tag_Table) = "channel" Then
+								Tag_Order = "[Order] Desc,[ID] Desc"
+							Else
+								Tag_Order = "[ID] Desc"
+							End If
+						End If
+
+						Tag_SQL = "Select Top " & Tag_Row & " " & Tag_Field & " From [{pre}" & Tag_Table & "] " & Tag_Where & " Order By " & Tag_Order ' 最终查询语句
+					Else
+						Tag_Where = ""
+						
+						If Len(Tag_Aid) > 0 Then
+							If InStr(Tag_Aid, ",") > 0 Then
+								Tag_Where = " [ID] In (" & Tag_Aid & ") "
+							Else
+								Tag_Where = " [ID]<>" & Tag_Aid & " "
+							End If
+						End If
+						If Len(Tag_Cid) > 0 Then
+							If Len(Tag_Where) > 0 Then Tag_Where = Tag_Where & " And [Cid] In (" & Tag_Cid & ") " Else Tag_Where = " [Cid] In (" & Tag_Cid & ") "
+							'If Len(Tag_Where) > 0 Then Tag_Where = Tag_Where & " And ([Cid] In (" & Tag_Cid & ") or [Sid] in (" & tag_cid & ")) " Else Tag_Where = " ([Cid] In (" & Tag_Cid & ") or [Sid] in (" & tag_cid & ")) "
+						End If
+						If LCase(Tag_Type) = "images" Then
+							If Len(Tag_Where) > 0 Then Tag_Where = Tag_Where & " And [Indexpic]<>'' " Else Tag_Where = Tag_Where & " [Indexpic]<>'' "
+						End If
+						If LCase(Tag_Type) = "noimages" Then
+							If Len(Tag_Where) > 0 Then Tag_Where = Tag_Where & " And [Indexpic]='' " Else Tag_Where = Tag_Where & " [Indexpic]='' "
+						End If
+							
+						Select Case LCase(Tag_Mode)
+						Case "commend"
+							If Len(Tag_Where) > 0 Then Tag_Where = Tag_Where & " And [Commend]=1 " Else Tag_Where = Tag_Where & " [Commend]=1 "
+						Case "commend1"
+							If Len(Tag_Where) > 0 Then Tag_Where = Tag_Where & " And [Commend1]=1 " Else Tag_Where = Tag_Where & " [Commend1]=1 "
+						Case "commend2"
+						If Len(Tag_Where) > 0 Then Tag_Where = Tag_Where & " And [Commend2]=1 " Else Tag_Where = Tag_Where & " [Commend2]=1 "
+						Case "uncommend"
+							If Len(Tag_Where) > 0 Then Tag_Where = Tag_Where & " And [Commend]=0 " Else Tag_Where = Tag_Where & " [Commend]=0 "
+						Case "about"
+							If Len(Tag_Keys) > 0 Then
+								Tag_Cache = -1 ' 不缓存
+								Dim Tag_KeysLink
+								Tag_Keys = Split(Replace(Tag_Keys, "'", ""), ",")
+								j = UBound(Tag_Keys): If j > 5 Then j = 5
+								For i = 0 To j
+									If Len(Tag_Keys(i)) > 0 Then
+										If Len(Tag_KeysLink) = 0 Then
+											Tag_KeysLink = " [Keywords] Like '%" & Tag_Keys(i) & "%'"
+										Else
+											Tag_KeysLink = Tag_KeysLink & " Or [Keywords] Like '%" & Tag_Keys(i) & "%'"
+										End If
+									End If
+								Next
+								If Len(Tag_KeysLink) > 0 Then
+									If Len(Tag_Where) > 0 Then Tag_Where = Tag_Where & " And (" & Tag_KeysLink & ") " Else Tag_Where = Tag_Where & " (" & Tag_KeysLink & ") "
+								End If
+							End If
+							If Len(Tag_Sid)>0 Then Tag_Where = Tag_Where & " And [Sid] = "&Tag_Sid&"" Else Tag_Where = Tag_Where & " "
+						End Select
+						If LCase(Tag_Mode) = "hot" Then
+							Tag_Order = "[Views] Desc"
+						Else
+							If Len(Tag_Order) = 0 Then Tag_Order = "[ID] Desc"
+						End If
+						If Len(Tag_Where) > 0 Then Tag_Where = Tag_Where & " And [Display]=1 " Else Tag_Where = " [Display]=1"
+						Tag_SQL = "Select Top " & Tag_Row & " " & Tag_Field & " From [{pre}Content] Where " & Tag_Where & " and [publishTime]<now() Order By " & Tag_Order ' 最终查询语句
+					End If
+				End If
+				Cachetimei = Tag_Cache ' 标签缓存
+				If ChkCacheSQL(Template & Tag_SQL) Then
+					BackValue = GetCache(Template & Tag_SQL)
+				Else
+					BackValue = ""
+					Err.Clear
+					Set Rs = DB(Tag_SQL, 3)
+					If Err Then Response.Write "<font color=red>" & Lang_Parser_Com_Error & "[" & Tag_SQL & " => & " & Err.Description & "]</font>": Response.End
+					Session(Cacheflag & "_Parser_i") = 0
+					For i = 1 To Tag_Row
+						If Rs.Eof Then Exit For ' 不存在记录就退出
+						If Len(TagLabs) = 0 Then TagLabs = "field"
+						Session(Cacheflag & "_Parser_i") = Session(Cacheflag & "_Parser_i") + 1 ' 记数
+						BackValue = BackValue & Parser_Tags("\[" & TagLabs & ":(.+?)\]", Loopstr, Rs) ' 替换
+						Rs.MoveNext
+					Next
+					Rs.Close
+					Call SetCache(Template & Tag_SQL, BackValue)
+				End If
+				Content = Replace(Content, Match.Value, BackValue)
+			End If
+		Next
+		If RegExists("<!--(.+?):\{(.+?)\}-->([\s\S]*?)<!--\1-->", Content) Then Call Parser_Com  ' 多次调用
+	End Function
+	
+	' 分页标签
+	Public Function Parser_Page()
+		'On Error Resume Next
+		Dim Matches, Match
+		Dim Rs, i, j
+		Dim Matche, BackValue
+		Dim Tagsstr, Loopstr
+		Dim Tag_Size, Tag_Order, Tag_Field, Tag_Table, Tag_Style, Tag_SQL, Tag_Where,Tag_Mode,Tag_Type,Tag_Cid
+		Dim Tag_RecordCount, Tag_PageCount
+		Reg.Pattern = "<!--Page:\{(.+?)\}-->([\s\S]*?)<!--Page-->"
+		Set Matches = Reg.Execute(Content)
+		For Each Match In Matches
+			BackValue = ""
+			Tagsstr = Match.SubMatches(0)	  ' 属性
+			Loopstr = Match.SubMatches(1)	  ' innerText
+			Tag_Size = GetAttr(Tagsstr, "size", True)
+			Tag_Order = GetAttr(Tagsstr, "order", False)
+			Tag_Table = GetAttr(Tagsstr, "table", True)
+			Tag_Style = GetAttr(Tagsstr, "style", True)
+			Tag_Field = GetAttr(Tagsstr, "field", True)  ' 所有字段
+			Tag_Mode = GetAttr(Tagsstr, "mode", True)
+			Tag_Type = GetAttr(Tagsstr,"type",True)
+			Tag_Cid = GetAttr(Tagsstr,"cid",True)
+			If Len(Tag_Size) = 0 Or Not IsNumeric(Tag_Size) Then Tag_Size = 10
+			If Len(Tag_Order) = 0 Then Tag_Order = "[ID] Desc"
+			If Len(Tag_Table) = 0 Then Tag_Table = "Content"
+			If Len(Tag_Style) = 0 Or Not IsNumeric(Tag_Style) Then Tag_Style = 1
+			If Len(Tag_Field) = 0 Then Tag_Field = "*"
+			Tag_Size = Int(Tag_Size): Tag_Table = " [{pre}" & Tag_Table & "] ": Tag_Style = Int(Tag_Style): Tag_Where = " [Display]=1 "
+			If Len(Tag_Cid)>0 Then 
+				Tag_Where = Tag_Where & " and [publishTime]<now() And [CID] in (" & Tag_Cid & ")"
+			elseIf Len(CID) > 0 And isnumeric(CID) Then 
+				Tag_Where = Tag_Where & " and [publishTime]<now() And [CID]=" & CID ' 存在CID则调用指定CID/SID的内容
+			End If
+			'If Len(CID) > 0 And isnumeric(CID) Then Tag_Where = Tag_Where & " And ([CID]=" & CID & " Or [SID]=" & CID & ")" ' 存在CID则调用指定CID/SID的内容
+			If Len(CID) = 0 And Len(Tag_Cid)=0 And Len(SID)>0 And isnumeric(SID) Then Tag_Where = Tag_Where & " and [publishTime]<now() And [SID]=" & SID ' 不存在CID,而存在SID则调用SID的内容
+			If LCase(Tag_Mode)="commend" Then Tag_Where = Tag_Where & " And [Commend]=1"
+			If LCase(Tag_Mode)="uncommend" Then Tag_Where = Tag_Where & " And [Commend]=0"
+			If LCase(Tag_Type)="images" Then Tag_Where = Tag_Where & " And [IndexPic]<>''"
+			If LCase(Tag_Type)="noimages" Then Tag_Where = Tag_Where & " And [IndexPic]=''"
+			Set Rs = New DataList
+			Rs.Result = 1
+			Rs.Field = Tag_Field
+			Rs.Table = Tag_Table
+			Rs.Where = Tag_Where
+			Rs.Order = Tag_Order
+			Rs.PageSize = Tag_Size
+			Rs.AbsolutePage = Page
+			Rs.List()
+			Session(Cacheflag & "_Parser_i") = 0
+			For i = 1 To Tag_Size
+				If Rs.Data.Eof Then Exit For
+				Session(Cacheflag & "_Parser_i") = Session(Cacheflag & "_Parser_i") + 1 ' 记数
+				BackValue = BackValue & Parser_Tags("\[Page:(.+?)\]", Loopstr, Rs.Data) ' 替换
+				Rs.Data.MoveNext
+			Next
+			Content = RegReplace(Content, "{tag:page}", "{{tag:page_www.5u.hk}}")
+			Content = Replace(Content, Match.Value, BackValue)
+			Tag_RecordCount = Rs.RecordCount: Tag_PageCount = Rs.PageCount: Rs.Data.Close
+			If Tag_PageCount = 0 Then Tag_PageCount = 1
+		Next
+		Dim GetPageList
+		if matches.count >0 then
+			GetPageList = PageListX(Tag_PageCount, Tag_RecordCount, Page, Tag_Size, CID, Tag_Style)
+		end if
+		Content = RegReplace(Content, "{{tag:page_www.5u.hk}}", GetPageList)
+		Set Rs = Nothing
+	End Function
+	
+	' 字符替换
+	Public Function Parser_Tags(ByVal Pattern, ByVal Temp, ByVal Dat)
+		On Error Resume Next
+		Dim Matches, Match
+		Dim Tagsstr, Tagsval, Tagsvalt, TagTitle: TagTitle = False
+		Dim Tag_Len, Tag_Lenext, Tag_Format, Tag_Replace, Tag_Function,Tag_width,Tag_Height
+		Dim Re, Re1, Re2
+		Dim i, c, l, t
+		Reg.Pattern = Pattern
+		Set Matches = Reg.Execute(Temp)
+		For Each Match In Matches
+			Tagsstr = Match.SubMatches(0)
+			Tag_Len = GetAttr(Tagsstr, "len", True)
+			Tag_Lenext = GetAttr(Tagsstr, "lenext", True)
+			Tag_Format = GetAttr(Tagsstr, "format", False)
+			Tag_Replace = GetAttr(Tagsstr, "replace", False)
+			Tag_Function = GetAttr(Tagsstr, "function", True)
+			Tag_Width=GetAttr(Tagsstr, "width", True)
+			Tag_Height=GetAttr(Tagsstr, "height", True)
+			Tagsval = Split(Tagsstr, " ")(0)
+			Select Case LCase(Tagsval)
+			Case "aid"
+				Tagsval = Dat("AID")
+				If Err Then Err.Clear: Tagsval = Dat("ID") 	  ' Content
+			Case "aurl"
+				Tagsval = Dat("ID")	 ' Content
+				Tagsval = BuildViewPath(Dat("ID"), Dat("Cid"), Dat("Diyname"), Dat("Createtime"), Dat("ViewPath"))
+			Case "curl"
+				Tagsval = Dat("Cid") ' Content
+				If Err Then Err.Clear: Tagsval = Dat("ID")  ' Channel
+				If Createhtml = 1 Then ' 栏目只在1时才会生成,其他均不生成
+					If Len(GetChannel(Tagsval, "Domain")) > 0 Then Tagsval = GetChannel(Tagsval, "Domain") Else Tagsval = Httpurl & GetChannel(Tagsval, "Ruleindex")
+				Else ' ASP
+					If Len(GetChannel(Tagsval, "Domain")) > 0 Then Tagsval = GetChannel(Tagsval, "Domain") Else Tagsval = Httpurl & Installdir & "channel.asp?id=" & Tagsval
+				End If
+			Case "surl" ' sid -> name
+				Tagsval = Dat("FileName")&".html"
+			Case "cname"
+				Tagsval = GetChannel(Dat("cid"), "name")
+			Case "sname" ' sid -> name
+				Tagsval = ""
+			Case "ctable"
+				Tagsval = GetChannel(Dat("cid"), "table")
+			Case "titlex"
+				Tagsval = Dat("Title")	 ' Content
+				TagTitle = True
+			Case "modeindex"
+				Tagsval = ""
+			Case "i"
+				Tagsval = Session(Cacheflag & "_Parser_i")
+			Case Else
+				If LCase(Left(Tagsval, 3)) = "ext" Then
+					Tagsval = GetExtVal(Right(Tagsval, Len(Tagsval) - 3),Dat("ModeIndex"))
+				Else
+					Tagsval = Dat(Tagsval)
+				End If
+			End Select
+			Tagsval = Replace(Replace(Replace(Replace(Tagsval, "&nbsp;", " "), "&quot;", Chr(34)), "&gt;", ">"), "&lt;", "<")
+			If Len(Replace(Tag_Replace, " ", "")) > 0 Then
+				Re = Split(Tag_Replace, "##")
+				If UBound(Re) >= 0 Then Re1 = Re(0): Re2 = Re(1) Else Re1 = Re(0): Re2 = Re(0)
+				Tagsval = Replace(Tagsval, Re1, Re2)
+			End If
+			If Len(Replace(Tag_Format, " ", "")) > 0 Then ' 格式化时间
+				If IsDate(Tagsval) Then
+					Tagsvalt = Tagsval: Tagsvalt = LCase(Tag_Format): Tagsvalt = Replace(Tagsvalt, "weeka", "WEEKA"): Tagsvalt = Replace(Tagsvalt, "montha", "MONTHA"): Tagsvalt = Replace(Tagsvalt, "week", "WEEK"): Tagsvalt = Replace(Tagsvalt, "month", "MONTH")
+					If InStr(Tagsvalt, "WEEKA") Then Tagsvalt = Replace(Tagsvalt, "WEEKA", Lang_Week_Abbr(Weekday(Tagsval)))
+					If InStr(Tagsvalt, "WEEK") Then Tagsvalt = Replace(Tagsvalt, "WEEK", Lang_Week(Weekday(Tagsval)))
+					If InStr(Tagsvalt, "MONTHA") Then Tagsvalt = Replace(Tagsvalt, "MONTHA", Lang_Month_Abbr(Month(Tagsval)))
+					If InStr(Tagsvalt, "MONTH") Then Tagsvalt = Replace(Tagsvalt, "MONTH", Lang_Month(Month(Tagsval)))
+					If InStr(Tagsvalt, "yyyy") > 0 Then Tagsvalt = Replace(Tagsvalt, "yyyy", Year(Tagsval))
+					If InStr(Tagsvalt, "yy") > 0 Then Tagsvalt = Replace(Tagsvalt, "yy", Right(Year(Tagsval), 2))
+					If InStr(Tagsvalt, "mm") > 0 Then Tagsvalt = Replace(Tagsvalt, "mm", Right("0" & Month(Tagsval), 2))
+					If InStr(Tagsvalt, "m") > 0 Then Tagsvalt = Replace(Tagsvalt, "m", Month(Tagsval))
+					If InStr(Tagsvalt, "dd") > 0 Then Tagsvalt = Replace(Tagsvalt, "dd", Right("0" & Day(Tagsval), 2))
+					If InStr(Tagsvalt, "d") > 0 Then Tagsvalt = Replace(Tagsvalt, "d", Day(Tagsval))
+					If InStr(Tagsvalt, "hh") > 0 Then Tagsvalt = Replace(Tagsvalt, "hh", Right("0" & Hour(Tagsval), 2))
+					If InStr(Tagsvalt, "h") > 0 Then Tagsvalt = Replace(Tagsvalt, "h", Hour(Tagsval))
+					If InStr(Tagsvalt, "nn") > 0 Then Tagsvalt = Replace(Tagsvalt, "nn", Right("0" & Minute(Tagsval), 2))
+					If InStr(Tagsvalt, "n") > 0 Then Tagsvalt = Replace(Tagsvalt, "n", Minute(Tagsval))
+					If InStr(Tagsvalt, "ss") > 0 Then Tagsvalt = Replace(Tagsvalt, "ss", Right("0" & Second(Tagsval), 2))
+					If InStr(Tagsvalt, "s") > 0 Then Tagsvalt = Replace(Tagsvalt, "s", Second(Tagsval))
+					Tagsval = Tagsvalt
+				End If
+			End If
+			If Len(Tag_Len) > 0 Then
+				If IsNumeric(Tag_Len) Then
+					Tag_Len = Int(Tag_Len)
+					For i = 1 To Len(Tagsval)
+						c = Abs(Asc(Mid(Tagsval, i, 1)))
+						If c > 255 Or c < 2 Then t = t + 2 Else t = t + 1
+						If t >= Tag_Len Then Tagsval = Left(Tagsval, i) & Tag_Lenext: Exit For
+					Next
+				End If
+			End If
+			If Len(Tag_Function) > 0 Then
+				Tag_Function = Split(Tag_Function, ",")
+				For i = 0 To UBound(Tag_Function)
+					Select Case LCase(Tag_Function(i))
+					Case "urlencode": Tagsval = Server.UrlEnCode(Tagsval)
+					Case "htmlencode": Tagsval = Server.HtmlEnCode(Tagsval)
+					Case "abs": Tagsval = Abs(Tagsval)
+					Case "trim": Tagsval = Trim(Tagsval)
+					Case "ucase": Tagsval = UCase(Tagsval)
+					Case "lcase": Tagsval = LCase(Tagsval)
+					Case "clearhtml": Tagsval = RegReplace(Tagsval, "(\<.+?\>)", ""): Tagsval = Replace(Trim(Tagsval), vbCrLf, " ")
+					Case "tags"
+						t = Split(Tagsval, ","): Tagsval = ""
+						For c = 0 To UBound(t)
+							If Len(Tagsval) > 0 Then Tagsval = Tagsval & ","
+							Tagsval = Tagsval & " <a href='" & Httpurl & Installdir & "plus/search/index.asp?keyword=" & Server.UrlEnCode(t(c)) & "'>" & t(c) & "</a>"
+						Next
+					End Select
+				Next
+			End If
+			If len(Tag_Width) > 0 or len(Tag_Height) > 0 then
+				If instr(tag_width,",") > 0 or len(tag_width)=0 then tag_width = 100 else tag_width = int(tag_width)
+				If instr(tag_height,",") > 0 or len(tag_height)=0 then tag_height = 100 else tag_height = int(tag_height)
+				Tagsval = Cutjpeg(Tagsval,Tag_Width , tag_height)
+			end if
+			If IsNull(Tagsval) Then Tagsval = ""
+			If TagTitle Then
+				TagTitle = False
+				Dim TitleStyle: TitleStyle = Split(Dat("Style") & ",", ",")
+				If Len(TitleStyle(0)) > 0 Then Tagsval = "<" & TitleStyle(0) & ">" & Tagsval & "</" & TitleStyle(0) & ">"
+				If Len(TitleStyle(1)) > 0 Then Tagsval = "<font color=""" & TitleStyle(1) & """>" & Tagsval & "</font>"
+			End If
+			Temp = Replace(Temp, Match.Value, Tagsval)
+		Next
+		Parser_Tags = Temp
+	End Function
+	
+	' 判断标签
+	Public Function Parser_IF()
+		On Error Resume Next
+		Dim Matches, Match,TestIF,TestVal,TestTrue,TestFalse
+		Reg.Pattern = "{If:(.+?)}([\s\S]*?){End If}"
+		Set Matches = Reg.Execute(Content)
+		For Each Match In Matches
+			TestVal=Match.SubMatches(1)
+			If Instr(LCase(TestVal),"{else}")>0 Then
+				TestVal=Replace(TestVal,"{else}","{else}",1,-1,1):TestTrue=Split(TestVal,"{else}")(0):TestFalse=Split(TestVal,"{else}")(1)
+			Else
+				TestTrue=TestVal:TestFalse=""
+			End If
+			Execute ("If " & replace(Match.SubMatches(0),"'","""") & " Then TestIf = True Else TestIf = False")
+			If TestIF Then Content = Replace(Content, Match.Value, TestTrue) Else Content = Replace(Content, Match.Value, TestFalse)
+			If Err Then Response.Write "<font color=red>" & Lang_Parser_IF_Error & "[" & Match.SubMatches(0) & "]" & Err.Description & "</font>": Err.Clear: Response.End
+		Next
+	End Function
+	
+	' 正表达式替换
+	Public Function RegReplace(ByVal ReplaceContent, ByVal Pattern, ByVal ReplaceVal)
+		Reg.Pattern = Pattern
+		RegReplace = Reg.Replace(ReplaceContent, ReplaceVal)
+	End Function
+	
+	' 是否存在此类标签
+	Public Function RegExists(ByVal Pattern, ByVal TestContent)
+		Reg.Pattern = Pattern
+		RegExists = Reg.Test(TestContent)
+	End Function
+	
+	' 获取指定标签属性的值
+	Public Function GetAttr(ByVal Tagsstr, ByVal AttrName, ByVal ReplaceSpace)
+		If Len(Tagsstr) <= 3 Or InStr(LCase(Tagsstr), "$" & LCase(AttrName) & "=") = 0 Then GetAttr = "": Exit Function
+		Dim Matches, Match
+		Reg.Pattern = "\$" & AttrName & "=(.+?) \$"
+		Set Matches = Reg.Execute(Tagsstr & " $")
+		For Each Match In Matches
+			GetAttr = Match.SubMatches(0)
+		Next
+		If ReplaceSpace Then
+			GetAttr = Replace(GetAttr, " ", "")
+			If Len(GetAttr) > 0 And IsNumeric(GetAttr) And InStr(GetAttr, ",") = 0 Then GetAttr = Int(GetAttr)
+		End If
+	End Function
+
+	' 载入模板
+	Public Function Loadfile()
+		Dim Obj
+		On Error Resume Next
+		Set Obj = Server.CreateObject("adodb.stream")
+		With Obj
+		.Type = 2: .Mode = 3: .Open: .Charset = Response.charset : .Position = Obj.Size: .Loadfromfile Server.Mappath(Template): Content = .ReadText: .Close
+		End With
+		Set Obj = Nothing
+		If Err Then Response.Write "<font color=red>" & Lang_Parser_LoadFile_Error & "[" & Template & "]</font>": Response.End
+		'Content=RegReplace(Content, "<" & "!--#include file=""(../)*(.+?)""-->", "{file:$2}")
+		Content=RegReplace(Content,"<!--\{template (.+?)\}-->","{file:$1}")'引用模板标签，兼容php版本模板
+        If InStr(Content, "{file:") > 0 Then
+            Dim Match, Matches, FileBody,FilePath
+            Reg.Pattern = "{file:(.+?)}"
+            Set Matches = Reg.Execute(Content)
+            For Each Match In Matches
+				FilePath=installdir & templatedir & "/" & Match.SubMatches(0) & ".html"
+				If Templatecache = 1 Then
+					If ChkCache("LoadTemplate_Sub_" & Server.Mappath(FilePath)) Then
+						FileBody = GetCache("LoadTemplate_Sub_" & Server.Mappath(FilePath))
+					Else
+						FileBody = LoadSubFile(FilePath)
+						Call SetCache("LoadTemplate_Sub_" & Server.Mappath(FilePath), FileBody)
+					End If
+				Else
+					FileBody = LoadSubFile(FilePath)
+				End If
+               Content = Replace(Content, Match.Value,FileBody)
+            Next
+        End If
+		
+	End Function
+	Public Function LoadSubFile(byval vpath)
+		Dim Obj : On Error Resume Next
+		Set Obj = Server.CreateObject("adodb.stream")
+		With Obj
+		.Type = 2: .Mode = 3: .Open: .Charset = Response.charset : .Position = Obj.Size: .Loadfromfile Server.Mappath(vpath): LoadSubFile = .ReadText: .Close
+		End With
+		Set Obj = Nothing
+		If Err Then LoadSubFile="" : Err.clear
+
+	ENd Function
+	public function rep(s,d)
+		content = replace(content,s,d)
+	end function
+End Class
+%>

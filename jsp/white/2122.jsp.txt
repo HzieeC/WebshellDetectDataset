@@ -1,0 +1,510 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<%@page import="util.DateUtils"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String categoryId = request.getParameter("categoryId");
+		String delflag = request.getParameter("delflag");
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<style type="text/css">
+		.todo-complete .x-grid3-cell-inner{
+			color: gray;
+			text-decoration: line-through;
+		}
+		.todo-overdue .x-grid3-cell-inner{
+			color: red;
+			text-decoration: none;
+		}
+		.todo-uncomplete .x-grid3-cell-inner{
+			color: black;
+			text-decoration: none;
+		}
+	</style>
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 全局参数
+			var baseParams = {start:0, limit:<%=Constants.PAGE_SIZE %>, delflag:'<%=delflag%>', categoryId:'<%=categoryId%>'};
+
+		 	// 任务数据源
+		    var jsonReader = new Ext.data.JsonReader({
+		    	root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['todoId', 'todoContent', 'categoryId', 'categoryName', 'dealDateStr', 'level', 'createDateStr', 'delflag']
+			});
+
+		    var todoListStore = new Ext.data.GroupingStore({
+		    	url: '<%=baseUrl %>/todoAction.do?method=query',
+	            reader: jsonReader,
+	            baseParams: baseParams,
+	            groupField:'delflag',
+	            sortInfo: {field: "level", direction: "ASC"},
+		        groupDir: 'ASC',
+		        pruneModifiedRecords: true,
+	            autoLoad: true
+	        });
+			    
+
+		 	// 工具栏
+		    var todoListToolbar = new Ext.Toolbar({
+		    	renderTo: 'todoListToolBarDiv',
+		    	items: [
+				    new Ext.Button({
+					    id: 'todoList-add-button',
+						text: '添加',
+						iconCls: 'add-todo'
+					}),
+					new Ext.Button({
+					    id: 'todoList-save-button',
+					    text: '保存',
+						iconCls: 'disk_multiple'
+					}),
+					new Ext.Button({
+					    id: 'todoList-delete-button',
+					    text: '删除',
+						iconCls: 'delete'
+					}),
+					'-',
+					new Ext.Button({
+					    id: 'todoList-uncomplete-button',
+					    text: '标记为未完成',
+						iconCls: 'icon-active'
+					}),
+					new Ext.Button({
+					    id: 'todoList-complete-button',
+					    text: '标记为已完成',
+						iconCls: 'icon-complete'
+					}),
+					'-',
+					new Ext.Button({
+					    id: 'todoList-groupbystatus-button',
+					    text: '按状态分组',
+					    iconCls: 'icon-by-category'
+					}),
+					new Ext.Button({
+					    id: 'todoList-groupbydate-button',
+					    text: '按日期分组',
+					    iconCls: 'icon-by-date'
+					}),
+					new Ext.Button({
+					    id: 'todoList-groupbycategory-button',
+					    text: '按类别分组',
+					    iconCls: 'icon-by-category'
+					}),
+		            new Ext.ux.form.SearchField({
+		                store: todoListStore,
+		                width: 200,
+		                paramName: 'todoContent',
+		                emptyText: '请输入任务...',
+		                style: 'margin-left: 10px;'
+		            })
+				]
+			});
+
+		 	// 分类数据源
+		    var categoryStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/todoCategoryAction.do?method=query',
+		        root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['categoryId', 'categoryName'],
+		        baseParams: {},
+		        autoLoad: {
+		        	callback: function(records, success){
+					    this.insert(0, new Ext.data.Record({
+							categoryId: "0",
+							categoryName: ""
+						}));
+					}
+			    }
+		    });
+	        var categoryCombo = new Ext.form.ComboBox({
+				id :'categoryCombo', 
+				triggerAction: 'all', 
+				typeAhead: true, 
+				store: categoryStore, 
+				mode : 'local',
+				valueField: 'categoryId', 
+				displayField: 'categoryName', 
+				hiddenName: 'categoryId',
+				editable: false,
+				lazyRender: true,
+				listeners: {
+					change: function(){
+	        			var record = todoListGrid.getSelectionModel().getSelections()[0];
+	        			record.set('categoryId', this.value);
+					}
+				}
+			});
+		 	// 笔记数据表格
+			var sm = new Ext.grid.RowSelectionModel();
+			// 分组头显示模板
+			var groupTextTpl = '{[(values.gvalue==undefined || values.gvalue=="")'+
+									'?(values.text.substring(0,values.text.indexOf(":"))=="日期"'+
+										'?"无期限"'+
+										':(values.text.substring(0,values.text.indexOf(":"))=="状态"'+
+											'?"新添加"'+
+											':"未分类"))'+
+									':(values.text.substring(0,values.text.indexOf(":"))=="状态")'+
+										'?(values.gvalue==1)'+
+											'?"未完成"'+
+											':(values.gvalue==2)'+
+												'?"已完成"'+
+												':"新添加"'+
+										':(values.text.substring(values.text.indexOf(":")+1))'+
+								']}'+
+								'{[values.gvalue == (new Date()).format("Y-m-d")'+
+										'?" (今天)"'+
+											':(values.gvalue == (new Date().add(Date.DAY, 1)).format("Y-m-d")'+
+												'?" (明天)"'+
+												':(values.gvalue == (new Date().add(Date.DAY, -1)).format("Y-m-d")'+
+													'?" (昨天)"'+
+													':""))'+
+								']}';
+			var todoListGrid = new Ext.grid.EditorGridPanel({
+				id: 'todoListGrid',
+				renderTo: 'todoListGridDiv',
+				border: false,
+				stateful: true,
+				enableColumnMove: false,
+				clicksToEdit: 1,
+			    autoScroll: 'auto',
+			    bodyStyle: 'font-color: red;',
+		        store: todoListStore,
+		        loadMask: false,
+		        cm: new Ext.grid.ColumnModel({
+		            defaults: {
+		                width: 120,
+		                sortable: true
+		            },
+			        columns: [
+			            {id:'todoId',header: '任务ID', width: 50, sortable: true, dataIndex: 'todoId', hidden: true},
+			            {id:'levelName',header: '', width: 28, sortable: true, menuDisabled: true, dataIndex: 'level',renderer: function(value, cellmeta,record){return levelRenderer(value, cellmeta,record);}},
+			            {id:'todoContent',header: '任务', width: 450, sortable: true, dataIndex: 'todoContent', renderer: function(value, cellmeta,record){cellmeta.attr = 'style="white-space:normal;word-break:break-all;"';return value;},editor: new Ext.form.TextField({allowBlank:false, maxLength: 500})},
+			            {id:'categoryName',header: '类别', width: 80, sortable: true, dataIndex: 'categoryName', renderer: function(value, cellmeta,record){return categoryComboRenderer(value, cellmeta,record);}, editor: categoryCombo},
+			            {id:'dealDateStr',header: '日期', width: 100, sortable: true, dataIndex: 'dealDateStr', renderer: function(value){return formatDealDate(value);}, editor: new Ext.form.DateField({format : 'Y-m-d'})},
+			            {id:'complete',header: '状态', width: 45, sortable: false, menuDisabled: true, dataIndex: 'delflag', renderer: formatComplete},
+			            {id:'delflag',header: '完成标识', width: 80, sortable: true, dataIndex: 'delflag', hidden: true},
+			            {id:'level',header: '优先级', width: 100, sortable: true, dataIndex: 'level', hidden: true},
+			            {id:'categoryId',header: '分类ID', width: 100, sortable: true, dataIndex: 'categoryId', hidden: true}
+			        ]
+		        }),
+		        sm: sm,
+		        columnLines: false,
+		        bbar: new Ext.PagingToolbar({
+					pageSize: <%=Constants.PAGE_SIZE %>,
+					store: todoListStore,
+					displayInfo: true,
+					displayMsg: Anynote.PAGINGTOOLBAR_DISPLAYMSG, 
+					emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+					doLoad: function(start){
+						baseParams.start = start;
+						this.store.load({params: baseParams});
+					}
+		        }),
+		        view: new Ext.grid.GroupingView({
+		            //forceFit:true,
+		            groupTextTpl: groupTextTpl,
+		            getRowClass: function(record, index, rp, ds){
+						var delflag = record.data.delflag;
+						var dealDate = null;
+						if(record.data.dealDateStr instanceof Date){
+							dealDate = record.data.dealDateStr;
+						}else{
+							dealDate = Date.parseDate(record.data.dealDateStr, "Y-m-d");
+						}
+						if(delflag=="1"){
+							if(dealDate && dealDate.getTime() < new Date().clearTime().getTime()){
+			                    return "todo-overdue";
+			                }else{
+								return "todo-uncomplete";
+				            }
+						}else if(delflag=="2"){
+							return "todo-complete";
+						}else{
+							return "";
+						}
+			        },
+			        showGroupName: true
+		        }),
+	        	listeners: {
+			    	beforeedit: function(e){
+						var record =  todoListStore.getAt(e.row);
+						if(record.get('delflag')=='<%=Constants.DEL_FLAG_2%>'){
+							return false;
+						}else{
+							return true;
+						}
+			    	}
+		        } 
+		    });
+
+			// 设置Grid高度和宽度
+			Anynote.resizeGridTo("todoListGrid", 0, 56);
+
+			// 添加按钮
+			$("#todoList-add-button").click(function(){
+				var record = new Ext.data.Record({
+					todoId: "",
+					todoContent: "",
+					dealDateStr: "<%=DateUtils.formatDate2Str(DateUtils.DATE_PATTON_1)%>",
+					level: "2"
+				});
+				todoListStore.insert(0, record);
+				todoListGrid.getView().refresh();
+				todoListGrid.getSelectionModel().selectRow(0);
+				todoListGrid.startEditing(0,2);
+
+			});
+
+			// 删除按钮
+			$("#todoList-delete-button").click(function(){
+				var records = Ext.getCmp("todoListGrid").getSelectionModel().getSelections();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一条数据.");
+				}else{
+					Ext.Msg.confirm("警告", "确定要删除吗？", function(btn){
+						if(btn=="yes"){
+							var todoIds = "";
+							for(var i=0;i<records.length;i++){
+								var record = records[i];
+								if(record.get("todoId")!=""){
+									todoIds = todoIds + record.get("todoId") + ",";
+								}
+								todoListStore.remove(record);
+							}
+							if(todoIds!=""){
+								var params = {};
+								params.todoIds = todoIds;
+								// 发送请求
+								Anynote.ajaxRequest({
+									baseUrl: '<%=baseUrl %>',
+									baseParams: params,
+									action: '/todoAction.do?method=delete',
+									callback: function(jsonResult){
+										Ext.getCmp("todoListGrid").getStore().reload();
+									},
+									failureMsg: '删除失败.'
+								});
+							}
+						}
+					});
+				}
+			});
+
+			// 保存按钮
+			$("#todoList-save-button").click(function(){
+				if(validateTodo()){
+					var records = todoListStore.getModifiedRecords();
+					var params = {};
+					params.jsonArr = Anynote.convertRecordsToJson(records);
+					// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: params,
+						action: '/todoAction.do?method=save',
+						callback: function(jsonResult){
+							Ext.getCmp("todoListGrid").getStore().reload();
+						},
+						failureMsg: '保存失败.'
+					});
+				}
+			});
+
+			// 标记为已完成按钮
+			$("#todoList-complete-button").click(function(){
+				finishTodo("<%=Constants.DEL_FLAG_2%>");
+			});
+
+			// 标记为未完成按钮
+			$("#todoList-uncomplete-button").click(function(){
+				finishTodo("<%=Constants.DEL_FLAG_1%>");
+			});
+
+			// 按日期分组按钮
+			$("#todoList-groupbydate-button").click(function(){
+				todoListStore.groupBy('dealDateStr');
+			});
+
+			// 按类别分组按钮
+			$("#todoList-groupbycategory-button").click(function(){
+				todoListStore.groupBy('categoryName');
+			});
+
+			// 按状态分组按钮
+			$("#todoList-groupbystatus-button").click(function(){
+				todoListStore.groupBy('delflag');
+			});
+
+			// 修改任务事宜状态
+			function finishTodo(delflag){
+				var records = Ext.getCmp("todoListGrid").getSelectionModel().getSelections();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一条数据.");
+				}else{
+					var todoIds = "";
+					for(var i=0;i<records.length;i++){
+						var record = records[i];
+						if(record.get("todoId")!="" && record.get("delflag")!=delflag){
+							todoIds = todoIds + record.get("todoId") + ",";
+						}
+					}
+					if(todoIds!=""){
+						var params = {};
+						params.todoIds = todoIds;
+						params.delflag = delflag;
+						// 发送请求
+						Anynote.ajaxRequest({
+							baseUrl: '<%=baseUrl %>',
+							baseParams: params,
+							action: '/todoAction.do?method=finish',
+							callback: function(jsonResult){
+								Ext.getCmp("todoListGrid").getStore().reload();
+							},
+							failureMsg: '保存失败.'
+						});
+					}
+				}
+			}
+
+			// 验证
+			function validateTodo(){
+				var records = todoListStore.getModifiedRecords();
+				if(records != null && records.length != 0){
+					// 验证
+					for(var i=0;i<records.length;i++){
+						var is = validateInput("req", records[i].get("todoContent"), "请输入任务.");
+						if(!is) return false;
+						var is = validateInput("maxlen=500", records[i].get("todoContent"), "任务最大长度不能超过500个字符.");
+						if(!is) return false;
+						var is = validateInput("req", records[i].get("level"), "请输入级别.");
+						if(!is) return false;
+					}
+					return true;
+				}else{
+					return false;
+				}
+			}
+
+			// 设置处理日期
+			function formatDealDate(value){
+				var result = '';
+				if(value instanceof Date){
+					result = new Date(value).format("Y-m-d");
+				}else if(value && value!=''){
+					result = value;
+				}else{
+					result = '';
+				}
+				return result==undefined?"":result;
+			}
+			// 设置类别
+			function categoryComboRenderer(value, cellmeta,record){
+				var todoId = record.get("todoId");
+				var index = categoryStore.find(Ext.getCmp('categoryCombo').valueField,value);
+				var record = categoryStore.getAt(index);
+				var displayText = "";
+				if(record && record!=null){
+					displayText = record.data.categoryName;
+				}else{
+					displayText = value;
+				}
+				return displayText==undefined?"":displayText;
+			}
+
+			// 设置优先级
+			function levelRenderer(value, cellmeta,record){
+				var delflag = record.get('delflag');
+				var title='';
+				var onclick='';
+				if(value=='1'){
+					title='取消高优先级';
+				}else if(value=='2'){
+					title='设定高优先级';
+				}
+				if(delflag=='<%=Constants.DEL_FLAG_1%>'){
+					onclick='javascript:updateLevel();';
+				}else{
+					onclick='';
+				}
+				return "<span style='padding-left:18px;width:16px;cursor:pointer;' title='"+title+"' class='star_import_"+value+"' onclick='"+onclick+"'></span>";
+			}
+
+			// 设置状态
+			function formatComplete(value, cellmeta,record){
+				var imgClass='icon-active';
+				var onclick='javascript:updateComplete();';
+				var title=''
+				if(value=='<%=Constants.DEL_FLAG_1%>'){
+					imgClass='icon-active';
+					title='标记为已完成';
+				}else if(value=='<%=Constants.DEL_FLAG_2%>'){
+					imgClass='icon-complete';
+					title='标记为未完成';
+				}else{
+					var imgClass='icon-active';
+					title='';
+					onclick = '';
+				}
+				return "<span style='padding-left:18px;width:16px;cursor:pointer;' title='"+title+"' class='"+imgClass+"' onclick='"+onclick+"'></span>";
+			}
+		});
+
+		// 更新状态
+		function updateComplete(){
+			var records = Ext.getCmp("todoListGrid").getSelectionModel().getSelections();
+			if(records.length != 1){
+				Ext.Msg.alert("提示", "请选择一条数据.");
+			}else{
+				var todoId = records[0].get('todoId');
+				records[0].set('delflag', records[0].get('delflag')=='1'?'2':'1');
+				if(todoId!=""){
+					updateTodo(records[0]);
+				}
+			}
+		}
+
+		// 更新优先级
+		function updateLevel(){
+			var records = Ext.getCmp("todoListGrid").getSelectionModel().getSelections();
+			if(records.length != 1){
+				Ext.Msg.alert("提示", "请选择一条数据.");
+			}else{
+				var todoId = records[0].get('todoId');
+				records[0].set('level', records[0].get('level')=='1'?'2':'1');
+				if(todoId!=""){
+					updateTodo(records[0]);
+				}
+			}
+		}
+
+		// 更新任务
+		function updateTodo(record){
+			var params = {};
+			params.todoId = record.get('todoId');
+			params.categoryId = record.get('categoryId');
+			params.todoContent = record.get('todoContent');
+			params.dealDate = record.get('dealDateStr');
+			params.level = record.get('level');
+			params.delflag = record.get('delflag');
+			// 发送请求
+			Anynote.ajaxRequest({
+				baseUrl: '<%=baseUrl %>',
+				baseParams: params,
+				action: '/todoAction.do?method=update',
+				callback: function(jsonResult){
+					Ext.getCmp("todoListGrid").getStore().reload();
+				},
+				failureMsg: '保存失败.'
+			});
+		}
+	</script>
+</head>
+<body>
+<div id="todoListDiv">
+	<div id="todoListToolBarDiv"></div>
+	<div id="todoListGridDiv" style="width:100%;height:100%;"></div>
+</div>
+</body>
+</html>

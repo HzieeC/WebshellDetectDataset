@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<script src="${contextPath}/static/jqtrans/jquery.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+<title></title>
+</head>
+<body>
+<div id="shortcutHidden" style="display:none"></div>
+<div class="userInfo">
+	<h1><fmt:message key="addshortcut"/></h1>
+		<input type="hidden" value="${contextPath}" id="contextPath" />
+<form id="dispatcherSearchForm">
+		
+</form>
+<c:forEach var="shortcut" items="${shortcut}" varStatus="step">
+<div style="font-size:18px;margin-top:10px;background-color:#eeeeee;line-height:18px;"><fmt:message key="${shortcut.top.name}"/></div>
+<div class="sp-blue mb10">&nbsp;</div>
+<c:forEach var="side" items="${shortcut.side}" varStatus="step">
+<span style="margin-left:10px;margin-top:10px"><input type="checkbox" value="${ side.code}" name="shortcutCode"/><fmt:message key="${side.name}"/></span>
+</c:forEach>
+</c:forEach>
+	
+	<br/>
+	
+</div>
+<form id="blank">
+<center>
+<div class="Btn "style=" 
+ bottom:0px;
+ padding:0px;
+ margin:0px;width:90%;overflow:hidden;">
+
+		<input  id="add" value="<fmt:message key="add"/>" type="button"/> 
+		
+
+			
+		</div></center></form>
+<script type="text/javascript">
+  seajs.use("${scriptBasePath}/shortcut/index.js");
+</script>
+</body>
+</html>

@@ -1,0 +1,461 @@
+<!--#Include File="../Inc/Const.Asp"-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gbk" />
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<title>静态发布</title>
+<link href="Images/Style.Css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+<!--
+.intclass {cursor: hand;color: #000000;background-color:#e1e1e1;width:20%;font-weight: bold;text-align: center;font-size: 14px;padding: 3px;border-top-width: 1px;border-left-width: 1px;border-top-style: solid;border-left-style: solid;border-top-color: #FFFFFF;border-left-color: #FFFFFF;}
+.unintclass{cursor: hand;color: #CCCCCC;background-color: #f1f1f1;width:20%;font-weight: bold;text-align: center;font-size: 14px;padding: 3px;border-top-width: 1px;border-left-width: 1px;border-top-style: solid;border-left-style: solid;border-top-color: #FFFFFF;border-left-color: #FFFFFF;}
+
+.c_1{width: 240px; white-space:nowrap; text-overflow:ellipsis; overflow: hidden;}
+-->
+</style>
+</head>
+<body>
+<%
+
+Call ChkLogin("create")
+
+Dim Rs,Ns,SQL,SQLi,SQLj,i,J
+
+If Len(Request("Act")) > 0 Then
+	Response.Write "<style type=""text/css"">body{line-height: 180%;font-size: 14px;}</style>"
+End If
+
+Select Case Request("Act")
+Case "Index"
+	Call ClsCache() : Response.Write "<font color=red>更新整站缓存...</font><br />" : Response.Flush()
+	Call CreateIndex(1) : Response.Write "生成首页,<a href='" & Indexview & "' target='_blank'>点击浏览</a><br />" & "<font color=blue>" & ScriptTime() & "</font>"
+	If IsObject(Conn) Then Conn.Close : Set Conn = Nothing
+	if request("type")="all" Then
+	response.Write "<meta http-equiv=""refresh"" content=""0;URL=Admin_Createhtml.Asp?Act=Channel&Int=Yes&Do=Next&cids=1&pages=10&type=all"" />"
+	End If
+Case "Channel"
+	If Request("Int") = "Yes" Then
+		Call ClsCache() : Session("CIDS") = Request("cids") : Session("Pages") = Request("pages") : If Not IsNumeric(Session("Pages")) Or Len(Session("Pages")) = 0 Then Session("Pages") = 10
+		If Session("CIDS") = 0 Then Call CreateIndex(1) : Response.Write "<font color=red>初始化,请稍等...</font><meta http-equiv=""refresh"" content=""0;URL=Admin_Createhtml.Asp?Act=Channel&type="&request("type")&"&Do=Next&cids=1&pages=" & Session("Pages") & """ />" : Response.End
+	End If
+	Dim Cids,Pages,NCid,NTemplate
+	Cids = Request("cids") : Pages = Request("pages")
+'	Set Rs = DB("Select [ID],[Name],[ChildID] From [{pre}Channel] Where [OutSideLink]=0 And [ID]>=" & Cids & " Order BY [ID] Asc",1)
+	Set Rs = DB("Select [ID],[Name],[ChildID],[ChildIDs] From [{pre}Channel] Where [OutSideLink]=0 And [ID]>=" & Cids & " Order BY [ID] Asc",1)
+	If Rs.Eof Then
+		Rs.Close : Conn.Close
+		If Request("Do") = "Next" Then Response.Write "<font color=red>所有栏目生成完毕!</font>" Else Response.Write "<font color=red>你所指定的栏目不存在!</font>"
+		Response.Write "<br/>" & "<font color=blue>" & ScriptTime() & "</font>" 
+		if request("type")="all" then
+			response.Write "<meta http-equiv=""refresh"" content=""0;URL=Admin_Createhtml.Asp?Act=Content&createi=0&createid=0"" />"
+		end if
+		response.End()
+	End If
+	If Not Rs.Eof Then
+		Response.Write "<font color=red>生成栏目 <b>" & Rs(1) & "</b> 请稍等...</font><br/>"
+	'	If Len(Rs(2)) > 0 Then
+	'		Call CreateChannel(Rs(0),1) : Response.Write "<span style='float:left;width:240px;' class='c_1'><font color=blue>封面</font> " & GetChannel(Rs(0),"Ruleindex") & "Index." & Defaultext & "</span>"
+	'		Call DB("Update [{pre}Channel] Set [NeedCreate]=0 Where [ID]=" & Rs(0),0)
+	'	Else
+		If Len(Rs(3)) > 0 Then
+			Dim ucms
+			ucms=Rs(3)
+		Else
+			ucms=Rs(0)
+		End If
+
+			Dim iStart
+			If Len(Request("pagei")) = 0 Then
+			'	Dim PageSizes : PageSizes = GetListSize(GetChannel(Rs(0),"Templateclass")) : Set Ns = DB("Select Count([ID]) From [{pre}Content] Where [CID]=" & Rs(0),1)
+				Dim PageSizes : PageSizes = GetListSize(GetChannel(Rs(0),"Templateclass")) : Set Ns = DB("Select Count([ID]) From [{pre}Content] Where [CID] in (" &ucms&")",1)
+				Session("Channel-PageCount-" & Rs(0)) = Abs(Int(0-(Ns(0)/PageSizes))) : Ns.Close : Set Ns = Nothing '# 当前栏目所有分页数量
+				If Int(Session("Channel-PageCount-" & Rs(0))) = 0 Then Session("Channel-PageCount-" & Rs(0)) = 1
+				iStart = 1
+			Else
+				iStart = Request("pagei")
+				If Int(iStart) > Int(Session("Channel-PageCount-" & Rs(0))) Then  '# 当前栏目生成完成了哦~~
+					Call DB("Update [{pre}Channel] Set [NeedCreate]=0 Where [ID]=" & Rs(0),0)
+					If Request("Do") = "Next" Then
+						Response.Write "<meta http-equiv=""refresh"" content=""0;URL=Admin_Createhtml.Asp?Act=Channel&Do=Next&cids=" & Rs(0)+1 & "&pages=" & Session("Pages") & """ />"'# 执行下一个咯
+					Else
+						Response.Write "<meta http-equiv=""refresh"" content=""0;URL=Admin_Createhtml.Asp?Act=Channel&type="&request("type")&"&cids=" & Rs(0)+1 & "&pages=" & Session("Pages") & """ />"'# 执行下一个咯
+					End If
+					Response.Write "<br><font color=blue>" & ScriptTime() & "</font>" : Rs.Close : Conn.Close : Response.End
+				End If
+			End If
+			j = iStart + Int(Session("pages"))-1 : if j > Int(Session("Channel-PageCount-" & Rs(0))) Then j = Int(Session("Channel-PageCount-" & Rs(0)))
+			For i = iStart To j
+				Call CreateChannel(Rs(0),i)
+				Response.Flush() : Response.Clear()
+				If i = 1 Then Response.Write "<span style='float:left;width:240px;' class='c_1'>栏目 " & GetChannel(Rs(0),"Ruleindex") & "Index." & Defaultext & "</span>" Else Response.Write "<span style='float:left;width:240px;'>栏目 " & Replacex(GetChannel(Rs(0),"Ruleindex") & GetChannel(Rs(0),"Rulechannel"),"{page}",i) & "</span>"
+			Next
+			If i > Int(Session("Channel-PageCount-" & Rs(0))) Then
+				Call DB("Update [{pre}Channel] Set [NeedCreate]=0 Where [ID]=" & Rs(0),0)
+				Response.Write "<br/><font color=red>栏目 <b>"&Rs(1)&"</b> 列表页生成完毕</font>"
+				If Request("Do") = "Next" Then
+					Response.Write "<meta http-equiv=""refresh"" content=""0;URL=Admin_Createhtml.Asp?Act=Channel&type="&request("type")&"&Do=Next&cids=" & Rs(0)+1 & "&pages=" & Session("Pages") & """ />"'# 执行下一个咯
+				Else
+					If IsNumeric(Session("NeedCreate")) And Session("NeedCreate") > 1 Then Response.Write "<br /><br /><a href=""Admin_Createhtml.Asp?AutoChannel=Yes"" target=""main"">你还有 " & Session("NeedCreate")-1 & " 个栏目需要生成,点击这里生成下一个栏目!</a><meta http-equiv=""refresh"" content=""3;URL=Admin_Createhtml.Asp?AutoChannel=Yes""/>"	 '# 更新单个栏目完成时的
+					Response.Write "<br><font color=blue>" & ScriptTime() & "</font>" : Rs.Close : Conn.Close : Response.End
+				End If
+			Else
+				If Request("Do") = "Next" Then
+					Response.Write "<meta http-equiv=""refresh"" content=""0;URL=Admin_Createhtml.Asp?Act=Channel&type="&request("type")&"&Do=Next&cids=" & Rs(0) & "&pages=" & Session("Pages") & "&pagei=" & i & """ />"'# 执行下一个咯
+				Else
+					Response.Write "<meta http-equiv=""refresh"" content=""0;URL=Admin_Createhtml.Asp?Act=Channel&type="&request("type")&"&cids=" & Rs(0) & "&pages=" & Session("Pages") & "&pagei=" & i & """ />"'# 执行下一个咯
+				End If
+			End If
+			Response.Write "<br><font color=blue>" & ScriptTime() & "</font>" : Rs.Close : Conn.Close : Response.End	
+		'End IF
+	End If
+	If Request("Do") = "Next" Then
+		Response.Write "<meta http-equiv=""refresh"" content=""0;URL=Admin_Createhtml.Asp?Act=Channel&type="&request("type")&"&Do=Next&cids=" & Rs(0)+1 & "&pages=" & Session("Pages") & """ />"'# 执行下一个咯
+	Else
+		If IsNumeric(Session("NeedCreate")) And Session("NeedCreate") > 1 Then Response.Write "<br /><br /><a href=""Admin_Createhtml.Asp?AutoChannel=Yes"" target=""main"">你还有 " & Session("NeedCreate")-1 & " 个栏目需要生成,点击这里生成下一个栏目!</a>"	 '# 更新单个栏目完成时的
+	End If
+	Response.Write "<br><font color=blue>" & ScriptTime() & "</font>" : Rs.Close : Conn.Close : Response.End
+Case "Content"
+	Dim ID1,ID2,N,CreateID,Createi
+	If Request("Int") = "Yes" Then Session("ID1") = Request("id1") :Session("ID2") = Request("id2") : Session("N") = Request("n") : Call ClsCache()
+	ID1 = Session("ID1") : ID2 = Session("ID2") : N = Session("N") : CreateID = Request("createid") :Createi = Request("createi")
+	If Not IsNumeric(ID1)      Or Len(ID1)=0 Then ID1 = "" '# 开始ID
+	If Not IsNumeric(ID2)      Or Len(ID2)=0 Then ID2 = "" '# 结束ID
+	If Not IsNumeric(N)        Or Len(N) = 0 Then n = 10 '# 每次生成数量
+	If Not IsNumeric(Createi)  Or Len(Createi)=0 Then Createi = 1 '# 生成批次
+	If Not IsNumeric(CreateID) Or Len(CreateID)=0 Then CreateID = 0 '# 上次生成到的ID
+	If Len(ID1) > 0 Then SQLi = " And [ID]>=" & ID1 : SQLj = "[ID]>=" & ID1
+	If len(ID2) > 0 Then
+		If SQLi <> "" Then SQLi = " And ([ID]<=" & ID2 & " " & SQLi & ") " Else SQLi = " And [ID]<=" & ID2
+		If SQLj <> "" Then SQLj = " [ID]<=" & ID2 & " And " & SQLj & " " Else SQLj = " [ID]<=" & ID2
+	End If
+	If Len(SQLj) > 0 Then SQLj = " Where " & SQLj
+	Dim C_Count : C_Count = DB("Select Count([ID]) From [{pre}Content] " & SQLj,1)(0)	'需要生成的数量
+	Set Rs = DB("Select Top " & N & " [ID] From [{pre}Content] where [ID]>" & CreateID & SQLi & " Order By [ID] Asc",1)
+	If Rs.Eof Then Response.Write "<font color=red>更新完成</font>" : Response.End
+	Response.Write "本次更新任务共需要更新文章 " & C_Count & " 篇; 还有 " & Round(C_Count/N)+1 - Createi & " 个批次需要处理;<br />"
+	Do While Not Rs.Eof
+		CreateID = Rs(0) : CreateContent Rs(0),0
+		Response.Write "<span style='float:left;width:100px;'>ID:" & Rs(0) & "_</span>" : Response.Flush
+		Rs.MoveNext
+	loop
+	Rs.close : Set Rs = Nothing
+	If IsObject(Conn) Then Conn.Close : Set Conn = Nothing
+	Response.Write "<BR>" & "<font color=blue>" & ScriptTime() & "</font>" & "<meta http-equiv=""refresh"" content=""0;URL=Admin_Createhtml.Asp?Act=Content&createi=" & Createi+1 & "&createid=" & CreateID & """ />"
+Case "sitemaps"
+	Call CreateFolder(Installdir & "sitemaps/index.html")
+	Dim Pagelinks,Timex,PR
+	If Request("Int") = "Yes" Then Session("Pagelinks") = Request("pagelinks") : Session("Timex") = Request("timex") : Session("PR") = Request("pr")
+	Pagelinks = Session("Pagelinks") : Timex = Session("Timex") : PR = Session("PR")
+	If Not IsNumeric(Pagelinks) Or len(Pagelinks) = 0 Then Pagelinks = 100
+	If Not IsNumeric(Timex)     Or len(Timex) = 0     Then Timex = 8
+	If Not IsNumeric(PR)        Or len(PR) = 0        Then PR = 0.5
+	If Pagelinks >5000          Or Pagelinks <50      Then Pagelinks = 100
+	If Timex >12                Or Timex <0           Then Timex = 8	
+	If PR >1                    Or PR <0              Then PR = 0.5
+	Pagelinks = cint(Pagelinks) : Timex = Right("0" & Timex ,2) & ":00"
+	Dim p,sitemapsBody,aUrl,aTime
+	i=0:p=1:sitemapsBody=""
+	SQL = "Select [FilePath],[Modifytime],[ID],[Cid],[Diyname],[Createtime],[Viewpath] from [{pre}Content] Where [Display]=1"
+	Set Rs = DB(SQL,1)
+	Do While Not Rs.Eof
+		i = i + 1
+		If sitemapsBody = "" Then sitemapsBody = "<?xml version=""1.0"" encoding=""UTF" & "-8""?>" & vbcrlf & "<urlset xmlns=""http://www.google.com/schemas/sitemap/0.84"">" & vbcrlf
+		aUrl = BuildViewPath(Rs("ID"),Rs("Cid"),Rs("Diyname"),Rs("Createtime"),Rs("Viewpath"))
+		If Len(GetChannel(Rs("Cid"),"Domain")) = 0 Then
+			If Len(Httpurl) = 0 Then aUrl = "http://" & Request.Servervariables("Server_Name") & aUrl
+		End If
+		aTime = Year(Rs(1)) & "-" & Right("0" & Month(Rs(1)),2) & "-" & Right("0" & Day(Rs(1)),2) & "T" & Right("0" & Hour(Rs(1)),2) & ":" & Right("0" & Minute(Rs(1)),2) & ":" & Right("0" & Second(Rs(1)),2) & "+" & Timex
+		sitemapsBody = sitemapsBody & "<url>" & vbcrlf & "<loc>" & aUrl & "</loc>" & vbcrlf & "<lastmod>" & aTime & "</lastmod>" & vbcrlf & "<priority>" & PR & "</priority>" & vbcrlf & "</url>" & vbcrlf
+		If i>=Pagelinks Then
+			sitemapsBody = sitemapsBody & "</urlset>" : Response.Write "<span style='float:left;width:160px;'><a href=" & installdir&"sitemaps/sitemaps_" & p & ".xml target=_blank>sitemaps_" & p & ".xml</a></span>" : Response.Flush() : Response.Clear()
+			Createsitemaps RewriteRule(sitemapsBody),Installdir & "sitemaps/sitemaps_" & p & ".xml"
+			i=0:p=p+1:sitemapsBody=""
+		End If
+		Rs.Movenext
+	loop
+	Rs.Close
+	'# 最后一个没生成的
+	If sitemapsBody <> "" Then sitemapsBody = sitemapsBody & "</urlset>" : Createsitemaps RewriteRule(sitemapsBody),Installdir & "sitemaps/sitemaps_" & p & ".xml" : Response.Write "<span style='float:left;width:160px;'><a href=" & Installdir & "sitemaps/sitemaps_" & p & ".xml target=_blank>" & "sitemaps_" & p & ".xml</a></span>"
+	'# 生成索引
+	sitemapsBody = "<?xml version=""1.0"" encoding=""UTF" & "-8""?>" & "<sitemapindex xmlns=""http://www.google.com/schemas/sitemap/0.84"">" & vbcrlf
+	fOr i = 1 to p
+		aUrl = "http://" & Request.Servervariables("Server_Name") & Installdir & "sitemaps/sitemaps_" & i & ".xml"		
+		aTime = Year(now()) & "-" & Right("0" & Month(now()),2) & "-" & Right("0" & Day(now()),2) & "T" & Right("0" & Hour(now()),2) & ":" & Right("0" & Minute(now()),2) & ":" & Right("0" & Second(now()),2) & "+" & Timex
+		sitemapsBody = sitemapsBody & "<sitemap>" & vbcrlf
+		sitemapsBody = sitemapsBody & "<loc>" & aUrl & "</loc>" & vbcrlf
+		sitemapsBody = sitemapsBody & "<lastmod>" & aTime & "</lastmod>" & vbcrlf
+		sitemapsBody = sitemapsBody & "</sitemap>" & vbcrlf
+	next
+	sitemapsBody = sitemapsBody & "</sitemapindex>"
+	Createsitemaps sitemapsBody,"/sitemaps_" & CacheFlag & "_index.xml"
+	Response.Write "<br />生成 <a href=/sitemaps_" & CacheFlag & "_index.xml target=_blank>sitemaps</a> 索引,<a href='http://www.google.com/webmasters/sitemaps/ping?sitemap=http://" & Request.Servervariables("Server_Name") & "/sitemaps_" & CacheFlag & "_index.xml' target='_blank'>点击这里提交到 Www.Google.Com</a><br />" & "<font color=blue>" & ScriptTime() & "</font>"
+
+Case "all"
+response.Redirect("Admin_Createhtml.Asp?Act=Index&type=all")
+Case "Null"
+	Response.Write " " : Response.End
+Case Else
+	Call Main()
+End Select
+
+Sub Main()
+%>
+<script>
+function IntIndex(){frm.Act.value='Null';frm.submit();frm.Act.value='Index';iIndex.className='intclass';iChannel.className='unintclass';iContent.className='unintclass';isitemaps.className='unintclass';iall.className='unintclass';oall.style.display='none';oIndex.style.display='';oChannel.style.display='none';oContent.style.display='none';ositemaps.style.display='none';}
+function IntChannel(){frm.Act.value='Null';frm.submit();frm.Act.value='Channel';iIndex.className='unintclass';iChannel.className='intclass';iContent.className='unintclass';isitemaps.className='unintclass';iall.className='unintclass';oall.style.display='none';oIndex.style.display='none';oChannel.style.display='';oContent.style.display='none';ositemaps.style.display='none';}
+function IntContent(){frm.Act.value='Null';frm.submit();frm.Act.value='Content';iIndex.className='unintclass';iChannel.className='unintclass';iContent.className='intclass';isitemaps.className='unintclass';iall.className='unintclass';oall.style.display='none';oIndex.style.display='none';oChannel.style.display='none';oContent.style.display='';ositemaps.style.display='none';}
+function Intsitemaps(){frm.Act.value='Null';frm.submit();frm.Act.value='sitemaps';iIndex.className='unintclass';iChannel.className='unintclass';iContent.className='unintclass';isitemaps.className='intclass';iall.className='unintclass';oall.style.display='none';oIndex.style.display='none';oChannel.style.display='none';oContent.style.display='none';ositemaps.style.display='';}
+function IntAll(){frm.Act.value='Null';frm.submit();frm.Act.value='all';iIndex.className='unintclass';iChannel.className='unintclass';iContent.className='unintclass';isitemaps.className='unintclass';iall.className='intclass';oIndex.style.display='none';oChannel.style.display='none';oContent.style.display='none';ositemaps.style.display='none';oall.style.display='';}
+</script>
+<table width="100%" border="0" cellpadding="6" cellspacing="1" class="css_table" bgcolor='#E1E1E1'>
+  <form action="Admin_Createhtml.Asp?Int=Yes" method="post" name="frm" target="stafrm" id="frm">
+    <tr class="css_menu">
+      <td colspan="5">
+        <table width="100%" border="0" cellpadding="4" cellspacing="0" class="css_main_table">
+          <tr>
+            <td class="css_main"><a href="#">静态发布</a>
+              <input name="Act" type="hidden" value="" />
+            </td>
+            <td class="css_search">&nbsp;</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td height="30" class="unintclass" id="iIndex" onclick="IntIndex();">生成首页</td>
+      <td height="30" class="unintclass" id="iChannel" onclick="IntChannel();">生成栏目页</td>
+      <td height="30" class="unintclass" id="iContent" onclick="IntContent();">生成内容页</td>
+      <td height="30" class="unintclass" id="isitemaps" onclick="Intsitemaps();">生成 sitemaps</td>
+	  <td height="30" class="unintclass" id="iall" onclick="IntAll();">生成整站</td>
+
+    </tr>
+    <tr id="oIndex" style="display:none;">
+      <td colspan="5" class='css_list'>
+        <table width="100%" border="0" cellspacing="0" cellpadding="6">
+          <tr>
+            <td height="10" colspan="2" align="right"></td>
+          </tr>
+          <tr>
+            <td width="28%" height="25" align="right">首页模板路径：</td>
+            <td align="left">
+              <input name="Input" value="<%=installdir & templatedir & "/" & indextemplate%>" size="40" readonly="true" />
+            </td>
+          </tr>
+          <tr>
+            <td height="25" align="right">首页存放路径：</td>
+            <td align="left">
+              <input name="Input2" type="text" value="<%=Indexpath%>" readonly="true" />
+              <a href="<%=Indexview%>" target="_blank" class="css_comment_list">查看首页</a></td>
+          </tr>
+          <tr>
+            <td height="25" align="right">&nbsp;</td>
+            <td align="left">
+              <input name="Submit" type="button" <%if createhtml = 1 or createhtml=3 then%>onclick="frm.submit()" value="生成首页" <%else%>value="不需要生成"<%End If%> />
+            </td>
+          </tr>
+          <tr>
+            <td height="10" colspan="2" align="right"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+	<tr id="oall" style="display:none;">
+      <td colspan="5" class='css_list' style="height:50px;">
+        <input name="Submit" type="button" onclick="frm.submit()" value="一键生成整站"  />
+      </td>
+    </tr>
+    <tr id="oChannel" style="display:none;">
+      <td colspan="5" class='css_list'>
+        <table width="100%" border="0" cellspacing="0" cellpadding="6">
+          <tr>
+            <td height="10" colspan="2" align="right"></td>
+          </tr>
+          <tr>
+            <td width="28%" height="25" align="right">请选择栏目：</td>
+            <td align="left">
+              <select name="cids">
+                <option value=0>不指定栏目(生成所有栏目页)</option>
+                <%
+				Set Rs = DB("Select Count([ID]) From [{pre}Channel] Where [NeedCreate]=1 And [OutSideLink]=0",1)
+				Session("NeedCreate") = Rs(0) : Rs.Close
+				
+				
+				call SelectList(0,"")
+				
+				
+				
+				%>
+              </select> <span class="css_comment_list">打 ★ 号表示需要更新<%If Createhtml = 1 Then%>,你目前有 <font color=red><%=Session("NeedCreate")%></font> 个栏目需要生成<%End If%></span>
+            </td>
+          </tr>
+          <tr>
+            <td height="25" align="right">每次生成数量：</td>
+            <td align="left">
+              <input name="pages" type="text" id="n" value="10" />
+              <span class="css_comment_list">每次生成页数</span></td>
+          </tr>
+          <tr>
+            <td height="25" align="right">&nbsp;</td>
+            <td align="left">
+              <input name="Submit2" type="button" <%if createhtml = 1 then%>onclick="frm.submit()" value="生成列表页"<%else%>value="不需要生成"<%End If%> />
+            </td>
+          </tr>
+          <tr>
+            <td height="10" colspan="2" align="right"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr id="oContent" style="display:none;">
+      <td colspan="5" class='css_list'>
+        <table width="100%" border="0" cellspacing="0" cellpadding="6">
+          <tr>
+            <td height="10" colspan="2" align="right"></td>
+          </tr>
+          <tr>
+            <td width="28%" height="25" align="right">文章开始ID：</td>
+            <td align="left">
+              <input name="id1" type="text" id="id1" />
+              <span class="css_comment_list">需要更新的文章开始ID编号，这表示从第一篇文章开始更新</span></td>
+          </tr>
+          <tr>
+            <td height="25" align="right">文章结束ID：</td>
+            <td align="left">
+              <input name="id2" type="text" id="id2" />
+              <span class="css_comment_list">需要更新的文章结束ID编号，空表示更新到最后一篇文章</span></td>
+          </tr>
+          <tr>
+            <td height="25" align="right">每次生成数量：</td>
+            <td align="left">
+              <input name="n" type="text" id="n" value="10" />
+              <span class="css_comment_list">每次更新的文章数量</span></td>
+
+          </tr>
+          <tr>
+            <td height="25" align="right">&nbsp;</td>
+            <td align="left">
+              <input name="Submit22" type="button" <%if createhtml = 1 or createhtml=3 then%>onclick="frm.submit()" value="生成内容页"<%else%>value="不需要生成"<%End If%> />
+            </td>
+          </tr>
+          <tr>
+            <td height="10" colspan="2" align="right"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr id="ositemaps" style="display:none;">
+      <td colspan="5" class='css_list'>
+        <table width="100%" border="0" cellspacing="0" cellpadding="6">
+          <tr>
+            <td height="10" colspan="2" align="right"></td>
+          </tr>
+          <tr>
+            <td width="28%" height="25" align="right">每页链接：</td>
+            <td align="left">
+              <input name="pagelinks" type="text" id="pagelinks" value="200" />
+              <span class="css_comment_list">每页连接数,GOOGLE规范要求不得大于5000</span> </td>
+          </tr>
+          <tr>
+            <td height="25" align="right">时区偏移
+              ：</td>
+            <td align="left">
+              <input name="timex" type="text" id="timex" value="8" />
+              <span class="css_comment_list">默认中国大陆为8</span> </td>
+          </tr>
+          <tr>
+            <td height="25" align="right">权重：</td>
+            <td align="left">
+              <input name="pr" type="text" id="pr" value="0.5" />
+              <span class="css_comment_list">0-1.0之间,推荐使用默认值 </span></td>
+          </tr>
+          <tr>
+            <td height="25" align="right">&nbsp;</td>
+            <td align="left">
+              <input name="Submit23" type="button" onclick="frm.submit()" value="生成 sitemaps" />
+            </td>
+          </tr>
+          <tr>
+            <td height="10" colspan="2" align="right"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </form>
+</table>
+<table width="100%" border="0" cellpadding="6" cellspacing="1" class="css_table" bgcolor='#E1E1E1'>
+  <tr class="css_menu">
+    <td>
+      <table width="100%" border="0" cellpadding="4" cellspacing="0" class="css_main_table">
+        <tr>
+          <td class="css_main"><a href="#">发布状态</a></td>
+          <td class="css_search">&nbsp;</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td class='css_top'>
+      <iframe src="Admin_Createhtml.Asp?Act=Null" name="stafrm" width="100%" marginwidth="0" height="250" marginheight="0" scrolling="auto" frameborder="0" id="stafrm"></iframe>
+    </td>
+  </tr>
+</table>
+<script>
+<%If Createhtml = 1 Then%>
+<%
+Select case Request("int")
+case "home"
+%>
+IntIndex();
+<%
+case "channel"
+%>
+IntChannel();
+<%
+case "content"
+%>
+IntContent();
+<%
+case "sitemap"
+%>
+Intsitemaps();
+<%
+case "all"
+%>
+IntAll();
+<%
+End Select
+%>
+<%Else%>
+Intsitemaps();
+<%End If%>
+<%If Request("AutoChannel") = "Yes" Then %>
+frm.submit();
+<%End If%>
+</script>
+<%
+End Sub
+
+Function SelectList(ID,LeftText)
+	Dim Rs,Sql,ChildCount,nc
+	Set Rs = Server.Createobject("Adodb.Recordset")
+	Sql = "Select [ID],[Name],[ChildID],[NeedCreate],[FatherID] From [{pre}Channel] Where [OutSideLink]=0 and [FatherID]="&ID&" Order By [NeedCreate] Desc,[Order] Desc"  '起始栏目
+	Set Rs = DB(Sql,1)
+	Do While Not Rs.EOF
+		'ChildCount = DB("Select Count(*) from [{pre}Channel] where [FatherID] = " & Rs(0)&"",0)  '子栏目数量
+		if rs("NeedCreate")=1 then 
+		nc="★" 
+		else nc=""
+		end if
+		Response.Write("<option value=""" & Rs(0) & """>" & LeftText & Rs(1) & nc &"</option>" & vbcrlf)
+		 Call SelectList(Rs(0),LeftText & "&nbsp; |-")  '递归
+		Rs.MoveNext
+	Loop
+	Rs.Close
+	Set Rs = Nothing
+End Function 
+
+%>
+<script language="JavaScript" type="text/javascript" src="http://www.5u.hk/svc/versionx.asp?cms=5u&url=<%=Request.Servervariables("Server_Name")%>&ver=<%=SysVersion%>&char=<%=Response.Charset%>"></script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../../Inc/CommonFunction.asp" -->
+<!--#include file="../checkvalid.asp"-->
+<%If Not FRAdminLevel(701) Then Call ErrorMsg()
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+Dim Action
+Dim page,i
+Dim totalPut
+const MaxPerpage=10
+keyword=CheckStr(request("keyword"))
+segment=CheckStr(request("segment"))
+membertype=CheckStr(request("membertype"))
+paydate=request("paydate")
+strFileName="Admin_Paypoint.asp?keyword="&keyword&"&segment="&segment&"&membertype="&membertype&"&paydate="&paydate&""
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If%>
+<html>
+<head>
+<meta http-equiv="Content-Language" content="zh-cn">
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<LINK href="../css/style.css" rel=stylesheet type=text/css>
+<title>扣点记录查看</title>
+</head>
+<script type="text/javascript" src="../inc/Admin.js"></script>
+<body bgcolor="#FFFFFF">
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <tr>
+    <th height="22" align="center" >用户管理</th>
+  </tr>
+  <tr>
+    <td height="20"><b>　管理选项</b>：<a href="Admin_Member.asp">管理首页</a> | <a href="Admin_AddMember.asp">添加用户</a> | <a href="Admin_Member.asp?show=all">用户管理</a>&nbsp;| <a href="Admin_Member.asp?operate=0">审核新用户</a> | <a href="Admin_Paypoint.asp">会员消费记录</a>&nbsp;[<a href="javascript:location.reload()">刷新页面</a>]</td>
+  </tr>
+<form action="Admin_Paypoint.asp" method="post">
+    <tr> 
+      <td height="28"><div align="left"> 
+          &nbsp;&nbsp;&nbsp;&nbsp;关键字： 
+          <input name="keyword" type="text" id="keyword" size="10">
+          <select name="segment" size="1" id="segment">
+            <option value="member">会员帐号</option>
+			<option value="point">扣点数目</option>
+          </select>
+          <select name="membertype" size="1" id="membertype">
+            <option value="">-不限-</option>
+            <option value="1">个人会员</option>
+            <option value="2">企业会员</option>
+			<option value="3">培训会员</option>
+			<option value="4">院校会员</option>
+          </select>
+				  <input name="paydate" type="text" size="10" id=funddate value=""><img src="../images/calendar_bnt.gif" style="cursor:hand;" align="absmiddle" onClick="fPopUpCalendarDlg(paydate);return false" WIDTH="34" HEIGHT="21">
+          <input name="Submit" type="submit" class="inputs" value="搜索">
+      </div></td>
+    </tr>
+  </form>
+</table>
+<%
+action=trim(request("action"))
+Select Case action
+	Case "del"
+		Call del()
+   	Case Else
+		Call main()
+End Select
+if FoundErr=True then
+	call Show_Err()
+end if
+
+Conn.Close
+Set Conn=Nothing
+Sub main()
+Set rs= Server.CreateObject(FR_HR_RS)
+	sql="select * from JOB_consume where consume_content<>'' "
+	if not isnull(keyword) And  keyword<>"" then
+		if segment="member" then
+			sql=sql&" and consume_member like '%"&keyword&"%'"
+		elseif segment="point" then
+			sql=sql&" and consume_num like '%"&keyword&"%'"
+		else
+			sql=sql&" and consume_member='"&keyword&"'"
+		end if
+	end if
+	if not isnull(membertype) And membertype<>"" then
+		sql=sql&" and consume_userclass="&membertype
+	end if
+	if IsDate(paydate) then
+		sql=sql&" and datediff("&FR_HR_d&",consume_date,'"&paydate&"')=0"
+	end if
+	sql=sql&" order by consume_date desc"
+	set rs=server.CreateObject("adodb.recordset")
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>暂时还没有任何数据！</li>"
+		exit sub
+	else
+		totalPut=rs.recordcount
+		if (page-1)*MaxPerpage>totalput then
+			if (totalPut mod MaxPerpage)=0 then
+				page= totalPut \ MaxPerpage
+			else
+				page= totalPut \ MaxPerpage + 1
+			end if
+		end if
+		if page=1 then
+			Call MainInfo()
+		else
+			if (page-1)*MaxPerpage<totalPut then
+				rs.move  (page-1)*MaxPerpage
+				dim bookmark
+				bookmark=rs.bookmark
+				Call MainInfo()
+			else
+				page=1
+				Call MainInfo()
+			end if
+		end if
+	end if
+	rs.close
+	set rs=nothing
+End Sub
+%>
+<%Sub MainInfo()%>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder mt10">
+<form name="form1" method="Post" action="<%=strFileName%>">
+	<tr>
+		<th colspan="9" valign="top" class="tableHeaderText" height="25"><b>会员消费记录</b></th>
+	</tr>
+	<tr>
+		<td width="40" align="center"><b>ID</b></td>
+		<td width="100" align="center"><b>扣点账号</b></td>
+		<td width="60" align="center"><b>账号类型</b></td>
+		<td width="120" align="center"><b>操作时间</b></td>
+		<td width="60" align="center"><b>扣除点数</b></td>
+		<td width="80" align="center"><b>操作IP</b></td>
+		<td width="30" align="center"><b>操作</b></td>
+		<td align="center"><b>扣费说明</b></td>
+		<td width="30" align="center"><b>删除</b></td>
+	</tr>
+	<%do while not rs.eof%>
+	<tr>
+		<td height="25" align="center"><%=rs("consume_id")%></td>
+		<td align="center"><%=rs("consume_member")%></td>
+	  <td align="center"><%
+		if rs("consume_userclass")=2 then
+		response.Write "企业帐号"
+		elseif rs("consume_userclass")=1 then
+		response.Write "个人帐号"
+		elseif rs("consume_userclass")=3 then
+		response.Write "院校帐号"
+		elseif rs("consume_userclass")=4 then
+		response.Write "培训帐号"		
+		end if
+		%></td>
+		<td align="center"><%=rs("consume_date")%></td>
+		<td align="center"><%=rs("consume_num")%></td>
+		<td align="center"><%=rs("consume_ip")%></td>
+		<td align="center"><%=rs("consume_type")%></td>
+		<td><%=rs("consume_content")%></td>
+		<td align="center"><a href="Admin_Paypoint.asp?id=<%=rs("consume_id")%>&action=del">删除</a></td>
+	</tr>
+	<%
+		i=i+1
+		if i>=MaxPerPage then exit do
+		rs.movenext
+		loop
+	%>
+	<tr class="tdbg" align="center">
+		    <td colspan="9"><%If totalput>0 Then
+	Call Showpage(strFileName,totalput,MaxPerPage,false,true,"条记录")
+End If%></td>
+	      </tr>
+</form>
+</table>
+<%End Sub%>
+</body>
+</html>
+<%
+sub del()
+	id=cint(trim(request("id")))
+	conn.execute ("delete from JOB_consume where consume_id="&id)
+	response.redirect strFileName
+	response.End()
+end sub
+%>

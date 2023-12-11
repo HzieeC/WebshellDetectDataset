@@ -1,0 +1,137 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.trade.ts_link_group.*"%> 
+<%@ page import="com.bizoss.trade.ti_link.*" %>
+<%@ page import="java.util.*" %>
+<% 
+  	// 得到分组信息
+	Hashtable ts_link_group = new Hashtable();		
+	String reg_group_id="";	
+	if(request.getParameter("up_group_id") != null )
+	{
+		reg_group_id = request.getParameter("up_group_id").toString();		
+		ts_link_group.put("group_id",reg_group_id);
+	}	
+	System.out.println("reg_group_id:"+reg_group_id);
+	Ts_link_groupInfo linkGroupInfo = new Ts_link_groupInfo();	
+	
+	String selectString = linkGroupInfo.getListByObj(ts_link_group);
+	// 得到分组信息
+	
+	String link_id="";
+  	if(request.getParameter("link_id")!=null) link_id = request.getParameter("link_id");
+	System.out.println("link_id:"+link_id);
+	
+	
+  	Ti_linkInfo ti_linkInfo = new Ti_linkInfo();
+  	List list = ti_linkInfo.getListByPk(link_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String link_name="",link_url="",link_no="",is_display="";
+  	if(map.get("link_name")!=null) link_name = map.get("link_name").toString();
+  	if(map.get("link_url")!=null) link_url = map.get("link_url").toString();
+  	if(map.get("link_no")!=null) link_no = map.get("link_no").toString();
+  	if(map.get("is_display")!=null) is_display = map.get("is_display").toString();
+
+	String l_name = "";
+	if(request.getParameter("link_name")!=null && !request.getParameter("link_name").equals("")){
+		l_name = request.getParameter("link_name");	
+	}
+	String s_display = "";
+	if(request.getParameter("i_display")!=null && !request.getParameter("i_display").equals("")){
+		s_display = request.getParameter("i_display");
+	}	
+
+	String iStart = "0";
+	if(request.getParameter("iStart")!=null && !request.getParameter("iStart").equals("")){
+		iStart = request.getParameter("iStart");
+	}
+
+	String url = "/program/admin/link/index.jsp?link_name="+l_name+"&i_display="+s_display+"&iStart="+iStart;
+
+%>
+<html>
+  <head>
+    <title>友情链接管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script  type="text/javascript" src="link.js"></script>
+</head>
+
+<body>
+
+	<h1>修改友情链接</h1>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	<table width="100%" cellpadding="1" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="15%">
+				链接名称<font color="red">*</font>
+			</td>
+			<td><input name="link_name" id="link_name" value="<%=link_name%>" type="text" maxlength="20"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				链接分组<font color="red">*</font>
+			</td>
+			<td><select name="group_id" id="group_id">
+                 <option value="">请选择</option>         
+         	     <%=selectString%>
+              </select>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				链接图片:
+			</td>
+			<td>
+				<jsp:include page="/program/inc/uploadImgInc.jsp">
+					<jsp:param name="attach_root_id" value="<%=link_id%>" />
+				</jsp:include>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				链接地址<font color="red">*</font>
+			</td>
+			<td><input name="link_url" id="link_url" value="<%=link_url %>" type="text" maxlength="50" size="40"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				排序<font color="red">*</font>
+			</td>
+			<td><input name="link_no" id="link_no" value="<%=link_no %>" type="text" size="2" maxlength="2" onKeyUp="if(!/^[0-9][0-9]*$/.test(this.value))this.value=''"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				是否显示:
+			</td>
+			<td>
+				<input name="is_display" id="is_display" value="0" type="radio" <%if (is_display.equals("0")){out.print("checked");}%>/>是
+				<input name="is_display" id="is_display" value="1" type="radio" <%if (is_display.equals("1")){out.print("checked");}%>/>否
+			</td>
+		</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="0667" />
+	  			<input type="hidden" name="link_id" value="<%=link_id %>" />
+				
+				<input type="submit" class="buttoncss" name="tradeSub" value="提交" onclick="return checkInfo()"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='<%=url%>';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

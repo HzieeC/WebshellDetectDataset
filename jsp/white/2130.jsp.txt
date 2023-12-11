@@ -1,0 +1,532 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<%@page import="util.DateUtils"%>
+<%@page import="util.ServletHelp"%>
+<%@page import="util.StringUtils"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String accountBookId = request.getParameter("accountBookId");
+		String accountBookName = request.getParameter("accountBookName");
+		if(StringUtils.isEmpty(accountBookName) || "null".equals(accountBookName)){
+			accountBookName = "所有账目";
+		}else{
+			accountBookName = java.net.URLDecoder.decode(accountBookName, "UTF-8");
+		}
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		Ext.chart.Chart.CHART_URL = '<%=baseUrl %>/websrc/js/ext-3.3.0/resources/charts.swf';
+		$(document).ready(function(){
+			// 全局参数
+			var baseParams = {start:0, limit:"<%=Constants.PAGE_SIZE %>", accountBookId:"<%=accountBookId %>", fromDate:"<%=DateUtils.getFirstDayOfMonthAsString(DateUtils.DATE_PATTON_1)%>", toDate:"<%=DateUtils.getLastDayOfMonthAsString(DateUtils.DATE_PATTON_1)%>"};
+
+			var accountBookName = '<%=accountBookName%>';
+		    // 工具栏
+		    var accountListToolbar = new Ext.Toolbar({
+		    	renderTo: 'accountListToolBarDiv',
+		    	items: [
+				    '当前：'+accountBookName,
+				    '-',
+					new Ext.Button({
+					    id: 'accountList-search-button',
+					    text: '查询',
+						iconCls: 'report_magnify'
+					}),
+				    new Ext.Button({
+					    id: 'accountList-add-button',
+						text: '添加',
+						iconCls: 'report_add'
+					}),
+					new Ext.Button({
+					    id: 'accountList-edit-button',
+					    text: '修改',
+						iconCls: 'report_edit'
+					}),
+					new Ext.Button({
+					    id: 'accountList-delete-button',
+					    text: '删除',
+						iconCls: 'report_delete'
+					}),
+					'-',
+					new Ext.Button({
+					    id: 'accountList-inout-button',
+					    text: '收支统计',
+						iconCls: 'chart_bar'
+					}),
+					new Ext.Button({
+					    id: 'accountList-groupin-button',
+					    text: '收入统计',
+						iconCls: 'chart_pie'
+					}),
+					new Ext.Button({
+					    id: 'accountList-groupout-button',
+					    text: '支出统计',
+						iconCls: 'chart_pie'
+					})
+				]
+			});
+
+		 	// 账目分类数据源
+		    var accountCategoryStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/accountCategoryAction.do?method=query',
+		        root: 'datas',
+		        fields: ['categoryId', 'categoryName'],
+		        autoLoad:  {
+		        	params: {'status':''},
+					callback: function(records, success){
+					    this.insert(0, new Ext.data.Record({
+							categoryId: "",
+							categoryName: "全部"
+						}));
+					}
+			    }
+		    });
+
+	     	// 账目类型数据源
+	        var accountTypeStore = new Ext.data.ArrayStore({  
+	            fields : ['accountType', 'accountTypeName'],  
+	            data : <%=ServletHelp.getArrayFromMap(Constants.ACCOUNT_TYPE_MAP, "全部")%>,
+	            sortInfo: {field: "accountType", direction: "ASC"}
+	        });
+
+		 	// 检索账目Form
+			var searchAccountFormPanel = new Ext.FormPanel({
+				id: 'searchAccountFormPanel',
+				renderTo: 'accountListSearchDiv',
+		        labelWidth: 60,
+		        width:600,
+		        border: false,
+		        bodyStyle: 'padding:5px;',
+		        url: '',
+		        items: [{
+		            layout:'column',
+		            border: false,
+		            items:[{
+		                columnWidth:.5,
+		                layout: 'form',
+		                border: false,
+		                items: [{
+		                	// 账目类型
+			                xtype:'combo',
+			                hiddenName: 'accountType',
+			                fieldLabel: '账目类型',
+			                store: accountTypeStore,
+			                mode : 'local',
+			                triggerAction: "all",
+			                emptyText: '请选择...',
+			                valueField: 'accountType',
+			                displayField: 'accountTypeName',
+			                listeners:{
+								change:function(){
+		                			accountCategoryStore.load({
+		                				params: {'status':this.value},
+		                				callback: function(records, success){
+			                				if(records.length==0){
+			                					accountCategoryStore.removeAll();
+				                			}else{
+				                				accountCategoryStore.insert(0, new Ext.data.Record({
+			            							categoryId: "",
+			            							categoryName: "全部"
+			            						}));
+					                		}
+		            					    searchAccountFormPanel.getForm().findField("categoryId").setValue("");
+		            					}
+		                			});
+								}
+			               },
+			                editable: false,
+		                    anchor:'95%'
+		                },{
+		                	// 开始日期
+			                xtype:'datefield',
+			                id: 'fromDate',
+			                name: 'fromDate',
+			                fieldLabel: '开始日期',
+			                format: 'Y-m-d',
+			                value: '<%=DateUtils.getFirstDayOfMonthAsString(DateUtils.DATE_PATTON_1)%>',
+		                    anchor:'95%'
+		                }]
+		            },{
+		                columnWidth:.5,
+		                layout: 'form',
+		                border: false,
+		                items: [{
+		                	// 收支项目
+			                xtype:'combo',
+			                hiddenName: 'categoryId',
+			                fieldLabel: '收支项目',
+			                store: accountCategoryStore,
+			                mode : 'local',
+			                triggerAction: "all",
+			                emptyText: '请选择...',
+			                valueField: 'categoryId',
+			                displayField: 'categoryName',
+			                editable: false,
+		                    anchor:'95%'
+		                },{
+		                	// 结束日期
+			                xtype:'datefield',
+			                id: 'toDate',
+			                name: 'toDate',
+			                fieldLabel: '结束日期',
+			                format: 'Y-m-d',
+			                value: '<%=DateUtils.getLastDayOfMonthAsString(DateUtils.DATE_PATTON_1)%>',
+		                    anchor:'95%'
+		                }]
+		            },{
+		                columnWidth:.5,
+		                layout: 'form',
+		                border: false,
+		                items: [{
+		                	// 账目备注
+		                	xtype:'textfield',
+			               	id:'remark',
+			               	name:'remark',
+			               	fieldLabel:'账目备注',
+		                    anchor:'95%'
+		                }]
+		            }]
+		        }]
+		    });
+
+			// 账目合计信息
+		    var accountListGridHeaderPanel = new Ext.Panel({
+		    	id: 'accountListGridHeaderPanel',
+				renderTo: 'accountListGridHeaderDiv',
+				contentEl: 'accountListGridHeaderInfoDiv',
+				bodyStyle: 'padding:5px;border-width:0px;border-top-width:1px;'
+			});
+
+			// 账目数据源
+		    var accountListStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/accountAction.do?method=query',
+		        root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['accountId', 'accountBookId', 'accountBookName', 'accountType', 'categoryName', 'accountDateStr', 'money', 'remark', 'updateDateStr'],
+		        baseParams: baseParams,
+		        autoLoad: true
+		    });
+		    
+			// 账目数据表格
+			var sm = new Ext.grid.CheckboxSelectionModel();
+			var accountListGrid = new Ext.grid.GridPanel({
+				id: 'accountListGrid',
+				renderTo: 'accountListGridDiv',
+				border: false,
+				columnLines: true,
+				stateful: true,
+			    autoScroll: 'auto',
+			    height: 500,
+		        store: accountListStore,
+		        loadMask: true,
+		        cm: new Ext.grid.ColumnModel({
+		            defaults: {
+		                width: 120,
+		                sortable: true
+		            },
+			        columns: [
+						sm,
+						new Ext.grid.RowNumberer({header:'№'}),
+			            {id:'accountBookId',header: '账本ID', width: 100, sortable: true, dataIndex: 'accountBookId', hidden: true},
+			            {id:'accountBookName',header: '账本', width: 100, sortable: true, dataIndex: 'accountBookName'},
+			            {id:'accountId',header: '账目ID', width: 100, sortable: true, dataIndex: 'accountId', hidden: true},
+			            {id:'accountType',header: '账目类型', width: 100, sortable: true, dataIndex: 'accountType'},
+			            {id:'categoryName',header: '收支项目', width: 150, sortable: true, dataIndex: 'categoryName'},
+			            {id:'money',header: '金额', width: 100, sortable: true, dataIndex: 'money', align: 'right', renderer: Ext.util.Format.numberRenderer('0,000.00')},
+			            {id:'accountDateStr',header: '账目日期', width: 100, sortable: true, dataIndex: 'accountDateStr'},
+			            {id:'remark',header: '备注', width: 300, sortable: true, dataIndex: 'remark'}
+			        ]
+		        }),
+		        sm: sm,
+		        columnLines: true,
+		        bbar: new Ext.PagingToolbar({
+					pageSize: <%=Constants.PAGE_SIZE %>,
+					store: accountListStore,
+					displayInfo: true,
+					displayMsg: Anynote.PAGINGTOOLBAR_DISPLAYMSG,
+					emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+					doLoad: function(start){
+						var form = searchAccountFormPanel.getForm();
+						var param = form.getValues();
+						param.start = start;
+						param.limit = baseParams.limit;
+						this.store.load({params: param});
+					}
+		        }),
+		        listeners: accountListStore.on("load", function(){getSum();})
+		    });
+
+			// 设置Grid高度和宽度
+			Anynote.resizeGridTo("accountListGrid", 0, 169);
+
+			// 行双击事件
+			accountListGrid.on("rowdblclick", function(){
+				$("#accountList-edit-button").click();
+			});
+
+			// 添加按钮
+			$("#accountList-add-button").click(function(){
+				if('<%=accountBookId %>'==0){
+					Ext.Msg.alert('提示', '请先创建一个账本.');
+				}else{
+					accountWindow = new Ext.Window({
+						title: '添加账目',
+						width: 400,
+						height: 270,
+						modal: true,
+						resizable: false,
+						plain: true,
+						layout:'fit',
+						autoLoad:{url:'<%=baseUrl %>/websrc/page/account/editAccount.jsp?type=CREATE&accountBookId=<%=accountBookId%>',scripts:true,nocache:true}
+					});
+					accountWindow.show();
+				}
+			});
+
+			// 修改按钮
+			$("#accountList-edit-button").click(function(){
+				var records = Ext.getCmp("accountListGrid").getSelectionModel().getSelections();
+				if(records.length!=1){
+					Ext.Msg.alert("提示", "请选择一条数据.");
+				}else{
+					var accountId = records[0].get("accountId");
+					accountWindow = new Ext.Window({
+						title: '编辑账目',
+						width: 400,
+						height: 250,
+						modal: true,
+						resizable: false,
+						layout:'fit',
+						plain: true,
+						autoLoad:{url:'<%=baseUrl %>/websrc/page/account/editAccount.jsp?type=UPDATE&accountId='+accountId,scripts:true,nocache:true}
+					});
+					accountWindow.show();
+				}
+				
+			});
+
+			// 删除按钮
+			$("#accountList-delete-button").click(function(){
+				var records = Ext.getCmp("accountListGrid").getSelectionModel().getSelections();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一条数据.");
+				}else{
+					Ext.Msg.confirm("警告", "确定要删除吗？", function(btn){
+						if(btn=="yes"){
+							var accountIds = "";
+							for(var i=0;i<records.length;i++){
+								accountIds = accountIds + records[i].get("accountId") + ",";
+							}
+							// 发送请求
+							Anynote.ajaxRequest({
+								baseUrl: '<%=baseUrl %>',
+								baseParams: {accountIds:accountIds},
+								action: '/accountAction.do?method=delete',
+								callback: function(jsonResult){
+									Ext.getCmp("accountListGrid").getStore().reload({
+										callback: function(records, success){getSum();}
+									});
+								},
+								showWaiting: true,
+								failureMsg: '删除失败.'
+							});
+						}
+					});
+				}
+			});
+
+			// 查询按钮
+			$("#accountList-search-button").click(function(){
+				var form = searchAccountFormPanel.getForm();
+				var param = form.getValues();
+				accountListStore.load({params: param});
+			});
+
+			// 收支统计按钮
+			$("#accountList-inout-button").click(function(){
+				var fromDate = searchAccountFormPanel.getForm().findField('fromDate').getValue();
+				var toDate = searchAccountFormPanel.getForm().findField('toDate').getValue();
+				if(fromDate=='' || toDate==''){
+					Ext.Msg.alert('提示','请选择统计日期！');
+				}else{
+					// 发送请求-取合计值
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: {fromDate:fromDate,toDate:toDate,accountBookId:<%=accountBookId %>},
+						action: '/accountAction.do?method=getSum',
+						callback: function(jsonResult){
+							if(jsonResult.success==true){
+								// 收支统计数据
+								var accountListInOutStore = new Ext.data.ArrayStore({
+							        fields: ['inout', 'money'],
+							        data: [['收入',jsonResult.currentInMoney],['支出',jsonResult.currentOutMoney]]
+							    });
+								// 收支统计窗口
+								var groupInOutWindow = new Ext.Window({
+									title: '收支统计',
+									width: 300,
+									height: 450,
+									modal: true,
+									maximizable: false,
+									resizable: false,
+									layout:'fit',
+									plain: true,
+									items: {
+								    	xtype: 'columnchart',
+							            store: accountListInOutStore,
+							            yField: 'money',
+							            xField: 'inout',
+							            xAxis: new Ext.chart.CategoryAxis({
+							                title: '收支'
+							            }),
+							            yAxis: new Ext.chart.NumericAxis({
+							                title: '金额'
+							            }),
+							            extraStyle: {
+							               xAxis: {
+							                    labelRotation: 0
+							                }
+							            }
+							        }
+								}).show();
+							}else{
+								Ext.Msg.alert('提示','统计错误.');
+							}
+						}
+					});
+				}
+			});
+
+			// 收入统计按钮
+			$("#accountList-groupin-button").click(function(){
+				var fromDate = searchAccountFormPanel.getForm().findField('fromDate').getValue();
+				var toDate = searchAccountFormPanel.getForm().findField('toDate').getValue();
+				if(fromDate=='' || toDate==''){
+					Ext.Msg.alert('提示','请选择统计日期.');
+				}else{
+					// 收入统计数据源
+				    var accountListGroupInStore = new Ext.data.JsonStore({
+				        url: '<%=baseUrl %>/accountAction.do?method=getGroupSumMoney',
+				        root: 'datas',
+				        totalProperty: 'results',
+				        fields: ['categoryName', 'money'],
+				        baseParams: {accountBookId:'<%=accountBookId%>',accountType:'1',fromDate:fromDate,toDate:toDate},
+				        autoLoad: true
+				    });
+				    var groupInWindow = new Ext.Window({
+						title: '收入统计',
+						width: 600,
+						height: 450,
+						modal: true,
+						maximizable: false,
+						resizable: false,
+						layout:'fit',
+						plain: true,
+						items: {
+				            store: accountListGroupInStore,
+				            xtype: 'piechart',
+				            dataField: 'money',
+				            categoryField: 'categoryName',
+				            extraStyle:{
+				                legend:{
+				                    display: 'bottom',
+				                    padding: 5
+				                }
+				            }
+				        }
+					}).show();
+				}
+			});
+
+			// 支出统计按钮
+			$("#accountList-groupout-button").click(function(){
+				var fromDate = searchAccountFormPanel.getForm().findField('fromDate').getValue();
+				var toDate = searchAccountFormPanel.getForm().findField('toDate').getValue();
+				if(fromDate=='' || toDate==''){
+					Ext.Msg.alert('提示','请选择统计日期.');
+				}else{
+					// 支出统计数据源
+				    var accountListGroupOutStore = new Ext.data.JsonStore({
+				        url: '<%=baseUrl %>/accountAction.do?method=getGroupSumMoney',
+				        root: 'datas',
+				        totalProperty: 'results',
+				        fields: ['categoryName', 'money'],
+				        baseParams: {accountBookId:'<%=accountBookId%>',accountType:'2',fromDate:fromDate,toDate:toDate,accountBookId:<%=accountBookId %>},
+				        autoLoad: true
+				    });
+				    var groupOutWindow = new Ext.Window({
+						title: '支出统计',
+						width: 600,
+						height: 450,
+						modal: true,
+						maximizable: false,
+						resizable: false,
+						layout:'fit',
+						plain: true,
+						items: {
+				            store: accountListGroupOutStore,
+				            xtype: 'piechart',
+				            dataField: 'money',
+				            categoryField: 'categoryName',
+				            extraStyle:{
+				                legend:{
+				                    display: 'bottom',
+				                    padding: 5
+				                }
+				            }
+				        }
+					}).show();
+				}
+			});
+		});
+
+		// 取合计值
+		function getSum(){
+			var form = Ext.getCmp("searchAccountFormPanel").getForm();
+			var param = form.getValues();
+			param.accountBookId = '<%=accountBookId %>';
+			// 发送请求-取合计值
+			Anynote.ajaxRequest({
+				baseUrl: '<%=baseUrl %>',
+				baseParams: param,
+				action: '/accountAction.do?method=getSum',
+				callback: function(jsonResult){
+					setGridHeader(jsonResult);
+				}
+			});
+		}
+		// 取合计值回调方法
+		function setGridHeader(jsonResult){
+			if(jsonResult.success==true){
+				$("#inMoneySpan").html(Ext.util.Format.number(jsonResult.inMoney,'0,000.00'));
+				$("#outMoneySpan").html(Ext.util.Format.number(jsonResult.outMoney,'0,000.00'));
+				$("#balanceSpan").html(Ext.util.Format.number(jsonResult.balance,'0,000.00'));
+				$("#currentInMoneySpan").html(Ext.util.Format.number(jsonResult.currentInMoney,'0,000.00'));
+				$("#currentOutMoneySpan").html(Ext.util.Format.number(jsonResult.currentOutMoney,'0,000.00'));
+			}
+		}
+	</script>
+</head>
+<body>
+<div id="accountListDiv">
+	<div id="accountListToolBarDiv"></div>
+	<div id="accountListSearchDiv"></div>
+	<div id="accountListGridHeaderDiv">
+		<div id="accountListGridHeaderInfoDiv" style="font-size:12px;font-weight:bold;" class="x-hide-display">
+			<span style="float: left;">
+				<span>当前收入：</span><span id="currentInMoneySpan">--</span><span>&nbsp;元</span>&nbsp;
+				<span>当前支出：</span><span id="currentOutMoneySpan">--</span><span>&nbsp;元</span>
+			</span>
+			<span style="float: right;">
+				<span>总收入：</span><span id="inMoneySpan">--</span><span>&nbsp;元</span>&nbsp;
+				<span>总支出：</span><span id="outMoneySpan">--</span><span>&nbsp;元</span>&nbsp;
+				<span>总余额：</span><span id="balanceSpan">--</span><span>&nbsp;元</span>
+			</span>
+		</div>
+	</div>
+	<div id="accountListGridDiv" style="width:100%;height:100%;"></div>
+</div>
+</body>
+</html>

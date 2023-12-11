@@ -1,0 +1,231 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page import="com.bizoss.trade.tb_commpara.*"%>
+<%@ page import="com.bizoss.trade.ts_link_group.*"%>
+<%@ page import="com.bizoss.trade.ti_membercurrency.*"%>
+<%@ page import="com.bizoss.trade.ti_case.*"%>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID"
+	scope="page" />
+<html>
+	<%
+		Hashtable ts_link_group = new Hashtable();
+		
+		String delegate_tel="";
+			if(request.getParameter("delegate_tel")!=null && !request.getParameter("delegate_tel").equals("")){
+			delegate_tel = request.getParameter("delegate_tel");
+			}
+
+
+			String case_id = randomId.GenTradeId();
+			String cust_id = "";
+			if (session.getAttribute("session_cust_id") != null) {
+				cust_id = session.getAttribute("session_cust_id").toString();
+			}
+			Ti_membercurrencyInfo ti_membercurrencyInfo = new Ti_membercurrencyInfo();
+			String selelctlist = ti_membercurrencyInfo.getSelectString("");
+
+		  Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+ 		  String s_case_source = tb_commparaInfo.getSelectItem("112","");   
+	%>
+	<head>
+		<title>案源信息管理</title>
+		<link href="/program/admin/index/css/style.css" rel="stylesheet"
+			type="text/css">
+		<script type="text/javascript" src="ti_case.js"></script>
+		<script language="javascript" type="text/javascript"
+			src="/program/plugins/calendar/WdatePicker.js"></script>
+		<script type='text/javascript'
+			src='<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js'></script>
+		<script type='text/javascript'
+			src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+		<script type='text/javascript'
+			src='<%=request.getContextPath()%>/dwr/util.js'></script>
+		<script type="text/javascript" src="js_personal.js"></script>
+		<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/interface/Ts_categoryInfo.js"></script>
+		<script type="text/javascript">setcat_attr1('');</script>
+		<script type="text/javascript">
+			function selectSor(){
+				var dd = document.getElementById("delegate_tel").value;
+				var url = "/program/admin/lawyerCase/finday.jsp?delegate_tel="+dd;
+				window.open(url);
+			}
+		</script>
+	</head>
+
+	<body>
+
+		<h1>
+			新增案源信息
+		</h1>
+		<form action="/doTradeReg.do" method="post" name="addForm">
+			<table width="100%" cellpadding="1" cellspacing="1" border="0"
+				class="listtab">
+				<table width="100%" cellpadding="0" cellspacing="1" border="0"
+					class="listtab">
+
+					<tr>
+						<td align="right" width="10%">
+							案件标题
+							<font color="red">*</font>
+						</td>
+						<td width="30%">
+							<input name="case_title" id="case_title" type="text" value="" />
+						</td>
+						<td align="right" width="10%">
+							涉案地点
+							<font color="red">*</font>
+						</td>
+						<td width="40%">
+							<select name="province" id="province"
+								onchange="setCitys(this.value,'')">
+								<option value="">
+									省份
+								</option>
+							</select>
+							<select name="eparchy_code" id="eparchy_code"
+								onchange="setAreas(this.value,'')">
+								<option value="">
+									地级市
+								</option>
+							</select>
+							<select name="city_code" id="city_code" style="display: inline">
+								<option value="">
+									市、县级市、县
+								</option>
+							</select>
+							<input type="hidden" name="area_attr_bak" id="area_attr_bak"
+								value="" />
+							<input type="hidden" name="area_attr" id="area_attr" value="" />
+						</td>
+					</tr>
+<tr>
+					<td align="right" width="10%">
+						联系方式
+						<font color="red">*</font>
+					</td>
+					<td width="30%">
+						<input type="text" id="delegate_tel" name="delegate_tel" value="" onKeyUp="if(isNaN(value))this.value=''">
+						<input type="button" value="查询" onclick="selectSor()"/>
+					</td>
+					<input name="real_name" id="real_name" type="hidden" />
+					<td align="right" width="10%">
+						委托者姓名
+						<font color="red">*</font>
+					</td>
+					<td width="30%">
+						<input type="text" id="delegate_name" name="delegate_name" value="">
+					</td>
+				</tr>
+				<tr>
+					<td align="right" width="10%">
+							截止日期:
+							<font color="red">*</font>
+						</td>
+						<td>
+							<input name="end_time" id="end_time" type="text" class="Wdate"
+								value=""
+							onClick="WdatePicker({minDate:'%y-%M-%d',readOnly:true})" 
+								size="15" width="150px" />
+						</td>
+					<td align="right" width="10%">委托费</td>
+					<td  width="30%"><input type="text" name="delegate_fee" id="delegate_fee" value=""></td>
+				</tr>	
+				<tr>
+					<td align="right" width="10%">
+						案源级别
+					</td>
+					<td>
+						<select id="case_level" name="case_level">
+							<option value="">请选择</option>
+							<%=selelctlist%>
+						</select>
+					</td>
+					<td align="right" width="10%">案件来源</td>
+					<td>
+						<select name="case_source">
+							<%=s_case_source %>
+						</select>
+					</td>
+				</tr>			
+					<tr>
+						<td align="right" width="10%">
+							案件分类:
+							<font color="red">*</font>
+						</td>
+						<td>
+							<select name="cat_attr1" id="cat_attr1"
+							onchange="setcat_attr2(this.value,'')">
+							<option value="">
+								初级分类
+							</option>
+						</select>
+						<select name="cat_attr2" id="cat_attr2">
+							<option value="">
+								二级分类
+							</option>
+						</select>
+						<input type="hidden" id="cat_attr" name="cat_attr" value="" >
+						</td>
+						<td align="right" width="10%">
+							案源简介:
+						</td>
+						<td>
+							<input name="case_desc" id="case_desc" type="text" value="" >
+						</td>
+					</tr>
+									<tr>
+						<td align="right" width="10%">
+							涉案金额
+						</td>
+						<td colspan="3">
+							<input name="case_amount" id="case_amount" type="text" value="" onKeyUp="if(isNaN(value))this.value=''"/>
+						</td>
+						<!-- 
+						<td align="right" width="10%">
+							涉案时间
+							<font color="red">*</font>
+						</td>
+						<td width="30%">
+							<input name="case_date" type="text" id="case_date" class="Wdate"
+								value=""
+								onclick="WdatePicker({maxDate:'#F{$dp.$D(\'end_time\',{d:-1})}',readOnly:true})"
+								size="15" width="150px" />
+						</td>
+						 -->
+					</tr>
+					<tr>
+						<td>
+							案件经过:<font color="red">*</font>
+						</td>
+						<td colspan="3">
+							<textarea name="case_content" id="case_content"></textarea>
+							<script type="text/javascript"
+								src="/program/plugins/ckeditor/ckeditor.js"></script>
+							<script type="text/javascript">
+			   CKEDITOR.replace( 'case_content',{});  
+			</script>
+						</td>
+					</tr>
+
+
+				</table>
+
+				<table width="100%" cellpadding="0" cellspacing="0" border="0">
+					<tr>
+						<td align="center">
+							<input type="hidden" name="case_state" value="1">
+							<input type="hidden" name="case_id" value="<%=case_id%>">
+							<input type="hidden" name="bpm_id" value="0764" />
+							<input type="hidden" name="cust_id" value="<%=cust_id%>">
+							<input type="hidden" name="contact_sum" id="contact_sum" value="0" >
+							<input type="submit" class="buttoncss" name="tradeSub" value="提交"
+								onclick="return checkInfo()" />
+							&nbsp;&nbsp;
+							<input type="button" class="buttoncss" name="tradeRut" value="返回"
+								onclick="window.location.href='index.jsp';" />
+						</td>
+					</tr>
+				</table>
+				</form>
+	</body>
+<script type="text/javascript">setProvince();</script>
+</html>

@@ -1,0 +1,182 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8"%>
+<%@page import="com.bizoss.trade.ts_area.*"%>
+<%@page import="com.bizoss.trade.ti_lawyerask.*"%>
+<html>
+	<head>
+
+		<title>查看法律咨询</title>
+		<link href="/program/admin/index/css/style.css" rel="stylesheet"
+			type="text/css">
+		<script type='text/javascript'
+			src='<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js'></script>
+		<script type='text/javascript'
+			src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+		<script type='text/javascript'
+			src='<%=request.getContextPath()%>/dwr/util.js'></script>
+		<script type="text/javascript" src="index.js"></script>
+	</head>
+
+	<body>
+
+		<%
+			Ts_areaInfo areaBean = new Ts_areaInfo();
+			String ask_id = request.getParameter("ask_id");
+			Ti_LawyeraskInfo lawyeraskInfo = new Ti_LawyeraskInfo();
+			List list = lawyeraskInfo.getListByPk(ask_id);
+			Hashtable map = new Hashtable();
+			if (list != null && list.size() > 0)
+				map = (Hashtable) list.get(0);
+
+			String title = "", content="",qq="",tel="",email="",enabled = "", in_date = "", area_attr = "";
+			if (map.get("title") != null)
+				title = map.get("title").toString();
+			if (map.get("content") != null)
+				content = map.get("content").toString();
+			if (map.get("qq") != null)
+				qq = map.get("qq").toString();
+			if (map.get("tel") != null)
+				tel = map.get("tel").toString();
+			if (map.get("email") != null)
+				email = map.get("email").toString();
+			if (map.get("enabled") != null)
+				enabled = map.get("enabled").toString();
+			if (map.get("in_date") != null)
+				in_date = map.get("in_date").toString();
+			if (map.get("area_attr") != null)
+				area_attr = map.get("area_attr").toString();
+			if (in_date.length() > 10)
+				in_date = in_date.substring(0, 10);
+			String areaAttr = "";
+			if (area_attr != null && !"".equals(area_attr)) {
+				String areaArr[] = area_attr.split("\\|");
+				for (int k = 0; k < areaArr.length; k++) {
+					areaAttr = areaAttr + " &nbsp; "
+							+ areaBean.getAreaNameById(areaArr[k]);
+				}
+			}
+			String cust_id="";
+			if(session.getAttribute("session_cust_id")!=null){
+			     cust_id  =session.getAttribute("session_cust_id").toString();
+			}
+		%>
+		<script type="text/javascript">
+		var area_attr = <%=area_attr%>;
+		if(area_attr == ""){
+			document.getElementById("area_attr").style.display="block";
+			document.getElementById("sele").style.display="none";
+		}
+	</script>
+		<h1>
+			查看法律咨询
+		</h1>
+
+
+		<form action="/doTradeReg.do" method="post" name="updateForm">
+			<table width="100%" cellpadding="0" cellspacing="1" border="0"
+				class="listtab">
+
+				<tr>
+					<td colspan="4">
+						<img src="/program/admin/images/infotip.gif" border="0">
+						&nbsp;&nbsp;
+						<span style="font-size: 14px; font-weight: bold;">法律咨询信息</span>
+					</td>
+				</tr>
+
+				<tr>
+					<td align="right" width="15%">
+						标题
+						<font color="red">*</font>
+					</td>
+					<td>
+						<input name="title" value="<%=title%>" id="title" type="text"
+							maxlength="20" readonly="readonly" />
+					</td>
+					<td align="right" width="15%">
+						所在地区:
+					</td>
+					<td >
+					<%=areaAttr%>
+						<div id="sele" style="display: none">
+							<select name="province" id="province"
+								onchange="setCitys(this.value)">
+								<option value="">
+									省份
+								</option>
+							</select>
+							<select name="eparchy_code" id="eparchy_code"
+								onchange="setAreas(this.value)">
+								<option value="">
+									地级市
+								</option>
+							</select>
+							<select name="city_code" id="city_code" style="display: inline">
+								<option value="">
+									市、县级市、县
+								</option>
+							</select>
+						</div>
+						<input type="hidden" name="area_attr_bak" id="area_attr_bak"
+							value="" />
+						<input type="hidden" name="area_attr" id="area_attr"
+							value="<%=area_attr%>" />
+					</td>
+					
+				</tr>
+
+				<tr>
+					<td align="right" width="15%">
+						QQ:
+					</td>
+					<td>
+						<input name="qq" id="qq" type="text" value="<%=qq%>"
+							maxlength="20" readonly="readonly" />
+					</td>
+					<td align="right" width="15%">
+						email:
+					</td>
+					<td>
+						<input name="email" id="email" type="text"
+							value="<%=email%>" maxlength="10" readonly="readonly" />
+					</td>
+				</tr>
+				<tr>
+					<td align="right" width="15%">
+						联系电话
+						<font color="red">*</font>
+					</td>
+					<td colspan="3">
+						<input name="tel" value="<%=tel%>" id="tel" type="text"
+							maxlength="20" readonly="readonly" />
+					</td>
+				</tr>
+				<tr>
+					<td>
+						咨询内容:
+					</td>
+					<td colspan="3">
+						<textarea name="content" readonly="readonly" cols="80" rows="5"><%=content%></textarea>
+					</td>
+				</tr>
+				
+
+			</table>
+
+			<table width="100%" cellpadding="0" cellspacing="0" border="0">
+				<tr>
+					<td align="center">
+						<input type="hidden" name="bpm_id" value="9891" />
+						<input type="hidden" name="ask_id" value="<%=ask_id %>" />
+						<input type="hidden" name="operator_id" value="<%=cust_id %>" />
+						&nbsp;&nbsp;
+						<input type="button" class="buttoncss" name="tradeRut" value="返回"
+							onclick="window.location.href='index.jsp';" />
+					</td>
+				</tr>
+			</table>
+		</form>
+	</body>
+
+</html>
+<script>setProvince();</script>

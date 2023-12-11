@@ -1,0 +1,250 @@
+<!--#include file="inc/conn.asp"-->
+<!--#include file="inc/function.asp"-->
+<!--#include file="../checkvalid.asp"-->
+<link rel="stylesheet" type="text/css" href="../style/Style.css">
+<%
+Dim SqlItem,RsItem,ItemID
+Dim ListStr,LsString,LoString,ListPaingType,LPsString,LPoString,ListPaingStr1,ListPaingStr2,ListPaingID1,ListPaingID2,ListPaingStr3
+Dim ListUrl,ListCode
+Dim LoginType,LoginUrl,LoginPostUrl,LoginUser,LoginPass,LoginFalse,LoginResult,LoginData
+Dim  ListPaingNext
+ItemID=Trim(Request.Form("ItemID"))
+ListStr=Trim(Request.Form("ListStr"))
+LsString=Request.Form("LsString")
+LoString=Request.Form("LoString")
+ListPaingType=Request.Form("ListPaingType")
+LPsString=Request.Form("LPsString")
+LPoString=Request.Form("LPoString")
+ListPaingStr1=Trim(Request.Form("ListPaingStr1"))
+ListPaingStr2=Trim(Request.Form("ListPaingStr2"))
+ListPaingID1=Trim(Request.Form("ListPaingID1"))
+ListPaingID2=Trim(Request.Form("ListPaingID2"))
+ListPaingStr3=Trim(Request.Form("ListPaingStr3"))
+FoundErr=False
+
+If ItemID=""  Then
+   FoundErr=True
+   ErrMsg=ErrMsg & "<br><br><li>参数错误，请从有效链接进入</li>"
+Else
+   ItemID=Clng(ItemID)
+End If
+If LsString="" Then
+   FoundErr=True
+   ErrMsg=ErrMsg & "<br><br><li>列表开始标记不能为空</li>"
+End If
+If LoString="" Then
+   FoundErr=True
+   ErrMsg=ErrMsg & "<br><br><li>列表结束标记不能为空</li>" 
+End If
+If ListPaingType="" Then
+   FoundErr=True
+   ErrMsg=ErrMsg & "<br><br><li>请选择列表索引分页类型</li>" 
+Else
+   ListPaingType=Clng(ListPaingType)
+   Select Case ListPaingType
+   Case 0,1
+      If  ListPaingType=1  Then
+            If LPsString="" or LPoString="" Then
+               FoundErr=True
+               ErrMsg=ErrMsg & "<br><br><li>索引分页开始/结束标记不能为空</li>" 
+            End If
+            If ListPaingStr1<>"" and Len(ListPaingStr1)<15 Then
+               FoundErr=True
+               ErrMsg=ErrMsg & "<br><br><li>索引分页重定向设置不正确(至少15个字符)</li>" 
+            End If
+      End  If
+   Case 2
+      If ListPaingStr2="" Then
+         FoundErr=True
+         ErrMsg=ErrMsg & "<br><br><li>批量生成字符不能为空</li>"
+      End If
+      If isNumeric(ListPaingID1)=False or isNumeric(ListPaingID2)=False Then
+         FoundErr=True
+         ErrMsg=ErrMsg & "<br><br><li>批量生成的范围只能是数字</li>"
+      Else
+         ListPaingID1=Clng(ListPaingID1)
+         ListPaingID2=Clng(ListPaingID2)
+         If ListPaingID1=0 And ListPaingID2=0 Then
+            FoundErr=True
+            ErrMsg=ErrMsg & "<br><br><li>批量生成范围设置不正确</li>"
+         End If
+      End If
+   Case 3
+      If ListPaingStr3="" Then
+         FoundErr=True
+         ErrMsg=ErrMsg & "<br><br><li>列表索引分页不能为空，请手动添加</li>"
+      Else
+         ListPaingStr3=Replace(ListPaingStr3,CHR(13),"|") 
+      End If
+   Case Else
+      FoundErr=True
+      ErrMsg=ErrMsg & "<br><br><li>请选择列表索引分页类型</li>" 
+   End Select
+End if
+
+If FoundErr<>True Then
+   SqlItem="Select * from Item Where ItemID=" & ItemID
+   Set RsItem=server.CreateObject("adodb.recordset")
+   RsItem.Open SqlItem,ConnItem,2,3
+
+   RsItem("LsString")=LsString
+   RsItem("LoString")=LoString
+   RsItem("ListPaingType")=ListPaingType
+   Select Case ListPaingType
+   Case 0,1
+      If ListPaingType=1  Then
+            RsItem("LPsString")=LPsString
+            RsItem("LPoString")=LPoString
+            If ListPaingStr1<>"" Then
+               RsItem("ListPaingStr1")=ListPaingStr1
+            End If
+      End  If
+      ListUrl=RsItem("ListStr")
+   Case 2
+      RsItem("ListPaingStr2")=ListPaingStr2
+      RsItem("ListPaingID1")=ListPaingID1
+      RsItem("ListPaingID2")=ListPaingID2
+      ListUrl=Replace(ListPaingStr2,"{$ID}",CStr(ListPaingID1))
+   Case 3
+      RsItem("ListPaingStr3")=ListPaingStr3
+      If  Instr(ListPaingStr3,"|")>0  Then
+            ListUrl=Left(ListPaingStr3,Instr(ListPaingStr3,"|")-1)
+      Else
+            ListUrl=ListPaingStr3
+      End  If
+   End Select
+   LoginType=RsItem("LoginType")
+   LoginUrl=RsItem("LoginUrl")
+   LoginPostUrl=RsItem("LoginPostUrl")
+   LoginUser=RsItem("LoginUser")
+   LoginPass=RsItem("LoginPass")
+   LoginFalse=RsItem("LoginFalse")
+   RsItem.UpDate
+   RsItem.Close
+   Set RsItem=Nothing
+
+   If LoginType=1 then
+      LoginData=UrlEncoding(LoginUser & "&" & LoginPass)
+      LoginResult=PostHttpPage(LoginUrl,LoginPostUrl,LoginData)
+      If Instr(LoginResult,LoginFalse)>0 Then
+         FoundErr=True
+         ErrMsg=ErrMsg & "<br><br><li>网站登录失败，请检查登录参数！</li>"
+      End If
+   End If
+   
+   If FoundErr<>True Then
+      ListCode=GetHttpPage(ListUrl)
+      If ListCode<>"$False$" Then
+         If ListPaingType=1  Then
+            ListPaingNext=GetPaing(ListCode,LPsString,LPoString,False,False)
+                  If ListPaingNext<>"$False$"  Then
+                     If ListPaingStr1<>""  Then  
+                        ListPaingNext=Replace(ListPaingStr1,"{$ID}",ListPaingNext)
+               Else
+                        ListPaingNext=DefiniteUrl(ListPaingNext,ListUrl)
+               End  If
+            End  If
+         End If
+         ListCode=GetBody(ListCode,LsString,Lostring,False,False)
+         If ListCode="$False$" Then
+            FoundErr=True
+            ErrMsg=ErrMsg & "<br><br><li>在截取:" & ListUrl & "信息列表时发生错误</li>"
+         End If
+      Else
+         FoundErr=True
+         ErrMsg=ErrMsg & "<br><br><li>在获取:" & ListUrl & "网页源码时发生错误</li>"
+      End If
+   End If
+End If
+
+If FoundErr=True Then
+   Call WriteErrMsg(ErrMsg)
+Else
+   Call Main
+End If   
+'关闭数据库链接
+Call CloseConn()
+Call CloseConnItem()
+%>
+
+<%Sub Main%>
+<html>
+<head>
+<title>采集系统</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
+<table width="98%" align="center" border="0" cellpadding="0" cellspacing="1" bgcolor="#8ED1FF" class="mtab">
+  <tr> 
+    <td colspan="2" class="td28">采集系统项目管理</td>
+  </tr>
+  <tr class="td26" bgcolor="#FFFFFF"> 
+    <td><b>管理导航：</b><a href=Admin_ItemStart.asp>管理首页</a> | <a href="Admin_ItemAddNew.asp">添加新项目</a> | <a href="Admin_ItemManage.asp">采集项目管理</a> | <a href="Admin_ItemFilters.asp">采集过滤设置</a> | <a href="Admin_ItemHistroly.asp">历史采集记录</a> | <a href="Admin_ItemDatabase.asp?Action=LeadOut">采集项目导出</a> <a href="Admin_ItemDatabase.asp?Action=LeadIn">导入</a></td>
+  </tr>
+  <tr bgcolor="#FFFFFF"> 
+    <td style="padding-left:10px;"><a href="Admin_ItemAddNew.asp">添加项目</a> >> <a href="Admin_ItemModify.asp">基本设置</a> >> <a href="Admin_ItemModify2.asp?ItemID=<%=ItemID%>">列表设置</a> >> <font color=red>链接设置</font> >> 正文设置 >> 采样测试 >> 属性设置 >> 完成</td>         
+  </tr> 
+</table>       
+<table width="98%" align="center" border="0" cellpadding="3" cellspacing="1" bgcolor="#8ED1FF" class="mtab">
+    <tr> 
+      <td colspan="2" class="td28">添加新项目--列表截取测试</td>
+    </tr>
+    <tr bgcolor="#FFFFFF"> 
+      <td height="22" colspan="2"><%=ListCode%></td>
+    </tr>
+  <tr> 
+    <td colspan="2" class="td28">项目编辑--采集目标源码<Input name="code" type="radio" class="checkbox" onClick="javascript:Content.style.height='1';" value="0" >不查看 <Input name="code" type="radio" class="checkbox" onClick="javascript:Content.style.height='300';" value="1" checked>查看源码</td>
+  </tr>
+  <tr bgcolor="#FFFFFF"> 
+    <td colspan="2" align="center"><TEXTAREA NAME="Content" ROWS="" COLS="" style="width:99%;height:300px"><%=ListCode%></TEXTAREA></td>
+  </tr>
+</table>
+<%If ListPaingNext<>"" And ListPaingNext<>"$False$" Then%>
+<table width="98%" align="center" border="0" cellpadding="3" cellspacing="1" bgcolor="#8ED1FF" class="mtab">
+    <tr> 
+      <td height="22" colspan="2" bgcolor="#FFFFFF" ><%Response.Write "<br>下一页列表：<a  href='" & ListPaingNext  &  "' target=_blank><font  color=red>"  &  ListPaingNext  &  "</font></a>"%></td>
+    </tr>
+</table>
+<%End If%>
+<table width="98%" align="center" border="0" cellpadding="3" cellspacing="1" bgcolor="#8ED1FF" class="mtab">
+<form method="post" action="Admin_ItemAddNew4.asp" name="form1">
+    <tr> 
+      <td colspan="2" class="td28">添加新项目--链接设置</td>
+    </tr>
+    <tr> 
+      <td width="20%" align="right" bgcolor="#FFFFFF" >链接开始标记：</td>
+      <td width="75%" bgcolor="#FFFFFF">
+      <textarea name="HsString" cols="49" rows="7"></textarea></td>
+    </tr>
+    <tr> 
+      <td width="20%" align="right" bgcolor="#FFFFFF" >链接结束标记：</td>
+      <td width="75%" bgcolor="#FFFFFF">
+      <textarea name="HoString" cols="49" rows="7"></textarea></td>
+    </tr>
+    <tr>
+      <td width="20%" align="right" bgcolor="#FFFFFF">链接处理类型：</td>
+      <td width="75%" bgcolor="#FFFFFF">
+		<input name="HttpUrlType" type="radio" class="checkbox" onClick="HttpUrl1.style.display='none'" value="0" checked>
+		自动处理&nbsp;
+		<input name="HttpUrlType" type="radio" class="checkbox" onClick="HttpUrl1.style.display=''" value="1">
+		重新定向      </td>
+    </tr>
+	<tr id="HttpUrl1" style="display:none">
+      <td width="20%" align="right" bgcolor="#FFFFFF">重新定向链接字符：</td>
+      <td width="75%" bgcolor="#FFFFFF">
+	<input name="HttpUrlStr" type="text" size="49" maxlength="200" value=""><br>
+        格式：http://www.*****.net/Article_Show.asp?ID={$ID}      </td>
+    </tr>
+    <tr> 
+      <td colspan="2" align="center" bgcolor="#FFFFFF">
+        <input name="ItemID" type="hidden" value="<%=ItemID%>">
+        <input name="button1"  type="button" class="submit1" onClick="window.location.href='javascript:history.go(-1)'" value="上&nbsp;一&nbsp;步">
+        &nbsp;&nbsp;&nbsp;&nbsp; 
+      <input name="Submit"  type="submit" class="submit1" value="下&nbsp;一&nbsp;步"></td>
+    </tr>
+</form>
+</table>
+<br>
+</body>         
+</html>
+<%End Sub%>

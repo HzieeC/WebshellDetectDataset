@@ -1,0 +1,264 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="../t/consts.asp" -->
+<!--#include file="inc/function.asp" -->
+<!--#include file="inc/Get_admins.asp" -->
+<%
+id=Checkstr(trim(request("id")))
+if id="" or isnumeric(id)=False then response.Redirect "index.asp"
+modify_id=Checkstr(trim(request("modify_id")))
+if modify_id="" or isnumeric(modify_id)=False then response.Redirect "index.asp"
+'action=request("action")
+page=Request("page")
+if page="" or isnumeric(page)=False then page=1
+asp_name="edit.asp"
+asp_name2="show.asp"
+%>
+	<%
+	set rs=server.createobject("adodb.recordset")
+	sql="select TOP 1 * from bbs where id="&modify_id&""
+	rs.open sql,conn,1,1
+	if not rs.eof and not rs.bof then
+		re_id=rs("re_id")
+		title=rs("title")
+		if title="" or isnull(title) then
+			'获取帖子主题分类
+			set rs1=server.createobject("adodb.recordset")
+			sql1="select * from bbs where re_id=0 and id="&re_id
+			rs1.open sql1,conn,1,1
+			if not rs1.eof then
+				title_zhuti=rs1("title")
+			else
+				title_zhuti=""
+			end if
+			rs1.close
+			set sql1=nothing
+		else
+			title_zhuti=title
+		end if
+		tie_publisher=rs("username")
+		if tie_publisher="网站管理员" then tie_publisher_gl="<font color=""red""><img src=""images/0306086.gif"" title=""只有此标志才是网站管理员，谨防假冒哦。""></font>"
+		tie_addtime=rs("addtime")
+		picurl=rs("picurl")
+		if picurl="" or isnull(picurl) then picurl="000"
+		content=rs("content")
+		board_id=rs("BoardID")
+		reply_shenhe_status=rs("IsCheck")
+			'积分
+			set rs1=server.createobject("adodb.recordset")
+			sql1="select TOP 1 * from members where SMT_user='"&tie_publisher&"'"
+			rs1.open sql1,conn,1,1
+			if not rs1.eof and not rs1.bof then
+			member_jifen=rs1("SMT_zhishu")
+			end if
+			rs1.close
+			set sql1=nothing
+		
+			'根据积分判断等级
+			sql1="select TOP 1 * from members_class where need_jifen<="&member_jifen&" order by need_jifen desc"
+			rs1.open sql1,conn,1,1
+			if not rs1.eof and not rs1.bof then
+				class_name=rs1("class_name")
+			else
+				class_name="无等级"
+			end if
+			rs1.close
+			set sql1=nothing
+	else
+		response.Redirect "index.asp"
+	end if
+	if session("class_id")="" then
+		if tie_publisher<>session("user_name") then response.write backmsg("对不起！您无权编辑此贴!","show.asp?id="&id&"")
+	end if
+	'response.Write re_id
+	'response.Write id
+	if re_id<>0 and not isnull(re_id) and re_id<>id then
+		'response.write backmsg("对不起！参数错误!","show.asp?id="&id&"")
+	end if
+	%>
+
+<!DOCTYPE HTML>
+<html>
+<!--<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">-->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title><%=title_zhuti%>-修改帖子-<%=coname%></title>
+<meta name="keywords" content="<%=meta%>" />
+<meta name="description" content="<%=desc%>" />
+<!--<link href="skins/200/style.css" rel="stylesheet" type="text/css" />-->
+<link href="skins/200default/style.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript" src="images/jquery-1.3.2.min.js"></script>
+<script type="text/javascript" src="images/js.js"></script>
+</head>
+<body>
+<div id="header">
+	<div class="wrap s_clear">
+    	<div id="umenu">
+        <%if session("user_name")<>"" then%>
+        欢迎您，<%=session("user_name")%> ， 
+        <A onClick="window.open('../t/logout.asp?page_name=<%=page_name%>','_parent');" href="#">注销</A>
+		<%else%>
+        <a href="javascript:void(0)" onClick="showDiv();">登录</a>
+		<%end if%>
+        </div>
+		<div id="ad_headerbanner"><a href="../t"><img src="../t/image/popcms_logo_xmas.png" style="width:auto; height:auto;"/></a><!-- 广告位置 --></div>
+		<div id="menu">
+			<ul>
+            <%
+			set rs3=server.createobject("adodb.recordset")
+			sql3="select board_name,board_about,board_id,board_order from bbsboard where board_order=1 "
+			rs3.open sql3,conn,1,1
+			do while not rs3.eof
+			if (isnull(boardid) or boardid="") then
+				response.Write "<li><a href='index.asp?boardid="&rs3("board_id")&"' title='"&rs3("board_about")&"'>"&rs3("board_name")&"</a></li>"
+			elseif cint(boardid)=cint(rs3("board_id")) then
+				response.Write "<li class=""current""><a href='index.asp?boardid="&rs3("board_id")&"' title='"&rs3("board_about")&"'>"&rs3("board_name")&"</a></li>"
+			else
+				response.Write "<li><a href='index.asp?boardid="&rs3("board_id")&"' title='"&rs3("board_about")&"'>"&rs3("board_name")&"</a></li>"
+			end if
+			rs3.movenext
+			loop
+			rs3.close
+			set rs3=nothing
+			set sql3=nothing
+			%>
+            <li class="<%if (isnull(boardid) or boardid="") then%>current<%else%><%end if%>"><a href="index.asp">全部分类</a></li>
+            <li class="nav_home"><a href="../t" style="margin-left:3px;">首页</a></li>
+            </ul>
+		</div>
+	</div>
+</div>
+<%
+if board_name<>"" then
+	class_nav="nav_current"
+else
+	class_nav="nav_current"
+end if
+%>
+<div id="<%=class_nav%>"><span><ul></ul></span>
+<div id="navpr"><a href="index.asp" >贴吧首页</a> &raquo; 
+<%if board_name<>"" then%>
+<a href="index.asp?boardid=<%=board_id%>" title="<%=board_about%>"><%=board_name%></a>
+<%else%>
+修改帖子
+<%end if%>
+<%if session("user_name")<>"" then%><span class="mytiezi"><form action="my_tiezi.asp"><input name="My_Keys" type="text" id="My_Keys" value="<%=My_Keys%>" size="15" maxlength="10"> <input type="submit" class="button_style_g" value="搜索我的帖子"></form></span><%end if%>
+</div>
+</div>
+<div id="wrapper" class="wrap s_clear">
+<TABLE width="100%" border="0" cellspacing="0" class="showTie">
+<TR>
+<TD class="cc" valign=middel style="text-align:center;padding-top:16px;height:42px;line-height:42px;">
+<A HREF="index.asp#post"><IMG SRC="images/post.gif" border='0'></A>
+</TD>
+<TD class="dd" align=right >
+<div class="meneame">
+<a href="show.asp?id=<%=id%>">返回列表</a>
+</div>
+</TD>
+</TR>
+</TABLE>
+<form name="saveform" method="post" action="tzsave.asp" autocomplete="off">
+    <TABLE width="100%" border="0" cellspacing="0" class="showTie">
+    <TR valign="top">
+        <TD class="aa">
+        <div class="mod" style="background:url(images/mod/<%=picurl%>.gif)"></div>
+        <li>作者:<%=tie_publisher%><%=tie_publisher_gl%></li>
+        <%if tie_publisher="" or isnull(tie_publisher) or tie_publisher="游客" then%><%else%>
+        <li>积分:<%=member_jifen%></li>
+		<li>等级:<%=class_name%></li>
+		<%end if%>
+        <li>发表:<%=tie_addtime%></li>
+        </TD>
+        <TD class="bb" onMouseOver="show_line(<%=k%>);" onMouseOut="hide_line(<%=k%>);">
+        <%if cint(modify_id)=cint(id) and title<>"" then%>
+            <h2>标题：
+            <select name="BoardId" onblur="checkfl()" onChange="checkfl()">
+            <%'获取当前数据
+            set rs1=server.createobject("adodb.recordset")
+            sql1="select board_id,board_name,board_order from bbsboard where board_order=1 and board_id="&board_id
+            rs1.open sql1,conn,1,1
+            %>
+            <option value="<%=rs1("board_id")%>" selected="selected">当前：<%=rs1("board_name")%></option>
+            <%
+			rs1.Close()
+			%>
+				<%
+				 set rs1=server.createobject("adodb.recordset")
+				 sql1="select board_id,board_name,board_order from bbsboard where board_order=1 order by board_id desc"
+					rs1.open sql1,conn,1,1
+					if not rs1.eof then
+					else
+						response.Write "-无分类数据-"
+					end if
+					do while not rs1.eof
+						bbsboard_id=rs1("board_id")
+						bbsboard_id_name=rs1("board_name")
+				%>   
+			   <option value="<%=bbsboard_id%>"><%=bbsboard_id_name%></option>
+			   <%
+				rs1.movenext
+				loop
+				rs1.close
+				set rs1=nothing
+				set sql1=nothing
+			   %> 
+			</select>
+			<span id="BoardId_tip"></span>
+			<input name="title" type="text" id="title" size="35"  maxlength="50" onkeyup="checktitle();"  onBlur="checktitle();" value="<%=title%>"><span id="title_tip"></span>
+		<%end if%>
+        </h2>
+        <div class="t14160 tiemain">
+        <textarea id="content" name="content"style="width:650px;height:500px;" class="ubbeditor"  onkeydown="onKeyUp();"><%response.Write content%></textarea>
+        <div style="clear:both"></div>
+        <span id="content_tip"></span>
+        </div>
+        <div>
+        <%if title<>"" then%>
+        <input type="Submit" name="Submit" id="Submit" class="button_style_w" value="修改帖子" style=" cursor:pointer;" >
+        <%else%>
+        <input name="BoardId" type="hidden" id="BoardId" size="20"  value="<%=board_id%>" />
+        <input type="Button" name="Submit" id="Submit" class="button_style_w" value="修改回复" style=" cursor:pointer;" onClick="fatie_check();" >
+        <%end if%>
+        <input type="button" name="backbtn" id="Submit" class="button_style_gray" value="取消编辑" style=" cursor:pointer;" onClick="window.open('show.asp?id=<%=id%>&page=<%=page%>','_self');">
+        <input name="action" type="hidden" id="action" size="20"  value="update_reply" />
+        <input name="id" type="hidden" id="id" size="20"  value="<%=id%>" />
+        <input name="page" type="hidden" id="page" size="20"  value="<%=page%>" />
+        <input name="modify_id" type="hidden" id="modify_id" size="20"  value="<%=modify_id%>" />
+        <input name="tie_publisher" type="hidden" id="tie_publisher" size="20"  value="<%=tie_publisher%>" />
+        </div>
+        </TD>
+    </TR>
+    <TR><TD class="cc"></TD>
+    <TD class="dd">
+    </TD></TR>
+    </TABLE>
+</form>
+<TABLE width="100%" border="0" cellspacing="0" class="showTie">
+<TR>
+<TD class="cc" valign=middel><BR><BR></TD>
+<TD class="dd" align=right >
+<div class="meneame"><a href="show.asp?id=<%=id%>">返回列表</a></div>
+</TD>
+</TR>
+</TABLE>
+<%
+	rs.close
+	set rs=nothing
+	set sql=nothing
+%>
+	<script type="text/javascript"  src="images/xheditor-zh-cn.js"></script>
+	<script type="text/javascript" src="images/ubb.js"></script>
+	<script type="text/javascript" src="images/detect_edit.js"></script>
+    <!--滚动回到顶部-->
+    <div class="bottom_float_btn_post" onClick="window.open('index.asp#post','_self')">发帖</div>
+    <%if session("class_id")="" and session("user_name")="" then%><div class="bottom_float_btn_login" onClick="showDiv();">登陆</div><%end if%>
+    <script type="text/javascript" src="images/scrolltopcontrol.js"></script>
+    <!--滚动回到顶部-->
+	<a name="post"> &nbsp;</a>
+</div>
+<!--#include file="inc/bottom.asp" -->
+</body>
+</html>

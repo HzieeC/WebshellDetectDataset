@@ -1,0 +1,177 @@
+﻿<!--#include file="commond.asp" -->
+<!--#include file="include/function.asp" -->
+<!--#include file="include/library.asp" -->
+<%Dim log_Year,log_Month,log_Day,logID,Url_Add
+	 log_Year=CheckStr(Trim(Request.QueryString("log_Year")))
+	 log_Month=CheckStr(Trim(Request.QueryString("log_Month")))
+ 	 log_Day=CheckStr(Trim(Request.QueryString("log_Day")))
+ 	 logID=CheckStr(Trim(Request.QueryString("logID")))
+	 Url_Add="?logID="&logID&"&"
+	 Dim errMSG
+	 If IsInteger(logID)=False Then
+		errMSG="<center><div class=""title""><a href=""default.asp"" style=""line-height:90px"">对不起，无效的参数，点击返回首页重新操作</a></div></center>"
+	 Else
+		Dim log_View
+		Set log_View=Server.CreateObject("ADODB.RecordSet")
+		SQL="SELECT * FROM blog_Content WHERE log_ID="&logID&""
+		log_View.Open SQL,Conn,1,3
+		
+		If log_View.EOF AND log_View.BOF Then
+	  		errMSG="<center><div class=""title""><a href=""default.asp"" style=""line-height:90px"">对不起，没有找到相关涂鸦，点击返回首页重新操作</a></div></center>"
+			log_View.Close
+	  		Set log_View=Nothing
+		Else
+	  		Dim log_Title,log_Content,log_Author,log_PostTime,log_Modify,log_Weather,log_Pic
+			log_Title=log_View("log_Title")
+			siteTitle = log_Title&" - "
+			log_Content=log_View("log_Content")
+			log_Author=log_View("log_Author")
+			log_Pic=log_View("log_Pic")
+			log_PostTime=log_View("log_PostTime")
+			log_Modify=log_View("log_Modify")
+			log_Weather=Split(log_View("log_Weather"),"|")
+	  		log_View("log_ViewNums")=log_View("log_ViewNums")+1
+			log_View.UPDATE
+	  		log_View.Close
+	  		Set log_View=Nothing
+		End If
+	End If%><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<META http-equiv=Content-Type content="text/html; charset=utf-8">
+<title><%=siteName&"_"&siteTitle%></title>
+<META content="涂鸦板" name=Keywords>
+<LINK href="images/style.css" type=text/css rel=stylesheet>
+<script type="text/javascript" language="javascript" src="common.js"></script>
+
+</head>
+<body>
+<!--头部开始-->
+<!--#include file="header.asp" -->
+<!--主体开始-->
+<%
+If errMSG<>Empty Then
+	Response.Write(errMSG)
+Else
+'============内容开始======================
+	Response.Write("<div id=""item"">")
+'标题开始
+	Response.Write("<div id=""title""><img src=""images/smilies/"&log_Weather(0)&".gif"" border=""0"" align=""absmiddle"" alt="""&log_Weather(1)&"""> "&log_Title&"</div>")
+	Response.Write("<div id=""idate"">[ 日期："&DateToStr(log_PostTime,"Y-m-d H:I:S")&" | 作者："&log_Author)
+	If (memStatus="Admin" AND memName=log_Author) OR memStatus="SupAdmin" Then
+		Response.Write(" | <a class=""date"" href=""blogedit.asp?logID="&logID&""">编辑涂鸦</a>")
+	End If
+	Response.Write(" ]</div>")
+'正文内容
+	Response.Write("<div id=""content""><img src=""pic/"&log_Pic&""" class=""picBorder"" align=""left"" onload=""javascript:DrawImage(this);""  alt=""按此在新窗口打开图片"" onmouseover=""this.style.cursor='hand';"" onclick=""window.open(this.src);"" >"&log_Content&"</div>")
+'是否修改
+	IF log_Modify<>Empty Then
+		Response.Write("<div id=""ifoot"">"&log_Modify&"</div>")
+	Else
+		Response.Write("<div id=""ifootline"" class=""blank1""></div>")
+	End If
+'文章评论
+	Response.Write("<div class=""trackback""><div style=""float:left;width:70%""><img src=""images/icon_trackback.gif"" border=""0"" align=""absmiddle""><b>文章评论</b><a name=""#comment""></a></div><div style=""float:right;width:12%""><a href=""#comment1"" class=""red"" onclick=showHide()><b>发表评论</b></a></div></div>")
+	Response.Write("</div>")
+
+'=============内容结束====================
+
+	Dim CurPage
+	If CheckStr(Request.QueryString("Page"))<>Empty Then
+	  Curpage=CheckStr(Request.QueryString("Page"))
+	  If IsInteger(Curpage)=False OR Curpage<0 Then Curpage=1
+	Else
+	  Curpage=1
+	End If
+	
+	Dim blog_Comment
+	Set blog_Comment=Server.CreateObject("Adodb.RecordSet")
+	SQL="SELECT comm_ID,comm_Content,comm_Author,comm_PostTime,comm_PostIP FROM blog_Comment WHERE blog_ID="&logID&" order by comm_PostTime asc"
+	blog_Comment.Open SQL,Conn,1,1
+	If blog_Comment.EOF And blog_Comment.BOF Then
+		Response.Write("<div id=""item""><div id=""noComment"">暂时没有评论</div></div>")
+	Else
+		Dim Comm_Nums,MultiPages,PageCount
+		blog_Comment.PageSize=blogPerPage
+		blog_Comment.AbsolutePage=CurPage
+		Comm_Nums=blog_Comment.RecordCount
+		MultiPages="<div id=""pagelist"">"&MultiPage(Comm_Nums,blogPerPage,CurPage,Url_Add)&"</div>"
+		'==============评论开始=============
+		Response.Write("<div id=""item"">")
+'################################################################
+
+		Do Until blog_Comment.EOF OR PageCount=blogPerPage
+			Dim blog_CommID,blog_CommAuthor,blog_CommContent,blog_PostIP
+			blog_CommID=blog_Comment("comm_ID")
+			blog_CommAuthor=blog_Comment("comm_Author")
+			blog_CommContent=blog_Comment("comm_Content")
+			blog_PostIP=blog_Comment("comm_PostIP")
+			
+			'评论标题开始
+			Response.Write("<div class=""item""><div id=""CommentTitle""><a name=""commmark_"&blog_CommID&"""></a>")
+			Response.Write("&nbsp;<img src=""images/icon_quote.gif"" border=""0"" />")
+			Response.Write(" <a href=""member.asp?action=view&memName="&Server.URLEncode(blog_CommAuthor)&""">"&blog_CommAuthor&"</a> 于 "&DateToStr(blog_Comment("comm_PostTime"),"Y-m-d H:I A")&" 发表评论 | IP："&blog_PostIP)
+			If memStatus="SupAdmin" Then
+				Response.Write(" <a href=""blogcomm.asp?action=delecomm&logID="&logID&"&commID="&blog_CommID&""" title=""删除评论"" onClick=""winconfirm('你真的要删除这个评论吗？','blogcomm.asp?action=delecomm&logID="&logID&"&commID="&blog_CommID&"'); return false"">删除</a>")
+			End If
+			Response.Write("</div>")
+	'评论标题结束
+	'评论内容开始
+			Response.Write("<div id=""CommentContent"">"&blog_CommContent&"</div></div>")
+	'评论内容结束
+			PageCount=PageCount+1
+			blog_Comment.MoveNext
+		Loop
+	'################################################################
+		Response.Write("</div>")
+		'==============评论结束=============
+	End If
+	blog_Comment.Close
+	Set blog_Comment=Nothing
+	'===============评论分页开始=============
+	Response.Write(MultiPages)
+%>
+<!--------发表评论开始------------->
+<div id="reviewTable" style="DISPLAY: none">
+	<table width="100%" border="0" align="center" cellpadding="3" cellspacing="1" bgcolor="#CCCCCC">
+      <tr>
+        <td colspan="2" bgcolor="#F9FCFE" height="22">&nbsp;<a name="#comment1" id="#comment"></a><b>发表评论 - 不要忘了输入验证码哦！</b></td>
+      </tr>
+	  <form action="blogcomm.asp?action=postcomm" method="post" name="input" id="input">
+        <tr>
+          <td width="96" nowrap="nowrap" bgcolor="#FFFFFF"><b> &nbsp;作 者：</b></td>
+          <td bgcolor="#FFFFFF">用户：
+            <%If memName<>Empty Then
+				Response.Write("<input name=""comm_memName"" type=""text"" id=""comm_memName"" value="""&memName&""" class=""text1"" readonly />")
+			Else
+				Response.Write("<input name=""comm_memName"" type=""text"" id=""comm_memName"" class=""text1"" />")
+			End IF%>
+             验证码： <input name="validatecode" type="text" id="validatecode" class="text2"/>
+          &nbsp;<img src="include/validatecode.asp" border="0" /><span style="background:#EEE; color:#993300">1</span></td>
+        </tr>
+        <tr>
+          <td valign="top" bgcolor="#FFFFFF"></td>
+          <td bgcolor="#FFFFFF"><table width="100%" border="0" cellspacing="0" cellpadding="2">
+              <tr>
+                <td valign="top" nowrap="nowrap"><textarea name="message" cols="40" rows="8" ></textarea></td>
+                <td width="122" align="left" valign="top"></td>
+              </tr>
+            </table>
+			</td>
+        </tr>
+        <tr align="center">
+          <td colspan="2" nowrap="nowrap" bgcolor="#FFFFFF"><input name="blog_ID" type="hidden" id="blog_ID" value="<%=logID%>" />
+              <input type="submit" name="replysubmit" value=" 发表评论 "  />&nbsp;
+            <input name="Reset" type="reset" id="Reset" value=" 重置评论 " /></td>
+        </tr>
+      </form>
+  </table>
+</div>
+<div class="blank10"></div>
+<%
+End If
+%>
+<!--footer-->
+<!--#include file="footer.asp" -->
+</body>
+</html>

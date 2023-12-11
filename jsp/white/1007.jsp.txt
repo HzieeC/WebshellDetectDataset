@@ -1,0 +1,10 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<html>
+<head><title>MianFeiZhe内容管理系统声明</title></head>
+<body>
+此程序旨在学习，不用于任何商业用途，同时后台界面来自新云，前台安装页面来自dedecms。
+由于本人技术有限，只实现了几个简单的功能，欢迎牛人们，把他完善!
+本人网站:www.mianfeizhe.com
+本人QQ：83439123
+</body>
+</html>

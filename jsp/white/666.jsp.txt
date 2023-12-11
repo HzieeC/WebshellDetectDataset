@@ -1,0 +1,82 @@
+<%@ page language="java" pageEncoding="UTF-8"%>
+<%
+String path = request.getContextPath();
+String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
+%>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <base href="<%=basePath%>">
+    <title>协同管理系统安装</title>
+  </head>
+  
+  <body>
+    <form action="install/setup.jsp" method="post">
+	<table width="900" align="center" style="border:#106DBA 1px solid; margin-top:30px;">
+	  <caption><img src="images/xietong.gif">WeTogether员工考勤管理及任务管理系统1.0安装</caption>
+	  <tr>
+	    <td bgcolor="#D1E9FA"><table width="100%" border="0" cellspacing="0" cellpadding="0">
+	      <tr>
+	        <td width="27%" height="60" rowspan="2" align="center"><br></td>
+	        <td width="73%" height="30" class="f14b">系统参数设置<span style="color:#FF0000">（环境要求：jdk1.5或以上、tomcat5.5或以上、mysql5.0或以上）</span></td>
+	      </tr>
+	    </table></td>
+	  </tr>
+	  <tr>
+	    <td height="400" align="center" bgcolor="#F0F8FD"><table width="100%" border="0" align="center" cellpadding="0" cellspacing="0">
+	      <tr>
+	        <td width="30%" height="30" align="right">数据库主机：</td>
+	        <td width="22%" align="left"><input name="dbHost" type="text" class="input" id="dbHost" value="<%=request.getServerName()%>" /></td>
+	        <td align="left">数据库的IP地址</td>
+	      </tr>      <tr>
+	        <td width="30%" height="30" align="right">数据库端口号：</td>
+	        <td width="22%" align="left"><input name="dbPort" type="text" class="input" id="dbPort" value="3306" /></td>
+	        <td align="left">数据库的端口号</td>
+	      </tr>
+	      <tr>
+	        <td height="30" align="right">数据库名称：</td>
+	        <td align="left"><input name="dbName" type="text" class="input" id="dbName" value="xietong_db" /></td>
+					<td align="left">&nbsp;</td>
+	      </tr>
+	      <tr>
+	        <td height="30" align="right">数据库用户：</td>
+	        <td align="left"><input name="dbUser" type="text" class="input" id="dbUser" value="root" /></td>
+					<td align="left">&nbsp;</td>
+	      </tr>
+	      <tr>
+	        <td height="30" align="right">数据库密码：</td>
+	        <td align="left"><input name="dbPassword" type="text" class="input" id="root" /></td>
+			<td align="left">安装数据库时输入的密码</td>
+	      </tr>
+	      <tr>
+	        <td height="30" align="right">域名：</td>
+	        <td align="left"><input name="domain" type="text" class="input" value="<%=request.getServerName()%>"/></td>
+					<td align="left">系统已经检测出您的域名，请勿改动</td>
+	      </tr>
+	      <tr>
+	        <td height="30" align="right">部署路径：</td>
+	        <td align="left"><input name="cxtPath" type="text" class="input" value="<%=request.getContextPath()%>"/></td>
+					<td align="left">系统已经检测出您的部署路径，请勿改动</td>
+	      </tr>
+	      <tr>
+	        <td height="30" align="right">端口号：</td>
+	        <td align="left"><input name="port" type="text" class="input" value="<%=request.getServerPort()%>"/></td>
+					<td align="left">系统已经检测出您的端口号，请勿改动</td>
+	      </tr>
+	    </table></td>
+	  </tr>
+	  <tr>
+	    <td height="30" align="center" bgcolor="#D1E9FA">
+			<span id="beforeSubmit"><input type="submit" class="btn" value=" 提 交 " />
+			</span>
+			<span id="afterSubmit" style="display:none;color:red;">安装需要十几秒的时间，请您耐心等待...</span>
+		</td>
+	  </tr>
+	</table>
+	<center>
+	<img src="images/spider.gif"  style="margin-bottom:-5px;"><span style="font-size:12px;">蜘蛛工作室出品&nbsp; &nbsp;</span><img src="images/logo.gif" style="margin-bottom:-5px;"><a href="http://www.zhzhcn.cn/" style="font-size:12px;"> 汇高网讯科技（北京）有限公司</a><span style="font-size:12px;">版权所有&nbsp;&nbsp;</span><a href="<%=path %>/copyRight/copyRight.html" style="font-size:12px;">版权声明</a>
+	</center>
+	</form>
+  </body>
+</html>

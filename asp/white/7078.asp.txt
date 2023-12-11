@@ -1,0 +1,1350 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="inc/conndb.asa"-->
+<!--#include file="inc/function.asp"-->
+<%
+PageShowSize = 10            '每页显示多少个页
+MyPageSize   = 20        '每页显示多少条
+regtime=1800 '秒，这里设置多长时间后才能注册。
+If Not IsNumeric(Request("Curpage")) Or IsEmpty(Request("Curpage")) Or Request("Curpage") <=0 Then
+	MyPage=1
+Else
+	MyPage=Int(Abs(Request("Curpage")))
+End If
+Page_WebTitle="会员中心-"&TieBa_Name
+now_where="会员中心"
+if dreamsun_name<>"" then 
+	navright = "| <A href='user.asp?Action=modifypassword'>修改资料</A> "
+	navright = navright & "| <A href='user.asp?Action=UserPost'>我的帖子</A> "
+	navright = navright & "| <A href='user.asp?Action=UserRePost'>我的回复</A> "
+	navright = navright & "| <A href='user.asp?Action=Account'>我的积分</A> "
+	navright = navright & "| <A href='user.asp?Action=UserList'>用户列表</A> "
+	navright = navright & ""
+end If
+
+''IP所在地区查询
+if CheckStr(Request.QueryString("Action")) = "ipname" Then
+	Dim url
+	Dim ipaddr,ipresult
+	if CheckStr(Request.QueryString("ip"))="" then
+		Response.Write("&nbsp;")
+		Response.End()
+	end if
+	ipaddr = CheckStr(Request.QueryString("ip"))
+	url = "http://www.cz88.net/ip/default.aspx?ip="
+	if url<>"" then
+		Response.Write(GetIpLocation(ipaddr,url))
+	else 
+		Response.Write(Sys_isShowIpName)
+	end if
+	Response.End()
+End if
+%>
+<!--#include file="inc/header.htm"-->
+<%
+username=CheckStr(Request.QueryString("username"))
+Dim Action
+    Action=CheckStr(Request.QueryString("Action"))
+    Select Case Action
+        Case "savepassword"
+			Call checkuser()
+            Call savepassword()
+        Case "modifypassword"
+			Call checkuser()
+		    Call ModifyPassWord()
+		Case "chklogin"
+		    Call chklogin()
+		Case "reg"
+			Call tostopip(1)'判断是否开放注册
+		    Call userreg()
+		Case "restorePwd"
+			Call restorePwd()
+		Case "SaveReg"
+		    Call savereg()
+		Case "UserPost"
+		    Call UserPost()
+		Case "UserRePost"
+		    Call UserRePost()
+		Case "exit"
+		    Call userexit()
+		Case "infoshow"
+			If Sys_isuserinfo=1 Then'1是任何人可以看，0为登陆察看。
+				Call infoshow()
+			Else 
+				If Dreamsun_name<> "" Then 
+					Call infoshow()
+				Else
+					Call backmsg("请登陆后察看用户信息！","user.asp")
+				End If
+			End If
+		Case "UserList"
+			If Sys_isuserinfo=1 Then'1是任何人可以看，0为登陆察看。
+				Call UserList()
+			Else 
+				If Dreamsun_name<> "" Then 
+					Call UserList()
+				Else
+					Call backmsg("请登陆后察看用户信息！","user.asp")
+				End If
+			End If
+		Case "GM"
+		    Call GM()
+		Case "Account"
+			Call Account()
+		Case Else 
+			Call userlogin()
+    End Select
+%>
+<!--#include file="inc/bottom.htm"-->
+<%
+'-----------------------定义用户修改密码\个人信息界面
+Sub ModifyPassWord()
+	Set Rs_user=Server.CreateObject("ADODB.RecordSet")
+    SQL_user="SELECT * FROM "& UserTable &" WHERE UserName='"&DreamSun_name&"'"
+    Rs_user.Open SQL_user,Conn,1,3
+	user_sex=Rs_user("user_sex")
+	user_from=Rs_user("user_from")
+	user_mail=Rs_user("user_mail")
+	user_qq=Rs_user("user_qq")
+	user_show=Rs_user("user_show")
+	user_hompage=Rs_user("user_homepage")
+	umoney=Rs_user("umoney")
+	logintimes=Rs_user("logintimes")
+	user_mod=Rs_user("user_mod")
+	If user_mod="" Or IsNull(user_mod) Then user_mod="images/mod/000.png"
+	'user_ask 做一个Null判断，以兼容1.5以下的版本
+	'1.5以下的版本数据库没有问题和答案这两个字段
+	if IsNull(Rs_user("user_ask")) then
+		user_ask = ""
+	else
+		user_ask = Rs_user("user_ask")
+	end if
+	
+	Rs_user.Close
+    Set Rs_user=Nothing
+%>
+<form name="save" method="post" action="user.asp?Action=savepassword" onSubmit="return regcheck(this);">
+  <table width="600" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+  <tr class="zd_td">
+    <td height="30" align="center" colspan=2><B>密码修改</B></td>
+    </tr>
+<tr class="zd_td">
+    <td width="30%" height="30" align="right"><strong>帐  号：</strong></td>
+    <td>&nbsp;<input name="username" type="text" id="username" size="20" maxlength="20" value="<%=DreamSun_name%>" disabled=true>
+    </td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>旧 密 码：</strong></td>
+    <td>&nbsp;<input name="pwd0" type="password" id="pwd0" size="20" maxlength="20"> <font color="#ff0000">如不修改，请留空</a></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>新 密 码：</strong></td>
+    <td>&nbsp;<input name="pwd" type="password" id="pwd" size="20" maxlength="20"> <font color="#ff0000">如不修改，请留空</a></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>确认密码：</strong></td>
+    <td>&nbsp;<input name="pwd1" type="password" id="pwd1" size="20" maxlength="20"> <font color="#ff0000">如不修改，请留空</a></td>
+  </tr>
+  <tr class="zd_td">
+    <td height="30" align="center" colspan=2><B>个人信息查询</B></td>
+  </tr>
+  <%if Trim(user_ask)="" then%>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>预留的问题：</strong></td>
+    <td>&nbsp;<input name="user_ask"> 
+    ( * 添加后不可修改)</td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>预留的答案：</strong></td>
+    <td>&nbsp;<input name="user_answer"> 
+    ( * 添加后不可修改)</td>
+    </tr>
+  <%else%>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>预留的问题：</strong></td>
+    <td>&nbsp;<%=user_ask%> (不可修改)</td>
+    </tr>
+  <%end if%>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>积分：</strong></td>
+    <td>&nbsp;<%=umoney%></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>登录信息：</strong></td>
+    <td>&nbsp;共登录<%=logintimes%>次</td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="center" colspan=2><B>个人信息修改</B></td>
+  </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>性别：</strong></td>
+    <td>&nbsp;
+        <select name="user_sex">
+            <option value="0" <% If user_sex=0 Then response.write "selected"%>>男</option>
+            <Option value="1" <% If user_sex=1 Then response.write "selected"%>>女</option>
+            <Option value="2" <% If user_sex=2 Then response.write "selected"%>>未指定</option>
+        </select>
+    </td>
+  </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>头像：</strong></td>
+    <td>&nbsp;
+	<select name="user_mod" onChange="if(this.value=='other'){document.getElementById('user_mod_other').style.display='';};document.getElementById('showimages').src =  this.value;">
+<option value="images/mod/000.png">请选择....</option><%
+'If user_mod="" Or IsNull(user_mod) Then user_mod="images/mod/000.png"
+For i=0 To UBound(UserModArray)%>
+<option value="images/mod/<%=UserModArray(i)%>"<%If user_mod="images/mod/"&UserModArray(i) Then response.write "selected"%>><%=UserModArray(i)%></option><%Next
+If Int(umoney)>Int(sys_modmoney) Then
+%>
+<option value="other" <%If InStr(user_mod,"upload")>0 Then response.write "selected"%>>自定义头像</option></select>
+<span id="user_mod_other" style="display:none">其他：<input name="user_mod_other_txt" type="text" id="user_mod_other_txt" maxlength="100" value="<%=user_mod%>"/>上传后请复制地址到这里。
+<BR><iframe src="upload.asp?action=1&lx=mod" width="400" height="38" frameborder="0" scrolling="no" border="0" frameborder="0"></iframe>
+</span>
+<%else%></select><%End If%>
+<BR><img src='<%=user_mod%>' name="showimages" id='showimages' width='128' height='128'>
+</td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>电子邮件：</strong></td>
+    <td>&nbsp;<input name="user_mail" type="text" id="user_mail" size="40" maxlength="50" value="<%=user_mail%>"></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>QQ号码：</strong></td>
+    <td>&nbsp;<input name="user_qq" type="text" id="user_qq" size="20" maxlength="12" value="<%=user_qq%>"></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>来自地区：</strong></td>
+    <td>&nbsp;<input name="user_from" type="text" id="user_from" size="40" maxlength="40" value="<%=user_from%>"></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>个人主页：</strong></td>
+    <td>&nbsp;<input name="user_hompage" type="text" id="user_hompage" size="40" maxlength="200" value="<%=user_hompage%>"></td>
+  </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>个性签名：</strong></td>
+    <td>&nbsp;<input name="user_show" type="text" id="user_show" size="40" maxlength="100" value="<%=user_show%>"> 100中文字以内</td>
+   </tr>
+
+  <tr class="zd_td">
+    <td height="30" align="right">&nbsp;</td>
+    <td><input name="submit" type="submit" id="submit" value="提  交">
+      &nbsp;&nbsp;
+      <input name="reset" type="reset" id="reset" value="重新填写"></td>
+    </tr>
+</table>
+  <br><br>
+</form>
+<script language="JavaScript1.2">
+function regcheck(formct){
+	if (formct.username.value=='' ){
+		formct.username.focus();  
+		document.getElementById("formct_username").innerHTML="<font color=red>帐号不能为空,请填写</font>";
+		return false; 
+	}
+	if (formct.pwd0.value!='')
+	{
+		if (formct.pwd.value=='')
+			{
+				alert('新密码不能为空,请填写');
+				return false; 
+			}
+		if (formct.pwd1.value=='' )
+			{
+				alert('确认密码不能为空,请填写');
+				return false; 
+			}
+		if (formct.pwd1.value!=formct.pwd.value )
+			{
+				alert('两次输入密码不一致,请重新检查填写');
+				return false; 
+			}
+	}
+	formct.Submit.disabled=true;
+}
+</script>
+<%End Sub
+'-----------------------定义修改密码提交
+Sub SavePassWord()
+	Dim UserName,PassWord0,PassWord,PassWord1
+	UserName=DreamSun_name
+	PassWord0=Trim(Request.Form("pwd0"))
+	PassWord=Trim(Request.Form("pwd"))
+	PassWord1=Trim(Request.Form("pwd1"))
+	user_sex=Int(Request.Form("user_sex"))
+	user_mod=Trim(Request.Form("user_mod"))
+	If user_mod="other" Or user_mod="" Or IsNull(user_mod) Then 
+		user_mod=Trim(Request.Form("user_mod_other_txt"))
+	End If 
+	user_from=Trim(Request.Form("user_from"))
+	user_mail=Trim(Request.Form("user_mail"))
+	user_qq=Trim(Request.Form("user_qq"))
+	user_show=Trim(Request.Form("user_show"))
+	user_hompage=Trim(Request.Form("user_hompage"))
+	if IsNull(Request.Form("user_ask"))  then
+		user_ask = ""
+	else
+		user_ask = Request.Form("user_ask")
+		if user_ask <> "" then
+			if Trim(Request.Form("user_answer"))="" then
+				Response.Write(backMsg("请输入正确的提示问题答案",""))
+			end if
+		end if
+	end if
+	if IsNull(Request.Form("user_anser")) then
+		user_answer = ""
+	else
+		user_answer = Md5(Request.Form("user_answer"))
+	end if
+
+	If PassWord0<>"" Then '修改密码前，必须输入旧密码
+	If PassWord="" Then Response.Write backmsg("请输入新密码!","")
+	If PassWord1="" Or PassWord1<>PassWord Then Response.Write backmsg("请检查确认密码!","")
+	End If 
+
+	Set Rs=Server.CreateObject("ADODB.RecordSet")
+    SQL="SELECT * FROM "& UserTable &" WHERE UserName='"&UserName&"'"
+    Rs.Open SQL,Conn,1,3
+	If password<>"" Then
+		If Rs("pwd")<>MD5(PassWord0) Then
+			Response.Write backmsg("旧密码错误，请返回重新输入!","")
+			response.End 
+		Else
+			Rs("PWD")=MD5(PassWord)
+		End If 
+		shuoming="用户密码"
+	Else
+		shuoming="用户信息"
+	End If
+	Rs("user_sex")=user_sex
+	Rs("user_from")=user_from
+	Rs("user_mail")=user_mail
+	Rs("user_qq")=user_qq
+	Rs("user_show")=user_show
+	Rs("user_homepage")=user_hompage
+	Rs("user_ask") = user_ask
+	Rs("user_answer") = user_answer
+	Rs("user_mod") = user_mod
+    Rs.Update
+    Rs.Close
+    Set Rs=Nothing
+	Response.Write backmsg("恭喜您，"&shuoming&"修改成功!","user.asp?Action=modifypassword")
+End Sub
+Sub userlogin()
+'-----------------------定义用户登陆界面
+if Dreamsun_name<> "" Then response.redirect "index.asp"
+%>
+<form name="save" method="post" action="user.asp?Action=chklogin" onSubmit="return regcheck(this);">
+<br><br>
+<table width="600" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+    <tr class="zd_td">
+    <td height="30" align="center" colspan=2><strong>用户登录</strong></td>
+    </tr>
+<tr class="zd_td">
+    <td width="30%" height="30" align="right"><strong>帐 号：</strong></td>
+    <td>&nbsp;<input name="username" type="text" id="username" size="20" maxlength="20"> <span id="formct_username"></span></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>密 码：</strong></td>
+    <td>&nbsp;<input name="pwd" type="password" id="pwd" size="20" maxlength="20"> <span id="formct_pwd"></span></td>
+    </tr>
+<%If Session(webname&"_logintimes")<>"" Then %>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>验证码：</strong></td>
+    <td>&nbsp;<input name="zd_code" type="text" id="zd_code" size="4" maxlength="4" onKeyPress="if ((event.keyCode<48 &&event.keyCode!=13) || event.keyCode>57) event.returnValue=false" onFocus="document.all.checkcode.src='inc/GetCode.asp?a=login&s='+Math.random()"/>
+<img id='checkcode' src="images/circle.gif" alt= "验证码,看不清楚?请点击刷新验证码" style="cursor : pointer;" onclick="src='inc/GetCode.asp?a=login&s='+Math.random()"/> <span id="formct_zdcode"></span>
+	</td>
+    </tr>
+<%End If %>
+    <tr class="zd_td">
+    <td height="30" align="right"><strong>保留登录：</strong></td>
+    <td>&nbsp;<input type='radio' name='baoliu' value='' checked>否 <input type='radio' name='baoliu' value='365'>是</td>
+    </tr>
+<tr class="zd_td">
+    <td height="30" align="right">&nbsp;</td>
+    <td><input name="submit3" type=button  class="button_style_w" value='注册' onClick="window.location='user.asp?Action=reg'">
+      &nbsp;&nbsp;<input name="comurl" type="hidden" id="comurl" value="<%=Cstr(Request.ServerVariables("HTTP_REFERER"))%>">
+      <input type=submit  class="button_style_b" name=login id=login value=登录>
+    </tr>
+</table>
+  <br><br>
+</form>
+<script language="JavaScript1.2">
+function regcheck(formct){
+	if (formct.username.value=='' ){
+		formct.username.focus();  
+		document.getElementById("formct_username").innerHTML="<font color=red>帐号不能为空,请填写</font>";
+		return false; 
+	}
+		if (formct.pwd.value=='' ){
+		formct.pwd.focus();  
+		document.getElementById("formct_pwd").innerHTML="<font color=red>密码不能为空,请填写</font>";
+		return false; 
+	}
+<%If Session(webname&"_logintimes")<>"" Then %>
+	if (formct.zd_code.value=='' ){
+		formct.zd_code.focus();  
+		document.getElementById("formct_zdcode").innerHTML="<font color=red>验证码不能为空,请填写</font>";
+		return false; 
+	}
+<%end if%>
+
+	formct.save.disabled=true;
+}
+</script>
+<%
+End Sub 
+'-----------------------定义用户登陆提交
+Sub chklogin()
+Dim username,pwd,code,comurl
+	username=Trim(request.form("username"))
+	pwd=Trim(request.form("pwd"))
+	Code=trim(request.form("zd_code"))
+	comurl=Trim(request.form("comurl"))
+	baoliu=Trim(Request.Form("baoliu"))
+
+	if InStr(username," or ")<>0 or InStr(username,"'")<>0 or InStr(username,"`")<>0 or InStr(username,"=")<>0 _
+	 or InStr(username,"-")<>0 or InStr(username,",")<>0 or InStr(username," and ")<>0 then 
+		Response.Write(BackMsg("用户名含有不可接受的字符",""))
+	end If
+	If Session(webname&"_logintimes")="" Then Session(webname&"_logintimes")=0
+	If Session(webname&"_logintimes")<>0 Then 	
+		if cstr(session("GetCode_login"))<>cstr(Code) then
+			Response.Write(BackMsg("验证码不正确",""))
+		end if
+	End If 
+	   set rs=server.createobject("adodb.recordset")
+	   sql="select * from "& UserTable &" where username='"&username&"'"
+	   rs.open sql,conn,3,3
+		   if rs.eof then
+				Call backmsg("用户名或者密码错误!","user.asp")
+				Session(webname&"_logintimes")=Session(webname&"_logintimes")+1
+				Response.End
+		   else 
+				If rs("pwd")<>md5(pwd) Then
+					Call backmsg("用户名 或者 密码错误!","user.asp")
+					Session(webname&"_logintimes")=Session(webname&"_logintimes")+1
+				ElseIf rs("isLocked")=1 Then
+					Call backmsg("您的帐户需要审核，请咨询管理员 \n 请等待管理员审核！","")
+				ElseIf rs("isLocked")=2 Then
+					lockedInfo=rs("lockedInfo")
+					lockedTime=rs("lockedTime")
+					If InStr(lockedInfo,"|")>0 Then 
+						lockedReason=Split(lockedInfo,"|")(0)
+						lockedAdmin=Split(lockedInfo,"|")(1)
+						lockedDay=Split(lockedInfo,"|")(2)
+						If lockedDay="" Or IsNull(lockedDay) Then lockedDay=30
+						unlockedTime=dateadd("d",lockedDay,lockedTime)
+					End If
+					If DateDiff("d",Now(),unlockedTime)>0 Then 
+						Session("regtime") = Now()
+						Call backmsg("您的帐户被屏蔽，在【"&unlockedTime&"】之前无法登陆，请咨询管理员\n\n操作人：【"&lockedAdmin&"】操作时间：【"&lockedTime&"】\n\n操作原因：【"&lockedReason&"】","")
+					Else
+						rs("isLocked")=0
+						rs("lockedInfo")="||"
+						rs.update
+						Call backmsg("系统正在对您的屏蔽进行解封，请重新登陆即可！","")
+					End If 
+				Else
+					userlogin_rnd=dreamsun_rnd(18)
+					rs("LoginTimes")=rs("LoginTimes")+1
+					rs("LastLogin")=Now()
+					rs("CookRnd")=Left(md5(userlogin_rnd),5)&right(md5(userlogin_rnd),5)'给数据库一个登陆的随机码，用来验证登录信息。相当于Session
+					rs("LoginIP")=reip()
+					qian=rs("umoney")
+					rs.update
+					Response.Cookies("DreamSun_Post_"&webname)("username")=username
+					Response.Cookies("DreamSun_Post_"&webname)("rnd")=userlogin_rnd
+					if baoliu<>"" then Response.Cookies("DreamSun_Post_"&webname).expires=dateadd("d",baoliu,now())
+					if comurl="" then comurl="index.asp"
+					'清空验证码Session
+					session("GetCode_login") = ""
+					Session(webname&"_logintimes")=""
+					response.write backmsg("恭喜，登录成功！当前积分"&qian&"分",comurl)
+				end if
+		   end if
+	rs.close
+set rs=nothing
+End Sub 
+'-----------------------定义用户退出登陆
+Sub userexit()
+response.write Dreamsun_name
+	sql="update "& UserTable &" set cookrnd='' where username='"&Dreamsun_name&"'"
+	conn.execute(sql)
+	Response.Cookies("DreamSun_Post_"&webname)=""
+	conn.close
+	set conn=nothing
+	response.redirect "index.asp"
+End Sub
+'-----------------------定义用户注册界面
+Sub UserReg()
+if Dreamsun_name<> "" Then response.redirect "index.asp"
+
+'这里设置同一个电脑不允许多长时间注册，如果不需要，可以去掉从if到end if之间的，也可以在上面顶部修改regtime参数，秒 
+'（别忘记修改下面100行后的提交部分的这个参数）
+If ISdate(Session("regtime")) Then
+    If DateDiff("s",Session("regtime"),Now) < regtime Then
+        Response.Write("<script>alert(""对不起，您注册速度太快...请半小时后再注册"");window.history.back();</script>")
+        Response.End
+    End If
+End If
+'设置结束
+%>
+
+<form name="save" method="post" action="user.asp?Action=SaveReg" onSubmit="return regcheck(this);">
+  <br><br>
+  <table width="600" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+   <tr class="zd_td">
+    <td width="100%" height="30" align="center" colspan=2><B>新用户注册</B></td>
+   </tr>
+  <tr class="zd_td">
+    <td width="30%" height="30" align="right"><strong>帐 号：</strong></td>
+    <td>&nbsp;<input name="username" type="text" id="username" size="20" maxlength="10" onKeyPress="if ((event.keyCode<48 &&event.keyCode!=13) || ((event.keyCode>57 && event.keyCode<65) || (event.keyCode>90 && event.keyCode< 95) || event.keyCode>122)) event.returnValue=false"> <span id="formct_username">*只能为中文、英文、数字、下划线</span>
+    </td>
+  </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>密 码：</strong></td>
+    <td>&nbsp;<input name="pwd" type="password" id="pwd" size="20" maxlength="20"> <span id="formct_pwd">*建议输入六位以上字母数字组合</span></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>确认密码：</strong></td>
+    <td>&nbsp;<input name="pwd1" type="password" id="pwd1" size="20" maxlength="20"> <span id="formct_pwd1">请输入同上确认</span></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>预留问题：</strong></td>
+    <td>&nbsp;<input name="user_ask" type="text" id="user_ask" size="20" maxlength="20"> <span id="formct_user_ask">* 用于找回密码,填写后不可修改</span></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>问题答案：</strong></td>
+    <td>&nbsp;<input name="user_answer" type="text" id="user_answer" size="20" maxlength="20"> <span id="formct_user_answer">* 用于找回密码,填写后不可修改</span></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>验证码：</strong></td>
+    <td>&nbsp;<input name="verify_code" type="text" id="verify_code" size="4" maxlength="4" onKeyPress="if ((event.keyCode<48 &&event.keyCode!=13) || event.keyCode>57) event.returnValue=false;" onFocus="document.all.checkcode.src='inc/GetCode.asp?a=reg&s='+Math.random()">
+<img id='checkcode' src="images/circle.gif" alt= "验证码,看不清楚?请点击刷新验证码" style="cursor : pointer;" onclick="src='inc/GetCode.asp?a=reg&s='+Math.random()"/><span id="formct_verify_code">请输入旁边数字</span>
+    </tr>
+   <tr class="zd_td">
+    <td width="100%" height="30" align="center" colspan=2>以下信息为选填，但是为了获得更好的服务，请认真填写。</td>
+   </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>性别：</strong></td>
+    <td>&nbsp;<select name="user_sex">
+<option value="2" selected>未指定</option>
+<option value="0" >男</option>
+<Option value="1">女</option></select></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>电子邮件：</strong></td>
+    <td>&nbsp;<input name="user_mail" type="text" id="user_mail" size="40" maxlength="50"></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>QQ号码：</strong></td>
+    <td>&nbsp;<input name="user_qq" type="text" id="user_qq" size="20" maxlength="12"></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>来自地区：</strong></td>
+    <td>&nbsp;<input name="user_from" type="text" id="user_from" size="40" maxlength="40"></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>个人主页：</strong></td>
+    <td>&nbsp;<input name="user_hompage" type="text" id="user_hompage" size="40" maxlength="200"></td>
+  </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>个性签名：</strong></td>
+    <td>&nbsp;<input name="user_show" type="text" id="user_show" size="40" maxlength="100"> 100中文字以内</td>
+   </tr>
+  <tr class="zd_td">
+    <td height="30" align="right">&nbsp;</td>
+    <td><input name="submit" type="submit" id="submit" value="提  交">
+      &nbsp;&nbsp;
+      <input name="reset" type="reset" id="reset" value="重新填写"></td>
+    </tr>
+</table>
+  <br><br>
+</form>
+<script language="JavaScript1.2">
+function regcheck(formct){
+	if (formct.username.value=='' ){
+		formct.username.focus();  
+		document.getElementById("formct_username").innerHTML="<font color=red>帐号不能为空,请填写</font>";
+		return false; 
+	}
+	if (formct.username.value.length <3 ){
+		formct.username.focus();  
+		document.getElementById("formct_username").innerHTML="<font color=red>帐号长度请控制在3到10字符之间，中文请控制在2到5个字之间。</font>";
+		return false; 
+	}
+		if (formct.username.value.length >10 ){
+		formct.username.focus();  
+		document.getElementById("formct_username").innerHTML="<font color=red>帐号长度请控制在3到10字符之间，中文请控制在2到5个字之间。</font>";
+		return false; 
+	}
+		if (formct.pwd.value=='' ){
+		formct.pwd.focus();  
+		document.getElementById("formct_pwd").innerHTML="<font color=red>密码不能为空,请填写</font>";
+		return false; 
+	}
+		if (formct.pwd1.value=='' ){
+		formct.pwd1.focus();  
+		document.getElementById("formct_pwd1").innerHTML="<font color=red>重复密码不能为空,请填写</font>";
+		return false; 
+	}
+	if (formct.user_ask.value=='' ){
+		formct.user_ask.focus();  
+		document.getElementById("formct_user_ask").innerHTML="<font color=red>预留问题不能为空,请填写</font>";
+		return false; 
+	}
+	if (formct.user_answer.value=='' ){
+		formct.user_answer.focus();  
+		document.getElementById("formct_user_answer").innerHTML="<font color=red>预留问题答案不能为空,请填写</font>";
+		return false; 
+	}
+	if (formct.verify_code.value=='' ){
+		formct.verify_code.focus();  
+		document.getElementById("formct_verify_code").innerHTML="<font color=red>验证码不能为空,请填写</font>";
+		return false; 
+	}
+	
+	formct.save.disabled=true;
+}
+</script>
+
+
+<%
+End Sub
+'-----------------------定义用户注册提交
+Sub savereg()
+Dim username,pwd,pwd1,Code
+'这里设置同一个电脑不允许多长时间注册，如果不需要，可以去掉从if到end if之间的，也可以在上面顶部修改regtime参数，秒 
+If ISdate(Session("regtime")) Then
+    If DateDiff("n",Session("regtime"),Now) < Sys_RegTime Then
+        Response.Write("<script>alert(""对不起，您注册速度太快...请半小时后再注册"");window.history.back();</script>")
+        Response.End
+    End If
+End If
+'设置结束
+	username=Trim(request.form("username"))
+	pwd=Trim(request.form("pwd"))
+	pwd1=Trim(request.form("pwd1"))
+	Code=trim(request.form("verify_code"))
+
+	user_sex=Int(Request.Form("user_sex"))
+	user_from=Trim(Request.Form("user_from"))
+	user_mail=Trim(Request.Form("user_mail"))
+	user_qq=Trim(Request.Form("user_qq"))
+	user_show=Trim(Request.Form("user_show"))
+	user_hompage=Trim(Request.Form("user_hompage"))
+	user_ask = Trim(Request.Form("user_ask"))
+	user_answer = Md5(Trim(Trim(Request.Form("user_answer"))))
+
+
+if user_ask="" or user_answer ="" then Response.Write(BackMsg("预留问题或者答案不允许被留空",""))
+if InStr(user_ask,"'")>0 then Response.Write(BackMsg("预留问题中有不可接受的字符",""))
+
+if cstr(session("GetCode_reg"))<>cstr(Code) then
+	Response.Write(backMsg("验证码不正确,请返回",""))
+end if
+if pwd<>pwd1 then 
+	response.write (backMsg("两次输入验证码不一致,请返回",""))
+else
+	If IsKeptUser(username)= True  Then
+		Response.Write(BackMsg("用户名不符合本贴吧标准",""))
+		Response.End()
+	End if
+	sql="select * from "& UserTable &"  where username='"&username&"'"
+	Set rs = Server.CreateObject("ADODB.Recordset") 
+		rs.open sql,conn,1,1 
+			if not rs.eof then
+				Response.write BackMsg("该用户名已经存在 .","")
+				Response.End()
+			Else
+				rs.close
+				userlogin_rnd=dreamsun_rnd(18)
+				rs.open"select * from "& UserTable,conn,1,3
+				rs.addnew
+				rs("username")=username
+				rs("pwd")=md5(pwd)
+
+				Rs("user_sex")=user_sex
+				Rs("user_from")=user_from
+				Rs("user_mail")=user_mail
+				Rs("user_qq")=user_qq
+				Rs("user_show")=user_show
+				Rs("user_homepage")=user_hompage
+				Rs("user_mod")="images/mod/000.png"
+
+				rs("lastlogin")=Now()
+				rs("logintimes")=0
+				rs("loginip")=ReIP()
+				rs("umoney")=Sys_Default_Money
+				rs("CookRnd")=Left(md5(userlogin_rnd),5)&right(md5(userlogin_rnd),5)'给数据库一个登陆的随机码，用来验证登录信息。
+				rs("user_ask") = user_ask
+				rs("user_answer") = user_answer
+				If Sys_UserCheck=1 Then 
+					Rs("isLocked")=0
+					Rs("lockedTime")=Now()
+					Rs("lockedinfo")="||"
+					Response.Cookies("DreamSun_Post_"&webname)("username")=username
+					Response.Cookies("DreamSun_Post_"&webname)("rnd")=userlogin_rnd
+				Else
+					Rs("isLocked")=1'锁定了
+					Rs("lockedTime")=Now()'
+					Rs("lockedinfo")="||"
+					shuoming=",请等待管理员审核!"
+				End If 
+				rs.update
+				Session("regtime") = Now()
+				
+				' Add For V1.5 CHANG, ZIDONE '''''''''''''Begin
+				' 注册成功后,给[ACCOUNT]表中插入积分记录
+				OptTable("insert into [account] (accID,accValue,accFromUser,accToUser,accTime,accReason,accRemark) values("&CStr(GetMaxID("account","accid"))&","&CStr(Sys_Default_Money)&",'"&"系统"&"','"&username&"','"&CStr(Now())&"','注册 ','')")
+				Call backmsg("用户注册成功!"&shuoming,"index.asp")
+			End If 
+	End If 
+'清空验证码Session
+session("GetCode_reg") = ""
+
+End Sub 
+
+Sub restorePwd()
+	if Request.Form("ask_un")<>"" then
+		'如果有用户名
+		if Request.Form("ask_ans")<>"" then
+			'输入了答案，则判断答案是否正确，若正确显示输入新密码页面
+			'首先检查验证码
+			'如果ask_upd = yes,说明提交了新密码，这一步就不需要验证码，否则说明是输入答案，需要验证码
+			if Request.Form("ask_upd")="" then
+				if Request.Form("zd_code")="" or cstr(session("GetCode_login"))<>cstr(Request.Form("zd_code")) then
+					Response.Write(backMsg("验证码不正确,请返回","user.asp?Action=restorePwd"))
+				end if
+				'清空验证码Session
+				session("GetCode_login") = ""
+			end if
+			'判断是否输入了答案
+			ask_un = Trim(Request.Form("ask_un"))
+			ask_ans = Request.Form("ask_ans")
+			if ask_ans = "" then
+				Response.Write(BackMsg("不接受空答案",""))
+			end if
+			sql = "select user_answer from "&usertable&" where [username]='"&ask_un&"'"
+			ask_ans2 = OptTable(sql)
+			if md5(ask_ans) = ask_ans2 then 
+				'如果回答正确，则显示输入新密码的框
+				if Request.Form("ask_upd")<>"" then
+					'如果输入了新密码，则执行更新密码操作
+					'判断密码是否为空
+					ask_new_pwd = Request.Form("ask_new_pwd")
+					ask_new_pwd2 = Request.Form("ask_new_pwd2")
+					if ask_new_pwd = "" then
+						Response.Write(BackMsg("不接受空密码",""))
+					end if
+					if ask_new_pwd <> ask_new_pwd2 then 
+						Response.Write(BackMsg("两次密码不统一",""))
+					end if
+					sql = "update "&usertable&" set pwd='"&md5(ask_new_pwd)&"' where [username]='"&ask_un&"'"
+					if CStr(OptTable(sql)) <>"0" then
+						'如果修改密码成功，则跳到登录页面
+						Response.Write(BackMsg("恭喜,您已经成功地更新了密码，请牢记并重新登录","user.asp"))
+					else
+						'如果返回值为0，证明没有修改成功
+						Response.Write(BackMsg("无法更新您的密码，请联系管理员",""))
+					end if
+				else
+					'如果没有输入新密码，显示密码输入框
+%>
+                    <p>&nbsp;
+                    <table width="600" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+                        <form name="form_ask" method="post" action="user.asp?Action=restorePwd">
+                        <tr class="zd_td">
+                        <td height="30" align="center" colspan=2><strong>找回密码 - 输入新密码</strong></td>
+                        </tr>
+                        <tr class="zd_td">
+                        <td width="30%" height="30" align="right"><strong>要找回的账号:</strong></td>
+                        <td>&nbsp;<input name="ask_un" type="hidden" id="ask_un"value="<%=ask_un%>"><%=ask_un%>
+                        <input name="ask_ans" type="hidden" id="ask_ans" value="<%=ask_ans%>">
+                        <input name="ask_upd" type="hidden" value="yes">
+                        </td>
+                        </tr>
+                        <tr class="zd_td">
+                        <td width="30%" height="30" align="right"><strong>输入您的新密码:</strong></td>
+                        <td>&nbsp;<input name="ask_new_pwd" type="password" id="ask_new_pwd">
+                        </td>
+                        </tr>
+                        <tr class="zd_td">
+                        <td width="30%" height="30" align="right"><strong>重复您的新密码:</strong></td>
+                        <td>&nbsp;<input name="ask_new_pwd2" type="password" id="ask_new_pwd2">
+                        </td>
+                        </tr>
+                        <tr class="zd_td">
+                        <td height="30" align="right">&nbsp;</td>
+                        <td><input name="submit3" type=button value='提交' onClick="form_ask.submit();">
+                          <input type=button name=login id=login value='取消' onclick="form_ask.reset();">
+                        </tr>
+                        </form>
+                    </table>		
+                    <p>&nbsp;
+
+<%
+				end if
+			else
+				'如果回答不正确，则返回回答问题框
+				Response.Write(BackMsg("您的回答似乎并不准确",""))
+			end if
+			
+		else
+			'没有输入答案，则显示问题，要求用户输入答案
+			'首先检查验证码
+			if Request.Form("zd_code")="" or cstr(session("GetCode_login"))<>cstr(Request.Form("zd_code")) then
+				Response.Write(backMsg("验证码不正确,请返回",""))
+			end if
+			'清空验证码Session
+			'session("GetCode_login") = ""
+			'检查用户名
+			ask_un = Trim(Request.Form("ask_un"))
+			if ask_un = "" or InStr(ask_un,"'")>0 or InStr(ask_un,"*")>0 or InStr(ask_un,"-")>0 then
+				Response.Write(backMsg("无效的用户名",""))
+			end if
+			sql = "select count(*) from "&usertable&" where [username]='"&ask_un&"'"
+			if CStr(OptTable(sql))<>"0" then
+				'如果该用户存在
+				sql = "select user_ask from "&usertable&" where [username]='"&ask_un&"'"
+				user_ask = OptTable(sql)
+				if user_ask<>"" then
+					'如果存在用户问题，继续显示问题和回答框
+%>
+                    <p>&nbsp;
+                    <table width="600" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+                        <form name="form_ask" method="post" action="user.asp?Action=restorePwd">
+                        <tr class="zd_td">
+                        <td height="30" align="center" colspan=2><strong>找回密码 - 回答您预留的问题</strong></td>
+                        </tr>
+                        <tr class="zd_td">
+                        <td width="30%" height="30" align="right"><strong>要找回的账号:</strong></td>
+                        <td>&nbsp;<input name="ask_un" type="hidden" id="ask_un"value="<%=ask_un%>"><%=ask_un%>
+                        </td>
+                        </tr>
+                        <tr class="zd_td">
+                        <td width="30%" height="30" align="right"><strong>您预留的问题:</strong></td>
+                        <td>&nbsp;<input name="user_ask" type="hidden" id="user_ask" value="<%=user_ask%>"><%=user_ask%>
+                        </td>
+                        </tr>
+                        <tr class="zd_td">
+                        <td width="30%" height="30" align="right"><strong>输入您的答案:</strong></td>
+                        <td>&nbsp;<input name="ask_ans" type="text" id="ask_ans" size="20" maxlength="20">
+                        </td>
+                        </tr>
+                        <tr class="zd_td">
+                        <td height="30" align="right"><strong>验证码：</strong></td>
+                        <td>&nbsp;<input name="zd_code" type="text" id="zd_code" size="4" maxlength="4" onKeyPress="if ((event.keyCode<48 &&event.keyCode!=13) || event.keyCode>57) event.returnValue=false" onFocus="document.all.checkcode.src='inc/GetCode.asp?a=login&s='+Math.random()">
+						<img id='checkcode' src="images/circle.gif" alt= "验证码,看不清楚?请点击刷新验证码" style="cursor : pointer;" onclick="src='inc/GetCode.asp?a=login&s='+Math.random()"/></td>
+                        </tr>
+                        <tr class="zd_td">
+                        <td height="30" align="right">&nbsp;</td>
+                        <td><input name="submit3" type=button value='下一步' onClick="form_ask.submit();">
+                          <input type=button name=login id=login value='取消' onclick="form_ask.reset();">
+                        </tr>
+                        </form>
+                    </table>		
+                    <p>&nbsp;
+<%
+				else
+					'如果该用户没有留下问题，那么跳出
+				Response.Write(backMsg("很抱歉，您注册时没有留下提示信息，密码将无法找回",""))
+				end if
+			else
+				'如果不存在该用户，跳出
+				Response.Write(backMsg("您输入的用户并不存在",""))
+			end if
+		end if
+	else
+		'显示输入您的用户名
+		%>
+        <p>&nbsp;
+        <table width="600" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+            <form name="form_ask" method="post" action="user.asp?Action=restorePwd">
+            <tr class="zd_td">
+            <td height="30" align="center" colspan=2><strong>找回密码 - 输入您的用户名</strong></td>
+            </tr>
+        <tr class="zd_td">
+            <td width="30%" height="30" align="right"><strong>要找回的账号:</strong></td>
+            <td>&nbsp;<input name="ask_un" type="text" id="ask_un" size="20" maxlength="20">
+            </td>
+            </tr>
+            <tr class="zd_td">
+            <td height="30" align="right"><strong>验证码：</strong></td>
+            <td>&nbsp;<input name="zd_code" type="text" id="zd_code" size="4" maxlength="4" onKeyPress="if ((event.keyCode<48 &&event.keyCode!=13) || event.keyCode>57) event.returnValue=false" onFocus="document.all.checkcode.src='inc/GetCode.asp?a=login&s='+Math.random()">
+              <img id='checkcode' src="images/circle.gif" alt= "验证码,看不清楚?请点击刷新验证码" style="cursor : pointer;" onclick="src='inc/GetCode.asp?a=login&s='+Math.random()" /></td>
+            </tr>
+            <tr class="zd_td">
+            <td height="30" align="right">&nbsp;</td>
+            <td><input name="submit3" type=button value='下一步' onClick="form_ask.submit();">
+              <input type=button name=login id=login value='取消' onclick="form_ask.reset();">
+            </tr>
+            </form>
+        </table>		
+        <p>&nbsp;
+<%
+	end if
+End Sub
+
+'用户某人帖子
+Sub UserPost()
+If username="" Then username=Dreamsun_name
+If username="" Then response.redirect "index.asp"
+If username=Dreamsun_name Then
+	sqlStr=" and IsCheck>-1 "
+Else
+	sqlStr=" and IsCheck>0 "
+End If 
+sql7 = "SELECT id,title,addtime,hits,username,titlecolor,IsCheck FROM "&bbstable&" where username='"&username&"' "&sqlStr&" ORDER BY addtime DESC" 
+Set rs7 = Server.CreateObject("ADODB.Recordset")
+rs7.open sql7,conn,1,1
+%>
+<br><br>
+<table width="720" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+  <tr class="zd_td">
+    <td height="30" align="center" colspan="4"><B>【<%=username%>】所发表的帖子</B></td>
+  </tr>
+<%If rs7.eof and rs7.bof Then%>
+  <tr bgcolor="#ffffff">
+    <td height="80" align="center" colspan="4"><B>暂无帖子</B></td>
+  </tr>
+<%Else
+rs7.PageSize     = MyPageSize
+MaxPages         = rs7.PageCount
+rs7.absolutepage = MyPage
+Totalcount            = rs7.RecordCount
+for i=1 to rs7.PageSize
+If not rs7.eof Then
+		title=Rs7("title")
+		if Rs7("TitleColor")<>"" Then title="<font color="&Rs7("TitleColor")&">"&title&"</font>"
+%>
+  <tr bgcolor="#ffffff">
+    <td width="40" height="24" align="center"><%=rs7("hits")%></td>
+    <td width="500">&nbsp;<A HREF="show.asp?id=<%=rs7("id")%>" target=_blank><%=title%></A></td>
+	<td width="140" align="center"><%=rs7("addtime")%></td>
+	<td width="30" align="center"><%If Dreamsun_name=rs7("username") And rs7("username")<>"" Then 
+response.write "<a href='edit.asp?tn=bbs&id="&rs7("id")&"'>编辑</a>"
+End If %></td>
+  </tr>
+<%
+rs7.MoveNext
+end if
+Next
+response.write "<tr bgcolor=""#ffffff"">"
+response.write "<td height=""80"" align=""center"" colspan=""4"">"& viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=UserPost&username="&username,"当前总数:","user.asp")&"</td>"
+response.write "</tr>"
+
+		End if
+	rs7.close
+	set rs7=Nothing
+%>
+</table>
+  <br>
+<%
+End Sub 
+Sub UserRePost()
+if Dreamsun_name="" Then response.redirect "index.asp"
+
+sql7 = "SELECT top 200 id,content,addtime,re,username,IsCheck FROM "&rebbstable&" where username='"&Dreamsun_name&"' and IsCheck>0 ORDER BY addtime DESC" 
+Set rs7 = Server.CreateObject("ADODB.Recordset")
+rs7.open sql7,conn,1,1 %>
+  <br><br>
+<table width="720" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+  <tr class="zd_td">
+    <td height="30" align="center" colspan="4"><B>我所参与回复的帖子</B>(只显示最新200条)</td>
+  </tr>
+<%If rs7.eof and rs7.bof Then%>
+  <tr bgcolor="#ffffff">
+    <td height="80" align="center" colspan="4"><B>暂无我所回复的帖子</B></td>
+  </tr>
+<%Else
+rs7.PageSize     = MyPageSize
+MaxPages         = rs7.PageCount
+rs7.absolutepage = MyPage
+Totalcount            = rs7.RecordCount
+for i=1 to rs7.PageSize
+If not rs7.eof Then %>
+  <tr bgcolor="#ffffff">
+    <td width="20" height="24" align="center">*</td>
+    <td width="520">&nbsp;<A HREF="show.asp?id=<%=rs7("re")%>" target=_blank><%=TitleLeft(rs7("content"),40)%></A></td>
+	<td width="140" align="center"><%=rs7("addtime")%></td>
+	<td width="30" align="center"><%If Dreamsun_name=rs7("username") Then 
+response.write "<a href='edit.asp?tn=rebbs&id="&rs7("id")&"'>编辑</a>"
+End If %></td>
+  </tr>
+<%
+rs7.MoveNext
+end if
+Next
+response.write "<tr bgcolor=""#ffffff"">"
+response.write "<td height=""80"" align=""center"" colspan=""4"">"& viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=MyRebbs","当前总数:","user.asp")&"</td>"
+response.write "</tr>"
+
+		End if
+	rs7.close
+	set rs7=Nothing
+%>
+</table>
+  <br>
+
+<%
+End Sub 
+'定义用户信息察看界面
+Sub infoshow()
+	Response.Charset="gbk"
+	Set Rs_user=Server.CreateObject("ADODB.RecordSet")
+    SQL_user="SELECT * FROM "& UserTable &" WHERE [UserName]='"&username&"'"
+    Rs_user.Open SQL_user,Conn,1,3
+		If Rs_user.eof Then
+			response.write backmsg("暂无此人信息","")
+		Else
+			uid=Rs_user("id")
+			user_sex=Rs_user("user_sex")
+			user_from=Rs_user("user_from")
+			user_mail=Rs_user("user_mail")
+			user_qq=Rs_user("user_qq")
+			user_show=Rs_user("user_show")
+			user_hompage=Rs_user("user_homepage")
+			umoney=Rs_user("umoney")
+			logintimes=Rs_user("logintimes")
+			regtime=Rs_user("regtime")
+			lastlogin=Rs_user("lastlogin")
+			loginip=Rs_user("loginip")
+		End If 
+	Rs_user.Close
+    Set Rs_user=Nothing
+%>
+    <br>
+<table width="600" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+  <tr class="zd_td">
+    <td height="30" align="center" colspan=2><B>个人信息查询</B></td>
+  </tr>
+    <tr class="zd_td" >
+    <td height="30" align="right" width="100"><strong>姓名：</strong></td>
+    <td width="500">&nbsp;<%=username%> （<%level = AdminLevel(CStr(username))
+	Select Case level
+		Case 0
+			mes = "<font style='cursor:wait;' title='普通会员'>普通会员</font>"
+		Case 1
+			mes = "<font style='cursor:crosshair;' title='分版主' color="&boardManagerColor&">分版主</font>"
+		Case 9
+			mes = "<font style='cursor:hand;' title='系统管理员' color="&superManagerColor&">系统管理员</font>"
+	End Select
+	response.write mes
+%>）</td>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>积分：</strong></td>
+    <td>&nbsp;<%=umoney%> </td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><B>等级：</B></td>
+    <td>&nbsp;<%=ShowUserLevel(umoney)%> </td>
+    </tr>
+
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>注册日期：</strong></td>
+    <td>&nbsp;<%=regtime%></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>最近登录：</strong></td>
+    <td>&nbsp;<%=lastlogin%> 
+    <%if Sys_isShowIpName>0 then%>
+    <span id="spLastLogIP">Loading…<script language="javascript">showIpData("<%=loginip%>","spLastLogIP",0);</script></span>
+    <%end if%>
+    </td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>登录次数：</strong></td>
+    <td>&nbsp;共登录<%=logintimes%>次</td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>性别：</strong></td>
+    <td>&nbsp;<% If user_sex=0 Then response.write "男"%>
+<% If user_sex=1 Then response.write "女"%><% If user_sex=2 Then response.write "未指定"%></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>电子邮件：</strong></td>
+    <td>&nbsp;<%If user_mail<>"" Then response.write "<a href=mailto:"&user_mail&">"&user_mail&"</a>"%></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>QQ号码：</strong></td>
+    <td>&nbsp;<%=user_qq%></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>来自地区：</strong></td>
+    <td>&nbsp;<%=user_from%></td>
+    </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>个人主页：</strong></td>
+    <td>&nbsp;
+	<%
+		If user_hompage<>"" Or user_hompage<>"http://" Then 
+			hp_link = user_hompage
+			if Left(user_hompage,7) <> "http://" then hp_link= "http://" & user_hompage 
+			response.write "<a href="""&hp_link&""" target=_blank>"&user_hompage&"</a>"
+		End If
+	%>
+    </td>
+  </tr>
+  <tr class="zd_td">
+    <td height="30" align="right"><strong>个性签名：</strong></td>
+    <td>&nbsp;<%=DropFuckWords(ubbs(user_show))%></td>
+   </tr>
+     <tr class="zd_td">
+    <td height="30" align="center" colspan=2><a href="javascript:history.back()">返回上页</a><%If Dreamsun_name<>"" Then %>&nbsp;&nbsp;<a href="usersms.asp?action=new&fa=<%=username%>" target="_blank">发站内消息</a><%If IsAdmin=9 Then %>&nbsp;&nbsp;<a href="admin.asp?Action=userList&cz=bj&uid=<%=uid%>" target="_blank">编辑用户</a><% End If %><% End If %>&nbsp;&nbsp;<a href="user.asp?Action=UserPost&username=<%=username%>" target="_blank">查询该人帖子</a></td>
+  </tr>
+
+</table>
+  <br><br>
+<%End Sub
+Sub Account
+	   ' 积分管理功能是V1.5版本增加的功能 Add For V1.5 2007-11-11 CHANG,ZIDONE
+	   ' 取得总积分
+	   myAccount = OptTable("select umoney from "& UserTable &" where username='"&Dreamsun_name&"'")
+	   
+	   ' 判断是否赠送积分页面被提交
+	   if Request.QueryString("send")="yes" then
+	   
+	   	'首先取得用户提交的用户名和积分，并判断是否合法
+		getErr = 0  ' 出现错误的个数
+		getInfo= "" ' 具体的错误内容
+	   	sendTo = ClearString(Request.Form("toUser")) '要接受积分的用户名
+		
+		'过滤空用户名
+		if sendTo="" then
+			getInfo= getInfo + "- 要赠送的用户名不得为空\n"
+			getErr = getErr+1
+		end if
+		
+		'过滤无效的用户名
+		if OptTable("select * from "&usertable&" where [username]='"&sendTo&"'")= "" then
+			getInfo= getInfo + "- 您填写的用户名无效\n"
+			getErr = getErr+1
+		end if
+		
+		'过滤积分接受者是自己的情况
+		if Dreamsun_name = sendTo then
+			getInfo = getInfo + "- 您不能给自己赠送积分\n"
+			getErr = getErr + 1
+		end if
+		
+		'判断用户输入的积分是否合法
+		'1, 是否是数字
+		'2, 是否小于等于0
+		'3, 是否大于它自己本身的积分
+		if IsNumeric(Request.Form("sendValue")) then
+			sendValue=CInt(Request.Form("sendValue")) '要送出的积分数
+			if sendValue<=0  or sendValue>myAccount then
+				getInfo= getInfo + "- 请填写正确的积分数\n"
+				getErr = getErr+1
+			end if
+		else 
+				' 不是数字的情况
+				getInfo= getInfo + "- 请填写正确的积分数\n"
+				getErr = getErr+1
+		end if
+		
+		'如果期间出现任何错误，则提示下面的Alert信息
+		if getErr>0 then
+			getInfo = "追梦阳光提示: 请注意出现的"&CSTR(getErr)&"个提示:\n\n" & getInfo
+			Response.Write backmsg(getInfo,"")
+		end if
+		
+		'如果前面的过滤成功，开始插入数据
+		'将赠送积分的行为插入到积分表[Account]中
+		if OptTable("insert into [account] (accID,accValue,accFromUser,accToUser,accTime,accReason,accRemark) values("&CStr(GetMaxID("account","accid"))&","&CStr(sendValue)&",'"&Dreamsun_name&"','"&sendTo&"','"&CStr(Now())&"','赠送','')")=1 then
+			
+			'如果成功插入到积分表，则开始更新 赠送者和接受者在[用户表]的总积分
+			if OptTable("update "&usertable&" set umoney=umoney-"&CStr(sendValue)&" where username='"&Dreamsun_name&"'") = 1 and OptTable("update "&usertable&" set umoney=umoney+"&sendValue&" where username='"&sendTo&"'")=1 then
+				Response.Write backmsg(" - 积分成功送出","user.asp?Action=Account")
+			else
+				'如果更新总积分失败，那么事务会滚，删除插入到积分表中的记录。
+				OptTable("Delete from [account] where accID="&CStr(GetMaxID("account","accid")-1))
+				
+				'输出错误提示 
+				Response.Write backmsg(" - 积分送出失败","")
+			end if
+		else
+			Response.Write backmsg(" - 积分送出失败","")
+		end if
+	   end if
+%>
+    <br>
+<table width="720" align="center" cellSpacing=1 cellPadding=0 class="zd_table" border=0>
+  <tr class="zd_td">
+    <td height="30" align="center" colspan=5><B>积分管理</B></td>
+  </tr>
+  <tr class="zd_td">
+    <td height="30" align="left" colspan=4 ><B><%=Dreamsun_name%>您目前的总积分是:<%=myAccount%>分</B></td>
+    <td align="center"> &gt;<span style="cursor:hand;" onclick="document.getElementById('dvSend').style.display='block';">送积分给他人</span></td>
+  </tr>
+   <tr  class="zd_td">
+    <td colspan=5>
+    <div style="display:none;" id="dvSend">
+        <form name="fmSendValue" action="user.asp?Action=Account&send=yes" method="post">
+        您的可用积分是<%=myAccount%>分，您要捐赠给<input size="10" type="text" name="toUser">
+        (用户名)积分<input size="10" type="text" name="sendValue">分 <input type="submit" value="执行"> 
+        <input type="button" onclick="toUser.value='';sendValue.value='';document.getElementById('dvSend').style.display='none';" value="返回">
+ 		<input type="hidden" value="<%=myAccount%>" name="maxAcc">
+        </form>
+    </div>
+    </td>
+   </tr>
+<%
+	   ' 取得获得的积分
+	   sql = "select * from [account] where AccToUser='"&Dreamsun_name&"' or AccFromUser='"&Dreamsun_name&"' order by accID Desc"
+	   Set rsToMe = Server.CreateObject("ADODB.Recordset")
+	   rsToMe.Open Sql, conn, 1,3
+	   %>
+       <tr bgcolor="#ffffff">
+        <td width="140">&nbsp;时间</td>
+        <td width="40" align="center">属性</td>
+        <td width="100" align="center">数量
+        <td width="60" align="center">来自/送给
+        <td width="350" height="24" align="center">原因</td>
+        </td>
+      </tr>
+	   <%
+	   if rsToMe.RecordCount >0 then 
+		   rsToMe.PageSize     = MyPageSize
+		   MaxPages         = rsToMe.PageCount
+		   rsToMe.absolutepage = MyPage
+		   Totalcount   = rsToMe.RecordCount
+		   for i=1 to rsToMe.PageSize
+			   If not rsToMe.eof Then
+			   if rsToMe("AccToUser")<>dreamsun_name then
+				AccKey = "<font color=red>支出</font>"
+				AccUser =rsToMe("AccToUser")
+			   else
+				AccKey = "收入"
+				AccUser =rsToMe("AccFromUser")
+			   end if
+			%>
+				 <tr bgcolor="#ffffff">
+					<td >&nbsp;<%=rsToMe("AccTime")%></td>
+					<td align="center"><%=AccKey%></td>
+					<td align="center"><%=rsToMe("AccValue")%>
+					<td align="center"><%=AccUser%>
+					<td height="24" align="center"><%=rsToMe("AccReason")&"["&rsToMe("AccRemark")&"]"%></td>
+					</td>
+				  </tr>
+			<%
+			rsToMe.MoveNext
+			end if
+			Next%>
+			<tr bgcolor="#ffffff">
+			<td height="80" align="center" colspan=5><% =viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=Account","当前总数:","user.asp")%>
+			</td>
+			</tr>
+			<%
+			set rsToMe = nothing
+	   else 
+	   %>
+     <tr class="zd_td">
+        <td height="30" align="center" colspan=5>暂无您的积分记录</td>
+      </tr>
+	   <%
+	   end if
+ %>
+ <tr class="zd_td">
+    <td height="30" align="center" colspan=5><a href="javascript:history.back()">返回上页</a>&nbsp;&nbsp;</td>
+  </tr>
+
+</table>
+  <br><br>
+
+<%End Sub
+Sub UserList()
+
+dim ipid,ipcls
+tiaojian=Checkstr(Trim(Request("tj")))
+If tiaojian<>"" Then 
+ptiaojian=" where username like '%"&tiaojian&"%'"
+jtiaojian="&tj="&tiaojian
+End If 
+%><BR>
+<table width="720" border="0" cellspacing="1" cellpadding="5" align="center" class="zd_table">
+<tr class="zd_td">
+<td height="18" align="center" colspan="7"><center><B>会员列表</B></center></td></tr>
+<tr class="zd_td"><form name='tiaojian' method='post' action='user.asp?Action=UserList'>
+<td height="10" align="left" colspan="7">&nbsp;
+会员检索：<input name='tj' type='text' size='20' maxlength='10'>&nbsp;<input  type='submit' name='Submit' value='检索'> (* 支持模糊查询)</td></form></tr>
+<%
+
+%>
+<tr class="zd_td">
+    <td width="26" height="18" bgColor="#EFEFEF"><strong><a href="user.asp?Action=UserList&order=id<%=jtiaojian%>">ID</a></strong></td>
+    <td width="172" height="18" bgColor="#EFEFEF"><strong><a href='user.asp?Action=UserList&order=username<%=jtiaojian%>'>用户名</a></strong>(点击排序)</td>
+    <td width="150" height="18" bgColor="#EFEFEF"><strong><a href='user.asp?Action=UserList&order=regTime<%=jtiaojian%>'>注册时间</a></strong>(点击排序)</td>
+    <td width="150" height="18" bgColor="#EFEFEF"><strong><a href='user.asp?Action=UserList&order=lastlogin<%=jtiaojian%>'>最后登陆</a></strong>(点击排序)</td>
+    <td width="50" height="18" bgColor="#EFEFEF"><strong><a href='user.asp?Action=UserList&order=umoney<%=jtiaojian%>'>积分</a></strong></td>
+    <td width="50" height="18" bgColor="#EFEFEF"><strong>状态</a></strong></td>
+  </tr>
+<%set rs2=server.CreateObject("adodb.recordset")
+sql2="select * from " & UserTable &" "& ptiaojian
+orderby=CheckStr(Request.QueryString("order"))
+if orderby<>"" Then
+'新增加这个选择，看似无用，实际是为了安全，杜绝其他的参数传递过来。
+Select Case orderby
+	Case "id"
+		orderbyStr="id"
+	Case "username"
+		orderbyStr="username"
+	Case "regTime"
+		orderbyStr="regTime"
+	Case "umoney"
+		orderbyStr="umoney"
+	Case "lastlogin"
+		orderbyStr="lastlogin"
+	Case Else
+		orderbyStr="id"
+End Select 
+	sql2=sql2 & " order by " &orderbyStr& " desc"
+else
+	sql2=sql2 & " order by [id] desc"
+	orderbyStr="id"
+
+end if
+rs2.open sql2,conn,1,1
+If rs2.eof and rs2.bof Then
+response.write "<tr bgcolor=""#FFFFFF"">"
+response.write "<td height=""80"" align=""center"" colspan=""6""><center>暂无用户</center></td>"
+response.write "</tr>"
+else
+rs2.PageSize     = MyPageSize
+MaxPages         = rs2.PageCount
+rs2.absolutepage = MyPage
+Totalcount            = rs2.RecordCount
+for i=1 to MyPageSize
+
+If not rs2.eof Then
+id=rs2("id")
+If Int(rs2("islocked"))>0 Then id="<font color=red>"&id&"</font>"
+%>
+  <tr class="zd_td">
+    <td height="18" ><%=id%></td>
+    <td><a href="user.asp?Action=infoshow&username=<%=rs2("username")%>" target=blank><%=rs2("username")%></a></td>
+    <td><%=trim(rs2("regtime"))%></td>
+    <td><%=trim(rs2("lastlogin"))%></td>
+	<td><%=trim(rs2("umoney"))%></td>
+	<td><%
+	islocked=Int(rs2("islocked"))
+	If islocked=1 Then
+		response.write"未审核"
+	ElseIf islocked=2 Then
+		response.write"被锁定"
+	Else
+		response.write"正常"
+	End If %></td>
+  </tr>
+<%rs2.MoveNext
+End If 
+Next
+response.write "<tr bgcolor=""#ffffff"">"
+response.write "<td height=""30"" align=""center"" colspan=""7"">"& viewpage(Totalcount,MyPageSize,PageShowSize,MyPage,"Action=UserList&tj="&tiaojian&"&order="&orderbyStr,"当前总数:","user.asp")&"</td>"
+response.write "</tr>"
+End If 
+response.write "</table>"
+	rs2.close
+	set rs2=Nothing
+End Sub 
+%>

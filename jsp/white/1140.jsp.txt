@@ -1,0 +1,169 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.trade.tb_commpara.*" %>
+<%@ page import="java.util.*" %>
+<%@ page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Map tb_commpara = new Hashtable();
+	String param_name_para = "";
+	if(request.getParameter("param_name_para")!=null && !request.getParameter("param_name_para").equals("")){
+		param_name_para = request.getParameter("param_name_para");
+		tb_commpara.put("param_name",param_name_para);
+	}
+	if(request.getParameter("param_name")!=null&&!"".equals(request.getParameter("param_name"))){
+		param_name_para=new String(request.getParameter("param_name").getBytes("ISO8859-1"),"UTF-8");
+		tb_commpara.put("param_name",param_name_para);
+	}
+	tb_commpara.put("param_code","product_code");
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	
+	List list = tb_commparaInfo.getListByPage(tb_commpara,Integer.parseInt(iStart),limit);
+	int counter = tb_commparaInfo.getCountByObj(tb_commpara);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?param_name="+java.net.URLEncoder.encode(param_name_para,"UTF-8")+"&iStart=",Integer.parseInt(iStart),limit);
+%>
+<html>
+	<head>
+		<title>渠道分销产品管理</title>
+		<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+		<script type="text/javascript" src="/js/commen.js"></script>
+ 
+		<script type="text/javascript" src="param.js"></script>
+	</head>
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>渠道分销产品管理</h1>
+			</td>
+			<td>
+				<a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a>
+			</td>
+		</tr>
+	</table>
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+
+        <tr>
+
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4><font color="#ff0000">重要提示：请勿修改、删除渠道分销产品，否则系统将无法正常运行！</font></h4>
+		  
+		  </td>
+        </tr>
+      </table>
+	<form action="index.jsp" name="indexForm" method="post">
+	  
+	 
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+		  	
+		   
+		  	
+		  	<th>产品名称</th>
+		  	
+		  	<th>代理商收益比例</th> 
+		  	
+		  	<th>结算方式</th>
+		  	
+		  	<th>产品说明</th>
+		  	
+		  	<th>产品代码</th>
+		  	
+			<th width="10%">修改</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String param_id="",subsys_code="",param_name="",param_attr="",param_code="",para_code1="",para_code2="",para_code3="",para_code4="",update_time="";
+		  			  	if(map.get("param_id")!=null) param_id = map.get("param_id").toString();
+						if(map.get("subsys_code")!=null) subsys_code = map.get("subsys_code").toString();
+						if(map.get("param_attr")!=null) param_attr = map.get("param_attr").toString();
+						if(map.get("param_code")!=null) param_code = map.get("param_code").toString();
+						if(map.get("param_name")!=null) param_name = map.get("param_name").toString();
+						if(map.get("para_code1")!=null) para_code1 = map.get("para_code1").toString();
+						if(map.get("para_code2")!=null) para_code2 = map.get("para_code2").toString();
+						if(map.get("para_code3")!=null) para_code3 = map.get("para_code3").toString();
+						if(map.get("para_code4")!=null) para_code4 = map.get("para_code4").toString();
+						if(update_time.length()>19)update_time=update_time.substring(0,19);
+
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=param_id %>" /></td>
+		  	
+		   
+		  	
+		  	<td><a href="javascript:submitCheck('<%=param_name%>')"><%=param_name%></a></td>
+		  	
+		  	<td><%=para_code1%>%</td>
+ 
+		  	
+		  	<td><%=para_code2%></td>
+		  	<td><%=para_code3%></td>
+		  	<td><%=para_code4%></td>
+		  	
+			<td width="10%"><a href="updateInfo.jsp?param_id=<%=param_id%>&param_name_para=<%=java.net.URLEncoder.encode(param_name_para)%>&iStart=<%=iStart%>"><img src="/program/admin/images/edit.gif" title="修改" /></a></td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=param_id%>','7336');"><img src="/program/admin/images/delete.gif" title="删除" /></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="7336" />
+	  </form>
+</body>
+
+</html>

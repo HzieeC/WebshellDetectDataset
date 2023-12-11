@@ -1,0 +1,112 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String type = request.getParameter("type");
+		String noteId = request.getParameter("noteId");
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 工具栏
+		    var viewNoteToolbar = new Ext.Toolbar({
+		    	renderTo: 'viewNoteToolBarDiv',
+		    	items: [
+				    new Ext.Button({
+					    id: 'viewNote-send-button',
+						text: '发送',
+						iconCls: 'email_go'
+					})
+				]
+			});
+
+			// 查看笔记面板
+			var viewNotePanel = new Ext.Panel({
+				renderTo: 'viewNotePanelDiv',
+				contentEl: 'viewNoteContentDiv',
+				html: '',
+				autoScroll: true
+			});
+			// 发送请求-初期化查看笔记面板
+			Anynote.ajaxRequest({
+				baseUrl: '<%=baseUrl %>',
+				baseParams: {noteId:'<%=noteId%>'},
+				action: '/noteAction.do?method=getNote',
+				callback: function(jsonResult){
+					$("#viewNoteContentDiv").html(jsonResult.content);
+					noteWindow.setTitle("查看笔记 - "+jsonResult.title);
+				}
+			});
+		    
+			// form高度宽度自适应
+		    noteWindow.on("resize", function(){
+				var w = Ext.get("viewNoteDiv").getWidth();
+				var h = Ext.get("viewNoteDiv").getHeight() - 40;
+				$("#viewNoteContentDiv").attr("style", "overflow:auto;padding:5px;height:"+h+"px;");
+			});
+
+		    // 发送按钮
+		    $("#viewNote-send-button").click(function(){
+			    sendNoteWindow = new Ext.Window({
+					title: '发送笔记',
+					width: 350,
+					height: 180,
+					modal: true,
+					layout:'fit',
+					items: new Ext.form.TextArea({
+						emptyText: '请输入Email地址，用逗号分隔！',
+						id: 'Email',
+						name: 'Email'
+					}),
+					buttons: [{
+	                    text:'确定',
+	                    handler: sendEmail
+	                },{
+	                    text: '取消',
+	                    handler: function(){
+	                		sendNoteWindow.close();
+	                    }
+	                }]
+				});
+			    sendNoteWindow.show();
+			});
+		});
+
+		function sendEmail(){
+			var emails = $("#Email").val();
+			var emailArr = emails.split(",");
+			if(emailArr.length>5){
+				showErrorMsg("最多支持五个邮箱！");
+				return;
+			}else{
+				for(var i=0;i<emailArr.length;i++){
+					var is = validateInput("email",emailArr[i],"请输入有效的Email地址！");
+					if(!is)  return;
+				}
+			}
+			// 发送请求
+			Anynote.ajaxRequest({
+				baseUrl: '<%=baseUrl %>',
+				baseParams: {noteId:'<%=noteId%>',emails:emails},
+				action: '/noteAction.do?method=sendEmail',
+				callback: function(jsonResult){
+					sendNoteWindow.close();
+				},
+				showWaiting: true,
+				showMsg: true,
+				successMsg: '发送成功！',
+				failureMsg: '发送失败！'
+			});
+		}
+	</script>
+</head>
+<body>
+<div id="viewNoteDiv" style="width:100%;height:100%;">
+	<div id="viewNoteToolBarDiv"></div>
+	<div id="viewNotePanelDiv">
+		<div id="viewNoteContentDiv" style="overflow:auto;height:425px;padding:5px;"></div>
+	</div>
+</div>
+</body>
+</html>

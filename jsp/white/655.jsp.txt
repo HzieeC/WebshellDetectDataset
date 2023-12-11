@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<html>
+<head>
+<link href="${contextPath}/css/css.css" rel="stylesheet" type="text/css"
+	media="all">
+	<script src="${contextPath}/js/plugins/base/sea.js"></script>
+	<script src="${contextPath}/js/plugins/base/config.js"></script>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=7" />
+	
+	<link href="${contextPath}/static/css/base.css" rel="stylesheet">
+		<link href="${contextPath}/static/css/cutter.css" rel="stylesheet">
+
+			<title>${setting.systemName }</title>
+</head>
+<body>
+	<div class="Container">
+		<tiles:insertAttribute name="header" />
+		<div class="Tbody" id="tbodyCon">
+			<div class="mainBar">
+
+				<div class="mainCon">
+					<!-- iframeCon -->
+					<div class="iframeCon">
+						<div class="RpadBar">
+							<div id="RightHeight"
+								style="background: #fff;background-image:url(${contextPath}/images/content_top.gif); background-repeat: repeat-x;">
+								<tiles:insertAttribute name="rightContent" />
+							</div>
+						</div>
+					</div>
+					<!-- iframeCon -->
+					<!-- 箭头开始 -->
+					<div class="arrowBtn" id="arrowBtnCon">
+						<div class="btn1">
+							<img id="switchImage" src="${contextPath}/images/btn_arrow01.gif"
+								style="cursor:pointer;" onclick="switchHandler(this)" />
+						</div>
+					</div>
+					<!-- 箭头结束 -->
+				</div>
+			</div>
+			<!-- 菜单开始 -->
+			<div class="sideBar" id="sideBarCon">
+				<div class="menu-box">
+					<h2>
+						<span class="r m-r8"><span id="setShortcut"><fmt:message key="setting"/></span>
+						</span><fmt:message key="Shortcut"/>
+					</h2>
+					<ul class="menu" style="display:none" id="shortcutmenu">
+						<li class="level3"><a href="/exam/welcome.do" id="欢迎页面">欢迎页面</a>
+						</li>
+						<li class="level3"><a href="/exam/myTask.do" id="我的任务"
+							class="cur">我的任务</a>
+						</li>
+						<li class="level3"><a href="/exam" id="消息中心">消息中心</a>
+						</li>
+						<li class="level3"><a href="/exam" id="新增考试">新增考试</a>
+						</li>
+						<li class="level3"><a href="/exam" id="个人设置">个人设置</a>
+						</li>
+						<li class="level3"><a href="/exam" id="帮助中心">帮助中心</a>
+						</li>
+					</ul>
+					<div class="menu-box_b">
+						<span ><img
+							src="${contextPath}/images/menu-box_b2.gif" id="shortcutimg">
+						</span>
+					</div>
+				</div>
+				<div id="leftMenuCon" style="overflow: auto;">
+					<div class="box">
+						<h2>二级折叠菜单</h2>
+
+							<ul class="menu" id="leftMenu">
+							</ul>
+					</div>
+				</div>
+			</div>
+			<!-- 菜单结束 -->
+		</div>
+		<tiles:insertAttribute name="foot" />
+		<input type="hidden" id="reservationTimerReminder"
+			value="${contextPath}<ifa:constant namespace='cim' fieldName='RESERVATION_TIMER_REMINDER'/>.json" />
+		<input type="hidden" id="dispatcherTimerReminder"
+			value="${dispatcherTimerReminder}" /> <input type="hidden"
+			id="timerCycle" value="${timerCycle}" />
+		<div id="dispatcherTips" style="display: none;"></div>
+	</div>
+
+	<script type="text/javascript">
+		seajs.contextPath = '${contextPath}';
+		seajs.restEmpty = '${empty_path_variable}';
+		seajs.use("${scriptBasePath}/seaJsExtends/timerReminder.js");
+	</script>
+	<script type="text/javascript" src="${contextPath}/js/layout.js"></script>
+</body>
+</html>

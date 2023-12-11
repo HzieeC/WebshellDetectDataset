@@ -1,0 +1,122 @@
+	<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>我的购物车</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx }/scripts/front/shoppingCart.js"></script>
+
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+<!--
+.STYLE10 {
+	color: #0000FF
+}
+-->
+</style>
+<link href="${ctx }/styles/css/gouwc.css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+<!--
+.STYLE13 {
+	font-size: 16px;
+	font-weight: bold;
+	color: #FF0000;
+}
+.STYLE14 {
+	font-size: 36px;
+	font-weight: bold;
+	color: #FF0000;
+}
+-->
+</style>
+</head>
+<body>
+<div class="kuang_da">
+     <%@ include file="/WEB-INF/page/front/head.jsp" %>
+  <!--    /*搜索条结束 导航条开始*/-->
+  <div class="gwtda"><img src="${ctx}/image/ztt_1.png" /></div>
+  <div class="gwt_da">
+    <div class="gwt_bt">
+      <div class="gwt_bt_z">□ 全选</div>
+      <div class="gwt_bt_1">商品详情</div>
+      <div class="gwt_bt_2">商品积分</div>
+      <div class="gwt_bt_2">价格</div>
+      <div class="gwt_bt_2">商品数量</div>
+      <div class="gwt_bt_2">小计</div>
+      <div class="gwt_bt_y"></div>
+    </div>
+    <c:if test="${ empty sessionScope.shoppingCar.goodsInCarList}"><div align="center" style=" width:100%; font-size:19px;padding-top: 24px;float: left; text-align: center;">您的购物车是空的，去<a style="color: #FF0000; text-decoration:underline;" href="${ctx }">购物</a>吧</div></c:if>
+    <c:forEach items="${sessionScope.shoppingCar.goodsInCarList}" var="goodsIncar" varStatus="i">
+        <c:set var="totalNum" value="${totalNum + goodsIncar.count}" />
+		      <c:set var="money" value="${money + goodsIncar.totalMoney}" />
+		      <c:set var="credits" value="${credits + goodsIncar.credits*goodsIncar.count}"/>
+		      
+		      <input type="hidden" name="id${i.index}" id="id${i.index}" value="${goodsIncar.id}" />
+		      <input type="hidden" name="credits${i.index}" id="credits${i.index}" value="${goodsIncar.credits}" />
+    <div class="yc_da">
+      <div class="gwt_nr_z"><a class="lj_2" href="${ctx }/spxq.do?good.id=${goodsIncar.id }"><img src="${ctx}${goodsIncar.pic }" width="54" height="57"/></a></div>
+      <div class="gwt_nr_1">
+        <div class="yc_img"></div>
+        <div class="nr_wz"><a class="lj_2" href="${ctx }/spxq.do?good.id=${goodsIncar.id }">${goodsIncar.name }<br /></a></div>
+      </div>
+      <div class="gwt_nr_2" id="allCredit${i.index}"><c:if test="${not empty goodsIncar.credits }">${goodsIncar.credits }</c:if>
+      <c:if test="${empty goodsIncar.credits }">0</c:if>
+      </div>
+      <div class="gwt_nr_2"><span class="STYLE13" id="price${i.index}">￥${goodsIncar.price }</span></div>
+      <div class="gwt_nr_2">
+
+        <div class="nr_dwy"><a href="javascript:void(0);" onclick="changeNumJian('${i.index}');"><img src="${ctx}/image/bag_close.gif" /></a></div>
+        <div class="nr_dz" ><input disabled="disabled" style="width: 2em;" id="count${i.index}" type="text" value="<fmt:formatNumber value="${goodsIncar.count }" pattern="0"/>"/></div>
+        <div class="nr_dwz"><a href="javascript:void(0);" onclick="changeNumJia('${i.index}');"><img src="${ctx}/image/bag_open.gif" width="9" height="9" /></a></div>
+      </div>
+     
+      <div class="gwt_nr_2"><span class="STYLE13" id="money${i.index}">￥<fmt:formatNumber value="${goodsIncar.totalMoney }" pattern="0.00"/></span></div>
+      <div class="gwt_nr_y"><a class="lj_2" href="#">收藏</a><br />
+        <a class="lj_2" href="javascript:void(0);" onclick="deleteGood('${i.index}')">删除</a></div>
+    </div>
+    </c:forEach>
+    
+    
+    
+  </div>
+  
+  
+  
+  
+  <div class="jsda">
+    <div class="js_1"></div>
+    <div class="js_2"></div>
+    <div class="js_bw">
+      <div class="js_3">商品总价（不含邮费）：<span class="STYLE14" id="totalMoney">￥<fmt:formatNumber value="${money }" pattern="0.00"/></span></div>
+      <div class="js_4"><a href="javascript:void(0);" onclick="jiesuan();"><img src="${ctx}/image/k_js.gif" /></a></div>
+    </div>
+  </div>
+  <div class="remaijp">
+    <div id="remaijp1"> 猜你喜欢 </div>
+    <div class="remaijp2">
+      <c:forEach items="${goodList}" var="good" begin="0" end="4">
+	      <div class="remaijpx">
+	        <div class="rmjpx">
+	          <div class="heikuang"><a href="${ctx }/spxq.do?good.id=${good.id }"><img src="${ctx}/${good.pic }" width="160px" height="140px"/></a></div>
+	        </div>
+	        <div class="rmjpxx">
+		        <a href="${ctx }/spxq.do?good.id=${good.id }">
+		        	<c:if test="${fn:length(good.name ) >15}">${fn:substring(good.name ,0,15) }......</c:if>
+	              	<c:if test="${fn:length(good.name ) <15}">${good.name  }</c:if>
+		        </a><br />
+	          <span class="STYLE2">￥${good.weight }</span> </div>
+	      </div>
+	  </c:forEach>
+    
+    </div>
+  </div>
+     <%@ include file="/WEB-INF/page/front/footer.jsp" %>
+</div>
+<!-- </div> -->
+</body>
+</html>

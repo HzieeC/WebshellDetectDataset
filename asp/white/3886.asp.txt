@@ -1,0 +1,124 @@
+<!--#include file="const.asp"-->
+<!--#include file="../inc/common.asp"-->
+<!--#include file="../../common/news/list.asp"-->
+<!--#include file="../inc/head.asp"-->
+<%
+Dim t,d,p,TakeCount,maketype,strSQLQuery,m_strNowTitle
+Dim totalnumber,MaxHtmlListNum
+
+MaxHtmlListNum=100
+
+totalnumber=NewAsp.ChkNumeric(Request("totalnumber"))
+maketype=NewAsp.ChkNumeric(Request("maketype"))
+t=NewAsp.ChkNumeric(Request("t"))
+p=NewAsp.ChkNumeric(Request("p"))
+m_intOrder=NewAsp.ChkNumeric(Request("order"))
+If p=0 Then p=1
+TakeCount=NewAsp.ChkNumeric(Request("TakeCount"))
+d=Request("d")
+If d="" Then d=Now()
+
+IsNowOutputText = False
+
+Call createdhtml()
+NewAsp.PageEnd()
+
+Sub createdhtml()
+	Dim Rs,SQL,ii
+	Dim m_strLinkUrl
+	m_strLinkUrl=""
+	Response.Flush
+	Select Case t
+		Case 1,3
+			strSQLQuery = " And TurnLink=0 And classid in ("& NewAsp.CheckStr(Request("inclassid")) &")"
+			m_strLinkUrl="&inclassid="&Request("inclassid")
+	Case Else
+		strSQLQuery = " And TurnLink=0"
+	End Select
+	
+	If totalnumber=0 Then
+		If maketype=0 Then NewAsp.Execute ("UPDATE NC_Classify SET isUpdate=1 WHERE ChannelID="&ChannelID & strSQLQuery)
+		totalnumber=NewAsp.Execute("SELECT COUNT(*) FROM [NC_Classify] WHERE ChannelID="&ChannelID&" And isUpdate=1"&strSQLQuery)(0)
+	End If
+	
+	Response.Write "<script>$('planmain').style.display='';</script>"
+	Response.Write "<script>$('plantext').style.display='';</script>"
+	Set Rs = NewAsp.Execute("SELECT TOP 1 classid,classname FROM NC_Classify WHERE ChannelID="&ChannelID&" And isUpdate=1"&strSQLQuery)
+	If Rs.BOF And Rs.EOF Then
+		Response.Write "<script>"
+		Response.Write "plantext("&totalnumber&","&TakeCount&",'" & ElapsedTime() & "','');"
+		Response.Write "planpercent('100%');"
+		Response.Write "planwidth(500);"
+		Response.Write "</script>" & vbCrLf
+		Response.Flush
+	Else
+		
+		TakeCount=TakeCount+1
+		classid=Rs(0)
+		m_strNowTitle=Replace(Rs(1)&"", "'", "\'")
+		pagenow=p
+		Call BeginCreated()
+		
+		Response.Write "<script>"
+		Response.Write "plantext("&totalnumber&","&TakeCount&",'" & ElapsedTime() & "','"&m_strNowTitle&" - "&HtmlFileName&"');"
+		Response.Write "planpercent('" & FormatPercent(TakeCount/totalnumber,2,-1) & "');"
+		Response.Write "planwidth("&Fix((TakeCount/totalnumber) * 500)&");"
+		Response.Write "</script>" & vbCrLf
+		Response.Flush
+		If BuildHtmlDone=0 And Pcount>1 Then
+			ii=0
+			For pagenow=p+1 To Pcount
+				If Not Response.IsClientConnected Then Response.End
+				p=p+1
+				ii=ii+1
+				Call BeginCreated()
+				Response.Write "<script>"
+				Response.Write "plantext("&totalnumber&","&TakeCount&",'" & ElapsedTime() & "','"&m_strNowTitle&" - "&HtmlFileName&"');"
+				Response.Write "</script>" & vbCrLf
+				Response.Flush
+				If pagenow>=Pcount Then Exit For
+				If ii>=MaxHtmlListNum Then Exit For
+			Next
+			
+			If BuildHtmlDone=1 Then
+				p=1
+			End If
+		Else
+			p=1
+		End If
+		m_strLinkUrl="admin_makelist.asp?ChannelID="&ChannelID&"&order="&m_intOrder&"&maketype="&maketype&"&totalnumber="&totalnumber&"&d="&d&"&t="&t&"&p="&p&"&TakeCount="&TakeCount&m_strLinkUrl
+		If TakeCount<=totalnumber Then
+			Response.Write "<meta http-equiv=""refresh"" content=""0;url='"&m_strLinkUrl&"''""/>"
+		Else
+			Response.Write "<script>"
+			Response.Write "planpercent('100%');"
+			Response.Write "planwidth(500);"
+			Response.Write "</script>" & vbCrLf
+			Response.Flush
+		End If
+	End If
+	Rs.Close:Set Rs = Nothing
+	If IsObject(TPL_XmlDom) Then Set TPL_XmlDom=Nothing
+End Sub
+
+Function ElapsedTime()
+	Dim ElapsedSeconds
+	ElapsedSeconds=DateDiff("s", d, Now())
+	If ElapsedSeconds > 3600 then
+		ElapsedTime = ElapsedSeconds \ 3600 & " Ê± " & (ElapsedSeconds mod 3600) \ 60 & " ·Ö " & ElapsedSeconds mod 60 & " Ãë"
+	ElseIf ElapsedSeconds > 60 then
+		ElapsedTime = ElapsedSeconds \ 60 & " ·Ö " & ElapsedSeconds mod 60 & " Ãë"
+	Else
+		ElapsedTime = ElapsedSeconds mod 60 & " Ãë"
+	End If
+End Function
+
+Sub BeginCreated()
+	Call Main()
+	If BuildHtmlDone=1 Then NewAsp.Execute ("UPDATE NC_Classify SET isUpdate=0 WHERE classid="&classid)
+	HtmlFilePath=NewAsp.CheckHtmlFilePath(HtmlFileName)
+	NewAsp.CreatPathEx HtmlFilePath
+	NewAsp.CreatedTextFile HtmlFileName,TPL_Memory
+	TPL_Memory="":iScanCount=0
+End Sub
+%>

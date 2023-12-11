@@ -1,0 +1,314 @@
+<%@page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.trade.ti_attach.Ti_attachInfo" %>
+<%@page import="com.bizoss.trade.ts_category.*" %>	
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<%@page import="com.bizoss.trade.ti_custnews.Ti_custnewsInfo"%>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Map ti_custnews = new Hashtable();
+	
+	
+	String g_ch_attr = "";
+	if(request.getParameter("class_attr")!=null && !request.getParameter("class_attr").equals("")){
+		g_ch_attr = request.getParameter("class_attr");
+		ti_custnews.put("ch_attr",g_ch_attr);
+	}
+	
+	String info_state = "";
+	if(request.getParameter("info_state")!=null && !request.getParameter("info_state").equals("")){
+		info_state = request.getParameter("info_state");
+		ti_custnews.put("info_state",info_state);
+	}
+
+	ti_custnews.put("state_code","0");
+	
+	String user="";
+	if(request.getParameter("user")!=null && !request.getParameter("user").equals("")){
+		user = request.getParameter("user");
+		ti_custnews.put("user_name",user);
+	}
+
+	String g_title = "";
+	if(request.getParameter("titles")!=null && !request.getParameter("titles").equals("")){
+		g_title = request.getParameter("titles");
+		ti_custnews.put("title",g_title);
+	}
+	
+	String end_date = "";
+	if(request.getParameter("txtEndDate")!=null && !request.getParameter("txtEndDate").equals("")){
+		end_date = request.getParameter("txtEndDate");
+		ti_custnews.put("end_date",end_date);
+	}	
+	
+	String start_date = "";
+	if(request.getParameter("txtStartDate")!=null && !request.getParameter("txtStartDate").equals("")){
+		start_date = request.getParameter("txtStartDate");
+		ti_custnews.put("start_date",start_date);
+	}
+	
+	Ti_custnewsInfo ti_custnewsInfo = new Ti_custnewsInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null && !request.getParameter("iStart").equals("")) 
+	iStart = request.getParameter("iStart");
+	List list = ti_custnewsInfo.getListByPage(ti_custnews,Integer.parseInt(iStart),limit);
+	
+	int counter = ti_custnewsInfo.getCountByObj(ti_custnews);
+	String pageString = "";
+	pageString =new PageTools().getGoogleToolsBar(counter,"index.jsp?user="+user+"&info_state="+info_state+"&class_attr="+g_ch_attr+"&titles="+g_title+"&txtEndDate="+end_date+"&txtStartDate="+start_date+"&iStart=",Integer.parseInt(iStart),limit);
+	
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	Ti_attachInfo  ti_attachInfo = new Ti_attachInfo(); 
+	
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+	
+	Map catMap  = ts_categoryInfo.getCatClassMap("3");
+	
+String selecttree = ts_categoryInfo.getCategoryTree("Iki043636nk503U","3","");
+	
+	String state = tb_commparaInfo.getSelectItem("39",""); 
+	
+%>
+
+<html>
+  <head>
+    <title>会员资讯</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_channelInfo.js'></script>
+	<script type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script type="text/javascript" src="news.js"></script>
+	
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" >
+		<tr>
+			<td width="90%">
+				<h1>会员资讯管理</h1>
+			</td>
+			<td>
+			
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post" id="indexForm" target="_self">
+	
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su" style="border:1px">
+		<tr>
+			<td align="left">
+				<div class="select1">
+				&nbsp;
+				按信息名称: <input type="text" value="" name="titles" id="titles" size="20" class="input" />
+				&nbsp;
+				按分类:
+				 <select name="class_attr" id="class_attr">
+				    <option value="">请选择...</option>
+				    <%=selecttree%>
+				 </select>
+                 &nbsp;						
+				 按状态:
+				 <select name="info_state">
+						<option value="">请选择</option>	
+						<option value="e">推荐</option>
+						<option value="f">置顶</option>
+						<option value="g">头条</option>
+			      </select>
+				 
+						<br/>
+						<br/>
+						
+						&nbsp;
+				        按发布人: <input type="text" value="" name="user" id="user" size="20" class="input" />
+						
+						&nbsp;
+						按发布时间段:
+						<input name="txtStartDate" id="txtStartDate" type="text" class="Wdate" value="" 
+						
+						onclick="WdatePicker({maxDate:'#F{$dp.$D(\'txtEndDate\',{d:-1})}',readOnly:true})" size="15" />
+						 - 
+						<input name="txtEndDate" id="txtEndDate" type="text" class="Wdate" value="" 
+						
+						onclick="WdatePicker({minDate:'#F{$dp.$D(\'txtStartDate\',{d:1})}',readOnly:true})" size="15"/>	
+					  
+					<input name="searchInfo" type="button" value="搜索" onclick="return seacher()"/>	
+											
+					</div> 
+					
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td align="center"><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td  width="90%">	
+			
+				<select name="dw_operating" id="dw_operating"  onchange="changeTime('dw')">
+				  	<option value="">请选择...</option>
+					<option value="-">删除</option>	
+					<%=state%>                   					
+				</select>
+				<div id="dw_g" style="display:none">
+				  开始时间:<input type="text" name="dw_start_date" id="dw_start_date" class="Wdate" value="" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'dw_end_date\',{d:-1})}',readOnly:true})" size="15"  width="150px" />
+				  结束时间:<input type="text" name="dw_end_date" id="dw_end_date" class="Wdate" value="" onclick="WdatePicker({minDate:'#F{$dp.$D(\'dw_start_date\',{d:1})}',readOnly:true})" size="15" width="150px" />
+				</div>
+				 <input type="button" name="delInfo" onclick="updatestate('dw')" value="确定" class="buttab"/>                 
+			</td>
+			<td >
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			<th>图片</th>
+			
+		  	<th>资讯信息</th>
+			
+			<th width="10%">修改</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		
+		
+		<% 
+		   String news_id="",cat_attr="",title="",title_color="",news_key="",author="",editor="";
+		   String statex="",state_code="",user_id="",user_name="",in_date="";
+		  		int ckecknewsComment =0;
+				for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);					
+		  			if(map.get("news_id")!=null) news_id = map.get("news_id").toString();
+					if(map.get("title")!=null) title = map.get("title").toString();
+					if(title.length()>39)title=title.substring(0,39)+"...";
+				
+					if(news_key.length()>15)news_key=news_key.substring(0,15)+"...";
+					if(map.get("state_code")!=null) state_code = map.get("state_code").toString();
+					
+					if(map.get("ch_id_group")!=null) cat_attr = map.get("ch_id_group").toString();
+					
+					String e = "",f = "",g ="";
+					if(map.get("e")!=null) e = map.get("e").toString();
+					if(map.get("f")!=null) f = map.get("f").toString();
+					if(map.get("g")!=null) g = map.get("g").toString();
+					
+					if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+					if(map.get("user_name")!=null) user_name = map.get("user_name").toString();
+					if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+					
+					if(in_date.length()>10)in_date=in_date.substring(0,10);
+					StringBuffer output =new StringBuffer();
+					if(!cat_attr.equals(""))
+					{
+					  String chIds[] =	cat_attr.split("\\|");	
+					  for(String chId:chIds)
+					  {
+						 if(catMap!=null)
+						 {
+							 if(catMap.get(chId)!=null)
+							 {
+								output.append(catMap.get(chId).toString()+" ");                 
+							  }                  
+						 
+						  }                 
+					   }		    
+					}
+
+					String img_path =  ti_attachInfo.getFilePathByAttachrootid(news_id);
+					if(img_path.equals(""))
+					{
+					   img_path ="/program/admin/images/cpwu.gif";            
+					}   
+			  %>
+		
+		<tr>
+			<td width="5%" align="center">
+				<input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=news_id %>" />
+			</td>
+			<td width="10%"><img src="<%=img_path%>" border="0" width="85" height="85" /></td>
+		  	<td>
+			标题:&nbsp;<a href="updateInfo.jsp?news_id=<%=news_id%>">
+			<span style="color:#21759B;"><%=title%></span></a>
+			<div style="margin-top:3px;"></div>			
+			发布人:	&nbsp;<%=user_name%> &nbsp;&nbsp;发布日期:<%=in_date%>
+			<div style="margin-top:3px;"></div>		
+			分类:&nbsp;<%=output%> 
+			<div style="margin-top:1px;"></div>	
+			&nbsp;
+			<span class="<%if(!e.equals(""))out.print("blueon"); else out.print("blueoff");%>">推荐</span>
+	        <span class="<%if(!f.equals(""))out.print("blueon"); else out.print("blueoff");%>">热门</span>
+	        <span class="<%if(!g.equals(""))out.print("blueon"); else out.print("blueoff");%>">头条</span> 
+		  		
+			</td>				
+		  	
+		 
+		  	
+		  	
+		  	
+			<td width="10%">
+			<a href="updateInfo.jsp?news_id=<%=news_id %>">
+				<img src="/program/admin/images/edit.gif" border="0" title="修改" /></a></td>
+	  		<td width="10%"><a href="javascript:;" onclick="deleteOneInfo('<%=news_id%>','2893',<%=i%>);">
+	  			<img src="/program/admin/images/delete.gif" border="0" title="删除" /></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td  width="90%">	
+            		
+				<select name="bo_operating" id="bo_operating" onchange="changeTime('bo')">
+				  	<option value="">请选择...</option>
+					<option value="-">删除</option>
+					<%=state%>
+                 </select>
+				 <div id="bo_g" style="display:none">
+				  开始时间:<input type="text" name="bo_start_date" id="bo_start_date" class="Wdate" value="" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'bo_end_date\',{d:-1})}',readOnly:true})" size="15"  width="150px" />
+				  结束时间:<input type="text" name="bo_end_date" id="bo_end_date" class="Wdate" value="" onclick="WdatePicker({minDate:'#F{$dp.$D(\'bo_start_date\',{d:1})}',readOnly:true})" size="15" width="150px" />
+				</div>
+				 <input type="button" name="delInfo" onclick="updatestate('bo')" value="确定" class="buttab"/>
+                 				 
+			</td>
+			<td >
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" class="tablehe" border="0">
+		<tr><td align="center" ><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="state_code" id="state_code" value="" />
+	  <input type="hidden" name="up_operating" id="up_operating" value="" />
+	  <input type="hidden" name="s_start_date" id="s_start_date" value="" />
+	  <input type="hidden" name="s_end_date" id="s_end_date" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="2893" />
+	  </form>
+</body>
+
+</html>

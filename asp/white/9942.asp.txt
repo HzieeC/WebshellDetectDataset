@@ -1,0 +1,109 @@
+<!--#include file="Inc/SysProduct.asp" -->
+<!-- #include file="Head.asp" -->
+<%Title=Trim(request("Title"))
+Set rs = Server.CreateObject("ADODB.Recordset")
+sql="select Content from Aboutus where Title='"&Title&"'"
+rs.open sql,conn,1,3
+%>
+<TABLE cellSpacing=0 cellPadding=0 width=1002 align=center border=0>
+  <TBODY>
+    <TR>
+      <TD vAlign=top width=210><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+          <TBODY>
+            <TR>
+              <TD><IMG height=40 src="imgbly/lt1.gif" width=210></TD>
+            </TR>
+            <TR>
+              <TD align=middle><TABLE width=178 border=0 align="center" cellPadding=0 
+            cellSpacing=0 
+            style="BORDER-RIGHT: #e9e9e9 1px solid; BORDER-TOP: #e9e9e9 1px solid; BORDER-LEFT: #e9e9e9 1px solid; BORDER-BOTTOM: #e9e9e9 1px solid">
+                <TBODY>
+                  <TR>
+                    <TD height=15>&nbsp;</TD>
+                  </TR>
+                  <TR>
+                    <TD><TABLE cellSpacing=0 cellPadding=0 width=162 align=center 
+                  border=0>
+                        <TBODY>
+                          <TR>
+                            <TD class=lNav><a href="Aboutus.asp?Title=&#20225;&#19994;&#31616;&#20171;">企业简介</a></TD>
+                          </TR>
+                          <TR>
+                            <TD class=lNav><a href="Culture.asp">企业文化</a></TD>
+                          </TR>
+                          <TR>
+                            <TD class=lNav><a href="Structure.asp?Title=&#32452;&#32455;&#26426;&#26500;">组织机构</a></TD>
+                          </TR>
+                          <TR>
+                            <TD class=lNav><a href="History.asp?Title=&#25104;&#38271;&#21382;&#31243;">成长历程</a></TD>
+                          </TR>
+                          <TR>
+                            <TD class=lNav><a href="zhici.asp?Title=&#24635;&#35009;&#33268;&#36766;">总裁致辞</a></TD>
+                          </TR>
+                          <TR>
+                            <TD class=lNav1><a href="contact.asp?Title=&#32852;&#31995;&#25105;&#20204;">联系我们</a></TD>
+                          </TR>
+                        </TBODY>
+                    </TABLE></TD>
+                  </TR>
+                  <TR>
+                    <TD height=15>&nbsp;</TD>
+                  </TR>
+                </TBODY>
+              </TABLE></TD>
+            </TR>
+          </TBODY>
+        </TABLE>
+          <!-- #include file="leftps.asp" --></TD>
+      <TD style="BACKGROUND: url(imgbly/bg_body.gif) repeat-y 50% top" vAlign=top><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+          <TBODY>
+            <TR>
+              <TD><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+                  <TBODY>
+                    <TR>
+                      <TD background=imgbly/bg_rt.gif><TABLE cellSpacing=0 cellPadding=0 width="100%" border=0>
+                          <TBODY>
+                            <TR>
+                              <TD><IMG src="imgbly/rt7.gif" width="209" height=41></TD>
+                              <TD>&nbsp;</TD>
+                              <TD class=loc 
+                      style="BACKGROUND: url(img/bg_rtjiao.gif) no-repeat right 50%; COLOR: #9f9f9f" 
+                      align=right>你现在的位置：<A href="index.asp">首页</A> &gt; <A 
+                        href="index.asp">联系我们</A></TD>
+                            </TR>
+                          </TBODY>
+                      </TABLE></TD>
+                      <TD width=17>&nbsp;</TD>
+                    </TR>
+                  </TBODY>
+              </TABLE></TD>
+            </TR>
+          </TBODY>
+        </TABLE>
+          <table width="98%" border="0" align="center" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="2%" height="34" rowspan="4">&nbsp;</td>
+              <td colspan="2">&nbsp;</td>
+              <td width="2%" rowspan="4">&nbsp;</td>
+            </tr>
+            <tr>
+              <td width="44%" height="5" valign="top"></td>
+              <td width="52%" rowspan="2" class="protext"><%=rs("Content")%></td>
+            </tr>
+            <tr>
+              <td valign="top"><img src="UploadFiles/200925111145451.jpg" width="320" height="203"></td>
+            </tr>
+            <tr>
+              <td colspan="2">&nbsp;</td>
+            </tr>
+        </table></TD>
+    </TR>
+  </TBODY>
+</TABLE>
+<%rs.close
+set rs=nothing
+rslist.close
+set rslist=nothing
+%>
+<!-- #include file="Inc/Foot.asp" -->
+</BODY></HTML>

@@ -1,0 +1,152 @@
+<%'
+sl=request.QueryString("sl")
+sw=request.QueryString("url")
+sw=replace(sw,"http://","")
+%>
+
+<%'//-- 获取 网站标题 TITLE --//
+IF sl="webnamex" then
+PRCldeContent = getHTTPPage("http://"&sw&"")'要提取页面的url地址
+Startwebtitle="<body>"
+Overwebtitle="</body>"
+
+sContent=GetBody(PRCldeContent,Startwebtitle,Overwebtitle,IncluL,IncluR)
+Function ReplaceHref(sContent)
+nowPhttp=lcase(Request.ServerVariables(""&sw&""))
+Set RegEx=New RegExp'建立正则表达式
+RegEx.Pattern="<a .*?href=(?:(?:""|')(.*?)(?:""|')(?: .*?>|>)|(.*?)(?: .*?>|>))(.*?)</a>"'查找内容
+'RegEx.Pattern="<a .*?href=(?:(?:""|'|)(.*?)(?:""|'|)|(.*?))(?: .*?>|>)(.*?)</a>"'查找内容
+RegEx.IgnoreCase=True'忽略大小写
+RegEx.Global=True'全局查找
+Set Matches=RegEx.Execute(sContent)
+mi=0
+sContent=""
+NoLink="wpa.qq.com|www.miibeian.gov.cn"
+For Each Match in Matches'循环已发现的匹配
+strC=Match.value
+strA=RegEx.replace(strC,"$1")
+strB=RegEx.replace(strC,"$3")
+        DomainStr=split(strA&"///","/",-1)(2)
+        strAnn="http://"&replace(DomainStr,".",".")&"/"
+        if left(strA,4)="http" and instr(sContent,strAnn)=0 and instr(NoLink,DomainStr)=0 and NowUserDomain<>DomainStr then
+            if instr(strB,"<img ")>0 then strB="[图片链接]"
+            if strB="" then strB="[无锚文本]"
+            if instr(strB,">")>0 then
+                strBArr=split(strB,">",-1)
+                strB=strBArr(ubound(strBArr))
+            end if
+            nofollow=""
+            if instr(strC,"nofollow")>0 then nofollow="<sup class=""red nodec"">[nofollow]</sup>"
+            sContent=sContent&"<LI><a href="""&strAnn&""" target=""_blank"" title="""&strB&" --&gt; "&strA&""">"&strB&nofollow&"</a></LI> "
+        end if
+next
+    ReplaceHref=sContent
+end function
+%>
+
+
+
+<%
+end if
+    Function GetInnerText(strHtml)
+        dim regEx
+        Set regEx = New RegExp
+        regEx.Pattern = "<\/?[^>]*>"
+        regEx.Global = True
+        regEx.IgnoreCase = True
+        GetInnerText = regEx.Replace(strHtml,"")
+        Set regEx = Nothing
+    End Function
+	'==================================================
+	'函数名：GetBody
+	'作  用：截取字符串
+	'参  数：ConStr ------将要截取的字符串
+	'参  数：StartStr ------开始字符串
+	'参  数：OverStr ------结束字符串
+	'参  数：IncluL ------是否包含StartStr
+	'参  数：IncluR ------是否包含OverStr
+	'==================================================
+	Function GetBody(ConStr,StartStr,OverStr,IncluL,IncluR)
+	   If ConStr="" or IsNull(ConStr)=True Or StartStr="" or IsNull(StartStr)=True Or OverStr="" or IsNull(OverStr)=True Then
+	      GetBody="0"
+	      Exit Function
+	   End If
+	   Dim ConStrTemp
+	   Dim Start,Over
+	   ConStrTemp=Lcase(ConStr)
+	   StartStr=Lcase(StartStr)
+	   OverStr=Lcase(OverStr)
+	   Start = InStrB(1, ConStrTemp, StartStr, vbBinaryCompare)
+	   If Start<=0 then
+	      GetBody="0"
+	      Exit Function
+	   Else
+	      If IncluL=False Then
+	         Start=Start+LenB(StartStr)
+	      End If
+	   End If
+	   Over=InStrB(Start,ConStrTemp,OverStr,vbBinaryCompare)
+	   If Over<=0 Or Over<=Start then
+	      GetBody="0"
+	      Exit Function
+	   Else
+	      If IncluR=True Then
+	         Over=Over+LenB(OverStr)
+	      End If
+	   End If
+	   GetBody=MidB(ConStr,Start,Over-Start)
+	End Function
+%>
+<%
+		Function GetHttpPage(HttpUrl)
+		   If IsNull(HttpUrl)=True Then
+		      response.Write("请输入网址！")
+		      Exit Function
+		   End If
+		   On Error Resume Next
+		   Dim Http
+		   Set Http=server.createobject("MSX"&"ML2.XML"&"HTTP")
+		   Http.open "GET",HttpUrl,False
+		   Http.Send()
+		   If Http.Readystate<>4 then
+		      Set Http=Nothing
+			  response.Write("该网页无法访问！")
+		      Exit function
+		   End if
+		   if InStr(bytesToBSTR(Http.responseBody,"UTF-8"),"charset=")=0 then
+		   GetHTTPPage=bytesToBSTR(Http.responseBody,"gb2312")
+		   else
+			   if left(split(bytesToBSTR(Http.responseBody,"UTF-8"),"charset=")(1),6)="gb2312" or left(split(bytesToBSTR(Http.responseBody,"UTF-8"),"charset=")(1),6)="GB2312" then
+			       GetHTTPPage=bytesToBSTR(Http.responseBody,"GB2312")
+			   elseif left(split(bytesToBSTR(Http.responseBody,"UTF-8"),"charset=")(1),3)="gbk" or left(split(bytesToBSTR(Http.responseBody,"UTF-8"),"charset=")(1),3)="GBK" then
+			       GetHTTPPage=bytesToBSTR(Http.responseBody,"GBK")
+			   elseif left(split(bytesToBSTR(Http.responseBody,"UTF-8"),"charset=")(1),5)="utf-8" or left(split(bytesToBSTR(Http.responseBody,"UTF-8"),"charset=")(1),5)="UTF-8" then
+			       GetHTTPPage=bytesToBSTR(Http.responseBody,"UTF-8")
+			   else
+			       GetHTTPPage=bytesToBSTR(Http.responseBody,"gb2312")
+			   end if
+		   end if
+		   Set Http=Nothing
+		   If Err.number<>0 then
+		      Err.Clear
+		   End If
+		End Function
+	
+		Function BytesToBstr(Body,Cset)
+		   Dim Objstream
+		   Set Objstream = Server.CreateObject("adod"&"b.stream")
+		   objstream.Type = 1
+		   objstream.Mode =3
+		   objstream.Open
+		   objstream.Write body
+		   objstream.Position = 0
+		   objstream.Type = 2
+		   objstream.Charset = Cset
+		   BytesToBstr = objstream.ReadText 
+		   objstream.Close
+		   set objstream = nothing
+		End Function
+	%>
+
+
+ <%= ReplaceHref(sContent)  %>

@@ -1,0 +1,4 @@
+<%
+session.abandon
+Response.redirect("default.asp")
+%>

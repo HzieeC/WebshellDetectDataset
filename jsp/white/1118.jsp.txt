@@ -1,0 +1,310 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8"%>
+<%@ page import="com.bizoss.trade.ti_link.*"%>
+<%@ page import="java.util.*"%>
+<%@page import="com.bizoss.trade.ti_case.*"%>
+<%@ page import="com.bizoss.frame.util.PageTools"%>
+<%@ page import="com.bizoss.trade.ts_category.*"%>
+<%
+	Ti_caseInfo ti_caseInfo = new Ti_caseInfo();
+	Map ti_case = new Hashtable();
+
+	String case_title = "";
+	if (request.getParameter("case_title") != null
+			&& !request.getParameter("case_title").equals("")) {
+		case_title = request.getParameter("case_title");
+		ti_case.put("case_title", case_title);
+	}
+	String user_class = "";
+	if (request.getParameter("user_class") != null
+			&& !request.getParameter("user_class").equals("")) {
+		user_class = request.getParameter("user_class");
+		ti_case.put("user_class", user_class);
+	}
+	String scase_type="";
+	if(request.getParameter("sinfo_state") != null && !"".equals(request.getParameter("sinfo_state"))){
+		scase_type = request.getParameter("sinfo_state");
+		ti_case.put("case_type",scase_type);
+	}
+	String case_state = "";
+	if (request.getParameter("case_state") != null
+			&& !request.getParameter("case_state").equals("")) {
+		case_state = request.getParameter("case_state");
+		ti_case.put("case_state", case_state);
+	}
+	String cat_attr = "";
+	if (request.getParameter("cat_attr") != null
+			&& !request.getParameter("cat_attr").equals("")) {
+		cat_attr = request.getParameter("cat_attr");
+		ti_case.put("cat_attr", cat_attr);
+	}
+	String iStart = "0";
+	int limit = 20;
+	if (request.getParameter("iStart") != null)
+		iStart = request.getParameter("iStart");
+	List list = ti_caseInfo.getListByPage(ti_case, Integer
+			.parseInt(iStart), limit);
+	int counter = ti_caseInfo.getCountByObj(ti_case);
+	String pageString = new PageTools().getGoogleToolsBar(counter,
+			"shareIndex.jsp?iStart=", Integer.parseInt(iStart), limit);
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+	Map cmap = ts_categoryInfo.getAllChClass();
+%>
+
+<html>
+
+	<head>
+		<title>案源管理</title>
+		<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+		<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/engine.js"></script>
+		<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/util.js"></script>
+		<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/interface/Ts_categoryInfo.js"></script>
+		<script type="text/javascript" src="/js/commen.js"></script>
+		<script type="text/javascript" src="ti_case.js"></script>
+		
+		<script type="text/javascript">setcat_attr1('');</script>
+	</head>
+
+	<body>
+		<table width="100%" cellpadding="0" cellspacing="0" border="0">
+			<tr>
+				<td width="90%">
+					<h1>
+						案源管理
+					</h1>
+				</td>
+				<td>
+					<a href="addInfo.jsp"><img
+							src="/program/admin/index/images/post.gif" /> </a>
+				</td>
+			</tr>
+		</table>
+
+		<form action="shareIndex.jsp" name="indexForm" method="post">
+
+			<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+				<tr>
+					<td align="left">
+						案源标题:
+						<input name="case_title" id="case_title" type="text" />
+						案源状态:
+						<select name="scase_state" id="scase_state">
+							<option value="">
+								请选择
+							</option>
+							<option value="1">
+								新录入
+							</option>
+							<option value="2">
+								审核通过
+							</option>
+							<option value="3">
+								发布中
+							</option>
+							<option value="4">
+								作废
+							</option>
+						</select>
+						<input type="hidden" name="case_state" id="case_state" value="">
+						案源类型：
+						<select name="xinfo_state" id="xinfo_state" >
+						<option value="">请选择</option>
+						<option value="1">热点案源</option>
+						<option value="2">招标案源</option>
+						<option value="3">风险代理</option>
+			        	</select>
+			        	<input type="hidden" id="sinfo_state" name="sinfo_state" >
+						案源分类:
+						<select name="cat_attr1" id="cat_attr1"
+							onchange="setcat_attr2(this.value,'')">
+							<option value="">
+								初级分类
+							</option>
+						</select>
+						<select name="cat_attr2" id="cat_attr2">
+							<option value="">
+								二级分类
+							</option>
+						</select>
+						<input type="hidden" name="cat_attr" id="cat_attr" value="">
+						<input name="searchInfo" type="submit" value="查询"
+							onClick="search();"/>
+					</td>
+				</tr>
+			</table>
+
+			<table width="100%" cellpadding="0" cellspacing="0" border="0"
+				class="dl_bg">
+				<tr>
+					<td width="90%">
+					<select name="info_state" id="info_state" >
+						<option value="">请选择</option>	
+						<option value="0">删除案源</option>
+						<option value="1">热点案源</option>
+						<option value="2">招标案源</option>
+						<option value="3">风险代理</option>
+			        	</select>
+						<input type="button" name="delInfo" onClick="selestateInfo();"
+						value="确定" class="buttab" />
+					</td>
+					<td>
+						总计:<%=counter%>条
+					</td>
+				</tr>
+			</table>
+
+
+
+			<table width="100%" cellpadding="0" cellspacing="0" border="0"
+				class="listtab">
+				<tr>
+					<th width="5%" align="center">
+						<input type="checkbox" name="checkall" id="checkall"
+							onclick="selectAll()">
+					</th>
+
+					<th  width="25%">
+						案源标题
+					</th>
+
+					<th width="12%">
+						案源类型
+					</th>
+					<th width="12%">
+						案源状态
+					</th>
+
+					<th width="25%">
+						案源分类
+					</th>
+					<th width="7%">
+						审核
+					</th>
+					<th width="7%">
+						修改
+					</th>
+					<th width="7%">
+						删除
+					</th>
+				</tr>
+
+				<%
+					int listsize = 0;
+					if (list != null && list.size() > 0) {
+						listsize = list.size();
+						int length=0;
+						for (int i = 0; i < listsize; i++) {
+							Hashtable map = (Hashtable) list.get(i);
+							String xcase_id = "", xcase_title = "",xcase_type="", xcase_state = "", xcat_attr = "";
+							if (map.get("case_id") != null)
+								xcase_id = map.get("case_id").toString();
+							if (map.get("case_title") != null)
+								xcase_title = map.get("case_title").toString();
+							if (map.get("case_state") != null)
+								xcase_state = map.get("case_state").toString();
+							if (map.get("cat_attr") != null)
+								xcat_attr = map.get("cat_attr").toString();
+							if(map.get("case_type") != null)
+								xcase_type = map.get("case_type").toString();
+						  StringBuffer catattr = new StringBuffer();
+						  if(!xcat_attr.equals("")){
+						  String cat_attrIds[] = xcat_attr.split("\\|");	
+						  length=0;
+						  for(String catId:cat_attrIds){
+							 if(cmap!=null){
+								if(cmap.get(catId)!=null){
+									length=length+cmap.get(catId).toString().length();
+									if(length>=14){
+										catattr.append("<a href='shareIndex.jsp?cat_attr="+catId+"'>"+cmap.get(catId).toString().substring(0,3)+ "</a> ");
+									}else
+										catattr.append("<a href='shareIndex.jsp?cat_attr="+catId+"'>"+cmap.get(catId).toString() + "</a> ");
+								}                  
+							  }                 
+						   }		    
+						}
+				%>
+				<tr>
+					<td width="5%" align="center">
+							<input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=xcase_id %>" />
+					</td>
+
+					<td>
+						<%=xcase_title%>
+					</td>
+<td>
+						<%if(xcase_type.equals("")) {
+						%><%}else if(xcase_type.equals("1")){ 
+						%>热点案源<%}else if(xcase_type.equals("2")){
+						%>招标案源<%}else if(xcase_type.equals("3")){
+						%>风险代理<%}%>
+					</td>
+					<td>
+						<%
+							if (xcase_state.equals("1")) {
+						%>新录入<%
+							} else if (xcase_state.equals("2")) {
+						%>审核通过<%
+							} else if (xcase_state.equals("3")) {
+						%>发布中<%
+							} else if (xcase_state.equals("4")) {
+						%>作废<%
+							}
+						%>
+					</td>
+
+					<td><%=catattr%></td>
+					<td >
+						<a href="javascript:shenhe('<%=xcase_id%>','7975');"><img src="/program/admin/images/sh.gif" title="审核" /> </a>
+					</td>
+					<td >
+						<a href="updateInfo.jsp?case_id=<%=xcase_id%>"><img
+								src="/program/admin/images/edit.gif" title="修改信息" /> </a>
+					</td>
+
+					<td >
+						<a href="javascript:deleteOneInfo('<%=xcase_id%>','7976');"><img
+								src="/program/admin/images/delete.gif" title="删除" /> </a> &nbsp;
+					</td>
+				</tr>
+				<%
+					}
+					}
+				%>
+			</table>
+
+			<table width="100%" cellpadding="0" cellspacing="0" border="0"
+				class="dl_bg">
+				<tr>
+					<td width="90%">
+					<select name="info_state" id="info_state" >
+						<option value="">请选择</option>	
+						<option value="0">删除案源</option>
+						<option value="1">热点案源</option>
+						<option value="2">招标案源</option>
+						<option value="3">风险代理</option>
+			        	</select>
+						<input type="button" name="delInfo" onClick="selestateInfo();"
+						value="确定" class="buttab" />
+					</td>
+					<td>
+						总计:<%=counter%>条
+					</td>
+				</tr>
+			</table>
+			<table width="100%" cellpadding="0" cellspacing="0" border="0"
+				class="tablehe">
+				<tr>
+					<td>
+						<%=pageString%>
+					</td>
+				</tr>
+			</table>
+			<input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+			<input type="hidden" name="pkid" id="pkid" value="" />
+			<input type="hidden" name="case_type" id="case_type" value="" >
+			<input type="hidden" name="sort" id="sort" value="" />
+			<input type="hidden" name="bpm_id" id="bpm_id" value="7976" />
+		</form>
+	</body>
+
+</html>

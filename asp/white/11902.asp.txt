@@ -1,0 +1,116 @@
+<!-- #include file="Conn.asp" -->
+<!--#include file="Comm/Site_Class.asp" -->
+<%
+Response.Expires = -1 
+Response.ExpiresAbsolute = Now() - 1 
+Response.cachecontrol = "no-cache"
+
+If Session("PerId") = "" Or Session("UserType") <> "Person" Then
+	strMsg = "只有个人用户才能进行此操作，请先登录"
+Else
+
+set rs3=server.createobject("adodb.recordset")                            
+sql="select * FROM EduTbl where PerId="& Session("PerId")
+rs3.open sql,conn,1,1
+if rs3.eof then%>
+<script   language="javascript">   
+  alert("对不起，您的简历填写不完整，请完善您的简历后再重新发送！");   
+  window.navigate("person/chgperinfo_5.asp"); 
+  window.close();  
+  </script>   
+<%
+response.end
+end if%>
+<%
+Set Qsite = New Site_Class
+
+Qsite.SiteConfig()
+Qsite.GotoErrPage()
+%>
+<%Qsite.arrMember = Qsite.Member_Info()%>
+	<!--#include file="Comm/myrcwwfenzhan.asp" -->
+	<%
+
+	Dim RecruitId,strMsg,thisDate
+	Dim SendFlag
+	Dim Fso,objFile
+	Dim SendMail_ToMail,SendMail_Subject,SendMail_MailBody
+	Dim ComMemType,PageContent
+	Dim UserName,PassWord,CompanyName,Email,JMail,rs1,rs2,rs3
+	
+	thisDate = Qsite.FormatDate(Now())
+	SendFlag = False
+
+	ComId = Trim(Request.QueryString("ComId"))
+	RecruitId = Trim(Request.QueryString("RecruitId"))
+
+	If ComId = "" Or IsNull(ComId) Or Not IsNumeric(ComId) Or RecruitId = "" Or IsNull(RecruitId) Or Not IsNumeric(RecruitId) Then
+		strMsg = "请先选择要应聘的职位"
+	Else
+		Set Rs = Conn.Execute("select * from CompanyBoxTbl where ComId = "& ComId &" and PerId = "& Session("PerId") &" and RecruitId = "& RecruitId)
+		If Not Rs.Eof Then
+			If Qsite.FormatDate(FormatDateTime(Rs("SendDate") , 2)) = Qsite.FormatDate(FormatDateTime(thisDate , 2)) Then
+					strMsg = "一天内向同一职位只能发送一次简历"
+			Else
+				Conn.Execute("insert into CompanyBoxTbl (ComId , PerId , RecruitId , SendDate , IsRead) values ("& ComId &" , "& Session("PerId") &" , "& RecruitId &" , '"& thisDate &"' , '0')")
+			
+				Conn.Execute("insert into PersonSendBoxTbl (ComId , PerId , RecruitId , SendDate) values ("& ComId &" , "& Session("PerId") &" , "& RecruitId &" , '"& thisDate &"')")
+			
+				strMsg = "操作成功，已成功发送应聘简历！\n\n为增加求职成功几率，请在投递简历后及时通过电话与招聘企业沟通，使招聘企业加深对您的印象。"
+				SendFlag = True
+			End If
+		Else
+			Conn.Execute("insert into CompanyBoxTbl (ComId , PerId , RecruitId , SendDate , IsRead) values ("& ComId &" , "& Session("PerId") &" , "& RecruitId &" , '"& thisDate &"' , '0')")
+			
+			Conn.Execute("insert into PersonSendBoxTbl (ComId , PerId , RecruitId , SendDate) values ("& ComId &" , "& Session("PerId") &" , "& RecruitId &" , '"& thisDate &"')")
+		
+			strMsg = "操作成功，已成功发送应聘简历！\n\n为增加求职成功几率，请在投递简历后及时通过电话与招聘企业沟通，使招聘企业加深对您的印象。"
+			SendFlag = True
+		End If
+		
+		if Qsite.youjiankg=1 then
+		else
+		Set Rs1 = Conn.Execute("select * from CompanyTbl where ComId = "& ComId &" ")
+		If Not Rs1.Eof Then
+		UserName=rs1("UserName")
+		PassWord=rs1("PassWord")
+		CompanyName=rs1("CompanyName")
+		Email=rs1("Email")
+		Set Rs2 = Conn.Execute("select * from RecruitTbl where RecruitId = "& RecruitId &" ")
+		If Not Rs2.Eof Then
+		JobName=rs2("JobName")
+Set JMail=Server.CreateObject("JMail.Message")'建立发送邮件的对象
+JMail.Charset="gb2312"'邮件的文字编码为国标
+JMail.logging = true '启用邮件日志
+JMail.silent=True'屏蔽例外错误，返回False或True
+JMail.ContentType = "text/html"'邮件的格式为HTML格式
+JMail.MailServerUserName = ""&Qsite.MailUserName&""'登录邮件服务器所需的用户名
+JMail.MailServerPassWord = ""&Qsite.MailPassWord&""'登录邮件服务器所需的密码
+JMail.FromName = ""&myrcwwfzmc&""'发件人的姓名
+JMail.From = ""&Qsite.Maildizhi&""'发件人的E-MAIL地址
+JMail.MailDomain = ""&Qsite.MailSmtp&""'邮件服务器
+JMail.AddRecipient ""& Email &"",""& CompanyName &""'邮件收件人的地址，姓名
+JMail.AddRecipientCC "",""'邮件抄送人的地址，姓名
+JMail.Subject = ""& CompanyName &"，有应聘者应聘"&JobName&"，投递了简历！"'邮件的标题
+if PassWord="e10adc3949ba59abbe56e057f20f883e" then
+JMail.HtmlBody = "<font size=""+2"">"& CompanyName &"管理员您好，十分感谢您在百忙之中抽出一点时间看应聘者的邮件。<br>现有应聘者往您们企业投递了一份简历，<br>应聘职位为："&JobName&"，<br>如果有时间的话，麻烦贵企业登录<a href=""http://"&myrcwwfzwz&"/"" target=""_blank""><b><font color=""red"">"&myrcwwfzmc&"</font></b></a>企业管理后台进行查看和联系该应聘者进行应聘和面试。<br>"&myrcwwfzmc&"网址：<a href=""http://"&myrcwwfzwz&"/"" target=""_blank"">"&myrcwwfzwz&"</a><br>贵企业用户名为："&UserName&"<br>企业登录密码为：123456<br>欢迎您光临<a href=""http://"&myrcwwfzwz&""" target=""_blank"">"&myrcwwfzmc&"（"&myrcwwfzwz&"）</a>，"&myrcwwfzmc&"为企业提供更好的人才招聘服务。</font>"'邮件的内容，支持HTML
+else
+JMail.HtmlBody = "<font size=""+2"">"& CompanyName &"管理员您好，十分感谢您在百忙之中抽出一点时间看应聘者的邮件。<br>现有应聘者往您们企业投递了一份简历，<br>应聘职位为："&JobName&"，<br>如果有时间的话，麻烦贵企业登录<a href=""http://"&myrcwwfzwz&"/"" target=""_blank""><b><font color=""red"">"&myrcwwfzmc&"</font></b></a>企业管理后台进行查看和联系该应聘者进行应聘和面试。<br>"&myrcwwfzmc&"网址：<a href=""http://"&myrcwwfzwz&"/"" target=""_blank"">"&myrcwwfzwz&"</a><br>欢迎您光临<a href=""http://"&myrcwwfzwz&"/"" target=""_blank"">"&myrcwwfzmc&"（"&myrcwwfzwz&"）</a>，"&myrcwwfzmc&"为企业提供更好的人才招聘服务。</font>"'邮件的内容，支持HTML
+end if
+JMail.Priority = 3 '邮件等级，1为加急，3为普通，5为低级
+JMail.Send(""&Qsite.MailSmtp&"")'执行邮件发送(通过邮件服务器地址),有返回值
+JMail.Close'关闭对象
+Set JMail=nothing'释放对象
+		Set Rs2 = Nothing
+		end if
+		Set Rs1 = Nothing
+		end if
+		Set Rs = Nothing
+	End If
+End If
+End if
+%>
+<script language="javascript">
+	alert("<%=strMsg%>");
+	window.close();
+</script>

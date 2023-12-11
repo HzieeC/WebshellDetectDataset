@@ -1,0 +1,128 @@
+<%
+Dim AdminName, AdminPass, AdminID, AdminRandomCode
+Call AdminCookiesToSession()
+AdminName = NewAsp.CheckBadstr(Session(AdminSessionName & "_AdminName"))		'管理员名称
+AdminPass = NewAsp.CheckBadstr(Session(AdminSessionName & "_AdminPass"))		'管理员密码
+AdminID = NewAsp.ChkNumeric(Session(AdminSessionName & "_AdminID"))				'管理员ID
+AdminRandomCode = Trim(Session(AdminSessionName & "_AdminRandomCode"))
+
+'--打开后台定时功能
+If AdminTimer = 2 Then
+	If timesetting(Hour(Now))="1" Then
+		Call AdminReadonly()
+	End If
+End If
+
+If AdminName = "" Or AdminID = 0 Then
+	Session.Abandon
+	Response.Cookies(AdminCookiesName) = ""
+	ErrMsg = ErrMsg + "<li>您没有进入本页面的权限!本次操作已被记录!<li>可能您还没有登陆或者不具有使用当前功能的权限!请联系管理员.<li>本页面为[<font color=red>管理员</font>]专用,请先<a href=admin_login.asp class=showmeun target=_top>登陆</a>后进入。"
+	Response.redirect (AdminPath & "showerr.asp?action=error&Message=" & Server.URLEncode(ErrMsg) & "")
+	Response.End
+End If
+If IsAdminValidate Then
+	If AdminValidateCode <> Session(AdminSessionName & "_validate") Or Len(Session(AdminSessionName & "_validate")) = 0 Then
+		ErrMsg = ErrMsg + "<li>非法登陆！您的IP我们已经记录在案。<li>"
+		Session.Abandon
+		Response.Cookies(AdminCookiesName) = ""
+		Response.redirect (AdminPath & "showerr.asp?action=error&Message=" & Server.URLEncode(ErrMsg) & "")
+		Response.End
+	End If
+Else
+	If Len(Session("validate")) > 0 Then
+		ErrMsg = ErrMsg + "<li>非法登陆！您的IP我们已经记录在案。<li>"
+		Session.Abandon
+		Response.Cookies(AdminCookiesName) = ""
+		Response.redirect (AdminPath & "showerr.asp?action=error&Message=" & Server.URLEncode(ErrMsg) & "")
+		Response.End
+	End If
+End If
+
+Call CheckAdminLogin()
+
+Sub CheckAdminLogin()
+	Dim AdminSQL, AdminRs
+	AdminSQL ="SELECT isLock,RandomCode,isAloneLogin FROM NC_Admin WHERE username='" & AdminName & "' And password='" & AdminPass & "' And id="& AdminID
+	Set AdminRs = NewAsp.Execute(AdminSQL)
+	If AdminRs.BOF And AdminRs.EOF Then
+		Session.Abandon
+		Response.Cookies(AdminCookiesName) = ""
+		AdminRs.Close:set AdminRs = Nothing
+		Response.Redirect(AdminPath & "showerr.asp")
+		Response.End
+	Else
+		If AdminRs("isLock") <> 0 Then
+			ErrMsg = "<li>你的用户名已被锁定,你不能登陆！如要开通此帐号，请联系管理员。</li>"
+			AdminRs.Close:set AdminRs = Nothing
+			Session.Abandon
+			Response.Cookies(AdminCookiesName) = ""
+			Response.Redirect(AdminPath & "showerr.asp?action=error&message=" & server.URLEncode(errmsg) & "")
+			Response.End
+		End If
+		If AdminRs("isAloneLogin") <> 0 And Trim(AdminRs("RandomCode")) <> AdminRandomCode then
+			Session.Abandon
+			Response.Cookies(AdminCookiesName) = ""
+			ErrMsg = "<li><font color='red'>对不起，为了系统安全，本系统不允许两个人使用同一个管理员帐号进行登录！</font></li><li>因为现在有人已经在其他地方使用此管理员帐号进行登录了，所以你将不能继续进行后台管理操作。</li><li>你可以<a href='admin_login.asp' target='_top' class=showmeun>点此重新登录</a>。</li>"
+			Response.Redirect(AdminPath & "showerr.asp?action=error&message=" & server.URLEncode(errmsg) & "")
+			AdminRs.Close:set AdminRs = Nothing
+			Response.End
+		End If
+	End If
+	AdminRs.Close:Set AdminRs = Nothing
+End Sub
+
+Function ChkAdmin(flag)
+	On Error Resume Next
+	Dim Adminflag,m_intAdminGrade
+	ChkAdmin = False
+	AdminFlag = Replace(Session(AdminSessionName & "_Adminflag"), "'", "''")
+	m_intAdminGrade = NewAsp.ChkNumeric(Session(AdminSessionName & "_AdminGrade"))
+	If flag = "" Then Exit Function
+	If AdminFlag = "" Or IsEmpty(AdminFlag) Then Exit Function
+	If CInt(m_intAdminGrade) = 999 Then
+		ChkAdmin = True
+		Exit Function
+	Else
+		If Adminflag = "" Then
+			ChkAdmin = False
+			Exit Function
+		Else
+			Adminflag = "," & Adminflag & ","
+			flag = "," & flag & ","
+			If Instr(Adminflag,flag)=0 then
+				ChkAdmin = False
+			Else
+				ChkAdmin = True
+			End If
+		End If
+	End If
+End Function
+
+Sub AdminCookiesToSession()
+	If Session(AdminSessionName & "_AdminName") = "" And UseAdminCookies Then
+		Session(AdminSessionName & "_AdminName") = NewAsp.CheckStr(Request.Cookies(AdminCookiesName)("AdminName"))
+		Session(AdminSessionName & "_AdminPass") = NewAsp.CheckStr(Request.Cookies(AdminCookiesName)("AdminPass"))
+		Session(AdminSessionName & "_AdminGrade") = NewAsp.CheckStr(Request.Cookies(AdminCookiesName)("AdminGrade"))
+		Session(AdminSessionName & "_Adminflag") = NewAsp.CheckStr(Request.Cookies(AdminCookiesName)("Adminflag"))
+		Session(AdminSessionName & "_AdminStatus") = NewAsp.CheckStr(Request.Cookies(AdminCookiesName)("AdminStatus"))
+		Session(AdminSessionName & "_AdminRandomCode") = NewAsp.CheckStr(Request.Cookies(AdminCookiesName)("RandomCode"))
+		Session(AdminSessionName & "_AdminID") = NewAsp.CheckStr(Request.Cookies(AdminCookiesName)("AdminID"))
+		If IsAdminValidate Then
+			Session(AdminSessionName & "_validate") = NewAsp.CheckStr(Request.Cookies(AdminCookiesName)("validate"))
+		End If
+	End If
+End Sub
+
+Sub AdminReadonly()
+	Dim sPathInfo:sPathInfo = LCase(Request.ServerVariables("PATH_INFO"))
+	If InStr(sPathInfo,"/sys/admin_config.asp") > 0 Then Exit Sub
+	If Request.Form <> "" Then
+		Response.Redirect (AdminPath & "showerr.asp?action=error&Message=" & Server.URLEncode("<li>后台管理为只读模式，不能进行此操作。</li><li>如果有什么问题，请联系管理员。</li>") & "")
+		Response.End
+	End If
+	If LCase(Trim(Request("action"))) = "del" Or LCase(Trim(Request("action"))) = "delall" Then
+		Response.Redirect (AdminPath & "showerr.asp?action=error&Message=" & Server.URLEncode("<li>后台管理为只读模式，不能进行此操作。</li><li>如果有什么问题，请联系管理员。</li>") & "")
+		Response.End
+	End If
+End Sub
+%>

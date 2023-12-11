@@ -1,0 +1,298 @@
+<!--#include file="../../Conn.asp" -->
+<!--#include file="../../Comm/Site_Class.asp" -->
+<%
+PagePath = "../../"
+
+Set Qsite = New Site_Class
+
+Qsite.SiteConfig_Master()
+%>
+<!--#include file="../Check_Login.asp" -->
+<%
+Qsite.Check_AdminFlag(arrAdminFlag(0 , 4))
+
+If Request.Form <> "" Then
+	If Request.Form("QualificationId") = 0 Then
+		SaveNewQualification()
+	Else
+		SaveEditQualification()
+	End If
+End If
+
+If Request.QueryString("action") = "del" Then
+	DelQualification(Qsite.chgStr(Trim(Request.QueryString("QualificationId"))))
+ElseIf Request.QueryString("action") = "up" Then
+	UpPx(Qsite.chgStr(Trim(Request.QueryString("QualificationId"))))
+ElseIf Request.QueryString("action") = "down" Then
+	DownPx(Qsite.chgStr(Trim(Request.QueryString("QualificationId"))))
+End If
+
+Sub SaveNewQualification()
+	Dim Rs
+	Dim QualificationName,Px
+	QualificationName = Qsite.chgStr(Trim(Request.Form("QualificationName")))
+	Px = Qsite.chgStr(Trim(Request.Form("Px")))
+	
+	If QualificationName = "" Or IsNull(QualificationName) Then
+		Qsite.ShowMsg "请输入学历名称" , ""
+	End If
+
+	If Px = "" Or IsNull(Px) Or Not IsNumeric(Px) Then Px = 1
+	
+	Set Rs = Conn.Execute("select QualificationName from QualificationTbl where QualificationName = '"& QualificationName &"'")
+	If Not Rs.Eof Then
+		Qsite.ShowMsg "学历已经存在，请返回重新输入" , ""
+	End If
+	Set Rs = Nothing
+	
+	Conn.Execute("update QualificationTbl set Px = Px + 1 where Px >= "& Px)
+	
+	Conn.Execute("insert into QualificationTbl (QualificationName , Px) values ('"& QualificationName &"' , "& Px &")")
+	
+	Qsite.ShowMsg "学历添加成功" , "Admin_Qualification.asp"
+End Sub
+
+Sub SaveEditQualification()
+	Dim QualificationId,QualificationName,Px
+	Dim Rs,OldPx
+	QualificationId = Qsite.chgStr(Trim(Request.Form("QualificationId")))
+	QualificationName = Qsite.chgStr(Trim(Request.Form("QualificationName")))
+	Px = Qsite.chgStr(Trim(Request.Form("Px")))
+	
+	If QualificationId = "" Or IsNull(QualificationId) Or Not IsNumeric(QualificationId) Then QualificationId = 0
+	
+	If QualificationName = "" Or IsNull(QualificationName) Then
+		Qsite.ShowMsg "请输入学历名称" , ""
+	End If
+	
+	If Px = "" Or IsNull(Px) Or Not IsNumeric(Px) Then Px = 1
+	
+	Set Rs = Conn.Execute("select QualificationName from QualificationTbl where QualificationName = '"& QualificationName &"' and QualificationId <> "& QualificationId)
+	If Not Rs.Eof Then
+		Qsite.ShowMsg "学历已经存在，请返回重新输入" , ""
+	End If
+	Set Rs = Nothing
+	
+	Set Rs = Conn.Execute("select Px from QualificationTbl where QualificationId = "& QualificationId)
+	If Rs.Eof Then
+		OldPx = Px
+	Else
+		OldPx = Rs("Px")
+	End If
+	
+	If Cint(Px) > Cint(OldPx) Then
+		Conn.Execute("update QualificationTbl set Px = Px - 1 where Px > "& OldPx &" and Px <= "& Px)
+	ElseIf Cint(Px) < Cint(OldPx) Then
+		Conn.Execute("update QualificationTbl set Px = Px + 1 where Px >= "& Px &" and Px < "& OldPx)
+	End If
+	
+	Conn.Execute("update QualificationTbl set QualificationName = '"& QualificationName &"' , Px = "& Px &" where QualificationId = "& QualificationId)
+	
+	Qsite.ShowMsg "学历修改成功" , "Admin_Qualification.asp"
+End Sub
+
+Sub DelQualification(QualificationId)
+	Dim OldPx,Rs,dKey
+	Dim IncludeQualificationId
+	
+	If QualificationId = "" Or IsNull(QualificationId) Or Not IsNumeric(QualificationId) Then QualificationId = 0
+	
+	Set Rs = Conn.Execute("select Px from QualificationTbl where QualificationId = "& QualificationId)
+	If Rs.Eof Then
+		OldPx = 9999
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	Conn.Execute("delete * from QualificationTbl where QualificationId =" & QualificationId)
+	
+	Conn.Execute("update QualificationTbl set Px = Px - 1 where Px > "& OldPx)
+	
+	Qsite.ShowMsg "学历删除成功" , "Admin_Qualification.asp"
+End Sub
+
+Sub UpPx(QualificationId)
+	Dim Rs,OldPx
+	
+	If QualificationId = "" Or IsNull(QualificationId) Or Not IsNumeric(QualificationId) Then QualificationId = 0
+	
+	Set Rs = Conn.Execute("select Px from QualificationTbl where QualificationId = "& QualificationId)
+	If Rs.Eof Then
+		OldPx = 1
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	If Cint(OldPx) > 1 Then
+		Conn.Execute("update QualificationTbl set Px = Px + 1 where Px = "& OldPx - 1)
+		Conn.Execute("update QualificationTbl set Px = Px - 1 where QualificationId = "& QualificationId)
+	End If
+	
+	Response.Redirect("Admin_Qualification.asp")
+	Response.End()
+End Sub
+
+Sub DownPx(QualificationId)
+	Dim Rs,maxPx,OldPx
+	
+	If QualificationId = "" Or IsNull(QualificationId) Or Not IsNumeric(QualificationId) Then QualificationId = 0
+	
+	Set Rs = Conn.Execute("select Px from QualificationTbl where QualificationId = "& QualificationId)
+	If Rs.Eof Then
+		OldPx = 9999
+	Else
+		OldPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	Set Rs = Conn.Execute("select top 1 Px from QualificationTbl order by Px desc")
+	If Rs.Eof Then
+		maxPx = 9999
+	Else
+		maxPx = Rs("Px")
+	End If
+	Set Rs = Nothing
+	
+	If Cint(OldPx) < Cint(maxPx) Then
+		Conn.Execute("update QualificationTbl set Px = Px - 1 where Px = "& OldPx + 1)
+		Conn.Execute("update QualificationTbl set Px = Px + 1 where QualificationId = "& QualificationId)
+	End If
+	
+	Response.Redirect("Admin_Qualification.asp")
+	Response.End()
+End Sub
+
+Dim Rs,Sql,i
+Dim uRs,uuRs,uKey,uuKey
+Dim QualificationId,QualificationName,QualificationKey,Px,contPx
+Dim strTitle,strSubmit
+
+Set Rs = server.createobject("ADODB.Recordset")
+
+Sql = "select * from QualificationTbl order by Px asc"
+
+Rs.Open "select top 1 * from QualificationTbl order by Px desc" , Conn ,1 , 1
+If Rs.Eof Then
+	contPx = 1
+Else
+	contPx = Rs("Px") + 1
+End If
+Rs.Close
+%>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>学历管理</title>
+<link href="../style.css" rel="stylesheet" type="text/css">
+<script language="javascript">
+function PosDel(QualificationId)
+{
+	var question = confirm("你确定要删除此条记录吗？");
+	if (question !="0")
+	{
+		location.href = "Admin_Qualification.asp?action=del&QualificationId=" + QualificationId;
+	}
+}
+</script>
+</head>
+
+<body>
+<%
+QualificationId = Qsite.chgStr(Trim(Request.QueryString("QualificationId")))
+
+If QualificationId = "" Or IsNull(QualificationId) Or Not IsNumeric(QualificationId) Then QualificationId = 0
+
+If QualificationId = 0 Then
+	QualificationName = ""
+	Px = contPx
+	strTitle = "添加学历"
+	strSubmit = "添加"
+Else
+	Rs.Open "select * from QualificationTbl where QualificationId = "& QualificationId , Conn , 1 , 1
+	If Rs.Eof Then
+		QualificationId = 0
+		QualificationName = ""
+		Px = contPx
+		strTitle = "添加学历"
+		strSubmit = "添加"
+	Else
+		QualificationName = Rs("QualificationName")
+		Px = Rs("Px")
+		strTitle = "修改学历"
+		strSubmit = "修改"
+	End If
+End If
+%>
+<form name="PosForm" method="post" action="Admin_Qualification.asp" style="margin:0">
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" class="td_title"><%=strTitle%></td>
+		</tr>
+		<tr>
+			<td height="23" class="td_content">学历名称：
+				<input name="QualificationName" type="text" class="input_1" id="QualificationName" size="50" value="<%=QualificationName%>">
+排序
+<input name="Px" type="text" class="input_1" id="Px" size="20" value="<%=Px%>">			
+	<input name="Submit" type="submit" class="input_1" value="<%=strSubmit%>">
+	<%
+	If QualificationId <> 0 Then
+	%>
+	<input name="Submit" type="button" class="input_1" value="返回" onClick="javascript:history.back();">
+	<%
+	End If
+	%>
+	<input name="QualificationId" type="hidden" id="QualificationId" value="<%=QualificationId%>"></td>
+		</tr>
+	</table>
+	<br>
+</form>
+<%
+If QualificationId = 0 Then
+%>
+	<table width="100%" border="0" cellspacing="1" cellpadding="5">
+		<tr>
+			<td height="25" colspan="2" class="td_title">学历列表</td>
+		</tr>
+<%
+Rs.Open Sql , Conn , 1 , 1
+If Rs.Eof Then
+%>
+		<tr>
+			<td height="23" colspan="2" class="td_content">暂无学历信息</td>
+		</tr>
+<%
+Else
+%>
+		<tr>
+<%
+	i = 0
+	Do While Not Rs.Eof
+%>
+			<td width="50%" height="23" class="td_content"><%=Rs("QualificationName")%> &nbsp;&nbsp;&nbsp;[<a href="Admin_Qualification.asp?action=up&QualificationId=<%=Rs("QualificationId")%>">前移</a> | <a href="Admin_Qualification.asp?action=down&QualificationId=<%=Rs("QualificationId")%>">后移</a> | <a href="Admin_Qualification.asp?QualificationId=<%=Rs("QualificationId")%>">修改</a> | <a href="#" onClick="PosDel('<%=Rs("QualificationId")%>');return false;">删除</a>]</td>
+<%
+	Rs.MoveNext
+	i = i + 1
+	If i Mod 2 = 0 And Not Rs.Eof Then
+		Response.Write("</tr></tr>")
+	End If
+	If i Mod 2 > 0 And Rs.Eof Then
+		Response.Write("<td width=""50%"" class=""td_content"">&nbsp;</td>")
+	End If
+	Loop
+%>
+			
+		</tr>
+<%
+End If
+Rs.Close
+
+Set Rs = Nothing
+%>
+</table>
+<%
+End If
+%>
+</body>
+</html>

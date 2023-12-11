@@ -1,0 +1,211 @@
+<!--#include file="conn.asp"--><!--#include file="inc/fun.asp"-->
+<%
+dim lgname,lgpwd,lguserid,lgcook,lgtype,usertype,bd,id,ip,adminbd,grade,totable,getadminbd,i,idrs,idtype,idtop,idhits,bn,allbbs,allthebbs,style
+dim thebbslink,thebbslink2
+
+ip = Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+if ip = ""  then
+	ip=Request.ServerVariables("remote_addr")
+end if
+if instr(ip,"'")>0 then
+	ip="0.0.0.0"
+end if
+lockedIpCheck()
+dim rec,passpwd
+Function checkpwd(str)
+  checkpwd=true
+  If str <> "" Then
+	set rec = New RegExp
+	rec.Global = True
+	rec.IgnoreCase = True
+    rec.Pattern="[^A-Za-z#0-9]"
+    passpwd=rec.Test(str)
+	end if
+if len(str)<>16 then checkpwd=false
+if passpwd then checkpwd=false
+end function
+
+function checkname(str)
+checkname=true
+if Instr(str,"=")>0  or Instr(str,"%")>0 or Instr(str,chr(32))>0  or Instr(str,"?")>0 or Instr(str,"&")>0 or Instr(str,";")>0 or Instr(str,",")>0  or Instr(str,"'")>0 or Instr(str,".")>0 or Instr(str,chr(34))>0 or Instr(str,chr(9))>0  or Instr(str,"")>0 or Instr(str,"$")>0 or Instr(str,chr(255))>0 or Instr(str,":") or instr(str,"|")>0  or instr(str,"#")>0 or instr(str,"`")>0 or instr(str,"\")>0 or instr(str,"(")>0 or instr(str,"[")>0 or instr(str,"-")>0 or instr(str,"~") then
+checkname=false
+end if
+end function
+
+lgname=replace(Request.Cookies(prefix)("lgname"),"'","''")
+lgpwd=replace(request.cookies(prefix)("lgpwd"),"'","''")
+lgcook=checknum(Request.Cookies(prefix)("lgcook"))
+lgtype=checknum(Request.Cookies(prefix)("lgtype"))
+lguserid=checknum(session(prefix&"lguserid"))
+if lguserid<>"" and instr(application(prefix&"deluser"),"|"&lguserid&"|")>0 then session(prefix&"lguserid")="":response.cookies(prefix)("lgname")="":response.cookies(prefix)("lgpwd")="":response.redirect"login.asp"
+'''
+If isnumeric(lguserid) and lguserid<>"" then 
+if conn.execute("select name from [user] where userid="&lguserid&"").eof then
+Response.End
+elseif lcase(conn.execute("select name from [user] where userid="&lguserid&"")(0))<>lcase(lgname) then 
+Response.End
+end if
+end if
+''''
+if (isnull(lguserid) or lguserid="") and lgname<>"" then 
+if checkpwd(lgpwd)=false or checkname(lgname)=false then response.cookies(prefix)("lgname")="":response.cookies(prefix)("lgpwd")="":response.redirect"login.asp"
+set rs=conn.execute("select top 1 userid,mark,grade,type from [user] where name='"&lgname&"' and password='"&lgpwd&"' and not del")
+if rs.eof then response.cookies(prefix)("lgname")="":response.cookies(prefix)("lgpwd")="":response.redirect"login.asp"
+session(prefix&"lguserid")=rs("userid")
+lguserid=checknum(session(prefix&"lguserid"))
+conn.execute("update [user] set mark=mark+1,lasttime=now()+"&timeset&"/24 where userid="&lguserid&"")
+grade=rs("grade")
+session(prefix&"usertype2")=rs("type")
+adminbd="0"
+usertype=1
+if grade=13 then usertype=2
+
+if grade=14 then
+usertype=3
+
+set getadminbd=conn.execute("select bd from admin where name='"&lgname&"' and password='"&lgpwd&"'")
+do while not getadminbd.eof
+adminbd=adminbd&"|"&getadminbd("bd")&"|"
+getadminbd.movenext
+loop
+set getadminbd=nothing
+end if
+
+if grade=15 then usertype=4
+if grade=16 then usertype=5
+
+session(prefix&"usertype")=usertype
+session(prefix&"adminbd")=adminbd
+set rs=nothing
+end if
+
+bn=checknum(request.querystring("bn"))
+bd=checknum(request.querystring("bd"))
+id=checknum(request.querystring("id"))
+usertype=checknum(session(prefix&"usertype"))
+adminbd=session(prefix&"adminbd")
+
+dim bbsname,bbsinfo,usetable,offbbsinfo
+bbsname=application(prefix&"bbsname")
+allthebbs=application(prefix&"allthebbs")
+style=application(prefix&"style")
+thebbslink=application(prefix&"thebbslink")
+if isnull(bbsname) or bbsname="" then
+set rs=conn.execute("select * from [config]")
+bbsinfo=split(rs("bbsinfo"),"|")
+application(prefix&"bbsname")=bbsinfo(0)
+application(prefix&"picnum")=bbsinfo(1)
+application(prefix&"picw")=bbsinfo(2)
+application(prefix&"pich")=bbsinfo(3)
+application(prefix&"autopicw")=bbsinfo(4)
+application(prefix&"autopich")=bbsinfo(5)
+application(prefix&"headpicset")=bbsinfo(6)
+application(prefix&"bbslinktype")=bbsinfo(7)
+application(prefix&"canupload")=bbsinfo(8)
+application(prefix&"uploadsize")=bbsinfo(9)
+application(prefix&"uploadnum")=bbsinfo(10)
+application(prefix&"voten")=bbsinfo(11)
+application(prefix&"topiclistpage")=bbsinfo(12)
+application(prefix&"showbbspage")=bbsinfo(13)
+usetable=rs("usetable")
+usetable=split(usetable,"-")
+application(prefix&"autotable")=usetable(0)
+application(prefix&"usedtable")=usetable(1)
+application(prefix&"uploadtype")=rs("uploadtype")
+application(prefix&"badwords")=rs("badwords")
+application(prefix&"badcontent")=rs("badcontent")
+application(prefix&"offbbsinfo")=rs("offbbsinfo")
+bbsname=application(prefix&"bbsname")
+set rs=nothing
+end if
+
+offbbsinfo=application(prefix&"offbbsinfo")
+if offbbsinfo<>"" then
+response.write offbbsinfo
+response.end
+end if
+
+totable=checknum(request.querystring("totable"))
+if isnull(totable) or totable="" or instr(application(prefix&"usedtable")&"|","|"&totable&"|")=0 then totable=checknum(application(prefix&"autotable"))
+
+
+sub down
+response.write"<"&"b"&"r"&">"&"<"&"b"&"r"&">"&binfo&"<"&"c"&"e"&"n"&"t"&"e"&"r"&">"&bbsname&" &copy; "&"2"&"0"&"1"&"1-"&year(now)+1&" 版权所有"&" A"&"l"&"l"&" R"&"i"&"g"&"h"&"t"&"s"&" R"&"e"&"s"&"e"&"r"&"v"&"e"&"d."&"<"&"b"&"r"&">"&"P"&"o"&"w"&"e"&"r"&"e"&"d"&" "&"B"&"y"&" "&"l"&"i"&"f"&"e"&"y"&"t"&"."&"c"&"o"&"m"&"!"&"&"&"n"&"b"&"s"&"p"&";"&"<"&"a"&" "&"t"&"a"&"r"&"g"&"e"&"t"&"="&"_"&"b"&"l"&"a"&"n"&"k"&" "&"h"&"r"&"e"&"f"&"="&"h"&"t"&"t"&"p"&":"&"/"&"/"&"w"&"w"&"w"&"."&"l"&"i"&"f"&"e"&"y"&"t"&"."&"c"&"o"&"m"&">"&"<"&"b"&">"&"<"&"i"&">"&"V"&"<"&"/"&"i"&">"&"2"&"."&"1"&"<"&"/"&"b"&">"&"<"&"/"&"a"&">"&"<"&"b"&"r"&">"&"执行时间："&FormatNumber((timer()-time1)*1000,2,-1)&" 毫秒"&"<"&"/"&"c"&"e"&"n"&"t"&"e"&"r"&">"&"<"&"b"&"r"&">"
+end sub
+
+
+dim tl,mes
+sub sendinfo(tl,mes)
+response.write""&ttop&"<table align=center border=1 cellpadding=0 cellspacing=0 style='border-collapse: collapse' width="&tbw&" ><tr><td class=td1 width=100% bgcolor="&c1&" height=26 background="&tbg&">&nbsp;<img border=0 src=pic/tl.gif> "&tl&"</td></tr><tr><td width=100% ><p style='margin: 8; line-height:150%'>"&mes&"</p></td></tr></table>"&tbottom&""
+end sub
+
+
+if bd<>"" and isnumeric(bd) then
+dim bdtype,topicnum,todaynum,passuser,userlg,bdinfo,thisbdadmin
+set rs=conn.execute("select*from [bdinfo] where id="&bd&" and followid<>0")
+bdtype=rs("type")
+topicnum=rs("topicnum")
+todaynum=rs("todaynum")
+passuser=rs("passuser")
+bdinfo=split(rs("bdinfo"),"|")
+thisbdadmin=rs("admin")
+set rs=nothing
+
+function checklg()
+userlg=true
+select case bdtype
+
+case"0"
+exit function
+
+case"1"
+if instr(url,"topiclist.asp")>0 then exit function
+if isnull(lguserid) or lguserid="" then
+userlg=false
+mes="<b>您不能成功的进入该版面，可能存在以下问题：</b><br>·该版面的帖子只有注册会员可以浏览。<br> ·您还没有<a href=login.asp>登陆</a>。<br>"
+end if
+
+case"2"
+if usertype<3 or (usertype=3 and bd<>adminbd) then
+if instr(Request("url"),"addtopic.asp")>0 or instr(Request("url"),"savetopic.asp")>0 then
+userlg=false
+mes="<b>您不能成功的操作该版面，可能存在以下问题：</b><br>· 该版面为只读版面，只有管理员或版主能够操作！<br>"
+end if
+end if
+
+case"3"
+if isnull(lguserid) or lguserid="" then
+userlg=false
+else
+if isnull(passuser) or passuser="" then
+userlg=false
+else
+passuser=split(passuser,"|")
+for i=0 to ubound(passuser)
+if lcase(lgname)=lcase(passuser(i)) then
+userlg=true
+exit for
+else
+userlg=false
+end if
+next
+end if
+
+end if
+if userlg=false then mes="<b>您不能成功的进入该版面，可能存在以下问题：</b><br>· 该版面为认证论坛，您还没有得版主的认证。<br> · 您还没有<a href=login.asp>登陆</a>。<br>"
+
+case"4"
+if isnull(lguserid) or lguserid="" or usertype<2 then
+userlg=false
+end if
+if userlg=false then mes="<b>您不能成功的进入该版面，可能存在以下问题：</b><br>· 该版面为Vip版面，您不是Vip用户。<br> · 您还没有<a href=login.asp>登陆</a>。<br>"
+end select
+if userlg=false then
+tl=" 进 入 失 败"
+call sendinfo(tl,mes)
+call down
+response.end
+end if
+end function
+end if
+%>

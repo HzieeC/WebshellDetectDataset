@@ -1,0 +1,236 @@
+<%path="../../"%>
+<!--#include file="../../inc/my_conn.asp" -->
+<!--#include file="../../inc/inc.asp" -->
+<!--#include file="../consts.asp" -->
+<!--#include file="../../inc/md5.asp"-->
+<!--#include file="../../inc/sendemail.asp"-->
+<%
+set rs=server.createobject("adodb.recordset")
+if if_close=True then
+	response.write"<script>alert('对不起,网站维护中!');window.close();</script>"
+	response.end
+end if
+if if_member_reg_close=True then
+	response.write"<script>alert('对不起,"&if_member_reg_close_reason&"!');window.close();</script>"
+	response.end
+end if
+%>
+<%
+ip_addr2 = Request.ServerVariables("HTTP_X_FORWARDED_FOR") 
+If ip_addr2 = "" Then ip_addr2 = Request.ServerVariables("REMOTE_ADDR")
+addone_id=Checkstr(trim(request("addone_id")))
+addtwo_id=Checkstr(trim(request("addtwo_id")))
+user=Checkstr(trim(request("user")))'登录名
+pass=Checkstr(trim(request("pass")))'密码
+
+colxr=Checkstr(trim(request("colxr")))
+coms=Checkstr(trim(request("coms")))
+coyb=Checkstr(trim(request("coyb")))
+colxrsex=Checkstr(trim(request("colxrsex")))
+colxother=Checkstr(trim(request("colxother")))
+coname_member=Checkstr(trim(request("coname")))
+nickname=Checkstr(trim(request("nickname")))'昵称
+coaddress=Checkstr(trim(request("coaddress")))
+cotelq=Checkstr(trim(request("cotelq")))
+cotel=Checkstr(trim(request("cotel")))
+mail=Checkstr(trim(request("mail")))
+'根据@获取账户名
+member_email_addr_str=Split(mail,"@")'
+
+if Instr(member_email_addr_str,"qq.com")>0 then
+	member_email_addr="http://mail.qq.com"
+elseif Instr(member_email_addr_str,"163.com")>0 then
+	member_email_addr="http://mail.163.com"
+elseif Instr(member_email_addr_str,"sina.com.cn")>0 then
+	member_email_addr="http://mail.sina.com.cn"
+elseif Instr(member_email_addr_str,"sina.com")>0 then
+	member_email_addr="http://mail.sina.com.cn"
+else
+	member_email_addr="http://www."&member_email_addr_str(1)
+end if
+
+oicq=Checkstr(trim(request("oicq")))
+safe_code2=Checkstr(trim(request("safe_code2")))
+safe_code2_mb5=md5(safe_code2)
+
+if user="" or pass="" or safe_code2_mb5="" or nickname="" or coname_member="" or colxr="" then
+		Response.Write "<script>alert('用户注册出错，下面是产生错误的可能原因：\n\n·对不起，缺少必填项，请重新选择');history.go(-1);</Script>"
+		Response.End   
+end if
+
+
+'---------------------数据判断-----------------------------
+set rs_check=Server.CreateObject("Adodb.Recordset")
+rs_check.Open "Select * from members where  SMT_if_regcode=1 and (SMT_user<>'' and SMT_user='"&user&"') or (SMT_coname<>'' and SMT_coname<>'个人会员' and SMT_coname='"&coname_member&"') or (SMT_colxother<>'' and SMT_colxother='"&colxother&"')",conn
+IF not rs_check.EOF then
+	'---------------------注册重复-----------------------------
+	if rs_check("SMT_user")=user then 
+		Response.Write "<script>alert('用户注册出错，下面是产生错误的可能原因：\n\n·对不起，该用户名已存在，请重新选择');history.go(-1);</Script>"
+		Response.End   
+	end if
+	if rs_check("SMT_mail")=mail then 
+		Response.Write "<script>alert('用户注册出错，下面是产生错误的可能原因：\n\n·对不起，该EMAIL已存在，请重新选择');history.go(-1);</Script>"
+		Response.End   
+	end if
+	if rs_check("SMT_coname")=coname_member then 
+		Response.Write "<script>alert('用户注册出错，下面是产生错误的可能原因：\n\n·对不起，该公司名已存在，请重新选择');history.go(-1);</Script>"
+		Response.End   
+	end if
+	if rs_check("SMT_colxother")=colxother then
+		Response.Write "<script>alert('用户注册出错，下面是产生错误的可能原因：\n\n·对不起，该手机号已存在，请重新选择');history.go(-1);</Script>"
+		Response.End   
+	end if
+ELSE
+	'-----------------------保存数据---------------------------
+	sql="select *  from members"
+	rs.open sql,conn,1,3
+	rs.addnew
+	rs("SMT_user")=user
+	rs("SMT_pass")=md5(pass)
+	rs("SMT_nickname")=nickname
+	'先获取编号 结尾遇4+1 吉利数字
+	set rs_b=Server.CreateObject("Adodb.Recordset")
+	sql_b="select top 1 SMT_bianhao,SMT_id from members order by SMT_id desc"
+	rs_b.open sql_b,conn,1,1
+	if not rs_b.eof then
+	bianhao1=rs_b("SMT_bianhao")
+		if right(bianhao1,1)="3" then bianhao=bianhao1+2 else bianhao=bianhao1+1
+	else
+		bianhao=100001
+	end if
+	rs_b.close
+	set rs_b=nothing
+	rs("SMT_bianhao")=bianhao
+	rs("safe_code")=safe_code2_mb5
+	rs("SMT_colxr")=colxr
+	rs("SMT_coms")=coms
+	rs("SMT_colxother")=colxother
+	rs("SMT_colxrsex")=colxrsex
+	rs("SMT_coname")=coname_member
+	rs("SMT_coyb")=coyb'邮编
+	rs("SMT_coaddress")=coaddress
+	rs("SMT_cotelq")=cotelq
+	rs("SMT_cotel")=cotel
+	rs("SMT_addone_id")=addone_id
+	rs("SMT_addtwo_id")=addtwo_id
+	
+	rs("SMT_mail")=mail
+	rs("SMT_regcode")=Getname
+	rs("SMT_if_regcode")=0
+	
+	rs("SMT_vip")=4'注册都是免费会员
+	rs("SMT_ktdate")=ktdate
+	rs("SMT_codate")=date()
+	rs("SMT_co")="cchome8"
+	
+	if if_allow_regmail=1 then '注册需要邮件认证开启时（建议开启可防止恶意注册）
+		Call send_mail()'发送注册激活邮件
+		rs("SMT_key")=0'默认不通过审核
+	else
+		Call send_mail()'发送欢迎邮件
+		rs("SMT_key")=1'默认通过审核
+	end if
+
+	rs("SMT_oicq")=oicq
+	rs("reg_ip")=ip_addr2 '注册的IP
+	rs("SMT_namecard_id")=10
+	rs.update
+	rs.close
+	set rs=nothing
+	Call reg_ok
+	
+	sub reg_ok
+		session("reg_step")=""
+		if if_allow_regmail=1 then '注册需要邮件认证开启时
+			response.write"<script>alert('注册成功!感谢您对我们的大力支持!\r\n\r\n我们已经将激活邮件发至您的邮箱内。\r\n\r\n\请点击确认后登录您的邮箱激活您的会员资格。\r\n\r\n如果没有收到，请检查您的邮箱设置是否过滤了该信件。');window.open('"&member_email_addr&"','_parent')</script>"
+			response.End()
+		else'关闭时
+			response.write"<script>alert('注册成功!感谢您对我们的大力支持!\r\n\r\n\建议可以登录后完善您的资料。');window.open('index_c.asp','_parent')</script>"
+			response.End()
+		end if
+	end sub
+END IF
+rs_check.close
+set rs_check=nothing	
+%>
+<% 
+	'==============================
+	'根据日期生成随机验证码
+	'==============================
+	Private Function Getname()
+		Dim y, m, d, h, mm, S, r
+		Randomize
+		y = Year(Now)
+		m = right("0" & Month(Now),2)
+		d = right("0" & Day(Now),2)
+		h = right("0" & Hour(Now),2)
+		mm =right("0" & Minute(Now),2)
+		S = right("0" & Second(Now),2)
+		r = 0
+		r = CInt(Rnd() * 10000)
+		S = right("0000" & r,4)
+		Getname = y & m & d & h & mm & S & r
+	End Function
+
+	Function send_mail()
+		Call Getname()
+		'先获取SMTP的信息
+		emailaddr=mail'收件人邮箱
+		emailname=colxr&" "&colxrsex'收件人称呼
+		if if_allow_regmail=1 then '注册需要邮件认证开启时
+			emailtitle=""&site_url&" 新会员激活信"
+			emailcontent="尊敬的 "&emailname& "：<br>欢迎您注册成为"&coname&"的会员，以下是您注册的信息：<br><div style='color:#369;boder:1px dashed #ccc;'>#登录名："&user&"<br>#会员编号："&bianhao&"<br>#登录密码："&pass&"<br>#安全码："&safe_code2&" (请牢记此安全码，是作为取回/重置密码的重要依据) 。</div><br><br><br>请点击以下链接完成注册：<br><a href='"&site_url&"/veryfy_regname.asp?regcode="&Getname&"&uid="&emailaddr&"' target=_blank style='color:#36C;font-size:14px;'>"&site_url&"/veryfy_regname.asp?regcode="&Getname&"&uid="&emailaddr&"</a><br>如果你的邮箱不支持链接点击，请将以上链接地址拷贝到你的浏览器地址栏中。该邮件由系统自动发送，请勿直接回复。如果您申请了发送多封激活邮件，请以最后的一封为准。<br><br>感谢您对"&coname&"("&site_url&")的支持!<br><br>"&coname&"<br>"&site_url&"<br>联系电话: "&tel1&"<br>传真: "&fax&"<br>邮箱: "&email&""
+		else'关闭时
+			emailtitle=""&coname&" 的会员账号信息"
+			emailcontent="尊敬的 "&emailname& "：<br>欢迎您注册成为"&coname&"的会员，以下是您注册的信息：<br><div style='color:#369;boder:1px dashed #ccc;'>#登录名："&user&"<br>#会员编号："&bianhao&"<br>#登录密码："&pass&"<br>#安全码："&safe_code2&" (请牢记此安全码，是作为取回/重置密码的重要依据) 。</div><br><br><br>该邮件由系统自动发送，请勿直接回复。<br><br>感谢您对"&coname&"("&site_url&")的支持!<br><br>"&coname&"<br>"&site_url&"<br>联系电话: "&tel1&"<br>传真: "&fax&"<br>邮箱: "&email&""
+		end if
+		
+		Set JMail = Server.CreateObject("JMail.Message")
+			JMail.ISOEncodeHeaders = True'是否将信头编码成iso-8859-1字符集. 缺省是True  
+			JMail.Silent = True'如果JMail.silent设置为true,ErrorCode包含的是错误代码 
+			JMail.Charset = "gb2312"'设置标题和内容编码，如果标题有中文，必须设定编码为gb2312 
+			'JMail.ContentType = "text/html" '如果发内嵌附件一定要注释掉这行，重要！ 
+			JMail.From = email ' 发送者邮箱 
+			JMail.FromName = coname ' 发送者姓名 
+			JMail.MailServerUserName = my_smtp_name ' 身份验证的用户名 
+			JMail.MailServerPassword = my_smtp_pwd ' 身份验证的密码 
+			'加入新的收件人 
+			JMail.AddRecipient mail, emailname 
+			'JMail.AddRecipientBCC Email '密件收件人的地址 
+			'JMail.AddRecipientCC Email '邮件抄送者的地址 
+			JMail.Subject = emailtitle 
+			JMail.Body = emailcontent 
+			'增加一个普通附件 
+			'JMail.AddAttachment(Server.MapPath()) 
+			'增加一个嵌入式附件 
+			' The return value of AddAttachment is used as a 
+			' reference to the image in the HTMLBody. 
+			'contentId = JMail.AddAttachment(Server.MapPath("images/email.gif")) 
+			'只有HTML格式支持嵌入图片附件，我们采用HTML格式的邮件内容 
+			' As only HTML formatted emails can contain inline images 
+			' we use HTMLBody and appendHTML 
+			
+			JMail.HTMLBody = "<html><body style='font-size:14px;'><br>"&emailcontent 
+			JMail.appendHTML "<br><br></body></html>" 
+			'如果对方信箱不支持HTML格式邮件，我们仍需要给他一个友善的提示 
+			' But as not all mailreaders are capable of showing HTML emails 
+			' we will also add a standard text body 
+			JMail.Body = "很抱歉，您的邮件系统无法正常显示HTML格式信件。" 
+			JMail.appendText " " 
+			if JMail.Send( my_smtp ) then '执行邮件发送（通过邮件服务器地址）smtp.域名.com 不一定是邮件服务器 
+				'response.Write("邮件发送成功") 
+			else 
+				response.write"<script>alert('邮件发送失败,请联系管理员。');window.open('"&member_email_addr&"','_parent')</script>"
+			end if 
+			JMail.Close() 
+		Set JMail = Nothing 
+
+		'response.Write "<br>SMTP:"&my_smtp&"<br>"
+		'response.Write "name:"&my_smtp_name&"<br>"
+		'response.Write "PWD:"&my_smtp_pwd&"<br>"
+		'response.Write "email:"&email&"<br>"
+		'response.Write "收件人MAIL:"&mail&"<br>"
+		'response.Write "title:"&emailtitle&"<br>"
+		'response.Write "content:"&emailcontent&"<br>"
+	End function
+%>

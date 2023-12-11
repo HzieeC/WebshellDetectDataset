@@ -1,0 +1,634 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../inc/setup.asp"-->
+<!--#include file="../inc/const.asp"-->
+<!--#include file="../inc/check.asp"-->
+<!--#include file="../../inc/cls_editor.asp" -->
+<%
+On Error Resume Next
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_template.asp
+' 更新日期：2008-05-16
+' 官方网站：新云网络(www.newasp.net www.newasp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 newasp.net - All Rights Reserved.
+' newasp is a trademark of newasp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="200" align="left">模板风格管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_template.asp">模板首页</a>
+			 - <a href="admin_makelabel.asp">模板标签管理</a>
+			 - <a href="admin_makelabel.asp?action=label">生成自定义标签</a>
+			 - <a href="admin_makelabel.asp?action=readme">模板标签说明</a>
+			 - <a href="admin_setting.asp">设置默认模板</a>
+			 - <a href="admin_badword.asp">过滤字符管理</a>&lsaquo;&lsaquo;&rsaquo;&rsaquo;
+		</td>
+	</tr>
+</table>
+<%
+Dim Action,FSOClassID,TPL_FolderPath,m_strFolderlist,ChannelDic
+If Not ChkAdmin("Template") Then
+	Call Transfer_error()
+End If
+Set ChannelDic=NewAsp.CreateAXObject("Scripting.Dictionary")
+FSOClassID= Trim(NewAsp.MainSetting(47))
+TPL_FolderPath=NewAsp.Templates
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+	Case "save"			: Call saveTemplate
+	Case "edit"			: Call editTemplate
+	Case "del"			: Call delTemplateFile
+	Case "new"			: Call newTemplateFolder
+	Case "newfile"		: Call newTemplateFiles
+	Case "browse"		: Call browseTemplateFolder
+	Case "editconfig"	: Call editConfigFile
+	Case "saveconfig"	: Call saveConfigFile
+	Case Else
+		Call showmain
+End Select
+Set ChannelDic=Nothing
+If FoundErr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+	Dim fso,f,folderPath,folderItem,folderName,sFolderName
+	Dim i,iCount,lCount
+	i=0:iCount=2:lCount=2
+%>
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th width="25%" align="center">模板目录名称</th><th>编辑首页模板</th><th>编辑搜索模板</th><th>编辑CSS样式</th><th>模板包含文件</th><th>编辑XSLT样式</th><th>模板管理操作</th>
+</tr>
+<%
+	folderPath=TPL_FolderPath
+	Set fso = NewAsp.CreateAXObject(FSOClassID)
+	If fso.FolderExists(folderPath) Then
+		Set f = fso.GetFolder(folderPath)
+		For Each folderItem In f.SubFolders
+			i=i+1
+			If (i mod 2) = 0 Then
+				iCount=2:lCount=1
+			Else
+				iCount=1:lCount=2
+			End If
+			sFolderName=folderItem.Name
+			Select Case LCase(sFolderName)
+				Case "default"	:	folderName="系统默认模板("&sFolderName&")"
+				Case "newasp"	:	folderName="新云系统模板("&sFolderName&")"
+				Case "xinyun"	:	folderName="新云官方模板("&sFolderName&")"
+				Case "newyear"	:	folderName="新年快乐模板("&sFolderName&")"
+			Case Else
+				folderName=sFolderName
+			End Select
+
+%>
+<tr align="center">
+	<td class="tablerow<%=iCount%> hovered" title="打开当前模板：<%=folderName%>"><a href="?action=browse&path=<%=sFolderName%>"><%=folderName%></a></td>
+	<td class="tablerow<%=iCount%> hovered"><a href="?action=edit&path=<%=sFolderName%>\index.html">编辑首页模板</a></td>
+	<td class="tablerow<%=iCount%> hovered"><a href="?action=edit&path=<%=sFolderName%>\search.html">编辑搜索模板</a></td>
+	<td class="tablerow<%=iCount%> hovered"><a href="?action=edit&path=<%=sFolderName%>\style.css">编辑CSS样式</a></td>
+	<td class="tablerow<%=iCount%> hovered"><a href="?action=browse&path=<%=sFolderName%>\include">编辑包含文件</a></td>
+	<td class="tablerow<%=iCount%> hovered"><a href="?action=browse&path=<%=sFolderName%>\xslt">编辑XSLT样式</a></td>
+	<td class="tablerow<%=iCount%> hovered"><%If LCase(sFolderName)="default" Then%>
+		<a href="#" onclick="return confirm('友情提\n\n示当前模板为系统默认模板不能删除！')">删除模板</a>
+	<%Else%>
+		<a href="?action=del&path=<%=sFolderName%>&type=1" onclick="return confirm('友情提\n\n您确定要删除当前模板吗！')">删除模板</a>
+	<%End If%></td>
+</tr>
+<%
+		Next
+		Set f = Nothing
+	Else
+%>
+<tr>
+	<td colspan="7" class="tablerow1"><li>找不到模板，请确定你的模板目录是否正确！</li><li><%=folderPath%></li></td>
+</tr>
+<%
+	End If
+	Set fso = Nothing
+	Dim TemplateDir
+	TemplateDir=Left(NewAsp.Templates,Len(NewAsp.Templates)-1)
+	TemplateDir=Mid(TemplateDir,InStrRev(TemplateDir,"\")+1,Len(TemplateDir))
+%>
+
+<tr>
+	<td colspan="7" class="tablerow<%=lCount%>"><ol>
+		<li>模板以HTML等文本方式保存在“<%=TemplateDir%>”目录中，你可以对此目录中模板文件直接编辑。</li>
+		<li>你的服务器需要支持FSO（Scripting.FileSystemObject）,FSO相关帮助请看微软网站。</li>
+		<li>你的模板目录需要给IIS来宾账户(Everyone)完全控制权限才能对模板进行编辑。</li>
+		<li>重要提示，模板中含XSLT代码的，修改必须严格按照XML语法标准。</li>
+		<li>模板包含文件－－模板的公用文件，位于模板的 include 目录中。</li>
+		<li>XSLT样式文件－－自定义标签的XSLT样式，每个标签都可以使用单独的XSLT样式文件。</li>
+		<li>config.xml－－相对应的模板配置文件，模板的部分设置可以在此文件中修改。</li>
+	</ol>
+	</td>
+</tr>
+<tr>
+	<td colspan="7" class="tablerow<%=iCount%>" align="center"><form name="myform" method="post" action="?action=new">模板文件夹名称：<input type="text" name="path" size="30" /> <input type="submit" value="新建模板" name="submit_button" class="button"/></form></td>
+</tr>
+</table>
+<%
+End Sub
+
+Sub editTemplate()
+	Dim folderPath,filePath,strPath,Text_Content,sType
+	sType=NewAsp.CheckStr(Request("type"))
+	strPath=NewAsp.CheckStr(Request("path"))
+	If Len(strPath)=0 Then
+		FoundErr = True : ErrMsg = "<li>模板文件路径不能为空!</li>"
+		Exit Sub
+	End If
+	filePath=TPL_FolderPath&strPath
+	Text_Content=TPL_CheckText(NewAsp.ReadTextFile(filePath))
+%>
+<div onkeydown="CtrlEnter()">
+<form name="myform" method="post" action="?action=save">
+<input type="hidden" name="path" value="<%=strPath%>" />
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th>编辑模板</th></th>
+</tr>
+<tr>
+	<td class="tablerow1" title="点击返回">当前模板文件：<a href="?action=browse&path=<%=Mid(strPath,1,InStrRev(strPath,"\")-1)%>"><%=filePath%></a></td>
+</tr>
+<tr>
+	<td class="tablerow2"><%
+	If sType="xhtml" Then
+		Dim oEditor
+		Set oEditor = New Editor_Cls
+		oEditor.UserMode	= 0
+		oEditor.setEditMode	= 0
+		oEditor.ChannelID	= 0
+		oEditor.Width		= 0
+		oEditor.Height		= 450
+		oEditor.BasePath	= "../../editor/"
+		oEditor.ToolbarSet	= "Default"'Default,AdminMode,Simple,UserMode,Basic
+		oEditor.Value		= Text_Content
+		oEditor.InstanceName	= "text_content"
+		oEditor.Execute()
+		Set oEditor = Nothing
+	Else
+	%>
+	<textarea name="text_content" style="width:100%;" rows="30" wrap="OFF" id="text_content"><%=Server.HTMLEncode(Text_Content)%></textarea>
+	<%
+	End If
+	%>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="center"><input type="button" name="go_button" onclick="window.location='?action=browse&path=<%=Replace(Mid(strPath,1,InStrRev(strPath,"\")-1), "\", "\\")%>'" value="返回上一页" class="button">&nbsp;&nbsp;
+	<input type="submit" value="保存模板" name="submit_button" id="submit_button" class="button"> [按Ctrl+Enter直接提交]&nbsp;&nbsp;
+	<a href="javascript:admin_Size(-15,'text_content')"><img src="../images/minus.gif" unselectable="on" border="0"></a>
+	<a href="javascript:admin_Size(15,'text_content')"><img src="../images/plus.gif" unselectable="on" border="0"></a>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow2">
+		<li>重要提示，模板中含XSLT代码的，修改必须严格按照XML语法标准。</li></td>
+</tr>
+</table>
+</form>
+</div>
+<%
+End Sub
+
+Sub saveTemplate()
+	Dim filePath,strPath,Text_Content
+	strPath=NewAsp.CheckStr(Request("path"))
+	If Len(strPath)=0 Then
+		FoundErr = True : ErrMsg = "<li>模板文件路径不能为空!</li>"
+		Exit Sub
+	End If
+	If InStr(Lcase(strPath),".asp")>0 Or InStr(Lcase(strPath),".aspx")>0 Or InStr(Lcase(strPath),".php")>0 Then
+		FoundErr = True : ErrMsg = "<li>请输入有效的文件名!</li>"
+		Exit Sub
+	End If
+	filePath=TPL_FolderPath&strPath
+	Text_Content=TPL_CheckText(Request.Form("Text_Content"))
+	If InStr(Lcase(strPath),".htm")>0 Then
+		Text_Content=Replace(Text_Content, "../../", "../")
+		Text_Content=Replace(Text_Content, "../../../../../", "{$installdir}")
+		Text_Content=Replace(Text_Content, "../../../../", "{$installdir}")
+		Text_Content=Replace(Text_Content, "../../../", "{$installdir}")
+		Text_Content=Replace(Text_Content, "../../", "{$installdir}")
+		Text_Content=Replace(Text_Content, "../", "{$installdir}")
+	End If
+	NewAsp.writeTextFile filePath,Text_Content
+	If InStr(Lcase(strPath),"style.css")>0 Then
+		NewAsp.CreatedTextFile Server.MapPath("../../skins/"&NewAsp.MainSetting(0))&"\style.css",Text_Content
+	End If
+	Application.Contents.RemoveAll
+	Succeed("<li>恭喜您！保存模板文件成功。</li>")
+End Sub
+
+Function TPL_CheckText(str)
+	If IsNull(str) Then
+		TPL_CheckText = ""
+		Exit Function
+	End If
+	str = Replace(str, Chr(0), "")
+	Dim strMatch,strMatchs,tmpstr,i
+	Dim re:Set re=new RegExp
+	re.IgnoreCase=True
+	re.Global=True
+	re.Pattern="(\{\$)([\w\W]*?)(&quot;)(\})"
+	Set strMatchs=re.Execute(str)
+	i=0
+	For Each strMatch in strMatchs
+		tmpstr=Replace(strMatch.Value, "&quot;", """")
+		str=Replace(str,strMatch.Value,tmpstr)
+		i=i+1
+	Next
+	Set strMatchs = Nothing
+	Set re=Nothing
+	TPL_CheckText = str
+End Function
+
+Sub delTemplateFile()
+	Dim filePath,strPath,delType
+	strPath=NewAsp.CheckStr(Request("path"))
+	delType=NewAsp.ChkNumeric(Request("type"))
+	If Len(strPath)=0 Then
+		FoundErr = True : ErrMsg = "<li>模板文件路径不能为空!</li>"
+		Exit Sub
+	End If
+	If LCase(strPath)="default" Then
+		FoundErr = True : ErrMsg = "<li>默认模板不能删除!</li>"
+		Exit Sub
+	End If
+	filePath=TPL_FolderPath&strPath
+	If delType=1 Then
+		NewAsp.FolderDelete filePath
+	Else
+		NewAsp.FileDelete filePath
+	End If
+	Succeed("<li>当前模板删除成功。</li>")
+End Sub
+
+Sub newTemplateFolder()
+	Dim soureFolder, newFolder,strPath
+	strPath=Replace(NewAsp.CheckStr(Request("path")), ".", "")
+	If Len(strPath)=0 Then
+		FoundErr = True : ErrMsg = "<li>模板文件名不能为空!</li>"
+		Exit Sub
+	End If
+	soureFolder=TPL_FolderPath&"default"
+	newFolder=TPL_FolderPath&strPath
+	NewAsp.CopyToFolder soureFolder, newFolder
+	Succeed("<li>新建模板("&strPath&")成功。</li>")
+End Sub
+
+Sub newTemplateFiles()
+	Dim strPath,strFile,sType,filePath
+	Dim fso
+	strPath=Replace(NewAsp.CheckStr(Request("path")), ".", "")
+	strFile=NewAsp.CheckStr(Request("file"))
+	sType=NewAsp.CheckStr(Request("type"))
+	If Len(strPath)=0 Or Len(strFile)=0 Then
+		FoundErr = True : ErrMsg = "<li>模板文件名不能为空!</li>"
+		Exit Sub
+	End If
+	If InStr(Lcase(strFile),".asp")>0 Or InStr(Lcase(strFile),".aspx")>0 Or InStr(Lcase(strFile),".php")>0 Then
+		FoundErr = True : ErrMsg = "<li>请输入有效的文件名!</li>"
+		Exit Sub
+	End If
+	filePath=TPL_FolderPath&strPath&"\"&strFile
+	Set fso = NewAsp.CreateAXObject(FSOClassID)
+	If sType="folder" Then
+		If fso.FolderExists(filePath) = False Then
+			fso.CreateFolder filePath
+		End If
+	Else
+		If fso.FileExists(filePath) = False Then
+			If InStr(Lcase(strFile),".xsl")>0 Then
+				NewAsp.writeTextFile filePath,NewAsp.ReadTextFile(Server.MapPath("../inc/xml.xslt"))
+			Else
+				fso.CreateTextFile filePath,True
+			End If
+		End If
+	End If
+	Set fso = Nothing
+	Succeed("<li>新建模板文件("&strFile&")成功。</li>")
+End Sub
+
+Sub LoadChannelDic()
+	Dim Rs
+	Set Rs=NewAsp.Execute("SELECT ChannelID,ChannelName,ChannelDir FROM NC_Channel WHERE ChannelType<2 ORDER BY ChannelID ASC")
+	Do While Not Rs.EOF
+		ChannelDic.Add "channel_"&Rs("ChannelID")&"", ""&Trim(Rs("ChannelName"))&""
+		Rs.movenext
+	Loop
+	Rs.Close:Set Rs = Nothing
+End Sub
+
+Function GetChannelDic(ByVal sKey)
+	sKey=LCase(sKey)
+	If ChannelDic.Exists(sKey) Then
+		GetChannelDic=ChannelDic.Item(sKey)
+	Else
+		GetChannelDic=""
+	End If
+End Function
+
+Function GetChannelName(chanid)
+	Dim Rs
+	Set Rs=NewAsp.Execute("SELECT ChannelID,ChannelName,ChannelDir FROM NC_Channel WHERE ChannelID="&chanid)
+	If Rs.BOF And Rs.EOF Then
+		GetChannelName=""
+	Else
+		GetChannelName=Trim(Rs("ChannelName"))
+	End If
+	Rs.Close:Set Rs = Nothing
+End Function
+
+Sub browseTemplateFolder()
+	Dim strPath,isdelete
+	isdelete=0
+	strPath=NewAsp.CheckStr(Request("path"))
+	If Len(strPath)=0 Then
+		FoundErr = True : ErrMsg = "<li>模板目录不能为空!</li>"
+		Exit Sub
+	End If
+	Dim fso,f,folderPath,folderItem,folderName,sFolderName,sCurrFolder
+	Dim filesItem,sFileName,fileName,iChannelID,iChannelName,sTempName
+	Dim i,iCount,lCount
+	i=0:iCount=2:lCount=2:iChannelID=0
+	folderPath=TPL_FolderPath&strPath
+	sCurrFolder=Mid(folderPath,InStrRev(folderPath,"\")+1)
+
+	Call LoadChannelDic()
+	
+	Select Case LCase(sCurrFolder)
+		Case "default"		:	sTempName="系统默认模板("&sCurrFolder&")"
+		Case "newasp"		:	sTempName="新云系统模板("&sCurrFolder&")"
+		Case "xinyun"		:	sTempName="新云官方模板("&sCurrFolder&")"
+		Case "include"		:	sTempName="模板包含文件("&sCurrFolder&")"
+		Case "xslt"			:	sTempName="模板XSLT样式("&sCurrFolder&")"
+		Case "users"		:	sTempName="会员管理中心模板("&sCurrFolder&")"
+		Case "link"			:	sTempName="友情链接模板("&sCurrFolder&")"
+		Case "channel_1"	:	sTempName="文章频道模板("&sCurrFolder&")"
+		Case "channel_2"	:	sTempName="下载频道模板("&sCurrFolder&")"
+		Case "channel_3"	:	sTempName="商城频道模板("&sCurrFolder&")"
+		Case "channel_5"	:	sTempName="动画频道模板("&sCurrFolder&")"
+	Case Else
+		sTempName=sCurrFolder
+	End Select
+
+	If InStr(LCase(sCurrFolder),"channel_")>0 Then
+		iChannelID=NewAsp.ChkNumeric(Replace(LCase(sCurrFolder), "channel_", ""))
+		If iChannelID>0 Then
+			iChannelName=GetChannelDic(sCurrFolder)
+			If ""<>iChannelName Then 
+				sTempName=iChannelName&"模板("&sCurrFolder&")"
+			End If
+		End If
+	End If
+	
+%>
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="3">当前模板位置 &rsaquo;&rsaquo; <%=sTempName%></th>
+</tr>
+<tr>
+	<td colspan="3" class="tablerow1">浏览模板目录--<%=folderPath%></td>
+</tr>
+<%
+
+	Set fso = NewAsp.CreateAXObject(FSOClassID)
+	If fso.FolderExists(folderPath) Then
+		Set f = fso.GetFolder(folderPath)
+		For Each folderItem In f.SubFolders
+			i=i+1
+			If (i mod 2) = 0 Then
+				iCount=2:lCount=1
+			Else
+				iCount=1:lCount=2
+			End If
+			sFolderName=folderItem.Name
+			isdelete=0
+			Select Case LCase(sFolderName)
+				Case "include"		:	folderName="模板包含文件目录("&sFolderName&")"
+				Case "xslt"			:	folderName="模板XSLT样式目录("&sFolderName&")"
+				Case "users"		:	folderName="会员管理中心模板("&sFolderName&")"
+				Case "link"			:	folderName="友情链接模板("&sFolderName&")"
+				Case "channel_1"	:	folderName="文章频道模板("&sFolderName&")"
+				Case "channel_2"	:	folderName="下载频道模板("&sFolderName&")"
+				Case "channel_3"	:	folderName="商城频道模板("&sFolderName&")"
+				Case "channel_5"	:	folderName="动画频道模板("&sFolderName&")"
+			Case Else
+				folderName=sFolderName
+				isdelete=1
+			End Select
+			If InStr(LCase(sFolderName),"channel_")>0 Then
+				iChannelID=NewAsp.ChkNumeric(Replace(LCase(sFolderName), "channel_", ""))
+				If iChannelID>0 Then
+					iChannelName=GetChannelDic(sFolderName)
+					If ""<>iChannelName Then 
+						folderName=iChannelName&"模板("&sFolderName&")"
+						isdelete=0
+					End If
+				End If
+			End If
+%>
+<tr>
+	<td class="tablerow<%=lCount%> hovered"><img src="../images/pic/folder.gif" align="absMiddle" /><a href="?action=browse&path=<%=strPath &"\"&sFolderName%>"><%=folderName%></a></td>
+	<td class="tablerow<%=lCount%> hovered">
+	<%If InStr(LCase(sFolderName),"channel_")>0 Then%>
+	<a href="?action=editconfig&path=<%=strPath &"\"&sFolderName%>">编辑频道模板配置(config.xml)</a>
+	<%Else%>
+	<a href="?action=browse&path=<%=strPath &"\"&sFolderName%>">打开<%=folderName%></a>
+	<%End If
+	%>
+	</td>
+	<td class="tablerow<%=lCount%> hovered">
+	<%
+	If isdelete=1 Then
+	%>
+	<a href="?action=del&path=<%=strPath &"\"&sFolderName%>&type=1" onclick="return confirm('友情提\n\n您确定要删除当前模板文件夹吗！')">删除<%=folderName%></a>
+	<%End If%>&nbsp;</td>
+</tr>
+<%
+		Next
+		For Each filesItem In f.Files
+			i=i+1
+			If (i mod 2) = 0 Then
+				iCount=2:lCount=1
+			Else
+				iCount=1:lCount=2
+			End If
+			sFileName=filesItem.Name
+			isdelete=0
+			Select Case LCase(sFileName)
+				Case "index.html"		:	fileName="首页模板文件("&sFileName&")"
+				Case "search.html"		:	fileName="搜索模板文件("&sFileName&")"
+				Case "style.css"		:	fileName="CSS样式文件("&sFileName&")"
+				Case "config.xml"		:	fileName="<font color=""red"">模板配置文件("&sFileName&")</font>"
+				Case "list.html"		:	fileName="列表页面模板("&sFileName&")"
+				Case "list1.html"		:	fileName="父级列表模板("&sFileName&")"
+				Case "show.html"		:	fileName="信息页面模板("&sFileName&")"
+				Case "tag.html"			:	fileName="标签页面模板("&sFileName&")"
+				Case "morelist.html"	:	fileName="最新，推荐等页面模板("&sFileName&")"
+				Case "softdown.html"	:	fileName="下载页面模板("&sFileName&")"
+				Case "special.html"		:	fileName="专题页面模板("&sFileName&")"
+				Case "common.html"		:	fileName="公共页面模板("&sFileName&")"
+				case "comment.html"		:	fileName="评论页面模板("&sFileName&")"
+				case "login.html"		:	fileName="用户登录模板("&sFileName&")"
+				case "reg.html"			:	fileName="用户注册模板("&sFileName&")"
+				case "error.html"		:	fileName="错误提示信息模板("&sFileName&")"
+				case "succeed.html"		:	fileName="成功提示信息模板("&sFileName&")"
+				case "regsuc.html"		:	fileName="注册成功提示模板("&sFileName&")"
+				case "showerr.html"		:	fileName="显示错误信息模板("&sFileName&")"
+				case "reginfo.html"		:	fileName="用户注册信息模板("&sFileName&")"
+				case "main.html"		:	fileName="用户主页面模板("&sFileName&")"
+				case "apply.html"		:	fileName="申请友情链接模板("&sFileName&")"
+				case "dellink.html"		:	fileName="删除友情链接模板("&sFileName&")"
+				case "editlink.html"	:	fileName="修改友情链接模板("&sFileName&")"
+				case "announce.html"	:	fileName="公告模板("&sFileName&")"
+				case "sitemap.html"		:	fileName="网站地图模板("&sFileName&")"
+				case "downcopy.html"	:	fileName="一键转帖模板("&sFileName&")"
+				case "download.html"	:	fileName="第三下载模板("&sFileName&")"
+			Case Else
+				fileName=sFileName
+				isdelete=1
+			End Select
+%>
+<tr>
+	<td class="tablerow<%=lCount%> hovered"><img src="../images/pic/html.gif" align="absMiddle" /> <a href="?action=edit&path=<%=strPath &"\"&sFileName%>"><%=fileName%></a></td>
+	<td class="tablerow<%=lCount%> hovered">
+	<%If LCase(sFileName)="config.xml" Then%>
+	<a href="?action=editconfig&path=<%=strPath%>" style="color:red">编辑<%=fileName%></a>
+	<%Else%>
+	<a href="?action=edit&path=<%=strPath &"\"&sFileName%>&type=html">编辑<%=fileName%></a>
+	<%
+	End If
+	%>
+	</td>
+	<td class="tablerow<%=lCount%> hovered">
+	<%
+	If isdelete=1 Then
+	%>
+	<a href="?action=del&path=<%=strPath &"\"&sFileName%>&type=0" onclick="return confirm('友情提\n\n您确定要删除当前模板文件吗！')">删除<%=fileName%></a>
+	<%End If%>&nbsp;</td>
+</tr>
+<%
+		Next
+		Set f = Nothing
+	End If
+
+%>
+<tr>
+	<td colspan="3" class="tablerow<%=iCount%>">
+	<ol>
+		<li>你的服务器需要支持FSO（Scripting.FileSystemObject）,FSO相关帮助请看微软网站。</li>
+		<li>你的模板目录需要给IIS来宾账户(Everyone)完全控制权限才能对模板进行编辑。</li>
+		<li>重要提示，模板中含XSLT代码的，修改必须严格按照XML语法标准。</li>
+	</ol>
+	</td>
+</tr>
+<form name="myform" method="post" action="?action=newfile">
+<input type="hidden" name="path" value="<%=strPath%>" />
+<tr>
+	<td colspan="3" class="tablerow<%=lCount%>" align="center">模板文件名：<input type="text" name="file" size="30" value="" />
+	<input type="radio" name="type" value="file" checked="checked" />文件 <input type="radio" name="type" value="folder" />文件夹
+	<input type="submit" value="新建模板文件" name="submit_button" id="submit_button" class="button">
+	<input type="button" name="go_button" onclick="javascript:history.go(-1)" value="返回上一页" class="button"></td>
+</tr></form>
+</table>
+<%
+	Set fso = Nothing
+End Sub
+
+Sub editConfigFile()
+	Dim strPath,FilePath
+	Dim XMLDoc,Node,strNodeText
+	Dim i,iCount,lCount
+	i=0:iCount=2:lCount=2
+	strPath=NewAsp.CheckStr(Request("path"))
+	If Len(strPath)=0 Then
+		FoundErr = True : ErrMsg = "<li>模板配置文件不能为空!</li>"
+		Exit Sub
+	End If
+	FilePath=TPL_FolderPath&strPath
+	Set XMLDoc=NewAsp.CreateXmlDoc("msxml2.FreeThreadedDOMDocument" & MsxmlVersion)
+	If Not XMLDoc.load(FilePath&"\config.xml") Then
+		FoundErr = True : ErrMsg = "<li>载入模板配置文件出错!</li><li>"&FilePath&"\config.xml</li>"
+		Exit Sub
+	End If
+%><form name="myform" method="post" action="?action=saveconfig">
+<input type="hidden" name="path" value="<%=strPath%>" />
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">编辑模板配置文件--<%=FilePath%>\config.xml</th>
+</tr>
+<%
+	For Each Node in XmlDoc.documentElement.selectNodes("data")
+		i=i+1
+		If (i mod 2) = 0 Then
+			iCount=2:lCount=1
+		Else
+			iCount=1:lCount=2
+		End If
+		strNodeText=Node.text
+%>
+<tr>
+	<td class="tablerow<%=iCount%> hovered" width="30%"><%=Node.selectSingleNode("@id").text%>、<u><%=Node.selectSingleNode("@title").text%></u></td>
+	<td class="tablerow<%=iCount%> hovered">
+	<%
+	If LenB(strNodeText) > 90 Then
+	%>
+	<textarea name="NodeText_<%=Node.selectSingleNode("@id").text%>" id="NodeText_<%=Node.selectSingleNode("@id").text%>" cols="75" rows="3"><%=Server.HTMLEncode(strNodeText)%></textarea>
+	<%ElseIf LenB(strNodeText) <= 21 Then%>
+	<input type="text" size="20" name="NodeText_<%=Node.selectSingleNode("@id").text%>" id="NodeText_<%=Node.selectSingleNode("@id").text%>" value="<%=Server.HTMLEncode(strNodeText)%>" />
+	<%Else%>
+	<input type="text" size="75" name="NodeText_<%=Node.selectSingleNode("@id").text%>" id="NodeText_<%=Node.selectSingleNode("@id").text%>" value="<%=Server.HTMLEncode(strNodeText)%>" />
+	<%End If%>
+	</td>
+</tr>
+<%
+	Next
+%>
+<tr>
+	<td class="tablerow<%=lCount%>" colspan="2" align="center"><input type="button" name="go_button" onclick="window.location='?action=browse&path=<%=Replace(strPath, "\", "\\")%>'" value="返回上一页" class="button">&nbsp;&nbsp;
+	<input type="submit" value="保存模板" name="submit_button" id="submit_button" class="button">
+	</td>
+</tr>
+</table></form>
+<%
+	Set Node=Nothing:Set XMLDoc=Nothing
+End Sub
+
+Sub saveConfigFile()
+	Dim strPath,FilePath
+	Dim XMLDoc,Node,strNodeText,i
+	strPath=NewAsp.CheckStr(Request("path"))
+	If Len(strPath)=0 Then
+		FoundErr = True : ErrMsg = "<li>模板配置文件不能为空!</li>"
+		Exit Sub
+	End If
+	FilePath=TPL_FolderPath&strPath
+	Set XMLDoc=NewAsp.CreateXmlDoc("msxml2.FreeThreadedDOMDocument" & MsxmlVersion)
+	If Not XMLDoc.load(FilePath&"\config.xml") Then
+		FoundErr = True : ErrMsg = "<li>载入模板配置文件出错!</li><li>"&FilePath&"\config.xml</li>"
+		Exit Sub
+	End If
+	i=0
+	For Each Node in XmlDoc.documentElement.selectNodes("data")
+		If CLng(Node.selectSingleNode("@id").text)=i Then
+			Node.text=Request.Form("NodeText_"&i)
+		End If
+		i=i+1
+	Next
+	'Response.Write XmlDoc.xml
+	XmlDoc.save FilePath&"\config.xml"
+	Set Node=Nothing:Set XMLDoc=Nothing
+	Succeed("<li>保存当前模板配置成功。</li>")
+End Sub
+%>

@@ -1,0 +1,2178 @@
+<!--#include file="Class_Conn.asp" -->
+<!--#Include File="Class_Css.asp"-->
+<%
+Function CloseDB
+ on error resume next
+ Conn.close
+ Set conn = Nothing
+End Function
+
+Function CloseRs
+ on error resume next
+ Rs.Close
+ Set Rs = Nothing
+End Function
+'Session保存期
+'Session.Timeout = 30
+'////////////////////////////////////////////////////////////////////////////////////////////////
+'//网站授权ID
+'Const Cls_KeyID  = "111"
+
+'//生成会员的标记字符串
+Dim output,num
+Function gen_key(digits)
+ Dim char_array(50)
+ char_array(0) = "0"
+ char_array(1) = "1"
+ char_array(2) = "2"
+ char_array(3) = "3"
+ char_array(4) = "4"
+ char_array(5) = "5"
+ char_array(6) = "6"
+ char_array(7) = "7"
+ char_array(8) = "8"
+ char_array(9) = "9"
+ char_array(10) = "A"
+ char_array(11) = "B"
+ char_array(12) = "C"
+ char_array(13) = "D"
+ char_array(14) = "E"
+ char_array(15) = "F"
+ char_array(16) = "G"
+ char_array(17) = "H"
+ char_array(18) = "I"
+ char_array(19) = "J"
+ char_array(20) = "K"
+ char_array(21) = "L"
+ char_array(22) = "M"
+ char_array(23) = "N"
+ char_array(24) = "O"
+ char_array(25) = "P"
+ char_array(26) = "Q"
+ char_array(27) = "R"
+ char_array(28) = "S"
+ char_array(29) = "T"
+ char_array(30) = "U"
+ char_array(31) = "V"
+ char_array(32) = "W"
+ char_array(33) = "X"
+ char_array(34) = "Y"
+ char_array(35) = "Z"
+ randomize
+ do while len(output) < digits
+  num = char_array(Int((35 - 0 + 1) * Rnd + 0))
+  output = output + num
+ loop
+ gen_key = output
+End Function
+ 
+'//生成合同编号
+Function Conidfilename(Fname)
+  Fname = Year(Now()) &  Month(Now()) & Day(Now()) & Hour(Now()) & Minute(Now()) & Second(Now())
+  Conidfilename = Fname
+End Function  
+
+
+
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+'//jpeg组件安装判断
+set jpeg=server.createobject("persits.jpeg")
+Jpegexpires = jpeg.expires
+if Jpegexpires="9999-9-9" then
+ JpegZJtype = 1
+else
+ JpegZJtype = 0
+end if
+'////////////////////////////////////////////////////////////////////////////////////////////////
+'//发送邮件函数
+Sub SendEmail(Mailname,Mailzhuti,MailBody,Maildizhi)
+
+'On error resume next
+'Dim JMail, contentId
+Set JMail = Server.CreateObject("JMail.Message")
+
+JMail.Charset = "gb2312" ' 邮件字符集，默认为"US-ASCII"
+' JMail.ISOEncodeHeaders = False ' 是否进行ISO编码，默认为True
+
+' 发送者信息（可用变量方式赋值）
+JMail.From = Cls_MailForm ' 发送者地址
+JMail.FromName = Mailname ' 发送者姓名
+JMail.Subject = Mailzhuti ' 邮件主题
+
+' 身份验证
+JMail.MailServerUserName = Cls_MailUser ' 身份验证的用户名
+JMail.MailServerPassword = Cls_MailPass ' 身份验证的密码
+
+' 设置优先级，范围从1到5，越大的优先级越高，3为普通
+JMail.Priority = Cls_MailObject
+
+JMail.AddHeader "Originating-IP", Request.ServerVariables("REMOTE_ADDR")
+
+' 加入一个收件人【变量email：收件人地址】可以同一语句重复加入多个
+JMail.AddRecipient(Maildizhi)
+
+' 加入附件【变量filename：附件文件的绝对地址，确保用户IUSR_机器名有访问的权限】
+' 【参数设置是(True)否(False)为Inline方式】
+'contentId = JMail.AddAttachment (Server.MapPath("jmail.asp"), True)
+
+' 邮件主体（HTML(注意信件内链接附件的方式)）
+JMail.HTMLBody = "<html><head><META content=zh-cn http-equiv=Content-Language><meta http-equiv=""Content-Type"" content=""text/html; charset=gb2312""><style type=text/css>A:link { FONT-SIZE: 9pt; TEXT-DECORATION: none; color: #000000}A:visited {FONT-SIZE: 9pt; TEXT-DECORATION: none; color: #666666}A:hover {COLOR: #ff6600; FONT-SIZE: 9pt; TEXT-DECORATION: underline}BODY {FONT-SIZE: 9pt} --></style></head><body>"&MailBody&"<br><b>温馨提示：</b><br>1、"&Cls_WebName&"（"&Cls_DoMain&"）统一服务邮箱为 "&Cls_MailForm&" ，请注意邮件发送者，谨防假冒！<br>2、本邮件为系统自动发出，请勿回复。<br>3、技术咨询Janis Email: ou@ouccs.com 。</body></html>"
+
+' 邮件主体（文本部分）
+JMail.Body = "我们的邮件采用了HTML格式，但是您的邮件查看软件可能不支持。。。"&MailBody&"<br><b>温馨提示：</b><br>1、"&Cls_WebName&"（"&Cls_DoMain&"）统一服务邮箱为 "&Cls_MailForm&" ，请注意邮件发送者，谨防假冒！<br>2、本邮件为系统自动发出，请勿回复。<br>3、技术咨询Janis Email: ou@ouccs.com 。"
+
+' 发送【调用格式：objJMail.Send([username:password@]SMTPServerAddress[:Port])】
+JMail.Send(Cls_MailSmtp)
+
+' 关闭并清除对象
+JMail.Close()
+Set JMail = Nothing
+
+if err.number<>0 then
+response.write Maildizhi&" 发送失败！"
+'else
+'response.write "邮件发送成功！"
+end if
+
+End Sub
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+
+'//判断重复登录状态
+Function WebUserAdmin(id,idd,iddd)
+if id<>"" and idd<>"" and iddd<>"" then
+
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_SupperName='"&id&"' And su_Password='"&idd&"' And su_Cookies='"&iddd&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserAdmin  = 0
+else
+WebUserAdmin  = 1
+end if
+Rss.Close
+Set Rss=Nothing
+
+else 
+WebUserAdmin = 0
+end if
+End Function
+
+
+
+Function WebUserKeyAdmin(id,idd,iddd)
+if id<>"" and idd<>"" and iddd<>"" then
+
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_key='"&id&"' And su_Password='"&idd&"' And su_Cookies='"&iddd&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserKeyAdmin  = 0
+else
+WebUserKeyAdmin  = 1
+end if
+Rss.Close
+Set Rss=Nothing
+
+else 
+WebUserKeyAdmin = 0
+end if
+End Function
+
+
+
+Function WebUserSinaID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_sina from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserSinaID  = ""
+else
+WebUserSinaID  = Rss("su_sina")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+Function WebUserTencentID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_tencent from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserTencentID  = ""
+else
+WebUserTencentID  = Rss("su_tencent")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询昵称
+Function WebApiIDt(id,t)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select id from [OUCCS_Api] where api_name='"&id&"' and api_t="&t&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebApiIDt  = 0
+else
+WebApiIDt  = Rss("id")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+
+
+
+'//通过帐号查询昵称
+Function WebUserName(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_UserName from [OUCCS_Supper] where su_SupperName='"&id&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserName  = ""
+else
+WebUserName  = Rss("su_UserName")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过ID查询昵称
+Function WebUserNameID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_UserName from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserNameID  = ""
+else
+WebUserNameID  = Rss("su_UserName")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询好友列表名称
+Function WebUserFriendID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_friend from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserFriendID  = ""
+else
+WebUserFriendID  = Rss("su_friend")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询好友列表名称
+Function WebUserTeamID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_team from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserTeamID  = ""
+else
+WebUserTeamID  = Rss("su_team")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询性别
+Function WebUserSexID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_Sex from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserSexID  = ""
+else
+WebUserSexID  = Rss("su_Sex")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询用户名
+Function WebUserSupperName(id)
+Set Rssu=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_SupperName from [OUCCS_Supper] where su_ID="&id&" "
+Rssu.Open Sqls,conn,1,1
+if Rssu.EOF then
+WebUserSupperName  = ""
+else
+WebUserSupperName  = Rssu("su_SupperName")
+end if
+Rssu.Close
+Set Rssu=Nothing
+End Function
+
+
+'//通过昵称查询管理员ID
+Function WebUserNametToID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_UserName='"&id&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserNametToID  = 0
+else
+WebUserNametToID  = Rss("su_ID")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+'//判断会员名是否被使用
+Function WebUserNameTure(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_SupperName='"&id&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserNameTure  = 0
+else
+WebUserNameTure  = Rss("su_ID")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+'//通过ID查询介绍人ID
+Function WebUserKidToSupperID(id)
+Set Rssu=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_UserID from [OUCCS_Supper] where su_ID="&id&" "
+Rssu.Open Sqls,conn,1,1
+if Rssu.EOF then
+WebUserKidToSupperID  = 0
+else
+WebUserKidToSupperID  = Rssu("su_UserID")
+end if
+Rssu.Close
+Set Rssu=Nothing
+End Function
+
+
+
+'//通过ID查询个人签名
+Function WebUserSupperInfo(id)
+Set Rssu=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_Info from [OUCCS_Supper] where su_ID="&id&" "
+Rssu.Open Sqls,conn,1,1
+if Rssu.EOF then
+WebUserSupperInfo  = ""
+else
+WebUserSupperInfo  = Rssu("su_Info")
+end if
+Rssu.Close
+Set Rssu=Nothing
+End Function
+
+
+
+
+
+'//通过ID查询key
+Function WebUserSupperKey(id)
+Set Rssu=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_key from [OUCCS_Supper] where su_ID="&id&" "
+Rssu.Open Sqls,conn,1,1
+if Rssu.EOF then
+WebUserSupperKey  = ""
+else
+WebUserSupperKey  = Rssu("su_key")
+end if
+Rssu.Close
+Set Rssu=Nothing
+End Function
+
+
+
+
+'//通过ID查询经验值
+Function WebUserSupperXZall(id)
+Set Rssu=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_XZall from [OUCCS_Supper] where su_ID="&id&" "
+Rssu.Open Sqls,conn,1,1
+if Rssu.EOF then
+WebUserSupperXZall  = 0
+else
+WebUserSupperXZall  = Rssu("su_XZall")
+end if
+Rssu.Close
+Set Rssu=Nothing
+End Function
+
+
+
+'//通过ID查询在线时间
+Function WebUserSupperOnlineMin(id)
+Set Rssu=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_Online_Min from [OUCCS_Supper] where su_ID="&id&" "
+Rssu.Open Sqls,conn,1,1
+if Rssu.EOF then
+WebUserSupperOnlineMin  = 0
+else
+WebUserSupperOnlineMin  = Rssu("su_Online_Min")
+end if
+Rssu.Close
+Set Rssu=Nothing
+End Function
+
+
+
+'//通过Key查询ID
+Function WebUserSupperKeyID(id)
+Set Rssu=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_key='"&id&"' "
+Rssu.Open Sqls,conn,1,1
+if Rssu.EOF then
+WebUserSupperKeyID  = 0
+else
+WebUserSupperKeyID  = Rssu("su_ID")
+end if
+Rssu.Close
+Set Rssu=Nothing
+End Function
+
+
+
+
+
+'//通过ID查询隐私设置
+Function WebUserSupperYinsi(t,id)
+Set Rssu=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ys_a,su_ys_b,su_ys_c,su_ys_d from [OUCCS_Supper] where su_ID="&id&" "
+Rssu.Open Sqls,conn,1,1
+if Rssu.EOF then
+WebUserSupperYinsi  = 0
+else
+a = Rssu("su_ys_a")
+b = Rssu("su_ys_b")
+c = Rssu("su_ys_c")
+d = Rssu("su_ys_d")
+
+ if t="a" then
+ WebUserSupperYinsi  = a
+ elseif t="b" then
+ WebUserSupperYinsi  = b
+ elseif t="c" then
+ WebUserSupperYinsi  = c
+ elseif t="d" then
+ WebUserSupperYinsi  = d
+ end if
+ 
+end if
+Rssu.Close
+Set Rssu=Nothing
+End Function
+
+
+
+
+'//通过标签Key查询喜欢人数
+Function WebUserXingqu(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_xingqu like '%"&id&"%' "
+Rss.Open Sqls,conn,1,1
+
+WebUserXingqu  = Rss.RecordCount
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过标签Key查询喜欢人数
+Function WebUserAll(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_Pid in ("&id&") "
+Rss.Open Sqls,conn,1,1
+
+WebUserAll  = Rss.RecordCount
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//统计推荐人数
+Function WebUserTJCount()
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_Tj=1 and su_Pid=1 "
+Rss.Open Sqls,conn,1,1
+
+WebUserTJCount  = Rss.RecordCount
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//统计想认识的人数
+Function WebUserThinkCount(id1,id2,id3,id4)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_Pid=1 "
+
+  if id1<>"" then
+  Sqls = Sqls&" and su_Sex='"&id1&"'"
+  end if
+  
+  if id2>0 then
+  Sqls = Sqls&" and Cint(su_Year)<="&Cint(Year(now)-id2)&""
+  end if
+  
+  if id3>0 then
+  Sqls = Sqls&" and Cint(su_Year)>="&Cint(Year(now)-id3)&""
+  end if
+
+  if id4>0 then
+  Sqls = Sqls&" and su_juzhudi="&id4&""
+  end if
+  
+Rss.Open Sqls,conn,1,1
+
+WebUserThinkCount  = Rss.RecordCount
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//统计在线人数
+Function WebUserOnLineCount(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_Pid=1 and len(su_Online_Up)>0 "
+
+if Data_Type = 0 then
+Sqls=Sqls&" and DateDiff('s',su_Online_Up,Now())<="&id&""
+else
+Sqls=Sqls&" and DateDiff(s,su_Online_Up,getdate())<="&id&""
+end if
+
+Rss.Open Sqls,conn,1,1
+
+WebUserOnLineCount  = Rss.RecordCount
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//60秒统计一次在线用户
+Function WebUserOnLine(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_Pid=1 and len(su_Online_Up)>0 and su_ID="&id&" "
+if Data_Type = 0 then
+Sqls=Sqls&" and DateDiff('s',su_Online_Up,now())<=60"
+else
+Sqls=Sqls&" and DateDiff(s,su_Online_Up,getdate())<=60"
+end if
+Rss.Open Sqls,conn,1,1
+
+if Rss.EOF then
+WebUserOnLine  = ""
+else
+WebUserOnLine  = "<img src='/Images/u_zx1.gif' border='0'> <label style='font-size:12px;color:#F09812;'>在线</label>"
+end if
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+Function WebUserOnLineNot(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_ID from [OUCCS_Supper] where su_Pid=1 and len(su_Online_Up)>0 and su_ID="&id&" "
+if Data_Type = 0 then
+Sqls=Sqls&" and DateDiff('s',su_Online_Up,now())<=60"
+else
+Sqls=Sqls&" and DateDiff(s,su_Online_Up,getdate())<=60"
+end if
+Rss.Open Sqls,conn,1,1
+
+if Rss.EOF then
+WebUserOnLineNot  = ""
+else
+WebUserOnLineNot  = "<img src='/Images/u_zx1.gif' border='0'>"
+end if
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+'循环输出用户电话
+Function WebUserTelSelect(id)
+
+idArr=split(id,",")
+
+for ii = 0 to ubound(idArr)
+
+  selectid=clng(idArr(ii))
+
+  eees = eees&","&WebUserSupperTel(selectid)
+  
+next
+
+WebUserTelSelect = right(eees,len(eees)-1)
+
+End Function
+
+
+
+
+'用户头像
+Function WebUserPicID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_UserPic from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserPicID  = "/Images/0.jpg"
+else
+IF Rss("su_UserPic")<>"" THEN
+WebUserPicID  = "/UploadFiles/User/"&Rss("su_UserPic")
+ELSE
+WebUserPicID  = "/Images/0.jpg"
+END IF
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+'//禁言
+Function WebUserJY(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_Jy from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserJY  = 1
+else
+WebUserJY  = Rss("su_Jy")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+'禁言ip对应的用户
+function GetMessIP(id)
+Set RsST=Server.CreateObject("ADODB.Recordset")
+SqlST="Select * From OUCCS_Supper Where su_LastIp='"&id&"' and su_Jy=1 "
+RsST.Open SqlST,conn,1,1
+if not RsST.Eof then
+GetMessIP  = 1
+else
+GetMessIP  = 0
+end if
+RsST.Close
+Set RsST=Nothing
+end function
+
+
+
+'//查询用户类型1管理2用户
+Function WebUserMessNameID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_UserName,su_IFlag from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserMessNameID   = 0
+else
+
+ WebUserMessNameID  = Rss("su_IFlag")
+
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'聊天室状态
+function GetMessType(id)
+Set RsST=Server.CreateObject("ADODB.Recordset")
+SqlST="Select * From OUCCS_Mess Where OUCCS_ID="&id&" "
+RsST.Open SqlST,conn,1,1
+if not RsST.Eof then
+GetMessType  = RsST("OUCCS_Type")
+else
+GetMessType  = 0
+end if
+RsST.Close
+Set RsST=Nothing
+end function
+
+
+
+'用户等级
+function GetAdmin(id)
+		if id="" then
+		GetAdmin=999999999999999999
+		else
+		GetAdmin=id
+		end if
+end function
+
+
+
+
+
+
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+
+'循环输出关键词
+Function GetSearchKey()
+Set RsSe=Server.CreateObject("ADODB.Recordset")
+SqlSe="select keys from [OUCCS_Searchlog] where flag=1 order by hit desc "
+RsSe.Open SqlSe,conn,1,1
+while not RsSe.eof
+
+eees = eees&","&RsSe("keys")
+
+RsSe.movenext
+wend
+
+GetSearchKey = right(eees,len(eees)-1)
+
+RsSe.Close
+Set RsSe=Nothing
+End Function
+
+
+'判断是否存在关键词
+function GetSearchT(id)
+Set RsST=Server.CreateObject("ADODB.Recordset")
+SqlST="Select * From OUCCS_Searchlog Where keys='"&id&"' "
+RsST.Open SqlST,conn,1,1
+if not RsST.Eof then
+GetSearchT  = RsST("id")
+else
+GetSearchT  = 0
+end if
+RsST.Close
+Set RsST=Nothing
+end function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+
+'统计点评数
+Function GetMessCount(id)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select me_id from OUCCS_Messages where me_pid=2 and me_ppid="&id&""
+RsCount.Open SqlCount,conn,1,1
+GetMessCount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+'最新点评
+Function GetMessNow(id)
+Set Rsbbs=Server.CreateObject("ADODB.Recordset")
+Sqls="select top 1 * from [OUCCS_Messages] where me_flag=1 and me_ppid="&id&" order by me_time desc"
+Rsbbs.Open Sqls,conn,1,1
+if not Rsbbs.eof then
+GetMessNow = "<div style='z-index:10;position:absolute;display:block;'><a href=/Home/?ID="&Rsbbs("me_userid")&" target=_blank>"&GetUserSexUserPic30(WebUserSexID(Rsbbs("me_userid")))&"</a></div><img src='"&WebUserPicID(Rsbbs("me_userid"))&"' width='30' height='30' /></td><td width='70' align='left' valign='middle' style='font-size:12px;line-height:15px;' id='UserDHLinkD'><a href='/Home/?ID="&Rsbbs("me_userid")&"' target='_blank'>"&WebUserNameID(Rsbbs("me_userid"))&"</a><br><label style='font-size:9px;color:#9FB5C5;'>"&Month(Rsbbs("me_time"))&"-"&day(Rsbbs("me_time"))&" "&hour(Rsbbs("me_time"))&":"&Minute(Rsbbs("me_time"))&"</label>"
+else
+GetMessNow = "-</td><td width='70' align='left' valign='middle' style='font-size:12px;line-height:15px;' id='UserDHLinkD'>"
+end if
+Rsbbs.Close
+Set Rsbbs=Nothing
+End Function
+
+
+'规定时间内聊天状态
+Function GetMessNowwTT(id,idd,uid,juid,ip)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select me_id from [OUCCS_Messages] where me_pid="&id&" and me_ppid="&idd&" and me_userid="&uid&" and me_usertoid="&juid&" and me_ip='"&ip&"' and me_flag=1"
+if Data_Type = 0 then
+SqlCount=SqlCount&" and DateDiff('n',now(),me_time)=0"
+else
+SqlCount=SqlCount&" and DateDiff(n,getdate(),me_time)=0"
+end if
+SqlCount=SqlCount&" order by me_id desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetMessNowwTT  = 0
+else
+GetMessNowwTT  = RsCount.RecordCount
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+'聊天最后一条内容
+Function GetMessNowwL(uid,juid)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select me_content from [OUCCS_Messages] where me_userid="&uid&" and me_usertoid="&juid&" and me_flag=1 order by me_id desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetMessNowwL  = "..."
+else
+GetMessNowwL  = Face_Img(RsCount("me_content"))
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+'判断该用户是否回复
+Function GetMessHuiT(uid,id)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select * from [OUCCS_Messages] where me_userid="&uid&" and me_ppid="&id&" and me_flag=1 order by me_id desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetMessHuiT  = 0
+else
+GetMessHuiT  = 1
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+
+'//通过单标签输出数量
+Function WebNewsUserCount(id,idd)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select n_id from OUCCS_NewsList where n_distinction=1 and n_pid="&id&" and n_uid="&idd&""
+RsCount.Open SqlCount,conn,1,1
+WebNewsUserCount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+'//通过单标签输出数量
+Function WebNewsCityCountBiaoQian(id,idd)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select n_id from OUCCS_NewsList where n_distinction=1 and n_pid="&id&" and q="&idd&""
+RsCount.Open SqlCount,conn,1,1
+WebNewsCityCountBiaoQian  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+Function WebNewsCityCountBiaoQian2(id,idd,iddd)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select n_id from OUCCS_NewsList where n_distinction=1 and n_pid="&id&" and n_ppid="&idd&" and q="&iddd&""
+RsCount.Open SqlCount,conn,1,1
+WebNewsCityCountBiaoQian2  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+'//通过单标签输出数量
+Function WebNewsTitleCountBiaoQian(id,idd)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select n_id from OUCCS_NewsList where n_distinction=1 and n_pid="&id&" and n="&idd&""
+RsCount.Open SqlCount,conn,1,1
+WebNewsTitleCountBiaoQian  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+Function WebNewsTitleCountBiaoQian2(id,idd,iddd)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select n_id from OUCCS_NewsList where n_distinction=1 and n_pid="&id&" and n_ppid="&idd&" and n="&iddd&""
+RsCount.Open SqlCount,conn,1,1
+WebNewsTitleCountBiaoQian2  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+Function WebNewsTitleCountBiaoQianN1(id,idd)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select n_id from OUCCS_NewsList where n_distinction=1 and n_pid="&id&" and n1="&idd&""
+RsCount.Open SqlCount,conn,1,1
+WebNewsTitleCountBiaoQianN1  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+Function WebNewsTitleCountBiaoQianN2(id,n1,n2)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select n_id from OUCCS_NewsList where n_distinction=1 and n_pid="&id&" and n1="&n1&" and n2="&n2&""
+RsCount.Open SqlCount,conn,1,1
+WebNewsTitleCountBiaoQianN2  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+Function WebNewsTitleCountBiaoQianN2tjflag(id,n1,n2,j)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select n_id from OUCCS_NewsList where n_distinction=1 and n_pid="&id&" and n1="&n1&" and n2="&n2&" and n_tjflag="&j&""
+RsCount.Open SqlCount,conn,1,1
+WebNewsTitleCountBiaoQianN2tjflag  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+Function WebNewsTitleCountBiaoQianN2jing(id,n1,n2)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select n_id from OUCCS_NewsList where n_distinction=1 and n_pid="&id&" and n1="&n1&" and n2="&n2&" and n_jbt<>0"
+RsCount.Open SqlCount,conn,1,1
+WebNewsTitleCountBiaoQianN2jing  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+Function WebNewsTitleCountBiaoQianN2now(id,n1,n2)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select n_id from OUCCS_NewsList where n_distinction=1 and n_pid="&id&" and n1="&n1&" and n2="&n2&""
+if Data_Type = 0 then
+SqlCount=SqlCount&" and DateDiff('d',now(),n_time)>=0"
+else
+SqlCount=SqlCount&" and DateDiff(d,getdate(),n_time)>=0"
+end if
+RsCount.Open SqlCount,conn,1,1
+WebNewsTitleCountBiaoQianN2now  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+Function WebNewsTitleCount(id)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select n_id from OUCCS_NewsList where n_distinction=1 and n_pid="&id&" "
+RsCount.Open SqlCount,conn,1,1
+WebNewsTitleCount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+'//通过单标签输出数量
+Function WebTeamTitleCountBiaoQian(id,idd)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select m_id from OUCCS_NewsMenu where m_flag=1 and m_pid=2 and m_ppid="&id&" and m_ns like '%"&idd&"%'"
+RsCount.Open SqlCount,conn,1,1
+WebTeamTitleCountBiaoQian  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+Function WebTeamTitleCountBiaoQian2(id,idd,iddd)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select m_id from OUCCS_NewsMenu where m_flag=1 and m_pid=2 and m_ppid="&id&" and n_ppid="&idd&" and m_ns like '%"&idd&"%'"
+RsCount.Open SqlCount,conn,1,1
+WebTeamTitleCountBiaoQian2  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'//通过ID查询名称
+Function WebNewsTitle(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_title from [OUCCS_NewsList] where n_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsTitle  = ""
+else
+WebNewsTitle  = Rss("n_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询链接
+Function WebNewsUrl(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_url from [OUCCS_NewsList] where n_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsUrl  = ""
+else
+WebNewsUrl  = Rss("n_url")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询名称
+Function WebNewsTitleUid(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_uid from [OUCCS_NewsList] where n_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsTitleUid  = 0
+else
+WebNewsTitleUid  = Rss("n_uid")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询名称
+Function WebNewsNidTitle(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_title from [OUCCS_NewsList] where n_nid='"&id&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsNidTitle  = ""
+else
+WebNewsNidTitle  = Rss("n_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过ID查询名称
+Function WebNewsNidTitleid(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_id from [OUCCS_NewsList] where n_nid='"&id&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsNidTitleid  = ""
+else
+WebNewsNidTitleid  = Rss("n_id")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询名称
+Function WebNewsTitleidNid(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_nid from [OUCCS_NewsList] where n_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsTitleidNid  = ""
+else
+WebNewsTitleidNid  = Rss("n_nid")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//统计信息数量
+Function WebNews10Count(id,idd,iddd)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_id from [OUCCS_NewsList] where n_distinction="&id&" and n_juid="&idd&" and n_pid=10 and n_ppid="&iddd&" "
+Rss.Open Sqls,conn,1,1
+
+WebNews10Count  = Rss.RecordCount
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//统计信息数量
+Function WebNews10AllCount(id,idd)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_id from [OUCCS_NewsList] where n_distinction="&id&" and n_juid="&idd&" and n_pid=10 "
+Rss.Open Sqls,conn,1,1
+
+WebNews10AllCount  = Rss.RecordCount
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+'//通过ID查询名称
+Function WebNewsMenuID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select sroot_title from [OUCCS_Sroot] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID  = ""
+else
+WebNewsMenuID  = Rss("sroot_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//判断会员名是否被使用
+Function WebNewsMenuID1(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select m_title from [OUCCS_NewsMenu] where m_title='"&id&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID1  = ""
+else
+WebNewsMenuID1  = Rss("m_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+Function WebNewsMenuID11(id,idd)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select m_title from [OUCCS_NewsMenu] where m_title='"&id&"' and m_id<>"&idd&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID11  = ""
+else
+WebNewsMenuID11  = Rss("m_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过ID查询名称
+Function WebNewsMenuID2(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select m_title from [OUCCS_NewsMenu] where m_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID2  = ""
+else
+WebNewsMenuID2  = Rss("m_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询名称
+Function WebNewsMenuID22(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select m_id from [OUCCS_NewsMenu] where m_nid='"&id&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID22  = 0
+else
+WebNewsMenuID22  = Rss("m_id")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询名称
+Function WebNewsMenuID222(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select m_nid from [OUCCS_NewsMenu] where m_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID222  = ""
+else
+WebNewsMenuID222  = Rss("m_nid")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+'//通过ID查询名称
+Function WebNewsMenuPIC(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select m_pic from [OUCCS_NewsMenu] where m_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuPIC  = ""
+else
+WebNewsMenuPIC  = Rss("m_pic")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询名称
+Function WebNewsMenuIDr(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select m_r from [OUCCS_NewsMenu] where m_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuIDr  = ""
+else
+WebNewsMenuIDr  = Rss("m_r")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询名称
+Function WebNewsMenuIDuid(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select m_uid from [OUCCS_NewsMenu] where m_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuIDuid  = 0
+else
+WebNewsMenuIDuid  = Rss("m_uid")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询名称
+Function WebNewsMenuID3(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select title from [OUCCS_MenuAll] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID3  = ""
+else
+WebNewsMenuID3  = Rss("title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过ID查询创建者
+Function WebNewsMenuID31(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select uid from [OUCCS_MenuAll] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID31  = ""
+else
+WebNewsMenuID31  = Rss("uid")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过ID查询版主
+Function WebNewsMenuID32(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select sys from [OUCCS_MenuAll] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID32  = ""
+else
+WebNewsMenuID32  = Rss("sys")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+Function WebNewsMenuID33(id,idd)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select title from [OUCCS_MenuAll] where pid="&id&" and ppid="&idd&" "
+Rss.Open Sqls,conn,1,1
+WebNewsMenuID33  = Rss.RecordCount
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+Function WebNewsMenuID34(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="Select * From [OUCCS_MenuAll] where pid=4 and t=2 and uid="&id&" or id in (Select tid From [OUCCS_Moneylog] where tt=6 and uid="&id&" and fflag=1) Order by num asc"
+Rss.Open Sqls,conn,1,1
+WebNewsMenuID34  = Rss.RecordCount
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过ID查询名称
+Function WebNewsMenuID4(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select title from [OUCCS_MenuAll] where nid='"&id&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID4  = ""
+else
+WebNewsMenuID4  = Rss("title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询名称
+Function WebNewsMenuID41(id)
+if id="" then id=0
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select nid from [OUCCS_MenuAll] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID41  = ""
+else
+WebNewsMenuID41  = Rss("nid")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过ID查询名称
+Function WebNewsMenuID42(id)
+if id="" then id=0
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select id from [OUCCS_MenuAll] where nid='"&id&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID42  = 0
+else
+WebNewsMenuID42  = Rss("id")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+Function WebNewsMenuID43(tx,id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select id from [OUCCS_MenuAll] where title='"&tx&"' "
+if id>0 then
+Sqls=Sqls&" and id<>"&id&" "
+end if
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID43  = 0
+else
+WebNewsMenuID43  = 1
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过ID查询名称
+Function WebNewsMenuIDPic(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select Pic from [OUCCS_MenuAll] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuIDPic  = "/Images/1.jpg"
+else
+IF Rss("Pic")<>"" THEN
+WebNewsMenuIDPic  = "/UploadFiles/News/"&Rss("Pic")
+ELSE
+WebNewsMenuIDPic  = "/Images/1.jpg"
+END IF
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'通过ID输出版主
+Function WebNewsMenuBan(id)
+
+ids = replace(id,"R","")
+
+IF instr(ids,",")>=0 THEN
+
+idArr=split(ids,",")
+
+for ii = 0 to ubound(idArr)
+
+  selectid=clng(idArr(ii))
+
+  eees = eees&",<a href='/Home/?ID="&selectid&"' target='_blank'>"&WebUserNameID(selectid)&"</a>"
+  
+next
+
+WebNewsMenuBan = right(eees,len(eees)-1)
+
+ELSE
+
+WebNewsMenuBan = instr(ids,",")'"-"
+
+END IF
+
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'//通过ID查询名称
+Function WebNewsMenuID5(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select subs_title from [OUCCS_Subs] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID5  = ""
+else
+WebNewsMenuID5  = Rss("subs_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询名称
+Function WebNewsMenuID6(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select subs_value from [OUCCS_Subs] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID6  = ""
+else
+WebNewsMenuID6  = Rss("subs_value")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+
+'//统计上传文件数量
+Function WebUpfileCount(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select urlpic from [OUCCS_Upfile] where nid='"&id&"' order by times desc"
+Rss.Open Sqls,conn,1,1
+
+WebUpfileCount  = Rss.RecordCount
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//统计相册上传文件数量
+Function WebUpfilePhotoCount(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select urlpic from [OUCCS_Upfile] where nid in (select n_nid from OUCCS_NewsList where n_distinction=1 and n_pid=18 and n_uid="&id&") order by times desc"
+Rss.Open Sqls,conn,1,1
+
+WebUpfilePhotoCount  = Rss.RecordCount
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+'//抓取视频截图
+Function WebUpfilePicName(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select urlpic from [OUCCS_Upfile] where nid='"&id&"' order by times desc"
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUpfilePicName  = ""
+else
+WebUpfilePicName  = Rss("urlpic")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//抓取视频
+Function WebUpfileUrlName(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select url from [OUCCS_Upfile] where nid='"&id&"' order by times desc"
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUpfileUrlName  = ""
+else
+WebUpfileUrlName  = Rss("url")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+'//判断视频还是图片
+Function WebUpfileUrlNameFlag(id,f)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select tt from [OUCCS_Upfile] where nid='"&id&"' order by times desc"
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUpfileUrlNameFlag  = 0
+else
+
+While Not Rss.Eof
+
+  ttt = Rss("tt")
+  
+  If Instr(f,ttt)>0 Then
+  WebUpfileUrlNameFlag  = 1
+  end if
+
+Rss.MoveNext
+Wend
+
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+
+'经验值
+Function GetAllMoney(id,idd)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select vv from [OUCCS_Moneylog] where juid="&id&" and flag="&idd&" and fflag=1 Order by times desc"
+RsCount.Open SqlCount,conn,1,1
+
+fffs  = 0
+
+While Not RsCount.Eof
+
+fffs = RsCount("vv")+fffs
+
+RsCount.MoveNext
+Wend
+
+
+ GetAllMoney = fffs
+
+ 
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+'自己的各类型的数量
+Function GetAllMoneyUidCount(id,t)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select id from [OUCCS_Moneylog] where uid="&id&" and tt="&t&" order by times desc"
+RsCount.Open SqlCount,conn,1,1
+GetAllMoneyUidCount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+'对方的各类型的数量
+Function GetAllMoneyJUidCount(id,t)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select id from [OUCCS_Moneylog] where juid="&id&" and tt="&t&" and tid=0 order by times desc"
+RsCount.Open SqlCount,conn,1,1
+GetAllMoneyJUidCount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+Function GetAllMoneyJUidtoTIDCount(id,idd,t)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select id from [OUCCS_Moneylog] where juid="&id&" and tid="&idd&" and tt="&t&" and flag=1 and fflag=1 order by times desc"
+RsCount.Open SqlCount,conn,1,1
+GetAllMoneyJUidtoTIDCount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+'重复判断
+Function GetAllMoneyMessflag(id,idd,t)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select fflag from [OUCCS_Moneylog] where uid="&id&" and juid="&idd&" and tt="&t&" order by times desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetAllMoneyMessflag  = 9999
+else
+GetAllMoneyMessflag  = RsCount("fflag")
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+'群重复判断
+Function GetAllMoneyMessflagTid(id,idd,t,tid)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select fflag from [OUCCS_Moneylog] where uid="&id&" and juid="&idd&" and tt="&t&" and tid="&tid&" order by times desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetAllMoneyMessflagTid  = 9999
+else
+GetAllMoneyMessflagTid  = RsCount("fflag")
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+'隐私状态
+Function GetAllMoneyType(id,t,uid,juid)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select id from [OUCCS_Moneylog] where tt="&t&" "
+
+if id=1 then
+'主动
+SqlCount=SqlCount&" and uid="&uid&" and juid="&juid&" "
+
+elseif id=2 then
+'被动
+SqlCount=SqlCount&" and juid="&uid&" and uid="&juid&" "
+
+end if
+
+SqlCount=SqlCount&" order by times desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetAllMoneyType  = 0
+else
+GetAllMoneyType  = 1
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+'600秒内IP重复状态
+Function GetAllMoneyMess600s(id,idd,iddd,t)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select id from [OUCCS_Moneylog] where uid="&id&" and juid="&idd&" and ip='"&iddd&"' and tt="&t&""
+if Data_Type = 0 then
+SqlCount=SqlCount&" and DateDiff('s',now(),times)>=600"
+else
+SqlCount=SqlCount&" and DateDiff(s,getdate(),times)>=600"
+end if
+SqlCount=SqlCount&" order by times desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetAllMoneyMess600s  = 0
+else
+GetAllMoneyMess600s  = 1
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+
+'用户记录重复状态
+Function GetAllMoneyMess0D(id,idd,t,tid)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select id from [OUCCS_Moneylog] where uid="&id&" and juid="&idd&" and tt="&t&" "
+if tid<>"" then
+SqlCount=SqlCount&" and tid="&tid&""
+end if
+SqlCount=SqlCount&" order by id desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetAllMoneyMess0D  = 0
+else
+GetAllMoneyMess0D  = RsCount("id")
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+'访问用户当天IP重复状态
+Function GetAllMoneyMess1D(id,idd,iddd,t)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select id from [OUCCS_Moneylog] where uid="&id&" and juid="&idd&" and ip='"&iddd&"' and tt="&t&" and tid=0"
+if Data_Type = 0 then
+SqlCount=SqlCount&" and DateDiff('d',now(),times)>=0"
+else
+SqlCount=SqlCount&" and DateDiff(d,getdate(),times)>=0"
+end if
+SqlCount=SqlCount&" order by id desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetAllMoneyMess1D  = 0
+else
+GetAllMoneyMess1D  = 1
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+'访问帖子当天IP重复状态
+Function GetAllMoneyMess2D(id,idd,iddd,t,tid)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select id from [OUCCS_Moneylog] where uid="&id&" and juid="&idd&" and ip='"&iddd&"' and tt="&t&" and tid="&tid&""
+if Data_Type = 0 then
+SqlCount=SqlCount&" and DateDiff('d',now(),times)>=0"
+else
+SqlCount=SqlCount&" and DateDiff(d,getdate(),times)>=0"
+end if
+SqlCount=SqlCount&" order by id desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetAllMoneyMess2D  = 0
+else
+GetAllMoneyMess2D  = 1
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+
+'聊天记录判断
+Function GetMessSmallt(id,idd,t)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select nid from [OUCCS_Messsmall] where uid="&id&" and juid="&idd&" and tt="&t&" "
+SqlCount=SqlCount&" order by times desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetMessSmallt  = ""
+else
+GetMessSmallt  = RsCount("nid")
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+'无用户ID找第一个记录
+Function GetMessSmallt2(id,t)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select id from [OUCCS_Messsmall] where nid='"&id&"' and tt="&t&" "
+SqlCount=SqlCount&" order by times desc"
+RsCount.Open SqlCount,conn,1,1
+GetMessSmallt2  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+Function GetMessSmalltCount(id,t)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select id from [OUCCS_Messsmall] where uid="&id&" and tt="&t&" "
+SqlCount=SqlCount&" order by times desc"
+RsCount.Open SqlCount,conn,1,1
+GetMessSmalltCount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+'聊天记对象判断
+Function GetMessSmalltoUID(id,t)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select juid from [OUCCS_Messsmall] where uid="&id&" and tt="&t&" "
+SqlCount=SqlCount&" order by times desc"
+RsCount.Open SqlCount,conn,1,1
+if RsCount.EOF then
+GetMessSmalltoUID  = 0
+else
+GetMessSmalltoUID  = RsCount("juid")
+end if
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+
+'广告输出
+function GetAD(id)
+Set RsAD=Server.CreateObject("ADODB.Recordset")
+SqlAD="select * from [OUCCS_AD] where A_flag=1 and A_id="&id&" "
+if Data_Type = 0 then
+SqlAD=SqlAD&" and DateDiff('d',now(),A_enddate)>=0 and DateDiff('d',now(),A_begindate)<=0"
+else
+SqlAD=SqlAD&" and DateDiff(d,getdate(),A_enddate)>=0 and DateDiff(d,getdate(),A_begindate)<=0"
+end if
+RsAD.Open SqlAD,conn,1,1
+if RsAD.Eof then
+GetAD  = ""
+else
+
+IF RsAD("A_t")=1 THEN
+
+GetAD  = "<a href="&RsAD("A_url")&" target=_blank><img src=/UploadFiles/AD/"&RsAD("A_pic")&" width="&RsAD("A_width")&" height="&RsAD("A_height")&" border=0 /></a>"
+
+
+ELSEIF RsAD("A_t")=2 THEN
+
+
+GetAD  = "<div id='"&RsAD("A_id")&"'></div><script>AD2.render('"&RsAD("A_id")&"')</script>"
+
+
+ELSEIF RsAD("A_t")=3 THEN
+
+
+GetAD  = "<a href="&RsAD("A_url")&" target=_blank>"&RsAD("A_txt")&"</a>"
+
+
+END IF
+
+
+end if
+RsAD.Close
+Set RsAD=Nothing
+end function
+
+
+'焦点图片
+Function GetADpics()
+Set RsAD=Server.CreateObject("ADODB.Recordset")
+SqlAD="select A_pic from [OUCCS_AD] where A_id in (1,2,3,4,5,6,7,8,9,10) and A_flag=1"
+if Data_Type = 0 then
+SqlAD=SqlAD&" and DateDiff('d',now(),A_enddate)>=0 and DateDiff('d',now(),A_begindate)<=0"
+else
+SqlAD=SqlAD&" and DateDiff(d,getdate(),A_enddate)>=0 and DateDiff(d,getdate(),A_begindate)<=0"
+end if
+SqlAD=SqlAD&" order by A_num asc "
+RsAD.Open SqlAD,conn,1,1
+while not RsAD.eof
+
+eees = eees&"###http://"&Request.ServerVariables("Http_HOST")&"/UploadFiles/AD/"&RsAD("A_pic")
+
+RsAD.movenext
+wend
+
+GetADpics = right(eees,len(eees)-3)
+
+RsAD.Close
+Set RsAD=Nothing
+End Function
+
+
+'焦点链接
+Function GetADlinks()
+Set RsAD=Server.CreateObject("ADODB.Recordset")
+SqlAD="select A_url from [OUCCS_AD] where A_id in (1,2,3,4,5,6,7,8,9,10) and A_flag=1"
+if Data_Type = 0 then
+SqlAD=SqlAD&" and DateDiff('d',now(),A_enddate)>=0 and DateDiff('d',now(),A_begindate)<=0"
+else
+SqlAD=SqlAD&" and DateDiff(d,getdate(),A_enddate)>=0 and DateDiff(d,getdate(),A_begindate)<=0"
+end if
+SqlAD=SqlAD&" order by A_num asc "
+RsAD.Open SqlAD,conn,1,1
+while not RsAD.eof
+
+eees = eees&"###"&RsAD("A_url")
+
+RsAD.movenext
+wend
+
+GetADlinks = right(eees,len(eees)-3)
+
+RsAD.Close
+Set RsAD=Nothing
+End Function
+
+
+'焦点注释
+Function GetADtexts()
+Set RsAD=Server.CreateObject("ADODB.Recordset")
+SqlAD="select A_txt from [OUCCS_AD] where A_id in (1,2,3,4,5,6,7,8,9,10) and A_flag=1 order by A_num asc "
+RsAD.Open SqlAD,conn,1,1
+while not RsAD.eof
+
+eees = eees&"###"&RsAD("A_txt")
+
+RsAD.movenext
+wend
+
+GetADtexts = right(eees,len(eees)-3)
+
+RsAD.Close
+Set RsAD=Nothing
+End Function
+
+
+'焦点描述
+Function GetADtext2s()
+Set RsAD=Server.CreateObject("ADODB.Recordset")
+SqlAD="select A_txts from [OUCCS_AD] where A_id in (1,2,3,4,5,6,7,8,9,10) and A_flag=1 order by A_num asc "
+RsAD.Open SqlAD,conn,1,1
+while not RsAD.eof
+
+eees = eees&"###"&RsAD("A_txts")
+
+RsAD.movenext
+wend
+
+GetADtext2s = right(eees,len(eees)-3)
+
+RsAD.Close
+Set RsAD=Nothing
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+%>

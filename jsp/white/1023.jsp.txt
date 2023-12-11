@@ -1,0 +1,60 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="javaBean.AddSortB"%>
+<%@ page import="java.util.Vector"%>
+<%@ page import="connections.Dao"%>
+<%
+	String url = request.getContextPath();
+	String sqlid=(String)request.getAttribute("sqlid");
+	String sqlstr=(String)request.getAttribute("sqlstr");
+	Dao dao=new Dao();
+    Vector ve=dao.getClassName();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+
+<table cellspacing=1 align=center cellpadding=3 border=0 class=tableborder>	<tr>		<th colspan=3>文章批量移动</th>	</tr>	<form name=myform method=post action="<%=url%>/servletsmove">	<input type=hidden name=ChannelID value='1'>	<tr>		<td class=tablerow1 colspan=3><input type=radio name=Appointed value='0' checked>
+<%if(sqlid!=null){%>
+<b>指定文章ID：</b> <input type="text" name="ArticleID" size=80 value='<%=sqlid%>'></td></tr>
+<%}else{%>
+<b>指定文章ID：</b> <input type="text" name="ArticleID" size=80 value=''></td></tr>
+<%}%>
+<input type="hidden" name="appointId" value="<%=sqlstr%>">
+<tr><td class=tablerow1 width="35%"><input type=radio name=Appointed value='1'> <b>指定文章分类：</b></td><td class=tablerow1 width="10%"></td><td class=tablerow1 width="55%"><b>文章目标分类：</b><font color=red>（不能指定外部分类）</font></td>	</tr>	
+
+<tr><td class=tablerow1><select name='ClassID' size='2' multiple style='height:350px;width:260px;'>
+<%if(ve==null){%>
+<option>没有添加分类</option>
+<%}else{
+	AddSortB bean=null;
+	for(int i=0;i<ve.size();i++){
+		bean=(AddSortB)ve.get(i);
+		out.println("<option value='"+bean.getClassId()+"'>"+bean.getClassName()+"</option>");
+	}
+}%>
+</select></td>
+<td class=tablerow1 align=center noWrap>移动到→</td>		<td class=tablerow1><select name='tClassID' size='2' style='height:350px;width:260px;'>
+<%if(ve==null){%>
+<option>没有添加分类</option>
+<%}else{
+	AddSortB bean=null;
+	for(int i=0;i<ve.size();i++){
+		bean=(AddSortB)ve.get(i);
+		out.println("<option value='"+bean.getClassId()+"'>"+bean.getClassName()+"</option>");
+	}
+}%>
+</select></td>	</tr>	<tr align=center>		<td class=tablerow1 colspan=3><input type="button" onclick="javascript:history.go(-1)" value="返回上一页" name="B1" class=Button>&nbsp;&nbsp;		<input type=submit name=submit2 value="批量移动" class=Button onclick="return confirm('您确定执行批量移动吗?')"></td>	</tr>	</form></table><br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

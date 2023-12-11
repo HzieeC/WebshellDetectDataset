@@ -1,0 +1,148 @@
+<!--#include file="Conn.asp"-->
+<!--#include file="query_result.asp"-->
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<%
+ set r=server.createobject("adodb.recordset")
+ sql="select top 1 * from system where AutoId=1"
+ r.open sql,conn,1,1
+ if r.eof or r.bof then
+	Response.Write("<script>alert('配置文件丢失,请检查数据库设置。');</script>")
+	Response.end
+ End if	
+ TestCustomerID = r.fields(5)
+ session("TestCustomerID")=TestCustomerID
+SubmitUrl = r.fields(4)
+
+%>
+<script type="text/JavaScript">
+<!--
+function MM_displayStatusMsg(msgStr) { //v1.0
+  status=msgStr;
+  document.MM_returnValue = true;
+}
+//-->
+</script>
+<body onmouseover="MM_displayStatusMsg('正在实时查询..');return document.MM_returnValue">
+<!--#include file="wait.asp"-->
+<%
+CustomerCode=request.Form("CustomerCode")
+if CustomerCode="" then
+	CustomerCode=TestCustomerID
+end if
+userpsd=trim(request.Form("userpsd"))
+if userpsd="" then
+	userpsd=userpassword
+end if
+userpsd=123456
+userpsd=md5(userpsd)
+userpsd="e10adc3949ba59abbe56e057f20f883e"
+
+clientIP = request.ServerVariables("REMOTE_ADDR")'获到客户的访问ID
+'获取服务器的访问网址
+'clientIhost = request.servervariables("HTTP_REFERER")
+'filename=request("filename")
+clientIhost="http://"&request.ServerVariables("HTTP_HOST")&filename
+'ClientPam="locall,e10adc3949ba59abbe56e057f20f883e"
+ClientPam=CustomerCode&","&userpsd
+'response.write clientPam
+
+radio=Request("radio")		'单/往返/联 程
+StartCity01 = Request.form("Startcity01")	'出发城市
+EndCity01 = Request.form("EndCity01")		'到达城市
+StartCity02 = Request.form("StartCity02")	'到达城市二
+StrDate01 = Request.Form("StrDate01")		'出发日期
+strDate03 = Request.Form("strDate03")		'返程日期,出发日期二
+Time01 = Request.form("Time01")				'时间
+strTime03 = Request.Form("strTime03")		'联程出发时间
+airlineCode01 = Request.Form("airlineCode01") '航空公司
+cheapset = Request.Form("cheapset")			'航位信息	没用到
+sign = Request.Form("sign")					'电子客票	没用到
+IsGn=request.Form("IsGn")				'国内国际的标志
+
+session("startime")=timer()'获取开始查询的时间
+
+If StartCity01="" Then
+ errinfor("出发城市不能为空，请返回重新输入！")
+ response.End()
+End if
+
+If EndCity01="" Then
+ errclose("目的城市不能为空，请返回重新输入！")
+ response.End()
+End if
+if EndCity01=StartCity01 then
+ errclose("出发与到达城市不能相同！")
+ response.End()
+end if
+
+if StrDate01 = "" then
+ errclose("出发日期不能为空，请返回重新输入！")
+ response.End()
+End if
+
+if radio="2" And trim(strDate03)<>"" then
+  if cdate(StrDate01)>cdate(strDate03) then
+	  errclose("回程日期不能小于出发日期，请返回重新输入")
+	  response.End()
+  End if
+elseif radio="3" and trim(strDate03)<>"" then
+  if cdate(StrDate01)>cdate(strDate03) then
+	  errclose("出发日期二不能小于出发日期，请返回重新输入")
+	  response.End()
+  End if
+  if EndCity01=StartCity02 then
+	 errclose("出发与到达城市不能相同！")
+	 response.End()
+  end if
+else
+  strDate03=""
+  radio="1"
+End if
+Condi_Baoliu=radio
+
+'response.write clientPam
+'response.End()
+
+
+%>
+<%	
+fly_values= TestGetData(StartCity01+EndCity01,StrDate01,ClientPam,airlineCode01,Time01,planetype,sign,cheapset,0,Condi_Baoliu)	'调用查询结果函数
+call errmsg(fly_values)		'调用返回提示函数
+if radio="2" then
+	fly_values2=TestGetData(EndCity01+StartCity01,strDate03,ClientPam,airlineCode01,strTime03,planetype,sign,cheapset,0,Condi_Baoliu)
+	call errmsg(fly_values2)		'调用返回提示函数	
+end if
+if radio="3" then
+	fly_values2=TestGetData(EndCity01+StartCity02,strDate03,ClientPam,airlineCode01,strTime03,planetype,sign,cheapset,0,Condi_Baoliu)
+	call errmsg(fly_values2)		'调用返回提示函数	
+end if
+cek="OK"
+
+
+if left(fly_values,1) = "0" then
+	cek="NU"
+	if instr(fly_values,"无法连接")>0 then
+		call errclose(fly_values&"请与服务提供商联系。")
+	end if
+	fly_values=""		 
+end if
+
+if fly_values="" then
+	response.write("<script>alert('对不起，暂无相关航班');location.href='/';</script>")
+end if
+
+website="do.asp"
+'Response.Write(fly_values)
+'Response.End()
+
+%>
+<form action="<%=WebSite%>" name="myform"  method="post"> 
+	<input type='hidden' name='cek' value="<%=cek%>" >
+	<input type="hidden" name="IsGn" value="<%=IsGn%>">
+	<input type='hidden' name='fly_values'  value="<%=fly_values&"1"%>" > 
+<%if radio="2" or radio="3" then%>
+	<input type='hidden' name='fly_values2'  value="<%=fly_values2&"2"%>" >
+<%end if%>
+</form> 
+<script language='Javascript'>document.myform.submit();</script>
+</body>

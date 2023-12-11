@@ -1,0 +1,112 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="java.util.Vector"%>
+<%@ page import="javaBean.AddSortB"%>
+<%
+	String url = request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>JSPCMS</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+
+<script language = "JavaScript">
+function BatchAddClass(){
+	if(document.myform.BatchID.checked==true){
+		document.myform.BatchClassName.disabled=false;
+		document.myform.ClassName.disabled=true;
+		BatchClass.style.display='';
+	}
+	else{
+		document.myform.BatchClassName.disabled=true;
+		document.myform.ClassName.disabled=false;
+		BatchClass.style.display='none';
+	}
+}
+
+function ClassSetting(n){
+	if (n == 1){
+		ClassSetting1.style.display='none';
+		ClassSetting2.style.display='';
+		ClassSetting3.style.display='';
+	}
+	else{
+		ClassSetting1.style.display='';
+		ClassSetting2.style.display='none';
+		ClassSetting3.style.display='none';
+	}
+}
+</script>
+
+<br>
+
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="TableBorder">
+	<tr>
+		<th colspan="2">添加文章分类</th>
+	</tr>
+	<form name='myform' method="post" action="<%=url%>/addsort">
+	<input type="hidden" name="NewClassID" value="1">
+	<input type="hidden" name="ChannelID" value="1">
+	<tr>
+		<td width="20%" class="TableRow2"><strong>文章分类名称：</strong></td>
+		<td width="80%" class="TableRow1">
+		<input type="text" name="className" id="className" size="35">
+		<input type="hidden" name="classid" value="1">
+		</td>
+	</tr>
+	<tr>
+		<td class="TableRow2"><strong>文章分类注释：</strong></td>
+		<td class="TableRow1">
+		<input type="text" name="readme" size="60"> </td>
+	</tr>
+	<tr>
+		<td class="TableRow2"><strong>连接目标：</strong></td>
+		<td class="TableRow1">
+		<input type="radio" value="0" checked name="linkTarget"> 本窗口打开&nbsp;&nbsp; 
+		<input type="radio" name="LinkTarget" value="1"> 新窗口打开</td>
+	</tr>
+	<tr>
+		<td class="TableRow2"><strong>是否转向连接：</strong></td>
+		<td class="TableRow1">
+		<input type="radio" name="turnLink" value="系统连接" checked  onClick="ClassSetting(1)"> 否&nbsp;&nbsp; 
+		<input type="radio" name="turnLink" value="转向连接"  onClick="ClassSetting(2)"> 是</td>
+	</tr>
+	<tr>
+		<td class="TableRow2"><strong>分类目录：</strong></td>
+		<td class="TableRow1"><input type="text" name="classDir" size="15" value="mianfeizhe"> <br><font color=blue>一级分类相对于此频道目录，N级分类相对于上级分类目录，可以是多级目录,如：html/jsp请认真填写。</font></td>
+	</tr>
+	<tr id=ClassSetting1 style="display:none">
+		<td class="TableRow2"><strong>转向连接URL：</strong></td>
+		<td class="TableRow1"><input type="text" name="turnLinkUrl" size="45" value="http://localhost"></td>
+	</tr>
+	<tr id=ClassSetting2 style="display:">
+		<td class="TableRow2"><strong>用户组：</strong></td>
+		<td class="TableRow1"><select size="1" name="userGroup">
+		<option value="管理员">管理员</option>
+		<option value="匿名用户" selected>匿名用户</option>
+		<option value="普通会员">普通会员</option>
+		</select></td>
+	</tr>
+	<input type="hidden" name='type' value='添加'>
+
+	<tr>
+		<td class="TableRow2">　</td>
+		<td class="TableRow1">
+		<p align="center">
+		<input type="submit" value="保存设置" name="B2" class=Button></td>
+	</tr>
+	</form>
+</table>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

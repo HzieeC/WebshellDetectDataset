@@ -1,0 +1,339 @@
+<!--#include file="../inc/mdb.asp"-->
+<!--#include file="../inc/config.asp"-->
+<!--#include file="../inc/cmsprivate.asp"-->
+<!--#include file="../Inc/cmsfunction.asp"-->
+<%Server.ScriptTimeOut=5000%>
+<!--#include FILE="../inc/upload_5xsoft.inc"-->
+<%
+'****************************************************
+' 07ing Ver8.0       Power by 07ing.net
+' Web: http://www.07ing.net,http://www.07ing.com
+' Copyright (C) 2006 07ing.net All Rights Reserved.
+'****************************************************
+if UserLogined<>True then Call HxErrMsg("请登陆后操作!","close")
+%>
+<SCRIPT language=javascript><!-- 
+　if (window == top)top.location.href = "index.asp";// --></SCRIPT>
+<script language="vbscript">
+Function showImg(i)
+   Dim fileSrc
+   fileSrc=document.getElementById("file"&i).value
+   document.getElementById("span"&i).innerHTML="<img height='25' align=absmiddle src='"&fileSrc&"'>"
+End function
+</script>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<style type="text/css">
+<!--
+Body
+{
+background-position: center center;
+font-size: 12px;
+line-height: 20px;
+color: #333333;
+} 
+a{font-style:normal;text-decoration:none;font-size:9pt;color:#000000;}
+-->
+</style>
+<body leftmargin="0" topmargin="0" bgColor="#FFFFFF" oncontextmenu="return false" ondragstart="return false">
+<%
+'******图片上传水印设置,你的空间必须支持AspJpeg(第三方组件)**********
+'                                                                   *
+const logoyes= 1                           '0=关 1=开  设置水印开关 *
+const logoImg="img/up_logo.gif"                 '设置水印图片的路径 *
+const logoImgW=125                    '设置水印图片的宽度(高度自动) *
+const logoFnot="上传自 07ing.com"                   '设置文字水印 *
+const withImgFont= 0      '0=文字 1=图片 设置使用文字还是图片做水印 *
+const logoSpan=4          '设置写入位置 1=左上 2=右上 3=左下 4=右下 *
+'                                                                   *      
+'******水印设置结束。防范上传漏洞，不得随意修改以下代码**************
+const adTypeBinary=1
+dim jpg(1):jpg(0)=CByte(&HFF):jpg(1)=CByte(&HD8)
+dim bmp(1):bmp(0)=CByte(&H42):bmp(1)=CByte(&H4D)
+dim png(3):png(0)=CByte(&H89):png(1)=CByte(&H50):png(2)=CByte(&H4E):png(3)=CByte(&H47)
+dim gif(5):gif(0)=CByte(&H47):gif(1)=CByte(&H49):gif(2)=CByte(&H46):gif(3)=CByte(&H39):gif(4)=CByte(&H38):gif(5)=CByte(&H61)
+function CheckFileType(filename)
+CheckFileType=false
+dim fstream,fileExt,stamp,i
+fileExt=mid(filename,InStrRev(filename,".")+1)
+set fstream=Server.createobject("ADODB.Stream")
+fstream.Open
+fstream.Type=adTypeBinary
+fstream.LoadFromFile filename
+fstream.position=0
+select case fileExt
+case "jpg","jpeg"
+stamp=fstream.read(2)
+for i=0 to 1
+if ascB(MidB(stamp,i+1,1))=jpg(i) then CheckFileType=true else CheckFileType=false
+next
+case "gif"
+stamp=fstream.read(6)
+for i=0 to 5
+if ascB(MidB(stamp,i+1,1))=gif(i) then CheckFileType=true else CheckFileType=false
+next
+case "png"
+stamp=fstream.read(4)
+for i=0 to 3
+if ascB(MidB(stamp,i+1,1))=png(i) then CheckFileType=true else CheckFileType=false
+next
+case "bmp"
+stamp=fstream.read(2)
+for i=0 to 1
+if ascB(MidB(stamp,i+1,1))=bmp(i) then CheckFileType=true else CheckFileType=false
+next
+end select
+fstream.Close
+set fseteam=nothing
+if err.number<>0 then CheckFileType=false
+end function
+dim uploadingnum,i,action1,savepath,mymoney,ynimages
+action1=request("action1")
+userid=checknum(Hx66_uid)
+uploadsize=checknum(uploadsize)
+uploadnum=checknum(uploadnum)
+ynimages=false
+if Hx66_name<>"" then
+    sql="select count(*) from upload where name='"&Hx66_name&"' and uploadtime>=#"&formatdatetime(formatdatetime(now,2))&"#"
+    set rs=conn.execute(sql)
+    today_num=rs(0)
+    rs.close
+    if not(isnumeric(today_num)) then today_num=0
+    if int(today_num)>=int(uploadnum) then
+      response.write "<font color=red>注意</font>：您今天已上传<font color=red>"&today_num&"</font>个文件，每天只能上传<font color=red>"&uploadnum&"</font>个文件。"
+      response.end
+    end if
+end if
+   uploadingnum=checknum(session("uploadingnum"))
+if uploadingnum>uploadnum-1 then
+   response.write "&nbsp;一次只能上传 <b>"&uploadingnum&"</b> 个文件！"
+   response.end
+end if
+   UserGrade=conn.execute("select top 1 UserGrade from [user] where username='"&Hx66_name&"'")(0)
+if UserGrade+1<canupload then
+   response.write"&nbsp;<font color=red>你没有文件上传的权限或上传已关闭</font>"
+   response.end
+end if
+if action1="pic" or action1="url" or action1="headpic" then
+dim uploadsuc,upload,file,formName,iCount,filename,fileExt
+if action1="headpic" then uploadtype="gif|jpg":uploadsize=30:savepath="../upload/headpic"
+if action1="pic" then uploadtype=lcase(uploadtype):savepath="../upload"
+if action1="url" then uploadtype=lcase(uploadtype):savepath="../upload"
+call upload_07ing()
+sub upload_07ing()
+set upload=new upload_5xsoft ''建立上传对象
+iCount=0
+for each formName in upload.objFile ''列出所有上传了的文件
+ set file=upload.file(formName)  ''生成一个文件对象
+ if file.filesize<100 then
+ 	response.write "请先选择你要上传的文件　[ <a href=# onclick=history.go(-1)>重新上传</a> ]"
+	response.end
+ end if
+ if file.filesize>uploadsize*1000 then
+        response.write "文件大小超过了限制 "&uploadsize&" K　[ <a href=# onclick=history.go(-1)>重新上传</a> ]"
+        response.end
+ end if
+ dim sfileExt
+ sfileExt=split(file.filename,".")
+ fileExt="."&sfileExt(ubound(sfileExt))
+ fileExt=lcase(fileExt)
+ uploadsuc=false
+ Forumupload=split(uploadtype,"|")
+ for i=0 to ubound(Forumupload)
+	if fileEXT="."&trim(Forumupload(i)) then
+	uploadsuc=true
+	exit for
+	else
+	uploadsuc=false
+	end if
+ next
+ '添加禁止上传脚本类型 2006.2.3 07ing
+if fileExt=".asp" or fileExt=".php" or fileExt=".jsp" or fileExt=".cer" or fileExt=".htr"  or fileExt=".cdx" or fileExt=".shtml" or fileExt=".asa" then uploadsuc=false
+ '结束
+ if uploadsuc=false then
+ 	response.write "文件格式不正确　[ <a href=# onclick=history.go(-1)>重新上传</a> ]"
+	response.end
+ end if
+ filename=ctime&"-"&userid&fileExt
+ if action1="headpic" then filename=userid&fileExt
+ 'FileName=Replace(FileName,Chr(0),"")
+ if file.FileSize>0 then         ''如果有文件数据
+ file.SaveAs Server.mappath(savepath&"/"&FileName)   ''保存文件
+ if fileExt=".jpg" or fileExt=".gif" or fileExt=".png" or fileExt=".bmp" then
+        if fileExt=".jpg" or fileExt=".png" or fileExt=".bmp" then ynimages=true
+           If not CheckFileType(Server.mappath(savepath&"/"&FileName)) then
+           response.write "错误的图像格式 　[ <a href=# onclick=history.go(-1)>重新上传</a> ]"
+           Set fso = CreateObject("Scripting.FileSystemObject")
+           Set ficn = fso.GetFile(Server.mappath(savepath&"/"&FileName))
+           ficn.delete
+           set ficn=nothing
+           set fso=nothing
+           response.end
+           end if
+        end if
+	for i=0 to ubound(Forumupload)
+		if fileEXT="."&trim(Forumupload(i)) then
+		if action1="pic" then 
+                   conn.execute("insert into upload(filename,filetype,name,totable) values('"&filename&"','"&fileExt&"','"&Hx66_name&"',0)")
+                   response.write "<script>parent.form2.pic.value+='upload/"&FileName&"'</script>"
+                end if
+                if action1="url" then 
+                   conn.execute("insert into upload(filename,filetype,name,totable) values('"&filename&"','"&fileExt&"','"&Hx66_name&"',0)")
+                   response.write "<script>parent.form2.url.value+='upload/"&FileName&"'</script>"
+                end if
+                if action1="headpic" then 
+                   response.write "<script>parent.form2.mypic.value='upload/headpic/"&FileName&"'</script>"
+                end if
+		exit for
+		end if 
+	next
+ iCount=iCount+1
+ end if
+ set file=nothing
+next
+set upload=nothing
+if IsObjInstalled("jpg") and ynimages and logoyes=1 then 
+   if withImgFont=1 then
+      call aspjpegImg(savepath&"/"&FileName)
+   else
+      call aspjpegFont(savepath&"/"&FileName)
+   end if
+end if
+Htmend iCount&" 个文件上传结束!"
+end sub
+end if
+sub HtmEnd(Msg)
+if action1="pic" or action1="url" then
+session("uploadingnum")=uploadingnum+1
+response.write "&nbsp;<b>"&session("uploadingnum")&"</b>文件上传成功：<a href='upload/"&FileName&"' target=_blank>"&FileName&"</a>>> <a href=user_upload.asp?action="&action1&">继续上传</a>"
+response.end
+elseif action1="headpic" then
+response.write"头像上传成功，<a href=user_upload.asp?action=headpic>重新上传</a>。"
+end if
+end sub
+function ctime 
+  ctime = now()
+  ctime = replace(ctime,"-","")
+  ctime = replace(ctime," ","") 
+  ctime = replace(ctime,":","")
+  ctime = replace(ctime,"/","")
+  ctime = replace(ctime,"\","")
+  ctime = replace(ctime,"PM","")
+  ctime = replace(ctime,"AM","")
+  ctime = replace(ctime,"上午","")
+  ctime = replace(ctime,"下午","")
+end function
+Function IsObjInstalled(str)
+	On Error Resume Next
+	dim temp,objname
+Select Case (str) 
+	Case "fso"
+objname="Sc"&temp&"ript"&temp&"ing."&temp&"Fi"&temp&"leS"&temp&"yst"&temp&"emOb"&temp&"ject"
+	Case "jpeg","jpg","aspjpeg"
+objname="Persits.Jpeg"
+	Case Else
+End Select
+	temp=""
+	IsObjInstalled = False
+	Err = 0
+	Dim xTestObj
+	Set xTestObj = Server.CreateObject(objname)
+	If 0 = Err Then IsObjInstalled = True
+	Set xTestObj = Nothing
+	Err = 0
+End Function
+sub aspjpegImg(str)
+dim Photo,Logo
+Set Photo = Server.CreateObject("Persits.Jpeg")  
+Photo.Open Server.MapPath(str)
+Set Logo = Server.CreateObject("Persits.Jpeg") 
+Logo.Open Server.MapPath(logoImg)
+dim logoh,logow
+logow=logoImgW
+logoh=logow * Logo.OriginalHeight / Logo.OriginalWidth 
+Logo.Width = logow 
+Logo.Height = logoh
+Select Case (logoSpan) 
+	Case 1
+Photo.DrawImage 3 , 3 , Logo , 0.7
+	Case 2
+Photo.DrawImage Photo.Width -logow -3 , 3 , Logo , 0.7
+	Case 3
+Photo.DrawImage 3 , Photo.Height -logoh -3 , Logo , 0.7
+	Case 4
+Photo.DrawImage Photo.Width -logow -3 , Photo.Height -logoh-3 , Logo , 0.7
+	Case Else
+End Select
+Photo.Save Server.MapPath(str)
+set Photo=nothing
+set Logo=nothing
+End sub
+sub aspjpegFont(str)
+dim Jpeg
+Set Jpeg = Server.CreateObject("Persits.Jpeg") 
+Jpeg.Open Server.MapPath(str) 
+Jpeg.Canvas.Font.Color = &HFF0000
+Jpeg.Canvas.Font.Family = "宋体" 
+Jpeg.Canvas.Font.Size = 18
+Jpeg.Canvas.Font.Bold = True 
+dim fontlong
+fontlong=len(logoFnot)*18+2
+Select Case (logoSpan) 
+	Case 1
+Jpeg.Canvas.Print 1, 1, logoFnot
+	Case 2
+Jpeg.Canvas.Print Jpeg.Width-fontlong, 1, logoFnot
+	Case 3
+Jpeg.Canvas.Print 1, Jpeg.Height-23, logoFnot
+	Case 4
+Jpeg.Canvas.Print Jpeg.Width-fontlong, Jpeg.Height-23, logoFnot
+	Case Else
+End Select
+Jpeg.Canvas.Pen.Color = &H000000 
+Jpeg.Canvas.Pen.Width = 2       
+Jpeg.Canvas.Brush.Solid = False  
+Jpeg.Canvas.Bar 1, 1, Jpeg.Width, Jpeg.Height
+Jpeg.Save Server.MapPath(str)
+set Jpeg=Nothing
+End sub
+dim action:action=request("action")
+select case action
+case"headpic"
+%>
+<form name="form1" method="post" action="?action1=headpic" enctype="multipart/form-data" >
+<input type="hidden" name="act" value="upload">
+<input type="file" name="file1" size=10 onchange='showImg(1)'>
+<input type="submit" name="Submit" value="上传"> <select size="1" name="D1" style="font-size: 9pt">
+<option>类型</option>
+<option>gif</option>
+<option>jpg</option>
+</select>&nbsp;头像限制：<%=uploadsize%> K <span id='span1'>
+</form>
+<%case"pic"%>
+<form name="form" method="post" action="?action1=pic" enctype="multipart/form-data">
+<input type="hidden" name="act" value="upload">
+<input type="file" name="file1" size=10 onchange='showImg(1)'><input type="submit" name="Submit" value="上传"> <select size="1" name="D1" style="font-size: 9pt">
+<option>类型</option>
+<%
+uploadtype=split(uploadtype,"|")
+for i=0 to ubound(uploadtype)
+response.write"<option>"&uploadtype(i)&"</option>"
+next
+%>
+</select>(今天<font color=red><%=today_num%></font>个,每天<b><font color=red><%=uploadnum%></font></b>个,<=<b><%=uploadsize%></b>K)<span id='span1'>
+</form>
+<%case"url"%>
+<form name="form2" method="post" action="?action1=url" enctype="multipart/form-data">
+<input type="hidden" name="act" value="upload">
+<input type="file" name="file1" size=10><input type="submit" name="Submit" value="上传"> <select size="1" name="D1" style="font-size: 9pt">
+<option>类型</option>
+<%
+uploadtype=split(uploadtype,"|")
+for i=0 to ubound(uploadtype)
+response.write"<option>"&uploadtype(i)&"</option>"
+next
+%>
+</select>(今天<font color=red><%=today_num%></font>个,每天<b><font color=red><%=uploadnum%></font></b>个,<=<b><%=uploadsize%></b>K)
+</form>
+<%end select%>
+</body>
+</html>

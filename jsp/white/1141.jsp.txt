@@ -1,0 +1,144 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.trade.tb_commpara.*" %>
+<%@ page import="java.util.*" %>
+<% 
+  	String param_id="";
+  	if(request.getParameter("param_id")!=null) param_id = request.getParameter("param_id");
+  	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo();
+  	List list = tb_commparaInfo.getListByPk(param_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String subsys_code="",param_attr="",param_code="",param_name="",para_code1="",para_code2="",para_code3="",para_code4="",para_code5="",para_code6="",para_code7="",para_code8="",para_code9="",para_code10="",para_code11="",para_code12="",para_code13="",para_code14="",para_code15="",para_code16="",para_code17="",para_code18="",para_code19="",para_code20="",para_code21="",para_code22="",para_code23="",para_code24="",para_code25="",para_code26="",para_code27="",para_code28="",para_code29="",para_code30="",start_date="",end_date="",remark="",update_staff_id="",update_depart_id="",update_time="";
+  	if(map.get("subsys_code")!=null) subsys_code = map.get("subsys_code").toString();
+  	if(map.get("param_attr")!=null) param_attr = map.get("param_attr").toString();
+  	if(map.get("param_code")!=null) param_code = map.get("param_code").toString();
+  	if(map.get("param_name")!=null) param_name = map.get("param_name").toString();
+  	if(map.get("para_code1")!=null) para_code1 = map.get("para_code1").toString();
+  	if(map.get("para_code2")!=null) para_code2 = map.get("para_code2").toString();
+  	if(map.get("para_code3")!=null) para_code3 = map.get("para_code3").toString();
+  	if(map.get("para_code4")!=null) para_code4 = map.get("para_code4").toString();
+  	if(map.get("para_code5")!=null) para_code5 = map.get("para_code5").toString();
+  	if(map.get("para_code6")!=null) para_code6 = map.get("para_code6").toString();
+  	if(map.get("para_code7")!=null) para_code7 = map.get("para_code7").toString();
+  	if(map.get("para_code8")!=null) para_code8 = map.get("para_code8").toString();
+  	if(map.get("para_code9")!=null) para_code9 = map.get("para_code9").toString();
+  	if(map.get("para_code10")!=null) para_code10 = map.get("para_code10").toString();
+  	if(map.get("para_code11")!=null) para_code11 = map.get("para_code11").toString();
+  	if(map.get("para_code12")!=null) para_code12 = map.get("para_code12").toString();
+  	if(map.get("para_code13")!=null) para_code13 = map.get("para_code13").toString();
+  	if(map.get("para_code14")!=null) para_code14 = map.get("para_code14").toString();
+  	if(map.get("para_code15")!=null) para_code15 = map.get("para_code15").toString();
+  	if(map.get("para_code16")!=null) para_code16 = map.get("para_code16").toString();
+  	if(map.get("para_code17")!=null) para_code17 = map.get("para_code17").toString();
+  	if(map.get("para_code18")!=null) para_code18 = map.get("para_code18").toString();
+  	if(map.get("para_code19")!=null) para_code19 = map.get("para_code19").toString();
+  	if(map.get("para_code20")!=null) para_code20 = map.get("para_code20").toString();
+  	if(map.get("para_code21")!=null) para_code21 = map.get("para_code21").toString();
+  	if(map.get("para_code22")!=null) para_code22 = map.get("para_code22").toString();
+  	if(map.get("para_code23")!=null) para_code23 = map.get("para_code23").toString();
+  	if(map.get("para_code24")!=null) para_code24 = map.get("para_code24").toString();
+  	if(map.get("para_code25")!=null) para_code25 = map.get("para_code25").toString();
+  	if(map.get("para_code26")!=null) para_code26 = map.get("para_code26").toString();
+  	if(map.get("para_code27")!=null) para_code27 = map.get("para_code27").toString();
+  	if(map.get("para_code28")!=null) para_code28 = map.get("para_code28").toString();
+  	if(map.get("para_code29")!=null) para_code29 = map.get("para_code29").toString();
+  	if(map.get("para_code30")!=null) para_code30 = map.get("para_code30").toString();
+  	if(map.get("start_date")!=null) start_date = map.get("start_date").toString();
+  	if(map.get("end_date")!=null) end_date = map.get("end_date").toString();
+  	if(map.get("remark")!=null) remark = map.get("remark").toString();
+  	if(map.get("update_staff_id")!=null) update_staff_id = map.get("update_staff_id").toString();
+  	if(map.get("update_depart_id")!=null) update_depart_id = map.get("update_depart_id").toString();
+  	if(map.get("update_time")!=null) update_time = map.get("update_time").toString();
+	
+	String param_name_para = "";
+	if(request.getParameter("param_name_para")!=null && !request.getParameter("param_name_para").equals("")){
+		param_name_para = new String(request.getParameter("param_name_para").trim().getBytes("utf-8"));
+	}
+	
+	String iStart = "0";
+	if(request.getParameter("iStart")!=null && !request.getParameter("iStart").equals("")){
+		iStart = request.getParameter("iStart");
+	}
+	
+	String url = "/program/admin/salechannle/index.jsp?param_name_para="+param_name_para+"&iStart="+iStart;
+  %>
+<html>
+  <head>
+    
+    <title>渠道分销产品管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css"> 
+	<script type="text/javascript" src="param.js"></script>
+
+</head>
+
+<body>
+
+  
+	
+	<h1>修改渠道分销产品</h1>
+	
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	
+	<input name="param_id" id="param_id" type="hidden" value="<%=param_id%>"/>
+	<input name="param_attr" id="param_attr" type="hidden" value="<%=param_attr%>" />
+	<input name="param_code" id="param_code" type="hidden" value="<%=param_code%>" />
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		 
+
+		<tr>
+			<td align="right" width="10%">
+			产品名称<font color="red">*</font>
+			</td>
+			<td width="30%"><input name="param_name" id="param_name" value="<%=param_name%>" type="text" size="30" maxlength="30"/></td>
+ 
+			<td align="right" width="10%">
+				收益比例<font color="red">*</font>
+			</td>
+			<td><input name="para_code1" id="para_code1" type="text" value="<%=para_code1%>" maxlength="30" size="30" /></td>
+
+		</tr>
+	
+		<tr> 
+			 <td align="right" width="10%">
+				结算方式<font color="red">*</font>
+			</td>
+			<td width="30%"><input name="para_code2" id="para_code2" type="text" value="<%=para_code2%>" size="30" maxlength="50" /></td> 
+			<td align="right" width="10%">
+				产品说明:
+			</td>
+			<td><input name="para_code3" id="para_code3" type="text" maxlength="50" value="<%=para_code3%>" size="30" /></td>
+		</tr> 
+
+		<tr>
+			<td align="right" width="10%">
+				产品代码:
+			</td>
+			<td width="30%" colspan="3"><input name="para_code4" id="para_code4" value="<%=para_code4%>" type="text" size="30" maxlength="50"/></td> 
+			 
+		</tr>
+ 
+		
+	</table>
+
+	
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="8526" />
+	  			<input type="hidden" name="param_id" value="<%=param_id %>" />
+				<input type="hidden" name="jumpurl" value="<%=url%>" />
+				<input type="submit" class="buttoncss" name="tradeSub" onclick="return checkAdd()" value="提交" />&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='<%=url%>';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

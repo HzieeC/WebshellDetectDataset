@@ -1,0 +1,71 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page"/>
+
+<%
+
+String cust_id="",s_user_id="",s_user_name="";	
+	if( session.getAttribute("session_cust_id") != null )
+	{
+		cust_id = session.getAttribute("session_cust_id").toString();
+	}
+	if( session.getAttribute("session_user_id") != null )
+	{
+		s_user_id = session.getAttribute("session_user_id").toString();
+	}
+	if( session.getAttribute("session_user_name") != null )
+	{
+		s_user_name = session.getAttribute("session_user_name").toString();
+	}
+	String pri_key = bean.GenTradeId();
+%>
+
+<html>
+  <head>
+    <title>回答管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<h1>新增回答</h1>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<input name="trade_id" id="trade_id" type="hidden" value="<%=pri_key%>"/>
+    <input name="ask_id" id="ask_id" value="135xL7u0Hp76hT1"  type="hidden"/>
+	<input name="user_id" id="user_id" value="<%=s_user_id%>" type="hidden" />
+	<input name="cust_id" id="cust_id" value="<%=cust_id%>" type="hidden" />
+	<input name="in_date" id="in_date"  type="hidden" />	
+	<input name="state" id="state" value="1" type="hidden" />
+	<input name="good" id="good"  value="0"  type="hidden" />
+	
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="10%">
+				问题：
+			</td>
+			<td><input name="title" id="title" type="text" size="80" maxlength="100"/></td>
+		</tr>
+		<tr>
+			<td align="right" width="10%">
+				回答内容<font color="red">*</font>
+			</td>
+			<td>
+			<textarea name="contents" id="contents" rows="5" cols="90"></textarea>
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="0071" />
+				<input type="submit" class="buttoncss" name="tradeSub" value="提交" onclick="return checkSub();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

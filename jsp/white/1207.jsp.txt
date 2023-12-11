@@ -1,0 +1,288 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@page import="com.bizoss.trade.ts_category.*" %>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<%@page import="com.bizoss.trade.ti_download.*" %>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" />  
+<%
+   
+	
+	String down_id="";
+  	
+	if(request.getParameter("down_id")!=null) down_id = request.getParameter("down_id");
+  	Ti_downloadInfo ti_downloadInfo = new Ti_downloadInfo();
+  	List list = ti_downloadInfo.getListByPk(down_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+	
+	String cust_id="",state_code="",title="",size="",type="",update_date="",contact="",download_num="",developer="",dev_link="",language="",cat_attr="",platform="",content="",up_num="",down_num="",link_sw="",in_date="",user_id="";
+  	if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+  	if(map.get("state_code")!=null) state_code = map.get("state_code").toString();
+  	if(map.get("title")!=null) title = map.get("title").toString();
+  	if(map.get("size")!=null) size = map.get("size").toString();
+  	if(map.get("type")!=null) type = map.get("type").toString();
+  	if(map.get("update_date")!=null) update_date = map.get("update_date").toString();
+  	if(update_date.length()>10)update_date=update_date.substring(0,10);
+	if(map.get("contact")!=null) contact = map.get("contact").toString();
+  	if(map.get("download_num")!=null) download_num = map.get("download_num").toString();
+  	if(map.get("developer")!=null) developer = map.get("developer").toString();
+  	if(map.get("dev_link")!=null) dev_link = map.get("dev_link").toString();
+  	if(map.get("language")!=null) language = map.get("language").toString();
+  	if(map.get("cat_attr")!=null) cat_attr = map.get("cat_attr").toString();
+  	if(map.get("platform")!=null) platform = map.get("platform").toString();
+  	if(map.get("content")!=null) content = map.get("content").toString();
+  	if(map.get("up_num")!=null) up_num = map.get("up_num").toString();
+  	if(map.get("down_num")!=null) down_num = map.get("down_num").toString();
+  	if(map.get("link_sw")!=null) link_sw = map.get("link_sw").toString();
+	if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+  	if(in_date.length()>10)in_date=in_date.substring(0,10);
+	
+	if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+	
+	
+	
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+	String selecttree = ts_categoryInfo.getCategoryTree("000000000000000","8",cat_attr);
+	
+	Map catMap  = ts_categoryInfo.getCatClassMap("8");
+	
+	 Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	 String language_sel = tb_commparaInfo.getSelectItem("60",language);  
+
+%> 
+
+<html>
+  <head>
+    <title>审核下载信息</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css" />
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script language="javascript" type="text/javascript" src="js_download.js"></script>
+</head>
+
+<body>
+	<h1>审核下载信息</h1>
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="20%">
+				软件名称:
+			</td>
+			<td  colspan="3">
+			   <%=title%>
+		    </td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				软件类别:
+			</td>
+			<td  colspan="3">
+			  <%
+			    StringBuffer output =new StringBuffer();
+				if(!cat_attr.equals(""))
+				{
+				  String chIds[] =	cat_attr.split("\\|");	
+				  for(String chId:chIds)
+				  {
+					 if(catMap!=null)
+					 {
+						 if(catMap.get(chId)!=null)
+						 {
+							output.append(catMap.get(chId).toString()+" ");                 
+						  }                  
+					 
+					  }                 
+				   }		    
+				}
+			  
+			  %>
+			  
+			 <%=output%>
+		
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				软件大小:
+			</td>
+			<td  width="18%">
+			   <%=size%> &nbsp;&nbsp;M
+			</td>
+			<td width="12%" align="right">软件性质:</td>
+			<td width="60%">
+			   <%
+			      if(type.equals("0"))out.print("免费软件");
+			      if(type.equals("1"))out.print("收费软件");
+			   %> 
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				软件语言:
+			</td>
+			<td  width="18%">
+			  
+	        <select name="language" id="language" disabled>
+               <option value="">请选择...</option>
+               <%=language_sel%>           
+            </select>   
+			</td>
+			<td width="12%" align="right">应用平台:</td>
+			<td width="60%">
+			   <%=platform%>
+			</td>
+			
+		</tr>
+		
+	
+		<tr>
+			<td align="right" width="20%">
+				更新时间:
+			</td>
+			<td  width="18%">
+			  <%=update_date%>
+			</td>
+			<td width="12%" align="right">下载次数:</td>
+			<td width="60%">
+			  <%=download_num%>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				联系人:
+			</td>
+			<td  width="18%">
+			  <%=contact%>
+			</td>
+			<td width="12%" align="right">开发商:</td>
+			<td width="60%">
+			   <%=developer%>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				开发商链接:
+			</td>
+			<td   colspan="3">
+		      <%=dev_link%>
+			</td>
+		</tr>
+		
+	
+		<tr>
+			<td align="right" width="20%">
+				软件介绍:
+			</td>
+			<td  colspan="3">
+	
+			<textarea name="content" id="content"><%=content%></textarea>
+			<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+			<script type="text/javascript">
+			   CKEDITOR.replace('content',{
+			   	filebrowserUploadUrl : '/program/inc/upload.jsp?type=file&attach_root_id=<%=down_id%>',      
+                filebrowserImageUploadUrl : '/program/inc/upload.jsp?type=img&attach_root_id=<%=down_id%>',      
+                filebrowserFlashUploadUrl : '/program/inc/upload.jsp?type=flash&attach_root_id=<%=down_id%>'     
+            });  
+			</script>
+			
+			</td>
+		</tr>
+		
+		
+		<tr>
+			<td align="right" width="20%">
+				相关软件:
+			</td>
+			<td  colspan="3">
+			   <%
+			      String link_sws[] = link_sw.split("\\|");
+				  String soft_name="";
+				  for(int i=0;i<link_sws.length;i++){
+				      if(link_sws[i].equals(""))break;
+				      soft_name = ti_downloadInfo.getSoftName(link_sws[i]);
+			   %>
+			    <table width='100%' border='0' cellspacing='0' cellpadding='0'>
+				
+				<tr id='spandiv<%=i+1%>'>
+				 <td width='5%' height='35' align='right' style='background:#F9F9F9;'>
+				     <font color='#666666'><%=i+1%>:</font>
+				 </td>
+				 <td width='55%' style='background:#F9F9F9;'>
+				    <font color='#666666'><%=soft_name%></font>
+				 </td>
+				 <td width='40%'>
+				     &nbsp;
+				     <img src='/program/company/index/images/cross.png' style='vertical-align:middle;cursor:pointer;' title=移除关联 onclick="moveout('<%=i+1%>','<%=link_sws[i]%>')" />
+				 </td>
+				 </tr>
+				
+				</table>
+			
+			  <%}%>
+			
+			</td>
+		</tr>
+		
+			<tr>
+		<td  colspan="4">
+			   &nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">审核信息</span></td>
+	    </tr>
+     
+        <tr>
+			<td align="right" width="20%">
+				是否通过:			
+			</td>
+			<td colspan="3">
+			  <input type="radio" name="state_code" id="state_code1" onclick="change(0)" checked value="c" />审核通过
+			  <input type="radio" name="state_code" id="state_code2" onclick="change(1)" value="b" />审核不通过	
+			</td>
+			
+		</tr> 
+		
+		  <tr style="display:none;" id="tr_reason">
+			<td align="right" width="20%">
+				不通过理由:			
+			</td>
+			<td colspan="3">
+			   <textarea name="remark" id="remark" cols="80" rows="8"></textarea>
+			</td>
+		</tr> 
+	</table>
+	
+	<script>
+		function change(val)
+        {
+			if(val == 0){
+				document.getElementById('tr_reason').style.display = 'none';
+			}
+			if(val == 1){
+				document.getElementById('tr_reason').style.display = '';
+			}
+	    }
+	</script>		
+
+	
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="4758" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="audit()"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	  
+	    <input type="hidden" name="pkid" id="pkid" value="<%=down_id%>">
+	    <input type="hidden" name="jumpurl" value="/program/admin/checkdownload/index.jsp" />
+	
+	  
+	</form>
+</body>
+
+</html>

@@ -1,0 +1,280 @@
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<%
+If Not (FRAdminLevel(202) or FRAdminLevel(302) or FRAdminLevel(303) or FRAdminLevel(311) or FRAdminLevel(312)) Then
+	Call ErrorMsg()
+End If
+member_typeid=trim(request("member_typeid"))
+if trim(request("member_typeid"))="" then
+Response.Write ("<script>alert('非法操作！');history.back();</script>")
+Response.End
+end if
+if trim(request("step"))="2" then
+  member_id=trim(request("id"))
+  member=trim(request("member"))
+  member_startdate=trim(request("startdate"))
+  member_enddate=trim(request("enddate"))
+  user_type=trim(request("user_type"))
+  prices2=trim(request("prices2"))
+  if member_startdate="" Or member_enddate="" or user_type="" then
+	Response.Write ("<script>alert('信息不完整！');history.back();</script>")
+	Response.End
+  end if
+  if request("free")=0 then
+	Call PayLog(member,member_typeid,"会员升级",0,1) '创建日志
+	conn.execute("update JOB_member set Member_groupid="&user_type&",member_startdate='"&member_startdate&"',member_enddate='"&member_enddate&"' where member_id="&member_id)  
+  else
+	If prices2<>"" Then
+	  If IsNumeric(prices2)=False Then
+		Response.Write ("<script>alert('扣除点数必须是数值！');history.back();</script>")
+		Response.End
+	  End If
+	End If
+	Call PayMoney(member,member_typeid,prices2) '扣费操作
+	Call PayLog(member,member_typeid,"会员升级",prices2,1) '创建日志
+	conn.execute("update JOB_member set Member_groupid="&user_type&",member_startdate='"&member_startdate&"',member_enddate='"&member_enddate&"' where member_id="&member_id)
+  end if
+  set mrs=Server.CreateObject("ADODB.RecordSet")
+  msql="select Group_Climit from JOB_Group where Group_membertype="&member_typeid&" and Group_id="&user_type&""
+  mrs.open msql,conn,1,1
+  if not(mrs.bof and mrs.eof) then
+	Group_Climit=mrs("Group_Climit")
+	Group_Climits=split(Group_Climit,",")
+  else
+	Response.Write ("<script>alert('选择的用户组不存在，重新选择！');history.back();</script>")
+	Response.End
+  end if
+  mrs.close
+  set mrs=nothing
+  if request("user_flag")="1" then
+  '重设会员组权限
+	conn.Execute("Update JOB_member set Member_hirenum="&Group_Climits(1)&",Member_expertnum="&Group_Climits(3)&",Member_interviewnum="&Group_Climits(5)&",Member_recyclenum="&Group_Climits(7)&",Member_contactnum="&Group_Climits(9)&",Member_smsnum="&Group_Climits(13)&" where member_id="&member_id)
+  elseif request("user_flag")="2" then
+	conn.Execute("Update JOB_member set Member_hirenum=Member_hirenum+"&Group_Climits(1)&",Member_expertnum=Member_expertnum+"&Group_Climits(3)&",Member_interviewnum=Member_interviewnum+"&Group_Climits(5)&",Member_recyclenum=Member_recyclenum+"&Group_Climits(7)&",Member_contactnum=Member_contactnum+"&Group_Climits(9)&",Member_smsnum=Member_smsnum+"&Group_Climits(13)&" where member_id="&member_id)
+  elseif request("user_flag")="3" then
+  	uflag1=trim(request("uflag1"))
+	uflag2=trim(request("uflag2"))
+	uflag3=trim(request("uflag3"))
+	uflag4=trim(request("uflag4"))
+	uflag5=trim(request("uflag5"))
+	uflag6=trim(request("uflag6"))
+	if Not (isNumeric(uflag1) and isNumeric(uflag2) and isNumeric(uflag3) and isNumeric(uflag4) and isNumeric(uflag5) and isNumeric(uflag6)) then
+	Response.Write ("<script>alert('自定义权限项应为数字，请重新填写！');history.back();</script>")
+	Response.End
+	else
+	conn.Execute("Update JOB_member set Member_hirenum="&uflag1&",Member_expertnum="&uflag2&",Member_interviewnum="&uflag3&",Member_recyclenum="&uflag4&",Member_contactnum="&uflag5&",Member_smsnum="&uflag6&" where member_id="&member_id)
+	end if
+  end if
+  Response.Write ("<script language=JavaScript>{window.opener.location.reload();window.close();}</script>")
+end if
+%>
+<%member_id=trim(request("id"))
+currentpage=trim(request("currentpage"))
+sql="select * from JOB_member where member_id="&member_id
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,1
+%>
+<html>
+<head>
+<title>设置会员收费类型</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<LINK href=../css/style.css rel=stylesheet type="text/css">
+<script type="text/javascript" src="../inc/Admin.js"></script><script language="JavaScript">
+<!--
+function IsDate(DateString , Dilimeter) 
+{ 
+if (DateString==null) return false; 
+if (Dilimeter=='' || Dilimeter==null) 
+Dilimeter = '-'; 
+var tempy=''; 
+var tempm=''; 
+var tempd=''; 
+var tempArray; 
+if (DateString.length<8 && DateString.length>10) 
+return false;  
+tempArray = DateString.split(Dilimeter); 
+if (tempArray.length!=3) 
+return false; 
+if (tempArray[0].length==4) 
+{ 
+tempy = tempArray[0]; 
+tempd = tempArray[2]; 
+} 
+else 
+{ 
+tempy = tempArray[2]; 
+tempd = tempArray[1]; 
+} 
+tempm = tempArray[1]; 
+var tDateString = tempy + '/'+tempm + '/'+tempd+' 8:0:0';//加八小时是因为我们处于东八区 
+var tempDate = new Date(tDateString); 
+if (isNaN(tempDate)) 
+return false; 
+if (((tempDate.getUTCFullYear()).toString()==tempy) && (tempDate.getMonth()==parseInt(tempm)-1) && (tempDate.getDate()==parseInt(tempd))) 
+{ 
+return true; 
+} 
+else 
+{ 
+return false; 
+} 
+} 
+function Juge(theForm)
+{
+  if (!IsDate(theForm.startdate.value == ""))
+  {
+    alert("请正确填写开始时间!");
+    theForm.startdate.focus();
+    return (false);
+  }
+  if (!IsDate(theForm.enddate.value == ""))
+  {
+    alert("请正确填写结束时间!");
+    theForm.enddate.focus();
+    return (false);
+  }
+}
+function changetype(typeid,endyear,endmonth,endday,outlay)
+{
+var today;
+today=new Date(); 
+month=today.getMonth();
+year=today.getYear();
+day=today.getDate(); 
+document.form1.startdate.value=year+'-'+(month+1)+'-'+day;
+document.form1.enddate.value=endyear+'-'+endmonth+'-'+endday;
+document.form1.prices2.value=outlay;
+}
+function show1()
+{
+	ispay.style.display="";
+}
+function show2()
+{
+	ispay.style.display="none";
+}
+function showuflag(str)
+{
+	if (str==0){uflag.style.display="none";}
+	else{uflag.style.display="";}
+	
+}
+-->
+</script></head>
+
+<body>
+<div align="center">
+  <table width="100%" border="0" cellpadding="2" cellspacing="1"  align="center"  class="tableBorder">
+    <tr>
+      <th height=25 class="tableHeaderText" colspan="4"> 修改会员账户付费类型</th>
+    </tr>
+    <form name="form1" method="post" action="Admin_Usertypemodi.asp?id=<%=member_id%>&member_typeid=<%=member_typeid%>&step=2" onSubmit="return Juge(this)">
+      <tr>
+        <td height=25 colspan=5 align=left><font color=#333333>（注：带</font><font color=#ff6600>＊</font><font color=#b00000><font color=#333333>号为必填项）</font></font> </td>
+      </tr>
+      <tr>
+        <td width="150" height="25" align="right">会员帐号：</td>
+        <td width="150"><input name="member_login" type="text" id="member_login" size="20" maxlength="50" value="<%=rs("member_login")%>" disabled>
+        <input name="member" type="hidden" id="member" value="<%=rs("member_login")%>"></td>
+        <td width="150" align="right">会员名称：</td>
+        <td><input name="member_name" type="text" id="member_name" size="40" maxlength="50" value="<%=rs("member_name")%>" disabled></td>
+      </tr>
+      <tr>
+        <td height="25" align="right">服务类型：</td>
+        <td colspan="3"><%sql="select * from JOB_Group where Group_membertype="&member_typeid&""
+set rs1=server.createobject("adodb.recordset")
+rs1.open sql,conn,1,1
+if not rs1.eof then
+do while not rs1.eof
+if cint(rs1("Group_id"))=cint(rs("Member_groupid")) then
+response.Write "<input type='radio' name='user_type' value='"&rs1("Group_id")&"' class=checkbox onclick='changetype(this.value,"&year(UserTypeDate(rs1("Group_id")))&","&month(UserTypeDate(rs1("Group_id")))&","&day(UserTypeDate(rs1("Group_id")))&","&UserTypeoutlay(rs1("Group_id"))&")' checked>"&rs1("Group_name")
+else
+response.Write "<input type='radio' name='user_type' value='"&rs1("Group_id")&"' class=checkbox onclick='changetype(this.value,"&year(UserTypeDate(rs1("Group_id")))&","&month(UserTypeDate(rs1("Group_id")))&","&day(UserTypeDate(rs1("Group_id")))&","&UserTypeoutlay(rs1("Group_id"))&")'>"&rs1("Group_name")
+end if
+rs1.movenext
+loop
+end if
+rs1.close
+set rs1=nothing
+%></td>
+      </tr>
+      <tr>
+        <td height="25" align="right">帐户时限：</td>
+        <td colspan="3">从
+			<input name="startdate" type="text" size="10" id=startdate value="<%
+		if rs("member_startdate")<>"" then
+		response.Write(year(rs("member_startdate"))&"-"&month(rs("member_startdate"))&"-"&day(rs("member_startdate")))
+		else
+		response.Write(date())
+		end if
+			%>">
+          <img src="../images/calendar_bnt.gif" style="cursor:hand;" align="absmiddle" onClick="fPopUpCalendarDlg(startdate);return false" width="34" height="21"> &nbsp;&nbsp; 至    
+        &nbsp;<input name="enddate" type="text" size="10" id=enddate value="<%
+				   if rs("member_enddate")<>"" then
+						response.Write(year(rs("member_enddate"))&"-"&month(rs("member_enddate"))&"-"&day(rs("member_enddate")))
+				   end if
+				   %>">
+        <img src="../images/calendar_bnt.gif" style="cursor:hand;" align="absmiddle" onClick="fPopUpCalendarDlg(enddate);return false" width="34" height="21">		</td>
+      </tr>
+      <tr>
+        <td height="25" align="right">是否扣费：</td>
+        <td colspan="3">
+          <input name="free" type="radio" class="checkbox" onClick="show1()" value="1">
+            是
+            <input name="free" type="radio" class="checkbox" onClick="show2()" value="0" checked>
+        否（此操作是否扣费）当前余额：<font color="#FF0000"><%=rs("Member_balance")%></font>元</td>
+      </tr>
+      <tr id="ispay" style="display:none">
+        <td height="25" align="right">扣费金额：</td>
+        <td colspan="3"><input name="prices2" type="text" id="prices2" value="0" size="8" maxlength="10">
+          元</td>
+      </tr>
+      <%if member_typeid=2 then%>
+      <tr>
+        <td height="25" align="right">重置权限：</td>
+        <td colspan="3"><input type="radio" name="user_flag" onClick="showuflag(0)" value="0" class="checkbox" checked>不重置<input type="radio" name="user_flag" onClick="showuflag(0)" value="1" class="checkbox">重置
+          <input type="radio" name="user_flag" value="2" onClick="showuflag(0)" class="checkbox">累加
+          <input type="radio" name="user_flag" value="3" onClick="showuflag(1)" class="checkbox">自定义
+          <span class="f00">(重置会员各项权限)</span></td>
+      </tr>
+      <tr id="uflag" style="display:none">
+        <td height="25" align="right">权限设置：</td>
+        <td colspan="3"><table width="100%" border="0" cellpadding="0" cellspacing="0">
+          <tr>
+            <td>职位库
+              <input name="uflag1" type="text" id="uflag1" value="<%=rs("Member_hirenum")%>" size="2" maxlength="10"></td>
+            <td>人才库
+              <input name="uflag2" type="text" id="uflag2" value="<%=rs("Member_expertnum")%>" size="2" maxlength="10"></td>
+            <td>面试通知
+              <input name="uflag3" type="text" id="uflag3" value="<%=rs("Member_interviewnum")%>" size="2" maxlength="10"></td>
+            <td>回收站
+              <input name="uflag4" type="text" id="uflag4" value="<%=rs("Member_recyclenum")%>" size="2" maxlength="10"></td>
+            <td>查看简历
+              <input name="uflag5" type="text" id="uflag5" value="<%=rs("Member_contactnum")%>" size="2" maxlength="10"></td>
+            <td>短信数
+              <input name="uflag6" type="text" id="uflag6" value="<%=rs("Member_smsnum")%>" size="2" maxlength="10"></td>
+          </tr>
+        </table></td>
+      </tr>
+      <%end if%>
+      <tr>
+        <td height="25" colspan="5"><div align="center">
+            <input name="Submit" type="submit" class="inputs" value="提 交">
+          &nbsp;
+          <input name="Submit2" type="reset" class="inputs" value="重 置">
+           &nbsp;
+           <input name="Submit22" type="button" class="inputs" style="cursor:hand" onClick="javascript:window.close();" value="关 闭">
+        </div></td>
+      </tr>
+    </form>
+  </table>
+</div>
+</body>
+</html>
+<%
+rs.close
+set rs=nothing
+conn.close
+set conn=nothing
+%>

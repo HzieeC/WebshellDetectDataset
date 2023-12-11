@@ -1,0 +1,1211 @@
+<!--#include file="Class_Safe.asp" -->
+<!--#include file="../../Include/Class_Conn.asp" -->
+<!--#include file="../../Include/Class_Css.asp" -->
+<%
+
+Function CloseDB
+ on error resume next
+ Conn.close
+ Set conn = Nothing
+End Function
+
+Function CloseRs
+ on error resume next
+ Rs.Close
+ Set Rs = Nothing
+End Function
+
+If Err Then
+	err.Clear
+	Set Conn = Nothing
+	Response.Write "数据更新中... ...请联系Janis Email:ou@ouccs.com"
+	Response.End
+End If
+
+
+
+'//Session保存期
+'Session.Timeout = 30
+
+
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+'//JMail组件安装判断
+Set JMail=Server.CreateObject("JMail.Message")
+If JMail Is Nothing Then 
+ JMailZJtype = 0 
+Else 
+ JMailZJtype = 1 
+End If
+'//jpeg组件安装判断
+set jpeg=server.createobject("persits.jpeg")
+Jpegexpires = jpeg.expires
+if Jpegexpires="9999-9-9" then
+ JpegZJtype = 1
+else
+ JpegZJtype = 0
+end if
+'//发送邮件函数
+Sub SendEmail(Mailname,Mailzhuti,MailBody,Maildizhi)
+
+'On error resume next
+'Dim JMail, contentId
+Set JMail = Server.CreateObject("JMail.Message")
+
+JMail.Charset = "gb2312" ' 邮件字符集，默认为"US-ASCII"
+' JMail.ISOEncodeHeaders = False ' 是否进行ISO编码，默认为True
+
+' 发送者信息（可用变量方式赋值）
+JMail.From = Cls_MailForm ' 发送者地址
+JMail.FromName = Mailname ' 发送者姓名
+JMail.Subject = Mailzhuti ' 邮件主题
+
+' 身份验证
+JMail.MailServerUserName = Cls_MailUser ' 身份验证的用户名
+JMail.MailServerPassword = Cls_MailPass ' 身份验证的密码
+
+' 设置优先级，范围从1到5，越大的优先级越高，3为普通
+JMail.Priority = Cls_MailObject
+
+JMail.AddHeader "Originating-IP", Request.ServerVariables("REMOTE_ADDR")
+
+' 加入一个收件人【变量email：收件人地址】可以同一语句重复加入多个
+JMail.AddRecipient(Maildizhi)
+
+' 加入附件【变量filename：附件文件的绝对地址，确保用户IUSR_机器名有访问的权限】
+' 【参数设置是(True)否(False)为Inline方式】
+'contentId = JMail.AddAttachment (Server.MapPath("jmail.asp"), True)
+
+' 邮件主体（HTML(注意信件内链接附件的方式)）
+JMail.HTMLBody = "<html><head><META content=zh-cn http-equiv=Content-Language><meta http-equiv=""Content-Type"" content=""text/html; charset=gb2312""><style type=text/css>A:link { FONT-SIZE: 9pt; TEXT-DECORATION: none; color: #000000}A:visited {FONT-SIZE: 9pt; TEXT-DECORATION: none; color: #666666}A:hover {COLOR: #ff6600; FONT-SIZE: 9pt; TEXT-DECORATION: underline}BODY {FONT-SIZE: 9pt} --></style></head><body>"&MailBody&"<br><b>温馨提示：</b><br>1、"&Cls_WebName&"（"&Cls_DoMain&"）统一服务邮箱为 "&Cls_MailForm&" ，请注意邮件发送者，谨防假冒！<br>2、本邮件为系统自动发出，请勿回复。<br>3、技术咨询Janis Email: ou@ouccs.com 。</body></html>"
+
+' 邮件主体（文本部分）
+JMail.Body = "我们的邮件采用了HTML格式，但是您的邮件查看软件可能不支持。。。"&MailBody&"<br><b>温馨提示：</b><br>1、"&Cls_WebName&"（"&Cls_DoMain&"）统一服务邮箱为 "&Cls_MailForm&" ，请注意邮件发送者，谨防假冒！<br>2、本邮件为系统自动发出，请勿回复。<br>3、技术咨询Janis Email: ou@ouccs.com 。"
+
+' 发送【调用格式：objJMail.Send([username:password@]SMTPServerAddress[:Port])】
+JMail.Send(Cls_MailSmtp)
+
+' 关闭并清除对象
+JMail.Close()
+Set JMail = Nothing
+
+if err.number<>0 then
+response.write Maildizhi&" 发送失败！"
+'else
+'response.write "邮件发送成功！"
+end if
+
+End Sub
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+Sub sendsms(mobile,msg,t)
+'多个手机号之间用“,”分隔
+dim userid,password,status
+dim xmlObj,httpsendurl 
+msgs=server.URLEncode(msg) 
+
+httpsendurl="http://www.gysoft.cn/smspost/send.aspx?username="&Cls_SMSUser&"&password="&Cls_SMSPass&"&mobile="&mobile&"&content="&msgs
+Set xmlObj = server.CreateObject("Microsoft.XMLHTTP")
+xmlObj.Open "GET",httpsendurl,false
+xmlObj.send()
+status = xmlObj.responseText
+Set xmlObj = nothing
+
+mobileS   = Split(mobile,",")
+
+If left(status,2) = "OK" then '发送成功  返回结果为OK1 表示成功发送1条 ,OK2表示成功2条，以此类推
+	sendsmsType = 1 'Response.Write "<br><br>返回状态码："&status&"&nbsp;&nbsp;&nbsp;发送状态：发送成功！&nbsp;&nbsp;&nbsp; <a href=""javascript:history.back();"">返回发送页面</a>"	
+Else '发送失败
+	sendsmsType = 0 'Response.Write "<br><br>返回状态码："&status&"&nbsp;&nbsp;&nbsp;发送状态：发送失败！&nbsp;&nbsp;&nbsp;<a href=""javascript:history.back();"">返回发送页面</a>"	
+End if
+
+For Si = 0 To Ubound(mobileS)
+if Data_Type = 0 then
+Conn.Execute "Insert Into [OUCCS_SMSList] (uid,jtel,times,infos,t,tt) Values ("&Request.cookies("Web")("Web_SupperID")&",'"&Trim(mobileS(Si))&"',now(),'"&msg&"',"&t&","&sendsmsType&")"
+else
+Conn.Execute "Insert Into [OUCCS_SMSList] (uid,jtel,times,infos,t,tt) Values ("&Request.cookies("Web")("Web_SupperID")&",'"&Trim(mobileS(Si))&"',getdate(),'"&msg&"',"&t&","&sendsmsType&")"
+end if
+Next
+	
+End sub
+'////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+'//生成会员的标记字符串
+Dim output,num
+Function gen_key(digits)
+ Dim char_array(50)
+ char_array(0) = "0"
+ char_array(1) = "1"
+ char_array(2) = "2"
+ char_array(3) = "3"
+ char_array(4) = "4"
+ char_array(5) = "5"
+ char_array(6) = "6"
+ char_array(7) = "7"
+ char_array(8) = "8"
+ char_array(9) = "9"
+ char_array(10) = "A"
+ char_array(11) = "B"
+ char_array(12) = "C"
+ char_array(13) = "D"
+ char_array(14) = "E"
+ char_array(15) = "F"
+ char_array(16) = "G"
+ char_array(17) = "H"
+ char_array(18) = "I"
+ char_array(19) = "J"
+ char_array(20) = "K"
+ char_array(21) = "L"
+ char_array(22) = "M"
+ char_array(23) = "N"
+ char_array(24) = "O"
+ char_array(25) = "P"
+ char_array(26) = "Q"
+ char_array(27) = "R"
+ char_array(28) = "S"
+ char_array(29) = "T"
+ char_array(30) = "U"
+ char_array(31) = "V"
+ char_array(32) = "W"
+ char_array(33) = "X"
+ char_array(34) = "Y"
+ char_array(35) = "Z"
+ randomize
+ do while len(output) < digits
+  num = char_array(Int((35 - 0 + 1) * Rnd + 0))
+  output = output + num
+ loop
+ gen_key = output
+End Function
+ 
+'//生成合同编号
+Function Conidfilename(Fname)
+  Fname = Year(Now()) &  Month(Now()) & Day(Now()) & Hour(Now()) & Minute(Now()) & Second(Now())
+  Conidfilename = Fname
+End Function   
+
+'////////////////////////////////////////////////////////////////////////////////////////////////
+function getnumid(tablename,keyname)
+		idtable="OUCCS_Syskeyid"
+		set rsa=Server.CreateObject("ADODB.Recordset")
+		set rsb=Server.CreateObject("ADODB.Recordset")
+		sqltext="select * from "&idtable&" where tname='"&tablename&"' and keyname='"&keyname&"'"
+		rsa.Open sqltext,conn,1,3
+		if not rsa.EOF then
+			keyid=rsa("keyid")+1
+			rsa("keyid")=keyid
+		else
+			sqltext="select "&keyname&" from "+tablename+" order by "+keyname+" desc"
+			rsb.Open sqltext,conn,1,1
+			if rsb.EOF then
+				keyid=0
+			else
+				keyid=rsb(0)
+			end if					
+			rsb.Close
+			rsa.AddNew
+			rsa("tname")=tablename
+			rsa("keyname")=keyname
+			keyid=keyid+1
+			rsa("keyid")=keyid
+		end if
+		getnumid=keyid
+		rsa.Update
+		rsa.Close
+		set rsa=nothing
+		set rsb=nothing
+end function
+
+
+'
+function gotTopic(str,strlen)
+	if str="" then
+		gotTopic=""
+		exit function
+	end if
+	dim l,t,c, i
+	str=replace(replace(replace(replace(str,"&nbsp;"," "),"&quot;",chr(34)),"&gt;",">"),"&lt;","<")
+	l=len(str)
+	t=0
+	for i=1 to l
+		c=Abs(Asc(Mid(str,i,1)))
+		if c>255 then
+			t=t+2
+		else
+			t=t+1
+		end if
+		if t>=strlen then
+			gotTopic=left(str,i) & "…"
+			exit for
+		else
+			gotTopic=str
+		end if
+	next
+	gotTopic=replace(replace(replace(replace(gotTopic," ","&nbsp;"),chr(34),"&quot;"),">","&gt;"),"<","&lt;")
+end function
+
+
+Function code_jk(strer)
+  strer=strer
+  if strer="" or isnull(strer) then
+    code_jk="":exit function
+  end if
+
+  strer=replace(strer,"<","&lt;")
+  strer=replace(strer,">","&gt;")
+  strer=replace(strer,CHR(32),"&nbsp")    '空格
+  strer=replace(strer,CHR(9),"&nbsp")    'table
+  strer=replace(strer,CHR(39),"&#39;")    '单引号
+  strer=replace(strer,CHR(34),"&quot;")    '双引号
+  
+  dim re
+  set re=new RegExp
+  re.IgnoreCase =true
+  re.Global=true
+  
+  re.Pattern="(javascript)"
+  strer=re.Replace(strer,"&#106avascript")
+  re.Pattern="(jscript:)"
+  strer=re.Replace(strer,"&#106script:")
+  re.Pattern="(js:)"
+  strer=re.Replace(strer,"&#106s:")
+  re.Pattern="(value)"
+  strer=re.Replace(strer,"&#118alue")
+  re.Pattern="(about:)"
+  strer=re.Replace(strer,"about&#58")
+  re.Pattern="(file:)"
+  strer=re.Replace(strer,"file&#58")
+  re.Pattern="(document.cookie)"
+  strer=re.Replace(strer,"documents&#46cookie")
+  re.Pattern="(vbscript:)"
+  strer=re.Replace(strer,"&#118bscript:")
+  re.Pattern="(vbs:)"
+  strer=re.Replace(strer,"&#118bs:")
+  re.Pattern="(on(mouse|exit|error|click|key))"
+  strer=re.Replace(strer,"&#111n$2")
+  
+  re.Pattern="\[pic\](http|https|ftp):\/\/(.[^\[]*)\[\/pic\]"
+  strer=re.Replace(strer,"<IMG SRC='http://$2' border=0 onload=""javascript:if(this.width>screen.width-430)this.width=screen.width-430"">")
+  re.Pattern="\[IMG\](http|https|ftp):\/\/(.[^\[]*)\[\/IMG\]"
+  strer=re.Replace(strer,"<a href='http://$2' target=_blank><IMG SRC='http://$2' border=0 alt='按此在新窗口浏览图片' onload=""javascript:if(this.width>screen.width-430)this.width=screen.width-430""></a>")
+  re.Pattern="(\[FLASH=*([0-9]*),*([0-9]*)\])(.[^\[]*)(\[\/FLASH\])"
+  strer= re.Replace(strer,"<a href='$4' TARGET=_blank>[全屏欣赏]</a><br><OBJECT codeBase=http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=4,0,2,0 classid=clsid:D27CDB6E-AE6D-11cf-96B8-444553540000 width=$2 height=$3><PARAM NAME=movie VALUE='$4'><PARAM NAME=quality VALUE=high><embed src='$4' quality=high pluginspage='http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash' type='application/x-shockwave-flash' width=$2 height=$3>$4</embed></OBJECT>")
+  re.Pattern="(\[FLASH\])(http://.[^\[]*(.swf))(\[\/FLASH\])"
+  strer= re.Replace(strer,"<a href=""$2"" TARGET=_blank>[全屏欣赏]</a><br><OBJECT codeBase=http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=4,0,2,0 classid=clsid:D27CDB6E-AE6D-11cf-96B8-444553540000 width=500 height=400><PARAM NAME=movie VALUE=""$2""><PARAM NAME=quality VALUE=high><embed src=""$2"" quality=high pluginspage='http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash' type='application/x-shockwave-flash' width=500 height=400>$2</embed></OBJECT>")
+  re.Pattern="(\[URL\])(.[^\[]*)(\[\/URL\])"
+  strer= re.Replace(strer,"<A HREF='$2' class=blue TARGET=_blank>$2</A>")
+  re.Pattern="(\[URL=(.[^\[]*)\])(.[^\[]*)(\[\/URL\])"
+  strer= re.Replace(strer,"<A HREF='$2' class=blue TARGET=_blank>$3</A>")
+  re.Pattern="(\[EMAIL\])(\S+\@.[^\[]*)(\[\/EMAIL\])"
+  strer= re.Replace(strer,"<A HREF=""mailto:$2"">$2</A>")
+  re.Pattern="(\[EMAIL=(\S+\@.[^\[]*)\])(.[^\[]*)(\[\/EMAIL\])"
+  strer= re.Replace(strer,"<A HREF=""mailto:$2"" TARGET=_blank>$3</A>")
+  re.Pattern = "^(http://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)"
+  strer = re.Replace(strer,"<a target=_blank href=$1>$1</a>")
+  re.Pattern = "(http://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)$"
+  strer = re.Replace(strer,"<a target=_blank href=$1>$1</a>")
+  re.Pattern = "([^>='])(http://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)"
+  strer = re.Replace(strer,"$1<a target=_blank href=$2>$2</a>")
+  re.Pattern = "^(ftp://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)"
+  strer = re.Replace(strer,"<a target=_blank href=$1>$1</a>")
+  re.Pattern = "(ftp://[A-Za-z0-9\./=\?%\-&_~`@':+!]+)$"
+  strer = re.Replace(strer,"<a target=_blank href=$1>$1</a>")
+  re.Pattern = "[^>='](ftp://[A-Za-z0-9\.\/=\?%\-&_~`@':+!]+)"
+  re.Pattern="\[color=(.[^\[]*)\](.[^\[]*)\[\/color\]"
+  strer=re.Replace(strer,"<font color=$1>$2</font>")
+  re.Pattern="\[face=(.[^\[]*)\](.[^\[]*)\[\/face\]"
+  strer=re.Replace(strer,"<font face=$1>$2</font>")
+  re.Pattern="\[align=(.[^\[]*)\](.[^\[]*)\[\/align\]"
+  strer=re.Replace(strer,"<div align=$1>$2</div>")
+  re.Pattern="\[align=(.[^\[]*)\](.*)\[\/align\]"
+  strer=re.Replace(strer,"<div align=$1>$2</div>")
+  re.Pattern="\[center\](.[^\[]*)\[\/center\]"
+  strer=re.Replace(strer,"<div align=center>$1</div>")
+  re.Pattern="\[i\](.[^\[]*)\[\/i\]"
+  strer=re.Replace(strer,"<i>$1</i>")
+  re.Pattern="\[u\](.[^\[]*)(\[\/u\])"
+  strer=re.Replace(strer,"<u>$1</u>")
+  re.Pattern="\[b\](.[^\[]*)(\[\/b\])"
+  strer=re.Replace(strer,"<b>$1</b>")
+  re.Pattern="\[size=([1-4])\](.[^\[]*)\[\/size\]"
+  strer=re.Replace(strer,"<font size=$1>$2</font>")
+
+  set re=Nothing
+  
+  strer=replace(strer,"[br]","<br>")
+  strer=replace(strer,"<br><br>","<br>")
+  strer=replace(strer,"[BR]","<br>")
+  strer=replace(strer,vbCrLf,"<br>")
+  code_jk=strer
+End Function
+
+
+Function GetCount(i)
+   GetCount = Replace(Space(3-Len(i)), " ", "0") & i
+End Function
+
+
+
+'FLV视频转换
+Function WebFlvv(id)
+
+filename = year(now)&month(now)&day(now)&hour(now)&minute(now)&second(now)
+
+str=WebUrl&"\Flv\Class_flv.exe" 
+
+flv=WebUrl&"\UploadFiles\flv\"&filename&".flv" 
+
+Set WshShell = server.CreateObject("Wscript.Shell") 
+
+str=str&" -i "&id&" -y -ab 56 -ar 22050 -b 500 -r 15 -s 320*240 "&flv 
+
+Isffmpeg = WshShell.Run(str,1,FALSE) 
+'######################视频图片处理结束 
+if Isffmpeg = 0 Then 
+'Response.Write str&"<br>" 
+WebFlvv = flv
+'用于测试 
+'response.write " <br />成功执行" 
+else 
+WebFlvv = "" 
+'用于测试 
+'Response.write "<br />命令执行失败！权限不够或者该程序无法运行" 
+end if 
+Set WshShell = Nothing 
+
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'//通过帐号查询管理员名称
+Function WebUserName(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_UserName from [OUCCS_Supper] where su_SupperName='"&id&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserName  = ""
+else
+WebUserName  = Rss("su_UserName")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询管理员名称
+Function WebUserNameSupper(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_SupperName from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserNameSupper  = "--"
+else
+WebUserNameSupper  = Rss("su_SupperName")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+'//通过ID查询管理员名称
+Function WebUserNameID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_UserName from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebUserNameID  = "匿名"
+else
+WebUserNameID  = Rss("su_UserName")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+Function WebUserSEX(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_Sex from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,Conn,1,1
+if Rss.EOF then
+WebUserSEX  = ""
+else
+
+ WebUserSEX = Rss("su_Sex")
+
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+Function WebUserJY(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_Jy from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,Conn,1,1
+if Rss.EOF then
+WebUserJY  = 1
+else
+WebUserJY  = Rss("su_Jy")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+Function WebUser_Key(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_key from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,Conn,1,1
+if Rss.EOF then
+WebUser_Key  = ""
+else
+WebUser_Key  = Rss("su_key")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+function GetMessType(id)
+Set RsST=Server.CreateObject("ADODB.Recordset")
+SqlST="Select * From OUCCS_Mess Where OUCCS_ID="&id&" "
+RsST.Open SqlST,Conn,1,1
+if not RsST.Eof then
+GetMessType  = RsST("OUCCS_Type")
+else
+GetMessType  = 0
+end if
+RsST.Close
+Set RsST=Nothing
+end function
+
+
+
+function GetMessIP(id)
+Set RsST=Server.CreateObject("ADODB.Recordset")
+SqlST="Select * From OUCCS_Supper Where su_LastIp='"&id&"' and su_Jy=1 "
+RsST.Open SqlST,Conn,1,1
+if not RsST.Eof then
+GetMessIP  = 1
+else
+GetMessIP  = 0
+end if
+RsST.Close
+Set RsST=Nothing
+end function
+
+
+
+
+
+
+Function WebUserPicID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_UserPic from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,Conn,1,1
+if Rss.EOF then
+WebUserPicID  = "/Images/0.jpg"
+else
+IF Rss("su_UserPic")<>"" THEN
+WebUserPicID  = "/UploadFiles/User/"&Rss("su_UserPic")
+ELSE
+WebUserPicID  = "/Images/0.jpg"
+END IF
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+Function WebUserMessNameID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select su_UserName,su_IFlag from [OUCCS_Supper] where su_ID="&id&" "
+Rss.Open Sqls,Conn,1,1
+if Rss.EOF then
+WebUserMessNameID   = 0
+else
+
+ WebUserMessNameID  = Rss("su_IFlag")
+
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+function GetUserDomain(id)
+Set RsST=Server.CreateObject("ADODB.Recordset")
+SqlST="Select * From OUCCS_Domain Where domainurl='"&id&"' "
+RsST.Open SqlST,Conn,1,1
+if not RsST.Eof then
+GetUserDomain  = 1
+else
+GetUserDomain  = 0
+end if
+RsST.Close
+Set RsST=Nothing
+end function
+
+
+
+
+function GetUserDomainUrl(id)
+Set RsST=Server.CreateObject("ADODB.Recordset")
+SqlST="Select domainurl From OUCCS_Domain Where id="&id&" "
+RsST.Open SqlST,Conn,1,1
+if not RsST.Eof then
+GetUserDomainUrl  = RsST("domainurl")
+else
+GetUserDomainUrl  = ""
+end if
+RsST.Close
+Set RsST=Nothing
+end function
+
+
+
+
+function GetNewsState2(id)
+		if id=1 then 
+		GetNewsState2="<font color=#00CC00>强力推荐</font>"
+
+		else
+		GetNewsState2="<font color=#FF6600>无</font>"
+		
+		END IF
+end function
+
+
+'状态图片判断
+function GetMenuPicState(UrlValue)
+        if isnull(UrlValue) or UrlValue="-" or UrlValue="" then 
+		GetMenuPicState=""
+		else
+		GetMenuPicState="<a href=/UploadFiles/News/"&UrlValue&" target=_blank><img src=images/iconFiles/fileIcon-webImg.gif border=0></a>"
+		end if
+end function
+
+
+'状态图片判断
+function GetPicState(UrlValue)
+        if isnull(UrlValue) or UrlValue="-" or UrlValue="" then 
+		GetPicState="<font color=#FF6600>×</font>"
+		else
+		GetPicState="<a href=/UploadFiles/Pic/"&UrlValue&" target=_blank><img src=images/iconFiles/fileIcon-webImg.gif border=0></a>"
+		end if
+end function
+
+
+'状态视频判断
+function GetVideoState(UrlValue)
+        if isnull(UrlValue) or UrlValue="-" or UrlValue="" then 
+		GetVideoState="<font color=#FF6600>×</font>"
+		else
+		GetVideoState="<a href=/UploadFiles/Pic/"&UrlValue&" target=_blank><img src=images/iconFiles/fileIcon-wmp.gif border=0></a>"
+		end if
+end function
+
+
+'判断星期
+function GetWeek(id)
+		if id=1 then GetWeek="<font color=#00CC00>星期一</font>"
+		if id=2 then GetWeek="<font color=#00CC00>星期二</font>"
+		if id=3 then GetWeek="<font color=#00CC00>星期三</font>"
+		if id=4 then GetWeek="<font color=#00CC00>星期四</font>"
+		if id=5 then GetWeek="<font color=#00CC00>星期五</font>"
+		if id=6 then GetWeek="<font color=#00CC00>星期六</font>"
+		if id=7 then GetWeek="<font color=#00CC00>星期日</font>"
+end function
+
+ 
+ '判断循环星期
+function GetWeeks(id)
+
+ idArr  = split(id)
+ nidArr = ubound(idArr)
+ nv     = 0
+ for v = 0 to nidArr
+	selectid = clng(idArr(v))
+	nv = GetWeek(selectid)&"|"&nv
+ next
+ 
+ GetWeeks  = Left(nv,len(nv)-2)
+
+end function
+
+
+
+
+
+Function Face_Img(strer)
+ 
+ strer=replace(strer,":T01:","<img src=../Images/smiles/smile01.gif>")
+ strer=replace(strer,":T02:","<img src=../Images/smiles/smile02.gif>")
+ strer=replace(strer,":T03:","<img src=../Images/smiles/smile03.gif>")
+ strer=replace(strer,":T04:","<img src=../Images/smiles/smile04.gif>")
+ strer=replace(strer,":T05:","<img src=../Images/smiles/smile05.gif>")
+ strer=replace(strer,":T06:","<img src=../Images/smiles/smile06.gif>")
+ strer=replace(strer,":T07:","<img src=../Images/smiles/smile07.gif>")
+ strer=replace(strer,":T08:","<img src=../Images/smiles/smile08.gif>")
+ strer=replace(strer,":T09:","<img src=../Images/smiles/smile09.gif>")
+ strer=replace(strer,":T10:","<img src=../Images/smiles/smile10.gif>")
+ strer=replace(strer,":T11:","<img src=../Images/smiles/smile11.gif>")
+ strer=replace(strer,":T12:","<img src=../Images/smiles/smile12.gif>")
+ strer=replace(strer,":T13:","<img src=../Images/smiles/smile13.gif>")
+ strer=replace(strer,":T14:","<img src=../Images/smiles/smile14.gif>")
+ strer=replace(strer,":T15:","<img src=../Images/smiles/smile15.gif>")
+ strer=replace(strer,":T16:","<img src=../Images/smiles/smile16.gif>")
+ strer=replace(strer,":T17:","<img src=../Images/smiles/smile17.gif>")
+ strer=replace(strer,":T18:","<img src=../Images/smiles/smile18.gif>")
+ strer=replace(strer,":T19:","<img src=../Images/smiles/smile19.gif>")
+ strer=replace(strer,":T20:","<img src=../Images/smiles/smile20.gif>")
+ strer=replace(strer,":T21:","<img src=../Images/smiles/smile21.gif>")
+ strer=replace(strer,":T22:","<img src=../Images/smiles/smile22.gif>")
+ strer=replace(strer,":T23:","<img src=../Images/smiles/smile23.gif>")
+ strer=replace(strer,":T24:","<img src=../Images/smiles/smile24.gif>")
+ strer=replace(strer,":T25:","<img src=../Images/smiles/smile25.gif>")
+ strer=replace(strer,":T26:","<img src=../Images/smiles/smile26.gif>")
+ strer=replace(strer,":T27:","<img src=../Images/smiles/smile27.gif>")
+ strer=replace(strer,":T28:","<img src=../Images/smiles/smile28.gif>")
+ strer=replace(strer,":T29:","<img src=../Images/smiles/smile29.gif>")
+ strer=replace(strer,":T30:","<img src=../Images/smiles/smile30.gif>")
+ strer=replace(strer,":T31:","<img src=../Images/smiles/smile31.gif>")
+ strer=replace(strer,":T32:","<img src=../Images/smiles/smile32.gif>")
+ strer=replace(strer,":T33:","<img src=../Images/smiles/smile33.gif>")
+ strer=replace(strer,":T34:","<img src=../Images/smiles/smile34.gif>")
+ strer=replace(strer,":T35:","<img src=../Images/smiles/smile35.gif>")
+ strer=replace(strer,":T36:","<img src=../Images/smiles/smile36.gif>")
+ strer=replace(strer,":T37:","<img src=../Images/smiles/smile37.gif>")
+ strer=replace(strer,":T38:","<img src=../Images/smiles/smile38.gif>")
+ strer=replace(strer,":T39:","<img src=../Images/smiles/smile39.gif>")
+ strer=replace(strer,":T40:","<img src=../Images/smiles/smile40.gif>")
+ strer=replace(strer,":T41:","<img src=../Images/smiles/smile41.gif>")
+ strer=replace(strer,":T42:","<img src=../Images/smiles/smile42.gif>")
+ strer=replace(strer,":T43:","<img src=../Images/smiles/smile43.gif>")
+ strer=replace(strer,":T44:","<img src=../Images/smiles/smile44.gif>")
+ strer=replace(strer,":T45:","<img src=../Images/smiles/smile45.gif>")
+ strer=replace(strer,":T46:","<img src=../Images/smiles/smile46.gif>")
+ strer=replace(strer,":T47:","<img src=../Images/smiles/smile47.gif>")
+ strer=replace(strer,":T48:","<img src=../Images/smiles/smile48.gif>")
+ strer=replace(strer,":T49:","<img src=../Images/smiles/smile49.gif>")
+ strer=replace(strer,":T50:","<img src=../Images/smiles/smile50.gif>")
+ strer=replace(strer,":T51:","<img src=../Images/smiles/smile51.gif>")
+ strer=replace(strer,":T52:","<img src=../Images/smiles/smile52.gif>")
+ strer=replace(strer,":T53:","<img src=../Images/smiles/smile53.gif>")
+ strer=replace(strer,":T54:","<img src=../Images/smiles/smile54.gif>")
+ strer=replace(strer,":T55:","<img src=../Images/smiles/smile55.gif>")
+ strer=replace(strer,":T56:","<img src=../Images/smiles/smile56.gif>")
+ strer=replace(strer,":T57:","<img src=../Images/smiles/smile57.gif>")
+ strer=replace(strer,":T58:","<img src=../Images/smiles/smile58.gif>")
+ strer=replace(strer,":T59:","<img src=../Images/smiles/smile59.gif>")
+ strer=replace(strer,":T60:","<img src=../Images/smiles/smile60.gif>")
+ strer=replace(strer,":T61:","<img src=../Images/smiles/smile61.gif>")
+ strer=replace(strer,":T62:","<img src=../Images/smiles/smile62.gif>")
+ strer=replace(strer,":T63:","<img src=../Images/smiles/smile63.gif>")
+ strer=replace(strer,":T64:","<img src=../Images/smiles/smile64.gif>")
+ strer=replace(strer,":T65:","<img src=../Images/smiles/smile65.gif>")
+ strer=replace(strer,":T66:","<img src=../Images/smiles/smile66.gif>")
+ strer=replace(strer,":T67:","<img src=../Images/smiles/smile67.gif>")
+ strer=replace(strer,":T68:","<img src=../Images/smiles/smile68.gif>")
+ strer=replace(strer,":T69:","<img src=../Images/smiles/smile69.gif>")
+ strer=replace(strer,":T70:","<img src=../Images/smiles/smile70.gif>")
+ strer=replace(strer,":T71:","<img src=../Images/smiles/smile71.gif>")
+ strer=replace(strer,":T72:","<img src=../Images/smiles/smile72.gif>")
+ strer=replace(strer,":T73:","<img src=../Images/smiles/smile73.gif>")
+ strer=replace(strer,":T74:","<img src=../Images/smiles/smile74.gif>")
+ strer=replace(strer,":T75:","<img src=../Images/smiles/smile75.gif>")
+ strer=replace(strer,":T76:","<img src=../Images/smiles/smile76.gif>")
+ strer=replace(strer,":T77:","<img src=../Images/smiles/smile77.gif>")
+ strer=replace(strer,":T78:","<img src=../Images/smiles/smile78.gif>")
+ strer=replace(strer,":T79:","<img src=../Images/smiles/smile79.gif>")
+ strer=replace(strer,":T80:","<img src=../Images/smiles/smile80.gif>")
+ strer=replace(strer,":T81:","<img src=../Images/smiles/smile81.gif>")
+ strer=replace(strer,":T82:","<img src=../Images/smiles/smile82.gif>")
+ strer=replace(strer,":T83:","<img src=../Images/smiles/smile83.gif>")
+ strer=replace(strer,":T84:","<img src=../Images/smiles/smile84.gif>")
+ 
+ Face_Img=strer
+End Function
+
+
+
+Function GetVoteFCount(id)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select v_id from OUCCS_Vote where v_f=1 and v_uid="&id&""
+RsCount.Open SqlCount,conn,1,1
+GetVoteFCount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+Function GetVoteECount(id)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select v_id from OUCCS_Vote where v_e=1 and v_uid="&id&""
+RsCount.Open SqlCount,conn,1,1
+GetVoteECount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+Function GetMessCount(id)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select me_id from OUCCS_Messages where me_pid=2 and me_ppid="&id&""
+RsCount.Open SqlCount,conn,1,1
+GetMessCount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+Function GetHitCount(id)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select v_id from OUCCS_Vote where v_e=0 and v_f=0 and v_uid="&id&""
+RsCount.Open SqlCount,conn,1,1
+GetHitCount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+Function GetAllCount(id)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select v_f,v_e from OUCCS_Vote Order by v_date desc"
+RsCount.Open SqlCount,conn,1,1
+
+Count1  = RsCount.RecordCount
+
+While Not RsCount.Eof
+
+fffs = RsCount("v_f")+fffs
+eees = RsCount("v_e")+eees
+
+RsCount.MoveNext
+Wend
+
+ fes = Count1-eees
+ if fes<0then
+ GetAllCount = 0
+ else
+ GetAllCount = fes
+ end if
+ 
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+
+
+
+
+
+
+
+
+Function GetMusicWeek(id)
+
+PPCount1  = DateDiff("ww",Cls_Times,id)
+PPCount2  = DateDiff("d",Cls_Times,id)
+
+IF (PPCount2 mod 7)=0 THEN
+GetMusicWeek   = PPCount1
+ELSE
+GetMusicWeek   = Int(PPCount1+1)
+END IF
+
+End Function
+
+
+
+
+
+'//通过ID查询名称
+Function WebNewsMenu1(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select sroot_title from [OUCCS_Sroot] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenu1  = ""
+else
+WebNewsMenu1  = Rss("sroot_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过ID查询名称
+Function WebNewsMenu2(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select subs_title from [OUCCS_Subs] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenu2  = ""
+else
+WebNewsMenu2  = Rss("subs_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询个数
+Function WebNewsPID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select p_id from [OUCCS_NewsPic] where p_pid='"&id&"' "
+Rss.Open Sqls,conn,1,1
+WebNewsPID  = Rss.RecordCount
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+
+'//通过ID查询个数
+Function WebPeoNewsPID(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_id from [OUCCS_NewsList] where n_pid=888 and n_nid='"&id&"' "
+Rss.Open Sqls,conn,1,1
+WebPeoNewsPID  = Rss.RecordCount
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'//通过ID查询名称
+Function GetNewsTitles(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_title from [OUCCS_NewsList] where n_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+GetNewsTitles  = "--"
+else
+GetNewsTitles  = Rss("n_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+Function WebNidNewsTitle(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_title from [OUCCS_NewsList] where n_nid='"&id&"' "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNidNewsTitle  = "--"
+else
+WebNidNewsTitle  = Rss("n_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+Function WebNidNewsUrl(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select n_url from [OUCCS_NewsList] where n_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNidNewsUrl  = ""
+else
+WebNidNewsUrl  = Rss("n_url")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过ID查询名称
+Function WebNewsMenuID2(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select m_title from [OUCCS_NewsMenu] where m_id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID2  = "--"
+else
+WebNewsMenuID2  = Rss("m_title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+'//通过ID查询名称
+Function WebNewsMenuID3(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select title from [OUCCS_MenuAll] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID3  = "--"
+else
+WebNewsMenuID3  = Rss("title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+'状态判断
+function GetNewsState(id)
+		if id=0 or trim(id)=null or id=False then 
+		GetNewsState="<font color=#FF6600>×</font>"
+		ELSEif id=1 or id=True then 
+		GetNewsState="<font color=#00CC00>√</font>"
+		END IF
+end function
+
+
+'头像图片判断
+function GetUserState(UrlValue)
+        if isnull(UrlValue) or UrlValue="-" or UrlValue="" then 
+		GetUserState=""
+		else
+		GetUserState="<a href=Upfiles/User/"&UrlValue&" target=_blank><img src=images/iconFiles/fileIcon-webImg.gif border=0></a>"
+		end if
+end function
+
+
+
+
+
+
+
+
+
+'状态判断
+function GetSMSt(id)
+		if id=1 then 
+		GetSMSt="<font color=#0048B1>短信息</font>"
+		ELSEif id=2 then 
+		GetSMSt="<font color=#0048B1>下订单提醒</font>"
+		ELSEif id=3 then 
+		GetSMSt="<font color=#0048B1>付款提醒</font>"
+		ELSEif id=4 then 
+		GetSMSt="<font color=#0048B1>发货提醒</font>"
+		ELSEif id=5 then 
+		GetSMSt="<font color=#0048B1>确认收货提醒</font>"
+		ELSEif id=6 then 
+		GetSMSt="<font color=#0048B1>不在线短息提醒</font>"
+		END IF
+end function
+
+
+function GetSMStt(id)
+		if id=0 then 
+		GetSMStt="<font color=#5EB100>失败</font>"
+		ELSEif id=1 then 
+		GetSMStt="<font color=#ff0000>成功</font>"
+		END IF
+end function
+
+
+
+
+
+function GetADt(id)
+if id=1 then
+ GetADt = "<img src=/System/Images/iconFiles/fileIcon-webImg.gif border=0>"
+elseif id=2 then
+ GetADt = "<img src=/System/Images/iconFiles/fileIcon-swf.gif border=0>"
+elseif id=3 then
+ GetADt = "<img src=/System/Images/iconFiles/fileIcon-txt.gif border=0>"
+end if
+end function
+
+
+
+
+Function WebMenuAllName(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select title from [OUCCS_MenuAll] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebMenuAllName  = "--"
+else
+WebMenuAllName  = Rss("title")
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+Function WebMenuAllT(id)
+if id<>"" then
+
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select t from [OUCCS_MenuAll] where id="&id&" "
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebMenuAllT  = 1
+else
+WebMenuAllT  = Rss("t")
+end if
+Rss.Close
+Set Rss=Nothing
+
+else
+
+WebMenuAllT  = 0
+
+end if
+End Function
+
+
+
+
+Function WebNewsMenuID43(tx,id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select id from [OUCCS_MenuAll] where title='"&tx&"' "
+if id>0 then
+Sqls=Sqls&" and id<>"&id&" "
+end if
+Rss.Open Sqls,conn,1,1
+if Rss.EOF then
+WebNewsMenuID43  = 0
+else
+WebNewsMenuID43  = 1
+end if
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'//通过ID查询个数
+Function GetUserKeyCopyRight(id)
+Set Rss=Server.CreateObject("ADODB.Recordset")
+Sqls="select keyurl from [OUCCS_Key] where flag=1 and ukey='"&id&"' "
+Rss.Open Sqls,ConnKey,1,1
+While Not Rss.Eof
+
+fffs = Rss("keyurl")&"<br>"&fffs
+
+
+Rss.MoveNext
+Wend
+
+GetUserKeyCopyRight = fffs
+
+
+
+Rss.Close
+Set Rss=Nothing
+End Function
+
+
+
+
+'用户邮箱
+Function GetEmailtext()
+Set RsAD=Server.CreateObject("ADODB.Recordset")
+SqlAD="Select * From OUCCS_Supper where su_Pid=1 and su_IFlag=2 Order By su_ID Asc"
+RsAD.Open SqlAD,conn,1,1
+while not RsAD.eof
+
+eees = eees&","&RsAD("su_SupperName")
+
+RsAD.movenext
+wend
+
+GetEmailtext = right(eees,len(eees)-1)
+
+RsAD.Close
+Set RsAD=Nothing
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Function GetAllMoneyTidCount(id,idd,t)
+Set RsCount=Server.CreateObject("ADODB.Recordset")
+SqlCount="select id from [OUCCS_Moneylog] where juid="&id&" and tid="&idd&" and tt="&t&" and flag=1 and fflag=1 order by times desc"
+RsCount.Open SqlCount,conn,1,1
+GetAllMoneyTidCount  = RsCount.RecordCount
+RsCount.Close
+Set RsCount=Nothing
+End Function
+
+
+
+' Web Design Janis
+' MSN janis_fly@hotmail.com
+' QQ 365478288
+%>

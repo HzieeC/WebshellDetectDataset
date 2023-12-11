@@ -1,0 +1,510 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<%@ page import="global.security.SessionUtils"%>
+<%@ page import="util.MessageUtils"%>
+
+<%@page import="util.StringUtils"%><html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String documentId = request.getParameter("documentId");
+		if(StringUtils.isEmpty(documentId)){
+			documentId = "0";
+		}
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 全局变量
+			var documentId = '<%=documentId %>';
+			var documentName = '我的文档';
+			var path = '';
+			var pathSplitChar = ' 〉';
+			if(documentId!='0'){// 不是根目录的场合，取得当前目录的路径
+				if(Ext.getCmp("documentTreePanel") && Ext.getCmp("documentTreePanel").getSelectionModel().getSelectedNode()){
+					var documentTree = Ext.getCmp("documentTreePanel");
+					var selectedNode = documentTree.getSelectionModel().getSelectedNode();
+					documentName = selectedNode.text;
+	
+					// 根据树获得路径
+					var currentNode = selectedNode;
+					var currentNodeId = selectedNode.id;
+					while(currentNodeId!='0'){
+						path = pathSplitChar + currentNode.text + path;
+						currentNode = currentNode.parentNode;
+						currentNodeId = currentNode.id;
+					}
+				}
+			}
+			path = '我的文档' + path;
+			// 参数
+			var baseParams = {start:0, limit:<%=Constants.PAGE_SIZE %>, documentId:documentId, go:'next', delflag:"<%=Constants.DEL_FLAG_1 %>"};
+
+			// 用户数据源
+		    var documentListStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/documentAction.do?method=queryForPaging',
+		        root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['documentId', 'documentName', 'type', 'size', 'isleaf', 'createDateStr', 'link'],
+		        baseParams: baseParams,
+		        autoLoad: true
+		    });
+
+		 	// 路径
+		    var documentListPathbar = new Ext.Toolbar({
+		    	renderTo: 'documentListPathBarDiv',
+		    	items: [
+					'位置：'+ path
+				]
+			});
+
+		    // 工具栏
+		    var documentListToolbar = new Ext.Toolbar({
+		    	renderTo: 'documentListToolBarDiv',
+		    	items: [
+					new Ext.Button({
+					    id: 'documentList-back-button',
+					    text: '返回',
+						iconCls: 'arrow_turn_left'
+					}),
+					new Ext.Button({
+					    id: 'documentList-create-button',
+					    text: '新建文件夹',
+						iconCls: 'folder_add'
+					}),
+					'-',
+					new Ext.Button({
+					    id: 'documentList-upload-button',
+					    text: '上传',
+						iconCls: 'upload'
+					}),
+					new Ext.Button({
+					    id: 'documentList-download-button',
+					    text: '下载',
+						iconCls: 'download'
+					}),
+					new Ext.Button({
+					    id: 'documentList-downloadzip-button',
+					    text: '打包下载',
+						iconCls: 'rar'
+					}),
+					'-',
+					new Ext.Button({
+					    id: 'documentList-move-button',
+					    text: '移动',
+						iconCls: 'folder_go'
+					}),
+					new Ext.Button({
+					    id: 'documentList-delete-button',
+					    text: '删除',
+						iconCls: 'delete'
+					}),
+					new Ext.Button({
+					    id: 'documentList-rename-button',
+					    text: '重命名',
+						iconCls: 'folder_edit'
+					}),
+		            new Ext.ux.form.SearchField({
+		                store: documentListStore,
+		                width: 200,
+		                paramName: 'documentName',
+		                emptyText: '请输入文件名...',
+		                style: 'margin-left: 10px;'
+		            })
+				]
+			});
+
+			// 用户数据表格
+			var sm = new Ext.grid.CheckboxSelectionModel();
+			var documentListGrid = new Ext.grid.GridPanel({
+				id: 'documentListGrid',
+				renderTo: 'documentListGridDiv',
+				border: false,
+				columnLines: true,
+				stateful: true,
+			    autoScroll: 'auto',
+		        store: documentListStore,
+		        loadMask: true,
+		        cm: new Ext.grid.ColumnModel({
+		            defaults: {
+		                width: 100,
+		                sortable: true
+		            },
+			        columns: [
+						sm,
+						new Ext.grid.RowNumberer({header:'№'}),
+			            {id:'isleaf',header: '', width: 30, sortable: true, dataIndex: 'isleaf', renderer: formatIsleaf},
+			            {id:'documentId',header: '文档ID', width: 100, sortable: true, dataIndex: 'documentId', hidden:true},
+			            {id:'documentName',header: '文件名', width: 200, sortable: true, dataIndex: 'documentName'},
+			            {id:'type',header: '类型', width: 50, sortable: true, dataIndex: 'type'},
+			            {id:'size',header: '大小', width: 100, sortable: true, dataIndex: 'size', renderer: formatSize},
+			            {id:'createDateStr',header: '时间', width: 150, sortable: true, dataIndex: 'createDateStr'},
+			            {id:'link',header: '链接', width: 150, sortable: true, dataIndex: 'link', hidden:true}
+					]
+		        }),
+		        sm: sm,
+		        columnLines: true,
+		        bbar: new Ext.PagingToolbar({
+					pageSize: <%=Constants.PAGE_SIZE %>,
+					store: documentListStore,
+					displayInfo: true,
+					displayMsg: Anynote.PAGINGTOOLBAR_DISPLAYMSG,
+					emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+					doLoad: function(start){
+						baseParams.start = start;
+						this.store.load({params: baseParams});
+					}
+		        })
+		    });
+
+			// 设置Grid高度和宽度
+			Anynote.resizeGridTo("documentListGrid", 0, 79);
+			// 行双击事件
+			documentListGrid.on("rowdblclick", function(grid,rawIndex,e){
+				var record = documentListStore.getAt(rawIndex);
+				if("0"==record.get("isleaf")){
+					// 查询
+					baseParams.go = 'next';
+					baseParams.documentId = record.get("documentId");
+					documentListStore.reload({
+    					params: baseParams,
+    					callback: function(records, options, success){
+							if(success){
+								documentId = record.get("documentId");
+								documentName = record.get("documentName");
+								// 更新路径信息
+								path = path + pathSplitChar + documentName;
+								documentListPathbar.remove(0);
+								documentListPathbar.insert(0,'位置：'+path);
+								documentListPathbar.doLayout();
+							}
+    					}
+	    			});
+				}
+			});
+			
+			// 返回按钮
+			$("#documentList-back-button").click(function(){
+				// 查询
+				baseParams.go = 'prev';
+				baseParams.documentId = documentId;
+				documentListStore.reload({
+					params: baseParams,
+					callback: function(records, options, success){
+						// 发送请求-取合计值
+						Anynote.ajaxRequest({
+							baseUrl: '<%=baseUrl %>',
+							baseParams: {documentId:documentId},
+							action: '/documentAction.do?method=getPrevDocument',
+							callback: function(jsonResult){
+								if(jsonResult.success==true){
+									if((jsonResult.documentId && jsonResult.documentId!='') || jsonResult.documentId==0){
+										documentId = jsonResult.documentId;
+										documentName = jsonResult.documentName;
+										// 更新路径信息
+										path = path.substring(0,path.lastIndexOf(pathSplitChar));
+										documentListPathbar.remove(0);
+										documentListPathbar.insert(0,'位置：'+path);
+										documentListPathbar.doLayout();
+									}
+								}
+							}
+						});
+					}
+    			});
+			});
+			// 上传按钮
+			$("#documentList-upload-button").click(function(){
+				// 打开图片上传窗口
+				Anynote.uploadFile({
+					baseUrl: '<%=baseUrl %>',
+					baseParams: {documentId:documentId,userId:"<%=SessionUtils.getCurrentUserId()%>"},
+					action: '/documentAction.do?method=upload',
+					title: '文档上传 - '+documentName,
+					fileTypes: '<%=Constants.UPLOAD_FILE_TYPE_LIMIT%>',
+					fileSize: '<%=Constants.UPLOAD_FILE_SIZE_LIMIT%>',
+					fileCount: <%=Constants.UPLOAD_COUNT_LIMIT%>,
+					minTargetId: 'minUploadWinDiv',
+					callback: function(){
+						baseParams.documentId = documentId;
+						documentListStore.reload({
+	    					params: baseParams
+		    			});
+					}
+				});
+			});
+
+			// 下载按钮
+			$("#documentList-download-button").click(function(){
+				var records = documentListGrid.getSelectionModel().getSelections();
+				if(records.length != 1){
+					Ext.Msg.alert("提示", "请选择一个文件.");
+				}else{
+					if(records[0].get("isleaf")=="1"){
+						//下载链接
+						document.getElementById("downloadForm").action = "<%=baseUrl%>/documentAction.do?method=downloadDocument&documentId="+records[0].get("documentId");
+						$("#downloadForm").submit();
+					}else{
+						Ext.Msg.alert("提示", "请选择一个文件.");
+					}
+				}
+			});
+
+			// 打包下载按钮
+			$("#documentList-downloadzip-button").click(function(){
+				var records = documentListGrid.getSelectionModel().getSelections();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一个文件.");
+				}else{
+					var documentIds = '';
+					for(i=0;i<records.length;i++){
+						if(records[0].get("isleaf")=="1"){
+							documentIds = documentIds + records[i].get("documentId") + ",";
+						}
+					}
+
+					if(documentIds!=''){
+						//下载链接
+						document.getElementById("downloadForm").action = "<%=baseUrl%>/documentAction.do?method=downloadDocumentZip&documentIds="+documentIds;
+						$("#downloadForm").submit();
+					}else{
+						Ext.Msg.alert("提示", "请至少选择一个文件.");
+					}
+				}
+			});
+
+			// 删除按钮
+			$("#documentList-delete-button").click(function(){
+				var records = documentListGrid.getSelectionModel().getSelections();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一条数据.");
+				}else{
+					Ext.Msg.confirm("警告", "确定要删除吗？", function(btn){
+						if(btn=="yes"){
+							var documentIds = "";
+							for(var i=0;i<records.length;i++){
+								var record = records[i];
+								documentIds = documentIds + record.get("documentId") + ",";
+							}
+							if(documentIds!=""){
+								var params = {};
+								params.documentIds = documentIds;
+								// 发送请求
+								Anynote.ajaxRequest({
+									baseUrl: '<%=baseUrl %>',
+									baseParams: params,
+									action: '/documentAction.do?method=delete',
+									callback: function(jsonResult){
+										documentListStore.reload();
+									},
+									showWaiting: true,
+									failureMsg: '删除失败.'
+								});
+							}
+						}
+					});
+				}
+			});
+
+			// 移动按钮
+			$("#documentList-move-button").click(function(){
+				var records = documentListGrid.getSelectionModel().getSelections();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请至少选择一条数据.");
+				}else{
+					// 文档树
+					var moveDocumentTree = new Ext.tree.TreePanel({
+						id: 'moveDocumentTreePanel',
+					    useArrows: true,
+					    autoScroll: true,
+					    animate: true,
+					    enableDD: true,
+					    containerScroll: true,
+					    border: false,
+					    rootVisible: true,
+					    loader: new Ext.tree.TreeLoader({
+						    dataUrl:'<%=baseUrl %>/documentAction.do?method=getDocumentTree',
+						    listeners: {
+								beforeload: function(loader,node){
+									this.baseParams.parentId = node.id;
+								},
+								load: function(loader,node,response){
+									var jsonResult = Ext.decode(response.responseText);
+									if(jsonResult && jsonResult.exceptionMsg && jsonResult.exceptionMsg!=''){
+										Anynote.exceptionWindow(jsonResult.message, jsonResult.exceptionMsg);
+									}
+								}
+							}
+						}),
+					    root: new Ext.tree.AsyncTreeNode({
+							nodeType: 'async',
+					        text: '我的文档',
+					        draggable: false,
+					        id: '0'
+				    	})
+					});
+					moveDocumentTree.getRootNode().expand();
+					var moveDocumentWindow = new Ext.Window({
+						title: '选择目录',
+						width: 300,
+						height: 300,
+						modal: true,
+						maximizable: false,
+						resizable: false,
+						layout:'fit',
+						plain: true,
+						items: moveDocumentTree,
+						tbar: new Ext.Toolbar({
+					    	items: [
+								new Ext.Button({
+								    text: '确定',
+									iconCls: 'tick',
+									handler: function(){
+										var selectNode = moveDocumentTree.getSelectionModel().getSelectedNode();
+										if(selectNode){
+											var documentIds = "";
+											for(var i=0;i<records.length;i++){
+												var record = records[i];
+												documentIds = documentIds + record.get("documentId") + ",";
+											}
+											if(documentIds!=""){
+												var params = {};
+												params.documentIds = documentIds;
+												params.parentId = selectNode.id;
+												// 发送请求
+												Anynote.ajaxRequest({
+													baseUrl: '<%=baseUrl %>',
+													baseParams: params,
+													action: '/documentAction.do?method=move',
+													callback: function(jsonResult){
+														documentListStore.reload();
+														moveDocumentWindow.close();
+													},
+													showWaiting: true,
+													failureMsg: '移动失败.'
+												});
+											}
+										}else{
+											Ext.Msg.alert('提示', '请选择目录.');
+										}
+									}
+								}),
+								new Ext.Button({
+								    text: '取消',
+									iconCls: 'cancel',
+									handler: function(){moveDocumentWindow.close();}
+								})
+							]
+						})
+					}).show();
+				}
+			});
+
+			// 创建目录按钮
+			$("#documentList-create-button").click(function(){
+				Ext.Msg.prompt('创建目录', '文件名', function(btn, text){
+					if('ok'==btn && text!=''){
+						var is = validateInput("maxlen=256", text, "文件名长度不能超过256个字符.");
+						if(!is) return false;
+						// 发送请求
+						Anynote.ajaxRequest({
+							baseUrl: '<%=baseUrl %>',
+							baseParams: {'parentId':documentId,'documentName':text,'isleaf':'0'},
+							action: '/documentAction.do?method=save',
+							callback: function(jsonResult){
+								documentListStore.reload();
+							},
+							showWaiting: true,
+							failureMsg: '创建失败.'
+						});
+					}
+				});
+			});
+
+			// 重命名
+			$("#documentList-rename-button").click(function(){
+				var records = documentListGrid.getSelectionModel().getSelections();
+				if(records.length != 1){
+					Ext.Msg.alert("提示", "请选择一条数据.");
+				}else{
+					var record = records[0];
+					Ext.Msg.prompt('重命名', '文件名', function(btn, text){
+						if('ok'==btn && text!=''){
+							var is = validateInput("maxlen=256", text, "文件名长度不能超过256个字符.");
+							if(!is) return false;
+							// 发送请求
+							Anynote.ajaxRequest({
+								baseUrl: '<%=baseUrl %>',
+								baseParams: {'parentId':documentId,'documentId':record.get('documentId'),'documentName':text,'isleaf':record.get('isleaf')},
+								action: '/documentAction.do?method=save',
+								callback: function(jsonResult){
+									documentListStore.reload();
+								},
+								showWaiting: true,
+								failureMsg: '重命名失败.'
+							});
+						}
+					},null,null,record.get('documentName'));
+				}
+				
+			});
+
+			// 格式化大小
+			function formatSize(value, cellmeta,record){
+				if(record.get('isleaf')=='0'){
+					return '';
+				}else{
+					return Ext.util.Format.fileSize(value);
+				}
+			}
+
+			// 设置显示的图标
+			function formatIsleaf(value, cellmeta,record){
+				var imgClass='';
+				if(value=='0'){
+					imgClass='folder';
+				}else{
+					var type=record.get('type').toLowerCase();
+					if(type=='txt'){
+						imgClass='page_white_text';
+					}else if(Anynote.isPic(type)){
+						imgClass='page_white_picture';
+					}else if(type=='pdf'){
+						imgClass='page_white_acrobat';
+					}else if(type=='doc'){
+						imgClass='page_white_word';
+					}else if(type=='xls'){
+						imgClass='page_white_excel';
+					}else if(type=='ppt'){
+						imgClass='page_white_powerpoint';
+					}else if(type=='swf'){
+						imgClass='page_white_flash';
+					}else if(type=='zip' || type=='rar' || type=='7z'){
+						imgClass='page_white_compressed';
+					}else if(type=='html' || type=='htm'){
+						imgClass='page_white_world';
+					}else if(type=='js' || type=='css' || type=='php' || type=='asp' || type=='jsp' || type=='java' || type=='cs' || type=='cpp' || type=='h' || type=='sql'){
+						imgClass='page_white_code';
+					}else if(type=='exe' || type=='bat' || type=='cmd'){
+						imgClass='page_white_gear';
+					}else if(type=='mp3' || type=='wma' || type=='wav'){
+						imgClass='music';
+					}else if(type=='rmvb' || type=='rm' || type=='avi' || type=='mp4' || type=='mpeg' || type=='wmv' || type=='3gp'){
+						imgClass='film';
+					}else{
+						imgClass='page_white';
+					}
+				}
+				return "<div style='width: 16px;height: 16px;' class='"+imgClass+"'></div>";
+			}
+		});
+	</script>
+</head>
+<body>
+<div id="documentListDiv">
+	<div id="documentListPathBarDiv"></div>
+	<div id="documentListToolBarDiv"></div>
+	<div id="documentListGridDiv" style="width:100%;height:100%;"></div>
+</div>
+</body>
+</html>

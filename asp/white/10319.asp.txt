@@ -1,0 +1,125 @@
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/md5.asp"-->
+<!--#include file="../API/API_Config.asp"-->
+<%types=request("type")
+select case types
+	case "cmember":typeid=2
+	case "pmember":typeid=1
+	case "smember":typeid=3
+	case "tmember":typeid=4
+	case else:typeid=2
+end select
+Function Usertype(typeid)
+Select Case typeid
+	Case 1:Usertype="p"
+	Case 2:Usertype="c"
+	Case 3:Usertype="s"
+	Case 4:Usertype="t"
+	Case else:Usertype=""
+End Select
+End Function
+'用户登录后检测用户身份
+trueIP=Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+If trueIP="" Then trueIP=Request.ServerVariables("REMOTE_ADDR")
+member_login=Replace(trim(request("login")),"'","")
+member_pwd=MD5(Replace(trim(request("pwd")),"'",""),32)
+member_apipwd=Md5(Replace(trim(request("pwd")),"'",""),16)
+set rs=server.createobject("ADODB.Recordset")
+sql="select * from job_Member where Member_login='"&member_login&"' and Member_typeid="&typeid
+rs.open sql,conn,1,3
+if rs.eof then
+	rs.close
+	set rs=nothing
+	Response.Write ("<script language=JavaScript>{alert('用户名错误，请重新登录！');history.back();}</script>")
+	Response.End 
+else
+	If member_pwd<>rs("Member_pwd") then
+		rs.close
+		set rs=nothing
+		Response.Write ("<script language=JavaScript>{alert('密码错误，请重新登录！');history.back();}</script>")
+		Response.End 
+	Else
+	Member_Auditing=rs("Member_Auditing")
+	Response.Cookies(FRHRCMS)("LoginIP")=rs("Member_LoginIP")
+	Response.Cookies(FRHRCMS)("LoginTimes")=rs("Member_logindate")
+	Response.Cookies(FRHRCMS)("user_login")=member_login
+	Response.Cookies(FRHRCMS)("user_pass")=member_pwd
+	Memberlogintype=rs("Member_typeid")
+	if rs("Member_name")<>"" then Response.Cookies(FRHRCMS)("user_name")=rs("Member_name")
+	Response.Cookies(FRHRCMS)("user_type")=Usertype(Memberlogintype)&"member"
+	rs("Member_LoginIP")=trueIP
+		If IsNumeric(rs("Member_LoginNum")) Then
+			rs("Member_LoginNum")=rs("Member_LoginNum")+1
+		Else
+			rs("Member_LoginNum")=1
+		End If
+	rs("Member_logindate")=now()
+	rs.Update
+	End If
+	rs.close
+	set rs=nothing
+	
+	'6月28日之前注册的用户，登录时发送信息到论坛注册
+	'添加对整合接口的支持
+	If API_Enable Then
+		'重置错误状态和信息
+		FoundErr = False
+		ErrMsg = ""		
+		'判断登录用户上次登录的时间和他注册的时间
+		sqlreg="select Member_email,Member_LoginIP from JOB_Member where Member_login='"&member_login&"' and datediff("&FR_HR_d&",Member_regdate,'2009-6-30')>0 and datediff("&FR_HR_d&",Member_logindate,'2009-6-30')>0"
+		set rsreg=Server.CreateObject("ADODB.RecordSet")
+		rsreg.open sqlreg,conn,1,1
+		if not rsreg.eof then
+			member_pwd=request("pwd")
+			Member_email=rsreg("Member_email")			
+			trueIP=rsreg("Member_LoginIP")			
+			'把数据发送到论坛注册
+			set sMyXmlHTTP=server.createobject("MSXML2.ServerXMLHTTP")
+			sMyXmlHTTP.setTimeouts API_Timeout, API_Timeout, API_Timeout * 6, API_Timeout * 6
+			Dim intIndex
+			For intIndex = 0 To UBound(ArrUrls)
+			sMyXmlHTTP.open "POST",ArrUrls(intIndex),false
+			sMyXmlHTTP.setRequestHeader "Content-Type", "text/xml; charset=gb2312"
+			sMyXmlHTTP.Send "<root><appid>0596bc</appid><action>reguser</action><syskey>"&MD5(member_login & API_SysKey, 16)&"</syskey><username>"&member_login&"</username><password>"&member_pwd&"</password><email>"&Member_email&"</email><question>默认问题</question><answer>默认答案</answer><userip>"&trueIP&"</userip><jointime>"&Now()&"</jointime><userstatus>0</userstatus></root>"
+				If sMyXmlHTTP.readyState = 4 And sMyXmlHTTP.Status = 200 Then
+					'Response.Write BytesToBstr(sMyXmlHTTP.ResponseBody, "gb2312")
+					Dim objRecXml
+					Set objRecXml = Server.CreateObject("Microsoft.XMLDOM")
+					objRecXml.Async = False
+					objRecXml.Load (sMyXmlHTTP.ResponseXML)
+					If Err Then
+						FoundErr = True
+						ErrMsg = "用户服务目前不可用。[APIError-HTTP1-" & intIndex & "]"
+						Err.Clear
+					ElseIf objRecXml.parseError.errorCode <> 0 Then
+						FoundErr = True
+						ErrMsg = "用户服务目前不可用。[APIError-XmlParse-" & intIndex & "]"
+						Err.Clear
+					End If
+				ElseIf sMyXmlHTTP.readyState = 4 And sMyXmlHTTP.Status <> 200 Then
+					FoundErr = True
+					ErrMsg = BytesToBstr(sMyXmlHTTP.ResponseBody, "gb2312")
+				End If
+				If FoundErr Then
+					If intIndex > 0 Then
+						RollbackUser intIndex
+					End If
+					Exit For
+				End If
+			Next
+		end if
+		rsreg.close
+		set rsreg=nothing
+	End If
+	
+	'输出整合登陆脚本
+	If API_Enable Then
+		Dim iIndex
+		For iIndex = 0 To UBound(ArrUrls)
+			Response.Write "<script language=""JavaScript"" src=""" & ArrUrls(iIndex) & "?syskey=" & MD5(member_login&API_SysKey,16) & "&username=" & member_login & "&password=" & member_apipwd & "&savecookie=1""></script>" & vbCrLf
+		Next
+	End If
+end if
+response.Redirect ""&InstallDir&"member/index.asp"
+%>

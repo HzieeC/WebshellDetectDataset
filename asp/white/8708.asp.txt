@@ -1,0 +1,485 @@
+<!--#include file="../Include/Class_Main.asp" -->
+<!--#include file="../Web_Session.asp" -->
+<%
+Set Rss = Conn.Execute("Select p_flag,p_uid,p_mms From [OUCCS_Player] Where p_id=1")
+Tmps = Rss.GetRows()
+Rss.Close 
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+
+<title>聊天室</title>
+<script type="text/javascript">
+var lastID = "";//声明上次取回的消息的ID
+var mGetTime;//设置setTimeout的返回值
+// 通过封装getAjax()方法创建XMLHTTPRequest对象
+function getAjax()
+{
+    var ajax=false;
+    try{
+        ajax = new ActiveXObject("Msxml2.XMLHTTP");
+    }catch(e){
+        try{
+            ajax = new ActiveXObject("Microsoft.XMLHTTP");
+        }catch(E){
+            ajax = false;
+        }
+    }
+    if(!ajax && typeof XMLHttpRequest!='undefined'){
+        ajax = new XMLHttpRequest();
+    }
+    return ajax;
+}
+
+var getMessReq = getAjax();//获取消息的XMLHTTPRequest对象
+var sendMessReq = getAjax();//发送消息的XMLHTTPRequest对象
+
+
+//判断输出表情
+var ExpSmile = /:T(.*?):/ig; // 表情符号
+var SmilePath = "/images/smiles/"; // 表情路径
+
+function SmileMatch(ShowMemo) {
+	// 防止发言纯图片
+	var ExpTotal = 0;
+	ShowMemo.replace(ExpSmile, function(){ ExpTotal++ });
+	if (ExpTotal > 6) {
+		return false;
+	} else {
+		//var CacheMemo = ShowMemo.replace(ExpSmile, "");
+		//if (CacheMemo.length > 0) {
+			return true;
+		//} else {
+			//return false;
+		//}
+	}
+}
+
+function SmileReplace(ShowMemo) {
+	if (SmileMatch(ShowMemo))
+	{
+		return ShowMemo.replace(ExpSmile, "<img src=\"" + SmilePath + "smile$1.gif\" bordor=\"0\">");
+	} else {
+			return "::: <a href=\"<%=Cls_WebUrl%>\" target=\"_blank\"><%=Cls_WebName%> 欢迎大家来参与话题！</a> :::";
+	}
+}
+
+//点击选择用户
+function getFirend(name) {
+	var new_name;
+	if(name.length > 1 && name!="所有人") {
+		document.frmSend.userto.value = name;
+		document.frmSend.userid1.checked = false;
+		document.frmSend.userid2.checked = true;
+		if(name.length > 8) {
+			new_name = name.substr(0, 6);
+		} else {
+			new_name = name;
+		}
+		document.getElementById("tousertitle").innerHTML = "<font color=#ff6600 title=" + new_name + ">" + new_name + "</font>";
+	}else{
+		document.frmSend.userto.value = "所有人";                	
+		document.frmSend.userid1.checked = true;
+		document.frmSend.userid2.checked = false;
+		document.getElementById("tousertitle").innerHTML = "用户";
+	}
+}
+
+
+
+//发送消息的方法
+function sendMess()
+{
+    //如果消息为空给出提示并返回
+    if(document.getElementById("mess").value==""){
+        alert("参与互动提示：\n请填写您要发表的内容，长度必须2～250个字节！");
+        document.getElementById("mess").focus();//把焦点设置到消息输入框
+        return;
+    }
+    //alert("");
+    var d = new Date();
+    //判断上次发送消息的状态,4:已发送,0:未发送
+    if(sendMessReq.readyState==4 || sendMessReq.readyState == 0){
+        //发送消息的服务器端地址
+        var sendUrl = "send.asp?username="+escape(document.getElementById("username").value)+"&userto="+escape(document.getElementById("userto").value)+"&userid="+escape(document.getElementById("userid").value)+"&userpid="+escape(document.getElementById("userpid").value)+"&mess="+escape(document.getElementById("mess").value) +"&IP="+escape(document.getElementById("IP").value) +"&d="+d.getTime();
+        sendMessReq.open("POST",sendUrl,true);//建立请求连接
+        sendMessReq.onreadystatechange = function(){//发送状态改变后调用的方法
+            clearTimeout(mGetTime);//停止自动获取消息
+            getMess();//获取消息
+        }
+        sendMessReq.send(null);//发送请求
+        document.getElementById("mess").value = "";//设置消息框为空
+        document.getElementById("mess").focus();//把焦点设置到消息输入框
+    }
+}
+
+
+function getMess()
+{
+    var d = new Date();
+    if(getMessReq.readyState==4 || getMessReq.readyState == 0){
+        var getUrl = "getmess.asp?lastid="+lastID + "&d="+d.getTime();//从服务器返回消息的地址
+        getMessReq.open("POST",getUrl,true);//建立请求连接
+        getMessReq.onreadystatechange = function(){
+            if(getMessReq.readyState==4&&getMessReq.status==200){
+                var chatEL = document.getElementById("chat");
+                var messXML = getMessReq.responseXML;//获得返回后的XML
+                var messNodes = messXML.getElementsByTagName("message");
+                var messCount = messNodes.length;
+                for(var i = 0 ; i < messCount ; i++){
+                    var userNode = messNodes[i].getElementsByTagName("user");
+					var useridNode = messNodes[i].getElementsByTagName("userid");
+					var usersexNode = messNodes[i].getElementsByTagName("usersex");
+					var userpicNode = messNodes[i].getElementsByTagName("userpic");
+					var usertoNode = messNodes[i].getElementsByTagName("userto");
+					var userpidNode = messNodes[i].getElementsByTagName("userpid");
+                    var textNode = messNodes[i].getElementsByTagName("text");
+                    var dateNode = messNodes[i].getElementsByTagName("date");
+					
+					if(useridNode[0].firstChild.nodeValue==<%=Tmps(1,0)%>){
+					
+					  if(usersexNode[0].firstChild.nodeValue=="男"){
+					  chatEL.innerHTML += '<div class=chu><ul><li class=chu1><a href=/Home/?ID='+useridNode[0].firstChild.nodeValue+' target=_blank><img src='+userpicNode[0].firstChild.nodeValue+' border=0 width=50 height=50 /></a></li><li class=chu2><a href=/Home/?ID='+useridNode[0].firstChild.nodeValue+' target=_blank><font color=#008AFF>♂</font></a> <a href=javascript:void(0) onclick=getFirend("'+ userNode[0].firstChild.nodeValue +'"); ><font class=ChatFont3>主持人(' + userNode[0].firstChild.nodeValue + ')</font></a> <font color=#575D69>对</font> <a href=javascript:void(0) onclick=getFirend("'+ usertoNode[0].firstChild.nodeValue +'");><font class=ChatFont1>' + usertoNode[0].firstChild.nodeValue + '</font></a> <font color=#575D69>说</font> <font color=#575D69>' + dateNode[0].firstChild.nodeValue +'</font><br>' + SmileReplace(textNode[0].firstChild.nodeValue) + '</li></ul></div>';
+					  }else{
+					  chatEL.innerHTML += '<div class=chu><ul><li class=chu1><a href=/Home/?ID='+useridNode[0].firstChild.nodeValue+' target=_blank><img src='+userpicNode[0].firstChild.nodeValue+' border=0 width=50 height=50 /></a></li><li class=chu2><a href=/Home/?ID='+useridNode[0].firstChild.nodeValue+' target=_blank><font color=#FF00C6>♀</font></a> <a href=javascript:void(0) onclick=getFirend("'+ userNode[0].firstChild.nodeValue +'"); ><font class=ChatFont3>主持人(' + userNode[0].firstChild.nodeValue + ')</font></a> <font color=#575D69>对</font> <a href=javascript:void(0) onclick=getFirend("'+ usertoNode[0].firstChild.nodeValue +'");><font class=ChatFont1>' + usertoNode[0].firstChild.nodeValue + '</font></a> <font color=#575D69>说</font> <font color=#575D69>' + dateNode[0].firstChild.nodeValue +'</font><br>' + SmileReplace(textNode[0].firstChild.nodeValue) + '</li></ul></div>';
+					  }
+					
+					
+					}else{
+					
+					if(usersexNode[0].firstChild.nodeValue=="男"){
+					  chatEL.innerHTML += '<div class=chu><ul><li class=chu1><a href=/Home/?ID='+useridNode[0].firstChild.nodeValue+' target=_blank><img src='+userpicNode[0].firstChild.nodeValue+' border=0 width=50 height=50 /></a></li><li class=chu2><a href=/Home/?ID='+useridNode[0].firstChild.nodeValue+' target=_blank><font color=#008AFF>♂</font></a> <a href=javascript:void(0) onclick=getFirend("'+ userNode[0].firstChild.nodeValue +'"); ><font class=ChatFont1>' + userNode[0].firstChild.nodeValue + '</font></a> <font color=#575D69>对</font> <a href=javascript:void(0) onclick=getFirend("'+ usertoNode[0].firstChild.nodeValue +'");><font class=ChatFont1>' + usertoNode[0].firstChild.nodeValue + '</font></a> <font color=#575D69>说</font> <font color=#575D69>' + dateNode[0].firstChild.nodeValue +'</font><br>' + SmileReplace(textNode[0].firstChild.nodeValue) + '</li></ul></div>';
+					  }else{
+					  chatEL.innerHTML += '<div class=chu><ul><li class=chu1><a href=/Home/?ID='+useridNode[0].firstChild.nodeValue+' target=_blank><img src='+userpicNode[0].firstChild.nodeValue+' border=0 width=50 height=50 /></a></li><li class=chu2><a href=/Home/?ID='+useridNode[0].firstChild.nodeValue+' target=_blank><font color=#FF00C6>♀</font></a> <a href=javascript:void(0) onclick=getFirend("'+ userNode[0].firstChild.nodeValue +'"); ><font class=ChatFont1>' + userNode[0].firstChild.nodeValue + '</font></a> <font color=#575D69>对</font> <a href=javascript:void(0) onclick=getFirend("'+ usertoNode[0].firstChild.nodeValue +'");><font class=ChatFont1>' + usertoNode[0].firstChild.nodeValue + '</font></a> <font color=#575D69>说</font> <font color=#575D69>' + dateNode[0].firstChild.nodeValue +'</font><br>' + SmileReplace(textNode[0].firstChild.nodeValue) + '</li></ul></div>';
+					  }
+					
+					}
+                    
+					
+                    lastID = messNodes[i].getAttribute("id");//上次消息的ID
+                    chatEL.scrollTop = chatEL.scrollHeight;//滚动到最后一条消息
+                }
+                mGetTime = setTimeout("getMess()",2000);//每隔两秒从服务返回最新消息
+            }
+        }
+        getMessReq.send(null);
+    }
+}
+
+function startChat()
+{
+    getMess();
+    //document.getElementById("mess").focus();//把焦点设置到消息输入框
+}
+
+
+
+
+</script>
+
+
+<script language="JavaScript">
+function MM_findObj(n, d) { //v4.01
+  var p,i,x;  if(!d) d=document; if((p=n.indexOf("?"))>0&&parent.frames.length) {
+    d=parent.frames[n.substring(p+1)].document; n=n.substring(0,p);}
+  if(!(x=d[n])&&d.all) x=d.all[n]; for (i=0;!x&&i<d.forms.length;i++) x=d.forms[i][n];
+  for(i=0;!x&&d.layers&&i<d.layers.length;i++) x=MM_findObj(n,d.layers[i].document);
+  if(!x && d.getElementById) x=d.getElementById(n); return x;
+}
+
+function MM_showHideLayers() { //v6.0
+  var i,p,v,obj,args=MM_showHideLayers.arguments;
+  for (i=0; i<(args.length-2); i+=3) if ((obj=MM_findObj(args[i]))!=null) { v=args[i+2];
+    if (obj.style) { obj=obj.style; v=(v=='show')?'visible':(v=='hide')?'hidden':v; }
+    obj.visibility=v; }
+}
+</script>
+
+
+<style type="text/css">
+<!--
+img{ border:none;}
+div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, font, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend{
+	margin: 0;
+	padding: 0;
+	border: 0;
+	outline: 0;
+}
+.chat{
+	display:block;
+	height:378px;
+	overflow-y:scroll;
+	border-top-style: none;
+	border-right-style: none;
+	border-bottom-style: none;
+	border-left-style: none;
+	width: 100%;
+	background-image: url(/Images/bodybg.gif);	
+	background-repeat: repeat;
+	font-size: 12px;
+	font-family: Verdana;
+	color: #CCD5E8;
+	line-height:25px;
+	padding-left:5px;
+	padding-right:5px;
+}
+.chat .username {
+	font-family: Verdana;
+	font-size: 12px;
+	color: #FEFFFF;
+	line-height: 160%;
+}
+body {
+	margin-left: 0px;
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	SCROLLBAR-FACE-COLOR: #DEDEDE;
+	SCROLLBAR-HIGHLIGHT-COLOR: #FFFFFF;
+	SCROLLBAR-SHADOW-COLOR: #C0C0C0;
+	SCROLLBAR-3DLIGHT-COLOR: #DEDEDE;
+	SCROLLBAR-ARROW-COLOR: #DEDEDE;
+	SCROLLBAR-TRACK-COLOR: #f0f0f0;
+	SCROLLBAR-DARKSHADOW-COLOR: #FFFFFF;
+	
+}
+.chu{float:left;width:100%;}
+.chu1{float:left;width:50px;height:50px;padding:5px;}
+.chu2{float:left;width:507px;}
+
+
+.font1 {
+    font-family: Verdana;
+	font-size: 12px;
+	color: #CCD5E8;
+	text-decoration: none;
+}
+.font2 {
+    font-family: Verdana;
+	font-size: 9px;
+	color: #838384;
+	text-decoration: none;
+}
+.font3 {
+	font-size: 12px;
+	color: #FEFFFF;
+	font-family: Verdana;
+	font-weight: bold;
+}
+.input1 {
+	font-size: 12px;
+	border: 0px solid #B5BCC2;
+	font-family: Verdana;
+	color: #2B2B2B;
+	padding-left: 5px;
+	background-color: #FFFFFF;
+}
+a{text-decoration: none;}
+
+.ChatFont1 {
+	color:#987600;
+	font-family: Verdana;
+	font-size: 12px;
+	line-height: 160%;
+	text-decoration: underline;
+}
+.ChatFont2 {
+	color:#CCCCCC;
+	font-family: Verdana;
+	font-size: 12px;
+	line-height: 160%;
+	text-decoration: underline;
+}
+.ChatFont3 {
+	color:#FF0082;
+	font-family: Verdana;
+	font-size: 12px;
+	line-height: 160%;
+	text-decoration: underline;
+}
+.ChatFont4 {
+	color:#007FAF;
+	font-family: Verdana;
+	font-size: 12px;
+	line-height: 160%;
+	text-decoration: underline;
+}
+-->
+</style>
+
+</head>
+
+<body onLoad="startChat();" oncontextmenu='return false' ondragstart='return false' onselectstart ='return false'>
+<noscript><iframe src=*></iframe></noscript>
+
+<div id="chat" class="chat">
+<!--这里显示聊天信息-->
+</div>
+
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td height="1" bgcolor="#23252B"></td>
+  </tr>
+</table>
+
+<table width="100%" border="0" align="center" cellpadding="5" cellspacing="0">
+    <tr valign="middle">
+      <td width="100%" height="75" align="center" bgcolor="#23252B">
+
+<!--begin-->
+<script language=javascript>    
+ie = (document.all)? true:false   
+if (ie){    
+function ctlent(eventobject){if(event.ctrlKey && window.event.keyCode==13){sendMess();}}    
+}    
+</script>  
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+		<form id="frmSend" name="frmSend" onSubmit="sendMess();return false;">
+		<input type="hidden" name="userid" value="<%=Request.Cookies("Web")("Web_SupperID")%>">
+		<input type="hidden" name="userto" value="所有人">
+		<input type="hidden" name="userpid" value="0">
+		<input type="hidden" name="IP" value="<%=Request.serverVariables("REMOTE_ADDR")%>">
+          <tr>
+            <td height="20" align="left" valign="middle" class="font1"><input name="username" type="text" class="input1" style="width:60px" value="<%=WebUserNameID(Request.cookies("Web")("Web_SupperID"))%>" readonly > 对 [<input name="userid1" type="radio"  onclick="getFirend('');" checked >所有人 || <input name="userid2" type="radio" onClick="if(document.frmSend.userid.value=='所有人'){alert('请选择聊天对象哦!\n\n点击用户名称即可!');document.frmSend.userid2.checked=false;}" ><span id="tousertitle">用户</span>] </td>
+            <td align="left" valign="middle" class="font1"></td>
+            <td width="22" align="left" valign="middle" onMouseOut="MM_showHideLayers('sub1','','hide')" onMouseOver="MM_showHideLayers('sub1','','show')"><img src="/Images/mess/face.png" border="0" style="cursor:hand">
+<DIV id=menu1 style="POSITION: absolute">
+<DIV id=sub1 onMouseOut="MM_showHideLayers('sub1','','hide')" onMouseOver="MM_showHideLayers('sub1','','show')" style="HEIGHT: 0px; LEFT: -210px; POSITION: absolute; TOP: -55px; VISIBILITY: hidden; WIDTH: 0px; Z-INDEX: 0">
+<style type="text/css">
+<!--
+
+.box{margin:0; padding:0;font-size: 12px;}
+
+form,img{border:none;}
+
+.style{
+    background:#23252B;
+}
+
+#Welcome{color:#0968A2;}
+
+.shadow{position:absolute;}
+
+.main{position:relative;top:-3px;left:-3px;padding:2px;border:1px solid #23252B; background:#23252B;}
+
+.Hand{cursor:pointer;margin:0; padding:0;font-size: 12px;}
+-->
+</style>
+<script type="text/javascript">
+<!--
+// img attr: name, alt, shortcut
+var imagePath = "/images/smiles/";
+var imageWidth = 16;
+var imageHeight = 16;
+var countPerRow = 14;
+function portrait(name, alt, shortcut)
+{
+    this.name = name;
+    this.alt = alt;
+    this.shortcut = shortcut;
+}
+
+    var imgArray = new Array();
+    imgArray[0] = new portrait("smile01.gif", "大笑", ":)");
+    imgArray[1] = new portrait("smile02.gif", "微笑", ":))");
+    imgArray[2] = new portrait("smile03.gif", "哭" ,"");
+    imgArray[3] = new portrait("smile04.gif", "惊讶" ,"");
+    imgArray[4] = new portrait("smile05.gif", "生气" ,"");
+    imgArray[5] = new portrait("smile06.gif", "难过" ,"");
+    imgArray[6] = new portrait("smile07.gif", "害羞" ,"");
+    imgArray[7] = new portrait("smile08.gif", "困" ,"");
+    imgArray[8] = new portrait("smile09.gif", "书呆子" ,"");
+    imgArray[9] = new portrait("smile10.gif", "调皮" ,"");
+    imgArray[10] = new portrait("smile11.gif", "坏笑" , "");
+    imgArray[11] = new portrait("smile12.gif", "生病" , "");
+    imgArray[12] = new portrait("smile13.gif", "尴尬" , "");
+    imgArray[13] = new portrait("smile14.gif", "汗" , "");
+    imgArray[14] = new portrait("smile15.gif", "惊恐" , "");
+    imgArray[15] = new portrait("smile16.gif", "囧" , "");
+    imgArray[16] = new portrait("smile17.gif", "呕吐" , "");
+    imgArray[17] = new portrait("smile18.gif", "酷" , "");
+    imgArray[18] = new portrait("smile19.gif", "流口水" , "");
+    imgArray[19] = new portrait("smile20.gif", "猫猫笑" , "");
+    imgArray[20] = new portrait("smile21.gif", "晕" , "");
+    imgArray[21] = new portrait("smile22.gif", "色迷迷" , "");
+    imgArray[22] = new portrait("smile23.gif", "可爱" , "");
+    imgArray[23] = new portrait("smile24.gif", "吃饭" , "");
+    imgArray[24] = new portrait("smile25.gif", "防流感" , "");
+    imgArray[25] = new portrait("smile26.gif", "淘气" , "");
+    imgArray[26] = new portrait("smile27.gif", "吻" , "");
+    imgArray[27] = new portrait("smile28.gif", "住嘴" , "");
+    imgArray[28] = new portrait("smile29.gif", "心爱" , "");
+    imgArray[29] = new portrait("smile30.gif", "花儿" , "");
+    imgArray[30] = new portrait("smile31.gif", "小蜜蜂" , "");
+	imgArray[31] = new portrait("smile32.gif", "不嘛" , "");
+	imgArray[32] = new portrait("smile33.gif", "给力" , "");
+	imgArray[33] = new portrait("smile34.gif", "鄙视" , "");
+
+function drawSpace()
+{
+    document.write('</tr><tr align="left" bgcolor="#23252B">');
+}
+function drawPortrat(index)
+{
+    if (index<0 || index>imgArray.length) return;
+    var portratContent ='<img src="' + imagePath + imgArray[index].name + '" ' +
+                        'alt="' + imgArray[index].alt + '" ' +
+                        'width="' + imageWidth + '" ' + 
+                        'height="' + imageHeight + '" >';
+    document.write('<td onclick="MouseClick(' + index + ');"  align="center" class="Hand">');
+    document.write(portratContent);
+    document.write('</td>');
+}
+
+function drawPortrats()
+{
+    var i = 0;
+    for (i=0; i<imgArray.length; i++) {
+        if (i>0 && i%countPerRow==0)    drawSpace();
+        drawPortrat( i );
+    }
+}
+function MouseClick(index)
+{
+    var SmileTag = "";
+    if (index < 100) SmileTag = imgArray[index].name.replace(/smile(.*?)\.gif/ig, ":T$1:");
+    //if (typeof(parent.window.Ajax_Chat) == "function") {
+        document.frmSend.elements["mess"].value += SmileTag;
+        //parent.window.LoadSmile("Close");
+    //}
+}
+// -->
+</script>
+
+<div class="shadow">
+<div class="main">
+
+<table width="98%" border="0" cellpadding="5" cellspacing="1" bgcolor="#2E3139">
+  <tr bgcolor="#FFFFDF" align="center"> 
+        <script language="javascript"> drawPortrats(); </script>
+  </tr>
+</table>
+</div>
+</div>
+</DIV>
+</DIV>			</td>
+            <td height="25" align="right" valign="middle"><input type="image" src="/Images/mess/skin_btn.png" value="send" id="submitsend" name="submitsend"></td>
+          </tr>
+          <tr>
+            <td height="55" colspan="4" title="Ctrl+Enter 发送信息"><textarea name="mess" class="input1" style="width:100%; height:55px;" onKeyDown="ctlent()" onkeyup=this.value=this.value.replace(/^\s+|\s+$/g,'')  onpaste="return false;" ondragenter="return false" ></textarea></td>
+          </tr>
+		</form>
+        </table>
+ <!--end-->      </td>
+    </tr>
+</table>
+</body>
+</html>

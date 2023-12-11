@@ -1,0 +1,561 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="inc/function.asp" -->
+<!-- #include file="cache/system.asp" -->
+<!-- #include file="file_users.asp" -->
+<!-- #include file="inc/yucmedia.asp" -->
+<%
+	response.charset="gb2312"
+
+Select Case mudi
+	Case "vote"
+		Call Vote()
+
+	Case "message"
+		Call Message()
+
+	Case "messageSend"
+		Call MessageSend()
+
+	Case "contentSend"
+		%>
+		<!-- #include file="cache/userSys.asp" -->
+		<!-- #include file="inc/func_content.asp" -->
+		<!-- #include file="inc/func_closeMark.asp" -->
+		<%
+		Call ContentSend()
+
+End Select
+
+
+Call CloseConobj()
+
+
+
+
+
+' 投票处理
+Private Sub Vote()
+	dataID	= ToGetInt("dataID")
+	selItem	= ToGetInt2("selItem",-1)
+	dbPathPart=ToGetStr("dbPathPart")
+		If dbPathPart<>"./" And dbPathPart<>"../" Then dbPathPart=""
+
+	Set voteexe = conobj.execute("select IF_voteMode,IF_voteStr from OT_info where IF_ID="& dataID)
+		If voteexe.EOF Then
+			response.write("投票信息读取失败")
+			response.End()
+		End If
+		IF_voteMode	= voteexe("IF_voteMode")
+		IF_voteStr	= voteexe("IF_voteStr")
+	voteexe.close
+	Set voteexe=Nothing
+
+	If selItem>-1 Then
+		Dim voteOldTime,voteNewTime
+		voteNewTime = now()
+		voteOldTime = Trim(session(OT_SiteID &"voteOldTime"))
+		If IsDate(voteOldTime)=False Then voteOldTime="1988-8-8"
+		If DateDiff("s",voteOldTime,voteNewTime)<SYS_newsVoteSecond Then'
+	'		JS_AlertBackEnd("由于验证码禁用，连续评论需相隔"& SYS_newsVoteSecond &"秒.")
+			JS_AlertEnd("连续投票需相隔"& SYS_newsVoteSecond &"秒.")
+		Else
+			session(OT_SiteID &"voteOldTime") = voteNewTime
+		End If
+	End If
+
+	If IF_voteMode>0 Then
+		Dim voteItemArr,voteItem2Arr,voteArr,voteCount
+		voteItemArr	= Array(49,49,49,49,49,49,49,49)
+		voteItem2Arr= Array(0,0,0,0,0,0,0,0)
+		voteArr		= Split(IF_voteStr,",")
+		If selItem>-1 Then
+			For i=0 To UBound(voteArr)
+				If selItem=i Then
+					voteArr(i) = voteArr(i) + 1
+				End If
+			Next
+			newVoteStr = Join(voteArr,",")
+			conobj.execute("update OT_info set IF_voteStr='"& newVoteStr &"' where IF_ID="& dataID)
+		End If
+		voteCount	= 0
+		For i=0 To UBound(voteArr)
+			voteCount = voteCount + voteArr(i)
+		Next
+		If voteCount>0 Then
+			For i=0 To UBound(voteArr)
+				If voteArr(i)>0 Then
+					voteItem2Arr(i) = FormatNumber(voteArr(i)/voteCount,2)*100
+					voteItemArr(i) = 49 - FormatNumber(voteArr(i)/voteCount,2)*49
+				End If
+			Next
+		End If
+
+		If IF_voteMode=1 Then
+			response.write(_
+			"请选择您看到这篇文章的心情：已有<span class='font2_2'>"& voteCount &"</span>人表态<br />"&_
+			"<ul>"&_
+				"<li>"&_
+					"<table cellpadding='0' cellspacing='0' onclick='VoteDeal(0)'>"&_
+					"<tr><td align='center'>"& voteArr(0) &"</td></tr>"&_
+					"<tr><td align='center'><div class='boxBorder'><div class='boxBlank' style='height:"& voteItemArr(0) &"px;'></div></div></td></tr>"&_
+					"<tr><td align='center'><img src='"& dbPathPart &"inc_img/mood/1.gif' /></td></tr>"&_
+					"<tr><td align='center'>支持</td></tr>"&_
+					"</table>"&_
+				"</li>"&_
+				"<li>"&_
+					"<table cellpadding='0' cellspacing='0' onclick='VoteDeal(1)'>"&_
+					"<tr><td align='center'>"& voteArr(1) &"</td></tr>"&_
+					"<tr><td align='center'><div class='boxBorder'><div class='boxBlank' style='height:"& voteItemArr(1) &"px;'></div></div></td></tr>"&_
+					"<tr><td align='center'><img src='"& dbPathPart &"inc_img/mood/2.gif' /></td></tr>"&_
+					"<tr><td align='center'>感动</td></tr>"&_
+					"</table>"&_
+				"</li>"&_
+				"<li>"&_
+					"<table cellpadding='0' cellspacing='0' onclick='VoteDeal(2)'>"&_
+					"<tr><td align='center'>"& voteArr(2) &"</td></tr>"&_
+					"<tr><td align='center'><div class='boxBorder'><div class='boxBlank' style='height:"& voteItemArr(2) &"px;'></div></div></td></tr>"&_
+					"<tr><td align='center'><img src='"& dbPathPart &"inc_img/mood/3.gif' /></td></tr>"&_
+					"<tr><td align='center'>惊讶</td></tr>"&_
+					"</table>"&_
+				"</li>"&_
+				"<li>"&_
+					"<table cellpadding='0' cellspacing='0' onclick='VoteDeal(3)'>"&_
+					"<tr><td align='center'>"& voteArr(3) &"</td></tr>"&_
+					"<tr><td align='center'><div class='boxBorder'><div class='boxBlank' style='height:"& voteItemArr(3) &"px;'></div></div></td></tr>"&_
+					"<tr><td align='center'><img src='"& dbPathPart &"inc_img/mood/4.gif' /></td></tr>"&_
+					"<tr><td align='center'>同情</td></tr>"&_
+					"</table>"&_
+				"</li>"&_
+				"<li>"&_
+					"<table cellpadding='0' cellspacing='0' onclick='VoteDeal(4)'>"&_
+					"<tr><td align='center'>"& voteArr(4) &"</td></tr>"&_
+					"<tr><td align='center'><div class='boxBorder'><div class='boxBlank' style='height:"& voteItemArr(4) &"px;'></div></div></td></tr>"&_
+					"<tr><td align='center'><img src='"& dbPathPart &"inc_img/mood/5.gif' /></td></tr>"&_
+					"<tr><td align='center'>流汗</td></tr>"&_
+					"</table>"&_
+				"</li>"&_
+				"<li>"&_
+					"<table cellpadding='0' cellspacing='0' onclick='VoteDeal(5)'>"&_
+					"<tr><td align='center'>"& voteArr(5) &"</td></tr>"&_
+					"<tr><td align='center'><div class='boxBorder'><div class='boxBlank' style='height:"& voteItemArr(5) &"px;'></div></div></td></tr>"&_
+					"<tr><td align='center'><img src='"& dbPathPart &"inc_img/mood/6.gif' /></td></tr>"&_
+					"<tr><td align='center'>鄙视</td></tr>"&_
+					"</table>"&_
+				"</li>"&_
+				"<li>"&_
+					"<table cellpadding='0' cellspacing='0' onclick='VoteDeal(6)'>"&_
+					"<tr><td align='center'>"& voteArr(6) &"</td></tr>"&_
+					"<tr><td align='center'><div class='boxBorder'><div class='boxBlank' style='height:"& voteItemArr(6) &"px;'></div></div></td></tr>"&_
+					"<tr><td align='center'><img src='"& dbPathPart &"inc_img/mood/7.gif' /></td></tr>"&_
+					"<tr><td align='center'>愤怒</td></tr>"&_
+					"</table>"&_
+				"</li>"&_
+				"<li>"&_
+					"<table cellpadding='0' cellspacing='0' onclick='VoteDeal(7)'>"&_
+					"<tr><td align='center'>"& voteArr(7) &"</td></tr>"&_
+					"<tr><td align='center'><div class='boxBorder'><div class='boxBlank' style='height:"& voteItemArr(7) &"px;'></div></div></td></tr>"&_
+					"<tr><td align='center'><img src='"& dbPathPart &"inc_img/mood/8.gif' /></td></tr>"&_
+					"<tr><td align='center'>难过</td></tr>"&_
+					"</table>"&_
+				"</li>"&_
+			"</ul><div class='clear'></div>"&_
+			"")
+		ElseIf IF_voteMode=2 Then
+			response.write(_
+			"请选择您看到这篇文章的表态：已有<span class='font2_2'>"& voteCount &"</span>人参与<br /><br />"&_
+			"<div class='upDown'>"&_
+				"<div class='up' onclick='VoteDeal(0)'>"&_
+					"<div class='upa'>顶一下</div><div class='upb'>(<span id='upVoteNum'>"& voteArr(0) &"</span>)</div><div class='clear'></div>"&_
+					"<div class='upc'><div class='upd' style='width:"& voteItem2Arr(0) &"px;'></div></div><div class='upe'><span id='upVotePer'>"& voteItem2Arr(0) &"</span>%</div>"&_
+				"</div>"&_
+				"<div class='down' onclick='VoteDeal(1)'>"&_
+					"<div class='downa'>踩一下</div><div class='downb'>(<span id='downVoteNum'>"& voteArr(1) &"</span>)</div><div class='clear'></div>"&_
+					"<div class='downc'><div class='downd' style='width:"& voteItem2Arr(1) &"px;'></div></div><div class='downe'><span id='downVotePer'>"& voteItem2Arr(1) &"</span>%</div>"&_
+				"</div>"&_
+			"</div><div class='clear'></div>"&_
+			"")
+		End If
+		response.write(_
+		"<script language='javascript' type='text/javascript'>"&_
+		"try {"&_
+			"setTimeout('VoteStyle()',500);"&_
+		"}catch (e) {}"&_
+		"</script>"&_
+		"")
+	End If
+	
+End Sub
+
+
+
+' 评论处理
+Private Sub Message()
+	URL			= ToPostStr("URL")
+	dataType	= ToPostStr("dataType")
+	infoID		= ToPostInt("infoID")
+	isReply		= ToPostInt("isReply")
+	verCode		= ToPostStr("verCode")
+	rndMd5		= ToPostStr("rndMd5")
+		If OT_OpenVerCode=False Or SYS_isVerCodeReply=0 Then
+			Dim replyOldTime,replyNewTime
+			replyNewTime = now()
+			replyOldTime = Trim(session(OT_SiteID &"replyOldTime"))
+			If IsDate(replyOldTime)=False Then replyOldTime="1988-8-8"
+			If DateDiff("s",replyOldTime,replyNewTime)<SYS_newsReplySecond Then'
+'				JS_AlertBackEnd("由于验证码禁用，连续评论需相隔"& SYS_newsReplySecond &"秒.")
+'				JS_AlertEnd("连续评论需相隔"& SYS_newsReplySecond &"秒.")
+				response.write("alert('连续评论需相隔"& SYS_newsReplySecond &"秒.');GetVerCode('change','noFocus');")
+				response.End()
+			Else
+				session(OT_SiteID &"replyOldTime") = replyNewTime
+			End If
+		Else
+			If SYS_verCodeMode=2 Then
+				judYucmedia = yucmedia_deal("fasp",verCode)
+				If judYucmedia<>"true" Then
+					response.write("alert('验证码错误("& yucmedia_err &"),请重新输入.');")
+					response.End()
+				End If
+			Else
+				If (verCode="" Or verCode<>session("VerCode")) And OT_OpenVerCode=True And SYS_isVerCodeReply=1 Then
+		'			Call JS_AlertBackEnd("验证码错误.")
+					response.write("alert('验证码错误.');GetVerCode('change');")
+					response.End()
+				End If
+			End If
+		End If
+
+	username = ""
+	If SYS_isNewsReply=0 Or isReply=0 Then
+		response.write("alert('评论已关闭.');")
+		response.End()
+	End If
+
+	If username="" Then username= ToPostStr("replyUser")
+	content	= ToPostStr("replyContent")
+	
+	If dataType="" Or infoID=0 Or content="" Then
+'		Call JS_AlertBackEnd("表单信息填写不完整.")
+'		Call JS_AlertEnd("表单信息填写不完整.")
+		response.write("alert('表单信息填写不完整.');GetVerCode('change');")
+		response.End()
+	End If
+
+	contentLen = Len(content)
+	If SYS_newsReplyMaxLen>0 And contentLen>SYS_newsReplyMaxLen Then
+		Call JS_AlertEnd("评论内容(已经"& contentLen &"字符)超过系统限制的"& SYS_newsReplyMaxLen &"字符.")
+	End If
+
+	OT_userIP	= GetUserIp()
+	resultMd5 = md5(md5(OT_SiteID & session.sessionID) & OT_SiteID & OT_userIP)
+	If rndMd5<>resultMd5 Then
+		response.write("alert('用户跟随信息验证失败，请重新刷新页面后再操作.');GetVerCode('change');")
+		response.End()
+	End If
+
+	username = ReplaceStr(username,"html")
+	content = ReplaceStr(content,"html")
+
+	Set dealrec=server.CreateObject("ADODB.recordset")
+	dealrec.open "select top 1 IM_type,IM_infoID,IM_time,IM_ip,IM_num,IM_username,IM_content,IM_contentMd5,IM_state from OT_infoMessage where 1=2",conobj,0,2
+	dealrec.addnew()
+	dealrec("IM_type")	= dataType
+	dealrec("IM_infoID")= infoID
+
+	dealrec("IM_time")		= Now()
+	dealrec("IM_ip")		= OT_userIP
+	dealrec("IM_num")		= ToInt(conobj.execute("select max(IM_num) from OT_infoMessage where IM_infoID="& infoID &" and IM_type='"& dataType &"'")(0))+1
+	dealrec("IM_username")	= username
+	dealrec("IM_content")	= content
+	dealrec("IM_contentMd5")= md5(content)
+	dealrec("IM_state")		= SYS_newsReplyAudit
+	dealrec.update()
+	dealrec.close
+	set dealrec=Nothing
+	
+	conobj.execute("update OT_info set IF_replyNum=IF_replyNum+1 where IF_ID="& infoID)
+	
+	If SYS_newsReplyAudit=0 Then
+'		Call JS_AlertHref("提交成功,待管理员审核通过后才会显示出来.",URL)
+		response.write("alert('提交成功,待管理员审核通过后才会显示出来.');$id('replyForm').reset();GetVerCode('change','noFocus');")
+	Else
+'		Call JS_AlertHref("提交成功.",URL)
+'		lastReply = ""&_
+'			"<ul><li>"&_
+'				"<div class='username'><div class='right'>更新时间："& dataTime &"</div>留言者："& username &"</div>"&_
+'				"<div class='note'>"& content &"</div>"&_
+'			"</li><div class='clear'></div></ul>"
+'		response.write("alert('提交成功.');$id('replyForm').reset();GetVerCode('change','noFocus');$id('replyList').innerHTML="""& ReplaceStr(lastReply,"js") &"""+ $id('replyList').innerHTML;document.location.href='#lastReply';")
+		response.write("alert('提交成功.');$id('replyForm').reset();GetVerCode('change','noFocus');LoadReplyList("& infoID &");")
+	End If
+
+	session("VerCode")=""
+End Sub
+
+
+' 发送评论
+Private Sub MessageSend()
+	dataID	= ToGetInt("dataID")
+	dbPathPart=ToGetStr("dbPathPart")
+		If dbPathPart<>"./" And dbPathPart<>"../" Then dbPathPart=""
+
+	Set showrec=server.CreateObject("ADODB.recordset")
+	showrec.open "select IM_time,IM_num,IM_username,IM_content,IM_isReply,IM_reply from OT_infoMessage where IM_infoID="& dataID &" and IM_state=1 order by IM_time DESC",conobj,3,1
+		If showrec.EOF Then
+			response.write("<br /><center class='font1_1'>暂无评论</center>")
+		Else
+			showPageSize=10		'每页条数
+			showrec.pagesize=showPageSize	
+			showPageCount=showrec.pagecount
+			showCount=showrec.recordcount
+			page=ToGetInt("page")
+			if page < 1 Or page > showPageCount Then page=1
+			showrec.absolutepage=page
+
+			number=1+(page-1)*showPageSize
+			
+			response.write(_
+			"<ul>")
+			For i=1 To showPageSize
+				If showrec.EOF Then Exit For
+				response.write(_
+				"<li>"&_
+					"<div class='username'><div class='right font1_2d'>更新时间："& showrec("IM_time") &"</div><img src='"& dbPathPart &"inc_img/user.gif' /><b>"& showrec("IM_num") &"楼</b>&nbsp;评论者：<b>"& showrec("IM_username") &"</b></div>"&_
+					"<div class='note'>"& showrec("IM_content") &"</div>"&_
+					"")
+					If showrec("IM_isReply")=1 Then
+						response.write("<div class='admin'><b>"& SYS_newsReplyName &"：</b>"& showrec("IM_reply") &"</div>")
+					End If
+				response.write(_
+				"</li><div class='clear'></div>"&_
+				"")
+			showrec.movenext
+			Next
+
+
+			response.write(_
+			"</ul><div class='clear'></div>"&_
+
+			"<center>"&_
+			"")
+				Call AjaxShowNavigation("replyList",showPageCount,showCount,"","")
+			response.write(_
+			"</center>"&_
+			"")
+		End If
+	showrec.close
+	Set showrec=Nothing
+End Sub
+
+
+
+' 发送文章内容
+Sub ContentSend()
+	dataID	= ToGetInt("dataID")
+	page	= ToGetInt("page")
+	isCut	= ToGetStr("isCut")
+	dbPathPart=ToGetStr("dbPathPart")
+		If dbPathPart<>"./" And dbPathPart<>"../" Then dbPathPart=""
+	outputID= "newsContent"
+
+	Set infoexe = conobj.execute("select top 1 IF_content,IF_isCheckUser,IF_userGroupID,IF_userLevel,IF_score1,IF_score2,IF_score3,IF_score4,IF_score5,IF_cutScore1,IF_cutScore2,IF_cutScore3,IF_cutScore4,IF_cutScore5,IF_scoreUserList,IF_file,IF_fileName,IF_state from OT_info where IF_ID="& dataID)
+		If infoexe.EOF Then
+			response.write("<br /><center>记录不存在</center>")
+			response.end
+		End If
+		If infoexe("IF_state")=0 Then
+			response.write("<br /><center>该记录已关闭</center>")
+			response.end
+		End If
+
+		IF_content		= infoexe("IF_content")
+		IF_isCheckUser	= infoexe("IF_isCheckUser")
+		IF_userGroupID	= infoexe("IF_userGroupID")
+		IF_userLevel	= infoexe("IF_userLevel")
+		IF_score1		= infoexe("IF_score1")
+		IF_score2		= infoexe("IF_score2")
+		IF_score3		= infoexe("IF_score3")
+		IF_score4		= infoexe("IF_score4")
+		IF_score5		= infoexe("IF_score5")
+		IF_cutScore1	= infoexe("IF_cutScore1")
+		IF_cutScore2	= infoexe("IF_cutScore2")
+		IF_cutScore3	= infoexe("IF_cutScore3")
+		IF_cutScore4	= infoexe("IF_cutScore4")
+		IF_cutScore5	= infoexe("IF_cutScore5")
+		IF_scoreUserList= infoexe("IF_scoreUserList")
+		IF_file			= infoexe("IF_file")
+		IF_fileName		= infoexe("IF_fileName")
+	infoexe.close
+	Set infoexe=Nothing
+
+
+	If IF_isCheckUser>0 Then
+		judUserErr = Users_Open("get",",UE_score1,UE_score2,UE_score3,UE_score4,UE_score5,UE_state","")
+			If judUserErr<>"" Then
+				response.write(_
+				"<br />"&_
+				"<center style='font-size:14px;'>"&_
+					"该文章需要登录后才能查看."&_
+					""& judUserErr &" <span class='font2_1 pointer' onclick=""OpenPopup('login');"">[登录]</span>/<span class='font2_1 pointer' onclick=""OpenPopup('reg');"">[注册]</span>"&_
+				"</center>"&_
+				"<br /><br />"&_
+				"")
+				response.End()
+			End If
+			If userexe("UE_state")=0 Then
+				response.write(_
+				"<br />"&_
+				"<center style='font-size:14px;'>"&_
+					"您当前状态 未审核，审核通过后才可查看该文章。"&_
+				"</center>"&_
+				"<br /><br />"&_
+				"")
+				response.End()
+			End If
+		UE_ID		= userexe("UE_ID")
+		UE_score1	= userexe("UE_score1")
+		UE_score2	= userexe("UE_score2")
+		UE_score3	= userexe("UE_score3")
+		UE_score4	= userexe("UE_score4")
+		UE_score5	= userexe("UE_score5")
+
+		
+		judRead = 1
+		readStr = ""
+		judCut = 1
+		cutStr = ""
+		cutUserSql = ""
+'		If US_isScore1=1 Then
+			readStr = readStr &"<br />·"& US_score1Name &">="& IF_score1
+			cutStr = cutStr &"<br />·"& US_score1Name &"-"& IF_cutScore1
+			If UE_score1<IF_score1 Then
+				readStr = readStr &"&nbsp;(当前会员："& UE_score1 &")"
+				judRead = 0
+			End If
+			If UE_score1<IF_cutScore1 Then
+				cutStr = cutStr &"&nbsp;(当前会员："& UE_score1 &")"
+				judCut = 0
+			End If
+			cutUserSql = cutUserSql &"update OT_users set UE_score1=UE_score1-"& IF_cutScore1 &""
+'		End If
+		If US_isScore2=1 Then
+			readStr = readStr &"<br />·"& US_score2Name &">="& IF_score2
+			cutStr = cutStr &"<br />·"& US_score2Name &"-"& IF_cutScore2
+			If UE_score2<IF_score2 Then
+				readStr = readStr &"&nbsp;(当前会员："& UE_score2 &")"
+				judRead = 0
+			End If
+			If UE_score2<IF_cutScore2 Then
+				cutStr = cutStr &"&nbsp;(当前会员："& UE_score2 &")"
+				judCut = 0
+			End If
+			cutUserSql = cutUserSql &",UE_score2=UE_score2-"& IF_cutScore2 &""
+		End If
+		If US_isScore3=1 Then
+			readStr = readStr &"<br />·"& US_score3Name &">="& IF_score3
+			cutStr = cutStr &"<br />·"& US_score3Name &"-"& IF_cutScore3
+			If UE_score3<IF_score3 Then
+				readStr = readStr &"&nbsp;(当前会员："& UE_score3 &")"
+				judRead = 0
+			End If
+			If UE_score3<IF_cutScore3 Then
+				cutStr = cutStr &"&nbsp;(当前会员："& UE_score3 &")"
+				judCut = 0
+			End If
+			cutUserSql = cutUserSql &",UE_score3=UE_score3-"& IF_cutScore3 &""
+		End If
+		If US_isScore4=1 Then
+			readStr = readStr &"<br />·"& US_score4Name &">="& IF_score4
+			cutStr = cutStr &"<br />·"& US_score4Name &"-"& IF_cutScore4
+			If UE_score4<IF_score4 Then
+				readStr = readStr &"&nbsp;(当前会员："& UE_score4 &")"
+				judRead = 0
+			End If
+			If UE_score4<IF_cutScore4 Then
+				cutStr = cutStr &"&nbsp;(当前会员："& UE_score4 &")"
+				judCut = 0
+			End If
+			cutUserSql = cutUserSql &",UE_score4=UE_score4-"& IF_cutScore4 &""
+		End If
+		If US_isScore5=1 Then
+			readStr = readStr &"<br />·"& US_score5Name &">="& IF_score5
+			cutStr = cutStr &"<br />·"& US_score5Name &"-"& IF_cutScore5
+			If UE_score5<IF_score5 Then
+				readStr = readStr &"&nbsp;(当前会员："& UE_score5 &")"
+				judRead = 0
+			End If
+			If UE_score5<IF_score5 Then
+				cutStr = cutStr &"&nbsp;(当前会员："& UE_score5 &")"
+				judCut = 0
+			End If
+			cutUserSql = cutUserSql &",UE_score5=UE_score5-"& IF_cutScore5 &""
+		End If
+		If judRead=0 Then
+			response.write("<br /><table align='center'><tr><td class='font2_1'>阅读该文章权限不足。需要权限有"& readStr &"</td></tr></table>")
+			response.end
+		End If
+
+		If InStr(IF_scoreUserList,"["& UE_ID &"]")>0 Then judCut=2
+
+		If isCut="true" Then
+			If judCut=0 Then
+				response.write("<br /><table align='center'><tr><td class='font2_1'>积分不足，无法作扣除操作。<br />阅读该文章需要扣积分有"& cutStr &"</td></tr></table>")
+				response.End
+			ElseIf judCut=1 Then
+				cutUserSql = cutUserSql &" where UE_ID="& UE_ID
+'				response.write(cutUserSql)
+'				response.end
+				conobj.execute(cutUserSql)
+				conobj.execute("update OT_info set IF_scoreUserList='"& sqlForStr(IF_scoreUserList &"["& UE_ID &"]") &"' where IF_ID="& dataID)
+'				IF_scoreUserList = IF_scoreUserList &"["& UE_ID &"]"
+				judCut=2
+			End If
+		End If
+
+		If judCut=0 Then
+			response.write("<br /><table align='center'><tr><td class='font2_1'>阅读该文章需要扣积分有"& cutStr &"</td></tr></table>")
+			response.end
+		ElseIf judCut=1 And (IF_cutScore1<>0 Or IF_cutScore2<>0 Or IF_cutScore3<>0 Or IF_cutScore4<>0 Or IF_cutScore5<>0) Then
+			response.write("<br /><table align='center'><tr><td class='font2_1'>阅读该文章需要扣积分有"& cutStr &"<br />您确定阅读吗？<input type='button' value='确定阅读' onclick='CutScoreBtn()' /></td></tr></table>")
+			response.end
+		End If
+
+	End If
+
+	If IF_pageNum>0 Then
+		content	= Content_PageWord(IF_content,dataID,IF_pageNum,outputID)
+	Else
+		content	= Content_PageSign(IF_content,dataID,outputID)
+	End If
+
+	Set wordexe = conobj.execute("select * from OT_keyWord where KW_isUse=1 order by KW_rank ASC")
+		Do Until wordexe.EOF
+			If wordexe("KW_useNum")>0 Then
+				content = Replace(content,wordexe("KW_theme"),"<a href='"& wordexe("KW_URL") &"' class='keyWord' target='_blank'>"& wordexe("KW_theme") &"</a>",1,wordexe("KW_useNum"))
+			Else
+				content = Replace(content,wordexe("KW_theme"),"<a href='"& wordexe("KW_URL") &"' class='keyWord' target='_blank'>"& wordexe("KW_theme") &"</a>")
+			End If
+		wordexe.movenext
+		Loop
+	wordexe.close
+	Set wordexe=Nothing
+
+	content = CloseMark_HTML(content)
+	If dbPathPart<>"../" Then content = Replace(content,InfoImgAdminDir,InfoImgDir)
+
+	If IF_file<>"" Then
+		If IF_fileName<>"" Then
+			content = content &_
+			"<div style='margin:12px 0 12px 0;'><a href='"& dbPathPart &"deal.asp?mudi=download&dataID="& dataID &"' class='font2_1' target='_blank'><b>附件下载："& IF_fileName &"</b></a></div>"&_
+			""
+		Else
+			content = content &_
+			"<div style='margin:12px 0 12px 0;'><a href='"& dbPathPart & DownloadFileDir & IF_file &"' class='font2_1' target='_blank'><b>附件：点击下载</b></a></div>"&_
+			""
+		End If
+	End If
+
+	response.write(content)
+End Sub
+%>

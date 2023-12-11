@@ -1,0 +1,232 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%> 
+<%Session.CodePage=936%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<%
+If Not FRAdminLevel(804) Then
+	Call ErrorMsg()
+End If
+keywords=replace_text(request("keywords"))
+keywords=replace_text(request("keywords"))
+if request("sortid")>"" then
+if Chkrequest(request("sortid")) then
+sortid=request("sortid")
+else
+Response.Redirect ("../admin/admin_login.asp")
+end if
+end if
+if request("typeid")>"" then
+if Chkrequest(request("typeid")) then
+typeid=request("typeid")
+else
+Response.Redirect ("../admin/admin_login.asp")
+end if
+end if
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1
+Dim Action
+Dim page,i
+Dim totalPut
+const MaxPerpage=20
+strFileName="index.asp?wid="&wid&"&typeid="&typeid&"&keyword="&keyword&""
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<LINK href="../css/style.css" rel=stylesheet type=text/css> 
+<script language="javascript" src="../Inc/Admin.js"></script>
+<SCRIPT LANGUAGE='JavaScript' SRC='../../js/search.js' TYPE='text/javascript'></script><script>
+var checkflag="false";
+function check(field){
+if(checkflag=="false"){
+for(i=0;i<field.length;i++){
+field[i].checked=true;}
+checkflag="true";
+return "解除全选"; }
+else {
+for(i=0;i<field.length;i++) {
+field[i].checked=false;}
+checkflag="false";
+return "选择全部";}}
+</script><title>HR资讯管理</title>
+<%
+if not isempty(request("selAnnounce")) then
+newsidlist=request("selAnnounce")
+if instr(newsidlist,",")>0 then
+dim newsidarr
+newsidArr=split(newsidlist)
+dim log_newsid
+for i = 0 to ubound(newsidarr)
+log_newsid=clng(newsidarr(i))
+call deleteannounce(log_newsid)
+next
+else
+call deleteannounce(clng(newsidlist))
+end if
+end if
+%>
+<style type="text/css">
+<!--
+.style11 {color: #0066CC;
+	font-weight: bold;
+}
+-->
+</style>
+<table width="100%" border="0" cellspacing="1" cellpadding="2" align="center" class="tableBorder">
+  <tr>
+    <th height="25" colspan="2" class="tableHeaderText">帮助信息管理 </th>
+  </tr>
+  <tr>
+    <td colspan="2"><font color="ff6600"><b class="style11">　管理选项</b></font>： <a href="index.asp">管理帮助信息</a> | <a href="addhelp.asp">添加帮助信息</a> | <a href="sort.asp">管理帮助类别</a> | <a href="Admin_Class_Ok.asp?action=add_help_sort">添加帮助类别</a> |   [<a href="javascript:location.reload()">刷新页面</a>] </td>
+  </tr>
+  <tr>
+    <td colspan="2"><p><b>注意</b>：<br />
+      ①类别直接与发布的信息相关联，删除类别可能会影响到以前发布的帮助信息。<br />
+    </p></td>
+  </tr>
+  <tr>
+    <td width="10%" height="25"><b>操作选项</b></td>
+    <form action="index.asp" method="post" name="searchForm" id="searchForm" onSubmit="javascript:if(doSearch()==false) return false;">
+      <td> 关键字：
+        <input name="keywords" type="text" value="<%=keywords%>" />
+        &nbsp;帮助类别：
+        <select name="sortid" size="1">
+          <%
+set rs1=conn.execute("select * from JOB_help_sort")
+do while not rs1.eof
+response.write "<option value='"&rs1("sortid")&"'>"&rs1("sort")&"</option>"&chr(13)+chr(10)
+rs1.movenext
+loop
+rs1.close
+%>
+        </select>
+        <input name="submit" type="submit" class="inputs" id="submit" value="立刻查找" />      </td>
+    </form>
+  </tr>
+</table>
+<%Call main()
+if FoundErr=True then
+	call Show_Err()
+end if
+%>
+<%Sub main()
+set rs=server.createobject("adodb.recordset") 
+sql="select * from JOB_help"
+if sortid>"" then sql=sql&" where sortid="&sortid&""
+if typeid>"" then sql=sql&" and typeid="&typeid&""
+if keywords>"" then sql=sql&" and showname like '%"&keywords&"%'"
+sql=sql&" order by ID desc"
+rs.open sql,conn,1,1
+if rs.eof and rs.bof then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>暂无帮助信息，请添加后再进行管理！</li>"
+	exit sub
+else
+	totalPut=rs.recordcount
+	if (page-1)*MaxPerpage>totalput then
+		if (totalPut mod MaxPerpage)=0 then
+			page= totalPut \ MaxPerpage
+		else
+			page= totalPut \ MaxPerpage + 1
+		end if
+	end if
+	if page=1 then
+		Call MainInfo()
+	else
+		if (page-1)*MaxPerpage<totalPut then
+			rs.move  (page-1)*MaxPerpage
+			dim bookmark
+			bookmark=rs.bookmark
+			Call MainInfo()
+		else
+			page=1
+			Call MainInfo()
+		end if
+	end if
+end if
+rs.close
+set rs=nothing
+end sub	
+%>
+<%Sub MainInfo()%>
+  <table wnewsidth="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder mt6">
+  <Form name="search" method="POST" action="index.asp">
+    <tr>
+      <th height=25 colspan="5">帮助信息列表</th>
+	</tr>
+    <tr height=25>
+      <td width="48%" align="center" wnewsidth="446"><b>信息标题</b></td>
+      <td width="27%" align="center" wnewsidth="263"><b>所属类别</b></td>
+      <td width="11%" align="center" wnewsidth="113"><b>发布日期</b></td>
+      <td width="7%" align="center" wnewsidth="62"><b>修改</b></td>
+      <td width="7%" align="center" wnewsidth="57"><input name="submit2" type='submit' class="inputs" value='删除'></td>
+    </tr>
+<%do while not rs.eof%>
+    <tr height="20">
+      <td align="left">&nbsp;&nbsp;<a href="../../help/index.asp?id=<%=rs("id")%>" target="_blank"><% Set re = New RegExp
+re.Pattern ="("&keywords&")"
+re.IgnoreCase = True
+re.Global=True
+result = re.Replace(rs("showname"), "<font color=red>$1</font>")%>
+      <%=result%></a></td>
+      <td>&nbsp;<%
+set rs3=conn.execute("select sortid,sort from JOB_help_sort where sortid="&rs("sortid")&"")
+if not rs3.eof then
+	response.write"<a href='index.asp?sortid="&rs3("sortid")&"'>"&rs3("sort")&"</a>"
+else
+	response.Write"分类出错"
+end if
+%> > <%
+set rs5=conn.execute("select typeid,typename from JOB_help_type where typeid="&rs("typeid")&"")
+if not rs5.eof then
+	response.write"<a href='index.asp?sortid="&rs("sortid")&"&typeid="&rs5("typeid")&"'>"&rs5("typename")&"</a>"
+else
+	response.Write"小分类出错"
+end if
+%></td>
+      <td wnewsidth="113" align="center"><%=FormatDate(rs("dateandtime"),2)%>　</td>
+      <td align="center"><a href="edit.asp?id=<%=rs("id")%>">修改</a></td>
+      <td wnewsidth="57" align="center"><input name='selAnnounce' type='checkbox' class="checkbox" value='<%=cstr(rs("ID"))%>' /></td>
+    </tr>
+      <%i=i+1
+		if i>=MaxPerPage then exit do
+		rs.movenext
+		loop%>
+    <tr height="20" bgcolor="#ffffff">
+      <td colspan="5" align="right"><input name="button" type=button class="inputs" onClick="this.value=check(this.form)" value=" 全部选定 "></td>
+    </tr>
+    <tr height="20" bgcolor="#ffffff">
+      <td align="center" colspan="5"><%If totalput>0 Then
+	Call Showpage(strFileName,totalput,MaxPerPage,false,true,"篇文章")
+End If%></td>
+    </tr></form>
+</table>
+<%end sub%>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>
+<%Conn.Close:Set Conn=Nothing%>
+<%
+sub deleteannounce(id)
+dim rs,sql
+set rs=server.createobject("adodb.recordset")
+sql="delete from [JOB_help] where id="&cstr(id)
+conn.execute sql
+if err.Number<>0 then
+err.clear
+response.write "删 除 失 败 !<br>"
+end if
+End sub
+%>

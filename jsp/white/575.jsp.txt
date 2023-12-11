@@ -1,0 +1,74 @@
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>修改密码</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/customer/modifier_pwd.js"></script>
+	<style type="text/css">
+		.gridtitles{
+			border-top:1px #fff solid; 
+			text-align:right;
+			border-left:1px #fff solid;
+			padding-top:0px;
+			padding-right:7px;
+			margin:auto 0px
+		}
+	</style>
+	
+</head>
+<body>
+	<table border="0" width="450px" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+      <tr>
+   		<td class="gdcn-table-D">
+			<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+				<form id="saveForm" method="post" action="">
+		    	    <s:hidden name="customer.id" id="id" />
+				
+					<table width="40%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">						
+						<tr>
+							<td class='gridtitle'><s:text name="modifierPwd.OldPassword"/>：</td>
+							<td class='gridbody'>
+								<input type="password" name="customer.pwd" id="oldPwd" /><font color="red">*</font>
+							</td>
+						</tr>
+						<tr>
+							<td class='gridtitle'><s:text name="modifierPwd.NewPassword"/>：</td>
+							<td class='gridbody'>
+								<input type="password" name="customer.newPwd" id="newPwd"/><font color="red">*</font>
+							</td>
+						</tr>
+						<tr>
+							<td class='gridtitle'><s:text name="modifierPwd.ConfirmPassword"/>：</td>
+							<td class='gridbody'>
+								<input type="password" name="rePwd" id="rePwd"/><font color="red">*</font>
+							</td>
+						</tr>
+					</table>
+					<br />
+						<div style="margin-left: 10%;">
+							<input type="submit" value="<s:text name="Submit"/>"/>&nbsp;&nbsp;
+							<input type="reset" value="<s:text name="Reset"/>"/>	
+						</div>					
+				</form>
+			</div>
+    	</td>
+    </tr>
+  </table>
+
+<!-- 语言设置 -->
+<input type="hidden" id="Pleaseenteryourpassword" value="<s:text name="modifierPwd.Pleaseenteryourpassword"/>"/>
+<input type="hidden" id="Pleaseimportnepassword" value="<s:text name="modifierPwd.Pleaseimportnepassword"/>"/>
+<input type="hidden" id="Pleaseconfirmyourpasswordinput" value="<s:text name="modifierPwd.Pleaseconfirmyourpasswordinput"/>"/>
+<input type="hidden" id="Enteredpasswordsdiffer" value="<s:text name="modifierPwd.Enteredpasswordsdiffer"/>"/>
+<input type="hidden" id="Oldincorrectpassword" value="<s:text name="modifierPwd.Oldincorrectpassword"/>"/>
+<input type="hidden" id="Modifysuccess" value="<s:text name="Modifysuccess"/>"/>
+<input type="hidden" id="Modifiedfailure" value="<s:text name="Modifiedfailure"/>"/>
+</body>
+</html>
+

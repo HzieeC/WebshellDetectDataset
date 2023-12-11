@@ -1,0 +1,923 @@
+<!-- #include file="codePage.asp" -->
+<%
+'option explicit
+Response.Buffer = True 
+Server.ScriptTimeOut=999
+Response.Expires = -1
+Response.ExpiresAbsolute = Now() - 1 
+Response.Expires = 0 
+Response.CacheControl = "no-cache"
+%>
+<!-- #include file="check.asp" -->
+<!-- #include file="inc/file_memberLog.asp" -->
+<!-- #include file="inc/func_html.asp" -->
+<!-- #include file="inc/func_saveImages.asp" -->
+<%
+Call CheckIframe()
+
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 ****
+
+If mudi="run" Then checkRightLevel=0 Else checkRightLevel=10
+'打开用户表，并检测用户是否登陆
+Call OpenMemberexe("","login",checkRightLevel)
+
+Call WebStyleTop("")
+
+response.write(_
+"<script language='javascript' type='text/javascript' src='js/inc/list.js'></script>"&_
+"<script language='javascript' type='text/javascript' src='js/collRun.js'></script>"&_
+"")
+
+
+
+%><!-- #include file="collData/conobj.asp" --><%
+
+
+Select Case mudi
+	Case "start"
+		Call IsSecMenuRight("alertBack",165,dataType)
+		Call Start()
+
+	Case "run"
+		Call IsSecMenuRight("alertBack",165,dataType)
+		Call Run()
+
+	Case "backUrl"
+		Call BackUrl()
+
+End Select
+
+
+Call CloseCollObj()
+
+Call CloseMemberexe()
+Call CloseConobj()
+Call WebStyleBottom()
+
+
+
+
+
+
+
+' 初始化
+Private Sub Start()
+	If request.Form("selDataID").count<=0 Then
+		dataMode	= ToGetStr("dataMode")
+		dataModeStr	= ToGetStr("dataModeStr")
+
+		judItemExist= ToGetStr("judItemExist")
+		dataID		= ToGetInt("dataID")
+
+		itemRunList	= "|"& dataID
+		itemRunTotal= 1
+		itemRunNum	= 1
+
+	Else
+		dataIdStr=""
+			For i=1 To request.Form("selDataID").count
+				dataIdStr=dataIdStr &"|"& request.Form("selDataID")(i)
+			Next
+
+		dataMode	= ToPostStr("dataMode")
+		dataModeStr	= ToPostStr("dataModeStr")
+		dataType	= ToPostStr("dataType")
+		dataTypeCN	= ToPostStr("dataTypeCN")
+
+		dataID	= request.Form("selDataID")(1)
+
+		itemRunList	= dataIdStr
+		itemRunTotal= request.Form("selDataID").count
+		itemRunNum	= 1
+
+	End If
+
+
+
+	Call ShareTableTop("share_list.gif","","采集初始化")
+		If judItemExist="true" Then
+			response.write(_
+			"<br /><br /><center>第"& GetAppl("itemRunNum") &"个项目采集配置初始化中......</center><br />"&_
+			"")
+		Else
+			response.write(_
+			"<br /><br /><center>采集配置初始化中......</center><br />"&_
+			"")
+		End If
+	Call ShareTableBottom()
+	Response.Flush()
+
+
+	Set infoexe=collObj.execute("select * from OT_collItem where CI_ID="& dataID)
+		If infoexe.EOF Then
+			response.write("无该记录！")
+			response.End()
+		End If
+		theme		= infoexe("CI_theme")
+		CI_addition	= infoexe("CI_addition")
+		fieldCount = infoexe.fields.count
+		For i=0 To fieldCount-1
+			If Right(infoexe(i).name,5)="Code1" Or Right(infoexe(i).name,5)="Code2" Then
+				Call SetAppl(infoexe(i).name,Html_ReplaceTrim(infoexe(i),CI_addition))
+			Else
+				Call SetAppl(infoexe(i).name,infoexe(i))
+			End If
+		Next
+'		CI_ID			= infoexe("CI_ID")
+'		CI_theme		= infoexe("CI_theme")
+
+	infoexe.close
+	Set infoexe=Nothing
+
+	Set typeexe=collObj.execute("select * from OT_collType where CT_ID="& GetAppl("CI_typeID"))
+		If typeexe.EOF Then
+			response.write("无该采集模块记录！")
+			response.End()
+		End If
+		fieldCount = typeexe.fields.count
+		For i=0 To fieldCount-1
+			Call SetAppl(typeexe(i).name,typeexe(i))
+		Next
+	typeexe.close
+	Set typeexe=Nothing
+
+
+'		collObj.execute("delete from OT_collTemp")
+
+	urlList = ""
+	If GetAppl("CI_pageMode")="" Then
+		urlList	= GetAppl("CI_URL")
+		urlTotal= 0
+
+	ElseIf GetAppl("CI_pageMode")="more" Then
+		If GetAppl("CI_pageNum1")<GetAppl("CI_pageNum2") Then
+			urlTotal= GetAppl("CI_pageNum2")-GetAppl("CI_pageNum1")
+			For i=GetAppl("CI_pageNum1") To GetAppl("CI_pageNum2")
+				If urlList="" Then
+					urlList = Replace(GetAppl("CI_pageURL"),"{$ID}",i)
+				Else
+					urlList = urlList &"|"& Replace(GetAppl("CI_pageURL"),"{$ID}",i)
+				End If
+			Next
+		Else
+			urlTotal= GetAppl("CI_pageNum1")-GetAppl("CI_pageNum2")
+			For i=GetAppl("CI_pageNum1") To GetAppl("CI_pageNum2") Step -1
+				If urlList="" Then
+					urlList = Replace(GetAppl("CI_pageURL"),"{$ID}",i)
+				Else
+					urlList = urlList &"|"& Replace(GetAppl("CI_pageURL"),"{$ID}",i)
+				End If
+			Next
+		End If
+
+	ElseIf GetAppl("CI_pageMode")="list" Then
+		pageList= GetAppl("CI_pageList")
+		urlArr	= Split(pageList,Chr(13)&Chr(10))
+		urlTotal= UBound(urlArr)
+		urlList	= ""
+		For i=0 To urlTotal
+			If urlList="" Then
+				urlList = urlArr(i)
+			Else
+				urlList = urlList &"|"& urlArr(i)
+			End If
+		Next
+
+	ElseIf GetAppl("CI_pageMode")="code" Then
+		sourceCode = Html_GetCode(GetAppl("CI_URL"),GetAppl("CI_charset"))
+		sourceCode = Html_ReplaceTrim(sourceCode,CI_addition)
+		If sourceCode="False" Then
+			response.write("采集网址访问错误！")
+			response.End()
+		End If
+		urlArrStr=Html_GetArrStr(sourceCode,GetAppl("CI_pageCode1"),GetAppl("CI_pageCode2"),False,False)
+		If urlArrStr="False" Then
+			response.write("代码获取采集网址错误！")
+			response.End()
+		End If
+		urlArr=Split(urlArrStr,"[OT]")
+		urlTotal= UBound(urlArr)
+		For i=0 To urlTotal
+			If urlList="" Then
+				urlList = urlArr(i)
+			Else
+				urlList = urlList &"|"& urlArr(i)
+			End If
+		Next
+	Else
+		response.write("多页/分页采集设置有问题！")
+		response.End()
+	End If
+
+	Call SetAppl("dataMode",dataMode)
+	Call SetAppl("dataModeStr",dataModeStr)
+	Call SetAppl("dataType",dataType)
+	Call SetAppl("dataTypeCN",dataTypeCN)
+
+If judItemExist<>"true" Then
+	Call SetAppl("itemRunList",itemRunList)
+	Call SetAppl("itemRunTotal",itemRunTotal)
+	Call SetAppl("itemRunNum",itemRunNum)
+	Call SetAppl("itemSuccNum",0)
+	Call SetAppl("itemFailNum",0)
+	Call SetAppl("itemFailErr","")
+	Call SetAppl("itemExistNum",0)
+	Call SetAppl("itemImgSuccNum",0)
+	Call SetAppl("itemImgFailNum",0)
+	Call SetAppl("itemImgFailErr","")
+	Call SetAppl("itemPageFailNum",0)
+	Call SetAppl("itemPageFailErr","")
+End If
+
+	Call SetAppl("itemImgList","")
+	Call SetAppl("itemUrlList",urlList)
+	Call SetAppl("itemUrlTotal",urlTotal)
+	Call SetAppl("itemUrlNum",0)
+	Call SetAppl("itemHrefList","")
+	Call SetAppl("itemHrefTotal",-1)
+	Call SetAppl("itemHrefNum",-1)
+	Call SetAppl("itemPageList","")
+	Call SetAppl("itemPageTotal",-1)
+	Call SetAppl("itemPageNum",-1)
+
+	Call SetAppl("itemSkipHistory",0)
+	Call SetAppl("itemCount",0)
+	Call SetAppl("itemTheme","")
+	Call SetAppl("itemURL","")
+	Call SetAppl("itemResult","")
+
+
+	Call JS_Href("?mudi=run")
+
+
+	collObj.execute("update OT_collItem set CI_runTime="& SqlForTime(Now()) &" where CI_ID="& dataID)
+
+	If judItemExist<>"true" Then
+		alertResult=""
+		Call MemberLog_Deal(0,"","",theme,"【"& dataTypeCN &"】采集数据"& alertResult &"！")
+	End If
+	Response.Flush()
+
+End Sub
+
+
+
+
+
+' 运行采集
+Private Sub Run()
+	dataID=ToGetInt("dataID")
+
+	If ToInt(GetAppl("CI_ID"))<=0 Then
+		response.write("项目ID获取错误")
+		response.End()
+	End If
+
+
+	CI_addition = GetAppl("CI_addition")
+
+	Dim errStr,startTime,endTime,stopRun,isHisExist
+	startTime=Timer()
+	stopRun=False
+	isHisExist=False
+
+
+	If GetAppl("itemRunNum")>GetAppl("itemRunTotal") Then stopRun=True
+	If GetAppl("CI_successNum")>0 And GetAppl("itemSuccNum")>=GetAppl("CI_successNum") Then
+		itemRunNum = GetAppl("itemRunNum")+1
+		Call SetAppl("itemRunNum",itemRunNum)
+		runArr = Split(GetAppl("itemRunList"),"|")
+		If itemRunNum>UBound(runArr) Then
+			errStr = "采集结束"
+			stopRun=True
+		Else
+			Call JS_HrefEnd("?mudi=start&dataMode="& GetAppl("dataMode") &"&dataModeStr="& GetAppl("dataModeStr") &"&dataType="& GetAppl("dataType") &"&dataTypeCN="& server.URLEncode(GetAppl("dataTypeCN")) &"&dataID="& runArr(itemRunNum) &"&judItemExist=true")
+		End If
+	End If
+
+
+	Call ShareTableTop("share_list.gif","","采集状态")
+		response.write(_
+		"<div style='line-height:1.6;'>"&_
+		"")
+			If stopRun=False Then
+				backUrlBtn = "停止采集"
+				response.write(_
+				"<center class='font1_1'><b>采集需要一定的时间，请耐心等待，如果网站出现暂时无法访问的情况这是正常的，采集正常结束后即可恢复。</b></center><br />"&_
+				"本次运行："& GetAppl("itemRunTotal") &" 个项目,正在采集第 <span style='color:red;'>"& GetAppl("itemRunNum") &"</span> 个项目 <span style='color:red;'>"& GetAppl("CI_theme") &"</span> 的第 <span style='color:red;'>"& (GetAppl("itemUrlNum")+1) &"</span> 页/共 "& (GetAppl("itemUrlTotal")+1) &" 页列表,该列表待采集记录 <span style='color:red;'>"& (GetAppl("itemHrefTotal")-GetAppl("itemHrefNum")+1) &"</span> 条。<br />"&_
+				"")
+			Else
+				backUrlBtn = "回到"& GetAppl("dataTypeCN") &"管理"
+				If GetAppl("CI_successNum")>0 Then sucNumStr="(成功采集数量限制："& GetAppl("CI_successNum") &")" Else sucNumStr=""
+				response.write(_
+				"<center class='font2_1'><b>采集结束"& sucNumStr &"</b></center><br />"&_
+				"")
+			End If
+			response.write(_
+			"采集统计："&_
+			"成功--<span style='color:#16aa02;'>"& GetAppl("itemSuccNum") &"</span> 条，"&_
+			"失败--<span style='color:red;'>"& GetAppl("itemFailNum") &"</span> 条，"&_
+			"已存在--<span style='color:red;'>"& GetAppl("itemExistNum") &"</span> 条，"&_
+			"图片成功--<span style='color:#16aa02;'>"& GetAppl("itemImgSuccNum") &"</span> 张，"&_
+			"图片失败--<span style='color:red;'>"& GetAppl("itemImgFailNum") &"</span> 张，"&_
+			"正文分页失败--<span style='color:red;'>"& GetAppl("itemPageFailNum") &"</span> 条。"&_
+			"<a href='?mudi=backUrl' class='font2_2'>&nbsp;&nbsp;&nbsp;"& backUrlBtn &"</a><br />"&_
+
+			"<span style='color:red;'>"&_
+			"")
+				If stopRun=True Then
+					If GetAppl("itemFailNum")>0 Then
+						response.write("<b>采集失败列表：</b><br />"& GetAppl("itemFailErr"))
+					End If
+					If GetAppl("itemPageFailNum")>0 Then
+						response.write("<b>采集正文分页失败列表：</b><br />"& GetAppl("itemPageFailErr"))
+					End If
+					If GetAppl("itemImgFailNum")>0 Then
+						response.write("<b>图片保存失败列表：</b><br />"& GetAppl("itemImgFailErr"))
+					End If
+				End If
+			response.write(_
+			"</span>"&_
+		"</div>"&_
+		"")
+	Call ShareTableBottom()
+
+	response.write(_
+	"<br />"&_
+	"")
+
+
+If stopRun=False Then
+	' 分页地址处理
+	If GetAppl("itemPageNum")>=0 Then
+	
+	' 列表链接地址处理
+	ElseIf GetAppl("itemHrefNum")>=0 Then
+		hrefArr		= Split(GetAppl("itemHrefList"),"|")
+		hrefTotal	= UBound(hrefArr)
+		If hrefTotal<GetAppl("itemHrefNum") Then
+			errStr = "分析采集网址的列表数错误！"
+		Else
+			hrefStr = hrefArr(GetAppl("itemHrefNum"))
+
+			Set hisrec=server.CreateObject("ADODB.recordset")
+			hisrec.open "select top 1 * from OT_collHistory where CH_URL='"& SqlForStr(hrefStr) &"'",collObj,1,3
+				If hisrec.EOF Then
+					hisrec.addnew()
+					hisrec("CH_time")	= Now()
+					hisrec("CH_revTime")= Now()
+					hisrec("CH_URL")	= hrefStr
+				Else
+					hisrec("CH_revTime")= Now()
+					If hisrec("CH_state")=1 And GetAppl("itemSkipHistory")=0 Then
+						isHisExist = True
+						Call SetAppl("itemTheme","<span style='color:red;'>"& hisrec("CH_theme") &"</span>&nbsp;的记录已存在，不给予采集。")
+						Call SetAppl("itemResult","已存在")
+						Call SetAppl("itemExistNum",GetAppl("itemExistNum")+1)
+					Else
+						isHisExist = False
+					End If
+				End If
+
+			If isHisExist=False Then
+				hisrec("CH_itemName")	= GetAppl("CI_theme")
+				hisrec("CH_infoTypeStr")= GetAppl("CI_infoTypeStr")
+
+				If CheckUrl(hrefStr)=False Then
+					hisrec("CH_theme")	= "[网址格式错误]"
+					hisrec("CH_state")	= 0
+					Call SetAppl("itemTheme","<span style='color:red;'>【未知】</span>&nbsp;采集网址格式错误，不给予采集。")
+					Call SetAppl("itemResult","失败")
+					Call SetAppl("itemFailNum",GetAppl("itemFailNum")+1)
+					Call SetAppl("itemFailErr",GetAppl("itemFailErr") &"<a href='"& hrefStr &"' class='font1_2' target='_blank'>"& hrefStr &"</a> -- 采集网址格式错误，不给予采集。<br />")
+				
+				Else
+					hrefCode	= Html_GetCode(hrefStr,GetAppl("CI_charset"))
+					hrefCode	= Html_ReplaceTrim(hrefCode,CI_addition)
+					themeStr	= RegExpStr(Html_GetStr(hrefCode,GetAppl("CI_themeCode1"),GetAppl("CI_themeCode2"),False,False),"html")
+					contentStr	= Html_GetStr(hrefCode,GetAppl("CI_contentCode1"),GetAppl("CI_contentCode2"),False,False)
+					If themeStr="False" Or contentStr="False" Then
+						hisrec("CH_theme")	= "[获取标题或正文时发生错误]"
+						hisrec("CH_state")	= 0
+						Call SetAppl("itemTheme","<span style='color:red;'>【未知】</span>&nbsp;获取标题或正文时发生错误，不给予采集。")
+						Call SetAppl("itemResult","失败")
+						Call SetAppl("itemFailNum",GetAppl("itemFailNum")+1)
+						Call SetAppl("itemFailErr",GetAppl("itemFailErr") &"<a href='"& hrefStr &"' class='font1_2' target='_blank'>"& hrefStr &"</a> -- 获取标题或正文时发生错误，不给予采集。<br />")
+					Else
+						If GetAppl("CI_isConPage")=1 Then
+							conPageCode = Html_GetStr(hrefCode,GetAppl("CI_conPageCode1"),GetAppl("CI_conPageCode2"),False,False)
+							If conPageCode<>"False" Then
+								conPageReplace	= Html_GetStr(hrefCode,GetAppl("CI_conPageCode1"),GetAppl("CI_conPageCode2"),True,True)
+								contentStr		= Replace(contentStr,conPageReplace,"")
+
+								conHrefArrStr	= Html_GetArrStr(conPageCode,GetAppl("CI_conHrefCode1"),GetAppl("CI_conHrefCode2"),False,False)
+								If conHrefArrStr<>"False" Then
+									conHrefArr	= Split(conHrefArrStr,"[OT]")
+									conHrefTotal= Ubound(conHrefArr)
+									conHrefedStr= ""
+									For i=0 To conHrefTotal
+										If GetAppl("CI_isConHrefURL")=1 Then
+											conHrefArr(i)=Replace(GetAppl("CI_conHrefURL"),"{$ID}",conHrefArr(i))
+										Else
+											conHrefArr(i)=Html_RealUrl(conHrefArr(i),hrefStr)
+										End If
+										If CheckUrl(conHrefArr(i))=True Then
+											If InStr(conHrefedStr,"|"& conHrefArr(i) &"|")=0 Then
+												pageContentCode	= Html_GetCode(conHrefArr(i),GetAppl("CI_charset"))
+												pageContentCode = Html_ReplaceTrim(pageContentCode,CI_addition)
+												If pageContentCode="False" Then
+													Call SetAppl("itemPageFailNum",GetAppl("itemPageFailNum")+1)
+													Call SetAppl("itemPageFailErr",GetAppl("itemPageFailErr") &"<a href='"& conHrefArr(i) &"' class='font1_2' target='_blank'>"& conHrefArr(i) &"</a> -- 获取分页页面内容失败。<br />")
+												Else
+													conHrefedStr = conHrefedStr &"|"& conHrefArr(i) &"|"
+													pageContentStr	= Html_GetStr(pageContentCode,GetAppl("CI_contentCode1"),GetAppl("CI_contentCode2"),False,False)
+													If pageContentStr="False" Then
+														Call SetAppl("itemPageFailNum",GetAppl("itemPageFailNum")+1)
+														Call SetAppl("itemPageFailErr",GetAppl("itemPageFailErr") &"<a href='"& conHrefArr(i) &"' class='font1_2' target='_blank'>"& conHrefArr(i) &"</a> -- 获取分页页面正文失败。<br />")
+													Else
+														conPageReplace	= Html_GetStr(pageContentStr,GetAppl("CI_conPageCode1"),GetAppl("CI_conPageCode2"),True,True)
+														pageContentStr	= Replace(pageContentStr,conPageReplace,"")
+														contentStr = contentStr &"[OT_page]"& pageContentStr
+													End If
+												End If
+											End If
+										End If
+									Next
+'									Call SetAppl("itemPageList",Join(conHrefArr,"|"))
+'									Call SetAppl("itemPageTotal",conHrefTotal)
+'									Call SetAppl("itemPageNum",0)
+'								Else
+'									Call SetAppl("itemPageFailNum",GetAppl("itemPageFailNum")+1)
+'									Call SetAppl("itemPageFailErr",GetAppl("itemPageFailErr") &"<a href='"& hrefStr &"' class='font1_2' target='_blank'>"& hrefStr &"</a> -- 获取正文分页链接失败。<br />")
+								End If
+							End If
+
+						ElseIf GetAppl("CI_isConPage")=2 Then
+							conPageCode = Html_GetStr(hrefCode,GetAppl("CI_conPageCode1"),GetAppl("CI_conPageCode2"),False,False)
+							If conPageCode<>"False" Then
+								conPageReplace	= Html_GetStr(hrefCode,GetAppl("CI_conPageCode1"),GetAppl("CI_conPageCode2"),True,True)
+								contentStr		= Replace(contentStr,conPageReplace,"")
+
+								conHrefStr		= Html_GetStr(conPageCode,GetAppl("CI_conHrefCode1"),GetAppl("CI_conHrefCode2"),False,False)
+								If conHrefStr<>"False" Then
+									If GetAppl("CI_isConHrefURL")=1 Then
+										conHrefStr=Replace(GetAppl("CI_conHrefURL"),"{$ID}",conHrefStr)
+									Else
+										conHrefStr=Html_RealUrl(conHrefStr,hrefStr)
+									End If
+									conHrefedStr = conHrefStr
+									For i=0 To 20
+										If InStr(conHrefedStr,"|"& conHrefStr &"|")=0 Then
+											pageContentCode	= Html_GetCode(conHrefStr,GetAppl("CI_charset"))
+											pageContentCode = Html_ReplaceTrim(pageContentCode,CI_addition)
+											If pageContentCode="False" Then
+												Call SetAppl("itemPageFailNum",GetAppl("itemPageFailNum")+1)
+												Call SetAppl("itemPageFailErr",GetAppl("itemPageFailErr") &"<a href='"& conHrefStr &"' class='font1_2' target='_blank'>"& conHrefStr &"</a> -- 获取分页页面内容失败。<br />")
+											Else
+												conHrefedStr = conHrefedStr &"|"& conHrefStr &"|"
+												pageContentStr	= Html_GetStr(pageContentCode,GetAppl("CI_contentCode1"),GetAppl("CI_contentCode2"),False,False)
+												If pageContentStr="False" Then
+													Call SetAppl("itemPageFailNum",GetAppl("itemPageFailNum")+1)
+													Call SetAppl("itemPageFailErr",GetAppl("itemPageFailErr") &"<a href='"& conHrefStr &"' class='font1_2' target='_blank'>"& conHrefStr &"</a> -- 获取分页页面正文失败。<br />")
+												Else
+													conPageReplace	= Html_GetStr(pageContentStr,GetAppl("CI_conPageCode1"),GetAppl("CI_conPageCode2"),True,True)
+													pageContentStr	= Replace(pageContentStr,conPageReplace,"")
+													contentStr = contentStr &"[OT_page]"& pageContentStr
+												End If
+												conPageCode1	= Html_GetStr(pageContentCode,GetAppl("CI_conPageCode1"),GetAppl("CI_conPageCode2"),False,False)
+												conHrefStr		= Html_GetStr(conPageCode1,GetAppl("CI_conHrefCode1"),GetAppl("CI_conHrefCode2"),False,False)
+												If conHrefStr<>"False" Then
+													If GetAppl("CI_isConHrefURL")=1 Then
+														conHrefStr=Replace(GetAppl("CI_conHrefURL"),"{$ID}",conHrefStr)
+													Else
+														conHrefStr=Html_RealUrl(conHrefStr,hrefStr)
+													End If
+												Else
+													Exit For
+												End If
+
+											End If
+										End If
+									Next
+'									Call SetAppl("itemPageList",Join(conHrefArr,"|"))
+'									Call SetAppl("itemPageTotal",conHrefTotal)
+'									Call SetAppl("itemPageNum",0)
+								Else
+									Call SetAppl("itemPageFailNum",GetAppl("itemPageFailNum")+1)
+									Call SetAppl("itemPageFailErr",GetAppl("itemPageFailErr") &"<a href='"& hrefStr &"' class='font1_2' target='_blank'>"& hrefStr &"</a> -- 获取正文分页链接失败。<br />")
+								End If
+							End If
+						End If
+
+						upImgStr	=""
+						saveImgStr	= ""
+						hrefImg		= ""
+						If GetAppl("itemImgList")<>"" Then
+							imgListArr = Split(GetAppl("itemImgList"),"|")
+							If GetAppl("itemHrefNum")<=UBound(imgListArr) Then
+								hrefImg		= imgListArr(GetAppl("itemHrefNum"))
+								newFileName = "coll/OT"& Year(Now()) & Right("0"& Month(Now()),2) & Right("0"& Day(Now()),2) & Right("0"& Hour(Now()),2) & Right("0"& Minute(Now()),2) & Right("0"& Second(Now()),2) & RndNum(3) &"."& Right(hrefImg,Len(hrefImg)-InstrRev(hrefImg,"."))
+								remImgSize	= Images_SaveRemoteFile(InfoImgAdminDir & newFileName,hrefImg,0)
+								If remImgSize<>False Then
+									saveImgStr = saveImgStr &"<span style='color:red;'>"& hrefImg &"</span>&nbsp;("& FileSizeUnit(remImgSize) &") --- 列表小图保存成功<br />"
+									hrefImg = newFileName
+									Call SetAppl("itemImgSuccNum",GetAppl("itemImgSuccNum")+1)
+								Else
+									hrefImg = ""
+									Call SetAppl("itemImgFailNum",GetAppl("itemImgFailNum")+1)
+									Call SetAppl("itemImgFailErr",GetAppl("itemImgFailErr") &"<a href='"& hrefImg &"' class='font1_2' target='_blank'>"& hrefImg &"</a> -- 列表小图保存失败（"& collImgErrStr &"）<br />")
+								End If
+							End If
+						End If
+
+						' 过滤正文内容
+						If GetAppl("CI_isHighSet")=1 Then
+							CI_htmlMarkStr = Replace(""& GetAppl("CI_htmlMarkStr")," ","")
+							If CI_htmlMarkStr<>"" Then
+								htmlMarkArr = Split(CI_htmlMarkStr,",")
+								For n=0 To UBound(htmlMarkArr)
+									contentStr = FilterHtmlMark(contentStr,htmlMarkArr(n),0)
+								Next
+							End If
+							CI_strReplace = GetAppl("CI_strReplace")
+							If InStr(CI_strReplace,"|")>0 Then
+								strReplaceArr = Split(CI_strReplace,Chr(13)&Chr(10))
+								For n=0 To UBound(strReplaceArr)
+									strRepArr = Split(strReplaceArr(n),"|")
+									If UBound(strRepArr)=1 Then
+										contentStr = Replace(contentStr,strRepArr(0),strRepArr(1))
+									End If
+								Next
+							End If
+						End If
+
+						timeStr="False"
+						If GetAppl("CI_isTime")=1 Then
+							timeStr	= Trim(RegExpStr(Html_GetStr(hrefCode,GetAppl("CI_timeCode1"),GetAppl("CI_timeCode2"),False,False),"html"))
+						End If
+						If timeStr="False" Then timeStr=Now()
+						If IsDate(timeStr)=False Then timeStr=Now()
+
+						writerStr="False"
+						If GetAppl("CI_isWriter")=1 Then
+							writerStr	= Trim(RegExpStr(Html_GetStr(hrefCode,GetAppl("CI_writerCode1"),GetAppl("CI_writerCode2"),False,False),"html"))
+						ElseIf GetAppl("CI_isWriter")=2 Then
+							writerStr	= GetAppl("CI_writerName")
+						End If
+						If writerStr="False" Then writerStr=""
+
+						sourceStr="False"
+						If GetAppl("CI_isSource")=1 Then
+							sourceStr	= Trim(RegExpStr(Html_GetStr(hrefCode,GetAppl("CI_sourceCode1"),GetAppl("CI_sourceCode2"),False,False),"html"))
+						ElseIf GetAppl("CI_isSource")=2 Then
+							sourceStr	= GetAppl("CI_sourceName")
+						End If
+						If sourceStr="False" Then sourceStr=""
+
+						keyStr="False"
+						If GetAppl("CI_isKey")=1 Then
+							keyStr	= Trim(RegExpStr(Html_GetStr(hrefCode,GetAppl("CI_keyCode1"),GetAppl("CI_keyCode2"),False,False),"html"))
+						ElseIf GetAppl("CI_isKey")=2 Then
+							keyStr	= GetAppl("CI_keyName")
+						End If
+						If keyStr="False" Then
+							keyStr=""
+						Else
+							keyStr = Replace(Replace(Replace(keyStr,"|",",")," ",","),"，",",")
+						End If
+
+						hisrec("CH_theme")		= themeStr
+						hisrec("CH_state")		= 1
+						Call SetAppl("itemTheme","<span style='color:red;'>"& themeStr &"</span>&nbsp;<img src='images/onload.gif' />采集中...")
+						Call SetAppl("itemResult","成功")
+						Call SetAppl("itemSuccNum",GetAppl("itemSuccNum")+1)
+
+						CI_addition	= GetAppl("CI_addition")
+						If InStr(CI_addition,"|saveImg|")>0 Then
+							contentStr = Images_ReplaceContent(contentStr, InfoImgAdminDir,GetAppl("CT_imgMaxSize"),hrefStr)
+'							beforeURL=GetCurrUrlDir(1)
+'							imgUrl=beforeURL & InfoImgDir
+'							contentStr	= Replace(contentStr,InfoImgAdminDir,imgUrl)
+							upImgStr	= Images_imgStr
+
+							If Images_imgStr<>"" Then
+								remOldImgArr= Split(Images_oldImgStr,"|")
+								remImgArr	= Split(Images_imgStr,"|")
+								remSizeArr	= Split(Images_sizeStr,"|")
+								remImgCount	= UBound(remImgArr)
+								For n=1 To remImgCount
+									saveImgStr = saveImgStr &"<span style='color:red;'>"& remOldImgArr(n) &"</span>&nbsp;("& FileSizeUnit(remSizeArr(n)) &") --- 保存成功<br />"
+								Next
+								Call SetAppl("itemImgSuccNum",GetAppl("itemImgSuccNum")+remImgCount)
+							End If
+							If Images_errStr<>"" Then
+								remErrArr = Split(Images_errStr,"|")
+								remErrCount = UBound(remErrArr)
+								Call SetAppl("itemImgFailNum",GetAppl("itemImgFailNum")+remErrCount)
+								For n=1 To remErrCount
+									Call SetAppl("itemImgFailErr",GetAppl("itemImgFailErr") &"<a href='"& remErrArr(n) &"' class='font1_2' target='_blank'>"& remErrArr(n) &"</a>&nbsp;<span class='font1_2'>(<a href='"& hrefStr &"' class='font1_2' target='_blank'>点击来源网页</a>)</span> -- 保存失败("& collImgErrStr &")<br />")
+									saveImgStr = saveImgStr &"<span style='color:red;'>"& remErrArr(n) &"</span> --- 保存失败("& collImgErrStr &")<br />"
+								Next
+							End If
+						Else
+							contentStr = Images_ReplaceRealUrlContent(contentStr,hrefStr)
+						End If
+						If InStr(CI_addition,"|add|")>0 Then
+							CR_typeStr = GetAppl("CI_infoTypeStr")
+							IF_type1ID = 0
+							IF_type2ID = 0
+							IF_type3ID = 0
+							typeArr = Split(CR_typeStr,",")
+							typeUbound=UBound(typeArr)
+							If typeUbound>=2 Then
+								IF_type1ID = typeArr(1)
+								If typeUbound>=3 Then
+									IF_type2ID = typeArr(2)
+									If typeUbound>=4 Then
+										IF_type3ID = typeArr(3)
+									End If
+								End If
+							End If
+							Set addrec=server.CreateObject("ADODB.recordset")
+							addrec.open "select top 1 * from OT_info where 1=2",conObj,0,2
+							addrec.addnew()
+							addrec("IF_time")		= Now()
+							addrec("IF_revTime")	= Now()
+							addrec("IF_type")		= "news"
+							addrec("IF_typeStr")	= CR_typeStr
+							addrec("IF_type1ID")	= IF_type1ID
+							addrec("IF_type2ID")	= IF_type2ID
+							addrec("IF_type3ID")	= IF_type3ID
+							addrec("IF_source")		= sourceStr
+							addrec("IF_writer")		= writerStr
+							addrec("IF_theme")		= themeStr
+							addrec("IF_themeKey")	= keyStr
+							addrec("IF_contentKey")	= Left(Replace(RegExpStr(contentStr,"html"),"[OT_page]",""),140) &"..."
+							addrec("IF_content")	= JapanCode(contentStr,true)
+							addrec("IF_upImgStr")	= upImgStr
+							addrec("IF_isAudit")	= 1
+							addrec("IF_isNew")		= 1
+							addrec("IF_img")		= hrefImg
+							addrec("IF_voteMode")	= 1
+							addrec("IF_voteStr")	= "0,0,0,0,0,0,0,0"
+							addrec("IF_isReply")	= 1
+							addrec("IF_isMarkNews")	= 1
+							addrec("IF_readNum")	= GetAppl("CI_readNum")
+							addrec("IF_state")		= 1
+							addrec.update()
+							addrec.close
+							Set addrec=Nothing
+						Else
+							Set addrec=server.CreateObject("ADODB.recordset")
+							addrec.open "select top 1 * from OT_collResult where 1=2",collObj,1,3
+							addrec.addnew()
+							addrec("CR_collTime")	= Now()
+							addrec("CR_itemID")		= GetAppl("CI_ID")
+							addrec("CR_time")		= timeStr
+							addrec("CR_typeStr")	= GetAppl("CI_infoTypeStr")
+							addrec("CR_source")		= sourceStr
+							addrec("CR_writer")		= writerStr
+							addrec("CR_theme")		= themeStr
+							addrec("CR_themeKey")	= keyStr
+							addrec("CR_content")	= JapanCode(contentStr,true)
+							addrec("CR_upImgStr")	= upImgStr
+							addrec("CR_img")		= hrefImg
+							addrec("CR_readNum")	= GetAppl("CI_readNum")
+							addrec.update()
+							addrec.close
+							Set addrec=Nothing
+						End If
+
+'						If GetAppl("itemPageNum")=-1 Then
+'							If GetAppl("itemHrefTotal")<=GetAppl("itemHrefNum") Then
+'								Call SetAppl("itemUrlNum",GetAppl("itemUrlNum")+1)
+'								Call SetAppl("itemHrefNum",-1)
+'							Else
+'								Call SetAppl("itemHrefNum",GetAppl("itemHrefNum")+1)
+'							End If
+'						End If
+					End If
+				End If
+
+				hisrec.update()
+'			Else
+'				If GetAppl("itemHrefTotal")<=GetAppl("itemHrefNum") Then
+'					Call SetAppl("itemUrlNum",GetAppl("itemUrlNum")+1)
+'					Call SetAppl("itemHrefNum",-1)
+'				Else
+'					Call SetAppl("itemHrefNum",GetAppl("itemHrefNum")+1)
+'				End If
+			End If
+'			hisrec.close
+			Set hisrec=Nothing
+
+			If GetAppl("itemHrefTotal")<=GetAppl("itemHrefNum") Then
+				Call SetAppl("itemUrlNum",GetAppl("itemUrlNum")+1)
+				Call SetAppl("itemHrefNum",-1)
+			Else
+				Call SetAppl("itemHrefNum",GetAppl("itemHrefNum")+1)
+			End If
+
+			Call SetAppl("itemCount",GetAppl("itemCount")+1)
+			Call SetAppl("itemURL",hrefStr)
+		End If
+
+	' 采集地址处理
+	ElseIf GetAppl("itemUrlTotal")>=GetAppl("itemUrlNum") Then
+'		response.write(GetAppl("itemUrlTotal") &"|"& GetAppl("itemUrlNum") &"|"& GetAppl("itemUrlList"))
+'		response.end
+		urlArr	= Split(GetAppl("itemUrlList"),"|")
+'		urlCount= UBound(urlArr)
+'		If urlCount<GetAppl("itemUrlNum") Then
+'			errStr = "采集结束"
+'			stopRun=true
+'		Else
+			urlStr		= urlArr(GetAppl("itemUrlNum"))
+			sourceCode	= Html_GetCode(urlStr,GetAppl("CI_charset"))
+			sourceCode = Html_ReplaceTrim(sourceCode,CI_addition)
+			listCode	= Html_GetStr(sourceCode,GetAppl("CI_listCode1"),GetAppl("CI_listCode2"),False,False)
+			hrefArrStr	= Html_GetArrStr(listCode,GetAppl("CI_hrefCode1"),GetAppl("CI_hrefCode2"),False,False)
+			imgArrStr	= Html_GetArrStr(listCode,GetAppl("CI_imgCode1"),GetAppl("CI_imgCode2"),False,False)
+			If hrefArrStr<>"False" Then
+				hrefArr=Split(hrefArrStr,"[OT]")
+				hrefCount=UBound(hrefArr)
+				ReDim newHrefArr(hrefCount)
+				If InStr(GetAppl("CI_addition"),"|reverse|")>0 Then
+					For i=hrefCount To 0 Step -1
+						If GetAppl("CI_isHrefURL")=1 Then
+							newHrefArr(hrefCount-i)=Replace(GetAppl("CI_hrefURL"),"{$ID}",hrefArr(i))
+						Else
+							newHrefArr(hrefCount-i)=Html_RealUrl(hrefArr(i),GetAppl("CI_URL"))
+						End If
+					Next
+				Else
+					For i=0 To hrefCount
+						If GetAppl("CI_isHrefURL")=1 Then
+							newHrefArr(i)=Replace(GetAppl("CI_hrefURL"),"{$ID}",hrefArr(i))
+						Else
+							newHrefArr(i)=Html_RealUrl(hrefArr(i),GetAppl("CI_URL"))
+						End If
+					Next
+				End If
+				' 列表小图
+				If GetAppl("CI_isImg")=1 Then
+					imgArrStr	= Html_GetArrStr(listCode,GetAppl("CI_imgCode1"),GetAppl("CI_imgCode2"),False,False)
+					If imgArrStr<>"False" Then
+						imgArr=Split(imgArrStr,"[OT]")
+						imgCount=UBound(imgArr)
+						ReDim newImgArr(imgCount)
+						If InStr(GetAppl("CI_addition"),"|reverse|")>0 Then
+							For i=imgCount To 0 Step -1
+								If GetAppl("CI_isImgURL")=1 Then
+									newImgArr(imgCount-i)=Replace(GetAppl("CI_imgURL"),"{$ID}",imgArr(i))
+								Else
+									newImgArr(imgCount-i)=Html_RealUrl(imgArr(i),GetAppl("CI_URL"))
+								End If
+							Next
+						Else
+							For i=0 To imgCount
+								If GetAppl("CI_isImgURL")=1 Then
+									newImgArr(i)=Replace(GetAppl("CI_imgURL"),"{$ID}",imgArr(i))
+								Else
+									newImgArr(i)=Html_RealUrl(imgArr(i),GetAppl("CI_URL"))
+								End If
+							Next
+						End If
+'response.write(Join(newImgArr,"|"))
+'response.end
+						Call SetAppl("itemImgList",Join(newImgArr,"|"))
+					End If
+				End If
+				Call SetAppl("itemHrefList",Join(newHrefArr,"|"))
+				Call SetAppl("itemHrefTotal",hrefCount)
+				Call SetAppl("itemHrefNum",0)
+				errStr = "正在分析列表URL中："& urlStr
+			Else
+				Call SetAppl("itemUrlNum",GetAppl("itemUrlNum")+1)
+				Call SetAppl("itemHrefNum",-1)
+				errStr = "分析列表失败："& urlStr
+			End If
+'		End If
+	
+	' 采集结束处理
+	Else
+		Call SetAppl("itemUrlList","")
+'		Call SetAppl("itemUrlTotal",-1)
+'		Call SetAppl("itemUrlNum",-1)
+'		If GetAppl("itemRunNum")>GetAppl("itemRunTotal") Then
+'			errStr = "采集结束"
+'			stopRun=True
+		
+'		Else
+'			itemRunNum = GetAppl("itemRunNum")+1
+'			Call SetAppl("itemRunNum",itemRunNum)
+'			runArr = Split(GetAppl("itemRunList"),"|")
+'			If itemRunNum>UBound(runArr) Then
+'				errStr = "采集结束"
+'				stopRun=True
+'			Else
+'				Call JS_HrefEnd("?mudi=start&dataMode="& GetAppl("dataMode") &"&dataModeStr="& GetAppl("dataModeStr") &"&dataType="& GetAppl("dataType") &"&dataTypeCN="& server.URLEncode(GetAppl("dataTypeCN")) &"&dataID="& runArr(itemRunNum) &"&judItemExist=true")
+'			End If
+
+'		End If
+		If GetAppl("itemRunNum")<=GetAppl("itemRunTotal") Then
+			itemRunNum = GetAppl("itemRunNum")+1
+			Call SetAppl("itemRunNum",itemRunNum)
+			runArr = Split(GetAppl("itemRunList"),"|")
+			If itemRunNum<=UBound(runArr) Then
+				Call JS_HrefEnd("?mudi=start&dataMode="& GetAppl("dataMode") &"&dataModeStr="& GetAppl("dataModeStr") &"&dataType="& GetAppl("dataType") &"&dataTypeCN="& server.URLEncode(GetAppl("dataTypeCN")) &"&dataID="& runArr(itemRunNum) &"&judItemExist=true")
+			End If
+
+		End If
+	
+	End If
+End If
+
+	If stopRun<>True Then
+		Call ShareTableTop("share_refer.gif","","采集进行中")
+			response.write(_
+			"<div style='line-height:1.6;'>"&_
+			"")
+			If errStr<>"" Then
+				response.write(_
+				"<span style='color:red;'>"& errStr &"</span>"&_
+				"<br />")
+			Else
+				response.write(_
+				"No:"& GetAppl("itemCount") &"<br />"&_
+				"目标新闻："& GetAppl("itemTheme") &"<br />"&_
+				saveImgStr &_
+				"采集时间："& Now() &"<br />"&_
+				"新闻来源："& GetAppl("itemURL") &"<br />"&_
+				"采集结果："& GetAppl("itemResult") &"<br />"&_
+				"提示信息：如想再次采集，请先将该历史记录<span style='color:red;'>删除</span><br />"&_
+				"")
+			End If
+				endTime=Timer()
+				response.write(_
+				"执行时间："& FormatNumber((endTime-startTime)*1000,2) &" 毫秒"&_
+			"</div>"&_
+			"<script language='javascript' type='text/javascript'>WindowHeight(0);</script>"&_
+			"")
+		Call ShareTableBottom()
+	End If
+
+	If stopRun=False Then
+		Call JS_Href("?mudi="& mudi &"")
+	End If
+
+End Sub
+
+
+Private Sub BackUrl()
+	Call JS_Href("collItem.asp?mudi=manage&dataMode="& GetAppl("dataMode") &"&dataModeStr="& GetAppl("dataModeStr") &"&dataType="& GetAppl("dataType") &"&dataTypeCN="& server.URLEncode(GetAppl("dataTypeCN")) &"")
+	Call SetAppl("dataMode",empty)
+	Call SetAppl("dataModeStr",empty)
+	Call SetAppl("dataType",empty)
+	Call SetAppl("dataTypeCN",empty)
+
+	Call SetAppl("itemRunTotal",empty)
+	Call SetAppl("itemRunNum",empty)
+	Call SetAppl("itemSuccNum",empty)
+	Call SetAppl("itemFailNum",empty)
+	Call SetAppl("itemFailErr",empty)
+	Call SetAppl("itemExistNum",empty)
+	Call SetAppl("itemImgSuccNum",empty)
+	Call SetAppl("itemImgFailNum",empty)
+	Call SetAppl("itemImgFailErr",empty)
+
+	Call SetAppl("itemImgList",empty)
+	Call SetAppl("itemUrlList",empty)
+	Call SetAppl("itemUrlTotal",empty)
+	Call SetAppl("itemUrlNum",empty)
+	Call SetAppl("itemHrefList",empty)
+	Call SetAppl("itemHrefTotal",empty)
+	Call SetAppl("itemHrefNum",empty)
+	Call SetAppl("itemPageList",empty)
+	Call SetAppl("itemPageTotal",empty)
+	Call SetAppl("itemPageNum",empty)
+
+	Call SetAppl("itemSkipHistory",empty)
+	Call SetAppl("itemCount",empty)
+	Call SetAppl("itemTheme",empty)
+	Call SetAppl("itemURL",empty)
+	Call SetAppl("itemResult",empty)
+End Sub
+
+
+Function GetAppl(str)
+	GetAppl = application(user_ID & str)
+End Function
+
+Function SetAppl(str,value)
+	application(user_ID & str) = value
+End Function
+%>

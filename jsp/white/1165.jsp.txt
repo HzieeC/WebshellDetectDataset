@@ -1,0 +1,167 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page"/>
+
+<%
+	String pri_key = bean.GenTradeId();
+	String order_no = bean.GenOrderId();
+	Random r = new Random(); 
+    Double d = r.nextDouble(); 
+	String rand_no=d+"";
+	rand_no=rand_no.substring(3,9);
+%>
+
+<html>
+  <head>
+    <title>团购订单管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>	
+	  <script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js'></script>
+      <script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	  <script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	  <script type="text/javascript" src="js_area.js"></script>
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<h1>新增团购订单</h1>
+	<script>
+	setProvince();
+	</script>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<input name="trade_id" id="trade_id" type="hidden" value="<%=pri_key%>"/>
+
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		<tr>
+			<td align="right" width="20%">
+				团购标识<font color="red">*</font>
+			</td>
+			<td colspan="3"><input name="info_id" id="info_id" value="6Q23q6m1j4p850t"  type="text" /></td>
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				订单号<font color="red">*</font>
+			</td>
+			<td >
+			<input name="order_no" id="order_no" value="<%=order_no%>" type="text" /></td>
+			<td align="right" width="20%">
+				团购数量<font color="red">*</font>
+			</td>
+			<td >
+			<input name="num" id="num" size="20" maxlength="20" type="text" onchange="countprice()"/></td>
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				单价<font color="red">*</font>
+			</td>
+			<td><input name="price" id="price"  type="text" onchange="countprice()" /></td>
+		<td align="right" width="20%">
+				总价<font color="red">*</font>
+			</td>
+			<td><input name="total_price" id="total_price"  type="text" /></td>
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				购买人<font color="red">*</font>
+			</td>
+			<td >
+			<input name="user_id" id="user_id" value="TD7y6Y53844IlO4" type="text" /></td>
+		<td align="right" width="20%">
+				手机<font color="red">*</font>
+			</td>
+			<td ><input name="cellphone" id="cellphone" size="20" maxlength="20" type="text" /></td>
+		
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				订单状态<font color="red">*</font>
+			</td>
+			<td > <select name="order_state">
+					    <option value="1" selected="selected">未付款</option>
+						 <option value="2">交易成功</option>
+						  <option value="3">卖家发货</option>
+						  <option value="4">交易结束</option>
+					   </select></td>
+		<td width="12%" align="right">地区:</td>
+			 <td width="60%">
+         <select name="province" id="province" onclick="setCitys(this.value)">
+				  <option value="">省份</option> 
+				</select>
+				<select name="eparchy_code" id="eparchy_code" onclick="setAreas(this.value)">
+				  <option value="">地级市</option> 
+				 </select>
+				<select name="city_code" id="city_code" style="display:inline" >
+				 <option value="">市、县级市、县</option> 
+				</select>
+			<input name="area_attr" id="area_attr" size="20" maxlength="20" type="hidden" /></td>
+		
+		</tr>
+	    <tr>
+			<td align="right" width="20%">
+				详细地址:
+			</td>
+			<td colspan="3"><input name="address" id="address" size="20" maxlength="100" type="text" /></td>
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				随机码<font color="red">*</font>
+			</td>
+			<td colspan="3"><input name="rand_no" id="rand_no" value="<%=rand_no%>" type="text" /></td>
+		</tr>
+		<tr>
+			<td align="right" width="20%">
+				邮编:
+			</td>
+			<td ><input name="post_code" id="post_code" size="10" maxlength="10" type="text" />
+			</td>
+			<td align="right" width="20%">
+				姓名:
+			</td>
+			<td>
+				<input name="name" id="name" size="10" maxlength="10" type="text" />
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				发货时间:
+			</td>
+			<td colspan="3">
+			<select id="send_time" name="send_time">
+			<option value="1">不限</option>
+			<option value="2">周一至周五</option>
+			<option value="3">周末</option>
+			</select></td>
+			</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				备注说明:
+			</td>
+			<td colspan="3"><input name="remark" id="remark" size="20" maxlength="20" type="text" /></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="20%">
+				发票抬头:
+			</td>
+			<td colspan="3">
+			<input name="invoice" id="invoice" size="20" maxlength="20" type="text" /></td>
+		</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="7769" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onClick="return checkSub();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onClick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

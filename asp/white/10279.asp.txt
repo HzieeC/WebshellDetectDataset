@@ -1,0 +1,216 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<%link="person_rbrower.asp"%>
+<!--#include file="checkpmember.asp" -->
+<%
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+Dim Action
+Dim page,i,pid
+Dim totalPut
+pid=request("pid")
+const MaxPerpage=20
+const strFileName="person_rbrower.asp"
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+if trim(request("action"))<>"" then
+  action=trim(request("action"))
+  checks=trim(request("checks"))
+  set rs=Server.CreateObject("Adodb.Recordset")
+  mysend=split(checks,",")
+  select case action
+   case "delete"  '删除选中的应聘简历
+    for i=0 to ubound(mysend)
+	 id=trim(mysend(i))
+	 conn.execute("delete from JOB_P_resumehistory where id="&id&"")
+	next
+  end select
+  response.redirect "person_rbrower.asp?page="&page&""
+  response.end
+ end if
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>简历被浏览记录--<%=SiteTitle%></title>
+<link href="../member/css.css" rel="stylesheet" type="text/css" />
+<script language="JavaScript">
+<!--
+  function CheckAll(form)
+  {
+  for (var i=0;i<form.elements.length;i++)
+    {
+    var e = form.elements[i];
+    if (e.name != 'chkall')
+       e.checked = form.chkall.checked;
+    }
+  }
+  function showconfirm(id,page)
+{
+	var flag=false; //是否有选择职位信息
+	var k=0;
+	var refid;
+	for(i=0;i<document.thisForm.elements.length;i++) 
+	{
+		if (document.thisForm.elements[i].name=="checks")
+		{		
+			if (document.thisForm.elements[i].checked==true) 
+			{
+				flag=true;
+				break;
+			}
+		}
+	}
+	if (flag==false)
+	{
+		alert("请先选择一个浏览记录！");
+		return false;
+	}
+	//删除
+	if (id==1)
+	{
+		if(confirm("您确定要删除选中的浏览记录吗？")==true)
+		{
+			document.thisForm.action="person_rbrower.asp?action=delete&page="+page+"";
+			thisForm.submit();
+		}
+	}					
+}
+  //-->
+</script>
+<style type="text/css">
+<!--
+.STYLE1 {font-weight: bold}
+-->
+</style>
+</head>
+<body>
+<div class="memmenul">
+<div class="leftmenutit"><span>简历被浏览记录</span></div>
+<%
+Set rs= Server.CreateObject(FR_HR_RS)
+if pid<>"" then
+	sql="select * from JOB_P_resumehistory where resume_id="&pid&" and resume_pmember='"&pmember_login&"' order by id desc"
+else
+	sql="select * from JOB_P_resumehistory where resume_pmember='"&pmember_login&"' order by id desc"
+end if
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+		response.Write("<center><br><br>暂无被浏览记录，请添加后再查看!<br><br><br></center>")
+		response.End()
+	else
+		totalPut=rs.recordcount
+		if (page-1)*MaxPerpage>totalput then
+			if (totalPut mod MaxPerpage)=0 then
+				page= totalPut \ MaxPerpage
+			else
+				page= totalPut \ MaxPerpage + 1
+			end if
+		end if
+		if page=1 then
+			Call MainInfo()
+		else
+			if (page-1)*MaxPerpage<totalPut then
+				rs.move  (page-1)*MaxPerpage
+				dim bookmark
+				bookmark=rs.bookmark
+				Call MainInfo()
+			else
+				page=1
+				Call MainInfo()
+			end if
+		end if
+	end if
+	rs.close
+	set rs=nothing
+if FoundErr=True then
+	call Show_Err()
+end if
+%>
+<%Sub MainInfo()%>
+<table width="98%" border="0" cellspacing="0" cellpadding="0" class="mtable" align="center">
+<form name="thisForm" action="person_rbrower.asp" method="post">
+  <tr>
+    <td width="20%" align="center"><strong>编号</strong></td>
+    <td width="25%" align="center"><strong>会员帐号</strong></td>
+    <td width="28%" align="center"><strong>会员名称</strong></td>
+    <td width="23%" align="center"><strong>查看时间</strong></td>
+    <td width="4%" align="center"><IMG src="../images/sel_ico.gif" width=13 height=12 class="STYLE1"></td>
+  </tr>
+<%do while not rs.eof 
+ i=1
+%>
+<%
+	'根据会员登录名查出该会员id
+	sqlm="select * from JOB_Member where Member_login='"&rs("member_login")&"' and Member_typeid<>1"
+	set rsm=Server.CreateObject("ADODB.RecordSet")
+	rsm.open sqlm,conn,1,1
+	if not rsm.eof then
+		Member_ids=rsm("Member_id")
+		Member_typeids=rsm("Member_typeid")
+	else
+		Member_ids=""
+	end if
+	rsm.close
+	set rsm=nothing
+%>
+  <tr>
+    <td align="center"><%=i%></td>
+    <td align="center"><%=rs("member_login")%></td>
+    <td align="center">
+	<%if Member_ids="" then%>
+	<%=rs("member_name")%>
+	<%else%>
+		<%	select case Member_typeids
+			case 2
+		%>
+		<a href="../company/company.asp?comid=<%=Member_ids%>" target="_blank"><%=rs("member_name")%></a>
+		<%	
+			case 3
+			'院校
+		%>
+		<a href="../school/school_View.asp?sid=<%=Member_ids%>" target="_blank"><%=rs("member_name")%></a>
+		<%	
+			case 4
+		%>
+		<a href="../Train/Train_View.asp?tid=<%=Member_ids%>" target="_blank"><%=rs("member_name")%></a>
+		<% end select%>
+	<%end if%></td>
+    <td align="center"><%=rs("brower_time")%></td>
+    <td align="center"><input type="checkbox" name="checks" value="<%=rs("id")%>"></td>
+  </tr>
+<%
+i=i+1
+if i>=MaxPerPage then exit do
+rs.movenext
+loop
+%>
+  <tr>
+    <td colspan="5" align="right"><INPUT name=chkall onClick="CheckAll(this.form)" type=checkbox value=on>
+      选中所有记录&nbsp;&nbsp;
+        <input name="Submit" type="button" class="inputs" value="删　除" onClick=javascript:showconfirm(1,<%=page%>)></td>
+    </tr>
+  <tr>
+    <td colspan="5">
+<%If totalput>0 Then
+Call Showpage(strFileName,totalput,MaxPerPage,false,true,"条浏览记录")
+End If%></td>
+    </tr>
+</form>
+</table>
+<%End Sub%>
+</div>
+<%
+conn.close:set conn=nothing%>

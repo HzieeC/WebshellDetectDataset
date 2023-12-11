@@ -1,0 +1,38 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.trade.ti_custlevel.*" %>
+<%
+	String user_id="";
+	if(session.getAttribute("session_user_id")!=null){
+		user_id = session.getAttribute("session_user_id").toString();
+	}
+
+	String cust_id="",oldcust_class="",lhswPwd="",cust_class="",cust_end_date="",cust_start_date=new Date().toLocaleString();
+
+	Ti_custlevel ti_custlevel = new Ti_custlevel();
+	
+	if(request.getParameter("cust_id")!=null){
+		cust_id = request.getParameter("cust_id");
+	}
+	if(request.getParameter("cust_class")!=null){
+		cust_class = request.getParameter("cust_class");
+	}	
+	if(request.getParameter("oldcust_class")!=null){
+		oldcust_class = request.getParameter("oldcust_class");
+	}	
+	if(request.getParameter("lhswPwd")!=null){
+		lhswPwd = request.getParameter("lhswPwd");
+	}	
+	if(request.getParameter("cust_end_date")!=null){
+		cust_end_date = request.getParameter("cust_end_date");
+	}	
+	ti_custlevel.setCust_id(cust_id);
+	ti_custlevel.setCust_class(cust_class);
+	ti_custlevel.setCust_start_date(cust_start_date);
+	ti_custlevel.setCust_end_date(cust_end_date);
+	ti_custlevel.setUser_id(user_id);
+	
+	Ti_custlevelInfo info=new Ti_custlevelInfo();
+	String result=info.update(ti_custlevel,oldcust_class,lhswPwd);
+	out.print(result);
+%>

@@ -1,0 +1,434 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="../inc/consts.asp" -->
+<!--#include file="inc/up_shuoming.asp" -->
+<%
+if ( session("class_id")<>0 and session("class_id")<>1 ) or session("class_id")="" then
+	response.write"<script>alert('权限不够！');window.open('guanli.asp','_parent')</script>"
+	response.End()
+end if
+%>
+<%
+asp_name="files_add.asp"
+asp_name2="files.asp"
+table_name="My_download_files"
+
+
+set rs=server.createobject("adodb.recordset")
+if request("action")="save" then
+
+	if replace(request("file_sort"),"'","")="" then
+		response.write"<script>alert('缺少分类！');history.go(-1);</script>"
+		response.End()
+	end if
+	if replace(request("files_more"),"'","")="" then
+		response.write"<script>alert('文档必选！');history.go(-1);</script>"
+		response.End()
+	end if
+	sql="select * from "&table_name&""
+	rs.open sql,conn,1,3
+	rs.addnew
+		if request("file_title")<>"" then rs("file_title")=replace(request("file_title"),"'","")
+		if request("files_more")<>"" then rs("file_url")=replace(request("files_more"),"'","")
+		if request("key")<>"" then rs("key")=request("key")
+		if request("file_sort")<>"" then rs("file_sort")=request("file_sort")
+		if request("filesize")<>"" then rs("filesize")=replace(request("filesize"),"'","")
+
+		if request("file_content")<>"" then rs("file_content")=replace(request("file_content"),"'","")
+	
+		rs("file_begindate")=date()
+	rs.update
+	rs.close
+	
+	response.write"<script>alert('添加成功！');window.open('"&asp_name&"','_self')</script>"
+end if
+
+if request("action")="modify" then
+	if session("class_id")=0 or session("class_id")=1 then	
+		'先获取数据
+		Set rs = Server.CreateObject("ADODB.recordset")
+		sql= "Select * from "&table_name&" where SMT_id="&request("id")&""
+		rs.Open sql,conn,1,1
+		if not rs.eof then
+			file_title=rs("file_title")'标题
+			key=rs("key")'是否开放
+			file_begindate=rs("file_begindate")'发布时间
+			file_content=rs("file_content")'正文
+			file_sort=rs("file_sort")'分类
+			file_url=rs("file_url")
+			filesize=rs("filesize")
+		else
+			response.write"<script>alert('此文件不存在！');window.open('"&asp_name&"','_self')</script>"
+		end if
+		rs.close
+	else
+		response.write"<script>alert('权限不够！');history.back(-1)</script>"
+		response.End()
+	end if
+end if
+if request("action")="modify_it" then
+'response.Write replace(request("bianhao"),"'","")
+'response.End()
+	'开始更新
+	if request("id")="" then
+		response.write"<script>alert('错误的 Id！');window.open('"&asp_name&"','_self')</script>"
+		response.End()
+	end if
+	if replace(request("file_sort"),"'","")="" then
+		response.write"<script>alert('缺少分类！');history.go(-1);</script>"
+		response.End()
+	end if
+
+	sql="select * from "&table_name&" where SMT_id="&request("id")&""
+	rs.open sql,conn,1,3
+	if not rs.eof then
+		if request("file_title")<>"" then rs("file_title")=replace(request("file_title"),"'","")
+		if request("files_more")<>"" then rs("file_url")=replace(request("files_more"),"'","")
+		if request("key")<>"" then rs("key")=request("key")
+		if request("file_sort")<>"" then rs("file_sort")=request("file_sort")
+		if request("filesize")<>"" then rs("filesize")=replace(request("filesize"),"'","")
+		if request("file_content")<>"" then rs("file_content")=replace(request("file_content"),"'","")
+		rs.update
+		if_fail=0
+	set rs1=nothing
+	'默认3条图片记录-结束
+	rs.close
+	else
+		if_fail=2
+	end if
+	if if_fail=0 then 
+		response.write"<script>alert('修改成功！');window.open('"&asp_name&"?id="&request("id")&"&action=modify&page="&request("page")&"','_self')</script>"
+	elseif if_fail=2 then 
+		response.write"<script>alert('此文件不存在！');window.open('"&asp_name&"?page="&request("page")&"','_self')</script>"
+	elseif if_fail=1 then
+		response.write"<script>alert('缺少文件简介！');history.go(-1);</script>"
+	end if
+end if
+
+%>
+<%
+if request("action")="del_file" then
+	if request("id")="" then
+		response.write"<script>alert(':-(   参数错误！');window.open('"&asp_name&"','_self')</script>"
+		response.End()
+	end if
+	path=""
+	'先获取的文件名
+	Set FileRs_f = Server.CreateObject ("Adodb.Recordset")
+	sqlstr_f="select SMT_id,file_url from "&table_name&" where SMT_id="&request("id")
+	FileRs_f.Open sqlstr_f,conn,1,1
+	if not FileRs_f.eof then
+		for i=1 to FileRs_f.recordcount
+			del_filename_file=path&FileRs_f("file_url")'定义路径文件名
+			del_filename_files=FileRs_f("file_url")
+			'Call Delfiles(del_filename_file)'再调用删除文档的函数Delfiles
+			FileRs_f.MoveNext()
+			if FileRs_f.EOF then
+				i = i + 1
+				exit for
+			end if
+		next
+	else
+		response.write"<script>alert(':-(   参数错误！');window.open('"&asp_name&"','_self')</script>"
+		response.End()
+	end if
+	FileRs_f.close
+	set FileRs_f=nothing
+	conn.execute("update "&table_name&" set file_url=null where SMT_id="&request("id")&"")
+	'conn.execute("delete from My_upfiles where SMT_filename='"&del_filename_files&"'")
+	response.write"<script>alert(':-)   文档清除成功！');window.open('"&asp_name&"?id="&request("id")&"&action=modify&page="&request("page")&"','_self')</script>"
+end if
+%>
+<%
+	'删除文件的函数
+	Sub Delfiles(del_filename_file)
+		set Objfilesys=server.createobject("scripting.FileSystemObject")
+		del_filename_file=server.mappath(del_filename_file)
+		if Objfilesys.FILEExists(del_filename_file) then
+		Objfilesys.deleteFILE del_filename_file
+		end if
+	End sub
+%>
+<%
+'获取常量
+set rs=server.createobject("adodb.recordset")
+sql="select * from My_config"
+rs.open sql,conn,1,1
+'site_name=rs("site_name")
+site_url=rs("site_url")
+rs.close
+%>
+<style type="text/css">
+<!--
+body {
+	margin: 0px;
+	background-color: #F8F9FA;
+}
+-->
+</style>
+<style>
+.div_1{ width:60px; height:20px;}
+</style>
+<%if request("action")="modify" then%>
+<script>
+	function show_more_pro_pics() {
+		newsIframe("show_more_pro_pics.asp?pro_bianhao=<%=cp_bianhao%>",window.screen.width*0.7,window.screen.height*0.5)
+	}
+</script>
+<%end if%>
+<script>
+function unit_id_div(t)
+{
+ for(var i=1;i<t.length;i++)
+ {
+  document.getElementById(t.options[i].value).style.display="none";
+ }
+ if(t.value!="请选择单位")
+ {
+  document.getElementById(t.value).style.display="block";
+ }
+}
+function tixing(){
+alert("使用首页推荐时，请注意详细说明尽量使用文本，否则会造成页面混乱!")
+}
+</script> 
+<script src="../inc/script.js" type="text/javascript"></script>
+<script language="javascript" src="Date_Js/WdatePicker.js"></script>
+<script type="text/javascript" src="js/showdiv.js"></script>
+<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+<script src="js/showdiv_2011.js"></script>
+
+<script type="text/javascript" src="../t/editor/xheditor-hello.js"></script>
+<!--编辑时防止刷新离开的提示开始 记得在BODY加onbeforeunload="checkLeave()"-->
+<script src="js/check_leave.js" type="text/javascript"></script>
+<!--编辑时防止刷新离开的提示届时-->
+<link href="css/skin.css" rel="stylesheet" type="text/css" />
+<body  onbeforeunload="checkLeave()"> <!--check_data();-->
+<form name="addform" method="POST" action="<%=asp_name%>">
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+	  <tr>
+		<td width="17" height="29" valign="top" background="images/mail_leftbg.gif"><img src="images/left-top-right.gif" width="17" height="29" /></td>
+		<td height="29" valign="top" background="images/content-bg.gif">
+		
+		<table width="100%" height="31" border="0" cellpadding="0" cellspacing="0" class="left_topbg" id="table2">
+		  <tr>
+			<td height="31"><div class="titlebt">下载管理</div></td>
+		  </tr>
+		</table>
+		
+		</td>
+		<td width="16" valign="top" background="images/mail_rightbg.gif"><img src="images/nav-right-bg.gif" width="16" height="29" /></td>
+	  </tr>
+	  <tr>
+		<td height="71" valign="middle" background="images/mail_leftbg.gif">&nbsp;</td>
+		<td valign="top" bgcolor="#F7F8F9">
+		<table width="100%" height="138" border="0" cellpadding="0" cellspacing="0">
+		  <tr>
+			<td height="13" valign="top">&nbsp;</td>
+		  </tr>
+		  <tr>
+			<td valign="top"><table width="98%" border="0" align="center" cellpadding="0" cellspacing="0">
+			  <tr>
+				<td class="left_txt">当前位置：<%=page_top%>网站常规管理 > <%if request("action")="" then%>
+				文件发布
+				<%elseif request("action")="modify" then%>
+				修改文件
+				<%end if%>
+				<%if request("bianhao")<>"" then%>&nbsp;<a href="#" onClick="Javascript:history.back()"><img src="images/back2.gif" style="cursor:pointer;" alt="返回" onClick="Javascript:history.back()" border="0"/>返回</a><%end if%>
+				</td>
+			  </tr>
+			  <tr>
+				<td height="20"><table width="100%" height="1" border="0" cellpadding="0" cellspacing="0" bgcolor="#CCCCCC">
+				  <tr>
+					<td></td>
+				  </tr>
+				</table></td>
+			  </tr>
+			  <tr>
+				<td>
+				</td>
+			  </tr>
+			  <tr>
+				<td>&nbsp;</td>
+			  </tr>
+			  
+<tr><td colspan="5">&nbsp;</td>
+</tr>				
+				
+<%if request("action")="" or request("action")="modify"  then%>
+			  <tr>
+				<td>
+				<table width="100%" height="31" border="0" cellpadding="0" cellspacing="0" class="nowtable">
+				  <tr>
+					<td class="left_bt2">&nbsp;&nbsp;&nbsp;&nbsp;文件基本信息&nbsp;
+					<%if request("action")="modify" then%>
+						&nbsp;<input type="button" value="返回列表" name="back" onClick="location='<%=asp_name2%>?page=<%=request("page")%>'"/>
+					<%else%>
+					&nbsp;<input type="button" value="返回列表" name="back" onClick="location='<%=asp_name2%>'"/>
+					<%end if%>
+					</td>
+				  </tr>
+				</table>
+				</td>
+			  </tr>
+			  <tr>
+				<td>
+				
+				<table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-size:12px;">
+				  <tr>
+					<td width="20%" height="30" align="right" bgcolor="#f2f2f2" class="left_txt2">设定文件名称：</td>
+					<td width="3%" bgcolor="#f2f2f2">&nbsp;</td>
+					<td width="35%" height="30" bgcolor="#f2f2f2"><input name="file_title" type="text" <%=inputstyle%> size="20"  value="<%if file_title="" then response.Write "下载" else response.Write file_title%>"  maxlength="30"></td>
+					<td width="42%" height="30" bgcolor="#f2f2f2" class="left_txt">文件名称,30字以内</td>
+				  </tr>
+				  <tr>
+					<td width="20%" height="30" align="right" bgcolor="#f2f2f2" class="left_txt2">文件大小(KB)：</td>
+					<td width="3%" bgcolor="#f2f2f2">&nbsp;</td>
+					<td width="35%" height="30" bgcolor="#f2f2f2">约
+					  <input name="filesize" type="text" <%=inputstyle%> size="20"  value="<%=filesize%>">KB</td>
+					<td width="42%" height="30" bgcolor="#f2f2f2" class="left_txt">系统自动获得。</td>
+				  </tr>
+				  <tr>
+					<td height="22" align="right" bgcolor="#f2f2f2" class="left_txt2">文件分类：</td>
+					<td bgcolor="#f2f2f2">&nbsp;</td>
+					<td height="22" bgcolor="#f2f2f2" class="left_txt2">
+<select name="file_sort">
+<%if request("action")="modify" and file_sort<>"" and file_sort>0 and isnumeric(file_sort) then%>
+	<%'获取当前数据
+	set rs=server.createobject("adodb.recordset")
+	sql="select top 1 * from cp_sort where SMT_id="&file_sort
+	rs.open sql,conn,1,1
+	%>
+	<option value="<%=rs("SMT_id")%>" selected="selected"><%=rs("SMT_cpsort")%></option>
+	<%
+	rs.Close()
+	%>
+<%end if%>
+<%
+sql="select * from cp_sort where SMT_Key=1 order by SMT_date desc"
+set rs=server.createobject("ADODB.Recordset")
+rs.open sql,conn,1,1
+if rs.eof then
+	if_fenlei=0
+%>
+<option value="" selected>请先添加您的文件分类</option>
+<%
+else
+	if_fenlei=1
+%>
+<option value="">请选择...</option>
+<%while not rs.eof%>
+<option value="<%=rs("SMT_id")%>"><%=rs("SMT_cpsort")%></option>
+<%rs.movenext
+wend
+end if
+rs.Close()
+%>
+</select>					</td>
+					<td height="22" bgcolor="#f2f2f2" class="left_txt"><span>
+					<a href="cp_fl_c.asp?action1=1&page_url=files_add.asp&canshu_id=<%=request("id")%>" rel="clearbox(750,350,click)" title="文件分类可以在这里设置">文件分类可以在这里设置</a></span><!--span[2]--></td>
+				  </tr>
+<%if file_url="" or isnull(file_url) then%>					
+				  <tr>
+					<td height="22" align="right" bgcolor="#f2f2f2" class="left_txt2">文件选择：</td>
+					<td bgcolor="#f2f2f2">&nbsp;</td>
+					<td height="22" bgcolor="#f2f2f2" class="left_txt2">
+		<script>
+		function select_pic_more() {
+			//newsIframe("select_pic.asp?album_id=1&select_pic=555",window.screen.width*0.6,window.screen.height*0.5)
+		}
+		</script>
+						<li style="list-style:none; display:inline; border:1px solid  #ccc; width:auto; height:20px; padding:5px;padding-bottom:1px; margin:5px; background-color:#FFFFFF">
+						<a href="select_pic.asp?album_id=1&select_pic=555" rel="clearbox(700,350,click)" title="请选择文件"><img src="images/save.png" alt="请选择文件" width="16" height="16" style="border:0px;cursor:pointer;" onClick="select_pic_more()"></a>
+						<input type="hidden" name="files_more" size="9"  readonly="" style="background-color:#F7F7F7; border:solid 1px #999999;" />
+					<td height="22" bgcolor="#f2f2f2" class="left_txt"><span id="select_file_result">请选择文件</span></td>
+				  </tr>
+<%else%>
+				  <tr>
+					<td height="22" align="right" bgcolor="#f2f2f2" class="left_txt2">文件预览：</td>
+					<td bgcolor="#f2f2f2">&nbsp;</td>
+					<td height="22" bgcolor="#f2f2f2" class="left_txt2">
+					<div align="center" style="list-style:none; display:inline; border:1px solid  #ccc; width:auto; height:20px; padding:5px; margin-top:11px; background-color:#FFFFFF; width:100px; height:100px; cursor:pointer; font-size:12px; color:#666666;background-image:url(images/unpreivewable.png)"></div>
+					<td height="22" bgcolor="#f2f2f2" class="left_txt"></td>
+				  </tr>
+				  <%if file_url<>"" then%>
+				  <tr>
+					<td height="22" align="right" bgcolor="#f2f2f2" class="left_txt2">文件路径：</td>
+					<td bgcolor="#f2f2f2">&nbsp;</td>
+					<td height="22" bgcolor="#f2f2f2" class="left_txt2">
+					<a href="<%=asp_name%>?action=del_file&id=<%=request("id")%>&page=<%=request("page")%>" onClick="javascript:return confirm('确定清除视频吗？(此次操作不会删除文件，若要删除请在相册管理中删除)');"><font color="blue"><img src="images/imagedelete.gif" border="0"></font></a>
+					<%response.Write file_url%>
+					<td height="22" bgcolor="#f2f2f2" class="left_txt"></td>
+				  </tr>
+				<%end if%>
+<%end if%>				  
+				  <tr>
+					<td height="22" align="right" bgcolor="#f2f2f2" class="left_txt2">公开状态：</td>
+					<td bgcolor="#f2f2f2">&nbsp;</td>
+					<td height="22" bgcolor="#f2f2f2" class="left_txt2">
+					<input type="radio" name="key" value=0 <%if key=0 then%> checked<%end if%>>不开放下载
+					<input type="radio" name="key" value=1 <%if key=1 or request("action")="new" then%> checked<%end if%>>开放下载
+					<td height="22" bgcolor="#f2f2f2" class="left_txt"></td>
+				  </tr>
+				  
+				  <tr>
+					<td height="22" colspan="4" align="left" class="left_txt2">
+					<table width="100%" height="31" border="0" cellpadding="0" cellspacing="0" class="nowtable">
+				  <tr>
+					<td class="left_bt2">&nbsp;&nbsp;&nbsp;&nbsp;文件说明</td>
+				  </tr>
+				</table>			</td>
+					</tr>
+				  <tr>
+					<td height="22" align="right" class="left_txt2" valign="top">文件介绍： 
+					</td>
+					<td>&nbsp;</td>
+					<td height="22" colspan="2"><textarea name="file_content" cols="1"   class="xheditor {skin:'o2007silver',width:'100%',height:'230px',upBtnText:'开始上传'}" ><%=file_content%></textarea></td>
+					</tr>
+<!--#include file="insert_movie_code.asp" -->
+				</table>
+			  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+				<tr>
+				  <td colspan="3">&nbsp;</td>
+				</tr>
+				<tr>
+				  <td width="50%" height="30" align="right">
+				  <input type="submit" value="开始提交" name="submit_me" onMouseOver="this.className='input'" onMouseOut="this.className='input2'" class="input2"/>
+				  <input type="reset" value="重置" name="B12" onMouseOver="this.className='input'" onMouseOut="this.className='input2'" class="input2"/>
+				  </td>
+				  <td width="6%" height="30" align="right">&nbsp;</td>
+				  <td width="44%" height="30">
+				  <%if request("action")="modify" then%>
+				 	 <input type="button" value="返回列表" name="back" onMouseOver="this.className='input'" onMouseOut="this.className='input2'" class="input2" onClick="location='<%=asp_name2%>?page=<%=request("page")%>'"/>
+				  <%end if%>
+				  <%if request("action")="" then%>
+				  <input type="hidden" value="save" name="action">
+				  <%elseif request("action")="modify" then%>
+				   <input type="hidden" value="modify_it" name="action">
+				   <input type="hidden" value="<%=request("id")%>" name="id">
+				   <input type="hidden" value="<%=request("page")%>" name="page" />
+				  <%end if%>
+				  </td>
+				</tr>
+			  </table>
+				</td>
+			  </tr>
+<%end if%>				
+			  
+			  
+			</table>
+			  </td>
+		  </tr>
+		</table>
+		</td>
+		<td background="images/mail_rightbg.gif">&nbsp;</td>
+	  </tr>
+	  <tr>
+		<td valign="middle" background="images/mail_leftbg.gif"><img src="images/buttom_left2.gif" width="17" height="17" /></td>
+		  <td height="17" valign="top" background="images/buttom_bgs.gif"><img src="images/buttom_bgs.gif" width="17" height="17" /></td>
+		<td background="images/mail_rightbg.gif"><img src="images/buttom_right2.gif" width="16" height="17" /></td>
+	  </tr>
+	</table>
+</form>
+</body>

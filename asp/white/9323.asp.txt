@@ -1,0 +1,483 @@
+<%@ LANGUAGE=VBScript CodePage=936%>
+<!--#include file="conn.asp"-->
+<!--#include file="admin.asp"-->
+<style type="text/css">
+body {
+	font-size: 12px;
+}
+td {
+	font-size: 12px;
+}
+.a1{BACKGROUND-IMAGE:url('image/titlebg.gif');COLOR:000000;}
+.a2{BACKGROUND-COLOR: A4B6D7;}
+.a3{BACKGROUND-COLOR: F2F8FF;}
+.a4{BACKGROUND-COLOR: ECF5FF;}
+.t1 {font:12px 宋体;color:#000000} 
+.t2 {font:12px 宋体;color:#ffffff} 
+.t3 {font:12px 宋体;color:#ffff00} 
+.t4 {font:12px 宋体;color:#800000} 
+.t5 {font:12px 宋体;color:#191970} 
+a:link {
+	color: #000000;
+	text-decoration: none;
+}
+a:active {
+	color: #000000;
+	text-decoration: none;
+}
+a:visited {
+	color: #000000;
+	text-decoration: none;
+}
+.aaa:hover{
+	Font-unline:yes;
+	font-family: "宋体";
+	color: #FFFFFF;
+	text-decoration: underline;
+	background-color: #CCCCCC;
+}
+</style>
+<%
+response.buffer=true	
+Const strDBPath = "..\Databases\backup\"
+
+dim Action,FoundErr,ErrMsg
+Action=trim(request("Action"))
+dim dbpath
+dim ObjInstalled
+ObjInstalled=IsObjInstalled("Scripting.FileSystemObject")
+%>
+
+<BR>
+<table cellpadding="2" cellspacing="1" border="0" width="600" align="center" class="a2">
+	<tr>
+		<td class="a1" height="25" align="center" colspan="2"><strong>数 据 库 管 理</strong></td>
+	</tr>
+	<tr class="a4">
+		<td width="75" height="30">&nbsp;<strong>管理导航：</strong></td>
+    <td height="30">&nbsp;<a href="Database.asp?Action=Backup">备份数据库</a> | <a href="Database.asp?Action=Restore">恢复数据库</a> | <a href="Database.asp?Action=Compact">压缩数据库</a> | <a href="Database.asp?Action=SpaceSize">系统空间占用情况</a>
+		</td>
+	</tr>
+</table>
+<BR>
+
+<%
+if Action="Backup" or Action="BackupData" then
+	call ShowBackup()
+	set conn=nothing 
+elseif Action="Compact" or Action="CompactData" then
+	call ShowCompact()
+	set conn=nothing 
+elseif Action="Restore" or Action="RestoreData" then
+	call ShowRestore()
+	set conn=nothing 
+elseif Action="SpaceSize" then
+	call SpaceSize()
+	set conn=nothing 
+else
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>错误参数！</li>"
+	set conn=nothing 
+end if
+if FoundErr=True then
+	call WriteErrMsg()
+end if
+
+'--------备份数据库--------
+sub ShowBackup()
+%>
+<table cellpadding="2" cellspacing="1" border="0" width="600" align="center" class="a2">
+<form method="post" action="Database.asp?action=BackupData">
+  <tr>
+	<td colspan="3" align="center" height="25" class="a1"><FONT COLOR="#CC0000"><b>备 份 数 据 库</b></FONT></td>
+  </tr>
+<%    
+if request("action")="BackupData" then
+	call backupdata()
+else
+%>
+          <tr class="a4"> 
+            <td width="80" height="40" align="right">当前数据库：</td>
+            <td><input name="db" type="text" size="40" value="<%=db%>" readonly></td>
+            <td>相对路径目录</td>
+          </tr>
+          <tr class="a4"> 
+            <td width="80" height="40" align="right">备份目录：</td>
+            <td><input type=text size=40 name=bkfolder value="<%=left(trim(db),instrrev(trim(db),"/"))%>backup/"></td>
+            <td>相对路径目录，如目录不存在，将自动创建</td>
+          </tr>
+          <tr class="a4"> 
+            <td width="80" height="40" align="right">备份名称：</td>
+            <td height="40"><input type=text size=40 name=bkDBname value="DataBack"></td>
+            <td height="40">不用输入文件名后缀（默认为“.asa”）。如有同名文件，将覆盖</td>
+          </tr>
+          <tr class="a4"> 
+            <td height="40" colspan="3" align="center"><input name="submit" type=submit value=" &nbsp;开始备份&nbsp; " <%If ObjInstalled=false Then response.Write "disabled"%> style="cursor: hand;background-color: #cccccc;"></td>
+          </tr>
+<%
+	If ObjInstalled=false Then
+		Response.Write "<b><font color=red>你的服务器不支持 FSO(Scripting.FileSystemObject)! 不能使用本功能</font></b>"
+	end if
+end if
+%>
+</form>
+</table>
+<%
+end sub
+
+'--------恢复数据库--------
+sub ShowRestore()
+%>
+<table cellpadding="2" cellspacing="1" border="0" width="600" align="center" class="a2">
+<form method="post" action="Database.asp?action=RestoreData">
+  <tr>
+	<td colspan="2" align="center" height="25" class="a1"><FONT COLOR="#CC0000"><b>数 据 库 恢 复</b></FONT></td>
+  </tr>
+<%
+if request("action")="RestoreData" then
+	call RestoreData()
+else
+%>
+	<tr class="a4">
+		<td width="150" height="40" align="right">备份数据库路径（相对）：</td>
+		<td height="40"><input name=backpath type=text id="backpath" value="<%=left(trim(db),instrrev(trim(db),"/"))%>backup/DataBack.asa" size=50 maxlength="200"></td>
+	</tr>
+	<tr class="a4">
+		<td width="150" height="40" align="right">当前数据库路径（相对）：</td>
+		<td><input name="db" type="text" size="50" maxlength="200" value="<%=db%>" readonly></td>
+	</tr>
+	<tr align="center" class="a4"> 
+		<td colspan="2"><input name="submit" type=submit value=" &nbsp;恢复数据&nbsp; " <%If ObjInstalled=false Then Response.Write "disabled"%> style="cursor: hand;background-color: #cccccc;"></td>
+	</tr>
+<%
+	If ObjInstalled=false Then
+		Response.Write "<b><font color=red>你的服务器不支持 FSO(Scripting.FileSystemObject)! 不能使用本功能</font></b>"
+	end if
+end if
+%>
+            
+</form>
+</table>
+<%
+end sub
+
+'--------压缩数据库--------
+sub ShowCompact()
+%>
+<table cellpadding="2" cellspacing="1" border="0" width="600" align="center" class="a2">
+<form method="post" action="Database.asp?action=CompactData">
+  <tr align="center">
+	<td class="a1" height="25"><FONT COLOR="#CC0000"><b>数 据 库 在 线 压 缩</b></FONT></td>
+	</tr>
+<%    
+if request("action")="CompactData" then
+	call CompactData()
+else
+%>
+	<tr align="left" class="a4">
+		<td valign="middle" style="line-height: 150%"><br><font color="#FF6600"><b>注1：</b></font>压缩前，建议先备份数据库，以免发生意外错误。 <br>
+		<font color="#FF6600"><b>注2：</b></font>正在使用中数据库不能压缩,请选择备份数据库进行压缩操作(当前压缩数据库名为默认备份文件名)</td>
+	</tr>
+	<tr  align="left" class="a4">
+		<td height="40">数据库位置： <input name="db" type="text" id="db" size="50" value="<%=left(trim(db),instrrev(trim(db),"/"))%>backup/DataBack.asa"></td>
+	</tr>
+	<tr align="center" class="a4">
+		<td height="40"><input name="submit" type=submit value=" &nbsp;压缩数据库&nbsp; " <%If ObjInstalled=false Then Response.Write "disabled"%> style="cursor: hand;background-color: #cccccc;"></td>
+	</tr>
+<%
+	If ObjInstalled=false Then
+		Response.Write "<b><font color=red>你的服务器不支持 FSO(Scripting.FileSystemObject)! 不能使用本功能</font></b>"
+	end if
+end if
+%>
+</form>
+</table>
+<%
+end sub
+
+'--------统空间占用情况--------
+sub SpaceSize()
+	on error resume next
+url=request.ServerVariables("URL")
+url=lcase(left(lcase(trim(url)),instrrev(lcase(trim(url)),"/")))
+url=left(url,len(url)-1)
+url=right(trim(url),len(url)-instrrev(trim(url),"/"))
+%>
+<table cellpadding="2" cellspacing="1" border="0" width="600" align="center" class="a2">
+  <tr>
+	<td colspan="2" align="center" height="25" class="a1"><FONT COLOR="#CC0000"><b>系 统 空 间 占 用 情 况</b></FONT></td>
+	</tr>
+  <tr class="a4"> 
+    <td width="100%" height="150" valign="middle">
+	<blockquote><br>
+      系统数据占用空间：&nbsp;<img src="image/bar.gif" width=<%=drawbar("../Databases")%> height=10>&nbsp;
+      <%showSpaceinfo("../Databases")%>
+      <br>
+      <br>
+      备份数据占用空间：&nbsp;<img src="image/bar.gif" width=<%=drawbar("../Databases/backup")%> height=10>&nbsp;
+      <%showSpaceinfo("../Databases/backup")%>
+      <br>
+      <br>
+      程序文件占用空间：&nbsp;<img src="image/bar.gif" width=<%=drawspecialbar%> height=10>&nbsp;
+      <%showSpecialSpaceinfo("Program")%>
+      <br>
+      <br>
+      管理后台占用空间：&nbsp;<img src="image/bar.gif" width=<%=drawbar("../"&url&"")%> height=10>&nbsp;
+      <%showSpaceinfo("../"&url&"")%>
+      <br>
+      <br>
+      模板图片占用空间：&nbsp;<img src="image/bar.gif" width=<%=drawbar("../Images")%> height=10>&nbsp;
+      <%showSpaceinfo("../Images")%>
+      <br>
+      <br>
+      系统图片占用空间：&nbsp;<img src="image/bar.gif" width=<%=drawbar("../Img")%> height=10>&nbsp;
+      <%showSpaceinfo("../Img")%>
+      <br>
+      <br>
+      上传文件占用空间：&nbsp;<img src="image/bar.gif" width=<%=drawbar("../UploadFiles")%> height=10>&nbsp;
+      <%showSpaceinfo("../UploadFiles")%>
+      <br>
+      <br>
+      系统占用空间总计：<BR><BR><img src="image/bar.gif" width=400 height=10> 
+      <%showspecialspaceinfo("All")%>
+	</blockquote> 	
+    </td>
+  </tr>
+</table>
+<%
+end sub
+%>
+<BR>
+<%htmlend%>
+
+<%
+'--------备份数据库--------
+sub BackupData()
+	dim bkfolder,bkdbname,fso
+	db=trim(request.form("db"))
+	bkfolder=trim(request("bkfolder"))
+	bkdbname=trim(request("bkdbname"))
+	if db="" then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>请指定当数据库位置！</li>"
+	end if
+	if bkfolder="" then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>请指定备份目录！</li>"
+	end if
+	if bkdbname="" then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>请指定备份文件名</li>"
+	end if
+	if FoundErr=True then exit sub
+	dbpath = server.mappath(db)
+	bkfolder=server.MapPath(bkfolder)
+	Set Fso=server.createobject("scripting.filesystemobject")
+	if fso.FileExists(dbpath) then
+		If fso.FolderExists(bkfolder)=false Then
+			fso.CreateFolder(bkfolder)
+		end if
+		fso.copyfile dbpath,bkfolder & "\" & bkdbname & ".asa"
+		response.write "<center>备份数据库成功，备份的数据库为 " & bkfolder & "\" & bkdbname & ".asa</center>"
+	Else
+		response.write "<center>找不到源数据库文件，请检查inc/conn.asp中的配置。</center>"
+	End if
+end sub
+'--------恢复数据库--------
+sub RestoreData() 
+	dim backpath,fso
+	backpath=request.form("backpath")
+	db=trim(request.form("db"))
+	if backpath="" then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>请指定原备份的数据库文件名！<li>"
+		exit sub	
+	end if
+	if db="" then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>请指定当前数据库文件名！<li>"
+		exit sub	
+	end if
+	backpath=server.mappath(backpath)
+	dbpath = server.mappath(db)
+	Set Fso=server.createobject("scripting.filesystemobject")
+	if fso.fileexists(backpath) then  					
+		fso.copyfile Backpath,dbpath
+		response.write "成功恢复数据！"
+	else
+		response.write "找不到指定的备份文件！"	
+	end if
+end sub
+'--------压缩数据库--------
+sub CompactData() 
+	Dim fso, Engine,strDBPath
+	DB=trim(request.form("db")) 
+	DBPath = server.mappath(DB)
+'	strDBPath = server.mappath("data_backup\")
+	if instr(DBPath,"/") then 
+		strDBPath = left(DBPath,instrrev(DBPath,"\"))
+	else
+		strDBPath = left(DBPath,instrrev(DBPath,"\"))
+	end if
+	Set fso = Server.CreateObject("Scripting.FileSystemObject")
+	If fso.FileExists(DBPath) Then
+		Set Engine = CreateObject("JRO.JetEngine")
+		Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & DBPath," Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb"
+		fso.CopyFile strDBPath & "temp.mdb",DBPath
+		fso.DeleteFile(strDBPath & "temp.mdb")
+		Set fso = nothing
+		Set Engine = nothing
+		response.write "数据库压缩成功!"
+	Else
+		response.write "数据库没有找到!"
+	End If
+end sub
+%>
+<%
+Sub ShowSpaceInfo(drvpath)
+	dim fso,d,size,showsize
+	set fso=server.createobject("scripting.filesystemobject") 		
+	drvpath=server.mappath(drvpath) 		 		
+	set d=fso.getfolder(drvpath) 		
+	size=d.size
+	showsize=size & "&nbsp;Byte" 
+	if size>1024 then
+	   size=(size\1024)
+	   showsize=size & "&nbsp;KB"
+	end if
+	if size>1024 then
+	   size=(size/1024)
+	   showsize=formatnumber(size,2) & "&nbsp;MB"		
+	end if
+	if size>1024 then
+	   size=(size/1024)
+	   showsize=formatnumber(size,2) & "&nbsp;GB"	   
+	end if   
+	response.write "<font face=verdana>" & showsize & "</font>"
+End Sub	
+
+Sub Showspecialspaceinfo(method)
+	dim fso,d,fc,f1,size,showsize,drvpath 		
+	set fso=server.createobject("scripting.filesystemobject")
+	drvpath=server.mappath("../Inc")
+	drvpath=left(drvpath,(instrrev(drvpath,"\")-1))
+	set d=fso.getfolder(drvpath) 		
+	
+	if method="All" then 		
+		size=d.size
+	elseif method="Program" then
+		set fc=d.Files
+		for each f1 in fc
+			size=size+f1.size
+		next	
+	end if	
+	
+	showsize=size & "&nbsp;Byte" 
+	if size>1024 then
+	   size=(size\1024)
+	   showsize=size & "&nbsp;KB"
+	end if
+	if size>1024 then
+	   size=(size/1024)
+	   showsize=formatnumber(size,2) & "&nbsp;MB"		
+	end if
+	if size>1024 then
+	   size=(size/1024)
+	   showsize=formatnumber(size,2) & "&nbsp;GB"	   
+	end if   
+	response.write "<font face=verdana>" & showsize & "</font>"
+end sub 	 	 	
+
+Function Drawbar(drvpath)
+	dim fso,drvpathroot,d,size,totalsize,barsize
+	set fso=server.createobject("scripting.filesystemobject")
+	drvpathroot=server.mappath("../Inc")
+	drvpathroot=left(drvpathroot,(instrrev(drvpathroot,"\")-1))
+	set d=fso.getfolder(drvpathroot)
+	totalsize=d.size
+	
+	drvpath=server.mappath(drvpath) 		
+	set d=fso.getfolder(drvpath)
+	size=d.size
+	
+	barsize=cint((size/totalsize)*400)
+	Drawbar=barsize
+End Function 	
+
+Function Drawspecialbar()
+	dim fso,drvpathroot,d,fc,f1,size,totalsize,barsize
+	set fso=server.createobject("scripting.filesystemobject")
+	drvpathroot=server.mappath("../Inc")
+	drvpathroot=left(drvpathroot,(instrrev(drvpathroot,"\")-1))
+	set d=fso.getfolder(drvpathroot)
+	totalsize=d.size
+	
+	set fc=d.files
+	for each f1 in fc
+		size=size+f1.size
+	next	
+	
+	barsize=cint((size/totalsize)*400)
+	Drawspecialbar=barsize
+End Function
+%>
+<%
+'**************************************************
+'函数名：IsObjInstalled
+'作  用：检查组件是否已经安装
+'参  数：strClassString ----组件名
+'返回值：True  ----已经安装
+'   False ----没有安装
+'**************************************************
+Function IsObjInstalled(strClassString)
+	On Error Resume Next
+	IsObjInstalled = False
+	Err = 0
+	Dim xTestObj
+	Set xTestObj = Server.CreateObject(strClassString)
+	If 0 = Err Then IsObjInstalled = True
+	Set xTestObj = Nothing
+	Err = 0
+End Function
+'------------------检查某一目录是否存在-------------------
+Function CheckDir(FolderPath)
+	dim fso
+	folderpath=Server.MapPath(".")&"\"&folderpath
+	Set fso1 = Server.CreateObject("Scripting.FileSystemObject")
+	If fso.FolderExists(FolderPath) then
+	'存在
+		CheckDir = True
+	Else
+	'不存在
+		CheckDir = False
+	End if
+	Set fso = nothing
+End Function
+
+'-------------根据指定名称生成目录---------
+Function MakeNewsDir(foldername)
+	dim fso,f
+	Set fso = Server.CreateObject("Scripting.FileSystemObject")
+    Set f = fso.CreateFolder(foldername)
+    MakeNewsDir = True
+	Set fso = nothing
+End Function
+
+'**************************************************
+'过程名：WriteErrMsg
+'作  用：显示错误提示信息
+'参  数：无
+'**************************************************
+sub WriteErrMsg()
+	dim strErr
+	strErr=strErr & "<html><head><title>错误信息</title><meta http-equiv='Content-Type'content='text/html; charset=gb2312'>" & vbcrlf
+	strErr=strErr & "<link href='../Css/style.css'rel='stylesheet'type='text/css'></head><body><br><br>" & vbcrlf
+	strErr=strErr & "<table cellpadding=2 cellspacing=1 border=0 width=400 class='border' align=center>" & vbcrlf
+	strErr=strErr & "  <tr align='center' class='title'><td height='22'><strong>错误信息</strong></td></tr>" & vbcrlf
+	strErr=strErr & "  <tr class='tdbg'><td height='100'valign='top'><b>产生错误的可能原因：</b>" & errmsg &"</td></tr>" & vbcrlf
+	strErr=strErr & "  <tr align='center' class='tdbg'><td><a href='javascript:history.go(-1)'>&lt;&lt; 返回上一页</a></td></tr>" & vbcrlf
+	strErr=strErr & "</table>" & vbcrlf
+	strErr=strErr & "</body></html>" & vbcrlf
+	response.write strErr
+end sub
+%>

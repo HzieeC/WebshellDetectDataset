@@ -1,0 +1,104 @@
+<!--#include file="../inc/MainClass.asp"-->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+Function GetContentById(Byval vId)
+	dim i,rsObj,cacheName,vType,venname,vdatetime,contentLink,playLink,n,typeFlag,typeText,m_actor,m_director,m_des,x,y,z
+	set rsObj = conn.db("select top 1 m_id,m_type,m_name,m_state,m_pic,m_hit,m_actor,m_des,m_topic,m_color,m_addtime,m_publishyear,m_publisharea,m_commend,m_note,m_keyword ,m_digg,m_tread,m_playdata,m_downdata,m_enname,m_datetime,m_director,m_lang,m_score from {pre}data where m_id="&vId&" AND m_recycle=0","records1")
+	if rsObj.recordcount=0 then
+		rsObj.close:set rsObj = nothing:OutNotFound("content")
+	end if
+	vType=rsObj("m_type"):venname=rsObj("m_enname"):vdatetime=rsObj("m_datetime")
+	if InStr(" ,"&getHideTypeIDS()&",",","&vType&",")>0 then
+		rsObj.close:set rsObj = nothing:OutNotFound("content")
+	end if
+	y=split(getTypeNameTemplateArrayOnCache(clng(vType)),","):z=ifthen(isNul(y(4)),"content.html",y(4)):x = "/"&sitePath&"template/"&defaultTemplate&"/"&templateFileFolder&"/"&z
+	contentLink = getContentLink(vType,vId,venname,vdatetime,"link")
+	typeText = getTypeTextOnCache(vType):currentTypeId=vType
+	typeFlag = "parse_content_" 
+	cacheName = typeFlag&vType
+	if cacheStart=1 then 
+		with templateObj
+			if cacheObj.chkCache(cacheName) then  
+				.content = cacheObj.getCache(cacheName)  
+			else 
+				parseContentPart(x):cacheObj.setCache cacheName,.content
+			end if
+		end with
+	else
+		parseContentPart(x)
+	end if
+	with templateObj
+		.paresPreNextVideo vid,"content",vType
+		.content = replaceStr(.content,"{playpage:id}",rsObj("m_id"))
+		.content = replaceStr(.content,"{playpage:name}",rsObj("m_name"))
+		.content = replaceStr(.content,"{playpage:desktopurl}","/"&sitepath&"desktop.asp?name={playpage:encodename}&url="&server.urlencode(contentLink))
+		.content = replaceStr(.content,"{playpage:encodename}",server.URLEncode(rsObj("m_name")))
+		.content = replaceStr(.content,"{playpage:note}",rsObj("m_note"))
+		.content = replaceStr(.content,"{playpage:lang}",rsObj("m_lang"))
+		.content = replaceStr(.content,"{playpage:nolinkkeywords}",rsObj("m_keyword"))
+		if isExistStr(.content,"{playpage:keywords}") then .content = replaceStr(.content,"{playpage:keywords}",getKeywordsList(rsObj("m_keyword"),"&nbsp;&nbsp;"))
+		if not isNul(rsObj("m_pic")) then 
+			if instr(rsObj("m_pic"),"http://")>0 then  .content = replaceStr(.content,"{playpage:pic}",rsObj("m_pic")) else .content = replaceStr(.content,"{playpage:pic}","/"&sitePath&rsObj("m_pic"))
+		else
+			.content = replaceStr(.content,"{playpage:pic}","/"&sitePath&"pic/nopic.gif")
+		end if
+		m_actor=rsObj("m_actor"):m_director=rsObj("m_director"):m_des=filterStr(decodeHtml(rsObj("m_des")),"jsiframe")
+		.content = replaceStr(.content,"{playpage:actor}",getKeywordsList(m_actor,"&nbsp;&nbsp;"))
+		.content = replaceStr(.content,"{playpage:nolinkactor}",m_actor)
+		.content = replaceStr(.content,"{playpage:director}",getKeywordsList(m_director,"&nbsp;&nbsp;"))
+		.content = replaceStr(.content,"{playpage:nolinkdirector}",m_director)
+		.content = replaceStr(.content,"{playpage:publishtime}",rsObj("m_publishyear"))
+		.content = replaceStr(.content,"{playpage:publisharea}",rsObj("m_publisharea"))
+		.content = replaceStr(.content,"{playpage:addtime}",rsObj("m_addtime"))
+		.content = replaceStr(.content,"{playpage:state}",rsObj("m_state"))
+		.content = replaceStr(.content,"{playpage:diggnum}",rsObj("m_digg"))
+		.content = replaceStr(.content,"{playpage:treadnum}",rsObj("m_tread"))
+		.content = replaceStr(.content,"{playpage:scorenum}",rsObj("m_score"))
+		.content = replaceStr(.content,"{playpage:commend}",rsObj("m_commend"))
+		.content = replaceStr(.content,"{playpage:des}",doPseudo(m_des,rsObj("m_id")))
+		.content = replaceStr(.content,"{playpage:link}",contentLink)
+		.content = replaceStr(.content,"{playpage:url}","http://"&siteurl&contentLink)
+		.content = replaceStr(.content,"{playpage:textlink}",typeText&"&nbsp;&nbsp;&raquo;&nbsp;&nbsp;"&rsObj("m_name")) :.parsePlayList vType,vId,vEnname,vDatetime,rsObj("m_playdata"),"play" : .parsePlayList vType,vId,vEnname,vDatetime,rsObj("m_downdata"),"down": .parseIf()
+	end with
+	parseLabelHaveLen m_des,"des":parseLabelHaveLen m_actor,"actor":parseLabelHaveLen m_actor,"nolinkactor":parseLabelHaveLen rsObj("m_name"),"name":parseLabelHaveLen rsObj("m_note"),"note"
+	GetContentById=templateObj.content
+	rsObj.close:set rsObj = nothing
+End Function
+
+Sub parseContentPart(x)
+	with templateObj
+		.content=loadFile(x):.parsePlayPageSpecial:.parseTopAndFoot():.parseSelf():.parseGlobal()
+		.content = replaceStr(replaceStr(.content,"{maxcms:currenttypeid}",currentTypeId),"{playpage:typeid}",currentTypeId)
+		if isExistStr(.content,"{playpage:typename}") then .content = replaceStr(.content,"{playpage:typename}",split(getTypeNameTemplateArrayOnCache(currentTypeId),",")(0))
+		if isExistStr(.content,"{playpage:typelink}") then .content = replaceStr(.content,"{playpage:typelink}",getTypeLink(currentTypeId))
+		if isExistStr(.content,"{playpage:upid}") then .content = replaceStr(.content,"{playpage:upid}",getTypeUpid(currentTypeId))
+		.parseMenuList(""):.parseAreaList():.parseTopicList():.parseVideoList():.parseNewsList()
+	end with
+End Sub
+
+
+dim id
+if paramset=0 OR runmode="forgedStatic" then
+	dim paras,parasArray:paras=replaceStr(request.QueryString,fileSuffix,"") : id=paras
+else
+	id=getForm(paramid,"both")
+end if
+
+if isNul(id) then 
+	echoSaveStr "null" 
+else 
+	if isNum(id) then id=clng(id) else echoSaveStr "safe"
+end if
+
+tryDieCacheFile id,"#/v"
+dim templateobj,temp:set templateobj = mainClassobj.createObject("MainClass.template"):temp=GetContentById(id)
+WriteCacheFile id,"#/v",temp:echo replaceStr(temp,"{maxcms:runinfo}",getRunTime())
+set templateobj=nothing:terminateAllObjects
+%>

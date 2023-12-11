@@ -1,0 +1,67 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title><fmt:message key="new.department"/></title>
+	<link href="${contextPath}/js/plugins/dtree/dtree.css" rel="stylesheet"
+		type="text/css" media="all">
+		<%-- <script src="${contextPath}/js/plugins/jquery/jquery.js"></script> --%>
+		<script src="${contextPath}/static/jqtrans/jquery.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+		<script src="${contextPath}/js/plugins/dtree/dtree.js"></script>
+</head>
+<body>
+	<input type="hidden" value="${contextPath}" id="contextPath" />
+	<div class="userInfo" id="searchCon">
+		<form:form id="resultForm" name="resultForm" commandName="role">
+			<div class="title"><fmt:message key="new.department"/></div>
+			<table class="yTable margintop">
+				<tr>
+					<th align="right" width="120"><span>*</span><fmt:message key="departmentName"/></th>
+					<td align="left"><input name="name" id="name" type="text"
+						class="inputbox" /><span></span></td>
+				</tr>
+				<tr>
+					<th align="right" width="120">&nbsp;&nbsp;&nbsp;&nbsp;<fmt:message key="department.level"/></th>
+					<td align="left"><select name="level">
+						 <option selected="selected" value="" ><fmt:message key="jslevel1"/></option>
+					      <option value="" ><fmt:message key="jslevel2"/></option>
+					</select></td>
+				</tr>
+
+				<tr>
+					<th align="right" width="120"><fmt:message key="remark"/></th>
+					<td align="left"><textarea name="remark" id="remark"
+							cols="45" rows="5"></textarea>
+					</td>
+				</tr>
+			</table>
+
+
+			<div class="Btn">
+			<input  id="saveRole" value="<fmt:message key="save"/>" type="button"/> 
+		<input  id="cancelRole" value="<fmt:message key="cancel"/>" type="button"/> 
+				
+				
+			</div>
+		</form:form>
+	</div>
+	<script type="text/javascript">
+		seajs.use("${scriptBasePath}/department/new.js");
+	</script>
+</body>
+</html>

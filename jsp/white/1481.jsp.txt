@@ -1,0 +1,76 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@page import="com.bizoss.frame.util.*" %>
+<html>
+
+<%
+RandomID randomID = new RandomID();
+String temID =  randomID.GenTradeId();
+
+	String cust_id="",user_id="";	
+	if( session.getAttribute("session_cust_id") != null )
+	{
+		cust_id = session.getAttribute("session_cust_id").toString();
+	}
+	if( session.getAttribute("session_user_id") != null )
+	{
+		user_id = session.getAttribute("session_user_id").toString();
+	}
+	
+	
+%>
+  <head>
+    <title>新增邮件内容</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/program/admin/emailtem/js_emailtem.js" ></script>
+</head>
+
+<body>
+	<h1>新增邮件内容</h1>
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" class="listtab" cellpadding="1" cellspacing="1" border="0">
+		
+		<input name="tem_id" id="tem_id" type="hidden" value="<%=temID%>" />
+		<input name="cust_id" id="cust_id" type="hidden" value="<%=cust_id%>" />
+		<input name="user_id" id="user_id" type="hidden" value="<%=user_id%>" />
+		<input name="tem_type" id="tem_type" type="hidden" value="1" />
+		
+
+		
+		<tr>
+			<td align="right" width="10%">
+				邮件标题<font color="red">*</font>	
+			</td>
+			<td><input name="tem_name" id="tem_name" type="text"  maxlength="200" size="25"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				邮件内容<font color="red">*</font>	
+			</td>
+			<td>
+			<textarea  id="content"  name="content"></textarea>
+			<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+			<script type="text/javascript">
+				CKEDITOR.replace('content');
+			</script>
+			</td>
+		</tr>
+		
+
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="7609" />
+				<input type="button" class="buttoncss" name="tradeSub"  onclick="return submitForm()"   value="提交" />&nbsp;&nbsp;
+				<input type="button" class="buttoncss"  name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

@@ -1,0 +1,269 @@
+<!--#include virtual="/Module/Includes/Conn.asp" -->
+<!--#include virtual="/Module/Includes/PubFunc.asp" -->
+<SCRIPT LANGUAGE=javascript>
+<!--
+function SelectAll() {
+	for (var i=0;i<document.selform.selBigClass.length;i++) {
+		var e=document.selform.selBigClass[i];
+		e.checked=!e.checked;
+	}
+}
+
+//-->
+</script>
+<%
+dim szSQL,oRderStatus,adm_type
+oRderStatus=request("oRderStatus")
+'if oRderStatus="" then oRderStatus=1
+adm_type=session("adm_type")
+if adm_type="" or isnull(adm_type) then adm_type="1"
+%>
+<%
+Call CheckManager(session("ManagerName"))
+Call Checklimit(session("Limit"),"2")
+
+SearchFiled=request("SearchFiled")
+SearchKey=trim(request("SearchKey"))
+op="1" 'INetOrderForm
+set oRst=Server.CreateObject("AdoDb.recordset")
+dim strSql,page
+if SearchFiled<>"" and SearchKey<>"" then 
+	strSql=" and a."& SearchFiled
+	if SearchFiled="OrderId" then
+		strSql=strSql&"='"&SearchKey&"'"
+	elseif SearchFiled="CardNo" then
+        strSql=" and a.OrderId in (select OrderId from FlightOrderDetail where CardNo like '%"&SearchKey&"%')"
+	else
+        strSql=strSql&" like '%" &SearchKey& "%'"
+	end if
+end if
+ '--------------------------------------------
+If Request.QueryString("Page") = "" then
+   Page = 1
+Else
+   Page = CINT(Request.QueryString("Page"))
+End If
+
+Adm_StartCity=session("Adm_StartCity")
+city_IfInclude=session("city_IfInclude")
+sqlAddStr=""
+
+If Adm_StartCity="" Or InStr(Adm_StartCity,"*")<>0 Then 
+	sqlAddStr=""
+Else
+	If city_IfInclude="0" Then sqlAddStr=" not "
+	sqlAddStr=" and b.[SeqNum]=1 and "&sqlAddStr&" (instr('"&Adm_StartCity&"',b.[FromCityCode])<>0)" 
+End If
+
+if oRderStatus="" Then
+   szSQL="select distinct a.*,b.FromCity,b.ToCity from FlightOrder a inner join FlightOrderDetail b on a.OrderId=b.OrderId where a.id>0 " & strSql & sqlAddStr &" order by a.id desc"
+Else
+   szSQL="select distinct a.*,b.FromCity,b.ToCity from FlightOrder a inner join FlightOrderDetail b on a.OrderId=b.OrderId where a.[Status]='"&oRderStatus&"'"&strSql&sqlAddStr&" order by a.id desc"
+End IF
+oRst.Open szSQL,conn,3,1
+
+if not(oRst.bof or oRst.eof) then
+	 maxCount=oRst.recordcount
+     oRst.pageSize=15
+	 maxPageCount=oRst.pageCount
+     oRst.AbsolutePage=page
+     if page>maxPageCount then page=maxPageCount
+end if
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>后台管理机票系统</title>
+
+
+<link rel="stylesheet" type="text/css" href="../Style/Style.css" />
+
+<script language="javascript" src="/Flight/Files/Scripts/PubJs.js"></script>
+<script language="JavaScript" type="text/JavaScript">
+<!--
+function relaodme(){
+	window.location="FlightOrderList.asp?oRderStatus=<%=oRderStatus%>";
+}
+function goUrl()
+	{
+		var iPage;
+		iPage=selform.txtPage.value
+		if(isNaN(iPage))
+		{
+			iPage=1
+		}
+
+		var theUrl;
+		
+		theUrl="FlightOrderList.asp?oRderStatus=<%=oRderStatus%>&page="+iPage+"&SearchFiled=<%=SearchFiled%>&SearchKey=<%=SearchKey%>"
+		if(theUrl=="FlightOrderList.asp?page=")
+		{
+			theUrl="FlightOrderList.asp?oRderStatus=<%=oRderStatus%>&SearchFiled=<%=SearchFiled%>&SearchKey=<%=SearchKey%>&page=1"
+		}
+		
+		//alert(theUrl)
+		window.location.href=theUrl
+	}
+	function CheckSearch(){
+	if (FrmSearch.SearchFiled.value==""){
+		alert('未选择搜索类别！');	
+		FrmSearch.SearchFiled.focus();
+		return false;
+		}
+	}
+	
+function airprint(str)
+	{ window.open("../../printx/bin/fly_print.asp?orderno="+str,"","top=80,left=100,width=780,height=600,scrollbars=no,toolbar=no,menubar=no,status=no,resizable=yes");
+ }
+function goPrint(str)
+{
+   //window.open('','printWin');
+   document.formPrint.target="printWin"
+   document.formPrint.OrderID.value=str;
+   document.formPrint.submit(); 
+   }
+   
+   function dele(){
+if(!confirm('已经确认需要删除选中的订单吗？')) return false;
+//alert('测试帐号不能进行删除操作');
+}
+//-->
+</script>
+<form name="formPrint" method="post" action="/Flight/FlightOrderDetail.asp?Print=1">
+<input type="hidden" name="OrderID" value="">
+<input type="hidden" name="flag" value="1">
+</form>
+</head>
+<body>
+<div class="txt_title">
+	机票订单管理 <a href="javascript:OpenWin('OrderAdd','FlightOrderAdd.asp',760,600);" class=underline>添加订单</a>
+</div>
+<table width="99%" cellpadding="0" cellspacing="1" class="attbg" align=center>
+		<form name="FrmSearch" action="FlightOrderList.asp" method="post" onSubmit="return CheckSearch();">
+        <tr> 
+          <td height="30" >
+           状 态：
+           <input type="radio" name="RadOrderStatus" value="" <%if oRderStatus=""  then response.write " checked "%> onClick="javascript:window.location.href='FlightOrderList.asp'" ID="Radio1">所有订单
+           <input type="radio" name="RadOrderStatus" value="1" <%if oRderStatus="1"  then response.write " checked "%> onClick="javascript:window.location.href='FlightOrderList.asp?oRderStatus=1'">新订单
+           <input type="radio" name="RadOrderStatus" value="2" <%if oRderStatus="2"  then response.write " checked "%> onClick="javascript:window.location.href='FlightOrderList.asp?oRderStatus=2'">已确认
+           <input type="radio" name="RadOrderStatus" value="3" <%if oRderStatus="3"  then response.write " checked "%> onClick="javascript:window.location.href='FlightOrderList.asp?oRderStatus=3'">已出票
+           <input type="radio" name="RadOrderStatus" value="4" <%if oRderStatus="4"  then response.write " checked "%> onClick="javascript:window.location.href='FlightOrderList.asp?oRderStatus=4'">已结算
+           <input type="radio" name="RadOrderStatus" value="5" <%if oRderStatus="5"  then response.write " checked "%> onClick="javascript:window.location.href='FlightOrderList.asp?oRderStatus=5'">已取消
+           检 索：         
+           <select name="SearchFiled">
+              <option selected value="">类别选择</option>
+			  <option value="OrderId">订单号</option>
+              <option value="Addr">地址</option>
+              <option value="LinkMan">联系人</option>
+			  <option value="TEL">联系电话</option>
+			  <option value="CardNo">身份证号</option>
+          </select>
+		  <input type="hidden" name="oRderStatus" value="<%=oRderStatus%>">
+		  <input type="text" name="SearchKey">
+		  <input name="Submit" type="submit" value=" 搜 索 "></td>
+        </tr>
+		</form>
+</table>
+<TABLE width="99%" cellPadding=0 cellSpacing=1 bgcolor=#CCCCCC Align=center>
+<form action="FlightOrderDel.asp" method="post" name="selform" >
+        <TBODY>
+          <TR bgcolor=#4D8DD2>
+            <TD width="14%" height="30"  align=center><font color=#FFFFFF>订单号</font></TD>
+            <TD width="6%" height="30"  align=center><font color=#FFFFFF>状态</font></TD>
+            <TD width="7%" height="30"  align=center><font color=#FFFFFF>支付状态</font></TD>
+            <TD width="5%" height="30"  align=center><font color=#FFFFFF>PNR</font></TD>
+            <TD width="20%" height="30"><font color=#FFFFFF>行程信息</font></TD>
+            <TD width="6%" align=center><font color=#FFFFFF>联系人</font></TD>
+            <TD width="9%"  align=center><font color=#FFFFFF>联系手机</font></TD>
+            <TD width="9%"  align=center><font color=#FFFFFF>结算金额</font></TD>
+            <TD width="15%" align=center><font color=#FFFFFF>订单时间</font></TD>
+            <TD width="18%"  align=center><font color=#FFFFFF>操 作</font></TD>
+          </TR>
+		  <%
+            i=0
+			while not oRst.eof and  i<15			
+                i=i+1
+                bc="bgcolor='#fffff8'"
+                if i mod 2=0 then bc="bgcolor='#FFFFFF'"
+
+				    RemindFont="<font color='#444444'>"
+				
+					RemindFontP="</font>"
+		  %>
+          <TR <%=bc%> onMouseOver="this.style.backgroundColor='#f3f3f3';return true;" onMouseOut="this.style.backgroundColor='';" Height=25> 
+            <TD title="<%=oRst("OrderTime")%>">
+                <input name="selBigClass" type="checkbox" id="selBigClass" value="<%=oRst("OrderId")%>">
+                <a Href="javascript:OpenWin('ViewOrder','/Flight/FlightOrderDetail.asp?OrderID=<%=Encode(oRst("OrderId"))%>',700,500);" class=underline><%=oRst("OrderId")%></a>
+            </TD>
+            <TD align=center><%=GetStatusName(oRst("Status"))%></TD>
+            <TD align=center><%=GetPayStatus(oRst("PayResult"))%></TD>
+            <TD align=center><font color=Blue><%=Ucase(oRst("PNR"))%></font></TD>
+            <TD><%=GetFligtInfo(oRst("FromCity"),oRst("ToCity"))%></TD>
+            <TD align=center>
+                <%
+                   IF oRst("MemberId")<>"" Then
+                %>
+                    <a Href="javascript:OpenWin('ViewOrder2','../Member/MemerInfo.asp?mem_name=<%=oRst("MemberId")%>',700,500);" class=underline><%=oRst("LinkMan")%></a>
+                <%Else%>
+                  <%=oRst("LinkMan")%>
+                <%End IF%>
+            </TD>
+            <TD><%=oRst("Mobile")%></TD>
+            <TD class="addrtitle"><font class=Price>￥<%=oRst("TotalPrice")%></font></TD>
+            <TD class="addrtitle"><%=oRst("OrderTime")%></TD>
+            <TD>
+                <a Href="javascript:OpenWin('ViewOrder3','FlightOrderProcess.asp?OrderID=<%=oRst("OrderId")%>',700,500);" class=underline>处理</a> | 
+                <a Href="javascript:OpenWin('ViewOrder3','FlightOrderEdit.asp?OrderID=<%=oRst("OrderId")%>',700,500);" class=underline>编辑</a>
+	        </TD>
+           </TR>
+			<%
+			oRst.MoveNext
+			wend
+			oRst.Close
+			%>
+		<tr><td colspan="2" bgcolor="#FFFFFF">
+		<input type="checkbox" name="checkbox" value="checkbox" onClick="javascript:SelectAll()"> 选择/反选
+        <input type=submit onClick="return dele();" value=删除 name=action2> 
+        <input type="Hidden" name="action" value='del'>
+		</td>
+		<td colspan="8" bgcolor="#FFFFFF"><div align="right" style="right:50px;padding-top:5px;">        
+
+<%
+		response.Write "共"&maxCount&"项，"
+		strHref="<a href=FlightOrderList.asp?oRderStatus="&oRderStatus&"&SearchFiled="&SearchFiled&"&SearchKey="&SearchKey&"&page="
+		if page=1 then response.write "首&nbsp;&nbsp;页 |  "
+		if page>1 then 
+		   response.write strHref & "1>首&nbsp;&nbsp;页</a>  |  "
+		   response.write strHref & page-1 & ">前一页</a>  |  "
+        else
+		   response.write "前一页  |  "
+        end if
+
+		if page<maxPageCount then
+		   response.write strHref & page+1 & ">下一页</a>  | "
+        else
+		   response.write "下一页  |  "
+        end if
+
+		if page=maxPageCount then
+		   response.write "末&nbsp;&nbsp;页"
+        else
+		   response.write strHref & maxPageCount & ">末&nbsp;&nbsp;页</a>"
+        end if
+		response.write "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+		response.write "当前："  & Page & " / " & maxPageCount & " &nbsp;页"
+		response.write "<INPUT TYPE='text' NAME='txtPage' size='3' maxlength='3'>&nbsp;"
+		response.write "<INPUT TYPE='button' value='页' onclick='goUrl()'>"
+		response.write "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+		set oRst=nothing
+		call conn_close()
+%></div></td></tr>
+        </TBODY>
+  </form>
+</TABLE>
+	 
+<BR>
+</body>
+</html>
+

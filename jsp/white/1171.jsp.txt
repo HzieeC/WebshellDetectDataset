@@ -1,0 +1,178 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@page import="com.bizoss.trade.ti_case.*" %>
+<%@page import="com.bizoss.trade.ti_casetrack.*" %>
+<%@page import="com.bizoss.trade.ti_admin.Ti_adminInfo"%>
+<%@page import="java.util.regex.Pattern"%>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo"%>
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page"/>
+
+<html>
+  <head>
+    <title>新增案源追踪管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="index.js"></script>
+	<script type="text/javascript" src="/js/commen.js"></script>
+</head>
+
+<body>
+<%
+	String case_id =request.getParameter("case_id");
+	Ti_caseInfo caseInfo=new Ti_caseInfo();
+	List list= caseInfo.getListByPk(case_id);
+	String title ="",content="",user_name="",user_id="",case_state="";
+	if(list!=null&&list.size()>0){
+		Map map=(Hashtable)list.get(0);
+		title=map.get("case_title").toString();
+		content=map.get("case_content").toString();
+		case_state=map.get("case_state").toString();
+	}
+	//if(session.getAttribute("session_real_name")!=null){
+	//     user_name =session.getAttribute("session_real_name").toString();
+	//}
+	if(session.getAttribute("session_user_id")!=null){
+	     user_id =session.getAttribute("session_user_id").toString();
+	}
+	Ti_adminInfo adminInfo=new Ti_adminInfo();
+	list=adminInfo.getListByPk(user_id);
+	if(list!=null&&list.size()>0)
+		user_name=((Hashtable)list.get(0)).get("real_name").toString();
+	Ti_casetrackInfo ti_casetrackInfo = new Ti_casetrackInfo();
+	list= ti_casetrackInfo.getListByPk(case_id);
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+ 	String s_case_state = tb_commparaInfo.getSelectItem("113",case_state);    
+ %>
+	<h1>新增案源追踪管理</h1>
+
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<input name="case_id" id="case_id" type="hidden" value="<%=case_id%>"/>
+
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="10%">
+				案源标题：<font color="red">*</font>
+			</td>
+			<td><input name="" id="title" size="60" type="text" value="<%=title %>" readonly="readonly"/></td>
+		</tr>
+		<tr>
+			<td align="right" width="10%">
+				案源内容：<font color="red">*</font>
+			</td>
+			<td>
+				<textarea name="content" id="content" cols="70" rows="5" readonly="readonly">
+				<%
+					   String regEx="<.+?>"; //表示标签  
+			           Pattern p=Pattern.compile(regEx);  
+			           content=p.matcher(content).replaceAll("");  
+			           out.print(content);
+				%>
+				</textarea>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="10%">
+				联系结果：<font color="red">*</font>
+			</td>
+			<td>
+				<textarea name="contact_result" id="contact_result" cols="70" rows="5"></textarea>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="10%">
+				案源状态：<font color="red">*</font>
+			</td>
+			<td>
+				<select name="case_state" id="case_state">
+							<option value="">
+								请选择
+							</option>
+							<%=s_case_state %>
+						</select>
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="1686" />
+				<input name="operator_user" id="operator_user" value="<%=user_name %>" type="hidden" />
+				<input type="submit" class="buttoncss" name="tradeSub" value="提交" onclick="return checkSub();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='/program/admin/lawyerCase/index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+		<table width="100%" cellpadding="0" cellspacing="0" border="0"
+				class="dl_bg">
+				<tr>
+					<td width="100%">
+						总计:<%=listsize%>条
+					</td>
+				</tr>
+			</table>
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="10%">操作员</th>
+		  	<th width="60%">联系结果</th>
+		  	<th width="10%">联系次数</th>
+		    <th width="10%">联系时间</th>	 
+			 <th width="10%">删除</th>	 
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String trade_id="", contact_time="",contact_result="",operator_user="",contact_count="",operator_time="";
+						if(map.get("trade_id")!=null) trade_id = map.get("trade_id").toString();
+  	if(map.get("contact_time")!=null) contact_time = map.get("contact_time").toString();
+if(contact_time.length()>19)contact_time=contact_time.substring(0,16);
+  	if(map.get("contact_result")!=null){
+  		 contact_result = map.get("contact_result").toString();
+  		 if(contact_result.length()>40)
+  		 	contact_result=contact_result.substring(0,40);
+  	}
+  	if(map.get("operator_user")!=null) operator_user = map.get("operator_user").toString();
+  	if(map.get("contact_count")!=null) contact_count = map.get("contact_count").toString();
+  	if(map.get("operator_time")!=null) operator_time = map.get("operator_time").toString();
+if(operator_time.length()>19)operator_time=operator_time.substring(0,16);
+
+		  %>
+		
+		<tr>
+			<td  width="10%"><%=operator_user%></td>
+		  	<td  width="60%"><%=contact_result%></td>
+		  	<td width="10%"><%=contact_count%></td>		  	
+		  	<td width="10%"><%=contact_time%></td>	
+			<td width="10%"><a href="javascript:deleteOneInfo('<%=trade_id%>','0678');"><img src="/program/admin/images/delete.gif" title="删除" /></a></td>	  	
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+		<table width="100%" cellpadding="0" cellspacing="0" border="0"
+				class="dl_bg">
+				<tr>
+				<td width="100%">
+				总计:<%=listsize%>条
+					</td>
+				</tr>
+			</table>
+	
+	<%
+		 }
+	%>
+	
+</body>
+
+</html>

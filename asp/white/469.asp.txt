@@ -1,0 +1,244 @@
+<%
+' 创建文章
+Function CreateContent(ByVal Aid, ByVal iPage)
+    Dim Ra, Rc, Cid, Templateview, Filepath, ViewPath, HTML
+    Set Ra = DB("Select * From [{pre}Content] Where [ID]=" & Aid, 3): If Ra.EOF Then Exit Function
+    Set Rc = DB("Select * From [" & GetChannel(Ra("Cid"), "Table") & "] Where [AID]=" & Aid, 1) ' 获取内容
+
+    If Len(Ra("Filepath") & "") = 0 Or Len(Ra("Viewpath") & "") = 0 Then
+        Filepath = BuildFilePath(Ra("ID"), Ra("Cid"), Ra("Diyname"), Ra("Createtime"))
+        ViewPath = BuildViewPath(Ra("ID"), Ra("Cid"), Ra("Diyname"), Ra("Createtime"), "")
+        Ra("Filepath") = Filepath
+        Ra("Viewpath") = ViewPath
+        Ra.Update
+    Else
+        Filepath = Ra("Filepath")
+        ViewPath = Ra("Viewpath")
+    End If
+
+    Cid = Ra("Cid")
+    Templateview = GetChannel(Cid, "Templateview") ' 模板
+
+    ' 页面跳转
+    If Len(Ra("JumpUrl")) > 0 Then
+        Dim JumpALT
+        JumpALT = "<head><meta http-equiv=""Content-Type"" content=""text/html; charset=" & response.charset & """ /><title>" & Ra("Title") & "</title><meta http-equiv=""Refresh"" content=""2;URL=" & Ra("JumpUrl") & """ /></head><body><div style=""text-align:left;margin:10px;""><div style=""padding:6px;font-size:14px;border:solid 1px #CCCCCC;background-color:#F8F8F5;""><h4 style=""padding:5px;font-size:16px;font-weight:bold;display:inline;"">" & Ra("Title") & "</h4><div style=""padding:5px;color:#666666;font-size:12px;"">" & Ra("Description") & "</div></div></div></body></html>"
+        If iPage = 1 Then CreateContent = JumpALT
+        If Createhtml = 1 Or Createhtml = 3 Then Call CreateFile(JumpALT, Filepath) ' 保存
+        Ra.Close: Exit Function
+    End If
+
+    ' 内容处理
+    Dim Content
+    If Rc.EOF Then Content = "<!--Null-->" Else Content = Rc("Content"): Rc.Close
+    Content = ProcessSitelink(Content) ' 站内链接
+	Content = AutoSplitPages(Content,"#p##e#",MaxPageNum) ' 自动分页
+    Content = ReplaceX(Content, "\[cc\](.*?)\[\/cc\]", "<object classid='clsid:D27CDB6E-AE6D-11cf-96B8-444553540000' codebase='http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0' width='438' height='387'><param name='movie' value='http://union.bokecc.com/$1'><param name='allowFullScreen' value='true' /><param name='quality' value='high'><embed src='http://union.bokecc.com/$1' quality='high' pluginspage='http://www.macromedia.com/go/getflashplayer' type='application/x-shockwave-flash' width='438' height='387' allowFullscreen=true ></embed></object>")
+    Content = ReplaceX(Content, "#p#(.*?)#e#", "#page#") ' 使用简单分页
+    Content = Replace(Replace(Content, "{", "{www.5u.hk"), "<!--", "<!www.5u.hk--")
+    Content = Replace(Content,"<img alt="""" src=""","<img alt=""" & Replace(Replace(Ra("title"),"'",""),"""","") & """ src=""")
+    Content = Replace(Content,"<img alt=""","<img onload=""size(this)"" alt=""")
+
+
+    ' 载入模板
+    Dim TPL
+    Set TPL = New Cls_Template
+    Call TPL.Load(Templateview) ' 处理模板
+    
+    ' 正表达式
+    Dim RegEx, Matches, Match
+    Set RegEx = New RegExp
+    RegEx.Ignorecase = True
+    RegEx.Global = True
+    
+    ' 文章浏览页专用标签替换
+    Dim SQL, Ns, Tmp, Tid, Turl
+    RegEx.Pattern = "{tag:([\s\S]*?)}"
+    Set Matches = RegEx.Execute(TPL.Content)
+    For Each Match In Matches
+        Tmp = "": Tid = 0: Turl = ""
+        Select Case LCase(Replace(Match.SubMatches(0), " ", ""))
+        Case "pre"
+			tmp = getprenext(aid,cid,"pre")
+        Case "next"
+            tmp = getprenext(aid,cid,"next")
+        Case "sitepath" ' 站点路径
+            tmp = getsitepath(cid) & sitePathSplit & lang_content_sitepath
+        Case "page"
+            Tmp = Match.Value ' 让下面调用哦
+        End Select
+        TPL.Content = Replace(TPL.Content, Match.Value, Tmp)
+    Next
+
+    Dim i, j
+    Dim TmpContent, TmpFilepath, TmpTemplate, TmpUrls,SelfCID,FatherID
+	SelfCID = Ra("Cid")
+	FatherID = getchannel(SelfCID,"FatherID")
+    TPL.Content = ReplaceX(TPL.Content, "\{field:cid\}", SelfCID) ' 分类ID
+    TPL.Content = ReplaceX(TPL.Content, "\{field:id\}", Ra("ID")) ' 自身ID
+    TPL.Content = ReplaceX(TPL.Content, "\{field:aid\}", Ra("ID")) ' 自身ID
+	TPL.Content = ReplaceX(TPL.Content, "\{field:Fatherid\}", FatherID)
+	if FatherID=0 Then
+		TPL.Content = ReplaceX(TPL.Content, "\{field:FatherName\}","无父栏目")
+	Else
+		TPL.Content = ReplaceX(TPL.Content, "\{field:FatherName\}",getchannel(FatherID,"Name"))
+	End If
+    TPL.Content = ReplaceX(TPL.Content, "\{field:keywords\}", Replace(Ra("keywords"), "$", "")) ' 关键字
+	if instr(Ra("source"),"|")>0 then'来源
+		dim sc
+		sc = split(Ra("source"),"|")
+		TPL.Content = ReplaceX(TPL.Content, "\{field:source\}", "<a href="&sc(1)&" target=_blank>"&sc(0)&"</a>")
+	end if
+
+    Call TPL.Parser_My   ' 自定义标签
+    Call TPL.Parser_Sys   ' 系统标签
+    Call TPL.Parser_Com   ' 列表标签
+    TmpTemplate = TPL.Content ' 把大部分参数处理下并放在暂时模板变量时
+    TmpContent = Split(Content, "#page#") ' 分隔内容,暂时内容变量
+
+    For i = 0 To UBound(TmpContent)
+        TmpFilepath = GetPages(Aid, Ra("Diyname"), Filepath, i) ' 获取当前生成页
+        
+        ' 分页
+        TmpUrls = ""
+        If UBound(TmpContent) >= 1 Then
+            'If i > 0 Then TmpUrls = TmpUrls & "<a href=""" & GetPages(Aid, Ra("Diyname"), ViewPath, i - 1) & """>" & Lang_Content_Pre & "</a>" Else TmpUrls = TmpUrls & "<a href=""#"">" & Lang_Content_Pre & "</a>"
+			If i > 0 Then TmpUrls = TmpUrls & "<a href=""" & GetPages(Aid, Ra("Diyname"), ViewPath, i - 1) & """>" & Lang_Content_Pre & "</a>" Else TmpUrls = TmpUrls & ""
+            For j = 0 To UBound(TmpContent)
+                If i = j Then
+                    TmpUrls = TmpUrls & "<a href=""" & GetPages(Aid, Ra("Diyname"), ViewPath, j) & """ class=""current"">" & j + 1 & "</a>"
+                Else
+                    TmpUrls = TmpUrls & "<a href=""" & GetPages(Aid, Ra("Diyname"), ViewPath, j) & """>" & j + 1 & "</a>"
+                End If
+            Next
+            'If i < UBound(TmpContent) Then TmpUrls = TmpUrls & "<a href=""" & GetPages(Aid, Ra("Diyname"), ViewPath, i + 1) & """>" & Lang_Content_Next & "</a>" Else TmpUrls = TmpUrls & "<a href=""#"">" & Lang_Content_Next & "</a>"
+			If i < UBound(TmpContent) Then TmpUrls = TmpUrls & "<a href=""" & GetPages(Aid, Ra("Diyname"), ViewPath, i + 1) & """>" & Lang_Content_Next & "</a>" Else TmpUrls = TmpUrls & ""
+        Else
+            TmpUrls = "" ' 无分页
+        End If
+        TPL.Content = ReplaceX(TmpTemplate, "{tag:page}", TmpUrls) ' 替换分页链接,当前链接加红显示
+        TPL.Content = ReplaceX(TPL.Content, "\{field:content\}", TmpContent(i)) ' 先替换内容
+        If i=0 then
+		TPL.Content = ReplaceX(TPL.Content, "\{field:title_page\}", "") ' 先替换内容
+		Else
+		TPL.Content = ReplaceX(TPL.Content, "\{field:title_page\}", "_第"&i+1&"页") ' 先替换内容
+		End If
+        TPL.Content = TPL.Parser_Tags("\{field:(.+?)\}", TPL.Content, Ra) ' 替换其它字段
+        Call TPL.Parser_IF   ' 判断函数分析
+        HTML = Replace(Replace(TPL.Content, "{www.5u.hk", "{"), "<!www.5u.hk--", "<!--") ' 替换成原来的
+        If Createhtml = 1 Or Createhtml = 3 Then Call CreateFile(HTML, TmpFilepath) ' 保存
+        If Int(iPage) = i + 1 Then CreateContent = HTML ' 返回当页内容
+    Next
+    Set TPL = Nothing: Ra.Close
+
+End Function
+
+' 获取文章内容分页链接
+Function GetPages(ByVal Aid, ByVal DiyName, ByVal Filepath, ByVal i)
+    GetPages = Filepath
+    Select Case Createhtml
+    Case 1, 3
+        If i > 0 Then
+            Dim TmpFile, TmpName
+            If Right(Filepath, 1) = "/" Then
+                GetPages = Left(Filepath, Len(Filepath) - 1) & "_" & i & "/"
+            Else
+                TmpFile = Split(Filepath, ".")
+                TmpName = "." & TmpFile(UBound(TmpFile))
+                GetPages = Replace(GetPages, TmpName, "_" & i & TmpName)
+            End If
+        End If
+    Case Else
+        If i > 0 Then
+            GetPages = "content.asp?id=" & Aid & "&Page=" & i + 1
+        Else
+            GetPages = "content.asp?id=" & Aid
+        End If
+        If Createhtml = 2 And Len(DiyName) > 0 Then GetPages = GetPages & "&Diy=" & DiyName & "///"
+    End Select
+End Function
+
+' 获取上下篇文章
+' 文章ID,栏目ID,上下篇标记
+function getprenext(aid,cid,tag)
+	dim rs,sql
+	sql = "select top 1 [id],[cid],[title],[diyname],[createtime],[viewpath] from [{pre}content] where [display]=1"
+	if prenextmode = 1 and len(cid)>0 and isnumeric(cid) then sql = sql & " and [cid]=" & cid
+	if lcase(tag) = "pre" then sql = sql & " and [id]>" & aid & " order by [id] asc"
+	if lcase(tag) = "next" then sql = sql & " and [id]<" & aid & " order by [id] desc"
+	set rs = db(sql,1)
+	if rs.eof then
+		if prenextmode = 1 and len(cid)>0 and isnumeric(cid) then
+			if len(getchannel(cid, "domain")) > 0 then getprenext = GetChannel(cid, "domain") else getprenext = httpurl & getchannel(cid, "ruleindex")
+			if len(getchannel(cid, "domain")) = 0 and createhtml <> 1 then getprenext = sysurl & "channel.asp?id=" & cid
+			getprenext = "<a href='" & getprenext & "'>[" & getchannel(cid, "name") & "]</a>"
+		else
+			getprenext = "<a href='" & indexview & "'>[" & webname & "]</a>"
+		end if
+	else
+		getprenext = "<a href='" & buildviewpath(rs(0), rs(1), rs(3), rs(4), rs(5)) & "'>" & rs(2) & "</a>"
+	end if
+	rs.close
+	set rs = nothing
+end function
+
+' 获取站内路径URL
+function getsitepath(cid)
+	dim path,fid : fid = cid
+	do while int(fid) > 0
+		if len(getchannel(fid, "domain")) > 0 then path = getchannel(fid, "domain") else path = httpurl & getchannel(fid, "ruleindex")
+		If Len(getchannel(fid, "domain")) = 0 and createhtml <> 1 then path = sysurl & "channel.asp?id=" & fid ' 动态浏览
+		getsitepath = sitepathsplit & " <a href='" & path & "'>" & getchannel(fid, "Name") & "</a>" & getsitepath
+		fid = getchannel(fid, "fatherID")
+	loop
+	getsitepath = "<a href='" & indexview & "'>" & webname & "</a>" & getsitepath
+end function
+
+' 获取站内路径2
+function getsitepathbytitle(byval tit)
+	getsitepathbytitle = "<a href='" & indexview & "'>" & webname & "</a>" & sitepathsplit & tit
+end function
+
+
+' 站内链接处理
+Function ProcessSitelink(ByVal ContentHTML)
+    If GetCache("SitelinkState") = "No" Then ProcessSitelink = ContentHTML: Exit Function
+    If Not ChkCache("Sitelink") Then
+        Dim Rslink
+        Set Rslink = DB("Select [Text],[Link],[Replace],[Target],[Description] From [{pre}Sitelink] Where [State]=1 Order By [Order] Desc", 1)
+        If Not Rslink.EOF Then
+            Call SetCache("Sitelink", Rslink.Getrows())
+            Call SetCache("SitelinkState", "Yes")
+        Else
+            Call SetCache("SitelinkState", "No")
+            ProcessSitelink = ContentHTML
+            Exit Function
+        End If
+        Rslink.Close: Set Rslink = Nothing
+    End If
+    
+    Dim RegEx, Matches, Match
+    Set RegEx = New RegExp
+    RegEx.Ignorecase = True
+    RegEx.Global = True
+
+    Dim Dat, i, j, Url, UrlTitle
+    Dat = GetCache("Sitelink")
+    For i = 0 To UBound(Dat, 2)
+        j = 0
+        If InStr(ContentHTML, Dat(0, i)) > 0 Then
+            RegEx.Pattern = "(>[^><]*)" & Dat(0, i) & "([^><]*<)(?!/a)"
+            Set Matches = RegEx.Execute(">" & ContentHTML & "<")
+            For Each Match In Matches
+                UrlTitle = Dat(4, i)
+                If InStr(UrlTitle, "|") > 0 Then Randomize: UrlTitle = Split(UrlTitle, "|")(Round(UBound(Split(UrlTitle, "|")) * Rnd))
+                If Dat(3, i) = 1 Then Url = "<a href='" & Dat(1, i) & "' title='" & UrlTitle & "' target='_blank'>" & Dat(0, i) & "</a>" Else Url = "<a href='" & Dat(1, i) & "' title='" & UrlTitle & "'>" & Dat(0, i) & "</a>"
+                Url = Replace(Url, "$", "&#36;")
+                ContentHTML = Replace(ContentHTML, Match.Value, Match.SubMatches(0) & Url & Match.SubMatches(1))
+                j = j + 1: If Dat(2, i) > 0 And j >= Dat(2, i) Then Exit For
+            Next
+        End If
+    Next
+    ProcessSitelink = ContentHTML
+End Function
+%>

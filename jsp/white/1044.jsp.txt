@@ -1,0 +1,132 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="connections.UserDao,java.util.ArrayList,javaBean.UserBean"%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>MianFeiZhe内容管理系统 - 用户管理中心</title>
+<meta name="description" content="Design By www.Newasp.com,newasp.cn" />
+<link href="style.css" type="text/css" rel="stylesheet" />
+<script language="JavaScript" src="images/manage.js"></script>
+<script language="JavaScript" src="images/common.js"></script>
+<script language="JavaScript">
+<!--
+function preloadImg(src)
+{
+	var img=new Image();
+	img.src=src
+}
+preloadImg("images/manage_arrow_left.gif");
+var displayBar=true;
+function switchBar(obj)
+{
+	if (displayBar)
+	{
+		parent.frame.style.display="none"
+		displayBar=false;
+		obj.src="images/manage_arrow_right.gif";
+		obj.title="打开左边管理菜单";
+	}
+	else{
+		parent.frame.style.display=""
+		displayBar=true;
+		obj.src="images/manage_arrow_left.gif";
+		obj.title="关闭左边管理菜单";
+	}
+}
+//-->
+</script>
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<table border="0" align="center" width="100%" cellspacing="0" cellpadding="0">
+	<tr>		
+		<td width="5%" height="22" background="images/manage_top_bg.gif"><img onclick="switchBar(this)" src="images/manage_arrow_right.gif" style="cursor:hand" title="关闭左边管理菜单" align="absMiddle"><td>
+		<td width="95%" background="images/manage_top_bg.gif">当前位置：<span class="shadow" id="locationid"></span></td>
+	</tr>
+</table>
+<table border="0" align="center" width="100%" cellspacing="0" cellpadding="0">
+	<tr>
+		<td height="6"></td>
+	</tr>
+</table><script language="JavaScript">locationid.innerHTML = "修改会员资料";</script>
+<script language="JavaScript">
+<!--
+function checkForm() {
+	if (document.myform.password.value.length == 0) {
+		alert("请输入您的用户密码!");
+		document.myform.password.focus();
+		return false;
+	}
+	if (document.myform.nickname.value.length == 0) {
+		alert("请输入您的用户昵称!");
+		document.myform.nickname.focus();
+		return false;
+	}
+	if (document.myform.codestr.value.length != 4) {
+		alert("验证码输入有误!");
+		document.myform.codestr.focus();
+		return false;
+	}
+	if (document.myform.usermail.value.length == 0) {
+		alert("请输入您的E-mail");
+		document.myform.usermail.focus();
+		return false;
+	}
+		return true;
+}
+//-->
+</script>
+<table cellspacing=1 align=center cellpadding=2 bgcolor=#cccccc border=0 class=Usertableborder>
+	<tr>
+		<th colspan=2>修改个人资料</th>
+	</tr>
+	<form method="post" name=myform action="<%=request.getContextPath()%>/servletspuser?action=changeinfo" onsubmit="return checkForm();">
+	<tr>
+		<td align=right width="25%" class=Usertablerow1 height=20>用户名：</td>
+		<td width="75%" class=Usertablerow1> <strong class=userfont1><%=request.getSession().getAttribute("name")%></strong>
+			<input type=hidden name=username value="<%=request.getSession().getAttribute("name")%>"><input type=hidden name=userid value="1"></td>
+	</tr>
+	<%
+		UserDao dao=new UserDao();
+		String sql="select * from userinfo where userName='"+request.getSession().getAttribute("name")+"'";
+		ArrayList alist=dao.allinfo(sql);
+		UserBean ub=(UserBean)alist.get(0);
+
+	%>
+	<tr bgcolor=#ffffff>
+		<td align=right class=Usertablerow2 height=20>&nbsp;用户邮箱(<span class=userfont1>*</span>)：</td>
+		<td class=Usertablerow2> <input type=text class=inputbody size=30 name=usermail value="<%=ub.getUserEmail()%>" maxlength="50"> <span class=userfont1>注意：</span><font color=#808080>请填写你常用的邮箱</font></td>
+	
+	</tr>
+	
+	<tr>
+		<td align=right class=Usertablerow2 height=20>个人主页：</td>
+		<td class=Usertablerow2> <input class=inputbody type=text size=30 name=HomePage value="<%=ub.getWebAddress()%>" maxlength="35"> <font color=#808080>以“http://”开头</font></td>
+	</tr>
+		<tr>
+		<td align=right class=Usertablerow1 height=20>性别：</td>
+		<td class=Usertablerow1> 
+			<%if(ub.getSex().equals("男")){%>
+			<input type=radio name='sex' value="男" checked> 男&nbsp;&nbsp;
+			<input type='radio' name='sex' value="女"> 女&nbsp;&nbsp;
+			<%}else{%>
+			<input type=radio name='sex' value="男"> 男&nbsp;&nbsp;
+			<input type='radio' name='sex' value="女" checked> 女&nbsp;&nbsp;
+			<%}%>
+	</tr>
+	
+	<tr>
+		<td align=right class=Usertablerow1 height=20>你的QQ：</td>
+		<td class=Usertablerow1> <input class=inputbody type=text size=20 name=oicq value="<%=ub.getQQ()%>" maxlength="20"></td>
+	</tr>
+	<tr>
+		<td align=right class=Usertablerow1 height=20>用户密码：</td>
+		<td class=Usertablerow1> <input class=inputbody type=password size=30 name=password value="" maxlength="50"> <span class=userfont1>输入正确的密码才能修改用户资料</span></td>
+	</tr>
+	<tr>
+		<td align=middle class=Usertablerow2 height=20>&nbsp; </td>
+		<td class=Usertablerow2 align=center><input type=submit value=" 确 认 " name="submit" class="button"></td>
+	</tr></form>
+</table>
+</body>
+</html>

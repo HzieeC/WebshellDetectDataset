@@ -1,0 +1,316 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../inc/setup.asp"-->
+<!--#include file="../inc/const.asp"-->
+<!--#include file="../inc/check.asp"-->
+<!--#include file="../../inc/cls_editor.asp" -->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_message.asp
+' 更新日期：2008-09-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="100" align="left">用户短信管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_index.asp">管理首页</a>
+			 - <a href="admin_message.asp">短信管理</a>
+			 - <a href="admin_list.asp">用户列表</a>
+			 - <a href="admin_group.asp">用户组管理</a>
+			 - <a href="admin_card.asp">会员充值卡</a>
+			 - <a href="admin_userorder.asp">会员充值定单</a>
+			 - <a href="admin_account.asp">交易明细查询</a>
+			 - <a href="admin_confirm.asp">交费确认</a>
+		</td>
+	</tr>
+</table>
+<%
+Dim Action
+
+If Not ChkAdmin("Message") Then
+	Call Transfer_error()
+End If
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+Case "save"
+	Call savemessage()
+Case "del"
+	Call delmessage()
+Case "delall"
+	Call delAllmessage()
+Case Else
+	Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+%>
+<script language=JavaScript>
+var _maxCount = '6400';
+function doSubmit(){
+	if (document.myform.topic.value==''){
+		alert('短信标题不能为空！');
+		document.myform.topic.focus();
+		return false;
+	}
+	MessageLength = document.myform.content.value.length;
+	if(MessageLength < 2){
+		alert('短信内容不能小于2个字符！');
+		document.myform.content.focus();
+		return false;
+	}
+	if(MessageLength > _maxCount){
+		alert('短信的内容不能超过'+_maxCount+'个字符！');
+		return false;
+	}
+}
+</script>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th>&rsaquo;&rsaquo;用户短信管理</th>
+</tr>
+<tr>
+	<td class="tablerow1">共有用户短信：<b><font color="red"><%=AllUsersmsnum%></font></b> 条 &nbsp;&nbsp;今日用户短信：<b><font color="red"><%=DayUsersmsnum%></font></b> 条</td>
+</tr>
+<tr>
+	<td class="tablerow2"><form action="admin_message.asp?action=del" method="post" name="form1">
+		<b>批量删除某一用户的短信：</b>
+		<input size="30" name="username" type="text" />&nbsp;
+		<input class="button" type="submit" name="submit_button" onclick="return confirm('您确定要删除此用户短信吗?')" value=" 提 交 " />
+	</form></td>
+</tr>
+<tr>
+	<td class="tablerow1"><form action="admin_message.asp?action=delall" method="post" name="form2">
+		<b>批量删除指定日期内短信：</b>
+		<select size="1" name="delDate">
+			<option value="7" selected="selected">一个星期前</option>
+			<option value="30">一个月前</option>
+			<option value="60">两个月前</option>
+			<option value="180">半年前</option>
+			<option value="all">所有短信</option>
+		</select> &nbsp;
+		<input type="checkbox" name="isread" value="yes" />包括未读信息 &nbsp;&nbsp;
+		<input class="button" type="submit" name="submit_button" onclick="return confirm('您确定要删除此短信吗?')" value=" 提 交 " />
+	</form></td>
+</tr>
+</table>
+<form action="admin_message.asp?action=save" method="post" onsubmit="return doSubmit()" name="myform">
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">&rsaquo;&rsaquo;用户短信群发</th>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>短信标题:</b></td>
+	<td class="tablerow1"><input maxlength="70" size="70" name="topic" type="text" /></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><b>收件人:</b></td>
+	<td class="tablerow2"><select size="1" name="UserGroup">
+	<%
+	Dim RsObj
+	Set RsObj = NewAsp.Execute("SELECT GroupName,Grades FROM NC_UserGroup ORDER BY Groupid")
+	Do While Not RsObj.EOF
+		Response.Write "	<option value=""" & RsObj("Grades") & """"
+		If RsObj("Grades") = 0 Then Response.Write " selected"
+		Response.Write ">"
+		If RsObj("Grades") = 0 Then
+			Response.Write "所有用户"
+		Else
+			Response.Write RsObj("GroupName")
+		End If
+		Response.Write "</option>" & vbCrLf
+		RsObj.movenext
+	Loop
+	Set RsObj = Nothing
+	%>
+	</select></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><b>短信内容:</b></td>
+	<td class="tablerow1"><%
+	Dim oEditor
+	Set oEditor = New Editor_Cls
+	oEditor.UserMode		= 0
+	oEditor.setEditMode		= 2
+	oEditor.ChannelID		= 0
+	oEditor.Width			= 550
+	oEditor.Height			= 300
+	oEditor.BasePath		= "../../editor/"
+	oEditor.ToolbarSet		= "Basic"
+	oEditor.InstanceName	= "content"
+	oEditor.Execute()
+	Set oEditor = Nothing
+	%></td>
+</tr>
+<tr align="center">
+	<td class="tablerow2" colspan="2"><input class="button" type="submit" name="submit_button" value=" 发送短信 " /></td>
+</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub savemessage()
+	Dim Rs,SQL
+	Dim strTopic,strContent,sender
+	Dim UserGrade,isshow,i,smsnum,userlist
+	isshow = CInt(Request("isshow"))
+	If Trim(Request("topic")) = "" Then
+		ErrMsg = "<li>短信标题不能为空。</li>"
+		FoundErr = True
+		Exit Sub
+	Else
+		strTopic = NewAsp.CheckStr(Request("topic"))
+	End If
+	If Trim(Request("content")) = "" Then
+		ErrMsg = "<li>短信内容不能为空。</li>"
+		FoundErr = True
+		Exit Sub
+	Else
+		strContent = Request("content")
+	End If
+	strContent = NewAsp.HTMLEncodes(strContent)
+	sender = NewAsp.MainSetting(1)
+	UserGrade = CInt(Request("UserGroup"))
+	If CInt(Request("UserGroup")) = 0 Then
+		SQL = "INSERT INTO NC_Message (sender,incept,title,content,flag,SendTime,isRead,delSend) VALUES ('"& sender &"','所有用户','"& strTopic &"','"& strContent &"',1,"& NowString &",0,0) "
+		NewAsp.Execute(SQL)
+		NewAsp.Execute ("UPDATE NC_User SET usermsg=usermsg+1")
+		Succeed("<li>发送所有用户短信成功！</li>")
+		Exit Sub
+	Else
+		SQL = "SELECT COUNT(userid) FROM [NC_User] WHERE UserGrade="& UserGrade
+		Set Rs = NewAsp.Execute(SQL)
+		smsnum = Rs(0)
+		Rs.Close
+		SQL = "SELECT username FROM [NC_User] WHERE UserGrade="& UserGrade &" ORDER BY userid DESC"
+	End If
+	Response.Write "<br><table width=""400"" align=""center"" border=""0"" cellspacing=""1"" cellpadding=""1"">" & vbCrLf
+	Response.Write "<tr>" & vbCrLf
+	Response.Write "<td>下面开始发送短消息，预计本次发送" & smsnum & "个用户。</td></tr>" & vbCrLf
+	Response.Write "<tr> " & vbCrLf
+	Response.Write "<td style=""border: 1px #384780 solid ;background-color: #FFFFFF;"">" & vbCrLf
+	Response.Write "<table width=""0"" id=""table2"" name=""table2"" border=""0"" cellspacing=""0"" cellpadding=""0"">" & vbCrLf
+	Response.Write "<tr height=""12""><td bgcolor=""#36D91A"">" & vbCrLf
+	Response.Write "</td></tr></table></td></tr><tr> " & vbCrLf
+	Response.Write "<td> <span id=""txt2"" name=""txt2"" style=""font-size:9pt"">0</span></td></tr>" & vbCrLf
+	Response.Write "</table><br>" & vbCrLf
+	Response.Flush
+	Set Rs = NewAsp.Execute(SQL)
+	If Not (Rs.EOF And Rs.BOF) Then
+		userlist=Rs.GetRows(-1)
+		Set Rs = Nothing
+		For i=0 to UBound(userlist,2)
+			userlist(0,i)=NewAsp.CheckStr(userlist(0,i))
+			If Response.IsClientConnected Then
+				If isshow = 1 Then
+					Response.Write "<script>" & vbCrLf
+					Response.Write "document.getElementById('table2').style.width='" & Fix((i / smsnum) * 400) & "px';" & vbCrLf
+					Response.Write "document.getElementById('txt2').innerHTML=""" & FormatNumber(i / smsnum * 100, 2, -1) & "，发送短信给" & userlist(0,i) & "成功！"";" & vbCrLf
+					Response.Write "</script>" & vbCrLf
+					Response.Flush
+				End If
+				SQL = "INSERT INTO NC_Message (sender,incept,title,content,flag,SendTime,isRead,delSend) VALUES ('"& sender &"','"& userlist(0,i) &"','"& strTopic &"','"& strContent &"',0,"& NowString &",0,0) "
+				NewAsp.Execute(SQL)
+				NewAsp.Execute ("UPDATE NC_User SET usermsg=usermsg+1 WHERE username='"& userlist(0,i) &"'")
+			End If
+		Next
+		Response.Write "<script>document.getElementById('table2').style.width='400px';txt2.innerHTML=""100%，发送完成..."";</script>"
+		Response.Flush
+	End If
+	Succeed("<li>发送用户短信完成！请继续其它操作。</li>")
+End Sub
+
+Sub delmessage()
+	Dim SQL
+	If Trim(Request("username")) = "" Then
+		ErrMsg = "<li>请输入要批量删除的用户名。</li>"
+		FoundErr = True
+		Exit Sub
+	End If
+	SQL = "DELETE FROM NC_Message WHERE Sender='" & NewAsp.CheckStr(Request("username")) & "'"
+	NewAsp.Execute(SQL)
+	NewAsp.Execute ("UPDATE NC_User SET usermsg=0 WHERE username='"& NewAsp.CheckStr(Request("username")) &"'")
+	Succeed("<li>删除用户：" & Request("username") & " 的短信成功！</li>")
+End Sub
+
+Sub delAllmessage()
+	Dim Rs,SQL
+	Dim selRead, summid,i
+	If Request("isread") = "yes" Then
+		selRead = " ORDER BY id"
+	Else
+		selRead = " And isRead = 1 ORDER BY id"
+	End If
+	Select Case Request("delDate")
+	Case "all"
+		If Request("isread") = "yes" Then
+			NewAsp.Execute("DELETE FROM NC_Message")
+		Else
+			NewAsp.Execute("DELETE FROM NC_Message WHERE isRead > 0")
+		End If
+		Succeed("<li>删除所有用户短信成功！</li>")
+		Exit Sub
+	Case 7
+		If IsSqlDataBase = 1 Then
+			SQL = "SELECT id FROM NC_Message WHERE DATEDIFF(d, Sendtime, GetDate()) > 7 " & selRead
+		Else
+			SQL = "SELECT id FROM NC_Message WHERE DATEDIFF('d', Sendtime, Now()) > 7 " & selRead
+		End If
+	Case 30
+		If IsSqlDataBase = 1 Then
+			SQL = "SELECT id FROM NC_Message WHERE DATEDIFF(d, Sendtime, GetDate()) > 30 " & selRead
+		Else
+			SQL = "SELECT id FROM NC_Message WHERE DATEDIFF('d', Sendtime, Now()) > 30 " & selRead
+		End If
+	Case 60
+		If IsSqlDataBase = 1 Then
+			SQL = "SELECT id FROM NC_Message WHERE DATEDIFF(d, Sendtime, GetDate()) > 60 " & selRead
+		Else
+			SQL = "SELECT id FROM NC_Message WHERE DATEDIFF('d', Sendtime, Now()) > 60 " & selRead
+		End If
+	Case 180
+		If IsSqlDataBase = 1 Then
+			SQL = "SELECT id FROM NC_Message WHERE DATEDIFF(d, Sendtime, GetDate()) > 180 " & selRead
+		Else
+			SQL = "SELECT id FROM NC_Message WHERE DATEDIFF('d', Sendtime, Now()) > 180 " & selRead
+		End If
+	End Select
+	Set Rs = NewAsp.Execute(SQL)
+	summid = 0
+	If Not (Rs.EOF And Rs.BOF) Then
+		SQL = Rs.GetRows(-1)
+		Rs.Close:Set Rs = Nothing
+		For i = 0 To Ubound(SQL,2)
+			NewAsp.Execute("DELETE FROM NC_Message WHERE id = " & SQL(0,i))
+			summid = summid + 1
+		Next
+	End If
+	Succeed("<li>共删除" & summid & "条用户短信成功！请继续别的操作。</li>")
+End Sub
+
+Function AllUsersmsnum()
+	On Error Resume Next
+	AllUsersmsnum = NewAsp.Execute("SELECT COUNT(id) FROM NC_Message")(0)
+End Function
+
+Function DayUsersmsnum()
+	On Error Resume Next
+	If isSqlDataBase = 1 Then
+		DayUsersmsnum = NewAsp.Execute("SELECT COUNT(id) FROM NC_Message WHERE datediff(d,SendTime,GetDate())=0")(0)
+	Else
+		DayUsersmsnum = NewAsp.Execute("SELECT COUNT(id) FROM NC_Message WHERE SendTime >= Date()")(0)
+	End If
+End Function
+%>

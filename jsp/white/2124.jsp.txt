@@ -1,0 +1,229 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@ page import="global.security.SessionUtils"%>
+
+<%@page import="global.Constants"%><html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			Ext.state.Manager.setProvider(new Ext.state.CookieProvider());
+			// 主题
+		    //var themeFormPanel = new Anynote.themeComboBox({
+		    //	renderTo: 'themeChangeDiv'
+		    //});
+		    $("#sayHelloSpan").text(Anynote.sayHello());
+		    $("#todayDate").html("<a href='javascript:openCalendar()'>"+Anynote.getToday()+"</a>");
+		});
+
+		// 账户信息
+		function editUser(){
+			editUserWindow = new Ext.Window({
+				title: '账户信息',
+				width: 350,
+				height: 400,
+				modal: true,
+				maximizable: false,
+				resizable: false,
+				layout:'fit',
+				plain: true,
+				autoLoad:{url:'<%=baseUrl %>/websrc/page/user/editUser.jsp',scripts:true,nocache:true},
+				listeners: {
+					close: function(){
+						var buttonType = Ext.getCmp("buttonType").getValue();
+						if(buttonType == "save"){
+							Anynote.changeTheme(Ext.getCmp("themeCombo").getValue());
+						}else{
+							Anynote.changeTheme("<%=SessionUtils.getUserMeta().get("theme")%>");
+						}
+					}
+				}
+			});
+			editUserWindow.show();
+		}
+
+		// 修改密码
+		function editPassword(){
+			changePwdWindow = new Ext.Window({
+				title: '修改密码',
+				width: 300,
+				height: 150,
+				modal: true,
+				maximizable: false,
+				resizable: false,
+				layout:'fit',
+				plain: true,
+				autoLoad:{url:'<%=baseUrl %>/websrc/page/user/changePwd.jsp',scripts:true,nocache:true}
+			});
+			changePwdWindow.show();
+		}
+		
+		// 用户退出
+		function logout(){
+			Ext.Msg.confirm("警告", "确定要退出吗？", function(btn){
+				if(btn=="yes"){
+					// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						action: '/loginAction.do?method=logout',
+						callback: function(jsonResult){
+							Ext.state.Manager.set('Anynote_autoLogin', false);
+							location.href="<%=baseUrl %>";
+						},
+						showWaiting: true
+					});
+				}
+			});
+		}
+
+		// 锁定
+		function lock(){
+			Ext.Msg.confirm("警告", "确定要锁定吗？", function(btn){
+				if(btn=="yes"){
+					// 用户登录Form
+					var lockFormPanel = new Ext.FormPanel({
+				        border: false,
+				        labelWidth: 40,
+				        bodyStyle: 'padding:10px 5px 0px 5px;background-color:transparent;',
+				        url: '<%=baseUrl %>/loginAction.do?method=login',
+				        items: [{// 笔记标题
+				        	xtype:'label',
+		    				html: '系统正在使用，并被锁定，请输入密码解除锁定',
+		    				style: 'font-size:12px;',
+		    				cls: 'x-form-item-label'
+						},{
+				            layout:'column',
+				            border: false,
+				            bodyStyle: 'background-color:transparent;margin-top:10px;',
+				            items:[{// 分类ID
+				        		columnWidth: .8,
+								layout: 'form',
+								border: false,
+								bodyStyle: 'background-color:transparent;',
+				        		items: [new Ext.form.TextField ({// 密码
+				        			inputType: 'password',
+					                name: 'password',
+					                fieldLabel: '密码',
+					                anchor:'98%',
+					                maxLength: 20,
+					                listeners:{
+										specialKey:function(field, e){
+											if(e.getKey() == Ext.EventObject.ENTER){
+												Ext.getCmp("lock-tick-button").handler();
+											}
+										}
+					               }
+					           })]
+				        	},{// 分类ID
+				        		columnWidth: .2,
+								layout: 'form',
+								border: false,
+								bodyStyle: 'background-color:transparent;',
+				        		items: [new Ext.Button({
+					        		id: 'lock-tick-button',
+								    text: '确定',
+									iconCls: 'tick',
+									handler: function(){
+										var userId = '<%=SessionUtils.getCurrentUserId() %>';
+				        				var password = lockFormPanel.getForm().findField('password').getValue();
+				        				if(password!=''){
+				        					// 发送请求
+				        					Ext.getCmp('lockWindowStatusPanel').body.update("&nbsp;<img src='<%=baseUrl %>/websrc/js/ext-3.3.0/resources/images/default/shared/loading-balls.gif'/>");
+											Ext.Ajax.request({
+												url: '<%=baseUrl %>/loginAction.do?method=loginCheck',
+												params: {userId:userId, password:password},
+												callback: function(options, success, response){
+													var jsonResult = Ext.decode(response.responseText);
+													if(jsonResult.success==true){
+														Ext.getCmp('lockWindow').close();
+														$('#lockDiv').hide();
+														Ext.state.Manager.set('Anynote_hasLocked', false);
+														window.onbeforeunload = null;
+													}else{
+														var message = '发生异常.';
+														if(jsonResult.message && jsonResult.message != ''){// 后台设定的业务消息
+															message = jsonResult.message;
+														}
+														Ext.getCmp('lockWindowStatusPanel').body.update('<font color="red">'+message+'</font>');
+														setTimeout(function(){Ext.getCmp('lockWindowStatusPanel').body.update('当前用户：<%=SessionUtils.getCurrentUserName()%>');},3000);
+													}
+												}
+											});
+					        			}else{
+					        				Ext.getCmp('lockWindowStatusPanel').body.update('<font color="red">请输入密码.</font>');
+					        				setTimeout(function(){Ext.getCmp('lockWindowStatusPanel').body.update('当前用户：<%=SessionUtils.getCurrentUserName()%>');},3000);
+						        		}
+									}
+								})]
+				        	}]
+				        }]
+				    });
+					$('#lockDiv').show();
+					// 用户登录窗口
+					var lockWindow = new Ext.Window({
+						id: 'lockWindow',
+						renderTo: 'lockWindowDiv',
+						title: '系统已锁定',
+						width: 300,
+						height: 120,
+						maximizable: false,
+						resizable: false,
+						closable: false,
+						draggable: false,
+						layout:'fit',
+						plain: true,
+						items: [lockFormPanel],
+						bbar: new Ext.Panel({
+							id: 'lockWindowStatusPanel',
+							html: '当前用户：<%=SessionUtils.getCurrentUserName()%>',
+							border: false,
+							bodyStyle: 'background-color:transparent;padding:3px 5px;'
+						})
+					}).show();
+					Ext.state.Manager.set('Anynote_hasLocked', true);
+					window.onbeforeunload = function(){
+						return "系统已锁定，离开页面将退出登录，确定吗？";
+					}
+				}
+			});
+		}
+
+		function openCalendar(){
+			var calendarWindow = new Ext.Window({
+				title: '万年历',
+				width: 437,
+				height: 550,
+				modal: true,
+				maximizable: false,
+				resizable: false,
+				layout:'fit',
+				bodyStyle: 'background-color:#ffffff;',
+				html: '<iframe src="<%=baseUrl %>/websrc/page/common/calendar.jsp" width="450px" height="520px;" style="margin-left:10px;" frameborder="0"></iframe>'
+			}).show();
+		}
+	</script>
+</head>
+<body>
+	<div id="headerDiv">
+		<table style="width:100%;height:100%;table-layout:fixed;">
+			<tr>
+				<td width="180px"><a href="<%=baseUrl %>"><img src="<%=baseUrl %>/websrc/image/Anynote-s.png"></img></a></td>
+				<td align="center" class="loginInfo">
+					<span style="padding:3px 10px 3px 18px;" class="user" style="height:20px;">
+						<%=SessionUtils.getCurrentUserName()+"("+Constants.ROLE_MAP.get(SessionUtils.getUserRole())+")" %>，<span id="sayHelloSpan"></span>
+					</span>
+					<span style="padding:3px 10px 3px 18px;" class="user_edit" style="height:20px;"><a href="javascript:editUser();">账户信息</a></span>
+					<span style="padding:3px 10px 3px 18px;" class="key" style="height:20px;"><a href="javascript:editPassword();">修改密码</a></span>
+					<span style="padding:3px 10px 3px 18px;" class="lock" style="height:20px;"><a href="javascript:lock();">锁定</a></span>
+					<span style="padding:3px 10px 3px 18px;" class="user_go" style="height:20px;"><a href="javascript:logout();">退出</a></span>
+				</td>
+				<td width="180px" align="right" style="padding-right:5px;" class="loginInfo">
+					<div id="todayDate"></div>
+				</td>
+			</tr>
+		</table>
+    </div>
+</body>
+</html>

@@ -1,0 +1,530 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="../inc/consts.asp" -->
+<%
+if session("class_id")<>0 or session("class_id")="" then
+	response.write"<script>alert('权限不够！');window.open('guanli.asp','_parent')</script>"
+	response.End()
+end if
+%>
+<%
+asp_name="zx_fl_c.asp"
+table_name="My_newssort"
+set rs=server.createobject("adodb.recordset")
+if request("action")="save" then
+	sql="select * from "&table_name&" where newssort='"&Checkstr(Request("newssort"))&"'"
+	rs.open sql,conn,1,3
+	if not rs.eof then
+		response.write"<script>alert('分类名称重复！');window.open('"&asp_name&"','_self')</script>"
+		rs.close
+		response.End()
+	else
+		rs.addnew
+			if request("newssort")<>"" then rs("newssort")=Checkstr(Request("newssort"))
+			if request("if_open")<>"" then rs("if_open")=request("if_open")
+		rs.update
+		response.write"<script>alert('分类名称添加成功！');window.open('"&asp_name&"','_self')</script>"
+		rs.close
+	end if
+end if
+
+if request("action")="modify" then
+	'先获取数据
+	Set rs = Server.CreateObject("ADODB.recordset")
+	sql= "Select * from "&table_name&" where SMT_id="&request("id")&""
+	rs.Open sql,conn,1,1
+	if not rs.eof then
+		newssort=rs("newssort")
+		if_open=rs("if_open")
+		if_sys=rs("if_sys")
+	else
+		response.write"<script>alert('此分类名称不存在！');window.open('"&asp_name&"','_self')</script>"
+	end if
+	rs.close
+end if
+if request("action")="modify_it" then
+	'开始更新
+	if request("id")="" then
+		response.write"<script>alert('错误的 Id！');window.open('"&asp_name&"','_self')</script>"
+		response.End()
+	end if
+	if request("newssort")="" then
+		response.write"<script>alert('缺少名称！');window.open('"&asp_name&"','_self')</script>"
+		response.End()
+	else'防止重复
+		sql="select * from "&table_name&" where SMT_id<>"&request("id")&" and newssort='"&Checkstr(Request("newssort"))&"'"
+		'response.Write sql
+		'response.End()
+		rs.open sql,conn,1,1
+		if not rs.eof then'有重复时
+			response.write"<script>alert('分类名称重复！');window.open('"&asp_name&"?page="&request("page")&"','_self')</script>"
+			rs.close
+			response.End()
+		else'不重复时
+			Set rs = Server.CreateObject("ADODB.recordset")
+			sql="select * from "&table_name&" where SMT_id="&request("id")&""
+			rs.open sql,conn,1,3
+			if not rs.eof then
+				if request("newssort")<>"" then rs("newssort")=Checkstr(Request("newssort"))
+				if request("if_open")<>"" then rs("if_open")=request("if_open")
+				rs.update
+				if_fail=0
+			else
+				if_fail=2
+			end if
+		end if
+	end if
+	if if_fail=0 then 
+		response.write"<script>alert('分类名称修改成功！');window.open('"&asp_name&"?page="&request("page")&"','_self')</script>"
+	elseif if_fail=2 then 
+		response.write"<script>alert('此分类名称不存在！');window.open('"&asp_name&"?page="&request("page")&"','_self')</script>"
+	elseif if_fail=1 then
+		response.write"<script>alert('缺少分类名称！');window.open('"&asp_name&"?page="&request("page")&"','_self')</script>"
+	end if
+	rs.close
+end if
+
+if request("action")="del" then
+	'判断是否被使用或者是否为系统分类
+	Set rs = Server.CreateObject("ADODB.recordset")
+	sql= "Select * from "&table_name&" where SMT_id="&request("id")&""
+	rs.Open sql,conn,1,1
+	if not rs.eof then
+		if_sys=rs("if_sys")
+		if if_sys=0 then'系统默认不可删除
+			response.write"<script>alert('系统默认不可删除！');window.open('"&asp_name&"','_self')</script>"
+			rs.close
+			response.End()
+		else
+			conn.execute("delete from "&table_name&" where SMT_id="&request("id")&"")
+			response.write"<script>alert('分类名称删除成功！');window.open('"&asp_name&"','_self')</script>"
+		rs.close
+		response.End()
+		end if
+	else
+		response.write"<script>alert('错误的参数！');window.open('"&asp_name&"','_self')</script>"
+		rs.close
+		response.End()
+	end if
+end if
+%>
+<%
+if request("action")="modify" then
+page_value="?id="&request("id")
+end if
+%>
+
+<style type="text/css">
+<!--
+body {
+	margin-left: 0px;
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	background-color: #F8F9FA;
+}
+-->
+</style>
+<script type="text/javascript">
+//------------------------------------------------------产品分类检测--------------
+function checkid(regid){	
+	var xmlhttp;//建立XMLHttpRequest对象 兼容FF IE 谷歌
+	try{
+		xmlhttp= new ActiveXObject('Msxml2.XMLHTTP');// IE浏览器 
+	}catch(e){
+		try{
+			xmlhttp= new ActiveXObject('Microsoft.XMLHTTP');// IE浏览器 
+		}catch(e){
+			try{
+				xmlhttp= new XMLHttpRequest();//Mozilla FF浏览器
+			}catch(e){alert("啊哦,浏览器不支持AJAX哦~")}
+		}
+	}
+	//FF因为POST会带来服务器错误500问题，改用GET就可以解决一切了！
+	var newssort=document.getElementById("newssort").value;//页面
+	var id=document.getElementById("id").value;//ID
+	var action=document.getElementById("action").value;//行为
+	strURL="js/check_zx_class.asp?regid="+ newssort + "&id="+ id + "&action="+ action;
+
+	strURL+=((strURL.indexOf("?")==-1)?"?":"&")+"rnd="+Math.random();
+	xmlhttp.open("GET", strURL, true);
+   
+   xmlhttp.onreadystatechange = function(){
+        if(xmlhttp.readyState == 4)
+        {
+			//alert(xmlhttp.status)
+         	if(xmlhttp.status == 200){
+				 if(xmlhttp.responseText!=""){
+					var data=escape(xmlhttp.responseText);
+					id_result(data);
+				 }
+			}
+            else{
+			$("span")[0].innerHTML="<img src=js/yesno.gif> 资讯分类名称检测失败";
+            }
+        }
+		else{
+			$("span")[0].innerHTML="正在进行资讯分类名称校验...";
+			}
+    }
+	xmlhttp.setRequestHeader('Content-type','application/x-www-form-urlencoded');
+	xmlhttp.send(null);//使用GET后这里就用Null
+}
+function id_result(data){
+	var resultbox=$("span")[0];
+	if(data==1){
+		resultbox.innerHTML='<img src="js/yesno.gif"/> 您已经录入过该资讯分类名称';
+		flag[1]=0;
+		check_data();
+		}
+	else{
+		resultbox.innerHTML='<img src="js/yesok.gif"/> 资讯分类名称可以录入';
+		//已经被注册
+		flag[1]=1;
+		check_data();
+	}
+}
+</script>
+<script src="js/detect_zx_class.js" type="text/javascript"></script>
+<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+<script src="../inc/script.js" type="text/javascript"></script>
+<script src="xheditor-hello.js" type="text/javascript" ></script>
+<link href="css/skin.css" rel="stylesheet" type="text/css" />
+<body onLoad="check_newssort(this.value);check_map_url(this.value);check_map_class(this.value);"> <!--check_data();-->
+<div>
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+	  <tr>
+		<td width="17" height="29" valign="top" background="images/mail_leftbg.gif"><img src="images/left-top-right.gif" width="17" height="29" /></td>
+		<td height="29" valign="top" background="images/content-bg.gif">
+		
+		<table width="100%" height="31" border="0" cellpadding="0" cellspacing="0" class="left_topbg" id="table2">
+		  <tr>
+			<td height="31"><div class="titlebt">资讯分类</div></td>
+		  </tr>
+		</table>
+		
+		</td>
+		<td width="16" valign="top" background="images/mail_rightbg.gif"><img src="images/nav-right-bg.gif" width="16" height="29" /></td>
+	  </tr>
+	  <tr>
+		<td height="71" valign="middle" background="images/mail_leftbg.gif">&nbsp;</td>
+		<td valign="top" bgcolor="#F7F8F9">
+		<table width="100%" height="138" border="0" cellpadding="0" cellspacing="0">
+		  <tr>
+			<td height="13" valign="top">&nbsp;</td>
+		  </tr>
+		  <tr>
+			<td valign="top"><table width="98%" border="0" align="center" cellpadding="0" cellspacing="0">
+			  <tr>
+				<td class="left_txt">当前位置：<%=page_top%>公司中文信息管理 > <%if request("action")="new" then%>
+				添加资讯分类
+				  <%elseif request("action")="modify" then%>
+				  修改资讯分类
+				  <%else%>
+				  资讯分类设置
+				  <%end if%></td>
+			  </tr>
+			  <tr>
+				<td height="20"><table width="100%" height="1" border="0" cellpadding="0" cellspacing="0" bgcolor="#CCCCCC">
+				  <tr>
+					<td></td>
+				  </tr>
+				</table></td>
+			  </tr>
+			  <tr>
+				<td>
+<%
+set rs=server.createobject("adodb.recordset")
+sql="select * from "&table_name&""
+rs.open sql,conn,1,1
+if not rs.eof then
+	if_fenlei=1
+else
+	if_fenlei=0
+end if
+rs.close
+%>
+<%if request("action")="" then%>
+	<table width="100%" height="55" border="0" cellpadding="0" cellspacing="0">
+	<tr>
+	<td width="10%" height="55" valign="middle"><img src="images/title.gif" width="54" height="55" style="BORDER:#999999 1px solid;"></td>
+	<td width="90%" valign="top">
+	<%if if_fenlei=1 then%>	
+	<div class="left_txt2">在这里，您可以管理资讯分类！
+	  <input type="button" onClick="location='<%=asp_name%>?action=new'" value="立即添加中文资讯分类" style="cursor:pointer">
+	  <input type="button" onClick="location='add_zx_c.asp'" value="添加中文资讯" style="cursor:pointer">
+	</div>
+	<%else%>
+	<div class="left_txt2">没有发布任何资讯分类！
+	  <input type="button" onClick="location='<%=asp_name%>?action=new'" value="立即添加中文资讯分类" style="cursor:pointer">
+	  <input type="button" onClick="location='add_zx_c.asp'" value="添加中文资讯" style="cursor:pointer">
+	</div>
+	<%end if%>	
+	<input type="button" onClick="location='zx_fl_e.asp'" value="切换到英文分类" style="cursor:pointer;" onMouseOver="this.className='input'" onMouseOut="this.className='input2'" class="input2">
+	</td>
+	</tr>
+	
+<%if if_fenlei=1 then%>	
+<%
+	set rs=server.createobject("adodb.recordset")
+	sql="select * from "&table_name&" order by if_open desc"
+	rs.open sql,conn,1,1
+	'分页的实现 
+	listnum=6
+	Rs.pagesize=listnum
+	page=Request("page")
+	if (page-Rs.pagecount) > 0 then
+	page=Rs.pagecount
+	elseif page = "" or page < 1 then
+	page = 1
+	end if
+	'if isnull(page) then page=1
+	Rs.absolutepage=page
+%>
+	<!--顶部-->
+	<tr>
+	<td width="100%" valign="top" colspan="2">
+		<table width="100%" height="31" border="0" cellpadding="0" cellspacing="0" class="nowtable" style="margin-top:8px;">
+		<tr>
+		<td class="left_bt2" valign="middle">
+	<span style=" float:left; margin-left:10px;">
+	资讯分类一览
+	<a style="cursor:pointer" onClick="window.location.reload()"><img src="images/refresh.png" border=0 onClick="window.location.reload()" alt="刷新"/>刷新</a>
+	</span>
+	<span style=" float:right; margin-right:10px;">
+			<%if Rs.pagecount> 1 then %>
+			页数跳转:<select name="page" onChange="if(this.options[this.selectedIndex].value !='')window.location=(this.options[this.selectedIndex].value)">
+			<option value="">-请选择-</option>
+			<%for l=1 to Rs.PageCount%>
+			<option value="<%response.Write asp_name&"?aa="&aa&"&page="&l%>">第<%=l%>页</option>
+			<%next%>
+			</select>
+			<%end if%>
+	</span>
+		
+		</td>
+		</tr>
+		</table>
+	</td>
+	</tr>
+	<!--/顶部-->
+    <!--页码-->
+	<tr>
+	<td width="100%" valign="top" colspan="2">
+	<table width="100%"  border="0" cellpadding="0" cellspacing="0" style="font-size:12px;">
+	<tr>
+	<td width="25%"><div class="page"><a>共 <%=rs.recordcount%> 条资讯分类名称</a></div></td>
+    <td>
+	<%if not rs.eof or not rs.bof then%>	
+    <div class="page">
+		<span>
+		  <%filename=asp_name&"?aa="&aa%>
+		  <%if page=1 then %>
+		  <%else%>
+				<a href=<%=filename%>>首页</a>
+				<a href=<%=filename%>&page=<%=page-1%>>上一页</a> 
+				<%if page-4>0 then%>
+				<a href=<%=filename%>&page=<%=page-4%>><%=page-4%></a>
+				<%end if%>
+				<%if page-3>0 then%>
+				<a href=<%=filename%>&page=<%=page-3%>><%=page-3%></a>
+				<%end if%>
+				<%if page-2>0 then%>
+				<a href=<%=filename%>&page=<%=page-2%>><%=page-2%></a>
+				<%end if%>
+				<%if page-1>0 then%>
+				<a href=<%=filename%>&page=<%=page-1%>><%=page-1%></a>
+				<%end if%>
+		  <%end if%>
+		  <% if Rs.pagecount=1 then %>
+		  <%else%>
+		 	 <span class="current"><%=page%></span>
+		  <%end if%>
+		  <% if Rs.pagecount-page <> 0 then %>
+			  <%if Rs.pagecount-page>=1 then%>
+			  <a href=<%=filename%>&page=<%=page+1%>><%=page+1%></a>
+			  <%end if%>
+			  <%if Rs.pagecount-page>=2 then%>
+			  <a href=<%=filename%>&page=<%=page+2%>><%=page+2%></a>
+			  <%end if%>
+			  <%if Rs.pagecount-page>=3 then%>
+			  <a href=<%=filename%>&page=<%=page+3%>><%=page+3%></a>
+			  <%end if%>
+			  <%if Rs.pagecount-page>=4 then%>
+			  <a href=<%=filename%>&page=<%=page+4%>><%=page+4%></a>
+			  <%end if%>
+			  <a href=<%=filename%>&page=<%=page+1%>>下一页</a>
+			  <a href=<%=filename%>&page=<%=Rs.pagecount%>>末页</a>
+			<%end if%>
+	<%end if%>
+	</span>
+	</div>
+	</td>
+	</tr>
+    <!--/页码-->
+    <!--数据-->
+  	<tr>
+	<td width="100%" height="20" colspan="2">
+        <Table class="records_list">
+        <TR class="records_list_item">
+            <TD style="text-align:center;width:50px;">编号</TD>
+            <TD>分类名称</TD>
+            <TD>状态</TD>
+            <TD>修改</TD>
+            <TD>操作</TD>
+        </TR>
+		<%
+        if not rs.eof or not rs.bof then
+			k=1
+			do while not rs.eof and k<=listnum
+			newssort=rs("newssort")
+			if_open=rs("if_open")'是否开放 0:关闭 1:开放
+			if_sys=rs("if_sys")'系统分类 0:系统分类不可删除 1:可删改
+			sort_id=rs("SMT_id")
+				'中文资讯
+				Set rsc = Server.CreateObject("ADODB.recordset")
+				sqlc= "Select * from My_news where SMT_newssort="&sort_id
+				rsc.Open sqlc,conn,1,1
+				if not rsc.eof then
+					del_sig1=0
+				else
+					del_sig1=1
+				end if
+				rsc.close
+				set rsc=nothing
+				set sqlc=nothing
+			%>
+			<%
+            if k mod 2=0 then
+            bgcolor="#efefef"
+            else
+            bgcolor="#ffffff"
+            end if
+            bgcolor_over="DEEDFA"
+            %>
+            <TR class="records_list_details" onMouseOver="this.className='tr1_on';"  onMouseOut="this.className='tr1';" bgcolor="<%=bgcolor%>">
+                <TD style="text-align:center;"><img src="../image/counts/<%=k%>.gif"></TD>
+                <TD><%if newssort<>"" then response.Write LeftT(newssort,50)%></TD>
+                <TD>
+				<%
+                select case if_open
+                case 0:response.Write "<font color=gray>关闭</font>"
+                case 1:response.Write "<font color=green>开放</font>"
+                end select
+                %>
+                </TD>
+                <TD>
+                <%'if if_sys=1 then%>
+                <a href="<%=asp_name%>?action=modify&id=<%=rs("SMT_id")%>&page=<%=page%>" onClick="javascript:return confirm('确定修改吗?');"><img src="images/edit.png" border="0"></a></TD>
+                <%'else%>
+                <%'end if%>
+                <TD>
+					<%if del_sig1=0 then%>
+                         <a href="<%=site_url%>/t/<%=temp_mulu%>/newslist.asp?classid=<%=rs("SMT_id")%>"target="_blank">查看[资讯]</a>
+            	         <a style="margin-left:10px;" href="<%=site_url%>/t/<%=temp_mulu%>/about.asp"target="_blank">查看[关于我们]</a>
+					<%else%>
+						<%if if_sys=1 then%>
+                    		<a href="<%=asp_name%>?action=del&id=<%=rs("SMT_id")%>&page=<%=page%>" onClick="javascript:return confirm('确定删除吗?');">删除</a>
+						<%else%>
+                       		<img src="images/delete_dis.png" title="系统分类不可操作">
+                        <%end if%>
+					<%end if%>
+                </TD>
+            </TR>
+            <%
+            k=k+1
+            rs.movenext
+            loop
+            %>
+        <%else%>
+           <TR class="records_list_details" ><TD colspan="20"><font style="font-size:12px;">无匹配结果</font></TD></TR>
+         <%end if%>
+         <%
+         rs.close
+         set rs=nothing
+         %>
+         </Table>
+    </td>
+    </tr>
+    <!--/数据-->
+        </table>
+        </td>
+        </tr>
+    <%end if 'if fenlei%>				
+	</table>
+<%end if' if action%>				
+				</td>
+			  </tr>
+			  <tr>
+				<td>&nbsp;</td>
+			  </tr>
+<%if request("action")="new" or request("action")="modify"  then%>
+<form name="addform" method="POST" <%if request("action")="new" then%>action="<%=asp_name%>?action=save"<%else%>action="<%=asp_name%>?action=modify_it&id=<%=request("id")%>"<%end if%> >
+			  <tr>
+				<td>
+				<table width="100%" height="31" border="0" cellpadding="0" cellspacing="0" class="nowtable">
+				  <tr>
+					<td class="left_bt2">&nbsp;&nbsp;&nbsp;&nbsp;添加资讯分类名称</td>
+				  </tr>
+				</table>
+				</td>
+			  </tr>
+			  <tr>
+				<td><table width="100%" border="0" cellspacing="0" cellpadding="0">
+				  <tr>
+					<td width="20%" height="30" align="right" bgcolor="#f2f2f2" class="left_txt2"><font color=red>*</font>设定资讯分类名称：</td>
+					<td width="3%" bgcolor="#f2f2f2">&nbsp;</td>
+					<td width="25%" height="30" bgcolor="#f2f2f2"><input id="newssort" name="newssort" type="text" <%=inputstyle%> size="22"  value="<%=newssort%>" onBlur="check_newssort(this.value);"  onkeyup="check_newssort(this.value);" maxlength="20" <%'if if_sys=0 and request("action")="modify" then response.Write "readonly="""%>></td>
+					<td width="52%" height="30" bgcolor="#f2f2f2" class="left_txt"><span>资讯分类名称,20字以内。</span><!--span[0]--> <%'if if_sys=0 and request("action")="modify"  then response.Write "系统分类不可修改"%></td>
+				  </tr>
+				  <tr>
+					<td height="30" align="right" bgcolor="#f2f2f2" class="left_txt2">公开状态：</td>
+					<td bgcolor="#f2f2f2">&nbsp;</td>
+					<td height="30" bgcolor="#f2f2f2" class="left_txt2">
+					<input type="radio" name="if_open" value=0 <%if if_open=0 then%> checked<%end if%>>关闭
+					<input type="radio" name="if_open" value=1 <%if if_open=1 or if_open="" then%> checked<%end if%>>开放
+					</td>
+					<td height="30" bgcolor="#f2f2f2" class="left_txt"></td>
+				  </tr>
+				  <tr>
+					<td height="17" colspan="4" align="right" >&nbsp;</td>
+				  </tr>
+				</table>
+			  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+				<tr>
+				  <td colspan="3">&nbsp;</td>
+				</tr>
+				<tr>
+				  <td width="50%" height="30" align="right"><input type="submit" value="开始提交" name="submit_me" onMouseOver="this.className='input'" onMouseOut="this.className='input2'" class="input2"/>
+				  </td>
+				  <td width="6%" height="30" align="right">&nbsp;</td>
+				  <td width="44%" height="30">
+				  <input type="reset" value="重置" name="B12" onMouseOver="this.className='input'" onMouseOut="this.className='input2'" class="input2"/>
+				  <input type="hidden" value="<%=request("page")%>" name="page" />
+				  <input type="hidden" value="<%=request("action")%>" id="action" />
+				  <input type="hidden" value="<%=request("id")%>" id="id" />
+				  </td>
+				</tr>
+			  </table>
+				</td>
+			  </tr>
+</form>
+<%end if%>				
+			  
+			  
+			</table>
+			  </td>
+		  </tr>
+		</table>
+		</td>
+		<td background="images/mail_rightbg.gif">&nbsp;</td>
+	  </tr>
+	  <tr>
+		<td valign="middle" background="images/mail_leftbg.gif"><img src="images/buttom_left2.gif" width="17" height="17" /></td>
+		  <td height="17" valign="top" background="images/buttom_bgs.gif"><img src="images/buttom_bgs.gif" width="17" height="17" /></td>
+		<td background="images/mail_rightbg.gif"><img src="images/buttom_right2.gif" width="16" height="17" /></td>
+	  </tr>
+	</table>
+</div>
+</body>

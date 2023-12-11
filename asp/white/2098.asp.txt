@@ -1,0 +1,395 @@
+<!--#include file="Conn.asp"-->
+<!--#include file="sd_site.asp"-->
+<%
+'SQL防注入处理
+Function CheckStr(istr)
+dim Sql_Kill,Sql_Kill_2,Sql_Kill_3
+Sql_Kill = "\'|and|exec|insert|select|delete|update|count|*|%|chr|mid|master|truncate|char|declare|set|;|from|="
+Sql_Kill_2 = split(Sql_Kill,"|")
+for Each Sql_Kill_3 In Sql_Kill_2
+istr=Replace(istr,Sql_Kill_3,"")
+Next
+CheckStr=istr
+End Function
+
+id=request.QueryString("id")
+if id="" then
+response.write "<script>alert('id不能为空！');window.location.href='index.asp';</script>"
+end if
+
+'获得访问者的真实IP
+ip=trim(request.form("ip"))
+userip=trim(request.form("ip"))
+myip=trim(request.form("ip"))
+If ip="" Then ip=inip()
+If userip="" Then userip=inip()
+If myip="" Then myip=inip()
+Function inip()
+	Dim inipip
+	inipip = Request.ServerVariables("HTTP_X_FORWARDED_FOR") 
+	If inipip = "" Then inipip = Request.ServerVariables("REMOTE_ADDR")
+	inip=inipip
+End Function
+'判断当前来访者所属地区的函数
+' ============================================
+'  从数据库种返回IP信息
+' ============================================
+Function Look_Ip(IP)
+        Dim Wry, IPType, QQWryVersion, IpCounter
+        ' 设置类对象
+        Set Wry = New TQQWry
+        ' 开始搜索，并返回搜索结果
+        ' 您可以根据 QQWry(IP) 返回值来判断该IP地址在数据库中是否存在，如果不存在可以执行其他的一些操作
+        ' 比如您自建一个数据库作为追捕等，这里我就不详细说明了
+        IPType = Wry.QQWry(IP)
+        ' Country：国家地区字段
+        ' LocalStr：省市及其他信息字段
+        
+        Look_Ip = Wry.Country & " " & Wry.LocalStr
+End Function
+' ============================================
+' 返回IP信息 JS调用
+' ============================================
+Function GetIpInfoAv(IP, sType)
+        Dim Wry, IPType
+        Set Wry = New TQQWry
+        IPType = Wry.QQWry(IP)
+        Select Case sType
+                Case 1 
+                    GetIpInfoAv = "" & IP & ""
+                Case 2
+                    GetIpInfoAv = ""&Wry.Country&"[" & Wry.LocalStr & "]" 
+                Case 3 
+                    GetIpInfoAv = "" & Wry.LocalStr & ""
+                Case Else
+                    GetIpInfoAv = "来自：<font color=red>" & IP & "</font> 所在区域：<font color=red>" & Wry.Country & "</font> 上网类型：<font color=red>" & Wry.LocalStr & "</font>"
+        End Select
+End Function
+Class TQQWry
+        ' ============================================
+        ' 变量声名
+        ' ============================================
+        Dim Country, LocalStr, Buf, OffSet
+        Private StartIP, EndIP, CountryFlag
+        Public QQWryFile
+        Public FirstStartIP, LastStartIP, RecordCount
+        Private Stream, EndIPOff
+        ' ============================================
+        ' 类模块初始化
+        ' ============================================
+        Private Sub Class_Initialize
+                Country                 = ""
+                LocalStr                 = ""
+                StartIP                 = 0
+                EndIP                         = 0
+                CountryFlag         = 0 
+                FirstStartIP         = 0 
+                LastStartIP         = 0 
+                EndIPOff                 = 0 
+                QQWryFile = Server.MapPath("QQWry.dat") 'QQ IP库路径，要转换成物理路径
+        End Sub
+        ' ============================================
+        ' IP地址转换成整数
+        ' ============================================
+        Function IPToInt(IP)
+                Dim IPArray, i
+                IPArray = Split(IP, ".", -1)
+                FOr i = 0 to 3
+                        If Not IsNumeric(IPArray(i)) Then IPArray(i) = 0
+                        If CInt(IPArray(i)) < 0 Then IPArray(i) = Abs(CInt(IPArray(i)))
+                        If CInt(IPArray(i)) > 255 Then IPArray(i) = 255
+                Next
+                IPToInt = (CInt(IPArray(0))*256*256*256) + (CInt(IPArray(1))*256*256) + (CInt(IPArray(2))*256) + CInt(IPArray(3))
+        End Function
+        ' ============================================
+        ' 整数逆转IP地址
+        ' ============================================
+        Function IntToIP(IntValue)
+                p4 = IntValue - Fix(IntValue/256)*256
+                IntValue = (IntValue-p4)/256
+                p3 = IntValue - Fix(IntValue/256)*256
+                IntValue = (IntValue-p3)/256
+                p2 = IntValue - Fix(IntValue/256)*256
+                IntValue = (IntValue - p2)/256
+                p1 = IntValue
+                IntToIP = Cstr(p1) & "." & Cstr(p2) & "." & Cstr(p3) & "." & Cstr(p4)
+        End Function
+        ' ============================================
+        ' 获取开始IP位置
+        ' ============================================
+        Private Function GetStartIP(RecNo)
+                OffSet = FirstStartIP + RecNo * 7
+                Stream.Position = OffSet
+                Buf = Stream.Read(7)
+                
+                EndIPOff = AscB(MidB(Buf, 5, 1)) + (AscB(MidB(Buf, 6, 1))*256) + (AscB(MidB(Buf, 7, 1))*256*256) 
+                StartIP  = AscB(MidB(Buf, 1, 1)) + (AscB(MidB(Buf, 2, 1))*256) + (AscB(MidB(Buf, 3, 1))*256*256) + (AscB(MidB(Buf, 4, 1))*256*256*256)
+                GetStartIP = StartIP
+        End Function
+        ' ============================================
+        ' 获取结束IP位置
+        ' ============================================
+        Private Function GetEndIP()
+                Stream.Position = EndIPOff
+                Buf = Stream.Read(5)
+                EndIP = AscB(MidB(Buf, 1, 1)) + (AscB(MidB(Buf, 2, 1))*256) + (AscB(MidB(Buf, 3, 1))*256*256) + (AscB(MidB(Buf, 4, 1))*256*256*256) 
+                CountryFlag = AscB(MidB(Buf, 5, 1))
+                GetEndIP = EndIP
+        End Function
+        ' ============================================
+        ' 获取地域信息，包含国家和和省市
+        ' ============================================
+        Private Sub GetCountry(IP)
+                If (CountryFlag = 1 Or CountryFlag = 2) Then
+                        Country = GetFlagStr(EndIPOff + 4)
+                        If CountryFlag = 1 Then
+                                LocalStr = GetFlagStr(Stream.Position)
+                                ' 以下用来获取数据库版本信息
+                                If IP >= IPToInt("255.255.255.0") And IP <= IPToInt("255.255.255.255") Then
+                                        LocalStr = GetFlagStr(EndIPOff + 21)
+                                        Country = GetFlagStr(EndIPOff + 12)
+                                End If
+                        Else
+                                LocalStr = GetFlagStr(EndIPOff + 8)
+                        End If
+                Else
+                        Country = GetFlagStr(EndIPOff + 4)
+                        LocalStr = GetFlagStr(Stream.Position)
+                End If
+                ' 过滤数据库中的无用信息
+                Country = Trim(Country)
+                LocalStr = Trim(LocalStr)
+                If InStr(Country, "CZ88.NET") Then Country = "www.idcLi.com"
+                If InStr(LocalStr, "CZ88.NET") Then LocalStr = "www.idcLi.com"
+        End Sub
+        ' ============================================
+        ' 获取IP地址标识符
+        ' ============================================
+        Private Function GetFlagStr(OffSet)
+                Dim Flag
+                Flag = 0
+                Do While (True)
+                        Stream.Position = OffSet
+                        Flag = AscB(Stream.Read(1))
+                        If(Flag = 1 Or Flag = 2 ) Then
+                                Buf = Stream.Read(3) 
+                                If (Flag = 2 ) Then
+                                        CountryFlag = 2
+                                        EndIPOff = OffSet - 4
+                                End If
+                                OffSet = AscB(MidB(Buf, 1, 1)) + (AscB(MidB(Buf, 2, 1))*256) + (AscB(MidB(Buf, 3, 1))*256*256)
+                        Else
+                                Exit Do
+                        End If
+                Loop
+                
+                If (OffSet < 12 ) Then
+                        GetFlagStr = ""
+                Else
+                        Stream.Position = OffSet
+                        GetFlagStr = GetStr() 
+                End If
+        End Function
+        ' ============================================
+        ' 获取字串信息
+        ' ============================================
+        Private Function GetStr() 
+                Dim c
+                GetStr = ""
+                Do While (True)
+                        c = AscB(Stream.Read(1))
+                        If (c = 0) Then Exit Do 
+                        
+                        '如果是双字节，就进行高字节在结合低字节合成一个字符
+                        If c > 127 Then
+                                If Stream.EOS Then Exit Do
+                                GetStr = GetStr & Chr(AscW(ChrB(AscB(Stream.Read(1))) & ChrB(C)))
+                        Else
+                                GetStr = GetStr & Chr(c)
+                        End If
+                Loop 
+        End Function
+        ' ============================================
+        ' 核心函数，执行IP搜索
+        ' ============================================
+        Public Function QQWry(DotIP)
+                Dim IP, nRet
+                Dim RangB, RangE, RecNo
+                
+                IP = IPToInt (DotIP)
+                
+                Set Stream = CreateObject("ADodb.Stream")
+                Stream.Mode = 3
+                Stream.Type = 1
+                Stream.Open
+                Stream.LoadFromFile QQWryFile
+                Stream.Position = 0
+                Buf = Stream.Read(8)
+                
+                FirstStartIP = AscB(MidB(Buf, 1, 1)) + (AscB(MidB(Buf, 2, 1))*256) + (AscB(MidB(Buf, 3, 1))*256*256) + (AscB(MidB(Buf, 4, 1))*256*256*256)
+                LastStartIP  = AscB(MidB(Buf, 5, 1)) + (AscB(MidB(Buf, 6, 1))*256) + (AscB(MidB(Buf, 7, 1))*256*256) + (AscB(MidB(Buf, 8, 1))*256*256*256)
+                RecordCount = Int((LastStartIP - FirstStartIP)/7)
+                ' 在数据库中找不到任何IP地址
+                If (RecordCount <= 1) Then
+                        Country = "未知"
+                        QQWry = 2
+                        Exit Function
+                End If
+                
+                RangB = 0
+                RangE = RecordCount
+                
+                Do While (RangB < (RangE - 1)) 
+                        RecNo = Int((RangB + RangE)/2) 
+                        Call GetStartIP (RecNo)
+                        If (IP = StartIP) Then
+                                RangB = RecNo
+                                Exit Do
+                        End If
+                        If (IP > StartIP) Then
+                                RangB = RecNo
+                        Else 
+                                RangE = RecNo
+                        End If
+                Loop
+                
+                Call GetStartIP(RangB)
+                Call GetEndIP()
+
+                If (StartIP <= IP) And ( EndIP >= IP) Then
+                        ' 没有找到
+                        nRet = 0
+                Else
+                        ' 正常
+                        nRet = 3
+                End If
+                Call GetCountry(IP)
+
+                QQWry = nRet
+        End Function
+        ' ============================================
+        ' 类终结
+        ' ============================================
+        Private Sub Class_Terminate
+                On ErrOr Resume Next
+                Stream.Close
+                If Err Then Err.Clear
+                Set Stream = Nothing
+        End Sub
+End Class
+
+ip_dq=GetIpInfoAv(MyIP,2)
+set rs=server.createobject("adodb.recordset")
+sql="select * from sd_pinglun where sd_show_id="&id&" and sd_ip='"&ip&"' and year(now())=year(sd_datas) and  month(now())=month(sd_datas) and day(now())=day(sd_datas)" 
+rs.open sql,conn,1,1
+if not rs.eof then
+response.write "<script>alert('请注意，24小时内同一IP只能评论一次！');window.location.href='sd_show.asp?id="&id&"';</script>"
+rs.close
+set rs=nothing
+end if
+
+
+userid=id
+uid=request.cookies(""&userid&"")
+if uid<>id then
+response.cookies(""&userid&"")=id
+data=date()
+expiredata=dateadd("d",1,data)'从今日起N日后
+response.cookies(""&userid&"").expires=formatdatetime(expiredata)
+dim bcontent
+bcontent=BodyEncode(request("ccontent"))
+
+set rs=server.createobject("adodb.recordset")
+sql="select * from sd_pinglun" 
+rs.open sql,conn,1,3
+rs.addnew
+rs("sd_name")=CheckStr(trim(request.form("cname")))
+rs("sd_sd")=cint(request.form("proj1"))
+rs("sd_xj")=cint(request.form("proj2"))
+rs("sd_fu")=cint(request.form("proj3"))
+rs("sd_aq")=cint(request.form("proj4"))
+rs("sd_biaoti")=CheckStr(request.form("csubject"))
+rs("sd_content")=CheckStr(bcontent)
+rs("sd_tj")=CheckStr(request.form("sd_tj"))
+rs("sd_dq")=ip_dq
+rs("sd_ip")=ip
+rs("sd_show_id")=id
+rs.update
+rs.close
+set rs=nothing
+
+
+'发货速度、宝贝质量、售后服务、存货充足，全评满分者，积一分
+if cint(request.form("proj1"))=5 and cint(request.form("proj2"))=5 and cint(request.form("proj3"))=5 and cint(request.form("proj4"))=5 then
+conn.execute "update [sd_show] set sd_jifen=sd_jifen+1 where id="&id&""
+end if
+
+
+set rs2=server.createobject("adodb.recordset")
+sql2="select AVG(sd_sd),AVG(sd_xj),AVG(sd_fu),AVG(sd_aq) from sd_pinglun where sd_show_id="&id
+rs2.open sql2,conn,1,1
+if rs2(0)=0 then
+else
+sd_sd=formatnumber(rs2(0),2)
+sd_xj=formatnumber(rs2(1),2)
+sd_fw=formatnumber(rs2(2),2)
+sd_aq=formatnumber(rs2(3),2)
+rs2.close
+set rs2=nothing
+
+
+conn.execute "update [sd_show] set sd_sd="&sd_sd&",sd_xj="&sd_xj&",sd_fw="&sd_fw&",sd_aq="&sd_aq&" where id="&id&""
+end if
+
+set rs=server.createobject("adodb.recordset")
+sql="select id,sd_sd,sd_xj,sd_fw,sd_aq,sd_zp from sd_show where id="&id 
+rs.open sql,conn,1,1
+if not rs.eof then
+sd=rs("sd_sd")
+xj=rs("sd_xj")
+fu=rs("sd_fw")
+aq=rs("sd_aq")
+rs.close
+set rs=nothing
+end if
+
+sd_zp=formatnumber(((sd+xj+fu+aq)/4),2)
+conn.execute "update [sd_show] set sd_zp="&sd_zp&",sd_pinglun=sd_pinglun+1 where id="&id&""
+conn=close
+set conn=nothing%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<meta http-equiv="X-UA-Compatible" content="IE=7" />
+<title><%=sd_hostname%> 虚拟主机评测 IDC导航 IDC评测 idcLi.com</title>
+<meta name="keywords" content="<%=sd_keywords%>">
+<meta name="description" content="<%=sd_description%>">
+</head>
+<body>
+<%if JT=1 then%>
+
+<%
+	dim http,reurl
+	set http=Server.createobject("Microsoft.xMLHTTP") 
+	Http.open "GET",""&sd_hostsite&"/sd_show.asp?id="&id&"",false 
+	Http.send() 
+	set objStream = Server.CreateObject("ADODB.Stream") 
+	objStream.type = 1 
+	objStream.open 
+	objstream.write http.responseBody
+	objstream.saveToFile server.mappath("sd_"&id&".htm"),2
+%>
+<script>alert("评论已经发表成功！");window.location.href="sd_<%=id%>.htm";</script>
+<%else%>
+<script>alert("评论已经发表成功！");window.location.href="sd_show.asp?id=<%=id%>";</script>
+<%end if%>
+<%else
+if JT=1 then
+response.write "<script>alert('请不要灌水，谢谢！');window.location.href='sd_"&id&".htm';</script>"
+else
+response.write "<script>alert('请不要灌水，谢谢！');window.location.href='sd_show.asp?id="&id&"';</script>"
+end if
+end if%>
+</body>
+</html>

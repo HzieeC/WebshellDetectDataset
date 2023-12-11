@@ -1,0 +1,672 @@
+<!--#include file="conn.asp" -->
+<!--#include file="ftbbs_nav.asp" -->
+<!--#include file="inc/ubbcode.asp" -->
+<!--#include file="pagefun.asp" -->
+<%
+if request("exit")="yes" then
+   call clearcookie(ckiesdomain,"bbsuser")
+   call clearcookie(ckiesdomain,"name")
+   call clearcookie(ckiesdomain,"bz")
+   call clearcookie(ckiesdomain,"bbsadmin")
+   call clearcookie(ckiesdomain,"payuser")
+   call clearcookie(ckiesdomain,"clubuser_password")
+   call clearcookie(ckiesdomain,"clubuser_id")
+   call clearcookie(ckiesdomain,"bokeer")
+   response.Redirect("default.asp")
+end if
+
+layer_1=Checkstr(request("layer_1"))'一级类别
+layer_2=Checkstr(request("layer_2"))'二级类别
+ftbbs_name=getcookie("name")
+ftbbs_bz=getcookie("bz")
+ftbbs_bbsadmin=getcookie("bbsadmin")
+ftbbs_payuser=getcookie("payuser")
+if ftbbs_bz="" then ftbbs_bz=0
+call FTBBS_HTML_MB(ft)
+getcodeoff=Application("FTBBSMB")(30,0)
+onlineoff=Application("FTBBSMB")(33,0)
+linkoff=Application("FTBBSMB")(34,0)
+defaulthome=Application("FTBBSMB")(31,0)
+if getcookie("ftbbstype")="" then
+   Response.Cookies("ftbbstype")=0
+   Response.Cookies("ftbbstype").Expires=date+7
+end if
+homepage=ft_home(defaulthome)
+
+if Application("onlineuser")<0 or Application("onlineuser")="" then
+  usernum=0
+else
+  usernum=Application("onlineuser")
+end if
+
+if layer_1="" then
+	BBS_Cate_Manager_Name=""
+end if
+
+if layer_1<>"" then	
+'一级类别名称
+str_BBS_Cate="select top 1 BBS_Cate_Name,BBS_Cate_Manager_Name,BBS_Cate_Manager_Email,BBS_Cate_Topic,BBS_Cate_Reply from "&ft&"BBS_Cate where BBS_Cate_ID='"&layer_1&"' and deleted=0"
+set rs_BBS_Cate=server.createobject("adodb.recordset")
+rs_BBS_Cate.open str_BBS_Cate,conn,1,1
+if rs_BBS_Cate.eof then
+	response.write "<center><P><P><P>该论坛已经关闭或不存在...</center>"
+	response.end
+end if
+
+BBS_Cate_Name_1=rs_BBS_Cate("BBS_Cate_Name")'一级类别名称
+BBS_Cate_Manager_Name="版主:"&rs_BBS_Cate("BBS_Cate_Manager_Name")'一级类别板主姓名
+BBS_Cate_Manager_Email=rs_BBS_Cate("BBS_Cate_Manager_Email")'一级类别板主email
+BBS_Cate_Topic=rs_BBS_Cate("BBS_Cate_Topic")'一级类别主题贴子数
+BBS_Cate_Reply=rs_BBS_Cate("BBS_Cate_Reply")'一级类别回复贴子数
+rs_BBS_Cate.close
+end if
+IF layer_2<>"" then
+str_BBS_Cate="select top 1 BBS_Cate_Name,BBS_Cate_Manager_Name,BBS_Cate_Manager_Email,BBS_Cate_Topic,BBS_Cate_Reply,BBS_Cate_Board from "&ft&"BBS_Cate where BBS_Cate_ID='"&layer_2&"' and deleted=0"
+rs_BBS_Cate.open str_BBS_Cate,conn,1,1
+if rs_BBS_Cate.eof then
+	response.write "<center><P><P><P>该论坛已经关闭或不存在...</center>"
+	response.end
+end if
+BBS_Cate_Board=rs_BBS_Cate("BBS_Cate_Board")
+BBS_Cate_Name_2=rs_BBS_Cate("BBS_Cate_Name")
+BBS_Cate_Manager_Name="版主:"&rs_BBS_Cate("BBS_Cate_Manager_Name")
+BBS_Cate_Manager_Email=rs_BBS_Cate("BBS_Cate_Manager_Email")
+BBS_Cate_Topic=rs_BBS_Cate("BBS_Cate_Topic")
+BBS_Cate_Reply=rs_BBS_Cate("BBS_Cate_Reply")
+rs_BBS_Cate.close
+end if
+set rs_BBS_Cate=nothing
+
+qs=request("qs")
+if qs="" or qs=4 or qs=5 then qs=0
+if qs<>0 then
+    if (qs=1 or qs=2 or qs=3) and ftbbs_name="" then
+	  response.redirect "userlogin.asp"
+	elseif qs=2 and ftbbs_payuser=0 and ftbbs_bz=0 then
+	  call login_msg(1,"userlogin.asp")
+	elseif ftbbs_bz=0 and ftbbs_bbsadmin=0 and qs=3 then
+	  call login_msg(2,"userlogin.asp")	
+	end if
+end if
+
+'以下是新增论坛权限访问的功能
+if ftbbs_name="" then
+   strqssql="where BBS_Cate_Qs=1 or BBS_Cate_Qs=2 or BBS_Cate_Qs=3"
+else
+   if ftbbs_payuser=1 and ftbbs_bz=0 and ftbbs_bbsadmin=0 then
+      strqssql="where BBS_Cate_Qs=3"
+   elseif ftbbs_bz=1 or ftbbs_bbsadmin=1 then
+      strqssql=""
+   else
+      strqssql="where BBS_Cate_Qs=2 or BBS_Cate_Qs=3"
+   end if
+end if
+
+strqs=""
+qssqlstr1=""
+qssql="select * from "&ft&"BBS_Cate where BBS_ID in(select MIN(BBS_ID) from "&ft&"BBS_Cate "&strqssql&" group by BBS_Cate_ID) order by BBS_ID asc"
+set qsrs=server.createobject("adodb.recordset")
+qsrs.open qssql,conn,1,1
+if not qsrs.eof and strqssql<>"" then
+   qsnum=qsrs.recordcount
+  if qsnum>1 then
+     i=0
+    do while not qsrs.eof
+      if i=qsnum-1 then
+	        qsbbsx1=qsrs("BBS_Cate_ID")
+	  else
+            qsbbsx1=qsrs("BBS_Cate_ID")&","
+	  end if
+	  qsbbs1=qsbbs1&qsbbsx1
+      qsrs.movenext
+	  i=i+1
+    loop
+     qsarray1=split(qsbbs1,",")
+   for k = 0 to UBound(qsarray1)
+     if k=UBound(qsarray1) then
+	 qssqlstrx = "Boardid_1<>'" & qsarray1(k) &"' and Boardid_2<>'" & qsarray1(k) &"'"
+	 else
+	 qssqlstrx = "Boardid_1<>'" & qsarray1(k) &"' and Boardid_2<>'" & qsarray1(k) &"' and "
+	 end if
+	 qssqlstr1 = qssqlstr1&qssqlstrx
+   next
+    qssqlstr1 = ""&qssqlstr1'&" and "
+ else
+    qssqlstr1 = "Boardid_1<>'"&qsrs("BBS_Cate_ID") &"' and Boardid_2<>'"&qsrs("BBS_Cate_ID")&"'" ' &"' and "
+ end if
+  strqs=qssqlstr1&" and "
+end if
+qsrs.close
+'新增结束
+jh=request.QueryString("huati")
+tj=request.QueryString("sign")
+flag=request.QueryString("flag")
+jhtj=""
+jhortj=""
+order_key=Checkstr(request("order_key"))
+if order_key="" then
+   if layer_1="" then
+	order_key="bbstop1 desc,redate"
+   else
+    order_key="bbstop1 desc,bbstop desc,redate"
+   end if
+end if
+
+searchcontent=Checkstr(trim(request("searchcontent")))'搜索内容
+searchkind=request("searchkind")'搜索类别
+
+if jh="1" then
+   jhtj="and huati="&jh
+   jhortj=" and huati="&jh
+   jhpage="&huati="&jh
+end if
+if tj="1" then
+   jhtj="and sign="&tj
+   jhortj=" and sign="&tj
+   tjpage="&sign="&tj
+end if
+if flag="1" or flag="2" or flag="5" then
+   jhtj="and flag="&flag
+   jhortj=" and flag="&flag
+   tjpage="&flag="&flag
+end if
+'分页参数
+root=""
+if searchcontent<>"" then
+pagestr= "&searchkind="&searchkind&"&searchcontent="&searchcontent
+elseif layer_1<>"" and layer_2="" then
+pagestr= "&layer_1="&layer_1&jhpage&tjpage
+elseif layer_1<>"" and layer_2<>"" then
+pagestr= "&layer_1="&layer_1&"&layer_2="&layer_2&jhpage&tjpage
+else
+pagestr= ""&jhpage&tjpage
+end if
+
+dim rssql,getstring
+'******************************************
+dim wzcount,wzrep,wzpage,wzpagecount,wzpagerep,boardstr
+wzrep = Application("FTBBSMB")(5,0)
+if searchkind="" then'正常浏览方式
+	search_str=" "
+elseif searchkind="name" then '新增
+    if userlogin(ft)="N" then
+       response.write ""
+       response.end
+	end if
+	search_str=" and name= '"&searchcontent&"' "
+end if
+'========================================
+if layer_1="" then'总论坛
+	strsql="select id,Boardid_1,Boardid_2,user_id,name,title,hit,rep,dateh,redate,bbs_img,bbs_img_display,huati,img_url_display,P_display,picture,sign,zhiye,htmfilename,bbstop,bbstop1,flag,titlecolor,boardsign,reinfo,xsjf,xsreid from "&ft&"bbstitle where "&strqs&" deleted=0 "&search_str&" "&jhortj&" order by "&order_key&" desc"
+else
+	if layer_2="" then'一级类别论坛
+	   strsql="select id,Boardid_1,Boardid_2,user_id,name,title,hit,rep,dateh,redate,bbs_img,bbs_img_display,huati,img_url_display,P_display,picture,sign,zhiye,htmfilename,bbstop,bbstop1,flag,titlecolor,boardsign,reinfo,xsjf,xsreid from "&ft&"bbstitle where "&strqs&" deleted=0 and (boardid_1='"&layer_1&"' or bbstop1=1)"&search_str&" "&jhortj&" order by "&order_key&" desc"
+	else'二级类别论坛
+	   strsql="select id,Boardid_1,Boardid_2,user_id,name,title,hit,rep,dateh,redate,bbs_img,bbs_img_display,huati,img_url_display,P_display,picture,sign,zhiye,htmfilename,bbstop,bbstop1,flag,titlecolor,boardsign,reinfo,xsjf,xsreid from "&ft&"bbstitle where "&strqs&" deleted=0 and ((boardid_1='"&layer_1&"' and boardid_2='"&layer_2&"') or bbstop1=1) "&jhortj&" order by "&order_key&" desc"
+	end if
+end if
+set cus=server.createobject("adodb.recordset")
+cus.open strsql,conn,1,1
+wzpage = clng(request.querystring("page"))
+if len(wzpage) = 0 or wzpage = 0 then wzpage = 1
+if not cus.eof then
+cus.PageSize=wzrep
+cus.AbsolutePage=wzpage
+wzpagecount=cus.PageCount
+wzcount=cus.RecordCount
+else
+wzpagecount=0
+wzcount=0
+end if
+%>
+<HTML><HEAD>
+<META http-equiv=Content-Type content=text/html;charset=gb2312>
+<title><%=Application("FTBBSMB")(11,0)%></title>
+<%if num>0 and ftbbs_name<>"" then%>
+<script src="smsad.js"></script>
+<%end if%>
+<script language=javascript src="inc/cookies.js"></script>
+<script>
+var stylecook = getCookie("STYLESHOW");
+var style;
+var strstyle;
+if(stylecook=="")
+{
+ stylecook=1;
+}
+else
+{
+ stylecook++;
+}
+style="main0"+stylecook+".css";
+strstyle="<link href=\"css/"+style+"\"  rel=\"stylesheet\" type=\"text/css\"> ";
+document.write(strstyle);
+</script>
+</HEAD>
+<SCRIPT LANGUAGE="VBScript"> 
+<!--
+Sub order_key_OnChange
+	if document.jump.order_key.value <> "" then
+		document.jump.action = "main.asp?layer_1=<%=layer_1%>&layer_2=<%=layer_2%>&order_key="&document.jump.order_key.value&"&Searchkind=<%=Searchkind%>&Searchcontent=<%=Searchcontent%>"
+		jump.submit
+	end if
+End Sub
+-->
+</SCRIPT>
+
+<script>
+function changeCssStyle()
+{
+	var sCssType = document.all.select3.value;
+	setCookie("STYLESHOW", sCssType);
+	//window.navigate("default.asp");
+    window.location.href='main.asp';
+    parent.left.document.location.reload();
+}
+</script>
+</head>
+<body>
+<script>
+var stylecook = getCookie("STYLESHOW");
+var style;
+var tmpstylecook;
+function setcookies()
+{
+ tmpstylecook = stylecook;
+}
+
+function  reloadcook()
+{
+   var scooks = getCookie("STYLESHOW");
+   if(scooks != tmpstylecook)
+   {
+ 	window.location.reload();
+   }
+}
+setcookies();
+setInterval('reloadcook()',1000);
+</script>
+<%
+if getcookie("ftbbstype")=1 then
+  response.write headhtml
+  tbwidth="980"
+  idcss="listpostflag"
+else
+  tbwidth="840"
+  idcss="postflag"
+  response.write "<div id=""CenterBody"" class=""width840"">"
+end if
+%>
+<table width="<%=tbwidth%>" border="0" cellspacing="0" cellpadding="0" align="center">
+  <tr>
+    <td> 
+      <table width="100%" border=0 cellpadding=2 cellspacing=1 class="maintbbg">
+        <tbody>
+          <tr> 
+            <td height="25" class="f12bg">&nbsp;<%=userinfo%></td>
+          </tr>
+          <tr>
+            <td height="26" class="maintbtr3"><table width="100%" border=0 cellpadding=0 cellspacing=0>
+                <tbody>
+                  <tr> 
+                    <td width="60%" class=f12><img src="images/bbs_t1.gif" align="absmiddle"> 
+                      <%if layer_1<>"" then%>
+                      <a href="<%=homepage%>">论坛首页</a>>><a href="main.asp?layer_1=<%=layer_1%>&qs=<%=qs%>"><%=BBS_Cate_Name_1%></a> 
+                      <%if layer_2<>"" then%>
+                      >> <%=BBS_Cate_Name_2%> 
+                      <%end if%>
+                      <%else%>
+                      <a href="<%=homepage%>">论坛首页</a> 
+                      <%end if%>
+                      <%
+					  if BBS_Cate_Name_1="" then
+					     stats="论坛首页"
+					  else
+					     if BBS_Cate_Name_2="" then
+					     stats=BBS_Cate_Name_1
+						 else
+						 stats=BBS_Cate_Name_2
+						 end if
+					  end if
+					  %>
+                    </td>
+                    <td width="27%" class=f12><div align="right"><%=replace(BBS_Cate_Manager_Name,"|",",")%> 
+                      </div></td>
+                    <td width="13%" class=f12>
+					  <div align="right"><a href="bz.asp">版主工作评定</a></div></td>
+                  </tr>
+                </tbody>
+              </table></td>
+          </tr>
+        </tbody>
+      </table>
+<script src="listad.js"></script> 
+<%if BBS_Cate_Board<>"" then%>	  
+<table width="100%" border="0" align="center" cellpadding="0">
+  <tr> 
+    <td height=2><spacer height="2" type="block"></td>
+  </tr>
+</table>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="maintbbg">
+  <tr> 
+    <td class="maintbtr3"><table width="100%" border="0" cellspacing="3" cellpadding="3">
+        <tr> 
+         <td class="maintbtr2"><font color="#FF3333">版 规 和 导 读:</font></td>
+        </tr>
+		<tr> 
+           <td class="maintbtr3" style=" LINE-HEIGHT: 160%"><%=UBBCode(BBS_Cate_Board)%></td>
+        </tr>
+      </table></td>
+  </tr>
+</table>
+<%end if%>
+      <table cellspacing=0 cellpadding=0 width="100%" border=0>
+        <tbody> 
+        <tr> 
+            <td width="32%" height="35"><a href="fbht.asp?layer_1=<%=request("layer_1")%>&layer_2=<%=request("layer_2")%>"><img src="images/btn_post.gif" width="61" height="21" border="0" align="absmiddle"></a>&nbsp;<a href="bbspoll.asp?layer_1=<%=request("layer_1")%>&layer_2=<%=request("layer_2")%>"><img src="images/btn_poll.gif" width="61" height="21" border="0" align="absmiddle"></a>&nbsp;<a href="fbht.asp?layer_1=<%=request("layer_1")%>&layer_2=<%=request("layer_2")%>&fd=5"><img src="images/btn_xspost.gif" width="61" height="21" border="0" align="absmiddle"></a>&nbsp;<a href="fbht.asp?layer_1=<%=request("layer_1")%>&layer_2=<%=request("layer_2")%>&fd=Y"><img src="images/fd_add.gif" width="61" height="21" border="0" align="absmiddle"></a></td>
+          <FORM METHOD=POST ACTION="main.asp" onSubmit="return check_search(this)">
+              <td width="50%" align=right valign="middle"> 
+                <div align="right"> 
+                  <div class="f12"> 
+                    <%if getcookie("ftbbstype")=1 then%>
+                    <a href="default.asp?a=<%=layer_1%>&b=<%=layer_2%>&qs=<%=qs%>&ft=0" target="_top">框架结构浏览</a> 
+                    <%else%>
+                    <a href="default.asp?a=<%=layer_1%>&b=<%=layer_2%>&qs=<%=qs%>&ft=1" target="_top">平板结构浏览</a> 
+                    <%end if%>
+                    风格选择:
+<select name="select3"  style="background-color:#ffffff;FONT-FAMILY: Arial; FONT-SIZE: 9pt; FONT-STYLE: normal; WIDTH: 85px" size=1 onChange="javascript:changeCssStyle();">
+        <option  value="1" selected style="color:#799AE1">■标准风格</option>
+        <option value="0" style="color:66ABD9">■浅蓝风格</option>
+        <option value="2" style="color:#FA71C0">■女性风格</option>
+        <option value="3" style="color:#D56BDE">■紫色风格</option>
+        <option value="4" style="color:#EC8205">■黄色风格</option>
+		<option value="5" style="color:#529E20">■绿色风格</option>
+      </select>
+	  </div></div></td>
+          </form>
+          <form name="jump" method="post" action="">     
+            <td width="18%" valign="middle" class="f12"> 
+              <div align="right">排序方式:<select name="order_key" style="background-color:#ffffff;FONT-FAMILY: Arial; FONT-SIZE: 9pt; FONT-STYLE: normal; WIDTH: 75px">
+                  <option value="dateh" <%if order_key="dateh" then%>selected<%end if%>>发帖时间 
+                  <option value="redate" <%if order_key="redate" then%>selected<%end if%> >跟帖时间 
+                  <option value="hit" <%if order_key="hit" then%>selected<%end if%>>浏览量 
+                  <option value="rep" <%if order_key="rep" then%>selected<%end if%>>跟帖数 
+                </select>
+                  <input name="layer_2" type="hidden" id="layer_2" value="<%=layer_2%>">
+				  <input name="layer_1" type="hidden" id="layer_1" value="<%=layer_1%>">
+                </div>
+            </td>
+          </form>
+        </tr>
+        </tbody> 
+      </table>
+      
+    </td>
+  </tr>
+</table>
+<table width="<%=tbwidth%>" border="0" cellspacing="0" cellpadding="0" align="center" class="pagenavborder">
+    <tr class="maintbtr1"> 
+      <td align="left" height="26" class="f12"><%= pageclass(wzpagecount,wzcount,wzrep,pagestr,root)%></td>
+      <td align="right" width="200" class="f12">
+	  <table cellspacing=1 cellpadding=1 style="font-family: Tahoma, Verdana;BORDER: #8C8E7B 1px solid;background:#FFFFFF;">
+        <tr> 
+         <td style="background:#FF6500;font-size: 7pt;color:#ffffff;">&nbsp;XML&nbsp;</td>
+         <td style="background:#8C8E7B;font-size: 7pt;">&nbsp;<a href="rss.asp?layer_1=<%=layer_1%>&layer_2=<%=layer_2%>" target="_blank" title="订阅本版面最新帖子"><font color='#ffffff'>RSS 
+         2.0</font></a>&nbsp;</td>
+        </tr>
+     </table></td>
+   </tr>
+</table>
+<%
+if layer_1<>"" and layer_2="" then
+mainurl="main.asp?layer_1="&layer_1
+elseif layer_1<>"" and layer_2<>"" then
+mainurl="main.asp?layer_1="&layer_1&"&layer_2="&layer_2
+else
+mainurl="main.asp"
+end if
+if jh="1" then
+jhcss="class=""current"""
+elseif tj="1" then
+tjcss="class=""current"""
+elseif flag="1" then
+flagcss="class=""current"""
+elseif  flag="2" then
+fdcss="class=""current"""
+elseif  flag="5" then
+xscss="class=""current"""
+else
+allcss="class=""current"""
+end if
+%>
+<div align="center">
+ <div id="<%=idcss%>">
+	<ul class="tabs">
+		<li <%=allcss%>><a href="<%=mainurl%>">全部</a></li>
+		<li <%=tjcss%>><a href="main.asp?layer_1=<%=layer_1%>&layer_2=<%=layer_2%>&sign=1">推荐</a></li>
+		<li <%=jhcss%>><a href="main.asp?layer_1=<%=layer_1%>&layer_2=<%=layer_2%>&huati=1">精华</a></li>
+		<li <%=flagcss%>><a href="main.asp?layer_1=<%=layer_1%>&layer_2=<%=layer_2%>&flag=1">投票</a></li>
+        <li <%=fdcss%>><a href="main.asp?layer_1=<%=layer_1%>&layer_2=<%=layer_2%>&flag=2">活动</a></li>
+		<li <%=xscss%>><a href="main.asp?layer_1=<%=layer_1%>&layer_2=<%=layer_2%>&flag=5">提问</a></li>
+	</ul>
+ </div>
+</div>
+<table width="<%=tbwidth%>" border=0 cellpadding=2 cellspacing=0 class="listborder" align="center">
+  <tbody>
+    <tr align=middle class=f12> 
+      <td width="6%" height="28" class="loopborder1">状态</td>
+      <td width="52%" class="loopborder1">主题</td>
+      <td width="9%" class="loopborder1">作者</td>
+      <td width="10%" class="loopborder1">回复/查看</td>
+      <td width="23%" class="loopborder1">最后更新</td>
+    </tr>
+    <!--<script src="bbsad.js"></script>-->
+    <%
+if not cus.eof then
+  dim i,bgcolor
+  for i = 0 to wzrep-1
+    if cus.eof then exit for
+    bgColor="#FFFFFF"
+    if i mod 2=0 then bgColor="#DFEFFF"	
+	indbdate=cus("redate")
+	year1=right(year(indbdate),2)
+	month1=right("0"&month(indbdate),2)
+	day1=right("0"&day(indbdate),2)
+	hour1=right("0"&hour(indbdate),2)
+	minute1=right("0"&minute(indbdate),2)
+	indbdate=year1&"-"&month1&"-"&day1&" "&hour1&":"&minute1
+	titlecolor=cus("titlecolor")
+	bbstitle=cus("title")
+	if titlecolor<>"" then
+	title="<font color="&titlecolor&">"&bbstitle&"</font>"
+	else
+	title=bbstitle
+	end if
+	reinfo=cus("reinfo")
+	if instr(reinfo,"||")>0 then
+	rearr=split(reinfo,"||")
+	arrnum=UBound(rearr)
+	reinfo=rearr(arrnum)
+	end if
+	if reinfo<>"" and instr(reinfo,",")>0 then
+	reinfo=replace(reinfo,"|","")
+	rearr=split(reinfo,",")
+	replydate=rearr(0)
+	replyuser=" <font color=red>|</font> <a class=map href=ftbbsmyinfo.asp?ftbbsuser="&rearr(1)&">"&rearr(1)&"</a>"
+	replydate="<font color=#666666>"&right(year(replydate),2)&"-"&month(replydate)&"-"&day(replydate)&" "&hour(replydate)&":"&minute(replydate)&"</font>"
+	else
+	replydate="<font color=#666666>"&indbdate&"</font>"
+	replyuser=""
+	end if
+%>
+    <tr align=middle> 
+      <td width="6%" height="28" class="loopborder1"> 
+        <% 
+		      if cus("bbstop1")="1" then
+              response.write "<a class=f14 href="&cus("htmfilename")&" target=""_blank""><img src=""images/ding.gif"" alt=""总固顶的主题&#xA;点击开新窗口浏览"" width=""15"" height=""13"" border=""0"" align=""absmiddle"" board=0></a>"
+              elseif cus("bbstop")="1" then
+              response.write "<a class=f14 href="&cus("htmfilename")&" target=""_blank""><img src=""images/blueding.gif"" width=""15"" height=""13"" align=""absmiddle"" border=""0"" alt=""分论坛固顶的主题&#xA;点击开新窗口浏览""></a>" 
+              elseif cus("sign")="1" then
+              response.write "<a class=f14 href="&cus("htmfilename")&" target=""_blank""><img src=""images/jian.gif"" width=""15"" height=""13"" align=""absmiddle"" border=""0"" alt=""版主推荐的话题&#xA;点击开新窗口浏览""></a>" 
+              elseif cus("huati")="1" then
+              response.write "<a class=f14 href="&cus("htmfilename")&" target=""_blank""><img src=""images/jing.gif"" width=""15"" height=""13"" align=""absmiddle"" border=""0"" alt=""版主精选的话题&#xA;点击开新窗口浏览""></a>" 
+              elseif cus("P_display")="0" then
+              response.write "<a class=f14 href="&cus("htmfilename")&" target=""_blank""><img src=""images/suo.gif"" width=""12"" height=""13"" align=""absmiddle"" border=""0"" alt=""分论坛固顶的主题&#xA;点击开新窗口浏览""></a>" 
+              elseif cus("flag")="1" then
+              response.write "<a class=f14 href="&cus("htmfilename")&" target=""_blank""><img src=""images/poll.gif"" width=""15"" height=""16"" align=""absmiddle"" border=""0"" alt=""投票主题&#xA;点击开新窗口浏览""></a>" 
+			  elseif cus("hit")>=500 then
+              response.write "<a class=f14 href="&cus("htmfilename")&" target=""_blank""><img src=""images/hotpost.gif"" width=""14"" height=""16"" align=""absmiddle"" border=""0"" alt=""热门的话题&#xA;点击开新窗口浏览""></a>" 
+              else
+              response.write "<a class=f14 href="&cus("htmfilename")&" target=""_blank""><img src=""images/normal.gif"" width=""14"" height=""16"" align=""absmiddle"" border=""0"" alt=""开放的话题&#xA;点击开新窗口浏览""></a>" 
+              end if
+	  %>
+      </td>
+      <td width="52%"  align=left valign="middle" class="loopborder2">
+        <%if cus("P_display")<>"0" and cus("bbstop")<>1 and cus("sign")<>"1" and cus("huati")<>"1" and cus("zhiye")<>"10" and cus("picture")<>"" then%>
+        <img src="images/<%=cus("picture")%>" width="19" height="19" align="absmiddle"> 
+        <%end if%>
+        <a class=f14 href="<%=cus("htmfilename")%>" title="<%=cus("title")%>&#xA;作者:<%=cus("user_id")%>&#xA;发表于:<%=indbdate%>" target="_blank"><%=title%></a> 
+        <%
+		if (cus("xsreid")=0 or cus("xsreid")="") and cus("flag")=5 then response.write "<font color=#666666>[悬赏"&cus("xsjf")&"分]</font>"
+		if cus("xsreid")<>0 and cus("xsreid")<>"" then response.write "<font color=green>[已解决]</font>"
+		%>
+		<%
+			  if cus("bbs_img_display")=1 then
+              response.write "<img src=""images/picflag.gif"" width=""13"" height=""13"" align=""absmiddle"" alt=""附带图片""> " 
+              elseif cus("bbs_img_display")=3 then
+			  response.write "<img src=""images/file.gif"" align=""absmiddle"" alt=""附件""> "
+			  end if
+			  pagefilename=split(cus("htmfilename"),".")(0) 'replace(cus("htmfilename"),htm_ext,"")
+			  htm_ext="."&split(cus("htmfilename"),".")(1)
+			  pagenum=Application("FTBBSMB")(6,0) '每页显示条数
+              k=cus("rep")/pagenum
+			  if int(k)=k then
+   			  page=k
+			  else
+   			  page=int(k)+1
+			  end if
+			  if page>1 then
+			    for z=1 to page
+				   if z=1 then
+				   pagehtm=pagefilename&htm_ext
+				   else
+				   pagehtm=pagefilename&"_"&z&htm_ext
+				   end if
+				   if z>=4 and page>6 then
+					  pagehtm=pagefilename&"_"&page&htm_ext
+				      response.write "..<a class=""mainouttd"" href="&pagehtm&" target=""_blank"">"&page&"</a>"    
+				      exit for
+				   end if
+				   if z=1 then
+				   response.write "<a class=""mainouttd"" href="&pagehtm&" target=""_blank"">"&z&"</a>"
+				   else
+				   response.write "<a class=""mainouttd"" href="&pagehtm&" target=""_blank"">"&z&"</a>"
+				   end if
+				next
+			  end if
+			  %>
+      </td>
+      <td width="9%" class="loopborder1"><a href="ftbbsmyinfo.asp?ftbbsuser=<%=cus("user_id")%>"><%=cus("user_id")%></a></td>
+      <td class="loopborder3"> 
+        <%=cus("rep")%>/<%=cus("hit")%>
+      </td>
+      <td width="23%" class="loopborder1">
+<div align="left">&nbsp; 
+          <%response.write replydate&replyuser%>
+        </div></td>
+    </tr>
+    <%
+cus.movenext
+next
+%>
+    <tr valign="top"> 
+      <td colspan="6" class="maintbtr1"> <table width="100%" border="0" cellspacing="0" cellpadding="0" align="center">
+          <tr> 
+            <td align="left" height="26" class="f12"> 
+              <%= pageclass(wzpagecount,wzcount,wzrep,pagestr,root)%>
+            </td>
+            <td align="right" width="200" class="f12"><script src="ftbbsdh.js"></script></td>
+          </tr>
+        </table></td>
+    </tr>
+    <%else%>
+    <tr class="maintbtr3"> 
+      <td colspan=6 align=center height=25 class="f12"> 欢迎到本论坛发表贴子！ </td>
+    </tr>
+    <%end if%>
+  </tbody>
+</table>
+<table width="<%=tbwidth%>" border="0" align="center" cellpadding="0" cellspacing="1">
+  <tr> 
+    <td height=3><spacer height="3" type="block"></td>
+  </tr>
+</table>
+<table width="<%=tbwidth%>" border="0" align="center" cellpadding="0" cellspacing="1" class="maintbbg">
+  <tr> 
+    <td height=25 class="f12bg">&nbsp;-=&gt; 帖子图例</td>
+  </tr>
+  <tr> 
+    <td height="28" class="maintbtr3"><table width="100%" border="0" cellspacing="6" cellpadding="0">
+        <tr> 
+          <td width="13%" height="25" class="maintbtr3"><img src="images/normal.gif" width="14" height="16" border="0" align="absmiddle" board=0> 
+            普通主题</td>
+          <td width="14%" class="maintbtr3"><img src="images/hotpost.gif" width="14" height="16" border="0" align="absmiddle" board=0> 
+            热门主题</td>
+          <td width="14%" class="maintbtr3"><img src="images/suo.gif" width="12" height="13" border="0" align="absmiddle" board=0> 
+            锁定主题</td>
+          <td width="14%" class="maintbtr3"><img src="images/jing.gif" width="15" height="13" border="0" align="absmiddle" board=0> 
+            精华主题</td>
+          <td width="14%" class="maintbtr3"><img src="images/jian.gif" width="15" height="13" border="0" align="absmiddle" board=0> 
+            推荐主题</td>
+          <td width="14%" class="maintbtr3"><img src="images/poll.gif" width="15" height="16" border="0" align="absmiddle" board=0> 
+            投票主题</td>
+          <td width="16%" class="maintbtr3"><img src="images/ding.gif" width="15" height="13" border="0" align="absmiddle" board=0 alt="总版固顶"> 
+            <img src="images/blueding.gif" width="15" height="13" border="0" align="absmiddle" board="0" alt="分版固顶"> 
+            固顶主题</td>
+        </tr>
+      </table></td>
+  </tr>
+</table>
+<table width="<%=tbwidth%>" border="0" align="center" cellpadding="0" cellspacing="1">
+  <tr> 
+    <td height=5><spacer height="5" type="block"></td>
+  </tr>
+</table>
+<table width="<%=tbwidth%>" border="0" align="center" cellpadding="0" cellspacing="1" class="maintbbg">
+<%if onlineoff=0 then%>
+  <tr> 
+    <td height=25 class="f12bg">&nbsp;在线用户:
+<script language="JavaScript" src="online.asp?dis=yes&stats=<%=stats%>"></script>
+	  </td>
+  </tr>
+  <%end if%>
+  <%if linkoff=0 then%>
+  <tr> 
+    <td height="28" class="maintbtr3"><table width="100%" border="0" cellspacing="6" cellpadding="0">
+        <tr> 
+          <td class="maintbtr3"><script language="JavaScript" src="ftlink.js"></script></td>
+        </tr>
+      </table></td>
+  </tr>
+  <%end if%>
+</table>
+<script>
+if(stylecook=='' || stylecook == '0' )
+{
+stylecook=0;
+}
+document.all.select3.value=stylecook;
+</script>
+<%
+if getcookie("ftbbstype")=1 then
+%>
+<!--#include file="inc/listbbstail.htm" -->
+<%
+else
+%>
+<!--#include file="inc/bbstail.htm" -->
+<%
+response.write "</div>"
+end if
+CloseDb
+%>

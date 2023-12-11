@@ -1,0 +1,39 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<link href="${contextPath}/css/css.css" rel="stylesheet" type="text/css" media="all">
+<script src="${contextPath}/js/plugins/base/sea.js"></script> 
+<script src="${contextPath}/js/plugins/base/config.js"></script> 
+ <input type="hidden" value="${contextPath}" id="contextPath"/>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=7"/>
+
+     <link href="${contextPath}/static/css/base.css" rel="stylesheet">
+   <link href="${contextPath}/static/css/cutter.css" rel="stylesheet">
+	<sf:ResourceGroup type="css">
+	<sf:Resource path="/css/css.css"></sf:Resource>
+	</sf:ResourceGroup>
+	
+	<sf:ResourceGroup type="js">
+	 <sf:Resource path="/i18n.js" />
+	 <sf:Resource path="/sysConfig.js" />
+	 <sf:Resource path="/resources/base/sea.js" />
+	 <sf:Resource path="/resources/base/config.js" />
+	 </sf:ResourceGroup>
+	<title>${setting.systemName }</title>
+</head>
+<body>
+<div class="Container">
+            <tiles:insertAttribute name="rightContent"/>
+<tiles:insertAttribute name="foot"/>
+</div>
+<script type="text/javascript">
+	seajs.contextPath = '${contextPath}';
+	seajs.restEmpty = '${empty_path_variable}';
+	//seajs.use("${scriptBasePath}/seaJsExtends/timerReminder.js");
+</script>
+</body>
+</html>

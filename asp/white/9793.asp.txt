@@ -1,0 +1,56 @@
+<!--#include file="include.asp"-->
+<%
+Dim PageUrl,PageContent
+Action=Request.QueryString("act")
+PageUrl=Request.QueryString("themeurl")
+If PageUrl="" Then PageUrl=DownLoad_URL
+PageUrl=PageUrl&Request.QueryString("Page")
+   %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>插件安装</title>
+<link href="../../Images/style.css" rel="stylesheet" type="text/css">
+<link href="Images/new.css" rel="stylesheet" type="text/css">
+</head>
+ <body> 
+<table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+  <tr>
+    <td class="bg_tr">您现在的位置：插件样式  &gt;&gt; 浏览</td>
+  </tr>
+  <tr>
+    <td>
+    <div class="md-head" >
+        <div class="zsj"></div>
+<a href="Act.Theme.ACTList.asp" class="a10 wrap cur wid"  >在线安装插件</a>
+<a href="Act.Theme.Reg.asp" class="a10 wrap"  >我的帐号</a>
+<a href="Index.asp" class="10 wrap"  >插件管理</a>
+<a href="Act.Theme.Check.asp" class="a10 wrap"  >查看插件的可用更新</a>
+    </div>
+</td>
+  </tr>
+</table>
+  <%If Action <> "install" Then
+ 	Echo "<div class=""top1""><span style="" margin-left:10px"" ><strong>提示：</strong>下面列出了""在线模版""里提供的插件资源, 您可以通过点击<b> [安装插件] </b>将您需要的插件安装到您的系统上.</span></div>"
+End If
+%> <%
+ Echo "<span id=""loading"">正在载入服务器数据, 请稍候...  如果长时间停止响应, 请 <a href=""javascript:window.location.reload();"" title=""点此重试"">[点此重试]</a></span>"
+ Response.Flush
+ echo "<table width=""98%"" border=""0"" align=""center"" cellpadding=""2"" cellspacing=""1"" class=""table""><tr><td   colspan=""2"" >"
+PageContent=getHTTPPage(PageUrl)
+PageContent=Replace(PageContent,"{$ActTheme$}","")
+Echo PageContent
+ %>
+</div>
+<hr class="line"/>
+<div class="button_div">
+<input onclick="self.location.href='Index.asp';" type="button"  class="ACT_btn"  value="返回插件管理" title="返回插件管理页" /> <input onclick="window.scrollTo(0,0);" type="button"  class="ACT_btn"   value="返回页面顶部"  title="返回页面顶部" /></form>
+<script language="JavaScript" type="text/javascript">document.getElementById('loading').style.display = 'none';</script>
+</div>
+
+</td>
+  </tr>
+   </table>
+</body>
+</html>

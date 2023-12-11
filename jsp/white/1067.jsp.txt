@@ -1,0 +1,98 @@
+<%@ page contentType="text/html; charset=gb2312" language="java"%>
+<%@ page import="java.util.*"%>
+<%@ page import="java.text.*"%>
+<%@page import="com.chinabank.config.ChinaBankConfig"%>
+<%@ page import="com.bizoss.trade.ti_payment.*"%>
+
+<jsp:useBean id="MD5" scope="request" class="beartool.MD5"/>
+
+<%
+	//初始化定义参数
+	//定义必须传递的参数变量
+	String v_mid="",key="",v_url="",v_oid="",v_amount="",v_moneytype="",v_md5info="",receive_name="",cust_id="",price="";  
+	
+	if(request.getParameter("alipay_cust_id")!=null) cust_id =request.getParameter("alipay_cust_id");
+	Map params=new Hashtable();
+	params.put("cust_id",cust_id);
+	params.put("pay_code","chinabank");
+	//out.print("params="+params);
+	Map alipayMap = new Ti_paymentInfo().getCustAlipayInfo(params);
+		 
+
+	if(alipayMap!=null)
+	{
+		v_mid = alipayMap.get("pay_account").toString();
+		key = alipayMap.get("passwd").toString();			 
+	}
+
+	
+	// 商户自定义返回接收支付结果的页面                 	     
+	v_url = ChinaBankConfig.v_url;    						
+							      
+	/**
+	MD5密钥要跟订单提交页相同，如Send.asp里的 key = "test" ,修改""号内 test 为您的密钥
+	如果您还没有设置MD5密钥请登陆我们为您提供商户后台，地址：https://merchant3.chinabank.com.cn/
+	登陆后在上面的导航栏里可能找到“资料管理”，在资料管理的二级导航栏里有“MD5密钥设置” 
+	建议您设置一个16位以上的密钥或更高，密钥最多64位，但设置16位已经足够了
+	**/
+	 								      
+													      
+	//推荐订单号构成格式为 年月日-商户号-小时分钟秒	
+	if(request.getParameter("out_trade_no")!=null && !request.getParameter("out_trade_no").equals("")) 
+	{
+	 	v_oid=request.getParameter("out_trade_no");
+	}
+	else                         
+	{
+	  Date currTime = new Date();
+	  SimpleDateFormat sf = new SimpleDateFormat("yyyyMMdd-"+v_mid+"-hhmmss",Locale.US);
+	  v_oid=sf.format(currTime);                        
+	}        
+	//订单金额  
+	if(request.getParameter("price")!=null && !request.getParameter("price").equals(""))  
+	{
+		price=request.getParameter("price");
+	}	                           
+	v_amount= price;//	price
+	
+	//币种			                
+	v_moneytype ="CNY";	
+	
+	//对拼凑串MD5私钥加密后的值                  				
+	v_md5info = "";										
+	//判断是否有传递订单号
+	if(request.getParameter("receive_name")!=null && !request.getParameter("receive_name").equals(""))  
+	{
+		receive_name=request.getParameter("receive_name");
+	}	
+		
+	//拼凑加密串,网银支付平台对MD5值只认大写字符串，所以小写的MD5值得转换为大写
+	String text = v_amount+v_moneytype+v_oid+v_mid+v_url+key;   
+	v_md5info = MD5.getMD5ofStr(text);  
+%>
+
+<!--以下信息为标准的 HTML 格式 + JAVA 语言 拼凑而成的 网银在线 支付接口标准演示页面 -->
+
+<html>
+
+<body onLoad="javascript:document.E_FORM.submit()">
+
+<form action="https://pay3.chinabank.com.cn/PayGate" method="POST" name="E_FORM">
+
+  <!--以下几项为网上支付重要信息，信息必须正确无误，信息会影响支付进行！-->
+    
+  <input type="hidden" name="v_md5info"    value="<%=v_md5info%>" size="100"><!-- MD5校验码(存在)-->
+  <input type="hidden" name="v_mid"        value="<%=v_mid%>"><!-- 商户编号(存在) -->
+  <input type="hidden" name="v_oid"        value="<%=v_oid%>"><!-- 订单编号 -->
+  <input type="hidden" name="v_amount"     value="<%=v_amount%>"><!-- 订单总金额 -->
+  <input type="hidden" name="v_moneytype"  value="<%=v_moneytype%>"><!-- 币种(存在) -->
+  <input type="hidden" name="v_url"        value="<%=v_url%>"><!-- 完成交易返回的地址(存在) -->
+  <input type="hidden" name="v_receive_name"  value="<%=receive_name%>"><!--  -->
+  <input type="hidden" name="remark2"  value="<%=cust_id%>"><!--  -->
+
+  <center>正在跳转...进入网银在线</center>
+  
+  </form>
+
+</body>
+</html>

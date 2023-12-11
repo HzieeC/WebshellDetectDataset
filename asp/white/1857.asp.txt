@@ -1,0 +1,300 @@
+<!--#Include File="CONN.ASP"-->
+<!--#Include File="inc/Const.asp"-->
+<!--#Include File="inc/md5.asp"-->
+<!--#Include File="Dv_Plus_Invite_ClsMain.asp"-->
+<%
+If Not Dvbbs.Master Then
+	Dvbbs.AddErrcode(28)
+	Dvbbs.ShowErr()
+End If
+Dim DI_Stats,DI_Script_Name,DI_action,DI_delNumber,DI_save,DI_count,DI_fail,DI_obj,searchname
+DI_Stats = "邀请码管理"
+DI_Script_Name = Request.ServerVariables("Script_Name")
+Dvbbs.LoadTemplates("")
+Dvbbs.Stats = DI_Stats
+Dvbbs.Nav
+Dvbbs.Head_Var 0,0,DI_Stats,DI_Script_Name
+Set DI_obj = New Cls_DI
+DI_obj.Load_Setup()
+DI_obj.Del_FailDate() '第二次更新撤掉此功能。不删除，修改为过期即标识为已使用
+
+DI_action = Dvbbs.CheckStr(Request("action"))
+DI_delNumber = Dvbbs.CheckStr(Request("delnum"))
+DI_save = Dvbbs.CheckNumeric(Request("DI_save"))
+DI_count = Dvbbs.CheckNumeric(Request("DI_count"))
+DI_fail = Dvbbs.CheckNumeric(Request("DI_fail"))
+searchname = Dvbbs.CheckStr(Request("searchname"))
+Select Case DI_action
+	Case "add" : add()
+	Case "del" : del(DI_delNumber)
+	Case Else
+		Call showList()
+End Select
+
+Sub add()
+	If DI_save = 1 Then
+		If DI_count <= 0 Then
+			Response.Redirect "showerr.asp?ErrCodes=<li>生成验证码数量不能小于0！&action=OtherErr"
+			Response.End
+		End If
+		If DI_fail <= 0 Then
+			Response.Redirect "showerr.asp?ErrCodes=<li>有效期至少为1天！&action=OtherErr"
+			Response.End
+		End If
+		Call main(DI_count,DI_fail)
+	Else
+		Call showForm()
+	End If
+End Sub
+
+Dvbbs.Footer()
+Dvbbs.PageEnd()
+
+Sub main(DI_count,DI_fail)
+	Dim failDate,i
+	failDate = Now()
+	failDate = failDate + DI_fail
+	For i=1 To DI_count
+		On Error Resume Next
+		If IsSqlDataBase = 1 Then
+			Dvbbs.Execute("INSERT INTO [Dv_Plus_Invite] (DI_Code,DI_FailDate,DI_CreateUserName) VALUES ('"& DI_obj.getRanNumber() &"','"& failDate &"','"& Dvbbs.MemberName &"')")
+		Else
+			Dvbbs.Execute("INSERT INTO [Dv_Plus_Invite] (DI_Code,DI_FailDate,DI_CreateUserName) VALUES ('"& DI_obj.getRanNumber() &"',#"& failDate &"#,'"& Dvbbs.MemberName &"')")
+		End If
+		If Err Then
+			Dim DI_ErrCodes
+			DI_ErrCodes = "插入记录出错：" & Err.Description
+			Err.Clear
+			Response.Redirect "showerr.asp?ErrCodes=<li>"& DI_ErrCodes &"&action=OtherErr"
+			Response.End
+		End If
+	Next
+%>
+<table class="tableborder1" cellspacing="1">
+	<tr><th><%=DI_Stats%></th></tr>
+	<tr>
+		<td class="tablebody1"><li>创建邀请码成功。您可以选择以下操作：</li></td>
+	</tr>
+	<tr>
+		<td class="tablebody1">
+			<input type="button" value="创建邀请码" onclick="window.location='Dv_Plus_Invite.asp?action=add'"/>&nbsp;&nbsp;
+			<input type="button" value="查看邀请码" onclick="window.location='Dv_Plus_Invite.asp'"/>
+		</td>
+	</tr>
+</table>
+<%
+Call DI_obj.DI_NoadSql("Dv_Plus_Invite.asp","创建邀请码(个/天数："& DI_count &"/"& DI_fail &"，失效时间："& failDate &")")
+End Sub
+
+Sub showForm()
+%>
+<form method="post" action="<%=DI_Script_Name%>?action=add">
+<input type="hidden" name="DI_save" value="1"/>
+<table class="tableborder1" cellspacing="1">
+	<tr><th><%=DI_Stats%></th></tr>
+	<tr>
+		<td class="tablebody1">
+			<li>请填写创建邀请码的数量：<input type="text" name="DI_count" value="20"/></li>
+			<li>请填写邀请码的有效天数：<input type="text" name="DI_fail" value="30"/></li>
+		</td>
+	</tr>
+	<tr>
+		<td class="tablebody1">
+			<input type="submit" value="点击创建"/>&nbsp;&nbsp;
+			<input type="button" value="查看邀请码" onclick="window.location='Dv_Plus_Invite.asp'"/>
+		</td>
+	</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub del(DI_delNumber)
+If DI_delNumber = "" Then
+	Response.Redirect "showerr.asp?ErrCodes=<li>请指定相关邀请码&action=OtherErr"
+	Response.End
+End If
+On Error Resume Next
+Dvbbs.Execute("Delete From [Dv_Plus_Invite] Where DI_ID In ("& DI_delNumber &")")
+If Err Then
+	Dim DI_ErrCodes
+	DI_ErrCodes = "删除记录出错：" & Err.Description
+	Err.Clear
+	Response.Redirect "showerr.asp?ErrCodes=<li>"& DI_ErrCodes &"&action=OtherErr"
+	Response.End
+Else
+	Call DI_obj.DI_NoadSql("Dv_Plus_Invite.asp","删除邀请码")
+	Dvbbs.Dvbbs_suc("<li>删除记录成功！</li>")
+End If
+End Sub
+
+'邀请码列表
+Sub showList()
+Dim Sql,Rs,i
+%>
+
+<table class="tableborder1" cellspacing="1">
+	<tr><th><%=DI_Stats%></th></tr>
+	<tr><td class="tablebody1"><li><font color="red">温馨提示：IE下鼠标点击邀请码，即可复制该邀请码链接地址，发送给用户注册即可。</font></li></td></tr>
+	<tr><td class="tablebody1">
+		<form method="post" action="<%=DI_Script_Name%>?action=query" name="queryform1">
+		<input type="text" name="searchname" value="<%=searchname%>"/>
+		<input type="submit" value="用户搜索"/>
+		</form>
+	</td></tr>
+	<form method="post" action="<%=DI_Script_Name%>?action=del" name="theform1">
+	<tr><td>
+<%
+Dim Page,MaxRows,Endpage,CountNum,PageSearch,SqlString
+Response.Write "<script language=""JavaScript"" src=""inc/Pagination.js""></script>" & VbCrLf
+'查询
+If DI_action="query" And searchname<>"" Then
+	PageSearch = "action=query&searchname="&searchname&""
+Else
+	PageSearch = ""
+End If
+Endpage = 0
+	'搜索返回结果数控制
+	If Dvbbs.Forum_Setting(12)<>"0" Then
+		If IsNumeric(Dvbbs.Forum_Setting(12)) Then
+		If Clng(Dvbbs.Forum_Setting(12)) Mod Cint(Dvbbs.Forum_Setting(11))=0 Then
+			MaxRows = Clng(Dvbbs.Forum_Setting(12)) \ Cint(Dvbbs.Forum_Setting(11))
+		Else
+	     	MaxRows = Clng(Dvbbs.Forum_Setting(12)) \ Cint(Dvbbs.Forum_Setting(11))+1
+  		End If
+		Else
+			MaxRows = 50
+		End If
+	Else
+		MaxRows = 50
+	End If
+CountNum = 0
+Page = Request("Page")
+If IsNumeric(Page) = 0 or Page="" Then Page=1
+Page = Clng(Page)
+
+		Rem DI_ID, DI_Code,  DI_CreateDate, DI_TempDate, DI_FailDate, DI_CreateUserName, DI_IsFail, DI_RegUserName,DI_RegTime
+		Rem 0=id,  1=邀请码, 2=创建时间,    3=临时时间,  4=失效时间,  5=创建者,          6=是否失效,7=注册人,      8=注册时间
+		'查询
+		If DI_action="query" And searchname<>"" Then
+			Sql = "Select DI_ID,DI_Code,DI_CreateDate,DI_TempDate,DI_FailDate,DI_CreateUserName,DI_IsFail,DI_RegUserName,DI_RegTime From [Dv_Plus_Invite] Where DI_CreateUserName='"& searchname &"' Order By DI_CreateUserName Asc,DI_IsFail Desc"
+		Else
+			Sql = "Select DI_ID,DI_Code,DI_CreateDate,DI_TempDate,DI_FailDate,DI_CreateUserName,DI_IsFail,DI_RegUserName,DI_RegTime From [Dv_Plus_Invite] Order By DI_CreateUserName Asc,DI_IsFail Desc"
+		End If
+		If Not IsObject(Conn) Then ConnectionDatabase
+		Set Rs = Server.CreateObject("Adodb.RecordSet")
+	'	Set Rs = Dvbbs.iCreateObject("Adodb.RecordSet") Rem Dvbbs 8.0 Sp1 以上可使用这一行
+		Rs.Open Sql,Conn,1,1
+		If Not (Rs.Eof And Rs.Bof) Then
+			CountNum = Rs.RecordCount
+			If CountNum Mod MaxRows=0 Then
+				Endpage = CountNum \ MaxRows
+			Else
+				Endpage = CountNum \ MaxRows+1
+			End If
+			Rs.MoveFirst
+			If Page > Endpage Then Page = Endpage
+			If Page < 1 Then Page = 1
+			If Page >1 Then
+				Rs.Move (Page-1) * MaxRows
+			End if
+			Sql=Rs.GetRows(MaxRows)
+			Rs.Close:Set Rs = Nothing
+
+			If IsArray(Sql) Then
+				%>
+				<table class="tableborder1" cellspacing="1" style="width:100%;">
+				<tr>
+					<th style="text-align:center;" width="2%">?</th>
+					<th style="text-align:center;">邀请码</th>
+					<th style="text-align:center;" width="10%">创建日期</th>
+					<th style="text-align:center;" width="10%">失效日期</th>
+					<th style="text-align:center;" width="12%">创建者</th>
+					<th style="text-align:center;" width="5%">状态</th>
+					<th style="text-align:center;" width="10%">注册人/时间</th>
+				</tr>
+				<%
+				For i=0 To UBound(Sql,2)
+					%>
+					<tr>
+						<td class="tablebody1" style="text-align:center;">
+							<input type="checkbox" class="checkbox" id="delnum" name="delnum" value="<%=Sql(0,i)%>"/>
+						</td>
+						<td class="tablebody1" style="text-align:center;">
+							<input type="hidden" id="DI_Code<%=Sql(0,i)%>" value="<%=DI_obj.GetCodeUrl(Sql(1,i))%>">
+							<div onclick="oCopy(document.getElementById('DI_Code<%=Sql(0,i)%>'))" style="CURSOR:hand" title="点击复制"><%=DI_obj.GetCodeUrl(Sql(1,i))%></div>
+						</td>
+						<td class="tablebody1" style="text-align:center;">
+							<%=Sql(2,i)%>
+						</td>
+						<td class="tablebody1" style="text-align:center;">
+							<%=Sql(4,i)%>
+						</td>
+						<td class="tablebody1" style="text-align:center;">
+							<a href="dispuser.asp?name=<%=Sql(5,i)%>" title="<%=DI_obj.GetUserInfo(Sql(5,i))%>" target="_blank"><%=Sql(5,i)%></a>
+						</td>
+						<td class="tablebody1" style="text-align:center;">
+							<%If Sql(6,i)="1" Then%><font color="red">使用中</font><%ElseIf Sql(6,i)="0" Then%>未使用<%ElseIf Sql(6,i)="2" Then%><font color="blue">已使用</font><%ElseIf Sql(6,i)="3" Then%><font color="green">已过期</font><%Else%><font color="gray">未知</font><%End If%>
+						</td>
+						<td class="tablebody1" style="text-align:right;">
+							<a href="dispuser.asp?name=<%=Sql(7,i)%>" target="_blank"><%=Sql(7,i)%></a><br/><%=Sql(8,i)%>
+						</td>
+					</tr>
+					<%
+				Next
+				%>
+				</table>
+				<%
+			End If
+		Else
+			Response.Write "<li>还没创建邀请码！</li>"
+			Rs.Close:Set Rs = Nothing
+		End If
+%>
+	</td></tr>
+	<tr>
+		<td class="tablebody1">
+			<input type="checkbox" class="checkbox" name="allcheck" id="allcheck" onclick="checkAll();"/>全选&nbsp;&nbsp;
+			<input type="submit" value="删除所选" onclick="{if(confirm('您确定执行的操作吗?')){this.document.theform1.submit();return true;}return false;}"/>&nbsp;&nbsp;
+			<input type="button" value="创建邀请码" onclick="window.location='Dv_Plus_Invite.asp?action=add'"/>
+		</td>
+	</tr>
+	</form>
+
+	<%
+	'If CountNum > MaxRows Then
+		Response.Write "<tr><td class=""tablebody1"">" & VbCrLf
+		Response.Write "<SCRIPT>PageList("&Page&",3,"&MaxRows&","&CountNum&","""&PageSearch&""",0);</SCRIPT>" & VbCrLf
+		Response.Write "</td></tr>"
+	'End If
+	%>
+</table>
+<%
+End Sub
+%>
+<script language="JavaScript" type="text/javascript">
+<!--
+function checkAll(){
+    var a = document.getElementsByName("delnum");
+    var alen=a.length;
+    var b = document.getElementsByName("allcheck");
+    for (i=0;i<alen;i++)
+    {
+        if (b[0].checked == true)
+        {
+            a[i].checked = true;
+        }
+        else
+        {
+            a[i].checked = false;
+        }
+    }
+}
+function oCopy(obj){
+	obj.select();
+	js=obj.createTextRange();
+	js.execCommand("Copy");
+	alert(obj.value + "\n\n复制成功 ^_^");
+}
+//-->
+</script>

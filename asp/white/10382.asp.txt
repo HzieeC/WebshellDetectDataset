@@ -1,0 +1,495 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<!--#include file="../inc/sendmail.asp" -->
+<!--#include file="../inc/md5.asp"-->
+<!--#include file="../smsapi/smsapi.asp"-->
+<%link="company_interviewsend.asp?action="&request("action")&"&checks="&request("checks")&""%>
+<!--#include file="checkcmember.asp" -->
+<!--#include file="flagandexpend.asp"-->
+<%
+If CheckCFlag("Climits",4)=False Then
+	Response.Write("<script>alert(""您无权使用面试邀请！"");window.close();</script>")
+	Response.End()
+End If
+if trim(request("step"))="2" then
+ action=CheckStr(trim(request("action")))
+ checks=trim(request("checks"))
+ hireid=clng(trim(request("hireid")))
+ subject=CheckStr(trim(request("subject")))
+ content=CheckStrbox(trim(request("content")))
+ issendsms=trim(request("issendsms"))
+ set rs=Server.CreateObject("Adodb.Recordset")
+ sql="select hire_place,hire_comname,hire_email from job_c_hire where hire_id="&hireid
+ rs.open sql,conn,1,1
+  place=rs("hire_place")
+  comname=rs("hire_comname")
+  cemail=rs("hire_email")
+ rs.close
+ person=split(checks,",")
+ '步骤：
+ '1）存入企业的“邀请面试记录”
+ '2）如果该人才是个人会员，则存入该会员的“面试通知”
+ '3) 把工作申请记录中相应信息的面试标志置1
+ for i=0 to ubound(person)
+  id=trim(person(i))
+  select case action '取出相关信息
+   case "myreceive"   '收到应聘简历中触发
+    sql="select * from job_c_myreceive where myreceive_id="&id
+    rs.open sql,conn,1,1
+    resumeid=rs("myreceive_resumeid")
+    names=rs("myreceive_name")
+    sex=rs("myreceive_sex")
+    birth=rs("myreceive_birth")
+    edu=rs("myreceive_edu")
+	pmember=rs("myreceive_pmember")
+    rs.close
+	rs.open "select member_email from JOB_member where member_login='"&pmember&"'"
+	if not(rs.eof) then
+	    pmember_email=rs("member_email")
+	end if
+	rs.close
+   case "myexpert"   '企业人才库触发
+    sql="select * from job_c_myexpert where myexpert_id="&id
+    rs.open sql,conn,1,1
+    resumeid=rs("myexpert_resumeid")
+    names=rs("myexpert_name")
+    sex=rs("myexpert_sex")
+    birth=rs("myexpert_birth")
+    edu=rs("myexpert_edu")
+	pmember=rs("myexpert_pmember")
+    rs.close
+   case "comrecycle"   '简历回收站触发
+    sql="select * from job_c_recycle where comrecycle_id="&id
+    rs.open sql,conn,1,1
+    resumeid=rs("comrecycle_resumeid")
+    names=rs("comrecycle_name")
+    sex=rs("comrecycle_sex")
+    birth=rs("comrecycle_birth")
+    edu=rs("comrecycle_edu")
+	pmember=rs("comrecycle_pmember")
+    rs.close
+   case "resume"   '简历上触发
+	 sql="select * from job_p_resume where resume_id="&id
+	 rs.open sql,conn,1,1
+	 resumeid=rs("resume_id")
+	 names=rs("resume_name")
+	 sex=rs("resume_sex")
+	 birth=rs("resume_birth")
+	 edu=rs("resume_edu")
+	 pmember=rs("resume_pmember")
+	 rs.close
+   case "search"   '搜索结果中触发
+   	 sql="select * from job_p_resume where resume_id="&id
+	 rs.open sql,conn,1,1
+	 resumeid=rs("resume_id")
+	 names=rs("resume_name")
+	 sex=rs("resume_sex")
+	 birth=rs("resume_birth")
+	 edu=rs("resume_edu")
+	 pmember=rs("resume_pmember")
+	 rs.close
+   end select
+	sql="select * from job_c_interview" '存入企业的“邀请面试记录”
+    rs.open sql,conn,3,3
+	If CheckCFlag("Climits",5)=False then
+		If CheckCFlag("Cdianshus",2)=False then
+			response.write "<script language=javascript>alert('您的面试邀请次数达到最大限制（或无可用点数），暂不能继续邀请，如需继续发送面试邀请请联系网站客服进行升级！');window.close();</script>"
+			response.end()
+		else
+			Call PayLog(cmember_login,2,"邀请"&names&"面试“"&place&"”职位扣点",Group_Cdianshus(2),0)
+		end if
+	else
+		Call PayLog(cmember_login,2,"邀请"&names&"面试“"&place&"”职位",0,0)
+	end if
+    rs.addnew
+    rs("cominterview_resumeid")=resumeid
+    rs("cominterview_name")=names
+    rs("cominterview_sex")=sex
+    rs("cominterview_birth")=birth
+    rs("cominterview_edu")=edu
+    rs("cominterview_hireid")=hireid
+	rs("cominterview_place")=place
+	rs("cominterview_cmember")=cmember_login
+	rs("cominterview_pmember")=pmember
+	rs("cominterview_date")=now()
+    rs.update 
+    rs.close
+	'修改邀请面试数量
+	if CheckCFlag("Climits",5)=False Or Group_Climits(5)=0 then
+	conn.Execute("Update JOB_member set Member_interviewnums=Member_interviewnums+1 where Member_login = '"&cmember_login&"' and Member_typeid=2")
+	else
+	conn.Execute("Update JOB_member set Member_interviewnums=Member_interviewnums+1,Member_interviewnum=Member_interviewnum-1 where Member_login = '"&cmember_login&"' and Member_typeid=2")
+	end if
+	if pmember<>"" then  '如果该人才是个人会员，则存入该会员的“面试通知”
+     sql="select * from job_p_myinterview"
+     rs.open sql,conn,3,3
+     rs.addnew
+     rs("myinterview_hireid")=hireid
+     rs("myinterview_comname")=comname
+     rs("myinterview_place")=place
+     rs("myinterview_pmember")=pmember
+     rs("myinterview_cmember")=cmember_login
+	 rs("myinterview_read")=0
+	 rs("myinterview_title")=subject
+	 rs("myinterview_content")=content
+	 rs("myinterview_date")=now()
+     rs.update 
+     rs.close
+	 '查询个人邮箱地址
+	 rs.open "select member_email,member_mobile,member_name from JOB_member where member_login='"&pmember&"' and member_typeid=1"
+		if not(rs.eof) then
+			pmember_email=rs("member_email")
+			pmember_mobile=rs("member_mobile")
+			pmember_name=rs("member_name")
+			'发送邀请邮件通知
+			Call SendMail(pmember_email,subject&" 面试邀请职位："&place,content)
+			if (pmember_mobile<>"" and issendsms<>"" and  Smssend=1 and CheckCFlag("Climits",12)=True and CheckCFlag("Climits",13)=True) then
+				'整合手机短信
+				Set newclient=New SMS
+				respxml=newclient.sendSMS(""&pmember_mobile&"",""&pmember_name&"：恭喜您收到"&comname&place&"的面试通知。请登陆"&SiteName&"查看。","")
+				code=newclient.getCode()
+				if code<>"000" then
+				conn.execute("Insert into JOB_Sms(S_memberlogin,S_tomemberlogin,S_tomobile,S_issuccess,S_sendtime,S_content) values('"&cmember_login&"','"&pmember&"','"&pmember_mobile&"',0,"&FR_HR_Now&",'"&pmember_name&"：恭喜您收到"&comname&place&"的面试通知。请登陆"&SiteName&"查看。')")	
+				response.write("<script>alert('短信发送失败！可能原因：短信字数太多或者其他!');</script>")	
+				else
+				conn.execute("Insert into JOB_Sms(S_memberlogin,S_tomemberlogin,S_tomobile,S_issuccess,S_sendtime,S_content) values('"&cmember_login&"','"&pmember&"','"&pmember_mobile&"',1,"&FR_HR_Now&",'"&pmember_name&"：恭喜您收到"&comname&place&"的面试通知。请登陆"&SiteName&"查看。')")
+					if CheckCFlag("Climits",13)=False Or Group_Climits(13)=0 then
+						conn.execute("update job_member set Member_smsnums=Member_smsnums+1 where member_login='"&cmember_login&"' and member_typeid=2")
+					else
+						conn.execute("update job_member set Member_smsnums=Member_smsnums+1,Member_smsnum=Member_smsnum-1 where member_login='"&cmember_login&"' and member_typeid=2")
+					end if
+				end if
+			else
+				'如果选中发送短信但没有发送成功则提示
+				if issendsms<>"" then
+					response.write("<script>alert('短信发送失败！可能原因：会员手机号不正确或者您没有发送短信的权限!');</script>")
+				end if
+			end if
+		end if
+	 rs.close
+	end if
+	'把工作申请记录中相应信息的面试标志置1
+	conn.execute("update job_p_mysend set mysend_interview=1 where mysend_hireid="&hireid&" and mysend_pmember='"&pmember&"'")
+    '职位发送面试通知数加1
+	conn.execute("update job_c_hire set hire_sendinterview=hire_sendinterview+1 where hire_id="&hireid)
+	Call IncomeIntegral(cmember_login,2,-Group_Cintegrals(2))
+   next
+   set rs=nothing
+   response.write("<script language=javascript>alert('您的面试邀请已成功发送！');location.href='javascript:window.close()';</script>")
+ response.end
+end if%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>发送面试邀请-企业招聘管理中心-<%=SiteTitle%></title>
+<link href="../member/css.css" rel="stylesheet" type="text/css" />
+<script language="JavaScript">
+<!--
+ //功能：去掉字符串前后空格
+//返回值：去掉空格后的字符串
+function fnRemoveBrank(strSource)
+{
+ return strSource.replace(/^\s*/,'').replace(/\s*$/,'');
+}
+function Juge(theForm)
+{
+ if (fnRemoveBrank(theForm.hireid.value) == "")
+  {
+    alert("对不起，请选择面试职位！如未发布职位，请先到管理中心发布招聘职位");
+	theForm.hireid.focus();
+    return (false);
+  }
+  if (fnRemoveBrank(theForm.subject.value) == "")
+  {
+    alert("对不起，请输入面试邀请主题！");
+	theForm.subject.focus();
+    return (false);
+  }
+  if (fnRemoveBrank(theForm.content.value) == "")
+  {
+    alert("对不起，请输入面试邀请内容!");
+	theForm.content.focus();
+    return (false);
+  }
+ }
+//关闭弹出层
+function SmsLayers()
+{
+	if(document.getElementById("issendsms").checked==true){
+	document.getElementById("SmsLayer").style.display  = "block";
+	}
+	else{
+	document.getElementById("SmsLayer").style.display  = "none";
+	}
+}
+
+<!--实现层移动-->
+var mmm='';
+document.onmouseup=MUp;
+document.onmousemove=MMove;
+
+function MDown(Object){
+mmm=Object.id;
+document.all(mmm).setCapture();
+pX=event.x-document.all(mmm).style.pixelLeft;
+pY=event.y-document.all(mmm).style.pixelTop;
+}
+
+function MMove(){
+if(mmm!=''){
+document.all(mmm).style.left=event.x-pX;
+document.all(mmm).style.top=event.y-pY;
+}
+}
+
+function MUp(){
+if(mmm!=''){
+document.all(mmm).releaseCapture();
+mmm='';
+}
+}
+//-->
+</script></head>
+<body>
+<div class="memmenul">
+<div class="leftmenutit"><span>发送面试邀请</span></div>
+<%
+ action=CheckStr(trim(request("action")))
+ checks=trim(request("checks"))
+ set rst=server.createobject("adodb.recordset")
+%>
+<table width="98%" border="0" align="center" cellpadding="0" cellspacing="0" class="mtable">
+	<tr>
+		<td colspan="4" class="mtitle"><img src="../images/biao_01.gif"> 您要邀请面试的人才如下：</td>
+	</tr>
+	<tr class="tdcolors">
+	  <td>姓名</td>
+	  <td>性别</td>
+	  <td>年龄</td>
+	  <td>学历</td>
+    </tr>
+<%
+select case action
+case "myreceive"  '收到应聘简历中触发
+myreceive=split(checks,",")
+for i=0 to ubound(myreceive)
+	id=trim(myreceive(i))
+	sql="select myreceive_resumeid,myreceive_name,myreceive_sex,myreceive_birth,myreceive_edu from job_c_myreceive where myreceive_id="&id
+	rst.open sql,conn,1,1
+	response.write "<tr>"               
+	response.write "<td><a href='"
+	response.write "../person/cnresume_view.asp"
+	response.write "?rid="&rst("myreceive_resumeid")&"' target='_blank'>"&rst("myreceive_name")&"</a></td>"
+	response.write "<td align=center>"
+	select case rst("myreceive_sex")
+	case 1 
+	response.write "男" 
+	case 2
+	response.write "女" 
+	end select
+	response.write "</td>"
+	response.write "<td>"&year(date())-year(rst("myreceive_birth"))&"</td>"
+	response.write "<td>"	
+	set rsw=conn.execute("select edu_name from job_edu where edu_id="&rst("myreceive_edu"))
+	edu_name=rsw("edu_name")
+	rsw.close
+	set rsw=nothing
+	response.Write edu_name
+	response.Write "</td>"
+	response.write "</tr>"
+	if i=0 then personname=rst("myreceive_name")
+	rst.close
+next
+
+case "myexpert"  '企业人才库触发
+myexpert=split(checks,",")
+for i=0 to ubound(myexpert)
+	id=trim(myexpert(i))
+	sql="select myexpert_resumeid,myexpert_name,myexpert_sex,myexpert_birth,myexpert_edu from job_c_myexpert where myexpert_id="&id
+	rst.open sql,conn,1,1
+	response.write "<tr>"
+	response.write "<td><a href='"
+	response.write "../person/cnresume_view.asp"
+	response.write "?rid="&rst("myexpert_resumeid")&"' target='_blank'>"&rst("myexpert_name")&"</a></td>"
+	response.write "<td>"
+	select case rst("myexpert_sex")
+	case 1 
+	response.write "男" 
+	case 2
+	response.write "女" 
+	end select
+	response.write "</td>"
+	response.write "<td>"&year(date())-year(rst("myexpert_birth"))&"</TD>"
+	response.write "<td>"
+	set rsw=conn.execute("select edu_name from job_edu where edu_id="&rst("myexpert_edu"))
+	edu_name=rsw("edu_name")
+	rsw.close
+	set rsw=nothing
+	response.Write edu_name
+	response.Write "</td>"
+	response.write "</tr>"
+	if i=0 then personname=rst("myexpert_name")
+	rst.close
+next
+
+case "comrecycle"  '简历回收站触发
+comrecycle=split(checks,",")
+for i=0 to ubound(comrecycle)
+	id=trim(comrecycle(i))
+	sql="select comrecycle_name,comrecycle_resumeid,comrecycle_birth,comrecycle_edu,comrecycle_sex from job_c_recycle where comrecycle_id="&id
+	rst.open sql,conn,1,1
+	response.write "<tr>"
+	response.write "<td align=center><a href='"
+	response.write "../person/cnresume_view.asp"
+	response.write "?rid="&rst("comrecycle_resumeid")&"' target='_blank'>"&rst("comrecycle_name")&"</a></td>"
+	response.write "<td align=center>"
+	select case rst("comrecycle_sex")
+	case 1 
+	response.write "男" 
+	case 2
+	response.write "女" 
+	end select
+	response.write "</td>"
+	response.write "<td>"&year(date())-year(rst("comrecycle_birth"))&"</TD>"
+	response.write "<td>"
+	set rsw=conn.execute("select edu_name from job_edu where edu_id="&rst("comrecycle_edu"))
+	edu_name=rsw("edu_name")
+	rsw.close
+	set rsw=nothing
+	response.Write edu_name
+	response.Write "</td>"
+	response.write "</tr>"
+	if i=0 then personname=rst("comrecycle_name")
+	rst.close
+next
+
+case "search"  '搜索触发
+search=split(checks,",")
+for i=0 to ubound(search)
+	id=trim(search(i))
+	sql="select resume_sex,resume_id,resume_name,resume_birth,resume_edu from job_p_resume where resume_id="&id
+	rst.open sql,conn,1,1
+	response.write "<tr>"
+	response.write "<td><a href='../person/cnresume_view.asp?rid="&rst("resume_id")&"' target='_blank'>"&rst("resume_name")&"</a></td>"
+	response.write "<td>"
+	select case rst("resume_sex")
+	case 1 
+	response.write "男" 
+	case 2
+	response.write "女" 
+	end select
+	response.write "</td>"
+	response.write "<td>"&year(date())-year(rst("resume_birth"))&"</td>"
+	response.write "<td>"	
+	set rsw=server.CreateObject("adodb.recordset")
+	sql="select edu_name from job_edu where edu_id="&rst("resume_edu")
+	rsw.open sql,conn,1,1
+	edu_name=rsw("edu_name")
+	rsw.close
+	set rsw=nothing
+	response.Write edu_name
+	response.Write "</td>"
+	response.write "</tr>"
+	if i=0 then personname=rst("resume_name")
+	rst.close
+next
+
+case "resume"  '简历上触发
+id=clng(checks)
+sql="select resume_id,resume_name,resume_sex,resume_birth,resume_edu from job_p_resume where resume_id="&id
+rst.open sql,conn,1,1
+response.write "<tr>"
+response.write "<tr><td><a href='../person/cnresume_view.asp?rid="&rst("resume_id")&"' target='_blank'>"&rst("resume_name")&"</a></td>"
+response.write "<td>"
+select case rst("resume_sex")
+case 1 
+response.write "男" 
+case 2
+response.write "女" 
+end select
+response.write "</td>"
+response.write "<td>"&year(date())-year(rst("resume_birth"))&"</td>"
+response.write "<td>"
+set rsw=server.CreateObject("adodb.recordset")
+sql="select edu_name from job_edu where edu_id="&rst("resume_edu")
+rsw.open sql,conn,1,1
+edu_name=rsw("edu_name")
+rsw.close
+set rsw=nothing
+response.Write edu_name
+response.Write "</td>"
+response.write "</tr>"
+personname=rst("resume_name")
+rst.close
+end select
+%>
+	<tr>
+		<td colspan="4" class="mtitle"><img src="../images/biao_01.gif"> 填写面试邀请：</td>
+	</tr>
+<%
+sql="select member_name,member_isubject,member_icontent,member_url,Member_tel from job_member where member_login='"&cmember_login&"' and member_typeid=2"
+rst.open sql,conn,1,1
+%>
+<form name="form1" action="company_interviewsend.asp?action=<%=action%>&checks=<%=checks%>&step=2" method="post" onSubmit="return Juge(this)">
+	<tr>
+	  <td align="right">面试职位：</td>
+	  <td colspan="3">
+		<select name="hireid" size="1" id="hireid" onchange="document.getElementById('smscon').innerHTML='<%=personname%>：恭喜您收到<%=rst("member_name")%>'+this.options[this.selectedIndex].text+'的面试通知。请登陆<%=SiteName%>查看。'">
+		<option value="" selected>--选择面试职位--</option>
+		<%
+		set rs=server.createobject("ADODB.Recordset")
+		sql="select hire_id,hire_place from job_c_hire where hire_cmember='"&cmember_login&"' order by hire_announcedate desc"
+		rs.open sql,conn,1,1
+		for i=1 to rs.recordcount
+		response.write "<option value='"&rs("hire_id")&"'>"&rs("hire_place")&"</option>"
+		rs.movenext
+		next
+		rs.close
+		set rs=nothing
+		%>
+		</select>
+	  </td>
+	</tr>
+	<tr>
+	  <td align="right">邮件主题：</td>
+	  <td colspan="3"><input name="subject" type="text" value="<%=rst("member_isubject")%>" size="50" maxlength="50"></td>
+	</tr>
+	<tr>
+	  <td align="right">邮件内容：</td>
+	  <td colspan="3"><textarea name="content" cols="60" rows="15" id="content">
+求职者：
+    您好，我们（<%=rst("member_name")%>）已经收到您通过(<%=SiteName%>)发来的应聘资料，感谢应聘本公司职位。
+    有关本公司更详细信息请阅（<%=rst("member_url")%>）。在认真阅读及评估您的简历后，我们认为您符合本公司基本条件要求。为进一步增加双方间的了解，希望您能够前往本公司面试。面试时请带上你的相关毕业证书、身份证、职称证书、获奖证书及作品等资料。
+    面试时间：
+    面试地点：
+    如有任何问题，您可以致电本公司查询。电话：<%=rst("Member_tel")%>。谢谢！</textarea></td>
+	</tr>
+	<!--<tr>
+	  <td>&nbsp;</td>
+	  <td colspan="3"><label for="issendsms"> <font color="#FF0000">*</font><input type="checkbox" name="issendsms" id="issendsms" value="1" onclick="javascript:SmsLayers();" <%if CheckCFlag("Climits",12)=False then Response.Write("disabled")%> />向该人才同时发送邀请短信（还能发送<font color="#FF0000"><%if CheckCFlag("Climits",12)=False then
+					Response.Write("0")
+					else
+						if Group_Climits(13)=0 then
+							Response.Write("不限制")
+						else
+							Response.Write(Cmsmsnum)
+						end if
+					end if%></font>条）</label>
+		</td>
+	</tr>-->
+	<%
+	rst.close
+	set rst=nothing
+	%>
+	<tr>
+		<td>&nbsp;</td>
+		<td colspan="3" class="mtitle"><input name="submit" type="submit" class="inputa3" value=" 发 送 ">&nbsp;<input name="reset" type="reset" class="inputa3" value=" 重 填 "></td>
+	</tr>
+</form>
+</table>
+<div id="SmsLayer" onmousedown="MDown(SmsLayer);" style="bottom:100px; right:100px; position:absolute; width:180px; height:298px; background:url(/skin/Member/sms.gif); z-index:9999; cursor:move; display:none;">
+<div id="smscon" style="width:120px; height:160px; margin:60px auto; font-size:12px; line-height:120%;">XXX：恭喜您收到一条来自XXXX公司XXX职位的面试邀请通知。请登陆<%=SiteName%>查看。</div></div>
+<%conn.close:set conn=nothing%>

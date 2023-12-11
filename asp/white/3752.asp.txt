@@ -1,0 +1,1967 @@
+<object runat="server" id="NewAspStream" progid="ADODB.Stream"></object>
+<%
+Const cmsversion="4.0.0 SP2"
+Const EnabledSession = False
+Const showSQLCommand = 0
+Const IsDeBug = 1
+Const IsBusiness = 0
+
+Dim FoundErr
+Class MainNewAsp_Cls
+	Private LocalCacheName,Reloadtime,Buildtime,MyRegExp,fso
+	Public membername, memberpass, membergrade, membergroup, memberid
+	Public memberclass, menbernickname, Cookies_Name, CheckPassword
+	Public SqlQueryNum,CacheName,CacheData,CookiesName,UserTrueIP,IsCache,ScriptName,actforip,Page_Admin
+	Public InstallDir,MainDomain,MainSetting,UploadSetting,Badwords,KeywordList,PlusSetting,LockIPlist,Templates,HostPath,syskey
+	Public UserSession,Browsers,versions,platform,AlexaToolbar,IsSearch,IsSpider,ChannelData,ChannelID,TemplatePath,SkinsPath
+	Public ChannelName,ChannelDir,StopChannel,ChannelType,modules,ModuleName,BindDomain,DomainName,ChannelSkin,IsCreateHtml,HtmlExtName,StopUpload,MaxFileSize,UpFileType,IsAuditing,AppearGrade,PostGrade,LeastString,MaxString,PaginalNum,LeastHotHist,Channel_Setting,SortDestination,InfoDestination,MoreDestination,setEditor,NamedPath
+	Public setEditorArray,setAdminEditor,setUserEditor,Parasetting,ChannelSetting,ChannelPath,ChannelUrl,MainsiteDir,ChannelDest
+	Public HtmlFilesPath,HtmlFilesName,Version,Copyright,IsHtmlPage,Ellipsis
+
+	Private Sub Class_Initialize()
+		On Error Resume Next
+		If Err Then
+			Response.Write Err.Description
+			Response.End
+		End If
+		Buildtime = 60:Reloadtime = 600:SqlQueryNum = 0
+		'--缓存名称
+		CacheName = "NewAsp"
+		CookiesName = "NewAspUsers"
+		Ellipsis = "..."
+		ChannelID = 0:BindDomain = 0:modules = 0
+		IsCache = False:FoundErr = False:IsHtmlPage = False
+		UserTrueIP = getIP
+		Dim Tmpstr
+		Tmpstr = Request.ServerVariables("PATH_INFO")
+		Tmpstr = Split(Tmpstr,"/")
+		ScriptName = Lcase(Tmpstr(UBound(Tmpstr)))
+		membername = CheckStr(Request.Cookies(CookiesName)("username"))
+		memberpass = CheckStr(Request.Cookies(CookiesName)("password"))
+		menbernickname = CheckStr(Request.Cookies(CookiesName)("nickname"))
+		membergrade = ChkNumeric(Request.Cookies(CookiesName)("UserGrade"))
+		membergroup = CheckStr(Request.Cookies(CookiesName)("UserGroup"))
+		memberclass = ChkNumeric(Request.Cookies(CookiesName)("UserClass"))
+		memberid = ChkNumeric(Request.Cookies(CookiesName)("userid"))
+		CheckPassword = CheckStr(Request.Cookies(CookiesName)("CheckPassword"))
+		Page_Admin=False
+		If InStr(ScriptName,"showerr")>0 Or InStr(ScriptName,"login")>0 Or InStr(ScriptName,"admin_")>0  Then Page_Admin=True
+	End Sub
+
+	Private Sub Class_Terminate()
+		'--Termination of Class
+	End Sub
+	Public Sub PageEnd()
+		'If IsObject(Conn) Then Conn.Close:Set Conn = Nothing
+		If EnabledSession Then
+			If Not UserSession Is Nothing  Then Session(CacheName & "UserID")= UserSession.xml
+		End If
+		Set UserSession=Nothing
+		Call CloseConn()
+		MainSetting = Null
+		UploadSetting = Null
+		Badwords = Null
+		CacheData = Null
+		ChannelData = Null
+		ChannelSetting = Null
+		setEditorArray = Null
+		setAdminEditor = Null
+		setUserEditor = Null
+		'If IsObject(NewAspStream) Then Set NewAspStream = Nothing
+		If IsObject(fso) Then Set fso = Nothing
+		Set MyRegExp = Nothing
+		Set NewAsp = Nothing
+	End Sub
+	'===================服务器缓存部分函数开始===================
+	Public Property Let Name(ByVal vNewValue)
+		LocalCacheName = LCase(vNewValue)
+	End Property
+	Public Property Let Value(ByVal vNewValue)
+		If LocalCacheName<>"" Then
+			Application.Lock
+			Application(CacheName & "_" & LocalCacheName &"_-time")=Now()
+			Application(CacheName & "_" & LocalCacheName) = vNewValue
+			Application.unLock
+		End If
+	End Property
+	Public Property Get Value()
+		If LocalCacheName<>"" Then
+				Value=Application(CacheName & "_" & LocalCacheName)
+		End If
+	End Property
+	Public Function ObjIsEmpty()
+		ObjIsEmpty=False
+		If IsDate(Application(CacheName & "_" & LocalCacheName &"_-time")) Then
+			If DateDiff("s",CDate(Application(CacheName & "_" & LocalCacheName &"_-time")),Now()) > (60*Reloadtime) Then ObjIsEmpty=True
+		Else
+			ObjIsEmpty=True
+		End If
+		If ObjIsEmpty Then RemoveCache()
+	End Function
+	Public Sub RemoveCache()
+		Application.Lock
+		Application.Contents.Remove(CacheName & "_" & LocalCacheName)
+		Application.Contents.Remove(CacheName & "_" & LocalCacheName &"_-time")
+		Application.unLock
+	End Sub
+	Public Sub DelCache(MyCaheName)
+		Application.Lock
+		Application.Contents.Remove (CacheName & "_" & MyCaheName &"_-time")
+		Application.Contents.Remove (CacheName & "_" & MyCaheName)
+		Application.UnLock
+	End Sub
+	Public Function IsTimeBuild()
+		IsTimeBuild=False
+		If IsDate(Application(CacheName & "_buildtime")) Then
+			If DateDiff("s",CDate(Application(CacheName & "_buildtime")),Now()) > (60*buildtime) Then IsTimeBuild=True
+		Else
+			IsTimeBuild=True
+		End If
+		If IsTimeBuild Then Application(CacheName & "_buildtime")=Now()
+	End Function
+	'===================服务器缓存部分函数结束===================
+	Public Function CreateAXObject(str)
+		Set CreateAXObject = CreateObject(str)
+	End Function
+	Public Function CreateXMLDoc(str)
+		Set CreateXmlDoc = CreateAXObject(str)
+		CreateXMLDoc.Async = False
+	End Function
+	Public Function ReadTextFile(fileName)
+		On Error Resume Next
+		NewAspStream.charset="GB2312"
+		NewAspStream.Type = 2
+		NewAspStream.Mode = 3
+		NewAspStream.open()
+		NewAspStream.LoadFromFile(ChkMapPath(fileName))
+		ReadTextFile=NewAspStream.ReadText
+		NewAspStream.close()
+		If Err.Number <> 0 Then Err.Clear
+	End Function
+	Public Function writeTextFile(fileName,Text)
+		NewAspStream.charset="GB2312"
+		NewAspStream.Type = 2
+		NewAspStream.Mode = 3
+		NewAspStream.open()
+		NewAspStream.WriteText(Text)
+		NewAspStream.SaveToFile ChkMapPath(fileName),2
+		NewAspStream.close()
+	End Function
+	Public Function ChkBoolean(ByVal Values)
+		If TypeName(Values) = "Boolean" Or IsNumeric(Values) Or LCase(Values) = "false" Or LCase(Values) = "true" Then
+			ChkBoolean = CBool(Values)
+		Else
+			ChkBoolean = False
+		End If
+	End Function
+	Public Function CheckNumeric(ByVal CHECK_ID)
+		If CHECK_ID <> "" And IsNumeric(CHECK_ID) Then
+			If CHECK_ID > 922337203685477 Then CHECK_ID = 0
+			If CHECK_ID < -922337203685477 Then CHECK_ID = 0
+			CHECK_ID = CCur(CHECK_ID)
+		Else
+			CHECK_ID = 0
+		End If
+		CheckNumeric = CHECK_ID
+	End Function
+	Public Function ChkNumeric(ByVal CHECK_ID)
+		If CHECK_ID <> "" And IsNumeric(CHECK_ID) Then
+			If CHECK_ID < 0 Then CHECK_ID = 0
+			If CHECK_ID > 2147483647 Then CHECK_ID = 0
+			CHECK_ID = CLng(CHECK_ID)
+		Else
+			CHECK_ID = 0
+		End If
+		ChkNumeric = CHECK_ID
+	End Function
+	Public Function CheckStr(ByVal str)
+		If IsNull(str) Then
+			CheckStr = ""
+			Exit Function
+		End If
+		str = Replace(str, Chr(0), "")
+		CheckStr = Replace(str, "'", "''")
+	End Function
+	'-- 去掉HTML标记
+	Public Function RemoveHtml(ByVal str)
+		On Error Resume Next
+		Dim re:Set re=new RegExp
+		re.IgnoreCase=True
+		re.Global=True
+		re.Pattern="<(.[^>]*)>"
+		str=re.Replace(str, "")
+		Set re=Nothing
+		RemoveHtml=str
+	End Function
+	Public Function CheckSpecialChar(ByVal strText)
+		If Not IsNull(strText) And strText<>"" Then
+			MyRegExp.Pattern="[^A-Za-z0-9-\u2E80-\u9FA5]"
+			strText=MyRegExp.Replace(strText, "")
+		Else
+			strText=""
+		End If
+		CheckSpecialChar=strText
+	End Function
+	Public Function CheckInput(ByVal str,ByVal stype)
+		CheckInput = ""
+		If IsNull(str) Then Exit Function
+		Select Case stype
+			Case 1	:	MyRegExp.Pattern="[^A-Za-z]"			'-- 英文
+			Case 2	:	MyRegExp.Pattern="[^A-Za-z0-9-\.]"		'-- 英文和数字
+			Case 3	:	MyRegExp.Pattern="[^\u4E00-\u9FA5]"		'-- 中文
+			Case 4	:	MyRegExp.Pattern="[^A-Za-z0-9-\u2E80-\u9FA5]"		'-- 中英文
+		Case Else	:	MyRegExp.Pattern="[^0-9]"				'-- 数字
+		End Select
+		str=MyRegExp.Replace(str, "")
+		str=Replace(str, "--", "")
+		CheckInput=Replace(str, Chr(0), "")
+	End Function
+	Public Function CheckXmlDom(strXML)
+		Dim XMLDoc
+		On Error Resume Next
+		Set XMLDoc=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		If XMLDoc.loadxml(strXML) Then
+			CheckXmlDom=True
+		Else
+			CheckXmlDom=False
+		End If
+		Set XMLDoc=Nothing
+		If Err.Number <> 0 Then CheckXmlDom=False:Err.Clear
+	End Function
+
+	Public Function CheckBadstr(str)
+		If IsNull(str) Then
+			CheckBadstr = vbNullString
+			Exit Function
+		End If
+		str = Replace(str, Chr(0), vbNullString) : str = Replace(str, Chr(34), vbNullString)
+		str = Replace(str, Chr(9), vbNullString) : str = Replace(str, Chr(255), vbNullString)
+		str = Replace(str, "+", "＋") : str = Replace(str, ")", "）")
+		str = Replace(str, "(", "（") : str = Replace(str, "%", "％")
+		str = Replace(str, "$", "＄") : str = Replace(str, "'", "''")
+		str = Replace(str, ";", "；") : str = Replace(str, "*", "＊")
+		str = Replace(str, "<", "＜") : str = Replace(str, ">", "＞")
+		str = Replace(str, "@", "＠") : str = Replace(str, "--", "－－")
+		CheckBadstr = Trim(str)
+	End Function
+	Public Function RequestForm(ByVal strRequest,Byval strLen)
+		Dim m_strRequest
+		If IsNull(strRequest) Or Len(strRequest) = 0 Then
+			RequestForm = ""
+			Exit Function
+		End If
+		m_strRequest = Trim(strRequest)
+		m_strRequest = Replace(m_strRequest, Chr(0), "")
+		m_strRequest = Replace(m_strRequest, Chr(255), "")
+		m_strRequest = Replace(m_strRequest, "'", "&#39;")
+		m_strRequest = Replace(m_strRequest, Chr(34), "&quot;")
+		m_strRequest = Replace(m_strRequest, ">", "&gt;")
+		m_strRequest = Replace(m_strRequest, "<", "&lt;")
+		m_strRequest = Replace(m_strRequest, "&#62;", "&gt;")
+		m_strRequest = Replace(m_strRequest, "&#60;", "&lt;")
+		m_strRequest = Replace(m_strRequest, "--", "－－")
+		m_strRequest = Replace(m_strRequest, "'", "''")
+		If Len(m_strRequest) > 0 And strLen > 0 Then
+			RequestForm = Left(m_strRequest,strLen)
+		Else
+			RequestForm = m_strRequest
+		End If
+	End Function
+	Private Function getIP()
+		Dim strIPAddr
+		If Request.ServerVariables("HTTP_X_FORWARDED_FOR") = "" Or InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), "unknown") > 0 Then
+			strIPAddr = Request.ServerVariables("REMOTE_ADDR")
+		ElseIf InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ",") > 0 Then
+			strIPAddr = Mid(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), 1, InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ",")-1)
+			actforip = Request.ServerVariables("REMOTE_ADDR")
+		ElseIf InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ";") > 0 Then
+			strIPAddr = Mid(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), 1, InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ";")-1)
+			actforip = Request.ServerVariables("REMOTE_ADDR")
+		Else
+			strIPAddr = Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+			actforip = Request.ServerVariables("REMOTE_ADDR")
+		End If
+		getIP = Replace(Trim(Mid(strIPAddr, 1, 30)), "'", "")
+	End Function
+	Public Function Execute(strCommand)
+		If Not IsObject(Conn) Then ConnectionDatabase
+		If IsDeBug = 0 Then
+			On Error Resume Next
+			Set Execute = Conn.Execute(strCommand,,&H0001)
+			If Err Then
+				Err.Clear
+				Set Conn = Nothing
+				If ShowSQLCommand=1 Then
+					Response.Write strCommand & "<br />"
+				End If
+				Response.Write "查询数据的时候发现错误，请检查您的查询代码是否正确。"
+				Response.End
+			End If
+		Else
+			Set Execute = Conn.Execute(strCommand)
+		End If
+		SqlQueryNum = SqlQueryNum+1
+	End Function
+	Public Function Ask_Execute(strCommand)
+		If Not IsObject(Ask_Conn) Then Ask_ConnectionDatabase
+		If IsDeBug = 0 Then
+			On Error Resume Next
+			Set Ask_Execute = Ask_Conn.Execute(strCommand,,&H0001)
+			If Err Then
+				err.Clear
+				Set Conn = Nothing
+				Response.Write "查询数据的时候发现错误，请检查您的查询代码是否正确。"
+				Response.End
+			End If
+		Else
+			Set Ask_Execute = Ask_Conn.Execute(strCommand)
+		End If
+		SqlQueryNum = SqlQueryNum+1
+	End Function
+	'-- xmlroot跟节点名称 row记录行节点名称
+	Public Function RecordsetToxml(Recordset,row,xmlroot)
+		Dim i,node,rs,j,DataArray
+		If xmlroot="" Then xmlroot="xml"
+		If row="" Then row="row"
+		Set RecordsetToxml = CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		RecordsetToxml.appendChild(RecordsetToxml.createElement(xmlroot))
+		If Not Recordset.EOF Then
+			DataArray=Recordset.GetRows(-1)
+			For i=0 To UBound(DataArray,2)
+				Set Node=RecordsetToxml.createNode(1,row,"")
+				j=0
+				For Each rs in Recordset.Fields
+						 node.attributes.setNamedItem(RecordsetToxml.createNode(2,LCase(rs.name),"")).text= DataArray(j,i)& ""
+						 j=j+1
+				Next
+				RecordsetToxml.documentElement.appendChild(Node)
+			Next
+		End If
+		DataArray=Null
+	End Function
+	Public Function ArrayToxml(DataArray,Recordset,row,xmlroot)
+		Dim i,node,rs,j
+		If xmlroot="" Then xmlroot="xml"
+		Set ArrayToxml = CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		ArrayToxml.appendChild(ArrayToxml.createElement(xmlroot))
+		If row="" Then row="row"
+		For i=0 To UBound(DataArray,2)
+			Set Node=ArrayToxml.createNode(1,row,"")
+			j=0
+			For Each rs in Recordset.Fields
+					 node.attributes.setNamedItem(ArrayToxml.createNode(2,LCase(rs.name),"")).text= DataArray(j,i)& ""
+					 j=j+1
+			Next
+			ArrayToxml.documentElement.appendChild(Node)
+		Next
+	End Function
+	Public Sub LoadSetup()
+		Dim Rs,locklist,ip,ip1,XMLDom,Node,i
+		Dim sTemplatePath
+
+		Name="setup"
+		Set Rs=NewAsp.Execute("SELECT id,InstallDir,MainDomain,MainSetting,UploadSetting,Badwords,KeywordList,PlusSetting,LockIPlist,Templates,HostPath,syskey FROM [NC_Setup]")
+		Value=Rs.GetRows(1)
+		CacheData=value
+		Set Rs=Nothing
+		Set XMLDom=NewAsp.CreateXmlDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		XMLDom.appendChild(XMLDom.createElement("xml"))
+		locklist=Trim(CacheData(8,0)) & ""
+		locklist=Split(locklist,"|")
+		For Each Ip in locklist
+			Ip1=Split(Ip,".")
+			Set Node=XMLDom.documentElement.appendChild(XMLDom.createNode(1,"lockip",""))
+			For i=0 To UBound(ip1)
+				Node.attributes.setNamedItem(XMLDom.createNode(2,"number"& (i+1),"")).text=ip1(i)
+			Next
+		Next
+		Application.Lock
+		Set Application(CacheName & "_cms_lockip")=XMLDom.cloneNode(True)
+		Application.UnLock
+		Set XMLDom=Nothing
+		If Not isobject(Application(CacheName & "_getbrowser")) Then
+			Dim stylesheet
+			Set stylesheet=NewAsp.CreateXmlDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+			stylesheet.load Server.MapPath(MyAppPath &"common/getbrowser.xslt")
+			Application.Lock
+			Set Application(CacheName & "_getbrowser")=NewAsp.CreateAXObject("msxml2.XSLTemplate" & MsxmlVersion)
+			Application(CacheName & "_getbrowser").stylesheet=stylesheet
+			Application.unLock
+		End If
+
+		If InStr(CacheData(9,0), ":")=0 Then
+			sTemplatePath=Server.MapPath(MyAppPath&CacheData(9,0))
+		Else
+			sTemplatePath=Replace(CacheData(9,0), "/", "\")
+		End If
+		CacheData(9,0)=Replace(sTemplatePath&"\", "\\", "\")
+		Value=CacheData
+	End Sub
+	Public Sub LoadSetting()
+		On Error Resume Next
+		Name = "Date"
+		If ObjIsEmpty() Then
+			Value = Date
+		ElseIf CStr(Value) <> CStr(Date) Then
+			Call LoadSetup()
+			Name = "Date"
+			Value = Date()
+		End If
+		Name = "setup"
+		If ObjIsEmpty Then LoadSetup()
+		CacheData = value
+		If Not IsObject(Application(CacheName&"_chanlist")) Then Call LoadChannelList()
+		Dim strBadword
+
+		InstallDir = Trim(CacheData(1,0))
+		MainsiteDir = InstallDir
+		MainDomain = Trim(CacheData(2,0))
+		MainSetting = Split(CacheData(3,0),"|||")
+		UploadSetting = Split(CacheData(4,0),"|||")
+		Badwords = Split(CacheData(5,0),"$$$")
+		PlusSetting = Split(CacheData(7,0),"|||")
+		KeywordList = CacheData(6,0)&""
+		Templates = Trim(CacheData(9,0))
+		TemplatePath = Templates & Trim(MainSetting(0)) & "\"
+		SkinsPath="skins/"&MainSetting(0)&"/"
+
+		Set fso = CreateAXObject(MainSetting(47))
+		Set MyRegExp = New RegExp
+		MyRegExp.IgnoreCase = True
+		MyRegExp.Global = True
+
+		Version = "Powered by：<a href=""http://www.newasp.net"" target=""_blank"" class=""navmenu"">NewAsp CMS Version 4.0.0 SP2</a>"
+		Copyright = "<!--" & vbCrLf
+		Copyright = Copyright & "┌─────────────────NEWASP──┐" & vbCrLf
+		Copyright = Copyright & "│新云网站内容管理系统 Version 4.0            │" & vbCrLf
+		Copyright = Copyright & "│版权所有: 新云网络 (newasp.net)             │" & vbCrLf
+		Copyright = Copyright & "│E-Mail:   newasp@163.com  QQ: 94022511      │" & vbCrLf
+		Copyright = Copyright & "└────────────────────.NET┘" & vbCrLf
+		Copyright = Copyright & "-->"
+		Call CheckUserAgent()
+	End Sub
+	Public Sub LoadChannel()
+		If ChannelID >0 Then
+			If Not Application(CacheName&"_chanlist").documentElement.selectSingleNode("channel[@channelid='"&ChannelID&"']") Is Nothing Then
+				Dim Node
+				Set Node=Application(CacheName&"_chanlist").documentElement.selectSingleNode("channel[@channelid='"&ChannelID&"']")
+				If(Node is Nothing) Then
+					Set NewAsp=Nothing
+					Response.Write "错误的频道参数!"
+					Response.End
+				Else
+					ChannelID=CLng(Node.selectSingleNode("@channelid").text)
+					ChannelName=Node.selectSingleNode("@channelname").text
+					ChannelDir=Node.selectSingleNode("@channeldir").text
+					StopChannel=CLng(Node.selectSingleNode("@stopchannel").text)
+					ChannelType=CLng(Node.selectSingleNode("@channeltype").text)
+					modules=CLng(Node.selectSingleNode("@modules").text)
+					ModuleName=Node.selectSingleNode("@modulename").text
+					BindDomain=CLng(Node.selectSingleNode("@binddomain").text)
+					DomainName=Node.selectSingleNode("@domainname").text
+					IsCreateHtml=CLng(Node.selectSingleNode("@iscreatehtml").text)
+					HtmlExtName=Trim(Node.selectSingleNode("@htmlextname").text)
+					StopUpload=CLng(Node.selectSingleNode("@stopupload").text)
+					MaxFileSize=Node.selectSingleNode("@maxfilesize").text
+					UpFileType=Node.selectSingleNode("@upfiletype").text
+					IsAuditing=Node.selectSingleNode("@isauditing").text
+					AppearGrade=CLng(Node.selectSingleNode("@appeargrade").text)
+					PostGrade=Node.selectSingleNode("@postgrade").text
+					LeastString=CLng(Node.selectSingleNode("@leaststring").text)
+					MaxString=CLng(Node.selectSingleNode("@maxstring").text)
+					PaginalNum=Node.selectSingleNode("@paginalnum").text
+					LeastHotHist=Node.selectSingleNode("@leasthothist").text
+					Channel_Setting=Node.selectSingleNode("@channel_setting").text
+					SortDestination=Node.selectSingleNode("@sortdestination").text
+					InfoDestination=Node.selectSingleNode("@infodestination").text
+					MoreDestination=Node.selectSingleNode("@moredestination").text
+					setEditor=Node.selectSingleNode("@seteditor").text
+					NamedPath=CheckStr(Node.selectSingleNode("@namedpath").text)
+					If setEditor = "" Then setEditor = "0|AdminMode|590|350|editor/|||0|Simple|560|350|0|0|0|0|0|1|0|0|0|0|0|550|5000|1|1|1|1|1|0|0|0|0|0|0|0|0|0"
+					setEditorArray		= Split(setEditor, "|||")
+					setAdminEditor		= Split(setEditorArray(0), "|")
+					setUserEditor		= Split(setEditorArray(1), "|")
+					ChannelSetting		= Split(Channel_Setting & "|||||||||||||||", "|||")
+					ChannelDest=InstallDir&ChannelDir
+					If BindDomain=0 Then
+						ChannelPath=InstallDir&ChannelDir
+						ChannelUrl=InstallDir&ChannelDir
+						MainsiteDir=InstallDir
+					Else
+						ChannelPath="/"
+						MainsiteDir=MainDomain&InstallDir
+						ChannelUrl=DomainName&"/"
+					End If
+				End If
+				Set Node=Nothing
+				If (Not Page_Admin) And StopChannel=1 Then 
+					If InStr(ScriptName,"online.asp")=0 Then
+						Response.Redirect MainsiteDir & "showerr.asp?action=stop"
+					Else
+						Response.End
+					End If
+				End If
+			Else
+				ChannelDest=InstallDir
+			End If
+		Else
+			ChannelDest=InstallDir
+		End If
+	End Sub
+	Public Sub showError(msg)
+		Response.Status = "301 Moved Permanently"
+		If ChannelID=0 Then
+			Response.AddHeader "Location", InstallDir & "showerr.asp?action=other&message="&Server.URLEncode(msg)
+		Else
+			Response.AddHeader "Location", MainDomain&InstallDir & "showerr.asp?action=other&message="&Server.URLEncode(msg)
+		End If
+		Response.Flush:Response.End
+	End Sub
+	
+	Public Sub LoadChannelList()
+		Dim Rs,SQL,SQLTable,TempXmlDoc
+		SQLTable = "ChannelID,ChannelName,ChannelDir,StopChannel,ChannelType,modules,ModuleName,BindDomain,DomainName,IsCreateHtml,HtmlExtName,StopUpload,MaxFileSize,UpFileType,IsAuditing,AppearGrade,PostGrade,LeastString,MaxString,PaginalNum,LeastHotHist,Channel_Setting,SortDestination,InfoDestination,MoreDestination,setEditor,NamedPath"
+		SQL = "SELECT " & SQLTable & " FROM NC_Channel WHERE ChannelType<=1 And ChannelID<>3"
+		Set Rs = Execute(SQL)
+		Set TempXmlDoc = RecordsetToxml(Rs,"channel","chanlist")
+		Rs.Close
+		Set Rs = Nothing
+		Application.Lock
+		Set Application(CacheName&"_chanlist") = TempXmlDoc
+		Application.unLock
+	End Sub
+	Public Sub LoadChannelData(cid)
+		Dim TempXmlDoc,TempXmlDom,Node,Cnode
+		Set TempXmlDoc=NewAsp.CreateXmlDoc("Msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		TempXmlDoc.appendChild(TempXmlDoc.createElement("xml"))
+		Set Cnode=TempXmlDoc.documentElement.appendChild(TempXmlDoc.createNode(1,"chandata",""))
+		Set TempXmlDom=Application(CacheName&"_chanlist")
+		Set Node=TempXmlDom.documentElement.selectSingleNode("channel[@channelid='"&cid&"']")
+		If Not Node is Nothing Then
+			Cnode.attributes.setNamedItem(TempXmlDoc.createNode(2,"channelid","")).text=Node.selectSingleNode("@channelid").text
+			Cnode.attributes.setNamedItem(TempXmlDoc.createNode(2,"channeldir","")).text=Node.selectSingleNode("@channeldir").text
+			Cnode.attributes.setNamedItem(TempXmlDoc.createNode(2,"modulename","")).text=Node.selectSingleNode("@modulename").text
+			Cnode.attributes.setNamedItem(TempXmlDoc.createNode(2,"iscreatehtml","")).text=Node.selectSingleNode("@iscreatehtml").text
+			Cnode.attributes.setNamedItem(TempXmlDoc.createNode(2,"htmlextname","")).text=Node.selectSingleNode("@htmlextname").text
+			Cnode.attributes.setNamedItem(TempXmlDoc.createNode(2,"stopupload","")).text=Node.selectSingleNode("@stopupload").text
+			Cnode.attributes.setNamedItem(TempXmlDoc.createNode(2,"sortdestination","")).text=Node.selectSingleNode("@sortdestination").text
+			Cnode.attributes.setNamedItem(TempXmlDoc.createNode(2,"infodestination","")).text=Node.selectSingleNode("@infodestination").text
+			Cnode.attributes.setNamedItem(TempXmlDoc.createNode(2,"moredestination","")).text=Node.selectSingleNode("@moredestination").text
+			Cnode.attributes.setNamedItem(TempXmlDoc.createNode(2,"binddomain","")).text=Node.selectSingleNode("@binddomain").text
+			Cnode.attributes.setNamedItem(TempXmlDoc.createNode(2,"domainname","")).text=Node.selectSingleNode("@domainname").text
+		End If
+		Application.Lock
+		Set Application(CacheName &"_chandata_" & cid)=TempXmlDoc
+		Application.unLock
+		Set Node = Nothing
+		Set Cnode = Nothing
+		Set TempXmlDoc = Nothing
+		Set TempXmlDom = Nothing
+	End Sub
+
+	Public Sub LoadClassList(chanid)
+		Dim Rs,TempXmlDoc
+		Set Rs = Execute("SELECT classid,rootid,depth,ClassName,ColorModes,FontModes,Readme,parentid,Child,ChildStr,LinkTarget,TurnLink,TurnLinkUrl,HtmlFileDir FROM [NC_Classify] WHERE ChannelID="&CLng(chanid)& " ORDER BY rootid,orders")
+		Set TempXmlDoc = RecordsetToxml(Rs,"row","classlist")
+		Rs.Close
+		Set Rs = Nothing
+		Application.Lock
+		Set Application(CacheName &"_classlist_" & chanid) = TempXmlDoc
+		Application.unLock
+		Set TempXmlDoc = Nothing
+	End Sub
+
+	Public Function GetChildData(chanid,cid,act)
+		Dim Rs,TempXmlDoc,TempXmlDom,Node
+		If chanid=0 Then
+			GetChildData = Array("0","0","0","0","0","0","0")
+			Exit Function
+		End If
+		On Error Resume Next
+		If Not IsObject(Application(CacheName &"_ChildID_" & chanid)) Or act=1 Then
+			Set Rs = Execute("SELECT classid,ClassName,readme,Child,ChildStr,Parentstr,rootid,HtmlFileDir FROM [NC_Classify] WHERE ChannelID="&CLng(chanid))
+			Set TempXmlDoc = RecordsetToxml(Rs,"childlist","xml")
+			Rs.Close
+			Set Rs = Nothing
+			Application.Lock
+			Set Application(CacheName &"_ChildID_" & chanid) = TempXmlDoc
+			Application.unLock
+			Set TempXmlDoc = Nothing
+		End If
+		Set TempXmlDom=Application(CacheName &"_ChildID_" & chanid)
+		Set Node=TempXmlDom.documentElement.selectSingleNode("childlist[@classid='"&cid&"']")
+		If Not Node is Nothing Then
+			GetChildData = Array("" & Node.selectSingleNode("@childstr").text & "","" & Node.selectSingleNode("@classname").text & "",Node.selectSingleNode("@child").text,"" & Node.selectSingleNode("@parentstr").text & "",Node.selectSingleNode("@rootid").text,"" & Node.selectSingleNode("@htmlfiledir").text & "","" & Node.selectSingleNode("@readme").text & "")
+		Else
+			GetChildData = Array("0","0","0","0","0","0","0")
+		End If
+	End Function
+	Public Function CheckTitle(str)
+		If Not IsNull(str) Then
+			str = Replace(str, ">", "&gt;")
+			str = Replace(str, "<", "&lt;")
+			str = Replace(str, Chr(34), "&quot;")
+			str = Replace(str, Chr(39), "&#39;")
+			str = Replace(str, Chr(13), "")
+			str = Replace(str, Chr(10), "")
+			str = Replace(str, "&nbsp;", " ")
+			CheckTitle=Trim(str)
+		Else
+			CheckTitle=""
+		End If
+	End Function
+	Public Function HTMLEncode(str)
+		If Not IsNull(str) Then
+			str = Replace(str, ">", "&gt;")
+			str = Replace(str, "<", "&lt;")
+			str = Replace(str, Chr(32), " ")
+			str = Replace(str, Chr(9), " ")
+			str = Replace(str, Chr(34), "&quot;")
+			str = Replace(str, Chr(39), "&#39;")
+			str = Replace(str, Chr(13), "")
+			str = Replace(str, Chr(10), "<br/> ")
+			HTMLEncode = ChkBadWords(str)
+		Else
+			HTMLEncode = ""
+		End If
+	End Function
+	Public Function HTMLEncodes(ByVal fString)
+		If Not IsNull(fString) Then
+			'fString = Replace(fString, "&", "&amp;")
+			fString = Replace(fString, "'", "&#39;")
+			fString = Replace(fString, ">", "&gt;")
+			fString = Replace(fString, "<", "&lt;")
+			fString = Replace(fString, Chr(32), " ")
+			fString = Replace(fString, Chr(9), " ")
+			fString = Replace(fString, Chr(34), "&quot;")
+			fString = Replace(fString, Chr(39), "&#39;")
+			fString = Replace(fString, Chr(13), "")
+			fString = Replace(fString, " ", "&nbsp;")
+			fString = Replace(fString, Chr(10), "<br />")
+			HTMLEncodes = ChkBadWords(fString)
+		End If
+	End Function
+	Public Function ChkBadWords(str)
+		If IsNull(str) Then Exit Function
+		Dim Badwordlist,i,BadworArry
+		Badwordlist=Split(Badwords(0),"|")
+		For i=0 To UBound(Badwordlist)
+			If Badwordlist(i)<>"" Then
+				BadworArry=Split(Badwordlist(i), "=")
+				If UBound(BadworArry)>0 Then
+					If BadworArry(0)<>"" Then
+						If BadworArry(1)<>"" Then
+							str=Replace(str,BadworArry(0),BadworArry(1))
+						Else
+							str=Replace(str,BadworArry(0),String(Len(BadworArry(0)), "*"))
+						End If
+					End If
+				Else
+					str=Replace(str,BadworArry(0),String(Len(BadworArry(0)), "*"))
+				End If
+			End If
+		Next
+		BadworArry=Null
+		Badwordlist=Null
+		ChkBadWords = str
+	End Function
+
+	Public Function NeedIsAudit(ByVal strContent,ByVal strTitle)
+		Dim i,ChecKData
+		NeedIsAudit = False
+		If Len(Badwords(1)) > 1 Then
+			strContent = LCase(strContent) & " " & LCase(strTitle)
+			ChecKData = Split(LCase(Badwords(1)),"|")
+			For i = 0 To UBound(ChecKData)
+				If Trim(ChecKData(i)) <> "" Then
+					If InStr(strContent, ChecKData(i)) > 0 Then
+						NeedIsAudit = True
+						Exit Function
+					End If
+				End If
+			Next
+			ChecKData=Null
+		ElseIf Badwords(1)="*" Then
+			NeedIsAudit = True
+		End If
+	End Function
+
+	Public Function ChkPost()
+		Dim server_v1,server_v2
+		Chkpost=False
+		server_v1=Cstr(Request.ServerVariables("HTTP_REFERER"))
+		server_v2=Cstr(Request.ServerVariables("SERVER_NAME"))
+		If Mid(server_v1,8,len(server_v2))=server_v2 Then Chkpost=True
+	End Function
+	Public Sub ChcekProxy(IsProxy)
+		If ChkBoolean(IsProxy) Then
+			If actforip <> "" Then
+				CloseConn
+				Response.Status = "302 Object Moved"
+				Response.End
+			End If
+		End If
+	End Sub
+	'=============================================================
+	'函数名：ReadPayMoney
+	'作  用：读取要支付的金钱
+	'参  数：money   ----实际金钱
+	'返回值：加上手续费后的金钱
+	'=============================================================
+	Public Function ReadPayMoney(ByVal money, ByVal Reduce)
+		If money = 0 Then
+			ReadPayMoney = 0
+			Exit Function
+		End If
+		Dim valPercent, Percents
+		
+		Percents = CCur(CheckNumeric(PlusSetting(15)) / 100)
+		
+		If Percents = 0 Then
+			ReadPayMoney = CCur(money)
+		Else
+			If CBool(Reduce) = True Then
+				valPercent = Round(CCur(money) / (1 + 1 * Percents), 2)
+				ReadPayMoney = CCur(valPercent)
+			Else
+				valPercent = Round(CCur(money) * Percents, 2)
+				ReadPayMoney = CCur(money + valPercent)
+			End If
+		End If
+	End Function
+	'=============================================================
+	'函数名：RebateMoney
+	'作  用：读取打折的后金钱
+	'参  数：money   ----实际金钱
+	'        Discount   ----折扣
+	'=============================================================
+	Public Function RebateMoney(ByVal money, ByVal Discount)
+		Dim Rebate
+		
+		money = CheckNumeric(money)
+		Discount = CheckNumeric(Discount)
+		If Discount > 0 And Discount < 10 Then
+			Rebate = Round(money * (Discount / 10), 2)
+			RebateMoney = CCur(Rebate)
+		Else
+			RebateMoney = CCur(money)
+		End If
+	End Function
+	'--检查验证码是否正确
+	Public Function CodeIsTrue()
+		Dim CodeStr
+		CodeStr=Lcase(Trim(Request.Form("checkcode")))
+		If CStr(Session("checkcode"))=CStr(CodeStr) And CodeStr<>""  Then
+			CodeIsTrue=True
+			Session("checkcode")=Empty
+		Else
+			CodeIsTrue=False
+			Session("checkcode")=Empty
+		End If
+	End Function
+	'--生成随机数函数
+	Function GetRandomCode(l)
+		Randomize
+		Dim m_strRandArray,m_intRandlen,m_strRandomize,i
+		m_strRandArray = Array(0,1,2,3,4,5,6,7,8,9,"A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z")
+		m_intRandlen = l '定义随机码的长度
+		If m_intRandlen < 5 Then m_intRandlen = 16
+		for i = 1 to m_intRandlen
+			m_strRandomize = m_strRandomize & m_strRandArray(Int((21*Rnd)))
+		next
+		GetRandomCode = m_strRandomize
+	End Function
+	Public Function strLength(ByVal str)
+		On Error Resume Next
+		If IsNull(str) Then
+			strLength = 0
+			Exit Function
+		End If
+		MyRegExp.Pattern="[^\x00-\xff]"
+		str=MyRegExp.Replace(str,"aa")
+		strLength=Len(str)
+		If Err.Number<>0 Then Err.Clear
+	End Function
+	Public Function EscapeInvalidUnicode(ByVal str)
+		If IsNull(str) Then 
+			EscapeInvalidUnicode=""
+			Exit Function
+		End If
+		str=Replace(str, Chr(0), "")
+		MyRegExp.Pattern="[\x00-\x08\x0b-\x0c\x0e-\x1f]"
+		str=MyRegExp.Replace(str,"")
+		EscapeInvalidUnicode=str
+	End Function
+	Public Function CutStr(ByVal str,ByVal strlen)
+		Dim i,l,t,c
+		l=len(str)
+		strlen=CLng(strlen)
+		If strlen<1 Then
+			cutStr=str
+		Else
+			t=0
+			For i=1 To l
+				c=Asc(Mid(str,i,1))
+				If c<2 Then
+					t=t+2
+				Else
+					t=t+1
+				End If
+				If t>=strlen Then
+					cutStr=left(str,i)&Ellipsis
+					Exit for
+				Else
+					cutStr=str
+				End If
+			Next
+		End If
+		CutStr=Replace(cutStr,Chr(10),"")
+	End Function
+	Public Function CutString(ByVal str, ByVal strLen)
+		On Error Resume Next
+
+		Dim HtmlStr, l, re, strContent
+		HtmlStr = str&""
+		'HtmlStr = Replace(HtmlStr, Chr(0), "")
+		Set re = New RegExp
+		re.IgnoreCase = True
+		re.Global = True
+		re.Pattern = "\[br\]":HtmlStr = re.Replace(HtmlStr, "")
+		re.Pattern = "\[align=right\](.*)\[\/align\]":HtmlStr = re.Replace(HtmlStr, "")
+		're.Pattern = "([\f\n\r\t\v])":HtmlStr = re.Replace(HtmlStr, "")
+		re.Pattern="(\[InstallDir_ChannelDir\])":HtmlStr=re.Replace(HtmlStr, "")
+		re.Pattern="(\[img\])(.|\n)*?(\[\/img\])":HtmlStr=re.Replace(HtmlStr,"")
+		re.Pattern="(\[url\]|\[\/url\])":HtmlStr=re.Replace(HtmlStr, "")
+		re.Pattern="(\[b\]|\[\/b\])":HtmlStr=re.Replace(HtmlStr, "")
+		re.Pattern="(\[i\]|\[\/i\])":HtmlStr=re.Replace(HtmlStr, "")
+		re.Pattern="(\[u\]|\[\/u\])":HtmlStr=re.Replace(HtmlStr, "")
+		re.Pattern = "<(.[^>]*)>":HtmlStr = re.Replace(HtmlStr, "")
+		Set re = Nothing
+		HtmlStr = Replace(HtmlStr, "&nbsp;", " ")
+		HtmlStr = Replace(HtmlStr, "&quot;", Chr(34))
+		HtmlStr = Replace(HtmlStr, "&#39;", Chr(39))
+		HtmlStr = Replace(HtmlStr, "&#123;", Chr(123))
+		HtmlStr = Replace(HtmlStr, "&#125;", Chr(125))
+		HtmlStr = Replace(HtmlStr, "&#36;", Chr(36))
+		HtmlStr = Replace(HtmlStr, "&hellip;", "…")
+		HtmlStr = Replace(HtmlStr, "&lsquo;", "‘")
+		HtmlStr = Replace(HtmlStr, "&rsquo;", "’")
+		HtmlStr = Replace(HtmlStr, "&ldquo;", "“")
+		HtmlStr = Replace(HtmlStr, "&rdquo;", "”")
+		HtmlStr = Replace(HtmlStr, "&times;", "×")
+		HtmlStr = Replace(HtmlStr, "&radic;", "√")
+		HtmlStr = Replace(HtmlStr, "	", "")
+		HtmlStr = Replace(HtmlStr, "　　", "　")
+		'HtmlStr = Replace(HtmlStr, vbCrLf, "")
+		HtmlStr = Replace(HtmlStr, "====", "")
+		HtmlStr = Replace(HtmlStr, "----", "")
+		HtmlStr = Replace(HtmlStr, "////", "")
+		HtmlStr = Replace(HtmlStr, "\\\\", "")
+		HtmlStr = Replace(HtmlStr, "####", "")
+		HtmlStr = Replace(HtmlStr, "@@@@", "")
+		HtmlStr = Replace(HtmlStr, "****", "")
+		HtmlStr = Replace(HtmlStr, "~~~~", "")
+		HtmlStr = Replace(HtmlStr, "≡≡≡", "")
+		HtmlStr = Replace(HtmlStr, "++++", "")
+		HtmlStr = Replace(HtmlStr, "::::", "")
+		HtmlStr = Replace(HtmlStr, "  ", " ")
+		HtmlStr = Replace(HtmlStr, "  ", " ")
+		HtmlStr = Replace(HtmlStr, "  ", " ")
+		HtmlStr = Replace(HtmlStr, "&gt;", ">")
+		HtmlStr = Replace(HtmlStr, "&lt;", "<")
+		l = Len(HtmlStr)
+		If l>0 And strLen>0 Then
+			strContent = CutStr(Left(HtmlStr, strLen),strLen)
+		Else
+			strContent = HtmlStr & " "
+		End If
+		strContent = Replace(strContent, Chr(34), "&quot;")
+		strContent = Replace(strContent, Chr(39), "&#39;")
+		strContent = Replace(strContent, Chr(36), "&#36;")
+		strContent = Replace(strContent, Chr(123), "&#123;")
+		strContent = Replace(strContent, Chr(125), "&#125;")
+		strContent = Replace(strContent, ">", "&gt;")
+		strContent = Replace(strContent, "<", "&lt;")
+		CutString = strContent
+	End Function
+	Public Function CheckContinuous(ByVal str)
+		CheckContinuous = False
+		On Error Resume Next
+		Dim l:l = 5
+		If IsNull(str) Then Exit Function
+		If l < 2 Then Exit Function
+		Dim re:Set re=new RegExp
+		re.IgnoreCase =True
+		re.Global=True
+		re.Pattern="^(.)(\1{"& l &",})"
+		're.Pattern="([^\d\s])(\1{"& l &",})"
+		CheckContinuous = re.Test(str)
+		Set re=Nothing
+	End Function
+	Public Function BytesToString(ByVal iSize)
+		Dim sRet,KB,MB,S
+		KB = 1024 : MB = KB * KB
+		If Not IsNumeric(iSize) Then
+			BytesToString = "未知"
+			Exit Function
+		End If
+		If iSize < KB Then
+			sRet = iSize & " Bytes"
+		Else
+			S = iSize / KB
+			If S < 10 Then
+				sRet = FormatNumber(iSize / KB, 2, -1) & " KB"
+			ElseIf S < 100 Then
+				sRet = FormatNumber(iSize / KB, 1, -1) & " KB"
+			ElseIf S < 1000 Then
+				sRet = FormatNumber(iSize / KB, 0, -1) & " KB"
+			ElseIf S < 10000 Then
+				sRet = FormatNumber(iSize / MB, 2, -1) & " MB"
+			ElseIf S < 100000 Then
+				sRet = FormatNumber(iSize / MB, 1, -1) & " MB"
+			ElseIf S < 1000000 Then
+				sRet = FormatNumber(iSize / MB, 0, -1) & " MB"
+			ElseIf S < 10000000 Then
+				sRet = FormatNumber(iSize / MB / KB, 2, -1) & " GB"
+			Else
+				sRet = FormatNumber(iSize / MB / KB, 1, -1) & " GB"
+			End If
+		End If
+		BytesToString = sRet
+	End Function
+	'================================================
+	'函数名：IsValidStr
+	'作  用：判断字符串中是否含有非法字符
+	'参  数：str   ----原字符串
+	'返回值：False,True -----布尔值
+	'================================================
+	Public Function IsValidStr(ByVal str)
+		IsValidStr = False
+		On Error Resume Next
+		If IsNull(str) Then Exit Function
+		If Trim(str) = Empty Then Exit Function
+		If InStr(str, "|")>0 Then Exit Function
+		Dim ForbidStr, i
+		ForbidStr = "and|chr|:|=|%|&|$|#|@|+|-|*|/|\|<|>|;|,|^|" & Chr(32) & "|" & Chr(34) & "|" & Chr(39) & "|" & Chr(9)
+		ForbidStr = Split(ForbidStr, "|")
+		For i = 0 To UBound(ForbidStr)
+			If InStr(LCase(str), ForbidStr(i))>0 And ForbidStr(i)<>"" Then
+				IsValidStr = False
+				Exit Function
+			End If
+		Next
+		IsValidStr = True
+	End Function
+
+	Public Function IsValidPassWord(ByVal str)
+		IsValidPassWord=False
+		On Error Resume Next
+		If IsNull(str) Then Exit Function
+		If Trim(str) = Empty Then Exit Function
+		If InStr(str, ",")>0 Then Exit Function
+		Dim ForbidStr, i
+		ForbidStr = "',"",;,%,=,+,^"
+		ForbidStr = Split(ForbidStr, "|")
+		For i = 0 To UBound(ForbidStr)
+			If InStr(LCase(str), ForbidStr(i))>0 And ForbidStr(i)<>"" Then
+				IsValidPassWord = False
+				Exit Function
+			End If
+		Next
+		IsValidPassWord = True
+	End Function
+
+	Public Function CheckIDlist(ByVal strIDList)
+		On Error Resume Next
+		If Not IsNull(strIDList) And strIDList<>"" And strIDList<>"0" Then
+			Dim strArray,i,n,m_strID,CHECK_ID
+			Dim TempIDlist()
+			strArray=Split(strIDList, ",")
+			n=0
+			m_strID = ","
+			For i=0 To UBound(strArray)
+				CHECK_ID = Trim(strArray(i))
+				If CHECK_ID<>"" And IsNumeric(CHECK_ID) And CHECK_ID<>"0" Then
+					If InStr(m_strID,","& CHECK_ID &",") = 0 Then
+						ReDim Preserve TempIDlist(n)
+						TempIDlist(n) = CHECK_ID
+						n=n+1
+					End If
+					m_strID = m_strID & CHECK_ID &","
+				End If
+			Next
+			CheckIDlist=Join(TempIDlist, ",")
+			If CheckIDlist="" Then CheckIDlist="0"
+		Else
+			CheckIDlist="0"
+		End If
+	End Function
+	Public Function ChkRefresh()
+		Dim RefreshTime
+		RefreshTime = 20   '防止刷新时间,单位（秒）
+		If (Not IsEmpty(Session("RefreshTime"))) And RefreshTime > 0 Then
+			If DateDiff("s", Session("RefreshTime"), Now()) < RefreshTime Then
+				ChkRefresh = True
+				Exit Function
+			Else
+				Session("RefreshTime") = Now()
+			End If
+		Else
+			Session("RefreshTime") = Now()
+		End If
+		ChkRefresh = False
+	End Function
+	Public Function GetBrowser()
+		Dim Agent,XSLTemplate,proc
+		Set Agent=Application(CacheName&"_cms_lockip").cloneNode(True)
+		Agent.documentElement.attributes.setNamedItem(Agent.createNode(2,"ip","")).text=UserTrueIP
+		Agent.documentElement.attributes.setNamedItem(Agent.createNode(2,"actforip","")).text=actforip
+		Agent.documentElement.appendChild(Agent.createTextNode(Request.ServerVariables("HTTP_USER_AGENT")))
+		Set XSLTemplate=Application(CacheName & "_getbrowser")
+		Set proc = XSLTemplate.createProcessor()
+		proc.input = Agent
+		proc.transform()
+		Set Agent=Nothing
+		Set GetBrowser=NewAsp.CreateXmlDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		GetBrowser.loadxml proc.output
+	End Function
+	
+	Public Sub CheckUserAgent()
+		If MainSetting(6)="1" Then Call ChcekProxy(True)
+		If (Not Page_Admin) And MainSetting(8)="1" Then 
+			If InStr(ScriptName,"online.asp")=0 Then
+				If ChannelID=0 Then
+					Response.Redirect InstallDir & "showerr.asp?action=close"
+				Else
+					Response.Redirect MainDomain&InstallDir & "showerr.asp?action=close"
+				End If
+			Else
+				Response.End
+			End If
+		End If
+		Dim BS
+		Set Bs=GetBrowser()
+		Browsers=Checkstr(BS.documentElement.selectSingleNode("@browser").text)
+		Versions=Replace(Checkstr(BS.documentElement.selectSingleNode("@version").text),"--","")
+		platform=Checkstr(BS.documentElement.selectSingleNode("@platform").text)
+		AlexaToolbar=Checkstr(BS.documentElement.selectSingleNode("@alexa").text)
+		'IP锁定
+		If BS.documentElement.selectSingleNode("@lockip").text="1"  Then
+			If Not Page_Admin Then 'Response.Redirect InstallDir & "showerr.asp?action=lockip"
+				If InStr(ScriptName,"online.asp")=0 Then
+					Response.Status = "301 Moved Permanently"
+					If ChannelID=0 Then
+						Response.AddHeader "Location", InstallDir & "showerr.asp?action=lockip"
+					Else
+						Response.AddHeader "Location", MainDomain&InstallDir & "showerr.asp?action=lockip"
+					End If
+				End If
+				Response.Flush:Response.End
+			End If
+		End If
+		Set BS=Nothing
+	End Sub
+	'h = 小时；m = 分钟；s = 秒；tt = 上午或下午
+	'hh,mm,ss = 零起始；h,m,s = 非零起始
+	'd,dd = 日；ddd,dddd,ww,WW = 星期；M = 月；y = 年
+	'时间格式: yyyy-MM-dd hh:mm:ss
+	'WW,dd MMMM yyyy hh:mm:ss +0800
+	'ww, MMM dd, yyyy at hh:mm:sstt +0200
+	Public Function FormatToDate(DateAndTime,showType)
+		If Not IsDate(DateAndTime) Or showType="" Then
+			FormatToDate = DateAndTime
+			Exit Function
+		End If
+		If CLng(MainSetting(36))<>0 Then DateAndTime=DateAdd("h",CLng(MainSetting(36)),CDate(DateAndTime))
+		Dim w,y,m,d,h,mi,s,yy,mm,dd,hh,mmi,ss,strDateTime
+		Dim fullWeekdays,shortWeekdays,fullWeekday,shortWeekday,fullMonth,shortMonth
+		fullWeekdays=Array("星期日","星期一","星期二","星期三","星期四","星期五","星期六")
+		shortWeekdays=Array("日","一","二","三","四","五","六")
+		fullWeekday=Array("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday")
+		shortWeekday=Array("Sun","Mon","Tue","Wed","Thu","Fri","Sat")
+		fullMonth=Array("January","February","March","April","May","June","July","August","September","October","November","December")
+		shortMonth=Array("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+
+		w=Weekday(DateAndTime)
+		yy=Year(DateAndTime):y=CStr(Right(yy,2))
+		m=Month(DateAndTime):mm=CStr(String(2-Len(m), "0")& m)
+		d=Day(DateAndTime):dd=CStr(CStr(String(2-Len(d), "0")& d))
+		h=Hour(DateAndTime):hh=CStr(String(2-Len(h), "0")& h)
+		mi=CStr(Minute(DateAndTime)):mmi=CStr(String(2-Len(mi), "0")& mi)
+		s=CStr(Second(DateAndTime)):ss=CStr(String(2-Len(s), "0")& s)
+		strDateTime=showType
+		If InStr(showType,"ddd")>0 Then
+			strDateTime=Replace(Replace(strDateTime, "dddd", fullWeekdays(w-1)), "ddd", shortWeekdays(w-1))
+		End If
+		strDateTime=Replace(Replace(strDateTime, "yyyy", yy), "yy", y)
+		strDateTime=Replace(Replace(strDateTime, "dd", dd), "d", d)
+		strDateTime=Replace(Replace(strDateTime, "hh", hh), "h", h)
+		strDateTime=Replace(Replace(strDateTime, "mm", mmi), "m", mi)
+		strDateTime=Replace(Replace(strDateTime, "ss", ss), "s", s)
+		If InStr(1,showType,"MMM",1)>0 Then
+			strDateTime=Replace(strDateTime, "MMMM", fullMonth(m-1))
+			strDateTime=Replace(strDateTime, "MMM", shortMonth(m-1))
+		Else
+			strDateTime=Replace(Replace(strDateTime, "MM", mm), "M", m)
+		End If
+		If h>12 Then
+			strDateTime=Replace(Replace(strDateTime, "TT", "下午"), "tt", "PM")
+		Else
+			strDateTime=Replace(Replace(strDateTime, "TT", "上午"), "tt", "AM")
+		End If
+		If InStr(1,showType,"ww",1)>0 Then
+			strDateTime=Replace(strDateTime, "WW", fullWeekday(w-1))
+			strDateTime=Replace(strDateTime, "ww", shortWeekday(w-1))
+		End If
+
+		fullWeekdays=Null:shortWeekdays=Null
+		fullWeekday=Null:shortWeekday=Null
+		fullMonth=Null:shortMonth=Null
+		FormatToDate=strDateTime
+	End Function
+	Public Function DateToString(DateAndTime,showType)
+		Dim strDate,strToDate
+		If Not IsDate(DateAndTime) Then
+			DateToString = Now():Exit Function
+		End If
+		strToDate=NewAsp.FormatToDate(DateAndTime, showType)
+		If CLng(MainSetting(36))<>0 Then DateAndTime=DateAdd("h",CLng(MainSetting(36)),CDate(DateAndTime))
+		If Datediff("d",Now(),CDate(DateAndTime)) < 0 Then
+			strDate = "<em class=""oldDate"">"
+			strDate = strDate & strToDate
+			strDate = strDate & "</em>"
+		Else
+			strDate = "<em class=""newDate"">"
+			strDate = strDate & strToDate
+			strDate = strDate & "</em>"
+		End If
+		DateToString=strDate
+	End Function
+	Public Function ChkIsNewDate(datime)
+		If Not IsDate(datime) Then datime=Now()
+		If CLng(MainSetting(36))<>0 Then datime=DateAdd("h",CLng(MainSetting(36)),CDate(datime))
+		If Datediff("d",Now(),CDate(datime)) < 0 Then
+			ChkIsNewDate=0
+		Else
+			ChkIsNewDate=1
+		End If
+	End Function
+	'================================================
+	'函数名：FormatDate
+	'作  用：格式化日期
+	'参  数：DateAndTime   ----原日期和时间
+	'        para   ----日期格式
+	'返回值：格式化后的日期
+	'================================================
+	Public Function FormatDate(DateAndTime, para)
+		Dim y, m, d, h, mi, s, strDateTime
+		FormatDate = DateAndTime
+		If Not IsNumeric(para) Then Exit Function
+		If Not IsDate(DateAndTime) Then Exit Function
+		If CLng(MainSetting(36))<>0 Then DateAndTime=DateAdd("h",CLng(MainSetting(36)),CDate(DateAndTime))
+		y = CStr(Year(DateAndTime))
+		m = CStr(Month(DateAndTime))
+		If Len(m) = 1 Then m = "0" & m
+		d = CStr(Day(DateAndTime))
+		If Len(d) = 1 Then d = "0" & d
+		h = CStr(Hour(DateAndTime))
+		If Len(h) = 1 Then h = "0" & h
+		mi = CStr(Minute(DateAndTime))
+		If Len(mi) = 1 Then mi = "0" & mi
+		s = CStr(Second(DateAndTime))
+		If Len(s) = 1 Then s = "0" & s
+		Select Case para
+		Case "1":strDateTime = y & "-" & m & "-" & d & " " & h & ":" & mi & ":" & s
+		Case "2":strDateTime = y & "-" & m & "-" & d
+		Case "3":strDateTime = y & "/" & m & "/" & d
+		Case "4":strDateTime = y & "年" & m & "月" & d & "日"
+		Case "5":strDateTime = m & "-" & d
+		Case "6":strDateTime = m & "/" & d
+		Case "7":strDateTime = m & "月" & d & "日"
+		Case "8":strDateTime = y & "年" & m & "月"
+		Case "9":strDateTime = y & "-" & m
+		Case "10":strDateTime = y & "/" & m
+		Case Else
+			strDateTime = DateAndTime
+		End Select
+		FormatDate = strDateTime
+	End Function
+	'================================================
+	'函数名：ReadFontMode
+	'作  用：读取字体模式
+	'参  数：str   ----原字符串
+	'        vColor   -----颜色的值
+	'        vFont   -----字体的值
+	'返回值：新字符串
+	'================================================
+	Public Function ReadFontMode(str, vColor, vFont)
+		Dim FontStr, tColor
+		Dim ColorStr, arrColor
+
+		If IsNull(str) Then
+			ReadFontMode = ""
+			Exit Function
+		End If
+		ReadFontMode = str
+		'On Error Resume Next
+		If Not IsNumeric(vColor) Then Exit Function
+		If Not IsNumeric(vFont) Then Exit Function
+
+		Select Case CInt(vFont)
+			Case 1:FontStr = "<b>" & str & "</b>"
+			Case 2:FontStr = "<em>" & str & "</em>"
+			Case 3:FontStr = "<u>" & str & "</u>"
+			Case 4:FontStr = "<b><em>" & str & "</em></b>"
+			Case 5:FontStr = "<b><u>" & str & "</u></b>"
+			Case 6:FontStr = "<em><u>" & str & "</u></em>"
+			Case 7:FontStr = "<b><em><u>" & str & "</u></em></b>"
+		Case Else
+			FontStr = str
+		End Select
+		ReadFontMode = FontStr
+
+		If vColor = "" Or vColor = 0 Then Exit Function
+		ColorStr = "," & MainSetting(48)
+		arrColor = Split(ColorStr, ",")
+		'Response.Write ColorStr
+		If CInt(vColor) > UBound(arrColor) Then Exit Function
+		tColor = Trim(arrColor(vColor))
+
+		ReadFontMode = "<font color=""" & tColor & """>" & FontStr & "</font>"
+	End Function
+	Public Function ReadBriefTopic(ByVal para)
+		Dim sBriefTopic
+		ReadBriefTopic = ""
+		If Not IsNumeric(para) Then Exit Function
+		If para = 0 Then Exit Function
+		Select Case para
+		Case "1":sBriefTopic = "<font color=""blue"">[图文]</font>"
+		Case "2":sBriefTopic = "<font color=""red"">[组图]</font>"
+		Case "3":sBriefTopic = "<font color=""green"">[新闻]</font>"
+		Case "4":sBriefTopic = "<font color=""blue"">[推荐]</font>"
+		Case "5":sBriefTopic = "<font color=""red"">[注意]</font>"
+		Case "6":sBriefTopic = "<font color=""green"">[转载]</font>"
+		Case Else
+			sBriefTopic = ""
+		End Select
+		ReadBriefTopic = sBriefTopic
+	End Function
+
+	'================================================
+	'过程名：HtmlRndFileName
+	'作  用：取HTML的随机文件名
+	'================================================
+	Function HtmlRndFileName()
+		Dim sRnd
+		Randomize
+		sRnd = Int(90 * Rnd) + 10
+		HtmlRndFileName = Replace(Replace(Replace(FormatToDate(Now(), "yyyy-MM-dd hh:mm:ss"), "-", ""), ":", ""), " ", "") & sRnd
+	End Function
+	Public Function SaveXMLDocument(ByVal strXMLFile,ByVal strXMLDom)
+		On Error Resume Next
+		Dim oXMLDom
+		SaveXMLDocument = False
+		If strXMLFile = "" Then Exit Function
+		If InStr(strXMLFile, ":") = 0 Then strXMLFile = Server.MapPath(strXMLFile)
+		Set oXMLDom = NewAsp.CreateAXObject("Msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		If oXMLDom.LoadXml(strXMLDom) Then
+			oXMLDom.save strXMLFile
+			SaveXMLDocument = True
+		End If
+		Set oXMLDom = Nothing
+		If Err.Number <> 0 Then
+			Err.Clear
+			SaveXMLDocument = False
+		End If
+	End Function
+	Public Function ReadXMLDocument(ByVal strXMLFile,ByVal strNode)
+		On Error Resume Next
+		Dim oXMLDom,xmlNodes
+		If strXMLFile = "" Then Exit Function
+		If InStr(strXMLFile, ":") = 0 Then strXMLFile = Server.MapPath(strXMLFile)
+		Set oXMLDom = NewAsp.CreateAXObject("Msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		If oXMLDom.Load(strXMLFile) Then
+			If strNode = "" Or strNode = "0" Then
+				ReadXMLDocument = oXMLDom.xml
+			Else
+				ReadXMLDocument = oXMLDom.documentElement.selectSingleNode(strNode).text
+			End If
+		Else
+			ReadXMLDocument = ""
+		End If
+		Set oXMLDom = Nothing
+		If Err.Number <> 0 Then Err.Clear
+	End Function
+	Public Function CheckOutLinks()
+		On Error Resume Next
+		Dim server_v1,server_v2,i,Allowlists
+		CheckOutLinks=False
+		If Trim(MainSetting(49))="*" Then
+			CheckOutLinks=True
+			Exit Function
+		End If
+		server_v1 = LCase(Request.ServerVariables("HTTP_REFERER"))
+		server_v2 = LCase(Request.ServerVariables("SERVER_NAME"))
+		Allowlists = server_v2&","&MainSetting(49)
+		Allowlists=Split(LCase(Allowlists),",")
+		If Len(server_v1)>1 Then
+			If InStr(9,server_v1,"/")>0 Then server_v1=Mid(server_v1,1,InStr(9,server_v1,"/"))
+			For i=0 to Ubound(Allowlists)
+				If InStr(server_v1,Allowlists(i))>0 And Len(Allowlists(i))>1 Then
+					CheckOutLinks=True
+					Exit For
+				End If
+			Next
+		Else
+			CheckOutLinks=False
+		End If
+	End Function
+	Public Function CheckPost()
+		On Error Resume Next
+		Dim server_v1, server_v2
+		CheckPost = False
+		server_v1 = CStr(Request.ServerVariables("HTTP_REFERER"))
+		server_v2 = CStr(Request.ServerVariables("SERVER_NAME"))
+		If Mid(server_v1, 8, Len(server_v2)) = server_v2 Then
+			CheckPost = True
+		End If
+	End Function
+	Public Sub ChkPostAgent()
+		On Error Resume Next
+		Dim server_v1, server_v2
+		Dim m_blnAgent,m_strAgent
+		m_blnAgent = False
+		server_v1 = CStr(Request.ServerVariables("HTTP_REFERER"))
+		server_v2 = CStr(Request.ServerVariables("SERVER_NAME"))
+		If Mid(server_v1, 8, Len(server_v2)) = server_v2 Then
+			m_blnAgent = True
+		End If
+		If m_blnAgent Then
+			m_strAgent = Request.ServerVariables("HTTP_USER_AGENT")
+			If Left(m_strAgent, 7) = "Mozilla" Or Left(m_strAgent, 5) = "Opera" Then
+				m_blnAgent = True
+			End If
+		End If
+		If m_blnAgent = False Then
+			'Response.Status = "302 Object Moved"
+			Response.Status = "404 Not Found"
+			Set Newasp = Nothing
+			Response.End
+		End If
+	End Sub
+	'-- 修正文件路径
+	Public Function CheckPath(ByVal sPath)
+		sPath = Trim(sPath)
+		If Right(sPath, 1) <> "\" And sPath <> "" Then
+			sPath = sPath & "\"
+		End If
+		CheckPath = sPath
+	End Function
+	Public Function CheckHtmlFilePath(ByVal strPath)
+		Dim sName
+		sName=Mid(strPath,InStrRev(strPath,"/")+1,Len(strPath))
+		
+		If InStr(sName,".")=0 Then
+			CheckHtmlFilePath=strPath
+		Else
+			CheckHtmlFilePath=Left(strPath, InStrRev(strPath, "/"))
+		End If
+	End Function
+	'-- 生成目录
+	Public Function CreatPathEx(ByVal sPath)
+		sPath = Replace(sPath, "/", "\")
+		sPath = Replace(sPath, "\\", "\")
+		On Error Resume Next
+
+		Dim strHostPath,strPath
+		Dim sPathItem,sTempPath
+		Dim i
+		strHostPath = Server.MapPath("/")
+		If InStr(sPath, ":") = 0 Then sPath = Server.MapPath(sPath)
+		If fso.FolderExists(sPath) Or Len(sPath) < 3 Then
+			CreationPath = True
+			Exit Function
+		End If
+
+		strPath = Replace(sPath, strHostPath, vbNullString,1,-1,1)
+		sPathItem = Split(strPath, "\")
+
+		If InStr(LCase(sPath), LCase(strHostPath)) = 0 Then
+			sTempPath = sPathItem(0)
+		Else
+			sTempPath = strHostPath
+		End If
+
+		For i = 1 To UBound(sPathItem)
+			If sPathItem(i) <> "" Then
+				sTempPath = sTempPath & "\" & sPathItem(i)
+				If fso.FolderExists(sTempPath) = False Then
+					fso.CreateFolder sTempPath
+				End If
+			End If
+		Next
+		If Err.Number <> 0 Then Err.Clear
+		CreatPathEx = True
+	End Function
+	'================================================
+	'函数名：FilesDelete
+	'作  用：FSO删除文件
+	'参  数：filepath   ----文件路径
+	'返回值：False  ----  True
+	'================================================
+	Public Function FileDelete(ByVal FilePath)
+		On Error Resume Next
+		FileDelete = False
+		If FilePath = "" Then Exit Function
+		If InStr(FilePath, ":") = 0 Then FilePath = Server.MapPath(FilePath)
+		If fso.FileExists(FilePath) Then
+			fso.DeleteFile FilePath, True
+			FileDelete = True
+		End If
+		If Err.Number <> 0 Then Err.Clear
+	End Function
+	Public Function FilePathExists(ByVal FilePath,ByVal stype)
+		On Error Resume Next
+		If FilePath = "" Then Exit Function
+		If InStr(FilePath, ":") = 0 Then FilePath = Server.MapPath(FilePath)
+		If stype = 1 Then
+			FilePathExists = fso.FileExists(FilePath)
+		Else
+			FilePathExists = fso.FolderExists(FilePath)
+		End If
+		If Err.Number <> 0 Then
+			Err.Clear
+			FilePathExists = False
+		End If
+	End Function
+	'================================================
+	'函数名：FolderDelete
+	'作  用：FSO删除目录
+	'参  数：folderpath   ----目录路径
+	'返回值：False  ----  True
+	'================================================
+	Public Function FolderDelete(ByVal FolderPath)
+		FolderDelete = False
+		On Error Resume Next
+		If FolderPath = "" Then Exit Function
+		If InStr(FolderPath, ":") = 0 Then FolderPath = Server.MapPath(FolderPath)
+		If fso.FolderExists(FolderPath) Then
+			fso.DeleteFolder FolderPath, True
+			FolderDelete = True
+		End If
+		If Err.Number <> 0 Then Err.Clear
+	End Function
+	'================================================
+	'函数名：CopyToFile
+	'作  用：复制文件
+	'参  数：SoureFile   ----原文件路径
+	'        NewFile  ----目标文件路径
+	'================================================
+	Public Function CopyToFile(ByVal SoureFile, ByVal NewFile)
+		On Error Resume Next
+		If SoureFile = "" Then Exit Function
+		If NewFile = "" Then Exit Function
+		If InStr(SoureFile, ":") = 0 Then SoureFile = Server.MapPath(SoureFile)
+		If InStr(NewFile, ":") = 0 Then NewFile = Server.MapPath(NewFile)
+		If fso.FileExists(SoureFile) Then
+			fso.CopyFile SoureFile, NewFile
+		End If
+		If Err.Number <> 0 Then Err.Clear
+	End Function
+	'================================================
+	'函数名：CopyToFolder
+	'作  用：复制文件夹
+	'参  数：SoureFolder   ----原路径
+	'        NewFolder  ----目标路径
+	'================================================
+	Public Function CopyToFolder(ByVal SoureFolder, ByVal NewFolder)
+		On Error Resume Next
+		If SoureFolder = "" Then Exit Function
+		If NewFolder = "" Then Exit Function
+		If InStr(SoureFolder, ":") = 0 Then SoureFolder = Server.MapPath(SoureFolder)
+		If InStr(NewFolder, ":") = 0 Then NewFolder = Server.MapPath(NewFolder)
+		If fso.FolderExists(SoureFolder) Then
+			fso.CopyFolder SoureFolder, NewFolder
+		End If
+		If Err.Number <> 0 Then Err.Clear
+	End Function
+	'=============================================================
+	'过程名：CreatedTextFile
+	'作  用：创建文本文件
+	'参  数：filename  ----文件名
+	'        body  ----主要内容
+	'=============================================================
+	Public Function CreatedTextFile(ByVal FileName,ByVal body)
+		On Error Resume Next
+		Dim f,sName
+		FileName = Replace(Replace(FileName, "/", "\"), "\\", "\")
+		If InStr(FileName, ":") = 0 Then FileName = Server.MapPath(FileName)
+		sName=Mid(FileName,InStrRev(FileName,"\")+1,Len(FileName))
+		If InStr(sName,".")=0 Then FileName = FileName &"\index.html"
+		If MainSetting(7)="0" Then
+			Set f = fso.CreateTextFile(FileName,True, False)
+			f.Write body
+			f.Close
+			Set f = Nothing
+		Else
+			If MainSetting(7)="2" Then
+				NewAspStream.charset="UTF-8"
+			ElseIf MainSetting(7)="3" Then
+				NewAspStream.charset="BIG5"
+			Else
+				NewAspStream.charset="GB2312"
+			End If
+			NewAspStream.Type = 2'设置内容为文本
+			NewAspStream.Mode = 3'设置为可读可写
+			NewAspStream.open()
+			NewAspStream.WriteText(body)
+			NewAspStream.SaveToFile FileName,2
+			NewAspStream.Flush
+			NewAspStream.close()
+		End If
+		If Err.Number <> 0 Then Err.Clear
+	End Function
+
+	Public Sub writeHtmlText(strBody)
+		
+	End Sub
+	
+	'================================================
+	'函数名：ReadAlpha
+	'作  用：读取字符串的第一个字母
+	'参  数：str   ----字符
+	'返回值：返回第一个字母
+	'================================================
+	Public Function ReadAlpha(ByVal str)
+		Dim strTemp
+		If IsNull(str) Or Trim(str) = "" Then
+			ReadAlpha = "A-9"
+			Exit Function
+		End If
+		str = Trim(str)
+		strTemp = 65536 + Asc(str)
+		If (strTemp >= 45217 And strTemp <= 45252) Or (strTemp = 65601) Or (strTemp = 65633) Or (strTemp = 37083) Then
+			ReadAlpha = "A-Z"
+		ElseIf (strTemp >= 45253 And strTemp <= 45760) Or (strTemp = 65602) Or (strTemp = 65634) Or (strTemp = 39658) Then
+			ReadAlpha = "B-Z"
+		ElseIf (strTemp >= 45761 And strTemp <= 46317) Or (strTemp = 65603) Or (strTemp = 65635) Or (strTemp = 33405) Then
+			ReadAlpha = "C-Z"
+		ElseIf (strTemp >= 46318 And strTemp <= 46836) Or (strTemp >= 46847 And strTemp <= 46930) Or (strTemp >= 61884 And strTemp <= 61884) Or (strTemp = 65604) Or (strTemp >= 36820 And strTemp <= 38524) Or (strTemp = 65636) Then
+			ReadAlpha = "D-Z"
+		ElseIf (strTemp >= 46837 And strTemp <= 46846) Or (strTemp >= 46931 And strTemp <= 47009) Or (strTemp = 65605) Or (strTemp = 65637) Or (strTemp = 61513) Then
+			ReadAlpha = "E-Z"
+		ElseIf (strTemp >= 47010 And strTemp <= 47296) Or (strTemp = 65606) Or (strTemp = 65638) Or (strTemp = 61320) Or (strTemp = 63568) Or (strTemp = 36281) Then
+			ReadAlpha = "F-Z"
+		ElseIf (strTemp >= 47297 And strTemp <= 47613) Or (strTemp = 65607) Or (strTemp = 65639) Or (strTemp = 35949) Or (strTemp = 36089) Or (strTemp = 36694) Or (strTemp = 34808) Then
+			ReadAlpha = "G-Z"
+		ElseIf (strTemp >= 47614 And strTemp <= 48118) Or (strTemp >= 59112 And strTemp <= 59112) Or (strTemp = 65608) Or (strTemp = 65640) Then
+			ReadAlpha = "H-Z"
+		ElseIf (strTemp = 65641) Or (strTemp = 65609) Or (strTemp = 65641) Then
+			ReadAlpha = "I-Z"
+		ElseIf (strTemp >= 48119 And strTemp <= 49061 And strTemp <> 48739) Or (strTemp >= 62430 And strTemp <= 62430) Or (strTemp = 65610) Or (strTemp = 65642) Or (strTemp = 39048) Then
+			ReadAlpha = "J-Z"
+		ElseIf (strTemp >= 49062 And strTemp <= 49323) Or (strTemp = 65611) Or (strTemp = 65643) Then
+			ReadAlpha = "K-Z"
+		ElseIf (strTemp >= 49324 And strTemp <= 49895) Or (strTemp >= 58838 And strTemp <= 58838) Or (strTemp = 65612) Or (strTemp = 65644) Or (strTemp = 62418) Or (strTemp = 48739) Then
+			ReadAlpha = "L-Z"
+		ElseIf (strTemp >= 49896 And strTemp <= 50370) Or (strTemp = 65613) Or (strTemp = 65645) Then
+			ReadAlpha = "M-Z"
+		ElseIf (strTemp >= 50371 And strTemp <= 50613) Or (strTemp = 65614) Or (strTemp = 65646) Then
+			ReadAlpha = "N-Z"
+		ElseIf (strTemp >= 50614 And strTemp <= 50621) Or (strTemp = 65615) Or (strTemp = 65647) Then
+			ReadAlpha = "O-Z"
+		ElseIf (strTemp >= 50622 And strTemp <= 50905) Or (strTemp = 65616) Or (strTemp = 65648) Then
+			ReadAlpha = "P-Z"
+		ElseIf (strTemp >= 50906 And strTemp <= 51386) Or (strTemp >= 62659 And strTemp <= 63172) Or (strTemp = 65617) Or (strTemp = 65649) Then
+			ReadAlpha = "Q-Z"
+		ElseIf (strTemp >= 51387 And strTemp <= 51445) Or (strTemp = 65618) Or (strTemp = 65650) Then
+			ReadAlpha = "R-Z"
+		ElseIf (strTemp >= 51446 And strTemp <= 52217) Or (strTemp = 65619) Or (strTemp = 65651) Or (strTemp = 34009) Then
+			ReadAlpha = "S-Z"
+		ElseIf (strTemp >= 52218 And strTemp <= 52697) Or (strTemp = 65620) Or (strTemp = 65652) Then
+			ReadAlpha = "T-Z"
+		ElseIf (strTemp = 65621) Or (strTemp = 65653) Then
+			ReadAlpha = "U-Z"
+		ElseIf (strTemp = 65622) Or (strTemp = 65654) Then
+			ReadAlpha = "V-Z"
+		ElseIf (strTemp >= 52698 And strTemp <= 52979) Or (strTemp = 65623) Or (strTemp = 65655) Then
+			ReadAlpha = "W-Z"
+		ElseIf (strTemp >= 52980 And strTemp <= 53688) Or (strTemp = 65624) Or (strTemp = 65656) Then
+			ReadAlpha = "X-Z"
+		ElseIf (strTemp >= 53689 And strTemp <= 54480) Or (strTemp = 65625) Or (strTemp = 65657) Then
+			ReadAlpha = "Y-Z"
+		ElseIf (strTemp >= 54481 And strTemp <= 62383 And strTemp <> 59112 And strTemp <> 58838) Or (strTemp = 65626) Or (strTemp = 65658) Or (strTemp = 38395) Or (strTemp = 39783) Then
+			ReadAlpha = "Z-Z"
+		Else
+			ReadAlpha = "A-9"
+		End If
+		If (strTemp >= 65633 And strTemp <= 65658) Or (strTemp >= 65601 And strTemp <= 65626) Then ReadAlpha = UCase(Left(str, 1))
+		If (strTemp >= 65584 And strTemp <= 65593) Then ReadAlpha = "0-9"
+	End Function
+
+	Public Function LoadTemplate(Page_Fields)
+		On Error Resume Next
+		Dim Page_File,HtmlContent
+
+		If TPLCacheMode>0 Then
+			Name = Page_Fields
+			If ObjIsEmpty() Then
+				LoadTemplateCache Page_Fields,HtmlContent
+				value = HtmlContent
+			End If
+			HtmlContent=value
+		Else
+			LoadTemplateCache Page_Fields,HtmlContent
+		End If
+		LoadTemplate=HtmlContent
+	End Function
+	Public Sub LoadTemplateCache(Page_Fields,HtmlContent)
+		Dim Page_File
+		Page_File=TemplatePath&Page_Fields&".html"
+		HtmlContent=ReadTextFile(Page_File)
+		HtmlContent=LoadIncludeFile(HtmlContent)
+		If ""=HtmlContent Then
+			Response.Write "找不到模板文件 "&Page_File
+			Response.End
+		Else
+			If BindDomain=0 Then
+				HtmlContent=Replace(HtmlContent, "{$installdir}", InstallDir)
+				HtmlContent=Replace(HtmlContent, "{$InstallDir}", InstallDir)
+				HtmlContent=Replace(HtmlContent, "{$channeldir}", InstallDir&ChannelDir)
+			Else
+				HtmlContent=Replace(HtmlContent, "{$installdir}", MainDomain&InstallDir)
+				HtmlContent=Replace(HtmlContent, "{$InstallDir}", MainDomain&InstallDir)
+				HtmlContent=Replace(HtmlContent, "{$channeldir}", "/")
+			End If
+			HtmlContent=Replace(HtmlContent, "{$channelid}", ChannelID)
+			HtmlContent=Replace(HtmlContent, "{$channelname}", ChannelName)
+			HtmlContent=Replace(HtmlContent, "{$modules}", modules)
+			HtmlContent=Replace(HtmlContent, "{$version}", Version)
+			'If Page_Fields="index" Then
+			'	HtmlContent=Replace(HtmlContent, "<head>", "<head>"&Copyright)
+			'End If
+			HtmlContent=Replace(HtmlContent, "{$sys_domain}", MainDomain)
+			HtmlContent=Replace(HtmlContent, "{$sys_skinpath}", SkinsPath)
+			HtmlContent=Replace(HtmlContent, "{$sys_sitename}", MainSetting(1))
+			HtmlContent=Replace(HtmlContent, "{$sys_indexfile}", MainSetting(2))
+			HtmlContent=Replace(HtmlContent, "{$sys_email}", MainSetting(3))
+			HtmlContent=Replace(HtmlContent, "{$sys_keyword}", MainSetting(4))
+			HtmlContent=Replace(HtmlContent, "{$sys_copyright}", MainSetting(5))
+		End If
+	End Sub
+
+	Public Function LoadIncludeFile(strContent)
+		On Error Resume Next
+		Dim Page_File,strMatchs,strMatch,tmpstr,strInclude
+		If InStr(strContent,"<!--$") > 0 Then
+			MyRegExp.Pattern="<!--\$include(.[^>]*)file=(""|')([A-Za-z0-9_\-\.\s\u4E00-\u9FA5]+)(""|')(.[^>]*)>"
+			Set strMatchs=MyRegExp.Execute(strContent)
+			For Each strMatch in strMatchs
+				tmpstr=Trim(strMatch.SubMatches(2))
+				If InStr(tmpstr,".") = 0 Then tmpstr = tmpstr & ".html"
+				Page_File = TemplatePath & "include\" & tmpstr
+				strInclude=ReadTextFile(Page_File)
+				strContent=Replace(strContent,strMatch.Value,strInclude)
+			Next
+			Set strMatchs = Nothing
+			If InStr(strContent,"<!--$") > 0 Then
+				MyRegExp.Pattern="<!--\$include(.[^>]*)file=(""|')([A-Za-z0-9_\-\.\s\u4E00-\u9FA5]+)(""|')(.[^>]*)>"
+				Set strMatchs=MyRegExp.Execute(strContent)
+				For Each strMatch in strMatchs
+					tmpstr=Trim(strMatch.SubMatches(2))
+					If InStr(tmpstr,".") = 0 Then tmpstr = tmpstr & ".html"
+					Page_File = TemplatePath & "include\" & tmpstr
+					strInclude=ReadTextFile(Page_File)
+					strContent=Replace(strContent,strMatch.Value,strInclude)
+				Next
+				Set strMatchs = Nothing
+			End If
+		End If
+		MyRegExp.Pattern="<!--#(.[^>]*)(#-->" & vbCrLf & "|#-->)"
+		strContent=MyRegExp.Replace(strContent, "")
+		LoadIncludeFile = strContent
+	End Function
+
+	'================================================
+	'函数名：Supplemental
+	'作  用：补足参数
+	'参  数：para ----原参数
+	'        n ----增补的位数
+	'================================================
+	Public Function Supplemental(para, n)
+		Supplemental = ""
+		If Not IsNumeric(para) Then Exit Function
+		If Len(para) < n Then
+			Supplemental = String(n - Len(para), "0") & para
+		Else
+			Supplemental = para
+		End If
+	End Function
+
+	Public Function HtmlDestination(ByVal strDestination,ByVal strChannel,ByVal strFileDate,ByVal strFileDir,ByVal classid,ByVal id,ByVal page,ByVal strName)
+		Dim strParent, strTime, strChild
+		Dim y, m, d
+		If Len(strDestination) < 6 Then Exit Function
+		strFileDate=strFileDate&"" : strFileDir=strFileDir&""
+		classid = ChkNumeric(classid)
+		id = ChkNumeric(id)
+		page = ChkNumeric(page)
+		strDestination = Replace(strDestination, "[classid]", classid, 1, -1, 1)
+		If Len(strName) < 2 Or strName="html" Then
+			strDestination = Replace(strDestination, "[page]", page, 1, -1, 1)
+		End If
+		If strFileDate="0" Or Len(strFileDate)=0 Or Len(strFileDate)>1 Then
+			strDestination = Replace(strDestination, "-[order]", "", 1, -1, 1)
+			strDestination = Replace(strDestination, "_[order]", "", 1, -1, 1)
+			strDestination = Replace(strDestination, "[order]", "", 1, -1, 1)
+		Else
+			strDestination = Replace(strDestination, "[order]", strFileDate, 1, -1, 1)
+		End If
+		strDestination = Replace(strDestination, "[root]", InstallDir, 1, -1, 1)
+		strDestination = Replace(strDestination, "[InstallDir]", InstallDir, 1, -1, 1)
+		strDestination = Replace(strDestination, "[channel]", strChannel, 1, -1, 1)
+		strDestination = Replace(strDestination, "[class]", strFileDir, 1, -1, 1)
+		strDestination = Replace(strDestination, "[name]", strName, 1, -1, 1)
+		strDestination = Replace(strDestination, "[cid]", Supplemental(classid,5), 1, -1, 1)
+		strDestination = Replace(strDestination, "[sortid]", Supplemental(classid,3), 1, -1, 1)
+		If page > 1 Then
+			If InStr(strDestination, "[index]")>0 Then
+				strDestination = Replace(strDestination, "[id]", id, 1, -1, 1)
+				strDestination = Replace(strDestination, "[sid]", Supplemental(id,6), 1, -1, 1)
+				strDestination = Replace(strDestination, "[eid]", Supplemental(id,8), 1, -1, 1)
+				strDestination = Replace(strDestination, "[rid]", Supplemental(id,3), 1, -1, 1)
+				strDestination = Replace(strDestination, "[index]", "index_"&page&".html", 1, -1, 1)
+			Else
+				strDestination = Replace(strDestination, "[id]", id & "_" & page, 1, -1, 1)
+				strDestination = Replace(strDestination, "[sid]", Supplemental(id,6) & "_" & page, 1, -1, 1)
+				strDestination = Replace(strDestination, "[eid]", Supplemental(id,8) & "_" & page, 1, -1, 1)
+				strDestination = Replace(strDestination, "[rid]", Supplemental(id,3) & "_" & page, 1, -1, 1)
+			End If
+		Else
+			strDestination = Replace(strDestination, "[id]", id, 1, -1, 1)
+			strDestination = Replace(strDestination, "[sid]", Supplemental(id,6), 1, -1, 1)
+			strDestination = Replace(strDestination, "[eid]", Supplemental(id,8), 1, -1, 1)
+			strDestination = Replace(strDestination, "[rid]", Supplemental(id,3), 1, -1, 1)
+			If strName="html" Then
+				strDestination = Replace(strDestination, "[index]", "index.html", 1, -1, 1)
+			Else
+				strDestination = Replace(strDestination, "[index]", "", 1, -1, 1)
+			End If
+		End If
+		If Len(strFileDir) > 1 Then
+			If InStr(strFileDir,"/") > 0 Then
+				strParent = Mid(strFileDir, 1, InStr(1, strFileDir, "/")-1)
+				strChild = Left(strFileDir,Len(strFileDir)-1)
+				If InStr(strChild,"/") > 0 Then
+					strChild = Mid(strChild, InStrRev(strChild, "/") + 1)
+				Else
+					strChild = strChild
+				End If
+			Else
+				strParent = strFileDir
+				strChild = strFileDir
+			End If
+		Else
+			strParent = ""
+			strChild = ""
+		End If
+		strDestination = Replace(strDestination, "[parent]", strParent, 1, -1, 1)
+		strDestination = Replace(strDestination, "[child]", strChild, 1, -1, 1)
+		If Len(strFileDate) > 5 Then
+			strTime = Left(strFileDate, 8)
+			y = Left(strTime, 4)
+			m = Mid(strTime, 5, 2)
+			d = Right(strTime, 2)
+			strDestination = Replace(strDestination, "[year]", y, 1, -1, 1)
+			strDestination = Replace(strDestination, "[month]", m, 1, -1, 1)
+			strDestination = Replace(strDestination, "[day]", d, 1, -1, 1)
+			strDestination = Replace(strDestination, "[date]", strTime, 1, -1, 1)
+			strDestination = Replace(strDestination, "[random]", Right(strFileDate, 7), 1, -1, 1)
+			If page > 1 Then
+				strDestination = Replace(strDestination, "[datetime]", strFileDate & "_" & page, 1, -1, 1)
+			Else
+				strDestination = Replace(strDestination, "[datetime]", strFileDate, 1, -1, 1)
+			End If
+		End If
+		strDestination = Replace(strDestination, "\", "/")
+		strDestination = Replace(strDestination, "//", "/")
+		If Left(strDestination,1) = "/" Then
+			strDestination = strDestination
+		Else
+			strDestination = InstallDir & strDestination
+		End If
+		'HtmlFilesPath = Left(strDestination, InStrRev(strDestination, "/"))
+		'HtmlFilesName = Mid(strDestination, InStrRev(strDestination, "/") + 1)
+		'strDestination = Replace(strDestination, "[page]", page, 1, -1, 1)
+		HtmlDestination = strDestination
+	End Function
+
+	Public Function GetImagePath(ByVal strURL, ByVal strPath)
+		Dim m_strURL
+		If Len(strPath) = 0 Then strPath = "/"
+		If Not IsNull(strURL) And Trim(strURL) <> "" And LCase(strURL) <> "http://" Then
+			If InStr(strURL,"://") = 0 Then
+				If Left(strURL,1) = "/" Then
+					If BindDomain=1 Then
+						m_strURL = MainDomain & strURL
+					Else
+						m_strURL = strURL
+					End If
+				Else
+					m_strURL = strPath & strURL
+				End If
+			Else
+				m_strURL = strURL
+			End If
+		Else
+			If BindDomain=1 Then
+				m_strURL = MainDomain & "/images/no_pic.gif"
+			Else
+				m_strURL = InstallDir & "images/no_pic.gif"
+			End If
+		End If
+		GetImagePath = m_strURL
+	End Function
+	Public Function GetFlashAndPic(url, height, width)
+		Dim sExtName, ExtName, strTemp
+		Dim strHeight, strWidth
+		height=ChkNumeric(height)
+		width=ChkNumeric(width)
+
+		If height=0 Then
+			strHeight = ""
+		Else
+			strHeight = " height=""" & height & """"
+		End If
+		If width=0 Then
+			strWidth = ""
+		Else
+			strWidth = " width=""" & width & """"
+		End If
+		sExtName = Split(url, ".")
+		ExtName = sExtName(UBound(sExtName))
+		If LCase(ExtName) = "swf" Then
+			strTemp = "<embed src=""" & url & """" & strWidth & strHeight & "/>"
+		Else
+			strTemp = "<img src=""" & url & """" & strWidth & strHeight & " border=""0""/>"
+		End If
+		GetFlashAndPic = strTemp
+	End Function
+	Public Function CheckLinksUrl(strURL)
+		Dim m_strURL
+		If Not IsNull(strURL) And Trim(strURL) <> "" And LCase(strURL) <> "http://" Then
+			If InStr(strURL,"://") = 0 Then
+				If Left(strURL,1) = "/" Then
+					m_strURL = strURL
+				Else
+					m_strURL = Replace(strURL, "../", "")
+					m_strURL = InstallDir & m_strURL
+				End If
+				If BindDomain=1 Then m_strURL = MainDomain & m_strURL
+			Else
+				m_strURL = strURL
+			End If
+		Else
+			m_strURL=""
+		End If
+		CheckLinksUrl=m_strURL
+	End Function
+	
+	'=============================================================
+	'函数名：UserGroupSetting
+	'作  用：取用户级权限设置
+	'参  数：gradeid   ----等级ID
+	'=============================================================
+	Public Function UserGroupSetting(ByVal gradeid)
+		gradeid = ChkNumeric(gradeid)
+
+		On Error Resume Next
+		Dim Rs, SQL
+
+		Name = "GroupSetting" & gradeid
+		If ObjIsEmpty() Then
+			SQL = "SELECT Groupname,GroupSet FROM [NC_UserGroup] WHERE Grades =" & gradeid
+			Set Rs = Execute(SQL)
+			If Rs.BOF And Rs.EOF Then
+				UserGroupSetting = ""
+				Set Rs = Nothing
+				Exit Function
+			End If
+			Dim GroupValue
+			GroupValue = Replace(Rs("GroupSet"), "|||", "|")
+			GroupValue = Replace(GroupValue, "|", "|||") & "0|||0|||0|||0|||0|||0|||0|||0|||0|||0|||"
+			Value = GroupValue & Rs("Groupname")
+			Set Rs = Nothing
+		End If
+		UserGroupSetting = Value
+	End Function
+	Private Sub LoadGroupSetting()
+		Dim strGroupSetting
+		Dim Rs, SQL
+		Dim Grades
+		Grades = CInt(membergrade)
+		On Error Resume Next
+		If Grades > 0 And memberid > 0 Then
+			If binUserLong = False Then
+				Set Rs = Execute("SELECT userid FROM [NC_User] WHERE password='" & CheckBadstr(memberpass) & "' And UserGrade=" & Grades & " And UserLock=0 And  userid =" & memberid)
+				If Rs.BOF And Rs.EOF Then
+					Grades = 0
+					Response.Cookies(Cookies_Name) = ""
+					binUserLong = False
+				Else
+					binUserLong = True
+				End If
+				Set Rs = Nothing
+			End If
+		End If
+
+		Name = "GroupSetting" & Grades
+		If ObjIsEmpty() Then
+			SQL = "SELECT Groupname,GroupSet FROM [NC_UserGroup] WHERE Grades =" & Grades
+			Set Rs = Execute(SQL)
+			If Rs.BOF And Rs.EOF Then
+				Response.Cookies(Cookies_Name) = ""
+				Set Rs = Nothing
+				Exit Sub
+			End If
+			Dim GroupValue
+			GroupValue = Replace(Rs("GroupSet"), "|||", "|")
+			GroupValue = Replace(GroupValue, "|", "|||") & "0|||0|||0|||0|||0|||0|||0|||0|||0|||0|||"
+			Value = GroupValue & Rs("Groupname")
+			Set Rs = Nothing
+		End If
+		blnGroupSetting = True
+		strGroupSetting = Value
+		arrGroupSetting = Split(strGroupSetting, "|||")
+	End Sub
+	Public Property Get GroupSetting(i)
+		If Not blnGroupSetting Then LoadGroupSetting
+		GroupSetting = arrGroupSetting(i)
+	End Property
+	
+	Property Get Get_CurrentUrl()
+		If Request.Servervariables("SERVER_PORT")="80" Then
+			Get_CurrentUrl="http://" & Request.Servervariables("SERVER_NAME")&Request.ServerVariables("HTTP_X_REWRITE_URL")
+		Else
+			Get_CurrentUrl="http://" & Request.Servervariables("SERVER_NAME")&":"&Request.Servervariables("SERVER_PORT")&Request.ServerVariables("HTTP_X_REWRITE_URL")
+		End If
+	End Property
+	
+End Class
+%>
+<script Language="JScript" runat="server">
+function concat(s,s1,s2,s3){
+	try{
+		if(s1==null) s1="";
+		if(s2==null) s2="";
+		if(s3==null) s3="";
+		return(s.concat(s1,s2,s3));
+	}catch(e){return("");}
+}
+function substring(s,i,n){
+	try{
+		return(s.substring(i,n));
+	}catch(e){return("");}
+}
+
+</script>

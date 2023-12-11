@@ -1,0 +1,831 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="../inc/consts.asp" -->
+<!--#include file="inc/up_shuoming.asp" -->
+<%
+if session("class_id")="" then
+	response.write"<script>alert('权限不够！');window.open('guanli.asp','_parent')</script>"
+	response.End()
+end if
+%>
+<%
+asp_name="dingdan.asp"
+table_name="My_Order_List"
+bianhao=request("bianhao")
+if request("key")<>"" then key=request("key") else key=10
+set rs=server.createobject("adodb.recordset")
+%>
+<%
+if request("action")="zdzf" then
+	if session("class_id")=0 then
+		dd_id=request("dd_id")
+		conn.execute("update "&table_name&" set zx_date='"&Now()&"',SMT_key=2 where if_zx=0 and  if_kp=0 and if_sent=0 and SMT_id="&dd_id&"")
+		response.write"<script>alert(':-)   订单主动作废成功！');window.open('"&asp_name&"?page="&request("page")&"&key="&request("key")&"','_self')</script>"
+	else
+		response.write"<script>alert('权限不够/参数错误！');history.back(-1)</script>"
+		response.End()
+	end if
+end if
+if request("action")="yfk" then
+	if session("class_id")=0 then
+		dd_id=request("dd_id")
+		conn.execute("update "&table_name&" set payed_time='"&Now()&"',if_payed=1 where SMT_id="&dd_id&"")
+		response.write"<script>alert(':-)   已设为付款！');window.open('"&asp_name&"?page="&request("page")&"&key="&request("key")&"','_self')</script>"
+	else
+		response.write"<script>alert('权限不够/参数错误！');history.back(-1)</script>"
+		response.End()
+	end if
+end if
+
+
+
+if request("action")="zx" then
+	if session("class_id")=0 or session("class_id")=1 or session("class_id")=2 then
+		dd_id=request("dd_id")
+		conn.execute("update "&table_name&" set zx_date='"&Now()&"',SMT_key=2 where if_zx=1 and  if_kp=0 and if_sent=0 and SMT_id="&dd_id&"")
+		response.write"<script>alert(':-)   订单作废成功！');window.open('"&asp_name&"?page="&request("page")&"&key="&request("key")&"','_self')</script>"
+	else
+		response.write"<script>alert('权限不够/参数错误！');history.back(-1)</script>"
+		response.End()
+	end if
+end if
+if request("action")="kp" then
+	if session("class_id")=0 or session("class_id")=1 or session("class_id")=2 then
+		dd_id=request("dd_id")
+		conn.execute("update "&table_name&" set if_kp=1 where if_kp=0 and (SMT_key=0 or SMT_key=1) and SMT_id="&dd_id&"")
+		response.write"<script>alert(':-)   开票提醒成功！');window.open('"&asp_name&"?page="&request("page")&"&key="&request("key")&"','_self')</script>"
+	else
+		response.write"<script>alert('权限不够/参数错误！');history.back(-1)</script>"
+		response.End()
+	end if
+end if
+
+if request("action")="wc" then'完成订单
+	if session("class_id")=0 or session("class_id")=1 or session("class_id")=2 then
+		Order_Po=request("Order_Po")
+		'获取总积分
+		set rs3=server.createobject("adodb.recordset")
+		sql3="select Order_Po,jifen_total,SMT_bianhao from My_Order_List where Order_Po='"&Order_Po&"'"
+		rs3.open sql3,conn,1,1
+		if not rs3.eof and not rs3.bof then
+			jifen_total=rs3("jifen_total")
+			member_bianhao=rs3("SMT_bianhao")
+			conn.execute("update members set SMT_zhishu=SMT_zhishu+"&jifen_total&" where SMT_bianhao='"&member_bianhao&"'")
+		else
+			jifen_total=0
+		end if
+		rs3.close
+		set rs3=nothing
+		set sql3=nothing
+		
+		set rs3=server.createobject("adodb.recordset")
+		sql3="select * from My_Order_Details where key=1 and Order_Po='"&Order_Po&"'"
+		rs3.open sql3,conn,1,1
+		Do Until rs3.EOF
+			cpbianhao=rs3("cp_bianhao")
+			buy_qty=rs3("buy_qty")
+			'1. 减少相应库存
+			set rs1=server.createobject("adodb.recordset")
+			sql1="select * from My_cp where cp_bianhao='"&cpbianhao&"' and if_reduce_qty=1"
+			rs1.open sql1,conn,1,3
+			rs1("qty")=rs1("qty")-buy_qty
+			rs1.update
+			rs1.close
+			set sql1=nothing
+			'2. 将订单明细改标识
+			set rs1=server.createobject("adodb.recordset")
+			sql1="select * from My_Order_Details where key=1 and Order_Po='"&Order_Po&"'"
+			rs1.open sql1,conn,1,3
+			rs1("key")=2
+			rs1("finished_date")=Now()
+			rs1.update
+			rs1.close
+			set sql1=nothing
+		rs3.movenext
+		Loop
+		rs3.close
+		set rs3=nothing
+		set sql3=nothing
+		'3. 设为完成标识
+		conn.execute("update "&table_name&" set finished_date='"&Now()&"',SMT_key=1 where Order_Po='"&Order_Po&"'")
+		response.write"<script>alert(':-)   订单已设为完成！会员积分已经追加！');window.open('"&asp_name&"?page="&request("page")&"&key="&request("key")&"','_self')</script>"
+	else
+		response.write"<script>alert('权限不够！');history.back(-1)</script>"
+		response.End()
+	end if
+end if
+%>
+<style type="text/css">
+body {
+	margin: 0px;
+	background-color: #F8F9FA;
+}
+.dialog_1{width:580px;height:260px;background:url(images/dialog_2.gif) no-repeat;position:absolute;display:none;z-index:2;margin:0;padding:0px;padding-left:10px;}
+.dialog_1 .words{width:380px;height:220px;position:relative;top:20px;left:0px;z-index:3;color:#666;font-size:13px;border:0px solid #666; padding-left:20px;word-wrap:break-word;word-break:break-all;margin:0;padding:0;margin-top:5px;_margin-top:-12px;}
+.dialog_1 .words_title{width:520px;height:auto;position:relative;top:10px;left:0px;z-index:3;color:#36C;font-size:13px;height:18px; line-height:18px;border:0px solid #666;word-wrap:break-word;word-break:break-all;margin:0;padding:0;}
+</style>
+<!--居中弹出DIV-->
+	<style type="text/css">
+	.mydiv {
+	background-color: #fff;
+	border: 6px solid #630;
+	text-align: left;
+	padding-left:5px;
+	line-height: 40px;
+	font-size: 12px;
+	font-weight: bold;
+	z-index:3;
+	left:30%;
+	top:45%;
+	width:700px;
+	height:260px;
+	margin-left:-190px!important;/*FF IE7 该值为本身宽的一半 */
+	margin-top:-100px!important;/*FF IE7 该值为本身高的一半*/
+	margin-top:0px;
+	position:fixed!important;/* FF IE7*/
+	position:absolute;/*IE6*/
+	_top:       expression(eval(document.compatMode &&
+				document.compatMode=='CSS1Compat') ?
+				documentElement.scrollTop + (document.documentElement.clientHeight-this.offsetHeight)/2 :/*IE6*/
+				document.body.scrollTop + (document.body.clientHeight - this.clientHeight)/2);/*IE5 IE5.5*/
+	}
+	.bg,.popIframe {
+	background-color:#FFFFFF; 
+	display:none;
+	width: 100%;
+	height: 100%;
+	left:0;
+	top:0;/*FF IE7*/
+	filter:alpha(opacity=50);/*IE*/
+	opacity:0.5;/*FF*/
+	z-index:2;
+	position:fixed!important;/*FF IE7*/
+	position:absolute;/*IE6*/
+	_top:       expression(eval(document.compatMode &&
+				document.compatMode=='CSS1Compat') ?
+				documentElement.scrollTop + (document.documentElement.clientHeight-this.offsetHeight)/2 :/*IE6*/
+				document.body.scrollTop + (document.body.clientHeight - this.clientHeight)/2);
+	}
+	.popup_em_1 {width:21px;height:20px;overflow:hidden;float:right;cursor:pointer;background:url(images/close_me.png) no-repeat;display:inline;margin:6px 6px 0 0;}
+	.popup_em_1:hover {background:url(images/close_me.png) no-repeat 0 -22px;}
+	.popup_em_hover {background:url(images/close_me.png) no-repeat 0 -22px;}
+    </style>
+		<script language="javascript" type="text/javascript">
+            function show_window(PO,pop_id){
+			document.getElementById('pop_title').innerHTML="<font style='color:#F00;'>变更金额后需要得到买家确认方可生效!</font>"	
+            document.getElementById('popDiv').style.borderColor='#369';
+            document.getElementById('popDiv').style.display='block';
+            document.getElementById('popIframe').style.display='block';
+            document.getElementById('bg').style.display='block';
+			document.getElementById('changeprice_iframe').src="change_price.asp?PO="+PO+"&pop_id="+pop_id;
+            }
+            function closeDiv(){
+            document.getElementById('popDiv').style.display='none';
+            document.getElementById('bg').style.display='none';
+            document.getElementById('popIframe').style.display='none';
+			document.getElementById('changeprice_iframe').src="";
+            }
+        </script>
+		<!--若准备发货的订单之前有别的订单尚未发货。则提醒-->
+		<script language="javascript" type="text/javascript">
+            function show_window2(PO,pop_id){
+			document.getElementById('pop_title').innerHTML="<font style='color:#F00;'>确认给 <font style='color:#36C;'>"+PO+"</font> 订单发货吗?</font>"	
+            document.getElementById('popDiv').style.borderColor='#C36';
+            document.getElementById('popDiv').style.display='block';
+            document.getElementById('popIframe').style.display='block';
+            document.getElementById('bg').style.display='block';
+			document.getElementById('changeprice_iframe').src="dingdan_check.asp?PO="+PO+"&pop_id="+pop_id;
+            }
+        </script>
+		<!--遍历该等待下所有产品的库存数-->
+		<script language="javascript" type="text/javascript">
+        /*
+		    function Check_qty(PO){
+			document.getElementById('pop_title').innerHTML="<font style='color:#F00;'>订单 <font style='color:#36C;'>"+PO+"</font> 下的产品当期库存(明细请在订单查询页面点击订单号查看)</font>"	
+            document.getElementById('popDiv').style.borderColor='#960';
+            document.getElementById('popDiv').style.display='block';
+            document.getElementById('popIframe').style.display='block';
+            document.getElementById('bg').style.display='block';
+			document.getElementById('changeprice_iframe').src="kucun_check.asp?PO="+PO;
+            }
+        */
+        </script>
+        <div id="popDiv" class="mydiv" style="display:none;">
+        <div class="popup_div">
+        <span id="pop_title" style="float:left; margin-left:5px;display:inline;"></span>
+        <span style="float:right; margin-right:5px;display:inline;"><em id="popup_exit" class="popup_em_1" onMouseOver="this.style.classname='popup_em_hover';" onMouseOut="this.style.classname='popup_em_1';" onClick="closeDiv()"></em></span>
+        </div>
+        <iframe id="changeprice_iframe" style="background-color:#FFFFFF" frameborder="0" scrolling="auto" width="680px" height="220px"></iframe>
+        </div>
+    <!--遮罩-->    
+    <div id="bg" class="bg" style="display:none;"></div><!--/居中弹出背景-->
+    <iframe id='popIframe' class='popIframe' frameborder='0' ></iframe><!--/居中弹出IFRAME-->
+<!--/居中弹出DIV-->
+<script src="../inc/script.js" type="text/javascript"></script>
+<script src="js/detect_ad_c.js" type="text/javascript"></script>
+<script type="text/javascript" src="js/showdiv.js"></script>
+<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+<!--弹出推广-->
+<script type="text/javascript" src="js/user-merge2.js"></script>
+<link rel="stylesheet" rev="stylesheet" href="css/user-merge.css" type="text/css" />
+<!--弹出推广-->
+<script>//弹出订单的基本信息
+function show_dialog(){
+	document.getElementById("dialog_1").style.display="block";
+}
+function show_msg(t,PO){
+	document.getElementById("dialog_2").innerHTML=t;
+	document.getElementById('dialog_4').src="kucun_check_quickshow.asp?PO="+PO;
+}
+function hide_dialog(){
+	document.getElementById("dialog_1").style.display="none";
+	document.getElementById('dialog_4').src="";
+}
+function Change_position(e){
+	var x=e.clientX;
+	var y=e.clientY;
+	document.getElementById("dialog_1").style.top=y-260;
+	document.getElementById("dialog_1").style.left=0;
+}
+</script>
+<link href="css/skin.css" rel="stylesheet" type="text/css" />
+<body onLoad="check_ad_title(this.value);check_ad_url(this.value);check_ad_pic(this.value);check_ad_width(this.value);check_ad_height(this.value);"> <!--check_data();-->
+<div id="dialog_1" class="dialog_1">
+
+<!--
+<div style="float:right;margin-top:10px;margin-right:40px;z-index:4;" onClick="hide_dialog();" ><em id="popup_exit" class="popup_em_1" onMouseOver="this.style.classname='popup_em_hover';" onMouseOut="this.style.classname='popup_em_1';" onClick="closeDiv()"></em><img src="images/close_me.gif" style="cursor:pointer;"></div>
+-->
+
+<div class="words_title" id="dialog_2"></div>
+<div style="float:right;top:6px;right:36px;z-index:4;position:absolute;"><em class="popup_em_1" onMouseOver="this.style.classname='popup_em_hover';" onMouseOut="this.style.classname='popup_em_1';" onClick="hide_dialog();"></em></div>
+<div class="words" id="dialog_3">
+    <iframe id="dialog_4" style="background-color:#FFFFFF" frameborder="0" scrolling="auto" width="530px" height="200px"></iframe>
+</div>
+</div>
+<div>
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+	  <tr>
+		<td width="17" height="29" valign="top" background="images/mail_leftbg.gif"><img src="images/left-top-right.gif" width="17" height="29" /></td>
+		<td height="29" valign="top" background="images/content-bg.gif">
+		
+		<table width="100%" height="31" border="0" cellpadding="0" cellspacing="0" class="left_topbg" id="table2">
+		  <tr>
+			<td height="31"><div class="titlebt">订单一览</div></td>
+		  </tr>
+		</table>
+		
+		</td>
+		<td width="16" valign="top" background="images/mail_rightbg.gif"><img src="images/nav-right-bg.gif" width="16" height="29" /></td>
+	  </tr>
+	  <tr>
+		<td height="71" valign="middle" background="images/mail_leftbg.gif">&nbsp;</td>
+		<td valign="top" bgcolor="#F7F8F9">
+		<table width="100%" height="138" border="0" cellpadding="0" cellspacing="0">
+		  <tr>
+			<td height="13" valign="top">&nbsp;</td>
+		  </tr>
+		  <tr>
+			<td valign="top"><table width="98%" border="0" align="center" cellpadding="0" cellspacing="0">
+			  <tr>
+				<td class="left_txt">当前位置：购物车管理 > 订单一览
+                </td>
+			  </tr>
+			  <tr>
+				<td height="20"><table width="100%" height="1" border="0" cellpadding="0" cellspacing="0" bgcolor="#CCCCCC">
+				  <tr>
+					<td></td>
+				  </tr>
+				</table></td>
+			  </tr>
+			  <tr>
+				<td>
+<%
+sql="select * from "&table_name&""
+rs.open sql,conn,1,1
+if not rs.eof or not rs.bof then
+	if_dd=1
+else
+	if_dd=0
+end if
+rs.close
+set rs=nothing
+set sql=nothing
+%>
+<%if if_dd=0 then%>
+    没有订单
+<%else%>
+	<%
+	'获取全部
+	set rs=server.createobject("adodb.recordset")
+	sql="select * from "&table_name&" where 1=1"
+	if bianhao<>"" then
+		sql=sql&" and (SMT_bianhao like '%"&bianhao&"%' or Order_Po like '%"&bianhao&"%')" 
+	end if
+	if key<>10 then
+		if key=3 then
+			sql=sql&" and (SMT_key =3 or SMT_key =4)"
+			key_str="临时单"
+		elseif key=8 then
+			sql=sql&" and if_zx=1" 
+		elseif key=9 then
+			'sql=sql&" and (SMT_key =0) and if_sent=1" 
+		elseif key=2 then
+			sql=sql&" and (SMT_key =2)" 
+			key_str="已作废订单"
+		elseif key=1 then
+			sql=sql&" and (SMT_key =1) and if_sent=1" 
+			key_str="已完成订单"
+		elseif key=4 then
+			sql=sql&" and (SMT_key =0 or SMT_key =1) and if_payed=0" 
+			key_str="待付款"
+		elseif key=5 then
+			sql=sql&" and (SMT_key =0 or SMT_key =1) and if_payed=1" 
+			key_str="已付款但未发货"
+		elseif key=0 then
+			sql=sql&" and (SMT_key =0) and if_sent=0" 
+			key_str="待发货"
+		else
+			'sql=sql&" and (SMT_key =0) and if_sent=0" 
+			'key_str="待发货"
+		end if
+	else
+	end if
+	
+	if key=0 then
+		sql=sql&" order by added_date asc,if_payed asc" '一般来说,先下单的优先考虑
+	else
+		sql=sql&" order by SMT_key asc,added_date desc"
+	end if
+	'response.Write sql
+	rs.open sql,conn,1,1
+	if not rs.eof or not rs.bof then
+		if_jilu=1
+		'分页的实现 
+		listnum=8
+		Rs.pagesize=listnum
+		page=Request("page")
+		if (page-Rs.pagecount) > 0 then
+		page=Rs.pagecount
+		elseif page = "" or page < 1 then
+		page = 1
+		end if
+		Rs.absolutepage=page
+	else
+		if_jilu=0
+	end if
+	%>
+	<%if request("action")="" then%>
+	<table width="100%" height="55" border="0" cellpadding="0" cellspacing="0">
+	<form action="<%=asp_name%>" method="post" id="search_form">
+	<tr>
+	<td width="10%" height="55" valign="middle"><img src="images/user-info.gif" width="54" height="55" style="BORDER:#999999 1px solid;"></td>
+	<td width="90%" valign="top">
+	<div class="left_txt2">
+	<%if if_dd=1 then%>	
+	<%else%>
+	没有订单！
+	<%end if%>	
+	 搜索区：会员卡号 / 订单号
+	 <input type="text" <%=inputstyle%> id="bianhao" name="bianhao"  value="<%=bianhao%>" style="cursor:pointer">
+	 <select name="key" id="key">
+	 <option value="9" <%if key=9 or key="" then%>selected="selected"<%end if%>>全部</option>
+	 <option value="0"<%if key=0 then%>selected="selected"<%end if%>>待发货</option>
+	 <option value="1" <%if key=1 then%>selected="selected"<%end if%>>已完成</option>
+	 <option value="2" <%if key=2 then%>selected="selected"<%end if%>>已作废</option>
+	 <option value="3" <%if key=3 then%>selected="selected"<%end if%>>临时单</option>
+	 <option value="4" <%if key=4 then%>selected="selected"<%end if%>>待付款</option>
+	 <option value="5" <%if key=5 then%>selected="selected"<%end if%>>已付款但未发货</option>
+	 </select>
+	 <input type="submit" value="搜索">
+     您刚才输入的关键词:<%if bianhao<>"" then response.Write bianhao&"+"%>
+	 类别:<%=key_str%>
+	</div>
+	</td>
+	</tr>
+	</form>
+	<!--顶部-->
+		<tr>
+		<td width="100%" valign="top" colspan="2">
+			<table width="100%" height="31" border="0" cellpadding="0" cellspacing="0" class="nowtable" style="margin-top:8px;">
+			<tr>
+			<td class="left_bt2" valign="middle">
+		<span style=" float:left; margin-left:10px;">
+		<%=dd_status%>订单一览<a style="cursor:pointer" onClick="window.location.reload()"><img src="images/refresh.png" border=0 onClick="window.location.reload()" title="刷新"/>刷新</a><font style="color:#C30"> 流程:1.买家下单 2.双方确认价格/作废(可选）3.发货(等待买家付款) 4.开票(可选) 5.订单完成 5.买家评价(可选)</font>
+		</span>
+		<span style=" float:right; margin-right:10px;">
+				<%if Rs.pagecount> 1 then %>
+                    页数跳转:<select name="page" onChange="if(this.options[this.selectedIndex].value !='')window.location=(this.options[this.selectedIndex].value)">
+                    <option value="">-请选择-</option>
+					<%for l=1 to Rs.PageCount%>
+                    <option value="<%response.Write asp_name&"?aa="&aa&"&page="&l&"&key_words="&key_words&"&m_vip="&m_vip&"&login_dates="&login_dates%>">第<%=l%>页</option>
+                    <%next%>
+                    </select>
+				<%end if%>
+		</span>
+			
+			</td>
+			</tr>
+			</table>
+		</td>
+		</tr>
+	<!--/顶部-->
+    <!--页码-->
+		<tr>
+		<td width="100%" valign="top" colspan="2">
+		<table width="100%"  border="0" cellpadding="0" cellspacing="0" style="font-size:12px;">
+		<tr>
+		<td width="25%"><div class="page"><a>共 <%=rs.recordcount%> 条匹配的记录</a></div></td>
+	<td>
+		<%if not rs.eof or not rs.bof then%>	
+			<div class="page">
+			<span>
+			  <%filename=asp_name&"?aa="&aa&"&key_words="&key_words&"&key="&key%>
+			  <%if page=1 then %>
+			  <%else%>
+					<a href=<%=filename%>>首页</a>
+					<a href=<%=filename%>&page=<%=page-1%>>上一页</a> 
+					<%if page-4>0 then%>
+					<a href=<%=filename%>&page=<%=page-4%>><%=page-4%></a>
+					<%end if%>
+					<%if page-3>0 then%>
+					<a href=<%=filename%>&page=<%=page-3%>><%=page-3%></a>
+					<%end if%>
+					<%if page-2>0 then%>
+					<a href=<%=filename%>&page=<%=page-2%>><%=page-2%></a>
+					<%end if%>
+					<%if page-1>0 then%>
+					<a href=<%=filename%>&page=<%=page-1%>><%=page-1%></a>
+					<%end if%>
+			  <%end if%>
+			  <% if Rs.pagecount=1 then %>
+			  <%else%>
+				 <span class="current"><%=page%></span>
+			  <%end if%>
+			  <% if Rs.pagecount-page <> 0 then %>
+				  <%if Rs.pagecount-page>=1 then%>
+				  <a href=<%=filename%>&page=<%=page+1%>><%=page+1%></a>
+				  <%end if%>
+				  <%if Rs.pagecount-page>=2 then%>
+				  <a href=<%=filename%>&page=<%=page+2%>><%=page+2%></a>
+				  <%end if%>
+				  <%if Rs.pagecount-page>=3 then%>
+				  <a href=<%=filename%>&page=<%=page+3%>><%=page+3%></a>
+				  <%end if%>
+				  <%if Rs.pagecount-page>=4 then%>
+				  <a href=<%=filename%>&page=<%=page+4%>><%=page+4%></a>
+				  <%end if%>
+				  <a href=<%=filename%>&page=<%=page+1%>>下一页</a>
+				  <a href=<%=filename%>&page=<%=Rs.pagecount%>>末页</a>
+				<%end if%>
+		<%end if%>
+		</span>
+		</div>
+		</td>
+		</tr>
+    <!--/页码-->
+    <!--数据-->
+        <tr>
+        <td width="100%" height="20" colspan="2">
+            <Table class="records_list">
+      		<TR class="records_list_item">
+                <TD style="width:30px;">编号</TD>
+                <TD style="width:auto;">卡号</TD>
+                <TD style="width:auto;">会员</TD>
+                <TD style="width:auto;">公司名称</TD>
+                <TD style="width:auto;">下单日期</TD>
+                <TD style="width:auto;">(明细)订单号</TD>
+				<TD style="width:auto;">完成状态</TD>
+                <TD style="width:auto;">库存</TD>
+                <TD style="width:auto;">类别</TD>
+                <TD style="width:auto;">操作</TD>
+                <TD style="width:auto;">付款状态-金额</TD>
+                <TD style="width:auto;">付款操作</TD>
+                <TD style="width:auto;">订单状态</TD>
+                <TD style="width:auto;">作废日期</TD>
+           </TR>
+			<%
+    	    if not rs.eof or not rs.bof then
+				k=1
+				do while not rs.eof and k<=listnum
+					Order_Po=rs("Order_Po")
+					dingdan_id=rs("SMT_id")
+						'获得此PO的所有明细总数
+						table_name2="My_Order_Details"
+						set rs1=server.createobject("adodb.recordset")
+						sq1l="select * from "&table_name2&" where Order_Po='"&Order_Po&"'"
+						rs1.open sq1l,conn,1,1
+						If Not rs1.eof and Not rs1.bof Then 
+							dd_counts=rs1.recordcount
+							total_po_r_counts=" (<font color='#F00'>"&rs1.recordcount  &"</font>) "&last_reply_str
+						else
+							total_po_r_counts=" (<font color='#cccccc'>0</font>)"
+						End if
+						rs1.close
+						set rs1=nothing
+						set sql1=nothing
+					bianhao=rs("SMT_bianhao")
+					SMT_key=rs("SMT_key")
+					added_date=rs("added_date")
+					finished_date=rs("finished_date")
+					if_zx=rs("if_zx")
+					if_payed=rs("if_payed")
+					if_kp=rs("if_kp")
+					if_sent=rs("if_sent")
+					if_zx_date=rs("if_zx_date")
+					zx_date=rs("zx_date")
+					sell_confirm=rs("sell_confirm")
+					buy_confirm=rs("buy_confirm")
+					final_price=rs("final_price")
+					final_price=formatNumber(final_price,2,-1,-1,0)
+					alipay_trade_no=rs("alipay_trade_no")
+					if SMT_key=0 then
+						keys="<font color=red>正式单</font>"
+					elseif SMT_key=1 then
+						keys="<font color=green>已完成</font>"
+					elseif SMT_key=2 then
+						keys="<font color=gray>已作废</font>"
+					elseif SMT_key=3 then
+						keys="<font color=purple>临时单(下次登录删除)</font>"
+					elseif SMT_key=4 then
+						keys="<font color=purple>临时单</font>"
+					end if
+					'获取用户信息
+						set rs1=server.createobject("adodb.recordset")
+						sql1="select * from members where SMT_bianhao='"&bianhao&"'"
+						rs1.open sql1,conn,1,1
+						if not rs1.eof then
+							member_id=rs1("SMT_id")
+							coname=rs1("SMT_coname")'公司名
+							user1=left(rs1("SMT_user"),3)&"****"'登录名
+							nickname1=rs1("SMT_nickname")'昵称
+							vip=rs1("SMT_vip")'级别
+							lastdate=rs1("SMT_lastdate")'上次登录时间
+						else
+						end if
+						rs1.Close()
+						set sql1=nothing
+					%>
+				<%
+				if k mod 2=0 then
+					bgcolor="#efefef"
+				else
+					bgcolor="#ffffff"
+				end if
+				if nickname1="" or isnull(nickname1) then nickname_dialog=coname
+				%>
+                <!--/分享弹出-->
+         	   <TR class="ul1" onMouseOver="this.className='ul1_on';" onMouseOut="this.className='ul1';" onselectstart="return false" onpaste="return false"  oncontextmenu="return(false)" bgcolor="<%=bgcolor%>" title="订单号:<%=Order_Po%>">
+                    <TD style="text-align:center;"><img src="../image/counts/<%=k%>.gif"></TD>
+                    <TD><%=bianhao%></TD>
+                    <TD><a style="color:#36F;" href="member_show.asp?id=<%=member_id%>&page=<%=page%>" rel="clearbox(860,450,click)" title="会员 [<%=coname%>] 的资料"><%if nickname1<>"" then response.Write nickname1 else response.Write "0"%><%if DateDiff("d",lastdate,now())>=0 and DateDiff("d",lastdate,now())<=7 then%><img src="images/format.gif" border="0" alt="该会员在最近7天内登录过"><%end if%></a></TD>
+                    <TD>
+					<%
+					if vip=2 then
+						response.Write "<img src='images/VIP_WAP.gif' border=0>"
+					elseif vip=4 then
+						response.Write "<img src='images/free_member2.gif' border=0>"
+					else
+						response.Write "<img src='images/standard_member.gif' border=0>"
+					end if
+                    %>
+                    <%=LeftT(coname,8)%>
+                    </TD>
+                    <TD title="<%=added_date%>">
+					<%
+					if SMT_key<>3 and SMT_key<>4 and added_date<>"" then
+					response.Write leftt(added_date,10)
+					else
+					response.Write "N/A"
+					end if
+					%>
+                    </TD>
+                    <TD title="<%=Order_Po%>"><a href="../t/<%=temp_mulu%>/mycart_check.asp?Order_Po=<%=Order_Po%>" target="_blank" style="font-size:12px;"><%=total_po_r_counts%><%response.Write Order_Po%></a>
+                    <!--<a href="../t/<%=temp_mulu%>/mycart_check.asp?Order_Po=<%=Order_Po%>" target="_blank" style="font-size:12px;"><%=total_po_r_counts%><%response.Write left(Order_Po,6)&"..."&right(Order_Po,6)%></a>-->
+                    </TD>
+                    <TD title="<%=finished_date%>">
+					<%'and sell_confirm=buy_confirm
+					if if_zx=0 and SMT_key=0  and (finished_date="" or isnull(finished_date)) then
+						'判断该订单下所有产品实际库存是否足够
+						set rs2=server.createobject("adodb.recordset")
+						sql2="select distinct cp_bianhao from My_Order_Details where key=1 and Order_Po='"&Order_Po&"'"
+						'response.Write sql2
+						rs2.open sql2,conn,1,1
+						wc_signal=0'初始化标记
+						final_signal=0
+						Do Until rs2.EOF
+							jilu=rs2.recordcount
+							cp_bianhao=rs2("cp_bianhao")
+							set rs1=server.createobject("adodb.recordset")
+							
+							sql1="select distinct cp_bianhao from My_cp where cp_bianhao='"&cp_bianhao&"'"
+							'response.Write sql1
+							rs1.open sql1,conn,1,1
+								'获取该产品订单总数量
+								set rs3=server.createobject("adodb.recordset")
+								sql3= "select * from My_Order_Details where key=1 and cp_bianhao='"&cp_bianhao&"' and Order_Po='"&Order_Po&"'"
+								'response.Write sql3
+								rs3.open sql3,conn,1,1
+								if not rs3.eof then
+									For i=0 to rs3.recordcount
+										buy_qty_total=cint(rs3("buy_qty"))+buy_qty_total
+									rs3.movenext
+									if rs3.eof then
+									exit for
+									end if
+									Next
+								end if
+								set rs3=nothing
+								set sql3=nothing
+								'获取产品原库存
+								set rs3=server.createobject("adodb.recordset")
+								sql3= "select * from My_cp where cp_bianhao='"&cp_bianhao&"'"
+								rs3.open sql3,conn,1,1
+								if not rs3.eof then
+									kucun_total=rs3("qty")
+									if_reduce_qty=rs3("if_reduce_qty")
+									cp_bianhao2=rs3("cp_bianhao")
+								end if
+								rs3.close
+								set rs3=nothing
+								set sql3=nothing
+								'判断标识
+								if if_reduce_qty=0 then
+									wc_signal=1
+								elseif cint(kucun_total)>=buy_qty_total then
+									wc_signal=1
+								else
+									wc_signal=0
+								end if
+								'response.Write "库存:"&kucun_total
+								'response.Write "购买:"&buy_qty_total
+								'response.Write "标识:"&wc_signal&"/"
+							rs1.close
+							set sql1=nothing
+						kucun_total=0	
+						buy_qty_total=0	
+						wc_signal1=wc_signal+wc_signal1
+						final_signal=cint(wc_signal1)/jilu
+						'response.Write "累计:"&wc_signal1&"/"
+						'wc_signal=0
+						'wc_signal1=0
+						rs2.movenext
+						Loop
+						rs2.close
+						set rs2=nothing
+						set sql2=nothing
+						'response.Write "最终标识:"&final_signal
+						if if_sent=0 then
+							response.Write "<a style='color:blue'>等待发货</a>"
+						else
+							if InStr(1,LCase(final_signal),LCase("."),0)=0 and final_signal>0 then
+								response.Write "<a style='color:red' href='"&asp_name&"?action=wc&Order_Po="&Order_Po&"&page="&page&"&key="&key&"' onClick='javascript:return confirm(""确定将订单设为 [完成状态] 吗(不可恢复)?\r\n请注意：本系统只有在收到货款之后才会对库存进行减少操作！\r\n故请务必确保收到货款！"");'>设为完成</a>"
+							else'库存不够时
+								response.Write "<a style='color:gray'>请先补充库存</a>"
+							end if
+						end if
+					else
+						response.Write "<font color='green'><strong>√</strong></font>"&leftt(finished_date,10)
+					end if
+					%>
+					</TD>
+                    <TD>
+					<%
+					'if SMT_key=0 and if_zx=0 then
+						'if InStr(1,LCase(final_signal),LCase("."),0)=0 and final_signal>0 then response.Write "<a style='color:green'>够</font>" else response.Write "<a style='color:gray'>不够</font>"
+					'else
+					'end if
+					%>
+                    <img src="images/query.png" style="cursor:pointer;" onMouseOver="show_dialog();Change_position(event);show_msg('<font color=blue><%=nickname_dialog%></font> 于 <%=added_date%> 下订单为<br /> <font color=red><%=Order_Po%></font>：','<%=Order_Po%>');">
+                    </TD>
+                    <TD><%=keys%></TD>
+                    <TD id="fh_<%=dingdan_id%>">
+					<%if sell_confirm=buy_confirm then%>
+						<%if bianhao<>"" then
+                            if if_zx=1 then
+                                if SMT_key=2 then
+                                    response.Write "不可恢复"
+                                elseif SMT_key=0 and if_zx_date<>"" then
+                                    response.Write "<a style='color:red' href='"&asp_name&"?action=zx&dd_id="&rs("SMT_id")&"&page="&page&"&key="&key&"' onClick='javascript:return confirm(""确定作废吗(不可恢复)?"");'>买家申请作废</a>"
+                                else
+                                    response.Write "无任何操作"
+                                end if
+                            else
+                                if SMT_key=2 then
+                                    response.Write "不可恢复"
+                                elseif SMT_key=1 or SMT_key=0 then
+									if if_kp=0 or if_kp="" or isnull(if_kp) then
+										response.Write "<a style='color:blue' href='"&asp_name&"?action=kp&dd_id="&rs("SMT_id")&"&page="&page&"&key="&key&"' onClick='javascript:return confirm(""确定开票吗?请务必保证已开票。"");'>[开票]</a>"
+									else
+										response.Write "<a style='color:green'>[已开]</a>"
+									end if
+									if InStr(1,LCase(final_signal),LCase("."),0)=0 and final_signal>0 then
+										if if_sent=0 or if_sent="" or isnull(if_sent) then
+											response.Write "<a style='cursor:pointer;color:green' onclick=""show_window2('"&Order_Po&"',"&rs("SMT_id")&")"">[发货]</a>"
+										else
+											response.Write "<a style='color:#36C'>[已发]</a>"
+										end if
+									else'库存不够时
+										'response.Write "<a style='color:gray'>库存不足</a>"
+									end if
+                                end if
+                            end if
+                        end if%>
+                    <%else%>
+                        <img src="images/delete_dis.png" alt="您无权操作">
+                    <%end if%>
+                    </TD>
+                    <TD <%if if_payed=1 then%>title="支付宝流水号：<%=alipay_trade_no%>"<%end if%>>
+                    <div>
+                    <%if if_payed=1 then%>
+                    	<a style="cursor:pointer;color:#F30;">买家已付款</a>
+                    	<a style="cursor:pointer;color:#F60;font-weight:bold;"><%=final_price%></a>
+                    <%else%>
+                    	<a style="cursor:pointer;color:#399;">等待买家付款</a>
+                    	<a style="cursor:pointer;color:#F60;font-weight:bold;"><%=final_price%></a>
+					<%end if%>
+                    </div>
+                    </TD>
+                    <TD>
+                    <%
+					if session("class_id")=0 and if_payed<>1 then
+                   		response.Write "<a style='color:gray' href='"&asp_name&"?action=yfk&dd_id="&rs("SMT_id")&"&page="&page&"&key="&key&"' onClick='javascript:return confirm(""★请确保已经收到货款!\r\n\r\n确定手动设为已付款吗(不可恢复)?"");'>设为已付款</a>"
+                    else
+						response.Write "<a style='color:#F30;'>已设定</a>"
+					end if%>
+                    </TD>
+                    <TD>
+                    <div id="xg_<%=k%>">
+                    <%if if_zx=0 and if_sent=0 then%>
+						<%if SMT_key=0 and sell_confirm=0 and buy_confirm=0 then%>
+                        <a style="cursor:pointer;color:#36C;" onClick="show_window('<%=Order_Po%>',<%=k%>)">变更金额</a>
+                        <%elseif SMT_key=0 and sell_confirm=1 and buy_confirm=0 then%>
+                        <a style="cursor:pointer;color:#090;" onClick="show_window('<%=Order_Po%>',<%=k%>)">等待确认</a>
+                        <%elseif SMT_key=0 and sell_confirm=1 and buy_confirm=1 then%>
+                        <a style="cursor:pointer;color:#F00;" onClick="show_window('<%=Order_Po%>',<%=k%>)">双方确认</a>
+                        <%else%>
+                        <a style="cursor:pointer;color:#ccc;" onClick="show_window('<%=Order_Po%>',<%=k%>)">无法变更</a>
+                        <%end if%>
+                    <%else%>
+                        <a style="cursor:pointer;color:#ccc;" onClick="show_window('<%=Order_Po%>',<%=k%>)">无法变更</a>
+					<%end if%>
+                    </div>
+                    </TD>
+                    <TD title="<%=zx_date%>">
+                    <%
+					if session("class_id")=0 and if_zx=0 and if_kp=0 and if_sent=0 and (zx_date="" or isnull(zx_date)) then
+                   		response.Write "<a style='color:gray' href='"&asp_name&"?action=zdzf&dd_id="&rs("SMT_id")&"&page="&page&"&key="&key&"' onClick='javascript:return confirm(""确定主动作废吗(不可恢复)?"");'>主动作废</a>"
+                    else
+						response.Write leftt(zx_date,10)
+					end if%>
+                    </TD>
+                </TR>
+                <%
+				kucun_total=0	
+				buy_qty_total=0	
+				wc_signal=0
+				wc_signal1=0
+				final_signal=0
+                k=k+1
+                rs.movenext
+                loop
+                %>
+            <%else%>
+        	   <TR class="records_list_details" ><TD colspan="20"><font style="font-size:12px;">无匹配结果</font></TD></TR>
+            <%end if%>
+            <%
+            rs.close
+            set rs=nothing
+            %>
+             </Table>
+        </td>
+        </tr>
+	<!--/数据-->
+        </table>
+        </td>
+        </tr>
+	</table>
+	<%end if' if action%>				
+<%end if%>
+				</td>
+			  </tr>
+			  <tr>
+				<td>&nbsp;</td>
+			  </tr>
+			  
+			  
+			</table>
+			  </td>
+		  </tr>
+		</table>
+		</td>
+		<td background="images/mail_rightbg.gif">&nbsp;</td>
+	  </tr>
+	  <tr>
+		<td valign="middle" background="images/mail_leftbg.gif"><img src="images/buttom_left2.gif" width="17" height="17" /></td>
+		  <td height="17" valign="top" background="images/buttom_bgs.gif"><img src="images/buttom_bgs.gif" width="17" height="17" /></td>
+		<td background="images/mail_rightbg.gif"><img src="images/buttom_right2.gif" width="16" height="17" /></td>
+	  </tr>
+	</table>
+</div>
+</body>

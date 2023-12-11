@@ -1,0 +1,230 @@
+<%
+Rem ************************************************
+Rem ** 作者: 萧月痕(xiaoyuehen)
+Rem ** ASP 通用分页类
+Rem ** 版本: 1.2.00
+Rem ** 最后修改: 2005-4-18
+Rem ** 版权说明: 在文档完整的前提下可任意复制, 传播.
+Rem ** 联系作者: xiaoyuehen(at)msn.com
+Rem ************************************************
+'此版本经过左岸修改.不要直接覆盖
+Class Cls_PageView
+	Private sbooInitState
+	Private sstrPageUrl
+	Private sstrPageVar
+	Private sstrSql
+	Private sstrSqlCount
+
+	Private sintRecordCount
+	Private sintPageSize
+	Private sintPageNow
+	Private sintPageMax
+
+	Private sobjConn
+
+	Private sstrPageInfo
+
+	Private Sub Class_Initialize
+		Call ClearVars()
+	End Sub
+
+	Private Sub class_terminate()
+		Set sobjConn = nothing
+	End Sub
+
+	Public Sub ClearVars()
+		sbooInitState = False
+		sstrPageUrl = ""
+		sstrPageVar = "page"
+
+		sintRecordCount = 0
+		sintPageSize = 20
+		sintPageNow = 0
+		sintPageMax = 0
+	End Sub
+
+	Private Sub ClearMainVars()
+		sstrSql = ""
+	End Sub
+
+	Rem ## SQL语句
+	Public Property Let strSQL(Value)
+		sstrSql = Value
+	End Property
+
+	Rem ## SQL语句
+	Public Property Let strSQLCount(Value)
+		sstrSqlCount = Value
+	End Property
+
+	Rem ## 转向地址
+	Public Property Let strPageUrl(Value)
+		sstrPageUrl = Value
+	End Property
+
+	Rem ## 每页显示的记录条数
+	Public Property Let intPageSize(Value)
+		sintPageSize = toNum(Value, 20)
+	End Property
+
+	Rem ## 数据库连接对象
+	Public Property Let objConn(Value)
+		Set sobjConn = Value
+	End Property
+
+	Rem ## 当前页
+	Public Property Let intPageNow(Value)
+		sintPageNow = toNum(Value, 1)
+	End Property
+
+	Rem ## 设置记录总数
+	Public Property Let intRecordCount(Value)
+		sintRecordCount = toNum(Value, -1)
+		If sintRecordCount < 0 Then sintRecordCount = -1
+	End Property
+
+	Rem ## 页面参数
+	Public Property Let strPageVar(Value)
+		sstrPageVar = Value
+	End Property
+
+	Rem ## 获得当前页
+	Public Property Get intPageNow()
+		intPageNow = singPageNow
+	End Property
+
+	Rem ## 分页信息
+	Public Property Get strPageInfo()
+		strPageInfo = sstrPageInfo
+	End Property
+
+	Rem ## 取得记录集, 二维数组或字串, 在进行循环输出时必须用 IsArray() 判断
+	Public Property Get arrRecordInfo()
+		Call InitClass()
+		If Not sbooInitState Then
+			echo("分页类初始化失败, 请检查各参数情况")
+			Exit Property
+		End If
+
+		Dim rs, sql
+		sql = sstrSql
+
+		Set rs = Server.CreateObject("Adodb.RecordSet")
+
+		Rem 若记录数统计语句不为空, 则取语句执行后第一个字段值作为记录数
+		If sstrSqlCount <> "" Then
+			rs.Open sstrSqlCount, sobjConn, 1, 1
+			If Not(rs.eof or rs.bof) Then
+				sintRecordCount = rs(0)
+			Else
+				sintRecordCount = 0
+			End If
+			rs.Close
+		End If
+
+		rs.open sql, sobjConn, 1, 1
+
+		Rem 若无记录统计语句且未设定记录总数, 则由记录集RecordCount属性得出.
+		If sintRecordCount < 0 Then
+			sintRecordCount = rs.RecordCount
+		End If
+		If sintRecordCount < 0 Then sintRecordCount = 0
+
+		'生成分页信息
+		Call InitPageInfo()
+
+		If Not(rs.eof or rs.bof) Then
+			rs.PageSize = sintPageSize
+			If  sintPageNow =0 Then sintPageNow=1
+ 			rs.AbsolutePage = sintPageNow
+			If Not(rs.eof or rs.bof) Then
+				arrRecordInfo = rs.getrows(sintPageSize)
+			Else
+				arrRecordInfo = ""
+			End If
+		Else
+			arrRecordInfo = ""
+		End If
+		rs.close
+		Set rs = nothing
+
+		Call ClearMainVars()
+	End Property
+
+	Rem ## 初始化分页信息
+	Private Sub InitPageInfo()
+		sstrPageInfo = ""
+
+		Dim surl
+		surl = sstrPageUrl
+		If Instr(1, surl, "?", 1) > 0 Then
+			surl = surl & "&" & sstrPageVar & "="
+		Else
+			surl = surl & "?" & sstrPageVar & "="
+		End If
+
+		If sintPageNow <= 0 Then sintPageNow = 1
+		If sintRecordCount mod sintPageSize = 0 Then
+			sintPageMax = sintRecordCount \ sintPageSize
+		Else
+			sintPageMax = sintRecordCount \ sintPageSize + 1
+		End If
+		If sintPageNow > sintPageMax Then sintPageNow = sintPageMax
+
+		If sintPageNow <= 1 then
+			sstrPageInfo = "首页 上一页"
+		Else
+			sstrPageInfo = sstrPageInfo & " <a href=""" & surl & "1"">首页</a>"
+			sstrPageInfo = sstrPageInfo & " <a href=""" & surl & (sintPageNow - 1) & """>上一页</a>"
+		End If
+
+		If sintPageMax - sintPageNow < 1 then
+			sstrPageInfo = sstrPageInfo & " 下一页 末页 "
+		Else
+			sstrPageInfo = sstrPageInfo & " <a href=""" & surl & (sintPageNow + 1) & """>下一页</a> "
+			sstrPageInfo = sstrPageInfo & " <a href=""" & surl & sintPageMax & """>末页</a> "
+		End If
+
+		sstrPageInfo = sstrPageInfo & " 页次：<strong><font color=""#990000"">" & sintPageNow & "</font> / " & sintPageMax & " </strong>"
+		sstrPageInfo = sstrPageInfo & " 共 <strong>" & sintRecordCount & "</strong> 条记录 <strong>" & sintPageSize & "</strong> 条/页 "
+		sstrPageInfo = sstrPageInfo &" 转到<INPUT id=page  size=1 name=page value="&sintPageNow + 1&">页<INPUT id=go class=ACT_BTN onclick=""{location.href='"&surl&"' + page.value + '';}"" type=button value=' GO ' name=go> "
+	End Sub
+
+	Rem ## 长整数转换
+	Private function toNum(s, Default)
+		s = s & ""
+		If s <> "" And IsNumeric(s) Then
+			toNum = CLng(s)
+		Else
+			toNum = Default
+		End If
+	End function
+
+	Rem ## 类初始化
+	Public Sub InitClass()
+		sbooInitState = True
+		If Not(IsObject(sobjConn)) Then
+			sbooInitState = False
+
+			echo("数据库连接未指定")
+			response.End()
+		End If
+		If Trim(sstrSql) = "" Then
+			sbooInitState = False
+
+			echo("SQL语句未指定")
+			response.End()
+		End If
+		sintPageSize = toNum(sintPageSize, 20)
+		If (sintPageSize < 1) Or (sintPageSize > 100) Then
+			sbooInitState = False
+
+			echo("每页记集数未设置或不符合规则(1 - 100)")
+			response.End()
+		End If
+		sintPageNow = toNum(sintPageNow, 1)
+
+		sintRecordCount = -1
+	End Sub
+End Class
+%>

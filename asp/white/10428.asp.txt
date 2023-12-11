@@ -1,0 +1,188 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="inc/conndb.asa"-->
+<!--#include file="inc/function.asp"--> 
+<%
+'*************************************
+'flash幻灯读取。
+'*************************************
+Function home_PicFlash(swf_width,swf_height,boardid)
+	If swf_width="" Then swf_width=280
+	If swf_height="" Then swf_height=222
+	GetSonSqlStr=""
+	sqlStr=""
+	If boardid<>0 Then
+		GetSonSqlStr=GetBoardSonStr(BoardID)
+		sqlStr="and (boardid="&boardid&" "&GetSonSqlStr&" )"
+	End If
+
+set rs1=server.CreateObject("adodb.recordset")
+	Rs1.open"select top 5 Id,title,picurl From "&bbstable&" where ischeck=1 and picurl<>'http://' and picurl<>'' "&sqlStr&" order by addtime Desc,id desc",conn,1,1
+	if not rs1.eof then
+		while not rs1.eof
+			title_array=title_array&trim(TitleLeft(rs1("title"),36))&"|"
+			pic_array=pic_array&trim(rs1("picurl"))&"|"
+			id_array=id_array&"ShowInfo.asp?id="&trim(rs1("ID"))&"|"
+		Rs1.MoveNext
+		wend
+	else
+		title_array="暂无图片"
+		pic_array="images/nopic.jpg"
+		id_array="1"
+	end If
+	If right(title_array,1)="|" Then title_array=Left(title_array,len(title_array)-1)
+	If right(id_array,1)="|" Then id_array=Left(id_array,len(id_array)-1)
+	If right(pic_array,1)="|" Then pic_array=Left(pic_array,len(pic_array)-1)
+	rs1.close 
+	Set rs1=Nothing
+
+	'flash幻灯调用，picflash函数来自function。
+	home_PicFlash=picflash(swf_width,swf_height,"",""&pic_array&"",""&id_array&"",""&title_array&"")
+	
+	
+End Function
+
+
+'*************************************
+'缩略图展示函数。
+'*************************************
+Function home_picshow(pic_width,pic_height,pic_num,pic_boardid,pic_isTitle)
+	TempStr=""
+	If pic_width="" Then pic_width=140
+	If pic_height="" Then pic_height=100
+	If pic_num="" Then pic_num=5
+	GetSonSqlStr=""
+	sqlStr=""
+	If boardid<>0 Then
+		GetSonSqlStr=GetBoardSonStr(BoardID)
+		sqlStr="and (boardid="&boardid&" "&GetSonSqlStr&" )"
+	End If
+
+	set rs1=server.CreateObject("adodb.recordset")
+		Rs1.open"select top 10 Id,title,picurl From "&bbstable&" where ischeck=1 and picurl<>'http://' and picurl<>'' "&sqlStr&" order by addtime Desc,id desc",conn,1,1
+		if not rs1.eof then
+			while not rs1.eof
+				TempStr=TempStr&"<li><a href=""ShowInfo.asp?id="&trim(rs1("ID"))&""" target=""_blank"" title="""&trim(TitleLeft(rs1("title"),36))&"""><img src="""&trim(rs1("picurl"))&""" width="&pic_width&" height="&pic_height&"  border=""0""/></a></li>"
+			Rs1.MoveNext
+			wend
+		else
+			TempStr="暂无图片"
+		end If
+		rs1.close 
+	Set rs1=Nothing
+home_picshow=TempStr
+End Function
+
+
+
+
+
+
+
+
+
+'*************************************
+'横向导航菜单
+'*************************************
+Function home_BoardList(Ast)
+	If Not IsArray(Arr_Category) Then GetBoardCache()
+	if UBound(Arr_Category,1)=0 then TempStr=TempStr&"<li>还没有分类</li>":exit Function
+	If Ast="" Then '如果为空，就读取大分类
+		For k=0 To ubound(Arr_Category,2)
+			If Arr_Category(5,k)=0 Then  
+				TempStr=TempStr&"<li><a href="""&list_page_name&"?boardid="&Arr_Category(1,k)&"""><span>"&Arr_Category(0,k)&"</span></a></li>"
+			End If 
+		Next
+	Else '否则，请提交分类序列号，1,2,5,8,11格式。
+		If InStr(Ast,",")>0 Then Ast_array=Split(Ast,",")
+		For i=0 To UBound(Ast_array)
+			oneboardid=Ast_array(i)
+			For k=0 To ubound(Arr_Category,2)
+				If Int(Arr_Category(1,k))=Int(oneboardid) Then  
+					TempStr=TempStr&"<li><a href="""&list_page_name&"?boardid="&Arr_Category(1,k)&"""><span>"&Arr_Category(0,k)&"</span></a></li>"
+				End If 
+			Next
+		Next 
+	End If 
+	home_BoardList=TempStr
+End Function 
+
+
+'*************************************
+'会员调用函数
+'*************************************
+Function home_dyhy(ltype,num)
+	home_dyhy=""
+	Select Case ltype
+		Case "new"
+			orderby="order by regtime Desc,ID Desc"
+		Case "top"
+			orderby="order by umoney Desc,ID Desc"
+	End Select
+
+	If isnull(num) or num="" then num=10
+	If Not IsNumeric(num) Then num=10
+
+	set rs1=server.CreateObject("adodb.recordset")
+		Rs1.open"select top "&num&" * From "&usertable&" "&orderby&"",conn,1,1
+		SQLQueryNums=SQLQueryNums+1
+			if not rs1.eof then
+				while not rs1.eof
+					home_dyhy=home_dyhy&"<LI><span>"&rs1("umoney")&"</span><A href=""UserMng.asp?Action=infoshow&username="&rs1("username")&""" target=_blank>"&rs1("username")&"</A></LI>"
+				Rs1.MoveNext
+				wend
+			else
+				home_dylist=" <LI> 暂无信息</LI>"    
+			end if
+	   rs1.close
+	   set rs1=nothing
+End Function
+
+'*************************************
+'头条调用函数------------------具体参数可以自行修改sql语句。
+'*************************************
+Function home_dytop()
+	TempStr=""
+	set rs1=server.CreateObject("adodb.recordset")
+		Rs1.open"select top 1 * From "&bbstable&" where istop=2 order by addtime desc",conn,1,1
+		SQLQueryNums=SQLQueryNums+1
+			if not rs1.eof then
+				TempStr="<dl><dt><a href=ShowInfo.asp?id="&rs1("id")&"  target=""_blank"">"&titleleft(rs1("title"),46)&"</a></dt><dd class=""text"">"&titleleft(RemoveUBB(rs1("content")),120)&"</dd></dl>"
+				Rs1.MoveNext
+			else
+				TempStr=" 暂无信息"    
+			end if
+	   rs1.close
+	   set rs1=Nothing
+	home_dytop=TempStr
+End Function
+
+
+
+'*************************************
+'头部菜单调用函数------------------具体参数可以自行修改sql语句。
+'*************************************
+
+Function menu_top()
+	
+         set rs34=server.CreateObject("adodb.recordset")
+		  rs34.Open "select * from  jle_topmenu order by id",conn,1,1
+		  dim follows
+		  kkk=1
+		  TempStr=""
+		  do while not rs34.EOF
+	kkk=kkk+1
+		  
+         TempStr="<li class=""nav"&kkk&"""><a href="""&trim(rs34("link_url"))&""">"&trim(rs34("link_name"))&"</a></li>"
+          
+		rs34.MoveNext
+          loop
+          follows=rs34.RecordCount
+		 set rs34=nothing 
+		 menu_top=TempStr
+End Function
+
+
+
+
+%>
+<!--#include file="indexskin.htm"--> 

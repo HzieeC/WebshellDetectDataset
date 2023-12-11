@@ -1,0 +1,1173 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<!--#include file="checkcmember.asp" -->
+<!--#include file="flagandexpend.asp"-->
+<%link="company_hirelist.asp"
+'检测企业会员是否填写基本资料
+If Request.Cookies(FRHRCMS)("user_name")="" Then
+Response.Write("<script language=JavaScript>alert(""暂不能进行此操作,请先完整填写基本资料！"");window.location='company_info.asp';</script>")
+Response.End()
+End If
+Dim page,i
+Dim totalPut
+const MaxPerpage=10
+Const strFileName="company_hirelist.asp"
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>招聘职位管理-企业会员管理中心-<%=SiteTitle%></title>
+<script type="text/javascript" src="../Js/Calendar.js"></script>
+<script language="JavaScript">
+<!--
+  function CheckAll(form)
+  {
+  for (var i=0;i<form.elements.length;i++)
+    {
+    var e = form.elements[i];
+    if (e.name != 'chkall')
+       e.checked = form.chkall.checked;
+    }
+  }
+  function showconfirm(id,page)
+{
+	var flag=false; //是否有选择职位信息
+	var k=0;
+	var refid;
+	for(i=0;i<document.thisForm.elements.length;i++) 
+	{
+		if (document.thisForm.elements[i].name=="checks")
+		{		
+			if (document.thisForm.elements[i].checked==true) 
+			{
+				flag=true;
+				break;
+			}
+		}
+	}
+	if (flag==false)
+	{
+		alert("请先选择一个职位！");
+		return false;
+	}
+	//删除职位资料
+	if (id==1)
+	{
+		if(confirm("您真的要删除选中的招聘信息吗？")==true)
+		{
+			document.thisForm.action="company_hirelist.asp?step=Delete&page="+page+"";
+			thisForm.submit();
+		}
+	}
+	//刷新职位信息
+	if (id==2)
+	{
+	 document.thisForm.action="company_hirelist.asp?step=Refresh&page="+page+"";
+	 thisForm.submit();
+	}
+	//重新发布职位信息
+	if (id==3)
+	{
+		if(confirm("重新发布选中的招聘信息后，这些信息会有更多机会被求职者浏览!")==true)
+		{
+			document.thisForm.action="company_hirelist.asp?step=Republish&page="+page+"";
+			thisForm.submit();
+		}
+	}
+	//激活职位信息
+	if (id==4)
+	{
+		if(confirm("激活选中的招聘信息后，使这些信息重新有效!")==true)
+		{
+			document.thisForm.action="company_hirelist.asp?step=Activate&page="+page+"";
+			thisForm.submit();
+		}
+	}
+	//屏蔽职位信息
+	if (id==5)
+	{
+		if(confirm("屏蔽选中的招聘信息后，使这些信息无效并对求职者不可见!")==true)
+		{
+			document.thisForm.action="company_hirelist.asp?step=Deactivate&page="+page+"";
+			thisForm.submit();
+		}
+	}			
+}
+//-->
+</script>
+<link href="../member/css.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div class="memmenul">
+<%
+step=trim(request("step"))
+hiredept=CheckStr(trim(request("hiredept")))
+keyword=CheckStr(trim(request("keyword"))) 
+hirestatus=CheckStr(trim(request("hirestatus")))
+checks=trim(request("checks"))
+hire=split(checks,",")
+Select Case step
+Case "SaveData"
+	Call SaveData()
+Case "Addhire"
+	if CheckCFlag("Climits",0)=False then
+	response.write "<script language=javascript>alert('您所在的会员组不能发布职位信息，请联系网站客服进行升级！');location.href='company_hirelist.asp';</script>"
+	response.end()
+	end if
+	if CheckCFlag("Climits",1)=False then
+'		if CheckCFlag("Cdianshus",0)=False then
+'		response.write "<script language=javascript>alert('您发布的职位信息已达到最大限制，请联系网站客服进行升级！');location.href='company_hirelist.asp';<//script>"
+'		response.end()
+'		else
+		response.write "<script language=javascript>alert('您发布的职位信息已达到最大限制，此次消费将扣除部分可用点数！');</script>"
+		'end if
+	end if
+	Call Addhire()
+Case "Modify"
+	Call Addhire()
+Case "Clone"
+	if CheckCFlag("Climits",0)=False then
+	response.write "<script language=javascript>alert('您所在的会员组不能发布职位信息，请联系网站客服进行升级！');location.href='company_hirelist.asp';</script>"
+	response.end()
+	end if
+	if CheckCFlag("Climits",1)=False then
+		'if CheckCFlag("Cdianshus",0)=False then
+'		response.write "<script language=javascript>alert('您发布的职位信息已达到最大限制，请联系网站客服进行升级！');location.href='company_hirelist.asp';<//script>"
+'		response.end()
+'		else
+		response.write "<script language=javascript>alert('您发布的职位信息已达到最大限制，此次消费将扣除部分可用点数！');</script>"
+		'end if
+	end if
+	Call Addhire()
+Case "Delete"
+	for i=0 to ubound(hire)
+	id=trim(hire(i))
+	conn.execute("delete from job_c_hire where hire_id="&id&" and hire_cmember='"&cmember_login&"'")
+	next
+	response.redirect "company_hirelist.asp?page="&page&""
+	response.end
+Case "Refresh"
+	for i=0 to ubound(hire)
+	id=trim(hire(i))
+	conn.execute("update job_c_hire set hire_announcedate='"&now()&"' where hire_id="&id&" and hire_cmember='"&cmember_login&"'")
+	next
+	conn.execute("update JOB_Member set Member_activedate='"&now()&"' where Member_login='"&cmember_login&"'")
+	response.redirect "company_hirelist.asp?page="&page&""
+	response.end
+Case "Republish"
+	for i=0 to ubound(hire)
+	id=trim(hire(i))
+	if FR_HR_DataBaseType=1 then
+	sql="update JOB_C_hire set hire_announcedate="&FR_HR_Now&",hire_enddate='"&dateadd("d",30,date())&"' where hire_id="&id&" and hire_cmember='"&cmember_login&"'"
+	else
+	sql="update JOB_C_hire set hire_announcedate="&FR_HR_Now&",hire_enddate=#"&dateadd("d",30,date())&"# where hire_id="&id&" and hire_cmember='"&cmember_login&"'"
+	end if
+	conn.execute(sql)
+	next
+	conn.execute("update JOB_Member set Member_activedate='"&now()&"' where Member_login='"&cmember_login&"'")
+	response.redirect "company_hirelist.asp?page="&page&""
+	response.end
+Case "Activate"
+	for i=0 to ubound(hire)
+	id=trim(hire(i))
+	conn.execute("update job_c_hire set hire_status=1 where hire_id="&id&" and hire_status=2 and hire_cmember='"&cmember_login&"'")
+	next
+	conn.execute("update JOB_Member set Member_activedate='"&now()&"' where Member_login='"&cmember_login&"'")
+	response.redirect "company_hirelist.asp?page="&page&""
+	response.end
+Case "Deactivate"
+	for i=0 to ubound(hire)
+	id=trim(hire(i))
+	conn.execute("update job_c_hire set hire_status=2 where hire_id="&id&" and hire_status=1 and hire_cmember='"&cmember_login&"'")
+	next
+	response.redirect "company_hirelist.asp?page="&page&""
+	response.end
+Case Else
+	Call ShowData()
+End Select%>
+<%Sub ShowData()%>
+<div class="leftmenutit"><span>职位管理</span></div>
+<table width="98%" border="0" align="center" cellpadding="0" cellspacing="0" class="mtable">
+<form action="company_hirelist.asp" method="post" name="searchhire" id="searchhire">
+<!--<tr>
+<td width="113" height="25" align="right">部&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 门：</td>
+<td width="846"><select name="hiredept" size="1" id="select2">
+<option value="" selected="selected">----请选择部门----</option>
+<%
+Set rs= Server.CreateObject("ADODB.RecordSet")
+sql="select dept_id,dept_name from job_c_dept where dept_cmember='"&cmember_login&"'"
+rs.open sql,conn,1,1
+do while not rs.eof
+response.write"<OPTION value="&rs("dept_name")&">"&rs("dept_name")&"</option>"
+rs.movenext
+loop
+rs.close
+%>
+</select>
+</td>
+</tr>-->
+<tr>
+<td height="25" align="right">职位关键字：</td>
+<td><input name="keyword" id="keyword" style="WIDTH: 150px" /> <input name="hirestatus" type="radio" value="" checked="checked" />全部 <input type="radio" value="1" name="hirestatus" /><font color="#008000">招聘 </font> <input type="radio" value="2" name="hirestatus" /><font color="#808080">屏蔽</font> <input type="radio" value="3" name="hirestatus" /><font color="#ff0000">过期</font> <input type="submit" class="inputs" value=" 查 询 " name="b1" />
+</td>
+</tr>
+<!--<tr>
+<td height="25" align="right">状&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 态：</td>
+<td>
+</td>
+</tr>-->
+</form>
+</table>
+<table width="98%" border="0" align="center" cellpadding="0" cellspacing="0"0 class="mtable" style="border:1px #ABCEE2 solid;">
+<%
+sql="select count(*) as hirecount from job_c_hire where hire_cmember='"&cmember_login&"'"
+rs.open sql,conn,1,1
+hirecount=rs("hirecount")
+rs.close
+%>
+<tr>
+<td align="right" colspan="9" style="padding-right:10px;">贵公司共发布 <font color="#FF0000"><%=hirecount%></font> 个职位</font></td>
+</tr>
+<tr bgcolor="#E7E7E7">
+<!--<td width="10%" height="29" align="middle" ><b>部门</b></td>-->
+<td width="18%" align="middle" ><b>招聘职位</b></td>
+<td width="15%" align="middle" ><b>状态</b></td>
+<td width="9%" align="middle" ><b>浏览次数</b></td>
+<td width="9%" align="middle" ><b>收到简历</b></td>
+<td align="middle"><b>起止日期</b></td>
+<td width="7%" align="middle" ><b>修改</b></td>
+<td width="7%" align="middle" ><b>复制</b></td>
+<td width="7%" align="middle" ><img height="12" src="../images/sel_ico.gif" width="13" /> </td>
+</tr>
+<form action="" method="post" name="thisForm" id="thisForm">
+<%sql="select * from job_c_hire where hire_cmember='"&cmember_login&"'"
+if hiredept<>"" then
+sql=sql&" and hire_dept='"&hiredept&"'"
+end if
+if keyword<>"" then
+sql=sql&" and hire_place like '%"&keyword&"%'"
+end if
+if hirestatus<>"" then
+sql=sql&" and hire_status="&hirestatus&""
+end if
+sql=sql&" order by hire_announcedate desc"
+rs.open sql,conn,1,1
+If not rs.eof then
+	totalPut=rs.recordcount
+	if (page-1)*MaxPerpage>totalput then
+		if (totalPut mod MaxPerpage)=0 then
+			page= totalPut \ MaxPerpage
+		else
+			page= totalPut \ MaxPerpage + 1
+		end if
+	end if
+	if page=1 then
+		Call MainInfo()
+	else
+		if (page-1)*MaxPerpage<totalPut then
+			rs.move  (page-1)*MaxPerpage
+			dim bookmark
+			bookmark=rs.bookmark
+			Call MainInfo()
+		else
+			page=1
+			Call MainInfo()
+		end if
+	end if
+end if
+rs.close
+set rs=nothing
+%>
+<table width="98%" height="20" border="0" align="center" cellpadding="0" cellspacing="0" bgcolor="#F1F8FC" style="padding:6px 0; padding-left:10px;">
+<tr>
+<td class="tdcolor">说&nbsp;明：</td>
+</tr>
+<tr>
+<td><font 
+color="#000000">“<strong>删除</strong>”</font><font 
+color="#333333">即对已经招聘完成，以后不再需要招聘的职位彻底进行删除。</font> </td>
+</tr>
+<tr>
+<td><font color="#333333"><font 
+color="#000000">“<strong>刷新职位</strong>”</font>更新职位的发布日期，能将职位排到网站搜索结果的前面，提高招聘效果； </font></td>
+</tr>
+<tr>
+<td><font 
+color="#000000">“<strong>重新发布</strong>”</font><font 
+color="#333333">即对已经过期的职位重新进行招聘。招聘有效期自动改为30天（以当天为开始日期）；</font> </td>
+</tr>
+<tr>
+<td><font 
+color="#000000">“<strong>激活</strong>”</font><font 
+color="#333333">即对已经屏蔽的职位重新进行招聘。</font> </td>
+</tr>
+<tr>
+<td height="18"><font 
+color="#000000">“<strong>屏蔽</strong>”</font><font 
+color="#333333">即隐藏暂时不需要招聘的职位，以后如果需要招聘时再激活该职位即可。（建议使用）</font></td>
+</tr>
+</table>
+<%End Sub%>
+<%
+Sub MainInfo()	
+do while not rs.eof
+%><TR align=middle bgColor=#f7f7f7>
+<!--<TD height=25><%=rs("hire_dept")%></TD>-->
+<TD><a href="<%=FormatLink(rs("hire_announcedate"),2,3,rs("hire_id"),0)%>" target="_blank" title="查看详细信息"><%=rs("hire_place")%></a></TD>
+<TD>
+<%
+if rs("hire_enddate")<date() then
+response.write "<font color='#ff0000'>已经过期</font>"
+else
+select case rs("hire_status")
+case "0"
+response.write "<font color='#cccccc'>等待审核</font>"
+case "1"
+response.write "<font color='#008000'>正在招聘</font>"
+case "2"
+response.write "<font color='#808080'>暂时屏蔽</font>"
+end select
+end if
+If rs("hire_command")=1 And rs("hire_commandenddate")>Date() Then Response.Write("&nbsp;<font color=red>已推荐</font>")
+%>
+</TD>
+
+<TD><%=rs("hire_visitcount")%></TD>
+<TD><%=rs("hire_receiveresume")%></TD>
+<TD><%=year(rs("hire_announcedate"))%>-<%=month(rs("hire_announcedate"))%>-<%=day(rs("hire_announcedate"))%>~<%=rs("hire_enddate")%></TD>
+<TD><A style='COLOR: #0a40e2' href='vip.asp'><U>修改</U></A></TD>
+<TD><A style='COLOR: #0a40e2' href='company_hirelist.asp?step=Clone&id=<%=rs("hire_id")%>'><U>复制</U></A></TD>
+<TD><input type='checkbox' name='checks' value='<%=rs("hire_id")%>'></TD>
+</TR>
+<%
+
+i=i+1
+if i>=MaxPerPage then exit do
+rs.movenext
+loop
+%>
+<tr>
+<td height="24" colspan="9" align="right"><input name="chkall" onclick="CheckAll(this.form)" type="checkbox" value="on" />
+选中所有招聘职位&nbsp; </td>
+</tr>
+<tr>
+<td colspan="11" align="right"><!--删除职位-->
+<input name="Submit" type="button" class="inputs" value="删 除" onclick="window.location='vip.asp'" />
+<input name="Submit4" type="button" class="inputs" value="刷新职位" onclick="javascrpt:showconfirm(2,<%=page%>)" />
+<!--刷新职位-->
+<!--重新发布-->
+<input name="Submit5" type="button" class="inputs" value="重新发布" onclick="javascript:showconfirm(3,<%=page%>)" />
+<!--激活职位-->
+<input name="Submit2" type="button" class="inputs" value="激 活" onclick="javascript:showconfirm(4,<%=page%>)" />
+<!--屏蔽职位-->
+<input name="Submit3" type="button" class="inputs" value="屏 蔽" onclick="javascript:showconfirm(5,<%=page%>)" />&nbsp;</td>
+</tr>
+</form>
+<tr>
+<td colspan="11" align="right"><%If totalput>0 Then
+	Call Showpage(strFileName,totalput,MaxPerPage,false,true,"个职位")
+End If%>
+</td>
+</tr>
+</table>
+<%end sub%>
+<%Sub Addhire()%>
+<div id="bodyly" style="position:absolute;top:0px;FILTER: alpha(opacity=80);background-color:#333; z-index:0;left:0px;display:none;"></div>
+<script language = "JavaScript" src="<%=InstallDir%>js/getposition.js"></script>
+<script language = "JavaScript" src="<%=InstallDir%>js/GetProvince.js"></script>
+<script language = "JavaScript" src="<%=InstallDir%>js/getprofession.js"></script>
+<div id="SearchDivhire" style="border:1px #8BC3F6 solid; position:absolute;background-color:#FFFFFF;width:560px;font-size:12px;  z-index:999; display:none;">
+<div class="memmenul">
+	<div onmousedown=MDown(SearchDivhire) title="可以随意拖动" style="width:538px; cursor:move;font-size:13px;color:#166AB6; font-weight:bold;" class="leftmenutit"><span style="float:right;font-size:12px; padding-right:10px; font-weight:normal; cursor:pointer;" onClick="unSearchLayers();">[关闭]</span><span id="wintit"></span><span style="font-size:12px; padding-left:10px; font-weight:normal;">最多可选择5个</span></div>
+    <form name="form3" id="form3">
+	<div style="width:100%;">
+		<div id="changbox" style="float:left; margin-left:10px; margin-right:6px; margin-top:10px;"></div>
+		<div id="changboxs" style="float:left; margin-left:10px;width:408px;margin-top:10px; display:none;"></div>
+		<div id="bigclass" style="margin-left:10px;width:528px;margin-top:4px;"></div>
+		<div id="smallclass" style="margin-left:10px;width:528px;margin-top:4px; line-height:150%; height:150px; overflow:auto"></div>
+		<div id="checktitle" style="margin-left:10px; width:528px; margin-top:8px; font-size:13px; font-weight:bold;">您已经选择的是：<span style="cursor:pointer;font-size:12px; font-weight:bold; color:#FF0000" onClick="DelAllItem();">清空所有选项</span></div>
+		<div id="selectitem" style="margin-left:10px; width:528px; height:40px;margin-top:4px; border:1px dashed #cccccc"></div>
+		<div id="selectok" style="margin-left:10px; margin-top:4px; text-align:right; padding-right:40px;"></div>
+	</div>
+</form>
+</div>
+</div>
+<script language="JavaScript">
+<!--
+//功能：去掉字符串前后空格
+//返回值：去掉空格后的字符串
+function fnRemoveBrank(strSource)
+{
+return strSource.replace(/^\s*/,'').replace(/\s*$/,'');
+}
+//计算多行文本框的字节数
+function String.prototype.lenB()
+{
+return this.replace(/[^\x00-\xff]/g,"**").length;
+}
+function Juge(theForm)
+{
+//if (theForm.profession.value=="")
+//{
+//theForm.profession.value="0000";
+//}
+if (fnRemoveBrank(theForm.place.value) == "")
+{
+alert("请输入职位名称!");
+theForm.place.focus();
+return (false);
+}   
+if (theForm.position.value == "")
+{
+alert("请选择岗位类别!");
+theForm.positions.focus();
+return (false);
+}
+
+if (theForm.workadd.value == "")
+{
+alert("请选择工作地区!");
+theForm.workadds.focus();
+return (false);
+}
+var objv = fnRemoveBrank(theForm.number.value);
+var pattern = /^[0-9]+$/;
+flag = pattern.test(objv);
+if(!flag)
+{
+alert("招聘人数：要求为数字!请重新输入。");
+theForm.number.focus();
+return (false);
+}
+//if(theForm.number.value==0)
+//{
+//alert("招聘人数：不能为0人!请重新输入。");
+//theForm.number.focus();
+//return (false);
+//}
+if (fnRemoveBrank(theForm.foundate.value) == "")
+{
+alert("请选择截止日期!");
+theForm.foundate.focus();
+return (false);
+}
+if (fnRemoveBrank(theForm.introduce.value) == "")
+{
+alert("请输入具体要求!");
+theForm.introduce.focus();
+return (false);
+}
+if ((theForm.introduce.value).lenB()>=8000)
+{
+alert("具体要求太长了，要求不多于8000个字符!");
+theForm.introduce.focus();
+return (false);
+}
+//if (fnRemoveBrank(theForm.address.value) == "")
+//{
+//alert("请输入通信地址!");
+//theForm.address.focus();
+//return (false);
+//}
+if (fnRemoveBrank(theForm.post.value) != "")
+{
+	var objv = fnRemoveBrank(theForm.post.value);
+	var pattern = /^[0-9]+$/;
+	flag = pattern.test(objv);
+	if(!flag)
+	{
+	alert("邮政编码：要求为数字!请重新输入。");
+	theForm.post.focus();
+	return (false);
+	}
+}
+if (fnRemoveBrank(theForm.contact.value) == "")
+{
+alert("请输入联系人!");
+theForm.contact.focus();
+return (false);
+}
+
+if(theForm.mobile.value=="")
+{
+	if (fnRemoveBrank(theForm.tel.value) == "")
+	{
+	alert("请输入联系电话!");
+	theForm.tel.focus();
+	return (false);
+	}
+	if (fnRemoveBrank(theForm.tel.value) != "")
+	{
+		var objv = fnRemoveBrank(theForm.tel.value);
+		var pattern = /^[0-9-\s]+$/;
+		flag = pattern.test(objv);
+		if(!flag)
+		{
+		alert("电话号码：要求为数字0-9和-的组合!请重新输入。");
+		theForm.tel.focus();
+		return (false);
+		}
+	}
+}
+if(theForm.tel.value=="")
+  {
+  	  //判断手机号是否为空
+	  if (fnRemoveBrank(theForm.mobile.value) == "")
+	  {
+		alert("请输入联系手机!");
+		theForm.mobile.focus();
+		return (false);
+	  }
+	  if (fnRemoveBrank(theForm.mobile.value) != "")
+	  {
+		  var objv = fnRemoveBrank(theForm.mobile.value);
+		  var pattern = /^[0-9]+$/;
+		  flag = pattern.test(objv);
+		  if(!flag||objv.length<11)
+		  {
+			alert("手机号码：要求为11位数字!请重新输入。");
+			theForm.mobile.focus();
+			return (false);
+		   }
+	   }
+  }
+
+if (fnRemoveBrank(theForm.fax.value) != "")
+{
+  var objv = fnRemoveBrank(theForm.fax.value);
+  var pattern = /^[0-9-\s]+$/;
+  flag = pattern.test(objv);
+  if(!flag)
+  {
+	alert("传真号码：要求为数字0-9和-的组合!请重新输入。");
+	theForm.fax.focus();
+	return (false);
+   }
+}
+var objv = fnRemoveBrank(theForm.email.value);
+var pattern = /^([a-zA-Z0-9_-])+(\.([a-zA-Z0-9_-])+)*@([a-zA-Z0-9_-])+(\.([a-zA-Z0-9_-])+)+$/;
+flag = pattern.test(objv);
+if(!flag)
+{
+alert("电子邮件：格式不正确！请重新输入。");
+theForm.email.focus();
+return (false); 
+}  
+}
+-->
+</script>
+<script language="javascript">
+function shows()
+{
+	if(document.getElementById("cominfo").style.display=="none")
+	{document.getElementById("cominfo").style.display="block";}
+	else
+	{document.getElementById("cominfo").style.display="none";}
+
+}
+</script>
+
+<%Set rst= Server.CreateObject("ADODB.RecordSet")
+if request("id")<>"" then
+hire_id=clng(trim(request("id")))
+sql="select * from job_c_hire where hire_id="&hire_id
+rst.open sql,conn,1,1
+	if not rst.eof then
+	hire_type=rst("hire_type")
+	hire_trade=rst("hire_trade")
+	hire_position=rst("hire_position")
+	hire_workadd=rst("hire_workadd")
+	hire_profession=rst("hire_profession")
+	hire_place=rst("hire_place")
+	hire_dept=rst("hire_dept")
+	hire_number=rst("hire_number")
+	hire_pay=rst("hire_pay")
+	hire_enddate=rst("hire_enddate")
+	hire_introduce=rst("hire_introduce")
+	hire_usergroup=rst("hire_usergroup")
+	hire_edu=rst("hire_edu")
+	hire_experience=rst("hire_experience")
+	hire_sex=rst("hire_sex")
+	hire_age1=rst("hire_age1")
+	hire_age2=rst("hire_age2")
+	hire_name=rst("hire_comname")
+	hire_address=rst("hire_address")
+	hire_post=rst("hire_post")
+	hire_contact=rst("hire_contact")
+	hire_tel=rst("hire_tel")
+	hire_telshowflag=rst("hire_telshowflag")
+	hire_fax=rst("hire_fax")
+	hire_email=rst("hire_email")
+	hire_emailshowflag=rst("hire_emailshowflag")
+	hire_mobile=rst("hire_mobile")
+	hire_mobileshowflag=rst("hire_mobileshowflag")
+	end if
+else
+sql1="select * from job_member where member_login='"&cmember_login&"'"
+rst.open sql1,conn,1,1
+	if not rst.eof then
+	hire_name=rst("member_name")
+	hire_trade=rst("Member_trade")
+	hire_address=rst("Member_address")
+	hire_post=rst("Member_post")
+	hire_contact=rst("Member_contact")
+	hire_tel=rst("Member_tel")
+	hire_telshowflag=rst("Member_telshowflag")
+	hire_fax=rst("Member_fax")
+	hire_email=rst("Member_email")
+	hire_emailshowflag=rst("Member_emailshowflag")
+	hire_mobile=rst("Member_mobile")
+	hire_mobileshowflag=rst("Member_mobileshowflag")
+	else
+	response.write "<script language=javascript>alert('出错！');javascript:history.back();</script>"
+	response.end 
+	end if
+end if
+rst.close
+set rst=nothing	
+%>
+<%if step="Clone" then
+hire_id=""
+end if%>
+<div class="leftmenutit"><span>发布职位</span></div>
+<table width="98%" border="0" cellspacing="0" cellpadding="0" class="mtable" align="center">
+<form action="company_hirelist.asp?step=SaveData&id=<%=hire_id%>" method="post" name="form2" id="form2" onsubmit="return Juge(this)">
+  <tr>
+    <td colspan="2" class="tdcolor">职位描述</td>
+  </tr>
+  <tr>
+    <td align="right"><font 
+color="#ff6600">＊</font>招聘类别：</td>
+    <td><input type=radio value="1" name=type checked />
+      全职
+        <input type=radio value="2" name=type <%if hire_type=2 then response.write "checked" end if%> />
+        兼职
+        <input type=radio value="3" name=type <%if hire_type=3 then response.write "checked" end if%> />
+        全职、兼职均可</td>
+  </tr>
+  <tr>
+    <td align="right"><font 
+color="#ff6600">＊</font>招聘职位：      </td>
+    <td><input name="place" type="text" id="place" size="30" maxlength="50" value="<%=hire_place%>" <%if hire_id<>"" then Response.Write"readonly"%> />
+      （填写后不能修改，如有变更请联系客服人员。）</td>
+    </tr>
+<!--  <tr>
+    <td align="right">招聘部门：</td>
+    <td><select name="dept" size="1" id="select4" style="WIDTH: 120px">
+      <option value="部门不限" selected="selected">部门不限</option>
+      <%
+set rs=server.createobject("ADODB.Recordset")
+sql="select dept_id,dept_name from job_c_dept where dept_cmember='"&cmember_login&"'"
+rs.open sql,conn,1,1
+do while not rs.eof
+if hire_dept=rs("dept_name") then
+response.write"<OPTION value="&rs("dept_name")&" selected>"&rs("dept_name")&"</option>"
+else
+response.write"<OPTION value="&rs("dept_name")&">"&rs("dept_name")&"</option>"
+end if
+rs.movenext
+loop
+rs.close
+%>
+    </select>
+&nbsp;<a href="company_deptlist.asp" style="CURSOR:pointer;"><img src="../images/adddept.gif" width="108" height="22" border="0" align="absmiddle" class="button" /></a></td>
+    </tr>-->
+  <tr>
+    <td align="right"><FONT color=#ff6600>＊</FONT>所属行业：</td>
+    <td><select name=trade id="select">
+            <option value=""></option>
+            <%Set rs= Server.CreateObject("ADODB.RecordSet")
+       sql="select trade_id,trade_name from job_trade"
+       rs.open sql,conn,1,1
+       do while not rs.eof
+	   if hire_trade=rs("trade_id") then
+	  	response.write"<OPTION value="&rs("trade_id")&" selected>"&rs("trade_name")&"</option>"
+		else
+		response.write"<OPTION value="&rs("trade_id")&">"&rs("trade_name")&"</option>"
+		end if
+		rs.movenext
+		 loop
+		 rs.close
+		 set rs=nothing
+		%>
+        </SELECT></td>
+  </tr>
+  <tr>
+    <td width="11%" align="right"> <font 
+color="#ff6600">＊</font>岗位类别：</td>
+    <td><input type="hidden" name="position" id="position" value="<%=hire_position%>" ><input name="positions" type="text" onClick="JumpSearchLayer(1,'form2','position','positions');" <%if hire_id="" then%>value="选择希望岗位类别"<%else%>value="<%=PosionName(hire_position)%>"<%end if%> size="60" readonly /></td>
+    </tr>
+  <tr>
+    <td align="right"><font color="#ff6600">＊</font>工作地区：</td>
+    <td><!--调用二级地区<input name="workadd" type="hidden" id="workadd" value="<%=hire_workadd%>" /><input name="workadds" type="text" onClick="JumpSearchLayer(2,'form2','workadd','workadds');" id="workadds" <%if hire_id="" then%>value="选择希望工作地区"<%else%>value="<%=ProvinceName(hire_workadd)%>"<%end if%> size="60" readonly />-->
+	<!--调用三级地区-->
+	<input name="workadd" type="hidden" id="workadd" value="<%=hire_workadd%>" /><input name="workadds" type="text" onClick="JumpSearchLayer(5,'form2','workadd','workadds');" id="workadds" <%if hire_id="" then%>value="选择希望工作地区"<%else%>value="<%=ProvinceName(hire_workadd)%>"<%end if%> size="60" readonly />
+	</td>
+  </tr>
+  <tr>
+    <td align="right"><font 
+color="#ff6600">＊</font>招聘人数：      </td>
+    <td><input name="number" id="number" size="6" maxlength="5" value="<%=hire_number%>" />
+      人 （注：0为若干人） </td>
+    </tr>
+  <tr>
+    <td align="right">月薪待遇：      </td>
+    <td>
+      <input type="text" name="pay" size="10" <%if hire_id="" then%>value="0"<%else%>value="<%=AddHirepay(hire_pay)%>"<%end if%> />
+      <select name="paytemp" onChange="pay.value=this.value">
+        <option value="" selected>请选择薪资范围</option>
+		<option value="800以下">800以下</option>
+		<option value="800～1000">800～1000</option>
+		<option value="1000～1200">1000～1200</option>
+		<option value="1200～1500">1200～1500</option>
+		<option value="1500～2000">1500～2000</option>
+		<option value="2000～2500">2000～2500</option>
+		<option value="2500～3000">2500～3000</option>
+		<option value="3000～4000">3000～4000</option>
+		<option value="4000～6000">4000～6000</option>
+		<option value="6000～9000">6000～9000</option>
+		<option value="9000～12000">9000～12000</option>
+		<option value="12000～15000">12000～15000</option>
+		<option value="15000～20000">15000～20000</option>
+		<option value="20000以上">20000以上</option>
+      </select>
+      元 （注：0表示面议，按新法规建议您输入固定值或者选择薪资范围。） </td>
+    </tr>
+  
+  <tr>
+    <td align="right"> <font 
+color="#ff6600">＊</font>截止日期：</td>
+    <td><input type="text" name="foundate" value="<%=hire_enddate%>" id="foundate" size="10" maxlength="10" onClick="showcalendar(event, this)" readonly /></td>
+    </tr>
+  <tr>
+    <td align="right"><font 
+color="#ff6600">＊</font>具体要求：</td>
+    <td><textarea class="FieldText" id="introduce" style="FONT-SIZE: 12px" name="introduce" rows="10" cols="70"><%=ChangeStrbox(hire_introduce)%></textarea>
+言简意赅地阐述职位具体要求。</td>
+  </tr>
+  <tr>
+    <td colspan="2" class="tdcolor">对应聘者要求</td>
+  </tr>
+  <tr>
+    <td align="right">人才类型：      </td>
+    <td><input id="usergroup" type="radio" value="0" name="usergroup" <%if hire_usergroup="" or isnull(hire_usergroup) or hire_usergroup=0 then response.write "checked" end if%> />
+      普通
+        <input id="usergroup" type="radio" value="1" name="usergroup" <%if hire_usergroup=1 then response.write "checked" end if%> />
+        毕业生
+        <input id="usergroup" type="radio" value="2" name="usergroup" <%if hire_usergroup=2 then response.write "checked" end if%> />
+        高级人才</td>
+    </tr>
+<!--  <tr>
+    <td align="right">专业要求：</td>
+    <td style="padding:4px 0;"><input type="hidden" name="profession" id="profession" value="<%=hire_profession%>" ><input name="professions" type="text" onClick="JumpSearchLayer(3,'form2','profession','professions');" <%if hire_id="" then%>value="选择专业要求"<%else%>value="<%=ProfessionName(hire_profession)%>"<%end if%> size="60" readonly /></td>
+    </tr>-->
+  <tr>
+    <td align="right">学&nbsp; &nbsp;&nbsp;历：</td>
+    <td>
+<select name="edu">
+<option value="0" selected>不限</option>
+<%Set rs= Server.CreateObject("ADODB.RecordSet")
+sql="select edu_id,edu_name from job_edu order by edu_id desc"
+rs.open sql,conn,1,1
+do while not rs.eof
+if hire_edu=rs("edu_id") then
+response.write"<OPTION value="&rs("edu_id")&" selected>"&rs("edu_name")&"</option>"
+else
+response.write"<OPTION value="&rs("edu_id")&">"&rs("edu_name")&"</option>"
+end if
+rs.movenext
+loop
+rs.close
+set rs=nothing
+%>
+</select>或以上</td>
+  </tr>
+  <tr>
+    <td align="right">工作经验：</td>
+    <td>
+<select name=experience size=1 id="select21">
+<option value=-100 selected>不限</option>
+<option value=-1 <%if hire_experience=-1 then response.write "selected" end if%>>在读学生</option>
+<option value=0 <%if hire_experience=0 then response.write "selected" end if%>>毕业生</option>
+<%
+for i=1 to 10
+if hire_experience=i then
+response.write "<option value='"&i&"' selected>"&i&"年</option>"
+else
+response.write "<option value='"&i&"'>"&i&"年</option>"
+end if
+next
+%>
+</select>或以上</td>
+  </tr>
+  <tr>
+    <td align="right">性&nbsp;&nbsp;&nbsp;&nbsp;别：</td>
+    <td>
+<SELECT name=sex size=1>
+<OPTION value=0 selected>不限</OPTION>
+<OPTION value=1 <%if hire_sex=1 then response.write "selected" end if%>>男性</OPTION>
+<OPTION value=2 <%if hire_sex=2 then response.write "selected" end if%>>女性</OPTION>
+</SELECT></td>
+  </tr>
+  <tr>
+    <td align="right">年&nbsp;&nbsp;&nbsp; 龄：</td>
+    <td>
+<SELECT name=age1 size=1 id="age1">
+<OPTION value=0 selected>不限</OPTION>
+<%
+for i=16 to 60
+if hire_age1=i then
+response.write "<option value='"&i&"' selected>"&i&"</option>"
+else
+response.write "<option value='"&i&"'>"&i&"</option>"
+end if
+next
+%>
+</SELECT>
+至
+<SELECT name=age2 size=1 id="select2">
+<OPTION value=0 selected>不限</OPTION>
+<%
+for i=16 to 60
+if hire_age2=i then
+response.write "<option value='"&i&"' selected>"&i&"</option>"
+else
+response.write "<option value='"&i&"'>"&i&"</option>"
+end if
+next
+%>
+</SELECT></td>
+  </tr>
+  <tr>
+    <td colspan="2" class="tdcolor">公司联系方式 
+      <input type="checkbox" name="checkbox" onclick="javascript:shows();" value="checkbox" />
+      (更改公司信息)</td>
+  </tr>
+  <tr id="cominfo" style="display:none;">
+  	<td colspan="2" style="padding:2px 0;">
+  		<table width="100%" border="0" cellspacing="0" cellpadding="0">
+			<tr>
+				<td align="right" width="11%"><font 
+			color="#ff6600">＊</font>公司名称：</td>
+				<td><input name="comname" type="text" id="comname" value="<%=hire_name%>" size="38" maxlength="50" readonly /></td>
+		    </tr>
+			  <tr>
+				<td align="right">通讯地址：</td>
+				<td><input name="address" type="text" size="38" maxlength="50" value="<%=hire_address%>" /></td>
+			  </tr>
+			  <tr>
+				<td align="right">邮&nbsp;&nbsp;&nbsp; 编：</td>
+				<td><input name="post" id="post" size="6" maxlength="6" value="<%=hire_post%>" /></td>
+			  </tr>
+			  <tr>
+				<td align="right"><font 
+			color="#ff6600">＊</font>联 系 人：</td>
+				<td><input name="contact" id="contact" size="28" maxlength="25" value="<%=hire_contact%>" /></td>
+			  </tr>
+			  <tr>
+				<td align="right"><font 
+			color="#ff6600">＊</font>联系电话：</td>
+				<td>
+			<input name="tel" type="text" id="tel" size="38" maxlength="100" value="<%=hire_tel%>" />
+			 <br />
+			<INPUT id=telshowflag type=checkbox value=0 name=telshowflag <%if hire_telshowflag=0 then response.write "checked" end if%>>
+			<font color="#000000">合则约见，谢绝来电（如果您不想告知求职者联系电话，请选择此项，系统将隐藏您的联系电话。）</font></td>
+			  </tr>
+				<tr>
+				<td align="right"><font color="#ff6600">＊</font>手机号码：</td>
+				<td><input name="mobile" type="text" id="mobile" size="38" maxlength="100" value="<%=hire_mobile%>" />
+			格式：11位数字<br />
+			<input id="mobileshowflag" type="checkbox" value="0" name="mobileshowflag" <%if hire_mobileshowflag=0 then response.write "checked" end if%> />
+			屏蔽手机号码  <font color="#ff7800">(联系电话与手机(前面无需加0)，至少填写一项)</font></td>
+			  </tr>
+			  <tr>
+				<td align="right">传&nbsp;&nbsp;&nbsp; 真：</td>
+				<td><input name="fax" type="text" id="fax" size="38" maxlength="100" value="<%=hire_fax%>" /></td>
+			  </tr>
+			  <tr>
+				<td align="right"><font 
+			color="#ff6600">＊</font>电子邮件：</td>
+				<td><input maxlength="100" size="38" name="email" value="<%=hire_email%>" />
+				  <br />
+				  <INPUT name=emailshowflag type=checkbox id="emailshowflag" value=0 <%if hire_emailshowflag=0 then response.write "checked" end if%>>
+			屏蔽电子邮件 （求职者看不到电子邮箱地址，但仍能在线发送简历到该职位的电子邮箱，这样可以在不公开你邮箱地址的同时仍然可以进行招聘。）</td>
+			  </tr>
+		  </table>
+
+  	</td>
+  </tr>
+  <tr>
+    <td colspan="2"> &nbsp;
+       <input name="Submit6" type="submit" class="inputs" value="发 布" />
+    &nbsp;
+    <input name="Reset" type="reset" class="inputs" value="取 消" /></td>
+  </tr>
+</form>
+</table>
+</form>
+<%End Sub%></div>
+<%
+conn.close:set conn=nothing%>
+<script language="javascript" src="<%=InstallDir%>js/jobjss.js"></script>
+<%Sub SaveData()
+hire_place=CheckStr(trim(request("place")))
+If hire_place="" or isnull(hire_place) Then 
+	response.write "<script language=javascript>alert('职位名称不能为空，请重新输入！');location.href='javascript:history.back()';</script>"
+	response.end 
+end if
+hire_dept=CheckStr(trim(request("dept")))
+set rs=server.createobject("ADODB.Recordset")
+if request("id")="" then
+	sql="select hire_place from job_c_hire where hire_place='"&hire_place&"' and hire_dept='"&hire_dept&"' and hire_cmember='"&cmember_login&"'"
+else
+	hire_id=clng(trim(request("id")))
+	sql="select hire_place from job_c_hire where hire_place='"&hire_place&"' and hire_dept='"&hire_dept&"' and hire_cmember='"&cmember_login&"' and hire_id<>"&hire_id&""
+end if
+rs.open sql,conn,1,1
+if not rs.eof then
+	rs.close
+	set rs=nothing
+	Response.Write ("<script language=JavaScript>{alert('该职位您已经发布过了！同一部门的同一职位不允许重复发布。');location.href = 'javascript:history.go(-1)';}</script>")
+	Response.End
+end if
+hire_introduce=CheckStrbox(request("introduce"))
+If lenmix(hire_introduce)>=8000 Then
+	response.write "<script language=javascript>alert('错误：详细说明太长了，要求不多于8000个字符!！');location.href='javascript:history.back()';</script>"
+	response.end 
+end if
+hire_type=cint(trim(request("type")))
+if request("trade")<>"" then hire_trade=cint(trim(request("trade")))
+hire_position=trim(request("position"))
+hire_workadd=trim(request("workadd"))
+hire_number=cint(trim(request("number")))
+if request("pay")<>"" then
+	if IsNumeric(trim(request("pay"))) then
+	hire_pay=trim(request("pay"))
+	else
+		Select Case trim(request("pay"))
+		case "800以下":hire_pay=1
+		case "800～1000":hire_pay=2
+		case "1000～1200":hire_pay=3
+		case "1200～1500":hire_pay=4
+		case "1500～2000":hire_pay=5
+		case "2000～2500":hire_pay=6
+		case "2500～3000":hire_pay=7
+		case "3000～4000":hire_pay=8
+		case "4000～6000":hire_pay=9
+		case "6000～9000":hire_pay=10
+		case "9000～12000":hire_pay=11
+		case "12000～15000":hire_pay=12
+		case "15000～20000":hire_pay=13
+		case "20000以上":hire_pay=14
+		case else
+		response.Write "<script language=javascript>alert('错误：薪资待遇请输入固定数字！');location.href='javascript:history.back()';</script>"
+response.End()
+		end select
+	end if
+else
+response.Write "<script language=javascript>alert('请输入固定薪资或者选择薪资范围！');location.href='javascript:history.back()';</script>"
+response.End()
+end if
+if request("pay")<>"" and IsNumeric(request("pay")) then hire_pay=request("pay")
+hire_enddate=cdate(request("foundate"))
+if hire_enddate<date() then
+	response.Write "<script language=javascript>alert('你输入的截止日期小于今天,请返回修改！');location.href='javascript:history.back()';</script>"
+	response.End()
+end if
+hire_usergroup=cint(trim(request("usergroup")))
+hire_profession=trim(request("profession"))
+hire_edu=cint(trim(request("edu")))
+hire_experience=cint(trim(request("experience")))
+hire_sex=cint(trim(request("sex")))
+hire_age1=cint(trim(request("age1")))
+hire_age2=cint(trim(request("age2")))
+hire_comname=CheckStr(trim(request("comname")))
+hire_address=CheckStr(trim(request("address")))
+hire_post=CheckStr(trim(request("post")))
+hire_contact=CheckStr(trim(request("contact")))
+hire_tel=trim(request("tel"))
+if trim(request("telshowflag"))<>"" then
+	hire_telshowflag=cint(trim(request("telshowflag")))
+else
+	hire_telshowflag=1
+end if
+hire_fax=trim(request("fax"))
+hire_email=CheckStr(trim(request("email")))
+if trim(request("emailshowflag"))<>"" then
+	hire_emailshowflag=cint(trim(request("emailshowflag")))
+else
+	hire_emailshowflag=1
+end if
+hire_mobile=CheckStr(trim(request("mobile")))
+if trim(request("mobileshowflag"))<>"" then
+	hire_mobileshowflag=cint(trim(request("mobileshowflag")))
+else
+	hire_mobileshowflag=1
+end if
+if trim(request("resetcontactinfo"))<>"" then '同步更新
+	resetcontactinfo=cint(trim(request("resetcontactinfo")))
+else
+	resetcontactinfo=0
+end if
+set rsw=conn.execute("select * from job_member where member_login='"&cmember_login&"'")
+company_id=rsw("member_id")
+company_hirenums=rsw("Member_hirenums")
+rsw.close
+set rsw=nothing
+'添加招聘信息
+set rs=server.CreateObject("adodb.recordset")
+if hire_id<>"" then
+	Call HireContentDelHtml(hire_id)'删除已生成的文件
+	sql="select * from job_c_hire where hire_cmember='"&cmember_login&"' and hire_place='"&hire_place&"' and hire_id="&hire_id&""
+	rs.open sql,conn,1,3
+	if not rs.eof then
+	company_id=rs("company_id") '取得会员ID 用于生成
+	rs("hire_type")=hire_type
+	rs("hire_trade")=hire_trade
+	rs("hire_position")=hire_position
+	rs("hire_place")=hire_place
+	rs("hire_dept")=hire_dept
+	rs("hire_workadd")=hire_workadd
+	rs("hire_number")=hire_number
+	rs("hire_pay")=hire_pay
+	rs("hire_enddate")=hire_enddate
+	rs("hire_introduce")=hire_introduce
+	rs("hire_usergroup")=hire_usergroup
+	rs("hire_profession")=hire_profession
+	rs("hire_edu")=hire_edu
+	rs("hire_experience")=hire_experience
+	rs("hire_sex")=hire_sex
+	rs("hire_age1")=hire_age1
+	rs("hire_age2")=hire_age2
+	rs("hire_comname")=hire_comname
+	rs("hire_address")=hire_address
+	rs("hire_post")=hire_post
+	rs("hire_contact")=hire_contact
+	rs("hire_tel")=hire_tel
+	rs("hire_telshowflag")=hire_telshowflag
+	rs("hire_fax")=hire_fax
+	rs("hire_email")=hire_email
+	rs("hire_emailshowflag")=hire_emailshowflag
+	rs("hire_announcedate")=now()
+	rs("hire_mobile")=hire_mobile
+	rs("hire_mobileshowflag")=hire_mobileshowflag
+	if AdminHirCheckReg=1 then
+	rs("hire_status")=0
+	else
+	rs("hire_status")=1
+	end if
+	rs.update
+	end if
+conn.execute("update JOB_Member set Member_activedate='"&now()&"' where Member_login='"&cmember_login&"'")
+else
+'企业可消费点数检测
+if CheckCFlag("Climits",1)=False then
+	if CheckCFlag("Cdianshus",0)=False then
+	response.write "<script language=javascript>alert('你的消费点数不够发布职位');location.href='javascript:history.back()';</script>"
+	Response.end()
+	end if
+end if
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+sql="select * from job_c_hire where hire_cmember='"&cmember_login&"' and hire_place='"&hire_place&"'"
+rs.open sql,conn,1,3
+	if rs.eof and rs.bof then
+		rs.addnew
+		rs("company_id")=company_id
+		rs("hire_type")=hire_type
+		rs("hire_trade")=hire_trade
+		rs("hire_position")=hire_position
+		rs("hire_place")=hire_place
+		rs("hire_dept")=hire_dept
+		rs("hire_workadd")=hire_workadd
+		rs("hire_number")=hire_number
+		rs("hire_pay")=hire_pay
+		rs("hire_enddate")=hire_enddate
+		rs("hire_introduce")=hire_introduce
+		rs("hire_usergroup")=hire_usergroup
+		rs("hire_profession")=hire_profession
+		rs("hire_edu")=hire_edu
+		rs("hire_experience")=hire_experience
+		rs("hire_sex")=hire_sex
+		rs("hire_age1")=hire_age1
+		rs("hire_age2")=hire_age2
+		rs("hire_comname")=hire_comname
+		rs("hire_address")=hire_address
+		rs("hire_post")=hire_post
+		rs("hire_contact")=hire_contact
+		rs("hire_tel")=hire_tel
+		rs("hire_telshowflag")=hire_telshowflag
+		rs("hire_fax")=hire_fax
+		rs("hire_email")=hire_email
+		rs("hire_emailshowflag")=hire_emailshowflag
+		rs("hire_receiveresume")=0
+		rs("hire_visitcount")=0
+		rs("hire_sendinterview")=0
+		rs("hire_command")=0
+		rs("hire_cmember")=cmember_login
+		rs("hire_announcedate")=now()
+		rs("hire_mobile")=hire_mobile
+		rs("hire_mobileshowflag")=hire_mobileshowflag
+		if AdminHirCheckReg=1 then
+		rs("hire_status")=0
+		else
+		rs("hire_status")=1
+		end if
+		rs.update
+		rs.close
+		set rs=nothing
+	end if
+	'更新发布职位的数量
+	if company_hirenums="" or isnull(company_hirenums) then
+		conn.execute("update JOB_Member set Member_hirenums=1,Member_activedate='"&now()&"' where member_login='"&cmember_login&"'")
+	else
+		if CheckCFlag("Climits",1)=False Or Group_Climits(1)=0 then
+			conn.execute("update JOB_Member set Member_hirenums=Member_hirenums+1,Member_activedate='"&now()&"' where member_login='"&cmember_login&"'")
+		else
+			conn.execute("update JOB_Member set Member_hirenums=Member_hirenums+1,Member_hirenum=Member_hirenum-1,Member_activedate='"&now()&"' where member_login='"&cmember_login&"'")
+		end if
+	end if
+end if
+'生成静态页面
+set rsuc=conn.execute("select * from JOB_Channel where ChannelID=2")
+	UseCreateHTML=rsuc("UseCreateHTML")
+set rsuc=nothing
+if  CreateHTML=1 and UseCreateHTML<>0 then
+	Call CompanyContentHtml(company_id) '生成企业页面
+	'Call HireListContentHtml(company_id) '生成企业职位列表页面
+	set rsh=conn.execute("select hire_id from JOB_C_hire where hire_cmember='"&cmember_login&"' and hire_place='"&hire_place&"'")
+	if not rsh.eof then
+	hire_id=rsh("hire_id")
+	Call HireContentHtml(hire_id) '生成职位页面
+	end if
+end if
+if CheckCFlag("Climits",1)=False then
+	if CheckCFlag("Cdianshus",0)=True then
+	set rsds=server.CreateObject("adodb.recordset")
+	sqlds="select Member_consumenums from JOB_member where member_login='"&cmember_login&"' and member_typeid=2"
+	rsds.open sqlds,conn,1,3
+	member_consumenums=rsds("member_consumenums")
+	rsds("member_consumenums")=clng(member_consumenums)-clng(Group_Climits(0))
+	rsds.update
+	rsds.close
+	lastmember_consumenums=clng(member_consumenums)-clng(Group_Climits(0))
+	response.write "<script language=javascript>alert('你的消费点数还剩"&lastmember_consumenums&"点,此次消费"&Group_Climits(0)&"点！');location.href='company_hirelist.asp';</script>"
+	response.end
+	end if
+else
+	Response.Write ("<script>if (confirm('操作成功，继续发布职位?')){window.location.href=""company_hirelist.asp?step=Addhire""}else{location.href='company_hirelist.asp'}</script>")
+	response.End()
+end if
+End Sub%>

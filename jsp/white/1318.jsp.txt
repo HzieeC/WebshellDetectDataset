@@ -1,0 +1,247 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<%@ page contentType="text/html;charset=GBK"%>
+<%@ page import="java.util.*"%>
+<%@ page import="com.trade.website.WebsiteInfo"%>
+<jsp:useBean id="tools" class="com.trade.commen.PageTools" scope="page" />
+<%
+	String iStart = "1";
+	if (request.getParameter("iStart") != null) {
+		iStart = request.getParameter("iStart");
+	}
+	int counter = 0,limit = 20;
+	String pageTools = "";
+	
+	WebsiteInfo websiteInfo = new WebsiteInfo();
+	ArrayList list = websiteInfo.getAllByPage(Integer.valueOf(iStart).intValue(),limit);
+	counter = websiteInfo.getAllByPage();
+
+	pageTools = tools.getGoogleToolsBar(counter,"index.jsp?iStart=", Integer.parseInt(iStart),limit);
+	
+%>
+<html>
+	<head>
+		<title>网站群管理</title>
+		<link href="/style/layout.css" rel="stylesheet" type="text/css">
+		<script src="/www/fuction/calendar.js" type="text/javascript"></script>
+		<script language="JavaScript" src="/www/fuction/public.js"></script>
+		<link rel="stylesheet" rev="stylesheet" href="/style/admin.css" type="text/css" />
+		<link rel="stylesheet" rev="stylesheet" href="/style/content.css" type="text/css" />
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/ChannelInfo.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+		<script language="JavaScript">	
+				  
+	   function EditAllNews(){
+				var size = document.getElementById('size').value;
+				if(document.getElementById('editAllcheck').checked){
+					for(var i=0;i<size;i++){
+							document.getElementById('web_id'+i).checked = true;
+					}
+				}else{
+					for(var i=0;i<size;i++){
+							document.getElementById('web_id'+i).checked = false;
+					}
+				}	
+				
+		 }
+			 
+		function EditSingleNews(){	
+		   
+				alert('该频道有下级，请先删除下级频道');											
+				return false;
+		}
+		
+		function DelNews(){
+				var size = document.getElementsByName('web_ids');
+				var all_news_id='';
+				for(var i=0;i<size.length;i++){
+					if(size[i].checked==true){
+						all_news_id += size[i].value+'|';
+					}
+				} 		
+				document.getElementById('web_id').value = all_news_id;			
+					    
+				if(all_news_id==''){
+					alert('请至少选择一条!');
+					return false;
+				} 
+				if( window.confirm( '确定要删除此信息？' ) )
+				{				    
+					document.chanelForm.action='/doTradeReg.do';
+					document.getElementById("trade_type_code").value="6221";					
+					document.chanelForm.submit();
+				} 
+		}
+	</script>
+</head>	
+   <body>
+	<div id="main">
+	 <form action="index.jsp" method="post" name="chanelForm" target="_self">
+	   <div id="contentfloat">
+		<div id="content">
+			<div class="right_title">
+			 网站群管理
+		    </div>
+		<br/>		
+		<table cellspacing="0" cellpadding="4" width="100%" align="center" border="0" class="delete_button">
+			 <tr>
+			  <td> 				
+				<input name="reload" type="button" value="删除" class="input_button" style="cursor:hand" onClick="return DelNews()"/> 
+			  </td> 			  
+			  <td width="74%" class="delete_right">					
+				 [总计<font class="huangse"><%=counter%></font>个]
+				 <input name="" type="button" value="新增" class="xz_button" style="cursor:hand;" onClick="location.href='addwebsite.jsp'"/>	  
+			  </td>			  		  
+			 </tr>
+		</table>
+		<table width="100%" border="0" align="center" cellpadding="0" cellspacing="0" style="background-color:#fff;">
+			<tr>
+			   <td colspan="5"  align="center">
+					<%=pageTools%>
+			   </td>				
+			</tr>
+		</table>
+		
+		<script language="javascript">
+			 
+			function getChData(data){
+				alert(11);
+				for(var i=0;i<data.length;i++){
+           			alert(data[i].ch_name);//this is ok
+        		}
+			}
+			
+	//选中，行则变色val为checkbox的id，num为行号
+	function checkColor(val1,val2){
+		var line = document.getElementById(val2);
+		if(document.getElementById(val1).checked){
+			line.bgColor = '#fdfbd5';
+		}else{
+			line.bgColor = '';
+		}
+	}
+			
+		</script>
+		
+		<%
+			int size=0; 
+			if (list != null && list.size() > 0) {
+		%>
+		<table  width="100%" cellpadding="4" align="center" cellspacing="1" border="0" class="table_title">		    
+			<tr  height="25">
+			    <th width="5%">
+				   <input name="editAllcheck" type="checkbox" id="editAllcheck" value="" onClick="return EditAllNews()" />
+				</th>				    									
+				<th width="65%" align="left">
+					<b>网站名称</b>
+				</th>
+				<th width="10%" align="left">
+					<b>状态</b>
+				</th>
+				<th width="10%" align="left">
+					<b>录入日期</b>
+				</th>				
+				<th width="10%" align="left">
+					<b>修改</b>
+				</th>
+		
+			</tr>
+			<%
+				String web_id = "", web_name = "", in_date = "", state_code = "";
+				
+				if (list != null && list.size() > 0) {
+				     size = list.size();
+					for (int i = 0; i < list.size(); i++) 
+					{
+						Hashtable map = (Hashtable) list.get(i);
+						if (map.get("web_id") != null) {web_id = map.get("web_id").toString();}
+						if (map.get("web_name") != null) {web_name = map.get("web_name").toString();}
+						if (map.get("in_date") != null) {in_date = map.get("in_date").toString();}
+						if(in_date.length()>10){
+							in_date = in_date.substring(0,10);
+						}
+						if (map.get("state_code") != null) {state_code = map.get("state_code").toString();}
+						
+						
+			%>
+						<tr id="tr<%=i%>" onmouseover="changeColor(this,1)"  onmouseout="changeColor(this,2)">						
+							<td>
+			  					<input type="checkbox" name="web_ids" id="web_id<%=i%>" value="<%=web_id%>"  style="cursor:hand;" />
+							</td>							
+
+							<td  align="left">
+								<%=web_name%>
+							</td>
+							<td  align="left">
+								<%
+									if(state_code.equals("0")){
+										out.println("启用");
+									}else{
+										 out.println("关闭");
+									}
+								%>
+							</td>
+							<td  align="left">
+								<%=in_date%>
+							</td>							
+							<td  align="left">
+								<a href="updatewebsite.jsp?web_id=<%=web_id%>" >
+								<img src="/trade/manager/images/edit.gif" width="16" height="16" border="0" alt="修改频道"></a>
+							</td>
+							
+						</tr>
+			<%
+			
+					}
+				}
+				
+			%>
+			
+		</table>
+		
+		<%}%>
+		
+		<%
+			if (list != null && list.size() > 0) {
+		%>	
+		<table width="100%" border="0" align="center" cellpadding="0" cellspacing="0" style="background-color:#fff;">
+			<tr>
+			   <td colspan="5"  align="center">
+					<%=pageTools%>
+			   </td>				
+			</tr>
+			
+		</table>
+		
+		<table cellspacing="0" cellpadding="4" width="100%" align="center" border="0" class="delete_button">
+			 <tr>
+			  <td> 				
+				<input name="reload" type="button" value="删除" class="input_button" style="cursor:hand" onClick="return DelNews()"/> 
+			  </td> 			  
+			  <td width="74%" class="delete_right">					
+				 [总计<font class="huangse"><%=counter%></font>个]
+				 <input name="" type="button" value="新增" class="xz_button" style="cursor:hand;" onClick="location.href='addwebsite.jsp'"/>	  
+			  </td>			  		  
+			 </tr>
+		</table>
+		<%}%>
+		<input type="hidden" name="web_id"  id="web_id" value=""/>
+		<input type="hidden" name="size"  id="size" value="<%=size%>"/>
+		<input type="hidden" name="trade_type_code"  id="trade_type_code" value=""/>
+	   </div>
+	  </div>
+    </form>
+  </div>
+  	<jsp:include page="/include/toparea.jsp"/>
+
+				<div id="loading" style="display:none; position:absolute;
+            border:10px solid orange; height:50px; width:450px; left: 20%; top: 50%;
+            background-color: #FFFFFF; cursor:pointer;" title="Click to hide" ></div>
+        <div id="resultDiv" style="display:none"></div>
+         <script type="text/javascript">             
+            var former = new AjaxFormer($('chanelForm'), 'resultDiv');  
+            
+        </script> 
+ </body>
+</html>

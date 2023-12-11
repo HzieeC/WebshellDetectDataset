@@ -1,0 +1,114 @@
+﻿<!--#include file="commond.asp" -->
+<!--#include file="include/function.asp" -->
+<!--#include file="include/library.asp" -->
+<%
+Dim log_Year,log_Month,log_Day,logID
+log_Year=CheckStr(Trim(Request.QueryString("log_Year")))
+log_Month=CheckStr(Trim(Request.QueryString("log_Month")))
+log_Day=CheckStr(Trim(Request.QueryString("log_Day")))
+logID=CheckStr(Trim(Request.QueryString("logID")))
+%><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<META http-equiv=Content-Type content="text/html; charset=utf-8">
+<title><%=siteName%>_Design by Colin</title>
+<META content="opeasy" name=Keywords>
+<META content="open easy,opration easy" name=Description>
+<LINK href="images/style.css" type=text/css rel=stylesheet>
+<script type="text/javascript" language="javascript" src="common.js"></script>
+
+</head>
+<body>
+<!--头部开始-->
+<!--#include file="header.asp" -->
+<!--主体开始-->
+<%
+Dim msg_Title,msg_Content
+IF Request.QueryString("action")="postcomm" Then
+	Dim blog_ID
+	blog_ID=Request.Form("blog_ID")
+	IF IsInteger(blog_ID)=False Then
+		msg_Title="出现错误"
+		msg_Content="<a href=""javascript:history.go(-1);"">参数出现错误，点击返回上一页</a>"
+	ElseIf (memStatus<>"SupAdmin") And DateDiff("s",Request.Cookies(CookieName)("memLastPost"),Now())<15 Then
+		msg_Title="出现错误"
+		msg_Content="<a href=""javascript:history.go(-1);"">你发表评论速度太快了，点击返回上一页</a>"
+	ElseIf Trim(Request.Form("validatecode"))=Empty Or Trim(Session("L-Blog_ValidateCode")&"1")<>Trim(Request.Form("validatecode")) Then
+		msg_Title="出现错误"
+		msg_Content="<a href=""javascript:history.go(-1);"">请输入发表评论按钮旁边的验证码框，点击返回上一页</a>"
+	Else
+		IF CheckStr(Request.Form("message"))=Empty OR CheckStr(Request.Form("comm_memName"))=Empty Then
+			msg_Title="出现错误"
+			msg_Content="<a href=""javascript:history.go(-1);"">请将必须信息填写完整，点击返回上一页</a>"
+		ElseIF Len(CheckStr(Request.Form("comm_memName")))>24 Then
+			msg_Title="出现错误"
+			msg_Content="<a href=""javascript:history.go(-1);"">用户名长度超过24个字符，12个汉字，点击返回上一页</a>"
+		ElseIF IsValidUserName(CheckStr(Request.Form("comm_memName")))=False Then
+			msg_Title="出现错误"
+			msg_Content="<a href=""javascript:history.go(-1);"">用户名中含有非法字符，点击返回上一页</a>"
+		Else
+			Dim comm_Content,comm_memName
+			comm_Content=HTMLEncode(CheckStr(Request.Form("message")))
+			comm_memName=CheckStr(Request.Form("comm_memName"))
+			Conn.ExeCute("INSERT INTO blog_Comment(blog_ID,comm_Content,comm_Author,comm_PostIP) VALUES ("&blog_ID&",'"&comm_Content&"','"&comm_memName&"','"&Guest_IP&"')")
+			
+			Application.Lock
+			Application.Contents(CookieName&"_blog_LastComm") = ""
+			Application.UnLock
+			Conn.ExeCute("UPDATE blog_Content SET log_CommNums=log_CommNums+1 WHERE log_ID="&blog_ID&"")
+			if memStatus<>"" then
+			Conn.ExeCute("UPDATE blog_Member SET mem_PostComms=mem_PostComms+1 WHERE mem_Name='"&comm_memName&"'")
+			end if
+			Conn.ExeCute("UPDATE blog_Info SET blog_CommNums=blog_CommNums+1")
+			Response.Cookies(CookieName)("memLastpost")=Now()
+			msg_Title="发表成功"
+			msg_Content="<a href='blogview.asp?logID="&blog_ID&"'>评论发表成功，点击返回，或者3秒后自动返回</a><meta http-equiv='refresh' content='3;url=blogview.asp?logID="&blog_ID&"'>"
+		End IF
+	End If
+'===========添加评论结束
+ElseIF Request.QueryString("action")="delecomm" Then
+	IF IsInteger(Request.QueryString("commID"))=False OR IsInteger(Request.QueryString("logID"))=False Then
+		msg_Title="出现错误"
+		msg_Content="<a href=""javascript:history.go(-1);"">参数出现错误，点击返回上一页</a>"
+	Else
+		Dim log_AuthorQuery
+		Set log_AuthorQuery=Conn.ExeCute("SELECT log_Author FROM blog_Content WHERE log_ID="&CheckStr(Request.QueryString("logID")))
+		
+		IF log_AuthorQuery.EOF AND log_AuthorQuery.BOF Then
+			msg_Title="出现错误"
+			msg_Content="<a href=""javascript:history.go(-1);"">参数出现错误，点击返回上一页</a>"
+		Else
+			IF Not (memStatus="SupAdmin" OR (memStatus="Admin" And memName=log_AuthorQuery(0))) Then
+				msg_Title="出现错误"
+				msg_Content="<a href=""javascript:history.go(-1);"">你没有权限删除评论，点击返回上一页</a>"
+			Else
+				Dim dele_Comm
+				Set dele_Comm=Conn.ExeCute("SELECT blog_ID,comm_Author FROM blog_Comment WHERE comm_ID="&CheckStr(Request.QueryString("commID")))
+				IF dele_Comm.EOF AND dele_Comm.BOF Then
+					msg_Title="出现错误"
+					msg_Content="<a href=""javascript:history.go(-1);"">没有找到指定评论，点击返回上一页</a>"
+				Else
+					Conn.ExeCute("UPDATE blog_Content SET log_CommNums=log_CommNums-1 WHERE log_ID="&dele_Comm("blog_ID"))
+					Conn.ExeCute("UPDATE blog_Info SET blog_CommNums=blog_CommNums-1")
+					Conn.ExeCute("UPDATE blog_Member SET mem_PostComms=mem_PostComms-1 WHERE mem_Name='"&CheckStr(dele_Comm("comm_Author"))&"'")
+					Conn.Execute("DELETE * FROM blog_Comment WHERE comm_ID="&CheckStr(Request.QueryString("commID")))
+					Application.Lock
+					Application.Contents(CookieName&"_blog_LastComm") = ""
+					Application.UnLock
+					msg_Title="删除成功"
+					msg_Content="<a href='blogview.asp?logID="&CheckStr(Request.QueryString("logID"))&"'>评论删除成功，点击返回</a>"
+				End IF
+				Set dele_Comm=Nothing
+			End IF
+		End IF
+		Set log_AuthorQuery=Nothing
+	End IF
+End IF%>
+<div id="item">
+	<div class="msgtop"><%=msg_Title%></div>
+	<div class="msg"><%=msg_Content%></div>
+</div>
+<!--footer-->
+<!--#include file="footer.asp" -->
+</body>
+</html>

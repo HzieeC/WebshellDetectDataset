@@ -1,0 +1,2261 @@
+<!--#include file="const.asp"-->
+<!--#include file="../inc/cls_xmlhttp.asp"-->
+<!--#include file="collection.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_collection.asp
+' 更新日期：2008-07-16
+' 官方网站：新云网络(www.newasp.net www.newasp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 newasp.net - All Rights Reserved.
+' newasp is a trademark of newasp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="200" align="left"><%=NewAsp.ModuleName%>采集管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_collection.asp?ChannelID=<%=ChannelID%>">管理首页</a>
+			 - <a href="admin_collection.asp?ChannelID=<%=ChannelID%>&action=setting"><font color="red">采集基本设置</font></a>
+			 - <a href="admin_log.asp?ChannelID=<%=ChannelID%>">采集日志</a>
+			 - <a href="?ChannelID=<%=ChannelID%>&action=new">新建采集项目</a>
+			 - <a href="admin_list.asp?ChannelID=<%=ChannelID%>"><%=NewAsp.ModuleName%>管理</a>
+			 - <a href="../sys/admin_channel.asp?action=edit&ChannelID=<%=ChannelID%>">频道设置</a>
+			 - <a href="../sys/admin_class.asp?ChannelID=<%=ChannelID%>">分类管理</a>
+			 - <a href="../sys/admin_template.asp">模板管理</a>
+		</td>
+	</tr>
+</table>
+<%
+Dim Action,IsEdit
+Dim maxperpage,totalrec,Pcount,pagelinks,pagenow,count,TopicItem
+
+IsEdit=True:maxperpage=30
+ItemID=NewAsp.ChkNumeric(Request("ItemID"))
+ListID=NewAsp.ChkNumeric(Request("ListID"))
+InfoID=NewAsp.ChkNumeric(Request("InfoID"))
+DownID=NewAsp.ChkNumeric(Request("DownID"))
+showcode=NewAsp.ChkNumeric(Request("showcode"))
+
+If Not ChkAdmin("Collection_"&ChannelID) Then
+	Call Transfer_error()
+End If
+
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+	Case "del"		:	Call delitem()
+	Case "saveset"	:	Call saveSetting()
+	Case "setting"	:	Call CollectionSetting()
+	Case "edit"		:	Call edititem()
+	Case "new"
+		IsEdit=False
+		Call edititem()
+	Case "step2"	:	Call editstep2()
+	Case "step3"	:	Call editstep3()
+	Case "step4"	:	Call editstep4()
+	Case "source"	:	Call showReplaceSource()
+	Case "savecode"	:	Call saveReplaceSource()
+	Case "begin"	:	Call BeginCollection()
+	Case "demo"
+		showcode=1
+		Call editstep4()
+	Case Else
+		Call showmain
+End Select
+If FoundErr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+NewAsp.PageEnd
+
+Sub showmain()
+	Dim i,iCount,lCount
+	i=0:iCount=2:lCount=2
+	count=NewAsp.ChkNumeric(Request("count"))
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+%>
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th width="25%" align="center">项目名称</th><th>状态</th><th>采集时间</th><th>编辑</th><th>采集</th><th>日志</th><th>删除</th>
+</tr>
+<%
+	Call showTopicItem()
+	If IsArray(TopicItem) Then
+		For i=0 To Ubound(TopicItem,2)
+			If Not Response.IsClientConnected Then Response.End
+			If (i mod 2) = 0 Then
+				iCount=1:lCount=2
+			Else
+				iCount=2:lCount=1
+			End If
+%>
+<tr align="center">
+	<td class="tablerow<%=iCount%> hovered"><a href="javascript:" onclick="window.open('<%=TopicItem(2,i)%>')" title="点击打开目标网站"><%=TopicItem(1,i)%></a></td>
+	<td class="tablerow<%=iCount%> hovered">
+	<%
+	If TopicItem(6,i) = 0 Then
+		Response.Write "<font color=""blue""><b>√</b></font>"
+	Else
+		Response.Write "<font color=""red""><b>×</b></font>"
+	End If
+	%>
+	</td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap"><%=showDateTime(TopicItem(7,i),"yyyy-MM-dd hh:mm:ss")%></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap"><a href="?action=edit&ChannelID=<%=ChannelID%>&itemid=<%=TopicItem(0,i)%>">编辑项目</a></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap"><a href="?action=begin&ChannelID=<%=ChannelID%>&itemid=<%=TopicItem(0,i)%>">开始采集</a></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap"><a href="admin_log.asp?ChannelID=<%=ChannelID%>&itemid=<%=TopicItem(0,i)%>">采集日志</a></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap"><a href="?action=del&ChannelID=<%=ChannelID%>&itemid=<%=TopicItem(0,i)%>" onclick="return confirm('采集项目删除后将不能恢复，您确定要删除吗?')">删除项目</a></td>
+</tr>
+<%
+		Next
+	End If
+	TopicItem=Null
+%>
+<tr>
+	<td class="tablerow<%=lCount%>" align="right" colspan="7" id="NextPageText">
+	<var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+<tr>
+	<td colspan="7" class="tablerow<%=iCount%>">
+	<ol>
+		<li>第一次使用本功能，请修改<font color="red">采集基本设置</font>。</li>
+		<li>采集前请<font color="blue">编辑</font>采集项目，选择正确的分类或下载服务器，然后<font color="blue">演示</font>项目确定无误后再进行采集。</li>
+		<li>注意：新建的采集项目不要轻易删除，因为你可以修改采集项目和项目模板。</li>
+	</ol>
+	</td>
+</tr>
+</table>
+<%
+End Sub
+
+Sub showTopicItem()
+	Dim Rs,SQL
+	If count=0 Then
+		totalrec=cmHttp.Execute("SELECT COUNT(*) FROM NC_SoftItem WHERE ChannelID="&ChannelID)(0)
+	Else
+		totalrec=count
+	End If
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT ItemID,ItemName,SiteUrl,ChannelID,ClassID,SpecialID,StopItem,lastime,RemoteListUrl FROM [NC_SoftItem] WHERE ChannelID=" & ChannelID & " ORDER BY lastime DESC,ItemID DESC"
+	Rs.Open SQL,CJ_Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		TopicItem=Rs.GetRows(maxperpage)
+	Else
+		TopicItem=Null
+	End If
+	Rs.close()
+	Set Rs=Nothing
+	pagelinks="admin_collection.asp?channelid="& ChannelID &"&count="&totalrec&"&"
+End Sub
+
+Sub edititem()
+	Dim Rs,SQL,RsObj,i,ArrayRetuneClass
+	Dim ArrayRemoveCode,strArrayRemove
+	If ItemID=0 Then IsEdit=False
+	If isEdit Then
+		Set Rs = cmHttp.Execute("SELECT * FROM NC_SoftItem WHERE ChannelID=" & ChannelID & " And ItemID=" & ItemID)
+		If Rs.BOF And Rs.EOF Then
+			Set Rs = Nothing
+			OutErrors ("错误的系统参数!")
+			Exit Sub
+		End If
+		ItemTitle = "编辑采集项目 第一步"
+		downid = Rs("downid")
+		classid = Rs("classid")
+		listid = Rs("listid")
+		ArrayRemoveCode = Split(Rs("RemoveCode"), "|")
+	Else
+		ItemID = 0
+		downid = 0
+		classid = 0
+		ItemTitle = "添加新的采集项目"
+	End If
+%>
+<script language="javascript" src="../script/gatherer.js"></script>
+<form name="myform" method="post" action="admin_collection.asp" onSubmit="return CheckForm()">
+<input type="hidden" name="ChannelID" value="<%=ChannelID%>"/>
+<input type="hidden" name="action" value="step2"/>
+<input type="hidden" name="ItemID" value="<%=ItemID%>"/>
+<input type="hidden" name="change" value="yes"/>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2"><%=ItemTitle%></th>
+</tr>
+<%If isEdit Then Call SettingStep(ItemID)%>
+<tr>
+	<td class="tablerow2" align="right" width="25%"><u>项目名称</u>：</td>
+	<td class="tablerow2"><input name="ItemName" type="text" id="ItemName" size="45" value="<%If isEdit Then Response.Write Server.HTMLEncode(Rs("ItemName")) Else Response.Write "我的采集项目"%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>目标站点URL</u>：</td>
+	<td class="tablerow1"><input name="SiteUrl" type="text" id="SiteUrl" size="45" value="<%If isEdit Then Response.Write Server.HTMLEncode(Rs("SiteUrl")) Else Response.Write "http://"%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>所属分类</u>：</td>
+	<td class="tablerow2">
+<%
+	Call selectClasslist(ChannelID,classid)
+%>
+	</td>
+</tr>
+<tr>
+	<td nowrap class="tablerow1" align="right"><u>所属专题</u>：</td>
+	<td class="tablerow1"><%
+	Response.Write "<select name=""specialid"" id=""specialid"">" & vbNewLine
+	Response.Write "<option value=""0"">不指定" & NewAsp.ModuleName & "专题</option>" & vbNewLine
+	Set RsObj = NewAsp.Execute("SELECT SpecialID,SpecialName FROM NC_Special WHERE ChannelID="& ChannelID &" And ChangeLink=0 ORDER BY orders")
+	Do While Not RsObj.EOF
+		Response.Write Chr(9) & Chr(9) & "<option value=""" & RsObj("SpecialID") & """"
+		If isEdit Then
+			If Rs("SpecialID") = RsObj("SpecialID") Then Response.Write " selected"
+		End If
+		Response.Write ">"
+		Response.Write RsObj("SpecialName")
+		Response.Write "</option>" & vbCrLf
+		RsObj.movenext
+	Loop
+	Set RsObj = Nothing
+%>
+          </select></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>是否关闭采集项目</u>：</td>
+	<td class="tablerow2">
+<%
+	Response.Write "    <input name=""StopItem"" type=""radio"" value=""0"""
+	If isEdit Then
+		If Rs("StopItem") = 0 Then Response.Write " checked"
+	Else
+		Response.Write " checked"
+	End If
+	Response.Write "> 打开&nbsp;&nbsp;　" & vbCrLf
+	Response.Write "      <input type=""radio"" name=""StopItem"" value=""1"""
+	If isEdit Then
+		If Rs("StopItem") > 0 Then Response.Write " checked"
+	End If
+	Response.Write "> 关闭 " & vbCrLf
+%>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>目标网站编码</u>：</td>
+	<td class="tablerow1"><input name="Encoding" type="text" id="Encoding" size="15" value="<%If isEdit Then Response.Write Server.HTMLEncode(Rs("Encoding")) Else Response.Write "GB2312"%>"/>
+	<span class="style2">请选择编码→</span><select name="selEncoding" size="1" onChange="document.myform.Encoding.value=this.options[this.options.selectedIndex].value;">
+		<option>请选择编码</option>
+		<option value="GB2312">GB2312编码</option>
+		<option value="UTF-8">UTF-8编码</option>
+		<option value="GBK">GBK编码</option>
+		<option value="GB2312">ISO-8859-1编码</option>
+		<option value="BIG5">BIG5编码</option>
+	</select></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>是否下载软件到本地：</u></td>
+	<td class="tablerow2">
+<%
+	Response.Write "    <input name=""IsDown"" type=""radio"" value=""0"""
+	If isEdit Then
+		If Rs("IsDown") = 0 Then Response.Write " checked"
+	Else
+		Response.Write " checked"
+	End If
+	Response.Write "> 否&nbsp;&nbsp;" & vbCrLf
+	Response.Write "      <input type=""radio"" name=""IsDown"" value=""1"""
+	If isEdit Then
+		If Rs("IsDown") = 1 Then Response.Write " checked"
+	End If
+	Response.Write "> 是&nbsp;&nbsp;" & vbCrLf
+	Response.Write "      <input type=""radio"" name=""IsDown"" value=""2"""
+	If isEdit Then
+		If Rs("IsDown") > 1 Then Response.Write " checked"
+	End If
+	Response.Write "> 只下载图片 " & vbCrLf
+%>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>选择下载服务器</u>：</td>
+	<td class="tablerow1"><%
+	Call SelDownServer (downid)
+	%></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>获取最多下载地址数</u>：</td>
+	<td class="tablerow2"><input name="MaxAddress" type="text" id="MaxAddress" size="10" value="<%If isEdit Then Response.Write Rs("MaxAddress") Else Response.Write "0"%>"/>
+	&nbsp;&nbsp;<font color="blue">* 如果文件下载到本地，这里是下载地址序号，0-9。</font></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>是否自动归类：</u>：</td>
+	<td class="tablerow1">
+<%
+	Response.Write "    <input name=""AutoClass"" type=""radio"" value=""0"""
+	If isEdit Then
+		If Rs("AutoClass") = 0 Then Response.Write " checked"
+	Else
+		Response.Write " checked"
+	End If
+	Response.Write " onClick=""document.getElementById('RetuneClassID').style.display='none';""> 否&nbsp;&nbsp;" & vbCrLf
+	Response.Write "      <input type=""radio"" name=""AutoClass"" value=""1"""
+	If isEdit Then
+		If Rs("AutoClass") = 1 Then Response.Write " checked"
+	End If
+	Response.Write " onClick=""document.getElementById('RetuneClassID').style.display='';""> 是&nbsp;&nbsp;" & vbCrLf
+	Response.Write "      <input type=""radio"" name=""AutoClass"" value=""2"""
+	If isEdit Then
+		If Rs("AutoClass") = 2 Then Response.Write " checked"
+	End If
+	Response.Write " onClick=""document.getElementById('RetuneClassID').style.display='';""> 忽略父分类</td>" & vbCrLf ' disabled
+	Response.Write "  </tr>" & vbCrLf
+	Response.Write "  <tr id=""RetuneClassID"""
+	If isEdit Then
+		If Rs("AutoClass") = 0 Then Response.Write " style=""display:none"""
+	Else
+		Response.Write " style=""display:none"""
+	End If
+	Response.Write ">" & vbCrLf
+%>
+	<td class="tablerow1" align="right"><u>分类替换操作</u>：</td>
+	<td class="tablerow1">
+<%
+	Response.Write "<table align=""left"" border=""0"" cellpadding=""3"" cellspacing=""0""><tr><td align=""left""><select name=""RetuneClass"" id=""RetuneClass"" style=""width:300px;height:100px"" size=""2"" ondblclick=""return ModifyCalss();"">" & vbCrLf
+	If isEdit Then
+		If Not IsNull(Rs("RetuneClass")) Then
+			ArrayRetuneClass = Split(Replace(Rs("RetuneClass"), "|||", "$$$"), "$$$")
+			For i = 0 To UBound(ArrayRetuneClass)
+				If Len(ArrayRetuneClass(i)) > 3 Then
+					Response.Write "      <option value=""" & ArrayRetuneClass(i) & """>" & ArrayRetuneClass(i) & "</option>" & vbCrLf
+				End If
+			Next
+
+		End If
+	End If
+	Response.Write "        " & vbCrLf
+	Response.Write "      </select></td><td>" & vbCrLf
+	Response.Write "      <input type=""button"" name=""addclass"" value=""添加替换分类"" class=""button"" onclick=""AddClass();""><br><br style=""overflow: hidden; line-height: 5px"">" & vbCrLf
+	Response.Write "      <input type=""button"" name=""modifyclass"" value=""修改当前分类"" class=""button"" onclick=""return ModifyClass();""><br><br style=""overflow: hidden; line-height: 5px"">" & vbCrLf
+	Response.Write "      <input type=""button"" name=""delclass"" value=""删除当前分类"" class=""button"" onclick=""DelClass();"">" & vbCrLf
+	Response.Write "      <input type=""hidden"" name=""ClassList"" id=""ClassList"" value="""">" & vbCrLf
+	Response.Write "        </td><tr></table>"
+%>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>日期路径格式</u>：</td>
+	<td class="tablerow2"><select name="PathForm" size="1" id="PathForm">
+<%
+	Dim y,m,d
+	y=Year(Now):m= Month(Now):d=Day(Now)
+	Response.Write "      <option value=""0"""
+	If isEdit Then
+		If Rs("PathForm") = 0 Then Response.Write " selected"
+	End If
+	Response.Write ">不使用日期目录</option>" & vbCrLf
+	Response.Write "      <option value=""1"""
+	If isEdit Then
+		If Rs("PathForm") = 1 Then Response.Write " selected"
+	Else
+		Response.Write " selected"
+	End If
+	Response.Write ">"&y&"-"&m&"</option>" & vbCrLf
+	Response.Write "      <option value=""2"""
+	If isEdit Then
+		If Rs("PathForm") = 2 Then Response.Write " selected"
+	End If
+	Response.Write ">"&y&"_"&m&"</option>" & vbCrLf
+	Response.Write "      <option value=""3"""
+	If isEdit Then
+		If Rs("PathForm") = 3 Then Response.Write " selected"
+	End If
+	Response.Write ">"&y&m&"</option>" & vbCrLf
+	Response.Write "      <option value=""4"""
+	If isEdit Then
+		If Rs("PathForm") = 4 Then Response.Write " selected"
+	End If
+	Response.Write ">"&y&"</option>" & vbCrLf
+	Response.Write "      <option value=""5"""
+	If isEdit Then
+		If Rs("PathForm") = 5 Then Response.Write " selected"
+	End If
+	Response.Write ">"&y&"/"&m&"</option>" & vbCrLf
+	Response.Write "      <option value=""6"""
+	If isEdit Then
+		If Rs("PathForm") = 6 Then Response.Write " selected"
+	End If
+	Response.Write ">"&y&"/"&m&"/"&d&"</option>" & vbCrLf
+	Response.Write "      <option value=""7"""
+	If isEdit Then
+		If Rs("PathForm") = 7 Then Response.Write " selected"
+	End If
+	Response.Write ">"&y&m&d&"</option>" & vbCrLf
+	Response.Write "      <option value=""8"""
+	If isEdit Then
+			If Rs("PathForm") = 8 Then Response.Write " selected"
+	End If
+	Response.Write ">分类目录名称+"&y&m&"</option>" & vbCrLf
+	Response.Write "      <option value=""9"""
+	If isEdit Then
+			If Rs("PathForm") = 9 Then Response.Write " selected"
+	End If
+	Response.Write ">分类目录名称</option>" & vbCrLf
+	Response.Write "      <option value=""99"""
+	If isEdit Then
+			If Rs("PathForm") = 99 Then Response.Write " selected"
+	End If
+	Response.Write ">--------</option>" & vbCrLf
+%>
+	</select></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>保存软件的路径</u>：</td>
+	<td class="tablerow1"><input name="SaveFilePath" type="text" id="SaveFilePath" size="45" value="<%If isEdit Then Response.Write Server.HTMLEncode(Rs("SaveFilePath")) Else Response.Write "/soft/UploadFile/"%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>是否自动更改文件名称</u>：</td>
+	<td class="tablerow2"><%
+	Response.Write "    <input name=""AutoRename"" type=""radio"" value=""0"""
+	If isEdit Then
+		If Rs("AutoRename") = 0 Then Response.Write " checked"
+	Else
+		Response.Write " checked"
+	End If
+	Response.Write "> 否&nbsp;&nbsp;" & vbCrLf
+	Response.Write "      <input type=""radio"" name=""AutoRename"" value=""1"""
+	If isEdit Then
+		If Rs("AutoRename") = 1 Then Response.Write " checked"
+	End If
+	Response.Write "> 是&nbsp;&nbsp;" & vbCrLf
+	Response.Write "      <input type=""radio"" name=""AutoRename"" value=""2"""
+	If isEdit Then
+		If Rs("AutoRename") = 2 Then Response.Write " checked"
+	End If
+	Response.Write "> 软件名称" & vbCrLf
+	%></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>是否显示为最新时间</u>：</td>
+	<td class="tablerow1"><%
+	Response.Write "    <input name=""IsNowTime"" type=""radio"" value=""0"""
+	If isEdit Then
+		If Rs("IsNowTime") = 0 Then Response.Write " checked"
+	Else
+		Response.Write " checked"
+	End If
+	Response.Write "> 否&nbsp;&nbsp;" & vbCrLf
+	Response.Write "      <input type=""radio"" name=""IsNowTime"" value=""1"""
+	If isEdit Then
+		If Rs("IsNowTime") > 0 Then Response.Write " checked"
+	End If
+	Response.Write "> 是" & vbCrLf
+	%></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>初始点击数</u>：</td>
+	<td class="tablerow2"><input name="AllHits" type="text" id="AllHits" size="10" value="<%If isEdit Then Response.Write Rs("AllHits") Else Response.Write "0"%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>软件星级</u>：</td>
+	<td class="tablerow1"><select name="star" size="1" id="star">
+	<option value="5"<%If isEdit Then : If Rs("star")=5 Then  Response.Write " selected" : End If%>>★★★★★</option>
+	<option value="4"<%If isEdit Then : If Rs("star")=4 Then  Response.Write " selected" : End If%>>★★★★</option>
+	<option value="3"<%If isEdit Then : If Rs("star")=3 Then  Response.Write " selected" : End If : Else Response.Write " selected"%>>★★★</option>
+	<option value="2"<%If isEdit Then : If Rs("star")=2 Then  Response.Write " selected" : End If%>>★★</option>
+	<option value="1"<%If isEdit Then : If Rs("star")=1 Then  Response.Write " selected" : End If%>>★</option>
+	<option value="0"<%If isEdit Then : If Rs("star")=0 Then  Response.Write " selected" : End If%>>自动星级</option>
+	</select></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>简介过滤设置</u>：</td>
+	<td class="tablerow2"><%
+	strArrayRemove=Array("SCRIPT","IFARME","OBJECT","APPLET","DIV","FONT","SPAN","A","IMG","FORM","HTML","TABLE","TR","TD","TH")
+	For i=0 To UBound(strArrayRemove)
+		Response.Write "      <input name=""RemoveCode"&i&""" type=""checkbox"" value=""1"""
+		If isEdit Then
+			If NewAsp.ChkNumeric(ArrayRemoveCode(i)) = 1 Then Response.Write " checked"
+		Else
+			If i<4 Then Response.Write " checked"
+		End If
+		Response.Write ">"
+		Response.Write strArrayRemove(i) &"&nbsp;&nbsp;"& vbCrLf
+		If i=6 Then Response.Write "<br/>"
+	Next
+
+	%></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>远程列表URL</u>：</td>
+	<td class="tablerow1"><input name="RemoteListUrl" type="text" id="RemoteListUrl" size="70" value="<%If isEdit Then Response.Write Rs("RemoteListUrl")%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>列表是否分页采集</u>：</td>
+	<td class="tablerow2"><%
+	Response.Write "    <input name=""IsPagination"" type=""radio"" value=""0"""
+	If isEdit Then
+		If Rs("IsPagination") = 0 Then Response.Write " checked"
+	Else
+		Response.Write " checked"
+	End If
+	Response.Write " onClick=""document.getElementById('Pageinate1').style.display='none';document.getElementById('Pageinate2').style.display='none';""> 否&nbsp;&nbsp;" & vbCrLf
+	Response.Write "      <input type=""radio"" name=""IsPagination"" value=""1"""
+	If isEdit Then
+		If Rs("IsPagination") > 0 Then Response.Write " checked"
+	End If
+	Response.Write " onClick=""document.getElementById('Pageinate1').style.display='';document.getElementById('Pageinate2').style.display='';""> 是</td>" & vbCrLf
+	Response.Write "  </tr>" & vbCrLf
+	Response.Write "  <tr id=""Pageinate1"""
+	If isEdit Then
+		If Rs("IsPagination") = 0 Then Response.Write " style=""display:none;"""
+	Else
+		Response.Write " style=""display:none;"""
+	End If
+	Response.Write ">" & vbCrLf
+	%>
+	<td class="tablerow1" align="right"><u>远程列表分页URL</u>：</td>
+	<td class="tablerow1"><input name="PaginalList" type="text" id="PaginalList" size="70" value="<%If isEdit Then Response.Write Rs("PaginalList")%>"/></td>
+</tr>
+<%
+	Response.Write "  <tr id=""Pageinate2"""
+	If isEdit Then
+		If Rs("IsPagination") = 0 Then Response.Write " style=""display:none;"""
+	Else
+		Response.Write " style=""display:none;"""
+	End If
+	Response.Write ">" & vbCrLf
+%>
+	<td class="tablerow2" align="right"><u>远程列表起始页</u>：</td>
+	<td class="tablerow2">开始页：<input name="startid" type="text" id="startid" size="10" value="<%If isEdit Then Response.Write Rs("startid") Else Response.Write "1"%>"/>
+	- 结束页：<input name="lastid" type="text" id="lastid" size="10" value="<%If isEdit Then Response.Write Rs("lastid") Else Response.Write "2"%>"/>
+	&nbsp;&nbsp;<span class="style2">* 例如：1 - 9 或者 9 - 1</span>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>简介字符替换操作</u>：</td>
+	<td class="tablerow1"><%
+	Response.Write "    <table align=""left"" border=""0"" cellpadding=""3""><tr><td align=""left""><select name=""strReplace"" id=""strReplace"" style=""width:380px;height:100px"" size=""2"" ondblclick=""return ModifyReplace();"">" & vbCrLf
+
+	Dim strReplaceArray
+
+	If isEdit Then
+		If Not IsNull(Rs("strReplace")) Then
+			strReplaceArray = Split(Rs("strReplace"), "$$$")
+			For i = 0 To UBound(strReplaceArray)
+				If Len(strReplaceArray(i)) > 1 Then
+					Response.Write "      <option value=""" & strReplaceArray(i) & """>" & strReplaceArray(i) & "</option>" & vbCrLf
+				End If
+			Next
+
+		End If
+	End If
+	Response.Write "        " & vbCrLf
+	Response.Write "      </select></td><td>" & vbCrLf
+	Response.Write "      <input type=""button"" name=""addReplace"" value=""添加替换字符"" class=""button"" onclick=""AddReplace();""><br><br style=""overflow: hidden; line-height: 5px"">" & vbCrLf
+	Response.Write "      <input type=""button"" name=""modifyReplace"" value=""修改当前字符"" class=""button"" onclick=""return ModifyReplace();""><br><br style=""overflow: hidden; line-height: 5px"">" & vbCrLf
+	Response.Write "      <input type=""button"" name=""delReplace"" value=""删除当前字符"" class=""button"" onclick=""DelReplace();""><br>" & vbCrLf
+	Response.Write "      <input type=""hidden"" name=""ReplaceList"" id=""ReplaceList"" value="""">" & vbCrLf
+	Response.Write "      </td><tr></table>" & vbCrLf
+	%></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>选择列表采集设置模板</u>：</td>
+	<td class="tablerow2"><%
+	Call TPL_selectList(ChannelID,listid)
+	%><input type="hidden" name="ListTitle" id="ListTitle" value=""/></td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="2" align="center"><input type="button" name="go_button" onclick="javascript:history.go(-1)" value="返回上一页" class="button">&nbsp;&nbsp;
+	<input type="submit" value="保存下一步" name="submit_button" id="submit_button" class="button">&nbsp;&nbsp;
+	<input name="showcode" type="checkbox" value="1" /> 显示源码
+	</td>
+</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub editstep2()
+	Dim Rs
+	If Trim(Request("change")) = "yes" Then
+		Call saveitem()
+	Else
+		Set Rs = cmHttp.Execute("SELECT ItemID,listid,infoid FROM NC_SoftItem WHERE ChannelID=" & ChannelID & " And ItemID=" & ItemID)
+		If Not(Rs.BOF And Rs.EOF) Then
+			listid=Rs("listid")
+			infoid=Rs("infoid")
+		End If
+		Set Rs = Nothing
+	End If
+	Set Rs = cmHttp.Execute("SELECT * FROM NC_TPL_List WHERE listid="&ListID)
+	If Rs.BOF And Rs.EOF Then
+		ListTitle="我的列表采集模板"
+		IsRedirect=0
+		RedirectUrl=""
+		FindListArea=Split("0||||||||||||", "|||")
+		FindListLink=Split("0||||||||||||", "|||")
+		FindReplace=Split("||||||||||||", "|||")
+	Else
+		ListTitle=Rs("ListTitle")
+		IsRedirect=Rs("IsRedirect")
+		RedirectUrl=Rs("RedirectUrl")
+		FindListArea=Split(Rs("FindListArea")&"||||||||||||", "|||")
+		FindListLink=Split(Rs("FindListLink")&"||||||||||||", "|||")
+		FindReplace=Split(Rs("FindReplace")&"||||||||||||", "|||")
+	End If
+	Rs.Close:Set Rs = Nothing
+
+%>
+<form name="myform" method="post" action="?action=step3">
+<input type="hidden" name="ChannelID" value="<%=ChannelID%>"/>
+<input type="hidden" name="ItemID" value="<%=ItemID%>"/>
+<input type="hidden" name="change" value="yes"/>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">编辑采集项目第二步</th>
+</tr>
+<%
+	Call SettingStep(ItemID)
+	If showcode=1 Then
+		strHtmlCode = cmHttp.GetRemoteData(Trim(Request.Form("RemoteListUrl")), Trim(Request.Form("Encoding")))
+%>
+<tr>
+	<td class="tablerow2" colspan="2"  align="center"><b>项 目 编 辑 -- 采集目标网站源代码</b>&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" value="0" name="soucode" onClick="document.getElementById('soucodeid').style.display='none';"> 关闭源代码窗口&nbsp;&nbsp;<input type="radio" value="1" name="soucode" onClick="document.getElementById('soucodeid').style.display='';" checked> 查看源代码</td>
+</tr>
+<tr id="soucodeid">
+	<td class="tablerow2" colspan="2"><textarea name="source_content" id="source_content" wrap="OFF" style="width:100%;" rows="20"><%=Server.HTMLEncode(strHtmlCode)%></textarea>
+	<div align="right"><a href="javascript:admin_Size(-20,'source_content')"><img src="../images/minus.gif" unselectable="on" border="0"/></a> <a href="javascript:admin_Size(20,'source_content')"><img src="../images/plus.gif" unselectable="on" border="0"/></div></td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="2">采集的目标地址 →
+	<a href="javascript:" onclick="window.open('<%=Trim(Request.Form("RemoteListUrl"))%>')" style="color:red"><%=Trim(Request.Form("RemoteListUrl"))%></a>&nbsp;&nbsp;&nbsp;&nbsp;
+	<a href="view-source:<%=Trim(Request.Form("RemoteListUrl"))%>"  target="_blank" style="color:blue">查看源代码</a>
+	</td>
+</tr>
+<%
+	End If
+%>
+<tr>
+	<td class="tablerow2" align="right" width="28%"><u>选择列表模板</u>：</td>
+	<td class="tablerow2"><%Call TPL_selectList(ChannelID,listid)%></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>列表模板名称</u>：</td>
+	<td class="tablerow1"><input name="ListTitle" type="text" id="ListTitle" size="45" value="<%=Server.HTMLEncode(ListTitle)%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>获取列表代码选项</u>：</td>
+	<td class="tablerow2"><input type="radio" value="0" name="FindListArea0"<%If FindListArea(0)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindListArea0"<%If FindListArea(0)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindListArea0"<%If FindListArea(0)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindListArea0"<%If FindListArea(0)="3" Then Response.Write " checked"%>> 反向－保留关键字
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>获取列表开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindListArea1" rows="5" cols="80"><%=Server.HTMLEncode(FindListArea(1))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>获取列表结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindListArea2" rows="5" cols="80"><%=Server.HTMLEncode(FindListArea(2))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>获取连接代码选项</u>：</td>
+	<td class="tablerow1"><input type="radio" value="0" name="FindListLink0"<%If FindListLink(0)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindListLink0"<%If FindListLink(0)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;</td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>获取连接开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindListLink1" rows="5" cols="80"><%=Server.HTMLEncode(FindListLink(1))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>获取连接结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindListLink2" rows="5" cols="80"><%=Server.HTMLEncode(FindListLink(2))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u>是否重定向列表URL</u>：</td>
+	<td class="tablerow2"><div><input type="radio" value="0" name="IsRedirect" onClick="document.getElementById('RedirecText').style.display='none';"<%If IsRedirect=0 Then Response.Write " checked"%>> 不作处理&nbsp;&nbsp;
+	<input type="radio" value="1" name="IsRedirect" onClick="document.getElementById('RedirecText').style.display='';"<%If IsRedirect=1 Then Response.Write " checked"%>> 重新定向</div>
+	<div id="RedirecText"<%If IsRedirect=0 Then Response.Write " style=""display:none"""%>>
+	<input type="text" name="RedirectUrl" size="60" value="<%=Server.HTMLEncode(RedirectUrl)%>"></div></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>列表URL过滤替换设置</u>：</td>
+	<td class="tablerow1"><input type="radio" value="0" name="FindReplaceSelect" onClick="document.getElementById('FindReplaceText0').style.display='none';document.getElementById('FindReplaceText1').style.display='none';document.getElementById('FindReplaceText2').style.display='none';document.getElementById('FindReplaceText3').style.display='none';" checked> 隐藏设置窗口&nbsp;&nbsp;
+	<input type="radio" value="1" name="FindReplaceSelect" onClick="document.getElementById('FindReplaceText0').style.display='';document.getElementById('FindReplaceText1').style.display='';document.getElementById('FindReplaceText2').style.display='';document.getElementById('FindReplaceText3').style.display='';"> 打开设置窗口
+	</td>
+</tr>
+<tr id="FindReplaceText0" style="display:none">
+	<td class="tablerow2" align="right"><u><font color="blue">要过滤的字符一</font></u>：</td>
+	<td class="tablerow2"><input name="FindReplace0" type="text" size="60" value="<%=Server.HTMLEncode(FindReplace(0))%>"/></td>
+</tr>
+<tr id="FindReplaceText1" style="display:none">
+	<td class="tablerow1" align="right"><u><font color="green">替换后的字符一</font></u>：</td>
+	<td class="tablerow1"><input name="FindReplace1" type="text" size="60" value="<%=Server.HTMLEncode(FindReplace(1))%>"/></td>
+</tr>
+<tr id="FindReplaceText2" style="display:none">
+	<td class="tablerow2" align="right"><u><font color="blue">要过滤的字符二</font></u>：</td>
+	<td class="tablerow2"><input name="FindReplace2" type="text" size="60" value="<%=Server.HTMLEncode(FindReplace(2))%>"/></td>
+</tr>
+<tr id="FindReplaceText3" style="display:none">
+	<td class="tablerow1" align="right"><u><font color="green">替换后的字符二</font></u>：</td>
+	<td class="tablerow1"><input name="FindReplace3" type="text" size="60" value="<%=Server.HTMLEncode(FindReplace(3))%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" width="25%"><u>选择信息采集模板</u>：</td>
+	<td class="tablerow2"><%Call TPL_selectInfo(ChannelID,infoid)%></td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="2" align="center"><input type="button" name="go_button" onclick="javascript:history.go(-1)" value="返回上一页" class="button">&nbsp;&nbsp;
+	<input type="submit" value="保存下一步" name="submit_button" id="submit_button" class="button">&nbsp;&nbsp;
+	<input name="showcode" type="checkbox" value="1" /> 显示源码
+	</td>
+</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub editstep3()
+	Dim Rs
+	Dim strHtmlList,strLinkArry,strFindLink,strEncoding,strRemoteListUrl,strNamedDemourl
+	If ItemID = 0 Then
+		OutErrors ("错误的系统参数，请选择正确的项目ID！")
+		Exit Sub
+	End If
+	If Trim(Request("change")) = "yes" Then
+		Call saveEditstep2()
+	End If
+	Set Rs = cmHttp.Execute("SELECT ItemID,listid,infoid,Encoding,RemoteListUrl,NamedDemourl FROM NC_SoftItem WHERE ChannelID=" & ChannelID & " And ItemID=" & ItemID)
+	If Not(Rs.BOF And Rs.EOF) Then
+		listid=Rs("listid")
+		infoid=Rs("infoid")
+		strEncoding=Trim(Rs("Encoding"))
+		strRemoteListUrl=Trim(Rs("RemoteListUrl"))
+		strNamedDemourl=Trim(Rs("NamedDemourl")&"")
+	End If
+	Set Rs = Nothing
+	Set Rs = cmHttp.Execute("SELECT * FROM NC_TPL_List WHERE listid="&ListID)
+	If Not(Rs.BOF And Rs.EOF) Then
+		IsRedirect=Rs("IsRedirect")
+		RedirectUrl=Rs("RedirectUrl")
+		FindListArea=Split(Rs("FindListArea")&"||||||||||||", "|||")
+		FindListLink=Split(Rs("FindListLink")&"||||||||||||", "|||")
+		FindReplace=Split(Rs("FindReplace")&"||||||||||||", "|||")
+	End If
+	Rs.Close:Set Rs = Nothing
+	Set Rs = cmHttp.Execute("SELECT * FROM NC_TPL_Info WHERE infoid="&InfoID)
+	If Rs.BOF And Rs.EOF Then
+		InfoTitle="我的信息采集模板"
+		Pagination=0
+		AppendUrl=""
+		FindTitle=Split("0|||||||||0|||||||||0|||||||||0|||", "|||")
+		FindContent=Split("0||||||||||||||||||||||||", "|||")
+		FindCategory=Split("0||||||||||||||||||||||||", "|||")
+		FindDateTime=Split("0||||||||||||||||||||||||", "|||")
+		FindOthers=Split("0|||||||||0|||||||||0|||||||||0|||||||||0|||||||||0|||||||||0|||||||||0|||||||||||||||0|||||||||||||||0|||||||||||||||0|||||||||", "|||")
+		FindPagination=Split("0|||||||||||||||0||||||||||||||||0", "|||")
+		AppendUrl=Split("|||||||||", "|||")
+		TitleReplace=Split("||||||||||||||||||||||||", "|||")
+		ContentReplace=Split("||||||||||||||||||||||||||||||", "|||")
+		sourceReplace="0"
+	Else
+		InfoTitle=Trim(Rs("InfoTitle")&"")
+		Pagination=Rs("Pagination")
+		AppendUrl=Rs("AppendUrl")
+		FindTitle=Split(Rs("FindTitle")&"||||||||||||||||||||||||", "|||")
+		FindContent=Split(Rs("FindContent")&"||||||||||||||||||||||||", "|||")
+		FindCategory=Split(Rs("FindCategory")&"||||||||||||||||||||||||", "|||")
+		FindDateTime=Split(Rs("FindDateTime")&"||||||||||||||||||||||||", "|||")
+		FindOthers=Split(Rs("FindOthers")&"||||||||||||||||||||||||", "|||")
+		FindPagination=Split(Rs("FindPagination")&"||||||||||||||||||||||||", "|||")
+		AppendUrl=Split(Rs("AppendUrl")&"|||||||||", "|||")
+		TitleReplace=Split(Rs("TitleReplace")&"|||||||||", "|||")
+		ContentReplace=Split(Rs("ContentReplace")&"|||||||||", "|||")
+		sourceReplace=Rs("sourceReplace")&""
+	End If
+	Rs.Close:Set Rs = Nothing
+
+%>
+<script language="JavaScript">
+function displayTable(sid,n,t) {
+	for (var i=1;i<=n;i++){
+		if (t!=1) {
+			document.getElementById(sid+i).style.display='none';
+		}else{
+			document.getElementById(sid+i).style.display='';
+		}
+	}
+}
+</script>
+<form name="myform" method="post" action="?action=step4">
+<input type="hidden" name="ChannelID" value="<%=ChannelID%>"/>
+<input type="hidden" name="ItemID" value="<%=ItemID%>"/>
+<input type="hidden" name="ListID" value="<%=ListID%>"/>
+<input type="hidden" name="change" value="yes"/>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">编辑采集项目第三步</th>
+</tr>
+<%
+	Call SettingStep(ItemID)
+	If showcode=1 Then
+		strHtmlCode = cmHttp.GetRemoteData(strRemoteListUrl, strEncoding)
+		strHtmlList = cmHttp.FindHtmlCode(strHtmlCode,FindListArea(1),FindListArea(2),FindListArea(0),False)
+		If Len(strHtmlList)=0 Then
+			OutErrors ("友情提示\n\n获取远程列表错误\n请检查采集项目第二步的获取列表开始和结束代码是否有误！")
+			Exit Sub
+		End If
+		strLinkArry = cmHttp.GetMatchContent(strHtmlList,FindListLink(1),FindListLink(2),FindListLink(0))
+		strLinkArry = cmHttp.RearrangedUrl(strLinkArry,strRemoteListUrl,RedirectUrl)
+		If FindReplace(0)<>"" Then strLinkArry=cmHttp.ReplaceUrlToArray(strLinkArry,FindReplace)
+		strHtmlCode = Join(strLinkArry, vbCrLf)
+		If UBound(strLinkArry)>0 Then
+			strFindLink = strLinkArry(1)
+			strHtmlCode = cmHttp.GetRemoteData(strFindLink, strEncoding)
+			strHtmlCode = cmHttp.ReplaceSource(strHtmlCode,sourceReplace)
+		Else
+			OutErrors ("友情提示\n\n获取远程列表连接错误\n请检查采集项目第二步的获取连接开始和结束代码是否有误！")
+			Exit Sub
+		End If
+
+%>
+<tr>
+	<td class="tablerow2" colspan="2"  align="center"><b>项 目 编 辑 -- 采集目标网站源代码</b>&nbsp;&nbsp;&nbsp;&nbsp;
+	<input type="radio" value="0" name="soucode" onClick="document.getElementById('soucodeid').style.display='none';document.getElementById('soucodeid2').style.display='none';"> 关闭源代码窗口&nbsp;&nbsp;
+	<input type="radio" value="1" name="soucode" onClick="document.getElementById('soucodeid').style.display='';document.getElementById('soucodeid2').style.display='none';" checked> 查看源代码&nbsp;&nbsp;
+	<input type="radio" value="2" name="soucode" onClick="document.getElementById('soucodeid').style.display='none';document.getElementById('soucodeid2').style.display='';"> 查看已获取代码
+	</td>
+</tr>
+<tr id="soucodeid">
+	<td class="tablerow2" colspan="2"><textarea name="source_content1" id="source_content1" wrap="OFF" style="width:100%;" rows="20"><%=Server.HTMLEncode(strHtmlCode)%></textarea>
+	<div align="right"><a href="javascript:admin_Size(-20,'source_content1')"><img src="../images/minus.gif" unselectable="on" border="0"/></a> <a href="javascript:admin_Size(20,'source_content1')"><img src="../images/plus.gif" unselectable="on" border="0"/></div></td>
+</tr>
+<tr id="soucodeid2" style="display:none">
+	<td class="tablerow2" colspan="2"><textarea name="source_content2" id="source_content2" wrap="OFF" style="width:100%;" rows="20"><%=Server.HTMLEncode(Join(strLinkArry, vbCrLf))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="2">采集的目标地址 →
+	<a href="javascript:" onclick="window.open('<%=Trim(strFindLink)%>')" style="color:red"><%=Trim(strFindLink)%></a>&nbsp;&nbsp;&nbsp;&nbsp;
+	<a href="view-source:<%=Trim(strFindLink)%>"  target="_blank" style="color:blue">查看源代码</a>
+	</td>
+</tr>
+<%
+	End If
+%>
+<tr>
+	<td class="tablerow2" align="right" width="28%"><u>选择信息采集模板</u>：</td>
+	<td class="tablerow2"><%Call TPL_selectInfo(ChannelID,infoid) : If infoid>0 And itemid>0 Then%> <a href="?action=source&ChannelID=<%=ChannelID%>&infoid=<%=infoid%>&itemid=<%=itemid%>">目标网站源代码替换操作</a><%End If%></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u>列表模板名称</u>：</td>
+	<td class="tablerow1"><input name="InfoTitle" type="text" id="InfoTitle" size="45" value="<%=Server.HTMLEncode(InfoTitle)%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" onclick="displayTable('showFindTitle',2,0)"><u>获取标题代码选项</u>：</td>
+	<td class="tablerow2">
+	<input type="radio" value="0" name="FindTitle0"<%If FindTitle(0)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindTitle0"<%If FindTitle(0)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindTitle0"<%If FindTitle(0)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindTitle0"<%If FindTitle(0)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindTitle',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindTitle1">
+	<td class="tablerow1" align="right"><u>获取标题开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindTitle1" rows="5" cols="80"><%=Server.HTMLEncode(FindTitle(1))%></textarea></td>
+</tr>
+<tr id="showFindTitle2">
+	<td class="tablerow2" align="right"><u>获取标题结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindTitle2" rows="5" cols="80"><%=Server.HTMLEncode(FindTitle(2))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" onclick="displayTable('showFindContent',2,0)"><u>获取内容代码选项</u>：</td>
+	<td class="tablerow1">
+	<input type="radio" value="0" name="FindContent0"<%If FindContent(0)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindContent0"<%If FindContent(0)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindContent0"<%If FindContent(0)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindContent0"<%If FindContent(0)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindContent',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindContent1">
+	<td class="tablerow2" align="right"><u>获取内容开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindContent1" rows="5" cols="80"><%=Server.HTMLEncode(FindContent(1))%></textarea></td>
+</tr>
+<tr id="showFindContent2">
+	<td class="tablerow1" align="right"><u>获取内容结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindContent2" rows="5" cols="80"><%=Server.HTMLEncode(FindContent(2))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" onclick="displayTable('showFindCategory',6,0)"><u>获取分类设置选项</u>(可选项)：</td>
+	<td class="tablerow2">
+	<input type="radio" value="0" name="FindCategory0"<%If FindCategory(0)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindCategory0"<%If FindCategory(0)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindCategory0"<%If FindCategory(0)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindCategory0"<%If FindCategory(0)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindCategory',6,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindCategory1" style="display:none">
+	<td class="tablerow1" align="right"><u>获取分类区域开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindCategory1" rows="5" cols="80"><%=Server.HTMLEncode(FindCategory(1))%></textarea></td>
+</tr>
+<tr id="showFindCategory2" style="display:none">
+	<td class="tablerow2" align="right"><u>获取分类区域结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindCategory2" rows="5" cols="80"><%=Server.HTMLEncode(FindCategory(2))%></textarea></td>
+</tr>
+<tr id="showFindCategory3" style="display:none">
+	<td class="tablerow1" align="right"><u>获取父分类开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindCategory3" rows="5" cols="80"><%=Server.HTMLEncode(FindCategory(3))%></textarea></td>
+</tr>
+<tr id="showFindCategory4" style="display:none">
+	<td class="tablerow2" align="right"><u>获取父分类结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindCategory4" rows="5" cols="80"><%=Server.HTMLEncode(FindCategory(4))%></textarea></td>
+</tr>
+<tr id="showFindCategory5" style="display:none">
+	<td class="tablerow1" align="right"><u>获取子分类开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindCategory5" rows="5" cols="80"><%=Server.HTMLEncode(FindCategory(5))%></textarea></td>
+</tr>
+<tr id="showFindCategory6" style="display:none">
+	<td class="tablerow2" align="right"><u>获取子分类结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindCategory6" rows="5" cols="80"><%=Server.HTMLEncode(FindCategory(6))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" onclick="displayTable('showFindVersion',2,0)"><u>获取软件版本代码选项</u>(可选项)：</td>
+	<td class="tablerow1">
+	<input type="radio" value="0" name="FindTitle3"<%If FindTitle(3)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindTitle3"<%If FindTitle(3)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindTitle3"<%If FindTitle(3)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindTitle3"<%If FindTitle(3)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindVersion',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindVersion1" style="display:none">
+	<td class="tablerow2" align="right"><u>获取版本开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindTitle4" rows="5" cols="80"><%=Server.HTMLEncode(FindTitle(4))%></textarea></td>
+</tr>
+<tr id="showFindVersion2" style="display:none">
+	<td class="tablerow1" align="right"><u>获取版本结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindTitle5" rows="5" cols="80"><%=Server.HTMLEncode(FindTitle(5))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" onclick="displayTable('showFindSubTitle',2,0)"><u>获取副标题代码选项</u>(可选项)：</td>
+	<td class="tablerow2">
+	<input type="radio" value="0" name="FindTitle6"<%If FindTitle(6)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindTitle6"<%If FindTitle(6)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindTitle6"<%If FindTitle(6)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindTitle6"<%If FindTitle(6)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindSubTitle',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindSubTitle1" style="display:none">
+	<td class="tablerow1" align="right"><u>获取副标题开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindTitle7" rows="5" cols="80"><%=Server.HTMLEncode(FindTitle(7))%></textarea></td>
+</tr>
+<tr id="showFindSubTitle2" style="display:none">
+	<td class="tablerow2" align="right"><u>获取副标题结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindTitle8" rows="5" cols="80"><%=Server.HTMLEncode(FindTitle(8))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" onclick="displayTable('showFindDateTime',4,0)"><u>获取更新时间设置选项</u>(可选项)：</td>
+	<td class="tablerow1">
+	<input type="radio" value="0" name="FindDateTime0"<%If FindDateTime(0)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindDateTime0"<%If FindDateTime(0)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindDateTime0"<%If FindDateTime(0)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindDateTime0"<%If FindDateTime(0)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindDateTime',4,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindDateTime1" style="display:none">
+	<td class="tablerow2" align="right"><u>获取更新时间区域开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindDateTime1" rows="5" cols="80"><%=Server.HTMLEncode(FindDateTime(1))%></textarea></td>
+</tr>
+<tr id="showFindDateTime2" style="display:none">
+	<td class="tablerow1" align="right"><u>获取更新时间区域结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindDateTime2" rows="5" cols="80"><%=Server.HTMLEncode(FindDateTime(2))%></textarea></td>
+</tr>
+<tr id="showFindDateTime3" style="display:none">
+	<td class="tablerow2" align="right"><u>获取更新时间开始代码</u>：<br/><font color="blue">如果在上面可以直接获取到时间<br/>这里可以不用设置</font></td>
+	<td class="tablerow2"><textarea name="FindDateTime3" rows="5" cols="80"><%=Server.HTMLEncode(FindDateTime(3))%></textarea></td>
+</tr>
+<tr id="showFindDateTime4" style="display:none">
+	<td class="tablerow1" align="right"><u>获取更新时间结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindDateTime4" rows="5" cols="80"><%=Server.HTMLEncode(FindDateTime(4))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" onclick="displayTable('showFindSize',2,0)"><u>获取软件大小代码选项</u>(可选项)：</td>
+	<td class="tablerow2">
+	<input type="radio" value="0" name="FindOthers0"<%If FindOthers(0)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindOthers0"<%If FindOthers(0)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindOthers0"<%If FindOthers(0)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindOthers0"<%If FindOthers(0)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindSize',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindSize1" style="display:none">
+	<td class="tablerow1" align="right"><u>获取软件大小开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers1" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(1))%></textarea></td>
+</tr>
+<tr id="showFindSize2" style="display:none">
+	<td class="tablerow2" align="right"><u>获取软件大小结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers2" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(2))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" onclick="displayTable('showFindLang',2,0)"><u>获取软件语言代码选项</u>：</td>
+	<td class="tablerow1">
+	<input type="radio" value="0" name="FindOthers3"<%If FindOthers(3)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindOthers3"<%If FindOthers(3)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindOthers3"<%If FindOthers(3)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindOthers3"<%If FindOthers(3)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindLang',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindLang1" style="display:none">
+	<td class="tablerow2" align="right"><u>获取软件语言开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers4" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(4))%></textarea></td>
+</tr>
+<tr id="showFindLang2" style="display:none">
+	<td class="tablerow1" align="right"><u>获取软件语言结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers5" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(5))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" onclick="displayTable('showFindType',2,0)"><u>获取软件类型代码选项</u>：</td>
+	<td class="tablerow2">
+	<input type="radio" value="0" name="FindOthers6"<%If FindOthers(6)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindOthers6"<%If FindOthers(6)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindOthers6"<%If FindOthers(6)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindOthers6"<%If FindOthers(6)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindType',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindType1" style="display:none">
+	<td class="tablerow1" align="right"><u>获取软件类型开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers7" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(7))%></textarea></td>
+</tr>
+<tr id="showFindType2" style="display:none">
+	<td class="tablerow2" align="right"><u>获取软件类型结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers8" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(8))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" onclick="displayTable('showFindAuthor',2,0)"><u>获取授权方式代码选项</u>：</td>
+	<td class="tablerow1">
+	<input type="radio" value="0" name="FindOthers9"<%If FindOthers(9)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindOthers9"<%If FindOthers(9)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindOthers9"<%If FindOthers(9)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindOthers9"<%If FindOthers(9)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindAuthor',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindAuthor1" style="display:none">
+	<td class="tablerow2" align="right"><u>获取授权方式开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers10" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(10))%></textarea></td>
+</tr>
+<tr id="showFindAuthor2" style="display:none">
+	<td class="tablerow1" align="right"><u>获取授权方式结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers11" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(11))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" onclick="displayTable('showFindSystem',2,0)"><u>获取运行环境代码选项</u>：</td>
+	<td class="tablerow2">
+	<input type="radio" value="0" name="FindOthers12"<%If FindOthers(12)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindOthers12"<%If FindOthers(12)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindOthers12"<%If FindOthers(12)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindOthers12"<%If FindOthers(12)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindSystem',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindSystem1" style="display:none">
+	<td class="tablerow1" align="right"><u>获取运行环境开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers13" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(13))%></textarea></td>
+</tr>
+<tr id="showFindSystem2" style="display:none">
+	<td class="tablerow2" align="right"><u>获取运行环境结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers14" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(14))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" onclick="displayTable('showFindContact',2,0)"><u>获取联系方式代码选项</u>(可选项)：</td>
+	<td class="tablerow1">
+	<input type="radio" value="0" name="FindOthers15"<%If FindOthers(15)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindOthers15"<%If FindOthers(15)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindOthers15"<%If FindOthers(15)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindOthers15"<%If FindOthers(15)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindContact',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindContact1" style="display:none">
+	<td class="tablerow2" align="right"><u>获取联系方式开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers16" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(16))%></textarea></td>
+</tr>
+<tr id="showFindContact2" style="display:none">
+	<td class="tablerow1" align="right"><u>获取联系方式结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers17" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(17))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" onclick="displayTable('showFindHome',2,0)"><u>获取作者主页代码选项</u>(可选项)：</td>
+	<td class="tablerow2">
+	<input type="radio" value="0" name="FindOthers18"<%If FindOthers(18)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindOthers18"<%If FindOthers(18)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindOthers18"<%If FindOthers(18)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindOthers18"<%If FindOthers(18)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindHome',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindHome1" style="display:none">
+	<td class="tablerow1" align="right"><u>获取作者主页开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers19" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(19))%></textarea></td>
+</tr>
+<tr id="showFindHome2" style="display:none">
+	<td class="tablerow2" align="right"><u>获取作者主页结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers20" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(20))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" onclick="displayTable('showFindPreview',4,0)"><u>获取缩略图代码选项</u>(可选项)：</td>
+	<td class="tablerow1">
+	<input type="radio" value="0" name="FindOthers21"<%If FindOthers(21)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindOthers21"<%If FindOthers(21)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindOthers21"<%If FindOthers(21)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindOthers21"<%If FindOthers(21)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindPreview',4,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindPreview1" style="display:none">
+	<td class="tablerow2" align="right"><u>获取缩略图区域开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers22" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(22))%></textarea></td>
+</tr>
+<tr id="showFindPreview2" style="display:none">
+	<td class="tablerow1" align="right"><u>获取缩略图区域结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers23" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(23))%></textarea></td>
+</tr>
+<tr id="showFindPreview3" style="display:none">
+	<td class="tablerow2" align="right"><u>获取缩略图开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers24" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(24))%></textarea></td>
+</tr>
+<tr id="showFindPreview4" style="display:none">
+	<td class="tablerow1" align="right"><u>获取缩略图结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers25" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(25))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" onclick="displayTable('showFindStar',4,0)"><u>获取推荐星级代码选项</u>(可选项)：</td>
+	<td class="tablerow2">
+	<input type="radio" value="0" name="FindOthers26"<%If FindOthers(26)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindOthers26"<%If FindOthers(26)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindOthers26"<%If FindOthers(26)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindOthers26"<%If FindOthers(26)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindStar',4,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindStar1" style="display:none">
+	<td class="tablerow1" align="right"><u>获取推荐星级区域开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers27" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(27))%></textarea></td>
+</tr>
+<tr id="showFindStar2" style="display:none">
+	<td class="tablerow2" align="right"><u>获取推荐星级区域结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers28" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(28))%></textarea></td>
+</tr>
+<tr id="showFindStar3" style="display:none">
+	<td class="tablerow1" align="right"><u>获取推荐星级开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers29" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(29))%></textarea></td>
+</tr>
+<tr id="showFindStar4" style="display:none">
+	<td class="tablerow2" align="right"><u>获取推荐星级结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers30" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(30))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" onclick="displayTable('showFindDown',4,0)"><u style="color:blue">获取下载地址代码选项</u>：</td>
+	<td class="tablerow1">
+	<input type="radio" value="0" name="FindOthers31"<%If FindOthers(31)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindOthers31"<%If FindOthers(31)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindOthers31"<%If FindOthers(31)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindOthers31"<%If FindOthers(31)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindDown',4,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindDown1" style="display:none">
+	<td class="tablerow2" align="right"><u>获取下载地址区域开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers32" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(32))%></textarea></td>
+</tr>
+<tr id="showFindDown2" style="display:none">
+	<td class="tablerow1" align="right"><u>获取下载地址区域结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers33" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(33))%></textarea></td>
+</tr>
+<tr id="showFindDown3" style="display:none">
+	<td class="tablerow2" align="right"><u>获取下载地址开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindOthers34" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(34))%></textarea></td>
+</tr>
+<tr id="showFindDown4" style="display:none">
+	<td class="tablerow1" align="right"><u>获取下载地址结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindOthers35" rows="5" cols="80"><%=Server.HTMLEncode(FindOthers(35))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" onclick="displayTable('showFindNewDown',8,0)"><u>是否新窗口打开下载连接</u>：</td>
+	<td class="tablerow2">
+	<input type="radio" onclick="displayTable('showFindNewDown',8,0)" value="0" name="Pagination"<%If Pagination=0 Then Response.Write " checked"%>> 否&nbsp;&nbsp;
+	<input type="radio" onclick="displayTable('showFindNewDown',8,1)" value="1" name="Pagination"<%If Pagination=1 Then Response.Write " checked"%>> 是&nbsp;&nbsp;
+	<font color="red">* 如果要在新页面打开下载，请设置此项</font>&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showFindNewDown',8,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showFindNewDown1" style="display:none">
+	<td class="tablerow1" align="right"><u>获取下载地址代码选项</u>：</td>
+	<td class="tablerow1">
+	<input type="radio" value="0" name="FindPagination0"<%If FindPagination(0)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindPagination0"<%If FindPagination(0)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindPagination0"<%If FindPagination(0)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindPagination0"<%If FindPagination(0)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	</td>
+</tr>
+<tr id="showFindNewDown2" style="display:none">
+	<td class="tablerow2" align="right"><u>获取新窗口下载地址区域开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindPagination1" rows="5" cols="80"><%=Server.HTMLEncode(FindPagination(1))%></textarea></td>
+</tr>
+<tr id="showFindNewDown3" style="display:none">
+	<td class="tablerow1" align="right"><u>获取下载地址区域结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindPagination2" rows="5" cols="80"><%=Server.HTMLEncode(FindPagination(2))%></textarea></td>
+</tr>
+<tr id="showFindNewDown4" style="display:none">
+	<td class="tablerow2" align="right"><u>获取下载地址开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindPagination3" rows="5" cols="80"><%=Server.HTMLEncode(FindPagination(3))%></textarea></td>
+</tr>
+<tr id="showFindNewDown5" style="display:none">
+	<td class="tablerow1" align="right"><u>获取下载地址结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindPagination4" rows="5" cols="80"><%=Server.HTMLEncode(FindPagination(4))%></textarea></td>
+</tr>
+<tr id="showFindNewDown6" style="display:none">
+	<td class="tablerow2" align="right"><u>获取第三页下载地址代码选项</u>(可选项)：</td>
+	<td class="tablerow2">
+	<input type="radio" value="0" name="FindPagination5"<%If FindPagination(5)="0" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	<input type="radio" value="1" name="FindPagination5"<%If FindPagination(5)="1" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="2" name="FindPagination5"<%If FindPagination(5)="2" Then Response.Write " checked"%>> 反向－去掉关键字&nbsp;
+	<input type="radio" value="3" name="FindPagination5"<%If FindPagination(5)="3" Then Response.Write " checked"%>> 反向－保留关键字&nbsp;
+	</td>
+</tr>
+<tr id="showFindNewDown7" style="display:none">
+	<td class="tablerow1" align="right"><u>获取下载地址开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="FindPagination6" rows="5" cols="80"><%=Server.HTMLEncode(FindPagination(6))%></textarea></td>
+</tr>
+<tr id="showFindNewDown8" style="display:none">
+	<td class="tablerow2" align="right"><u>获取下载地址结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="FindPagination7" rows="5" cols="80"><%=Server.HTMLEncode(FindPagination(7))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" onclick="displayTable('showAppendUrl',2,0)"><u>指定下载URL前缀</u>：</td>
+	<td class="tablerow1">
+	<input type="radio" onclick="displayTable('showAppendUrl',2,0)" value="0" name="selAppend" checked> 隐藏&nbsp;&nbsp;
+	<input type="radio" onclick="displayTable('showAppendUrl',2,1)" value="1" name="selAppend"> 打开&nbsp;&nbsp;
+	<font color="red">* 可以在此设置指定相对路径的前缀</font>&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showAppendUrl',2,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showAppendUrl1" style="display:none">
+	<td class="tablerow2" align="right"><u>指定下载地址前缀</u>：</td>
+	<td class="tablerow2"><input name="AppendUrl0" type="text" size="60" value="<%=Server.HTMLEncode(AppendUrl(0))%>"/></td>
+</tr>
+<tr id="showAppendUrl2" style="display:none">
+	<td class="tablerow1" align="right"><u>指定新窗口下载地址前缀</u>：</td>
+	<td class="tablerow1"><input name="AppendUrl1" type="text" size="60" value="<%=Server.HTMLEncode(AppendUrl(1))%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" onclick="displayTable('showTitleReplace',4,0)"><u>标题过滤设置</u>：</td>
+	<td class="tablerow2">
+	<input type="radio" onclick="displayTable('showTitleReplace',4,0)" value="0" name="selTitle1" checked> 隐藏&nbsp;&nbsp;
+	<input type="radio" onclick="displayTable('showTitleReplace',4,1)" value="1" name="selTitle1"> 打开&nbsp;&nbsp;
+	<font color="red">* 可以在此设置过虑替换标题中的字符</font>&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showTitleReplace',4,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showTitleReplace1" style="display:none">
+	<td class="tablerow1" align="right"><u style="color:blue">要过滤的字符一</u>：</td>
+	<td class="tablerow1"><input name="TitleReplace0" type="text" size="60" value="<%=Server.HTMLEncode(TitleReplace(0))%>"/></td>
+</tr>
+<tr id="showTitleReplace2" style="display:none">
+	<td class="tablerow2" align="right"><u style="color:blue">替换后的字符一</u>：</td>
+	<td class="tablerow2"><input name="TitleReplace1" type="text" size="60" value="<%=Server.HTMLEncode(TitleReplace(1))%>"/></td>
+</tr>
+<tr id="showTitleReplace3" style="display:none">
+	<td class="tablerow1" align="right"><u style="color:green">要过滤的字符二</u>：</td>
+	<td class="tablerow1"><input name="TitleReplace2" type="text" size="60" value="<%=Server.HTMLEncode(TitleReplace(2))%>"/></td>
+</tr>
+<tr id="showTitleReplace4" style="display:none">
+	<td class="tablerow2" align="right"><u style="color:green">替换后的字符二</u>：</td>
+	<td class="tablerow2"><input name="TitleReplace3" type="text" size="60" value="<%=Server.HTMLEncode(TitleReplace(3))%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" onclick="displayTable('showUrlReplace',4,0)"><u>下载地址过滤设置</u>：</td>
+	<td class="tablerow1">
+	<input type="radio" onclick="displayTable('showUrlReplace',4,0)" value="0" name="selUrl1" checked> 隐藏&nbsp;&nbsp;
+	<input type="radio" onclick="displayTable('showUrlReplace',4,1)" value="1" name="selUrl1"> 打开&nbsp;&nbsp;
+	<font color="red">* 可以在此设置过虑替换下载地址中的字符</font>&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showUrlReplace',4,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showUrlReplace1" style="display:none">
+	<td class="tablerow2" align="right"><u style="color:blue">下载地址过滤的字符一</u>：</td>
+	<td class="tablerow2"><input name="TitleReplace4" type="text" size="60" value="<%=Server.HTMLEncode(TitleReplace(4))%>"/></td>
+</tr>
+<tr id="showUrlReplace2" style="display:none">
+	<td class="tablerow1" align="right"><u style="color:blue">替换后的下载地址字符一</u>：</td>
+	<td class="tablerow1"><input name="TitleReplace5" type="text" size="60" value="<%=Server.HTMLEncode(TitleReplace(5))%>"/></td>
+</tr>
+<tr id="showUrlReplace3" style="display:none">
+	<td class="tablerow2" align="right"><u style="color:green">下载地址过滤的字符二</u>：</td>
+	<td class="tablerow2"><input name="TitleReplace6" type="text" size="60" value="<%=Server.HTMLEncode(TitleReplace(6))%>"/></td>
+</tr>
+<tr id="showUrlReplace4" style="display:none">
+	<td class="tablerow1" align="right"><u style="color:green">替换后的下载地址字符二</u>：</td>
+	<td class="tablerow1"><input name="TitleReplace7" type="text" size="60" value="<%=Server.HTMLEncode(TitleReplace(7))%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right" onclick="displayTable('showContentReplace',4,0)"><u>内容字符过滤设置</u>：</td>
+	<td class="tablerow2">
+	<input type="radio" onclick="displayTable('showContentReplace',4,0)" value="0" name="selContent1" checked> 隐藏&nbsp;&nbsp;
+	<input type="radio" onclick="displayTable('showContentReplace',4,1)" value="1" name="selContent1"> 打开&nbsp;&nbsp;
+	<font color="red">* 可以在此设置过虑内容中的字符</font>&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showContentReplace',4,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showContentReplace1" style="display:none">
+	<td class="tablerow1" align="right"><u style="color:blue">内容字符过滤一</u>：</td>
+	<td class="tablerow1"><textarea name="ContentReplace0" rows="5" cols="80"><%=Server.HTMLEncode(ContentReplace(0))%></textarea></td>
+</tr>
+<tr id="showContentReplace2" style="display:none">
+	<td class="tablerow2" align="right"><u style="color:blue">内容字符过滤二</u>：</td>
+	<td class="tablerow2"><textarea name="ContentReplace1" rows="5" cols="80"><%=Server.HTMLEncode(ContentReplace(1))%></textarea></td>
+</tr>
+<tr id="showContentReplace3" style="display:none">
+	<td class="tablerow1" align="right"><u style="color:green">内容开头追加字符</u>：</td>
+	<td class="tablerow1"><textarea name="ContentReplace2" rows="5" cols="80"><%=Server.HTMLEncode(ContentReplace(2))%></textarea></td>
+</tr>
+<tr id="showContentReplace4" style="display:none">
+	<td class="tablerow2" align="right"><u style="color:green">内容结尾追加字符</u>：</td>
+	<td class="tablerow2"><textarea name="ContentReplace3" rows="5" cols="80"><%=Server.HTMLEncode(ContentReplace(3))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right" onclick="displayTable('showMatchFilter',6,0)"><u>内容字符匹配过滤设置</u>：</td>
+	<td class="tablerow1">
+	<input type="radio" onclick="displayTable('showMatchFilter',6,0)" value="0" name="selMatchFilter1" checked> 隐藏&nbsp;&nbsp;
+	<input type="radio" onclick="displayTable('showMatchFilter',6,1)" value="1" name="selMatchFilter1"> 打开&nbsp;&nbsp;
+	<font color="red">* 可以在此设置过虑内容中的匹配字符</font>&nbsp;
+	<span style="color:#808080;cursor:pointer" onclick="displayTable('showMatchFilter',6,1)">＋展开</span>
+	</td>
+</tr>
+<tr id="showMatchFilter1" style="display:none">
+	<td class="tablerow2" align="right"><u>匹配过虑内容字符选项一</u>：</td>
+	<td class="tablerow2">
+	<input type="radio" value="0" name="ContentReplace4"<%If ContentReplace(4)="0" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="1" name="ContentReplace4"<%If ContentReplace(4)="1" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	</td>
+</tr>
+<tr id="showMatchFilter2" style="display:none">
+	<td class="tablerow1" align="right"><u style="color:blue">过虑字符开始代码</u>：</td>
+	<td class="tablerow1"><textarea name="ContentReplace5" rows="5" cols="80"><%=Server.HTMLEncode(ContentReplace(5))%></textarea></td>
+</tr>
+<tr id="showMatchFilter3" style="display:none">
+	<td class="tablerow2" align="right"><u style="color:blue">过虑字符结束代码</u>：</td>
+	<td class="tablerow2"><textarea name="ContentReplace6" rows="5" cols="80"><%=Server.HTMLEncode(ContentReplace(6))%></textarea></td>
+</tr>
+<tr id="showMatchFilter4" style="display:none">
+	<td class="tablerow1" align="right"><u>匹配过虑内容字符选项二</u>：</td>
+	<td class="tablerow1">
+	<input type="radio" value="0" name="ContentReplace7"<%If ContentReplace(7)="0" Then Response.Write " checked"%>> 保留关键字&nbsp;
+	<input type="radio" value="1" name="ContentReplace7"<%If ContentReplace(7)="1" Then Response.Write " checked"%>> 去掉关键字&nbsp;
+	</td>
+</tr>
+<tr id="showMatchFilter5" style="display:none">
+	<td class="tablerow2" align="right"><u style="color:green">过虑字符开始代码</u>：</td>
+	<td class="tablerow2"><textarea name="ContentReplace8" rows="5" cols="80"><%=Server.HTMLEncode(ContentReplace(8))%></textarea></td>
+</tr>
+<tr id="showMatchFilter6" style="display:none">
+	<td class="tablerow1" align="right"><u style="color:green">过虑字符结束代码</u>：</td>
+	<td class="tablerow1"><textarea name="ContentReplace9" rows="5" cols="80"><%=Server.HTMLEncode(ContentReplace(9))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u style="color:blue">设置Cookies</u>：</td>
+	<td class="tablerow2"><input name="TitleReplace8" type="text" size="60" value="<%=Server.HTMLEncode(TitleReplace(8))%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow1" align="right"><u style="color:reg">指定演示URL</u>：</td>
+	<td class="tablerow1"><input name="NamedDemourl" type="text" size="60" value="<%=Server.HTMLEncode(strNamedDemourl)%>"/></td>
+</tr>
+<tr>
+	<td class="tablerow2" colspan="2" align="center"><input type="button" name="go_button" onclick="javascript:history.go(-1)" value="返回上一页" class="button">&nbsp;&nbsp;
+	<input type="submit" value="保存下一步" name="submit_button" id="submit_button" class="button">&nbsp;&nbsp;
+	<input name="showcode" type="checkbox" value="1" /> 显示源码
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="2"><b>相关标签说明：</b><br/>
+	父分类：<font color="red">{$parent$}</font>&nbsp;&nbsp;软件类型：<font color="red">{$softtype$}</font>
+	</td>
+</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub showReplaceSource()
+	Dim Rs,SQL,i
+	Set Rs = cmHttp.Execute("SELECT infoid,sourceReplace FROM NC_TPL_Info WHERE infoid="&infoid)
+	If Rs.BOF And Rs.EOF Then
+		OutErrors ("友情提示\n\n错误的系统参数！")
+		Exit Sub
+	Else
+		InfoID=Rs("InfoID")
+		sourceReplace=Split(Rs("sourceReplace")&"||||||", "|||")
+	End If
+%>
+<form name="myform" method="post" action="?action=savecode">
+<input type="hidden" name="ChannelID" value="<%=ChannelID%>"/>
+<input type="hidden" name="ItemID" value="<%=ItemID%>"/>
+<input type="hidden" name="InfoID" value="<%=InfoID%>"/>
+<input type="hidden" name="change" value="yes"/>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">目标网站源代码替换操作</th>
+</tr>
+<%
+	Call SettingStep(ItemID)
+%>
+<tr>
+	<td class="tablerow2" align="right" width="28%"><u>是否开启源代码替换功能</u>：</td>
+	<td class="tablerow2">
+	<input type="radio" value="0" name="IsReplace"<%If NewAsp.ChkNumeric(sourceReplace(0))=0 Then Response.Write " checked"%>> 否&nbsp;&nbsp;
+	<input type="radio" value="1" name="IsReplace"<%If NewAsp.ChkNumeric(sourceReplace(1))=1 Then Response.Write " checked"%>> 是&nbsp;&nbsp;
+	</td>
+</tr>
+<%
+	If UBound(sourceReplace)>2 Then
+		For i=1 To UBound(sourceReplace)-2
+			If (i mod 2) = 0 Then
+%>
+<tr>
+	<td class="tablerow1" align="right"><u style="color:blue">要替换的字符</u>：</td>
+	<td class="tablerow1"><textarea name="sourceReplace" rows="5" cols="80"><%=Server.HTMLEncode(sourceReplace(i-1))%></textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u style="color:green">替换后的字符</u>：</td>
+	<td class="tablerow2"><textarea name="sourceReplace" rows="5" cols="80"><%=Server.HTMLEncode(sourceReplace(i))%></textarea></td>
+</tr>
+<%
+			End If
+		Next
+	End If
+%>
+<tr>
+	<td class="tablerow1" align="right"><u style="color:blue">要替换的字符</u>：</td>
+	<td class="tablerow1"><textarea name="sourceReplace" rows="5" cols="80">del</textarea></td>
+</tr>
+<tr>
+	<td class="tablerow2" align="right"><u style="color:green">替换后的字符</u>：</td>
+	<td class="tablerow2"><textarea name="sourceReplace" rows="5" cols="80">del</textarea></td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="2" align="center"><input type="button" name="go_button" onclick="javascript:history.go(-1)" value="返回上一页" class="button">&nbsp;&nbsp;
+	<input type="submit" value="保存设置" name="submit_button" id="submit_button" class="button">&nbsp;&nbsp;
+	</td>
+</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub CollectionSetting()
+	Dim Node
+	If Not IsObject(Application(NewAsp.CacheName&"_softconfig")) Then Call LoadSoftConfig()
+	Set Node=Application(NewAsp.CacheName&"_softconfig").documentElement.selectSingleNode("row")
+	If Not Node is Nothing Then
+		UseDownload=CLng(Node.selectSingleNode("@usedownload").text)
+		RepeatDeal=CLng(Node.selectSingleNode("@repeatdeal").text)
+		isProgress=CLng(Node.selectSingleNode("@isprogress").text)
+		TrueAddress=CLng(Node.selectSingleNode("@trueaddress").text)
+		setInterval=CLng(Node.selectSingleNode("@setinterval").text)
+		MaxDownSize=CLng(Node.selectSingleNode("@maxdownsize").text)
+		AllowDownExt=Trim(Node.selectSingleNode("@allowdownext").text&"")
+		FilePrefix=Trim(Node.selectSingleNode("@fileprefix").text&"")
+		FileSuffix=Trim(Node.selectSingleNode("@filesuffix").text&"")
+
+		isZipFile=CLng(Node.selectSingleNode("@iszipfile").text)
+		ZipMode=CLng(Node.selectSingleNode("@zipmode").text)
+		ZipTimeout=CLng(Node.selectSingleNode("@ziptimeout").text)
+		MaxZipsize=CLng(Node.selectSingleNode("@maxzipsize").text)
+		AllowFileExt=Trim(Node.selectSingleNode("@allowfileext").text&"")
+		WinRarPath=Trim(Node.selectSingleNode("@winrarpath").text&"")
+		DownFilePath=Trim(Node.selectSingleNode("@downfilepath").text&"")
+		ReadmePath=Trim(Node.selectSingleNode("@readmepath").text&"")
+		ReadmeFile=Trim(Node.selectSingleNode("@readmefile").text&"")
+		RarNoteFile=Trim(Node.selectSingleNode("@rarnotefile").text&"")
+	End If
+	Set Node=Nothing
+%>
+<form name="myform" method="post" action="?action=saveset">
+<input type="hidden" name="ChannelID" value="<%=ChannelID%>"/>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">软件采集基本设置</th>
+</tr>
+    <td width="23%" align="right" nowrap class="tablerow1"><u>下载功能开关：</u></td>
+    <td width="77%" class="tablerow1"><input name="UseDownload" type="radio" value="0"<%If UseDownload=0 Then Response.Write " checked"%>> 关闭&nbsp;&nbsp;
+      <input type="radio" name="UseDownload" value="1"<%If UseDownload=1 Then Response.Write " checked"%>> 打开&nbsp;&nbsp;
+       <input type="radio" name="UseDownload" value="9"<%If UseDownload=9 Then Response.Write " checked"%>>
+      下载测试<font color='red'>(供测试程序用，不写数据库)</font></td>
+</tr>
+<tr>
+    <td align="right" class="tablerow2"><u>重复<%=NewAsp.ModuleName%>处理：</u></td>
+    <td class="tablerow2"><input name="RepeatDeal" type="radio" value="0"<%If RepeatDeal=0 Then Response.Write " checked"%>> 跳过&nbsp;&nbsp;
+      <input type="radio" name="RepeatDeal" value="1"<%If RepeatDeal=1 Then Response.Write " checked"%>> 更新&nbsp;&nbsp;
+      <input type="radio" name="RepeatDeal" value="2"<%If RepeatDeal=2 Then Response.Write " checked"%>> 添加</td>
+</tr>
+<tr>
+    <td align="right" class="tablerow1"><u>是否显示下载进度：</u></td>
+    <td class="tablerow1"><input name="isProgress" type="radio" value="0"<%If isProgress=0 Then Response.Write " checked"%>> 不显示&nbsp;&nbsp;
+      <input type="radio" name="isProgress" value="1"<%If isProgress=1 Then Response.Write " checked"%>> 显示速度&nbsp;&nbsp;
+      <input type="radio" name="isProgress" value="2"<%If isProgress=2 Then Response.Write " checked"%>> 显示进度条&nbsp;&nbsp;
+      <input type="radio" name="isProgress" value="3"<%If isProgress=3 Then Response.Write " checked"%>> 显示速度+进度条 </td>
+</tr>
+<tr>
+    <td align="right" class="tablerow2"><u>是否显示真实地址：</u></td>
+    <td class="tablerow2"><input name="TrueAddress" type="radio" value="0"<%If TrueAddress=0 Then Response.Write " checked"%>> 不显示&nbsp;&nbsp;
+      <input type="radio" name="TrueAddress" value="1"<%If TrueAddress=1 Then Response.Write " checked"%>> 显示</td>
+</tr>
+<tr>
+    <td align="right" class="tablerow1"><u>采集过程间隔时间：</u></td>
+    <td class="tablerow1"> <input name="setInterval" type="text" id="setInterval" size="12" value="<%=setInterval%>" maxlength="10">
+      <font color="blue">毫秒 </font></td>
+</tr>
+<tr>
+    <td align="right" class="tablerow2"><u>允许下载的文件大小：</u></td>
+    <td class="tablerow2"><input name="MaxDownSize" type="text" id="MaxDownSize" size="12" value="<%=MaxDownSize%>" maxlength="10">
+      <u><font color="blue">KB </font></u>&nbsp;&nbsp;<font color="red">* 不限制请输入“0”</font></td>
+</tr>
+<tr>
+    <td align="right" class="tablerow1"><u>允许下载的文件类型：</u></td>
+    <td class="tablerow1"><input name="AllowDownExt" type="text" id="AllowDownExt" size="60" value="<%=AllowDownExt%>" maxlength="255">
+      <font color="blue">* 每个文件类型请用“|”分开</font></td>
+</tr>
+<tr>
+    <td align="right" class="tablerow2"><u>文件名前缀：</u></td>
+    <td class="tablerow2"><input name="FilePrefix" type="text" id="FilePrefix" size="20" value="<%=FilePrefix%>">
+      <font color="blue">* 不加前缀请输入“0” </font></td>
+</tr>
+<tr>
+    <td align="right" class="tablerow1"><u>文件名后缀：</u></td>
+    <td class="tablerow1"><input name="FileSuffix" type="text" id="FileSuffix" size="20" value="<%=FileSuffix%>">
+      <font color="blue">* 不加后缀请输入“0” </font></td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="2" align="center"><input type="button" name="go_button" onclick="javascript:history.go(-1)" value="返回上一页" class="button">&nbsp;&nbsp;
+	<input type="submit" value="保存设置" name="submit_button" id="submit_button" class="button">&nbsp;&nbsp;
+	</td>
+</tr>
+</table>
+</form>
+<%
+End Sub
+
+Sub BeginCollection()
+	Dim sType
+	sType=NewAsp.ChkNumeric(Request("stype"))
+%>
+<form name="beginform" id="beginform" method="get" action="admin_savedata.asp" target="_blankframe">
+<input type="hidden" name="action" value="begin"/>
+<input type="hidden" name="ChannelID" value="<%=ChannelID%>"/>
+<input type="hidden" name="ItemID" value="<%=ItemID%>"/>
+<input type="hidden" name="CacheID" value="<%=ItemID%>"/>
+<input type="hidden" name="stype" value="<%=sType%>"/>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th><span id="begintitle">开始采集</span><span id="urlid"></span></th>
+</tr>
+<tr>
+	<td class="tablerow1" align="center">
+	<div style="display:none;" id="planmain">
+		<div id="planbartext">进度</div>
+		<div class="planbar"><div id="ProgressBar"></div></div>
+		<div id="PercentText">0%</div>
+	</div>
+	<span class="plantext" id="plantext"></span><span class="plancount" id="plancount"></span></td>
+</tr>
+<tr>
+	<td class="tablerow2" id="DetailedText">&nbsp;</td>
+</tr>
+<tr>
+	<td class="tablerow1" align="center">
+	<input type="submit" onclick="document.beginform.action.value='begin';" value="开始采集" name="submit_button" id="submit_button" class="button">&nbsp;&nbsp;
+	<input type="button" onclick="window.location.href='admin_collection.asp?action=demo&ChannelID=<%=ChannelID%>&ItemID=<%=ItemID%>'" value="演示" name="demo_button" id="demo_button" class="button">&nbsp;&nbsp;
+	<input type="submit" onclick="document.beginform.action.value='saveurl';" value="收集URL列表" name="submit_button2" id="submit_button2" class="button">&nbsp;&nbsp;
+	<input type="button" name="log_button" onclick="window.location.href='admin_log.asp?ChannelID=<%=ChannelID%>&ItemID=<%=ItemID%>'" value="查看采集日志" class="button">&nbsp;&nbsp;
+	<input type="button" name="log_button" onclick="window.location.href='admin_collection.asp?action=edit&ChannelID=<%=ChannelID%>&ItemID=<%=ItemID%>'" value="修改采集项目" class="button">&nbsp;&nbsp;
+	<input type="button" name="go_button" onclick="document.getElementById('DetailedText').innerHTML='&nbsp;';document.getElementById('submit_button').disabled=false;document.getElementById('submit_button2').disabled=false;_blankframe.location.href='../script/blank.html'" value="停止采集" class="button">
+	</td>
+</tr>
+</table>
+</form>
+<div id="collectmsg" style="width:200px;height:30px;position:absolute;display:none;">
+<table align="center" border="0" cellpadding="0" cellspacing="1" bgcolor="#000000" width="200" height="30"><tr><td bgcolor="#0650D2"><marquee align="middle" behavior="alternate" scrollamount="5" style="font-size:9pt"><font color="#FFFFFF">...正在收集数据...请稍候...</font></marquee></td></tr></table>
+</div>
+<iframe style="display:none;" src="../script/blank.html" name="_blankframe" allowTransparency="true"></iframe>
+<%
+	If sType=1 Then
+%>
+<script type="text/javascript">
+<!--
+	document.beginform.action.value='savedata';
+	document.beginform.submit();
+//-->
+</script>
+<%
+	End If
+End Sub
+
+Sub saveReplaceSource()
+	Dim Rs,SQL,i,tmpSourceReplace,strSourceReplace,tmpstr
+	tmpSourceReplace=""
+	For Each tmpstr In Request.Form("sourceReplace")
+		strSourceReplace=Replace(tmpstr, "|||", "")
+		If LCase(strSourceReplace)<>"del" Then
+			tmpSourceReplace=tmpSourceReplace&"|||"&strSourceReplace
+		End If
+	Next
+
+	tmpSourceReplace=NewAsp.ChkNumeric(Request.Form("IsReplace"))&tmpSourceReplace
+
+	SQL = "SELECT * FROM NC_TPL_Info WHERE ChannelID=" & ChannelID & " And infoid=" & InfoID
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	Rs.Open SQL, CJ_Conn, 1, 3
+	If Rs.BOF And Rs.EOF Then
+	Else
+		Rs("sourceReplace")=tmpSourceReplace
+		Rs.Update
+	End If
+	Rs.Close: Set Rs = Nothing
+	OutScript("保存设置成功！")
+End Sub
+
+Sub editstep4()
+	Dim Rs,i
+	If ItemID = 0 Then
+		OutErrors ("错误的系统参数，请选择正确的项目ID！")
+		Exit Sub
+	End If
+	If Trim(Request("change")) = "yes" Then
+		Call saveEditstep3()
+	End If
+	If showcode=1 Then
+		Dim Node
+		If Not IsObject(Application(NewAsp.CacheName&"_softconfig")) Then Call LoadSoftConfig()
+		Set Node=Application(NewAsp.CacheName&"_softconfig").documentElement.selectSingleNode("row")
+		If Not Node is Nothing Then
+			UseDownload=CLng(Node.selectSingleNode("@usedownload").text)
+			RepeatDeal=CLng(Node.selectSingleNode("@repeatdeal").text)
+			isProgress=CLng(Node.selectSingleNode("@isprogress").text)
+			TrueAddress=CLng(Node.selectSingleNode("@trueaddress").text)
+			setInterval=CLng(Node.selectSingleNode("@setinterval").text)
+			MaxDownSize=CLng(Node.selectSingleNode("@maxdownsize").text)
+			AllowDownExt=Trim(Node.selectSingleNode("@allowdownext").text&"")
+			FilePrefix=Trim(Node.selectSingleNode("@fileprefix").text&"")
+			FileSuffix=Trim(Node.selectSingleNode("@filesuffix").text&"")
+		End If
+		Set Node=Nothing
+		Set Rs = cmHttp.Execute("SELECT ItemID,listid,infoid,Encoding,MaxAddress,RemoteListUrl,AutoClass,RetuneClass,strReplace,RemoveCode,NamedDemourl FROM NC_SoftItem WHERE ChannelID=" & ChannelID & " And ItemID=" & ItemID)
+		If Not(Rs.BOF And Rs.EOF) Then
+			listid=Rs("listid")
+			infoid=Rs("infoid")
+			Encoding=Trim(Rs("Encoding"))
+			MaxAddress=Rs("MaxAddress")
+			RemoteListUrl=Trim(Rs("RemoteListUrl"))
+			AutoClass=Rs("AutoClass")
+			RetuneClass=Rs("RetuneClass")&""
+			strReplace=Rs("strReplace")&""
+			RemoveCode=Rs("RemoveCode")&""
+			NamedDemourl=Trim(Rs("NamedDemourl")&"")
+		End If
+		Set Rs = Nothing
+		Set Rs = cmHttp.Execute("SELECT * FROM NC_TPL_List WHERE listid="&ListID)
+		If Rs.BOF And Rs.EOF Then
+			OutErrors ("友情提示\n\n找不到列表采集模板，请返回采集项目第二步选择或建立新的列表采集模板。")
+			Exit Sub
+		Else
+			IsRedirect=Rs("IsRedirect")
+			RedirectUrl=Rs("RedirectUrl")
+			FindListArea=Split(Rs("FindListArea")&"||||||||||||", "|||")
+			FindListLink=Split(Rs("FindListLink")&"||||||||||||", "|||")
+			FindReplace=Split(Rs("FindReplace")&"||||||||||||", "|||")
+		End If
+		Rs.Close:Set Rs = Nothing
+		Set Rs = cmHttp.Execute("SELECT * FROM NC_TPL_Info WHERE infoid="&InfoID)
+		If Rs.BOF And Rs.EOF Then
+			OutErrors ("友情提示\n\n找不到信息采集模板，请返回采集项目第三步选择或建立新的信息采集模板。")
+			Exit Sub
+		Else
+			InfoTitle=Trim(Rs("InfoTitle")&"")
+			Pagination=Rs("Pagination")
+			FindTitle=Split(Rs("FindTitle")&"||||||||||||||||||||||||", "|||")
+			FindContent=Split(Rs("FindContent")&"||||||||||||||||||||||||", "|||")
+			FindCategory=Split(Rs("FindCategory")&"||||||||||||||||||||||||", "|||")
+			FindDateTime=Split(Rs("FindDateTime")&"||||||||||||||||||||||||", "|||")
+			FindOthers=Split(Rs("FindOthers")&"||||||||||||||||||||||||", "|||")
+			FindPagination=Split(Rs("FindPagination")&"||||||||||||||||||||||||", "|||")
+			AppendUrl=Split(Rs("AppendUrl")&"|||||||||", "|||")
+			TitleReplace=Split(Rs("TitleReplace")&"|||||||||", "|||")
+			ContentReplace=Split(Rs("ContentReplace")&"|||||||||", "|||")
+			sourceReplace=Rs("sourceReplace")&""
+		End If
+		Rs.Close:Set Rs = Nothing
+
+		If Len(NamedDemourl&"")<10 Then
+			m_strHtmlCode=cmHttp.GetRemoteData(RemoteListUrl, Encoding)
+			m_strHtmlCode=cmHttp.ReplaceSource(m_strHtmlCode,sourceReplace)
+			m_strHtmlList=cmHttp.FindHtmlCode(m_strHtmlCode,FindListArea(1),FindListArea(2),FindListArea(0),False)
+			If Len(m_strHtmlList)=0 Then
+				OutErrors ("友情提示\n\n获取远程列表错误\n请检查采集项目第二步的获取列表开始和结束代码是否有误！")
+				Exit Sub
+			End If
+			m_strLinkArry=cmHttp.GetMatchContent(m_strHtmlList,FindListLink(1),FindListLink(2),FindListLink(0))
+			If FindReplace(0)<>"" Then m_strLinkArry=cmHttp.ReplaceUrlToArray(m_strLinkArry,FindReplace)
+			If UBound(m_strLinkArry)=0 Then
+				OutErrors ("友情提示\n\n获取远程列表连接错误\n请检查采集项目第二步的获取连接开始和结束代码是否有误！")
+				Exit Sub
+			Else
+				m_strFindLink=cmHttp.FormatRemoteUrl(RemoteListUrl,m_strLinkArry(1),RedirectUrl)
+			End If
+		Else
+			m_strFindLink=NamedDemourl
+		End If
+		m_strReferer=m_strFindLink
+		m_strCookies=TitleReplace(8)
+		m_strHtmlCode=cmHttp.GetRemoteData(m_strFindLink, Encoding)
+		m_strHtmlCode=cmHttp.ReplaceSource(m_strHtmlCode,sourceReplace)
+		'--获取标题
+		m_strTitle=cmHttp.FindHtmlCode(m_strHtmlCode,FindTitle(1),FindTitle(2),FindTitle(0),False)
+		If Len(m_strTitle)=0 Then
+			OutErrors ("友情提示\n\n获取软件标题错误\n请检查采集项目第三步的获取标题的开始和结束代码是否有误！")
+			Exit Sub
+		End If
+		'--获取内容
+		m_strContent=cmHttp.FindHtmlCode(m_strHtmlCode,FindContent(1),FindContent(2),FindContent(0),False)
+		If m_strContent = "" Then m_strContent = m_strTitle
+
+		'--获取副标题
+		If FindTitle(7)<>"" And FindTitle(8)<>"" Then
+			m_strSubTitle=cmHttp.FindHtmlCode(m_strHtmlCode,FindTitle(7),FindTitle(8),FindTitle(6),True)
+		End If
+		'--获取版本
+		If FindTitle(4)<>"" And FindTitle(5)<>"" Then
+			m_strVersion=cmHttp.FindHtmlCode(m_strHtmlCode,FindTitle(4),FindTitle(5),FindTitle(3),True)
+		End If
+		'--获取分类
+		If FindCategory(1)<>"" And FindCategory(2)<>"" Then
+			m_strClassHtml=cmHttp.FindHtmlCode(m_strHtmlCode,FindCategory(1),FindCategory(2),FindCategory(0),False)
+			If m_strClassHtml<>"" Then
+				'--获取父分类
+				If FindCategory(3)<>"" And FindCategory(4)<>"" Then
+					m_strParent=cmHttp.FindHtmlCode(m_strClassHtml,FindCategory(3),FindCategory(4),0,True)
+					If m_strParent<>"" Then m_strClassHtml=Replace(m_strClassHtml, m_strParent, "{$parent$}")
+				End If
+				'--获取子分类
+				If FindCategory(5)<>"" And FindCategory(6)<>"" Then
+					m_strChild=cmHttp.FindHtmlCode(m_strClassHtml,FindCategory(5),FindCategory(6),0,True)
+				End If
+				If m_strParent="" And m_strChild="" Then
+					m_strChild=cmHttp.RemoveHTML(m_strClassHtml)
+				End If
+				If AutoClass>0 Then
+					If Len(RetuneClass) > 0 Then
+						m_strParent=cmHttp.ReplaceClass(m_strParent, RetuneClass)
+						m_strChild=cmHttp.ReplaceClass(m_strChild, RetuneClass)
+					End If
+				End If
+			End If
+		End If
+		'--获取更新时间
+		If FindDateTime(1)<>"" And FindDateTime(2)<>"" Then
+			m_strDateTime=cmHttp.FindHtmlCode(m_strHtmlCode,FindDateTime(1),FindDateTime(2),FindDateTime(0),False)
+			If FindDateTime(3)<>"" And FindDateTime(4)<>"" Then
+				m_strDateTime=cmHttp.FindHtmlCode(m_strDateTime,FindDateTime(3),FindDateTime(4),FindDateTime(0),True)
+			End If
+			m_strDateTime=cmHttp.stringToDate(m_strDateTime)
+		Else
+			m_strDateTime=Now()
+		End If
+		'--获取软件大小
+		If FindOthers(1)<>"" And FindOthers(2)<>"" Then
+			m_strFilesize=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(1),FindOthers(2),FindOthers(0),True)
+			m_strFilesize=cmHttp.FormatSize(m_strFilesize)
+		End If
+		'--获取软件语言
+		If FindOthers(4)<>"" And FindOthers(5)<>"" Then
+			startcode=Replace(Replace(FindOthers(4), "{$title$}", m_strTitle), "{$parent$}", m_strParent)
+			lastcode=Replace(Replace(FindOthers(5), "{$title$}", m_strTitle), "{$parent$}", m_strParent)
+			m_strLanguage=cmHttp.FindHtmlCode(m_strHtmlCode,startcode,lastcode,FindOthers(3),True)
+		End If
+		If Len(m_strLanguage)<2 Then m_strLanguage="简体中文"
+		m_strLanguage=Replace(m_strLanguage, "[中文]", "")
+		'--获取软件类型
+		If FindOthers(7)<>"" And FindOthers(8)<>"" Then
+			startcode=Replace(Replace(FindOthers(7), "{$title$}", m_strTitle), "{$parent$}", m_strParent)
+			lastcode=Replace(Replace(FindOthers(8), "{$title$}", m_strTitle), "{$parent$}", m_strParent)
+			m_strSoftType=cmHttp.FindHtmlCode(m_strHtmlCode,startcode,lastcode,FindOthers(6),True)
+		End If
+		If Len(m_strSoftType)<2 Then m_strSoftType="国产软件"
+		'--获取授权方式
+		If FindOthers(10)<>"" And FindOthers(11)<>"" Then
+			startcode=Replace(Replace(Replace(FindOthers(10), "{$title$}", m_strTitle), "{$parent$}", m_strParent), "{$softtype$}", m_strSoftType)
+			lastcode=Replace(Replace(Replace(FindOthers(11), "{$title$}", m_strTitle), "{$parent$}", m_strParent), "{$softtype$}", m_strSoftType)
+			m_strImpower=cmHttp.FindHtmlCode(m_strHtmlCode,startcode,lastcode,FindOthers(9),True)
+		End If
+		If Len(m_strImpower)<2 Then m_strImpower="共享软件"
+		'--获取运行环境
+		If FindOthers(13)<>"" And FindOthers(14)<>"" Then
+			m_strRunSystem=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(13),FindOthers(14),FindOthers(12),True)
+			m_strRunSystem=Replace(Replace(m_strRunSystem, ", ", "/"), ",", "/")
+		End If
+		If Len(m_strRunSystem)<2 Then m_strRunSystem="Win2000/WinXP/Win2003/WinVista"
+		'--获取联系方式
+		If FindOthers(16)<>"" And FindOthers(17)<>"" Then
+			m_strContact=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(16),FindOthers(17),FindOthers(15),True)
+		End If
+		'--获取官方主页
+		If FindOthers(19)<>"" And FindOthers(20)<>"" Then
+			m_strHomePage=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(19),FindOthers(20),FindOthers(18),True)
+		End If
+		'--获取官方主页
+		If FindOthers(27)<>"" And FindOthers(28)<>"" Then
+			m_strStar=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(27),FindOthers(28),FindOthers(26),False)
+			If FindOthers(29)<>"" And FindOthers(30)<>"" Then
+				m_strStar=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(29),FindOthers(30),FindOthers(26),True)
+			End If
+			m_strStar=NewAsp.ChkNumeric(m_strStar)
+			If m_strStar<2 Or m_strStar>5 Then m_strStar=3
+		End If
+		'--获取下载地址
+		If FindOthers(32)<>"" And FindOthers(33)<>"" Then
+			If FindOthers(32)="9" And FindOthers(33)="9" Then
+				m_strDownArry=Array("0",cmHttp.FormatRemoteUrl(m_strFindLink,m_strFindLink,AppendUrl(0)))
+			Else
+				m_strDownHtml=cmHttp.FindHtmlCode(m_strHtmlCode,FindOthers(32),FindOthers(33),FindOthers(31),False)
+				If m_strDownHtml<>"" And FindOthers(34)<>"" And FindOthers(35)<>"" Then
+					m_strDownArry=cmHttp.GetMatchContent(m_strDownHtml,FindOthers(34),FindOthers(35),FindOthers(31))
+					m_strDownArry=cmHttp.RearrangedUrl(m_strDownArry,m_strFindLink,AppendUrl(0))
+				Else
+					If m_strDownHtml<>"" Then
+						m_strDownArry=Array("0",m_strDownHtml)
+					Else
+						m_strDownArry=Array("0")
+					End If
+				End If
+			End If
+			If Pagination>0 And UBound(m_strDownArry)>0 Then
+				Dim strDownlink
+				strDownlink=m_strDownArry(1):m_strDownArry=Null
+				If TitleReplace(4)<>"" Then
+					strDownlink=cmHttp.Re_Replace(strDownlink,TitleReplace(4),TitleReplace(5))
+				End If
+				m_strDownHtml=cmHttp.GetRemoteData(strDownlink, Encoding)
+				m_strDownHtml=cmHttp.FindHtmlCode(m_strDownHtml,FindPagination(1),FindPagination(2),FindPagination(0),False)
+				If m_strDownHtml<>"" And FindPagination(3)<>"" And FindPagination(4)<>"" Then
+					m_strDownArry=cmHttp.GetMatchContent(m_strDownHtml,FindPagination(3),FindPagination(4),FindPagination(0))
+					m_strDownArry=cmHttp.RearrangedUrl(m_strDownArry,strDownlink,AppendUrl(1))
+				Else
+					If m_strDownHtml<>"" Then
+						m_strDownArry=Array("0",m_strDownHtml)
+					Else
+						m_strDownArry=Array("0")
+					End If
+				End If
+				If UBound(m_strDownArry)>0 And FindPagination(6)<>"" And FindPagination(7)<>"" Then
+					strDownlink=m_strDownArry(1):m_strDownArry=Null
+					m_strDownHtml=cmHttp.GetRemoteData(strDownlink, Encoding)
+					m_strDownHtml=cmHttp.FindHtmlCode(m_strDownHtml,FindPagination(6),FindPagination(7),FindPagination(5),True)
+					m_strDownArry=Array("0",m_strDownHtml)
+				End If
+			End If
+		Else
+			m_strDownArry=Array("0")
+		End If
+		DownAddrNum=UBound(m_strDownArry)
+		If MaxAddress>DownAddrNum Or MaxAddress=0 Then
+			MaxAddress=1
+		End If
+		If DownAddrNum>0 Then
+			m_strDownAddress=m_strDownArry(MaxAddress)
+			If Pagination>0 Then
+				If TitleReplace(6)<>"" Then
+					m_strDownAddress=cmHttp.Re_Replace(m_strDownAddress,TitleReplace(6),TitleReplace(7))
+				End If
+			Else
+				If TitleReplace(4)<>"" Then
+					m_strDownAddress=cmHttp.Re_Replace(m_strDownAddress,TitleReplace(4),TitleReplace(5))
+				End If
+			End If
+		Else
+			m_strDownAddress=""
+		End If
+		If TrueAddress=1 Then
+			'If Not SendDownRequest(m_strDownAddress) Then
+				'm_strDownAddress=""
+			'End If
+		End If
+		m_intStar=NewAsp.ChkNumeric(m_strStar)
+		'--标题过滤替换
+		If TitleReplace(0)<>"" Then
+			m_strTitle=cmHttp.Re_Replace(m_strTitle,TitleReplace(0),TitleReplace(1))
+		End If
+		If TitleReplace(2)<>"" Then
+			m_strTitle=cmHttp.Re_Replace(m_strTitle,TitleReplace(2),TitleReplace(3))
+		End If
+		'--软件简介替换操作
+		If Len(strReplace)>2 Then
+			m_strContent=cmHttp.ReplaceClass(m_strContent, strReplace)
+			If Len(m_strHomePage)>2 Then
+				m_strHomePage=cmHttp.ReplaceClass(m_strHomePage, strReplace)
+			End If
+			If Len(m_strContact)>2 Then
+				m_strContact=cmHttp.ReplaceClass(m_strContact, strReplace)
+			End If
+		End If
+		'--内容字符过虑
+		If ContentReplace(0)<>"" Then m_strContent=Replace(m_strContent, ContentReplace(0), "")
+		If ContentReplace(1)<>"" Then m_strContent=Replace(m_strContent, ContentReplace(1), "")
+		'--过虑内容中的匹配字符
+		If ContentReplace(5)<>"" And ContentReplace(6)<>"" Then
+			m_strContent=cmHttp.CheckMatchString(m_strContent,ContentReplace(5),ContentReplace(6),ContentReplace(4))
+		End If
+		If ContentReplace(8)<>"" And ContentReplace(9)<>"" Then
+			m_strContent=cmHttp.CheckMatchString(m_strContent,ContentReplace(8),ContentReplace(9),ContentReplace(7))
+		End If
+		m_strContent=cmHttp.Html2Ubb(m_strContent,RemoveCode)
+		'-－内容追加字符
+		m_strContent=cmHttp.FormatContentUrl(m_strContent,m_strFindLink)
+		m_strContent=ContentReplace(2)&m_strContent&ContentReplace(3)
+	End If
+
+%>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">采集演示</th>
+</tr>
+<%Call SettingStep(ItemID)%>
+<tr>
+	<td class="tablerow2" colspan="2" align="left">
+	<%If showcode=1 Then%>
+	<b>软件名称：</b><%=m_strTitle%><br/>
+	<%If m_strVersion<>"" Then%><b>软件版本：</b><%=m_strVersion%><br/><%End IF%>
+	<%If m_strSubTitle<>"" Then%><b>副 标 题：</b><%=m_strSubTitle%><br/><%End IF%>
+	<b>更新时间：</b><%=m_strDateTime%><br/>
+	<b>软件大小：</b><%=cmHttp.FormatFileSize(m_strFilesize*1024)%><br/>
+	<b>软件语言：</b><%=m_strLanguage%><br/>
+	<b>软件类型：</b><%=m_strSoftType%><br/>
+	<b>授权方式：</b><%=m_strImpower%><br/>
+	<b>运行环境：</b><%=m_strRunSystem%><br/>
+	<%If m_strParent<>"" Or m_strChild<>"" Then%><b>软件分类：</b><%=m_strParent%> / <%=m_strChild%><br/><%End IF%>
+	<%If m_strContact<>"" Then%><b>联系方式：</b><%=m_strContact%><br/><%End IF%>
+	<%If m_intStar>0 Then%><b>推荐星级：</b><%Call cmHttp.showstar(m_intStar)%><br/><%End IF%>
+	<b>官方主页：</b><%=cmHttp.PlusLinks(m_strHomePage)%><br/>
+	<b>目标地址：</b><%=cmHttp.PlusLinks(m_strFindLink)%><br/>
+	<%If UBound(m_strDownArry)>0 Then%>
+		<b>下载地址：</b><%=cmHttp.PlusLinks(m_strDownAddress)%><br/>
+		<ol>
+		<%
+		For i=1 To UBound(m_strDownArry)
+			Response.Write "<li>"
+			Response.Write cmHttp.PlusLinks(m_strDownArry(i))
+			Response.Write "</li>" & vbCrLf
+		Next
+		%>
+		</ol>
+	<%End IF%>
+	<b  class="style3">软件简介：</b><hr noShade="noShade" size="1" style="height:1px;width:99%;color:red;text-align:left;"/>
+	<div class="style2"><%=m_strContent%></div>
+	<%
+	Else
+	Response.Write "&nbsp;&nbsp;"
+	End If
+	%>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="2" align="center"><input type="button" name="go_button" onclick="javascript:history.go(-1)" value="返回上一页" class="button">&nbsp;&nbsp;
+	</td>
+</tr>
+</table>
+<%
+End Sub
+
+Sub saveitem()
+	Dim Rs,SQL,i
+	Dim tmpRemoveCode
+	If Len(Trim(Request.Form("ItemName"))) = 0 Then
+		OutErrors ("请填写项目名称！")
+		Exit Sub
+	End If
+	If Len(Trim(Request.Form("SiteUrl"))) = 0 Then
+		OutErrors ("请填写目标站点URL！")
+		Exit Sub
+	End If
+	If Left(LCase(Request.Form("SiteUrl")), 4) <> "http" Then
+		OutErrors ("目标站点URL输入错误，请在URL前面加上“http://”！")
+		Exit Sub
+	End If
+	If Len(Trim(Request.Form("Encoding"))) < 3 Then
+		OutErrors ("请选择目标站点的文件编码！")
+		Exit Sub
+	End If
+	If Len(Trim(Request.Form("RemoteListUrl"))) = 0 Then
+		OutErrors ("请填写远程列表URL！")
+		Exit Sub
+	End If
+	If NewAsp.ChkNumeric(Request.Form("IsPagination")) > 0 Then
+		If Len(Trim(Request.Form("PaginalList"))) = 0 Then
+			OutErrors ("请填写远程分页列表URL！")
+			Exit Sub
+		End If
+	End If
+	For i = 0 To 14
+		tmpRemoveCode = tmpRemoveCode &NewAsp.ChkNumeric(Request.Form("RemoveCode" & i & "")) & "|"
+	Next
+	tmpRemoveCode = tmpRemoveCode & "0|0|0|0|0|0|0|0|0"
+
+	If ItemID = 0 Then
+		SQL = "SELECT * FROM NC_SoftItem WHERE (ItemID is null)"
+	Else
+		SQL = "SELECT * FROM NC_SoftItem WHERE ItemID=" & ItemID
+	End If
+
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	Rs.Open SQL, CJ_Conn, 1, 3
+		If ItemID = 0 Then Rs.AddNew
+		Rs("ItemName") = Trim(Request.Form("ItemName"))
+		Rs("SiteUrl") = Trim(Request.Form("SiteUrl"))
+		Rs("ChannelID") = ChannelID
+		Rs("ClassID") = NewAsp.ChkNumeric(Request.Form("classid"))
+		Rs("SpecialID") = NewAsp.ChkNumeric(Request.Form("SpecialID"))
+		Rs("StopItem") = NewAsp.ChkNumeric(Request.Form("StopItem"))
+		Rs("Encoding") = Trim(Request.Form("Encoding"))
+		Rs("IsDown") = NewAsp.ChkNumeric(Request.Form("IsDown"))
+		Rs("downid") = NewAsp.ChkNumeric(Request.Form("downid"))
+		Rs("MaxAddress") = NewAsp.ChkNumeric(Request.Form("MaxAddress"))
+		Rs("AutoClass") = NewAsp.ChkNumeric(Request.Form("AutoClass"))
+		Rs("PathForm") = NewAsp.ChkNumeric(Request.Form("PathForm"))
+		Rs("SaveFilePath") = Trim(Request.Form("SaveFilePath"))
+		Rs("AutoRename") = NewAsp.ChkNumeric(Request.Form("AutoRename"))
+		Rs("IsNowTime") = NewAsp.ChkNumeric(Request.Form("IsNowTime"))
+		Rs("AllHits") = NewAsp.ChkNumeric(Request.Form("AllHits"))
+		Rs("star") = NewAsp.ChkNumeric(Request.Form("star"))
+		Rs("RemoveCode") = Trim(tmpRemoveCode)
+		Rs("RemoteListUrl") = Trim(Request.Form("RemoteListUrl"))
+		Rs("PaginalList") = Trim(Request.Form("PaginalList"))
+		Rs("IsPagination") = NewAsp.ChkNumeric(Request.Form("IsPagination"))
+		Rs("startid") = NewAsp.ChkNumeric(Request.Form("startid"))
+		Rs("lastid") = NewAsp.ChkNumeric(Request.Form("lastid"))
+
+		If ItemID = 0 Then
+			Rs("lastime") = Now()
+			Rs("NamedDemourl") = ""
+			Rs("isLogin")=0
+		End If
+		Rs("RetuneClass") = Trim(Request.Form("ClassList"))
+		Rs("strReplace") = Trim(Request.Form("ReplaceList"))
+		Rs("listid") = NewAsp.ChkNumeric(Request.Form("listid"))
+		If ItemID = 0 Then Rs("listid") = 0
+	Rs.Update
+	listid=Rs("listid")
+	infoid=Rs("infoid")
+	ItemID=Rs("ItemID")
+	Rs.Close: Set Rs = Nothing
+	Call LoadItemSetting(ItemID)
+End Sub
+
+Sub saveEditstep2()
+	Dim Rs,SQL,i
+	Dim tmpFindListArea,tmpFindListLink,tmpFindReplace
+	'--如果是更新项目，执行下面的操作
+	For i = 0 To 2
+		tmpFindListArea = tmpFindListArea & Replace(Request.Form("FindListArea" & i & ""), "|||", "") & "|||"
+	Next
+	tmpFindListArea = tmpFindListArea & "0|||||||||||||||"
+	For i = 0 To 2
+		tmpFindListLink = tmpFindListLink & Replace(Request.Form("FindListLink" & i & ""), "|||", "") & "|||"
+	Next
+	tmpFindListLink = tmpFindListLink & "0|||||||||||||||"
+	For i = 0 To 3
+		tmpFindReplace = tmpFindReplace & Replace(Request.Form("FindReplace" & i & ""), "|||", "") & "|||"
+	Next
+	tmpFindReplace = tmpFindReplace & "0|||||||||||||||"
+	SQL = "SELECT * FROM NC_TPL_List WHERE ChannelID=" & ChannelID & " And listid=" & ListID
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	Rs.Open SQL, CJ_Conn, 1, 3
+	If Rs.BOF And Rs.EOF Then
+		Rs.AddNew
+	End If
+	Rs("ChannelID") = ChannelID
+	Rs("ListTitle") = Trim(Request.Form("ListTitle"))
+	Rs("FindListArea") = cmHttp.CheckHttpStr(tmpFindListArea)
+	Rs("FindListLink") = cmHttp.CheckHttpStr(tmpFindListLink)
+	Rs("FindReplace") = cmHttp.CheckHttpStr(tmpFindReplace)
+	Rs("IsRedirect") = NewAsp.ChkNumeric(Request.Form("IsRedirect"))
+	Rs("RedirectUrl") = Trim(Request.Form("RedirectUrl"))
+	Rs.Update
+	listid=Rs("listid")
+	Rs.Close: Set Rs = Nothing
+
+	SQL = "SELECT * FROM NC_SoftItem WHERE ChannelID=" & ChannelID & " And ItemID=" & ItemID
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	Rs.Open SQL, CJ_Conn, 1, 3
+	If Not(Rs.BOF And Rs.EOF) Then
+		Rs("listid")=listid
+		Rs("infoid")=infoid
+		Rs.Update
+		infoid=Rs("infoid")
+	End If
+	Rs.Close: Set Rs = Nothing
+	Call LoadItemSetting(ItemID)
+End Sub
+
+Public Sub saveEditstep3()
+	Dim Rs,SQL,i
+	Dim tmpFindTitle,tmpFindContent,tmpFindCategory,tmpFindDateTime,tmpFindOthers
+	Dim tmpFindPagination,tmpTitleReplace,tmpContentReplace,tmpAppendUrl
+
+	For i = 0 To 8
+		tmpFindTitle = tmpFindTitle & Replace(Request.Form("FindTitle" & i & ""), "|||", "") & "|||"
+	Next
+	tmpFindTitle = tmpFindTitle & "0|||||||||||||||"
+	For i = 0 To 2
+		tmpFindContent = tmpFindContent & Replace(Request.Form("FindContent" & i & ""), "|||", "") & "|||"
+	Next
+	tmpFindContent = tmpFindContent & "0|||||||||||||||"
+	For i = 0 To 6
+		tmpFindCategory = tmpFindCategory & Replace(Request.Form("FindCategory" & i & ""), "|||", "") & "|||"
+	Next
+	tmpFindCategory = tmpFindCategory & "0|||||||||||||||"
+	For i = 0 To 4
+		tmpFindDateTime = tmpFindDateTime & Replace(Request.Form("FindDateTime" & i & ""), "|||", "") & "|||"
+	Next
+	tmpFindDateTime = tmpFindDateTime & "0|||||||||||||||"
+	For i = 0 To 35
+		tmpFindOthers = tmpFindOthers & Replace(Request.Form("FindOthers" & i & ""), "|||", "") & "|||"
+	Next
+	tmpFindOthers = tmpFindOthers & "0|||||||||||||||"
+
+	For i = 0 To 7
+		tmpFindPagination = tmpFindPagination & Replace(Request.Form("FindPagination" & i & ""), "|||", "") & "|||"
+	Next
+	tmpFindPagination = tmpFindPagination & "0|||||||||||||||"
+	For i = 0 To 8
+		tmpTitleReplace = tmpTitleReplace & Replace(Request.Form("TitleReplace" & i & ""), "|||", "") & "|||"
+	Next
+	tmpTitleReplace = tmpTitleReplace & "0|||||||||||||||"
+	For i = 0 To 9
+		tmpContentReplace = tmpContentReplace & Replace(Request.Form("ContentReplace" & i & ""), "|||", "") & "|||"
+	Next
+	tmpContentReplace = tmpContentReplace & "0|||||||||||||||"
+	For i = 0 To 1
+		tmpAppendUrl = tmpAppendUrl & Replace(Request.Form("AppendUrl" & i & ""), "|||", "") & "|||"
+	Next
+
+	SQL = "SELECT * FROM NC_TPL_Info WHERE ChannelID=" & ChannelID & " And infoid=" & InfoID
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	Rs.Open SQL, CJ_Conn, 1, 3
+	If Rs.BOF And Rs.EOF Then
+		Rs.AddNew
+		Rs("sourceReplace")="0"
+	End If
+	Rs("ChannelID") = ChannelID
+	Rs("InfoTitle") = Trim(Request.Form("InfoTitle"))
+	Rs("FindTitle") = cmHttp.CheckHttpStr(tmpFindTitle)
+	Rs("FindContent") = cmHttp.CheckHttpStr(tmpFindContent)
+	Rs("FindCategory") = cmHttp.CheckHttpStr(tmpFindCategory)
+	Rs("FindDateTime") = cmHttp.CheckHttpStr(tmpFindDateTime)
+	Rs("FindOthers") = cmHttp.CheckHttpStr(tmpFindOthers)
+	Rs("Pagination") = NewAsp.ChkNumeric(Request.Form("Pagination"))
+	Rs("FindPagination") = cmHttp.CheckHttpStr(tmpFindPagination)
+	Rs("TitleReplace") = cmHttp.CheckHttpStr(tmpTitleReplace)
+	Rs("ContentReplace") = cmHttp.CheckHttpStr(tmpContentReplace)
+	Rs("AppendUrl") = cmHttp.CheckHttpStr(tmpAppendUrl)
+	Rs.Update
+	infoid=Rs("infoid")
+	Rs.Close: Set Rs = Nothing
+
+	SQL = "SELECT * FROM NC_SoftItem WHERE ChannelID=" & ChannelID & " And ItemID=" & ItemID
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	Rs.Open SQL, CJ_Conn, 1, 3
+	If Not(Rs.BOF And Rs.EOF) Then
+		Rs("infoid")=infoid
+		Rs("NamedDemourl") = Trim(Request.Form("NamedDemourl"))
+		Rs.Update
+	End If
+	Rs.Close: Set Rs = Nothing
+	Call LoadItemSetting(ItemID)
+	Call LoadInfoTemplate(infoid)
+End Sub
+
+Sub saveSetting()
+	Dim Rs,SQL
+	If Len(Request.Form("AllowDownExt")) = 0 Then
+		OutErrors ("请输入允许下载的文件类型!")
+		Exit Sub
+	End If
+	SQL = "SELECT * FROM NC_SoftConfig"
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	Rs.Open SQL, CJ_Conn, 1, 3
+	Rs("UseDownload") = NewAsp.ChkNumeric(Request.Form("UseDownload"))
+	Rs("RepeatDeal") = NewAsp.ChkNumeric(Request.Form("RepeatDeal"))
+	Rs("isProgress") = NewAsp.ChkNumeric(Request.Form("isProgress"))
+	Rs("TrueAddress") = NewAsp.ChkNumeric(Request.Form("TrueAddress"))
+	Rs("setInterval") = NewAsp.ChkNumeric(Request.Form("setInterval"))
+	Rs("MaxDownSize") = NewAsp.ChkNumeric(Request.Form("MaxDownSize"))
+	Rs("AllowDownExt") = Trim(Request.Form("AllowDownExt"))
+	Rs("FilePrefix") = Trim(Request.Form("FilePrefix"))
+	Rs("FileSuffix") = Trim(Request.Form("FileSuffix"))
+	Rs.Update
+	Rs.Close: Set Rs = Nothing
+	Call LoadSoftConfig()
+	Succeed("<li>友情提示！保存采集基本设置完成。</li>")
+End Sub
+
+Sub delitem()
+	If NewAsp.ChkNumeric(Request("ItemID")) > 0 Then
+		cmHttp.Execute ("DELETE FROM NC_SoftItem WHERE ItemID="&NewAsp.ChkNumeric(Request("ItemID")))
+		cmHttp.Execute ("DELETE FROM NC_Softlog WHERE ItemID="&NewAsp.ChkNumeric(Request("ItemID")))
+		Response.Redirect Request.ServerVariables("HTTP_REFERER")
+	Else
+		OutErrors ("请选择正确的系统参数！")
+	End If
+End Sub
+
+'=================================================
+'过程名：SelDownServer
+'作  用：下载服务器设置
+'=================================================
+Sub SelDownServer(ByVal intdownid)
+	Dim RsObj, SQL
+	If Not IsNumeric(intdownid) Then intdownid = 0
+	Response.Write " <select name=""downid"" size=""1"">"
+	Response.Write "<option value=""0"""
+	If intdownid = 0 Then Response.Write " selected"
+	Response.Write ">↓请选择下载服务器↓</option>"
+	SQL = "SELECT downid,DownloadName,depth,rootid FROM NC_DownServer WHERE depth=0 And ChannelID=" & ChannelID
+	Set RsObj = NewAsp.Execute(SQL)
+	Do While Not RsObj.EOF
+		Response.Write "<option value=""" & RsObj("rootid") & """"
+		If intdownid = RsObj("rootid") Then Response.Write " selected"
+		Response.Write ">" & RsObj(1) & "</option>"
+		RsObj.MoveNext
+	Loop
+	RsObj.Close
+	Set RsObj = Nothing
+	Response.Write "<option value=""0"">不使用下载服务器</option>"
+	Response.Write "</select>"
+End Sub
+
+Sub ResponseWrite(str)
+	Response.Write "<textarea id=""showtext"" rows=""20"" cols=""120"">"
+	Response.Write Server.HTMLEncode(str)
+	Response.Write "</textarea>"
+End Sub
+%>

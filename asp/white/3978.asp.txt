@@ -1,0 +1,133 @@
+<!--#include file="const.asp"-->
+<!--#include file="../inc/md5.asp"-->
+<%
+Dim HtmlContent,LinkID,Action
+Dim m_strLinkName,m_strLinkUrl,m_strLogoUrl,m_strReadme,isLogo,m_strChecked1,m_strChecked2
+
+LinkID=NewAsp.ChkNumeric(Request("id"))
+If NewAsp.CheckStr(LCase(Request("action"))) = "save" Then
+	Call FriendLinkModify()
+Else
+	Call Main()
+	Call TPL_Flush()
+End If
+NewAsp.PageEnd()
+
+Sub Main()
+	Dim Rs
+	Set Rs = NewAsp.Execute("SELECT LinkID,LinkName,LinkUrl,LogoUrl,Readme,isLogo FROM NC_Link WHERE LinkID="& LinkID)
+	If Rs.BOF And Rs.EOF Then
+		Set Rs = Nothing
+		Call AlertScript("友情提示!\n\n错误的系统参数!",0):Exit Sub
+	Else
+		LinkID=Rs("LinkID")
+		m_strLinkName=NewAsp.HTMLEncode(Rs("LinkName"))
+		m_strLinkUrl=Replace(Replace(Rs("LinkUrl"), "<", ""), ">", "")
+		m_strLogoUrl=Server.HTMLEncode(Rs("LogoUrl"))
+		m_strReadme=Server.HTMLEncode(Rs("Readme"))
+		isLogo=Rs("isLogo")
+		If isLogo=0 Then
+			m_strChecked1=" checked=""checked"""
+			m_strChecked2=""
+		Else
+			m_strChecked1=""
+			m_strChecked2=" checked=""checked"""
+		End If
+	End If
+	HtmlContent = NewAsp.LoadTemplate("link\editlink")
+	HtmlContent = Replace(HtmlContent, "{$pagetitle}",  TPL_Config(6))
+	HtmlContent = Replace(HtmlContent, "{$classid}", 0)
+	HtmlContent = Replace(HtmlContent, "{$linkid}", LinkID)
+	HtmlContent = Replace(HtmlContent,"{$linkname}", m_strLinkName)
+	HtmlContent = Replace(HtmlContent,"{$linkurl}", m_strLinkUrl)
+	HtmlContent = Replace(HtmlContent,"{$logourl}", m_strLogoUrl)
+	HtmlContent = Replace(HtmlContent,"{$readme}", m_strReadme)
+	HtmlContent = Replace(HtmlContent, "{$islogo}", isLogo)
+	TPL_Scan HtmlContent
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Select Case sToken
+		Case "id"			:	TPL_Echo LinkID
+		Case "linkname"		:	TPL_Echo m_strLinkName
+		Case "linkurl"		:	TPL_Echo m_strLinkUrl
+		Case "logourl"		:	TPL_Echo m_strLogoUrl
+		Case "readme"		:	TPL_Echo m_strReadme
+		Case "content"		:	TPL_Echo m_strReadme
+		Case "islogo"		:	TPL_Echo isLogo
+		Case "checked1"		:	TPL_Echo m_strChecked1
+		Case "checked2"		:	TPL_Echo m_strChecked2
+	End Select
+	If Err Then Err.Clear
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	'***
+End Sub
+
+Sub FriendLinkModify()
+	Dim Rs,SQL
+	If NewAsp.ChkNumeric(TPL_Config(17))>0 Then
+		Call AlertScript("友情提示!\n\n"&TPL_Config(18)&"",0):Exit Sub
+	End If
+	If Not NewAsp.CodeIsTrue() Then
+		Call AlertScript("友情提示!\n\n验证码校验失败，请返回刷新验证码再试。",0):Exit Sub
+	End If
+	If Trim(Request.Form("LinkName")) = "" Then
+		Call AlertScript("友情提示!\n\n网站名称不能为空!",0):Exit Sub
+	End If
+	If Trim(Request.Form("LinkUrl")) = "" Then
+		Call AlertScript("友情提示!\n\n网站URL不能为空!",0):Exit Sub
+	End If
+	If Trim(Request.Form("Readme")) = "" Then
+		Call AlertScript("友情提示!\n\n网站简介不能为空!",0):Exit Sub
+	End If
+	If Trim(Request.Form("password")) = "" Then
+		Call AlertScript("友情提示!\n\n管理密码不能为空!",0):Exit Sub
+	End If
+	If NewAsp.IsValidStr(Request("password")) = False Then
+		Call AlertScript("友情提示!\n\n管理密码中含有非法字符!",0):Exit Sub
+	End If
+	Set Rs = NewAsp.Execute("SELECT password FROM NC_Link WHERE LinkID="& LinkID)
+	If Rs.BOF And Rs.EOF Then
+		Set Rs = Nothing
+		Call AlertScript("友情提示!\n\n错误的系统参数!",0):Exit Sub
+	Else
+		If Not IsNull(Trim(Rs("password"))) And Trim(Rs("password")) <> "" Then
+			If Rs("password") <> md5(Request.Form("password"),16) Then
+				Set Rs = Nothing
+				Call AlertScript("友情提示!\n\n管理密码错误!",0):Exit Sub
+			End If
+		Else
+			Set Rs = Nothing
+			Call AlertScript("友情提示!\n\n管理密码无效!",0):Exit Sub
+		End If
+	End If
+	Set Rs = Nothing
+	If Founderr = True Then Exit Sub
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_Link WHERE LinkID="& LinkID
+	Rs.Open SQL,Conn,1,3
+		Rs("LinkName") = NewAsp.RequestForm(Request.Form("LinkName"),50)
+		Rs("LinkUrl") = NewAsp.RequestForm(Request.Form("LinkUrl"),200)
+		Rs("LogoUrl") = NewAsp.RequestForm(Request.Form("LogoUrl"),200)
+		Rs("Readme") = NewAsp.RequestForm(Request.Form("Readme"),200)
+		Rs("isLogo") = NewAsp.ChkNumeric(Request.Form("isLogo"))
+	Rs.update
+	Rs.Close:Set Rs = Nothing
+	Response.Write "<script language=""JavaScript"">"
+	Response.Write "alert('友情提示!\n\n"&TPL_Config(16)&"');"
+	Response.Write "try{top.location.replace(document.referrer);"
+	Response.Write "}catch(e){}"
+	Response.Write "</script>"
+End Sub
+%>

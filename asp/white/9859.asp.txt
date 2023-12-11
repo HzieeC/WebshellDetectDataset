@@ -1,0 +1,208 @@
+<!--#include file="../act_inc/ACT.User.asp"-->
+ <% 	Dim UserHS,U_Simple,Max_sEnd,Max_sms,Max_Num
+	Set UserHS = New ACT_User
+	IF Cbool(UserHS.UserLoginChecked)=false then
+	  echo "<script>top.location.href ='login.asp' ;</script>"
+	  Response.end
+	End If	
+	If UserHS.G_Simple="" Then 
+		U_Simple="Simple"
+	Else
+		U_Simple=UserHS.G_Simple
+	End If 
+ 	Max_sEnd=UserHS.G_Max_sEnd''群发限制人数
+	Max_sms=UserHS.G_Max_sms	'内容最多字符数
+	Max_Num=UserHS.G_Max_Num'最多允许存放条数
+	
+	
+	if request("a")="rel" then 
+
+
+			 
+			dim title,message,i,sUname,FID,umodeid,userid,rs1,content1,sql,rs2
+			FID=ChkNumeric(actcms.s("FID"))
+			set rs=actcms.actexe("select * from Message_Act where UserID="& UserHS.UserID &"  and id="&fid)'查找该MSG ID的用户
+			if not rs.eof then 
+				umodeid=rs("um"):userid=rs("u")'发送对象的信息
+			else
+ 				call actcms.Alert("没有找到该用户","")
+				response.end
+ 			end if 
+			
+			set rs1=actcms.actexe("select * from  Friend_ACT where um="&umodeid&" and  u="&userid&" and  UserID="& UserHS.UserID &"   and flag=2 ")'查找该发送对象的信息
+ 			if not   rs1.eof then 
+ 				call actcms.Alert("对不起，你被列为黑名单,不能发送短信给他！","")
+				response.end
+			end if 
+  			
+			title="Fw："&rs("title")
+	
+			
+			If actcms.s("content")="" Then
+				echo("<script>alert('内容是必须要填写的噢。');history.back();</script>")
+			ElseIf actcms.strLength(actcms.s("content"))>Cint(max_sms) Then
+				echo("<script>alert('内容限定最多"&max_sms&"个字符。');history.back();</script>")
+			Else
+				message=actcms.s("content")
+			End If
+  
+			content1=content1&"============= 下面是转发信息 ==============<br>"
+			content1=content1&"原发件人："&actcms.UserM(rs("U"))&"<br>"
+			content1=content1&server.htmlencode(message)
+			content1=content1&"<br>======================================="
+			message=content1
+			
+			
+  			SqlStr="Select UserID from User_ACT where UserID="&UserID&""
+			Set rs=Conn.Execute(SqlStr)
+			If RS.eof and RS.bof Then
+				RS.close:Set rs=Nothing
+				call actcms.Alert("系统没有这个用户，看看你的发送对象写对了嘛？","")
+				response.end
+			End If
+				
+			RS.Close
+ 			 If ChkNumeric(actcms.s("savetooutbox"))=1 Then 	 
+  					sql = "Select top 1 * from Message_Act"
+					Set rs2 = Server.CreateObject("Adodb.RecordSet")
+					rs2.Open sql, Conn, 1, 3
+					rs2.AddNew
+ 					rs2("Userid") = Userid
+					rs2("title") = title
+					rs2("content") = message
+					rs2("flag") = 2
+ 					rs2("U") = UserHS.Userid
+					rs2("SendTime") =now
+					rs2.Update
+					rs2.Close:Set rs2 = Nothing
+			 End If 
+				'判断对方信箱是否已满
+				If conn.execute("select count(*) from Message_Act where   Userid="&UserHS.Userid&"")(0)>=Max_Num Then
+					echo("<script>alert('由于[" & sUname & "]的信箱已满，发送没有成功！');history.back();</script>")
+				Else
+  					sql = "Select top 1 * from Message_Act"
+					Set rs2 = Server.CreateObject("Adodb.RecordSet")
+					rs2.Open sql, Conn, 1, 3
+					rs2.AddNew
+ 					rs2("Userid") = Userid
+					rs2("title") = title
+					rs2("content") = message
+					rs2("flag") = 1
+ 					rs2("U") = UserHS.Userid
+					rs2("SendTime") =now
+					rs2.Update
+					rs2.Close:Set rs2 = Nothing
+ 				   Conn.Execute(SqlStr)
+				End If
+ 
+ 		echo("<script>alert('恭喜您，发送短信息成功。发送的消息同时保存在您的发件箱中。');location.href='send.asp';</script>")
+	
+	end if
+ %>
+ <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>会员中心</title>
+<link href="images/css.css" rel="stylesheet" type="text/css" />
+<script language="JavaScript" type="text/javascript" src="../editor/ckeditor/ckeditor.js"></script>
+</head>
+<body style="background-color:#fff">
+<div id="head">
+  <div id="logo"><a href="index.asp" alt=""><img src="images/logo_member.gif" alt="actcms"></a></div><div id="banner"></div>
+</div>
+<div id="membermenu">
+<!--#include file="menu.asp"-->
+</div>
+<div id="main">
+  <div id="left">
+    <div id="treemenu">
+      <h5>短消息</h5>
+      <ul>   	
+		<li><a href="send.asp">发送短消息</a></li>
+        <li><a href="inbox.asp">收件箱</a></li>
+        <li><a href="outbox.asp">发件箱</a></li>
+      </ul>
+    </div>
+    <ol>
+    <li class="local"><a href="<%= AcTCMS.Domain%>">返回网站首页</a></li>
+    <li class="exit"><a href="Checklogin.asp?Action=LoginOut">退出登录</a></li>
+    </ol>
+  </div>
+  <div id="right">
+<p id="position"><strong>当前位置：</strong><a href="inbox.asp">收件箱</a>阅读</p>
+<% 			
+		dim rs,sqlstr ,mes,Content
+		If actcms.s("id")=0 Then
+				echo "<script>alert('请指定正确的参数。');history.back();</script>"
+			End If
+			if request("A")="me" then 
+				Set rs=server.createobject("adodb.recordSet")
+				SqlStr="Select * from Message_Act where (U="&UserHS.Userid&") and id="&Clng(actcms.s("ID"))
+				RS.open SqlStr,Conn,1,1
+				If RS.eof and RS.bof Then
+					RS.close:Set rs=Nothing
+					echo "<script>alert('没有找到您的发件短信');history.back();</script>"
+					response.end
+				end if 
+				mes="您"
+			else 
+				Set rs=server.createobject("adodb.recordSet")
+				If request("action")="read" Then
+					Conn.Execute("Update Message_Act Set flag=1 where ID="&Clng(actcms.s("id")))
+				End If
+				SqlStr="Select * from Message_Act where (Userid="&UserHS.Userid&") and id="&Clng(actcms.s("ID"))
+				RS.open SqlStr,Conn,1,1
+				If RS.eof and RS.bof Then
+					RS.close:Set rs=Nothing
+					echo "<script>alert('你是不是跑到别人的信箱啦、或者该信息已经被收件人删除。');history.back();</script>"
+					response.end
+				end if 
+				mes="给您"
+			end if
+ %>
+    	 <table width="98%" cellpadding="0" cellspacing="1" class="message">
+         <caption>
+		 <%If mes="您" Then %>
+      		在<%=rs("SendTime")%>，<font color="red"><%=actcms.UserM(rs("U"))%></font><%= mes %>发送给<%=actcms.UserM(rs("Userid"))%>的消息！
+			<%else%>
+      		在<%=rs("SendTime")%>，<font color="red"><%=actcms.UserM(rs("U"))%></font><%= mes %>发送的消息！
+			<%End If %>
+			</caption>
+            
+        <tr>
+<td width="40" class="align_center"><img src="images/nophoto.gif" width="40" height="40" alt="<%=rs("title")%> " /></td>
+        	<td width="100">
+            	 <strong><%=actcms.UserM(rs("U"))%></strong> <br /><%=rs("SendTime")%>           </td>
+        	<td width="*" class="align_left">
+            	<p>&nbsp;<%=rs("content")%></p>            </td>
+        </tr>
+ 
+ 
+             	</table>
+        <form action="?a=rel&FID=<%=rs("id")%>" method="post" name="myform" >
+    	 <table width="98%" cellpadding="0" cellspacing="0" class="table_form">
+         <caption>回复短消息</caption>
+        	<tr>
+                <td width="*">
+   <textarea rows="10" cols="80" name="content" id="content" ><%=Content%></textarea>
+ </td>
+        	</tr>
+ <tr>
+    <td>
+ 保存到发件箱：<input type="checkbox" name="savetooutbox" value="1"  />
+ </td>
+</tr> <tr>
+    <td>
+<input  class="button_style" type="submit" name="dosubmit" id="button" value=" 确定 " />
+ </td>
+</tr>
+        </table>        
+      </form>
+</div>
+   </div>
+ <div class="clear"></div>
+<!--#include file="foot.asp"-->
+
+</body>
+</html>

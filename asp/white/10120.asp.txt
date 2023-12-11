@@ -1,0 +1,171 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<%server.ScriptTimeout=999999999%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../../Inc/CommonFunction.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<%If Not FRAdminLevel(706) Then Call ErrorMsg()
+Buffer(True)%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head> 
+<title>导出邮件地址</title> 
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link href="../Css/style.css" rel="stylesheet" type="text/css">
+</head>
+<script language="javascript" src="../Inc/Admin.js"></script>
+<script language="javascript">
+function getmembertype(typeid)
+{
+	document.frames["memberframe"].location.replace("admin_membertype.asp?typeid="+typeid);
+}
+</script>
+<body>
+<%
+dim action,title1,title2,title3,title,EmailList
+action=request.QueryString("action")
+if action="out" then
+	mtype=request.Form("mtype")
+	mtypes=request.Form("mtypes")
+	mdate=request.Form("mdate")
+	Select Case mtype
+		Case 0:title1=""
+		Case else:title1=Grouptype(mtype-1)
+	End Select
+	Select Case mtypes
+		Case 0:title2=""
+		Case else:title2=Membergroups(mtypes)
+	End Select
+	Select Case mdate
+		Case 0:title3=""
+		Case 1:title3="一周未登录"
+		Case 2:title3="30天未登录"
+		Case 3:title3="一周内到期"
+		Case 4:title3="30天内到期"
+	End Select
+	if mtype=0 and mtypes=0 and mdate=0 then
+	title="全部会员"
+	else
+	title=title3&title1&title2
+	end if
+	title=title&FormatDate(now(),7)
+	
+	sql="select member_email from JOB_Member where Member_sendemail=1"
+	select case mdate
+		case 1:sql=sql&" and (DateDiff("&FR_HR_d&",Member_logindate,"&FR_HR_Now&")>7 or Member_logindate is null)"
+		case 2:sql=sql&" and (DateDiff("&FR_HR_d&",Member_logindate,"&FR_HR_Now&")>30 or Member_logindate is null)"
+		case 3:sql=sql&" and DateDiff("&FR_HR_d&","&FR_HR_Now&",Member_enddate)>7"
+		case 4:sql=sql&" and DateDiff("&FR_HR_d&","&FR_HR_Now&",Member_enddate)>30"
+	end select
+	if mtype<>0 then
+		sql=sql&" and Member_typeid="&mtype&""
+	end if
+	if mtypes<>0 then
+		sql=sql&" and Member_groupid="&mtypes&""
+	end if
+	sql=sql&" order by member_id desc"
+	Set rs=Server.CreateObject("ADODB.RecordSet")
+	rs.open sql,conn,1,1
+	if not rs.eof then
+		for i=1 to rs.recordcount
+			EmailList=EmailList&rs("Member_email")&vbCrLf
+		rs.movenext
+		next
+	end if
+	rs.close
+	set rs=nothing
+	'把内容写入到记事本文件
+	if EmailList<>"" then
+		Set fso = Server.CreateObject(FR_HR_FSO)
+		HtmlFileName=Server.MapPath("MailList\"&title&".txt")
+		Set fout = fso.CreateTextFile(HtmlFileName)
+		fout.WriteLine CreateHTMLReplace(EmailList)
+		fout.close
+		set fout = nothing
+		Set fso = nothing
+	end if
+	Response.Write("<script>alert('导出email成功!');location.href='Admin_OutEmail.asp';</script>")
+	Response.End()
+elseif action="del" then
+	filename=Trim(Request.QueryString("filename"))
+	if filename<>"" then
+		Set FSO = Server.CreateObject("Scripting.FileSystemObject")
+		FSO.DeleteFile(Server.MapPath("maillist/"&filename))
+		Set FSO = Nothing
+	end if
+	Response.Write("<script>location.href='Admin_OutEmail.asp';</script>")
+	Response.End()
+end if
+%>
+<iframe height=0 width=0 src="" id="memberframe"></iframe>
+<table cellpadding=2 cellspacing=1 border=0 width=98% class=tableBorder align=center>
+<form action="?action=out" method="post" name="form">
+	<tr>
+		<th height=25 colspan="2" class="tableHeaderText">导出邮件地址</th>	
+	</tr>
+	<tr>
+		<td width="18%" align="right">要导出的会员类型：</td>
+		<td width="82%"><select name="mtype" onChange=getmembertype(this.options[this.selectedIndex].value)>
+		<option value="0">全部会员</option>
+		<%for m=0 to ubound(Groupid)%>
+		<option value="<%=m+1%>"><%=Grouptype(m)%></option>
+		<%next%>
+	    </select>&nbsp;<span id=load205></span><span id=membertype><select name="mtypes">
+		<option value="0" selected>全部会员</option>
+		</select></span>&nbsp;
+		<select name="mdate">
+	    <option value="0">所有会员</option>
+	    <option value="1">一周未登录</option>
+	    <option value="2">30天未登录</option>
+	    <option value="3">一周内到期</option>
+	    <option value="4">30天内到期</option>
+	    </select>
+	</td>
+	</tr>
+	<tr>
+		<td width="18%">　</td>
+	  <td width="82%">&nbsp;
+	    <input name="submit1" type="submit" class="inputs" value=" 导 出 ">
+      <input name="Submit" type="reset" class="inputs" value=" 重 置 " /></td>
+	</tr>
+</form>
+</table>
+<table cellpadding=2 cellspacing=1 border=0 width=98% class=tableBorder align=center style="margin-top:6px;">
+	<tr>
+		<th height=25 colspan="4" class="tableHeaderText">导出邮件列表</th>	
+	</tr>
+	<tr>
+		<td width="45%" align="center"><strong>文件名称</strong></td>
+	    <td width="25%" align="center"><strong>导出时间</strong></td>
+	    <td width="30%" align="center"><strong>编辑</strong></td>
+	</tr>
+	<%
+	dim fso            'fso对象
+	dim objFolder      '文件夹对象
+	dim objSubFolders  '子文件夹集合
+	dim objSubFolder   '子文件夹对象
+	dim objFiles       '文件集合
+	dim objFile        '文件对象
+	
+	set fso=server.CreateObject("scripting.filesystemobject")
+	on error resume next
+	path=Server.MapPath("MailList\")
+	set objFolder=fso.GetFolder(path)'创建文件夹对象
+	set objFiles=objFolder.Files
+	for each objFile in objFiles
+	%>
+	<tr>
+	  <td>&nbsp;<a href="MailList/<%=objFile.name%>" target="_blank" title="查看"><%=objFile.name%></a></td>
+      <td align="center"><%=objFile.datecreated%></td>
+      <td align="center"><a href="Admin_OutEmail.asp?action=del&filename=<%=objFile.name%>">删除</a></td>
+  </tr>
+  <%
+  	next
+	set objFolder=nothing
+	set objSubFolders=nothing
+	set fso=nothing
+  %>
+</table>
+<!--#include file="../inc/copy.asp"-->
+</body>
+</html>

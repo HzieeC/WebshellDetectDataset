@@ -1,0 +1,47 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<sf:ResourceGroup type="css">
+	<sf:Resource path="/js/dtree/dtree.css"/>
+</sf:ResourceGroup>
+<sf:ResourceGroup type="js">
+   <sf:Resource path="/js/jquery/jquery.js"/>
+   <sf:Resource path="/js/dtree/dtree.js"/>
+</sf:ResourceGroup>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title><fmt:message key='System.Authority.Query'></fmt:message> </title>
+</head>
+<body>
+<div class="userInfo" id="searchCon">
+<h1><fmt:message key='System.Authority' ></fmt:message> </h1>
+ <div class="dtree">
+<p><a href="javascript: tree.openAll();"><fmt:message key='System.Authority.Menu.OpenAll' ></fmt:message> </a> | <a href="javascript: tree.closeAll();"><fmt:message key='System.Authority.Menu.CloseAll' ></fmt:message></a></p>
+<script type="text/javascript">
+//创建树
+tree = new dTree('tree','${contextPath}');
+tree.config.useSelection=false;
+tree.add('0','-1','<fmt:message key="System.Authority" ></fmt:message>');
+var url = "${contextPath}<ifa:constant fieldName='AUTHORITY_INDEX_LIST_URL' namespace='cim'/>";
+$.ajax( {
+	type:"get",
+	url : url+".json",
+	timeout : 5000,
+	async:false,
+	success:function(response) {
+	    $.each(response.authorityList ,function(i,node){
+	    	tree.add(node.code,node.parentCode,i18n[node.name]);//+" ["+ node.remark +"] "
+		});
+	},
+	error : function() {
+		$.msg.alert('<fmt:message key="Page.Dialog.title" />','<fmt:message key="System.Error" />');
+	}
+});
+document.write(tree);
+</script>
+</div>
+</div>
+</body>
+</html>

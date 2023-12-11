@@ -1,0 +1,184 @@
+<!--#include file="../../ACT.Function.asp"-->
+<%
+Response.Expires = 0
+Response.Expiresabsolute = Now() - 1
+Response.AddHeader "pragma","no-cache"
+Response.AddHeader "cache-control","private"
+Response.CacheControl = "no-cache"
+
+
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>图片切割系统</title>
+ 	<script type="text/javascript">
+  
+
+
+var DG = frameElement.lhgDG;
+ var next = function()
+{
+    cj();
+};
+
+ DG.addBtn( 'next', '裁剪图片', next );
+
+
+ 
+
+	</script>
+ 
+	
+	</head>
+<body>
+
+
+<script type="text/javascript">
+var isIE = (document.all) ? true : false;
+
+var isIE6 = isIE && ([/MSIE (\d)\.0/i.exec(navigator.userAgent)][0][1] == 6);
+
+var $ = function (id) {
+	return "string" == typeof id ? document.getElementById(id) : id;
+};
+
+var Class = {
+	create: function() {
+		return function() { this.initialize.apply(this, arguments); }
+	}
+}
+
+var Extend = function(destination, source) {
+	for (var property in source) {
+		destination[property] = source[property];
+	}
+}
+
+var Bind = function(object, fun) {
+	return function() {
+		return fun.apply(object, arguments);
+	}
+}
+
+var BindAsEventListener = function(object, fun) {
+	var args = Array.prototype.slice.call(arguments).slice(2);
+	return function(event) {
+		return fun.apply(object, [event || window.event].concat(args));
+	}
+}
+
+var CurrentStyle = function(element){
+	return element.currentStyle || document.defaultView.getComputedStyle(element, null);
+}
+
+function addEventHandler(oTarget, sEventType, fnHandler) {
+	if (oTarget.addEventListener) {
+		oTarget.addEventListener(sEventType, fnHandler, false);
+	} else if (oTarget.attachEvent) {
+		oTarget.attachEvent("on" + sEventType, fnHandler);
+	} else {
+		oTarget["on" + sEventType] = fnHandler;
+	}
+};
+
+function removeEventHandler(oTarget, sEventType, fnHandler) {
+    if (oTarget.removeEventListener) {
+        oTarget.removeEventListener(sEventType, fnHandler, false);
+    } else if (oTarget.detachEvent) {
+        oTarget.detachEvent("on" + sEventType, fnHandler);
+    } else { 
+        oTarget["on" + sEventType] = null;
+    }
+};
+</script>
+<script type="text/javascript" src="ImgCropper.js"></script>
+<script type="text/javascript" src="Drag.js"></script>
+<script type="text/javascript" src="Resize.js"></script>
+<style type="text/css">
+#rRightDown,#rLeftDown,#rLeftUp,#rRightUp,#rRight,#rLeft,#rUp,#rDown{
+	position:absolute;
+	background:#FFF;
+	border: 1px solid #333;
+	width: 6px;
+	height: 6px;
+	z-index:500;
+	font-size:0;
+	opacity: 0.5;
+	filter:alpha(opacity=50);
+}
+
+#rLeftDown,#rRightUp{cursor:ne-resize;}
+#rRightDown,#rLeftUp{cursor:nw-resize;}
+#rRight,#rLeft{cursor:e-resize;}
+#rUp,#rDown{cursor:n-resize;}
+
+#rLeftDown{left:0px;bottom:0px;}
+#rRightUp{right:0px;top:0px;}
+#rRightDown{right:0px;bottom:0px;background-color:#00F;}
+#rLeftUp{left:0px;top:0px;}
+#rRight{right:0px;top:50%;margin-top:-4px;}
+#rLeft{left:0px;top:50%;margin-top:-4px;}
+#rUp{top:0px;left:50%;margin-left:-4px;}
+#rDown{bottom:0px;left:50%;margin-left:-4px;}
+
+#bgDiv{width:400px; height:300px; border:1px solid #666666; position:relative;}
+#dragDiv{border:1px dashed #fff; width:320px; height:180px; top:50px; left:50px; cursor:move; }
+</style>
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td width="300" ><div id="bgDiv">
+        <div id="dragDiv">
+          <div id="rRightDown"> </div>
+          <div id="rLeftDown"> </div>
+          <div id="rRightUp"> </div>
+          <div id="rLeftUp"> </div>
+          <div id="rRight"> </div>
+          <div id="rLeft"> </div>
+          <div id="rUp"> </div>
+          <div id="rDown"></div>
+        </div>
+      </div></td>
+  </tr>
+</table>
+ 
+  <form name="form1" method="post" action="?Action=sh">  <tr>
+   <img id="imgCreat" style="display:none;" />
+ <div id="size">宽度：100px&nbsp;&nbsp;&nbsp;&nbsp;高度：60px</div>
+</form>
+<script>
+
+ <%
+ Randomize
+ %>
+var ic = new ImgCropper("bgDiv", "dragDiv", "<%=request("url")&"?id="&Int((2111111111111111111111111111111*Rnd))&""%>", {
+	Width: '100%', Height: '100%', Color: "#000",
+	Resize: true,
+	Right: "rRight", Left: "rLeft", Up:	"rUp", Down: "rDown",
+	RightDown: "rRightDown", LeftDown: "rLeftDown", RightUp: "rRightUp", LeftUp: "rLeftUp",
+	Preview: "viewDiv", viewWidth: 300, viewHeight: 300
+})
+
+
+
+function cj(){
+var p = <%=""""&request("url")&""""%>, o = ic.GetPos();
+x = o.Left,
+y = o.Top,
+w = o.Width,
+h = o.Height,
+pw = ic._layBase.width,
+ph = ic._layBase.height;
+
+    document.form1.method="post";
+    document.form1.action="Imgs.asp?p=" + p + "&x=" + x + "&y=" + y + "&w=" + w + "&h=" + h + "&pw=" + pw + "&ph=" + ph + "&" + Math.random();
+{
+ 	form1.submit();
+	return true;}return false;
+ 
+	}
+ </script>
+
+</body>
+</html>

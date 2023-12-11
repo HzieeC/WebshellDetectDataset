@@ -1,0 +1,314 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<%@page import="com.bizoss.trade.ts_category.*" %>
+<%@page import="com.bizoss.trade.ti_brand.Ti_brandInfo" %>
+<%@page import="com.bizoss.trade.tb_ordergoods.Tb_ordergoodsInfo" %>
+<%@page import="com.bizoss.trade.ti_orderinfo.*" %>
+<%@page import="com.bizoss.trade.ti_attach.Ti_attachInfo" %>
+<%@page import="com.bizoss.trade.ts_categoryattr.Ts_categoryattrInfo" %>
+<%@page import="com.bizoss.trade.ts_area.*" %>
+<%@ page import="com.bizoss.frame.util.Config" %>
+<%@ page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" /><%@ page import="com.bizoss.trade.ti_evaluate.Ti_evaluateInfo" %>
+<%
+   
+  
+  
+  
+  String order_no=""; 
+	
+	if(request.getParameter("order_no")!=null )
+	{
+	   order_no  =request.getParameter("order_no");		
+	}
+ 
+	
+	
+	   
+  Tb_ordergoodsInfo tb_ordergoodsInfo =new Tb_ordergoodsInfo(); 
+  
+ 
+    Ti_orderinfoInfo ti_orderinfoInfo = new Ti_orderinfoInfo();
+    List list = ti_orderinfoInfo.getListByPk(order_no);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	String order_source="",order_state="",consignee="",area_attr="",address="";
+  	String zip_code="",tel="",cellphone="",email="",best_time="",sign_building="",shipping_id="",shipping_name="";
+  	String pay_id="",pay_name="",how_oos="",all_goods_amount="",all_shipping_fee="",all_pack_fee="",all_tax_invoice="";
+  	String all_total_amount="",all_user_money="",all_integral_money="",all_discount="",all_confirm_money="",cust_id="";
+  	String all_paid_amount="",add_time="",user_id2="";
+  	if(map.get("order_no")!=null) order_no = map.get("order_no").toString();
+  	if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+  	if(map.get("user_id")!=null) _user_id = map.get("user_id").toString();
+  	if(map.get("order_state")!=null) order_state = map.get("order_state").toString();
+    if(map.get("consignee")!=null) consignee = map.get("consignee").toString();
+  	//if(map.get("area_attr")!=null) area_attr = map.get("area_attr").toString();
+  	if(map.get("address")!=null) address = map.get("address").toString();
+  	if(map.get("zip_code")!=null) zip_code = map.get("zip_code").toString();
+  	if(map.get("tel")!=null) tel = map.get("tel").toString();
+  	if(map.get("cellphone")!=null) cellphone = map.get("cellphone").toString();
+  	if(map.get("email")!=null) email = map.get("email").toString();
+  	if(map.get("best_time")!=null) best_time = map.get("best_time").toString();
+  	if(map.get("sign_building")!=null) sign_building = map.get("sign_building").toString();
+  	if(map.get("shipping_id")!=null) shipping_id = map.get("shipping_id").toString();
+  	if(map.get("shipping_name")!=null) shipping_name = map.get("shipping_name").toString();
+  	if(map.get("pay_id")!=null) pay_id = map.get("pay_id").toString();
+  	if(map.get("pay_name")!=null) pay_name = map.get("pay_name").toString();
+  	if(map.get("how_oos")!=null) how_oos = map.get("how_oos").toString();
+  	if(map.get("all_goods_amount")!=null) all_goods_amount = map.get("all_goods_amount").toString();
+  	if(map.get("all_shipping_fee")!=null) all_shipping_fee = map.get("all_shipping_fee").toString();
+  	if(map.get("all_pack_fee")!=null) all_pack_fee = map.get("all_pack_fee").toString();
+  	if(map.get("all_tax_invoice")!=null) all_tax_invoice = map.get("all_tax_invoice").toString();
+  	if(map.get("all_total_amount")!=null) all_total_amount = map.get("all_total_amount").toString();
+  	if(map.get("all_user_money")!=null) all_user_money = map.get("all_user_money").toString();
+  	if(map.get("all_integral_money")!=null) all_integral_money = map.get("all_integral_money").toString();
+  	if(map.get("all_discount")!=null) all_discount = map.get("all_discount").toString();
+  	if(map.get("all_confirm_money")!=null) all_confirm_money = map.get("all_confirm_money").toString();
+  	if(map.get("all_paid_amount")!=null) all_paid_amount = map.get("all_paid_amount").toString();
+  	if(map.get("add_time")!=null) add_time = map.get("add_time").toString();
+    
+   
+   
+   Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo();
+   
+   //Ti_customerInfo  ti_customerInfo  = new Ti_customerInfo();
+   Ti_attachInfo  ti_attachInfo = new Ti_attachInfo();
+   Ts_categoryattrInfo ts_categoryattrInfo =new Ts_categoryattrInfo(); 
+                                                   
+   
+   Ts_areaInfo areaBean = new Ts_areaInfo();
+   String areaAttr = "";
+	 if (map.get("area_attr") != null) 
+	 {
+				area_attr = map.get("area_attr").toString();
+				String areaArr[] = area_attr.split("\\|");
+				for( int k = 0; k < areaArr.length; k++ )
+				{
+					areaAttr = areaAttr + "&nbsp;" + areaBean.getAreaNameById(areaArr[k]);
+				}
+	  }
+ 
+
+	Tb_commparaInfo commparaInfo = new Tb_commparaInfo();
+	String state_name = commparaInfo.getOneComparaPcode1("31",order_state);
+	Config configa = new Config();
+	String goods_article_path = configa.getString("goods_article_path");
+
+	Ti_evaluateInfo evaluateInfo = new Ti_evaluateInfo();
+	boolean isNotEvaluate = evaluateInfo.checkIsnotEvaluate(order_no);
+
+%>
+<style>
+
+.listtab{margin:3px 0 3px 0;background:#ccc;}
+.listtab td{background:#F9F9F9; height:30px; padding-left:15px; padding-right:10px;}
+
+.glisttab{margin:3px 0 3px 0;background:#F9F9F9;}
+.glisttab td{background:#F9F9F9; height:30px; padding-left:15px; padding-right:10px;}
+
+
+
+</style>
+<div class="f-right">
+  <table width="100%"  cellpadding="0" cellspacing="0" class="table_main" >
+    <tr>
+      <th width="5%" height="40" align="center"><img src="/program/member/index/images/icon1.gif" /></th>
+      <th width="75%" align="left"><h3>订单详细信息</h3></th>
+    </tr>
+  </table>
+  <DIV class="focus-area-setTab">
+    <DIV class="focus-area-setTab-menu">
+      <DIV class="clear"></DIV>
+    </DIV>
+    <DIV class="focus-area-setTab-content">
+      <DIV id=con_one_1 >
+        <table width="100%"  cellspacing="0" cellpadding="0" >
+          <tr bgcolor="#fcf8fb">
+            <td height="100" valign="top"><table width="100%" border="0" cellpadding="0" cellspacing="1" class="listtab">
+                <tr>
+                  <td  colspan="4" height="38" >&nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">基本信息</span> </td>
+                </tr>
+                <tr>
+                  <td  height="38" class="art_col"  align="right" width="20%" >订单号:</td>
+                  <td  width="18%"><%=order_no%></td>
+                  <td  height="38" class="art_col" width="18%" align="right" >订单状态:</td>
+                  <td  width="60%"><table>
+                      <tr>
+                        <td><%=state_name%></td>
+                        <td><%
+								if(order_state.equals("0")){
+									
+							%>
+                          <%
+										if(!pay_id.equals("0")){
+										%>
+                          <%
+								} else{
+							%>
+                          货到付款
+                          <%
+							}
+								}
+							%>
+                          <%
+								if(order_state.equals("2")){
+							%>
+                          <a href="/doTradeReg.do?order_no=<%=order_no%>&order_state=3&bpm_id=5590">
+                          <div style="background:url(/program/member/index/images/orderbg.jpg) repeat-x;width:57px;height:20px;line-height:20px;color:#fff;cursor:pointer;text-align:center;">确认收货</div>
+                          </a>
+                          <%
+								}
+							%>
+                          <%
+								if(order_state.equals("3") && isNotEvaluate){
+							%>
+                          <a href="/program/member/memberevaluate/commentIndex.jsp?order_no=<%=order_no%>&cust_id=<%=cust_id%>&menu_id=4865kY45B7388tV">
+                          <div style="background:url(/program/member/index/images/orderbg.jpg) repeat-x;width:57px;height:20px;line-height:20px;color:#fff;cursor:pointer;text-align:center;">评价</div>
+                          </a>
+                          <%
+								}
+							%>
+                          <%
+								if(!isNotEvaluate){
+							%>
+                          <font color="#808080">已评价</font><br/>
+                          <a href="/program/member/memberevaluate/viewcommentindex.jsp?menu_id=4865kY45B7388tV&order_no=<%=order_no%>"><font color="#BB8600">评价详细</font></a>
+                          <%
+								}
+							%>
+                        </td>
+                      </tr>
+                    </table></td>
+                </tr>
+                <tr>
+                  <td  height="38" class="art_col"  align="right" width="20%" >支付方式:</td>
+                  <td  width="18%"><%=pay_name%></td>
+                  <td  height="38" class="art_col" width="12%" align="right" >配送方式:</td>
+                  <td  width="60%"> 快递
+                    <!-- <%=shipping_name%> --></td>
+                </tr>
+                <tr>
+                  <td  colspan="4" height="38" >&nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">收货人信息</span> </td>
+                </tr>
+                <tr>
+                  <td  height="38" class="art_col"  align="right" width="20%" >收货人:</td>
+                  <td  width="18%"><%=consignee%></td>
+                  <td  height="38" class="art_col" width="12%" align="right" >邮编:</td>
+                  <td  width="60%"><%=zip_code%></td>
+                </tr>
+                <tr>
+                  <td  height="38" class="art_col"  align="right" width="20%" >地区:</td>
+                  <td  colspan="3"><%=areaAttr%></td>
+                </tr>
+                <tr>
+                  <td  height="38" class="art_col"  align="right" width="20%" >详细地址:</td>
+                  <td  colspan="3"><%=address%></td>
+                </tr>
+                <tr>
+                  <td  height="38" class="art_col"  align="right" width="20%" >手机:</td>
+                  <td  width="18%"><%=cellphone%></td>
+                  <td  height="38" class="art_col" width="12%" align="right" >电话:</td>
+                  <td  width="60%"><%=tel%></td>
+                </tr>
+                <tr>
+                  <td  height="38" class="art_col"  align="right" width="20%" >送货时间:</td>
+                  <td  colspan="3"><%=best_time%></td>
+                </tr>
+                <tr>
+                  <td  colspan="4" height="38" >&nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">商品及费用信息</span> </td>
+                </tr>
+                <tr>
+                  <td  colspan="4" ><%
+           
+    List	goodslist = tb_ordergoodsInfo.getPersonalOrderDetail(order_no);
+               if(goodslist!=null && goodslist.size()>0){
+ 
+            %>
+                    <table width='100%' border="0" cellspacing="1" cellpadding="0" class="glisttab">
+                      <%
+           	   
+
+					for(int k=0;k<goodslist.size();k++){
+					Hashtable gmap = (Hashtable)goodslist.get(k);
+					String trade_id="",goods_id="",goods_state="",goods_name="",goods_attr="",goods_num="",shop_price="";
+					String file_path = "",in_date="";
+					if(gmap.get("trade_id")!=null) trade_id = gmap.get("trade_id").toString();
+					if(gmap.get("goods_id")!=null) goods_id = gmap.get("goods_id").toString();
+					if(gmap.get("goods_name")!=null) goods_name = gmap.get("goods_name").toString();
+					if(gmap.get("goods_num")!=null) goods_num = gmap.get("goods_num").toString();
+					if(gmap.get("shop_price")!=null) shop_price = gmap.get("shop_price").toString();
+					if(gmap.get("goods_attr")!=null) goods_attr = gmap.get("goods_attr").toString();
+
+					if(gmap.get("file_path")!=null) file_path = gmap.get("file_path").toString();
+					if(gmap.get("in_date")!=null) in_date = gmap.get("in_date").toString();
+					if(in_date.length()>10)in_date=in_date.substring(0,10);
+					String infoUrl = goods_article_path+in_date+"/"+goods_id+".html";
+					if(file_path.equals(""))
+					{
+						file_path ="/program/member/images/cpwu.gif";            
+					}
+
+                   String attr_str =ts_categoryattrInfo.getCatAttrFromStr(goods_attr,6); 
+           	   
+           	   
+           	    
+           	    %>
+                      <tr>
+                        <td width='10%' height=120 align='left' ><a href="<%=infoUrl%>" target="_blank"><img src="<%=file_path%>" width="80" height="80" border="0"/></a> </td>
+                        <td height=120 ><span style="color:#303A43;">商品信息: </span> &nbsp; <span style="color:#666666;"> <a href="<%=infoUrl%>" target="_blank"><%=goods_name%></a><br/>
+                          <%=attr_str%> </span>
+                          <div style="margin-top:3px;"></div>
+                          <span style="color:#303A43;">单价: </span> &nbsp; <span style="color:#666666;">￥<%=shop_price%></span>
+                          <div style="margin-top:3px;"></div>
+                          <span style="color:#303A43;">数量:</span> &nbsp; <span style="color:#666666;"><%=goods_num%></span> </td>
+                      </tr>
+                      <%
+				 
+       }
+				        
+				        %>
+                      <tr>
+                        <td width='10%'  align='right'>订单费用总计</td>
+                        <td><div style="margin-top:3px;"></div>
+                          <span style="color:#303A43;">商品总价</span><span style="color:#21759B;">￥<%=all_goods_amount%></span> <span style="color:#95805D">+</span> <span style="color:#303A43;">配送总费用</span> <span style="color:#21759B;">￥<%=all_shipping_fee%></span> <span style="color:#95805D">+</span> <span style="color:#303A43;">包装总费用</span> <span style="color:#21759B;">￥ <%=all_pack_fee%></span>
+                          <!--	<span style="color:#95805D">+</span> <span style="color:#303A43;">发票总税额</span> 
+<span style="color:#21759B;">￥ <%=all_tax_invoice%></span> -->
+                          <div style="margin-top:3px;"></div>
+                          <span style="color:#95805D">=</span> <span style="color:#303A43;">订单总金额 </span> <span style="color:#21759B;">￥ <%=all_total_amount%></span> <span style="color:#95805D">-</span> <span style="color:#303A43;">已付款总金额</span> <span style="color:#21759B;"> ￥<%=all_paid_amount%></span> <span style="color:#95805D">=</span> <span style="color:#303A43;">应付款总金额</span> <span style="color:#21759B;"> ￥<%=all_confirm_money%></span> </td>
+                      </tr>
+                    </table>
+                    <%
+           	 
+           	    }       	
+           
+           	%>
+                  </td>
+                </tr>
+                <tr>
+                  <td  colspan="4" height="38" >&nbsp;&nbsp;<img src="/program/admin/images/infotip.gif" border="0">&nbsp;&nbsp;<span style="font-size:14px;font-weight:bold;">其他信息</span> </td>
+                </tr>
+                <tr>
+                  <td  height="38" class="art_col"  align="right" width="20%" >缺货处理:</td>
+                  <td  colspan="3"><%
+						    if(how_oos.equals("0"))out.print("等待所有商品备齐后再发");
+						    if(how_oos.equals("1"))out.print("取消订单");				 
+							if(how_oos.equals("2"))out.print("与店主协商");
+				       %>
+                  </td>
+                </tr>
+				<tr>
+				
+            <td height="50" colspan="4" align="center"><input type="button" class="button2" name="tradeprint" value="打 印" onclick="javascript:window.open('printorderdetail.jsp?order_no=<%=order_no%>');" onclick="javascript:window.print();"/>
+              <input type="button" name="Submit2" value="返 回" class="button2" onclick="history.go(-1);">
+            </td>
+          </tr>
+              </table></td>
+          </tr>
+		  
+        </table>
+       
+      </DIV>
+    </DIV>
+  </DIV>
+</div>
+</div>

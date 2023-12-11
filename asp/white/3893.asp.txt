@@ -1,0 +1,278 @@
+<!--#include file="const.asp"-->
+<!--#include file="../inc/cls_xmlhttp.asp"-->
+<%
+Server.ScriptTimeout = 99999
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 3.0
+' 文件名称：admin_log.asp
+' 更新日期：2007-7-6
+' 官方网站：新云网络(www.newasp.net www.newasp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2007 newasp.net - All Rights Reserved.
+' newasp is a trademark of newasp.net
+'=====================================================================
+Dim Action,isEdit,id,ItemID,classid,isORDER
+isEdit = False
+isORDER = False
+If Not ChkAdmin("Collection_"&ChannelID) Then
+	Call Transfer_error()
+End If
+id = Newasp.ChkNumeric(Request("id"))
+ItemID = Newasp.ChkNumeric(Request("ItemID"))
+ChannelID = Newasp.ChkNumeric(Request("ChannelID"))
+If ChannelID = 0 Then ChannelID = 2
+If Not IsObject(CJ_Conn) Then CJ_ConnectionDatabase
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="200" align="left"><%=NewAsp.ModuleName%>采集管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_collection.asp?ChannelID=<%=ChannelID%>">管理首页</a>
+			 - <a href="admin_collection.asp?ChannelID=<%=ChannelID%>&action=setting"><font color="red">采集基本设置</font></a>
+			 - <a href="admin_log.asp?ChannelID=<%=ChannelID%>">采集日志</a>
+			 - <a href="admin_makehtml.asp?ChannelID=<%=ChannelID%>">生成HTML</a>
+			 - <a href="admin_list.asp?ChannelID=<%=ChannelID%>"><%=NewAsp.ModuleName%>管理</a>
+			 - <a href="../sys/admin_channel.asp?action=edit&ChannelID=<%=ChannelID%>">频道设置</a>
+			 - <a href="../sys/admin_class.asp?ChannelID=<%=ChannelID%>">分类管理</a>
+			 - <a href="../sys/admin_template.asp">模板管理</a>
+		</td>
+	</tr>
+</table>
+<form method="post" action="admin_log.asp">
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th colspan="2">采集日志列表管理</th>
+</tr>
+	<tr>
+	<td class="tablerow2"><b>搜索URL：</b><input type="text" name="keyword" size="50">
+	<input type="hidden" name="ChannelID" value="<%=ChannelID%>"/>
+	<input type="hidden" name="ItemID" value="<%=ItemID%>"/>
+	<input type="submit" value="开始搜索"/></td>
+</tr>
+<tr>
+	<td class="tablerow1"><b>操作选项：</b><a href="admin_log.asp?ChannelID=<%=ChannelID%>&ItemID=<%=ItemID%>">管理首页</a> - 
+	<a href="admin_collection.asp?ChannelID=<%=ChannelID%>">采集首页</a> - 
+	<a href="?action=add&ChannelID=<%=ChannelID%>&ItemID=<%=ItemID%>">添加采集URL</a>
+	<%If ItemID>0 Then%> - <a href="admin_collection.asp?action=edit&ChannelID=<%=ChannelID%>&ItemID=<%=ItemID%>">编辑采集项目</a><%End If%>
+	</td>
+</tr>
+</table>
+</form>
+<%
+If Not IsObject(CJ_Conn) Then DatabaseConnection
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+Case "del"
+	Call delGatherlog
+Case "save"
+	Call saveGatherlog
+Case "add"
+	Call editGatherlog
+Case "edit"
+	isEdit = True
+	Call editGatherlog
+Case Else
+	Call showmain
+End Select
+If FoundErr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+
+Sub showmain()
+	Dim Rs,SQL,iCount,lCount
+	iCount=2:lCount=2
+	If Not IsEmpty(Request("sid")) Then
+		Select Case NewAsp.CheckStr(Request("act"))
+		Case "批量删除":Call delGatherlog
+		Case "批量锁定":Call IslockUrl
+		Case "取消锁定":Call UnlockUrl
+		Case "已采集状态":Call IsRecords
+		Case "未采集状态":Call NoRecords
+		Case "批量采集":isORDER=True:Call BeginGather
+		Case "倒序采集":Call BeginGather
+		Case "更新时间":Call upindate
+		End Select
+		Exit Sub
+	End If
+	
+	Dim maxperpage,pagenow,Pcount,totalrec,totalnumber,pagelinks,strLink,i,tablestyle,keyword,ii,m_star
+	maxperpage = 50
+	totalrec = 0
+	Pcount = 1
+	pagenow = Newasp.ChkNumeric(Request("page"))
+	keyword = Newasp.CheckStr(Trim(Request("keyword")))
+	pagelinks = "?ChannelID="&ChannelID&"&ItemID=" & ItemID & "&keyword=" & keyword&"&"
+	
+%>
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th width="5%" nowrap>选择</th><th width="5%" nowrap> 文章 ID </th><th width="30%">标题</th><th width="32%">URL</th><th width="15%" nowrap>采集时间</th><th width="8%" nowrap> 推荐星级 </th><th width="5%" nowrap> 采集状态 </th>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="7" align="left" id="showNextPage">&nbsp;</td>
+</tr>
+<form name="selform" method="post" action="">
+<input type="hidden" name="ChannelID" value="<%=ChannelID%>"/>
+<input type="hidden" name="ItemID" value="<%=ItemID%>"/>
+<%
+	If Len(keyword) > 1 Then
+		SQL = "SELECT * FROM [NC_Newslog] WHERE ChannelID=" & ChannelID & " And (url like '%" & keyword & "%' Or title like '%" & keyword & "%') ORDER BY addtime DESC, id DESC"
+		totalrec = cmHttp.Execute("SELECT COUNT(id) FROM [NC_Newslog] WHERE ChannelID=" & ChannelID & " And (url like '%" & keyword & "%' Or title like '%" & keyword & "%')")(0)
+	Else
+		If ItemID > 0 Then
+			SQL = "SELECT * FROM [NC_Newslog] WHERE ChannelID=" & ChannelID & " And ItemID=" & ItemID & " ORDER BY addtime DESC, id DESC"
+			totalrec = cmHttp.Execute("SELECT COUNT(id) FROM [NC_Newslog] WHERE ChannelID=" & ChannelID & " And ItemID=" & ItemID)(0)
+		Else
+			SQL = "SELECT * FROM [NC_Newslog] WHERE ChannelID=" & ChannelID & " ORDER BY addtime DESC, id DESC"
+			totalrec = cmHttp.Execute("SELECT COUNT(id) FROM [NC_Newslog] WHERE ChannelID=" & ChannelID & "")(0)
+		End If
+	End If
+	Pcount = CLng(totalrec / maxperpage)  '得到总页数
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow < 1 Then pagenow = 1
+	If pagenow > Pcount Then pagenow = Pcount
+	If pagenow = 0 Then pagenow = 1
+	
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	Rs.Open SQL, CJ_Conn, 1,1
+	If Not (Rs.BOF And Rs.EOF) Then
+		If Pcount > 1 then Rs.Move (pagenow - 1) * maxperpage
+		'Rs.MoveFirst
+		i = 0
+		Do While Not Rs.EOF And i < maxperpage
+			If Not Response.IsClientConnected Then ResponseEnd
+			If (i mod 2) = 0 Then
+				iCount=2:lCount=1
+			Else
+				iCount=1:lCount=2
+			End If
+%>
+<tr>
+	<td class="tablerow<%=iCount%> hovered" align="center"><input type="checkbox" name="sid" value="<%=Rs(0)%>"></td>
+	<td class="tablerow<%=iCount%> hovered" align="center" title="点击这里编辑URL"><a href="?action=edit&channelid=<%=ChannelID%>&id=<%=Rs(0)%>&ItemID=<%=Rs("ItemID")%>"><%=Rs("ArticleID")%></a></td>
+	<td class="tablerow<%=iCount%> hovered" title="<%=Rs("title")%>">&nbsp;<a href="?action=edit&channelid=<%=ChannelID%>&id=<%=Rs(0)%>&ItemID=<%=Rs("ItemID")%>"><%=cmHttp.GotTopic(Rs("title"),26)%></a></td>
+	<td class="tablerow<%=iCount%> hovered" title="<%=Rs("url")%>"><a href="javascript:" onclick="window.open('<%=Rs("url")%>')"><%=Left(Rs("url"),40)%></a></td>
+	<td class="tablerow<%=iCount%> hovered" align="center" noWrap><%=showDateTime(Rs("addtime"),"yyyy-MM-dd hh:mm:ss")%></td>
+	<td class="tablerow<%=iCount%> hovered" align="center" nowrap><%
+	If Rs("star") > 0 Then
+		Response.Write "<font color=""red"">"
+		For ii=1 To Rs("star")
+			Response.Write "★"
+		Next
+		Response.Write "</font>"
+		If Rs("star") < 5 Then
+			Response.Write "<font color=""#dddddd"">"
+			Response.Write String(5 - Rs("star"), "★")
+			Response.Write "</font>"
+		End If
+	Else
+		Response.Write "<font color=""#dddddd"">★★★★★</font>"
+	End If
+	%></td>
+	<td class="tablerow<%=iCount%> hovered" align="center"><a href="?act=批量采集&ChannelID=<%=ChannelID%>&ItemID=<%=ItemID%>&sid=<%=Rs(0)%>" title="点击此处开始采集"><%
+	If Rs("islock") = 0 Then
+		If Rs("records") = 0 Then
+			Response.Write "未采集"
+		Else
+			Response.Write "<font color=""green"">已采集</font>"
+		End If
+	Else
+		Response.Write "<font color=""red"">已锁定</font>"
+	End If
+	%></a></td>
+</tr>
+<%
+			Rs.movenext
+			i = i + 1
+			If i >= maxperpage Then Exit Do
+		Loop
+	End If
+	Rs.Close:Set Rs = Nothing
+
+%>
+<tr>
+	<td colspan="7" class="tablerow<%=lCount%>" nowrap><input class="Button" type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class="Button" type="button" name="chksel" value="反选" onClick="ContraSel(this.form)">
+	<select name="act">
+		<option value="0">请选择操作选项</option>
+		<option value="批量采集">批量采集</option>
+		<option value="倒序采集">倒序采集</option>
+		<option value="批量删除">批量删除</option>
+		<option value="批量锁定">批量锁定</option>
+		<option value="取消锁定">取消锁定</option>
+		<option value="已采集状态">已采集状态</option>
+		<option value="未采集状态">未采集状态</option>
+		<option value="更新时间">更新时间</option>
+	  </select>
+	<input class="button" type="submit" name="Submit2" value="执行操作" onclick="return confirm('您确定要执行已选择的操作吗?');">
+	</td></form>
+</tr>
+<tr>
+	<td colspan="7" id="NextPageText" class="tablerow<%=iCount%>">
+	<var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+</table>
+<script type="text/javascript">
+document.getElementById("showNextPage").innerHTML = document.getElementById("NextPageText").innerHTML;
+</script>
+<%
+End Sub
+
+Sub editGatherlog()
+	Call Transfer_error()
+End Sub
+
+Sub saveGatherlog()
+	Succeed("<li>恭喜您！保存数据成功。</li>")
+End Sub
+
+Sub delGatherlog()
+	cmHttp.Execute("DELETE FROM [NC_Newslog] WHERE id in(" & Replace(Request("sid"), "'", "") & ")")
+	Succeed("<li>恭喜您！删除URL成功。</li>")
+End Sub
+
+Sub IslockUrl()
+	cmHttp.Execute ("UPDATE [NC_Newslog] SET islock=1 WHERE id in(" & Replace(Request("sid"), "'", "") & ")")
+	Succeed("<li>恭喜您！锁定URL成功。</li>")
+End Sub
+
+Sub UnlockUrl()
+	cmHttp.Execute ("UPDATE [NC_Newslog] SET islock=0 WHERE id in(" & Replace(Request("sid"), "'", "") & ")")
+	Succeed("<li>恭喜您！解除锁定URL成功。</li>")
+End Sub
+
+Sub IsRecords()
+	cmHttp.Execute ("UPDATE [NC_Newslog] SET records=1 WHERE id in(" & Replace(Request("sid"), "'", "") & ")")
+	Succeed("<li>恭喜您！设置成功。</li>")
+End Sub
+
+Sub NoRecords()
+	cmHttp.Execute ("UPDATE [NC_Newslog] SET records=0 WHERE id in(" & Replace(Request("sid"), "'", "") & ")")
+	Succeed("<li>恭喜您！设置成功。</li>")
+End Sub
+
+Sub upindate()
+	cmHttp.Execute ("UPDATE [NC_Newslog] SET addtime=Now() WHERE id in(" & Replace(Request("sid"), "'", "") & ")")
+	Succeed("<li>恭喜您！批量更新时间成功。</li>")
+End Sub
+
+Sub BeginGather()
+	Call Transfer_error()
+End Sub
+
+Function FormatShowTime(ByVal datime)
+	If Not IsDate(datime) Then Exit Function
+	Dim strTemp
+	
+	If Datediff("d",Now(),CDate(datime)) = 0 Then
+		strTemp = "<font color=""red"">"
+		strTemp = strTemp & datime
+		strTemp = strTemp & "</font>"
+	Else
+		strTemp = datime
+	End If
+	FormatShowTime = strTemp
+End Function
+
+%>

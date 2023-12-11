@@ -1,0 +1,588 @@
+<%@LANGUAGE="VBSCRIPT"%>
+<!--#include virtual="/Module/Includes/Conn.asp" -->
+<!-- #Include virtual="/Module/Includes/PubFunc.asp" -->
+<%
+
+Call CheckManager(session("ManagerName"))
+ Call Checklimit(session("Limit"),"3")
+ 
+' *** Edit Operations: declare variables
+
+Dim MM_editAction
+Dim MM_abortEdit
+Dim MM_editQuery
+Dim MM_editCmd
+
+Dim MM_editConnection
+Dim MM_editTable
+Dim MM_editRedirectUrl
+Dim MM_editColumn
+Dim MM_recordId
+
+Dim MM_fieldsStr
+Dim MM_columnsStr
+Dim MM_fields
+Dim MM_columns
+Dim MM_typeArray
+Dim MM_formVal
+Dim MM_delim
+Dim MM_altVal
+Dim MM_emptyVal
+Dim MM_i
+
+MM_editAction = CStr(Request.ServerVariables("SCRIPT_NAME"))
+If (Request.QueryString <> "") Then
+  MM_editAction = MM_editAction & "?" & Server.HTMLEncode(Request.QueryString)
+End If
+
+' boolean to abort record edit
+MM_abortEdit = false
+
+' query string to execute
+MM_editQuery = ""
+%>
+<%
+' *** Redirect if username exists
+MM_flag="MM_insert"
+If (CStr(Request(MM_flag)) <> "") Then
+  MM_dupKeyRedirect="PointSet.asp"
+  MM_rsKeyConnection=conn
+  MM_dupKeyUsernameValue = CStr(Request.Form("cata_name"))
+  MM_dupKeySQL="SELECT cata_name FROM procata WHERE cata_name='" & MM_dupKeyUsernameValue & "'"
+  MM_adodbRecordset="ADODB.Recordset"
+  set MM_rsKey=Server.CreateObject(MM_adodbRecordset)
+  MM_rsKey.ActiveConnection=MM_rsKeyConnection
+  MM_rsKey.Source=MM_dupKeySQL
+  MM_rsKey.CursorType=0
+  MM_rsKey.CursorLocation=2
+  MM_rsKey.LockType=3
+  MM_rsKey.Open
+  If Not MM_rsKey.EOF Or Not MM_rsKey.BOF Then 
+    ' the username was found - can not add the requested username
+    MM_qsChar = "?"
+    If (InStr(1,MM_dupKeyRedirect,"?") >= 1) Then MM_qsChar = "&"
+    MM_dupKeyRedirect = MM_dupKeyRedirect & MM_qsChar & "requsername=" & MM_dupKeyUsernameValue
+    Response.Redirect(MM_dupKeyRedirect)
+  End If
+  MM_rsKey.Close
+End If
+%>
+<%
+' *** Insert Record: set variables
+
+If (CStr(Request("MM_insert")) = "f1") Then
+
+  MM_editConnection = conn
+  MM_editTable = "procata"
+  MM_editRedirectUrl = "hcp_02_txt_01.asp"
+  MM_fieldsStr  = "cata_name|value"
+  MM_columnsStr = "cata_name|none,none,NULL"
+
+  ' create the MM_fields and MM_columns arrays
+  MM_fields = Split(MM_fieldsStr, "|")
+  MM_columns = Split(MM_columnsStr, "|")
+  
+  ' set the form values
+  For MM_i = LBound(MM_fields) To UBound(MM_fields) Step 2
+    MM_fields(MM_i+1) = CStr(Request.Form(MM_fields(MM_i)))
+  Next
+
+  ' append the query string to the redirect URL
+  If (MM_editRedirectUrl <> "" And Request.QueryString <> "") Then
+    If (InStr(1, MM_editRedirectUrl, "?", vbTextCompare) = 0 And Request.QueryString <> "") Then
+      MM_editRedirectUrl = MM_editRedirectUrl & "?" & Request.QueryString
+    Else
+      MM_editRedirectUrl = MM_editRedirectUrl & "&" & Request.QueryString
+    End If
+  End If
+
+End If
+%>
+<%
+' *** Insert Record: construct a sql insert statement and execute it
+
+Dim MM_tableValues
+Dim MM_dbValues
+
+If (CStr(Request("MM_insert")) <> "") Then
+
+  ' create the sql insert statement
+  MM_tableValues = ""
+  MM_dbValues = ""
+  For MM_i = LBound(MM_fields) To UBound(MM_fields) Step 2
+    MM_formVal = MM_fields(MM_i+1)
+    MM_typeArray = Split(MM_columns(MM_i+1),",")
+    MM_delim = MM_typeArray(0)
+    If (MM_delim = "none") Then MM_delim = ""
+    MM_altVal = MM_typeArray(1)
+    If (MM_altVal = "none") Then MM_altVal = ""
+    MM_emptyVal = MM_typeArray(2)
+    If (MM_emptyVal = "none") Then MM_emptyVal = ""
+    If (MM_formVal = "") Then
+      MM_formVal = MM_emptyVal
+    Else
+      If (MM_altVal <> "") Then
+        MM_formVal = MM_altVal
+      ElseIf (MM_delim = "'") Then  ' escape quotes
+        MM_formVal = "'" & Replace(MM_formVal,"'","''") & "'"
+      Else
+        MM_formVal = MM_delim + MM_formVal + MM_delim
+      End If
+    End If
+    If (MM_i <> LBound(MM_fields)) Then
+      MM_tableValues = MM_tableValues & ","
+      MM_dbValues = MM_dbValues & ","
+    End If
+    MM_tableValues = MM_tableValues & MM_columns(MM_i)
+    MM_dbValues = MM_dbValues & MM_formVal
+  Next
+  MM_editQuery = "insert into " & MM_editTable & " (" & MM_tableValues & ") values (" & MM_dbValues & ")"
+
+  If (Not MM_abortEdit) Then
+    ' execute the insert
+    Set MM_editCmd = Server.CreateObject("ADODB.Command")
+    MM_editCmd.ActiveConnection = MM_editConnection
+    MM_editCmd.CommandText = MM_editQuery
+    MM_editCmd.Execute
+    MM_editCmd.ActiveConnection.Close
+
+    If (MM_editRedirectUrl <> "") Then
+      'Response.Redirect(MM_editRedirectUrl)
+	  response.Write "<script language='javascript'>alert('增加成功!');window.location.href='PointSet.asp';</script>"
+    End If
+  End If
+
+End If
+%>
+<%
+Dim list
+Dim list_numRows
+
+Set list = Server.CreateObject("ADODB.Recordset")
+list.ActiveConnection = conn
+list.Source = "SELECT * FROM procata"
+list.CursorType = 0
+list.CursorLocation = 2
+list.LockType = 1
+list.Open()
+
+list_numRows = 0
+%>
+<%
+Dim Repeat1__numRows
+Dim Repeat1__index
+
+Repeat1__numRows = 10
+Repeat1__index = 0
+list_numRows = list_numRows + Repeat1__numRows
+%>
+<%
+'  *** Recordset Stats, Move To Record, and Go To Record: declare stats variables
+
+Dim list_total
+Dim list_first
+Dim list_last
+
+' set the record count
+list_total = list.RecordCount
+
+' set the number of rows displayed on this page
+If (list_numRows < 0) Then
+  list_numRows = list_total
+Elseif (list_numRows = 0) Then
+  list_numRows = 1
+End If
+
+' set the first and last displayed record
+list_first = 1
+list_last  = list_first + list_numRows - 1
+
+' if we have the correct record count, check the other stats
+If (list_total <> -1) Then
+  If (list_first > list_total) Then
+    list_first = list_total
+  End If
+  If (list_last > list_total) Then
+    list_last = list_total
+  End If
+  If (list_numRows > list_total) Then
+    list_numRows = list_total
+  End If
+End If
+%>
+<%
+' *** Recordset Stats: if we don't know the record count, manually count them
+
+If (list_total = -1) Then
+
+  ' count the total records by iterating through the recordset
+  list_total=0
+  While (Not list.EOF)
+    list_total = list_total + 1
+    list.MoveNext
+  Wend
+
+  ' reset the cursor to the beginning
+  If (list.CursorType > 0) Then
+    list.MoveFirst
+  Else
+    list.Requery
+  End If
+
+  ' set the number of rows displayed on this page
+  If (list_numRows < 0 Or list_numRows > list_total) Then
+    list_numRows = list_total
+  End If
+
+  ' set the first and last displayed record
+  list_first = 1
+  list_last = list_first + list_numRows - 1
+  
+  If (list_first > list_total) Then
+    list_first = list_total
+  End If
+  If (list_last > list_total) Then
+    list_last = list_total
+  End If
+
+End If
+%>
+<%
+Dim MM_paramName 
+%>
+<%
+' *** Move To Record and Go To Record: declare variables
+
+Dim MM_rs
+Dim MM_rsCount
+Dim MM_size
+Dim MM_uniqueCol
+Dim MM_offset
+Dim MM_atTotal
+Dim MM_paramIsDefined
+
+Dim MM_param
+Dim MM_index
+
+Set MM_rs    = list
+MM_rsCount   = list_total
+MM_size      = list_numRows
+MM_uniqueCol = ""
+MM_paramName = ""
+MM_offset = 0
+MM_atTotal = false
+MM_paramIsDefined = false
+If (MM_paramName <> "") Then
+  MM_paramIsDefined = (Request.QueryString(MM_paramName) <> "")
+End If
+%>
+<%
+' *** Move To Record: handle 'index' or 'offset' parameter
+
+if (Not MM_paramIsDefined And MM_rsCount <> 0) then
+
+  ' use index parameter if defined, otherwise use offset parameter
+  MM_param = Request.QueryString("index")
+  If (MM_param = "") Then
+    MM_param = Request.QueryString("offset")
+  End If
+  If (MM_param <> "") Then
+    MM_offset = Int(MM_param)
+  End If
+
+  ' if we have a record count, check if we are past the end of the recordset
+  If (MM_rsCount <> -1) Then
+    If (MM_offset >= MM_rsCount Or MM_offset = -1) Then  ' past end or move last
+      If ((MM_rsCount Mod MM_size) > 0) Then         ' last page not a full repeat region
+        MM_offset = MM_rsCount - (MM_rsCount Mod MM_size)
+      Else
+        MM_offset = MM_rsCount - MM_size
+      End If
+    End If
+  End If
+
+  ' move the cursor to the selected record
+  MM_index = 0
+  While ((Not MM_rs.EOF) And (MM_index < MM_offset Or MM_offset = -1))
+    MM_rs.MoveNext
+    MM_index = MM_index + 1
+  Wend
+  If (MM_rs.EOF) Then 
+    MM_offset = MM_index  ' set MM_offset to the last possible record
+  End If
+
+End If
+%>
+<%
+' *** Move To Record: if we dont know the record count, check the display range
+
+If (MM_rsCount = -1) Then
+
+  ' walk to the end of the display range for this page
+  MM_index = MM_offset
+  While (Not MM_rs.EOF And (MM_size < 0 Or MM_index < MM_offset + MM_size))
+    MM_rs.MoveNext
+    MM_index = MM_index + 1
+  Wend
+
+  ' if we walked off the end of the recordset, set MM_rsCount and MM_size
+  If (MM_rs.EOF) Then
+    MM_rsCount = MM_index
+    If (MM_size < 0 Or MM_size > MM_rsCount) Then
+      MM_size = MM_rsCount
+    End If
+  End If
+
+  ' if we walked off the end, set the offset based on page size
+  If (MM_rs.EOF And Not MM_paramIsDefined) Then
+    If (MM_offset > MM_rsCount - MM_size Or MM_offset = -1) Then
+      If ((MM_rsCount Mod MM_size) > 0) Then
+        MM_offset = MM_rsCount - (MM_rsCount Mod MM_size)
+      Else
+        MM_offset = MM_rsCount - MM_size
+      End If
+    End If
+  End If
+
+  ' reset the cursor to the beginning
+  If (MM_rs.CursorType > 0) Then
+    MM_rs.MoveFirst
+  Else
+    MM_rs.Requery
+  End If
+
+  ' move the cursor to the selected record
+  MM_index = 0
+  While (Not MM_rs.EOF And MM_index < MM_offset)
+    MM_rs.MoveNext
+    MM_index = MM_index + 1
+  Wend
+End If
+%>
+<%
+
+' set the first and last displayed record
+list_first = MM_offset + 1
+list_last  = MM_offset + MM_size
+
+If (MM_rsCount <> -1) Then
+  If (list_first > MM_rsCount) Then
+    list_first = MM_rsCount
+  End If
+  If (list_last > MM_rsCount) Then
+    list_last = MM_rsCount
+  End If
+End If
+
+' set the boolean used by hide region to check if we are on the last record
+MM_atTotal = (MM_rsCount <> -1 And MM_offset + MM_size >= MM_rsCount)
+%>
+<%
+' *** Go To Record and Move To Record: create strings for maintaining URL and Form parameters
+
+Dim MM_keepNone
+Dim MM_keepURL
+Dim MM_keepForm
+Dim MM_keepBoth
+
+Dim MM_removeList
+Dim MM_item
+Dim MM_nextItem
+
+' create the list of parameters which should not be maintained
+MM_removeList = "&index="
+If (MM_paramName <> "") Then
+  MM_removeList = MM_removeList & "&" & MM_paramName & "="
+End If
+
+MM_keepURL=""
+MM_keepForm=""
+MM_keepBoth=""
+MM_keepNone=""
+
+' add the URL parameters to the MM_keepURL string
+For Each MM_item In Request.QueryString
+  MM_nextItem = "&" & MM_item & "="
+  If (InStr(1,MM_removeList,MM_nextItem,1) = 0) Then
+    MM_keepURL = MM_keepURL & MM_nextItem & Server.URLencode(Request.QueryString(MM_item))
+  End If
+Next
+
+' add the Form variables to the MM_keepForm string
+For Each MM_item In Request.Form
+  MM_nextItem = "&" & MM_item & "="
+  If (InStr(1,MM_removeList,MM_nextItem,1) = 0) Then
+    MM_keepForm = MM_keepForm & MM_nextItem & Server.URLencode(Request.Form(MM_item))
+  End If
+Next
+
+' create the Form + URL string and remove the intial '&' from each of the strings
+MM_keepBoth = MM_keepURL & MM_keepForm
+If (MM_keepBoth <> "") Then 
+  MM_keepBoth = Right(MM_keepBoth, Len(MM_keepBoth) - 1)
+End If
+If (MM_keepURL <> "")  Then
+  MM_keepURL  = Right(MM_keepURL, Len(MM_keepURL) - 1)
+End If
+If (MM_keepForm <> "") Then
+  MM_keepForm = Right(MM_keepForm, Len(MM_keepForm) - 1)
+End If
+
+' a utility function used for adding additional parameters to these strings
+Function MM_joinChar(firstItem)
+  If (firstItem <> "") Then
+    MM_joinChar = "&"
+  Else
+    MM_joinChar = ""
+  End If
+End Function
+%>
+<%
+' *** Move To Record: set the strings for the first, last, next, and previous links
+
+Dim MM_keepMove
+Dim MM_moveParam
+Dim MM_moveFirst
+Dim MM_moveLast
+Dim MM_moveNext
+Dim MM_movePrev
+
+Dim MM_urlStr
+Dim MM_paramList
+Dim MM_paramIndex
+Dim MM_nextParam
+
+MM_keepMove = MM_keepBoth
+MM_moveParam = "index"
+
+' if the page has a repeated region, remove 'offset' from the maintained parameters
+If (MM_size > 1) Then
+  MM_moveParam = "offset"
+  If (MM_keepMove <> "") Then
+    MM_paramList = Split(MM_keepMove, "&")
+    MM_keepMove = ""
+    For MM_paramIndex = 0 To UBound(MM_paramList)
+      MM_nextParam = Left(MM_paramList(MM_paramIndex), InStr(MM_paramList(MM_paramIndex),"=") - 1)
+      If (StrComp(MM_nextParam,MM_moveParam,1) <> 0) Then
+        MM_keepMove = MM_keepMove & "&" & MM_paramList(MM_paramIndex)
+      End If
+    Next
+    If (MM_keepMove <> "") Then
+      MM_keepMove = Right(MM_keepMove, Len(MM_keepMove) - 1)
+    End If
+  End If
+End If
+
+' set the strings for the move to links
+If (MM_keepMove <> "") Then 
+  MM_keepMove = Server.HTMLEncode(MM_keepMove) & "&"
+End If
+
+MM_urlStr = Request.ServerVariables("URL") & "?" & MM_keepMove & MM_moveParam & "="
+
+MM_moveFirst = MM_urlStr & "0"
+MM_moveLast  = MM_urlStr & "-1"
+MM_moveNext  = MM_urlStr & CStr(MM_offset + MM_size)
+If (MM_offset - MM_size < 0) Then
+  MM_movePrev = MM_urlStr & "0"
+Else
+  MM_movePrev = MM_urlStr & CStr(MM_offset - MM_size)
+End If
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>后台管理系统</title>
+<link rel="stylesheet" type="text/css" href="../Style/Style.css" />
+
+<SCRIPT language=javascript>
+function check_input()  
+{  
+	if (f1.tracata_cn.value=="")
+	{   alert("中文不能有空\n\n请返回检查！");
+		return false;
+	}
+	if (f1.tracata_en.value=="")
+	{   alert("英文不能有空，请返回检查！\n \n如果没有英文，请填写拼音");
+		return false;
+	}
+    return true;
+}
+</SCRIPT>
+</head>
+<body>
+<div class="txt_title">
+	奖品管理 &nbsp;&nbsp;
+	<a href="PointProductList.asp" target="mainFrame">奖品管理</a>
+	&nbsp;
+	<a href="PointSet.asp" target="mainFrame">积分设置</a>
+</div>
+<table cellpadding="0" cellspacing="1" Width=98% bgcolor=#cccccc ID="Table1">
+<form name="f1" method="POST" action="<%=MM_editAction%>" onSubmit="return check_input()">
+   <tr> 
+        <td  height="30" align="center" bgcolor="#FFFFFF"> 增加积分：
+          <input name="cata_name" type="text" id="cata_name" size="20"> 请输入数字
+      </td></tr>
+     <tr> 
+     <td height="30" align="center" bgcolor="#FFFFFF">
+	   <input type="hidden" name="MM_insert" value="f1">
+	 <input type="submit" name="go" value=" 确 定 "> &nbsp;
+     <input type="reset" name="Submit" value=" 重 置 ">
+     </td>
+     </tr>
+</form>
+</table>
+<table cellpadding="0" cellspacing="1" Width=98% bgcolor=#cccccc ID="Table2">
+                          <tr align="center" bgcolor="#3592F1"> 
+                            <td height="25" colspan="3" class="b-14"><strong><font color=#FFFFFF>积分范围管理</font></strong></td>
+                          </tr>
+                          <tr bgcolor="#FFFFFF"> 
+                            <td width="25%" height="25" align="center" >积分</td>
+                            <td width="51%" align="center" >&nbsp;</td>
+                            <td width="24%" align="center" >操 作</td>
+                          </tr>
+                          <% 
+While ((Repeat1__numRows <> 0) AND (NOT list.EOF)) 
+%>
+                          <tr bgcolor="#FFFFFF"> 
+                            <td height="25" align="center"><%=(list.Fields.Item("cata_name").Value)%></td>
+                            <td align="center">&nbsp;</td>
+                            <td align="center" ><a href="PointDel.asp?action=dels&id=<%=(list.Fields.Item("pro_id").Value)%>" onClick="return confirm('要删除它吗？')" class="back-12">删除</a></td>
+                          </tr>
+                          <% 
+  Repeat1__index=Repeat1__index+1
+  Repeat1__numRows=Repeat1__numRows-1
+  list.MoveNext()
+Wend
+%>
+</table>
+<table cellpadding="0" cellspacing="1">
+                <tr>
+                  <td height="25" bgcolor="#FFFFFF" >
+				  记录 <%=(list_first)%> 到 <%=(list_last)%> (总共 <%=(list_total)%>)
+				  <% If MM_offset <> 0 Then %>
+                    <a href="<%=MM_moveFirst%>">第一页</a>
+                    <% End If  %>
+                 &nbsp;&nbsp;
+				  <% If MM_offset <> 0 Then %>
+                    <a href="<%=MM_movePrev%>">前一页</a>
+                    <% End If %>
+                 &nbsp;&nbsp;<% If Not MM_atTotal Then %>
+                    <a href="<%=MM_moveNext%>">下一页</a>
+                    <% End If %>
+                 &nbsp;&nbsp;<% If Not MM_atTotal Then %>
+                    <a href="<%=MM_moveLast%>">最后一页</a>
+                  <% End If%></td>
+                </tr>
+</table>
+</body>
+</html>
+<%
+list.Close()
+Set list = Nothing
+%>
+
+<%
+  Call CloseConn()
+%>

@@ -1,0 +1,182 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.trade.ts_area.*" %>
+<%@page import="com.bizoss.trade.ti_lawyerask.*"%>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Ti_lawyerask ti_lawyerask = new Ti_lawyerask();
+	String s_title = "";
+	if(request.getParameter("s_title")!=null && !request.getParameter("s_title").equals("")){
+		s_title = request.getParameter("s_title");
+		ti_lawyerask.setTitle(s_title);
+	}
+
+	String s_area_attr = "";
+	if(request.getParameter("area_attr")!=null && !request.getParameter("area_attr").equals("")){
+		s_area_attr = request.getParameter("area_attr");
+		ti_lawyerask.setArea_attr(s_area_attr);
+		}
+		
+	String iStart = "0";
+	int limit = 20;
+	Ti_LawyeraskInfo askInfo=new Ti_LawyeraskInfo();
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = askInfo.getListByPage(ti_lawyerask,Integer.parseInt(iStart),limit);
+	int counter = askInfo.getCountByObj(ti_lawyerask);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?iStart=",Integer.parseInt(iStart),limit);
+    
+	Ts_areaInfo ts_areaInfo = new Ts_areaInfo();
+	Map areaMap  =ts_areaInfo.getAreaClass();
+	%>
+<html>
+  <head>
+    
+    <title>法律咨询管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/engine.js"></script>
+	<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/util.js"></script>
+	<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js"></script>	
+	<script>setProvince();</script>
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="80%">
+				<h1>法律咨询管理</h1>
+			</td>
+			
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post"> 
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+			  按标题:<input name="s_title" type="text" />
+			
+                按所在地区:	
+				<select name="province" id="province" onchange="setCitys(this.value,'')">
+				  <option value="">省份</option> 
+				</select>
+				<select name="eparchy_code" id="eparchy_code" onchange="setAreas(this.value,'')">
+				  <option value="">地级市</option> 
+				 </select>
+				<select name="city_code" id="city_code" style="display:inline" >
+				 <option value="">市、县级市、县</option> 
+				</select>
+					<input type="hidden" name="area_attr" id="area_attr" value="" />
+					
+				<br>
+				<input name="searchInfo" type="button" value="查询" onclick="search();"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			
+		  	<th>咨询标题</th>
+		  	<th>咨询地区</th>  	
+		  	<th>咨询时间</th>
+
+	  		<th width="20%">操作</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String ask_id="",title="",enabled="",in_date="",area_attr="";
+		  			  	if(map.get("ask_id")!=null) ask_id = map.get("ask_id").toString();
+						if(map.get("title")!=null) title = map.get("title").toString();
+						if(map.get("enabled")!=null) enabled = map.get("enabled").toString();
+						if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+						if(map.get("area_attr")!=null) area_attr = map.get("area_attr").toString();
+						if(in_date.length()>10)in_date=in_date.substring(0,10);
+						
+						StringBuffer stateoutput =new StringBuffer();
+						if(!area_attr.equals(""))
+							{
+							  String chIds[] =	area_attr.split("\\|");	
+							  for(String chId:chIds)
+							  {
+								 if(areaMap!=null)
+								 {
+									 if(areaMap.get(chId)!=null)
+									 {
+										stateoutput.append("<a href='index.jsp?area_attr="+chId+"'>"+areaMap.get(chId).toString()+"</a> ");                 
+									  }                  
+								 
+								  }                 
+							   }		    
+							}
+						
+					
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=ask_id %>" /></td>
+			
+		  	<td><a href="updateInfo.jsp?ask_id=<%=ask_id %>"><%=title%></a></td>
+		  	<td><%=stateoutput%></td>	  	
+		  	<td><%=in_date%></td>
+			<td width="10%">
+
+			<a href="updateInfo.jsp?ask_id=<%=ask_id %>"><img src="/program/admin/images/edit.gif" title="查看" /></a> &nbsp;
+	  		<a href="/doTradeReg.do?ask_id=<%=ask_id%>&bpm_id=9892&jumpurl=/program/admin/lawyerask/index.jsp"><img src="/program/admin/images/delete.gif" title="删除" /></a> &nbsp;</td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="9892" />
+	  </form>
+</body>
+
+</html>

@@ -1,0 +1,101 @@
+<!--#include file="../../inc/MainClass.asp"-->
+<%
+response.Charset="gbk"
+dim id,page,itype,json,h,pCount:id=getForm("gid","both"):itype=getForm("type","both"):page=getForm("page","get"):pCount=0
+if not isNum(id) then:id=0:else:id=Clng(id):id=ifthen(id<0,0,id):end if
+if not isNum(page) then:page=1:else:page=Clng(page):page=ifthen(page<1,1,page):end if
+if not isNum(itype) then:itype=1:else:itype=Clng(itype):end if
+
+dim rlist,FC:FC="../../webcache/review/"&itype&"/"&id&".js"
+response.clear()
+if page<2 then
+	if isExistFile(FC) then
+		json=LoadFile(FC):terminateAllObjects:die json
+	end if
+end if
+
+SET rlist=Object()::h=ReadData(id,page):if page<2 then:CreateTextFile h,FC,"gbk":end if:echo h:SET rlist=nothing
+
+Function Object():SET Object = Server.CreateObject(DICTIONARY_OBJ_NAME):Object.CompareMode=1:End Function
+
+Function ReadData(ByVal gid,ByVal page)
+Dim ret,x:ret=array("","",page,0,10,itype,gid)
+if gid>0 then
+	ret(0)=Readmlist(gid,page,ret(4)):ret(3)=pCount
+	x=rlist.keys:x=Join(x,",")
+	if x<>"" then
+		ret(1)=Readrlist(x,1,10000)
+	end if
+end if
+ReadData=FormatJson(ret)
+End Function
+
+Function Readmlist(ByVal gid,ByVal page,ByVal size)
+	dim dl,x,i,n,z,ml:ml=array()
+	if gid>0 then
+		set dl =  mainClassobj.createObject("MainClass.DataPage")
+		dl.Query "SELECT m_id,m_author,m_addtime,m_reply,m_content,m_agree,m_anti,m_pic,m_vote,m_check FROM {pre}review WHERE m_type="&itype&" AND m_videoid="&gid&" ORDER BY m_id DESC"
+		dl.absolutepage=page:dl.pagesize=size:x = dl.GetRows()
+		x = dl.GetRows():pCount=dl.pagecount
+		if page > pCount then page=pCount
+		n=ubound(x,2)
+		for i=0 to n
+			if isNum(x(3,i)) then
+				x(3,i)=x(3,i)&ReadReplyID(gid,x(3,i))
+			else
+				x(3,i)=""
+			end if
+			Push ml,"{""cmid"":"&x(0,i)&",""uid"":0,""tmp"":"""",""nick"":"""",""face"":"""",""star"":"""",""anony"":"&ifthen(x(1,i)<>"",0,1)&",""from"":"""&x(1,i)&""",""time"":"""&x(2,i)&""",""reply"":"""&x(3,i)&""",""content"":"""&x(4,i)&""",""agree"":"&x(5,i)&",""aginst"":"&x(6,i)&",""pic"":"""&x(7,i)&""",""vote"":"""&x(8,i)&""",""allow"":"""&ifthen(x(6,i)<>"",1,0)&""",""check"":"""&x(9,i)&"""}"
+		next
+		set dl = nothing
+	end if
+	Readmlist=Join(ml,",")
+End Function
+
+Function Readrlist(ByVal ids,ByVal page,ByVal size)
+	dim dl,x,i,n,z,rl:rl=array()
+	set dl =  mainClassobj.createObject("MainClass.DataPage")
+	dl.Query "SELECT m_id,m_author,m_addtime,m_reply,m_content,m_agree,m_anti,m_pic,m_vote,m_check FROM {pre}review WHERE m_type="&itype&" AND m_id IN ("&ids&") ORDER BY m_id DESC"
+	dl.absolutepage=page:dl.pagesize=size:x = dl.GetRows()
+	if page > dl.pagecount then page=dl.pagecount
+	n=ubound(x,2)
+	for i=0 to n
+		Push rl,""""&x(0,i)&""":{""uid"":0,""tmp"":"""",""nick"":"""",""face"":"""",""star"":"""",""anony"":"&ifthen(x(1,i)<>"",0,1)&",""from"":"""&x(1,i)&""",""time"":"""&x(2,i)&""",""reply"":"""&x(3,i)&""",""content"":"""&x(4,i)&""",""agree"":"&x(5,i)&",""aginst"":"&x(6,i)&",""pic"":"""&x(7,i)&""",""vote"":"""&x(8,i)&""",""allow"":"""&ifthen(x(6,i)<>"",1,0)&""",""check"":"""&x(9,i)&"""}"
+	next
+	set dl = nothing
+	Readrlist=Join(rl,",")
+End Function
+
+Function ReadReplyID(ByVal gid,ByVal cmid)
+	cmid=Clng(cmid)
+	if cmid>0 then
+		if not rlist.Exists(cmid) then rlist(cmid)="":end if
+		Dim cnid:cnid=conn.db("SELECT top 1 m_reply FROM {pre}review WHERE m_id="&cmid,"array")
+		if isArray(cnid) then
+			ReadReplyID=","&cnid(0,0)&ReadReplyID(gid,cnid(0,0))
+		else
+			ReadReplyID=""
+		end if
+	else
+		ReadReplyID=""
+	end if
+End Function
+
+Function ifthen(a,b,c)
+	if a=true then:ifthen=b:else:ifthen=c:end if
+End Function
+
+Function FormatJson(ByVal ary)
+	Dim i,x:x="{""mlist"":[%0%],""rlist"":{%1%},""page"":{""page"":%2%,""count"":%3%,""size"":%4%,""type"":%5%,""id"":%6%}}"
+	for i=6 to 0 step -1
+		x=Replace(x,"%"&i&"%",ary(i))
+	next
+	FormatJson=jsonescape(x)
+End Function
+
+Function jsonescape(ByVal txt)
+	jsonescape=Replace(Replace(unescape(ReplaceStr(escape(""&txt),"%u","\u")),chr(10),"\n"),chr(13),"\r")
+End Function
+
+Sub Push(ByRef ary,ByRef Val):on Error resume next:Dim l:l=UBound(ary)+1:l=ifthen(err,0,l):ReDim Preserve ary(l):if isObject(Val) then:SET ary(l)=Val:else:ary(l)=Val:end if:End Sub
+%>

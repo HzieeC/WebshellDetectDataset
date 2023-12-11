@@ -1,0 +1,141 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ taglib uri="MianFeiZhe" prefix="mfz" %>
+<%@ page contentType="text/html; charset=GBK" %>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<link rel="stylesheet" href="css/index.css" type="text/css" />
+<link rel="stylesheet" href="css/index.css" type="text/css" />
+<title>{dede:global name='cfg_webname'/}</title>
+</head>
+
+<body>
+<div class="top0">
+    <div class="logo0">
+        <a href="http://demo.mianfeize.com"><img src="images/logo.jpg" alt="网站logo，点击返回首页" /></a>
+    </div>
+    <div class="banner0">
+        <img src="images/banner.gif" alt="网站banner" />
+    </div>    
+<p align="left">&nbsp;&nbsp;</p>
+    <div class="bbstop">
+        <img src="images/ico1.gif" alt="设为首页" />&nbsp;<a href="#" onClick="this.style.behavior='url(#default#homepage)';this.setHomePage('http://www.mianfeizhe.com');">设为首页</a>
+        <br><img src="images/ico2.gif" alt="加入收藏免费者" />&nbsp;<a href="javascript:window.external.AddFavorite('http://www.mianfeizhe.com','免费者')">加入收藏</a>
+	<br><img src="images/ico2.gif" alt="免费者" />&nbsp;<a href="http://www.mianfeizhe.com" target="_blank">免费者</a>
+        <br><img src="images/ico2.gif" alt="官方网页" />&nbsp;<a href="http://www.mianfeizhe.com" target="_blank">官方网站</a>
+    </div>   
+</div>
+<div class="navtop">
+    <ul>
+        <a href="http://cms.51fengge.cn"><li>免费者</li></a>
+<li><a href='~typelink~' class='thisclass'>栏目1</a> </li><li><a href='[field:typelink/]'>栏目2</a> </li>
+
+    </ul>
+</div>
+<div class="navbottom">
+<form action="{dede:field name='phpurl'/}/search.php" name="formsearch">
+    站内搜索：&nbsp;<input name="keyword" id="keyword" class="text" type="text" />
+    &nbsp;<select name="select" id="searchtype">
+        <option value="titlekeyword" selected>智能模糊搜索</option>
+        <option value="title">仅搜索标题</option>
+    </select>
+    &nbsp;<input class="select" type="image" src="images/select.gif" />
+    &nbsp;&nbsp;&nbsp;&nbsp;热门关键字：&nbsp;免费&nbsp;&nbsp;JAVA&nbsp;&nbsp;JSP
+</form>
+</div>
+<div class="list0">
+    <div class="listleft">
+        <div class="listleft1">
+            <h4><img src="images/ico5.gif" alt="icon" />&nbsp;热门关注</h4>
+          <div class="yinying"></div>
+            <ul>
+               <li>wwwwwwwwwwwwwwwwwwwwwwwwwwwww</li> 
+          </ul>            
+        </div>
+        <div class="listleft2">
+            <div class="yinying"></div>
+            <h4><img src="images/ico5.gif" alt="icon"  />&nbsp;推荐图文</h4>
+          <div class="yinying"></div>           
+            <div class="tuwen">
+                <span class="img100">图片代码</span>
+                <p id="biaoti">图文标题</p>
+                <p>详细内容...</p>
+            </div>       
+	    <div class="tuwen">
+                <span class="img100">图片代码</span>
+                <p id="biaoti">图文标题</p>
+                <p>详细内容...</p>
+            </div>
+            <div class="tuwen">
+                <span class="img100">图片代码</span>
+                <p id="biaoti">图文标题</p>
+                <p>详细内容...</p>
+            </div>
+	    <div class="tuwen">
+                <span class="img100">图片代码</span>
+                <p id="biaoti">图文标题</p>
+                <p>详细内容...</p>
+            </div>
+      </div>   
+  </div> 
+    <div class="listcenter">
+        <h6><img src="images/ico4.gif" alt="icon"  />&nbsp;
+        <span>当前位置 :</span>详细列表</h6>
+        <div class="yinying"></div>
+        <ul>
+           <li><a href="[field:arcurl/]">详细列表的文章标题</a><span class="red">作者：落八</span><br>内容导读：多福多寿富商大贾上登广告</li>
+           <li><a href="[field:arcurl/]">详细列表的文章标题</a><span class="red">作者：落八</span><br>内容导读：多福多寿富商大贾上登广告</li>
+           <li><a href="[field:arcurl/]">详细列表的文章标题</a><span class="red">作者：落八</span><br>内容导读：多福多寿富商大贾上登广告</li>
+           <li><a href="[field:arcurl/]">详细列表的文章标题</a><span class="red">作者：落八</span><br>内容导读：多福多寿富商大贾上登广告</li>
+           <li><a href="[field:arcurl/]">详细列表的文章标题</a><span class="red">作者：落八</span><br>内容导读：多福多寿富商大贾上登广告</li>
+           <li><a href="[field:arcurl/]">详细列表的文章标题</a><span class="red">作者：落八</span><br>内容导读：多福多寿富商大贾上登广告</li>
+		<mfz:page url="web"></mfz:>
+        </ul>
+        <div class="fenye">首页&nbsp;&nbsp;上一页&nbsp;&nbsp;下一页&nbsp;&nbsp;尾页</div>
+    </div> 
+    <div class="listright">
+        <h4><img src="images/ico5.gif" alt="icon"  />&nbsp;图文资讯</h4>
+        <div class="yinying"></div>
+        <li><span class="img125"><a href="[field:arcurl/]">图片代码</a></span>
+        <p>详细内容：撒大幅的故事大纲...</p></li>     
+	<li><span class="img125"><a href="[field:arcurl/]">图片代码</a></span>
+        <p>详细内容：撒大幅的故事大纲...</p></li> 
+	<li><span class="img125"><a href="[field:arcurl/]">图片代码</a></span>
+        <p>详细内容：撒大幅的故事大纲...</p></li> 
+	<li><span class="img125"><a href="[field:arcurl/]">图片代码</a></span>
+        <p>详细内容：撒大幅的故事大纲...</p></li> 
+  </div>       
+</div>
+
+<div class="lianjie">
+    <h5><span class="right"><a href="{dede:field name='phpurl'/}/flink.php"><img src="images/more2.gif" alt="more" /></a></span>
+    <img src="images/ico3.gif" alt="ico" />&nbsp;友情链接</h5>
+    <div class="link">
+    <a href="http://www.discuz.net"><img class="img110" src="images/discuz.gif" alt="Discuz!论坛" /></a>
+    <a href="http://www.dedecms.com"><img class="img110" src="images/dedecms.gif" alt="织梦技术官网" /></a>
+    <a href="http://www.blueidea.com"><img class="img110" src="images/blueidea.gif" alt="蓝色理想" /></a>
+    <a href="http://www.phpwind.com"><img class="img110" src="images/phpwind.gif" alt="phpwind官网" /></a>
+    <a href="http://www.phpcms.cn"><img class="img110" src="images/phpcms.gif" alt="phpcms官网" /></a>    
+    <a href="http://www.php168.com"><img class="img110" src="images/php168.gif" alt="php168官网" /></a>
+    <a href="http://www.ecshop.com"><img class="img110" src="images/ecshop.gif" alt="ecshop官网" /></a>
+    <a href="http://www.citk.net"><img class="img110" src="images/citk.gif" alt="丁丁家园" /></a>
+    <a href="http://www.chinaz.com"><img class="img110" src="images/chinaz.gif" alt="中国站长站" /></a> 
+  </div>
+</div>
+<div class="foottop"><a href="http://cms.51fengge.cn">返回首页</a>
+ | <a href="{dede:field name='phpurl'/}/heightsearch.php">高级搜索</a>
+ | <a href="{dede:field name='phpurl'/}/flink-add.php">加入链接</a>
+ | <a href="{dede:field name='phpurl'/}/sitemap.html">网站地图</a>
+ | <a href="{dede:field name='phpurl'/}/rssmap.html">RSS订阅</a></div>
+<div class="footbottom">
+<div>
+<p align="center">
+power by <a href="http://www.mianfeizhe.com">MianFeiZhe.Com</a> Copyright 2008-2010
+<br> 备案号:湘ICP备85020080号
+</p>
+</div>
+</div>
+</body>
+</html>
+
+ 

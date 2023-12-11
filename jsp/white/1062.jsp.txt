@@ -1,0 +1,316 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%@ page contentType="text/html; charset=GBK" isELIgnored="false"%>
+<%@ page import="pagination.PaginationAritcle"%>
+<%@ page import="javaBean.BeanAritcle,java.util.Vector" %>
+<%@ page import="connections.Dao,javaBean.AddSortB"%>
+<%
+	String url=request.getContextPath();
+%>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>您的搜索结果 - powered by MianFeiZhe内容管理系统</title>
+<script language="javascript" type="">function h(obj,url){obj.style.behavior='url(#default#homepage)';obj.setHomePage(url);}</script>
+<style type="text/css">
+<!--
+*{
+	padding:0px;
+	margin:0px;
+}
+body{
+	font-family:Arial, Helvetica, sans-serif;
+	font-size:14px;
+}
+a{
+	color:#261CDC;
+}
+a:visited {
+	color:#800080;
+}
+.cbox{
+	width:100%;
+	margin:5px auto;
+}
+
+.top{
+	height:60px;
+	background:url(/templets/images/toplogo.gif) 6px center no-repeat;
+}
+.logop{float:left}
+.searchbox{
+	margin:20px 0px 0px 200px;
+}
+input,select,textarea{
+	vertical-align:middle;
+	font-size:12px;
+}
+.searchbox .keyword{
+	margin:-1px 5px 0 2px;
+	padding:5px;
+	width:287px;
+	height:13px;
+	border:1px solid #707070;
+	font-size:14px;
+}
+.searchbox .searchbut{
+	padding:3px 3px;
+	height:20px;
+	line-height:12px;
+	font-size:11px;
+	margin-top:-2px;
+}
+.searchbox .adslink{
+	font-size:12px;
+	margin-left:10px;
+}
+.stitle{
+	height:20px;
+	font-size:12px;
+	line-height:20px;
+	background-color:#D9E1F7;
+}
+.stitle span {
+	float:left;
+	margin-left:10px;
+}
+.stitle .result {
+	float:right;
+	margin-right:5px;
+}
+.slist{
+	width:550px;
+	float:left;
+	margin-left:3px;
+	margin-top:5px;
+}
+.slist a:active {test:expression(target="_blank");}
+.slist dl{
+	display:block;
+	width:96%;
+	margin:2px auto 0px;
+	padding-bottom:10px;
+}
+.slist dl dt a{
+	line-height:27px;
+	font-size:16px;
+	letter-spacing:1px;
+	/*font-weight:bold;*/
+}
+.slist dl dd p{
+	line-height:19px;
+	font-size:13px;
+}
+.slist dl dd span,.slist dl dd span a:link,.slist dl dd span a:hover,.slist dl dd span a:visited{
+	font-size:13px;
+	line-height:18px;
+	color:#008000;
+}
+.slist dl dd span.except a:link,.slist dl dd span.except a:hover,.slist dl dd span.except a:visited{
+  color:#666666;
+  text-decoration:underline;
+}
+.slist dl dd a{
+	color:#777;
+	text-decoration:none
+}
+.slist dl dd a:hover{
+	color:#F30;
+}
+.slist dl dd span{
+	margin-right:6px;
+}
+.pright{
+	width:252px;
+	margin-top:15px;
+	margin-bottom:15px;
+	padding-left:10px;
+	overflow:hidden;
+	float:right;
+	border-left:1px #E1E1E1 solid;
+}
+.spage{
+	clear:both;
+	margin-top:10px;
+	line-height:25px;
+	height:25px;
+	padding-left:20px;
+}
+.spage *{
+	line-height:20px;
+	letter-spacing:1px;
+}
+.otherkey{
+	margin-top:10px;
+	line-height:28px;
+	overflow:hidden;
+	background:#EFF2FA;
+}
+.otherkey span {
+	width:90px;
+	font-weight:bold;
+	float:left;
+	text-indent:20px;
+}
+.otherkey .otherkeyword {
+	width:850px;
+}
+.otherkey .otherkeyword ul{
+	list-style-type:none;
+}
+.otherkey .otherkeyword ul li {
+	white-space:nowrap;
+	float:left;
+	margin-right:50px;
+}
+.footer{
+	text-align:center;
+	margin-top:10px;
+	margin-bottom:2px;
+	font-size:12px;
+	line-height:20px;
+	background:#E6E6E6;
+}
+.footer a,.footer a:visited{
+	color:#7777CC;
+}
+.footer span{
+	color:#7777CC;
+}
+-->
+</style>
+</head>
+<body>
+<div class="top cbox">
+	<div class="searchbox">
+	<form action="search.jsp" name="formsearch" method="post" >
+	<img src="<%=request.getContextPath()%>/images/logo.jpg" alt="网站logo，点击返回首页" height="50" width="150" align="center"/>
+		<input name="keyword" type="text" id="keyword2" class="keyword" value="" />
+		<select name="type" id="searchtype" class="op1">
+				<option value="blur">智能模糊搜索</option>
+				<option value="title">仅搜索标题</option>
+		</select>
+		<input type="submit" name="button" class="searchbut" value="搜索一下" />
+		<span class="adslink"><a href="#">高级搜索</a> &nbsp; <a href="<%=request.getContextPath()%>">返回主页</a></span>
+	</form>
+	</div>
+</div>
+<div class="stitle cbox"><span><a onclick="h(this,'http://www.mianfeizhe.com')" href="#" style="color:#000000 ">把本站设为首页</a></span>
+	<div class="result">搜索一下，找到以下与您搜索的相关的网页</div>
+</div>
+	<div class="pright">
+<a href="http://www.taobao.com">在淘宝网寻找你要找的结果</a><br>
+<a href="http://www.taobao.com">在易趣网寻找你要找的结果</a><br>
+<a href="http://www.taobao.com">在聪慧网寻找你要找的结果</a><br>
+<a href="http://www.taobao.com">在聪慧网寻找你要找的结果</a><br>
+<a href="http://www.taobao.com">在聪慧网寻找你要找的结果</a><br>
+<a href="http://www.taobao.com">在聪慧网寻找你要找的结果</a><br>
+<a href="http://www.taobao.com">在聪慧网寻找你要找的结果</a><br>
+<a href="http://www.taobao.com">在聪慧网寻找你要找的结果</a><br>
+</div>
+<%
+	String pageCurrent = request.getParameter("pageCurrent");
+	if (pageCurrent == null) {
+		pageCurrent = "0";
+	}
+	PaginationAritcle pa=new PaginationAritcle();
+	pa.setPageSize(5);//设置每页显示多少条	
+	String keyword=request.getParameter("keyword");
+	String type=request.getParameter("type");
+	String sql="";
+	if(type.equals("blur")){
+		sql="select top "+pa.getPageSize()+" * from aritcle where title like '%"+keyword+"%' or Content like '%"+keyword+"%' and aritcleIssue=1";
+  	}else{
+  		sql="select top "+pa.getPageSize()+" * from aritcle where title like '%"+keyword+"%' and aritcleIssue=1";
+  	}
+	String sqlstr="select count(*) from aritcle where title like '%"+keyword+"%' and aritcleIssue=1";
+	pa.setSum(sqlstr);//查询出总共有多少条
+	
+	pa.setPageCount();
+	pa.setPageCurrent(Integer.parseInt(pageCurrent));//设置当前页
+	int CurrentPage=pa.getPageCurrent();
+	int count=pa.getPageCount();
+	
+	pa.setVe(sql);//设置集合的值
+	Vector ve=pa.getVe();
+	BeanAritcle bean=null;
+	AddSortB ab=null;
+	Dao d=new Dao();
+	for(int i=0;i<ve.size();i++){
+		bean=(BeanAritcle)ve.get(i);
+		Vector vid=d.getClassInfo(bean.getClassId());
+		if(vid.size()>0){
+			ab=(AddSortB)vid.get(0);
+		}else{
+			ab=new AddSortB();
+		}
+%>
+	<div class="slist cbox">
+		<a href="<%=url%>/html/<%=ab.getSortList()%>/<%=bean.getAritcleId()%>.html"><%=bean.getTitle()%></a>
+		<dl>
+			<dt><%=bean.getSubTitle()%></dt>
+
+			<dd>
+				<span><a href="#">http://127.0.0.1</a></span>
+				<span class="except">-&nbsp;<a href="#"><%=bean.getInterfix()%></a></span>
+			</dd>
+		</dl>
+    <br>
+	</div>
+	<%}%>
+
+
+
+<div class="spage">
+<tr>
+<td align='center' class='TableRow2' colspan="6" >
+<%
+	if(pa.getPageCurrent()==0&&pa.getSum()>pa.getPageSize()){%>
+	首页
+	<a href="<%=url%>/search.jsp?pageCurrent=<%=CurrentPage+1%>&type=title">下一页</a>
+	上一页
+	<a href="<%=url%>/search.jsp?pageCurrent=<%=count-1%>&type=title">尾页</a>
+	<%=CurrentPage+1%>/<%=count%>
+		
+	<%}else if(pa.getPageCurrent()==(pa.getPageCount()-1)&&pa.getSum()>pa.getPageSize()){%>
+		<a href="<%=url%>/search.jsp?pageCurrent=0&type=title">首页</a>
+		下一页
+		<a href="<%=url%>/search.jsp?pageCurrent=<%=CurrentPage-1%>&type=title">上一页</a>
+		尾页
+		<%=CurrentPage+1%>/<%=count%>
+	<%}else if(pa.getSum()<=pa.getPageSize()){%>
+		首页 下一页 上一页 尾页
+	<%}else{%>
+	<a href="<%=url%>/search.jsp?pageCurrent=0&type=title">首页</a>
+	<a href="<%=url%>/search.jsp?pageCurrent=<%=CurrentPage+1%>&type=title">下一页</a>
+	
+	<a href="<%=url%>/search.jsp?pageCurrent=<%=CurrentPage-1%>&type=title">上一页</a>
+	
+	<a href="<%=url%>/search.jsp?pageCurrent=<%=count-1%>&type=title">尾页</a>
+	<%=CurrentPage+1%>/<%=count%>
+	<% }  %>
+</td>
+</tr>
+</div>
+
+<div class="otherkey cbox">
+	
+		<span>相关搜索</span><div class='otherkeyword'><ul></ul></div>
+	
+</div>
+
+<div class="searchbox" style="margin:35px auto 15px 20px;">
+<form action="search.jsp" name="formsearch" method="post" >
+		<input name="keyword" type="text" id="keyword2" class="keyword" value="" />
+		<select name="type" id="searchtype" class="op1">
+				<option value="blur">智能模糊搜索</option>
+				<option value="title">仅搜索标题</option>
+		</select>
+		<input type="submit" name="button" class="searchbut" value="搜索一下" />
+	</form>
+</div>
+<div class="footer cbox">
+	Copyright&nbsp;&nbsp;<span>&copy;&nbsp;2008</span>&nbsp;&nbsp;<a href="http://www.mianfeizhe.com">www.mianfeizhe.com</a>&nbsp;&nbsp;All Rights Reserved.&nbsp;    
+                <script>var lainframe;</script>
+</div>
+
+</body>
+</html>

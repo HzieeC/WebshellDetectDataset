@@ -1,0 +1,149 @@
+<!--#include file="conn.asp"-->
+<!--#include file="inc/md5.asp"-->
+<!--#include file="ftbbs_nav.asp" -->
+<%
+bbsuser=trim(request.form("username"))
+password=trim(request.form("password"))
+name=trim(request.form("username"))
+email=trim(request.form("email"))
+
+call FTBBS_HTML_MB(ft)
+url=Application("FTBBSMB")(10,0)
+uploadoff=Application("FTBBSMB")(16,0)
+regoff=Application("FTBBSMB")(17,0)
+regsmstitle=Application("FTBBSMB")(20,0)
+regsmscontent=Application("FTBBSMB")(21,0)
+jmailoff=Application("FTBBSMB")(24,0)
+getcodeoff=Application("FTBBSMB")(30,0)
+if chkpost=false then
+   call ftbbs_msg("非法操作","register.asp")
+end if
+if Instr(name,"FileBZ")>0 or Instr(name,"<!--")>0 or Instr(name,"-->")>0 or Instr(name,"=")>0 or Instr(name,"%")>0 or Instr(name,chr(32))>0 or Instr(name,"?")>0 or Instr(name,"&")>0 or Instr(name,";")>0 or Instr(name,",")>0 or Instr(name,"'")>0 or Instr(name,",")>0 or Instr(name,chr(34))>0 or Instr(name,chr(9))>0 or Instr(name,"")>0 or Instr(name,chr(1))>0 then
+   call ftbbs_msg("用户名中含有非法字符，请重新输入！","register.asp")
+end if
+
+call CheckCharStr(bbsuser,3)
+call CheckCharStr(password,3)
+
+If getcodeoff=1 Then
+  If Not codepass Then
+     call ftbbs_msg("验证码错误，请重新输入！","register.asp")
+  end if
+End If
+
+str="select * from "&ft&"clubuser where clubuser_name='"&bbsuser&"'"
+set rs=server.createobject("adodb.recordset")
+rs.open str,conn,3,1
+if not rs.eof then
+   call ftbbs_msg("该用户已经有人使用，请重新注册！","register.asp")
+else
+sql="select * from "&ft&"clubuser where (clubuser_id is null)"
+set rsr=server.createobject("adodb.recordset")
+rsr.open sql,conn,1,3
+rsr.addnew
+clubuser_password=md5(password)
+rsr("clubuser_name")=bbsuser
+rsr("clubuser_nickname")=bbsuser
+rsr("clubuser_password")=clubuser_password
+rsr("clubuser_question")=trim(request.form("question"))
+rsr("clubuser_answer")=md5(trim(request.form("answer")))
+if request.form("sex")="男" or request.form("sex")="女" then
+sex=request.form("sex")
+else
+sex="男"
+end if
+rsr("clubuser_sex")=sex
+rsr("clubuser_email")=trim(request.form("email"))
+rsr("clubuser_reg_date")=now()
+rsr("clubuser_lasttime")=now()'最后登录时间
+rsr("clubuser_enter_count")=1'登录次数
+rsr("clubuser_ip")=request.servervariables("remote_addr")
+'新加
+rsr("clubuser_province")=trim(request.form("province"))
+rsr("clubuser_city")=trim(request.form("city"))
+rsr("payuser")=uploadoff
+if request.form("sex")="男" then
+   rsr("userimg")="cache5.gif"
+else
+   rsr("userimg")="cache41.gif" 
+end if
+rsr("jfmsign")=jmailoff
+rsr.update
+'+++++++++++JMAIL邮件认证++++++++++++++
+if jmailoff=1 then
+   Randomize
+   checkpass=Int((99999) * Rnd + 1)
+   If Not IsObjInstalled("JMail.Message") Then
+      regsmstitle="系统没有安装Jmail组件,无法发送帐号激活邮件，你的帐号注册信息要通过管理员后台审核通过!"
+   else
+      Dim msg,SendMail
+      Set msg = Server.Createobject("JMail.Message")
+      msg.silent = true
+      msg.Logging = true
+      msg.Charset = "gb2312"
+      msg.MailServerUserName = Application("FTBBSMB")(25,0)
+      msg.MailServerPassword = Application("FTBBSMB")(26,0)
+      msg.From = Application("FTBBSMB")(27,0)
+      msg.FromName = ""&Application("FTBBSMB")(11,0)&"系统邮件"  '发件人姓名
+      msg.AddRecipient email '收件人Email
+      msg.Subject = ""&Application("FTBBSMB")(10,0)&" 新注册用户帐号认证邮件" 
+      msg.Body = "你好:"&Username&"  下面是激活帐号的地址:  "&Application("FTBBSMB")(10,0)&"/jfm.asp?username="&bbsuser&"&jfm="&checkpass&""
+      msg.HTMLBody = "你好:"&Username&"  下面是激活帐号的地址:  "&Application("FTBBSMB")(10,0)&"/jfm.asp?username="&bbsuser&"&jfm="&checkpass&""
+      msg.ReturnReceipt=true
+      msg.Send (Application("FTBBSMB")(28,0)) 'smtp服务器地址
+      set msg = nothing
+      if err then 
+         SendMail=err.description
+         err.clear
+		 regsmstitle="由于系统开启了邮件认证功能，<br>但是系统出现错误,激活帐号的邮件无法发送，请联系管理员解决此问题!"
+      else
+		 regsmstitle="注册成功，但由于系统开启了邮件认证功能，<br>已经有一封激活帐号的邮件发送到了你的邮箱，请查收并激活帐号，然后可以正常使用!"
+      end if 
+    end if
+end if
+'++++++++++++++++++++++++++++++++++++++
+sql="select * from "&ft&"clubuser where clubuser_name='"&bbsuser&"'"
+set rsr=server.createobject("adodb.recordset")
+rsr.open sql,conn,1,3
+clubuser_id=rsr("clubuser_id")
+rsr.close
+set rsr=nothing
+clubuser_password=CodeCookie(clubuser_password)
+call setcookie(1,ckiesdomain,"clubuser_id",clubuser_id)
+call setcookie(1,ckiesdomain,"bbsuser",bbsuser)
+call setcookie(1,ckiesdomain,"name",name)
+call setcookie(1,ckiesdomain,"clubuser_password",clubuser_password)
+call setcookie(1,ckiesdomain,"bz",0)
+call setcookie(1,ckiesdomain,"bbsadmin",0)
+call setcookie(1,ckiesdomain,"payuser",uploadoff)
+call setcookie(1,ckiesdomain,"bokeer",0)
+
+msginfo=regsmstitle '"恭喜你，注册成功！"
+sign=1
+smscontent=regsmscontent '"欢迎您加入本站点参加交流和讨论，本站点为公共论坛，为维护网上公共秩序和社会稳定，请您自觉遵守我们的条款"
+end if
+str="insert into "&ft&"sms(title,content,accepter,bbssystem,IsNew) values('"&msginfo&"','"&smscontent&"','"&name&"',2,1)"
+conn.execute(str)
+defaulthome=Application("FTBBSMB")(31,0)
+regurl=ft_home(defaulthome)
+conn.close
+%>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<%if sign=1 then%>
+<meta http-equiv="refresh" content="3;URL=<%=regurl%>">
+<%end if%>
+<BR><BR><BR>
+<TABLE border=0 align=center>
+<TR>
+	<TD align=center>
+	<%=msginfo%><BR><BR>
+	<%if sign=0 then%>
+	<A HREF="javascript:window.history.back()">[重新注册]</A>
+	<%else%>
+	系统将在3秒钟后自动返回，您也可以直接手工点击<A HREF="<%=regurl%>"><FONT  COLOR="blue">[返回首页]</FONT></A><BR>
+	<%end if%>
+	</TD>
+</TR>
+</TABLE>
+</body>
+</html>

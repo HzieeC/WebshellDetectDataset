@@ -1,0 +1,230 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../INC/incuser.asp"-->
+<%
+ID = Request.QueryString("id")
+
+InDate = ReplaceBadChar(Request.QueryString("InDate"))
+AdultNum = ReplaceBadChar(Request.QueryString("AdultNum"))
+ChildNum = ReplaceBadChar(Request.QueryString("ChildNum"))
+
+if InDate = "" then
+	Founderr = True
+	ErrMsg = "<LI>出发日期不能为空！</LI>"
+end if
+if not CheckInteger(AdultNum) then
+	Founderr = True
+	ErrMsg = ErrMsg &"<LI>成人人数必须是整数！</LI>"
+else
+	AdultNum = Cint(AdultNum)
+end if
+if not CheckInteger(ChildNum) then
+	ChildNum = 0
+else
+	ChildNum = Cint(ChildNum)
+end if
+If Founderr Then
+	Call WriteErrMsg()
+	Response.End()
+End If
+
+sql="select * from Pulb_TourRoute where IsShow and ID="&ID
+set rs=server.createobject("adodb.recordset")
+rs.open sql,Conn,1,1
+if not rs.eof then
+	ClassID = rs("ClassID")
+	Title = rs("Title")
+	TourDays = rs("TourDays")
+	CityFrom = rs("CityFrom")
+	CityTo = rs("CityTo")
+	PriceAdultDefault = rs("PriceAdult")
+	PriceChildDefault = rs("PriceChild")
+	Schedule = rs("Schedule")
+	PriceExplain = rs("PriceExplain")
+	TopReason = rs("TopReason")
+else
+	Founderr = True
+	ErrMsg = "<LI>没有找到操作对象！</LI>"
+end if
+rs.close
+If Founderr Then
+	Call WriteErrMsg()
+	Response.End()
+End If
+
+PriceAdult = PriceAdultDefault
+PriceChild = PriceChildDefault
+
+OrderPrice = PriceAdult * AdultNum + PriceChild * ChildNum
+
+Dim UID, UserName, IsLogin
+IsLogin = false
+UID = Request.Cookies("MemberAuth")("UID")
+UserName = Request.Cookies("MemberAuth")("UserName")
+if UID <> "" and UserName <> "" then
+	IsLogin = true
+	sql="select * from Pulb_Member where UID="&UID
+	set rs=server.createobject("adodb.recordset")
+	rs.open sql,Conn,1,1
+	if not rs.eof then
+		TrueName = rs("TrueName")
+		Tel = rs("Tel")
+		Mobile = rs("Mobile")
+		Email = rs("Email")
+	end if
+	rs.close
+	set rs=nothing
+end if
+
+CurrentPage = "<A href='content.asp?id="&ID&"'>"& Title &"</a> -> 预订：填写订单"
+%><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>填写订单信息-<%=SystemInfo(1)%></title>
+<link rel="stylesheet" href="/css/main.css" type="text/css">
+<script language="javascript" src="/js/jquery-1.4.js"></script>
+<script language="javascript" src="/js/base.js"></script>
+<script language="javascript" src="/js/site.source.js"></script>
+<script language="javascript" src="/js/box/box.js?&skin=blue"></script>
+<script type="text/javascript" src="/js/from/textinput_split.js"></script>
+<script type="text/javascript" src="/js/from/select_split.js"></script>
+<script type="text/javascript" src="/js/from/spinbox_split.js"></script>
+<link rel="stylesheet" href="/js/from/style.css" type="text/css" />
+<script language="javascript">
+var CardTypeValue = new Array();
+var CardTypeShow = new Array();
+<%
+i = 1
+sql="select ID,ClassName from Pulb_CardType Order by Orderby"
+set rs=server.createobject("adodb.recordset")
+rs.open sql,Conn,1,1
+Do while not rs.eof
+	response.Write "CardTypeValue["&i&"]="""&rs(0)&""";" & vbcrlf
+	response.Write "CardTypeShow["&i&"]="""&rs(1)&""";" & vbcrlf
+	i = i + 1
+	rs.movenext
+Loop
+rs.close
+set rs=nothing
+%>
+
+function ShowCardType(){
+	var str = "";
+	str = "<option value=0>证件类型</option>";
+	for (i=1;i<CardTypeValue.length;i++){
+		str = str + "<option value="+CardTypeValue[i]+">"+CardTypeShow[i]+"</option>";
+	}
+	return str
+}
+</script>
+</head>
+
+<body>
+<%=FunHeader()%>
+<div class="main">
+	<div class='body'>
+		<div class="h_step step1"></div>
+	</div>
+	<div class='body'>
+		<div class="orderb">
+			<div class="or_l">
+				<h3><a href="content.asp?id=<%=ID%>"><%=Title%></a></h3>
+				<p>出游天数：<span style="font-size:16px; color:#FF6600"><%=TourDays%></span>&nbsp;天<br />出发/目的地：<%=CityFrom%><span class='jiantou'>→</span><%=CityTo%><br />班期说明：<%=Schedule%></p>
+				<%if PriceExplain <> "" then%>
+				<h5>起价说明</h5>
+				<p><%=HTMLEncodeStr(PriceExplain)%></p>
+				<%end if
+				if TopReason <> "" then%>
+				<h5>产品经理推荐</h5>
+				<p><%=HTMLEncodeStr(TopReason)%></p>
+				<%end if%>
+			</div>
+			<div class="or_main">
+				<form name="Form1" method="post" action="order.asp" onSubmit="return order_tour();">
+				<div class="or_bo">
+					<h3>预订信息</h3>
+					<dl>
+						<dt>线路名称：</dt>
+						<dd><b><%=Title%></b></dd>
+					</dl>
+					<dl>
+						<dt>出发日期：</dt>
+						<dd><b><%=InDate%></b>　成人：<b><span class="price_s"><em>&yen;</em><font><%=PriceAdult%></font></span></b>　儿童：<b><span class="price_s"><em>&yen;</em><font><%=PriceChild%></font></span></b></dd>
+					</dl>
+					<dl>
+						<dt>游客人数：</dt>
+						<dd>成人：<%=AdultNum%> 人　儿童：<%=ChildNum%> 人</dd>
+					</dl>
+					<table width="100%" border="0" cellspacing="0" cellpadding="0">
+						<TR>
+						<td width="100" height="30" align="right" valign="top" style=" padding-top:7px; padding-right:10px;">成人资料：</td>
+						<td width="*">
+							<table width="100%" border="0" cellspacing="0" cellpadding="0">
+							<%For i = 1 to AdultNum
+								response.Write "	<TR><td width='95' height='30'><input name='AdultPeople' type='text' size='12' class='orderin in1' value='姓名"&i&"' onfocus='javascript:if(this.value==""姓名"&i&""")this.value="""";this.className=""orderin in2""' /></td>"
+								response.Write "	<td width='*'><SELECT name='AdultCardType' autoWidth='true'><SCRIPT type='text/javascript'>document.write(ShowCardType());</SCRIPT></SELECT> <input name='AdultCardID' type='text' size='25' class='orderin in1' value='证件号码"&i&"' onfocus='javascript:if(this.value==""证件号码"&i&""")this.value="""";this.className=""orderin in2""' /></td></TR>"
+							Next%>
+							</table>
+						</td>
+						</TR>
+					</table>
+					<%if ChildNum > 0 then%>
+					<dl>
+						<dt>儿童资料：</dt>
+						<dd>
+						<%For i = 1 to ChildNum
+							response.Write "<UL class='rinfo'>"
+							response.Write "	<LI class='r1'><input name='ChildPeople' type='text' size='12' class='orderin in1' value='姓名"&i&"' onfocus='javascript:if(this.value==""姓名"&i&""")this.value="""";this.className=""orderin in2""' /></LI>"
+							response.Write "	<LI class='r2'><input name='ChildCardID' type='text' size='20' class='orderin in1' value='出年日期"&i&"' onfocus='javascript:if(this.value==""出年日期"&i&""")this.value="""";this.className=""orderin in2""' onclick=""this.style.imeMode='disabled';"" /> 格式如：2005-10-01</LI>"
+							response.Write "</UL>"
+						Next%>
+						</dd>
+					</dl>
+					<%end if%>
+					<dl>
+						<dt>订单总价：</dt>
+						<dd class="or_p"><span class="price_m2"><em>&yen;</em><font><%=OrderPrice%></font></span></dd>
+					</dl>
+					<h3>联系信息</h3>
+					<dl class="dlheight">
+						<dt>联系人姓名：</dt>
+						<dd><input name="UserTrueName" type="text" size="20" value="<%=TrueName%>" /> <font color="#FF0000">*</font></dd>
+					</dl>
+					<dl class="dlheight">
+						<dt>手机号码：</dt>
+						<dd><input name="UserMobile" type="text" size="20" value="<%=Mobile%>" onclick="this.style.imeMode='disabled';" /> <font color="#FF0000">*</font></dd>
+					</dl>
+					<dl class="dlheight">
+						<dt>联系电话：</dt>
+						<dd><input name="UserTel" type="text" size="20" value="<%=Tel%>" onclick="this.style.imeMode='disabled';" /></dd>
+					</dl>
+					<dl class="dlheight">
+						<dt>E-mail：</dt>
+						<dd><input name="UserEmail" type="text" size="20" value="<%=Email%>" onclick="this.style.imeMode='disabled';" /></dd>
+					</dl>
+					<dl class="dlheight2">
+						<dt>备注：</dt>
+						<dd><textarea name="UserMassage" style="width:400px; height:50px" cols="40" rows="2"></textarea></dd>
+					</dl>
+				</div>
+				<div class="or_but"><a href="#" onClick='Javascript:history.go(-1)'>[返回上一页]</a>　<input type='submit' value='提交订单' name='Submit2' class='input_s orb'<%if not IsLogin then response.Write " disabled" %>><%if not IsLogin then response.Write "　<a href='javascript:void(0)' onClick='BoxUserLogin()'><font color='#FF0000'>请先登录或注册！</font></a>" %></div>
+				<input type="hidden" name="TourID" value="<%=ID%>" />
+				<input type="hidden" name="InDate" value="<%=InDate%>" />
+				<input type="hidden" name="AdultNum" value="<%=AdultNum%>" />
+				<input type="hidden" name="ChildNum" value="<%=ChildNum%>" />
+				<input type="hidden" name="OrderNumber" value="ZT<%=getOrderNumber()%>" />
+				</form>
+			</div>
+			<div class="clear"></div>
+		</div>
+	</div>
+</div>
+<%
+if not IsLogin then
+	response.Write "<SCRIPT type=text/javascript>BoxUserLogin();</SCRIPT>"
+end if
+%>
+<%=FunFooter(0)%>
+<%CloseDB%>
+</body>
+</html>

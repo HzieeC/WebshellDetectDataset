@@ -1,0 +1,292 @@
+<!--#Include File="../Inc/Const.Asp"-->
+<%
+Call ChkLogin("login") 
+Dim ID,Key,Rs,i,FormInput,DefaultValue
+
+Dim Plus
+Dim PlusName : PlusName = Request("plusname")
+PlusName = Replace(PlusName,"'","")
+
+On Error Resume Next
+
+Select Case LCase(Request("Act"))
+Case "getmyfield"
+	dim eFormID
+	eFormID=Replace(Request("FormID"),"'","")
+	'response.Write eFormID:response.End()
+		set rs = db("select * from [{pre}FormField] where [FormID] = "&eFormID&" ",1)
+		Do While Not rs.Eof
+		FormInput = ""
+			select case rs("FieldType")
+				Case "SingleLine"
+					FormInput = "<input style='width:180px;border:1px solid #cccccc;padding:2px;' name='ext" & rs("FieldName") & "' value='"&rs("DefaultValue")&"' />"
+				Case "MultiLine"
+					FormInput = "<textarea rows=4 name='ext" & rs("FieldName") & "' style='width:98%'>"
+						DefaultValue = rs("DefaultValue")
+							FormInput = FormInput &DefaultValue
+					FormInput = FormInput&"</textarea>"
+				Case "RadioButtonList"
+					DefaultValue = split(rs("DefaultValue"),vbcrlf)
+					For i = 0 to ubound(DefaultValue)
+						FormInput = FormInput & "<input type='radio' name='ext"&rs("FieldName")&"' value='"&DefaultValue(i)&"' /> "&DefaultValue(i)&""
+					Next
+				Case "CheckBoxList"
+					DefaultValue = split(rs("DefaultValue"),vbcrlf)
+					For i = 0 to ubound(DefaultValue)
+						FormInput = FormInput & "<input type='checkbox' name='ext"&rs("FieldName")&"' value='"&DefaultValue(i)&"' /> "&DefaultValue(i)&""
+					Next
+				Case "DropDownList"
+					FormInput = "<select type='text' name='ext" & rs("FieldName") & "' style='width:120px'>"
+						DefaultValue = split(rs("DefaultValue"),vbcrlf)
+						For i=0 to ubound(DefaultValue)
+							FormInput = FormInput & "<option value='"&DefaultValue(i)&"'>"&DefaultValue(i)&"</option>"
+						Next
+					FormInput = FormInput&"</select>"
+				Case "DateTime"
+					FormInput = "<input style='width:180px;border:1px solid #cccccc;padding:2px;' name='ext" & rs("FieldName") & "' value='"&rs("DefaultValue")&"' onclick=""WdatePicker({isShowClear:false,readOnly:true,dateFmt:'yyyy-MM-dd HH:mm:ss',minDate:'%y-%M-#{%d-1}',maxDate:'#{%y+1}-%M-%d'})"" />"
+				Case "Files"
+					FormInput = "<input style='width:180px;border:1px solid #cccccc;padding:2px;' id='ext" & rs("FieldName") & "' name='ext" & rs("FieldName") & "' value='"&rs("DefaultValue")&"' readonly /><iframe name='uploadframe' src='Uploadspic.Asp?input=ext"&rs("FieldName")&"' width='400' height='24' frameborder='0' scrolling='no' border='0'></iframe>"
+			End Select
+			response.write "<div style='color:green; margin:3px 0'>" & rs("FieldTitle") & ": "&FormInput&"</div>"
+		rs.MoveNext
+		Loop
+		rs.close
+		
+Case "chktitle" ' 检查标题
+	Key = Replace(Request("Key"),"'","")
+	If Len(Key) > 0 Then
+		Set Rs = DB("Select [ID] From [{pre}Content] Where [Title]='" & Key & "'",1)
+		If Rs.Eof Then
+			Response.Write "True|标题“" & Key & "可以正常使用！"
+		Else
+			Response.Write "False|标题为“" & Key & "”的文章已存在！"
+		End If
+		Rs.Close : Set Rs = Nothing
+	End If
+Case "modeext"
+	dim ecid,eid,es,modeext,modeindex
+	ecid=Replace(Request("cid"),"'","")
+	eid=Replace(Request("id"),"'","")
+	if len(ecid)=0 or cstr(ecid)="0" then
+		response.write "True|"
+	else
+		set rs=db("select [FieldName],[FieldTitle],[FieldType],[DefaultValue] from [{pre}FormField] where FormID=" & clng(ecid),1)
+		if rs.eof then
+			response.write "True|"
+		else
+			if len(eid)=0 or cstr(eid)="0" then
+				modeindex=""
+			else
+				set es=db("select [modeindex] from [{pre}content] where id=" & clng(eid),1)
+				if not es.eof then modeindex=es(0) else modeindex=""
+				es.close
+			end if
+			if len(rs(0)&"")=0 then 
+				response.write "True|"
+			else
+				response.write "True|" & vbcrlf
+				Do While Not rs.eof
+					FormInput=""
+					select case rs("FieldType")
+						Case "SingleLine"
+							FormInput = "<input style='width:180px;border:1px solid #cccccc;padding:2px;' name='ext" & rs(0) & "' value=""" & replace(getextval(rs(0),modeindex),"|","#｜#") & """ />"
+						Case "MultiLine"
+							FormInput = "<textarea name='ext" & rs("FieldName") & "' style='width:98%'>"&replace(getextval(rs(0),modeindex),"|","#｜#")&"</textarea>"
+						Case "RadioButtonList"
+							DefaultValue = split(rs("DefaultValue"),vbcrlf)
+							For i = 0 to ubound(DefaultValue)
+								FormInput = FormInput & "<input type='radio' name='ext"&rs("FieldName")&"' value='"&DefaultValue(i)&"' "
+								If DefaultValue(i) = replace(getextval(rs(0),modeindex),"|","#｜#") Then FormInput = FormInput & "checked=checked"
+								FormInput = FormInput & "/> "&DefaultValue(i)&""
+							Next
+						Case "CheckBoxList"
+							DefaultValue = split(rs("DefaultValue"),vbcrlf)
+							For i = 0 to ubound(DefaultValue)
+								FormInput = FormInput & "<input type='checkbox' name='ext"&rs("FieldName")&"' value='"&DefaultValue(i)&"'"
+								If DefaultValue(i) = replace(getextval(rs(0),modeindex),"|","#｜#") Then FormInput = FormInput & "checked=checked"
+								FormInput = FormInput &" /> "&DefaultValue(i)&""
+							Next
+						Case "DropDownList"
+							FormInput = "<select type='text' name='ext" & rs("FieldName") & "' style='width:120px'>"
+								DefaultValue = split(rs("DefaultValue"),vbcrlf)
+								For i=0 to ubound(DefaultValue)
+									FormInput = FormInput & "<option value='"&DefaultValue(i)&"'"
+									If DefaultValue(i) = replace(getextval(rs(0),modeindex),"|","#｜#") Then FormInput = FormInput & "selected=selected"
+									FormInput = FormInput & ">"&DefaultValue(i)&"</option>"
+								Next
+							FormInput = FormInput&"</select>"
+						Case "DateTime"
+							FormInput = "<input style='width:180px;border:1px solid #cccccc;padding:2px;' name='ext" & rs("FieldName") & "' value='"&replace(getextval(rs(0),modeindex),"|","#｜#")&"' onclick=""WdatePicker({isShowClear:false,readOnly:true,dateFmt:'yyyy-MM-dd HH:mm:ss',minDate:'%y-%M-#{%d-1}',maxDate:'#{%y+1}-%M-%d'})"" />"
+						Case "Files"
+					FormInput = "<input style='width:180px;border:1px solid #cccccc;padding:2px;' id='ext" & rs("FieldName") & "' name='ext" & rs("FieldName") & "' readonly  value='"&replace(getextval(rs(0),modeindex),"|","#｜#")&"'/><iframe name='uploadframe' src='Uploadspic.Asp?input=ext"&rs("FieldName")&"' width='400' height='24' frameborder='0' scrolling='no' border='0'></iframe>"
+					End Select
+					
+					response.write "<div style='color:green; margin:3px 0'>" & rs(1) & ": "
+					response.write FormInput&"</div>"
+				rs.MoveNext
+				Loop
+			end if
+		end if
+		rs.close
+	end if
+Case "edit"
+	ID = Request("ID")
+	set rs = db ("select [Order] From [{pre}channel] where [ID]="&ID&" ",1)
+	response.Write "<input type='text' size='5' value="&rs(0)&" style='text-align:center' id='OrderID' ondblclick=""updateOrder('updateorder','"&ID&"')"" onkeydown=""if(event.keyCode==13){updateOrder('updateorder','"&ID&"')}"">"
+	rs.close
+Case "updateorder"
+	Dim OrderID
+	ID = Request("ID")
+	OrderID = Int(Request("OrderID"))
+	if Len(OrderID)=0 Then OrderID=0
+	db "update [{pre}channel] set [Order]="&OrderID&" where [ID]="&ID&" ",0
+	response.Write "<div ondblclick=""updateOrder('edit',"&ID&",0)"">"&OrderID&"</div>"
+Case "chkdiyname" ' 标签自定义文件名
+	Key = Replace(Request("Key"),"'","")
+	If Len(Key) > 0 Then
+		If IsNumeric(Key) Or IsNumeric(Replace(Key,"-","")) Then
+			Response.Write "False|自定义文件名“" & Key & "”不允许为纯数字！"
+		Else
+			ID = Request("ID")
+			If Len(ID) > 0 And IsNumeric(ID) Then
+				Set Rs = DB("Select [ID] From [{pre}Content] Where [ID]<>" & ID & " And [Diyname]='" & Key & "'",1)
+			Else
+				Set Rs = DB("Select [ID] From [{pre}Content] Where [Diyname]='" & Key & "'",1)
+			End If
+			If Rs.Eof Then
+				Response.Write "True|自定义文件名“" & Key & "”可以使用！"
+			Else
+				Response.Write "False|自定义文件名“" & Key & "”已存在,请重试！"
+			End If
+			Rs.Close : Set Rs = Nothing
+		End If
+	End If
+case "contentstate" ' 内容状态
+	ID = Request("ID") : Dim Cfile
+	If IsNumeric(ID) And Len(ID) >= 1 Then
+		Set Rs = DB("Select [Display] From [{pre}Content] Where [ID]=" & ID,3)
+		If Not Rs.Eof Then
+			If Rs(0) = 0 Then
+				Cfile = true
+				Rs(0) = 1 : Response.Write "True|显示"
+			Else
+				Rs(0) = 0 : Response.Write "True|<font color=blue>隐藏</font>"
+			End If
+			Rs.Update
+		Else
+			Response.Write "False|文章不存在！"
+		End If
+		Rs.Close : Set Rs = Nothing
+		If Cfile Then Call CreateContent(ID,0)
+	Else
+		Response.Write "False|参数格式不正确！"
+	End If
+case "contentcommend" '内容推荐
+	ID = Request("ID")
+	If IsNumeric(ID) And Len(ID) >= 1 Then
+		Set Rs = DB("Select [Commend] From [{pre}Content] Where [ID]=" & ID,3)
+		If Not Rs.Eof Then
+			If Rs(0) = 0 Then
+				Rs(0) = 1 : Response.Write "True|<font color=red>推荐</font>"
+			Else
+				Rs(0) = 0 : Response.Write "True|普通"
+			End If
+			Rs.Update
+		Else
+			Response.Write "False|评论不存在！"
+		End If
+		Rs.Close : Set Rs = Nothing
+	Else
+		Response.Write "False|参数格式不正确！"
+	End If
+
+Case "plusinstall" ' 安装插件
+	If Not ChkLevel("setting") Then Response.write "False|无权安装" : Response.End
+	Set Plus = New Cls_Plus
+	Call Plus.Open(PlusName)
+	If Plus.ErrorCode = 0 Then
+		Dim Install
+		Install = Plus.Main("install")
+		Install = Replace(Install,Vbcr,Vbcrlf)
+		Install = Replace(Install,Vblf,Vbcrlf)
+		Install = Replace(Install,"	","")
+
+		Install = Split(Install,Vbcrlf)
+		On Error Resume Next : Err.Clear
+		For i = 0 To Ubound(Install)
+			If LCase(DataBaseType & ":") = LCase(Left(Install(i),Len(DataBaseType)+1)) Then Call DB(Right(Install(i),Len(Install(i))-(Len(DataBaseType)+1)),0)
+		Next
+
+		If Err Then
+			Response.Write "True|安装失败(" & Err.Description & ")"
+			Err.Clear
+		Else
+			For i = 0 To Plus.ConfigLength
+				If LCase(Plus.ConfigItem(i,"name")) = "state" Then
+					Call Plus.ConfigSave(i,1) : Exit For
+				End If
+			Next
+			Response.Write "True|安装成功"
+			Set Rs = DB("Select [Name] From [{pre}PLus] Where [Name]='" & PlusName & "'",3)
+			If Rs.Eof Then Rs.AddNew : Rs(0) = PlusName : Rs.Update : Rs.CLose
+		End If
+
+	Else
+		Resposne.Write "True|读取配置失败"
+	End If
+Case "save"
+	Dim oContent
+	oContent = Request("content")
+	call createfile(oContent, "inc/databak.txt")
+	response.Write "数据已于 "&Hour(now)&":"&Minute(now)&":"&Second(now)&" 保存"
+
+Case "his"
+	dim whichfiles,fs,thisfile,visitors,f
+	whichfiles=server.MapPath("inc/databak.txt")
+	Set fs = CreateObject("Scripting.FileSystemObject")
+	Set thisfile = fs.OpenTextFile(whichfiles,1)
+	Set f = fs.GetFile(whichfiles)
+	if f.size=0 then
+		visitors=""
+	else
+		visitors=thisfile.readall
+	end if
+	thisfile.close
+	'先读内容
+	set fs=nothing
+	response.Write visitors
+Case "plusuninstall" ' 卸载插件
+	If Not ChkLevel("setting") Then Response.write "False|无权卸载" : Response.End
+	Set Plus = New Cls_Plus
+	Call Plus.Open(PlusName)
+	If Plus.ErrorCode = 0 Then
+		Dim UnInstall
+		UnInstall = Plus.Main("uninstall")
+		UnInstall = Replace(UnInstall,Vbcr,Vbcrlf)
+		UnInstall = Replace(UnInstall,Vblf,Vbcrlf)
+		UnInstall = Replace(UnInstall,"	","")
+		UnInstall = Split(UnInstall,Vbcrlf)
+		On Error Resume Next : Err.Clear
+		For i = 0 To Ubound(UnInstall)
+			If LCase(DataBaseType & ":") = LCase(Left(UnInstall(i),Len(DataBaseType)+1)) Then Call DB(Right(UnInstall(i),Len(UnInstall(i))-(Len(DataBaseType)+1)),0)
+		Next
+		If Err Then
+			Response.Write "True|卸载失败(" & Err.Description & ")":Err.Clear
+		Else
+			For i = 0 To Plus.ConfigLength
+				If LCase(Plus.ConfigItem(i,"name")) = "state" Then
+					Call Plus.ConfigSave(i,0) : Exit For
+				End If
+			Next
+			Response.Write "True|卸载成功"
+			Call DB("Delete From [{pre}Plus] Where [Name]='" & PlusName & "'",0) '删除
+		End If
+	Else
+		Resposne.Write "True|读取配置失败"
+	End If
+Case Else
+	Response.Write "False|未指定的查询操作！"
+End Select
+If Err Then Response.Write "False|ERR: " & Err.Description
+If IsObject(Conn) Then Conn.Close
+%>

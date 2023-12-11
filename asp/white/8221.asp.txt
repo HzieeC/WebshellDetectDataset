@@ -1,0 +1,247 @@
+<%@language=vbscript codepage=936 %>
+<!--#include file="inc/config.asp"-->
+<%
+Function BuildSmallPic(s_OriginalPath, fileex,s_BuildBasePath, n_MaxWidth, n_MaxHeight)
+    Err.Clear
+    On Error Resume Next
+    '检查组件是否已经注册
+    Dim AspJpeg
+    Set AspJpeg = Server.Createobject("Persits.Jpeg")
+    If Err.Number <> 0 Then
+        Err.Clear
+        BuildSmallPic = "Error_01"
+        Exit Function
+    End Iff
+
+    '检查原图片是否存在
+    Dim s_MapOriginalPath
+    s_MapOriginalPath = Server.MapPath(s_OriginalPath)
+    AspJpeg.Open s_MapOriginalPath '打开原图片
+    If Err.Number <> 0 Then
+        Err.Clear
+        BuildSmallPic = "Error_02"
+        Exit Function
+    End If
+
+    '按比例取得缩略图宽度和高度
+    Dim n_OriginalWidth, n_OriginalHeight '原图片宽度、高度
+    Dim n_BuildWidth, n_BuildHeight '缩略图宽度、高度
+    Dim div1, div2
+    Dim n1, n2
+    n_OriginalWidth = AspJpeg.Width
+    n_OriginalHeight = AspJpeg.Height
+    div1 = n_OriginalWidth / n_OriginalHeight
+    div2 = n_OriginalHeight / n_OriginalWidth
+    n1 = 0
+    n2 = 0
+    If n_OriginalWidth > n_MaxWidth Then
+        n1 = n_OriginalWidth / n_MaxWidth
+    Else
+        n_BuildWidth = n_OriginalWidth
+    End If
+    If n_OriginalHeight > n_MaxHeight Then
+        n2 = n_OriginalHeight / n_MaxHeight
+    Else
+        n_BuildHeight = n_OriginalHeight
+    End If
+    If n1 <> 0 Or n2 <> 0 Then
+        If n1 > n2 Then
+            n_BuildWidth = n_MaxWidth
+            n_BuildHeight = n_MaxWidth * div2
+        Else
+            n_BuildWidth = n_MaxHeight * div1
+            n_BuildHeight = n_MaxHeight
+        End If
+    End If
+
+    '指定宽度和高度生成
+    AspJpeg.Width = n_BuildWidth
+    AspJpeg.Height = n_BuildHeight
+    
+    '--将缩略图存盘开始--
+    Dim pos, s_OriginalFileName, s_OriginalFileExt '位置、原文件名、原文件扩展名
+    pos = InStrRev(s_OriginalPath, "/") + 1
+    s_OriginalFileName = Mid(s_OriginalPath, pos)
+    pos = InStrRev(s_OriginalFileName, ".")
+    s_OriginalFileExt = Mid(s_OriginalFileName, pos)
+
+    Dim s_MapBuildBasePath, s_MapBuildPath, s_BuildFileName '缩略图绝对路径、缩略图文件名
+    Dim s_EndFlag '小图片文件名结尾标识 例: 如果大图片文件名是“image1.gif”,结尾标识是“_small”,那么小图片文件名就是“image1_small.gif”
+    If Right(s_BuildBasePath, 1) <> "/" Then s_BuildBasePath = s_BuildBasePath & "/"
+    s_MapBuildBasePath = Server.MapPath(s_BuildBasePath)
+    s_EndFlag = fileex '可以自定义,只要能区别大小图片即可
+    s_BuildFileName = Replace(s_OriginalFileName, s_OriginalFileExt, "") & s_EndFlag & s_OriginalFileExt
+    s_MapBuildPath = s_MapBuildBasePath & "/" & s_BuildFileName
+    
+    AspJpeg.Save s_MapBuildPath '保存
+    If Err.Number <> 0 Then
+        Err.Clear
+        BuildSmallPic = "Error_03"
+        Exit Function
+    End If
+    '--将缩略图存盘结束--
+
+    '注销实例
+    Set AspJpeg = Nothing
+    If Err.Number <> 0 Then
+        BuildSmallPic = "Error_Other"
+        Err.Clear
+    End If
+    BuildSmallPic = s_BuildBasePath & s_BuildFileName
+End Function			
+%>
+<!--#include file="upfile_class2.asp"-->
+<%
+const upload_type=0   '上传方法：0=无惧无组件上传类，1=fso上传 2=lyfupload，3=aspupload，4=chinaaspupload
+
+dim upload,ofile,formname,savepath,filename,fileext,ofilesize
+dim enableupload
+dim arrupfiletype
+dim rannum
+dim msg,founderr
+dim Contentid
+msg=""
+founderr=false
+enableupload=false
+
+%>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=gb2312">
+<style type="text/css">
+<!--
+body{
+background-color: #e1f4ee;
+font-size:9pt
+}
+.tx1 { height: 20px;font-size: 9pt; border: 1px solid; border-color: #000000; color: #0000ff}
+-->
+</style>
+</head>
+<body leftmargin="2" topmargin="5" marginwidth="0" marginheight="0" >
+<%
+select case upload_type
+			case 0
+				call upload_0()  '使用化境无组件上传类
+		end select
+%>
+</body>
+</html>
+<%
+sub upload_0()    '使用化境无组件上传类
+	set upload=new upfile_class ''建立上传对象
+	upload.getdata(104857600)   '取得上传数据,限制最大上传100m
+	if upload.err > 0 then  '如果出错
+		select case upload.err
+			case 1
+				response.write "请先选择你要上传的文件！"
+			case 2
+				response.write "你上传的文件总大小超出了最大限制（100m）"
+		end select
+		response.end
+	end if
+	Contentid=clng(trim(upload.form("Contentid")))
+	if Contentid>0 then
+		savepath = saveupfilespath   '存放上传文件的目录
+	else
+		savepath = saveupfilespath   '存放上传文件的目录
+	end if
+	if right(savepath,1)<>"/" then savepath=savepath&"/" '在目录后加(/)
+		
+	for each formname in upload.file '列出所有上传了的文件
+		set ofile=upload.file(formname)  '生成一个文件对象
+		ofilesize=ofile.filesize
+		if ofilesize<100 then
+			msg="请先选择你要上传的文件！"
+			founderr=true
+		else
+		 select case Contentid
+		   case 0		 
+		    if ofilesize>(maxfilesize*1024) then
+         	 msg="文件大小超过了限制，最大只能上传" & cstr(maxfilesize) & "k的文件！"
+			 founderr=true
+		    end if
+	       case 1
+		    if ofilesize>(10000*1024) then
+         	 msg="文件大小超过了限制，最大只能上传10m的文件！"
+			 founderr=true
+		    end if
+		 end select		
+		end if
+
+		fileext=lcase(ofile.fileext)
+		arrupfiletype=split(upfiletype,"|")
+		for i=0 to ubound(arrupfiletype)
+			if fileext=trim(arrupfiletype(i)) then
+				enableupload=true
+				exit for
+			Else
+				EnableUpload=false
+			end if
+		next
+		if fileext="asp" or fileext="asa" or fileext="aspx" then
+			enableupload=false
+		end if
+		if enableupload=false then
+			msg="这种文件类型不允许上传！\n\n只允许上传这几种文件类型：" & upfiletype
+			founderr=true
+		end if
+		
+		
+		strjs="<script language=javascript>" & vbcrlf
+		if founderr<>true then
+			randomize
+			rannum=int(900*rnd)+100
+			filetemp=year(now)&month(now)&day(now)&hour(now)&minute(now)&second(now)&rannum&"."&fileext
+			filename=savepath&filetemp
+
+			ofile.savetofile server.mappath(filename)   '保存文件
+
+			response.write "文件上传成功！文件大小为：" & cstr(round(ofilesize/1024)) & "k"		
+			
+				
+            
+            smallfilename=BuildSmallPic(filename,"small", savepath, 134, 134)'生成微缩图	
+			afterBuildfilename=BuildSmallPic(filename,"", savepath, 700,700)'生成微缩图
+			if instr(afterBuildfilename,"rror") then
+			else
+			filename=afterBuildfilename
+			end if
+			if instr(smallfilename,"rror") then
+			smallfilename=filename
+			end if		
+			select case Contentid
+				case 0
+					strjs=strjs & "parent.document.myform.Content.value='" & filename & "';" & vbcrlf
+					strjs=strjs & "parent.document.myform.photosize1.value='" & cstr(round(ofilesize/1024)) & "';" & vbcrlf
+				case 1
+					strjs=strjs & "parent.document.myform.downloadurl.value='" & filename & "';" & vbcrlf
+					strjs=strjs & "parent.document.myform.filesize.value='" & cstr(round(ofilesize/1024)) & "';" & vbcrlf
+				case 2
+					strjs=strjs & "parent.document.myform.Content2.value='" & filename & "';" & vbcrlf
+					strjs=strjs & "parent.document.myform.photosize2.value='" & cstr(round(ofilesize/1024)) & "';" & vbcrlf
+				case 3
+					strjs=strjs & "parent.document.myform.Content.value='" & filename & "';" & vbcrlf
+					strjs=strjs & "parent.document.myform.smallContent.value='" & smallfilename & "';" & vbcrlf
+				case 4
+					strjs=strjs & "parent.document.myform.Content4.value='" & filename & "';" & vbcrlf
+					'strjs=strjs & "parent.document.myform.photosize4.value='" & cstr(round(ofilesize/1024)) & "';" & vbcrlf
+				case 5
+					strjs=strjs & "parent.document.myform.comphonor.value='" & filename & "';" & vbcrlf
+				'	strjs=strjs & "parent.document.myform.photosize5.value='" & cstr(round(ofilesize/1024)) & "';" & vbcrlf
+				case 6
+					strjs=strjs & "parent.document.myform.defaultpicurl.value='" & filename & "';" & vbcrlf
+					'strjs=strjs & "parent.document.myform.photosize6.value='" & cstr(round(ofilesize/1024)) & "';" & vbcrlf	
+			end select
+		else
+			strjs=strjs & "alert('" & msg & "');" & vbcrlf
+		  	strjs=strjs & "history.go(-1);" & vbcrlf
+		end if
+		strjs=strjs & "</script>" & vbcrlf
+		response.write strjs
+		
+		set file=nothing
+	next
+	set upload=nothing
+end sub
+%>

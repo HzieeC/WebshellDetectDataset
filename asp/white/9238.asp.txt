@@ -1,0 +1,418 @@
+<%
+'#################################################################
+'# 程序名称：逍遥留言本 V1.0
+'# 授权方式：免费软件
+'# 作者：逍遥浪子
+'# 演示及技术支持：http://www.buyok.net/xybook
+'# 电子邮箱：buyok@buyok.net
+'# 发布时间：2005-4-8
+'# 声明：本程序由逍遥浪子独立自主开发，保留所有版权。
+'# 各种用途均可免费使用、自由传播，但必须保留程序代码中的版权信息。
+'#################################################################
+%>
+
+<!--#include file="book_conn.asp"-->
+<!--#include file="md5.asp"-->
+<%
+'退出管理，返回留言首页
+if request("action")="loginout" then
+session.abandon
+Response.Redirect ("index.asp")
+end if
+
+'管理登陆
+if request("login")="check" then
+if request("admin")=admin and md5(request("password"))=password then
+session("login")="ok"
+	response.write "<script language='javascript'>"
+	response.write "alert('欢迎登入！管理结束后请记得点击“退出管理”！');"
+	response.write "location.href='book_admin.asp';"			
+	response.write "</script>"
+else
+	response.write "<script language='javascript'>"
+	response.write "alert('管理员用户名称或密码输入有误，请检查后重新输入！');"
+	response.write "location.href='javascript:history.go(-1)';"
+	response.write "</script>"
+	response.end
+end if
+end if
+
+function lleft(content,lef)
+for le=1 to len(content)
+if asc(mid(content,le,1))<0 then
+lef=lef-2
+else
+lef=lef-1
+end if
+if lef<=0 then exit for
+next
+lleft=left(content,le)
+end function
+%>
+
+<HTML><HEAD>
+<TITLE><%=sitename%></TITLE>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<meta name="description" content="<%=sitename%>">
+<meta name="keywords" content="<%=sitename%>">
+<link rel="stylesheet" href="book.css" type="text/css">
+</HEAD>
+<center>
+<!--#include file="book_top.asp"-->
+<script language="JavaScript" type="text/JavaScript">
+function CheckAll(form)  {
+  for (var i=0;i<form.elements.length;i++)    {
+    var e = form.elements[i];
+    if (e.name != 'chkall')       e.checked = form.chkall.checked; 
+   }
+  }
+</script>
+</head>
+
+<table width="760" border=0 cellspacing=0 cellpadding=0 align=center bgcolor="#FFFFFF" class="grayline">
+<tr><td align=center height=50>
+<a href=book_admin.asp><img border=0 src=images/admin_home.gif title="管理首页"></a> &nbsp;&nbsp;&nbsp;
+<a href=book_admin.asp?action=setup><img border=0 src=images/admin_setup.gif title="管理选项设置"></a> &nbsp;&nbsp;&nbsp;
+<a href=book_admin.asp?action=loginout><img border=0 src=images/loginout.gif title="管理结束后，一定要点击这里"></a>
+</td></tr>
+<tr><td align=center>
+<%
+if session("login")<>"ok" then 
+%>
+<br>
+<form action="" method=post name=booklogin>
+<table width="300" border="1" cellpadding="3" bordercolor="#333333" style="border-collapse: collapse;" align=center>
+<tr><td align=center>用户名</td><td><input type="text" name="admin" value="" title="请填写用户名"></td></tr>
+<tr><td align=center>密&nbsp;&nbsp;码</td><td><input type="password" name="password" value="" title="请填写登陆密码"></td></tr>
+<tr><td colspan=2 align=center><input type="submit" value="管理登陆"><input type="hidden" name="login" value="check"></td></tr>
+</table>
+</form>
+
+<%
+else
+action=request("action")
+
+'管理首页
+if action="" then%>
+<form name=book action=book_admin.asp method=post>
+<table width="600" border="1" cellpadding="0" cellspacing="0" bordercolorlight="#808080" bordercolor="#FFFFFF" bordercolordark="#FFFFFF" style="table-layout:fixed;word-break:break-all">
+	<tr><td align=center width=5% height=25>选</td>
+	<td align=center width=10%>姓名</td> 
+	<td align=center width=35%>内容（编辑与回复）</td>
+	<td align=center width=30%>日期</td>
+	<td align=center width=11%>状态</td>
+	<td align=center width=9%>审核</td>
+	</tr>
+<%
+dim rs,msg_per_page
+dim sql
+msg_per_page = 10 '每页显示记录数
+Set rs=Server.CreateObject("ADODB.Recordset")
+sql="select * from Feedback where del=false order by top desc, PostDate desc"
+
+rs.cursorlocation = 3 
+rs.pagesize = msg_per_page '每页显示记录数
+rs.open sql,conn,1,1 
+
+	if rs.eof and rs.bof then
+	response.write "<tr><td colspan=6 align=center height=50>暂时没有留言</td></tr>"
+	end if
+
+	if not (rs.eof and rs.bof) then '检测记录集是否为空
+		totalrec = RS.RecordCount '总记录条数
+		if rs.recordcount mod msg_per_page = 0 then '计算总页数,recordcount:数据的总记录数
+		n = rs.recordcount\msg_per_page 'n:总页数
+		else 
+		n = rs.recordcount\msg_per_page+1 
+		end if 
+
+		currentpage = request("page") 'currentpage:当前页
+		If currentpage <> "" then
+			currentpage = cint(currentpage)
+			if currentpage < 1 then 
+				currentpage = 1
+			end if 
+			if err.number <> 0 then 
+				err.clear
+				currentpage = 1
+			end if
+		else
+			currentpage = 1
+		End if 
+		if currentpage*msg_per_page > totalrec and not((currentpage-1)*msg_per_page < totalrec)then 
+			currentPage=1
+		end if
+		rs.absolutepage = currentpage 'absolutepage：设置指针指向某页开头
+		rowcount = rs.pagesize 'pagesize：设置每一页的数据记录数
+		dim i
+		dim k
+
+		Do while not rs.eof and rowcount>0
+	content=rs("Comments")	
+	replay=rs("replay")
+	UserName=rs("UserName")
+
+	if rs("top")="0" then
+	Response.write "<tr><td align=center><input type='checkbox' value='"&rs("ID")&"' name=id>"
+		else
+	Response.write "<tr><td><font color=red title='固顶信息不能直接删除，请先解除固顶属性再删除'>TOP</font>"
+	end if
+	Response.write "</td><td>"&UserName&"</td><td><a href='book_admin.asp?action=replay&id="&rs("ID")&"'>"
+	response.write lleft(server.htmlencode(content),50)
+	response.write "</a></td><td  align=center>"&rs("Postdate")&"</td><td  align=center>"
+	if Isnull(Replay) then
+		response.write "<font color=red>新留言</font>"
+	else				
+		response.write "已回复"
+	end if
+		response.write "</td><td align=center>"
+		if rs("Online")="0" then response.write "<font color=red>隐藏</font>" else response.write "公开"  end if
+		response.write "</td></tr>"
+	rowcount=rowcount-1
+	rs.movenext		
+	loop
+	end if
+
+	rs.close
+	conn.close
+	set rs=nothing
+	set conn=nothing
+%>
+<tr><td colspan=6><input type='checkbox' name=chkall onclick='CheckAll(this.form)'> 全选 
+	<input type="submit" name="action" value="删除" onclick="{if(confirm('该操作不可恢复！\n\n确实删除选定的留言？')){this.document.Prodlist.submit();return true;}return false;}"> 	
+	</td></tr>
+</table>
+</form>
+<%
+call listPages()
+end if
+
+if request("action")="删除" then
+	delid=replace(request("id"),"'","")
+	call delfeedback()
+end if
+
+if request("action")="replay" then
+	id=request("id")
+	call detailfeedback()
+end if
+
+if request("action")="setup" then
+	call setup()
+end if
+
+end if
+
+
+%>                     
+</td></tr>
+
+</table>   
+
+<!--#include file="book_down.asp"-->
+</body></html>
+
+<%
+sub setup()
+Set rs=Server.CreateObject("ADODB.Recordset")
+sql="select * from book_setup"
+rs.open sql,conn,1,3
+
+if request("save")="ok" then
+
+	if trim(request.form("sitename"))="" or trim(request.form("admin"))="" or trim(request.form("maxlength"))="" or trim(request.form("pages"))="" or trim(request.form("huifucolor"))="" or trim(request.form("huifutishi"))="" or trim(request.form("book_jianju"))="" then
+	response.write "<script language='javascript'>"
+	response.write "alert('资料填写不完整或有错误，请检查后重新提交。');"
+	response.write "location.href='javascript:history.go(-1)';"
+	response.write "</script>"
+	response.end
+	end if
+
+	if (not isNumeric(request.form("maxlength"))) or (not isNumeric(request.form("pages"))) or (not isNumeric(request.form("book_jianju"))) then
+	response.write "<script language='javascript'>"
+	response.write "alert('资料填写不完整或有错误，请检查后重新提交。');"
+	response.write "location.href='javascript:history.go(-1)';"
+	response.write "</script>"
+	response.end
+	end if
+
+
+rs("sitename")=request("sitename")		'站点名称
+rs("admin")=request("admin")			'管理员姓名
+if trim(request("password"))<>"" then rs("password")=md5(trim(request("password")))	'密码
+rs("view")=request("view")			'留言审核
+rs("maxlength")=request("maxlength")		'留言最大长度
+rs("pages")=request("pages")			'每页留言数
+rs("html")=request("html")			'是否屏蔽html
+rs("mailyes")=request("mailyes")		'是否必填邮箱
+rs("huifutishi")=trim(request("huifutishi"))	'回复提示
+rs("huifucolor")=trim(request("huifucolor"))	'回复颜色
+rs("book_jianju")=request("book_jianju")	'表格间距
+if request("bad")<>"" then rs("bad")=request("bad")		'脏话过滤
+rs.update
+
+	response.write "<script language='javascript'>"
+	response.write "alert('您提交的设置已保存。');"
+	response.write "location.href='book_admin.asp?action=setup';"
+	response.write "</script>"
+	response.end
+else
+%>
+<table width="600" border="1" cellpadding="3" bordercolor="#333333" style="border-collapse: collapse;">
+	<form name=book action=book_admin.asp?action=setup method=post>
+	<tr><td  width=25% align=right>网站名称 &nbsp; &nbsp; </td><td><input type=text name=sitename value="<%=rs("sitename")%>" maxlength=20></td></tr>
+	<tr><td  width=25% align=right>管理员姓名 &nbsp; &nbsp; </td><td><input type=text name=admin value="<%=rs("admin")%>" maxlength=16></td></tr>
+	<tr><td  width=25% align=right>管理员密码 &nbsp; &nbsp; </td><td><input type=password name=password value="" maxlength=16> [若不修改密码，请留空]</td></tr>
+	<tr><td  width=25% align=right>留言必填Email &nbsp; &nbsp; </td><td>是<input type=radio name=mailyes value="0" <%if rs("mailyes")="0" then%> checked<%end if%>> 否<input type=radio name=mailyes value="1" <%if rs("mailyes")="1" then%> checked<%end if%> > [留言时是否必须填写有效E-mail地址]</td></tr>
+	<tr><td  width=25% align=right>屏蔽html功能 &nbsp; &nbsp; </td><td>是<input type=radio name=html value="0" <%if rs("html")="0" then%> checked<%end if%>> 否<input type=radio name=html value="1" <%if rs("html")="1" then%> checked<%end if%> > [是否屏蔽用户留言中的html代码]</td></tr>
+	<tr><td  width=25% align=right>留言审核开关 &nbsp; &nbsp; </td><td>是<input type=radio name=view value="0" <%if rs("view")="0" then%> checked<%end if%>> 否<input type=radio name=view value="1" <%if rs("view")="1" then%> checked<%end if%> > [留言是否需要审核]</td></tr>
+	<tr><td  width=25% align=right>留言内容长度 &nbsp; &nbsp; </td><td><input type=text name=maxlength value="<%=rs("maxlength")%>" maxlength=3> [留言内容的最多字符数，例如200]</td></tr>
+	<tr><td  width=25% align=right>每页留言条数 &nbsp; &nbsp; </td><td><input type=text name=pages value="<%=rs("pages")%>" maxlength=2>  [推荐10]</td></tr>
+	<tr><td  width=25% align=right>留言表格间距 &nbsp; &nbsp; </td><td><input type=text name=book_jianju value="<%=rs("book_jianju")%>" maxlength=2> [合适的间距可使版面更美观，推荐10]</td></tr>
+	<tr><td  width=25% align=right>管理员回复提示 &nbsp; &nbsp; </td><td><input type=text name=huifutishi value="<%=rs("huifutishi")%>" maxlength=10> [例如：“客服回复”]</td></tr>
+	<tr><td  width=25% align=right>管理员回复颜色 &nbsp; &nbsp; </td><td><input type=text name=huifucolor value="<%=rs("huifucolor")%>" maxlength=10> [可使用英文单词或16进制数，如：red、#CCFF00”]</td></tr>
+	<tr><td  width=25% align=right>脏话过滤 &nbsp; &nbsp; </td><td><input type=text name=bad value="<%=rs("bad")%>" size=50 maxlength=255><br> [用/隔开]</td></tr>
+	<tr><td colspan=2><INPUT name="save" TYPE="hidden" value="ok"><INPUT TYPE="submit" value="保存设置"></td></tr>
+	</form>
+</table>
+<%
+end if
+rs.close
+set rs=nothing
+end sub
+
+
+
+sub delfeedback()
+	if delid="" or isnull(delid) then
+
+	response.write "<script language='javascript'>"
+	response.write "alert('操作失败，没有选择合适参数，请单击“确定”返回！');"
+	response.write "location.href='book_admin.asp';"
+	response.write "</script>"
+	response.end
+
+	else
+		conn.execute("delete from Feedback where ID in ("&delid&")")
+		conn.close
+		set conn=nothing
+
+	response.write "<script language='javascript'>"
+	response.write "alert('留言删除成功，请单击“确定”返回！');"
+	response.write "location.href='book_admin.asp';"
+	response.write "</script>"
+	response.end
+
+	end if
+end sub
+
+sub detailfeedback()
+if id="" then
+	response.write "<script language='javascript'>"
+	response.write "alert('无此留言编号，请单击“确定”返回！');"
+	response.write "location.href='book_admin.asp';"
+	response.write "</script>"
+	response.end
+end if
+
+	'修改留言资料
+if request("send")="ok" then
+
+		if trim(request.form("comments"))="" then 
+		response.write "<script language='javascript'>"
+		response.write "alert('出错了，留言内容不能为空！');"
+		response.write "location.href='javascript:history.go(-1)';"
+		response.write "</script>"
+		response.end
+		end if
+
+	set rs=server.createobject("adodb.recordset")
+	sql = " select * from feedback where del=false and ID="&id
+	rs.open sql,conn,1,3
+
+		if not (rs.eof and rs.bof) then
+		rs("comments")=request.form("comments")
+		rs("Replay")=replace(request.form("Replay"),vbCRLF,"<BR>")
+		rs("ReplayDate") = Now()
+		rs("Online")=request("Online")
+		rs("top")=request("top")
+		rs.update
+		end if
+
+	rs.close
+
+	response.write "<script language='javascript'>"
+	response.write "alert('留言已经修改或回复成功，请单击“确定”返回！');"
+	response.write "location.href='book_admin.asp';"
+	response.write "</script>"
+	response.end
+end if
+
+	'显示详细资料
+	set rs = server.createobject("adodb.recordset")
+	sql = "select * from feedback where ID="&id
+	rs.open sql,conn,1,1
+
+		if rs.eof and rs.bof then 
+		response.write "<script language='javascript'>"
+		response.write "alert('无此留言，请单击“确定”返回！');"
+		response.write "location.href='book_admin.asp';"
+		response.write "</script>"
+		response.end
+		end if
+
+		if not (rs.eof and rs.bof) then 
+			Comments=replace(rs("Comments"),"<BR>",vbCRLF)
+			if rs("replay")<>"" then replay=replace(rs("Replay"),"<BR>",vbCRLF) else repley=""  end if
+
+		%>
+
+   <table width="600" border="1" cellpadding="3" bordercolor="#333333" style="border-collapse: collapse;">
+		 <form name="repl" method="post" action='book_admin.asp?action=replay&id=<%=id%>'>
+		 <tr><TD align="right" width=20% height=15>留言者IP地址</TD><td><%=rs("IP")%></td></tr>
+		 <tr><TD align="right" width=20%>留言日期</TD><td><%=rs("PostDate")%></td></tr>		 
+		 <tr><TD align="right" width=20%>留言人姓名</TD><td><%=rs("UserName")%>&nbsp;</td></tr>
+		<tr><TD align="right" width=20%>留言邮箱</TD><td><%=rs("UserMail")%>&nbsp;</td></tr>
+		<tr><TD align="right" width=20%>留言网址</TD><td><%=rs("url")%>&nbsp;</td></tr>
+		<tr><TD align="right" width=20%>其它联系方式</TD><td><%=rs("qq")%>&nbsp;</td></tr>
+		 <tr><TD align="right" width=20%>内容</TD><td><textarea style="overflow:auto" name="comments" cols="60" rows="8"><%=Comments%></textarea></td></tr>
+		 <tr><TD align="right" width=20% valign=top>回复内容</TD><td><textarea style="overflow:auto" name="Replay" cols="60" rows="8"><%=replay%></textarea>&nbsp;</td></tr>
+
+		<tr><TD align="right" width=20%>是否固顶</TD><td><input type="radio" name="top" value="1" <%if rs("top")="1" then%>checked<%end if%>>
+			  固顶<input type="radio" name="top" value="0" <%if rs("top")="0" then%>checked<%end if%>>
+			  普通 </td></tr>
+
+
+		<tr><TD align="right" width=20%>是否隐藏</TD><td><input type="radio" name="Online" value="0" <%if rs("Online")="0" then%>checked<%end if%>>
+			  隐藏<input type="radio" name="Online" value="1" <%if rs("Online")="1" then%>checked<%end if%>>
+			  公开 </td></tr>
+			<TR><TD align="right" width=20%>&nbsp;<INPUT TYPE="hidden" name=send value=ok></TD><TD>
+				<input type="submit" name="action" value=" 提 交 "></TD></TR>
+			</form></TABLE>
+		<%
+		end if	
+
+	rs.close
+	set rs=nothing
+
+end sub
+
+
+'分页
+sub listPages() 
+if n <= 1 then exit sub 
+%>
+共<%=totalrec%>条留言 
+<%if currentpage = 1 then%>
+<font color=darkgray>首页 前页</font>
+<%else%> 
+<a href="<%=request.ServerVariables("script_name")%>?page=1">
+首页</font></a> <a href="<%=request.ServerVariables("script_name")%>?page=<%=currentpage-1%>">前页</a>
+<%end if%>
+<%if currentpage = n then%> 
+<font color=darkgray >下页 末页</font>
+<%else%> 
+<a href="<%=request.ServerVariables("script_name")%>?page=<%=currentpage+1%>">下页</a> <a href="<%=request.ServerVariables("script_name")%>?page=<%=n%>">末页</a>
+<%end if%>
+  第<%=currentpage%>页 共<%=n%>页
+<%end sub%>

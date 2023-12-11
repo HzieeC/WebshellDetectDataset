@@ -1,0 +1,1260 @@
+<%Function ReplaceLableFlag(Content)
+	Dim regEx, Matches, Match, TempStr
+	Set regEx = New RegExp
+	regEx.Pattern = "{\$[^{\$}]*}"
+	regEx.IgnoreCase = True
+	regEx.Global = True
+	Set Matches = regEx.Execute(Content)
+	ReplaceLableFlag = Content
+	For Each Match In Matches
+		On Error Resume Next
+		TempStr = Match.Value
+		TempStr = Replace(TempStr, Chr(13) & Chr(10), "")
+		TempStr = Replace(TempStr, "{$", "")
+		TempStr = Replace(TempStr, "}", "")
+		TempStr = Left(TempStr, InStr(TempStr, "(") - 1) & "," & Mid(TempStr, InStr(TempStr, "(") + 1)
+		TempStr = Left(TempStr, InStrRev(TempStr, ")") - 1)
+		TempStr = Replace(TempStr, """", "")
+	If Err.Number = 0 Then
+		ReplaceLableFlag = Replace(ReplaceLableFlag, Match.Value, ChangeLableToFunction(TempStr))
+	End If
+	Next
+End Function
+'****************************************************
+'函数名：ReplaceAllLabel
+'作  用：将标签名称转换成对应标签内容
+'参  数： Content需转换的内容
+'****************************************************
+Function ReplaceAllLabel(Content)
+	'替换系统标签
+	Dim LabelRS, LabelSql
+	Set LabelRS = Server.CreateObject("ADODB.Recordset")
+	LabelSql = "Select LabelType,LabelName,LabelContent from JOB_Label Where LabelType<>3 and LabelType<5 order by Labelorder desc"
+	LabelRS.Open LabelSql, Conn, 1, 1
+	Do While Not LabelRS.EOF
+		Content = Replace(Content, LabelRS(1), LabelRS(2))
+	LabelRS.MoveNext
+	Loop
+	LabelRS.Close:Set LabelRS = Nothing
+	
+	'替换静态标签和函数标签
+	Set LabelRS1 = Server.CreateObject("ADODB.Recordset")
+	LabelSql1 = "Select LabelType,LabelName,LabelContent from JOB_Label Where LabelType>4 and projectid="&DefaultTPID&" order by Labelorder desc"
+	LabelRS1.Open LabelSql1, Conn, 1, 1
+	Do While Not LabelRS1.EOF
+		Content = Replace(Content, LabelRS1(1), LabelRS1(2))
+	LabelRS1.MoveNext
+	Loop
+	LabelRS1.Close:Set LabelRS1 = Nothing	
+	
+	Content=ReplaceUserFunctionLabel(Content)
+	ReplaceAllLabel = Content
+End Function
+'**************************************************
+'函数名：ChangeLableToFunction
+'作  用：将标签转换为函数执行
+'参  数： LabelContent  ----标签参数
+'返回值：函数执行结果
+'**************************************************
+Function ChangeLableToFunction(LabelContent)
+Dim LabelArr:LabelArr = Split(LabelContent, ",")
+If LabelArr(0) = "" Then
+	  ChangeLableToFunction = ""
+	  Exit Function
+End If
+Select Case UCase(LabelArr(0))
+  Case "GETSLIDE"                           '幻灯片文章
+	 If UBound(LabelArr) = 12 Then
+	   ChangeLableToFunction = GetSlide(LabelArr(1), LabelArr(2), LabelArr(3), LabelArr(4), LabelArr(5), LabelArr(6), LabelArr(7), LabelArr(8), LabelArr(9), LabelArr(10), LabelArr(11), LabelArr(12))
+	 Else
+	 ChangeLableToFunction = "标签参数溢出！"
+	 End If
+  Case "GETSITENAV"                         '频道导航
+	 If UBound(LabelArr) = 1 Then
+	   ChangeLableToFunction = GetSitenav(LabelArr(1))
+	 Else
+	 ChangeLableToFunction = "标签参数溢出！"
+	 End If
+  Case "GETLINK"                            '友情链接
+	 If UBound(LabelArr) = 8 Then
+	   ChangeLableToFunction = GetLink(LabelArr(1), LabelArr(2), LabelArr(3), LabelArr(4), LabelArr(5), LabelArr(6), LabelArr(7), LabelArr(8))
+	 Else
+	 ChangeLableToFunction = "标签参数溢出！"
+	 End If
+  Case "GETARTICLELIST"                    '文章列表
+	 If UBound(LabelArr) = 17 Then
+	   ChangeLableToFunction = GetArticleList(LabelArr(1), LabelArr(2), LabelArr(3), LabelArr(4), LabelArr(5), LabelArr(6), LabelArr(7), LabelArr(8), LabelArr(9), LabelArr(10), LabelArr(11), LabelArr(12), LabelArr(13), LabelArr(14), LabelArr(15), LabelArr(16), LabelArr(17))
+	 Else
+	 ChangeLableToFunction = "标签参数溢出！"
+	 End If
+  Case "GETSCROLLARTICLELIST"              '文章列表
+	 If UBound(LabelArr) = 13 Then
+	   ChangeLableToFunction = GetScrollArticleList(LabelArr(1), LabelArr(2), LabelArr(3), LabelArr(4), LabelArr(5), LabelArr(6), LabelArr(7), LabelArr(8), LabelArr(9), LabelArr(10), LabelArr(11), LabelArr(12), LabelArr(13))
+	 Else
+	 ChangeLableToFunction = "标签参数溢出！"
+	 End If
+  Case "GETCIRARTICLELIST"
+	 If UBound(LabelArr) = 12 Then
+	   ChangeLableToFunction =  GetCirArticleList(LabelArr(1), LabelArr(2), LabelArr(3), LabelArr(4), LabelArr(5), LabelArr(6), LabelArr(7), LabelArr(8), LabelArr(9), LabelArr(10), LabelArr(11), LabelArr(12))
+	 Else
+	 ChangeLableToFunction = "标签参数溢出！"
+	 End If
+  Case "GETARTICLESEARCH"
+	 If UBound(LabelArr) = 2 Then
+	   ChangeLableToFunction =  GetArticleSearch(LabelArr(1), LabelArr(2))
+	 Else
+	 ChangeLableToFunction = "标签参数溢出！"
+	 End If
+  Case "GETLASTARTICLELIST"                '终级文章列表
+	 If UBound(LabelArr) = 9 Then
+	   ChangeLableToFunction =  GetLastArticleList(LabelArr(1), LabelArr(2), LabelArr(3), LabelArr(4), LabelArr(5), LabelArr(6), LabelArr(7), LabelArr(8), LabelArr(9))
+	 Else
+	 ChangeLableToFunction = "标签参数溢出！"
+	 End If
+  Case "GETRESUMELIST"                    '人才列表
+	 If UBound(LabelArr) = 15 Then
+	   ChangeLableToFunction = GetResumeList(LabelArr(1), LabelArr(2), LabelArr(3), LabelArr(4), LabelArr(5), LabelArr(6), LabelArr(7), LabelArr(8), LabelArr(9), LabelArr(10), LabelArr(11), LabelArr(12), LabelArr(13), LabelArr(14), LabelArr(15))
+	 Else
+	 ChangeLableToFunction = "标签参数溢出！"
+  	 End If
+  Case "GETCOMLIST"                    '企业列表
+	 If UBound(LabelArr) = 19 Then
+	   ChangeLableToFunction = GetComList(LabelArr(1), LabelArr(2), LabelArr(3), LabelArr(4), LabelArr(5), LabelArr(6), LabelArr(7), LabelArr(8), LabelArr(9), LabelArr(10), LabelArr(11), LabelArr(12), LabelArr(13), LabelArr(14), LabelArr(15), LabelArr(16), LabelArr(17), LabelArr(18), LabelArr(19))
+	 Else
+	 ChangeLableToFunction = "标签参数溢出！"
+	 End If
+  Case "GETHIRELIST"                    '职位列表
+	 If UBound(LabelArr) = 12 Then
+	   ChangeLableToFunction = GetHireList(LabelArr(1), LabelArr(2), LabelArr(3), LabelArr(4), LabelArr(5), LabelArr(6), LabelArr(7), LabelArr(8), LabelArr(9), LabelArr(10), LabelArr(11), LabelArr(12))
+	 Else
+	 ChangeLableToFunction = "标签参数溢出！"
+	 End If
+  Case Else
+   ChangeLableToFunction = ""
+   Exit Function
+ End Select
+End Function
+'***************************************************
+'替换自定义函数标签
+'***************************************************
+Function ReplaceUserFunctionLabel(Content)
+	Dim LabelRS, LabelSql
+	Set LabelRS = Server.CreateObject("ADODB.Recordset")
+	LabelSql = "Select LabelType,LabelName,LabelContent from JOB_Label Where LabelType=3 and projectid="&DefaultTPID&" order by Labelorder desc"
+	LabelRS.Open LabelSql, Conn, 1, 1
+	Do While Not LabelRS.EOF
+		Content = Replace(Content, LabelRS(1), ReplaceDIYFunctionLabel(LabelRS(1)))
+		LabelRS.MoveNext
+	Loop
+	LabelRS.Close:Set LabelRS = Nothing
+ReplaceUserFunctionLabel = Content		
+End Function
+
+Function ReplaceDIYFunctionLabel(SqlLabel)
+Dim I,DiyLabelRS,LabelName,FunctionRS,FunctionSQL,LabelContent,FunctionContent,FunctionField
+LabelName = SqlLabel
+Set DiyLabelRS=Server.CreateObject("ADODB.Recordset")
+DiyLabelRS.Open "Select LabelIntro,LabelContent From JOB_Label Where LabelName='" & LabelName & "'",Conn,1,1
+IF DiyLabelRS.Eof And DiyLabelRS.Bof Then
+	DiyLabelRS.Close:Set DiyLabelRS=Nothing:ReplaceDIYFunctionLabel="":Exit Function
+Else
+	FunctionSQL = DiyLabelRS(0)
+	LabelContent = DiyLabelRS(1)
+	Set FunctionRS=Server.CreateObject("ADODB.Recordset")
+	FunctionRS.Open FunctionSQL,Conn,1,1
+	If InStr(LabelContent,"{Loop}")>0 And InStr(LabelContent,"{/Loop}")>0 Then
+		If Left(LabelContent,6) <> "{Loop}" Then
+		FunctionContent=Split(LabelContent,"{Loop}")(0)
+		Else
+		FunctionContent=""
+		End If
+		Do While Not FunctionRS.EOF
+		If Split(FunctionSQL," ")(1)="Top" Then
+		FunctionField=Split(Split(FunctionSQL," ")(3),",")
+		Else
+		FunctionField=Split(Split(FunctionSQL," ")(1),",")
+		End if
+		LabelContent=Split(Split(LabelContent,"{Loop}")(1),"{/Loop}")(0)
+		For I = 0 To UBound(FunctionField)
+		LabelContent=Replace(LabelContent,"{$"&FunctionField(I)&"}",FunctionRS(""&FunctionField(I)&""))
+		Next
+		FunctionContent=FunctionContent&LabelContent
+		FunctionRS.MoveNext
+		Loop
+	Else
+	FunctionContent=LabelContent
+	End If
+	FunctionRS.Close:Set FunctionRS=Nothing
+End If
+DiyLabelRS.Close:Set DiyLabelRS=Nothing
+ReplaceDIYFunctionLabel=FunctionContent
+End Function
+'***************************************************
+'函数名：GetLink
+'返回值：
+'***************************************************
+Function GetLink(imgs,num,nums,row_num,row_nums,order,font_left,target)
+Dim html
+html=""
+Select Case imgs
+	Case 0
+		If num=0 then
+		sql="select * from JOB_links where link_key1=1 and link_key="&imgs&""
+		Else
+		sql="select top "&num&" * from JOB_links where link_key1=1 and link_key="&imgs&""
+		End If
+		sql=sql&" order by "&order&""
+		Set rs=conn.execute(sql)
+		If not rs.eof then
+			i=1
+			Do while not rs.eof
+				If font_left=0 then
+					link_name=rs("link_name")
+				Else
+					link_name=left(rs("link_name"),font_left)
+				End If
+				If i Mod row_num = 0 then
+				html=html&"<a href="&rs("link_url")&" title="&rs("link_sm")&" target="&target&">"&link_name&"</a>&nbsp;<br>"
+				Else
+				html=html&"<a href="&rs("link_url")&" title="&rs("link_sm")&" target="&target&">"&link_name&"</a>&nbsp;"
+				End If
+				i=i+1
+			rs.movenext
+			Loop
+		End If
+		rs.close:Set rs=Nothing
+	Case 1
+		If nums=0 then
+		sql="select * from JOB_links where link_key1=1 and link_key="&imgs&""
+		Else
+		sql="select top "&nums&" * from JOB_links where link_key1=1 and link_key="&imgs&""
+		End If
+		sql=sql&" order by "&order&""
+		Set rs=conn.execute(sql)
+		If not rs.eof then
+			i=1
+			Do while not rs.eof
+				link_name="<img src="&rs("link_name")&" width=88 height=31 border=0 alt="&rs("link_sm")&">"
+				If i Mod row_nums = 0 then
+				html=html&"<a href="&rs("link_url")&" title="&rs("link_sm")&" target="&target&">"&link_name&"</a>&nbsp;<br>"
+				Else
+				html=html&"<a href="&rs("link_url")&" title="&rs("link_sm")&" target="&target&">"&link_name&"</a>&nbsp;"
+				End If
+				i=i+1
+			rs.movenext
+			Loop
+		End If
+		rs.close:Set rs=Nothing
+	Case 2
+		If num=0 then
+		sql="select * from JOB_links where link_key1=1 and link_key=0"
+		Else
+		sql="select top "&num&" * from JOB_links where link_key1=1 and link_key=0"
+		End If
+		sql=sql&" order by "&order&""
+		Set rs=conn.execute(sql)
+		If not rs.eof then
+			i=1
+			Do while not rs.eof
+				If font_left=0 then
+					link_name=rs("link_name")
+				Else
+					link_name=left(rs("link_name"),font_left)
+				End If
+				If i Mod row_num = 0 then
+				html=html&"<a href="&rs("link_url")&" title="&rs("link_sm")&" target="&target&">"&link_name&"</a>&nbsp;<br>"
+				Else
+				html=html&"<a href="&rs("link_url")&" title="&rs("link_sm")&" target="&target&">"&link_name&"</a>&nbsp;"
+				End If
+				i=i+1
+			rs.movenext
+			Loop
+		html=html&"<br>"
+		End If
+		rs.close:Set rs=Nothing
+		If nums=0 then
+		sql="select * from JOB_links where link_key1=1 and link_key=1"
+		Else
+		sql="select top "&nums&" * from JOB_links where link_key1=1 and link_key=1"
+		End If
+		sql=sql&" order by "&order&""
+		Set rs=conn.execute(sql)
+		If not rs.eof then
+			i=1
+			Do while not rs.eof
+				link_name="<img src="&rs("link_name")&" width=88 height=31 border=0 alt="&rs("link_sm")&">"
+				If i Mod row_nums = 0 then
+				html=html&"<a href="&rs("link_url")&" title="&rs("link_sm")&" target="&target&">"&link_name&"</a>&nbsp;<br>"
+				Else
+				html=html&"<a href="&rs("link_url")&" title="&rs("link_sm")&" target="&target&">"&link_name&"</a>&nbsp;"
+				End If
+				i=i+1
+			rs.movenext
+			Loop
+		End If
+		rs.close:Set rs=Nothing
+End Select
+GetLink=html
+End Function
+'***************************************************
+'函数名：GetSitenav
+'返回值：
+'***************************************************
+Function GetSitenav(str)
+Dim Sitenav
+Sitenav=""
+sql="select * from JOB_Channel where ShowNameOnPath="&FR_HR_True&" and Disabled="&FR_HR_False&""
+Select Case FR_HR_Edition
+	Case 0
+sql=sql&" and (ModuleType=1 or ModuleType=2 or ModuleType=6 or ModuleType=10 or ModuleType=14 or ModuleType is null)"
+	Case 1
+sql=sql&" and (ModuleType=1 or ModuleType=2 or ModuleType=4 or ModuleType=6 or ModuleType=10 or ModuleType=14 or ModuleType is null)"
+	Case 2
+sql=sql&" and (ModuleType=1 or ModuleType=2 or ModuleType=3 or ModuleType=4 or ModuleType=5 or ModuleType=6 or ModuleType=10 or ModuleType=14 or ModuleType is null)"
+	Case 3
+sql=sql&" and (ModuleType=1 or ModuleType=2 or ModuleType=3 or ModuleType=4 or ModuleType=5 or ModuleType=6 or ModuleType=10 or ModuleType=11 or ModuleType=12 or ModuleType=14 or ModuleType is null)"
+	Case 4
+sql=sql&" and (ModuleType=1 or ModuleType=2 or ModuleType=3 or ModuleType=4 or ModuleType=5 or ModuleType=6 or ModuleType=7 or ModuleType=8 or ModuleType=9 or ModuleType=10 or ModuleType=11 or ModuleType=12 or ModuleType=14 or ModuleType is null)"
+	Case 5
+sql=sql&" and (ModuleType=1 or ModuleType=2 or ModuleType=3 or ModuleType=4 or ModuleType=5 or ModuleType=6 or ModuleType=7 or ModuleType=8 or ModuleType=9 or ModuleType=10 or ModuleType=11 or ModuleType=12 or ModuleType=13 or ModuleType=14 or ModuleType is null)"
+Case Else
+	GetSitenav="参数设置错误！"
+	Exit Function
+End Select
+sql=sql&" order by OrderID asc"
+Sitenav=Sitenav&"<li class='home'><a href="&SiteUrl&InstallDir&" title='"&sitename&"首页'>首 页</a></li>"
+Set Rs_nav=conn.Execute(sql)
+If Not Rs_nav.eof then
+Do While Not Rs_nav.eof
+If Rs_nav("ChannelType")<>"2" then
+	If CreateHTML=1 then
+		if Rs_nav("UseCreateHTML")<>0 then
+			Select Case Rs_nav("FileExt_Index")
+				Case 0:htmls=".html"
+				Case 1:htmls=".htm"
+				Case 2:htmls=".shtml"
+				Case 3:htmls=".shtm"
+				Case 4:htmls=".asp"
+			End Select
+		Sitenav=Sitenav&"<li class='channel'><a href="&SiteUrl&InstallDir&HTMLPath&Rs_nav("ChannelDir")&"/index"&htmls&""
+		else
+		Sitenav=Sitenav&"<li class='channel'><a href="&SiteUrl&InstallDir&Rs_nav("ChannelDir")&""
+		end if
+	elseif CreateHTML=2 then
+	Sitenav=Sitenav&"<li class='channel'><a href="&SiteUrl&InstallDir&Rs_nav("ChannelDir")&"/index.html"
+	else
+	Sitenav=Sitenav&"<li class='channel'><a href="&SiteUrl&InstallDir&Rs_nav("ChannelDir")&"/index.asp"
+	end if
+else
+Sitenav=Sitenav&"<li class='channel'><a href="&Rs_nav("LinkUrl")&""
+end if
+if Rs_nav("OpenType")=1 then
+Sitenav=Sitenav&" target='_blank'"
+end if
+Sitenav=Sitenav&" title="&Rs_nav("ReadMe")&">"&Rs_nav("ChannelName")&"</a></li>"
+Rs_nav.MoveNext
+Loop
+Else
+Sitenav=Sitenav&"频道设置错误！"
+End if
+Rs_nav.Close:Set Rs_nav=Nothing
+GetSitenav=Sitenav
+End Function
+'***************************************************
+'函数名：GetSitebottomnav
+'返回值：
+'***************************************************
+Function GetSitebottomnav()
+Dim Sitebottomnav
+Sitebottomnav="| "
+Set Rs_nav=conn.Execute("select * from JOB_common where IsShow = "&FR_HR_True&" order by isorder asc")
+If Not Rs_nav.eof then
+Do While Not Rs_nav.eof
+	If CreateHTML=1 then
+		Sitebottomnav=Sitebottomnav&"<a href="&SiteUrl&InstallDir&HTMLPath&"About/"&Rs_nav("htmlname")&">"&Rs_nav("title")&"</a> | "
+	else
+	Sitebottomnav=Sitebottomnav&"<a href="&SiteUrl&InstallDir&"common.asp?commonid="&Rs_nav("id")&">"&Rs_nav("title")&"</a> | " 
+	end if
+Rs_nav.MoveNext
+Loop
+Else
+Sitebottomnav=Sitebottomnav&"通用页面设置错误！"
+End if
+Rs_nav.Close:Set Rs_nav=Nothing
+GetSitebottomnav=Sitebottomnav
+End Function
+
+'***************************************************
+'函数名：GetScrollArticleList
+'返回值：
+'***************************************************
+Function GetScrollArticleList(cid,tid,num,titfont,tjnews,tjhome,homepic,homehot,order,font_left,target,dates,suffix)
+Dim NewsRS, NewsSql, NewsSqls
+Set NewsRS = Server.CreateObject(FR_HR_RS)
+'-1 为读取当前频道
+if cid="-1" then
+cid = session(FRHRCMS&"ChannelID")
+end if
+	NewsSqls=""
+	If tid<>0 then NewsSqls=" and N_sid="&tid&""
+	If tjnews=1 then NewsSqls=NewsSqls&" and N_iscommond="&tjnews&""
+	If tjhome=1 then NewsSqls=NewsSqls&" and N_homecommond="&tjhome&""
+	If homepic=1 then NewsSqls=NewsSqls&" and N_ispic="&homepic&""
+	NewsSqls=NewsSqls&" order by "&order&""
+	html=""
+	If num<>0 Then
+		NewsSql = "Select top "&num&" * from JOB_News where N_cid="&cid&" and N_pic is not null"&NewsSqls&""
+	Else
+		NewsSql = "Select * from JOB_News where N_cid="&cid&" and N_pic is not null"&NewsSqls&""
+	End If
+	NewsRS.open NewsSql,conn,1,1
+	If NewsRS.eof then
+	html=html&"暂无文章"& vbCrLf
+	Else
+		I=0
+		Do While Not NewsRS.EOF
+		I=I+1
+		if NewsRS("N_sorttit")<>"" and Not Isnull(NewsRS("N_sorttit")) then
+			stit=NewsRS("N_sorttit")
+		else
+			stit=""
+		end if
+		if NewsRS("N_color")<>"" and Not Isnull(NewsRS("N_color")) then
+			stit=stit&"<font color='"&NewsRS("N_color")&"'>"&NewsRS("N_title")&"</font>"
+		else
+			stit=stit&NewsRS("N_title")
+		end if
+		
+		html=html&"<span><a href="&FormatLink(NewsRS("N_addtime"),NewsRS("N_cid"),NewsRS("N_sid"),NewsRS("N_id"),0)&">"&stit&"</a></span>"& vbCrLf		
+		html=html&"<ul>"&left(RemoveHTML(NewsRS("N_Content")),font_left)&"...</ul>"& vbCrLf
+		If num<>0 Then
+		if I>=num then exit do
+		End If
+		NewsRS.MoveNext
+		Loop
+	end if
+GetScrollArticleList=html
+End Function
+'***************************************************
+'函数名：GetArticletype
+'返回值：
+'***************************************************
+Function GetArticletype(cid,nums)
+Dim NewsRS, NewsSql
+Set NewsRS = Server.CreateObject(FR_HR_RS)
+if nums<>0 then
+NewsSql="select top "&nums&" * from JOB_NewsSort where S_cid="&cid&" order by S_order asc"
+else
+NewsSql="select * from JOB_NewsSort where S_cid="&cid&" order by S_order asc"
+end if
+NewsRS.open NewsSql,conn,1,1
+typehtml=""
+	If Not NewsRS.EOF Then
+	Do While Not NewsRS.EOF
+	typehtml=typehtml&"<li><a href='"&FormatLink(0,cid,NewsRS("S_id"),0,0)&"'>"&NewsRS("S_name")&"</a></li>"
+	NewsRS.MoveNext
+	Loop
+	Else
+	GetArticletype="暂无分类"
+	Exit Function
+	End If
+NewsRS.Close:Set NewsRS=Nothing
+GetArticletype=typehtml
+End Function
+
+
+'**************************************
+'函数：GetArticleList
+'功能：文章列表函数
+'参数：cid:专题、频道编号;tid:专题类别编号;imgs:小图片名称：如1.gif；num:读取文章条数
+'styles:显示方式()；iscommand：是否小类推荐;ispic:是否图片文章;ishomecommand:是否首页推荐
+'order:排序（按id正，反，按点击数，按时间）；font_left:标题截取字数
+'target:打开方式；istit:是否显示完整的标题;
+'dates：是否显示发布时间(0为不显示，其他的为代表的显示方式：1：2008-8-7；2：2008\2\8等);
+'picw:图片宽度；pich：图片高度
+'showtype:是否显示文章类别;con_left:内容简介字数
+'例如：GetArticleList(10,0,0,20,1,0,0,0,"I_id desc",20,1,0,0,0,0,0,0)
+'显示方式：（1、图片加下标题；2、图片+右上标题+右下内容；3、[图片]【类别】【标题】【时间】...；4、标题+下内容）
+'**************************************
+
+Function GetArticleList(cid,tid,imgs,num,styles,iscommand,ispic,ishomecommand,order,font_left,target,istit,dates,picw,pich,showtype,con_left)
+	Dim InfoRS,InfoSql,picss,linkss,textss
+	set InfoRs=Server.CreateObject("ADODB.RecordSet")
+	InfoSql="Select top "&num&" * from JOB_News where N_title is not null"
+	if cid="-1" then
+		cid = session(FRHRCMS&"ChannelID")
+	end if
+	If tid="-1" then
+		if session(FRHRCMS&"TypeID")="" then
+			tid=0
+		else
+			tid=session(FRHRCMS&"TypeID")
+		end if
+	end if
+	if Cid<>0 then InfoSql=InfoSql&" and N_cid="&cid&""
+	if tid<>0 then InfoSql=InfoSql&" and N_sid="&tid&""
+	if iscommand=1 then	InfoSql=InfoSql&" and N_iscommond=1"
+	if ispic=1 then	InfoSql=InfoSql&" and N_ispic=1"
+	if ishomecommand=1 then InfoSql=InfoSql&" and N_homecommond=1"
+	InfoSql=InfoSql&" order by "&order&""
+	html=""
+	InfoRS.open InfoSql,conn,1,1
+	If InfoRS.eof then
+	html=html&"暂无文章"& vbCrLf
+	Else
+		I=0
+		Do While Not InfoRS.EOF
+		I=I+1
+		if len(InfoRs("N_title"))-font_left>0 then
+			tit=left(InfoRs("N_title"),font_left)&"..."
+		else
+			tit=InfoRs("N_title")
+		end if
+		if istit=1 then titles="title="&InfoRs("N_title")&""
+	
+		InfoLink=FormatLink(InfoRs("N_addtime"),InfoRs("N_cid"),InfoRs("N_sid"),InfoRs("N_id"),0)
+		
+		select case styles
+		case 1 '简单的文章标题列表					
+			html=html&"<li>"
+			if dates<>0 then html=html&"<span>[<font color=""#004499"">"&FormatDate(InfoRs("N_addtime"),dates)&"</font>]</span>"
+			if showtype=1 then html=html&"[<a href="""&FormatLink(0,InfoRs("N_cid"),InfoRs("N_sid"),0,0)&"""><font color=""#004499"">"&InfoType(InfoRs("N_sid"))&"</font></a>] "
+			if imgs<>"0" then html=html&"<img src="""&InstallDir&"Skin/System/"&imgs&""" /> "
+			html=html&"<a href="&InfoLink&" "&titles&" target="""&target&"""><font color="&InfoRs("N_color")&">"&tit&"</font></a>"		
+			html=html&"</li>"						
+		case 2 '图片加下标题的显示方式
+			html=html&"<li class=""link_pic"">"
+			html=html&"<a href="&InfoLink&" target="""&target&"""><img src="""&InstallDir&"upfiles/article/"&InfoRs("N_pic")&""" width="&picw&" height="&pich&" /></a><br /><a href="&InfoLink&" "&titles&" target="""&target&"""><font color="&InfoRs("N_color")&">"&tit&"</font></a>"		
+			html=html&"</li>"
+		case 3 '图片加右上标题加右下内容
+			html=html&"<dl><dt>"
+			if imgs<>"0" then html=html&"<img src="""&InstallDir&"Skin/System/"&imgs&""" /> "
+			html=html&"<a href="&InfoLink&" "&titles&" target="""&target&"""><font color="&InfoRs("N_color")&">"&tit&"</font></a></dt>"
+			html=html&"<dd class=""pic""><a href="&InfoLink&" target="""&target&"""><img src="""&InstallDir&"upfiles/article/"&InfoRs("N_pic")&""" width="&picw&" height="&pich&" /></a></dd>"
+			html=html&"<dd class=""text"">"&left(RemoveHTML(InfoRs("N_content")),con_left)&"</dd>"
+			html=html&"</dl>"
+		case 4 '标题加下内容简介
+			html=html&"<dl><dt>"
+			if dates<>0 then html=html&"<span>[<font color=""#004499"">"&FormatDate(InfoRs("N_addtime"),dates)&"</font>]</span>"
+			if imgs<>"0" then html=html&"<img src="""&InstallDir&"Skin/System/"&imgs&""" /> "
+			html=html&"<a href="&InfoLink&" "&titles&" target="""&target&"""><font color="&InfoRs("N_color")&">"&tit&"</font></a></dt>"
+			html=html&"<dd class=""text"">"&left(RemoveHTML(InfoRs("N_overview")),con_left)&"</dd>"
+			html=html&"</dl>"
+		case 5 '幻灯篇文章显示			
+			picss=picss&InstallDir&"upfiles/Article/"&InfoRs("N_pic")&"|"
+			linkss=linkss&InfoLink&"|"
+			textss=textss&tit&"|"
+		case 6 '幻灯篇文章显示			
+			picss=picss&InstallDir&"upfiles/Article/"&InfoRs("N_pic")&"|"
+			linkss=linkss&InfoLink&"|"
+			textss=textss&tit&"|"			
+		end select
+		If num<>0 Then
+		if I>=Clng(num) then exit do
+		End If
+	InfoRs.movenext
+	Loop
+	end if
+	InfoRs.close
+	set InfoRs=nothing
+		if styles=5 or styles=6 then
+			picss=left(picss,len(picss)-1)
+			linkss=left(linkss,len(linkss)-1)
+			textss=left(textss,len(textss)-1)
+			shtml=shtml&"<SCRIPT type=text/javascript>"& vbCrLf 
+			shtml=shtml&""& vbCrLf 
+			shtml=shtml&"var focus_width="&picw&""& vbCrLf 
+			shtml=shtml&"var focus_height="&pich&""& vbCrLf
+			if styles=5 then
+			shtml=shtml&"var text_height=0"& vbCrLf
+			elseif styles=6 then
+			shtml=shtml&"var text_height=22"& vbCrLf
+			end if
+			shtml=shtml&"var swf_height = focus_height+text_height"& vbCrLf 
+			shtml=shtml&"var pics='"&picss&"'"& vbCrLf 
+			shtml=shtml&"var links='"&linkss&"'"& vbCrLf 
+			shtml=shtml&"var texts='"&textss&"'"& vbCrLf 
+			shtml=shtml&"document.write('<object classid=clsid:d27cdb6e-ae6d-11cf-96b8-444553540000 codebase=http://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=9,0,0,0 width='+ focus_width +' height='+ swf_height +'>');"& vbCrLf 
+			shtml=shtml&"document.write('<param name=allowScriptAccess value=sameDomain><param name=movie value="&SiteUrl&InstallDir&"Images/focus.swf><param name=wmode value=transparent><param name=quality value=high>');"& vbCrLf 
+			shtml=shtml&"document.write('<param name=menu value=false><param name=wmode value=opaque>');"& vbCrLf 
+			shtml=shtml&"document.write('<param name=FlashVars value=""pics='+pics+'&links='+links+'&texts='+texts+'&borderwidth='+focus_width+'&borderheight='+focus_height+'&textheight='+text_height+'"">');"& vbCrLf 
+			shtml=shtml&"document.write('<embed src="&SiteUrl&InstallDir&"Images/focus.swf wmode=opaque FlashVars=pics='+pics+'&links='+links+'&texts='+texts+'&borderwidth='+focus_width+'&borderheight='+focus_height+'&textheight='+text_height+' menu=false bgcolor=#DADADA quality=high width='+ focus_width +' height='+ swf_height +' allowScriptAccess=sameDomain type=application/x-shockwave-flash pluginspage=http://www.macromedia.com/go/getflashplayer />');"& vbCrLf 
+			shtml=shtml&"document.write('</object>');"& vbCrLf
+			shtml=shtml&"</script>"& vbCrLf
+		end if
+		if styles=5 or styles=6 then
+			GetArticleList=shtml
+		else
+			GetArticleList=html
+		end if
+End Function
+
+'***************************************************
+'函数名：GetLastArticleList
+'返回值：
+'***************************************************
+Function GetLastArticleList(cid,tid,imgs,PerPageNumber,order,font_left,target,dates,suffix)
+Dim NewsRS, NewsSql, NewsSqls, totalPut, Page
+Set NewsRS = Server.CreateObject(FR_HR_RS)
+'-1 为读取当前频道
+if cid="-1" then
+cid = session(FRHRCMS&"ChannelID")
+end if
+	NewsSqls=""
+	If tid="-1" then
+		if session(FRHRCMS&"TypeID")="" then
+		tid=0
+		else
+		tid=session(FRHRCMS&"TypeID")
+		end if
+	end if
+	tid=clng(tid)
+	If tid<>0 then NewsSqls=" and N_sid="&tid&""
+	NewsSqls=NewsSqls&" order by "&order&""
+	NewsSql="select * from JOB_News where N_cid="&cid&""&NewsSqls&""
+	NewsRS.open NewsSql,conn,1,1
+	if NewsRS.eof and NewsRS.bof then
+	html="暂无信息！"
+	else
+	totalPut=NewsRS.recordcount
+	'读取页数
+	Page=session(FRHRCMS&"Page")
+		if Page<>1 then
+		NewsRS.move (Page-1)*PerPageNumber
+		end if
+	html="<ul>"
+	i=0
+	do while not NewsRS.eof
+	i=i+1
+		html=html&"<dl><dt><span><font color=""#004499"">"&NewsRs("N_addtime")&"</font></span>"
+		html=html&"<img src="""&InstallDir&"Images/icon.gif"""" />&nbsp;"
+		html=html&"<a href="&FormatLink(NewsRs("N_addtime"),Cid,Tid,NewsRs("N_id"),0)&" target=""_blank""><font color="&NewsRs("N_color")&">"&NewsRs("N_title")&"</font></a></dt>"
+		html=html&"<dd class=""text"">"&left(RemoveHTML(NewsRs("N_content")),120)&"....<a href="&FormatLink(NewsRs("N_addtime"),Cid,Tid,NewsRs("N_id"),0)&" target=""_blank"">[阅读全文]</a></dd></dl>"
+		if i>=Cint(PerPageNumber) then exit do
+	NewsRS.movenext
+	loop
+		If totalput>0 Then
+		html=html&Htmlpages(Cid,Tid,0,totalPut,PerPageNumber,true,"篇文章",Page)
+		End If			
+	end if
+NewsRS.close
+set NewsRS=nothing
+GetLastArticleList=html
+End Function
+'***************************************************
+'函数名：GetCirArticleList
+'返回值：
+'***************************************************
+Function GetCirArticleList(asas,tnum,trows,torder,num,imgs,order,font_left,target,dates,suffix,rows)
+Dim NewsRS, NewsSql, NewsSqls, Crs, Csql
+Set Crs = Server.CreateObject(FR_HR_RS)
+cid = session(FRHRCMS&"ChannelID")
+if tnum=0 then
+Csql="select * from JOB_NewsSort where S_cid="&cid&""
+else
+Csql="select top "&tnum&" * from JOB_NewsSort where S_cid="&cid&""
+end if
+Csql=Csql&" order by "&torder&""
+Crs.open Csql,conn,1,1
+if not Crs.eof then
+html=""
+a=0
+do while not Crs.eof
+a=a+1
+html=html&"<div class='newstmain'>"
+html=html&"<div class='main_tit'><span><a href='"&FormatLink(0,cid,Crs("S_id"),0,0)&"'><img src='../Images/more++.gif' /></a></span>"&Crs("S_name")&"</div>"
+html=html&"<div class='main_con'>"&GetArticleList(cid,Crs("S_id"),"icon.gif",10,1,0,0,0,order,font_left,target,0,dates,133,100,0,70)&"</div>"
+html=html&"</div>"
+Crs.movenext
+loop
+else
+GetCirArticleList="暂无信息"
+Exit Function
+end if
+Crs.close
+set Crs=nothing
+GetCirArticleList=html
+End Function
+'***************************************************
+'函数名：GetArticleSearch
+'返回值：
+'***************************************************
+Function GetArticleSearch(Cid,Tid)
+Dim NewsRS, NewsSql
+'if Request.Cookies(FRHRCMS)("typeID")<>"" then
+'Tid=Request.Cookies(FRHRCMS)("typeID")
+'end if
+'keywords = Request.Cookies(FRHRCMS)("keywords")
+'searchtit = Request.Cookies(FRHRCMS)("searchtit")
+'-1 为读取当前频道
+if cid="-1" then cid = session(FRHRCMS&"ChannelID")
+if tid=<0 then tid=typeid
+html=""
+html=html&"<FORM action='"&SiteUrl&InstallDir&"search/news_searchresult.asp?ChannelID="&cid&"' name=search_form onSubmit='javascript:if(doSearch()==false) return false;' method=post>"& vbCrLf
+html=html&"<b>站内资讯搜索:</b> <INPUT name=keywords id=keywords size=28 value='"&keywords&"'>"& vbCrLf
+html=html&"<select name='s_tit'>"& vbCrLf
+html=html&"<option value='N_title'"
+if tit="title" then html=html&" selected"
+html=html&">标题检索</option>"& vbCrLf
+html=html&"<option value='N_content'"
+if tit="content" then html=html&" selected"
+html=html&">全文检索</option>"& vbCrLf
+html=html&"</select>"& vbCrLf
+html=html&"<select name=typeid>"& vbCrLf
+html=html&"<option selected value=''>全部</option>"& vbCrLf
+Set NewsRS = Server.CreateObject(FR_HR_RS)
+NewsSql="select S_id,S_name from JOB_NewsSort where S_cid="&cid&" order by S_order asc"
+NewsRS.open NewsSql,conn,1,1
+if not NewsRS.eof then
+do while not NewsRS.eof
+html=html&"<option value="&NewsRS("S_id")&""
+if Tid=NewsRS("S_id") then html=html&" selected"
+html=html&">"&NewsRS("S_name")&"</option>"& vbCrLf
+NewsRS.movenext
+loop
+end if
+NewsRS.close:set NewsRS=nothing
+html=html&"</select>"& vbCrLf
+html=html&"<input name='Submit' type='submit' class='inputs' value='搜 索'>"&vbCrLf
+html=html&"</from>"& vbCrLf
+GetArticleSearch=html
+End Function
+'***************************************************
+'函数名：GetResumeList
+'返回值：
+'***************************************************
+Function GetResumeList(nums,rows,sqlfield,flag,cnstatus,commands,groupid,usergroup,jobtype,order,target,ppic,bxpic,picw,pich)
+Dim I,T,ResumeRS,ResumeSql,ResumeSqls,Resumefield
+Resumefield=Split(sqlfield,"|")
+Set ResumeRS = Server.CreateObject(FR_HR_RS)
+	ResumeSqls=""
+	If flag=1 then ResumeSqls=" and resume_flag=1"
+	If cnstatus=1 then ResumeSqls=ResumeSqls&" and resume_cnstatus=1"
+	If usergroup<>3 then ResumeSqls=ResumeSqls&" and resume_usergroup="&usergroup&""
+	If jobtype<>3 then ResumeSqls=ResumeSqls&" and resume_jobtype="&jobtype&""
+	If commands=1 then ResumeSqls=ResumeSqls&" and Member_command=1"
+	If ppic<>0 and bxpic=1 then ResumeSqls=ResumeSqls&" and Member_logo<>'nophoto.gif' and Member_logo<>'error.gif'"
+	If groupid<>0 then ResumeSqls=ResumeSqls&" and Member_groupid="&groupid&""
+		ResumeSqls=ResumeSqls&" order by "&order&",resume_id desc"
+	html=""
+	If nums<>0 Then
+		ResumeSql = "Select top "&nums&" * from JOB_Member,job_p_resume where Member_login=resume_pmember and Member_name is not null and resume_openness=0"&ResumeSqls&""
+	Else
+		ResumeSql = "Select * from JOB_Member,job_p_resume where Member_login=resume_pmember and Member_name is not null and resume_openness=0"&ResumeSqls&""
+	End If
+	ResumeRS.open ResumeSql,conn,1,1
+	html=html&"<table width=100% border=0 align=center cellpadding=0 cellspacing=0 >"
+	html=html&"<tr>"
+	If ppic=0 Or ppic=1 then
+		For T=1 to rows
+		if ppic=1 then html=html&"<td></td>"
+		if Resumefield(0)=1 then html=html&"<td class='resume001'><b>编号</b></td>"
+		if Resumefield(1)=1 then html=html&"<td class='resume002'><b>用户名</b></td>"
+		if Resumefield(2)=1 then html=html&"<td class='resume003'><b>姓名</b></td>"
+		if Resumefield(3)=1 then html=html&"<td class='resume004'><b>性别</b></td>"
+		if Resumefield(4)=1 then html=html&"<td class='resume005'><b>出生日期</b></td>"
+		if Resumefield(5)=1 then html=html&"<td class='resume006'><b>学历</b></td>"
+		if Resumefield(6)=1 then html=html&"<td class='resume007'><b>意向工作职位</b></td>"
+		if Resumefield(7)=1 then html=html&"<td class='resume008'><b>性质</b></td>"
+		if Resumefield(8)=1 then html=html&"<td class='resume009'><b>意向工作地</b></td>"
+		next
+		html=html&"</tr><tr>"
+	End If
+	I=0
+	Do While Not ResumeRS.EOF
+	I=I+1
+	'tithtml鼠标提示
+	tithtml="编号为"&ResumeRS("resume_id")&"的简历基本信息：<br>性别："&Hiresex(ResumeRS("resume_sex"))&"<br>出生日期："&ResumeRS("resume_birth")&"<br>学历："&Hireedu(ResumeRS("resume_edu"))&"<br>意向职位："&Hireposition(ResumeRS("resume_position"),1)&"<br>意向工作类型："&Hiretype(ResumeRS("resume_jobtype"))&"<br>意向工作地："&Hireworkadds(ResumeRS("resume_workadd"))&""
+	if ppic<>0 then  '读取照片
+		if ResumeRS("Member_logo")<>"" and not Isnull(ResumeRS("Member_logo")) then
+			memberlogo=ResumeRS("Member_logo")
+		else
+			memberlogo="nophoto.gif"
+		end if
+		html=html&"<td><li class=perlistlogo><a href="&FormatLink(ResumeRS("resume_announcedate"),1,1,ResumeRS("resume_id"),0)&" target="&target&"><img src='"&InstallDir&FR_UPFILES_DIR&"/Person/"&memberlogo&"' style='padding:1px; border:1px #F0F0F0 solid;' height="&pich&" width="&picw&" title='"&tithtml&"' /></a></li></td>"
+	end if
+	if ppic=0 or ppic=1 then
+		if Resumefield(0)=1 then html=html&"<td><a href="&FormatLink(ResumeRS("resume_announcedate"),1,1,ResumeRS("resume_id"),0)&" target="&target&" title='"&tithtml&"'>"&ResumeRS("resume_id")&"</a></td>"
+		if Resumefield(1)=1 then html=html&"<td><a href="&FormatLink(ResumeRS("resume_announcedate"),1,1,ResumeRS("resume_id"),0)&" target="&target&" title='"&tithtml&"'>"&ResumeRS("resume_pmember")&"</a></td>"
+		if Resumefield(2)=1 then html=html&"<td><a href="&FormatLink(ResumeRS("resume_announcedate"),1,1,ResumeRS("resume_id"),0)&" target="&target&" title='"&tithtml&"'>"&left(ResumeRS("resume_name"),3)&"</a></td>"
+		if Resumefield(3)=1 then html=html&"<td align='center'>"&Hiresex(ResumeRS("resume_sex"))&"</td>"
+		if Resumefield(4)=1 then html=html&"<td>"&ResumeRS("resume_birth")&"</td>"
+		if Resumefield(5)=1 then html=html&"<td>"&Hireedu(ResumeRS("resume_edu"))&"</td>"
+		if Resumefield(6)=1 then html=html&"<td><a href="&FormatLink(ResumeRS("resume_announcedate"),1,1,ResumeRS("resume_id"),0)&" target="&target&" title='"&tithtml&"'>"&left(Hireposition(ResumeRS("resume_position"),0),10)&"</a></td>"
+		if Resumefield(7)=1 then html=html&"<td>"&Hiretype(ResumeRS("resume_jobtype"))&"</td>"
+		if Resumefield(8)=1 then html=html&"<td>"&Hireworkadd(ResumeRS("resume_workadd"),2,1)&"</td>"
+	elseif ppic=2 then
+		html=html&"<td><div class=perlistinfo>"
+			if Resumefield(0)=1 then html=html&"<li><a href="&FormatLink(ResumeRS("resume_announcedate"),1,1,ResumeRS("resume_id"),0)&" target="&target&" title='"&tithtml&"'>"&ResumeRS("resume_id")&"</a></li>"
+			if Resumefield(1)=1 then html=html&"<li><a href="&FormatLink(ResumeRS("resume_announcedate"),1,1,ResumeRS("resume_id"),0)&" target="&target&" title='"&tithtml&"'>"&ResumeRS("resume_pmember")&"</a></li>"
+			if Resumefield(2)=1 then html=html&"<li><a href="&FormatLink(ResumeRS("resume_announcedate"),1,1,ResumeRS("resume_id"),0)&" target="&target&" title='"&tithtml&"'>"&ResumeRS("resume_name")&"</a></li>"
+			if Resumefield(3)=1 then html=html&"<li>"&Hiresex(ResumeRS("resume_sex"))&"</li>"
+			if Resumefield(4)=1 then html=html&"<li>"&ResumeRS("resume_birth")&"</li>"
+			if Resumefield(5)=1 then html=html&"<li>"&Hireedu(ResumeRS("resume_edu"))&"</li>"
+			if Resumefield(6)=1 then html=html&"<li><a href="&FormatLink(ResumeRS("resume_announcedate"),1,1,ResumeRS("resume_id"),0)&" target="&target&" title='"&tithtml&"'>"&Hireposition(ResumeRS("resume_position"),0)&"</a></li>"
+			if Resumefield(7)=1 then html=html&"<li>"&Hiretype(ResumeRS("resume_jobtype"))&"</li>"
+			if Resumefield(8)=1 then html=html&"<li>"&Hireworkadd(ResumeRS("resume_workadd"),2,1)&"</li>"
+		html=html&"</div></td>"
+	end if
+	if I mod rows=0 then
+		if I=ResumeRS.RecordCount then
+			html=html&"</tr>"
+		else
+			html=html&"</tr><tr>"
+		end if
+	end if
+	If nums<>0 Then
+		if I>=Clng(nums) then exit do
+	End If
+	ResumeRS.MoveNext
+	Loop
+	ResumeRS.Close:Set ResumeRS=Nothing
+	html=html&"</table>"
+GetResumeList=html
+End Function
+'***************************************************
+'函数名：GetComList
+'返回值：
+'***************************************************
+Function GetComList(nums,rows,groupid,name_left,ishire,hireyes,hire_left,hire_nums,hireflag,comflag,commands,order,target,clogo,yeslogo,bxlogo,tjlogo,logow,logoh)
+Dim I,ComRS,ComSql,ComSqls,HireRS,HireSql,HireSqls
+Set ComRS = Server.CreateObject(FR_HR_RS)
+	ComSqls=""
+	If groupid<>0 then ComSqls=" and Member_groupid="&groupid&""
+	If comflag=1 then ComSqls=ComSqls&" and Member_flag=1"
+	If clogo=1 and bxlogo=1 then ComSqls=ComSqls&" and Member_logo<>'nologo.gif'"
+	If clogo=1 and tjlogo=1 then
+		ComSqls=ComSqls&" and Member_logocommand=1"
+		ComSqls=ComSqls&" and datediff("&FR_HR_d&",Member_logostartdate,"&FR_HR_Now&")>=0 and datediff("&FR_HR_d&",Member_logoenddate,"&FR_HR_Now&")<=0"
+	End If
+	If commands=1 then
+		ComSqls=ComSqls&" and Member_command=1"
+		ComSqls=ComSqls&" and datediff("&FR_HR_d&",Member_commandstartdate,"&FR_HR_Now&")>=0 and datediff("&FR_HR_d&",Member_commandenddate,"&FR_HR_Now&")<=0"
+	End If
+	'If ishire=1 then ComSqls=ComSqls&" and Member_hirenums>0"       '标签内容是否已发布职位
+	If ishire=1 then ComSqls=ComSqls&" and Member_id in(select Company_id from job_c_hire where datediff("&FR_HR_d&",hire_enddate,"&FR_HR_Now&")<=0 and hire_status=1 group by company_id)"
+	ComSqls=ComSqls&" and datediff("&FR_HR_d&",Member_startdate,"&FR_HR_Now&")>=0 and datediff("&FR_HR_d&",Member_enddate,"&FR_HR_Now&")<=0"
+	ComSqls=ComSqls&" order by "&order&""
+	html=""
+	If nums<>0 Then
+		ComSql = "Select top "&nums&" * from JOB_Member where Member_Auditing=1 and Member_name is not null and Member_typeid=2"&ComSqls&""
+	Else
+		ComSql = "Select * from JOB_Member where Member_Auditing=1 and Member_name is not null and Member_typeid=2"&ComSqls&""
+	End If
+	ComRS.open ComSql,conn,1,1
+	html=html&"<table width=100% border=0 align=center cellpadding=0 cellspacing=0 >"
+	html=html&"<tr>"
+	I=0
+	Do While Not ComRS.EOF
+	I=I+1
+	html=html&"<td width=""" & CInt(100 / CInt(rows)) & "%"">"
+	if clogo=1 then
+	html=html&"<li class=comlistlogo><a href="&FormatLink(ComRS("Member_regdate"),2,1,ComRS("Member_id"),0)&" target="&target&"><img src='"&InstallDir&FR_UPFILES_DIR&"/Company/"&ComRS("Member_logo")&"' border=0 style='padding:1px; border:1px #F0F0F0 solid;' height="&logoh&" width="&logow&" title='<b>"&ComRS("Member_name")&"</b><br>"&left(ComRS("Member_introduce"),50)&"...' /></a></li>"
+	end if
+	'最新小图片
+	if Datediff("d",ComRS("Member_regdate"),now())<=1 then
+		newpic="<img src="&InstallDir&"Skin/Default/new.gif />"
+	else
+		newpic=""
+	end if
+	'推荐小图片
+'	if (ComRs("Member_command")=1 and Datediff("d",ComRs("Member_commandstartdate"),now())>=0 and datediff("d",ComRs("Member_commandenddate"),now())<=0)  then
+'		commondpic="<img title='推荐企业' src="&InstallDir&"Skin/Default/commond.gif />"
+'	else
+'		commondpic=""
+'	end if
+	if commondpic<>"" then newpic=""
+	if yeslogo=0 then
+	html=html&"<ul><li class=comlisttit style='padding-left:12px;'><a href='"&FormatLink(ComRS("Member_regdate"),2,1,ComRS("Member_id"),0)&"' target="&target&" title='<b>"&ComRS("Member_name")&"</b><br>"&left(ComRS("Member_introduce"),50)&"...'>"&left(ComRS("Member_name"),name_left)&"</a>"&newpic&"</li>"
+		If hireyes=1 then
+			Set HireRS = Server.CreateObject(FR_HR_RS)
+			html=html&"<li class=comhirelist style='padding-left:12px;'>"
+				HireSqls=""
+				If hireflag<>0 then
+					HireSqls=" and hire_status=1"
+				End if
+				HireSqls=HireSqls&" and datediff("&FR_HR_d&",hire_enddate,"&FR_HR_Now&")<=0"
+				HireSqls=HireSqls&" order by hire_id desc"
+				If hire_nums<>0 Then
+				HireSql = "Select top "&hire_nums&" * from JOB_C_hire where company_id="&ComRS("Member_id")&""&HireSqls&""
+				Else
+				HireSql = "Select * from JOB_C_hire where company_id="&ComRS("Member_id")&""&HireSql&""
+				End If
+				HireRS.open HireSql,conn,1,1
+				IF Not HireRS.EOF Then
+				html=html&"<font color=#FF0000>招聘:</font>"
+				Do While Not HireRS.EOF
+				html=html&"<a href="&FormatLink(HireRS("hire_announcedate"),2,3,HireRS("hire_id"),0)&" target="&target&" title='<font color=#FF0000><b>"&HireRS("hire_place")&"("&Hirenumber(HireRS("hire_number"))&"人)</b></font><br>职位类型："&Hiretype(HireRS("hire_type"))&"<br>截止日期："&HireRS("hire_enddate")&"<br>工作地："&Hireworkadds(HireRS("hire_workadd"))&"<br>学历要求："&Hireedu(HireRS("hire_edu"))&"<br>薪金待遇："&Hirepay(HireRS("hire_pay"))&"'>"&left(HireRS("hire_place"),hire_left)&"</a> "
+				HireRS.MoveNext
+				Loop
+				'html=html&"..."
+				Else
+				html=html&"尚未发布职位信息!"
+				End If
+				HireRS.Close:Set HireRS=Nothing
+			html=html&"</li></ul>"
+		else
+			html=html&"</ul>"
+		End If
+	end if
+	html=html&"</td>"
+	if I mod rows=0 then
+		if I=ComRS.RecordCount then
+			html=html&"</tr>"
+		else
+			html=html&"</tr><tr>"
+		end if
+	end if
+	If nums<>0 Then
+		if I-nums>=0 then exit do
+	End If
+	ComRS.MoveNext
+	Loop
+	ComRS.Close:Set ComRS=Nothing
+	html=html&"</table>"
+GetComList=html
+End Function
+'***************************************************
+'函数名：GetCompanyHireList
+'参  数：ComStr公司编号
+'招聘频道公用
+'***************************************************
+Function GetCompanyHireList(Cid)
+Dim HireRS,HireSql
+	Set HireRS = Server.CreateObject(FR_HR_RS)
+	html=""
+	HireSql = "Select hire_id,hire_place,hire_number,hire_announcedate from JOB_C_hire where company_id="&Cid&" and datediff("&FR_HR_d&",hire_enddate,"&FR_HR_Now&")<=0 and hire_status=1 order by hire_id desc"
+		HireRS.open HireSql,conn,1,1
+		IF Not HireRS.EOF Then
+		Do While Not HireRS.EOF
+		html=html&"<li class='hire_list'><a href="&FormatLink(HireRS("hire_announcedate"),2,3,HireRS("hire_id"),0)&" target="&target&">"&HireRS("hire_place")&"("&Hirenumber(HireRS("hire_number"))&"人)</a></li>"& vbCrLf
+		HireRS.MoveNext
+		Loop
+		Else
+		html=html&"<li>尚未发布职位信息!</li>"& vbCrLf
+		End If
+	HireRS.Close:Set HireRS=Nothing
+GetCompanyHireList=html
+End Function
+'***************************************************
+'函数名：GetHireTitList
+'返回值：
+'***************************************************
+Function GetHireTitList(Cid)
+Dim HireRS,HireSql
+	Set HireRS = Server.CreateObject(FR_HR_RS)
+	html=""
+	HireSql = "Select top 10 * from JOB_C_hire where company_id="&Cid&" and datediff("&FR_HR_d&",hire_enddate,"&FR_HR_Now&")<=0 and hire_status=1 order by hire_id desc"
+		HireRS.open HireSql,conn,1,1
+		IF Not HireRS.EOF Then
+		Do While Not HireRS.EOF
+		html=html&"<a href="&FormatLink(HireRS("hire_announcedate"),2,1,HireRS("hire_id"),0)&" target="&target&">"&HireRS("hire_place")&"("&Hirenumber(HireRS("hire_number"))&"人)</a><br>"
+		HireRS.MoveNext
+		Loop
+		Else
+		html=html&"尚未发布职位信息!"
+		End If
+	HireRS.Close:Set HireRS=Nothing
+GetHireTitList=html
+End Function
+'***************************************************
+'函数名：GetHireList
+'返回值：
+'***************************************************
+Function GetHireList(nums,rows,sqlfield,comflag,commands,groupid,hireflag,hirecommands,usergroup,hirestype,order,target)
+Dim I,T,HireRS,HireSql,HireSqls,Hirefield
+Hirefield=Split(sqlfield,"|")
+Set HireRS = Server.CreateObject(FR_HR_RS)
+	HireSqls=""
+	If comflag=1 then
+	HireSqls=" and Member_flag=1"
+	end if
+	If commands=1 then
+		HireSqls=HireSqls&" and Member_command=1 and datediff("&FR_HR_d&",Member_commandstartdate,"&FR_HR_Now&")>=0 and datediff("&FR_HR_d&",Member_commandenddate,"&FR_HR_Now&")<=0"
+	End If
+	If groupid<>0 then HireSqls=HireSqls&" and Member_groupid="&groupid&""
+	If usergroup<>3 then HireSqls=HireSqls&" and hire_usergroup="&usergroup&""
+	Select case hirestype
+		case 1
+		HireSqls=HireSqls&" and hire_type<>2"
+		case 2
+		HireSqls=HireSqls&" and hire_type<>1"
+	end select
+	If hireflag=1 then
+	HireSqls=HireSqls&" and hire_status=1"
+	Else
+	HireSqls=HireSqls&" and (hire_status=0 or hire_status=1)"
+	end if
+	If hirecommands=1 then
+		HireSqls=HireSqls&" and hire_command=1 and datediff("&FR_HR_d&",hire_commandstartdate,"&FR_HR_Now&")>=0 and datediff("&FR_HR_d&",hire_commandenddate,"&FR_HR_Now&")<=0"
+	End If
+	HireSqls=HireSqls&" and datediff("&FR_HR_d&",Member_startdate,"&FR_HR_Now&")>=0 and datediff("&FR_HR_d&",Member_enddate,"&FR_HR_Now&")<=0"
+	HireSqls=HireSqls&" order by "&order&",hire_id desc"
+	html=""
+	If nums<>0 Then
+		HireSql = "Select top "&nums&" * from JOB_Member,JOB_C_hire where Member_login=hire_cmember"&HireSqls&""
+	Else
+		HireSql = "Select * from JOB_Member,JOB_C_hire where Member_login=hire_cmember"&HireSqls&""
+	End If
+	HireRS.open HireSql,conn,1,1
+	html=html&"<table width=100% border=0 align=center cellpadding=0 cellspacing=0 >"
+	html=html&"<tr class='hiretit'>"
+	For T=1 to rows
+	if Hirefield(0)=1 then html=html&"<td class='hiretd1'><b>职位名称</b></td>"
+	if Hirefield(1)=1 then html=html&"<td class='hiretd2'><b>公司名称</b></td>"
+	if Hirefield(2)=1 then html=html&"<td class='hiretd3'><b>人数</b></td>"
+	if Hirefield(3)=1 then html=html&"<td class='hiretd4'><b>招聘类别</b></td>"
+	if Hirefield(4)=1 then html=html&"<td class='hiretd5'><b>招聘部门</b></td>"
+	if Hirefield(5)=1 then html=html&"<td class='hiretd6'><b>工作地区</b></td>"
+	if Hirefield(6)=1 then html=html&"<td class='hiretd7'><b>薪资待遇</b></td>"
+	if Hirefield(7)=1 then html=html&"<td class='hiretd8'><b>专业要求</b></td>"
+	if Hirefield(8)=1 then html=html&"<td class='hiretd9'><b>学历要求</b></td>"
+	if Hirefield(9)=1 then html=html&"<td class='hiretd10'><b>工作经验</b></td>"
+	if Hirefield(10)=1 then html=html&"<td class='hiretd11'><b>性别要求</b></td>"
+	if Hirefield(11)=1 then html=html&"<td class='hiretd12'><b>年龄要求</b></td>"
+	if Hirefield(12)=1 then html=html&"<td class='hiretd13'><b>截止日期</b></td>"
+	next
+    html=html&"</tr><tr>"
+	I=0
+	Do While Not HireRS.EOF
+	I=I+1	
+	if Hirefield(0)=1 then
+	html=html&"<td><a href="&FormatLink(HireRS("hire_announcedate"),2,3,HireRS("hire_id"),0)&" target="&target&" title='<font color=#FF0000><b>"&HireRS("hire_place")&"("&HireRS("hire_number")&"人)</b></font><br>职位类型："&Hiretype(HireRS("hire_type"))&"<br>截止日期："&HireRS("hire_enddate")&"<br>工作地："&Hireworkadds(HireRS("hire_workadd"))&"<br>学历要求："&Hireedu(HireRS("hire_edu"))&"<br>薪金待遇："&Hirepay(HireRS("hire_pay"))&"'>"&left(HireRS("hire_place"),10)&"</a></td>"
+	end if
+	if Hirefield(1)=1 then
+	html=html&"<td><a href="&FormatLink(HireRS("Member_regdate"),2,1,HireRS("Member_id"),0)&" target="&target&" title='<b>"&HireRS("Member_name")&"</b><br>"&left(HireRS("Member_introduce"),50)&"...<br><font color=#FF0000>正在招聘：</font><br>"&GetHireTitList(HireRS("Member_id"))&"'>"&HireRS("hire_comname")&"</a></td>"
+	end if
+	if Hirefield(2)=1 then
+	html=html&"<td>"&Hirenumber(HireRS("hire_number"))&"人</td>"
+	end if
+	if Hirefield(3)=1 then
+	html=html&"<td>"&Hiretype(HireRS("hire_type"))&"</td>"
+	end if
+	if Hirefield(4)=1 then
+	html=html&"<td>"&HireRS("hire_dept")&"</td>"
+	end if
+	if Hirefield(5)=1 then
+	html=html&"<td>"&Hireworkadd(HireRS("hire_workadd"),2,1)&"</td>"
+	end if
+	if Hirefield(6)=1 then
+	html=html&"<td>"&Hirepay(HireRS("hire_pay"))&"</td>"
+	end if
+	if Hirefield(7)=1 then
+	html=html&"<td>"&Hireprofession(HireRS("hire_profession"))&"</td>"
+	end if
+	if Hirefield(8)=1 then
+	html=html&"<td>"&Hireedu(HireRS("hire_edu"))&"</td>"
+	end if
+	if Hirefield(9)=1 then
+	html=html&"<td>"&Hireexperience(HireRS("hire_experience"))&"</td>"
+	end if
+	if Hirefield(10)=1 then
+	html=html&"<td>"&Hiresex(HireRS("hire_sex"))&"</td>"
+	end if
+	if Hirefield(11)=1 then
+		if HireRS("hire_age1")=0 and HireRS("hire_age1")=0 then
+		html=html&"<td>不限</td>"
+		elseif HireRS("hire_age2")=0 then
+		html=html&"<td>"&HireRS("hire_age1")&"～不限</td>"
+		else
+		html=html&"<td>"&HireRS("hire_age1")&"～"&HireRS("hire_age2")&"</td>"
+		end if
+	end if
+	if Hirefield(12)=1 then
+	html=html&"<td>"&HireRS("hire_enddate")&"</td>"
+	end if
+	if I mod rows=0 then
+		if I=HireRs.Recordcount then
+			html=html&"</tr>"
+		else
+			html=html&"</tr><tr>"
+		end if
+	end if
+	If nums<>0 Then
+		if I>=nums then exit do
+	End If
+	HireRS.MoveNext
+	Loop
+	HireRS.Close:Set HireRS=Nothing
+	html=html&"</table>"
+GetHireList=html
+End Function
+'***************************************************
+'函数名：GetHireLists
+'返回值：
+'***************************************************
+Function GetHireLists(nums,rows,sqlfield,comflag,commands,groupid,hireflag,hirecommands,usergroup,hirestype,order,target)
+Dim I,T,HireRS,HireSql,HireSqls,Hirefield,Hirersp,HireSqlp
+Hirefield=Split(sqlfield,"|")
+HireSqls=""
+set Hirersp=Server.CreateObject("ADODB.RecordSet")
+	 HireSqlp="select resume_position,resume_pmember from JOB_P_resume where resume_pmember='"&Request.Cookies(FRHRCMS)("user_login")&"' and resume_cnstatus=1"
+	 Hirersp.open HireSqlp,conn,1,1
+	 if not Hirersp.eof then
+	 resume_position=Trim(Hirersp("resume_position"))
+	 	if resume_position<>"" then
+		 resume_positions=split(resume_position,",")
+		 HireSqls=HireSqls&" and ("
+		 for i=0 to ubound(resume_positions)
+			if i>0 then
+				HireSqls=HireSqls&" or hire_position like '%"&resume_positions(i)&"%'"
+			else
+				HireSqls=HireSqls&"hire_position like '%"&resume_positions(i)&"%'"
+			end if
+		 next
+		 HireSqls=HireSqls&")"
+		 end if
+	 end if
+	 Hirersp.close
+	Set Hirersp=nothing
+Set HireRS = Server.CreateObject(FR_HR_RS)
+	If comflag=1 then
+	HireSqls=HireSqls&" and Member_flag=1"
+	end if
+	If commands=1 then
+		HireSqls=HireSqls&" and Member_command=1 and datediff("&FR_HR_d&",Member_commandstartdate,"&FR_HR_Now&")>=0 and datediff("&FR_HR_d&",Member_commandenddate,"&FR_HR_Now&")<=0"
+	End If
+	If groupid<>0 then
+		HireSqls=HireSqls&" and Member_groupid="&groupid&""
+	End if
+	If usergroup<>3 then
+		HireSqls=HireSqls&" and hire_usergroup="&usergroup&""
+	End If
+	Select case hirestype
+		case 1
+		HireSqls=HireSqls&" and hire_type<>2"
+		case 2
+		HireSqls=HireSqls&" and hire_type<>1"
+	end select
+	If hireflag=1 then
+	HireSqls=HireSqls&" and hire_status=1"
+	Else
+	HireSqls=HireSqls&" and (hire_status=0 or hire_status=1)"
+	end if
+	If hirecommands=1 then
+		HireSqls=HireSqls&" and hire_command=1 and datediff("&FR_HR_d&",hire_commandstartdate,"&FR_HR_Now&")>=0 and datediff("&FR_HR_d&",hire_commandenddate,"&FR_HR_Now&")<=0"
+	End If
+	HireSqls=HireSqls&" and datediff("&FR_HR_d&",Member_startdate,"&FR_HR_Now&")>=0 and datediff("&FR_HR_d&",Member_enddate,"&FR_HR_Now&")<=0"
+	HireSqls=HireSqls&" order by "&order&",hire_id desc"
+	html=""
+	If nums<>0 Then
+		HireSql = "Select top "&nums&" * from JOB_Member,JOB_C_hire where Member_login=hire_cmember"&HireSqls&""
+	Else
+		HireSql = "Select * from JOB_Member,JOB_C_hire where Member_login=hire_cmember"&HireSqls&""
+	End If
+	HireRS.open HireSql,conn,1,1
+	html=html&"<table width=100% border=0 align=center cellpadding=0 cellspacing=0>"
+	html=html&"<tr>"
+	For T=1 to rows
+	if Hirefield(0)=1 then html=html&"<td>职位名称</td>"
+	if Hirefield(1)=1 then html=html&"<td>公司名称</td>"
+	if Hirefield(2)=1 then html=html&"<td>人数</td>"
+	if Hirefield(3)=1 then html=html&"<td>招聘类别</td>"
+	if Hirefield(4)=1 then html=html&"<td>招聘部门</td>"
+	if Hirefield(5)=1 then html=html&"<td>工作地区</td>"
+	if Hirefield(6)=1 then html=html&"<td>薪资待遇</td>"
+	if Hirefield(7)=1 then html=html&"<td>专业要求</td>"
+	if Hirefield(8)=1 then html=html&"<td align=center>学历要求</td>"
+	if Hirefield(9)=1 then html=html&"<td>工作经验</td>"
+	if Hirefield(10)=1 then html=html&"<td>性别要求</td>"
+	if Hirefield(11)=1 then html=html&"<td>年龄要求</td>"
+	if Hirefield(12)=1 then html=html&"<td>截止日期</td>"
+	next
+    html=html&"</tr><tr>"
+	I=0
+	Do While Not HireRS.EOF
+	I=I+1	
+	if Hirefield(0)=1 then
+	html=html&"<td><a href="&FormatLink(HireRS("hire_announcedate"),2,3,HireRS("hire_id"),0)&" target="&target&" title='"&HireRS("hire_place")&"'>"&HireRS("hire_place")&"</a></td>"
+	end if
+	if Hirefield(1)=1 then
+	html=html&"<td><a href="&FormatLink(HireRS("Member_regdate"),2,1,HireRS("Member_id"),0)&" target="&target&" title='"&HireRS("Member_name")&"'>"&HireRS("hire_comname")&"</a></td>"
+	end if
+	if Hirefield(2)=1 then
+	html=html&"<td>"&Hirenumber(HireRS("hire_number"))&"人</td>"
+	end if
+	if Hirefield(3)=1 then
+	html=html&"<td>"&Hiretype(HireRS("hire_type"))&"</td>"
+	end if
+	if Hirefield(4)=1 then
+	html=html&"<td>"&HireRS("hire_dept")&"</td>"
+	end if
+	if Hirefield(5)=1 then
+	html=html&"<td>"&Hireworkadd(HireRS("hire_workadd"),2,1)&"</td>"
+	end if
+	if Hirefield(6)=1 then
+	html=html&"<td>"&Hirepay(HireRS("hire_pay"))&"</td>"
+	end if
+	if Hirefield(7)=1 then
+	html=html&"<td>"&Hireprofession(HireRS("hire_profession"))&"</td>"
+	end if
+	if Hirefield(8)=1 then
+	html=html&"<td align=center>"&Hireedu(HireRS("hire_edu"))&"</td>"
+	end if
+	if Hirefield(9)=1 then
+	html=html&"<td>"&Hireexperience(HireRS("hire_experience"))&"</td>"
+	end if
+	if Hirefield(10)=1 then
+	html=html&"<td>"&Hiresex(HireRS("hire_sex"))&"</td>"
+	end if
+	if Hirefield(11)=1 then
+	html=html&"<td>"&HireRS("hire_pay")&"～"&HireRS("hire_pay")&"</td>"
+	end if
+	if Hirefield(12)=1 then
+	html=html&"<td>"&HireRS("hire_enddate")&"</td>"
+	end if
+	if I mod rows=0 then
+		if I=HireRS.Recordcount then
+			html=html&"</tr>"
+		else
+			html=html&"</tr><tr>"
+		end if
+	end if
+	If nums<>0 Then
+		if I>=nums then exit do
+	End If
+	HireRS.MoveNext
+	Loop
+	HireRS.Close:Set HireRS=Nothing
+	html=html&"</table>"
+GetHireLists=html
+End Function
+'******************************************************
+'函数名：ShowHead
+'参  数：typeid   类别ID号
+'        newsid   当前文章ID号
+'返回值：返回上一篇文章的链接
+'******************************************************
+Function ShowHead(typeid,newsid)
+     Sql = "Select top 1 N_addtime,N_cid,N_sid,N_id,N_title from JOB_News where N_id > "& newsid &" And N_sid = "& typeid &" order by N_id asc"
+     Set HRs = Conn.Execute(Sql)
+	 htm=""
+     If Not HRs.Eof Then
+         htm=htm&"<a href="&FormatLink(HRS("N_addtime"),HRS("N_cid"),HRS("N_sid"),HRS("N_id"),0)&">"&ClearColor(HRs("N_title"))&"</a>" 
+     Else
+         htm=htm&"没有了"
+     End If
+     HRs.Close
+     Set HRs = Nothing
+	 ShowHead = htm
+End Function
+'******************************************************
+'函数名：ShowNext
+'参  数：typeid   类别ID号
+'        newsid   当前文章ID号
+'返回值：返回下一篇文章的链接
+'******************************************************
+Function ShowNext(typeid,newsid)
+     Sql = "Select top 1 N_addtime,N_cid,N_sid,N_id,N_title from JOB_News where N_id < "& newsid &" And N_sid = "& typeid &" order by N_id desc"
+     Set HRs = Conn.Execute(Sql)
+	 htm=""
+     If Not HRs.Eof Then
+          htm=htm&"<a href="&FormatLink(HRS("N_addtime"),HRS("N_cid"),HRS("N_sid"),HRS("N_id"),0)&">"&ClearColor(HRs("N_title"))&"</a>"
+     Else
+         htm=htm&"没有了"
+     End If
+     HRs.Close
+     Set HRs = Nothing
+	ShowNext = htm
+End Function
+%>

@@ -1,0 +1,108 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8"%>
+<%@ page import="com.bizoss.trade.ti_link.*"%>
+<%@ page import="java.util.*"%>
+<%@page import="com.bizoss.trade.ti_case.*"%>
+<%@ page import="com.bizoss.frame.util.PageTools"%>
+<%@ page import="com.bizoss.trade.ts_category.*"%>
+<html>
+
+	<head>
+		<title>案源管理</title>
+		<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+		<script type="text/javascript" src="/js/commen.js"></script>
+		<script type="text/javascript" src="ti_case.js"></script>
+
+		
+		<script type="text/javascript">setcat_attr1('');</script>
+	</head>
+
+	<body>
+		<form action="index.jsp" name="indexForm" method="post">
+			<table width="100%" cellpadding="0" cellspacing="0" border="0"
+				class="listtab">
+				<tr>
+						<th width="10%">
+						序号
+						</th>
+						<th width="20%">
+						联系方式
+						</th>
+						<th width="20%">
+						案源时间
+						</th>
+						<th width="20%">
+						案源标题
+						</th>
+
+						<th width="20%">
+						案源简介
+						</th>
+				</tr>
+				
+
+			</table>
+		<%	String case_title="",case_amount="",delegate_tels="",delegate_name="",case_date="";
+			int listsize=0;
+			int a=0;
+			String aa="";
+  			String delegate_tel="";
+			if(request.getParameter("delegate_tel")!=null && !request.getParameter("delegate_tel").equals("")){
+				delegate_tel = request.getParameter("delegate_tel");
+			}
+			Ti_caseInfo ti_caseInfo=new Ti_caseInfo();
+			List list=ti_caseInfo.checkPhones(delegate_tel);
+			if(list!=null&&list.size()>0){
+			listsize = list.size();
+			Map nMap=null;
+			for(int i=0;i<list.size();i++){
+			nMap = (Hashtable) list.get(i);			
+			if (nMap.get("case_title") != null){
+					case_title = nMap.get("case_title").toString();}
+			if(nMap.get("case_amount")!=null){
+					case_amount=nMap.get("case_amount").toString();}
+			if(nMap.get("delegate_tel")!=null){
+				delegate_tels=nMap.get("delegate_tel").toString();
+			}
+			if(nMap.get("delegate_name")!=null){
+					delegate_name=nMap.get("delegate_name").toString();
+			}
+			if(nMap.get("case_date")!=null){
+				case_date=nMap.get("case_date").toString();
+			}		
+					a+=1;
+%>
+			<table width="100%" cellpadding="0" cellspacing="0" border="0"
+				class="tablehe">
+				<tr>
+					<td width="10%">
+					<%=a%>
+					</td>
+					<td width="20%">
+					<%=delegate_tels %>
+					</td>
+					<td width="20%">
+					<%=case_date %>
+					</td>
+					<td width="20%">
+					<%=case_title %>
+					</td>
+					<td width="20%">
+					<%=case_amount%>
+					</td>
+				</tr>
+				
+				
+				
+								<BR/>	<% }%>
+		<%} %>
+			</table>
+	
+			<input type="hidden" name="pkid" id="pkid" value="" />
+			<input type="hidden" name="sort" id="sort" value="" />
+			<input type="hidden" name="case_type" id="case_type" value="" >
+			<input type="hidden" name="bpm_id" id="bpm_id" value="7976" />
+		</form>
+	</body>
+
+</html>

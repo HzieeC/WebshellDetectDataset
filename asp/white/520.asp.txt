@@ -1,0 +1,88 @@
+<!--#include file="../../Inc/Const.Asp"-->
+<%
+Dim Plus
+Set Plus = New Cls_Plus
+Plus.Open("comment") ' 打开配置文件
+If Plus.Config("state") = 0 Then Response.Write Plus.Lang("state") : Response.End
+
+' 返回地址
+Dim Gourl : Gourl = Request.ServerVariables("HTTP_REFERER")
+
+' 验证码
+If Plus.Config("chksn") = 1 Then If Cstr(Request("sn")) <> Cstr(Session("commentcode")) Then Call Alert(Plus.Lang("chksnerr") & Request("sn") &"-"&Session("commentcode"),Gourl)
+
+' 外部提交
+If Not Checkpost(True) Then Call Alert(Lang_ErrorPost,Gourl)
+
+' 时间限制
+If IsDate(Session("Comment_LastpPostTime")) Then
+	If DatedIff("s",Session("Comment_LastpPostTime"),Now()) < Plus.Config("timelimit") Then Call Alert(Plus.Lang("timelimit"),Gourl)
+End If
+
+Dim Comment_Aid,Comment_User,Comment_Content
+Comment_Aid = Request("id")
+Comment_User = Request("user")
+Comment_User = Replace(Comment_User,"'","")
+Comment_User = Replace(Comment_User,"""","")
+Comment_User = Replace(Comment_User,"%","")
+Comment_User = Replace(Comment_User,"<","")
+Comment_User = Replace(Comment_User,">","")
+Comment_User = Replace(Comment_User,"{","")
+Comment_User = Replace(Comment_User,"}","")
+Comment_User = left(Comment_User,10)
+Comment_Content = Request("content")
+Comment_Content = Replace(Comment_Content,"{","")
+Comment_Content = Replace(Comment_Content,"}","")
+Comment_Content = Replace(Comment_Content,"'","")
+Comment_Content = Replace(Comment_Content,"""","")
+Comment_Content = Replace(Comment_Content,"%","")
+Comment_Content = Replace(Comment_Content,vbcr,"")
+Comment_Content = Replace(Comment_Content,vblf,"")
+Comment_Content = Replace(Comment_Content,vbcrlf,"")
+Comment_Content = getdescription(Comment_Content)
+Comment_Content = left(Comment_Content,Plus.Config("contentmax"))
+If Len(Comment_Aid) = 0 Or Not IsNumeric(Comment_Aid) Then Call Alert(Plus.Lang("iderr"),Gourl)
+If Len(Comment_User) < 2 Then Comment_User = "Guest"
+If Len(Comment_Content) < Plus.Config("contentmin") Then Call Alert(replace(Plus.Lang("contentmin"),"$1",Plus.Config("contentmin")),Gourl)
+
+Dim Contentfilter : Contentfilter = Plus.Config("contentfilter") : Contentfilter = Split(Contentfilter,",")
+Dim i
+For i = 0 To Ubound(Contentfilter)
+	Comment_Content = Replace(Comment_Content,Contentfilter(i),"***",1,1,1)
+Next
+
+Dim Ns,Rs,Es,SQL
+Set Ns = DB("Select [ID],[Cid],[Comments],[IsComment] From [{pre}Content] Where [ID]=" & Comment_Aid,3)
+If Ns.Eof Then
+	Call Alert(Plus.Lang("nocontent"),Gourl)
+Else
+	If Ns(3) = 0 Then Ns.Close : Call Alert(Plus.Lang("nocomment"),Gourl)
+	Set Es = DB("Select Count([ID]) From [{pre}Comment] Where [Aid]=" & Comment_Aid,1)
+	Ns(2) = Es(0) + 1
+	Ns.update
+	Es.Close 
+	Set Es = Nothing
+End If
+
+SQL = "Select [ID],[Aid],[Cid],[User],[Content],[IP],[Time],[State] From [{pre}Comment]"
+Set Rs = DB(SQL,3)
+Rs.Addnew
+Rs("aid") = Ns(0)
+Rs("cid") = Ns(1)
+Rs("user") = Comment_User
+Rs("content") = Comment_Content
+Rs("ip") = GetIP
+Rs("time") = Now()
+If Plus.Config("audit") = 1 Then Rs("state") = 0 Else Rs("state") = 1
+Rs.update
+Rs.Close
+Ns.Close
+Session("Comment_LastpPostTime") = Now()
+Session("Comment_User") = Comment_User
+If Plus.Config("audit") = 1 Then
+	Call Alert(Plus.Lang("okaudit"), Gourl)
+Else
+	Call Alert(Plus.Lang("ok"), Gourl)
+End If
+Response.End
+%>

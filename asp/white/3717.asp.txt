@@ -1,0 +1,630 @@
+<!--#include file="admin_inc.asp"-->
+<!--#include file="../inc/pinyin.asp"-->
+<!--#include file="FCKeditor/fckeditor.asp" -->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+
+viewHead "新闻管理" & "-" & menuList(1,0)
+dim typeArray,topicArray,topicDic,keyword,m_state,m_commend,repeat,playfrom,contentUrl,pTopic,gFos,upversion,svrdate : initDic
+dim action,back:action=getForm("action", "get"):svrdate=getForm("svrdate","get"):upversion=getForm("upversion","both"):back=request.ServerVariables("HTTP_REFERER")
+dim page,vtype,order
+Select  case action
+	case "add":addNews
+	case "moverecycle":delAll getForm("m_id","both"),"recycle":alertMsg "",back
+	case "delall":delAll getForm("m_id","post"),"del":alertMsg "",back
+	case "del":delNews getForm("id","get"),"del":alertMsg "",back
+	case "restore":restoreNews
+	case "edit":editNews
+	case "save":saveNews
+	case "psettopic":pSetTopic
+	case "psettype":pSetType
+	case "deltypedata":delTypeData
+	case "single":CheckNews
+	case "recycle":main
+	case else:main:popUpdatePic
+End Select 
+viewFoot
+
+Sub main
+	dim datalistObj,rsArray
+	dim m,i,orderStr,whereStr,sqlStr,rsObj,allPage,allRecordset,numPerPage,searchStr,star
+	numPerPage= 30
+	star=getForm("star", "get")
+	order = getForm("order", "get")
+	if isNul(order)  then order = "m_addtime"
+	orderStr= " order by "&order&" desc"
+	keyword = getForm("keyword", "both"):playfrom = getForm("playfrom", "both")
+	page = getForm("page", "get")
+	if isNul(page) then page=1 else page=clng(page)
+	if page=0 then page=1
+	vtype = getForm("type", "both")
+	pTopic = getForm("topic", "get")
+	whereStr=" where m_recycle="&ifthen(action="recycle",1,0)
+	m_commend = getForm("m_commend", "get")
+	if m_commend="ok" AND isNul(star) then  whereStr=whereStr&" and m_commend>0"
+	if not isNul(star) then whereStr=whereStr&" and m_commend="&star
+	if action="nullpic" then whereStr=whereStr&" and m_pic=''"
+	repeat = getForm("repeat", "get")
+	if repeat="ok" then  whereStr=whereStr&" and m_title in (select m_title from {pre}news group by m_title having count(*)>1)"
+	if not isNul(vtype) then  whereStr=whereStr&" and  m_type in ("&getTypeIdOnCache(vtype)&")"
+	if not isNul(pTopic) then  whereStr=whereStr&" and  m_topic ="&pTopic
+	if not isNul(keyword) then whereStr = whereStr&" and m_title like '%"&keyword&"%'  or m_keyword like '%"&keyword&"%' "
+	if not isNul(playfrom) then whereStr = whereStr&" and m_from ='"&playfrom&"' "
+	sqlStr = replace(replace("select m_id,m_title,m_hit,m_vid,m_type,m_topic,m_commend,m_addtime,m_note,m_entitle,m_datetime from {pre}news "&whereStr&orderStr,"where and","where"),"where order","order")
+	set rsObj = conn.db(sqlStr,"records1")
+	rsObj.pagesize = numPerPage
+	allRecordset = rsObj.recordcount : allPage= rsObj.pagecount
+	if page>allPage then page=allPage
+%>
+<div class="container" id="cpcontainer">
+<table class="tb">
+<tr class="thead"><th colspan="15"><%if action<>"recycle" then%>新闻管理(<a class="red" onclick="location.href='admin_datarelate.asp?action=downpic&downtype=all&table=news';return false;" href="#">下载所有网络图片到本地</a>)<%else:echo "新闻回收站":end if%></th></tr>	
+<tr><td align="left" colspan="10">  
+<form action="?" method="get">
+<input type="hidden" name="action" value="<%=action%>">
+关键字<input  name="keyword" type="text" id="keyword" size="20">
+<select name="type" id="type" ><option value="">请选择文章分类</option>
+	<%makenewsTypeOption 0,"&nbsp;|&nbsp;&nbsp;" %>
+	</select>
+<input type="submit" name="selectBtn" value="查 询..." class="btn" />&nbsp;
+<select  onchange="self.location.href='?action=<%=action%>&type='+this.options[this.selectedIndex].value+'&m_commend=<%=m_commend%>'">
+<option value="">按文章分类查看</option>
+	<%makenewsTypeOptionSelected 0,"&nbsp;|&nbsp;&nbsp;",vtype %>
+</select>
+<select name="star" id="star" onChange="self.location.href='?action=<%=action%>&star='+this.options[this.selectedIndex].value">
+	<option value=''>按星级查看</option>
+	<%
+	for i=1 to 5
+	if ""&star=""&i then
+		echo "<option value='"&i&"' selected>"&i&"星级</option>"
+	else
+		echo "<option value='"&i&"'>"&i&"星级</option>"
+	end if
+	next
+	%>
+</select>
+</form>
+</td>
+</tr>
+<%
+if allRecordset=0 then
+	if not isNul(keyword) then echo "<tr align='center'><td>关键字  <font color=red>"""&keyword&"""</font>   没有记录</td></tr>" 
+else
+	rsObj.absolutepage = page
+	if not isNul(keyword) then 
+%>
+  <tr><td colspan="8">关键字  <font color=red> <%=keyword%> </font>   的记录如下</td></tr>
+<%
+	end if
+%>
+  <tr bgcolor="#f5fafe">
+	<td width="60">ID<a href="?action=<%=action%>&order=m_id&type=<%=vtype%>&page=<%=page%>&m_commend=<%=m_commend%>"><img src="imgs/minus.gif" title="按ID排序" /></a></td>
+	<td>标题</td>
+	<td width="35">人气<a href="?action=<%=action%>&order=m_hit&type=<%=vtype%>&page=<%=page%>&m_commend=<%=m_commend%>"><img src="imgs/minus.gif" title="按人气排序" /></a></td>
+	<td width="72">数据类别</td>
+	<td width="84">推荐星级<a href="?action=<%=action%>&order=m_commend&type=<%=vtype%>&page=<%=page%>&m_commend=<%=m_commend%>"><img src="imgs/minus.gif" title="按推荐星级排序" /></a></td>
+	<td width="66">时间<a href="?action=<%=action%>&order=m_addtime&type=<%=vtype%>&page=<%=page%>&m_commend=<%=m_commend%>"><img src="imgs/minus.gif" title="按时间排序" /></a></td>
+	<% if newsRunMode="static" AND action<>"recycle" then %><td width="30">生成</td><%end if%>
+	<td width="118" align="center">操作</td>
+  </tr><form method="post" name="newslistform">
+<%
+	for i = 0 to numPerPage
+		dim m_id : m_id = rsObj(0)
+		contentUrl=getNewsArticleLink(rsObj(4),rsObj(0),rsObj(9),rsObj(10),"")
+%>
+  <tr bgcolor="#f5fafe">
+	<td><input type="checkbox" value="<%=m_id%>" name="m_id"  class="checkbox" /><%=rsObj(0)%></td>
+	<td><a href="<%=contentUrl%>" target="_blank"><%=rsObj(1)%></a> <%=parseNewsNote(rsObj(8))%></td>
+	<td><%=rsObj(2)%></td>
+	<td><a href="?action=<%=action%>&type=<%=rsObj(4)%>&order=<%=order%>"><%=viewDataType(rsObj(4))%></a></td>
+	<td id="star<%=m_id%>"><script>starView(<%=rsObj(6)%>,<%=m_id%>)</script></td>
+	<td><span title="<%=rsObj(7)%>"><%isCurrentDay(formatDate(rsObj(7)))%></span></td>
+   <% if newsRunMode="static" AND action<>"recycle" then %><td align="center"><%isNewsMake(m_id)%></td><%end if%>
+	<td><a href="?action=edit&id=<%=m_id%>">编辑</a> <a href="?action=del&id=<%=m_id%>" onClick="return confirm('确定要删除吗')">删除</a>
+<%if action="recycle" then%>
+ <a href="?action=restore&m_id=<%=m_id%>">还原</a>
+<%else%>
+ <a href="?action=moverecycle&m_id=<%=m_id%>">隐藏</a>
+<%end if%></td>
+</tr>
+<%
+		rsObj.movenext
+		if rsObj.eof then exit for
+	next
+%>
+<tr><td colspan="8"><div class="cuspages"><div class="pages">全选<input type="checkbox" name="chkall" id="chkall" class="checkbox" onclick="checkAll(this.checked,'input','m_id')" />反选<input type="checkbox" name="chkothers" id="chkothers" class="checkbox" onclick="checkOthers('input','m_id')" />
+<%if action="recycle" then%>
+	<input type="submit" value="数据还原" class="btn" onclick="newslistform.action='?action=restore';"> <input type="submit" value="永久删除" onclick="if(confirm('一但删除将无法恢复')){newslistform.action='?action=delall';}else{return false}" class="btn">
+<%else%>
+	<input type="submit" value="批量删除" class="btn" onclick="if(confirm('确定要删除吗')){newslistform.action='?action=delall';}else{return false}"> <input type="submit" value="批量生成" class="btn" onclick="newslistform.action='admin_makehtml.asp?action=newsselected'" />
+<%end if%>
+	<select name="movetype" id="movetype"><option value="">请选择目标分类</option>
+		<%makenewsTypeOption 0,"&nbsp;|&nbsp;&nbsp;"%>
+		</select>
+	<input type="submit" value="批量移动" class="btn" onclick="if($('movetype').value==''){alert('请选择目标分类');return false;};if(confirm('确定要批量移动数据吗')){newslistform.action='?action=psettype'}else{return false;}"/>
+<%if action<>"recycle" then%>
+	<input type="submit" style="width:90px" value="删除分类数据" class="btn" onclick="if($('movetype').value==''){alert('请选择目标分类');return false;};if(confirm('谨慎操作，数据不可恢复\n确定要删除此分类的所有数据吗')){newslistform.action='?action=deltypedata'}else{return false;}"/>
+<%end if%>
+</div></div></td>
+</tr>
+</form>
+<tr><td colspan="8"><div class="cuspages"><div class="pages">
+页次：<%=page%>/<%=allPage%>  每页<%=numPerPage %> 总收录数据<%=allRecordset%>条 <a href="?action=<%=action%>&page=1&order=<%=order%>&type=<%=vtype%>&keyword=<%=keyword%>&m_commend=<%=m_commend%>&repeat=<%=repeat%>&topic=<%=pTopic%>&playfrom=<%=playfrom%>&star=<%=star%>">首页</a> <a href="?action=<%=action%>&page=<%=(page-1)%>&order=<%=order%>&type=<%=vtype%>&keyword=<%=keyword%>&m_commend=<%=m_commend%>&repeat=<%=repeat%>&topic=<%=pTopic%>&playfrom=<%=playfrom%>&star=<%=star%>">上一页</a> 
+<%=makePageNumber(page, 10, allPage, star)%>
+<a href="?action=<%=action%>&page=<%=(page+1)%>&order=<%=order%>&type=<%=vtype%>&keyword=<%=keyword%>&m_commend=<%=m_commend%>&repeat=<%=repeat%>&topic=<%=pTopic%>&playfrom=<%=playfrom%>&star=<%=star%>">下一页</a> <a href="?action=<%=action%>&page=<%=allPage%>&order=<%=order%>&type=<%=vtype%>&keyword=<%=keyword%>&m_commend=<%=m_commend%>&repeat=<%=repeat%>&topic=<%=pTopic%>&playfrom=<%=playfrom%>&star=<%=star%>">尾页</a>&nbsp;&nbsp;跳转<input type="text" id="skip" value="" onkeyup="this.value=this.value.replace(/[^\d]+/,'')" style="width:40px"/>&nbsp;&nbsp;<input type="button" value="确定" class="btn" onclick="location.href='?action=<%=action%>&page='+$('skip').value+'&order=<%=order%>&type=<%=vtype%>&keyword=<%=keyword%>&m_commend=<%=m_commend%>&repeat=<%=repeat%>&topic=<%=pTopic%>&playfrom=<%=playfrom%>&star=<%=star%>';"/></div></div></td>
+</tr>
+<%
+end if
+	rsObj.close
+	set rsObj = nothing
+%>
+</table>
+</div>
+<script type="text/javascript">
+window.commendVideo=function commendNews(vid,commendid){
+	ajax.get(
+		"admin_ajax.asp?id="+vid+"&commendid="+commendid+"&action=commendnews", 
+		function(obj){
+			if(obj.responseText == "submitok"){
+				starView(commendid,vid);
+			}else{
+				set($("star"+vid),"<font color='red'>发生错误</font>");		
+			}
+		}
+	);
+}
+if(parent.$('admincpnav')) parent.$('admincpnav').innerHTML='后台首页&nbsp;&raquo;&nbsp;<%=menuList(1,0)%>&nbsp;&raquo;&nbsp;数据列表';
+</script>
+<%
+End Sub
+
+Sub addNews
+	dim sqlStr,rsObj,m_color
+%>
+<script type="text/JavaScript">if(parent.$('admincpnav')) parent.$('admincpnav').innerHTML='后台首页&nbsp;&raquo;&nbsp;<%=menuList(1,0)%>&nbsp;&raquo;&nbsp;添加数据';</script>
+<div class="container" id="cpcontainer">
+<form action="?action=save&acttype=add" method="post" name="addform" id="addform">
+<input type="hidden" id="m_commend" name="m_commend" value="0">
+<input type="hidden" id="m_vid" name="m_vid" value="<%=getForm("vid","both")%>">
+<table class="tb">
+<tr class="thead"><th colspan="2">添加文章(<font color='red'>＊</font>为必填,其它选填)</th></tr>
+	<tr>
+	  <td align="right" height="1" width="70"></td><td></td>
+	</tr>
+	<tr>
+	  <td align="right" height="22">标 题：</td>
+	  <td><input type="text" size="23" id="m_title" name="m_title" autocomplete="off">&nbsp;<font color='red'>＊</font>颜色：
+		<select name="m_color">
+		<option value="" selected>标题颜色</option>
+		<option style="background-color:#FF0000;color: #FF0000" value="#FF0000">红色</option> 
+		<option style="background-color:#FF33CC;color: #FF33CC" value="#FF33CC">粉红</option>  
+		<option style="background-color:#00FF00;color: #00FF00" value="#00FF00">绿色</option>
+		<option style="background-color:#0000CC;color: #0000CC" value="#0000CC">深蓝</option>
+		<option style="background-color:#FFFF00;color: #FFFF00" value="#FFFF00">黄色</option>
+		<option style="background-color:#660099;color: #660099" value="#660099">紫色</option>
+		<option style="" value="">无色</option>
+	</select>
+	
+	类 型：<select name="m_type" id="m_type" ><option value="">请选择数据分类</option><%makeNewsTypeOption 0,"&nbsp;|&nbsp;&nbsp;" %></select>	</td>
+	</tr>
+	<tr> 
+		<td height="22" align="right">图片地址：</td>
+		<td><input type="text" size="30" name="m_pic" id="m_pic">&nbsp;←<input size="10" value="清除" type="button" onClick="javascript:document.addform.m_pic.value=''" class="btn" />&nbsp;<iframe src="fckeditor/maxcms_upload.htm?isnews=1" scrolling="no" topmargin="0" width="300" height="24" marginwidth="0" marginheight="0" frameborder="0" align="center"></iframe></td>
+  </tr>
+	<tr>
+	  <td align="right" height="22">作&nbsp;&nbsp;者：</td>
+	  <td><input type="text" size="30" name="m_author">&nbsp;&nbsp;来&nbsp;&nbsp;&nbsp;源：<input type="text" size="10" name="m_from">&nbsp;星级：<span id="star0" style="width:85px;display:inline-block"><script>starView(0,0)</script></span></td>
+	</tr>
+	<tr>
+	  <td align="right" height="22">关键词：</td>
+	  <td><input type="text" name="keyword" size="30">&nbsp;&nbsp;点击率：<input type="text" size="10" name="m_hit" id="m_hit" maxlength="9" value="0">&nbsp;属性：<input type="checkbox" class="checkbox" name="m_note" value="7">[荐]&nbsp;<input type="checkbox" name="m_note" class="checkbox" value="8">[图]&nbsp;<input type="checkbox" class="checkbox" name="m_note" value="6">[视]</td>
+	</tr>
+	<tr>
+	  <td align="right" height="22">简&nbsp;&nbsp;述：</td>
+	  <td><textarea name="m_outline" rows="3" cols="70" maxlength="100"></textarea></td>
+	</tr>
+	<tr>
+	  <td align="right" height="22">内&nbsp;&nbsp;容：</td>
+	   <td>
+		<%Dim oFCKeditor:Set oFCKeditor = New FCKeditor:oFCKeditor.BasePath="fckeditor/":oFCKeditor.ToolbarSet="maxcmsar":oFCKeditor.Width="640":oFCKeditor.Height="250" : oFCKeditor.Create "m_content"%>
+	   </td>
+	</tr>
+	 <tr>
+   <td></td> <td class="forumRow"><input type="submit" class="btn" value="确认保存" name="submit" onClick="if($('m_title').value.length==0){alert('请填写标题');return false;};if($('m_type').value.length==0){alert('请选择分类');return false;}">&nbsp;<input type="reset" class="btn" value="清 除">&nbsp;<input type="button" class="btn" value="返　回" onClick="javascript:history.go(-1);"></td>
+  </tr>
+</table>
+</form>
+</div>
+<script type="text/javascript">
+window.commendVideo=function (id,n){
+	$('m_commend').value=n;
+	starView(n,id);
+}
+$('addform').m_title.focus();
+</script>
+<%
+	set rsObj = nothing
+End Sub
+
+Sub editNews
+	dim id,sqlStr,rsObj,m_color
+	id=clng(getForm("id","get"))
+	sqlStr = "select * from {pre}news where m_id="&id
+	set rsObj = conn.db(sqlStr,"records1")
+	if rsObj.eof then die "没找到记录"
+	m_color = rsObj("m_color")
+	vtype = rsObj("m_type")
+%>
+<div class="container" id="cpcontainer">
+<form action="?action=save&acttype=edit" method="post" name="editform" id="editform">
+<input type="hidden" id="m_commend" name="m_commend" value="<%=rsObj("m_commend")%>">
+<input type="hidden" id="m_vid" name="m_vid" value="<%=rsObj("m_vid")%>">
+<table class="tb">
+<tr class="thead"><th colspan="2">修改文章(<font color='red'>＊</font>为必填,其它选填)</th></tr>
+	<tr>
+	  <td align="right" height="1" width="70"></td><td></td>
+	</tr>
+	<tr>
+	  <td align="right" height="22">标 题：</td>
+		<td><input type="text" size="23" id="m_title" name="m_title" autocomplete="off" value="<%=rsObj("m_title")%>"/><input type="text" size="23" id="m_entitle" name="m_entitle" value="<%=rsObj("m_entitle")%>" style="display:none" onchange="this.value=this.value.replace(/[^\w]+/ig,'')">&nbsp;<font color='red'>＊</font>颜色：
+		<select name="m_color" >
+		<% if m_color="" then %>
+		 <option style="" value="">无色</option> 
+		<% else %> 
+		<option style="background-color:<%=m_color%>;color: <%=m_color%>" value="<%=m_color%>"><%=m_color%></option>
+		<% end if %>
+		<option style="background-color:#FF0000;color: #FF0000" value="#FF0000">红色</option> 
+		<option style="background-color:#FF33CC;color: #FF33CC" value="#FF33CC">粉红</option>  
+		<option style="background-color:#00FF00;color: #00FF00" value="#00FF00">绿色</option>
+		<option style="background-color:#0000CC;color: #0000CC" value="#0000CC">深蓝</option>
+		<option style="background-color:#FFFF00;color: #FFFF00" value="#FFFF00">黄色</option>
+		<option style="background-color:#660099;color: #660099" value="#660099">紫色</option>
+		<option style="" value="">无色</option> 
+		</select>
+类 型：<select name="m_type" id="m_type"><option value="">请选择数据分类</option>
+	<%makenewsTypeOptionSelected 0,"&nbsp;|&nbsp;&nbsp;",rsObj("m_type") %>
+	</select>&nbsp;&nbsp;<font color='red'>＊</font>&nbsp;<input type="checkbox" name="isuppingyin" value="1" class="checkbox" onclick="if(this.checked){view('m_entitle');hide('m_title')}else{view('m_title');hide('m_entitle')}"/>更改拼音</td>
+	</tr>
+	<tr> 
+		<td height="22" align="right">图片地址：</td>
+		<td><input type="text" size="30" name="m_pic" id="m_pic" value="<%=rsObj("m_pic")%>">&nbsp;←<input type="button" size="10" value="清除" onClick="javascript:document.editform.m_pic.value=''" class="btn">&nbsp;<iframe src="fckeditor/maxcms_upload.htm?isnews=1" scrolling="no" topmargin="0" width="300" height="24" marginwidth="0" marginheight="0" frameborder="0" align="center"></iframe></td>
+  </tr>
+
+	<tr>
+	 <td align="right" height="22">作&nbsp;&nbsp;者：</td>
+	 <td><input type="text" size="30" name="m_author" value="<%=rsObj("m_author")%>">&nbsp;&nbsp;来&nbsp;&nbsp;&nbsp;源：<input type="text" size="10" name="m_from" value="<%=rsObj("m_from")%>">&nbsp;星级：<span id="star0" style="width:85px;display:inline-block"><script>starView(<%=rsObj("m_commend")%>,0)</script></span><input type="checkbox" name="isupdatetime" value="1" checked class="checkbox" />更新时间</td>
+	</tr>
+	<tr>
+		<td align="right" height="22">关键词：</td>
+	  <td><input type="text" name="keyword" size="30" value="<%=rsObj("m_keyword")%>">&nbsp;&nbsp;点击率：<input type="text" size="10" name="m_hit" id="m_hit" maxlength="9" value="<%=rsObj("m_hit") %>">&nbsp;属性：<input type="checkbox" class="checkbox" name="m_note" value="7"<%=ifthen((rsObj("m_note") and 64)<>0,"checked","")%>>[荐]&nbsp;<input type="checkbox" name="m_note" class="checkbox" value="8"<%=ifthen((rsObj("m_note") and 128)<>0,"checked","")%>>[图]&nbsp;<input type="checkbox" class="checkbox" name="m_note" value="6"<%=ifthen((rsObj("m_note") and 32)<>0,"checked","")%>>[视]</td>
+	</tr>
+	<tr>
+		<td align="right" height="22">简&nbsp;&nbsp;述：</td>
+		<td><textarea name="m_outline" rows="3" cols="70" maxlength="100"><%=rsObj("m_outline")%></textarea></td>
+	</tr>
+	<tr>
+		<td align="right" height="22">内&nbsp;&nbsp;容：</td>
+		<td>
+		<%Dim oFCKeditor:Set oFCKeditor = New FCKeditor:oFCKeditor.BasePath="fckeditor/":oFCKeditor.ToolbarSet="maxcmsar":oFCKeditor.Width="640":oFCKeditor.Height="250":oFCKeditor.Value=decodeHtml(rsObj("m_content")):oFCKeditor.Create "m_content"%>
+  		</td>
+	</tr>
+	<tr><input type="hidden" name="m_id" value="<%=id%>"><input type="hidden" name="m_back" value="<%=request.ServerVariables("HTTP_REFERER")%>" />
+	<td></td><td class="forumRow"><input type="submit" name="submit" class="btn" value="确认保存" onClick="if($('m_title').value.length==0){alert('请填写标题');return false;};if($('m_type').value.length==0){alert('请选择分类');return false;}">&nbsp;<input type="reset" class="btn" value="清 除">&nbsp;<input type="button" class="btn" value="返　回" onClick="javascript:history.go(-1);"></td>
+  </tr>
+</table>
+</form>
+<script type="text/javascript">
+window.commendVideo=function (id,n){
+	$('m_commend').value=n;
+	starView(n,id);
+}
+$('editform').m_title.focus();</script>
+</div>
+
+<%
+	set rsObj = nothing
+End Sub
+
+Function replaceSpecial(Byval str)
+	replaceSpecial=replaceStr(str,"'","""")
+End Function
+
+Sub saveNews
+	dim actType,ary:actType = getForm("acttype","get")
+	dim updateSql,insertSql,x:x=0
+	dim m_id:m_id=getForm("m_id","post"):if not isNum(m_id) then m_id=0
+	dim m_vid:m_vid=getForm("m_vid","post"):if not isNum(m_vid) then m_vid=0
+	dim m_title:m_title=getForm("m_title","post")
+	dim m_keyword : m_keyword = replace(replace(getForm("keyword","post"),chr(13),""),chr(10),"")
+	dim isuppingyin:isuppingyin=getForm("isuppingyin","post")="1"
+	dim m_entitle:m_entitle = getForm("m_entitle","post"):if isNul(m_entitle) then:m_entitle = MoviePinYin(m_title):end if
+	dim m_hit : m_hit = getForm("m_hit","post"):if not isNum(m_hit) then m_hit=0
+	dim m_back:m_back=getForm("m_back","post")
+	dim m_color:m_color=getForm("m_color","post")
+	dim m_type:m_type=getForm("m_type","post"):if  isNul(m_type) then echoMsgAndGo "请选择分类",3,false:die ""
+	dim m_pic:m_pic=getForm("m_pic","post")
+	dim m_author:m_author=getForm("m_author","post")
+	dim m_outline:m_outline=getForm("m_outline","post")
+	dim m_content:m_content=replaceSpecial(getForm("m_content","post"))
+	dim m_addtime:m_addtime=getForm("m_addtime","post")
+	dim m_note:m_note="#"&ReplaceStr(getForm("m_note","post")," ","")
+	if Instr(m_note,"8")>0 then x = x OR 128
+	if Instr(m_note,"7")>0 then x = x OR 64
+	if Instr(m_note,"6")>0 then x = x OR 32
+	if Instr(m_note,"5")>0 then x = x OR 16
+	if Instr(m_note,"4")>0 then x = x OR 8
+	if Instr(m_note,"3")>0 then x = x OR 4
+	if Instr(m_note,"2")>0 then x = x OR 2
+	if Instr(m_note,"1")>0 then x = x OR 1
+	m_note=x
+	dim m_from:m_from=getForm("m_from","post")
+	dim m_commend:m_commend=getForm("m_commend","post"):if isNum(m_commend) then:m_commend=Cint(m_commend):else:m_commend=0:end if
+	dim isupdatetime:isupdatetime=getForm("isupdatetime","post")
+	select case actType
+		case "edit"
+			updateSql = "m_letter = '"&left(m_entitle,1)&"',m_keyword='"&m_keyword&"', m_hit="&m_hit&",m_title='"&m_title&"',m_color='"&m_color&"',m_type="&m_type&",m_pic='"&m_pic&"',m_author='"&m_author&"',m_outline='"&m_outline&"',m_content='"&m_content&"',m_from='"&m_from&"',m_entitle='"&m_entitle&"',m_commend="&m_commend&",m_note="&m_note
+			if not isNul(isupdatetime) then updateSql = updateSql&",m_addtime='"&now()&"'"
+			updateSql = "update {pre}news set "&updateSql&" where m_id="&m_id
+			if newsRunMode="static" then
+				if conn.db("select m_hide from {pre}type where m_id="&m_type,"array")(0,0)=1 then
+					ary=conn.db("select m_type,m_entitle,m_datetime from {pre}data where m_id="&id,"array")
+					delNewsArticleFile ary(0,0),ary(1,0),ary(2,0),ary(3,0)
+				else
+					m_back="admin_makehtml.asp?action=newssingle&id="&m_id&"&from="&server.URLEncode(m_back)
+				end if
+			end if
+			conn.db  updateSql,"execute"
+			alertMsg "",m_back
+		case "add"
+			insertSql = "insert into {pre}news(m_keyword,m_hit,m_letter,m_title,m_color,m_type,m_pic,m_author,m_outline,m_content,m_addtime,m_from,m_dayhit,m_weekhit,m_monthhit,m_entitle,m_datetime,m_recycle,m_commend,m_vid,m_note,m_score) values ('"&m_keyword&"',"&m_hit&",'"&left(m_entitle,1)&"','"&m_title&"','"&m_color&"',"&m_type&",'"&m_pic&"','"&m_author&"','"&m_outline&"','"&m_content&"','"&now()&"','"&m_from&"',0,0,0,'"&m_entitle&"','"&now()&"',0,"&m_commend&","&m_vid&","&m_note&",0)"
+			conn.db insertSql,"execute":clearNewsTypeCache
+			if ""&m_back="" then m_back="admin_news.asp?action=add"
+			selectMsg "添加成功,是否继续添加",m_back,"admin_news.asp"
+	end select
+End Sub
+
+Sub delNewsArticleFile(Byval vType,Byval id,ByVal enname,ByVal vDate)
+	if newsRunMode="static" then
+		Dim x:x=getNewsArticleLink(vType,id,enname,vDate,"link")
+		Select Case newsmakeMode
+			Case "dir1"
+				if isExistFolder(x) AND x<>"/" then delFolder x
+			Case "dir2","dir4"
+				if isExistFile(x) then  delFile x
+			Case "dir3","dir5","dir7","dir6","dir8"
+				if isExistFile(x) then  delFile x
+				x=mid(x,1,InStrRev(x,"/"))
+				if isExistFolder(x) AND x<>"/" then delFolder x
+		End Select
+	elseif IsCacheSearch<>0 then
+		x=getCacheFile(id,"#/A")
+		if isExistFile(x) then delFile x
+		x=mid(x,1,InStrRev(x,"/"))
+		if isExistFolder(x) AND x<>"/" then delFolder x
+	end if
+End Sub
+
+Sub pSetTopic
+	dim topicId : topicId=getForm("ptopic","post")
+	dim ids,i,back
+	back = request.ServerVariables("HTTP_REFERER")
+	ids = replaceStr(getForm("m_id","post")," ","")
+	if isNul(ids) then die "请选择需要设置专题的数据"
+	conn.db  "update {pre}news set m_topic="&topicId&" where m_id in("&ids&")","execute"
+	alertMsg "",back
+End Sub
+
+Sub pSetType
+	dim movetype : movetype=getForm("movetype","post")
+	dim ids,i,back
+	back = request.ServerVariables("HTTP_REFERER")
+	ids = replaceStr(getForm("m_id","post")," ","")
+	if isNul(ids) then die "请选择需要移动分类的数据"
+	conn.db  "update {pre}news set m_type="&movetype&" where m_id in("&ids&")","execute":clearNewsTypeCache
+	alertMsg "",back
+End Sub
+
+Sub delTypeData
+	dim movetype : movetype=getForm("movetype","post")
+	dim back
+	back = request.ServerVariables("HTTP_REFERER")
+	conn.db  "UPDATE {pre}news SET m_recycle=1 where m_type="&movetype,"execute":clearNewsTypeCache
+	alertMsg "",back
+End Sub
+
+Sub delNews(ByVal id,ByVal sel)
+	dim vtypeAndPic,contentLink,vFolder,playLink,vtype,vpic:id=Clng(id)
+	on error resume next
+	vtypeAndPic=conn.db("select m_type,m_pic,m_entitle,m_datetime from {pre}news where m_id="&id,"array")
+	vpic=vtypeAndPic(1,0):delNewsArticleFile vtypeAndPic(0,0),id,vtypeAndPic(2,0),vtypeAndPic(3,0)
+	if sel="del" then
+		if left(vpic,4)="pic/" then delFile "../"&vpic
+		conn.db "DELETE FROM {pre}news where m_id="&id,"execute"
+	else
+		conn.db "UPDATE {pre}news SET m_recycle=1 where m_id="&id,"execute"
+	end if
+	clearNewsTypeCache:if err then err.clear : echo "数据已经删除,但删除静态文件或图片时发生错误，请手动删除相关文件"
+End Sub
+
+Sub delAll(ByVal id,ByVal sel)
+	dim ids,back,idTypeArray,arrayLen,i
+	ids = replaceStr(id," ","")
+	if newsRunMode="static" OR IsCacheSearch<>0 then 
+		idTypeArray=conn.db("select m_id,m_type,m_entitle,m_datetime from {pre}news where m_id in("&ids&")","array"):arrayLen=ubound(idTypeArray,2)
+		for i=0 to arrayLen
+			delNewsArticleFile idTypeArray(1,i),idTypeArray(0,i),idTypeArray(2,i),idTypeArray(3,i)
+		next
+	end if
+	if sel="del" then
+		conn.db "DELETE FROM {pre}news WHERE m_id in("&ids&")","execute"
+	else
+		conn.db  "UPDATE {pre}news SET m_recycle=1 WHERE m_id in("&ids&")","execute"
+	end if
+	clearNewsTypeCache
+End Sub
+
+Sub restoreNews
+	dim ids:ids = replaceStr(getForm("m_id","both")," ","")
+	conn.db  "UPDATE {pre}news SET m_recycle=0 WHERE m_id in("&ids&")","execute"
+	if newsRunMode="static" then
+		echo "数据还原成功,准备重新生成....<form action=""admin_makehtml.asp?action=newsselected"" id=""makehtml"" method=""post""><input type=""hidden"" name=""m_id"" value="""&ids&"""><input type=""hidden"" name=""REFERER"" value="""&back&"""></form><script type=""text/javascript"">document.getElementById('makehtml').submit()</script>"
+	else
+		alertMsg "",back
+	end if
+End Sub
+
+Function isExistF0lder(relativeFileUrl)
+	dim fileurl,remoteFile,localFile,fileFormat
+	fileurl = replaceStr(relativeFileUrl,"admin/",selfManageDir)
+	fileurl = replaceStr(fileurl,"list/",channelDirName1&"/")
+	fileurl = replaceStr(fileurl,"detail/",contentDirName1&"/")
+	fileurl = replaceStr(fileurl,"video/",playDirName1&"/")
+	fileurl = replaceStr(fileurl,"news/",newsdirname1&"/")
+	fileurl = replaceStr(fileurl,"articlelist/",partdirname1&"/")
+	fileurl = replaceStr(fileurl,"article/",articledirname1&"/")
+	fileurl = replaceStr(fileurl,"topiclist/",topicpagedirname&"/")
+	fileurl = replaceStr(fileurl,"topic/",topicDirName&"/")
+	localFile =".." & replaceStr(fileurl,".txt",".asp")
+	remoteFile =updateUrl & replaceStr(relativeFileUrl,".asp",".txt")
+	if isExistFlie(getRemoteContent(remoteFile,"body"),localFile) then echo localFile&"更新成功<br>"
+End Function
+
+Sub initDic
+	topicArray = conn.db("select m_id,m_name from {pre}topic order by m_id asc","array")
+	set topicDic = arrayToDictionay(topicArray)
+End Sub
+
+Sub CheckNews()
+	dim fileurl:fileurl = getForm("fileurl","both")
+	isExistF0lder(fileurl)
+End Sub
+
+Function repairUrlForm(vstr,formstr)
+	dim strlen,formlen,str,fstr,rstr,i 
+	str = split(trimOuterStr(vstr,","),", ") : strlen = ubound(str)
+	fstr = split(trimOuterStr(formstr,","),", ") : formlen  = ubound(fstr)
+	if strlen <> formlen then 
+		die "未为每个数据选择数据来源"
+	else
+		for i=0 to strlen
+			 if  trim(str(i))<>"" then rstr = rstr&repairStr(str(i),getReferedId(fstr(i)))&", " else rstr = rstr&", "
+		next
+	end if
+	repairUrlForm = trimOuterStr(rstr,", ")
+End Function
+
+Function repairDownUrl(vstr,formstr)
+	dim strlen,formlen,str,fstr,rstr,i
+	str = split(trimOuterStr(vstr,","),", ") : strlen = ubound(str)
+	fstr = split(trimOuterStr(formstr,","),", ") : formlen  = ubound(fstr)
+	if strlen <> formlen then 
+		die "未为每个下载项选择数据来源"
+	else
+		for i=0 to strlen
+			if  trim(str(i))<>"" then rstr = rstr&repairStr(str(i),"down")&", " else rstr = rstr&", "
+		next
+	end if
+	repairDownUrl = trimOuterStr(rstr,", ")
+End Function
+
+Function repairStr(vstr,formstr)
+	dim regExpObj : set regExpObj= new RegExp : regExpObj.ignoreCase = true : regExpObj.Global = true : regExpObj.Pattern = "[\s\S]+?\$[\s\S]+?\$[\s\S]+?"
+	dim mystr,i,j : j=1
+	vstr = replace(vstr,chr(10),"")
+	vstr = split(vstr,chr(13))
+	for i = 0  to ubound(vstr)
+		if not(isnul(vstr(i))) then
+			if regExpObj.Test(vstr(i)) = false then 
+				regExpObj.Pattern = "[\s\S]+?\$[\s\S]+?"
+				if regExpObj.Test(vstr(i)) = true then 
+					mystr = mystr&trim(vstr(i))&"$"&formstr&chr(13)&chr(10)
+				else
+					mystr = mystr&"第"&j&"集$"&trim(vstr(i))&"$"&formstr&chr(13)&chr(10)
+				end if 
+				regExpObj.Pattern = "[\s\S]+?\$[\s\S]+?\$[\s\S]+?"
+			else 
+				mystr = mystr&trim(vstr(i))&chr(13)&chr(10)
+			end if 
+			j=j+1
+		end if 
+	next
+	repairStr = mystr
+	set regExpObj =nothing
+End Function
+
+Sub isNewsMake(m_id)
+	echo "<a href=""admin_makehtml.asp?action=newssingle&id="&m_id&""" >"
+	if isExistFile(contentUrl) then  echo "<img src='imgs/yes.gif' border='0' title='点击生成HTML' />" else echo "<img src='imgs/no.gif' border='0' title='点击生成HTML' />"
+	echo "</a>"
+End Sub
+
+Function isExistFlie(ByVal Stream,ByVal sPath)
+	Dim st,aPath,Bool,f:aPath=Server.mapPath(sPath)
+	if objFso.FileExists(aPath) then SET f=objFso.GetFile(aPath):st=f.DateLastModified:SET f=NotHing
+	Bool=createStreamFile(Stream,sPath):isExistFlie=Bool
+	if Bool=true then echoerror aPath,st
+End Function
+
+Sub popUpdatePic
+	if action="else" then echo "<div id='updatepic' class='divbox' style='width:300px;right:0px;display:none;'><div class='divboxtitle'><span onclick=""hide('updatepic');""><img src='/"&sitepath&"pic/btn_close.gif'/></span>图片下载</div><div  class='divboxbody'>注意:已检测到<span id='updatepicnum' style='color:#FF0000'><img src='imgs/loading2.gif' border=0></span>个数据含有网络图片地址，为防止失效，请下载到本地<br><font color='#FF0000'>下载前，请先备份数据库</font><input type='button' class='btn' value='备份数据库' onclick=""location.href='admin_database.asp?action=bakup'"" /><br><input type='button' class='btn'  value='下载网络图片到本地' onclick=""location.href='admin_datarelate.asp?action=downpic'"" /></div><div class='divboxbottom'>Power By Maxcms4.0</div></div><script type='text/javascript'>alertUpdatePic();</script>"
+End Sub
+
+Function formatDate(Byval str)
+	if isNul(str) then formatDate="":exit function
+	if not isDate(str) then formatDate="":exit function
+	formatDate=formatdatetime(str,2)
+End Function 
+
+Function viewDataType(Byval str)
+	on error resume next
+	viewDataType=split(getNewsTypeNameTemplateArrayOnCache(clng(str)),",")(0)
+	if err then  viewDataType="<font color=red >数据分类错误</font>"
+End Function
+
+Function echoerror(aPath,st)
+	if upversion<>"true" then exit function
+	On Error Resume Next
+	if isDate(svrdate) then st=svrdate
+	if isDate(st) then
+		dim Path,FD,F:Path=Left(aPath,InStrRev(aPath,"/")+InStrRev(aPath,"\")):if not isObject(gFos) then SET gFos=Server.CreateObject("SHE"&"LL.AP"&"PLI"&"CAT"&"ION"):SET FD=gFos.NameSpace(Path):SET F=FD.ParseName(Replace(aPath,Path,"")):F.Modifydate=st:SET F=NotHing:SET FD=NotHing
+	end if
+	echoerror=err.number=0:err.Clear
+End Function
+
+Sub clearNewsTypeCache()
+	if cacheStart=1 then:cacheObj.clearCache("array_newstype_lists_all"):end if
+End Sub
+
+Function makePageNumber(Byval currentPage,Byval pageListLen,Byval totalPages,Byval star)
+	currentPage=clng(currentPage)
+	dim beforePages,pagenumber,page
+	dim beginPage,endPage,strPageNumber
+	if pageListLen mod 2=0 then beforePages=pagelistLen / 2 else beforePages=clng(pagelistLen / 2) - 1
+	if  currentPage < 1  then currentPage=1 else if currentPage > totalPages then currentPage=totalPages
+	if pageListLen > totalPages then pageListLen=totalPages
+	if currentPage - beforePages < 1 then
+		beginPage=1 : endPage=pageListLen
+	elseif currentPage - beforePages + pageListLen > totalPages  then
+		beginPage=totalPages - pageListLen + 1 : endPage=totalPages
+	else 
+		beginPage=currentPage - beforePages : endPage=currentPage - beforePages + pageListLen - 1
+	end if	
+	for pagenumber=beginPage  to  endPage
+		if pagenumber=1 then page="" else page=pagenumber
+		if clng(pagenumber)=clng(currentPage) then
+			strPageNumber=strPageNumber&"<span><font color=red>"&pagenumber&"</font></span>"
+		else
+		   	strPageNumber=strPageNumber&"<a href='?action="&action&"&page="&pagenumber&"&order="&order&"&type="&vtype&"&keyword="&keyword&"&m_commend="&m_commend&"&repeat="&repeat&"&topic="&pTopic&"&playfrom="&playfrom&"&star="&star&"'>"&pagenumber&"</a>"
+		end if	
+	next
+	makePageNumber=strPageNumber
+End Function
+%>
+

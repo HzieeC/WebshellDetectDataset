@@ -1,0 +1,158 @@
+<%path="../../"%>
+<!--#include file="../../inc/my_conn.asp" -->
+<!--#include file="../../inc/inc.asp" -->
+<!--#include file="../consts.asp" -->
+	<%
+	table_name="My_Msg"
+	table_name2="My_msg_counts"
+	
+	ly_name=Checkstr(trim(request.QueryString("ly_name")))
+		if ly_name="" or isnull(ly_name) then ly_name="未填"
+	ly_tel=Checkstr(trim(request.QueryString("ly_tel")))
+		if ly_tel="" or isnull(ly_tel) then ly_tel="未填"
+	ly_sex=Checkstr(trim(request.QueryString("ly_sex")))
+	'ly_content=trim(request.QueryString("ly_content"))
+	ly_content=Checkstr(trim(request.QueryString("ly_content")))
+		'if ly_content="" or isnull(ly_content) then ly_content="未填"
+		ly_content=replace(ly_content,chr(13),"KKKKK")
+	page_src_str=Checkstr(trim(request.QueryString("page_src")))
+	ip_addr = Request.ServerVariables("HTTP_X_FORWARDED_FOR") 
+		If ip_addr = "" Then ip_addr = Request.ServerVariables("REMOTE_ADDR")
+		
+	cpid=Checkstr(trim(request("cpid")))
+
+	cp_type=Checkstr(trim(request("cp_type")))
+
+	if page_src_str<>"" and ly_name<>"" and ly_tel<>"" and ly_sex<>"" and ly_content<>"" and ip_addr<>"" then
+		'先判断该IP在当天是否已经发布过超过 msg_records_limit 条留言的
+			set rs=server.createobject("adodb.recordset")
+			sql="select * from "&table_name2&" where ip_addr='"&ip_addr&"' and last_date='"&Date()&"' and msg_counts="&msg_records_limit
+			rs.open sql,conn,1,1
+			if not rs.eof then	'已有 msg_records_limit 条留言时
+				response.write 2
+			else'更新或新建计数
+				rs.close
+				sql="select * from "&table_name2&" where ip_addr='"&ip_addr&"'"
+				rs.open sql,conn,1,3
+				if not rs.eof then
+					rs("msg_counts")=rs("msg_counts")+1
+					rs("last_date")=Date()
+					rs("ip_addr")=ip_addr
+					rs.update
+					rs.close
+				else
+					rs.close
+					'新建留言计数
+					sql="select * from "&table_name2&""
+					rs.open sql,conn,1,3
+						rs.addnew
+							rs("ip_addr")=ip_addr
+							rs("msg_counts")=1
+							rs("last_date")=Date()
+						rs.update
+					rs.close
+				end if
+				
+				'保存留言
+				sql="select * from "&table_name&""
+				rs.open sql,conn,1,3
+					rs.addnew
+						rs("msg_sender")=ly_name
+						rs("sender_sex")=ly_sex
+						if ly_sex=0 then sexstr="先生" else sexstr="女士"
+						rs("SMT_title")="询价"
+						rs("msg_contact")=ly_tel
+						rs("SMT_message")=ly_content
+						rs("src_page")=page_src_str
+						rs("msg_type")=0
+						rs("if_readed")=0
+						rs("cpid")=cpid
+						rs("cp_type")=cp_type
+						rs("added_date")=now()
+						rs("ip_addr")=ip_addr
+						if session("user_bianhao")<>"" then rs("SMT_bianhao")=session("user_bianhao")
+					rs.update
+					
+						'收到留言后自动发送邮件提示不要错过任何商机
+						if cpid>0 and cp_type>=0 then
+							set rs1=server.createobject("adodb.recordset")
+							if cp_type=0 then
+								sql1="select * from My_cp where SMT_id = "& cpid
+								rs1.open sql1,conn,1,1
+								if not rs1.eof then
+									cp_name=rs1("SMT_scatitle")
+								else
+								end if
+								rs1.Close()
+								cp_url="products.asp?id="&cpid
+							else
+								sql1="select * from My_cp_e where SMT_id = "& cpid
+								rs1.open sql1,conn,1,1
+								if not rs1.eof then
+									cp_name=rs1("SMT_scatitle")
+								else
+								end if
+								rs1.Close()
+								cp_url="products_e.asp?id="&cpid
+							end if
+							'先获取网站参数
+							sql1="select site_url,site_email,my_smtp,my_smtp_name,my_smtp_pwd from My_config"
+							rs1.open sql1,conn,1,1
+								site_url=rs1("site_url")
+								email=rs1("site_email")
+								my_smtp=rs1("my_smtp")'SMT邮箱
+								my_smtp_name=rs1("my_smtp_name")'SMT邮箱账户
+								my_smtp_pwd=rs1("my_smtp_pwd")'SMT邮箱密码
+							rs1.close
+							'然后获取内容
+							emailtitle="[亲,收到来自"&ly_name&sexstr&"的留言/询价信息]"&left(ly_content,40)
+							'emailtitle="网站管理员,您好!贵网站收到一条新的询价信息，是否需要查看?"
+							emailcontent="留言/询价信息是来源于:<a href='"&site_url&"/"&cp_url&"' target='_blank'>"&cp_name&"</a>，点击品名可以查看详情。<br>>>留言人:"&ly_name&"&nbsp;"&sexstr&"<br>>>联系方式:"&ly_tel&"<br>>>留言详细内容为:<font color='blue'><br>&nbsp;&nbsp;"&ly_content&"</font><br>请登录后台查看。<br><font color='red'>[请及时与买家联系,不要错过任何商机!]</font><br><font color='#ccc'>[系统邮件请不要回复]</font>"
+							set rs1=nothing
+							set sql1=nothing
+
+							send_mail_now()'开始发送邮件
+						end if'询价邮件发送程序结束
+
+				rs.close
+				response.write 1
+				set rs=nothing
+				set sql=nothing
+			end if
+	else
+		response.write 0'失败 不能添加
+	end if
+	%>
+	<%
+	Function send_mail_now()
+		'先获取SMTP的信息
+		Set JMail = Server.CreateObject("JMail.Message")
+			JMail.ISOEncodeHeaders = True'是否将信头编码成iso-8859-1字符集. 缺省是True  
+			JMail.Silent = True'如果JMail.silent设置为true,ErrorCode包含的是错误代码 
+			JMail.Charset = "gb2312"'设置标题和内容编码，如果标题有中文，必须设定编码为gb2312 
+			
+			JMail.From = email ' 发送者邮箱 
+			JMail.FromName = "[网站系统提醒]" ' 发送者姓名 
+			JMail.MailServerUserName = my_smtp_name ' 身份验证的用户名 
+			JMail.MailServerPassword = my_smtp_pwd ' 身份验证的密码 
+
+			JMail.AddRecipient email
+			'JMail.AddRecipient emailname, emailaddr'加入新的收件人 
+			JMail.Subject = emailtitle 
+			JMail.Body = emailcontent 
+			
+			JMail.HTMLBody = "<html><body style='font-size:14px;'><br>"&emailcontent 
+			JMail.appendHTML "<br><br></body></html>" 
+			JMail.Body = "很抱歉，您的邮件系统无法正常显示HTML格式信件。" 
+			JMail.appendText " " 
+			
+			if JMail.Send( my_smtp ) then '执行邮件发送（通过邮件服务器地址） 
+				'response.Write 2'成功
+			else 
+				'response.Write 1'失败
+			end if 
+			JMail.Close() 
+		Set JMail = Nothing 
+	End function
+	%>
+	

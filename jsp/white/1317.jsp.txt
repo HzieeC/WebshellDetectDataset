@@ -1,0 +1,192 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<%@ page contentType="text/html;charset=GBK"%>
+<%@ page import="com.trade.website.WebsiteInfo"%>
+<%@ page import="java.util.*"%>
+<%!
+	public String getStringMap(String fieldName,Hashtable map){
+		if(map.get(fieldName)!=null){
+			return map.get(fieldName).toString();
+		}else{
+			return "";
+		}
+	}
+%>
+<%
+	String web_id = "";
+	if(request.getParameter("web_id")!=null){
+		web_id = request.getParameter("web_id");
+	}
+	WebsiteInfo websiteInfo = new WebsiteInfo();
+	Hashtable webMap = websiteInfo.getWebsiteInfoByPk(web_id);
+	String web_name="",keywords="",description="",tem_path="",save_dir="",default_page="",state_code="",file_dir="";
+	web_name = getStringMap("web_name",webMap);
+	file_dir = getStringMap("file_dir",webMap);
+	keywords = getStringMap("keywords",webMap);
+	description = getStringMap("description",webMap);
+	tem_path = getStringMap("tem_path",webMap);
+	save_dir = getStringMap("save_dir",webMap);
+	default_page = getStringMap("default_page",webMap);
+	state_code = getStringMap("state_code",webMap);
+%>
+
+<html>
+	<head>
+		<title>新增网站</title>
+		<link href="/style/layout.css" rel="stylesheet" type="text/css">
+		<link rel="stylesheet" rev="stylesheet" href="/style/admin.css" type="text/css" />
+		<link rel="stylesheet" rev="stylesheet" href="/style/content.css" type="text/css" />
+
+		<script type="text/javascript">
+				function submitInfo(){
+					if(document.getElementById('web_name').value == ''){
+						alert('请输入网站名称！');
+						document.getElementById('web_name').focus();
+						return false;
+					}
+					if(document.getElementById('tem_path').value == ''){
+						alert('请选择首页模板路径！');
+						document.getElementById('tem_path').focus();
+						return false;
+					}
+					if(document.getElementById('file_dir').value == ''){
+						alert('请输入模板文件所属文件夹！');
+						document.getElementById('file_dir').focus();
+						return false;
+					}
+					if(document.getElementById('save_dir').value == ''){
+						alert('请输入首页文件保存路劲！');
+						document.getElementById('save_dir').focus();
+						return false;
+					}
+					if(document.getElementById('default_page').value == ''){
+						alert('请输入网站首页生成后的默认名称！');
+						document.getElementById('default_page').focus();
+						return false;
+					}
+				}
+		</script>
+	</head>
+ <body>
+	 <div id="main">
+		<form name="menuForm" id="menuForm" action="/doTradeReg.do" method="post" target="_self">
+		   <div id="contentfloat">
+		     <div id="content">		
+			   <div class="right_title">新增网站</div>
+			   <br>		
+				<div id="sale-list" style="display:block" align="center">
+			     <table width="100%" border="0" cellspacing="1" cellpadding="0" align="center" class="bg">
+					<tr>
+						<td align="right" width="15%">						   
+								<font style="margin-left:25px;text-align:right; font-weight:bold;">网站名称<font color="red">*</font> </font>	    
+						</td>		
+						
+						<td colspan="5" align="left">						   
+								<input name="web_name" type="text" id="web_name" value="<%=web_name%>" size="30" maxlength="100" />				    
+						</td>					
+						
+						
+						
+					</tr>
+					
+					<tr>
+						<td align="right" width="15%">						    
+							   <font style="margin-left:42px;text-align:right; font-weight:bold;">关键字：</font>						    
+						</td>
+						
+						<td colspan="5" align="left">						    
+								<input name="keywords" type="text" id="keywords" value="<%=keywords%>" size="30" maxlength="200">							    
+						</td>
+					</tr>
+
+					
+					<tr>
+						<td align="right" width="15%">						    
+							   <font style="left:10px; font-weight:bold;">描述： </font>
+						</td>
+						
+						<td colspan="5" align="left">						    
+									<textarea rows="5" cols="40" name="description"><%=description%></textarea>
+						</td>
+					</tr>
+					
+					<tr>
+						<td align="right" width="15%">						    
+							   <font style=" margin-left:29px;text-align:right; font-weight:bold;">首页模板路径<font color="red">*</font>
+							   
+						</td>
+						<td colspan="5" align="left">				
+						<table border="0" cellpadding="0" cellspacing="0"><tr><td>
+							
+							<input name="tem_path" type="text" id="tem_path" value="<%=tem_path%>" size="50" maxlength="100" readonly="readonly" />
+							
+							</td>
+					<td>
+						
+						<input type="button" onClick="open('/trade/manager/channel/filelist.jsp?id=tem_path','file','height=400,width=400,toolbar=0,status=0,scroll=yes')" value="浏览"/>	
+						
+						</td></tr></table>
+								
+						</td>
+					</tr>
+					
+					
+					<tr>
+						<td align="right" width="15%">						    
+							   <font style="text-align:right; font-weight:bold;"> 模板文件所属文件夹<font color="red">*</font></font>			
+						</td>
+						
+						<td colspan="5" align="left">						    
+								<input name="file_dir" type="text" id="file_dir" size="50" maxlength="100" value="<%=file_dir%>"/>  										    
+						</td>
+					</tr>
+					
+					<tr>
+						<td align="right" width="15%">						    
+							   <font style="text-align:right; font-weight:bold;"> 文件保存路劲<font color="red">*</font></font>			
+						</td>
+						
+						<td colspan="5" align="left">						    
+								<input name="save_dir" type="text" id="save_dir" size="50" maxlength="100" value="<%=save_dir%>"/>  										    
+						</td>
+					</tr>
+					
+					<tr>
+						<td align="right" width="15%">						    
+							  <font style="margin-left:26px;text-align:right; font-weight:bold;">默认页<font color="red">*</font></font>	
+						</td>
+						
+						<td colspan="5" align="left">						    
+								<input type="text"  id="default_page" name="default_page" value="<%=default_page%>" size="30" maxlength="50"/>							    
+						</td>
+					</tr>
+					
+					<tr>
+						<td align="right" width="15%">						    
+							   <font style=" text-align:left; font-weight:bold;">是否启用：</font>
+						</td>						
+						<td colspan="5" align="left">						    
+								<input name="state_code" type="radio" value="0" <%if(state_code.equals("0"))out.println("checked");%> />启用
+								<input name="state_code" type="radio" value="1" <%if(state_code.equals("1"))out.println("checked");%>/>关闭  
+								<input name="trade_type_code" type="hidden" id="trade_type_code" value="6223" />
+								<input name="web_id" type="hidden" value="<%=web_id%>" />
+						</td>
+					</tr>
+
+					<td bgcolor="#FFFFFF" align="left" height="50" colspan="4">
+						
+						<input class="submitButton" value="提交信息" style="margin-left:180px;" name="bnt" type="submit" value="" onclick="return submitInfo()">
+						<input class="submitButton" value="返    回" name="button" type="button" onClick="location.href='index.jsp'" style="cursor:hand;">
+						
+						
+					</td>
+				</tr>
+				</table>				
+			</div>
+			 
+		  </div>
+		</div>
+	  </form>
+    </div>	
+</body>
+</html>

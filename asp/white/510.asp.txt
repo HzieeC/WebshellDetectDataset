@@ -1,0 +1,121 @@
+<%
+'连接数据库
+Dim conn,connstr
+'on error resume next
+'connstr="DBQ="+server.mappath("#Date.mdb")+";DefaultDir=;DRIVER={Microsoft Access Driver (*.mdb)};"'数据库连接地址
+connstr = "DBQ="&server.mappath("#Date.mdb")&";DRIVER={Microsoft Access Driver (*.mdb)};"
+set conn=server.createobject("ADODB.CONNECTION")
+conn.open connstr
+
+dim Ip,Zday,Counter,CountemRs,Today,Daynum,Yesterday,Top,TopIp,Stats,Browser
+	Ip = Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+	If Ip = "" Then Ip = Request.ServerVariables("REMOTE_ADDR")
+
+Set mRs=Server.CreateObject("adodb.recordSet")
+Sql="Select * from [Counter]"
+mRs.open Sql,conn,1,3
+
+'判断最高IP量是否大于数据库记录,如果大于替换为当前记录
+If mRs("TopIp")<mRs("Today") then
+	mRs("TopIp")=mRs("Today")
+	mRs.update
+End If
+
+'判断最高浏览量是否大于数据库记录,如果大于替换为当前记录
+If mRs("Top")<mRs("Browser") then
+	mRs("Top")=mRs("Browser")
+	mRs.update
+End If
+
+'判断日期是否为今天
+If mRs("Oto")<>date() then
+	'日期为当前时间-1
+	Zday=date()-1
+
+	'将今日IP,今日浏览改为0;日期改为当前日期,统计天数+1,昨日IP访问量改变
+	conn.Execute"Update [Counter] Set Today=0,Browser=0,Oto=date(),Daynum=Daynum+1,YesterdayIp="& mRs("Today") &",Yesterday="& mRs("Browser") &""
+
+	'新增总访问天数,每天的IP数,每天的访问量
+	conn.Execute"Insert into [Day](Zday,Stats,Browser) values ('"& Zday &"',"& mRs("Today") &","& mRs("Browser") &")"
+
+	'删除所有IP
+	conn.Execute"delete from [Ip]"
+Else
+	'今日浏览量+1,总访问人数+1
+	conn.Execute"Update [Counter] Set Browser=Browser+1,Counter=Counter+1"
+End If
+
+'关闭记录集
+mRs.close
+Set mRs=nothing
+
+'打开IP数据库,将当前IP写入数据库
+Set mRs=Server.CreateObject("adodb.recordSet")
+Sql="Select * from [Ip] where IP='"& Ip &"' order by Id desc"
+mRs.open Sql,conn,1,3
+	If mRs.bof and mRs.eof then
+		mRs.addnew
+		mRs("IP")=Ip
+		mRs.update
+		'今日IP访问量+1
+		conn.Execute"Update [Counter] Set Today=Today+1,CounterIp=CounterIp+1"
+	End If
+
+'关闭记录集及数据库
+mRs.close
+Set mRs=nothing
+conn.close
+Set conn=nothing
+%>
+
+<%
+Dim RefreshTime, IdleTime, TotalUsers, OnlineUser(), Tmp(), Num, I, ID
+RefreshTime = 10           '设置网页自动更新时间为10秒
+IdleTime = RefreshTime * 3 '设置闲置时间为自动更新时间的3倍
+Application.Lock
+
+'清点所有连线到此网页的浏览器，然后将目前打开的浏览器的SessionID放入数组的最后面
+If Application(Session.SessionID & "LastAccessTime") = Empty Then
+If Application("TotalUsers") = Empty Then Application("TotalUsers") = 0
+ReDim Tmp(Application("TotalUsers") + 1)
+Num = 0
+If Application("TotalUsers") > 0 Then
+    For I = LBOUND(Application("OnlineUser")) To UBOUND(Application("OnlineUser"))
+      ID = Application("OnlineUser")(I)
+      If ID <> Session.SessionID Then
+        Tmp(Num) = ID
+        Num = Num + 1
+      End If
+    Next
+End If
+Tmp(Num) = Session.SessionID
+Application("TotalUsers") = Num + 1
+ReDim Preserve Tmp(Application("TotalUsers"))
+Application("OnlineUser") = Tmp
+End If
+
+'记录目前打开的浏览器的最近存取时间
+Application(Session.SessionID & "LastAccessTime") = Timer
+
+'检查所有连线到此网页的浏览器的最近存取时间，若与目前时间相差30秒以上，表示离线
+ReDim Tmp(Application("TotalUsers"))
+Num = 0
+For I = 0 To Application("TotalUsers") - 1
+ID = Application("OnlineUser")(I)
+If (Timer - Application(ID & "LastAccessTime")) < IdleTime Then
+    Tmp(Num) = ID
+    Num = Num + 1
+Else
+    Application(ID & "LastAccessTime") = Empty
+End If
+Next
+
+'Num表示目前在线人数，若与Application("TotalUsers")不同，表示中间有人离线
+If Num <> Application("TotalUsers") Then
+ReDim Preserve Tmp(Num)
+Application("OnlineUser") = Tmp
+Application("TotalUsers") = Num
+End If
+
+Application.UnLock
+%>

@@ -1,0 +1,191 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%  String basePath = request.getContextPath();%>
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>在线文字排版工具，排版助手</title>
+<meta name="keywords" content="在线文字排版工具，排版助手" />
+<meta name="description" content="专业的在线文字排版工具，排版助手。">
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<script type="text/javascript" charset="utf-8" src="<%=basePath%>/admin/ueditor.config.js"></script>
+<script type="text/javascript" charset="utf-8" src="<%=basePath%>/admin/ueditor.all.min.js"></script>
+<!--建议手动加在语言，避免在ie下有时因为加载语言失败导致编辑器加载失败-->
+<!--这里加载的语言文件会覆盖你在配置项目里添加的语言类型，比如你在配置项目里配置的是英文，这里加载的中文，那最后就是中文-->
+<script type="text/javascript" charset="utf-8" src="<%=basePath%>/admin/lang/zh-cn/zh-cn.js"></script>
+<script src="<%=basePath%>/js/jquery-1.7.1.min.js"></script>
+<link rel="stylesheet" type="text/css" href="<%=basePath%>/css/buttons.css" />
+<link rel="stylesheet" href="<%=basePath%>/css/bootstrap-combined.min.css">
+<link rel="stylesheet" type="text/css" href="<%=basePath%>/css/all.css" />
+<style type="text/css">
+	.header_daohang_ul_style{
+		margin:0px;
+		padding:0px;
+	}
+</style>
+</head>
+<body>
+
+<div class="kjwidth">
+	<h4 class="header_h">在线文字排版工具，排版助手</h4>
+</div>
+<!-- 导航栏 -->
+
+<!-- 导航栏END -->
+
+	<div class="kjwidth">
+		<br />
+		<div>
+			<button style="float:right;" onclick="fabiao();" class="btn" type="button">新增</button>
+			<button style="float:right;" onclick="modifyy();" class="btn" type="button">修改</button>
+			<button style="float:right;" onclick="deletee();" class="btn" type="button">删除</button>
+			<button style="float:right;" onclick="fanhuiyixia();" class="btn" type="button">返回</button>
+			
+			<!-- 文章列表 -->
+			<jsp:include page="../view/templete/admin_header.jsp" />
+			<!-- 文章列表 -->
+			
+			<br />
+			<br />
+			<!-- 新增或修改文章的表单 -->
+			<form action="" method="post">
+				<h4>文章标题：</h4><br />
+				<input type="text" id="title" name="title" value="${title}" style="width: 50%;" /><br />
+				<input type="hidden" id="text" name="text" />
+				<input type="hidden" id="theId" name="theId" value="${id}" />
+			</form>
+			
+			<!-- 点击修改文章的表单 -->
+			<form action="" method="get">
+				<input type="hidden" id="articleId" name="articleId" /><br />
+			</form>
+			
+			<!-- 编辑器 -->
+			<script id="editor" type="text/plain" style="width:100%;height:450px;">
+				${text}
+			</script>
+		</div>
+		<div id="btns">
+			<div>
+				<button class="btn" onclick="getAllHtml()">获得整个html的内容</button>
+				<button class="btn" onclick="getContent()">获得内容</button>
+				<button class="btn" onclick="setContent()">写入内容</button>
+				<button class="btn" onclick="setContent(true)">追加内容</button>
+				<button class="btn" onclick="getContentTxt()">获得纯文本</button>
+				<button class="btn" onclick="getPlainTxt()">获得带格式的纯文本</button>
+				<button class="btn" onclick="hasContent()">判断是否有内容</button>
+				<button class="btn" onclick="setFocus()">使编辑器获得焦点</button>
+				<button class="btn" onmousedown="isFocus(event)">编辑器是否获得焦点</button>
+				<button class="btn" onmousedown="setblur(event)">编辑器失去焦点</button>
+			</div>
+			<div>
+				<button class="btn" onclick="getText()">获得当前选中的文本</button>
+				<button class="btn" onclick="insertHtml()">插入给定的内容</button>
+				<button class="btn" id="enable" onclick="setEnabled()">可以编辑</button>
+				<button class="btn" onclick="setDisabled()">不可编辑</button>
+				<button class="btn" onclick=" UE.getEditor('editor').setHide()">隐藏编辑器</button>
+				<button class="btn" onclick=" UE.getEditor('editor').setShow()">显示编辑器</button>
+				<button class="btn" onclick=" UE.getEditor('editor').setHeight(300)">设置高度为300默认关闭了自动长高</button>
+			</div>
+			<div>
+				<button class="btn" onclick="getLocalData()">获取草稿箱内容</button>
+				<button class="btn" onclick="clearLocalData()">清空草稿箱</button>
+			</div>
+		</div>
+		<div>
+			<button class="btn" onclick="createEditor()">创建编辑器</button>
+			<button class="btn" onclick="deleteEditor()">删除编辑器</button>
+		</div>
+		<br />
+	</div>
+
+	<script type="text/javascript" charset="utf-8" src="<%=basePath%>/admin/editor_buttons.js"></script>
+	<script type="text/javascript">
+	
+	//是新增n，还是修改m
+	var pageType = 'n';
+
+	//发表文章
+	function fabiao(){
+		//新增状态
+		if(pageType=='n'){
+			document.forms[0].action="<%=basePath%>/admin/addartic";
+			$('#text').val(UE.getEditor('editor').getContent());
+			
+			var titlee = $('#title').val();
+			var textt = $('#text').val();
+			
+			if($.trim(titlee)==''||$.trim(textt)==''){
+				alert('请输入内容！！！');
+				return;
+			}
+			
+			document.forms[0].submit();
+		}else{
+			alert('此时为修改状态！！！');
+		}
+	}
+	
+	//发表状态
+	$(document).ready(function() {
+		if ('${isTrue}' != '') {
+			alert('${isTrue}');
+		}
+		
+		//修改过来的
+		if("${pageType}"=='m'){
+			//页面状态
+			pageType = 'm';
+		}
+
+	});
+	
+	//点击文章标题方法，提交第二个表单，查询文章内容显示
+	function clickArticle(id){
+		document.forms[1].action="<%=basePath%>/admin/showUpdateArticle";
+		$('#articleId').val(id);
+		document.forms[1].submit();
+	}
+	
+	//修改文章内容
+	function modifyy(){
+		if(pageType=='m'){
+			document.forms[0].action="<%=basePath%>/admin/updateArticle";
+			$('#text').val(UE.getEditor('editor').getContent());
+			
+			var titlee = $('#title').val();
+			var textt = $('#text').val();
+			
+			if($.trim(titlee)==''||$.trim(textt)==''){
+				alert('请输入内容！！！');
+				return;
+			}
+			
+			document.forms[0].submit();
+		}else{
+			alert('此时为新增状态！！！');
+		}
+	}
+	
+	//删除文章
+	function deletee(){
+		if(pageType=='m'){
+			document.forms[0].action="<%=basePath%>/admin/deleteArticle";
+			document.forms[0].submit();
+		}else{
+			alert('此时为新增状态！！！');
+		}
+		
+	}
+	
+	//返回
+	function fanhuiyixia(){
+		window.location.href = '<%=basePath%>/admin/adminEditor.jsp';
+		pageType='m';
+		$('#title').val();
+		$('#text').val();
+	}
+	
+	
+	</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<%@ page language="java" import="java.util.*" pageEncoding="utf-8"%>
+<%@ taglib prefix="s" uri="/struts-tags" %>
+<%
+String path = request.getContextPath();
+String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
+%>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <base href="<%=basePath%>">
+    
+    <title>My JSP 'ad.jsp' starting page</title>
+    
+	<meta http-equiv="pragma" content="no-cache">
+	<meta http-equiv="cache-control" content="no-cache">
+	<meta http-equiv="expires" content="0">    
+	<meta http-equiv="keywords" content="keyword1,keyword2,keyword3">
+	<meta http-equiv="description" content="This is my page">
+	<!--
+	<link rel="stylesheet" type="text/css" href="styles.css">
+	-->
+	   <style type="text/css">
+<!--
+body {
+	margin-top: 0px;
+}
+.STYLE1 {color: #000000}
+#rotateAdv_1 {position:relative;width:700px;height:270px;overflow:hidden}
+-->
+    </style>
+<script type="text/javascript" src="js/jquery-1.2.6.js"></script>
+<script type="text/javascript" src="js/home.js"></script>
+<link rel="stylesheet" type="text/css" href="css/home.css" />
+<style type="text/css">
+ #rotateAdv_1{
+	position: relative;
+	width: 700px;
+	height: 271px;
+	overflow: hidden
+}
+ #playNum_1 li.curr{width:325px;background:#f60;}
+  </style>	
+  <style type="text/css">
+@charset "utf-8";
+/* 全局样式 */
+html, body, div, span, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, a, address, big, cite, code, del, em, font, img, ins, small, strong, var, b, u, i, center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, button, input, textarea, table, th, td { padding: 0; margin: 0; }
+h1, h2, h3, h4, h5, h6 { font-size: 12px; font-weight: normal; }
+div { margin: 0 auto; }
+body { background: url(../images/bg.jpg); }
+div { text-align: left; }
+a img { border: 0; }
+table { border-collapse: collapse; border-spacing: 0; }
+select, input, textarea { font: 12px "宋体"; outline: none; }
+body { color: #333; text-align: center; font: 12px "宋体"; }
+ul, ol, li { list-style-type: none; vertical-align: 0; }
+a { outline-style: none; color: #333; text-decoration: none; }
+a, area { blr:expression(this.onFocus=this.blur())
+}
+:focus { -moz-outline-style: none; }
+.clear { clear: both; }
+.hidden { display: none; }
+.block { display: block; }
+.ht10px { height: 10px; font-size: 0px; line-height: 0px; }
+.ht4px { height: 4px; font-size: 0px; line-height: 0px; }
+.left { float: left }
+.right { float: right }
+.changeList { height: 239px; width: 248px; margin-top: 10px; border: 1px #dddddd solid; font-family: Arial; }
+.changeList-top { background: url(images/scTitleGg.gif) no-repeat top; height: 37px; width: 248px }
+.changeList dt { display: block; height: 37px; width: 236px; padding-left: 10px; text-align: left; line-height: 37px; float: left; background-color: #efefef; margin-left: 1px; margin-bottom: 1px; background: url(images/shuBg.gif) repeat-x top; }
+.changeList dt p { float: left; color: #757575; }
+.changeListText { float: left; height: 41px; width: 200px; margin-left: 10px; padding-top: 8px; text-align: left; }
+.changeListText a { line-height: 18px; color: #FFF; }
+.changeList dd { float: left; height: 49px; width: 246px; margin-bottom: 1px; display: block; background-color: #c20000; margin-left: 1px; cursor: pointer; }
+.changeList h1 { display: block; float: right; height: 49px; width: 29px }
+.changeList em { float: right; height: 37px; width: 29px; display: block }
+  </style>
+<script type="text/javascript">
+ function changebox(n) {
+ 		var i = 1;
+ 		while(true){
+			try{
+				document.getElementById("a"+i).style.display = 'none';
+				document.getElementById("b"+i).style.display = 'block';	
+			}
+			catch(e){
+				break;
+			}
+			i++;
+		}
+		document.getElementById("a"+n).style.display = 'block';
+		document.getElementById("b"+n).style.display = 'none';
+ }
+</script>
+  </head>
+  
+  <body>
+  <center>
+          <div id="rotateAdv_1">      		             
+            <ol id="playShow_1">
+            	  <s:iterator value="pageBean.list11">     
+              <li style="display:;"> <a href="<s:property value="url"/>"><img src="<s:property value="pic"/>" width="50" height="50"/><br><s:property value="title"/></a></li>
+              </s:iterator>    
+            </ol>
+            <!--  <ul id="playNum_1">
+              <li class data-num="1"><s:property value="id"/><span><s:property value="title"/></span></li>       
+            </ul>-->     
+            <span id="scroller-prev" class="scroller-prev arrow" style="left:-50px;"> </span> <span id="scroller-next" class="scroller-next arrow" style="right:-50px;"> </span></div>
+        </center>
+         <script type="text/javascript">
+  var tt_1=0,n_1=0,count_1=8
+        </script>
+  </body>
+</html>

@@ -1,0 +1,95 @@
+<!--#include file="Conn.asp" -->
+<!--#include file="Comm/Site_Class.asp" -->
+<%
+Response.Expires = -1 
+Response.ExpiresAbsolute = Now() - 1 
+Response.cachecontrol = "no-cache"
+
+If Session("ComId") = "" Or Session("UserType") <> "Company" Then
+	strMsg = "只有企业用户才能进行此操作，请先登录"
+Else
+
+	Set Qsite = New Site_Class
+	Qsite.SiteConfig()
+	Qsite.arrMember = Qsite.Member_Info()
+
+	Dim PerId,RecruitId,strMsg,thisDate
+	Dim SendMsQuantity
+	Dim SendFlag
+	Dim Fso,objFile
+	Dim IsLock
+	
+	Set Rs = Conn.Execute("select * from CompanyTbl where ComId = "& Session("ComId"))
+	If Rs.Eof Then
+		IsLock = "1"
+	Else
+		IsLock = Rs("IsLock")
+	End If
+	Set Rs = Nothing
+	
+	thisDate = Qsite.FormatDate(Now())
+
+	PerId = Trim(Request.QueryString("PerId"))
+	RecruitId = Trim(Request.QueryString("RecruitId"))
+	
+	If IsLock = "1" Then
+		strMsg = "您的帐号已被管理员锁定，暂时无法使用此功能！"
+	Else
+		If Qsite.arrMember(10 , Session("MemberType")) <> "1" Then
+			strMsg = "您当前的会员类型无法使用此功能，请联系我们的管理员升级您的帐号！"
+		Else
+			
+			
+			Set Rs = Conn.Execute("select * from CompanyTbl where ComId = "& Session("ComId"))
+			If Not Rs.Eof Then
+				SendMsQuantity = Rs("SendMsQuantity")
+			End If
+			Set Rs = Nothing
+			If SendMsQuantity = "" Or Not IsNumeric(SendMsQuantity) Then
+				strMsg = "操作失败！"
+			Else
+				If Cint(SendMsQuantity) >= Qsite.arrMember(11 , Session("MemberType")) Then
+					strMsg = "您的面试邀请的数量已经达到上限，请联系我们的管理员升级您的帐号！"
+				Else
+					If PerId = "" Or IsNull(PerId) Or Not IsNumeric(PerId) Then
+						strMsg = "请先选择要邀请面试的简历"
+					Else
+						If RecruitId = "" Or IsNull(RecruitId) Or Not IsNumeric(RecruitId) Then
+							strMsg = "请先选择招聘职位"
+						Else
+							Set Rs = Conn.Execute("select * from PersonBoxTbl where ComId = "& Session("ComId") &" and PerId = "& PerId &" and RecruitId = "& RecruitId)
+							If Not Rs.Eof Then
+								If Qsite.FormatDate(FormatDateTime(Rs("SendDate") , 2)) = Qsite.FormatDate(FormatDateTime(thisDate , 2)) Then
+									strMsg = "一天内同一职位邀请同一个人只能邀请一次"
+								Else
+									Conn.Execute("insert into PersonBoxTbl (ComId , PerId , RecruitId , SendDate , IsRead) values ("& Session("ComId") &" , "& PerId &" , "& RecruitId &" , '"& thisDate &"' , '0')")
+									
+									Conn.Execute("insert into CompanySendBoxTbl (ComId , PerId , RecruitId , SendDate) values ("& Session("ComId") &" , "& PerId &" , "& RecruitId &" , '"& thisDate &"')")
+									Conn.Execute("update CompanyTbl set SendMsQuantity = SendMsQuantity + 1 where ComId = "& Session("ComId"))
+									
+									strMsg = "操作成功，已成功发送面试邀请"
+									SendFlag = True
+								End If
+							Else
+								Conn.Execute("insert into PersonBoxTbl (ComId , PerId , RecruitId , SendDate , IsRead) values ("& Session("ComId") &" , "& PerId &" , "& RecruitId &" , '"& thisDate &"' , '0')")
+									
+								Conn.Execute("insert into CompanySendBoxTbl (ComId , PerId , RecruitId , SendDate) values ("& Session("ComId") &" , "& PerId &" , "& RecruitId &" , '"& thisDate &"')")
+								
+								Conn.Execute("update CompanyTbl set SendMsQuantity = SendMsQuantity + 1 where ComId = "& Session("ComId"))
+								
+								strMsg = "操作成功，已成功发送面试邀请"
+								SendFlag = True
+							End If
+							Set Rs = Nothing
+						End If
+					End If
+				End If
+			End If
+		End If
+	End If
+End If
+%>
+<script language="javascript">
+	alert("<%=strMsg%>");
+	window.close();
+</script>

@@ -1,0 +1,33 @@
+﻿<%
+Function RemoveFromStart( sourceString, charToRemove )
+	Dim oRegex
+	Set oRegex = New RegExp
+	oRegex.Pattern = "^" & charToRemove & "+"
+
+	RemoveFromStart = oRegex.Replace( sourceString, "" )
+End Function
+
+Function RemoveFromEnd( sourceString, charToRemove )
+	Dim oRegex
+	Set oRegex = New RegExp
+	oRegex.Pattern = charToRemove & "+$"
+
+	RemoveFromEnd = oRegex.Replace( sourceString, "" )
+End Function
+
+Function ConvertToXmlAttribute( value )
+	ConvertToXmlAttribute = Replace( value, "&", "&amp;" )
+End Function
+
+Function InArray( value, sourceArray )
+	Dim i
+	For i = 0 to UBound( sourceArray )
+		If sourceArray(i) = value Then
+			InArray = True
+			Exit Function
+		End If
+	Next
+	InArray = False
+End Function
+
+%>

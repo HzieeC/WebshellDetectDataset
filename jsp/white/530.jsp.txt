@@ -1,0 +1,247 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<head>
+	<title>编辑投诉单</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/default/easyui.css">
+	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/common/common.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/goodsComplaints/edit_goodsComplaints.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/common/upload.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/ckeditor/ckeditor.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/My97DatePicker/WdatePicker.js"></script>
+	<style type="text/css">
+		.tabtop {
+			height:40px;
+			font-size:10px;
+		}
+		.tabtop .title {
+			font-size:10px;
+			font-weight:bold;
+		}
+		.clearfloat { /* 此类应当放在 div 或 break 元素上，而且该元素应当是完全包含浮动的容器关闭之前的最后一个元素 */
+			clear:both;
+   			height:0;
+    		font-size: 1px;
+    		line-height: 0px;
+		}
+		.border {
+			font-size:12px;
+    		border:1px solid #90B9DE;
+		}
+		.bordertd {
+			font-size:12px;
+		}
+	</style>
+</head>
+
+<body>
+    <table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+					<form id="goodsComplaintsForm" method="post" action="">
+			    		<s:hidden name="goodsComplaints.id" id="id" />
+			    		<s:hidden name="goodsComplaints.creatorId" />
+			    		<s:hidden name="goodsComplaints.creatorName" />
+			    		<s:hidden name="goodsComplaints.createTime" />	
+			    		<s:hidden name="goodsComplaints.modifierId" />
+			    		<s:hidden name="goodsComplaints.modifierName" />
+			    		<s:hidden name="goodsComplaints.state" id="state"/>
+			    		<s:hidden name="goodsComplaints.modifyTime" />	
+			    		<s:hidden name="imgIdStr" id="imgIdStr"/>		
+								<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">
+						    	   
+						    	   <tr>
+						    	   		<td>
+						    	   			<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">
+						    	   				<tr>
+					    	   						<td class='gridtitle' ><s:text name="editgoodsComplaints.Complaintsorder"/></td>
+													<td class='gridbody' >
+														<s:textfield  name="goodsComplaints.code" id="code"/>
+													</td>
+													<td  class='gridtitle'><s:text name="editgoodsComplaints.ContractNo"/></td>
+													<td class='gridbody' >
+														<s:textfield name="goodsComplaints.contractNumber" id="contractNumber" />
+													</td>
+													<td  class='gridtitle'><s:text name="editgoodsComplaints.Whichitem"/></td>
+													<td class='gridbody' >
+														<s:textfield name="goodsComplaints.few" id="few" />
+													</td> 
+						    	   				</tr>
+						    	   			</table>	
+						    	   		</td>      
+									</tr>
+									<tr>
+										<td>
+											<table width="100%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">
+												<tr>
+													<td  class='gridtitle'><s:text name="editgoodsComplaints.Machinemodel"/></td>
+													<td class='gridbody'>
+													<input type="text" style="width:220px;" name="goodsComplaints.machineModel" id="machineModel" value="${goodsComplaints.machineModel}" />
+													</td>	
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Moldtype"/></td>
+													<td class='gridbody' >
+														<select name="goodsComplaints.moldTypes" id="moldTypes" >
+															<option value="" <c:if test="${goodsComplaints.moldTypes == null }"  >selected</c:if>>---<s:text name="PleaseSelect"/>---</option>
+															<option value="HT" <c:if test="${goodsComplaints.moldTypes == 'HT' }"  >selected</c:if>>HT</option>
+															<option value="BT" <c:if test="${goodsComplaints.moldTypes == 'BT' }"  >selected</c:if>>BT</option>
+															<option value="TK" <c:if test="${goodsComplaints.moldTypes == 'TK' }"  >selected</c:if>>TK</option>
+															<option value="WDM" <c:if test="${goodsComplaints.moldTypes == 'WDM' }"  >selected</c:if>>WDM</option>
+															<option value="SAL" <c:if test="${goodsComplaints.moldTypes == 'SAL' }"  >selected</c:if>>SAL</option>
+														</select>
+													</td>			
+												</tr>
+												<tr>
+<!--													<td  class='gridtitle'>主传动形式</td>-->
+<!--													<td class='gridbody'>-->
+<!--														<select name="goodsComplaints.mainDriveForm" id="mainDriveForm">-->
+<!--															<option value="" <c:if test="${goodsComplaints.mainDriveForm == null }"  >selected</c:if>>---请选择---</option>-->
+<!--															<option value="机械" <c:if test="${goodsComplaints.mainDriveForm == '机械' }"  >selected</c:if>>机械</option>-->
+<!--															<option value="液压" <c:if test="${goodsComplaints.mainDriveForm == '液压' }"  >selected</c:if>>液压</option>-->
+<!--															<option value="伺服" <c:if test="${goodsComplaints.mainDriveForm == '伺服' }"  >selected</c:if>>伺服</option>-->
+<!--														</select>-->
+<!--													</td>	-->
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Thepunchstructure"/></td>
+													<td class='gridbody'>
+													<input type="text" style="width:220px;" name="goodsComplaints.punchStructure" id="punchStructure" value="${goodsComplaints.punchStructure}"/>
+													</td>			
+<!--												</tr>-->
+<!--												<tr>-->
+<!--													<td class='gridtitle'>机床新旧程度</td>-->
+<!--													<td class='gridbody'>													-->
+<!--														<select name="goodsComplaints.machineCondition" id="machineCondition">-->
+<!--															<option value="" <c:if test="${goodsComplaints.machineCondition == null }"  >selected</c:if>>---请选择---</option>-->
+<!--															<option value="1-2年" <c:if test="${goodsComplaints.machineCondition == '1-2年' }"  >selected</c:if>>1-2年</option>-->
+<!--															<option value="3-5年" <c:if test="${goodsComplaints.machineCondition == '3-5年' }"  >selected</c:if>>3-5年</option>-->
+<!--															<option value="6年以上" <c:if test="${goodsComplaints.machineCondition == '6年以上' }"  >selected</c:if>>6年以上</option>-->
+<!--														</select>-->
+<!--													</td>	-->
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Shapespecifications"/></td>
+													<td class='gridbody'>
+													<input type="text" style="width:220px;" name="goodsComplaints.shape" id="shape" value="${goodsComplaints.shape}"/>
+													</td>	
+												</tr>
+												<tr>
+													<td class='gridtitle'><s:text name="editgoodsComplaints.ThicknessOfSlab"/>(mm)</td>
+													<td class='gridbody'>
+													<input type="text" style="width:220px;" name="goodsComplaints.thickness" id="thickness" value="${goodsComplaints.thickness}"/>
+													</td>	
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Backlash"/>(mm)</td>
+													<td class='gridbody'>
+													<input type="text" style="width:220px;" name="goodsComplaints.gap" id="gap" value="${goodsComplaints.gap}"/>
+													</td>	
+												</tr>
+												<tr>
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Stampingplank"/></td>
+													<td class='gridbody' colspan="3">
+														<select name="goodsComplaints.stampingPlate" id="stampingPlate">
+															<option value="" <c:if test="${goodsComplaints.stampingPlate == null }"  >selected</c:if>>---<s:text name="PleaseSelect"/>---</option>
+															<option value="冷轧板" <c:if test="${goodsComplaints.stampingPlate == '冷轧板' }"  >selected</c:if>><s:text name="editgoodsComplaints.coldrolled"/></option>
+															<option value="不锈钢" <c:if test="${goodsComplaints.stampingPlate == '不锈钢' }"  >selected</c:if>><s:text name="editgoodsComplaints.Stainlesssteel"/></option>
+															<option value="铝板" <c:if test="${goodsComplaints.stampingPlate == '铝板' }"  >selected</c:if>><s:text name="editgoodsComplaints.aluminiumsheet"/></option>
+															<option value="热轧板" <c:if test="${goodsComplaints.stampingPlate == '热轧板' }"  >selected</c:if>><s:text name="editgoodsComplaints.HotRolledSheet"/></option>	
+														</select>
+													</td>	
+<!--													<td class='gridtitle'>维护保养</td>-->
+<!--													<td class='gridbody'>-->
+<!--														<select id="maintenance" name="goodsComplaints.maintenance" >-->
+<!--															<option value="" <c:if test="${goodsComplaints.maintenance == null }"  >selected</c:if>>---请选择---</option>-->
+<!--															<option value="好" <c:if test="${goodsComplaints.maintenance == '好' }"  >selected</c:if>>好</option>-->
+<!--															<option value="一般" <c:if test="${goodsComplaints.maintenance == '一般' }"  >selected</c:if>>一般</option>-->
+<!--															<option value="差" <c:if test="${goodsComplaints.maintenance == '差' }"  >selected</c:if>>差</option>-->
+<!--														</select>-->
+<!--													</td>	-->
+												</tr>
+												<!-- 
+												<tr >
+													<td colspan="4" class='gridtitle' style="color:red;" style="margin-left:5px;width:250px;float:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><s:text name="editgoodsComplaints.siteobservation"/></td>
+												</tr>
+												 -->
+												<tr>
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Checkwaste"/></td>
+													<td class='gridbody' colspan="3">
+													<input type="text" style="width:590px;" name="goodsComplaints.viewWaste" id="viewWaste" value="${goodsComplaints.viewWaste}"/>
+													</td>	
+												</tr>
+												<tr>
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Stampingway"/></td>
+													<td class='gridbody'>
+													<input type="text" style="width:220px;" name="goodsComplaints.punchMethods" id="punchMethods" value="${goodsComplaints.punchMethods}" />
+													</td>
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Underabearing"/></td>
+													<td class='gridbody'>
+													<input type="text" style="width:220px;" name="goodsComplaints.moldBaseSupport" id="moldBaseSupport" value="${goodsComplaints.moldBaseSupport}"/>
+													</td>					
+												</tr>
+												<tr>
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Turnonthe"/></td>
+													<td class='gridbody'>
+													<input type="text" style="width:220px;" name="goodsComplaints.wearTurretHole" id="wearTurretHole" value="${goodsComplaints.wearTurretHole}"/>
+													</td>	
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Featherkeywear"/></td>
+													<td class='gridbody'>
+													<input type="text" style="width:220px;" name="goodsComplaints.guideButtonWear" id="guideButtonWear" value="${goodsComplaints.guideButtonWear}"/>
+													</td>		
+												</tr>										
+												<tr>
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Uploadproduct"/></td>
+													<td class='gridbody' colspan="5">
+													<a href="javascript:void(0);" onclick="upload.open(this,'GoodsComplaints')"><s:text name="editgoodsComplaints.SELECTIMAGE"/></a>
+													<c:if test="${goodsComplaints.pic != null && goodsComplaints.pic != ''}">
+														<img id="pic" border="0" src="${ctx}${goodsComplaints.pic }" width="130px" height="130px"/>
+														&nbsp;&nbsp;<a href="javascript:void(0);" onclick="deletePic(this)"><s:text name="Delete"/></a>
+													</c:if>
+													<input type="hidden" name="picId" id="fileUploadId" value="${goodsComplaints.picId}" /><%-- name必须为fileUploadId --%>
+													<input type="hidden" name="goodsComplaints.pic" id="picPath"  class="picPath" value="${goodsComplaints.pic }" >
+													</td>
+												</tr>
+												<tr>
+													<td class='gridtitle'><s:text name="editgoodsComplaints.Feedback"/></td>
+													<td class='gridbody' colspan="5">
+													<s:textarea name="goodsComplaints.questions" id="questions" cols="50" rows="3"/>
+												</tr>
+												<c:if test="${goodsComplaints.state != 'd'}">
+													<tr>
+														<td class='gridtitle' style="color:red;"><s:text name="editgoodsComplaints.NCREngineering"/></td>
+														<td class='gridbody' colspan="5">
+															<s:textarea name="goodsComplaints.opinion" id="opinion" cols="50" rows="3"/>
+														</td>
+													</tr>
+												</c:if>							
+											  </table>		
+								</table>									
+					</form>
+					<center>
+							<c:if test="${loginUser.roleCode=='customer'}">
+								<input type="button" value="<s:text name="Submit"/>" onclick="javascript:submitForm();" <c:if test="${goodsComplaints.state == 's' }">disabled="disabled"</c:if> />&nbsp;&nbsp;
+							</c:if>
+							<c:if test="${loginUser.roleCode!='customer'}">
+								<input type="button" value="<s:text name="editgoodsComplaints.audit"/>" onclick="javascript:adconform();" <c:if test="${goodsComplaints.state == 's' }">disabled="disabled"</c:if>/>&nbsp;&nbsp;
+							</c:if>
+					</center>
+				</div>
+	    	</td>
+	    </tr>
+	</table>
+<!-- 语言设置-->
+<input type="hidden" id="Delete" value="<s:text name="Delete"/>"/>
+<input type="hidden" id="Savedsuccessfully" value="<s:text name="Savedsuccessfully"/>"/>	
+<input type="hidden" id="Singlecomplaint" value="<s:text name="editgoodsComplaints.Singlecomplaint"/>"/>	
+<input type="hidden" id="Savefailed" value="<s:text name="Savefailed"/>"/>	
+<input type="hidden" id="Pleaseinputcomplaints" value="<s:text name="editgoodsComplaints.Pleaseinputcomplaints"/>"/>	
+<input type="hidden" id="Pleaseenteraperson" value="<s:text name="editgoodsComplaints.Pleaseenteraperson"/>"/>	
+<input type="hidden" id="Pleaseenterthecontract" value="<s:text name="editgoodsComplaints.Pleaseenterthecontract"/>"/>
+</body>
+
+</html>
+
+

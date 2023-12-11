@@ -1,0 +1,313 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="inc/conndb.asa"-->
+<!--#include file="inc/function.asp"--> 
+<%On Error Resume Next%>
+<%
+Server.ScriptTimeOut = 9999
+stat_FileUpLoad = False
+lx=Request.QueryString("lx")
+If Dreamsun_Name<>"" Then
+	getuser=conn.execute("Select id,umoney from "&userTable&" where username='"&Dreamsun_name&"'")
+	userid=getuser(0)
+	umoney=getuser(1)
+	If Int(userid)>0 And Int(umoney)>Sys_uploadMoney  Then 
+		stat_FileUpLoad = True
+	Else
+		stat_FileUpLoad = False
+		echoInfo="您尚未登录或者积分不够"&Sys_uploadMoney&",不能上传附件！"
+	End If 
+End If
+
+If stat_FileUpLoad = True Then
+	If Request.QueryString("action") = "" Then
+		If lx="mod" Then 
+			FoName="mod"
+			FiName=userid
+			UP_FileTypes="jpg,gif,png,bmp"
+			UP_FileSize="102400"
+		Else
+			FoName=DateToStr(Now(), "yem")
+			FiName=DateToStr(Now(), "YmdHIS")&"_"&userid
+			UP_FileTypes="rar,jpg,gif,png,swf,avi,wmv,wma,mp3"
+			UP_FileSize="1024000000"
+		End If
+		UP_FileType=Split(UP_FileTypes,",")
+        Set upl = Server.CreateObject("Scripting.FileSystemObject")
+		If upl.FolderExists(Server.MapPath("upload/"&FoName)) = False Then
+			upl.CreateFolder Server.MapPath("upload/"&FoName)
+        End If
+        Set upl = Nothing
+
+        Dim FileUP
+        Set FileUP = New Upload_File
+        FileUP.GetDate( -1)
+        Dim F_File, F_Type
+        Set F_File = FileUP.File("filedata")
+        F_Name = FiName&"."&F_File.FileExt
+        F_Type =FixName(F_File.FileExt)
+        If IsvalidFile(LCase(F_Type)) = False Then
+            echoInfo="类型不对"&LCase(F_Type)&",返回"
+		ElseIf F_File.FileSize > Int(UP_FileSize) Then
+			echoInfo="大小超过"&UP_FileSize/1024&"返回"
+		Else
+            F_File.SaveAs Server.MapPath("upload/"&FoName&"/"&F_Name)
+			echoInfo="ok"
+			isok="upload/"&FoName&"/"&F_Name
+			ddp_jpeg(isok)
+        End If 
+			
+		If lx="mod" Then
+			If isok<>"" Then 
+				Response.write "<SCRIPT language=javascript>parent.save.user_mod_other_txt.value='"&isok&"';</script>"
+			End If 
+			Response.Write("<div style=""padding:2px""><a href='#' onclick=""window.history.back()"">"&echoInfo&"</a>："&isok&"</div>")
+		Else
+			If isok<>"" Then 
+				response.write "{""err"":"""",""msg"":"""&isok&"""}"
+			Else
+				response.write "{""err"":"""&echoInfo&""",""msg"":""""}"
+			End If 
+			'response.write "{""err"":"""&echoInfo&""",""msg"":"""&isok&"""}"
+		End If 
+        Set F_File = Nothing
+        Set FileUP = Nothing
+'End If
+Else
+%>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gbk">
+<style type="text/css">
+body{
+margin:0px;
+font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
+font-size:12px;
+}
+</style>
+</head>
+<body class="attachmentBody">
+<%
+Response.Write("<form name=""frm"" enctype=""multipart/form-data"" method=""post"" action=""upload.asp?lx="&lx&"""><input name=""filedata"" type=""File"" size=""20"" style=""font-size:12px;border-width:1px"">&nbsp;<input type=""Submit"" name=""Submit"" value=""确定上传"" style=""font-size:12px;border-width:1px""></form>")
+End If
+Else
+	If lx="mod" Then
+		Response.Write(echoInfo)
+	Else
+		response.write "{""err"":"""&echoInfo&""",""msg"":""""}"
+	End If 
+End If 
+
+'*************************************
+'限制上传文件类型
+'*************************************
+Function IsvalidFile(File_Type)
+    IsvalidFile = False
+    Dim GName
+    For Each GName in UP_FileType
+        If File_Type = GName Then
+            IsvalidFile = True
+            Exit For
+        End If
+    Next
+End Function
+
+
+'*************************************
+'过滤文件名字
+'*************************************
+Function FixName(UpFileExt)
+    If IsEmpty(UpFileExt) Then Exit Function
+    FixName = UCase(UpFileExt)
+    FixName = Replace(FixName, Chr(0), "")
+    FixName = Replace(FixName, ".", "")
+    FixName = Replace(FixName, "ASP", "")
+    FixName = Replace(FixName, "ASA", "")
+    FixName = Replace(FixName, "ASPX", "")
+    FixName = Replace(FixName, "CER", "")
+    FixName = Replace(FixName, "CDX", "")
+    FixName = Replace(FixName, "HTR", "")
+End Function
+
+
+
+'====== Upload_5xSoft Class ====================================
+'  化境ASP无组件上传类 2.0
+'     版权归原作者所有。
+'     舜子于 2005-10-20 修改
+'============================================================
+dim Data_5xsoft
+
+Class Upload_File
+  
+dim objForm,objFile,Version
+
+Public function Form(strForm)
+   strForm=lcase(strForm)
+   if not objForm.exists(strForm) then
+     Form=""
+   else
+     Form=objForm(strForm)
+   end if
+ end function
+
+Public function File(strFile)
+   strFile=lcase(strFile)
+   if not objFile.exists(strFile) then
+     set File=new FileInfo
+   else
+     set File=objFile(strFile)
+   end if
+ end function
+
+
+Private Sub Class_Initialize 
+  dim RequestData,sStart,vbCrlf,sInfo,iInfoStart,iInfoEnd,tStream,iStart,theFile
+  dim iFileSize,sFilePath,sFileType,sFormValue,sFileName
+  dim iFindStart,iFindEnd
+  dim iFormStart,iFormEnd,sFormName
+  Version="化境HTTP上传程序 Version 2.0"
+  set objForm=Server.CreateObject("Scripting.Dictionary")
+  set objFile=Server.CreateObject("Scripting.Dictionary")
+  if Request.TotalBytes<1 then Exit Sub
+  set tStream = Server.CreateObject("adodb.stream")
+  set Data_5xsoft = Server.CreateObject("adodb.stream")
+  Data_5xsoft.Type = 1
+  Data_5xsoft.Mode =3
+  Data_5xsoft.Open
+  Data_5xsoft.Write  Request.BinaryRead(Request.TotalBytes)
+  Data_5xsoft.Position=0
+  RequestData =Data_5xsoft.Read 
+
+  iFormStart = 1
+  iFormEnd = LenB(RequestData)
+  vbCrlf = chrB(13) & chrB(10)
+  sStart = MidB(RequestData,1, InStrB(iFormStart,RequestData,vbCrlf)-1)
+  iStart = LenB (sStart)
+  iFormStart=iFormStart+iStart+1
+  while (iFormStart + 10) < iFormEnd 
+	iInfoEnd = InStrB(iFormStart,RequestData,vbCrlf & vbCrlf)+3
+	tStream.Type = 1
+	tStream.Mode =3
+	tStream.Open
+	Data_5xsoft.Position = iFormStart
+	Data_5xsoft.CopyTo tStream,iInfoEnd-iFormStart
+	tStream.Position = 0
+	tStream.Type = 2
+	tStream.Charset ="UTF-8"
+	sInfo = tStream.ReadText
+	tStream.Close
+	'取得表单项目名称
+	iFormStart = InStrB(iInfoEnd,RequestData,sStart)
+	iFindStart = InStr(22,sInfo,"name=""",1)+6
+	iFindEnd = InStr(iFindStart,sInfo,"""",1)
+	sFormName = lcase(Mid (sinfo,iFindStart,iFindEnd-iFindStart))
+	'如果是文件
+	if InStr (45,sInfo,"filename=""",1) > 0 then
+		set theFile=new FileInfo
+		'取得文件名
+		iFindStart = InStr(iFindEnd,sInfo,"filename=""",1)+10
+		iFindEnd = InStr(iFindStart,sInfo,"""",1)
+		sFileName = Mid (sinfo,iFindStart,iFindEnd-iFindStart)
+		theFile.FileName=getFileName(sFileName)
+		theFile.FilePath=getFilePath(sFileName)
+		theFile.FileExt=getFileExt(sFileName)
+		'取得文件类型
+		iFindStart = InStr(iFindEnd,sInfo,"Content-Type: ",1)+14
+		iFindEnd = InStr(iFindStart,sInfo,vbCr)
+		theFile.FileType =Mid (sinfo,iFindStart,iFindEnd-iFindStart)
+		theFile.FileStart =iInfoEnd
+		theFile.FileSize = iFormStart -iInfoEnd -3
+		theFile.FormName=sFormName
+		if not objFile.Exists(sFormName) then
+		  objFile.add sFormName,theFile
+		end if
+	else
+	'如果是表单项目
+		tStream.Type =1
+		tStream.Mode =3
+		tStream.Open
+		Data_5xsoft.Position = iInfoEnd 
+		Data_5xsoft.CopyTo tStream,iFormStart-iInfoEnd-3
+		tStream.Position = 0
+		tStream.Type = 2
+		tStream.Charset ="gb2312"
+	        sFormValue = tStream.ReadText 
+	        tStream.Close
+		if objForm.Exists(sFormName) then
+		  objForm(sFormName)=objForm(sFormName)&", "&sFormValue		  
+		else
+		  objForm.Add sFormName,sFormValue
+		end if
+	end if
+	iFormStart=iFormStart+iStart+1
+	wend
+  RequestData=""
+  set tStream =nothing
+End Sub
+
+Private Sub Class_Terminate  
+ if Request.TotalBytes>0 then
+	objForm.RemoveAll
+	objFile.RemoveAll
+	set objForm=nothing
+	set objFile=nothing
+	Data_5xsoft.Close
+	set Data_5xsoft =nothing
+ end if
+End Sub
+   
+ 
+ Private function getFilePath(FullPath)
+  If FullPath <> "" Then
+   GetFilePath = left(FullPath,InStrRev(FullPath, "\"))
+  Else
+   GetFilePath = ""
+  End If
+ End  function
+ 
+ Private function getFileName(FullPath)
+  If FullPath <> "" Then
+   GetFileName = mid(FullPath,InStrRev(FullPath, "\")+1)
+  Else
+   GetFileName = ""
+  End If
+ End  function
+ 
+ Private function getFileExt(FullPath)
+  If FullPath <> "" Then
+		GetFileExt = mid(FullPath,InStrRev(FullPath, ".")+1)
+	Else
+		GetFileExt = ""
+  End If
+ End function
+ 
+End Class
+
+Class FileInfo
+  dim FormName,FileName,FilePath,FileSize,FileType,FileStart,FileExt
+  Private Sub Class_Initialize 
+    FileName = ""
+    FilePath = ""
+    FileSize = 0
+    FileStart= 0
+    FormName = ""
+    FileType = ""
+    FileExt=""
+  End Sub
+  
+ Public function SaveAs(FullPath)
+    dim dr,ErrorChar,i
+    SaveAs=true
+    if trim(fullpath)="" or FileStart=0 or FileName="" or right(fullpath,1)="/" then exit function
+    set dr=CreateObject("Adodb.Stream")
+    dr.Mode=3
+    dr.Type=1
+    dr.Open
+    Data_5xsoft.position=FileStart
+    Data_5xsoft.copyto dr,FileSize
+    dr.SaveToFile FullPath,2
+    dr.Close
+    set dr=nothing 
+    SaveAs=false
+  end function
+  End Class
+%>

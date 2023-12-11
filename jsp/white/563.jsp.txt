@@ -1,0 +1,101 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>e购订货系统</title>
+
+
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/stop/spfl.js"></script>
+</head>
+
+<script type="text/javascript">
+		//退出系统
+		function safeLogout(){
+			var a="确定要退出吗？";
+			if(confirm(a)){
+				window.location.href = ctx+'/safeLogout.do';
+			}
+		}
+		//会员中心
+		function memberInfo(){
+			alert("您还未登陆，请先登陆！");
+			window.location.href = ctx+'/frontLogin.do';
+		}
+
+</script>
+<script type="text/javascript">
+  function submitSearch(){
+     
+     document.SearchFormName.submit();
+   
+  }
+  function lianjiesubmitSearch(op){
+     document.getElementById('SearchName').value =op;
+     document.SearchFormName.submit();
+   
+  }
+</script>
+<body>
+<div class="kuang_da">
+  <div class="dsin_btda">
+    <div class="logo">
+    <a href="${ctx }/index.do" target="_parent"><img src="${ctx }/image/logo.gif" width="240" style="padding-top:10px;" /></a></div>
+    <!-- 
+    	<c:forEach items="${advertiseList}" var="a" >
+	    		<c:if test="${a.place == '首页Logo' }"><img src="${ctx }${a.pic }" width="240" style="padding-top:10px;" /></c:if>
+	    	</c:forEach>
+     -->
+    
+    <div class="logo_yc">
+      <div class="logo_dh"><img src="${ctx }/image/dh.png" /></div>
+      <div class="logo_dhyc">
+        <div class="logo_dhyc_1">
+          <div class="logo_dh_yc_zq">
+          <c:if test="${loginCustomer !=null}">
+            <div class="logo_dh_yc_z1"><span style="color:#FF6600;">${loginCustomer.name }</span>&nbsp;,您好！欢迎登陆e购订货系统.</div>
+            </c:if>
+              <c:if test="${loginCustomer ==null}">
+            <div class="logo_dh_yc_z1"><span style="color:#FF6600;"></span>您好！请【<a href="${ctx }/frontLogin.do">登陆</a>】e购订货系统.</div>
+            </c:if>
+            
+            <c:if test="${loginCustomer !=null}">
+            <div class="logo_dh_yc_z2"><img src="${ctx }/image/logo_guc.png"  style="padding-right:5px; float:left;"/><a class="hui99" href="${ctx }/customerManager.do?customer.id=${loginCustomer.id }" target="_parent">我的账户()</a> | <a class="hui99" href="${ctx }/customerManager.do?customer.id=${loginCustomer.id }" target="_parent">即时通讯</a> | <a class="hui99" href="javascript:;" onclick="safeLogout()" target="_parent">退出</a></div>
+            </c:if>
+              <c:if test="${loginCustomer ==null}">
+            <div class="logo_dh_yc_z2"><img src="${ctx }/image/logo_guc.png"  style="padding-right:5px; float:left;"/><a class="hui99" href="${ctx }/customerManager.do" target="_parent">我的账户()</a> | <a class="hui99" href="${ctx }/customerManager.do" target="_parent">即时通讯</a></div>
+            </c:if>
+          </div>
+        </div>
+        <div class="logo_dhyc_2">
+        <form action="spfl.do" method="post" name="SearchFormName">
+          <input name="SearchName" id="SearchName" type="text"  style="width:325px; height:21px; float:left; line-height:21px;" />
+          <a href="javascript:submitSearch()" target="_parent"><img src="${ctx }/image/sousuo.png" style=" float:left;"/></a>
+          </form>
+          </div>
+        <div class="logo_dhyc_3">
+          <p class="ty STYLE1">服务热线：18655228577  0552-2066922</p>
+          <!-- <p class="ty" style="float:right;">热门搜索：<a href="javascript:void(0)" onclick="lianjiesubmitSearch('安全鞋')">安全鞋</a> <a class="red" href="javascript:void(0)" onclick="lianjiesubmitSearch('手电筒')">手电筒</a> <a href="javascript:void(0)" onclick="lianjiesubmitSearch('灭火器')">灭火器</a> <a href="javascript:void(0)" onclick="lianjiesubmitSearch('压力表')">压力表</a> <a href="javascript:void(0)" onclick="lianjiesubmitSearch('手套')">手套</a></p> -->
+        </div>
+      </div>
+    </div>
+  </div>
+  <!--头部结束-->
+  <div class="dht" style="height:auto;">
+    <div  id="daohangtiaoda1">
+      <li class="d2"><a href="${ctx }/index.do" target="_parent">首页</a></li>
+      <li class="d2"><a href="${ctx }/spfl.do" target="_parent">产品订购</a></li>
+      <li class="d2"><a href="${ctx }/gouwc.do" target="_parent">购物车</a></li>
+      <li class="d2"><a href="${ctx }/ddgl.do?1=1" target="_parent">订单管理</a></li>
+      <li class="d2"><a href="${ctx }/ddgl.do?orders.payState=0" target="_parent">付款信息</a></li>
+      
+      <li class="d2"><a href="${ctx }/thgl.do?1=1" target="_parent">退货管理</a></li>
+      <li class="d2"><a href="${ctx }/zxxw.do" target="_parent">公司新闻</a></li>
+      <li class="d2"><a href="${ctx }/about.do" target="_parent">帮助</a></li>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

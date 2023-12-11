@@ -1,0 +1,696 @@
+<!--#include file="../../inc/ubbcode.asp"-->
+<!--#include file="const.asp"-->
+<%
+Dim XMLDom,dataNode,i
+Dim HtmlContent,flashid,classid,showid
+Dim m_strTitle,m_strContent,m_strRelated,showmode
+Dim m_strShowurl,m_strShowlink,m_strDateTime,m_strPlayer
+Dim m_strSubtitle,m_strCurrentPosition
+Dim iBackCount,iNextCount:iBackCount=0:iNextCount=0
+Dim m_strBackLink,m_strNextLink,m_strBackHtml,m_strNextHtml
+Dim m_strTagtitle,m_strTagslist,Taglist,IsOutTags
+Dim goodnum,badnum,totalscore,maxwidth,goodwidth,badwidth
+Dim HtmlFilePath,HtmlFileName
+showid=0
+IsOutTags=False
+
+Sub main()
+	If showid=0 Then
+		flashid=NewAsp.ChkNumeric(Request("id"))
+		If flashid=0 Then flashid=NewAsp.ChkNumeric(Request("flashid"))
+	Else
+		flashid=NewAsp.ChkNumeric(showid)
+	End If
+	IsOutTags=False
+	iBackCount=0:iNextCount=0
+	ubb.BasePath = NewAsp.ChannelPath
+	ubb.setUbbcode = Join(NewAsp.setUserEditor,"|")
+	ubb.Keyword = NewAsp.KeywordList
+	'Channel_Setting = Split(NewAsp.Channel_Setting & "|||||||||||||||", "|||")
+
+	LoadFlashData()
+
+	TPL_FileName=Check_TPL_File(TPL_FilePath,"show",flashid,classid)
+	HtmlContent = NewAsp.LoadTemplate(TPL_FilePath&"\"&TPL_FileName)
+	HtmlContent = Replace(HtmlContent, "{$pagetitle}", Replace(m_strTitle, "{$", "{ $"))
+	HtmlContent = Replace(HtmlContent, "{$channelid}", ChannelID)
+	HtmlContent = Replace(HtmlContent, "{$classid}", classid)
+	HtmlContent = Replace(HtmlContent, "{$flashid}", flashid)
+	HtmlContent = Replace(HtmlContent, "{$postid}", flashid)
+	HtmlContent = Replace(HtmlContent, "{$channeldir}", NewAsp.ChannelPath)
+	TPL_Scan HtmlContent
+	Set XMLDom = Nothing : Set dataNode = Nothing
+End Sub
+
+Sub LoadFlashData()
+	Dim Rs,SQL
+	SQL = "SELECT A.*,C.ClassName,C.readme,C.ParentID,C.ParentStr,C.HtmlFileDir,C.ChildStr FROM [NC_FlashList] A INNER JOIN [NC_Classify] C On A.ClassID=C.ClassID WHERE A.ChannelID="&CLng(ChannelID)&" And A.isAccept>0 And A.flashid="&CLng(flashid)
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		Set Rs = Nothing
+		Response.Write "<br/<br/><p align=""center"" style=""font-size: 16px;color: red;"">对不起，该页面发生了错误，无法访问! ["&flashid&"]</p>"
+		Response.Write "<style>div,table{display:none;}</style>"
+		Exit Sub
+	End If
+
+	Set XMLDom = NewAsp.RecordsetToxml(Rs,"row","xml")
+	Rs.Close:Set Rs = Nothing
+	Set dataNode = XMLDom.documentElement.selectSingleNode("row")
+	If Not dataNode Is Nothing Then
+		flashid=CLng(dataNode.selectSingleNode("@flashid").text)
+		classid=CLng(dataNode.selectSingleNode("@classid").text)
+		m_strSubtitle=dataNode.selectSingleNode("@subtitle").text&""
+		showmode=CLng(dataNode.selectSingleNode("@showmode").text)
+		m_strRelated=NewAsp.CheckStr(dataNode.selectSingleNode("@related").text)
+		Taglist=NewAsp.CheckStr(dataNode.selectSingleNode("@taglist").text)
+		m_strTitle=NewAsp.RemoveHtml(dataNode.selectSingleNode("@title").text)
+		m_strShowurl=Trim(dataNode.selectSingleNode("@showurl").text&"")
+		m_strPlayer=PreviewMode(m_strShowurl,showmode)
+		m_strShowLink=FormatShowUrl(m_strShowurl)
+		m_strContent=ubb.UbbCode(dataNode.selectSingleNode("@introduce").text)
+		dataNode.selectSingleNode("@introduce").text=m_strContent
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"title","")).text=m_strTitle
+		m_strDateTime=NewAsp.FormatToDate(dataNode.selectSingleNode("@addtime").text,TPL_Config(11))
+		dataNode.selectSingleNode("@addtime").text=m_strDateTime
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"datetime","")).text=m_strDateTime
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"content","")).text=m_strContent
+		If dataNode.selectSingleNode("@describe").text&""="" Then
+			dataNode.selectSingleNode("@describe").text=TPL_Config(12)
+		End If
+		Dim strMiniature,strImagesLink,strImage
+		strMiniature=dataNode.selectSingleNode("@miniature").text&""
+		If strMiniature<>"" And LCase(strMiniature)<>"http://" Then
+			strImagesLink = NewAsp.GetImagePath(strMiniature,NewAsp.ChannelPath)
+			strImage=NewAsp.GetFlashAndPic(strImagesLink, TPL_Config(14), TPL_Config(15))
+			dataNode.selectSingleNode("@miniature").text=strImage
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"image","")).text=strImage
+		Else
+			dataNode.selectSingleNode("@miniature").text=TPL_Config(13)
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"image","")).text=TPL_Config(13)
+		End If
+
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"size","")).text=NewAsp.BytesToString(CLng(dataNode.selectSingleNode("@filesize").text)*1024)
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"supflashid","")).text=NewAsp.Supplemental(flashid,6)
+
+		goodnum=NewAsp.ChkNumeric(dataNode.selectSingleNode("@good").text)
+		badnum=NewAsp.ChkNumeric(dataNode.selectSingleNode("@bad").text)
+		totalscore=goodnum+badnum
+		dataNode.attributes.setNamedItem(XMLDom.createNode(2,"totalscore","")).text=totalscore
+		If totalscore>0 Then
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"goodpercent","")).text=FormatPercent(goodnum/totalscore,0,-1)
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"badpercent","")).text=FormatPercent(badnum/totalscore,0,-1)
+		Else
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"goodpercent","")).text="0%"
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"badpercent","")).text="0%"
+		End If
+		m_strCurrentPosition=CurrentPosition(dataNode.selectSingleNode("@classid").text,dataNode.selectSingleNode("@parentstr").text," - ")
+		If Len(m_strSubtitle) = 0 Then
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitle","")).text=currentclass
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopic","")).text=NewAsp.MainSetting(1)
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitles","")).text=""
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopics","")).text=""
+		Else
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitle","")).text=m_strSubtitle
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopic","")).text=m_strSubtitle
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertitles","")).text=" - "&m_strSubtitle
+			dataNode.attributes.setNamedItem(XMLDom.createNode(2,"headertopics","")).text=","&m_strSubtitle
+		End If
+		HtmlFileName=NewAsp.HtmlDestination(NewAsp.InfoDestination, NewAsp.ChannelDir, dataNode.selectSingleNode("@htmlfiledate").text,dataNode.selectSingleNode("@htmlfiledir").text,classid,flashid,1,"html")
+	End If
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Dim Node
+	Select Case sToken
+		Case "backlinks"	:	TPL_Echo BackHtmlLinks(0,sVariant)
+		Case "nextlinks"	:	TPL_Echo NextHtmlLinks(0,sVariant)
+		Case "backlinkurl"	:	TPL_Echo BackHtmlLinks(1,"")
+		Case "nextlinkurl"	:	TPL_Echo NextHtmlLinks(1,"")
+		Case "downlinks"	:	TPL_Echo DownHtmlLinks
+		Case "showlinks"	:	TPL_Echo m_strShowLink
+		Case "showfullurl"	:	TPL_Echo m_strShowLink
+		Case "player"		:	TPL_Echo m_strPlayer
+		Case "showplayer"	:	TPL_Echo m_strPlayer
+		Case "thislinks"	:	TPL_Echo ThisHtmlLinks
+		Case "classlinks"	:	TPL_Echo ThisClassLinks
+		Case "classtitle"	:	TPL_Echo ClassTitleLinks
+		Case "commentlinks"	:	TPL_Echo CommentsLinks
+		Case "hits"			:	TPL_Echo dataNode.selectSingleNode("@allhits").text
+		Case "description"	:	TPL_Echo GetDescription(sVariant)
+		Case "tagtitle"		:	GetTagsList(Taglist) : TPL_Echo m_strTagtitle
+		Case "tagslist"		:	GetTagsList(Taglist) : TPL_Echo m_strTagslist
+		Case "currentclass"	:	TPL_Echo CurrentClass
+		Case "parentclass"	:	TPL_Echo ParentClass
+		Case "positions"	:	TPL_Echo CurrentPosition(dataNode.selectSingleNode("@classid").text,dataNode.selectSingleNode("@parentstr").text,sVariant)
+		Case "moremenu"		:	TPL_Echo moremenu(sVariant)
+		Case "tagstring"	:	TPL_Echo ParseTagstring(Taglist)
+		Case "taglinks"		:	TPL_Echo ParseTaglinks(Taglist)
+		Case "goodwidth"	:	TPL_Echo GetGoodWidth(sVariant)
+		Case "badwidth"		:	TPL_Echo GetBadWidth(sVariant)
+		Case Else
+			If Not IsObject(dataNode) Then Exit Sub
+			Set Node = dataNode.selectSingleNode("@"&sToken&"")
+			If Not (Node Is Nothing) Then
+				TPL_Echo Node.text
+			End If
+	End Select
+	Set Node = Nothing
+	If Err Then Err.Clear
+End Sub
+
+Function GetGoodWidth(sVariant)
+	Dim w
+	sVariant=NewAsp.ChkNumeric(sVariant)
+	If sVariant=0 Then sVariant=100
+	If totalscore>0 Then
+		w=NewAsp.ChkNumeric(Fix((goodnum/totalscore)*sVariant))
+	Else
+		w=1
+	End If
+	If w<1 Then w=1
+	GetGoodWidth=w
+End Function
+
+Function GetBadWidth(sVariant)
+	Dim w
+	sVariant=NewAsp.ChkNumeric(sVariant)
+	If sVariant=0 Then sVariant=100
+	If totalscore>0 Then
+		w=NewAsp.ChkNumeric(Fix((badnum/totalscore)*sVariant))
+	Else
+		w=1
+	End If
+	If w<1 Then w=1
+	GetBadWidth=w
+End Function
+
+Sub GetTagsList(strTag)
+	On Error Resume Next
+	Dim Rs,SQL,i,tmpTags,tmpTaglist,strLinks
+	If IsOutTags=True Then Exit Sub
+	strTag = checkTagList(strTag)
+	tmpTags=""
+	If Len(strTag)>0 Then
+		Set Rs = NewAsp.Execute("SELECT TagID,Tagname,Tagcount FROM NC_Tags WHERE ChannelID="&ChannelID&" And TagID in("&strTag&")")
+		If Not Rs.EOF Then
+			SQL=Rs.GetRows(-1)
+		Else
+			SQL=Null
+		End If
+		Set Rs=Nothing
+		If IsArray(SQL) Then
+			For i=0 To Ubound(SQL,2)
+				If i=0 Then
+					tmpTags=SQL(1,i)
+				Else
+					tmpTags=tmpTags&" "&SQL(1,i)
+				End If
+				If IsURLRewrite Then
+					strLinks=CheckURLRewrite(NewAsp.ChannelPath,"tag-"&Server.URLEncode(SQL(1,i))&"-1"&NewAsp.HtmlExtName)
+				Else
+					strLinks=NewAsp.ChannelPath&"tag.asp?name="&Server.URLEncode(SQL(1,i))
+				End If
+				tmpTaglist=tmpTaglist&TPL_Config(26)
+				tmpTaglist=Replace(tmpTaglist, "{$tagid}", SQL(0,i))
+				tmpTaglist=Replace(tmpTaglist, "{$tagname}", SQL(1,i))
+				tmpTaglist=Replace(tmpTaglist, "{$tagcount}", SQL(2,i))
+				tmpTaglist=Replace(tmpTaglist, "{$link}", strLinks)
+			Next
+			SQL=Null
+		Else
+			tmpTaglist=TPL_Config(25)
+		End If
+	Else
+		tmpTaglist=TPL_Config(25)
+	End If
+
+	m_strTagtitle=tmpTags
+	m_strTagslist=tmpTaglist
+	IsOutTags=True
+End Sub
+
+Function ThisClassLinks()
+	Dim strLink,strChannDir
+	If NewAsp.IsCreateHtml=0 Then
+		If IsURLRewrite Then
+			strLink=CheckURLRewrite(NewAsp.ChannelPath,"list_1_"&classid&NewAsp.HtmlExtName)
+		Else
+			strLink="list.asp?classid="&classid
+		End If
+	Else
+		If NewAsp.BindDomain=0 Then
+			strChannDir=NewAsp.ChannelDir
+		End If
+		strLink=NewAsp.HtmlDestination(NewAsp.sortDestination, strChannDir,dataNode.selectSingleNode("@htmlfiledate").text,dataNode.selectSingleNode("@htmlfiledir").text,classid,flashid,1,"")
+	End If
+	ThisClassLinks=strLink
+End Function
+
+Function ClassTitleLinks()
+	ClassTitleLinks="<a href="""&ThisClassLinks&""">"&dataNode.selectSingleNode("@classname").text&"</a>"
+End Function
+
+Function ThisHtmlLinks()
+	Dim strLink,strChannDir
+	If NewAsp.IsCreateHtml=0 Then
+		If IsURLRewrite Then
+			strLink=CheckURLRewrite(NewAsp.ChannelPath,flashid&NewAsp.HtmlExtName)
+		Else
+			strLink="show.asp?id="&flashid
+		End If
+	Else
+		If NewAsp.BindDomain=0 Then
+			strChannDir=NewAsp.ChannelDir
+		End If
+		strLink=NewAsp.HtmlDestination(NewAsp.InfoDestination, strChannDir,dataNode.selectSingleNode("@htmlfiledate").text,dataNode.selectSingleNode("@htmlfiledir").text,classid,flashid,1,"")
+	End If
+	ThisHtmlLinks=strLink
+End Function
+
+Function DownHtmlLinks()
+	If IsURLRewrite Then
+		DownHtmlLinks=CheckURLRewrite(NewAsp.ChannelPath,"d"&NewAsp.Supplemental(flashid,6)&NewAsp.HtmlExtName)
+	Else
+		DownHtmlLinks=NewAsp.ChannelPath& "down.asp?id="&flashid
+	End If
+End Function
+
+Function CommentsLinks()
+	If IsURLRewrite Then
+		CommentsLinks=CheckURLRewrite(NewAsp.ChannelPath,"comment-"&flashid&"-1"&NewAsp.HtmlExtName)
+	Else
+		CommentsLinks=NewAsp.ChannelPath& "comment.asp?id="&flashid
+	End If
+End Function
+
+Function GetDescription(iVariant)
+	iVariant=NewAsp.ChkNumeric(iVariant)
+	If iVariant=0 Then iVariant=180
+	Dim re,strHtml
+	strHtml = m_strContent
+	Set re = New RegExp
+	re.IgnoreCase = True
+	re.Global = True
+	re.Pattern = "\[br\]":strHtml = re.Replace(strHtml, "")
+	re.Pattern = "\[align=right\](.*)\[\/align\]":strHtml = re.Replace(strHtml, "")
+	re.Pattern = "([\f\n\r\t\v])":strHtml = re.Replace(strHtml, "")
+	re.Pattern = "<(.[^>]*)>":strHtml = re.Replace(strHtml, "")
+	Set re = Nothing
+	strHtml = Replace(strHtml, "&nbsp;", " "):strHtml = Replace(strHtml, "====", "")
+	strHtml = Replace(strHtml, "----", ""):strHtml = Replace(strHtml, "////", "")
+	strHtml = Replace(strHtml, "\\\\", ""):strHtml = Replace(strHtml, "####", "")
+	strHtml = Replace(strHtml, "@@@@", ""):strHtml = Replace(strHtml, "****", "")
+	strHtml = Replace(strHtml, "~~~~", ""):strHtml = Replace(strHtml, "≡≡≡", "")
+	strHtml = Replace(strHtml, "++++", ""):strHtml = Replace(strHtml, "::::", "")
+	strHtml = Replace(strHtml, "　", ""):strHtml = Replace(strHtml, Chr(9), "")
+	strHtml = Replace(strHtml, Chr(10), ""):strHtml = Replace(strHtml, Chr(34), "&quot;")
+	strHtml = Replace(strHtml, Chr(39), "&#39;"):strHtml = Replace(strHtml, "[InstallDir_ChannelDir]", "")
+	strHtml = Replace(strHtml, "[NextPage]", ""):strHtml = Replace(strHtml, "[Page_Break]", "")
+	If iVariant>0 Then strHtml=Left(strHtml,iVariant)
+	GetDescription = strHtml
+End Function
+
+Function BackHtmlLinks(ByVal stype,ByVal sVariant)
+	Dim Rs,SQL,strChannDir
+	If iBackCount=0 Then
+		SQL = "SELECT TOP 1 A.flashid,A.classid,A.title,A.HtmlFileDate,C.HtmlFileDir FROM [NC_FlashList] A INNER JOIN [NC_Classify] C ON A.ClassID=C.ClassID WHERE A.ChannelID="&CLng(ChannelID)&" And A.isAccept>0 And A.flashid<"&CLng(flashid)&" ORDER BY A.flashid DESC"
+		Set Rs = NewAsp.Execute(SQL)
+		If Rs.EOF And Rs.BOF Then
+			m_strBackHtml="已经没有了"
+			m_strBackLink="javascript:"
+		Else
+			If NewAsp.IsCreateHtml=0 Then
+				If IsURLRewrite Then
+					m_strBackLink=CheckURLRewrite(NewAsp.ChannelPath,Rs("flashid")&NewAsp.HtmlExtName)
+				Else
+					m_strBackLink="show.asp?id="&Rs("flashid")
+				End If
+			Else
+				If NewAsp.BindDomain=0 Then
+					strChannDir=NewAsp.ChannelDir
+				End If
+				m_strBackLink=NewAsp.HtmlDestination(NewAsp.InfoDestination, strChannDir, Rs("HtmlFileDate"),Rs("HtmlFileDir"),Rs("classid"),Rs("flashid"),1,"")
+			End If
+			m_strBackHtml="<a href="""&m_strBackLink&""">"&sVariant&Trim(Rs("title"))&"</a>"
+		End If
+		Rs.Close:Set Rs = Nothing
+	End If
+	If stype=0 Then
+		BackHtmlLinks=m_strBackHtml
+	Else
+		BackHtmlLinks=m_strBackLink
+	End If
+	iBackCount=1
+End Function
+
+Function NextHtmlLinks(ByVal stype,ByVal sVariant)
+	Dim Rs,SQL,strChannDir
+	If iNextCount=0 Then
+		SQL = "SELECT TOP 1 A.flashid,A.classid,A.title,A.HtmlFileDate,C.HtmlFileDir FROM [NC_FlashList] A INNER JOIN [NC_Classify] C ON A.ClassID=C.ClassID WHERE A.ChannelID="&CLng(ChannelID)&" And A.isAccept>0 And A.flashid>"&CLng(flashid)&" ORDER BY A.flashid ASC"
+		Set Rs = NewAsp.Execute(SQL)
+		If Rs.EOF And Rs.BOF Then
+			m_strNextHtml=sVariant&"已经没有了"
+			m_strNextLink="javascript:"
+		Else
+			If NewAsp.IsCreateHtml=0 Then
+				If IsURLRewrite Then
+					m_strNextLink=CheckURLRewrite(NewAsp.ChannelPath,Rs("flashid")&NewAsp.HtmlExtName)
+				Else
+					m_strNextLink="show.asp?id="&Rs("flashid")
+				End If
+			Else
+				If NewAsp.BindDomain=0 Then
+					strChannDir=NewAsp.ChannelDir
+				End If
+				m_strNextLink=NewAsp.HtmlDestination(NewAsp.InfoDestination, strChannDir, Rs("HtmlFileDate"),Rs("HtmlFileDir"),Rs("classid"),Rs("flashid"),1,"")
+			End If
+			m_strNextHtml="<a href="""&m_strNextLink&""">"&sVariant&Trim(Rs("title"))&"</a>"
+		End If
+		Rs.Close:Set Rs = Nothing
+	End If
+	If stype=0 Then
+		NextHtmlLinks=m_strNextHtml
+	Else
+		NextHtmlLinks=m_strNextLink
+	End If
+	iNextCount=1
+End Function
+
+Function XmlDatalistNode(iXMLDom,sTokenAttrib)
+	Select Case sTokenAttrib
+		Case "relatedlist"		: Set XmlDatalistNode=RelatedListNode(iXMLDom)
+		case "commentlist"		: Set XmlDatalistNode=CommentListNode(iXMLDom)
+		Case Else
+			Set XmlDatalistNode=RelatedListNode(iXMLDom)
+	End Select
+End Function
+
+Function RelatedListNode(iXMLDom)
+	Dim SQL,Rs,datalist,Node,strQuery,i
+	Dim maxnum,stype,rootNode,imgWidth,imgHeight,strLength
+	Dim datemode,showcate,showdate,showimg,strTarget
+	Dim cLength,sTitle,eachline,w,strwidth
+	Dim strLink1,strLink2,strLink3,strImageLink,strChannelDir
+	Dim strRelated, arrRelated,strKey, strLikeQuery,relatedmode
+	On Error Resume Next
+	relatedmode=NewAsp.ChkNumeric(TPL_Config(10))
+	If IsNull(iXMLDom.documentElement.getAttribute("ellipsis")) Then iXMLDom.documentElement.setAttribute "ellipsis","..."
+	If Trim(iXMLDom.documentElement.getAttribute("ellipsis"))="0" Then
+		NewAsp.Ellipsis=""
+	Else
+		NewAsp.Ellipsis=iXMLDom.documentElement.getAttribute("ellipsis")
+	End If
+
+	maxnum		= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("maxnum"))
+	stype		= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("type"))
+	rootNode	= NewAsp.CheckStr(iXMLDom.documentElement.getAttribute("node"))
+	imgWidth	= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("width"))
+	imgHeight	= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("height"))
+	strLength	= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("length"))
+	datemode	= NewAsp.CheckStr(iXMLDom.documentElement.getAttribute("datemode"))
+	showcate	= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("showcate"))
+	showdate	= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("showdate"))
+	showimg		= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("image"))
+	strTarget	= NewAsp.CheckStr(iXMLDom.documentElement.getAttribute("target"))
+	eachline	= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("eachline"))
+
+	Template.setLineWidth Eachline,strwidth,w
+
+	If Len(datemode)=0 Then datemode="yyyy-MM-dd"
+	If maxnum=0 Then maxnum=10
+	If rootNode = "" Or rootNode = "row" Or rootNode = "xml" Then rootNode = "datalist"
+	If NewAsp.BindDomain=0 Then
+		strChannelDir=NewAsp.ChannelDir
+	End If
+
+	strRelated = Replace(Replace(Replace(m_strRelated, "[", ""), "]", ""), "%", "")
+	strKey = NewAsp.CheckSpecialChar(Left(m_strTitle,4))
+	If Len(strRelated)>1 Then
+		If InStr(strRelated, "|") > 1 Then
+			arrRelated = Split(strRelated, "|")
+			If relatedmode=1 Then
+				strRelated = "((A.title like '" & arrRelated(0) & "%')"
+				strLikeQuery = "((A.title like '" & arrRelated(0) & "%')"
+			Else
+				strRelated = "((A.title like '%" & arrRelated(0) & "%')"
+				strLikeQuery = "((InStr(1,LCase(A.title),LCase('"& arrRelated(0) &"'),0)>0)"
+			End If
+			For i = 1 To UBound(arrRelated)
+				If relatedmode=1 Then
+					strRelated = strRelated & " Or (A.title like '" & arrRelated(i) & "%')"
+					strLikeQuery = strLikeQuery & " Or (A.title like '" & arrRelated(i) & "%')"
+				Else
+					strRelated = strRelated & " Or (A.title like '%" & arrRelated(i) & "%')"
+					strLikeQuery = strLikeQuery & " Or (InStr(1,LCase(A.title),LCase('"& arrRelated(i) &"'),0)>0)"
+				End If
+			Next
+			strRelated = strRelated & ")"
+			strLikeQuery = strLikeQuery & ")"
+		Else
+			If relatedmode=1 Then
+				strLikeQuery = "(A.title like '" & strRelated & "%' Or A.title like '" & strKey & "%')"
+				strRelated = "(A.title like '" & strRelated & "%' Or A.title like '" & strKey & "%')"
+			Else
+				strLikeQuery = "(InStr(1,LCase(A.title),LCase('"& strRelated &"'),0)>0 Or InStr(1,LCase(A.title),LCase('"& strKey &"'),0)>0)"
+				strRelated = "(A.title like '%" & strRelated & "%' Or A.title like '%" & strKey & "%')"
+			End If
+		End If
+	Else
+		If relatedmode=1 Then
+			strLikeQuery = "(A.title like '" & strKey & "%')"
+			strRelated = "(A.title like '" & strKey & "%')"
+		Else
+			strLikeQuery = "(InStr(1,LCase(A.title),LCase('"& strKey &"'),0)>0)"
+			strRelated = "(A.title like '%" & strKey & "%')"
+		End If
+	End If
+	Select Case stype
+		Case 1: strQuery=" And A.isBest>0 ORDER BY A.addtime DESC ,A.flashid DESC"
+		Case 2: strQuery=" ORDER BY A.AllHits DESC ,A.flashid DESC"
+		Case 3: strQuery=" And A.isBest>0 ORDER BY A.AllHits DESC ,A.flashid DESC"
+		Case 4: strQuery=" And A.isTop>0 ORDER BY A.addtime DESC ,A.flashid DESC"
+		Case 5: strQuery=" And A.star=5 ORDER BY A.addtime DESC ,A.flashid DESC"
+		Case Else
+			strQuery=" ORDER BY A.addtime DESC ,A.flashid DESC"
+	End Select
+
+	If IsSqlDataBase = 1 Then
+		strQuery=" And "&strRelated&strQuery
+	Else
+		strQuery=" And "&strLikeQuery&strQuery
+	End If
+	SQL=" A.flashid,A.classid,A.ColorMode,A.FontMode,A.title,A.subtitle,A.OuterLinks,A.[filesize],A.Author,A.miniature,A.AllHits,A.addTime,A.HtmlFileDate,A.isBest,A.star,"
+	SQL="SELECT TOP " & maxnum & SQL & " C.ClassName,C.ClassDir,C.HtmlFileDir FROM ([NC_FlashList] A INNER JOIN [NC_Classify] C ON A.ClassID=C.ClassID) WHERE A.ChannelID="&NewAsp.ChannelID&" And A.isAccept>0 " & strQuery
+	Set Rs=NewAsp.Execute(SQL)
+	If Err Then
+		Set Rs=Nothing
+		Exit Function
+	End If
+	Set datalist=NewAsp.RecordsetToxml(rs,"row",rootNode)
+	Rs.Close : Set Rs=Nothing
+	SQL=Empty
+	If Not datalist Is Nothing Then
+		i = 0
+		For Each Node in datalist.documentElement.SelectNodes("row")
+			i = i + 1
+			Node.attributes.setNamedItem(datalist.createNode(2,"url","")).text=NewAsp.ChannelPath
+			Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text = i
+			Node.attributes.setNamedItem(datalist.createNode(2,"w","")).text = w
+			Node.attributes.setNamedItem(datalist.createNode(2,"linewidth","")).text = strwidth
+			If Eachline>0 Then
+				If (i Mod Eachline)=0 Then
+					Node.attributes.setNamedItem(datalist.createNode(2,"br","")).text="<br style=""clear:both"" />"
+				Else
+					Node.attributes.setNamedItem(datalist.createNode(2,"br","")).text=""
+				End If
+			Else
+				Node.attributes.setNamedItem(datalist.createNode(2,"br","")).text=""
+			End If
+			If (i mod 2) = 0 Then
+				Node.attributes.setNamedItem(datalist.createNode(2,"m","")).text = 2
+			Else
+				Node.attributes.setNamedItem(datalist.createNode(2,"m","")).text = 1
+			End If
+			If showdate=0 Then
+				Node.selectSingleNode("@addtime").text=""
+			Else
+				Node.selectSingleNode("@addtime").text=NewAsp.FormatToDate(Node.selectSingleNode("@addtime").text,datemode)
+			End If
+			If showcate=0 Then
+				Node.selectSingleNode("@classname").text=""
+				cLength=0
+			Else
+				cLength=NewAsp.strLength(Node.selectSingleNode("@classname").text)+2
+			End If
+
+			sTitle=NewAsp.CutStr(Node.selectSingleNode("@title").text,strLength-cLength)
+			Node.selectSingleNode("@title").text=Replace(Node.selectSingleNode("@title").text, "<", "&lt;")
+			strImageLink = NewAsp.GetImagePath(Node.selectSingleNode("@miniature").text,Node.selectSingleNode("@url").text)
+			Node.selectSingleNode("@miniature").text=NewAsp.GetImagePath(Node.selectSingleNode("@miniature").text,Node.selectSingleNode("@url").text)
+			If NewAsp.IsCreateHtml=0 Then
+				If IsURLRewrite Then
+					strLink1=CheckURLRewrite(NewAsp.ChannelPath,Node.selectSingleNode("@flashid").text&NewAsp.HtmlExtName)
+					strLink2=CheckURLRewrite(NewAsp.ChannelPath,"list_1_"&Node.selectSingleNode("@classid").text&NewAsp.HtmlExtName)
+				Else
+					strLink1=NewAsp.ChannelPath&"show.asp?id="&Node.selectSingleNode("@flashid").text
+					strLink2=NewAsp.ChannelPath&"list.asp?classid="&Node.selectSingleNode("@classid").text
+				End If
+			Else
+				strLink1=NewAsp.HtmlDestination(NewAsp.infoDestination, strChannelDir, Node.selectSingleNode("@htmlfiledate").text,Node.selectSingleNode("@htmlfiledir").text,Node.selectSingleNode("@classid").text,Node.selectSingleNode("@flashid").text,1,"")
+				If showcate=1 Then
+					strLink2=NewAsp.HtmlDestination(NewAsp.sortDestination, strChannelDir, Node.selectSingleNode("@htmlfiledate").text,Node.selectSingleNode("@htmlfiledir").text,Node.selectSingleNode("@classid").text,Node.selectSingleNode("@flashid").text,1,"")
+				End If
+			End If
+			If Len(Node.selectSingleNode("@outerlinks").text&"")>8 Then
+				strLink1=Node.selectSingleNode("@outerlinks").text
+			End If
+			strLink3=CommentsLinks
+
+			Node.attributes.setNamedItem(datalist.createNode(2,"link","")).text=strLink1
+			Node.attributes.setNamedItem(datalist.createNode(2,"link2","")).text=strLink2
+			Node.attributes.setNamedItem(datalist.createNode(2,"link3","")).text=strLink3
+			Node.attributes.setNamedItem(datalist.createNode(2,"imglink","")).text=strImageLink
+			Node.attributes.setNamedItem(datalist.createNode(2,"topic","")).text=NewAsp.ReadFontMode(Replace(sTitle, "<", "&lt;"),Node.selectSingleNode("@colormode").text,Node.selectSingleNode("@fontmode").text)
+			Node.attributes.setNamedItem(datalist.createNode(2,"title","")).text=NewAsp.RemoveHtml(Node.selectSingleNode("@title").text&" "&Node.selectSingleNode("@softver").text)
+			If Len(strTarget)>1 Then
+				Node.attributes.setNamedItem(datalist.createNode(2,"linktarget","")).text=" target="""&strTarget&""""
+			Else
+				Node.attributes.setNamedItem(datalist.createNode(2,"linktarget","")).text=""
+			End If
+		Next
+		Set Node=Nothing
+	End If
+
+	Set RelatedListNode=datalist
+	Set datalist=Nothing
+End Function
+
+Function CommentListNode(iXMLDom)
+	Dim SQL,Rs,datalist,Node,i,j,strContent
+	Dim maxnum,stype,rootNode,strLength,datemode
+
+	If IsNull(iXMLDom.documentElement.getAttribute("channelid")) Then iXMLDom.documentElement.setAttribute "channelid",NewAsp.ChannelID
+	If IsNull(iXMLDom.documentElement.getAttribute("action")) Then iXMLDom.documentElement.setAttribute "action","0"
+	If IsNull(iXMLDom.documentElement.getAttribute("link")) Then iXMLDom.documentElement.setAttribute "link",CommentsLinks
+	If IsNull(iXMLDom.documentElement.getAttribute("total")) Then iXMLDom.documentElement.setAttribute "total","0"
+	If IsNull(iXMLDom.documentElement.getAttribute("average")) Then iXMLDom.documentElement.setAttribute "average","0"
+	If IsNull(iXMLDom.documentElement.getAttribute("totalgrade")) Then iXMLDom.documentElement.setAttribute "totalgrade","0"
+	maxnum		= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("maxnum"))
+	stype		= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("type"))
+	rootNode	= NewAsp.CheckStr(iXMLDom.documentElement.getAttribute("node"))
+	strLength	= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("length"))
+	datemode	= NewAsp.CheckStr(iXMLDom.documentElement.getAttribute("datemode"))
+
+	If Len(datemode)=0 Then datemode="yyyy-MM-dd hh:mm:ss"
+	If maxnum=0 Then maxnum=10
+	If rootNode = "" Or rootNode = "row" Or rootNode = "xml" Then rootNode = "datalist"
+
+	Dim TotalComment,AverageGrade,TotalGrade
+	SQL = "SELECT COUNT(CommentID) As TotalComment, AVG(Grade) As avgGrade,SUM(Grade) As TotalGrade FROM NC_Comment WHERE ChannelID="&NewAsp.ChannelID&" And Audit=0 And postid=" & CLng(flashid)
+	Set Rs = NewAsp.Execute(SQL)
+	TotalComment = Rs("TotalComment")
+	AverageGrade = Rs("avgGrade")
+	TotalGrade = Rs("TotalGrade")
+	If IsNull(AverageGrade) Then AverageGrade = 0
+	If IsNull(TotalComment) Then TotalComment = 0
+	If IsNull(TotalGrade) Then TotalGrade = 0
+	AverageGrade = Round(AverageGrade)
+	Rs.Close : Set Rs=Nothing
+	iXMLDom.documentElement.selectSingleNode("@total").text=TotalComment
+	iXMLDom.documentElement.selectSingleNode("@average").text=AverageGrade
+	iXMLDom.documentElement.selectSingleNode("@totalgrade").text=TotalGrade
+
+	If stype=0 Then
+		SQL="SELECT TOP "&maxnum&" CommentID, [content],Grade,username,postime,postip FROM NC_Comment WHERE ChannelID="&NewAsp.ChannelID&" And Audit=0 And postid="&flashid&" ORDER BY CommentID DESC"
+		Set Rs=NewAsp.Execute(SQL)
+		Set datalist=NewAsp.RecordsetToxml(rs,"row",rootNode)
+
+		Rs.Close : Set Rs=Nothing
+		SQL=Empty
+		If Not datalist Is Nothing Then
+			i = 0 : j = TotalComment
+			For Each Node in datalist.documentElement.SelectNodes("row")
+				i = i + 1
+				Node.attributes.setNamedItem(datalist.createNode(2,"url","")).text=NewAsp.ChannelPath
+				Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+				Node.attributes.setNamedItem(datalist.createNode(2,"j","")).text=j
+				strContent=NewAsp.HTMLEncodes(Node.selectSingleNode("@content").text&"")
+				If Len(Node.selectSingleNode("@content").text&"")>0 And strLength>0 Then
+					Node.selectSingleNode("@content").text=Left(strContent,strLength)
+				Else
+					Node.selectSingleNode("@content").text=strContent
+				End If
+				Node.selectSingleNode("@postime").text=NewAsp.FormatToDate(Node.selectSingleNode("@postime").text,datemode)
+				Node.attributes.setNamedItem(datalist.createNode(2,"link","")).text=CommentsLinks
+				j=j-1
+			Next
+			Set Node=Nothing
+		End If
+	Else
+		Set datalist=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		datalist.appendChild(datalist.createElement(rootNode))
+		Set Node=datalist.createNode(1,"row","")
+		Node.attributes.setNamedItem(datalist.createNode(2,"url","")).text=NewAsp.ChannelPath
+		Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=1
+		Node.attributes.setNamedItem(datalist.createNode(2,"j","")).text=0
+		Node.attributes.setNamedItem(datalist.createNode(2,"link","")).text=CommentsLinks
+		Set Node=Nothing
+	End If
+	Set CommentListNode=datalist
+	Set datalist=Nothing
+End Function
+
+Function PreviewMode(ByVal url,ByVal modeid)
+	PreviewMode = ""
+	If Len(url) < 3 Then Exit Function
+	Dim strTemp
+	Select Case CInt(modeid)
+	Case 1
+		strTemp=TPL_Config(17)
+	Case 2
+		strTemp=TPL_Config(18)
+	Case 3
+		strTemp=TPL_Config(19)
+	Case 4
+		strTemp=TPL_Config(20)
+	Case 5
+		strTemp=TPL_Config(21)
+	Case Else
+		strTemp=TPL_Config(16)
+	End Select
+	strTemp = Replace(strTemp, "{$showurl}", url)
+	url=FormatShowUrl(url)
+	strTemp = Replace(strTemp, "{$playlinks}", url)
+	PreviewMode = Replace(strTemp, "{$showplayurl}", url)
+End Function
+
+Function FormatShowUrl(ByVal url)
+	FormatShowUrl = ""
+	Dim strUrl
+	If IsNull(url) Then Exit Function
+	If Len(url) < 3 Then Exit Function
+	If Left(url,1) = "/" Then
+		FormatShowUrl = Trim(url)
+		Exit Function
+	End If
+	strUrl = Left(url,10)
+	If InStr(strUrl, "://") > 0 Then
+		FormatShowUrl = Trim(url)
+		Exit Function
+	End If
+	If InStr(strUrl, ":\") > 0 Then
+		FormatShowUrl = Trim(url)
+		Exit Function
+	End If
+	FormatShowUrl = NewAsp.ChannelPath & Trim(url)
+End Function
+%>

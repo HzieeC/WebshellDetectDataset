@@ -1,0 +1,152 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="java.util.Properties,java.io.FileInputStream"%>
+<%
+	String webName="";
+	String masterEmail="";
+	String keyWord="";
+	String content="";
+	String copyRight="";
+	String dir="";
+	try{
+	      Properties pop=System.getProperties();
+	      pop.load(new FileInputStream("webapps/"+request.getContextPath()+"/properties/b.properties"));
+	      webName=pop.getProperty("webName");
+	      masterEmail=pop.getProperty("masterEmail");
+	      keyWord=pop.getProperty("keyWord");
+	      content=pop.getProperty("content");
+	      copyRight=pop.getProperty("copyRight");
+		  dir=pop.getProperty("templet");
+	     }catch(Exception ex){
+	     	ex.printStackTrace();	
+      }
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<iframe width="260" height="165" id="colourPalette" src="include/selcolor.htm" style="visibility:hidden; position: absolute; left: 0px; top: 0px;border:1px gray solid" frameborder="0" scrolling="no" ></iframe>
+<div onkeydown="CtrlEnter()">
+<table border="0" align="center" cellspacing="1" class="TableBorder" cellpadding="3">
+	<tr>
+		<th align="left"><img src="images/welcome.gif" width="16" height="17" align="absMiddle"> 网站基本设置</th>
+	</tr>
+	<form name="myform" method="POST" action="../servletconfig">
+	<tr>
+	<td class="TableRow1">
+	<fieldset style="cursor: default"><legend>&nbsp;网站基本信息<a name="setting2"></a>[<a href="#top">顶部</a>]</legend><table width="100%" border="0" align="center" cellpadding="3" cellspacing="1" class="TableBorder2">
+		
+		<tr>
+			<td class="TableRow1" width="35%"><div class="divbody">网站名称：</div></td>
+			<td class="TableRow1" width="65%">
+			<input type="text" name="webName" size="35" value="<%=new String(webName.getBytes("ISO-8859-1"))%>" maxlength="100"></td>
+		</tr>
+		<tr>
+			<td class="TableRow2"><div class="divbody">网站URL：</div></td>
+			<td class="TableRow2"><input type="text" name="webUrl" size="35" value="http://localhost:8080/web/">
+			</td>
+		</tr>
+		<tr>
+			<td class="TableRow1"><div class="divbody">管理员Email：</div></td>
+			<td class="TableRow1">
+			<input type="text" name="masterMail" size="35" value="<%=new String(masterEmail.getBytes("ISO-8859-1"))%>"></td>
+		</tr>
+
+		<tr>
+			<td class="TableRow2"><div class="divbody">站点关键字：<br>
+			</div></td>
+			<td class="TableRow2"><input type="text" name="keyword" size="35" value="<%=new String(keyWord.getBytes("ISO-8859-1"))%>"></td>
+		</tr>
+		<tr>
+			<td class="TableRow2"><div class="divbody">站点模板目录：<br>
+			</div></td>
+			<td class="TableRow2"><input type="text" name="templet" size="35" value="<%=new String(dir.getBytes("ISO-8859-1"))%>"></td>
+		</tr>
+		<tr>
+			<td class="TableRow2"><div class="divbody">站点说明：<br>
+			将被搜索引擎用来搜索您网站的关键内容</div></td>
+			<td class="TableRow2"><textarea rows="3" name="content" cols="60"><%=new String(content.getBytes("ISO-8859-1"))%></textarea></td>
+		</tr>
+		<tr>
+			<td class="TableRow1"><div class="divbody">网站版权信息：</div></td>
+			<td class="TableRow1" width="65%">
+			<textarea rows="5" name="Copyright" cols="60"><%=new String(copyRight.getBytes("ISO-8859-1"))%></textarea></td>
+		</tr>
+	</table></fieldset>
+	
+	<br>
+	<fieldset style="cursor: default"><legend>&nbsp;系统邮件设置<a name="setting2"></a>[<a href="#top">顶部</a>]</legend><table width="100%" border="0" align="center" cellpadding="3" cellspacing="1" class="TableBorder2">
+		<tr>
+			<td class="TableRow2"><div class="divbody">系统管理员Email：<br>
+			给用户发送邮件时，显示的来源Email信息</div></td>
+			<td class="TableRow2">
+			<input type="text" name="MailFrom" size="25" value="83439123@qq.com"></td>
+		</tr>
+		<tr>
+			<td class="TableRow1"><div class="divbody">SMTP Server地址：</div></td>
+			<td class="TableRow1">
+			<input type="text" name="MailServer" size="25" value="127.0.0.1"></td>
+		</tr>
+		<tr>
+			<td class="TableRow2"><div class="divbody">邮件登录用户名：</div></td>
+			<td class="TableRow2">
+			<input type="text" name="MailUserName" size="25" value="admin@mianfeizhe.com"></td>
+		</tr>
+		<tr>
+			<td class="TableRow1"><div class="divbody">邮件登录密码：</div></td>
+			<td class="TableRow1">
+			<input type="password" name="MailPassword" size="25" value="admin"></td>
+		</tr>
+	</table></fieldset>
+	
+	</td>
+	</tr>
+	<tr>
+		<td class="TableRow1" align="center">
+		<input type="submit" value="保存设置" name="B1" class=Button></td>
+	</tr></form>
+</table>
+</div>
+<div id="Issubport0" style="display:none">请选择EMAIL组件！</div>
+<div id="Issubport999" style="display:none">请选择上传组件！</div>
+<div id="Issubport1" style="display:none"><b>×</b>服务器不支持!</div><div id="Issubport2" style="display:none"><b>×</b>服务器不支持!</div><div id="Issubport3" style="display:none"><b>×</b>服务器不支持!</div><div id="Issubport4" style="display:none"><font color=red><b>√</b>服务器支持!</font></div><div id="Issubport5" style="display:none"><b>×</b>服务器不支持!</div><div id="Issubport6" style="display:none"><b>×</b>服务器不支持!</div><div id="Issubport7" style="display:none"><b>×</b>服务器不支持!</div><div id="Issubport8" style="display:none"><b>×</b>服务器不支持!</div><div id="Issubport9" style="display:none"><b>×</b>服务器不支持!</div><div id="Issubport10" style="display:none"><b>×</b>服务器不支持!</div><SCRIPT LANGUAGE="JavaScript">
+<!--
+function chkselect(s,divid)
+{
+var divname='Issubport';
+var chkreport;
+s=Number(s)
+if (divid=="know1")
+{
+divname=divname+s;
+}
+if (divid=="know2")
+{
+s+=4;
+if (s==1003){s=999;}
+divname=divname+s;
+}
+if (divid=="know3")
+{
+s+=8;
+if (s==1007){s=999;}
+divname=divname+s;
+}
+document.getElementById(divid).innerHTML=divname;
+chkreport=document.getElementById(divname).innerHTML;
+document.getElementById(divid).innerHTML=chkreport;
+}
+//--></SCRIPT>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

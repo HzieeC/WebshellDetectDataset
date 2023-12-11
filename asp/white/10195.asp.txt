@@ -1,0 +1,222 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../checkvalid.asp"-->
+<!--#include file="../../inc/commoncode.asp"-->
+<%If Not FRAdminLevel(406) Then
+	Call ErrorMsg()
+End If
+TemplateID=request.QueryString("tempid")
+TemplateIDs=TemplateID
+action=request.QueryString("action")
+tempname=request.form("tempname")
+tempfa=request.form("tempfa")
+content=request.form("content")
+typeid=request.form("typeid")
+de=request.Form("de")
+
+if action="save" then
+	'更新同类型的模版为不默认的
+	if de=1 then
+		conn.execute("Update JOB_ComTemp set Temp_default=0 where Temp_ProId="&tempfa&" and Temp_type="&typeid&"")
+	end if
+	if TemplateID<>"" then
+		'修改
+		sql="select * from JOB_ComTemp where Temp_Id="&TemplateID&""
+	else
+		sql="select * from JOB_ComTemp"
+	end if
+	set rs=Server.CreateObject(FR_HR_Rs)
+	rs.open sql,conn,1,3
+	if TemplateID="" then
+		rs.addnew
+		rs("Temp_addtime")=now()
+	end if
+		rs("Temp_type")=typeid
+		rs("Temp_ProId")=tempfa
+		rs("Temp_name")=tempname
+		rs("Temp_content")=content		
+		rs("Temp_default")=de		
+	rs.update
+	rs.close
+	set rs=nothing
+	if TemplateID="" then
+		set rsp=server.CreateObject("adodb.recordset")
+		sql="select Temp_Id from JOB_ComTemp where Temp_type="&typeid&" and Temp_ProId="&tempfa&" and Temp_name='"&tempname&"'"
+		rsp.open sql,conn,1,1
+			TemplateID=rsp("Temp_Id")
+		rsp.close
+		set rsp=nothing
+	end if
+	'读取模板所在方案存贮文件夹
+	sqlp="select Pro_folder from JOB_ComTempPro,JOB_ComTemp where Pro_Id=Temp_ProId and Temp_Id="&TemplateID&""
+	set rsp=server.CreateObject("adodb.recordset")
+	rsp.open sqlp,conn,1,1
+	if not rsp.eof then
+		Dir=rsp("Pro_folder")
+	end if
+	rsp.close
+	set rsp=nothing
+	'生成模版html文件
+	CreateTempFile(Dir)
+	if de=1 then
+		IsDefault=de
+		CreateTempFile(Dir)
+	end if
+	if FoundErr=True then
+		call Show_Err()
+		response.End()
+	end if
+	response.write "<script>alert('操作成功');location.href='Admin_ComTemp.asp';</script>"
+	Response.end()
+end if
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<META http-equiv=Content-Type content="text/html; charset=gb2312">
+<LINK href="../css/style.css" rel=stylesheet type=text/css> 
+<title>企业网站模板编辑</title>
+<script language="javascript" src="../Inc/Admin.js"></script>
+<script language="javascript">
+function check(){
+	if(form1.tempname.value=="")
+	{
+		alert("对不起模板名称不能为空！");
+		return false;
+	}
+	if(form1.tempfa.value==0)
+	{
+		alert("对不起请选择模板方案！");
+		return false;
+	}
+	if(form1.typeid.value==10000)
+	{
+		alert("对不起请选择模板类型！");
+		return false;
+	}
+	if(form1.content.value=="")
+	{
+		alert("对不起模板内容不能为空！");
+		return false;
+	}
+	return true;
+}
+
+</script>
+</head>
+<body>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <tr>
+    <th align="center" >企业网站模板</th>
+  </tr>
+  <tr class="amrow">
+    <td><span class="bodytitle"><font color="ff6600"><b class="style1">　管理选项</b></font>：</span>&nbsp;<a href="Admin_AddComTemp.asp">添加模板</a> | <a href="Admin_ComTemp.asp?show=all">模板管理</a> | [<a href="javascript:location.reload()">刷新页面</a>]</td>
+  </tr>
+</table>
+<%
+	if TemplateID<>"" then
+		set rs1=server.CreateObject("adodb.recordset")
+		sql="select * from JOB_ComTemp where Temp_Id="&TemplateID&""
+		rs1.open sql,conn,1,1
+		TemplateName=rs1("Temp_name")
+		ProjectID=rs1("Temp_ProId")
+		typeid=rs1("Temp_type")
+		TemplateContent=rs1("Temp_content")
+		IsDefault=rs1("Temp_default")
+		rs1.close
+		set rs1=nothing
+		
+		'if IsDefault then
+'			TemplateIDs=0
+'		else
+'			TemplateIDs=TemplateID
+'		end if
+'		TemplateContent=LoadTemplate(ChannelID,typeid,0)
+		
+	else
+		IsDefault=1
+	end if	
+%>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder mt6">
+  <form id="form1" name="form1" method="post" action="Admin_AddComTemp.asp?action=save&tempid=<%=TemplateID%>" onSubmit="return check();">
+    <tr>
+      <th height="22" colspan="5" align="center" >编辑企业模板 </th>
+    </tr>
+    <tr>
+      <td width="122" height="20" align="right">模板名称： </td>
+      <td height="20" colspan="2"><input name="tempname" type="text" id="tempname" value="<%=TemplateName%>" /></td>
+    </tr>
+    <tr>
+      <td height="20" align="right">选择方案：</td>
+      <td height="20" colspan="2">
+        <select name="tempfa" id="tempfa">
+          <option value="0">请选择方案</option>
+		  <%
+				Set rs= Server.CreateObject(FR_HR_RS)
+				sql="select Pro_Id,Pro_name from JOB_ComTempPro order by Pro_Id desc"
+				rs.open sql,conn,1,1
+				do while not rs.eof
+				if  ProjectID = rs("Pro_Id") then
+					response.write "<option value="&rs("Pro_Id")&" selected>"&rs("Pro_name")&"</option>"
+				else
+					response.write "<option value="&rs("Pro_Id")&">"&rs("Pro_name")&"</option>"
+				end if
+				rs.movenext
+				loop
+				rs.close
+				set rs=nothing
+		  %>
+        </select>     </td>
+    </tr>
+	    <tr>
+      <td height="20" align="right">选择类型： </td>
+      <td height="20" colspan="2"><select name="typeid" id="typeid">
+        <option value="10000" selected>请选择模板类型</option>
+		<option value="1" <%if typeid=1 then%>selected="selected"<%end if%>>企业信息模版</option>
+		<option value="2" <%if typeid=2 then%>selected="selected"<%end if%>>企业职位模版</option>
+		<option value="3" <%if typeid=3 then%>selected="selected"<%end if%>>企业新闻模版</option>
+      </select></td>
+    </tr>
+	 <tr>
+      <td height="20" align="right">模板内容：</td>
+      <td width="754" height="20" colspan="-3">
+	  <textarea name="content" rows=24 id=t1 style="width:100%;"><%=TemplateContent%></textarea>	  </td>
+      <td width="62"><span class="td2"><A href="javascript:admin_Size(-5,'t1')"><IMG 
+      src="../Images/minus.gif" width="20" height="20" border=0 unselectable="on"></A> <A 
+      href="javascript:admin_Size(5,'t1')"><IMG src="../Images/plus.gif" width="20" height="20" 
+      border=0 unselectable="on"></A><IMG 
+      src="../Images/viewpic.gif" width="45" height="19" onclick=runscript(t1)></span></td>
+    </tr>
+    <tr class="amrow">
+      <td height="20" align="right">是否默认：</td>
+      <td height="20" colspan="2"><input name="de" type="radio" class="checkbox" value="1" checked="checked" />是<input name="de" type="radio" class="checkbox" value="0" <%if IsDefault=0 then%>checked="checked"<% end if %>/>否</td>
+    </tr>
+    <tr>
+      <td height="20" colspan="3" align="center" bgcolor="#F0F0F0"><input name="Submit" type="submit" class="inputs" value="编辑" />&nbsp;<input name="Submit2" type="reset" class="inputs" value="重置" /></td>
+    </tr>
+  </form>
+</table>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>
+<%
+Sub CreateTempFile(Dir)
+	On error resume Next
+	Dim Fso,FileName,Template_Con
+	Set FSO=Server.CreateObject(FR_HR_fso)
+	If Err Then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>您的服务器不支持写文件,模板文件写入失败！</li>"
+		Exit Sub
+	end If
+	if IsDefault=1 then TemplateIDs=0
+	Template_Con=content
+	Fso.CreateTextFile(Server.MapPath("../../Templates/ComTemp/"&Dir&"/T_"&TemplateID&"_"&TemplateIDs&".html")).WriteLine(Template_Con)
+	If Err Then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>您的服务器不支持写文件,模板文件写入失败！</li>"
+		Exit Sub
+	End If
+	Set FSO=Nothing  
+End Sub
+%>

@@ -1,0 +1,211 @@
+<!--#Include File="../Inc/Const.Asp"-->
+<!--#Include File="Inc/Class_Label.Asp"-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<title>自定义标签管理</title>
+<link href="Images/Style.Css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<%
+
+Call ChkLogin("label")
+
+Dim U
+Set U = New Cls_Label
+
+Dim Rs,Sql,Style
+Dim ID
+    ID = Request("ID")
+Dim Key
+    Key = Request("Key")
+Dim Page
+    Page = Request("Page")
+Dim Orders
+    Orders = Request("Orders")
+Dim DFieldKey
+    DFieldKey = Request("DFieldKey")
+Dim DFieldOrders
+    DFieldOrders = Request("DFieldOrders")
+If len(ID) > 0 And Not IsNumeric(ID) Then : Response.Write "编号只能是数字!" : Conn.Close : Set Conn = Nothing : Set U = Nothing : Response.End '// 检测ID
+If Len(Page) = 0 Or Not IsNumeric(ID) Then Page = 1
+If Page < 1 Then Page = 1
+If LCase(Orders) <> "asc" Then Orders = "Desc"
+If Len(DFieldKey) = 0 Then DFieldKey = "Name"
+If Len(DFieldOrders) = 0 Then DFieldOrders = "ID"
+If Instr("[id],[name],[info]" , "[" & Lcase(DFieldKey) & "]") = 0 Then Key = ""
+If Instr("[id],[name],[info]" , "[" & Lcase(DFieldOrders) & "]") = 0 Then DFieldOrders = "ID"
+Page = Int(Page) : Key = Replace(Key,"'","")
+Dim JumpUrl
+    JumpUrl = "&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders
+
+Select Case Request("Act")
+Case "Guide"
+	If Len(ID) = 0 Then
+		Call U.Initialize()
+		Call Main_Guide(0)
+	Else
+		U.vID = ID
+		Call U.SetValue()
+		Call Main_Guide(1)
+	End If
+Case "UpDate"
+	If U.GetValue() Then
+		If Len(ID) = 0 Then
+			If Not U.Create() Then
+				Alert U.LastError,"Admin_Label.Asp?Page=" & Page & JumpUrl
+			Else
+				Alert "","Admin_Label.Asp?Page=" & Page & JumpUrl
+			End If
+		Else
+			U.vID = ID
+			If Not U.Modify() Then
+				Alert U.LastError,"Admin_Label.Asp?Page=" & Page & JumpUrl
+			Else
+				Alert "","Admin_Label.Asp?Page=" & Page & JumpUrl
+			End If
+		End If
+	Else
+		Alert U.LastError,"Admin_Label.Asp?Page=" & Page & JumpUrl
+	End If
+Case "Delete"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Delete() Then
+			Alert U.LastError,"Admin_Label.Asp?Page=" & Page & JumpUrl
+		Else
+			Alert "","Admin_Label.Asp?Page=" & Page & JumpUrl
+		End If
+	Else
+		Call Main()
+	End If
+Case "Change"
+	If Len(ID) > 0 Then
+		U.vID = ID
+		If Not U.Change() Then
+			Alert U.LastError,""
+		End If
+	End If
+	Call Main()
+Case Else
+	Call Main()
+End Select
+Set U = Nothing
+If IsObject(Conn) Then Conn.Close : Set Conn = Nothing
+
+Sub Main()
+	Sql = "Select [ID],[Name],[Info] From [{pre}Label]"
+	If Len(Key) > 0 Then
+		If Instr(",ID,","," & DFieldKey & ",") > 0 Then
+			If Len(Key) > 0 And IsNumeric(Key) Then
+				Sql = Sql & " Where [" & DFieldKey & "]=" & Key & ""
+			End If
+		Else
+			Sql = Sql & " Where [" & DFieldKey & "] Like '%" & Key & "%'"
+		End If
+	End If
+	Sql = Sql & " Order By [" & DFieldOrders & "] " & Orders & ""
+	Set Rs = DB(Sql,2)
+	%>
+	<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	  <tr class=css_menu>
+	    <td colspan=4><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+	        <form name=frmSearch method=post action=Admin_Label.Asp>
+	          <tr>
+	            <td class=css_main><a href=Admin_Label.Asp?Page=<%=Page%><%=JumpUrl%>>自定义标签管理</a> <a href=Admin_Label.Asp?Act=Guide&Page=<%=Page%><%=JumpUrl%>>添加自定义标签</a></td>
+	            <td class=css_search><select name=DFieldKey id=DFieldKey>
+	              <option value="ID" <%If Lcase(DFieldKey) = "id" Then Response.Write "selected='selecte'" %>>编号</option><option value="Name" <%If Lcase(DFieldKey) = "name" Then Response.Write "selected='selected'" %>>标签代码</option><option value="Info" <%If Lcase(DFieldKey) = "info" Then Response.Write "selected='selected'" %>>标签说明</option>
+	              </select>
+	              <input name=Key type=text id=Key size=10 value="<%=Key%>">
+	              <input type=submit name=Submit value=搜>
+	            </td>
+	          </tr>
+	        </form>
+	      </table></td>
+	  </tr>
+	  <tr>
+	    <td class='css_top'>编号</td>
+	    <td class='css_top'>标签代码</td>
+	    <td class='css_top'>标签说明</td>
+	    <td class='css_top'>管理</td>
+	  </tr>
+	  <%
+	  If Rs.Eof Then
+	  %>
+	  <tr class=css_norecord>
+	    <td colspan=4>没有任何记录！</td>
+	  </tr>
+	  <%
+	  Else
+	  Dim i
+	  Rs.PageSize = 15
+	  Rs.AbsolutePage = Page
+	  For i = 1 To Rs.PageSize
+	  If Rs.Eof Then Exit For
+	  %>
+	  <tr>
+	    <td class='css_list'><%=Rs("ID")%></td>
+	    <td class='css_list'>{My:<%=Rs("Name")%>}</td>
+	    <td class='css_list'><%=Rs("Info")%></td>
+	    <td class='css_list'>
+	    <input name=modify type=button onclick="location.href='Admin_Label.Asp?Act=Guide&ID=<%=Rs("ID")%>&Page=<%=Page%><%=JumpUrl%>';" value=修改>
+	    <input name=delete type=button onclick="if(confirm('您确定要删除这条记录吗?')){location.href='Admin_Label.Asp?Act=Delete&ID=<%=Rs("ID")%>&Page=<%=Page%><%=JumpUrl%>';}" value=删除>
+        </td>
+	  </tr>
+	  <%
+	  Rs.MoveNext
+	  Next
+	  End If
+	  %>
+	  <tr class=css_page_list>
+	    <td colspan=4><%=PageList(Rs.PageCount,Page,Rs.RecordCount,15,"Admin_Label.Asp?Page={p}&Key=" & Server.UrlENCode(Key) & "&DFieldKey=" & DFieldKey & "&Orders=" & Orders & "&DFieldOrders=" & DFieldOrders)%></td>
+	  </tr>
+</table>
+	<%
+	Rs.Close
+End Sub
+
+Sub Main_Guide(T)
+	%>
+	<table width=100% border=0 cellpadding=3 cellspacing=1 class=css_table bgcolor='#E1E1E1'>
+	  <tr class=css_menu>
+	    <td colspan=2><table width=100% border=0 cellpadding=4 cellspacing=0 class=css_main_table>
+	        <tr>
+	          <td class=css_main><a href=Admin_Label.Asp?Page=<%=Page%><%=JumpUrl%>>自定义标签管理</a></td>
+	        </tr>
+	      </table></td>
+	  </tr>
+	  <form name='frm' method='post' action='Admin_Label.Asp?Act=UpDate&ID=<%=ID%>&Page=<%=Page%><%=JumpUrl%>'>
+	    <%If T = 0 Then Style="" Else Style=""%>
+	    <tr<%=Style%>>
+	      <td class=css_col11>标签代码：<div id='hName' style="color:#ccc;letter-spacing: 0px;font-size:13px;">只能是英文,不可重复&nbsp;</div></td>
+	      <td class=css_col21>
+	      <input class='css_input' name="oName" type="text" id="oName" onfocus="hName.style.color='red';" onblur="hName.style.color='#ccc';" value="<%=U.vName%>" size=40 <%If T = 1 Then Response.Write "readonly='true'"%>>
+	      </td>
+	    </tr>
+	    <%If T = 0 Then Style="" Else Style=""%>
+	    <tr<%=Style%>>
+	      <td class=css_col12>标签说明：<div id='hInfo' style="color:#ccc;letter-spacing: 0px;font-size:13px;">简要说是该标签的使用和用途&nbsp;</div></td>
+	      <td class=css_col22>
+	      <input class='css_input' name="oInfo" type="text" id="oInfo" onfocus="hInfo.style.color='red';" onblur="hInfo.style.color='#ccc';" value="<%=U.vInfo%>" size=40 >
+	      </td>
+	    </tr>
+	    <%If T = 0 Then Style="" Else Style=""%>
+	    <tr<%=Style%>>
+	      <td class=css_col11>HTML代码：<div id='hCode' style="color:#ccc;letter-spacing: 0px;font-size:13px;">HTML值,自定义的标签优先权最高,所以你可能调用系统标签&nbsp;<br />你可以使用＄＄＄区分多个标签值&nbsp;</div></td>
+	      <td class=css_col21>
+		  <%=CreateEditor("oCode",U.vCode,"FCKEditor",Array("100%","400","Default"))%>
+	      </td>
+	    </tr>
+	    <tr class=css_page_list>
+	      <td colspan=2><input type='submit' name='Submit' value='保存'></td>
+	    </tr>
+	  </form>
+	</table>
+	<%
+End Sub
+%>
+</body>
+</html>

@@ -1,0 +1,71 @@
+﻿<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ page import="java.util.*"%>
+<%@ page import="com.jsalipay.util.*"%>
+<%@page import="com.bizoss.trade.ti_finance.Ti_financeInfo"%>
+<%@page import="com.bizoss.trade.ti_finance_history.Ti_finance_historyInfo"%>
+<%@page import="com.bizoss.frame.util.RandomID"%>
+<%@page import="com.bizoss.trade.ti_finance_history.Ti_finance_history"%>
+<%
+	//获取支付宝POST过来反馈信息
+	Map<String,String> params = new Hashtable<String,String>();
+	Map requestParams = request.getParameterMap();
+	for (Iterator iter = requestParams.keySet().iterator(); iter.hasNext();) {
+		String name = (String) iter.next();
+		String[] values = (String[]) requestParams.get(name);
+		String valueStr = "";
+		for (int i = 0; i < values.length; i++) {
+			valueStr = (i == values.length - 1) ? valueStr + values[i]
+					: valueStr + values[i] + ",";
+		}
+		params.put(name, valueStr);
+	}
+
+//获取支付宝的通知返回参数，可参考技术文档中页面跳转同步通知参数列表(以下仅供参考)//
+	String trade_no = request.getParameter("trade_no");				//支付宝交易号
+	String order_no = request.getParameter("out_trade_no");	//获取订单号支付会员标志
+	if(order_no!=null){
+		order_no=order_no.substring(0,15);
+	}
+	String subject = request.getParameter("subject");	//获取订单号
+	String account_type ="1";
+	if(request.getParameter("body")!=null)
+		account_type=request.getParameter("body");//唯一标识account_type	
+	String price = request.getParameter("price");//唯一标识团购的订单	
+	String trade_status = request.getParameter("trade_status");		//交易状态
+  	Ti_financeInfo financeInfo = new Ti_financeInfo();
+  	Ti_finance_historyInfo historyInfo=new Ti_finance_historyInfo();
+  	
+  	String user_id = "";
+    if(session.getAttribute("session_user_id")!=null){
+	     user_id  =session.getAttribute("session_user_id").toString();
+	}
+	if(AlipayNotify.verify(params)){//验证成功
+		if(trade_status.equals("TRADE_FINISHED") || trade_status.equals("TRADE_SUCCESS")){
+			Map map = new Hashtable();
+			map.put("finance_type","1");
+			map.put("account_type",account_type);
+			map.put("cust_id",order_no);
+			map.put("use_vmoney",price);
+			financeInfo.zxczUse_MoneyByOnliePay(map);//充值金额
+			
+			RandomID randomID =new RandomID();
+			String trade_id = randomID.GenTradeId();
+			Ti_finance_history ti_finance_history = new Ti_finance_history();		
+			ti_finance_history.setTrade_id(trade_id);
+			ti_finance_history.setCust_id(order_no);
+			ti_finance_history.setNum(0);
+			ti_finance_history.setType(account_type);
+			ti_finance_history.setReason(subject);
+			ti_finance_history.setUser_id(user_id);
+			ti_finance_history.setRemark("");
+			ti_finance_history.setVmoney(price);
+			ti_finance_history.setUse_vmoney(price);
+			historyInfo.insert(ti_finance_history);
+			out.println("success");	//请不要修改或删除
+		} else {
+			out.println("success");	//请不要修改或删除
+		}
+	}else{//验证失败
+		out.println("fail");
+	}
+%>

@@ -1,0 +1,332 @@
+<!--#include file="inc/MainClass.asp"-->
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:4.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+response.Charset="gbk"
+
+if gbookStart = 0 then die "留言功能已经关闭"
+
+dim CONST_USER,CONST_PWD,timeSpan
+CONST_USER=gbookuser :  CONST_PWD=gbookpwd :  timeSpan=gbooktime
+dim action,page,temp: action = getForm("action", "get")
+page=getForm("page","get")
+if isNul(page)  then 
+	page=1
+else
+	if not isNum(page) then echoSaveStr "safe" else page=clng(page) 
+end if
+if page<1 then page=1
+Const CachePage=1
+dim templateobj
+
+Sub viewmain
+	dim channelTemplatePath,cacheName : channelTemplatePath = "/"&sitePath&"template/"&defaultTemplate&"/"&templateFileFolder&"/gbook.html"
+	set templateobj = mainClassobj.createObject("MainClass.template")
+	templateobj.load channelTemplatePath
+	cacheName="parse_book_"
+	if cacheStart=1 then
+		if cacheObj.chkCache(cacheName) then
+			templateObj.content = cacheObj.getCache(cacheName)
+		else 
+			parseBook
+			cacheObj.setCache cacheName,templateObj.content
+		end if
+	else
+		parseBook
+	end if
+	echo replace(replace(templateObj.content,"{gbook:viewLeaveWord}",viewLeaveWord),"{maxcms:runinfo}",getRunTime())
+	SET templateobj=nothing
+end sub
+
+Sub parseBook
+	with templateObj:.parseTopAndFoot():.parseSelf():.parseGlobal():.content=replaceCurrentTypeId(.content):.content = replace(.content,"{gbook:main}",main):.parseMenuList(""):.parseAreaList():.parseTopicList():.parseVideoList():.parseNewsList():.parseLinkList():.parseIf():end with
+End Sub
+
+Select  case action
+	case "add" : leaveWord
+	case "list" :
+		if isLogin then
+			echo replaceStr(leaveWordList,"{maxcms:runinfo}",getRunTime())
+		else
+			if page<=CachePage then tryDieCacheFile 0,"gbook/"&page
+			temp=leaveWordList:if page<=CachePage then WriteCacheFile 0,"gbook/"&page,temp
+			echo replaceStr(temp,"{maxcms:runinfo}",getRunTime())
+		end if
+	case "login" : loginLeaveWord
+	case "logout" :  logOut
+	case "state" : viewLoginState
+	case "del" : delLeaveWord
+	case "reply" : replyLeaveWord
+	case else:viewmain
+end Select
+terminateAllObjects
+
+Function main
+	main =  "<div class='leaveNavInfo'><h3><span id='adminleaveword'></span>"&siteName&"留言板</h3></div>"
+End Function
+
+Function transferSpecialStr(Byval str)
+	dim templateobj:set templateobj = mainClassObj.createObject("MainClass.template")
+	if instr(str,"[URL]")>0 then 
+		str=templateobj.regExpReplace(str,"\[URL\](\S+?)\[\/URL\]","<a target=""_blank"" href=""$1"">$1</a>")
+	else
+		str=templateobj.regExpReplace(str,"(http://\S+)[\s|\n]*","<a target=""_blank""  href=""$1"">$1</a>")
+	end if
+	set templateobj=nothing
+	transferSpecialStr=str
+End Function
+
+Sub replyLeaveWord
+	if not isLogin then die "err"
+	dim id : id=getForm("id","get")
+	dim m_content : m_content=transferSpecialStr(preventSqlin(getForm("m_replycontent","post"),"filter"))
+	dim m_ip : m_ip=preventSqlin(getIp(),"filter")
+	on error resume next
+	if isNul(id) then
+		die "err"
+	else
+		if not isNum(id) then echoSaveStr "safe" else id=clng(id) 
+	end if
+	conn.db "insert into {pre}leaveword(m_replyid,m_content,m_ip) values("&id&",'"&m_content&"','"&m_ip&"')","execute"
+	if err  then echo "err" else echo "ok"
+	dim fp:fp=getCacheFile(0,"gbook/"):if isExistFolder(fp) then delFolder fp
+End Sub
+
+Sub delLeaveWord
+	if not isLogin then die "err"
+	dim id : id=getForm("id","get")
+	dim ptype : ptype=clng(preventSqlin(getForm("type","get"),"filter"))
+	on error resume next
+	if isNul(id) then 
+		die "err"
+	else
+		if not isNum(id) then echoSaveStr "safe" else id=clng(id) 
+	end if
+	if ptype=1 then conn.db "delete  from {pre}leaveword where m_id="&id,"execute" else 
+	conn.db "delete from {pre}leaveword where m_replyid="&id,"execute"
+	if err  then echo "err" else echo "ok"
+	dim fp:fp=getCacheFile(0,"gbook/"):if isExistFolder(fp) then delFolder fp
+End Sub
+
+Function ChleaveWord(x)
+	Dim rg:SET rg=new RegExp
+		rg.ignoreCase=true
+		rg.Global=false
+		rg.Pattern="[\u4e00-\u9fa5]"
+		ChleaveWord=rg.test(x)
+	SET rg=nothing
+End Function
+
+Sub leaveWord
+	if getTimeSpan("lastGbookTime")<timeSpan then die "haveleave"
+	dim m_author,m_qq,m_mail,m_content,m_addtime,m_ip:m_content=getForm("m_content","post")
+	if not ChleaveWord(m_content) then die "cn"
+	m_ip=preventSqlin(getIp(),"filter")
+	if computeStrLen(m_ip)>15 then m_ip=getStrByLen(m_ip,15)
+	CheckBanIP m_ip
+	m_content=encodeHtml(filterDirty(preventSqlin(m_content,"filter")))
+	if computeStrLen(m_content)>500 then m_content=getStrByLen(m_content,500)
+	CheckBanWords m_content
+	on error resume next
+	m_author=encodeHtml(filterDirty(preventSqlin(getForm("m_author","post"),"filter")))
+	if computeStrLen(m_author)>20 then m_author=getStrByLen(m_author,20)
+	m_qq=encodeHtml(filterDirty(preventSqlin(getForm("m_qq","post"),"filter")))
+	if computeStrLen(m_qq)>15 then m_qq=getStrByLen(m_qq,15)
+	m_mail=encodeHtml(filterDirty(preventSqlin(getForm("m_mail","post"),"filter")))
+	if computeStrLen(m_mail)>30 then m_mail=getStrByLen(m_mail,30)
+	m_addtime=now
+	conn.db "insert into {pre}leaveword(m_author,m_qq,m_mail,m_content,m_ip,m_addtime) values ('"&m_author&"','"&m_qq&"','"&m_mail&"','"&replacedirtyWords(m_content)&"','"&m_ip&"','"&m_addtime&"')","execute"
+	setSession "lastGbookTime",now
+	if err  then echo "err" else echo "ok"
+	dim fp:fp=getCacheFile(0,"gbook/"):if isExistFolder(fp) then delFolder fp
+End Sub
+
+Sub logOut
+	session("loginflag")=""
+End Sub
+
+Sub loginLeaveWord
+	dim m_username,m_pwd,m_login
+	on error resume next
+	m_username=preventSqlin(getForm("m_username","post"),"filter")
+	m_pwd=preventSqlin(getForm("m_pwd","post"),"filter")
+	m_login=preventSqlin(getForm("m_login","post"),"filter")
+	if err  then 
+		echo "err" 
+	else
+		if m_username=CONST_USER and m_pwd=CONST_PWD and m_login="ok" then 
+			session("loginflag")=CONST_USER&CONST_PWD : echo "ok" 
+		else 
+			echo "no"
+		end if
+	end if 
+End Sub
+
+function leaveWordList
+	dim Qe,ary,n,i,rsObj,lsort,txt
+	set Qe = mainClassobj.createObject("MainClass.DataPage")
+	Qe.Query "SELECT m_id,m_author,m_qq,m_mail,m_content,m_ip,m_addtime FROM {pre}leaveword WHERE m_replyid=0 ORDER BY m_id DESC"
+	Qe.absolutepage=page
+	Qe.pagesize=10
+	ary = Qe.GetRows()
+	if page > Qe.pagecount then page=Qe.pagecount
+	if Qe.recordcount>0 then 
+		n=ubound(ary,2):lsort=n
+		for i=0 to n
+			set rsObj=conn.db("select top 1 m_content,m_ip,m_addtime from {pre}leaveword where m_replyid="&ary(0,i),"records1")
+			txt=txt&"<ul>"&_
+			"<li class=""topwords""><span><strong>"&ary(1,i)&"</strong> 发表于 "&ary(6,i)&_
+			"</span>"
+			if isLogin then
+					txt=txt&" <a href=""javascript:void(0)"" class='red'  onclick=""if(confirm('确定删除该留言及回复吗')){delLeaveWord("&ary(0,i)&","&page&",1);return false;}"">删除</a> | "
+					if  rsObj.eof then 
+						txt=txt&"<a href=""javascript:void(0)"" class='red' onclick=""replyLeaveWord("&ary(0,i)&","&page&");return false;"">回复</a> | "
+					else
+						txt=txt&"<a href=""javascript:void(0)""  class='red' onclick=""if(confirm('确定删除该回复吗')){delLeaveWord("&ary(0,i)&","&page&",2);return false;}"">删除回复</a> | "
+					end if
+			end If
+				
+			txt=txt&"第"
+			if page = Qe.pagecount then
+				txt=txt&(lsort+1)
+			else
+				txt=txt&(Qe.recordcount- Qe.pagesize *page +lsort + 1)
+			end if
+			txt=txt&"楼 </li>"
+			txt=txt&"<li class=""words"">"&showFace(ary(4,i))&"</li>"		
+			if not rsObj.eof then txt=txt&"<li class=""rewords""><em>回复内容:</em>"&rsObj("m_content")&"</li>"			
+			rsObj.close : set rsObj=nothing
+			txt=txt&"</ul>"
+			lsort=lsort-1
+		next
+	else
+		txt="<ul><li class=""words"">当前没有留言</li></ul>"
+	end if
+	txt=txt&"<div class=""page""><span>共"&Qe.pagecount&"页</span>"
+	if page=1 then
+		txt=txt&"<em class='nolink'>首页</em><em class='nolink'>上一页</em>"
+	else
+		txt=txt&"<a title=""首页"" href='javascript:' onClick=""viewLeaveWordList(1);return false;"">首页</a><a title=""前一页"" href='javascript:' onClick=""viewLeaveWordList("&(page-1)&");return false;"">上一页</a>"
+	end if
+		dim m,x,y
+		x=page-5:y=page+5
+		if x<1 then x=1
+		if y>Qe.pagecount then y=Qe.pagecount
+		for m=x to y
+			if page=m then		
+				txt=txt&"<em>"&m&"</em> "
+			else
+				txt=txt&" <a onclick=""viewLeaveWordList("&m&");return false;"" href='javascript:'>"&m&"</a>"
+			end if
+		next
+		if page=Qe.pagecount then
+			txt=txt&"<em class='nolink'>下一页</em><em class='nolink'>尾页</em>"
+		else
+			txt=txt&"<a title=""下一页"" onClick=""viewLeaveWordList("&(page+1)&");""  href='javascript:'>下一页</a> <a title=""最后一页"" onClick=""viewLeaveWordList("&Qe.pagecount&")""  href='javascript:'>尾页</a>"
+		end if
+	txt=txt&"</div>"
+	set Qe = nothing
+	leaveWordList=txt
+End function
+
+Sub viewLoginState
+	if isLogin  then
+%>
+已登陆:  <a style="color:red" onClick="logOut();return false;" href="javascript:" >退出</a>
+<%
+	else  
+%>
+<span onClick="viewLoginState();">留言管理</span>
+<%
+	end if
+End Sub
+
+Function viewLeaveWord
+	dim key : key=server.HTMLEncode(getForm("key","get"))
+	dim mystr: mystr = ""
+mystr = mystr&"<div id=""leaveword"">"&_
+"<form id=""f_leaveword""   action=""/"&sitePath&"gbook.asp?action=add"" method=""post"">"&_
+"<table align=""center"" width=""600px"" style=""margin:0 auto"">"&_ 
+"<tr>"&_
+"<td height=""25"" colspan=""2"">昵称：<input type=""input""  value=""匿名"" name=""m_author"" id=""m_author"" size='20' /> <input type=""hidden"" name=""m_qq"" id=""m_qq""  size=10 /><input type=""hidden""  name=""m_mail""  id=""m_mail"" size=10  />"&_
+"<span class=""red"">*</span></td>"&_
+"</tr>"&_
+"<tr>"&_
+"<td height=""25"" colspan=""2""><div id=""facepic"" > 表情："&_
+"<img src=""/"&sitePath&"pic/faces/18.gif"" width=""22"" height=""22"" onclick='addFace(""18"")' alt=""微笑"" style=""cursor:pointer""/>"&_
+"<img src=""/"&sitePath&"pic/faces/19.gif"" width=""22"" height=""22"" onclick='addFace(""19"")' alt=""憨笑"" style=""cursor:pointer""/>"&_
+"<img src=""/"&sitePath&"pic/faces/20.gif"" width=""22"" height=""22"" onclick='addFace(""20"")' alt=""色迷迷"" style=""cursor:pointer""/>"&_
+"<img src=""/"&sitePath&"pic/faces/21.gif"" width=""22"" height=""22"" onclick='addFace(""21"")' alt=""悠闲"" style=""cursor:pointer""/>"&_
+"<img src=""/"&sitePath&"pic/faces/22.gif"" width=""22"" height=""22"" onclick='addFace(""22"")' alt=""调皮"" style=""cursor:pointer""/>"&_
+"<img src=""/"&sitePath&"pic/faces/23.gif"" width=""22"" height=""22"" onclick='addFace(""23"")' alt=""大哭"" style=""cursor:pointer""/>"&_
+"<img src=""/"&sitePath&"pic/faces/24.gif"" width=""22"" height=""22"" onclick='addFace(""24"")' alt=""惊讶"" style=""cursor:pointer""/>"&_
+"<img src=""/"&sitePath&"pic/faces/25.gif"" width=""22"" height=""22"" onclick='addFace(""25"")' alt=""扁你"" style=""cursor:pointer""/>"&_
+"<img src=""/"&sitePath&"pic/faces/26.gif"" width=""22"" height=""22"" onclick='addFace(""26"")' alt=""很囧"" style=""cursor:pointer""/>"&_
+"<img src=""/"&sitePath&"pic/faces/27.gif"" width=""22"" height=""22"" onclick='addFace(""27"")' alt=""愤怒"" style=""cursor:pointer""/>"&_
+"<img src=""/"&sitePath&"pic/faces/28.gif"" width=""22"" height=""22"" onclick='addFace(""28"")' alt=""偷笑"" style=""cursor:pointer""/>"&_
+"<img src=""/"&sitePath&"pic/faces/29.gif"" width=""22"" height=""22"" onclick='addFace(""29"")' alt=""痛苦啊"" style=""cursor:pointer""/>"&_
+"</div></td>"&_
+  "</tr>"&_
+  
+	 "<tr>"&_
+	 	"<td width=550 colspan=""2"" valign=""top"">内容：<textarea cols=""40"" name=""m_content"" id=""m_content"" rows=""5""  >"
+		if not isNul(key)  then mystr = mystr&"您好，我想看"&key&",多谢了" 
+		mystr = mystr&"</textarea>　<span class=""red"">*</span></td>"&_
+  "</tr>"&_
+  
+  "<tr>"&_
+	"<td height=""30"" colspan=""2"">　　　<input type=""button"" value=""提交留言""  onclick=""leaveWord()"" class=""btn""/>　<input type=""reset"" value=""重新留言"" class=""btn"" /></td> </tr>"&_
+"</table></form>"&_
+"</div>"&_
+"<div id=""leavewordlist""  align=""center""></div>"&_
+"<script>setLoginState();viewLeaveWordList(1);</script>"&_
+"<br /><br />"
+viewLeaveWord = mystr
+End Function
+
+Function isLogin()
+	if session("loginflag")=CONST_USER&CONST_PWD  then isLogin=true else  isLogin=false 
+End Function
+
+Function getBanWords()
+	on error resume next:getBanWords=BanWords
+End Function
+
+Sub CheckBanWords(m_content)
+	if ""&getBanWords="" OR m_content="" then Exit Sub
+	Dim Ban,i,l:Ban=Split(getBanWords,","):l=UBound(Ban)
+	for i=0 to l
+		if Ban(i)<>"" then
+			if InStr(" "&m_content,Ban(i))>0 then die "haveleave"
+		end if
+	next
+End Sub
+
+Function getBanIPS()
+	on error resume next:getBanIPS=BanIPS
+End Function
+
+Sub CheckBanIP(m_ip)
+	if ""&getBanIPS="" then Exit Sub
+	dim x,y,i,l,Ban:Ban=Split(ReplaceStr(getBanIPS," ",""),","):l=UBound(Ban)
+	if InStr(" ,"&getBanIPS&",",","&m_ip&",")>0 then die "havecomment"
+	for i=0 to l
+		if InStr(" "&Ban(i),"*")>0 then
+			x=Split(Ban(i),"."):y=Split(m_ip,".")
+			if UBound(x)=3 then
+				if (x(0)=y(0) OR x(0)="*") AND (x(1)=y(1) OR x(1)="*") AND (x(2)=y(2) OR x(2)="*") AND (x(3)=y(3) OR x(3)="*") then
+					die "haveleave"
+				end if
+			end if
+		elseif Ban(i)=m_ip then
+			die "haveleave"
+		end if
+	next
+End Sub
+%>

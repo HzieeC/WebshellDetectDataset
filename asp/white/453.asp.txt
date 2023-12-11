@@ -1,0 +1,58 @@
+<%
+' 创建文章
+Function CreateSpecial(ByVal Sid)
+    Dim Ra, FileName, Templateview, HTML
+    Set Ra = DB("Select * From [{pre}Special] Where [ID]=" & Sid, 3): If Ra.EOF Then Exit Function
+
+    If Len(Ra("FileName"))=0 Then
+		FileName = Sid
+    Else
+        FileName = Ra("FileName")
+    End If
+	If Len(Ra("Template")) = 0 Then  Exit Function
+    Templateview = "../"&templatedir&"/"&Ra("Template") ' 模板
+
+
+    ' 载入模板
+    Dim TPL
+    Set TPL = New Cls_Template
+    Call TPL.Load(Templateview) ' 处理模板
+	
+	 ' 正表达式
+    Dim RegEx, Matches, Match
+    Set RegEx = New RegExp
+    RegEx.Ignorecase = True
+    RegEx.Global = True
+	
+	Dim SQL, Ns, Tmp, Tid, Turl
+    RegEx.Pattern = "{tag:([\s\S]*?)}"
+    Set Matches = RegEx.Execute(TPL.Content)
+    For Each Match In Matches
+        Tmp = "": Tid = 0: Turl = ""
+        Select Case LCase(Replace(Match.SubMatches(0), " ", ""))
+        Case "pre"
+			tmp = getprenext(aid,cid,"pre")
+        Case "next"
+            tmp = getprenext(aid,cid,"next")
+        Case "sitepath" ' 站点路径
+            tmp = indexname & " > 专题 >" & "{field:title}"
+        Case "page"
+            Tmp = Match.Value ' 让下面调用哦
+        End Select
+        TPL.Content = Replace(TPL.Content, Match.Value, Tmp)
+    Next
+	
+    TPL.SID = Sid
+    TPL.Content = ReplaceX(TPL.Content,"{field:sid}",Sid)
+    TPL.Content = ReplaceX(TPL.Content,"{field:title}",Ra("Specialname"))
+    TPL.Content = ReplaceX(TPL.Content,"{field:keywords}",Ra("keywords"))
+    TPL.Content = ReplaceX(TPL.Content,"{field:Description}",Ra("Description"))
+	TPL.Content = TPL.Parser_Tags("\{field:(.+?)\}", TPL.Content, Ra) ' 本栏目信息替换
+	Call TPL.Parser_My
+    Call TPL.Parser_Sys
+    Call TPL.Parser_Com
+	
+	HTML = TPL.Content
+	Call CreateFile(HTML, "../special/"&FileName&".html") ' 保存封面
+End Function
+%>

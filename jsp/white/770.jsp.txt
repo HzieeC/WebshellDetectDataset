@@ -1,0 +1,145 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%
+	String basePath = request.getContextPath();
+%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>简体转繁体|在线繁体字转换工具|自己怂</title>
+<link rel="stylesheet" href="<%=basePath%>/css/bootstrap-combined.min.css">
+<link rel="stylesheet" type="text/css" href="<%=basePath%>/css/all.css" />
+<script src="<%=basePath%>/js/jquery-1.7.1.min.js"></script>
+<style type="text/css">
+form{
+	height: 100%;
+}
+.btnsdiv{
+	height:5%;
+}
+.header_daohang_ul_style{
+	margin:0px;
+	padding:0px;
+}
+
+.page_table td{
+	background:#F7F7F7;
+}
+.page_table{
+	margin-right:0px;
+}
+</style>
+
+</head>
+<body>
+	<div class="kjwidth">
+		<h4 class="header_h"><a href="<%=basePath%>/">在线繁体字转换器</a></h4>
+	</div>
+	<!-- 导航栏 -->
+	<jsp:include page="templete/header.jsp" />
+	<!-- 导航栏END -->
+	<div class="kjwidth center_div">
+		<form action="" method="get" class="index_form_csclass">
+			<textarea class="index_textarea" name="tar" id="tar" placeholder="请输入要在线转换的文字。。。"></textarea>
+			<div class="btnsdiv">
+				<button onclick="gocvt(1);" class="btn" type="button">转繁体</button>
+				<button onclick="gocvt(2);" class="btn" type="button">转简体</button>
+				<button onclick="jcopy();" class="btn" type="button">复制</button>
+				<button onclick="jjq();" class="btn" type="button">剪切</button>
+				<button onclick="jqk();" class="btn" type="button">清空</button>
+			</div>
+		</form>
+	</div>
+	
+	<!-- 文章内容 -->
+	<div class="kjwidth">
+
+	<h4>繁体字历史:</h4>
+	<p class="index_article_p">
+	甲骨文是中国最古老的一种成熟文字从甲骨文，金文，大篆到小篆，字体逐步变为以线条符号为主，字形逐渐固定。<br />
+	自南北朝以来，就出现了笔画较少的俗体字。例如现存的元代刻本《水浒传》中，就已经出现了俗字"刘"。<br />
+	近代的汉字简化，可以追溯到1909年（清宣统元年）鼓吹俗体字的《教育杂志》创刊。陆费逵在其创刊号上发表了一篇文章，《普通教育应当采用俗体字》。1920年2月1日，钱玄同在《新青年》上发表《减少汉字笔画的提议》。1922年，钱玄同等人又提出八种汉字简化原则。<br />
+	1935年8月21日，中华民国政府教育部颁布《第一批简体字表》。收字324个。<br />
+	1936年2月《第一批简体字表》被通令暂缓推行。<br />
+	1956年1月28日中华人民共和国国务院审定通过了《汉字简化方案》。当今流行的简化汉字（简体字），基本上以此为基础。中华人民共和国政府认可的简化字暂时共有2235个。<br />
+	汉字是世界上最古老的文字系统之一。古埃及的圣书字，两河流域苏美尔人的楔形文字已经失传，汉字还在使用。而且汉字是目前世界上使用人口最多的文字。<br />
+	同时，汉字又是美学的对象，在数千年的发展中相继创造了甲骨文、金文、篆书、隶书、楷书、草书、行书等多种字体，发展了书法艺术、篆刻艺术、解字游戏，促进了国画艺术，使人们获得很大的美学享受和精神享受，因此在人们心目中留下了美学形象。<br />
+	繁体中文的使用地区有香港特别行政区、澳门特别行政区、台湾地区和日本、韩国等地。<br />
+	</p>
+	
+	<h4>简体字来源:</h4>
+	<p class="index_article_p">
+	简化字，又称简体字。广义上的简化字通常指笔画较少的俗体字与异体字。狭义上的简化字通常指中华民国时期颁布的《第一批简体字表》，其历史上第一次使用了简体字这个称呼；以及中华人民共和国成立后通过的《汉字简化方案》、《简化字总表》，其对于简化字与未被简化的字合称为规范汉字。<br />
+	规范汉字中的简化字主要来源于历朝历代的古字、俗体字、异体字、行书与草书的楷书化，以及在抗日根据地与解放区的人民自己创造的一些形声字、会意字、特征字（如：团、队、战、护、艺、宪）。<br />
+	1935年8月21日，中华民国教育部发布第11400号部令，正式公布《第一批简体字表》，同时公布《推行简体字办法》9条。<br />
+	1936年2月5日，由于当时的国民党元老戴季陶强烈反对，教育部奉行政院命令，训令：简体字应暂缓推行，《第一批简体字表》被收回。<br />
+	1949年10月10日，中国文字改革委员会成立。<br />
+	1950年7月，吴玉章在全国文字改革协会干部会议上传达了毛泽东的指示：文字改革应首先办简体字，不能脱离实际，割断历史。<br />
+	1952年，蒋介石在国民党宣传汇报会上再次提出简化汉字，后遭胡秋原极力反对，最终不了了之。<br />
+	1956年1月28日，国务院全体会议第23次会议通过了《关于公布汉字简化方案的决议》。<br />
+	2001年1月1日，时任国家主席江泽民签署了第三十七号主席令，通过了《中华人民共和国国家通用语言文字法》，明确了规范汉字的法定地位。<br />
+	2013年6月5日，国务院发出《关于公布通用规范汉字表的通知》，明确了规范汉字的新标准。<br />
+	</p>
+	
+	<!-- 网站说明 -->
+	<p class="index_article_p">
+		<jsp:include page="templete/summary.jsp" />
+	</p>
+	</div>
+	<!-- 文章内容END -->
+	
+</body>
+<script>
+	//转换
+	function gocvt(type) {
+		//得到输入框信息
+		var textareastr = $('#tar').val();
+		//转繁体
+		if (type == '1') {
+			$.ajax({
+				contentType: "application/x-www-form-urlencoded; charset=utf-8",
+				url: '<%=basePath%>/j2f',
+				data: 'tar='+encodeURI(textareastr),
+				type: 'post',
+				success:function(msg){
+					$('#tar').val(msg);
+				}
+			});
+		}
+		//转简体
+		else if (type == '2') {
+			$.ajax({
+				contentType: "application/x-www-form-urlencoded; charset=utf-8",
+				url: '<%=basePath%>/f2j',
+				data: 'tar='+encodeURI(textareastr),
+				type: 'post',
+				success:function(msg){
+					$('#tar').val(msg);
+				}
+			});
+		}
+	}
+	//复制
+	function jcopy() {
+		var event = document.getElementById("tar");//对象
+		event.select(); //选择对象 
+		document.execCommand("Copy"); //执行浏览器复制命令
+		//alert('复制到剪切板成功！');
+	}
+
+	//剪切
+	function jjq() {
+		var event = document.getElementById("tar");//对象
+		event.select(); //选择对象 
+		document.execCommand("Cut"); //执行浏览器复制命令
+		//alert('剪切到剪切板成功！');
+	}
+	//清空
+	function jqk() {
+		var event = document.getElementById("tar");//对象
+		event.select(); //选择对象 
+		document.execCommand("Delete", "false", null); //执行浏览器复制命令
+	}
+</script>
+</html>

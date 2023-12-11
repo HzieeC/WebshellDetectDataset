@@ -1,0 +1,73 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="javaBean.BeanManage,java.util.ArrayList"%>
+<%
+	String url = request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<table cellpadding=2 cellspacing=1 border=0 class=tableBorder align=center>
+ <tr>
+ <th height=22 colspan=6>管理员操作</th>
+ </tr>
+ <tr>
+ <td class=TableRow1> <b>管理选项：</b> <a href='<%=url%>/servletsmanage?action=manage'>管理首页</a> &nbsp;<a href="<%=url%>/admin/admin_master.jsp">添加管理员</a> </td>
+ </tr>
+ </table><br>
+<table cellpadding="2" cellspacing="1" border="0" class="tableBorder" align=center>
+ <tr>
+ <th height=22 colspan=6>管理员管理(点击用户名进行操作)</th>
+ </tr>
+ <tr align=center>
+<td height=22 class=TableTitle><B>用户名</B></td>
+<td class=TableTitle><B>管理员等级</B></td>
+<td class=TableTitle><B>开通时间</B></td>
+<td class=TableTitle><B>操作</B></td>
+<td class=TableTitle><B>状态</B></td>
+
+ </tr>
+ <%
+	ArrayList alist=(ArrayList)request.getAttribute("alist");
+	BeanManage bm=null;
+	for(int i=0;i<alist.size();i++){
+		bm=(BeanManage)alist.get(i);
+%>
+ <tr>
+ <td class=TableRow1><%=bm.getMName()%></td>
+<td align=center class=TableRow1><%=bm.getMStep()%></td>
+<td align=center class=TableRow1><%=bm.getMtime()%></td>
+
+<%if(bm.getMName().equals("admin")){%>
+<td align=center class=TableRow1>最高管理员不可锁定和删除</a></td>
+
+<%}else{%>
+<td align=center class=TableRow1> <a href="<%=url%>/servletsmanage?action=lock&id=<%=bm.getId()%>" onclick="return confirm('您确定要锁定此管理员吗?')">锁定管理员</a> | <a href="<%=url%>/servletsmanage?action=nolock&id=<%=bm.getId()%>" onclick="return confirm('您确定要解锁此管理员吗?')">解锁管理员</a> | <a href="?action=del&id=<%=bm.getId()%>" onclick="return confirm('此操作将删除该管理员\n 您确定执行此操作吗?')">删除</a></td>
+<%}%>
+
+<%if(bm.getMActivation()==1){%>
+<td align=center class=TableRow1>正常</td>
+<%}else{%>
+<td align=center class=TableRow1>未激活</td>
+<%}%>
+ </tr>
+ <%}%>
+ <tr>
+ <td colspan="6" align=center Class=TableRow1>
+ <input class="button" type=button name="Submit" value="添加管理员" onClick="self.location='<%=url%>/admin/admin_master.jsp?action=add'" >
+ </td>
+ </tr>
+ </table>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

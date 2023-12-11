@@ -1,0 +1,202 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_caseoperation.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Hashtable ti_caseoperation = new Hashtable();
+	String req_commission_fees="";	
+	String req_cur_state="";	
+	String req_operator_time="";	
+	String req_does_signing="";
+	if(request.getParameter("req_commission_fees")!=null && !request.getParameter("req_commission_fees").equals("")){
+		req_commission_fees = request.getParameter("req_commission_fees");
+		ti_caseoperation.put("commission_fees",req_commission_fees);
+	}
+	
+	if(request.getParameter("req_cur_state")!=null && !request.getParameter("req_cur_state").equals("")){
+		req_cur_state = request.getParameter("req_cur_state");
+		ti_caseoperation.put("cur_state",req_cur_state);
+	}
+	
+	if(request.getParameter("req_operator_time")!=null && !request.getParameter("req_operator_time").equals("")){
+		req_operator_time = request.getParameter("req_operator_time");
+		ti_caseoperation.put("operator_time",req_operator_time);
+	}
+	
+	if(request.getParameter("req_does_signing")!=null && !request.getParameter("req_does_signing").equals("")){
+		req_does_signing = request.getParameter("req_does_signing");
+		ti_caseoperation.put("does_signing",req_does_signing);
+	}
+	  Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+ 	 String s_cur_state = tb_commparaInfo.getSelectItem("111","");   
+	Ti_caseoperationInfo ti_caseoperationInfo = new Ti_caseoperationInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_caseoperationInfo.getListByPage(ti_caseoperation,Integer.parseInt(iStart),limit);
+	int counter = ti_caseoperationInfo.getCountByObj(ti_caseoperation);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?iStart=",Integer.parseInt(iStart),limit);
+%>
+<html>
+  <head>
+    <title>律师案源管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>律师案源管理</h1>
+			</td>
+			<td>
+				<a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a>
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				
+					提成费用:<input name="req_commission_fees" type="text" size="10"/>&nbsp;
+					当前状态:
+					<select name="req_cur_state" >
+		  				<option value="">请选择</option>
+		  				<%=s_cur_state %>
+		  			</select>&nbsp;
+		  			是否签单:<select name="req_does_signing" >
+		  				<option value="">请选择</option>
+		  				<option value="0">否</option>
+		  				<option value="1">是</option>
+		  			</select>&nbsp;
+
+				<input name="searchInfo" type="button" value="搜索" onclick="return search();"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条�
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			
+		  	<th>case_id</th>
+		  	
+		  	<th>lawyerfirm_id</th>
+		  	
+		  	<th>commission_fees</th>
+		  	
+		  	<th>cur_state</th>
+		  	
+		  	<th>service_id</th>
+		  	
+		  	<th>operator_id</th>
+		  	
+		  	<th>operator_time</th>
+		  	
+		  	<th>does_signing</th>
+		  	
+			<th width="10%">修改</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String case_id="",lawyer_id="",lawyerfirm_id="",commission_fees="",cur_state="",service_id="",operator_id="",operator_time="",does_signing="";
+		  			  	if(map.get("case_id")!=null) case_id = map.get("case_id").toString();
+  	if(map.get("lawyer_id")!=null) lawyer_id = map.get("lawyer_id").toString();
+  	if(map.get("lawyerfirm_id")!=null) lawyerfirm_id = map.get("lawyerfirm_id").toString();
+  	if(map.get("commission_fees")!=null) commission_fees = map.get("commission_fees").toString();
+  	if(map.get("cur_state")!=null) cur_state = map.get("cur_state").toString();
+  	if(map.get("service_id")!=null) service_id = map.get("service_id").toString();
+  	if(map.get("operator_id")!=null) operator_id = map.get("operator_id").toString();
+  	if(map.get("operator_time")!=null) operator_time = map.get("operator_time").toString();
+if(operator_time.length()>19)operator_time=operator_time.substring(0,19);
+  	if(map.get("does_signing")!=null) does_signing = map.get("does_signing").toString();
+
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=lawyer_id %>" /></td>
+			
+		  	<td><%=case_id%></td>
+		  	
+		  	<td><%=lawyerfirm_id%></td>
+		  	
+		  	<td><%=commission_fees%></td>
+		  	
+		  	<td><%=cur_state%></td>
+		  	
+		  	<td><%=service_id%></td>
+		  	
+		  	<td><%=operator_id%></td>
+		  	
+		  	<td><%=operator_time%></td>
+		  	
+		  	<td><%=does_signing%></td>
+		  	
+			<td width="10%"><a href="updateInfo.jsp?lawyer_id=<%=lawyer_id %>"><img src="/program/admin/images/edit.gif" title="修改" /></a></td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=lawyer_id%>','7359');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条�
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="7359" />
+	  </form>
+</body>
+
+</html>

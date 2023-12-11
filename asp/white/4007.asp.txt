@@ -1,0 +1,222 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../../common/const.asp"-->
+<%
+Dim ErrMsg,Position,Postmsg,sucmsg,UserNowIP
+Dim ChannelID
+FoundErr = False
+'--禁止代理服务器登录
+If CLng(NewAsp.MainSetting(20))=1 Then
+	Call NewAsp.ChcekProxy(True)
+End If
+ChannelID = Newasp.ChkNumeric(Request("ChannelID"))
+NewAsp.ChannelID = ChannelID
+NewAsp.LoadChannel()
+
+Postmsg = "<li>非法操作，请不要从外部提交数据！</li>"
+'================================================
+'函数名：ShowPages
+'作  用：通用分页
+'================================================
+Function ShowPages(CurrentPage,Pcount,totalrec,PageNum,str)
+	Dim strTemp,strRequest
+	strRequest = str
+	strTemp = "<table border=""0"" cellpadding=""0"" cellspacing=""3"" width=""100%"" align=""center"">" & vbNewLine
+	strTemp = strTemp & "<tr><td valign=""middle"" nowrap>" & vbNewLine
+	strTemp = strTemp & "页次：<b><font color=""red"">" & CurrentPage & "</font></b>/<b>" & Pcount & "</b>页&nbsp;" & vbNewLine
+	strTemp = strTemp & "每页<b>" & PageNum & "</b> 总数<b>" & totalrec & "</b></td>" & vbNewLine
+	strTemp = strTemp & "<td valign=""middle"" nowrap align=""right"">分页：" & vbNewLine
+	strTemp = strTemp & "<script language=""JavaScript"">" & vbNewLine
+	strTemp = strTemp & "<!--" & vbNewLine
+	strTemp = strTemp & "var CurrentPage=" & CurrentPage & ";" & vbNewLine
+	strTemp = strTemp & "var Pcount=" & Pcount & ";" & vbNewLine
+	strTemp = strTemp & "var Endpage=0;" & vbNewLine
+	strTemp = strTemp & "if (CurrentPage > 4){" & vbNewLine
+	strTemp = strTemp & "	document.write ('<a href=""?page=1" & strRequest & """>[1]</a> ...');" & vbNewLine
+	strTemp = strTemp & "}" & vbNewLine
+	strTemp = strTemp & "if (Pcount>CurrentPage+3)" & vbNewLine
+	strTemp = strTemp & "{" & vbNewLine
+	strTemp = strTemp & "	Endpage=CurrentPage+3" & vbNewLine
+	strTemp = strTemp & "}" & vbNewLine
+	strTemp = strTemp & "else{" & vbNewLine
+	strTemp = strTemp & "	Endpage=Pcount" & vbNewLine
+	strTemp = strTemp & "}" & vbNewLine
+	strTemp = strTemp & "for (var i=CurrentPage-3;i<=Endpage;i++)" & vbNewLine
+	strTemp = strTemp & "{" & vbNewLine
+	strTemp = strTemp & "	if (i>=1){" & vbNewLine
+	strTemp = strTemp & "		if (i == CurrentPage)" & vbNewLine
+	strTemp = strTemp & "		{" & vbNewLine
+	strTemp = strTemp & "			document.write ('<font color=""#FF0000"">['+i+']</font>');" & vbNewLine
+	strTemp = strTemp & "			}" & vbNewLine
+	strTemp = strTemp & "		else{" & vbNewLine
+	strTemp = strTemp & "			document.write ('<a href=""?page='+i+'" & strRequest & """>['+i+']</a>');" & vbNewLine
+	strTemp = strTemp & "		}" & vbNewLine
+	strTemp = strTemp & "	}" & vbNewLine
+	strTemp = strTemp & "}" & vbNewLine
+	strTemp = strTemp & "if (CurrentPage+3 < Pcount){" & vbNewLine 
+	strTemp = strTemp & "	document.write ('...<a href=""?page='+Pcount+'" & strRequest & """>['+Pcount+']</a>');" & vbNewLine
+	strTemp = strTemp & "}" & vbNewLine
+	strTemp = strTemp & "if (Endpage == 0){ " & vbNewLine
+	strTemp = strTemp & "	document.write ('...');" & vbNewLine
+	strTemp = strTemp & "}" & vbNewLine
+	strTemp = strTemp & "//-->" & vbNewLine
+	strTemp = strTemp & "</script>" & vbNewLine
+	strTemp = strTemp & "</td></tr></table>"
+	ShowPages = strTemp
+End Function
+'================================================
+'过程名：ToErrors
+'作  用：返回错误信息
+'================================================
+Sub ToErrors(message)
+	Dim strHTML
+	strHTML=NewAsp.ReadTextFile(NewAsp.TemplatePath&"users\error.html")
+	strHTML=Replace(strHTML, "{$message}", message)
+	Response.Write strHTML
+End Sub
+'================================================
+'过程名：ToSucceed
+'作  用：返回成功信息
+'================================================
+Sub ToSucceed(message)
+	Dim strHTML
+	strHTML=NewAsp.ReadTextFile(NewAsp.TemplatePath&"users\succeed.html")
+	strHTML=Replace(strHTML, "{$message}", message)
+	strHTML=Replace(strHTML, "{$links}", Request.ServerVariables("HTTP_REFERER"))
+	Response.Write strHTML
+End Sub
+Sub ToSuccess(message,url)
+	Dim strHTML
+	strHTML=NewAsp.ReadTextFile(NewAsp.TemplatePath&"users\succeed.html")
+	strHTML=Replace(strHTML, "{$message}", message)
+	If Len(url)>1 Then
+		strHTML=Replace(strHTML, "{$links}", url)
+	Else
+		strHTML=Replace(strHTML, "{$links}", Request.ServerVariables("HTTP_REFERER"))
+	End If
+	Response.Write strHTML
+End Sub
+
+Function FormatDated(DateAndTime, para)
+	FormatDated = ""
+	Dim strDate
+	If Not IsDate(DateAndTime) Then Exit Function
+	If DateAndTime >= Date Then
+		strDate = "<font color=""red"">"
+		strDate = strDate & NewAsp.FormatDate(DateAndTime, para)
+		strDate = strDate & "</font>"
+	Else
+		strDate = "<font color=""#808080"">"
+		strDate = strDate & NewAsp.FormatDate(DateAndTime, para)
+		strDate = strDate & "</font>"
+	End If
+	FormatDated = strDate
+End Function
+
+Sub InnerLocation(msg)
+	Response.Write "<script language=""JavaScript"">document.getElementById('locationid').innerHTML = '" & msg & "';</script>"
+End Sub
+
+Function AddUserPointNum(username,stype)
+	On Error Resume Next
+	Dim rsuser,GroupSetting,userpoint
+	Set rsuser = NewAsp.Execute("SELECT userid,UserGrade,userpoint FROM NC_User WHERE username='"& username &"'")
+	If Not(rsuser.BOF And rsuser.EOF) Then
+		GroupSetting = Split(NewAsp.UserGroupSetting(rsuser("UserGrade")), "|||")(9)
+		If CInt(stype) = 1 Then
+			userpoint = CLng(rsuser("userpoint") + GroupSetting)
+			NewAsp.Execute ("UPDATE NC_User SET userpoint="& userpoint &",experience=experience+2,charm=charm+1 WHERE userid="& rsuser("userid"))
+		Else
+			userpoint = CLng(rsuser("userpoint") - GroupSetting)
+			NewAsp.Execute ("UPDATE NC_User SET userpoint="& userpoint &",experience=experience-2,charm=charm-1 WHERE userid="& rsuser("userid"))
+		End If
+	End If
+	Set rsuser = Nothing
+End Function
+
+Function CheckLogin()
+	CheckLogin = False
+	Dim Rs,C_UserName,C_UserID
+	C_UserName = NewAsp.CheckBadstr(NewAsp.memberName)
+	C_UserID = NewAsp.ChkNumeric(NewAsp.memberid)
+	Set Rs = NewAsp.Execute("SELECT userid,UserLock,userlastip FROM [NC_User] WHERE username='" & C_UserName & "' And userid=" & CLng(C_UserID))
+	If Rs.BOF And Rs.EOF Then
+		Response.Cookies(NewAsp.CookiesName) = ""
+		CheckLogin = False
+	Else
+		CheckLogin = True
+		UserNowIP = Rs("userlastip")
+		If Rs("UserLock") > 0 Then
+			Response.Cookies(NewAsp.CookiesName) = ""
+			Set Rs = Nothing
+			ErrMsg = "<li>你的用户名已被锁定,你不能登陆！如要开通此帐号，请联系管理员。</li>"
+			Call ToErrors(ErrMsg)
+			Response.End
+		End If
+	End If
+	Set Rs = Nothing
+End Function
+
+Public Function Re_Replace(str,retxt,replacetxt)
+	Dim Re
+	retxt = Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(retxt, "[", "\["), "]", "\]"), "(", "\("), ")", "\)"), "$", "\$"), "^", "\^"), "{", "\{"), "}", "\}"), "+", "\+"), ".", "\.")
+	'replacetxt = Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(replacetxt, "[", "\["), "]", "\]"), "(", "\("), ")", "\)"), "$", "\$"), "^", "\^"), "{", "\{"), "}", "\}"), "+", "\+"), ".", "\.")
+	Set Re = New RegExp
+	Re.IgnoreCase = True
+	Re.Global = True
+	Re.Pattern = retxt
+	Re_Replace = Re.Replace(str,replacetxt)
+	Set Re = Nothing
+End Function
+
+Function FormatshowTime(ByVal datime)
+	If Not IsDate(datime) Then Exit Function
+	Dim strTemp, y, m, d, h, mi, s, strDateTime
+	y = CStr(Year(datime))
+	m = CStr(Month(datime))
+	If Len(m) = 1 Then m = "0" & m
+	d = CStr(Day(datime))
+	If Len(d) = 1 Then d = "0" & d
+	h = CStr(Hour(datime))
+	If Len(h) = 1 Then h = "0" & h
+	mi = CStr(Minute(datime))
+	If Len(mi) = 1 Then mi = "0" & mi
+	s = CStr(Second(datime))
+	If Len(s) = 1 Then s = "0" & s
+	strDateTime = y & "-" & m & "-" & d & " " & h & ":" & mi & ":" & s
+	
+	If Datediff("d",Now(),CDate(datime)) = 0 Then
+		strTemp = "<font color=""red"">"
+		strTemp = strTemp & strDateTime
+		strTemp = strTemp & "</font>"
+	Else
+		strTemp = "<font color=""#808080"">"
+		strTemp = strTemp & strDateTime
+		strTemp = strTemp & "</font>"
+	End If
+	FormatshowTime = strTemp
+End Function
+Function Html2Ubb(str)
+	If str<>"" And Not IsNull(str) Then
+		Dim re
+		Set re=new RegExp
+		re.IgnoreCase =True
+		re.Global=True
+		re.Pattern="(on(load|click|dbclick|mouseover|mouseout|mousedown|mouseup|mousewheel|keydown|submit|change|focus)=""[^""]+"")"
+		str = re.Replace(str, "")
+		re.Pattern="((name|id|class)=""[^""]+"")"
+		str = re.Replace(str, "")
+		re.Pattern = "(<s+cript[^>]*?>([\w\W]*?)<\/s+cript>)"
+		str = re.Replace(str, "")
+		re.Pattern = "(<iframe[^>]*?>([\w\W]*?)<\/iframe>)"
+		str = re.Replace(str, "")
+		re.Pattern = "(<p>&nbsp;<\/p>)"
+		str = re.Replace(str, "")
+		're.Pattern = "<(\w*) class\s*=\s*([^>|\s]*)([^>]*)>"
+		'str = re.Replace(str,"<$1$3>")
+		Set re=Nothing
+		Html2Ubb = str
+	Else
+		Html2Ubb = ""
+	End If
+End Function
+%>

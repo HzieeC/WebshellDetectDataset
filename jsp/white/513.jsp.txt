@@ -1,0 +1,48 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<head>
+	<title>站留言添加</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/message/edit_message.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/common/common.js"></script>
+</head>
+<body>
+	<table border="0" width="450px" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+      <tr>
+   		<td class="gdcn-table-D">
+			<div class="tab-pane" id="tabPane1" style="margin: 10px 10px 10px 10px;">
+				<form id="messageForm" method="post" action="">
+					<table width="96%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">						
+						<tr>
+							<td class='gridtitle'><s:text name="editMessage.Addresser"/>:</td>
+							<td class='gridbody'>
+								${message.creatorName}
+							</td>
+						</tr>
+						<tr></tr>
+						<tr>
+							<td class='gridtitle'><s:text name="editMessage.Messagetheme"/>:</td>
+							<td class='gridbody'>
+								${message.title}
+							</td>
+						</tr>
+						<tr></tr>
+						<tr>
+							<td class='gridtitle'><s:text name="editMessage.MessageContents"/>:</td>
+							<td class='gridbody'>
+								<s:textarea id="content" name="message.content" readonly="true" cols="45" rows="5"></s:textarea>
+							</td>
+						</tr>
+					</table>
+				</form>
+			</div>
+    	</td>
+    </tr>
+  </table>
+</body>
+</html>
+

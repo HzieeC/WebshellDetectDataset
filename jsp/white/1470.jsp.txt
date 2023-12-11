@@ -1,0 +1,181 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_memcredit.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Map ti_memcredit = new Hashtable();
+	String s_cust_id = "";
+	if(request.getParameter("cust_id")!=null && !request.getParameter("cust_id").equals("")){
+		s_cust_id = request.getParameter("cust_id");
+		ti_memcredit.put("get_cust_id",s_cust_id);
+	}
+	Ti_memcreditInfo ti_memcreditInfo = new Ti_memcreditInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_memcreditInfo.getListByPage(ti_memcredit,Integer.parseInt(iStart),limit);
+	int counter = ti_memcreditInfo.getCountByObj(ti_memcredit);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?iStart=",Integer.parseInt(iStart),limit);
+%>
+<html>
+  <head>
+    
+    <title>会员信誉度管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/commen.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>会员信誉度管理</h1>
+			</td>
+			<td>
+				<!-- <a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a> -->
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	
+	<!--
+	<table width="100%" align="center" cellpadding="0" cellspacing="0" class="dl_so">
+        <tr>
+          <td width="9%" align="center"><img src="/program/admin/index/images/ban_01.gif" /></td>
+          <td width="91%" align="left">
+		  <h4>-----------------</h4>
+		  <span>1----------------。</span><br/>
+		  <span>2----------------。</span>
+		  </td>
+        </tr>
+      </table>
+      <br/>
+	  -->
+	  
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			
+			
+		  	<th>会员名称</th>
+		  	
+		  	<th>评价等级</th>
+
+		  	<th>评价人</th>			
+		  	
+		  	<th>评价时间</th>
+		  	
+			<th width="10%">查看</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String trade_id="",get_cust_id="",level="",in_date="",content="",user_id="",cust_id="",remark="";
+	String get_cust_name="",send_cust_name="";
+	if(map.get("get_cust_name")!=null) get_cust_name = map.get("get_cust_name").toString();
+	if(map.get("send_cust_name")!=null) send_cust_name = map.get("send_cust_name").toString();
+	if(map.get("trade_id")!=null) trade_id = map.get("trade_id").toString();
+  	if(map.get("get_cust_id")!=null) get_cust_id = map.get("get_cust_id").toString();
+  	if(map.get("level")!=null) level = map.get("level").toString();
+  	if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+if(in_date.length()>19)in_date=in_date.substring(0,19);
+  	if(map.get("content")!=null) content = map.get("content").toString();
+  	if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+  	if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+  	if(map.get("remark")!=null) remark = map.get("remark").toString();
+	
+	String level_string ="好评";
+		if(level.equals("0")){
+		level_string ="中评";
+		} else if(level.equals("-1")) {
+		level_string ="差评";
+		}
+
+		  %>
+		
+		<tr>
+			
+			
+		  	<td><%=get_cust_name%></td>
+		  	
+		  	<td><%=level_string%></td>
+
+		  	<td><%=send_cust_name%></td>			
+		  	
+		  	<td><%=in_date%></td>
+
+		  	
+			<td width="10%"><a href="updateInfo.jsp?trade_id=<%=trade_id %>"><img src="/program/admin/images/view.gif" title="查看" /></a></td>
+	  		
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="2513" />
+	  </form>
+</body>
+
+</html>

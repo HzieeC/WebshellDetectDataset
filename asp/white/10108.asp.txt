@@ -1,0 +1,354 @@
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../checkvalid.asp" -->
+<%
+sUploadDir=UpFilesPath("Person")
+If Not FRAdminLevel(302) Then
+	Call ErrorMsg()
+End If
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+keyword=CheckStr(trim(request("keyword"))) 
+segment=CheckStr(trim(request("segment")))
+operate=trim(request("operate"))
+group=trim(request("group"))
+usergroup=trim(request("usergroup"))
+Dim Action
+Dim page,i
+Dim totalPut
+Dim strFileName
+MaxPerpage=20
+strFileName="resume_searchlist.asp?segment="&segment&"&keyword="&keyword&"&operate="&operate&"&group="&group&"&usergroup="&usergroup&""
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+step=trim(request("step"))
+resume_id=trim(request("id"))
+jobtype=trim(request("jobtype"))
+openness=trim(request("openness"))
+if request("member")<>"" then
+resume_id=request("member")
+end if
+
+if trim(request("step"))<>"" then
+	set rsw=conn.execute("select resume_pmember,resume_id from job_p_resume where resume_id in ("&resume_id&")")
+	do while not rsw.eof
+		member=rsw("resume_pmember")
+		resume_ids=rsw("resume_id")
+		select case step
+		 case "del"
+		   '删除简历信息
+		   Call PersonResumeContentDelHtml(resume_ids)
+		   conn.execute("delete from job_p_education where education_pmember='"&member&"' and education_resumeid="&resume_ids)
+		   conn.execute("delete from job_p_training where train_pmember='"&member&"' and train_resumeid="&resume_ids)
+		   conn.execute("delete from job_p_lang where lang_pmember='"&member&"' and lang_resumeid="&resume_ids)
+		   conn.execute("delete from job_p_work where work_pmember='"&member&"' and work_resumeid="&resume_ids)
+		   conn.execute("delete from job_p_resume where resume_pmember='"&member&"' and resume_id="&resume_ids)
+		 case "audit"
+			conn.execute("update job_p_resume set resume_flag=1 where resume_pmember='"&member&"' and resume_id="&resume_ids)
+		 case "unaudit"
+			conn.execute("update job_p_resume set resume_flag=0 where resume_pmember='"&member&"' and resume_id="&resume_ids)
+		end select
+	rsw.movenext
+	loop
+	set rsw=nothing
+	if step="active" then
+		conn.execute("Update JOB_p_resume Set resume_cnstatus=0 Where resume_pmember='"&member&"'")
+		conn.execute("Update JOB_p_resume Set resume_cnstatus=1 Where resume_id="&resume_id)
+	end if
+	response.redirect "resume_searchlist.asp?currentpage="&currentpage&"&keyword="&keyword&"&operate="&operate&"&segment="&segment&"&usergroup="&usergroup&"&openness="&openness&"&jobtype="&jobtype&""
+	response.end
+end if
+%>
+<html>
+<head>
+<title>简历列表</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<LINK href=../css/style.css rel=stylesheet type="text/css">
+<script language="javascript" src="../Inc/Admin.js"></script><style type="text/css">
+<!--
+.style11 {color: #0066CC;
+	font-weight: bold;
+}
+-->
+</style>
+</head>
+
+<body>
+
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1"  class="tableBorder">
+   <tr> 
+	   <th  height=25 class="tableHeaderText">简历管理</th>
+   </tr>
+  <form action="resume_searchlist.asp" method="post">
+    <tr >
+      <td align="left"><font color="ff6600"><b class="style11">　管理选项</b></font>：&nbsp;<a href="pmember_searchlist.asp" target="main">管理首页</a> | <a href="pmember_searchlist.asp" target="main">人才管理</a> | <a href="resume_searchlist.asp" target="main">简历管理</a> | [<a href="javascript:location.reload()">刷新页面</a>]</td>
+    </tr>
+    <tr >
+      <td align="left"><font color="ff6600"><b class="style11">　二级选项</b></font>： <a href="?operate=0&jobtype=<%=jobtype%>">待审简历</a> | <a href="?operate=1&jobtype=<%=jobtype%>">已审简历</a> | <a href="?operate=2&jobtype=<%=jobtype%>">未激活</a> |  <a href="?operate=3&jobtype=<%=jobtype%>">已激活</a> | <a href="?operate=4&jobtype=<%=jobtype%>">待审照片</a> | <a href="?operate=5&jobtype=<%=jobtype%>">未公开简历</a> | <a href="?operate=6&jobtype=<%=jobtype%>">普通人才</a> | <a href="?operate=7&jobtype=<%=jobtype%>">毕业生</a> | <a href="?operate=8&jobtype=<%=jobtype%>">高级人才</a></td>
+    </tr>
+    <tr > 
+      <td align="left"> 
+          &nbsp;&nbsp;&nbsp;&nbsp;关键字： 
+          <input name="keyword" type="text" id="keyword" size="10">
+          <select name="segment" size="1" id="segment">
+            <option value="resume_name">姓名</option>
+            <option value="resume_login">会员帐号</option>
+          </select>
+          <select name="usergroup" id="usergroup">
+		    <option value="" selected>所有简历类型</option>
+            <option value="0">普通</option>
+            <option value="1">毕业生</option>
+            <option value="2">高级人才</option>
+          </select>
+          <select name="openness" id="openness">
+		    <option value="" selected>所有公开程度</option>
+            <option value="0">对所有公开</option>
+            <option value="1">完全保密</option>
+          </select>
+          <input type="submit" name="Submit" class="inputs" value="搜索">      </td>
+    </tr>
+  </form>
+</table>
+<%Call main()
+if FoundErr=True then
+	call Show_Err()
+end if
+%>
+<%sub main()
+sql="select resume_id,resume_name,resume_sex,resume_birth,resume_position,resume_usergroup,resume_openness,resume_cnstatus,resume_pmember,resume_flag from job_p_resume,job_member where resume_pmember=member_login and member_typeid=1 and resume_pmember is not null"
+keyword=CheckStr(trim(request("keyword"))) 
+segment=CheckStr(trim(request("segment"))) 
+if keyword<>"" then                              
+	if segment="resume_login" then
+	sql=sql&" and resume_pmember like '%"& keyword &"%'"
+	else
+	sql=sql&" and resume_name like '%"& keyword &"%'"
+	end if
+end if
+usergroup=trim(request("usergroup"))
+if usergroup<>"" then
+sql=sql&" and resume_usergroup="&usergroup&""
+end if
+jobtype=trim(request("jobtype"))
+if jobtype<>"" then
+sql=sql&" and resume_jobtype="&jobtype&""
+end if
+openness=trim(request("openness"))
+if openness<>"" then
+sql=sql&" and resume_openness="&openness&""
+end if
+if operate<>"" then
+	select case operate
+		case 0
+			sql=sql&" and resume_flag=0"
+		case 1
+			sql=sql&" and resume_flag=1"
+		case 2
+			sql=sql&" and resume_cnstatus=0"
+		case 3
+			sql=sql&" and resume_cnstatus=1"
+		case 4
+			sql=sql&" and member_logostatus=0"
+		case 5
+			sql=sql&" and resume_openness=1"
+		case 6
+			sql=sql&" and resume_usergroup=0"
+		case 7
+			sql=sql&" and resume_usergroup=1"
+		case 8
+			sql=sql&" and resume_usergroup=2"
+	end select	
+end if
+sql=sql&" order by resume_announcedate desc,resume_name desc"
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,1
+if rs.eof and rs.bof then
+	FoundErr=True
+	ErrMsg=ErrMsg & "<br><li>暂无简历，请添加后再进行管理！</li>"
+	exit sub
+else
+	totalPut=rs.recordcount
+	if (page-1)*MaxPerpage>totalput then
+		if (totalPut mod MaxPerpage)=0 then
+			page= totalPut \ MaxPerpage
+		else
+			page= totalPut \ MaxPerpage + 1
+		end if
+	end if
+	if page=1 then
+		Call MainInfo()
+	else
+		if (page-1)*MaxPerpage<totalPut then
+			rs.move  (page-1)*MaxPerpage
+			dim bookmark
+			bookmark=rs.bookmark
+			Call MainInfo()
+		else
+			page=1
+			Call MainInfo()
+		end if
+	end if
+end if
+rs.close
+set rs=nothing
+end sub	
+%>
+<%Sub MainInfo()%> 
+<table width="99%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+        <tr> 
+    		<th  height=25 colspan="10" class="tableHeaderText">简历列表</th>
+  		</tr>
+<form name="form2" action="resume_searchlist.asp" method="post">	
+		<tr> 
+		  <td width="50" align="center" class="tdbg2"><b>姓名</b></td>
+          <td width="30" align="center" class="tdbg2"><b>性别</b></td>
+          <td width="30" align="center" class="tdbg2"><b>年龄</b></td>
+		  <td align="center" class="tdbg2"><b>意向职位</b></td>
+		  <td width="60" align="center" class="tdbg2"><b>简历类型</b></td>
+          <td width="70" align="center" class="tdbg2"><b>公开程度</b></td>
+          <td width="60" align="center" class="tdbg2"><b>激活状态</b></td>
+          <td width="120" align="center" class="tdbg2"><b>会员帐号</b></td>
+	      <td width="40" align="center" class="tdbg2"><b>状态</b></td>
+	      <td width="30" align="center" class="tdbg2"><input name="checkSelect" type="checkbox" class="checkbox" onClick="javascript: checkAll(this)" value="checkbox"></td>
+        </tr>
+      	<%
+		dim i
+		i=0
+		do while not rs.eof
+		i=i+1
+		%>
+        <tr > 
+          <td align="center">&nbsp;<a href="cnresume.asp?rid=<%=rs("resume_id")%>" target="_blank"><%=rs("resume_name")%></a></td>
+		  <td align="center">&nbsp;<%
+			select case rs("resume_sex")
+			 case 1 
+			  response.write "男" 
+			 case 2
+			  response.write "女" 
+			end select
+		   %></td>
+		  <td align="center">&nbsp;<%=year(date())-year(rs("resume_birth"))%></td>
+		  <td align="left" title="<%=Hireposition(rs("resume_position"),1)%>"><%=Hireposition(rs("resume_position"),1)%></td>
+		  <td align="center"><%
+		  select case rs("resume_usergroup")
+		   case 0
+		    usergroup1= "普通"
+		   case 1
+		    usergroup1= "毕业生"
+		   case 2
+		    usergroup1= "高级人才"
+		  end select
+		  response.Write "<a href='#' onclick=""window.open ('pmember_changeresumesort.asp?id="&rs("resume_id")&"','win_point','height=150,width=550,top=150,left=200,toolbar=no,menubar=no,scrollbars=no, resizable=no,location=no, status=no');""><font color=red>"&usergroup1&"</font></a>"
+		  %></td>
+          <td align="center"><%
+		  select case rs("resume_openness")
+		   case 0
+		    useropen= "对所有公开"
+		   case 1
+		    useropen= "对猎头公开"
+		   case 2
+		    useropen= "完全保密"
+		  end select
+		  response.Write "<a href='#' onclick=""window.open ('pmember_changeresumeopen.asp?id="&rs("resume_id")&"','win_point','height=150,width=550,top=150,left=200,toolbar=no,menubar=no,scrollbars=no, resizable=no,location=no, status=no');""><font color=red>"&useropen&"</font></a>"
+		  %></td>
+          <td align="center"><%if rs("resume_cnstatus")=0 then %><font color='#666666'><a href="#" onClick="window.location='resume_searchlist.asp?id=<%=rs("resume_id")%>&step=active&currentpage=<%=currentpage%>&keyword=<%=keyword%>&segment=<%=segment%>&usergroup=<%=usergroup%>&openness=<%=openness%>';"><font color='#666666'>未激活</font></a></font><%else%>已激活<%end if%></td>
+		  <td align="center"><%=rs("resume_pmember")%></td>
+		  <td align="center"><%
+			if rs("resume_flag")=0 then	  
+				response.write "<font color='#666666'>未审核</font>"
+			else
+				response.write "正常"
+			end if
+		  %>
+		  </td>
+		  <td align="center"><input name="member" type="checkbox" class="checkbox" value="<%=rs("resume_id")%>"></td>
+        </tr>
+        <%
+		if i>=MaxPerPage then exit do
+		rs.movenext
+		loop
+  %>
+	<input type="hidden" name="usergroup" value="<%=usergroup%>">
+	<input type="hidden" name="openness" value="<%=openness%>">     
+	<input type="hidden" name="keyword" value="<%=keyword%>"> 
+	<input type="hidden" name="segment" value="<%=segment%>">
+  <tr bgcolor="#FFFFFF" class="tabbgcolorli">
+    <td colspan="10" align="right" aligh="right">
+      <input name="button" type="button" class="inputs" onClick="confirmX(1);" value="简历审核">
+      <input name="button" type="button" class="inputs" onClick="confirmX(2);" value="撤销审核">
+	  <input name="button" type="button" class="inputs" onClick="confirmX(3);" value="删  除">
+    </td>
+  </tr>
+  <tr bgcolor="#FFFFFF" class="tabbgcolorli">
+    <td colspan="10" aligh="right"> <%If totalput>0 Then
+	Call Showpage(strFileName,totalput,MaxPerPage,false,true,"份简历")
+End If%></td>
+  </tr></form>
+</table>
+<%end sub%>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>
+<script language="javascript">
+function confirmX(num)
+{
+	var ids = document.getElementsByName("member");
+	var check=false;
+	if (ids != null) {
+		
+		for (i=0; i<ids.length; i++) 
+		{
+			var obj = ids(i);
+			if (obj.checked==true)
+			{
+				check=true;
+				
+			}
+		}
+		if(check==false){alert("请选择操作对象！");return false;}
+	}
+	if(num==1)
+	{
+		if(confirm("你确定要审核你所选择的简历吗？"))	
+		{
+			document.form2.action="resume_searchlist.asp?step=audit";
+			document.form2.submit();		
+		}
+	}
+	if(num==2)
+	{
+		if(confirm("你确定要撤销审核你所选择的简历吗？"))	
+		{
+			document.form2.action="resume_searchlist.asp?step=unaudit";
+			document.form2.submit();		
+		}
+	}
+	if(num==3)
+	{
+		if(confirm("警告:此操作将会删除该简历及于该简历相关的所有信息！\n是否继续操作？"))	
+		{
+			document.form2.action="resume_searchlist.asp?step=del";
+			document.form2.submit();		
+		}
+	}
+	return false;	
+}
+function checkAll(box1) {
+    var ids = document.getElementsByName("member");
+	if (ids != null) {
+		for (i=0; i<ids.length; i++) {
+			var obj = ids(i);
+			obj.checked = box1.checked;
+		}
+	}
+}
+</script></html>

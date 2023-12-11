@@ -1,0 +1,176 @@
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<%
+If FR_HR_Sql = True then Call SQLin()
+response.expires = 0
+response.expiresabsolute = now() - 0
+response.addHeader "pragma","no-cache"
+response.addHeader "cache-control","private"
+Response.CacheControl = "no-cache"
+
+'判断是否存在过期的广告有则更新Ad_lose为1
+sql="select * from JOB_Ad where Ad_stop=0 and projectid="&DefaultTPID&" order by Ad_id desc"
+set rs=Server.CreateObject(FR_HR_RS)
+rs.open sql,conn,1,3
+if not rs.eof then
+	for i=1 to rs.recordcount
+		advertvirtualvalue=0
+		select case rs("Ad_act")
+			case 1
+				'点击数不超过n
+				if rs("Ad_click")>=rs("Ad_clicks") then
+				'未失效
+					advertvirtualvalue=1
+				else
+				'已失效
+					advertvirtualvalue=2
+				end if
+			case 2
+				'显示数不超过
+				if rs("Ad_show")>=rs("Ad_shows") then
+				'未失效
+					advertvirtualvalue=1
+				else
+				'已失效
+					advertvirtualvalue=2
+				end if
+			case 3
+				'显示截止日期为
+				if DateDiff(FR_HR_d,rs("Ad_enddate"),date())<=0 then
+				'未失效
+					advertvirtualvalue=1
+				else
+				'已失效
+					advertvirtualvalue=2
+				end if
+			case 4
+				'点击次数不超过,显示数不超过
+				if (rs("Ad_click")>=rs("Ad_clicks") and rs("Ad_show")>=rs("Ad_shows")) then
+				'未失效
+					advertvirtualvalue=1
+				else
+				'已失效
+					advertvirtualvalue=2
+				end if
+			case 5
+				'点击次数不超过,显示截止日期为
+				if (rs("Ad_click")>=rs("Ad_clicks") and DateDiff(FR_HR_d,rs("Ad_enddate"),date()))<=0 then
+				'未失效
+					advertvirtualvalue=1
+				else
+				'已失效
+					advertvirtualvalue=2
+				end if
+			case 6
+				'显示数不超过,显示截止日期为
+				if (rs("Ad_show")>=rs("Ad_shows") and DateDiff(FR_HR_d,rs("Ad_enddate"),date()))<=0 then
+				'未失效
+					advertvirtualvalue=1
+				else
+				'已失效
+					advertvirtualvalue=2
+				end if
+			case 7
+				'点击次数不超过,显示数不超过,显示截止日期为
+				if (rs("Ad_click")>=rs("Ad_clicks") and rs("Ad_show")>=rs("Ad_shows") and DateDiff(FR_HR_d,rs("Ad_enddate"),date()))<=0 then
+				'未失效
+					advertvirtualvalue=1
+				else
+				'已失效
+					advertvirtualvalue=2
+				end if
+		end select
+		if advertvirtualvalue=2 then
+			rs("Ad_lose")=1
+			rs.update
+		end if
+	rs.movenext
+	next
+end if
+rs.close
+set rs=nothing 
+
+'获取参数
+'getprice:广告位编号
+'getplace：广告位id
+
+
+getprice=request.querystring("priceid")
+if getprice="" or Not Isnumeric(getprice) then		
+	getprice=1
+end if
+hangnum=1
+lienum=1
+
+'通过广告位编号和广告位id读取广告位的行数和列数，宽度和高度
+sql="select Adsplace_row,Adsplace_width,Adsplace_id from JOB_Adsplace where Adsplace_priceid="&getprice&" and projectid="&DefaultTPID&""
+set rs=server.createobject(FR_HR_RS)
+rs.open sql,conn,1,1
+if not(rs.eof and rs.bof) then
+	num=split(rs("Adsplace_row"),"*")
+	hangnum=num(0)
+	lienum=num(1)
+	num=lienum*hangnum
+	adwidth=split(rs("Adsplace_width"),"*")(0)
+	adheight=split(rs("Adsplace_width"),"*")(1)
+	Adsid=rs("Adsplace_id")
+else
+	response.Write("document.write("""");")
+	response.End()
+end if
+rs.close
+if (not isNumeric(num)) or num="" then
+	num=10
+end if
+
+
+'读取广告
+sql="Select top "&num&" * from JOB_Ad where Ad_lose<>1 and Ad_stop=0 and Ad_priceid="&Adsid&" and projectid="&DefaultTPID&" order by Ad_showtime asc,Ad_id asc"
+rs.open sql,conn,1,3
+if not (rs.eof and rs.bof) then
+	for i=1 to rs.recordcount
+		'更新广告的显示数和显示时间
+		rs("Ad_shows")=rs("Ad_shows")+1
+		rs("Ad_showtime")=now()
+		geturl=rs("Ad_siteurl")
+		rs.update
+		'判断广告是flash广告还是图片广告
+		if rs("Ad_type")="pic" then
+			'如果是一行的第一个广告时1*1 1*4
+			adcontent="<a href="&SiteUrl&InstallDir&"webad/adsurl.asp?id="&rs("Ad_id")&"&geturl="&geturl&" target="&rs("Ad_target")&"><img border=0 width="&adwidth&" height="&adheight&" src="&SiteUrl&InstallDir&"Adpic/"&TemplateDir&"/"&rs("Ad_pic")&" /></a>"
+			if i mod lienum = 1 then
+				viewads=viewads&"<li class=adleft>"&adcontent&"</li>"
+			elseif i mod lienum = 0 then
+			'如果是一行的最后一个广告时	
+				viewads=viewads&"<li class=adright>"&adcontent&"</li>"			
+			else
+			'其他广告时
+				viewads=viewads&"<li class=adstyle>"&adcontent&"</li>"			
+			end if
+			Response.Write("document.write("""&viewads&""");")
+			viewads=""
+			adcontent=""
+		elseif rs("Ad_type")="flash" then
+			adscontent="<embed src='"&SiteUrl&InstallDir&"Adpic/"&TemplateDir&"/"&rs("Ad_pic")&"' quality='high' pluginspage='http://www.macromedia.com/shockwave/download/index.cgi?P1_Prod_Version=ShockwaveFlash' type='application/x-shockwave-flash' width="&adwidth&" height="&adheight&"></embed>"
+			if i mod lienum = 1 then
+				viewads=viewads&"<li class=adleft>"&adscontent&"</li>"
+			elseif i mod lienum = 0 then
+			'如果是一行的最后一个广告时	
+				viewads=viewads&"<li class=adright>"&adscontent&"</li>"			
+			else
+			'其他广告时
+				viewads=viewads&"<li class=adstyle>"&adscontent&"</li>"			
+			end if
+			Response.Write("document.write("""&viewads&""");")
+			viewads=""
+			adscontent=""
+		end if	
+	rs.movenext	
+	next
+else
+	Response.Write("document.write("""");")
+	response.End()
+end if
+rs.close
+set rs=nothing
+%>

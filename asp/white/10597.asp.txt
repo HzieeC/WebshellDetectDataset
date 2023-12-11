@@ -1,0 +1,212 @@
+<%
+''' SDCMS 后台base
+''' ==================================================================
+''' 版权所有 http://www.sdcms.cn
+''' ------------------------------------------------------------------
+''' 这不是一个自由软件！您只能在不用于商业目的的前提下对程序代码进行修改和使用；
+''' 未经授权不允许对程序代码以任何形式任何目的的再发布。
+''' ==================================================================
+''' 编写: IT平民
+''' 修改：IT平民 in 2012.07
+
+dim adminid:adminid=sdcms.loadsession("adminid")
+dim adminname:adminname=sdcms.loadsession("adminname")
+dim admingroupid:admingroupid=sdcms.getint(sdcms.loadsession("admingroupid"),0)
+dim admin_islogin:admin_islogin=sdcms.loadcookie("islogin")
+dim admin_loginkey:admin_loginkey=sdcms.loadcookie("loginkey")
+dim admin_loginbase:admin_loginbase=sdcms.base64encode(sdcms.decrypt(admin_islogin,admin_loginkey))
+dim admin_page_lever:admin_page_lever=""
+dim admin_cate_array:admin_cate_array=""
+dim admin_cate_lever:admin_cate_lever=""
+dim admin_lever_where:admin_lever_where=""
+
+sub load(byval t0)
+	dim t1:t1=sdcms.getsplitname(t0)
+	if ubound(t1)<>2 then sdcms.echo t0&":&#27169;&#26495;&#21517;&#31216;&#38169;&#35823;":exit sub
+	'sdcms.temp.iscache=tempcache
+	'sdcms.temp.cachepath=webroot&"cache/theme/"&theme_root&t1(0)
+	sdcms.temp.templatepath=webroot&"theme/"&theme_admin_root&t1(0)
+	sdcms.temp.templatename=t1(1)
+	sdcms.temp.templateext=t1(2)
+	sdcms.temp.load()
+	sdcms.temp.display()
+end sub
+
+sub islogin()
+	if sdcms.strlen(adminid)=0 or sdcms.strlen(adminname)=0 then
+		dim t0,t1,t2
+		t0=sdcms.getint(sdcms.loadcookie("adminid"),0)
+		t1=sdcms.loadcookie("islogin")
+		t2=sdcms.loadcookie("loginkey")
+		if sdcms.strlen(t0)=0 or sdcms.strlen(t1)=0 or sdcms.strlen(t2)<>50 then
+			sdcms.go "login.asp?act=out"
+			exit sub
+		else
+			dim data
+			data=sdcms.db.dbload(1,"adminid,adminname,adminpass,islock,groupid,g.pagelever,g.catearray,g.catelever","sd_admin u left join sd_admin_group g on u.groupid=g.id","adminid="&t0&"","")
+			if ubound(data)<0 then
+				sdcms.go "login.asp?act=out"
+				exit sub
+			else
+				if instr(data(1,0)&data(2,0),sdcms.decrypt(t1,t2))<0 or data(3,0)=0 then
+					sdcms.go "login.asp?act=out"
+					exit sub
+				else
+					adminid=data(0,0)
+					adminname=data(1,0)
+					admin_page_lever=data(5,0)
+					admin_cate_array=data(6,0)
+					admin_cate_lever=data(7,0)
+					if sdcms.strlen(admin_page_lever)=0 then admin_page_lever=0
+					if sdcms.strlen(admin_cate_array)=0 then admin_cate_array=0
+					if sdcms.strlen(admin_cate_lever)=0 then admin_cate_lever=0
+					if clng(admingroupid)<>0 then
+						admin_lever_where=" and menuid in("&admin_page_lever&")"
+					end if
+					sdcms.setsession "adminid",adminid
+					sdcms.setsession "adminname",adminname
+					sdcms.setsession "admingroupid",data(4,0)
+				end if
+			end if
+		end if
+	else
+		data=sdcms.db.dbload(1,"g.pagelever,g.catearray,g.catelever","sd_admin u left join sd_admin_group g on u.groupid=g.id","adminid="&adminid&"","")
+			if ubound(data)<0 then
+				sdcms.go "login.asp?act=out"
+				exit sub
+			else
+				admin_page_lever=data(0,0)
+				admin_cate_array=data(1,0)
+				admin_cate_lever=data(2,0)
+				if sdcms.strlen(admin_page_lever)=0 then admin_page_lever=0
+				if sdcms.strlen(admin_cate_array)=0 then admin_cate_array=0
+				if sdcms.strlen(admin_cate_lever)=0 then admin_cate_lever=0
+				if clng(admingroupid)<>0 then
+					admin_lever_where=" and menuid in("&admin_page_lever&")"
+				end if
+			end if
+	end if
+end sub
+
+sub is_plug_install(byval t0)
+	if sdcms.strlen(sdcms.getsys(t0))=0 then
+		sdcms.echo "plugin is not installed"
+		sdcms.die
+	end if
+end sub
+
+sub is_plug_login()
+	dim t0,t1,t2
+	t0=adminid
+	t1=admin_loginbase
+	t2="login failed"
+	if sdcms.strlen(t0)=0 or sdcms.strlen(t1)=0 then
+		sdcms.echo t2
+		sdcms.die
+		exit sub
+	end if
+	dim data
+	data=sdcms.db.dbload(1,"adminid,adminname,adminpass,islock","sd_admin","adminid="&t0&"","")
+	if ubound(data)<0 then
+		sdcms.echo t2
+		sdcms.die
+		exit sub
+	else
+		if instr(data(1,0)&data(2,0),sdcms.base64decode(t1))<0 or data(3,0)=0 then
+			sdcms.echo t2
+			sdcms.die
+			exit sub
+		end if
+	end if
+	islogin
+	if admingroupid=0 then exit sub
+	if instr(","&admin_page_lever&",",",29,")<=0 then
+		sdcms.echo t2&"=04"
+		sdcms.die
+	end if
+end sub
+
+function checkloginstaus()
+	checkloginstaus=false
+	dim t0,t1
+	t0=sdcms.getint(sdcms.fget("admin_id",0),0)
+	t1=sdcms.fget("loginbase",0)
+	if sdcms.strlen(t0)=0 or sdcms.strlen(t1)=0 then
+		exit function
+	end if
+	dim data
+	data=sdcms.db.dbload(1,"adminid,adminname,adminpass,islock","sd_admin","adminid="&t0&"","")
+	if ubound(data)<0 then
+		exit function
+	else
+		if instr(data(1,0)&data(2,0),sdcms.base64decode(t1))<0 or data(3,0)=0 then
+			exit function
+		end if
+	end if
+	checkloginstaus=true
+end function
+
+sub checkpagelever(byval t0)
+	if admingroupid=0 then exit sub
+	if instr(","&admin_page_lever&",",","&t0&",")<=0 then
+		sdcms.back("对不起，您没有此页面的管理权限")
+		sdcms.die
+	end if
+end sub
+
+sub checkcatelever(byval t0)
+	if admingroupid=0 then exit sub
+	if instr(","&admin_cate_array&",",","&t0&",")<=0 then
+		sdcms.back("对不起，您没有此栏目的管理权限")
+		sdcms.die
+	end if
+end sub
+
+sub checkcateaction(byval t0)
+	if admingroupid=0 then exit sub
+	dim t1
+	select case t0
+		case "1":t1="添加"
+		case "2":t1="编辑"
+		case "3":t1="删除"
+		case "4":t1="移动"
+		case "5":t1="设置"
+	end select
+	if instr(","&admin_cate_lever&",",","&t0&",")<=0 then
+		sdcms.back("对不起，您没有此栏目的"&t1&"权限")
+		sdcms.die
+	end if
+end sub
+
+function checkcatestatus(byval t0)
+	checkcatestatus=true
+	if admingroupid=0 then exit function
+	if admin_cate_lever="0" then
+		checkcatestatus=false
+	end if
+	if instr(","&admin_cate_lever&",",","&t0&",")<=0 then
+		checkcatestatus=false
+	end if
+end function
+
+function isuplogin()
+	isuplogin=0
+	dim t0,t1
+	t0=sdcms.getint(sdcms.fget("admin_id",0),0)
+	t1=sdcms.fget("loginbase",0)
+	
+	if sdcms.strlen(t0)=0 or sdcms.strlen(t1)=0 then
+		exit function
+	end if
+	dim data
+	data=sdcms.db.dbload(1,"adminid,adminname,adminpass,islock","sd_admin","adminid="&t0&"","")
+	if ubound(data)<0 then
+		exit function
+	else
+		if instr(data(1,0)&data(2,0),sdcms.base64decode(t1))<0 or data(3,0)=0 then
+			exit function
+		end if
+	end if
+	isuplogin=1
+end function
+%>

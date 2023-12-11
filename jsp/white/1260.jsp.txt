@@ -1,0 +1,394 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_zhuanti.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.trade.ts_category.*" %>
+<%@page import="com.bizoss.trade.ti_brand.Ti_brandInfo" %>
+<%@page import="com.bizoss.trade.ti_channel.Ti_channelInfo" %>
+<%@page import="com.bizoss.trade.ti_news.Ti_newsInfo" %>
+<%@page import="com.bizoss.trade.ti_member.*" %>
+<%@page import="com.bizoss.trade.ti_zhuanti.Ti_zhuantiInfo" %>
+<%@page import="com.bizoss.trade.ti_channel.*" %>
+<%@ page import="com.bizoss.trade.ti_brand.Ti_brandInfo" %>
+<%@ page import="com.bizoss.trade.ti_goods.Ti_goodsInfo" %> 
+<html>
+  <head>
+    
+    <title>修改专题</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+	    <script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_categoryInfo.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_goodsInfo.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_newsInfo.js'></script>
+		<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_channelInfo.js'></script>
+		<!--<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ti_customerInfo.js'></script>-->
+		<script type="text/javascript" src="zhuanti.js"></script>
+		<script type="text/javascript" src="/js/thickbox.js"></script>
+	 	<script src="/js/jquery.js" type="text/javascript"></script>
+     <script>  
+	 jQuery.noConflict(); 
+	 </script>
+			</head>
+
+<body>
+
+  <% 
+  	
+  String cust_id = "";	
+	if( session.getAttribute("session_cust_id") != null ){
+		cust_id = session.getAttribute("session_cust_id").toString();
+	}
+  	String zhuanti_id="";
+  	if(request.getParameter("zhuanti_id")!=null) zhuanti_id = request.getParameter("zhuanti_id");
+  	Ti_zhuantiInfo ti_zhuantiInfo = new Ti_zhuantiInfo();
+  	List list = ti_zhuantiInfo.getListByPk(zhuanti_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String cat_id_group="",title="",tem_path="",zhuan_desc="",keyword="",goods_cat_group="",ch_id_group="",news_id_group="",cust_id_group="",in_date="",user_id="",remark="";
+	if(map.get("cat_id_group")!=null) cat_id_group = map.get("cat_id_group").toString();
+  	if(map.get("title")!=null) title = map.get("title").toString();
+  	if(map.get("tem_path")!=null) tem_path = map.get("tem_path").toString();
+  	if(map.get("zhuan_desc")!=null) zhuan_desc = map.get("zhuan_desc").toString();
+  	if(map.get("keyword")!=null) keyword = map.get("keyword").toString();
+  	if(map.get("goods_cat_group")!=null) goods_cat_group = map.get("goods_cat_group").toString();
+  	if(map.get("ch_id_group")!=null) ch_id_group = map.get("ch_id_group").toString();
+  	if(map.get("news_id_group")!=null) news_id_group = map.get("news_id_group").toString();
+  	if(map.get("cust_id_group")!=null) cust_id_group = map.get("cust_id_group").toString();
+  	if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+  	if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+  	if(map.get("remark")!=null) remark = map.get("remark").toString();
+
+	Ti_goodsInfo  ti_goodsInfo =  new Ti_goodsInfo();
+	Ti_brandInfo    ti_brandInfo = new  Ti_brandInfo();
+	Ti_channelInfo  ti_channelInfo = new  Ti_channelInfo();
+	Ti_newsInfo     ti_newsInfo = new  Ti_newsInfo();
+    //Ti_customerInfo ti_customerInfo = new  Ti_customerInfo();
+	Ti_memberInfo memberInfo = new Ti_memberInfo();
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();                                  
+   String select = ts_categoryInfo.getSelCatByTLevel("3", "1");
+   String s_cat_all = ts_categoryInfo.getSelCatByTLevel("2","1");
+   String s_brand_all = ti_brandInfo.getBrandSelectAll("");
+   String s_news_all = ti_newsInfo.getNewsSelectAll("");
+   //String s_cust_all = ti_newsInfo.getCustSelectAll("");
+   String s_channel_all = ti_channelInfo.getChannelSelectAll("");
+   
+   Map catMap = ts_categoryInfo.getCatClassMap("3");
+   String catAttr[] = cat_id_group.split("\\|");
+  String cat_names ="";  
+  if(!cat_id_group.equals(""))
+  {
+      String catIds[] =	cat_id_group.split("\\|");	
+      for(String catId:catIds)
+      {
+         if(catMap!=null)
+         {
+             if(catMap.get(catId)!=null)
+             {
+              cat_names +=catMap.get(catId).toString()+" > ";                 
+             }                  
+         
+         }                 
+      }		    
+	 }
+   
+  %>
+	
+	<%
+	String g_title = "";
+	if(request.getParameter("seach_title")!=null && !request.getParameter("seach_title").equals("")){
+		g_title = request.getParameter("seach_title");
+	}
+	String g_ch_attr = "";
+	if(request.getParameter("seach_cat_id_group")!=null && !request.getParameter("seach_cat_id_group").equals("")){
+		g_ch_attr = request.getParameter("seach_cat_id_group");
+	}
+	String start_date = "";
+   if(request.getParameter("start_date")!=null && !request.getParameter("start_date").equals("")){
+	start_date = request.getParameter("start_date");
+	}
+	String end_date = "";
+	if(request.getParameter("end_date")!=null && !request.getParameter("end_date").equals("")){
+	end_date = request.getParameter("end_date");
+	}
+	String iStart = "0";
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	String para ="/program/admin/zhuanti/index.jsp?seach_cat_id_group="+g_ch_attr+"&seach_title="+g_title+"&end_date="+end_date+"&start_date="+start_date+"&iStart="+Integer.parseInt(iStart);
+	
+	if(request.getParameter("tem_path") !=null)
+		tem_path=request.getParameter("tem_path") ;
+	%>
+	<h1>修改专题</h1>
+	
+	
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	<input name="user_id" id="user_id" type="hidden" value="<%=user_id%>" />
+	<input name="cust_id" id="cust_id" type="hidden" value="<%=cust_id%>" />
+	<input name="goods_cat_group" id="goods_cat_group" type="hidden" value="<%=goods_cat_group%>" />
+	<input name="ch_id_group" id="ch_id_group" type="hidden" value="<%=ch_id_group%>" />
+	<input name="news_id_group" id="news_id_group" type="hidden" value="<%=news_id_group%>" />
+	<input name="cust_id_group" id="cust_id_group" type="hidden" value="<%=cust_id_group%>" />
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		<tr>
+			<td align="right" width="10%">
+				专题标题<font color="red">*</font>
+			</td>
+			<td><input name="title" id="title" type="text" value="<%=title%>" size="60" maxlength="200"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="15%">
+				所属栏目<font color="red">*</font>
+			</td>
+			<td align="left" colspan="3">
+				<div id="classId1" style="display:block;">
+						<input type="hidden" name="cat_id_group_bak" id="cat_id_group_bak" value="<%=cat_id_group%>"/>
+						 	 <input type="hidden" name="flag_code" id="flag_code" value="0"/> 
+							<font color="#CECECE"><%=cat_names%></font>
+							<input type="button" name="buttons" value="修改栏目" class="buttoncss" onClick="ChangeClassStyle();" />
+				</div>
+				<div id="classId2" style="display:none;">
+					<table cellspacing="0" cellpadding="0" border="0" align="left" class="listtab1">
+								<tr>
+									<td>
+								  <select name="sort1" id="sort1" style="width:130px;" onChange="setSecondClass(this.value);">
+	                			<option value="">请选择</option>
+	                			<%=select%>
+	                </select>
+								  </td>
+									<td>
+										<select name="sort2" id="sort2" style="width:130px;display:none" onChange="setTherdClass(this.value);">
+											<option value="">请选择</option>
+										</select>								
+									</td>
+								  <td>
+										<select name="sort3" id="sort3" style="width:130px;display:none" >
+											<option value="">请选择</option>
+										</select>							  
+									</td>
+								</tr>
+								
+									 <input type="hidden" name="class_id1" id="class_id1" value="">
+									 <input type="hidden" name="class_id2" id="class_id2" value="">
+									 <input type="hidden" name="class_id3" id="class_id3" value="">	
+														 
+									<input type="hidden" name="class_flag" id="class_flag" value="0"/> 
+									<input name="cat_id_group" id="cat_id_group" type="hidden" value="" />
+				    </table>
+				  </div>
+			</td>
+		</tr>		
+		
+		<tr>
+			<td align="right" width="10%">
+				资讯图片:
+			</td>
+			<td colspan="3">
+				<jsp:include page="/program/inc/uploadImgInc.jsp">
+					<jsp:param name="attach_root_id" value="<%=zhuanti_id%>" />
+				</jsp:include>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="10%">
+				首页模板路径:
+			</td>
+			<td><input name="tem_path" id="tem_path" type="text" value="<%=tem_path%>"  size="50" maxlength="100" readonly="readonly" />
+			 <input type="button" onClick="choiceFile('','<%=zhuanti_id%>')" value="浏 览" class="buttab"/>	</td>
+		</tr>
+		<tr>
+			<td align="right" width="10%">
+				关键字:
+			</td>
+			<td><input name="keyword" id="keyword" type="text" value="<%=keyword%>" maxLength="100" size="60" /></td>
+		</tr>
+		
+		 <tr>
+			<td align="right" width="15%">关联商品:</td>
+			<td colspan="3">
+        <select name="cat_id" id="cat_id">
+        	<option value="">所有分类</option>
+         	<%=s_cat_all%>									  
+        </select>
+			  <select name="brand_id" id="brand_id" >
+				 	<option value="">所有品牌</option>
+				 	<%=s_brand_all%>	
+				</select>
+				<input type="text" name="goods_keyword" id="goods_keyword" />
+				<input type="button" class="button_s_css" value="搜 索"  onclick="showLinkGoods()" />
+        <div id="goods_table">
+        	<table width="100%" border="0" cellspacing="0" cellpadding="0" >
+        		<%
+        			if(!goods_cat_group.equals("")){
+					String groupStr[] = goods_cat_group.split("\\|");
+					for(int i = 0;i < groupStr.length;i++){
+					String goods_name = ti_goodsInfo.getGoodsNameById(groupStr[i]);
+				if(!goods_name.equals("")){
+        		%>
+					<tr id="spandiv<%=i+1%>">
+						<td width="5%" height="35" align="right" style="background:#F9F9F9;">
+							<font color="#666666"><%=i+1%>:</font>
+						</td>
+						<td width="55%" style="background:#F9F9F9;">
+							<font color="#666666"><%=goods_name%></font>
+						</td>
+						<td width="40%">
+							<img src="/program/company/index/images/cross.png" style="vertical-align:middle;cursor:pointer;" title="移除关联商品" onclick=moveout("<%=i+1%>","<%=groupStr[i]%>") />
+						</td>
+					</tr>
+						<%
+									}
+								}
+							}
+						%>
+					</table>
+        </div>
+			</td>
+		</tr>
+		
+		  <tr>
+			<td align="right" width="15%">关联资讯:</td>
+			<td colspan="3">
+				<input type="text" name="news_keyword" id="news_keyword" />
+				<input type="button" class="button_s_css" value="搜 索"  onclick="showassociation('news','关联资讯','1')" />
+            <div id="news_table">
+			<table width="100%" border="0" cellspacing="0" cellpadding="0" >
+        		<%
+        			if(!news_id_group.equals("")){
+					String newsgroupStr[] = news_id_group.split("\\|");
+					for(int x = 0;x < newsgroupStr.length;x++){
+					String newstitle = ti_newsInfo.gettitle(newsgroupStr[x]);
+					
+					if(!newstitle.equals("")){
+        		%>
+					<tr id="newsspandiv<%=x+1%>">
+						<td width="5%" height="35" align="right" style="background:#F9F9F9;">
+							<font color="#666666"><%=x+1%>:</font>
+						</td>
+						<td width="55%" style="background:#F9F9F9;">
+							<font color="#666666"><%=newstitle%></font>
+						</td>
+						<td width="40%">
+							<img src="/program/company/index/images/cross.png" style="vertical-align:middle;cursor:pointer;" title="移除关联资讯" onclick=moveoutguanlian("<%=x+1%>","<%=newsgroupStr[x]%>","news") />
+						</td>
+					</tr>
+						<%
+						}
+								}
+							}
+						%>
+					</table>
+			</div>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="15%">关联客户:</td>
+			<td colspan="3">       
+			<input type="text" name="cust_keyword" id="cust_keyword" />
+			<input type="button" class="button_s_css" value="搜 索"  onclick="showassociation('cust','关联客户','2')" />
+        <div id="cust_table">
+		<table width="100%" border="0" cellspacing="0" cellpadding="0" >
+        		<%
+        			if(!cust_id_group.equals("")){
+					String custgroupStr[] = cust_id_group.split("\\|");
+					for(int y = 0;y < custgroupStr.length;y++){
+					//String cust_name = ti_customerInfo.getCustNameByCustId(custgroupStr[y]);
+					String cust_name = memberInfo.getCustNameByPk(custgroupStr[y]);
+					if(!cust_name.equals("")){
+        		%>
+					<tr id="custspandiv<%=y+1%>">
+						<td width="5%" height="35" align="right" style="background:#F9F9F9;">
+							<font color="#666666"><%=y+1%>:</font>
+						</td>
+						<td width="55%" style="background:#F9F9F9;">
+							<font color="#666666"><%=cust_name%></font>
+						</td>
+						<td width="40%">
+							<img src="/program/company/index/images/cross.png" style="vertical-align:middle;cursor:pointer;" title="移除关联商品" onclick=moveoutguanlian("<%=y+1%>","<%=custgroupStr[y]%>","cust") />
+						</td>
+					</tr>
+						<%
+									}
+								}
+							}
+						%>
+					</table>
+		</div>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" width="15%">关联栏目:</td>
+			<td colspan="3">
+			<input type="text" name="ch_keyword" id="ch_keyword" />
+			<input type="button" class="button_s_css" value="搜 索"  onclick="showassociation('ch','关联栏目','3')" />
+            <div id="ch_table">
+			<table width="100%" border="0" cellspacing="0" cellpadding="0" >
+        		<%
+        			if(!ch_id_group.equals("")){
+					String chgroupStr[] = ch_id_group.split("\\|");
+					for(int z = 0;z < chgroupStr.length;z++){
+					String ch_name = ti_channelInfo.getChName(chgroupStr[z]);
+					if(!ch_name.equals("")){
+        		%>
+					<tr id="chspandiv<%=z+1%>">
+						<td width="5%" height="35" align="right" style="background:#F9F9F9;">
+							<font color="#666666"><%=z+1%>:</font>
+						</td>
+						<td width="55%" style="background:#F9F9F9;">
+							<font color="#666666"><%=ch_name%></font>
+						</td>
+						<td width="40%">
+							<img src="/program/company/index/images/cross.png" style="vertical-align:middle;cursor:pointer;" title="移除关联栏目" onclick=moveoutguanlian("<%=z+1%>","<%=chgroupStr[z]%>","ch") />
+						</td>
+					</tr>
+						<%
+									}
+								}
+							}
+						%>
+					</table>
+			</div>
+			</td>
+		</tr>
+		
+		
+		<tr>
+			<td align="right" width="10%">
+				专题描述<font color="red">*</font>
+			</td>
+			<td colspan="3">
+			<input type="hidden" name="zhuan_desc" id="zhuan_desc" />
+			<textarea name="content" id="content"><%=zhuan_desc%></textarea>
+			<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+			<script type="text/javascript">
+				CKEDITOR.replace('content');
+			</script></td>
+		</tr>
+		<tr>
+			<td align="right" width="10%">
+				备注
+			</td>
+			<td><input name="remark" id="remark" type="text" value="<%=remark%>" size="60" maxlength="100"/></td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="9651" />
+	  			<input type="hidden" name="zhuanti_id" value="<%=zhuanti_id %>" />
+				<input type="hidden" name="jumpurl" value="<%=para%>" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交"onClick="return subForm()" />&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='<%=para%>';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

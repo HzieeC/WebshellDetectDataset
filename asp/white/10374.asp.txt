@@ -1,0 +1,92 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<%link="company_myexpertadd.asp?checks="&request("checks")&""%>
+<!--#include file="checkcmember.asp" -->
+<!--#include file="flagandexpend.asp"-->
+<%
+If CheckCFlag("Climits",2)=False Then
+	Response.Write("<script>alert(""您无权使用人才库！"");window.close();</script>")
+	Response.End()
+End If
+checks=trim(request("checks"))
+set rs=Server.CreateObject("Adodb.Recordset")
+resumes=split(checks,",")
+t=0 '成功收藏数
+for i=0 to ubound(resumes)
+	id=trim(resumes(i))
+	sql="select resume_id,resume_name,resume_sex,resume_birth,resume_edu,resume_pmember from job_p_resume where resume_id="&id
+	rs.open sql,conn,1,1
+	resumeid=rs("resume_id")
+	name=rs("resume_name")
+	sex=rs("resume_sex")
+	birth=rs("resume_birth")
+	edu=rs("resume_edu")
+	pmember=rs("resume_pmember")
+	rs.close
+	sql="select * from job_c_myexpert where myexpert_resumeid="&resumeid&" and myexpert_cmember='"&cmember_login&"'" '存入人才库
+	rs.open sql,conn,3,3
+	if rs.eof then
+		If CheckCFlag("Climits",3)=False then
+			If CheckCFlag("Cdianshus",1)=False then
+				response.write "<script language=javascript>alert('恭喜您成功添加"&t&"个人才！\n由于您人才库的数量已达到上限（或无可用点数），暂不能继续收藏，如需继续扩大人才库容量请联系网站客服进行升级！');location.href='javascript:window.close()';</script>"
+				response.end()
+			else
+				Call PayLog(cmember_login,2,"将"&name&"的简历放入到人才库",Group_Cdianshus(1),0)
+			end if
+		else
+			Call PayLog(cmember_login,2,"将"&name&"的简历放入到人才库",0,0)
+		end if
+		rs.addnew
+		rs("myexpert_resumeid")=resumeid
+		rs("myexpert_name")=name
+		rs("myexpert_sex")=sex
+		rs("myexpert_birth")=birth
+		rs("myexpert_edu")=edu
+		rs("myexpert_cmember")=cmember_login
+		rs("myexpert_pmember")=pmember
+		rs("myexpert_date")=now()
+		rs("myexpert_exp")=1
+		rs.update
+		'修改人才库人才数量
+		if CheckCFlag("Climits",3)=False Or Group_Climits(3)=0 then
+			conn.Execute("Update JOB_member set Member_expertnums=Member_expertnums+1 where Member_login = '"&cmember_login&"' and Member_typeid=2")
+		else
+			conn.Execute("Update JOB_member set Member_expertnums=Member_expertnums+1,Member_expertnum=Member_expertnum-1 where Member_login = '"&cmember_login&"' and Member_typeid=2")
+		end if
+	t=t+1 '记录成功数
+	Call IncomeIntegral(cmember_login,2,-Group_Cintegrals(1))
+	else
+		if rs("myexpert_exp")<>1 then
+			If CheckCFlag("Climits",3)=False then
+				If CheckCFlag("Cdianshus",1)=False then
+					response.write "<script language=javascript>alert('恭喜您成功添加"&t&"个人才！\n由于您人才库的数量已达到上限（或无可用点数），暂不能继续收藏，如需继续扩大人才库容量请联系网站客服进行升级！');location.href='javascript:window.close()';</script>"
+					response.end()
+				else
+					Call PayLog(cmember_login,2,"将"&name&"的简历放入到人才库",Group_Cdianshus(1),0)
+				end if
+			else
+				Call PayLog(cmember_login,2,"将"&name&"的简历放入到人才库",0,0)
+			end if
+			rs("myexpert_date")=now()
+			rs("myexpert_exp")=1
+			rs.update
+			'修改人才库人才数量
+			if CheckCFlag("Climits",3)=False or Group_Climits(3)=0 then
+				conn.Execute("Update JOB_member set Member_expertnums=Member_expertnums+1 where Member_login = '"&cmember_login&"' and Member_typeid=2")
+			else
+				conn.Execute("Update JOB_member set Member_expertnums=Member_expertnums+1,Member_expertnum=Member_expertnum-1 where Member_login = '"&cmember_login&"' and Member_typeid=2")
+			end if
+			t=t+1 '记录成功数
+			Call IncomeIntegral(cmember_login,2,-Group_Cintegrals(1))
+		end if
+	end if
+	rs.close
+next
+set rs=nothing
+conn.close
+set conn=nothing
+response.write("<script language=javascript>alert('成功放入"&t&"位人才，"&ubound(resumes)+1-t&"个重复！');location.href='javascript:window.close()';</script>")
+response.end
+%>

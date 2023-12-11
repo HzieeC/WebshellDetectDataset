@@ -1,0 +1,53 @@
+<!--#include file="config.asp"-->
+<%
+function get_request_token()
+    '获取request token接口, 不要随便更改!!
+    dim url:url    = "http://openapi.qzone.qq.com/oauth/qzoneoauth_request_token?"
+   
+    '构造签名串.源串:方法[GET|POST]&uri&参数按照字母升序排列
+    dim sigstr:sigstr = "GET" & "&" & server.URLEncode("http://openapi.qzone.qq.com/oauth/qzoneoauth_request_token") & "&"
+   
+    '必要参数,不要随便更改,按照字母升序
+	dim normalized_str:normalized_str="oauth_consumer_key=" & appid & "&oauth_nonce=" & MakeRandom(10) &"&oauth_signature_method=HMAC-SHA1&oauth_timestamp=" & toUnixTime(now,8) & "&oauth_version=1.0"
+    
+	sigstr    = sigstr &  server.URLEncode(normalized_str)
+	sigstr    = replace(replace(replace(sigstr,"%2E","."),"%5F","_"),"%2D","-") '采用php的 rawurlencode 所以要替换回来特殊符号
+
+    '生成签名
+	dim key:key=appkey & "&"
+	dim signature:signature=b64_hmac_sha1(key,sigstr)
+	
+    '构造请求url
+    url      = url & normalized_str & "&" & "oauth_signature=" & server.urlencode(signature)
+    
+	get_request_token=file_get_contents(url)
+end function
+
+
+function redirect_to_login()
+
+    '授权登录页
+    dim redirect:redirect = "http://openapi.qzone.qq.com/oauth/qzoneoauth_authorize?oauth_consumer_key=" & appid & "&"
+   
+    '获取request token
+	Dim result:set result=parse_str(get_request_token())
+
+    'request token, request token secret 需要保存起来
+    '在demo演示中，直接保存在全局变量中.真实情况需要网站自己处理
+    SESSION("token")        = result("oauth_token")
+    SESSION("secret")       = result("oauth_token_secret")
+
+    if (result("oauth_token") = "") then
+        '网站需要自己处理错误情况
+		response.write "连接QQ失败,请检查配置参数！"
+        exit function
+    end if
+	
+   '302跳转到授权页面
+    redirect = redirect & "oauth_token=" & result("oauth_token") & "&oauth_callback=" & server.urlencode(callback)
+    response.redirect redirect
+end function
+
+session("laoyqqurl")=request.servervariables("HTTP_REFERER")
+Call redirect_to_login()
+%>

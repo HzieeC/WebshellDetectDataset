@@ -1,0 +1,258 @@
+<!--#include file="Conn.asp"-->
+<!-- #include file="inc/const.asp" -->
+<%
+Dim Sql,Rs,TempStr
+
+Dvbbs.LoadTemplates("usermanager")
+Dvbbs.Stats=Dvbbs.MemberName&template.Strings(0)
+Dvbbs.Nav()
+Dvbbs.Head_var 0,0,template.Strings(0),"usermanager.asp"
+
+If dvbbs.userid=0 Then
+	Dvbbs.AddErrCode(6)
+	Dvbbs.Showerr()
+Else
+	Main()
+End If
+Dvbbs.ActiveOnline()
+Dvbbs.Footer()
+Dvbbs.PageEnd()
+
+Sub Main()
+	Dim MainTable,i,UserFace
+	UserFace="<img src="""&Dvbbs.HtmlEncode(Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userface").text)&""" width="""& Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userwidth").text &""" height=""" & Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userheight").text &""" alt="""" />"
+	MainTable=Template.Html(1)
+	MainTable=Replace(MainTable,"{$TableWidth}",Dvbbs.mainsetting(0))
+	MainTable=Replace(MainTable,"{$color}",Dvbbs.mainsetting(1))
+	MainTable=Replace(MainTable,"{$user_Article}",Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userpost").text)
+	MainTable=Replace(MainTable,"{$user_Group}",Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userclass").text)
+	MainTable=Replace(MainTable,"{$user_Face}",Dv_FilterJS(UserFace))
+	MainTable=Replace(MainTable,"{$user_Title}",Dvbbs.htmlencode(Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@usertitle").text))
+	MainTable=Replace(MainTable,"{$user_Wealth}",Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userwealth").text)
+	MainTable=Replace(MainTable,"{$user_EP}",Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userep").text)
+	MainTable=Replace(MainTable,"{$user_CP}",Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@usercp").text)
+	MainTable=Replace(MainTable,"{$user_Money}",Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@usermoney").text)
+	MainTable=Replace(MainTable,"{$user_Ticket}",Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userticket").text)
+	MainTable=Replace(MainTable,"{$user_IsBest}",Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userisbest").text)
+	MainTable=Replace(MainTable,"{$user_AddDate}",Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@joindate").text)
+	MainTable=Replace(MainTable,"{$user_Logins}",Dvbbs.UserSession.documentElement.selectSingleNode("userinfo/@userlogins").text)
+	MainTable=Replace(MainTable,"{$username}",Dvbbs.Membername)
+	MainTable=Replace(MainTable,"{$msg_newincept}",Dvbbs.sendmsgnum)
+	MainTable=Replace(MainTable,"{$msg_incept}",incept())
+	MainTable=Replace(MainTable,"{$msg_send}",allsend())
+	MainTable=Replace(MainTable,"{$friend_Info}",friendlist())			
+	MainTable=Replace(MainTable,"{$msglist}",msg_list(5))				
+	MainTable=Replace(MainTable,"{$filelist}",Fileuplist(5))			
+	'MainTable=Replace(MainTable,"{$topiclist}",NewTopic(5))			
+	If (Dvbbs.Forum_ChanSetting(13)="1" And Dvbbs.Forum_ChanSetting(0)="1") Or Dvbbs.Forum_ChanSetting(3)="0" Then
+		MainTable = Replace(MainTable,"{$UserTicket}","<BR>" & Dvbbs.lanstr(11))
+	Else
+		MainTable = Replace(MainTable,"{$UserTicket}","")
+	End If
+	Response.Write Template.Html(0)
+	Response.write MainTable
+End Sub
+
+Function msg_list(str)			'
+	Dim Tempwrite,Msgsrc,msgflag,tablebody,i
+	sql="Select id,sender,title,content,flag,sendtime from DV_Message where incept='"&Dvbbs.checkstr(Dvbbs.MemberName)&"' and issend=1 and delR=0 order by flag,sendtime desc"
+	Set Rs=Dvbbs.Execute(sql)
+	If Rs.eof and Rs.bof Then
+		msg_list="<tr><td class=tablebody1 align=center valign=middle colspan=5>"&template.Strings(7)&"</td></tr>"
+		Exit Function
+	Else
+	SQL=Rs.GetRows(cint(str))
+	Rs.close:set Rs=nothing
+	For i=0 to Ubound(SQL,2)
+		Tempwrite=Template.Html(2)
+		msgflag=SQL(4,i)
+		If msgflag=0 Then
+			tablebody="tablebody2"
+			Msgsrc="<img src="&template.pic(11)&" >"
+		Else
+			tablebody="tablebody1"
+			Msgsrc="<img src="&template.pic(12)&" >"
+		End If
+		Tempwrite=Replace(Tempwrite,"{$tablebody}",tablebody)
+		Tempwrite=Replace(Tempwrite,"{$msg_pic}",Msgsrc)
+		Tempwrite=Replace(Tempwrite,"{$msg_name}",Dvbbs.htmlencode(SQL(1,i)))
+		Tempwrite=Replace(Tempwrite,"{$msg_id}",SQL(0,i))
+		Tempwrite=Replace(Tempwrite,"{$msg_topic}",Dvbbs.htmlencode(SQL(2,i)))
+		If Isnull(Sql(5,i)) Or SQL(5,i) = "" Then
+			Tempwrite=Replace(Tempwrite,"{$msg_time}",Now())
+		Else
+			Tempwrite=Replace(Tempwrite,"{$msg_time}",SQL(5,i))
+		End If
+		Tempwrite=Replace(Tempwrite,"{$msg_size}",len(SQL(3,i)))
+		msg_list=msg_list+Tempwrite
+	Next
+	End If
+End Function
+
+Function Fileuplist(str)		
+	Dim Tempwrite,F_imgsrc,i
+	Set Rs=Dvbbs.Execute("Select F_ID,F_Filename,F_FileType,F_Type,F_Flag,F_FileSize,F_AddTime from [DV_Upfile] where F_UserID="&dvbbs.userid&" order by F_ID desc ")
+	If Rs.eof and Rs.bof Then
+		Fileuplist="<tr><td class=tablebody1 align=center valign=middle colspan=5>"&template.Strings(7)&"</td></tr>"
+		Exit Function
+	Else
+		SQL=Rs.GetRows(cint(str))
+		Rs.close:set Rs=nothing
+	For i=0 to Ubound(SQL,2)
+		Tempwrite=Template.Html(3)
+		Tempwrite=Replace(Tempwrite,"{$tablebody}","class=tablebody1")
+		F_imgsrc="<img src='Skins/Default/filetype/"&SQL(2,i)&".gif' border=0>"
+		Tempwrite=Replace(Tempwrite,"{$file_incept}",F_imgsrc)
+		Tempwrite=Replace(Tempwrite,"{$file_size}",GetSize(SQL(5,i)))
+		Tempwrite=Replace(Tempwrite,"{$file_time}",SQL(6,i))
+		Tempwrite=Replace(Tempwrite,"{$file_type}",F_Typename(SQL(3,i)))
+		Tempwrite=Replace(Tempwrite,"{$file_topic}",Dvbbs.Htmlencode(SQL(1,i)))
+		Fileuplist=Fileuplist+Tempwrite
+	Next
+	End If
+End Function
+Function NewTopic(str)			
+	Dim Tempwrite,topic,i
+	Set Rs=Dvbbs.Execute("Select announceid,rootid,boardid,dateandtime,topic,body from "&Dvbbs.NowUseBbs&" where PostUserID="&dvbbs.userid&" and locktopic<2 order by announceid desc")
+	If Not Rs.eof Then
+		SQL=Rs.GetRows(cint(str))
+	Rs.close:set Rs=nothing
+	For i=0 to Ubound(SQL,2)
+		topic=replace(SQL(4,i)," ","")
+		If topic<>"" Then
+			topic=topic
+		Else
+			topic=SQL(5,i)
+			topic=replace(topic,chr(13),"")
+			topic=replace(topic,chr(10),"")
+		End If
+		If Len(topic)>30 Then
+			topic=left(topic,30)&"..."
+		End If
+		topic=Dvbbs.Htmlencode(topic)
+		Tempwrite=Template.Html(4)
+		Tempwrite=Replace(Tempwrite,"{$topic_title}","<a href=dispbbs.asp?boardid="&SQL(2,i)&"&id="&SQL(1,i)&"&replyid="&SQL(0,i)&"#"&SQL(0,i)&">"&topic&"</a>")
+		Tempwrite=Replace(Tempwrite,"{$topic_posttime}",SQL(3,i))
+		NewTopic=NewTopic+Tempwrite
+	Next
+	Else
+		Tempwrite=Template.Html(4)
+		Tempwrite=Replace(Tempwrite,"{$topic_title}","")
+		Tempwrite=Replace(Tempwrite,"{$topic_posttime}","")
+		NewTopic=NewTopic+Tempwrite
+	End If
+End Function
+
+Function friendlist()
+	Dim FRs,OnlineTime,i,F_friend
+	If Dvbbs.Boardmaster or Dvbbs.Master Then
+	Set FRs=Dvbbs.Execute("Select F_friend,(Select top 1 startime from Dv_online where username = DV_Friend.F_friend) From DV_Friend Where F_mod=1 AND F_userid="&Dvbbs.Userid&" order by F_mod desc")
+	Else
+	Set FRs=Dvbbs.Execute("Select F_friend,(Select top 1 startime from Dv_online where userhidden=2 and username = DV_Friend.F_friend) From DV_Friend Where F_mod=1 AND F_userid="&Dvbbs.Userid&" order by F_mod desc")
+	End If
+	If FRs.eof and FRs.bof Then
+		friendlist=template.Strings(8)
+		Exit Function
+	Else
+		SQL=FRs.GetRows(10)
+	End If
+	FRs.close:set FRs=nothing
+	For i=0 To Ubound(SQL,2)
+		F_friend=Dvbbs.checkstr(SQL(0,i))
+		If SQL(1,i)="" or isNull(SQL(1,i)) Then
+			OnlineTime=Template.Strings(9)
+		Else
+			OnlineTime=template.Strings(10)
+			OnlineTime=Replace(OnlineTime,"{$color}",Dvbbs.mainsetting(1))
+			OnlineTime=Replace(OnlineTime,"{$OnlineTime}",DatedIff("n",SQL(1,i),Now()))
+		End If
+		friendlist=friendlist & "<a href=""javascript:;"" onclick=""DvWnd.open('给"&F_friend&"发送短信','messanger.asp?action=new&amp;touser="&F_friend&"',600,400,1,{bgc:'black',opa:0.5});""><img src="""&Dvbbs.mainpic(15)&""" alt='发短信' border=0></a>&nbsp;<a href=dispuser.asp?name="&F_friend&" >"&F_friend&"</a> "&OnlineTime&" <br>"
+	Next
+End Function
+
+
+Function allsend()
+	Set Rs=Dvbbs.Execute("Select Count(id) From DV_Message Where flag=0 and issend=1 And sender='"& Dvbbs.checkstr(Dvbbs.MemberName) &"'")
+	allsend=Rs(0)
+	Rs.close
+	If isnull(allsend) Then allsend=0
+End Function
+
+Function incept()
+	incept=0
+	Set Rs=Dvbbs.Execute("Select Count(id) From DV_Message Where issend=1 and delR=0 And incept='"& Dvbbs.checkstr(Dvbbs.MemberName) &"'")
+	incept=Rs(0)
+	Rs.close
+	If isnull(incept) Then incept=0
+End Function
+
+Function F_Typename(str)
+DIM TempName
+TempName=split(Dvbbs.lanstr(5),"||")
+	If not IsEmpty(str) and isNumeric(str) Then
+		Select case str
+		case 1
+			F_Typename=TempName(1)
+		case 2
+			F_Typename=TempName(2)
+		case 3
+			F_Typename=TempName(3)
+		case 4
+			F_Typename=TempName(4)
+		case Else
+			F_Typename=TempName(0)
+		End Select
+	End If
+End Function
+
+Function Dv_FilterJS(v)
+	If  Not Isnull(V) Then
+		Dim t
+		Dim re
+		Dim reContent
+		Set re=new RegExp
+		re.IgnoreCase =True
+		re.Global=True
+		re.Pattern="(&#)"
+		t=re.Replace(v,"<I>&#</I>")
+		re.Pattern="(script)"
+		t=re.Replace(t,"<I>script</I>")
+		re.Pattern="(js:)"
+		t=re.Replace(t,"<I>js:</I>")
+		re.Pattern="(value)"
+		t=re.Replace(t,"<I>value</I>")
+		re.Pattern="(about:)"
+		t=re.Replace(t,"<I>about:</I>")
+		re.Pattern="(file:)"
+		t=re.Replace(t,"<I>file:</I>")
+		re.Pattern="(Document.cookie)"
+		t=re.Replace(t,"<I>Documents.cookie</I>")
+		re.Pattern="(vbs:)"
+		t=re.Replace(t,"<I>vbs:</I>")
+		re.Pattern="(on(mouse|Exit|error|click|key))"
+		t=re.Replace(t,"<I>on$2</I>")
+		Dv_FilterJS=t
+		Set Re=Nothing
+	End If 
+End Function
+
+
+Function GetSize(size)
+if isEmpty(size) then exit function
+	if size>1024 then
+ 		   size=(size\1024)
+ 		   GetSize=size & "&nbsp;KB"
+	else
+		   GetSize=size & "&nbsp;Byte"
+ 	end if
+ 	if size>1024 then
+ 		   size=(size/1024)
+ 		   GetSize=Formatnumber(size,2) & "&nbsp;MB"		
+ 	end if
+ 	if size>1024 then
+ 		   size=(size/1024)
+ 		   GetSize=Formatnumber(size,2) & "&nbsp;GB"	   
+ 	end if   
+End Function
+
+%>

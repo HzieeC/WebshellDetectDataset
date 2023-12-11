@@ -1,0 +1,98 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>登录</title>
+
+    <%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+<style type="text/css">
+<!--
+body, td, th {
+	font-size: 12px;
+	color: #333333;
+}
+body {
+	background-color: #FFFFFF;
+	margin-left: 0px;
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+}
+a:link {
+	text-decoration: none;
+	color: #333333;
+}
+a:visited {
+	text-decoration: none;
+	color: #333333;
+}
+a:hover {
+	text-decoration: none;
+}
+a:active {
+	text-decoration: none;
+}
+-->
+</style>
+<link href="${ctx }/styles/css/dl.css" rel="stylesheet" type="text/css" />
+   <script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.js"></script>
+<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+  <script type="text/javascript" src="${ctx }/scripts/front/customer.js"></script>
+<style type="text/css">
+<!--
+.STYLE1 {
+	color: #999999
+}
+-->
+</style>
+</head>
+<body onload="showcheck()">
+<div class="kuangda">
+  <div class="kuang_zc">
+    <div class="zc_db"><a href="${ctx }/index.do"><img src="${ctx}/image/logo.gif" /></a></div>
+    <div class="zx_xb"><img src="${ctx}/image/111.jpg" /></div>
+  </div>
+  <div class="kuang_yc">
+    <div class="yc_dl">
+      <div class="yc_dd">
+        <div class="yc_dd_1  STYLE1">订货登录</div>
+        <div class="yc_dd_2"><a href="${ctx }/toLogin.do" class="lj_4 " >公司登录</a></div>
+      </div>
+            <!-- 登陆表单 -->
+    <form action="" name="logForm" id="logForm" method="post">
+      <div class="yc_xq">
+        <div class="xq_zc">用户名</div>
+        <div class="xq_yc">
+          <input style="color: #ccc" onkeydown="submitOnKeyDownForm()" style="width:200px;" type="text" size="29" maxlength="15"  id="username" value="帐号/手机号/邮箱" onfocus="if(this.value=='帐号/手机号/邮箱') {this.value='';}this.style.color='#333';" onblur="if(this.value=='') {this.value='帐号/手机号/邮箱';this.style.color='#ccc';}"/>
+        </div>
+      </div>
+      <div class="yc_xq">
+        <div class="xq_zc_1">密码</div>
+        <div class="xq_yc">
+          <input onkeydown="submitOnKeyDownForm()" style="width:200px;" type="password" size="20" maxlength="15"  name="customer.pwd" id="logPwd"/>
+        </div>
+      </div>
+      <div class="yc_xq">
+        <div class="xq_zc">验证码</div>
+        <div class="xq_yc_1">
+         <input onkeydown="submitOnKeyDownForm()" name="checkA" type="text" class="text" id="code"  size="4" maxlength="4" />
+        </div>
+        <div class="xq_yc_2"><span id="showcheckA" style="font-size:16px;background-image: url(${ctx}/Images/fuzzy.jpg);"></span></div>
+        <div class="xq_yc_21"><a class="lj_2" onclick="showcheck()" href="#">看不清 换下一张</a></div>
+      </div>
+      <div class="yc_ld">
+        <div class="dldl" style="text-align:center; padding-left:20px; width:135px;"><input type="button"  onclick="submitForm()"  name="sub" value="" style="background-image:url(${ctx}/image/k_dl.gif);height:45px;width:160px;border:0px;"/></div>
+      </div>
+      </form>  <!-- 提交表单 -->
+    </div>
+  </div>
+  <div style="width:100%; height:65px; float:left;"></div>
+</div>
+<div id="banquan"> <!-- <a href="#">诚聘人才</a> | <a href="#">品牌招聘</a> | <a href="#">批发团购</a> | <a href="#">如何付款</a> | <a href="#">配送范围</a> | <a href="#">联系我们</a> | <a href="#">关于我们</a><br /> -->
+2012-2015 广州酷趣信息科技有限公司 All Rights Reserved 粤ICP备09005027号<br />
+建议使用IE7、IE8、IE9浏览器
+</div>
+</body>
+</html>

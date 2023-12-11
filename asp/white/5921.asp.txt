@@ -1,0 +1,471 @@
+<!-- #include file="conn.asp" -->
+<!-- #include file="touxianfun.asp" -->
+<!--#include file="inc/ubbcode.asp"-->
+<!-- #include file="inc/publicfun.asp"-->
+<META http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link href="css/layer.css" type=text/css rel=stylesheet>
+<%
+reurl=request.serverVariables("HTTP_REFERER")
+if userlogin(ft)="N" then
+   response.write "你还没有登录,请先登录"
+   response.End()  
+end if
+server.ScriptTimeout=5400
+Const ForReading = 1
+Const Forwriting = 2
+Const ForAppending = 8
+cookiesname=getcookie("name")
+cookiesbz=getcookie("bz")
+pid=Request.QueryString("id")+0
+reid=Request.QueryString("reid")+0
+FileName = Request.QueryString("File")
+curpage=int(Request.QueryString("page"))
+
+sql="select top 1 "&ft&"BBS_Cate.BBS_Cate_Manager_Name,"&ft&"bbstitle.title,"&ft&"bbstitle.name from "&ft&"BBS_Cate,"&ft&"bbstitle where "&ft&"BBS_Cate.BBS_Cate_ID = "&ft&"bbstitle.BoardID_2 and "&ft&"bbstitle.id="&pid
+set rs=server.createobject("adodb.recordset")
+rs.open sql,conn,1,1
+myname=rs("BBS_Cate_Manager_Name")
+title=rs("title")
+admintobz=0
+if InStr(myname,"|")>0 then
+   myname=split(myname,"|",-1,1)
+   for i=0 to UBound(myname)
+	 if myname(i)=cookiesname then
+	    admintobz=1
+	 end if
+   next
+elseif myname=cookiesname then
+  admintobz=1
+end if
+  call FTBBS_HTML_MB(ft)
+  url=Application("FTBBSMB")(10,0)
+  upfiletype=Application("FTBBSMB")(12,0)
+  upfilesize=Application("FTBBSMB")(13,0)
+  htm_ext=Application("FTBBSMB")(32,0)
+  repostget=Application("FTBBSMB")(49,0)
+  if htm_ext="" then
+     htm_ext=".htm"
+  end if
+  '+++++++++++++++++++++++++++++++++++++
+  if IsNumeric(pid)=False then
+   response.write "<SCRIPT language=JavaScript>alert('参数错误!');"
+   response.write "history.go(-1);"
+   response.write "</script>"        
+   response.end
+  end if
+
+ sqk="select * from "&ft&"bbstitle where id="&pid
+ set rers=server.createobject("adodb.recordset")
+ rers.open sqk,conn,3,1
+ if rers.eof then
+   rers.close
+   response.write "<SCRIPT language=JavaScript>history.go(-1);"
+   response.write "</script>"        
+   response.end
+ end if
+ htmfilename=rers("htmfilename")
+ P_display=rers("P_display")
+ TitleID=rers("id")
+ retitle=rers("title")
+ postuser=rers("name")
+ user_id=rers("user_id")
+ rep=rers("rep")
+ postnum=rers("postnum")
+
+ BoardID_1=rers("BoardID_1")
+ BoardID_2=rers("BoardID_2")
+ menu=rers("menu")
+
+ indate=rers("dateh")
+ zhiye=rers("zhiye")
+ fd=rers("flag") '活动贴标识
+ if isnull(fd) then fd=0
+ if fd=1 then pollYN="Y"
+ bbs_img=rers("bbs_img")
+ bbs_img_text=rers("bbs_img_text")
+ if rers("bbs_img")<>"" and rers("bbs_img_display")=1 then
+ YN="Y"
+ else
+ YN="N"
+ end if
+ if rers("img_url_display")=1 then
+   img_url=rers("img_url")
+ else
+   img_url=""
+ end if
+ reinfo=rers("reinfo")
+ rers.close
+ set rers=nothing
+
+ sql="select rename,dateh,deleted from "&ft&"bbsmenu where id="&reid
+ set rs=server.createobject("adodb.recordset")
+ rs.open sql,conn,3,1
+ if not rs.eof then
+   dateh=Year(rs("dateh")) & "-" & Month(rs("dateh")) & "-" & Day(rs("dateh")) & " " & Hour(rs("dateh")) & ":" & Minute(rs("dateh")) & ":" & Second(rs("dateh"))
+   placereinfo="|"&dateh&","&rs("rename")&"|"
+   reinfo=replace(reinfo,placereinfo,"")
+   deleted=rs("deleted")
+   rename=rs("rename")
+ else
+   response.write "记录不存在或已经被删除"
+   response.end
+ end if
+ rs.close
+if rename=cookiesname or cookiesbz=1 or admintobz=1 then
+ if reinfo<>"" then
+   strsql="update "&ft&"bbstitle set rep=rep-1,postnum=postnum-1,reinfo='"&reinfo&"' where rep>0 and id="&pid
+ else
+   strsql="update "&ft&"bbstitle set rep=rep-1,postnum=postnum-1 where rep>0 and id="&pid
+ end if
+ conn.execute(strsql)
+
+ str="delete from "&ft&"bbsmenu where id="&reid
+ conn.execute(str)
+ sql="update "&ft&"BBS_Cate set BBS_Cate_Reply=BBS_Cate_Reply-1 where BBS_Cate_ID='"&BoardID_1&"'"
+ conn.execute sql
+ sql="update "&ft&"BBS_Cate set BBS_Cate_Reply=BBS_Cate_Reply-1 where BBS_Cate_ID='"&BoardID_2&"'"
+ conn.execute sql
+ if deleted=0 then
+  sql="update "&ft&"clubuser set jingyuan=jingyuan-"&repostget&" where clubuser_name='"&rename&"'"
+  conn.execute sql
+ end if
+
+ '第一次没有生成页面时将重新更新生成
+ if htmfilename="" or isnull(htmfilename) then
+   if Application("FTBBSMB")(7,0)="M" then
+   htmfilename=year(indate)&month(indate)&"/"&TitleID&htm_ext
+   else
+   htmfilename=year(indate)&month(indate)&day(indate)&"/"&TitleID&htm_ext
+   end if
+   sqlstr="update "&ft&"bbstitle set htmfilename='"&htmfilename&"' where id="&TitleID
+   conn.execute sqlstr
+ end if
+
+ '当静态页存放的文件夹不存时就创建文件夹
+ htmarray=split(htmfilename,"/")
+ myFolder = htmarray(0)
+ htmFolder = myFolder
+ pagestrnum = htmarray(1)
+ call makefolder(myFolder,fso)
+ '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ call FTBBS_BZ_NAME(BoardID_1,ft)
+ BBS_Cate_Name1=Application("BBS_Cate_Name1")
+ call FTBBS_BZ_NAME2(BoardID_1,BoardID_2,ft)
+ BBS_Cate_Name2=Application("BBS_Cate_Name2")
+ BBS_Cate_Manager_Name=Application("BBS_Cate_Manager_Name")
+ BBS_Cate_QS2=Application("BBS_Cate_QS2")
+ '+++++++++++++++新版新加取出主题贴用户资料
+ str="select * from "&ft&"clubuser where clubuser_name='"&postuser&"'"
+ set rs=server.createobject("adodb.recordset")
+ rs.open str,conn,3,1
+
+ if not rs.eof then
+   clubuser_id=rs("clubuser_id")
+   jingyuan=rs("jingyuan")
+   tili=rs("tili")
+   clubuser_money=rs("clubuser_money")
+   img=rs("userimg")
+   clubuser_reg_date=formatdatetime(rs("clubuser_reg_date"),2)
+   if rs("signname")<>"" then
+   signname=ftbbsubbcode(rs("signname"))
+   else
+   signname="<a href=moduserinfo.asp?postuser="&getcookie("name")&"><FONT color=#568ac2>个人签名档还未设置，请点击这里进行设置</font></a>"
+   end if
+   bz=rs("bbsmanager")
+   procity=rs("clubuser_province")&rs("clubuser_city") '新
+   clubuser_zip=rs("clubuser_zip")
+   xzstr=""
+   if clubuser_zip<>"" then
+      if instr(clubuser_zip,",")>0 then
+         xzarr=split(clubuser_zip,",")
+         for i=0 to UBound(xzarr)
+		 ar=xzarr(i)
+		 br=split(ar,"|")
+		 xzimg=br(0)
+		 xzms=br(1)
+         xzstr=xzstr&"<img src=../images/"&xzimg&" width=20 height=35 alt="&xzms&"> "
+         next
+	  else
+		 xzarr=split(clubuser_zip,"|")
+		 xzimg=xzarr(0)
+		 xzms=xzarr(1)
+	     xzstr=xzstr&"<img src=../images/"&xzimg&" width=20 height=35 alt="&xzms&">"
+      end if
+   else
+      xzstr=""
+   end if
+ else
+   jingyuan=0
+   tili=100
+   img="cache5.gif"
+   signname="<a href=moduserinfo.asp?postuser="&getcookie("name")&"><FONT color=#568ac2>个人签名档还未设置，请点击这里进行设置</font></a>"
+   bz=0
+   procity="福建厦门"			     
+ end if
+ rs.close
+ set rs=nothing
+ '++++++++++++++++++++++++++++++++++++++++
+ touxian=touxianvalue(jingyuan,ft)
+ jibie=jibievalue(jingyuan,ft)
+ call FTBBS_HTML_MB(ft)			  
+ '++++++++++++++++++++++++++++++++++++++++
+ pagenum=Application("FTBBSMB")(6,0)
+ strsql="select count(*) as rep from "&ft&"bbsmenu where pid="&TitleID&" and deleted=0"
+ rscount=conn.execute(strsql)
+ repnum=rscount("rep")
+ resql="update "&ft&"bbstitle set rep="&repnum&",postnum="&repnum&" where id="&TitleID
+ conn.execute resql
+
+ k=repnum/pagenum
+ dim page,pagex
+
+ if int(k)=k and int(k)<>0 then
+    pagex=k
+ else
+    pagex=int(k)+1
+ end if
+ For page=1 to pagex
+     if page=1 then
+        tourl=htmfilename
+        if pollYN="Y" then
+        postmb=Application("FTBBSMB")(4,0)
+        else
+        postmb=Application("FTBBSMB")(1,0)
+        end if
+     else
+        tourl=replace(htmfilename,htm_ext,"")&"_"&page&htm_ext
+		postmb=Application("FTBBSMB")(37,0)
+     end if
+	 floorpage=(page-1)*pagenum
+     '++++++++++++++++++取出主题贴与回复表单的内容++++++++++++++++++++++++++++
+     postmb=replace(replace(postmb,"$PostID$",TitleID),"$pagenav$",page)
+	 postmb=replace(postmb,"$page$",page)
+	 postmb=replace(postmb,"$TitleID$",TitleID)
+	 postmb=replace(postmb,"$title$",retitle)
+	 postmb=replace(postmb,"$BoardID_1$",BoardID_1)
+	 postmb=replace(postmb,"$BoardID_2$",BoardID_2)
+	 postmb=replace(postmb,"$BBS_Cate_Name1$",BBS_Cate_Name1)
+	 postmb=replace(postmb,"$BBS_Cate_Name2$",BBS_Cate_Name2)
+	 postmb=replace(postmb,"$BBS_Cate_Manager_Name$",BBS_Cate_Manager_Name)
+	 postmb=replace(postmb,"$user_id$",user_id)
+	 postmb=replace(postmb,"$userid$",clubuser_id)
+	 postmb=replace(postmb,"$clubuser_money$",clubuser_money)
+	 postmb=replace(postmb,"$touxian$",touxian)
+	 postmb=replace(postmb,"$jibie$",jibie)
+	 postmb=replace(postmb,"$tili$",tili)
+	 postmb=replace(postmb,"$jingyuan$",jingyuan)
+	 postmb=replace(postmb,"$procity$",procity)
+	 postmb=replace(postmb,"$clubuser_reg_date$",clubuser_reg_date)
+	 postmb=replace(postmb,"$clubuser_zip$",xzstr)
+	 postmb=replace(postmb,"$name$",postuser)
+	 if fd=3 or fd=4 or fd=5 then
+	 postmb=replace(postmb,"$menu$","<span id=""loadnl"" name=""loadnl""><img src=""../images/load.gif"" /></span>")
+	 else
+	 postmb=replace(postmb,"$menu$",menu)
+	 end if
+	 if BBS_Cate_QS2="" then BBS_Cate_QS2=0
+	 postmb=replace(postmb,"{qs}",BBS_Cate_QS2)
+	 postmb=replace(postmb,"$htmfilename$",htmfilename)
+	 postmb=replace(postmb,"$url$",url)
+	 postmb=replace(postmb,"$zhiye$",zhiye)
+	 postmb=replace(postmb,"$signname$",signname)
+	 postmb=replace(postmb,"$img$",img)
+	 postmb=replace(postmb,"$date$",indate)
+	 postmb=replace(postmb,"$YN$",YN)
+	 if fd=2 then
+	 postmb=replace(postmb,"$upfile$","<SCRIPT src=bmform.asp?titleid="&TitleID&"></SCRIPT>")
+	 else
+	 postmb=replace(postmb,"$upfile$","")
+	 end if
+	 postmb=replace(postmb,"$img_url$",img_url)
+	 if pollYN="Y" then
+	 postmb=replace(postmb,"$YNPOLL$","Y")
+	 else
+	 postmb=replace(postmb,"$YNPOLL$","N")
+	 end if
+	 
+     repostformmb=Application("FTBBSMB")(3,0)
+	 repostformmb=replace(replace(repostformmb,"$PostID$",TitleID),"$pagenav$",page)
+	 if fd=0 or fd=1 or fd=2 or page<>1 then
+	 repostformmb=replace(repostformmb,"<script type=""text/javascript"" src=""../ftbbsdtnl.asp?titleid=$TitleID$""></script>","")
+	 end if
+	 repostformmb=replace(repostformmb,"$TitleID$",TitleID)
+	 repostformmb=replace(repostformmb,"$title$",retitle)
+	 repostformmb=replace(repostformmb,"$upfiletype$",upfiletype)
+	 repostformmb=replace(repostformmb,"$BoardID_1$",BoardID_1)
+	 repostformmb=replace(repostformmb,"$BoardID_2$",BoardID_2)
+	 repostformmb=replace(repostformmb,"$name$",postuser)
+	 repostformmb=replace(repostformmb,"$htmfilename$",htmfilename)
+	 if pollYN="Y" then
+	 repostformmb=replace(repostformmb,"$pollY$","Y")
+	 else
+	 repostformmb=replace(repostformmb,"$pollY$","N")
+	 end if
+     '新版加入生成静态页功能,循环取出回贴内容
+     if repnum>0 then
+        strsql="select * from "&ft&"bbsmenu where pid="&pid&" and deleted=0 order by id asc"
+		set cus1=server.createobject("adodb.recordset")
+        cus1.open strsql,conn,3,1
+        pagenum=Application("FTBBSMB")(6,0)
+        If not(cus1.bof and cus1.eof) then
+           cus1.pagesize=pagenum
+           if (page-cus1.PageCount) > 0 then
+              page=cus1.pagecount
+           elseif page = "" or page < 1 then
+              page = 1
+           end if
+           cus1.AbsolutePage=page
+           '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+           j=cus1.recordcount
+           j=j-(page-1)*pagenum
+           '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+           i=0
+		   HtmlNLB=""
+		do while not cus1.eof and i<pagenum
+        '++++++++++++++++++取出回复贴子的用户信息++++++++++++++++++++++
+          str="select * from "&ft&"clubuser where clubuser_name='"&cus1("rename")&"'"
+          set rs=server.createobject("adodb.recordset")
+          rs.open str,conn,3,1
+
+          if not rs.eof then
+		    clubuser_id=rs("clubuser_id")
+            jingyuan=rs("jingyuan")
+            tili=rs("tili")
+			clubuser_money=rs("clubuser_money")
+            img=rs("userimg")
+            clubuser_reg_date=formatdatetime(rs("clubuser_reg_date"),2)
+            if rs("signname")<>"" then
+            signname=ftbbsubbcode(rs("signname"))
+            else
+            signname="<a href=moduserinfo.asp?postuser="&getcookie("name")&"><FONT color=#568ac2>个人签名档还未设置，请点击这里进行设置</font></a>"
+            end if
+            bz=rs("bbsmanager")
+			procity=rs("clubuser_province")&rs("clubuser_city")
+            clubuser_zip=rs("clubuser_zip")
+            rexz=""
+            if clubuser_zip<>"" then
+               if instr(clubuser_zip,",")>0 then
+               rexzarr=split(clubuser_zip,",")
+               for k=0 to UBound(rexzarr)
+               ar=rexzarr(k)
+               br=split(ar,"|")
+               xzimg=br(0)
+               xzms=br(1)
+               rexz=rexz&"<img src=../images/"&xzimg&" width=20 height=35 alt="&xzms&"> "
+               next
+               else
+               xzarr=split(clubuser_zip,"|")
+               xzimg=xzarr(0)
+               xzms=xzarr(1)
+               rexz=rexz&"<img src=../images/"&xzimg&" width=20 height=35 alt="&xzms&">"
+               end if
+            else
+               rexz=""
+            end if
+          else
+            jingyuan=0
+            tili=100
+            img="cache5.gif"
+            signname="<a href=moduserinfo.asp?postuser="&getcookie("name")&"><FONT color=#568ac2>个人签名档还未设置，请点击这里进行设置</font></a>"
+            bz=0
+			procity="福建厦门"			     
+          end if
+            rs.close
+            set rs=nothing
+
+          reid=cus1("id")
+          reuser=cus1("user_id")
+	      reuser_id=cus1("rename")
+          rebbs_img=cus1("bbs_img")
+          remenu=cus1("remenu")
+	      datetime=cus1("dateh")
+	      postnum=postnum+1
+		  bbs_img_text=cus1("bbs_img_text")
+          if cus1("bbs_img")<>"" and cus1("bbs_img_display")=1 then
+             REYN="Y"
+          else
+             REYN="N"
+          end if
+          if cus1("img_url_display")=1 then
+             reimg_url=cus1("img_url")
+	      else
+	         reimg_url=""
+          end if
+	 	 
+          touxian=touxianvalue(jingyuan,ft)
+          jibie=jibievalue(jingyuan,ft)
+		  
+	 	  repostmb=Application("FTBBSMB")(2,0)
+	      remb=replace(Application("FTBBSMB")(2,0),"$title$",retitle)
+	      remb=replace(remb,"$img$",img)
+	      remb=replace(remb,"$reuser$",reuser)
+	      remb=replace(remb,"$touxian$",touxian)
+	      remb=replace(remb,"$jibie$",jibie)
+	      remb=replace(remb,"$tili$",tili)
+	      remb=replace(remb,"$jingyuan$",jingyuan)
+		  remb=replace(remb,"$procity$",procity) '新
+	      remb=replace(remb,"$reg_date$",clubuser_reg_date)
+		  remb=replace(remb,"$clubuser_zip$",rexz)
+	      remb=replace(remb,"$TitleID$",TitleID)
+	      remb=replace(remb,"$Titleid$",TitleID)
+	      remb=replace(remb,"$htmfilename$",htmfilename)
+	      remb=replace(remb,"$reuser_id$",reuser_id)
+		  remb=replace(remb,"$userid$",clubuser_id)
+		  remb=replace(remb,"$clubuser_money$",clubuser_money)
+	      remb=replace(remb,"$remenu$",remenu)
+	      remb=replace(remb,"$signname$",signname)
+	      remb=replace(remb,"$reid$",reid)
+	      remb=replace(remb,"$YN$",REYN)
+
+	 	  remb=replace(remb,"$reupfile$","")
+	      remb=replace(remb,"$postnummb$",postnum)
+	      remb=replace(remb,"$page$",page)
+		  if i=0 then
+		  remb=replace(remb,"$floorpage$",floorpage)
+		  else
+		  remb=replace(remb,"var addnumx=$floorpage$;","")
+		  end if
+	      remb=replace(remb,"$name$",reuser_id)
+	      remb=replace(remb,"$datetime$",datetime)
+	      remb=replace(remb,"$img_url$",reimg_url)
+	      if pollYN="Y" then
+	      remb=replace(remb,"$YNPOLL$","Y")
+	      else
+	      remb=replace(remb,"$YNPOLL$","N")
+	      end if
+          i=i+1
+          cus1.movenext
+	      HtmlNLB=HtmlNLB+remb
+		  j=j-1
+        loop
+      end if
+	  cus1.close
+    end if
+	 'ALLHtmlNL=postmb&HtmlNLB&repostformmb
+	 'SaveToFile ALLHtmlNL,tourl
+	 ALLHtmlNL=postmb&HtmlNLB&repostformmb
+	 call makehtml(tourl,fso,ALLHtmlNL)
+ Next
+ conn.close
+ set conn=nothing
+ Random=Int((1000 - 100 + 1) * Rnd + 100) '用来取消缓存
+ if pagex-curpage>=0 or curpage=1 then
+   response.write "操作成功，点击<a href="&reurl&" target=""_blank"" onclick=""parent.g_close_pop();"">返回</a>查看"
+   response.End() 
+ else
+   if instr(pagestrnum,".")>0 then 
+   prepagestr=split(pagestrnum,".")(0)
+   end if
+   if curpage=2 then
+   response.write "操作成功，点击<a href="&htmFolder&"/"&prepagestr&htm_ext&" target=_blank>返回</a>查看"
+   response.End() 
+   else
+   response.write "操作成功，点击<a href="&htmFolder&"/"&prepagestr&"_"&curpage-1&htm_ext&" target=_blank>返回</a>查看"
+   response.End() 
+   end if
+ end if
+else
+   response.write "你的权限太低,无法删除"
+   response.End()
+end if
+%>

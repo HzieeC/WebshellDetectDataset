@@ -1,0 +1,197 @@
+<!--#include file="../inc/access.asp"  -->
+<!-- #include file="inc/functions.asp" -->
+<!-- #include file="../inc/x_to_html/index_to_html.asp" -->
+<%
+act=Request("act")
+If act="save" Then 
+web_name=trim(request.form("web_name"))
+web_slogan=trim(request.form("web_slogan"))
+web_url=trim(request.form("web_url"))
+web_image=trim(request.form("web_image"))
+web_title=trim(request.form("web_title"))
+web_keywords=trim(request.form("web_keywords"))
+web_description=trim(request.form("web_description"))
+web_copyright=trim(request.form("web_copyright"))
+'web_contact=trim(request.form("a_content"))
+web_person=trim(request.form("web_person"))
+web_birthdate=trim(request.form("web_birthdate"))
+web_birthplace=trim(request.form("web_birthplace"))
+web_shortintro=trim(request.form("web_shortintro"))
+web_email=trim(request.form("web_email"))
+web_tel=trim(request.form("web_tel"))
+web_ModelEdit=trim(request.form("web_ModelEdit"))
+web_time=trim(request.form("web_time"))
+if web_time="" then
+ web_time=now()
+end if 
+
+set rs=server.createobject("adodb.recordset")
+sql="select * from web_settings"
+rs.open(sql),cn,1,3
+rs("web_name")=web_name
+rs("web_slogan")=web_slogan
+rs("web_url")=web_url
+rs("web_image")=web_image
+rs("web_title")=web_title
+rs("web_keywords")=web_keywords
+rs("web_description")=web_description
+rs("web_copyright")=web_copyright
+'rs("web_contact")=web_contact
+rs("web_person")=web_person
+rs("web_birthdate")=web_birthdate
+rs("web_birthplace")=web_birthplace
+rs("web_shortintro")=web_shortintro
+rs("web_email")=web_email
+rs("web_tel")=web_tel
+rs("web_ModelEdit")=web_ModelEdit
+rs("web_time")=web_time
+rs.update
+rs.close
+set rs=nothing
+
+call index_to_html()
+response.Write "<script language='javascript'>alert('修改成功！')</script>"
+
+end if
+ %>
+	<script charset="utf-8" src="Keditor/kindeditor.js"></script>
+	<script charset="utf-8" src="Keditor/lang/zh_CN.js"></script>
+	<script charset="utf-8" src="Keditor/editor.js"></script>
+	<%
+Call header()
+
+%>
+<%set rs=server.createobject("adodb.recordset")
+sql="select * from web_settings"
+rs.open(sql),cn,1,1
+if not rs.eof and not rs.bof then
+%>
+  <form id="form1" name="form1" method="post" action="?act=save">
+         <script language='javascript'>
+function checksignup1() {
+if ( document.form1.web_name.value == '' ) {
+window.alert('请输入网站名称^_^');
+document.form1.web_name.focus();
+return false;}
+
+return true;}
+</script>
+<SCRIPT src="images/qq/ServiceQQ.htm"></SCRIPT>
+	<table cellpadding='3' cellspacing='1' border='0' class='tableBorder' align=center>
+	<tr>
+	  <th class='tableHeaderText' colspan=2 height=31>网站信息设置</th>
+	<tr>
+	  <td height=23 colspan="2" class='forumRow'><table width="100%" border="0" align="center" cellpadding="0" cellspacing="0">
+        <tr>
+          <td height="20" class='TipTitle'>&nbsp;√ 操作提示</td>
+        </tr>
+        <tr>
+          <td height="30" valign="top" class="TipWords"><p>1、怎样才算是属于一个您的博客或个人网站呢？网站叫什么名，地址是多少，您的个人信息、联系方式等。在这里一一设置吧。</p>
+            <p>2、“网站底部信息”一栏用于设置所有页面的底部信息，如备案号、统计代码等，免费统计代码推荐<a href="http://www.cnzz.com/" target="_blank">站长统计</a>、<a href="http://www.51.la/" target="_blank">网站统计</a>、<a href="http://tongji.baidu.com/" target="_blank">百度统计</a>。</p>
+            <p>3、修改了某项信息后，默认只会自动生成网站首页，其它页面需要手动到"生成管理"处<a href="html_items.asp">生成栏目</a>和<a href="html_article.asp">生成内容</a>才会看到修改后的效果。</p></td>
+        </tr>
+        <tr>
+          <td height="10">&nbsp;</td>
+        </tr>
+      </table></td>
+	  </tr>
+	<tr>
+	<td width="15%" height=23 class='forumRowHighLight'>网站名称</td>
+	<td class='forumRowHighLight'><input name='web_name' type='text' id='web_name' value="<%=rs("web_name")%>" size='40'></td>
+	</tr>
+	<tr>
+	  <td class='forumRow' height=23>网站slogan</td>
+	  <td class='forumRow'><span class="forumRow">
+	    <input name='web_slogan' type='text' id='web_slogan' value="<%=rs("web_slogan")%>" size='40'>
+	  </span></td>
+	  </tr>
+	<tr>
+	<td class='forumRowHighLight' height=23>网站网址</td>
+<td class='forumRowHighLight'><input type='text' id='web_url' name='web_url' value="<%=rs("web_url")%>" size='40'> 
+  &nbsp;请以http://开头，最后必须带 / 。如：http://www.hitux.com/</td>
+	</tr>
+	  <tr>
+	    <td class='forumRow' height=23>个人头像</td>
+	    <td width="85%" class='forumRow'><table width="100%" border="0" cellspacing="0" cellpadding="0">
+         <tr>
+           <td width="22%"  class='forumRow'><input name="web_image" type="text" id="web_image"  value="<%=rs("web_image")%>"  size="30"></td>
+           <td width="78%"  class='forumRow'><iframe width="500" name="ad" frameborder=0 height=30 scrolling=no src=upload.asp></iframe></td>
+         </tr>
+       </table></td>
+      </tr>
+	    <td class='forumRowHighLight' height=23>首页标题(Title)</td>
+	      <td class='forumRowHighLight'><input type='text' id='web_title' name='web_title'   value="<%=rs("web_title")%>" size='80'></td>
+	</tr>
+	    <td class='forumRow' height=11>网站关键字(keywords)</td>
+	      <td class='forumRow'><input type='text' id='v3' name='web_keywords'   value="<%=rs("web_keywords")%>" size='80'>
+	  &nbsp;请以，隔开</td>
+	</tr><tr>
+	  <td class='forumRowHighLight' height=11>网站描述(Description)</td>
+	  <td class='forumRowHighLight'><textarea name='web_description'  cols="100" rows="4" ><%=rs("web_description")%></textarea></td>
+	</tr>
+	<tr>
+	  <td class='forumRow' height=23>底部信息HTML代码</td>
+	  <td class='forumRow'> <textarea name='web_copyright' cols="100"  rows="10"><%=rs("web_copyright")%></textarea></td>
+	</tr>	
+	<tr>
+	  <td class='forumRowHighLight' height=23>网站站长</td>
+	  <td class='forumRowHighLight'><input type='text' id='v42' name='web_person'  value="<%=rs("web_person")%>"  size='40'></td>
+	</tr>
+	<tr>
+	  <td class='forumRow' height=23>出生时间</td>
+	  <td class='forumRow'><span class="forumRowHighLight">
+	    <input name='web_birthdate' type='text' id='web_person'  value="<%=rs("web_birthdate")%>"  size='40' maxlength="30">
+	  </span></td>
+	  </tr>
+	<tr>
+	  <td class='forumRowHighLight' height=23>出生地</td>
+	  <td class='forumRowHighLight'><span class="forumRowHighLight">
+	    <input name='web_birthplace' type='text' id='web_person2'  value="<%=rs("web_birthplace")%>"  size='40' maxlength="30">
+	  </span></td>
+	  </tr>
+	<tr>
+	  <td class='forumRow' height=23>联系方式</td>
+	  <td class='forumRow'><input type='text' id='v43' name='web_email'   value="<%=rs("web_email")%>"  size='40'>可以是电子邮件、QQ或一句话，不宜过长</td>
+	</tr>	  
+	<tr>
+	  <td class='forumRowHighLight' height=23>简短介绍</td>
+	  <td class='forumRowHighLight'><span class="forumRowHighLight">
+	    <input name='web_shortintro' type='text' id='web_person3'  value="<%=rs("web_shortintro")%>"  size='60' maxlength="100">
+	    不能超过100字符
+	  </span></td>
+	  </tr>
+
+	<tr>
+	  <td class='forumRow' height=23>联系电话</td>
+	  <td class='forumRow'><input type='text' id='v44' name='web_tel'  value="<%=rs("web_tel")%>" size='40'></td>
+	</tr>
+	<tr>
+	  <td class='forumRowHighLight' height=23>后台模板管理</td>
+	  <td class='forumRowHighLight'><label>
+	       <input type="radio" name="web_ModelEdit" value="1"<%
+		if rs("web_ModelEdit")=1 then
+		response.write "checked"
+		end if%>>
+      开启
+      &nbsp;
+      <input name="web_ModelEdit" type="radio" value="0" <%if rs("web_ModelEdit")=0 then
+		response.write "checked"
+		end if%>>
+      关闭</label></td>
+	  </tr>
+	<tr>
+	  <td class='forumRow' height=23>修改时间</td>
+	  <td class='forumRow'><input type='text' id='v45' name='web_time'  value="<%=rs("web_time")%>" size='40'> 
+	  &nbsp;<a href="#" class="green" onClick="document.form1.web_time.value='<%=now()%>'">同步到现在时间</a>     </td>
+	</tr>
+	<tr><td height="50" colspan=2  class='forumRow'><div align="center">
+	  <INPUT type=submit value='提交' onClick='javascript:return checksignup1()' name=Submit>
+	  </div></td></tr>
+	</table>
+</form>
+
+<%
+Call DbconnEnd()
+else
+response.write "暂时无数据"
+end if %>

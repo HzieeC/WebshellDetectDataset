@@ -1,0 +1,121 @@
+<!--#include file="../inc/conn.asp"-->
+<%
+Server.ScriptTimeout = 50000
+
+Dim Rs,SQL,XMLContent,Thisurl
+Dim CreateHtml,ChannelRootDir,ChannelID
+Dim XMLDOM,node,Cnode,Cnode1,msginfo
+
+Thisurl="http://" & Request.ServerVariables("HTTP_HOST")
+
+'Response.Clear
+'Response.CharSet="UTF-8"
+'Response.ContentType="text/xml"
+
+
+Call IndexSiteMap("/")
+'Call ChannelSiteMap("./")
+
+
+'Response.Write XMLContent
+'Response.Write Newasp.FormatDate(now,2)
+
+Sub IndexSiteMap(strPath)
+	XMLContent = "<?xml version='1.0' encoding='UTF-8'?>" & vbNewLine
+	XMLContent = XMLContent & "<urlset xmlns=""http://www.google.com/schemas/sitemap/0.84"">" & vbNewLine
+	XMLContent = XMLContent & "<url>" & vbNewLine
+	XMLContent = XMLContent & "<loc>" & Thisurl & "/</loc>" & vbNewLine & "<lastmod>" & FormatDate(Now(),2) & "</lastmod>" & vbNewLine & "<changefreq>daily</changefreq>" & vbNewLine & "<priority>1.0</priority>" & vbNewLine
+	XMLContent = XMLContent & "</url>" & vbNewLine
+	LoadSitemap 2,0
+	LoadSitemap 1,0
+	LoadSitemap 5,0
+	XMLContent = XMLContent & "</urlset>"
+	strPath = Server.MapPath(strPath) & "\sitemap.xml"
+	CreateXMLFile XMLContent,strPath
+	Response.Write "生成站点地图成功！"
+End Sub 
+
+Sub ChannelSiteMap(strPath)
+	XMLContent = "<?xml version='1.0' encoding='UTF-8'?>" & vbNewLine
+	XMLContent = XMLContent & "<urlset xmlns=""http://www.google.com/schemas/sitemap/0.84"">" & vbNewLine
+	XMLContent = XMLContent & "<url>" & vbNewLine
+	XMLContent = XMLContent & "<loc>" & Thisurl & "/code/</loc>" & vbNewLine & "<lastmod>" & Now() & "</lastmod>" & vbNewLine & "<changefreq>daily</changefreq>" & vbNewLine & "<priority>1.0</priority>" & vbNewLine
+	XMLContent = XMLContent & "</url>" & vbNewLine
+	LoadSitemap 2,11
+	XMLContent = XMLContent & "</urlset>"
+	strPath = Server.MapPath(strPath) & "\sitemap.xml"
+	CreateXMLFile XMLContent,strPath
+	Response.Write "生成站点地图成功！"
+End Sub 
+
+Function LoadSitemap(ByVal sid, ByVal chanid)
+	chanid = Newasp.ChkNumeric(chanid)
+	Dim FindOrder,TableName
+	If sid = 1 Then
+		TableName = "[NC_Article]"
+		FindOrder = "ORDER BY A.WriteTime DESC,A.ArticleID DESC"
+		SQL = " A.ArticleID,A.ClassID,A.ChannelID,A.WriteTime,A.HtmlFileDate,"
+	ElseIf sid = 2 Then
+		TableName = "[NC_SoftList]"
+		FindOrder = "ORDER BY A.SoftTime DESC ,A.SoftID DESC"
+		SQL = " A.SoftID,A.ClassID,A.ChannelID,A.SoftTime,A.HtmlFileDate,"
+	Else
+	    TableName = "[NC_FlashList]"
+		FindOrder = "ORDER BY A.addTime DESC ,A.flashid DESC"
+		SQL = " A.flashid,A.ClassID,A.ChannelID,A.addTime,A.HtmlFileDate,"	
+	End If
+	If chanid = 0 Then
+		SQL = "SELECT TOP 500 " & SQL & " C.HtmlFileDir,B.ChannelDir,B.IsCreateHtml,B.HtmlExtName FROM (" & TableName & " A INNER JOIN [NC_Classify] C On A.ClassID=C.ClassID) INNER JOIN [NC_Channel] B On A.ChannelID=B.ChannelID WHERE A.isAccept>0 " & FindOrder
+	Else
+		SQL = "SELECT " & SQL & " C.HtmlFileDir,B.ChannelDir,B.IsCreateHtml,B.HtmlExtName FROM (" & TableName & " A INNER JOIN [NC_Classify] C On A.ClassID=C.ClassID) INNER JOIN [NC_Channel] B On A.ChannelID=B.ChannelID WHERE A.ChannelID=" & chanid & " And A.isAccept>0 " & FindOrder
+	End If
+	Set Rs = Newasp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+	Else
+		CreateHtml = 1'Rs("IsCreateHtml")
+		Do While Not Rs.EOF
+			Call LoadSoftList()
+			Rs.MoveNext
+		Loop
+	End If
+	Rs.Close: Set Rs = Nothing
+End Function
+
+Sub LoadSoftList()
+	Dim HtmlFileName,LinksUrl,strLinksUrl
+	ChannelID = Rs(2)
+	'Response.Write ChannelID & vbNewLine
+	Newasp.LoadChannel(ChannelID)
+	ChannelRootDir = Newasp.ChannelPath
+	CreateHtml = Newasp.ChannelUseHtml
+	If CInt(CreateHtml) <> 0 Then
+		LinksUrl = Newasp.ReadDestination(Newasp.m_InfoDestination, Newasp.m_ChannelDir, Rs("HtmlFileDate"),Rs("HtmlFileDir"),Rs("ClassID"),Rs(0),1,"")
+		Response.Write LinksUrl
+	Else
+		If IsURLRewrite Then
+			LinksUrl = ChannelRootDir & Rs(0) & Newasp.ChannelHtmlExt
+		Else
+			LinksUrl = ChannelRootDir & "show.asp?id=" & Rs(0)
+		End If
+	End If
+	strLinksUrl = "<url>" & vbNewLine
+	strLinksUrl = strLinksUrl & "<loc>" & Thisurl & LinksUrl & "</loc>" & vbNewLine & "<lastmod>" & Newasp.FormatDate(Rs(3),2) & "</lastmod>" & vbNewLine & "<changefreq>daily</changefreq>" & vbNewLine & "<priority>1.0</priority>" & vbNewLine
+	strLinksUrl = strLinksUrl & "</url>" & vbNewLine
+	XMLContent = XMLContent & strLinksUrl
+End Sub
+'================================================
+'函数名：CreateXMLFile
+'作  用：创建XML文件
+'参  数：XmlStr   ----XML字符串
+'        FormPath    ----创建的文件路径
+'================================================
+Function CreateXMLFile(sXML,FilePath)
+	Dim objXML
+	If InStr(FilePath, ":") = 0 Then FilePath = Server.MapPath(FilePath)
+	Set objXML = Server.CreateObject("MSXML2.DOMDocument.3.0") 
+	If objXML.LoadXml(sXML) Then
+		objXML.Save(FilePath)
+	End If
+	Set objXML = Nothing
+End Function 
+%>

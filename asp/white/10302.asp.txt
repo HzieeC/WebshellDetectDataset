@@ -1,0 +1,86 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<!--#include file="../inc/sendmail.asp"-->
+<!--#include file="checkpmember.asp" -->
+<%
+sendresume=CheckStr(trim(request("sendresume")))
+sendemail=CheckStrbox(request("sendemail"))
+resumeid=request("resumeid")
+if sendresume="" then
+	Response.Write ("<script>{alert('错误：职位名称不能为空!');location.href = 'javascript:history.go(-1)';}</script>")
+	Response.End
+end if
+If sendemail="" Then
+	Response.Write ("<script>{alert('错误：E-mail不能为空!');location.href = 'javascript:history.go(-1)';}</script>")
+	Response.End
+End If
+If resumeid="" or not IsNumeric(resumeid) Then
+	Response.Write ("<script language=JavaScript>{alert('错误：请选择简历!');location.href = 'javascript:history.go(-1)';}</script>")
+	Response.End
+else
+	username=Request.Cookies(FRHRCMS)("user_name")
+	user_login=Request.Cookies(FRHRCMS)("user_login")
+	user_pass=Request.Cookies(FRHRCMS)("user_pass")
+	'邮件内容
+	txtURL=""&SiteUrl&InstallDir&"/person/cnpreview.asp?rid="&resumeid&"&pmember_login="&user_login&"&user_pass="&user_pass&""
+	sText = getHTTPPage(txtURL) 
+	sTexts="<div class='resume_tit'>您好："&username&"对贵公司 <font color='#FF0000'>"&sendresume&"</font> 职位很感兴趣，通过"&sitename&" “外发简历”平台向您投递个人简历，如果您对投递者有意向，可直接按简历中联系方式和"&username&"联系。<br>我们期望与您合作，为您提供大量的优秀人才！ 如您有意向，请<a href="&siteurl&" target=_blank><font color='#FF0000'>登陆我们网站，筛选更多优秀人才！</font></a>"
+	
+	'读取求职信
+	letterid=request("letterid")
+	if letterid<>"" and IsNumeric(letterid) then
+	set rs=conn.execute("select letter_id,letter_content from job_p_letter where letter_pmember='"&user_login&"' and letter_id="&letterid&"")
+	if not rs.eof then
+		letter_content=rs("letter_content")
+		letter_content="<b>求职信</b><br>"&letter_content
+	end if
+	rs.close
+	set rs=nothing
+	end if
+
+	if letter_content<>"" then
+		sTexts=sTexts&"<br>"&letter_content&"</div>"
+	else
+		sTexts=sTexts&"</div>"
+	end if	
+	sTexts=sTexts&sText
+	
+	Call SendMail(sendemail,"应聘"&sendresume&"，"&username&"通过"&sitename&"给您发送简历",sTexts)
+	'把外发简历数据写到外发历史记录表
+	sql="Insert into JOB_P_SendHistory(H_jobname,H_comemail,H_resumeid,H_addtime,H_member) values('"&sendresume&"','"&sendemail&"','"&resumeid&"','"&now()&"','"&user_login&"')"
+	conn.execute(sql)	
+	Response.Write ("<script>{alert('发送成功!');location.href = 'person_sendhistory.asp';}</script>")
+	Response.End
+End If
+Conn.close:Set Conn=Nothing
+
+function getHTTPPage(url) 
+	dim Http 
+	set Http=server.createobject("MSXML2.XMLHTTP") 
+	Http.open "GET",url,false 
+	Http.send() 
+	if Http.readystate<>4 then 
+	exit function 
+	end if 
+	getHTTPPage=bytesToBSTR(Http.responseBody,"GB2312") 
+	set http=nothing 
+	if err.number<>0 then err.Clear 
+end function 
+
+Function BytesToBstr(body,Cset) 
+	dim objstream 
+	set objstream = Server.CreateObject("adodb.stream") 
+	objstream.Type = 1 
+	objstream.Mode =3 
+	objstream.Open 
+	objstream.Write body 
+	objstream.Position = 0 
+	objstream.Type = 2 
+	objstream.Charset = Cset 
+	BytesToBstr = objstream.ReadText 
+	objstream.Close 
+	set objstream = nothing 
+End Function 
+%>

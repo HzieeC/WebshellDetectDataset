@@ -1,0 +1,123 @@
+<!--#include file="../inc/mdb.asp"-->
+<%Admin="pic"%>
+<!--#include file="check.asp"-->
+<!-- #include File="../inc/Upload_Class.asp" -->
+<html><head>
+<title>上传图片</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<base target="_self">
+<style type="text/css">
+<!--
+td {
+	font-size: 10px;
+}
+-->
+</style>
+</head>
+<%
+f=request("f")
+path=request("path")
+mode=request("mode")
+%>
+<a id="reload" href="upfile.asp?f=<%=f%>&path=<%=path%>" style="display:none">reload...</a>
+<body bgcolor="eeeeee" leftmargin="0" topmargin="0" onkeydown="if (event.keyCode==116){reload.click()}">
+<%
+if mode="upload" then
+ strSourceFile = Server.MapPath("../inc/config.xml")
+ Set objXML = Server.CreateObject("Microsoft.XMLDOM")
+ 'Set objXML = Server.CreateObject("Microsoft.FreeThreadedXMLDOM")
+ objXML.load(strSourceFile)
+ If objXML.parseError.ErrorCode <> 0 Then 
+      objXML.loadXML "<?xml version=""1.0"" encoding=""gb2312"" ?>"
+ End If
+ set objemail = objXML.documentElement.SelectSingleNode("email")
+ set objupload = objXML.documentElement.SelectSingleNode("upload")
+    
+	If objupload.SelectSingleNode("watermark_config").text="1" Then
+		DrawInfo = objupload.SelectSingleNode("watermark_font").text
+	ElseIf objupload.SelectSingleNode("watermark_config").text="2" Then
+		DrawInfo = objupload.SelectSingleNode("watermark_img_path").text
+	Else
+		DrawInfo = ""
+	End If
+	If DrawInfo = "0" Then
+		DrawInfo = ""
+		objupload.SelectSingleNode("watermark_config").text= 0
+	End If
+ 
+	Set Upload = New UpFile_Cls 
+	Upload.UploadType			= Cint(objupload.SelectSingleNode("up_module").text)	'设置上传组件类型
+	Upload.UploadPath			= "../up/pic/"					'设置上传路径
+	Upload.InceptFileType		= Replace("jpg|gif|png|bmp","|",",")		'设置上传文件限制
+	Upload.MaxSize				= Int(objupload.SelectSingleNode("max_size").text)			'单位 KB
+	Upload.InceptMaxFile		= 2						'每次上传文件个数上限
+	'Upload.ChkSessionName		= "UploadCode"							'防止重复提交，SESSION名与提交的表单要一致。
+	'预览图片设置
+	Upload.PreviewType			= Cint(objupload.SelectSingleNode("img_module").text)	 '设置预览图片组件类型
+	Upload.PreviewImageWidth	= objupload.SelectSingleNode("small_width").text		 '设置预览图片宽度
+	Upload.PreviewImageHeight	= objupload.SelectSingleNode("small_height").text		 '设置预览图片高度
+	Upload.DrawImageWidth		= objupload.SelectSingleNode("watermark_width").text	 '设置水印图片或文字区域宽度
+	Upload.DrawImageHeight		= objupload.SelectSingleNode("watermark_height").text	 '设置水印图片或文字区域高度
+	Upload.DrawGraph			= objupload.SelectSingleNode("watermark_img_alpha").text '设置水印透明度
+	Upload.DrawFontColor		= objupload.SelectSingleNode("watermark_font_color").text'设置水印文字颜色
+	Upload.DrawFontFamily		= objupload.SelectSingleNode("watermark_font_name").text '设置水印文字字体格式
+	Upload.DrawFontSize			= objupload.SelectSingleNode("watermark_font_size").text '设置水印文字字体大小
+	Upload.DrawFontBold			= objupload.SelectSingleNode("watermark_font_b").text    '设置水印文字是否粗体
+	Upload.DrawInfo				= DrawInfo								                 '设置水印文字信息或图片信息
+	Upload.DrawType				= objupload.SelectSingleNode("watermark_config").text    '0=不加载水印 ，1=加载水印文字，2=加载水印图片
+	Upload.DrawXYType			= objupload.SelectSingleNode("watermark_img_xy").text	 '"0" =左上，"1"=左下,"2"=居中,"3"=右上,"4"=右下
+	Upload.DrawSizeType			= objupload.SelectSingleNode("small_gz").text			 '"0"=固定缩小，"1"=等比例缩小
+	If objupload.SelectSingleNode("watermark_img_delbg").text<>"" or objupload.SelectSingleNode("watermark_img_delbg").text<>"0" Then
+		Upload.TransitionColor	= objupload.SelectSingleNode("watermark_img_delbg").text '透明度颜色设置
+	End If
+	
+   	Upload.SaveUpFile
+	If Upload.ErrCodes<>0 Then
+		Response.write "<br><div align=center><font size=2>错误："& Upload.Description & "<br>[ <a href=""upfile.asp?f="&f&"&path="&path&""">重新上传</a> ]</font></div>"
+		response.End()
+	End If
+	
+	If Upload.Count > 0 Then
+		For Each FormName In Upload.UploadFiles
+			Set File = Upload.UploadFiles(FormName)
+				F_FileName = Upload.UploadPath & File.FileName
+				f_url="uppic.asp?FileName=" & file.FileName
+				'创建预览及水印图片
+				If Upload.PreviewType<>999 and File.FileType=1 and f=1 then
+						F_Viewname = Upload.UploadPath & "pre" & Replace(File.FileName,File.FileExt,"") & "jpg"
+						v_url="uppic.asp?FileName=pre" & Replace(File.FileName,File.FileExt,"") & "jpg"
+						'创建预览图片:Call CreateView(原始文件的路径,预览文件名及路径,原文件后缀)
+						Upload.CreateView F_FileName,F_Viewname,File.FileExt
+				End If
+				'F_FileName,F_Viewname,File.FileName,File.FileExt,File.FileSize,File.FileType
+			Set File = Nothing
+		Next
+	Else
+		Response.write "<br><div align=center><font size=2>请正确选择要上传的文件。<br>[ <a href=""upfile.asp?f="&f&"&path="&path&""">重新上传</a> ]</font></div>"
+		response.End()
+	End If
+ if f_url<>"" then
+ response.write("<SCRIPT  language=JavaScript>" & vbcrlf)
+ response.write("  window.returnValue ='"&f_url&"*"&v_url&"';" & vbcrlf)
+ response.write("  window.close();" & vbcrlf)
+ response.write("</SCRIPT>")
+ response.Write("<div align=center><font size=2>上传成功！</font></div>")
+ end if
+ response.end()
+end if 
+%>
+<br><div align="center" >
+<form action="upfile.asp?mode=upload&f=<%=f%>&path=<%=path%>" method="post" enctype="multipart/form-data" name="form1">
+<%	'Dim PostRanNum
+	'Randomize
+	'PostRanNum = Int(900*rnd)+1000
+	'Session("UploadCode") = Cstr(PostRanNum)
+	'response.Write("<INPUT TYPE="hidden" NAME="UploadCode" value="""&PostRanNum&""">")
+%>
+
+  <input name="file" type="file" size="10">
+  <input type="submit" name="Submit" value="上传">
+</form></div>
+</body>
+</html>
+

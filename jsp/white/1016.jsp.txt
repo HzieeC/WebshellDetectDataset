@@ -1,0 +1,102 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="java.util.Vector" %>
+<%@ page import="javaBean.BeanAD" %>
+<%@ page import="pagination.ADPageTag" %>
+<%
+	String url = request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe网站管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+
+<br>
+
+<table border=0 align=center cellpadding=3 cellspacing=1 class=tableborder>
+<tr>
+	<th class=tablerow1>公告标题</th>
+	<th class=tablerow1>发布人</th>
+	<th class=tablerow1>操作选项</th>
+	<th class=tablerow1>发布时间</th>
+	
+</tr>
+</tr>
+<% 
+	String pageCurrent = request.getParameter("pageCurrent");
+	if (pageCurrent == null) {
+		pageCurrent = "0";
+	}
+	ADPageTag atg=new ADPageTag();
+	String sqlstr="select count(*) from ad";
+	atg.setSum(sqlstr);//查询出总共有多少
+	atg.setPageSize(15);//设置每页显示多少数量
+	atg.setPageCount();//
+	atg.setPageCurrent(Integer.parseInt(pageCurrent));//设置当前页
+	
+	String sql="select TOP "+atg.getPageSize()+" * from ad where id not in (select top "+atg.getPageSize()*atg.getPageCurrent()+" id from ad) order by adtime desc";
+	atg.setV(sql);
+	
+	int CurrentPage=atg.getPageCurrent();
+	int count=atg.getPageCount();
+%>
+<%
+	Vector ve=atg.getV();
+	if(ve==null){
+		out.println("<td align='center' colspan='5' class='TableRow2'>没有任何公告</td>");
+	}else{	
+		 for(int i=0;i<ve.size();i++){
+			BeanAD bean=(BeanAD)ve.get(i);
+			out.println("<tr>");
+			out.println("<td align='center' class='TableRow2'>"+bean.getTitle()+"</td>");
+			out.println("<td align='center' class='TableRow2'>"+bean.getWriter()+"</td>");
+			out.println("<td align='center' class='TableRow2'><a href='"+url+"/servletsad?action=update&id="+bean.getID()+"'>修改</a>&nbsp;|&nbsp;<a href='"+url+"/servletsad?action=delete&id="+bean.getID()+"'>删除</a></td>");
+			out.println("<td align='center' class='TableRow2'>"+bean.getTime()+"</td>");
+			out.println("</tr>");
+		 }
+	}
+%>
+<tr><td align='center' class='TableRow2' colspan=4 >
+
+<%
+	if(atg.getPageCurrent()==0&&atg.getSum()>atg.getPageSize()){%>
+	首页
+	<a href="<%=url%>/admin/admin_ad.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	上一页
+	<a href="<%=url%>/admin/admin_ad.jsp?pageCurrent=<%=count-1%>">尾页</a>
+	<%=CurrentPage+1%>/<%=count%>
+		
+	<%}else if(atg.getPageCurrent()==(atg.getPageCount()-1)&&atg.getSum()>atg.getPageSize()){%>
+		<a href="<%=url%>/admin/admin_ad.jsp?pageCurrent=0">首页</a>
+		下一页
+		<a href="<%=url%>/admin/admin_ad.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+		尾页
+		<%=CurrentPage+1%>/<%=count%>
+	<%}else if(atg.getSum()<=atg.getPageSize()){%>
+		首页 下一页 上一页 尾页
+	<%}else{%>
+	<a href="<%=url%>/admin/admin_ad.jsp?pageCurrent=0">首页</a>
+	<a href="<%=url%>/admin/admin_ad.jsp?pageCurrent=<%=CurrentPage+1%>">下一页</a>
+	
+	<a href="<%=url%>/admin/admin_ad.jsp?pageCurrent=<%=CurrentPage-1%>">上一页</a>
+	
+	<a href="<%=url%>/admin/admin_ad.jsp?pageCurrent=<%=count-1%>">尾页</a>
+	<%=CurrentPage+1%>/<%=count%>
+	<% }  %>
+</td>
+</FORM></table>
+
+
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

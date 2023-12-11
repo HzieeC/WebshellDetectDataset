@@ -1,0 +1,57 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--#include file="inc/setup.asp"-->
+<!--#include file="inc/cj_cls.asp"-->
+<html>
+<head>
+<title>管理中心</title>
+<meta http-equiv=Content-Type content=text/html; charset=gb2312>
+<base target="main">
+<script language="javascript">
+<!--
+var displayBar=true;
+function switchBar(obj){
+	if (displayBar)
+	{
+		parent.frame.cols="0,*";
+		displayBar=false;
+		obj.src="css/images/admin_logo.gif";
+		obj.title="打开左边管理菜单";
+	}
+	else{
+		parent.frame.cols="180,*";
+		displayBar=true;
+		obj.src="css/images/admin_logo_1.gif";
+		obj.title="关闭左边管理菜单";
+	}
+}
+//-->
+</script>
+<link href="css/admin_style.css" type=text/css rel=stylesheet>
+<style type=text/css>
+a { color:#FFFFFF;text-decoration:none}
+a:hover {color:#DBDBDB;text-decoration: underline}
+td {color: #FFFFFF; font-family: "宋体";font-weight:bold;}
+body {
+	background-color: #307ED6;
+}
+</style>
+</head>
+<body leftmargin="0" topmargin="0">
+<table width="100%" height="37" border="0" align="center" cellPadding="0" cellSpacing="0">
+	<tr>
+		<td  height="28"><table cellSpacing="0" cellPadding="0" width="100%" border="0">
+	<tr bgcolor="#307ED6">
+		<td width="15%" align="left">&nbsp;</td>
+		<td width="46%" align="left" bgcolor="#307ED6"> <a href="sk_config.asp"></a><a href="Sk_Pwd.asp"></a><a href="Sk_CleanCache.asp" ></a></td>
+		<td width="23%" align=right noWrap bgcolor="#307ED6">SK信息采集系统(单机)版 v3.3  
+：</td>
+		<td width="14%" bgcolor="#307ED6"><a href="http://www.skxiu.com/cj/" target="_blank" style="color:#FFFFFF">http://www.skxiu.com/cj/</a></td>
+		<td width="2%" align=right bgcolor="#307ED6"><img src="css/images/i_home.gif" width="19" border=0 title="官方网站">&nbsp;</TD>
+	</tr>
+		</table></td> </tr>
+	<tr><td bgColor="#485161" height="1"></td></tr>
+	<tr><td bgColor="#CDCDCD" height="1"></td></tr>
+	<tr><td bgColor="#B5BCC7" height="1"></td></tr>
+</table>
+</body>
+</html>

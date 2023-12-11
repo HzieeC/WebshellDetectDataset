@@ -1,0 +1,35 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<html>
+	<head>
+		<title>管理员登陆</title>
+	</head>
+	<body>
+	<p align="center">&nbsp;&nbsp;</p>
+	<p align="center">&nbsp;&nbsp;</p>
+	<p align="center">&nbsp;&nbsp;</p>
+	<p align="center">&nbsp;&nbsp;</p>
+	<form name="myform" action="<%=request.getContextPath()%>/servletslogin?action=manage" method="post">
+	<table width="260" border="0" cellpadding="5" cellspacing="1" bgcolor="#DDDDDD" align="center">
+        <tr>
+          <td colspan="2" align="center" bgcolor="#FFFFFF"><span style="color: #CC0000; font-weight: bold">管理员登录</span></td>
+          </tr>
+        <tr>
+          <td width="67" bgcolor="#FFFFFF">用户名：</td>
+          <td width="170" bgcolor="#FFFFFF"><input name="username" type="text" id="username" maxlength="30" size="25"></td>
+        </tr>
+        <tr>
+          <td bgcolor="#FFFFFF">密&nbsp;&nbsp;&nbsp;码：</td>
+          <td bgcolor="#FFFFFF"><input name="userpwd" type="password" id="userpwd" size="25" maxlength="30"></td>
+        </tr>
+
+        <tr>
+          <td colspan="2" align="center" bgcolor="#FFFFFF"><input type="submit" name="Submit" value="登    录">
+            &nbsp;
+            <input type="reset" name="Submit2" value="重    填">
+            &nbsp;
+            <input type="button" name="Submit3" value="返回首页" onClick="javascript:location.href='<%=request.getContextPath()%>';"></td>
+          </tr>
+      </table>
+	  </form>
+	</body>
+</html>

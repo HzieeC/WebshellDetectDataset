@@ -1,0 +1,14 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%
+	String basePath = request.getContextPath();
+%>
+本网站是专业的
+<a href="http://www.zjson.com/">繁体字转换器</a>
+， 支持
+<a href="http://www.zjson.com/">简繁体在线转换</a>
+，
+<a href="http://www.zjson.com/">繁体转简体</a>
+的在线工具网站， 使用JAVA语言开发，稳定快速 同时希望大家给本网站提出宝贵意见，使网站更好的服务于大家，本网站为非盈利网站，
+只是一个程序员在业余时间，结合工作中所用，开发的一个在线工具网站，希望能帮助大家。
+<br />

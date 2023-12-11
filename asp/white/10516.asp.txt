@@ -1,0 +1,63 @@
+﻿<!--#include file="../lib/base.asp"-->
+<!--#include file="../theme.asp"-->
+<%
+dim act:act=lcase(sdcms.fget("act",0))
+select case act
+	case "login":checklogin()
+	case "out":loginout()
+	case else
+		dim gourl:gourl=sdcms.enhtml(sdcms.fget("gourl",0))
+		dim msg:msg=sdcms.enhtml(sdcms.fget("msg",0))
+		if sdcms.strlen(gourl)=0 then
+			gourl=thisurl
+		end if
+		sdcms.show theme_userlogin
+end select
+
+sub checklogin()
+	dim t0,t1,data,arr
+	t0=sdcms.enhtml(sdcms.fpost("username",0))
+	t1=sdcms.enhtml(sdcms.fpost("password",0))
+	if sdcms.strlen(t0)=0 then
+		sdcms.echo "0&#36134;&#25143;&#19981;&#33021;&#20026;&#31354;"
+		exit sub
+	end if
+	if not(sdcms.checkstr(t0,"username")) then
+		sdcms.echo "0&#36134;&#25143;&#19981;&#31526;&#21512;&#35201;&#27714;"
+		exit sub
+	end if
+	if sdcms.strlen(t1)=0 then
+		sdcms.echo "0&#23494;&#30721;&#19981;&#33021;&#20026;&#31354;"
+		exit sub
+	end if
+	if not(sdcms.checkstr(t1,"password")) then
+		sdcms.echo "0&#23494;&#30721;&#19981;&#31526;&#21512;&#35201;&#27714;"
+		exit sub
+	end if
+	data=sdcms.db.dbload(1,"id,username,password,email,groupid,islock,logintimes,[percent],point,groupid,(select allowupgrade from sd_user_group where id=sd_user.groupid),isvip,lastlogindate","sd_user","username='"&t0&"' and password='"&md5(t1)&"'","")
+	if ubound(data)<0 then
+		sdcms.echo "0&#36134;&#25143;&#25110;&#23494;&#30721;&#38169;&#35823;"
+	else
+		select case data(5,0)
+			case "-1":sdcms.echo "0&#36134;&#25143;&#34987;&#38145;&#23450;&#65292;&#19981;&#33021;&#30331;&#24405;":exit sub
+			case "0":sdcms.echo "0&#36134;&#25143;&#26410;&#36890;&#36807;&#37038;&#31665;&#39564;&#35777;&#65292;&#19981;&#33021;&#30331;&#24405;":exit sub
+		end select
+		sdcms.db.dbupdate "sd_user","id="&data(0,0)&"",array(array("lastlogindate",now(),0,1),array("lastloginip",sdcms.getip,0,1),array("logintimes",data(6,0)+1,0,0))
+		if data(10,0)=1 then sdcms.userupgrade data(8,0),data(9,0),data(0,0)
+		if clng(sdcms.getdate(data(12,0),"",1))<clng(sdcms.getdate(now(),"",1)) and sdcms.getsys("str_login")>0 then
+			sdcms.stra_point data(0,0),data(8,0),2,""
+		end if
+		sdcms.resetuserinfo "u.id="&data(0,0)&""
+		sdcms.echo "1&#30331;&#24405;&#25104;&#21151;"
+	end if
+end sub
+
+sub loginout()
+	dim gourl:gourl=sdcms.fget("gourl",0)
+	if len(gourl)=0 then gourl=webroot
+	sdcms.setsession "userinfo",""
+	sdcms.go gourl
+end sub
+
+sdcms.db.dbclose
+%>

@@ -1,0 +1,42 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="java.util.*" %>
+<%@ page import="com.bizoss.frame.util.FileIO" %>
+<%@ page import="com.bizoss.updateHtml.parseXml.Config" %>
+
+<%@ page import="com.bizoss.trade.ts_nav.*" %>
+
+<%
+	request.setCharacterEncoding("UTF-8");
+	
+
+	Ts_navInfo navInfo = new Ts_navInfo();
+	FileIO fileIO = new FileIO();
+	Config  configfile = new Config();
+	configfile.init();
+	String rootpath = configfile.getString("rootpath");	
+	String companyTempath = configfile.getString("companyTempath");	
+	String companySavepath = configfile.getString("companySavepath");	
+	String cust_id="";
+	 
+	
+	if( request.getParameter("cust_id") != null && !request.getParameter("cust_id").trim().equals("")){
+		cust_id =request.getParameter("cust_id");		
+	}
+  try
+  {	
+			String to_path = rootpath + companyTempath + cust_id + "/";			
+			String saveDir = rootpath + companySavepath + cust_id + "/";
+			
+			fileIO.RemoveFloders(to_path);
+			fileIO.RemoveFloders(saveDir);
+			 
+			out.println("网站关闭成功");
+			
+	}
+	catch(Exception e)
+	{
+		e.printStackTrace();
+		out.println("网站关闭失败。");
+	}
+%>

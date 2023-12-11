@@ -1,0 +1,191 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<%link="person_favorite.asp"%>
+<!--#include file="checkpmember.asp" -->
+<%
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+Dim Action
+Dim page,i
+Dim totalPut
+const MaxPerpage=20
+Const strFileName="person_favorite.asp"
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If
+if trim(request("action"))<>"" then
+  action=trim(request("action"))
+  checks=trim(request("checks"))
+  set rs=Server.CreateObject("Adodb.Recordset")
+  myfavorite=split(checks,",")
+  select case action
+   case "delete"  '删除选中的应聘简历
+    for i=0 to ubound(myfavorite)
+	 id=trim(myfavorite(i))
+	 conn.execute("delete from job_p_myfavorite where myfavorite_id="&id&"")
+	next
+  end select
+  response.redirect "person_favorite.asp?page="&page&""
+  response.end
+ end if
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>职位收藏--<%=SiteTitle%></title>
+<link href="../member/css.css" rel="stylesheet" type="text/css" />
+<script language="JavaScript">
+<!--
+  function CheckAll(form)
+  {
+  for (var i=0;i<form.elements.length;i++)
+    {
+    var e = form.elements[i];
+    if (e.name != 'chkall')
+       e.checked = form.chkall.checked;
+    }
+  }
+  function showconfirm(id,page)
+{
+	var flag=false; //是否有选择职位信息
+	var k=0;
+	var refid;
+	for(i=0;i<document.thisForm.elements.length;i++) 
+	{
+		if (document.thisForm.elements[i].name=="checks")
+		{		
+			if (document.thisForm.elements[i].checked==true) 
+			{
+				flag=true;
+				break;
+			}
+		}
+	}
+	if (flag==false)
+	{
+		alert("请先选择一个职位！");
+		return false;
+	}
+	//发送应聘意向
+	if (id==1)
+	{
+		if(confirm("您确定要发送应聘意向吗？")==true)
+		{
+			document.thisForm.action="person_resumesend.asp?action=myfavorite";
+			document.thisForm.target="_blank";
+			thisForm.submit();
+		}
+	}
+	//删除
+	if (id==2)
+	{
+		if(confirm("您确定要删除选中的职位吗？")==true)
+		{
+			document.thisForm.action="person_favorite.asp?action=delete&page="+page+"";
+			thisForm.submit();
+		}
+	}					
+}
+  //-->
+</script></head>
+<body>
+<div class="memmenul">
+<div class="leftmenutit"><span>职位收藏</span></div>
+<%
+Set rs= Server.CreateObject(FR_HR_RS)
+	sql="select * from job_p_myfavorite,job_c_hire where job_p_myfavorite.myfavorite_hireid = job_c_hire.hire_id and myfavorite_pmember='"&pmember_login&"' order by myfavorite_date desc"
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+		response.Write("<center><br><br>暂无收藏的职位，请添加后再进行管理!<br></center>")
+		response.Write("<center><br><br><a href=index.asp target=_blank>浏览职位</a>  <a href=person_searchworks.asp>搜索职位</a><br><br><br><br></center>")
+		response.End()
+	else
+		totalPut=rs.recordcount
+		if (page-1)*MaxPerpage>totalput then
+			if (totalPut mod MaxPerpage)=0 then
+				page= totalPut \ MaxPerpage
+			else
+				page= totalPut \ MaxPerpage + 1
+			end if
+		end if
+		if page=1 then
+			Call MainInfo()
+		else
+			if (page-1)*MaxPerpage<totalPut then
+				rs.move  (page-1)*MaxPerpage
+				dim bookmark
+				bookmark=rs.bookmark
+				Call MainInfo()
+			else
+				page=1
+				Call MainInfo()
+			end if
+		end if
+	end if
+	rs.close
+	set rs=nothing
+if FoundErr=True then
+	call Show_Err()
+end if
+%>
+<%Sub MainInfo()%>
+<table width="98%" border="0" cellspacing="0" cellpadding="0" class="mtable" align="center"> 
+<FORM name="thisForm" action="" method="post">
+  <tr>
+    <td>招聘职位</td>
+    <td>公司名称</td>
+    <td>收藏时间</td>
+    <td><IMG height=12 src="../images/sel_ico.gif" width=13></td>
+  </tr>
+  <%do while not rs.eof%>
+  <tr>
+    <td>
+<%if rs("hire_id")="" or isnull(rs("hire_id")) then%> 
+<%=rs("myfavorite_place")%>（已删除）
+<%else
+if (rs("hire_enddate")<date() or rs("hire_status")=0) then%>
+<%=rs("myfavorite_place")%>（停止招聘）
+<%else%>
+<a href="../company/hire.asp?hireid=<%=rs("hire_id")%>" target="_blank"><%=rs("myfavorite_place")%></a>
+<%end if
+end if%>	</td>
+    <td><%=rs("myfavorite_comname")%></td>
+    <td><%=rs("myfavorite_date")%></td>
+    <td><input type='checkbox' name='checks' value='<%=rs("myfavorite_id")%>'></td>
+  </tr>
+<%
+i=i+1
+if i>=MaxPerPage then exit do
+rs.movenext
+loop
+%>
+  <tr>
+    <td colspan="4">
+	<INPUT name=chkall onClick="CheckAll(this.form)" type=checkbox value=on>
+        选中所有职位&nbsp;&nbsp;
+        <!--发送应聘意向-->        <input name="Submit" type="button" class="inputa2" value="发送应聘意向" onClick=javascript:showconfirm(1,<%=page%>)>        
+        <!--删除职位--><input name="Submit2" type="button" class="inputa3" value="删　除" onClick=javascript:showconfirm(2,<%=page%>)> 	
+	</td>
+    </tr>
+  <tr>
+    <td colspan="4"><%If totalput>0 Then
+	Call Showpage(strFileName,totalput,MaxPerPage,false,true,"条收藏记录")
+End If%></td>
+  </tr>
+</FORM>
+</table>
+<%End Sub%>
+</div>
+<%
+conn.close:set conn=nothing%>

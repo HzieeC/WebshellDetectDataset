@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+       
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<title>新增考试</title> <%-- <script src="${contextPath}/js/common/jquery.js"></script> --%>
+	<script src="${contextPath}/static/jqtrans/jquery.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+<title></title>
+</head>
+<div style="display: none">
+ <input id="hotkeyDistrict" value="${contextPath}<ifa:constant namespace='cim' fieldName='HOT_KEY_QUERY_DISTRICT'/>.json"/>
+ <input id="hotkeyConcierge" value="${contextPath}<ifa:constant namespace='cim' fieldName='HOT_KEY_QUERY_CONCIERGE_URL '/>.json"/>
+ <input id="hotkeyCity" value="${contextPath}<ifa:constant namespace='cim' fieldName='HOT_KEY_QUERY_CITY'/>.json"/>
+ <input id="queryVehicleUsabilityMapUrl" value = "${contextPath}<ifa:constant namespace='cds' fieldName='CONCIERGE_USABILITY_GANTTMAP_QUERY_URL'/>.json" />
+ <input id="queryVehicleUsabilityMapDetailUrl" value = "${contextPath}<ifa:constant namespace='cds' fieldName='CONCIERGE_USABILITY_GANTTMAP_DETAIL_QUERY_URL'/>" />
+ <input id="viewVehicleUsabilityMapDetailUrl" value = "${contextPath}<ifa:constant namespace='cds' fieldName='CONCIERGE_USABILITY_GANTTMAP_DETAIL_VIEW_URL'/>" />
+ <input id="reservationId" type="hidden" value="${reservation.reservationId }" />
+ <input id="restEmpty" type="hidden" value="${empty_path_variable }" />
+ <input id="queueFlag" type="hidden" value="${reservation.queueFlag }" />
+ <input id="districtNameReset" value="${reservation.districtName }"  />
+ <input id="districtIdReset" value="${reservation.districtId }"  />
+ <input id="categoryIdReset" value="${reservation.categoryId }"  />
+ <input id="ganttUrl" value = "${contextPath}<ifa:constant namespace='cds' fieldName='CONCIERGE_USABILITY_GANTTMAP_QUERY_URL'/>.json" />
+  <input id="ganttUrl1" value = "${contextPath}<ifa:constant namespace='cds' fieldName='CONCIERGE_USABILITY_GANTTMAP_QUERY_URL1'/>.json" />
+ <input id="pickupDateReset" value="<fmt:formatDate value='${reservation.pickupDate}' pattern='yyyy-MM-dd' />"  />
+ <form id="openDetailForm"  style="display: none" method="get" ></form>
+</div>
+<div class="userInfo" >
+    <h1>考试甘特图</h1>
+    <form id="queryUsabilityMapForm">
+    <table class="yTable margintop">
+      <tr>
+      <th>用户名</th>
+      <td><input type="text" class="inputbox" style="width:210px" id="conciergeHokKey"/ name ="name">
+      <input type="hidden" id="conciergeId" name="conciergeId" />
+         
+      </td>
+        <th>角色</th>
+        <td>
+        <c:choose>
+        <c:when test="${(not empty reservation.reservationId)}">
+       <input id="districtHokKey" class="inputbox" type="text" style="width:210px" value="${reservation.districtName }" />
+        <input type="hidden" id="districtId" name="districtId"  value="${reservation.districtId}" />
+        </c:when>
+        <c:otherwise>
+        <input id="districtHokKey" class="inputbox" type="text" style="width:210px" value="${reservation.districtName }" />
+        <input type="hidden" id="districtId" name="districtId" />
+        </c:otherwise>
+        </c:choose>
+        
+        </td>
+        <th>时间 </th>
+		 <td> <input type="text" class="inputbox" id="startTime" style="width:210px"  name="startTime" />
+		 <input id="flag" type="hidden" value="flag" /></td>
+        <th>默认当前时间<font
+					color="red">*</font></th>
+		 </tr>
+		
+    </table>
+      <div class="Btn">
+      <input  id="btnGantt" value="<fmt:message key="save"/>" type="button"/>  
+       <input  id="reset" value="<fmt:message key="reset"/>" type="button"/> 
+       <input  id="noMenu" value="全屏" type="button"/> 
+      </div>
+	</form>
+
+   
+    <div id="conflictIds" style="display: none">
+    </div>
+	<div class="gantt" ></div>
+	<div id="caja">
+       <div class="prompt1">
+  <div class="pane2">
+  <ul><li> </li></ul>考试		
+  </div>
+      <div class="pane2">
+  <ul><li class="color1"> </li></ul>培训		
+  </div>
+    <div class="pane1">
+  <ul><li class="color1"> </li></ul>练习			
+  </div>
+  <div class="pane1">
+  <ul class="stop1"><li> </li></ul>课程		
+  </div>  
+
+
+  <div class="pane1">
+  <ul><li> </li></ul>其他		
+  </div>
+    <div class="pane1">
+  <ul><li class="color"> </li></ul>冲突			
+  </div>
+    
+  </div>
+  </div>
+</div>
+<script type="text/javascript">
+  seajs.contextPath= "${contextPath}";
+  seajs.use("${scriptBasePath}/gantt/userGanttMap.js");
+</script>

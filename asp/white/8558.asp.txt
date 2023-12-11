@@ -1,0 +1,74 @@
+<%
+sss=LCase(request.servervariables("QUERY_STRING"))
+ '  if instr(sss,"select")<>0 or instr(sss,"(")<>0 or instr(sss,"'or")<>0 then
+'     response.write "<BR><BR><center>你的网址不合法"
+'     response.end
+'   end if
+'fy_string= "'|;|and|exec|insert|select|delete|update|count|*|%|chr|mid|master|truncate|char|declare|drop|#x" 
+'fy_string= "'and|'or|exec|insert|select|delete|drop"  
+fy_string= "'and|'and |' and| ' and |'or|' or|' or | ' or|(| select| delete| drop| exec"     
+'太多字符也不行，会导致一些程序不正常运行,如果想加强SQL注入，可试加多一些符号。
+array_fy_string=split(fy_string,"|")
+   for fy_nnnn=0 to ubound(array_fy_string)
+        if instr(sss,array_fy_string(fy_nnnn))<>0  then
+		    heike_ip=Request.ServerVariables("REMOTE_ADDR")
+		    say_word=heike_ip&"，你想干什么？黑我，不要想啦！请删除SQL注入符号。"
+		    response.write "<script>alert('"&say_word&"');history.go(-1);</Script>"
+                response.end
+		end if 
+next
+'=============================================================== 以上代码不明白请不要自行修改========================================
+cgsailRootPath="/"                             '系统安装目录,如在虚拟目录下安装.请填写 /虚拟目录名称/
+cgsailmdb=cgsailRootPath&"data/#cgsailcms.mdb"    '变量名cgsailcms请不要更改. ' 
+'如果不能正确连接数据库，首先核对这句的数据库文件的目录和文件名称是否和你的正确。
+'建议这个数据库名称要改复杂一点,目录也可以更改一下.最好用.asp, 以防止数据库被下载.
+set conn=server.CreateObject("adodb.connection")
+     ConnStr = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath(cgsailmdb)
+    Set conn = Server.CreateObject("ADODB.Connection")
+    conn.open ConnStr
+    If Err Then Err.Clear:Set conn = Nothing:Response.Write "数据库连接出错，请检查cgsail_Conn.asp文件中的数据库参数设置。":Response.End
+
+'----------------------------------安全目录设置，以下代码请不要自行修改---------------------------------------------------------
+	set rsSetting=conn.execute("select * from cgsail_DIRsafety")
+    If rsSetting.BOF And rsSetting.EOF Then
+		rsSetting.Close:Set rsSetting = Nothing
+        Response.Write "<br><br><br><br><br><br><br><div align='center'>目录安全配置数据丢失！系统无法正常运行！</div>"
+        Response.End
+	Else
+	  setting_AuthCodeSwitch=rsSetting("AuthCodeSwitch")
+	  setting_AuthCode=rsSetting("AuthCode")
+	  setting_DirSafe=Split(rsSetting("DirSafe"),"^@$@^")
+	  setting_FSOSafe=rsSetting("FSOSafe")
+	  CgsailPrefix=setting_DirSafe(2)&"_"
+      rsSetting.Close:Set rsSetting = Nothing
+	 end if 
+'-----------------------------------------------------------------------------------------------------
+
+
+'----------------------------------阻止IP功能--------------------------------------------------------
+
+userip = Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+If userip = "" Then userip = Request.ServerVariables("REMOTE_ADDR")
+
+set rs = Server.CreateObject("ADODB.RecordSet")
+rs.Open "select zuziip from ["&CgsailPrefix&"config] where zuziip like '%"&zuziip&"%'",conn,1,1
+if rs.recordcount<>0 then
+	zuziip=rs("zuziip")&chr(13)
+	zuziip=replace(zuziip," ","")
+	zuziip=replace(zuziip,chr(10),"")
+	zzip=split(zuziip,chr(13))
+	for i=0 to ubound(zzip) 
+		if userip=trim(zzip(i)) then
+			er=1
+		end if
+	next
+
+	if er=1 then
+		Response.Write "<BR><BR><BR><BR><Center><font style='font-size:10.5pt'>你所在IP被系统阻止！("&userip&")</font><BR><BR></center>"
+		conn.close:set conn=nothing
+		Response.end
+	end if
+end if
+rs.close 
+set rs=nothing
+%>

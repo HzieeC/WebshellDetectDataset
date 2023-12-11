@@ -1,0 +1,85 @@
+<!--#include file="../Conn.asp" -->
+<!--#include file="../Comm/Site_Class.asp" -->
+<!--#include file="../Comm/md5.asp" -->
+<%
+Set Qsite = New Site_Class
+
+If Not instr(1,Request.ServerVariables("http_Referer"),Request.ServerVariables ("SERVER_NAME"),1)=8 Then
+	Qsite.ShowMsg "请不要非法提交数据" , "../Index.asp"
+End If
+
+Dim Rs
+PagePath = "../"
+
+If Request.Form <> "" Then
+
+	ConnectionDatabase()
+	Set Rs = server.createobject("ADODB.Recordset")
+	
+	Dim UserName,PassWord,GetCode,SessionCode
+	Dim FromIp
+	
+	FromIp = Request.ServerVariables("REMOTE_ADDR")
+	
+	UserName = Qsite.chgStr(Trim(Request.Form("UserName")))
+	PassWord = Qsite.chgStr(Trim(Request.Form("PassWord")))
+	GetCode = Qsite.chgStr(Trim(Request.Form("GetCode")))
+	
+	If UserName = "" Or IsNull(UserName) Or PassWord = "" Or IsNull(PassWord) Then
+		Response.Redirect("denglu.asp?msg=用户名或密码错误！")
+		Response.End()
+	End If
+	
+	SessionCode = Session("GetCode")
+
+	If Cstr(GetCode) <> Cstr(SessionCode) Then
+		Response.Redirect("denglu.asp?msg=验证码输入错误！")
+		Response.End()
+	End If
+	
+	PassWord = MD5(PassWord)
+	
+	Rs.Open "select * from AdminTbl where AdminName = '"& UserName &"' and IsLock = '0'" , Conn , 3 , 2
+	If Rs.Eof Or Rs.Bof Then
+		Session("AdminId") = ""
+		Session("AdminName") = ""
+		Session("AdminPass") = ""
+		Session("RealName") = ""
+		Session("LoginQuantity") = ""
+		Session("IsLock") = ""
+		Session("UserType") = ""
+		Response.Redirect("denglu.asp?msg=用户名或密码错误！")
+		Response.End()
+	Else
+		If Rs("AdminPass") <> PassWord Then
+			Session("AdminId") = ""
+			Session("AdminName") = ""
+			Session("AdminPass") = ""
+			Session("RealName") = ""
+			Session("LoginQuantity") = ""
+			Session("IsLock") = ""
+			Session("UserType") = ""
+			Response.Redirect("denglu.asp?msg=用户名或密码错误！")
+			Response.End()
+		Else
+			Session("AdminId") = Rs("AdminId")
+			Session("AdminName") = Rs("AdminName")
+			Session("AdminPass") = Rs("AdminPass")
+			Session("RealName") = Rs("AdminName")
+			Session("IsLock") = Rs("IsLock")
+			Session("UserType") = "Master"
+			Rs("LastLoginIp") = Rs("ThisLoginIp")
+			Rs("LastLoginDate") = Rs("ThisLoginDate")
+			Rs("ThisLoginIp") = FromIp
+			Rs("ThisLoginDate") = Qsite.FormatDate(Now())
+			Rs("LoginQuantity") = Rs("LoginQuantity") + 1
+			Session("LoginQuantity") = Rs("LoginQuantity")
+			Rs.Update
+				
+			Response.Redirect("Index.asp")
+			Response.End()
+		End If
+	End If
+	Rs.Close
+End If
+%>

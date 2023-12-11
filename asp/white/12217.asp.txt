@@ -1,0 +1,244 @@
+<!-- #include file="codePage.asp" -->
+<!-- #include file="check.asp" -->
+<!-- #include file="inc/func_file.asp" -->
+<%
+Call CheckIframe()
+
+
+'**** 版权所有 ****
+
+' 网钛文章管理系统(OTCMS)
+' 程序开发：网钛科技
+' 官方网站：http://otcms.com
+' 联系ＱＱ：877873666
+' 联系邮箱：877873666@qq.com
+
+'**** 版权所有 **** */
+
+
+'打开用户表，并检测用户是否登陆
+Call OpenMemberexe("","login",10)
+Call CloseMemberexe()
+
+Call IsAdminRight("alertBack")
+
+
+
+Select Case mudi
+	Case "upFileDel"
+		Call UpFileDel()
+
+	Case "upFileMoreDel"
+		Call UpFileMoreDel()
+
+	Case "upFileClear"
+		Call UpFileClear()
+
+	Case "upFileUseClear"
+		Call upFileUseClear()
+
+End Select
+
+
+Call CloseConobj()
+
+
+
+
+
+
+
+
+'记录单个删除
+Private Sub upFileDel()
+	dataID=ToGetInt("dataID")
+
+	Set delrec=server.CreateObject("ADODB.recordset")
+	delrec.open "select UF_ID,UF_type,UF_name,UF_otherImgStr from OT_upFile where UF_ID="& dataID,conobj,0,1
+		If delrec.EOF Then
+			response.write("<script language='javascript' type='text/javascript'>alert('不存在该记录');</script>")
+			response.End
+		End If
+
+		On Error Resume Next
+		Set fso=server.CreateObject("Scripting.FileSystemObject")
+			delPath=server.mappath(FilePath(delrec("UF_type")) & delrec("UF_name"))
+			If fso.fileexists(delPath) = True Then
+				fso.deletefile delPath,True
+			End If
+'			delThumbPath=server.mappath(FilePath(delrec("UF_type")) &"thumb_"& delrec("UF_name"))
+'			If fso.fileexists(delThumbPath) = True Then
+'				fso.deletefile delThumbPath,True
+'			End If
+			otherImgArr = split(delrec("UF_otherImgStr"),",")
+			For i=0 To UBound(otherImgArr)
+				delPath=server.mappath(FilePath(delrec("UF_type")) & otherImgArr(i))
+				If fso.fileexists(delPath) = True Then
+					fso.deletefile delPath,True
+				End If
+			Next
+		Set fso=Nothing
+'	delrec.delete
+'	delrec.update
+	delrec.close
+	Set delrec=Nothing
+
+	conobj.execute("delete from OT_upFile where UF_ID="& dataID)
+
+	response.write("<script language='javascript' type='text/javascript'>parent.$id('closeData"& dataID &"').style.display='none';</script>")
+End Sub
+
+
+
+
+
+
+
+
+'记录批量删除
+Private Sub upFileMoreDel()
+	URL=Trim(request.Form("URL"))
+
+	If request.Form("selDataID").count <=0 Then
+		response.write("<script language='javascript' type='text/javascript'>alert('请先选择要删除的记录.');history.back();</script>")
+		response.End
+	End If
+
+	whereStr=""
+		For i=1 To request.Form("selDataID").count
+			whereStr=whereStr &" or UF_ID="& request.Form("selDataID")(i)
+		Next
+
+		On Error Resume Next
+		Set fso=server.CreateObject("Scripting.FileSystemObject")
+	Set delrec=server.CreateObject("ADODB.recordset")
+	delrec.open "select UF_ID,UF_type,UF_name,UF_otherImgStr from OT_upFile where UF_ID=0"& whereStr,conobj,0,1
+		Do Until delrec.EOF
+			delPath=server.mappath(FilePath(delrec("UF_type")) & delrec("UF_name"))
+			If fso.fileexists(delPath) = True Then
+				fso.deletefile delPath,True
+			End If
+'			delThumbPath=server.mappath(FilePath(delrec("UF_type")) &"thumb_"& delrec("UF_name"))
+'			If fso.fileexists(delThumbPath) = True Then
+'				fso.deletefile delThumbPath,True
+'			End If
+			otherImgArr = split(delrec("UF_otherImgStr"),",")
+			For i=0 To UBound(otherImgArr)
+				delPath=server.mappath(FilePath(delrec("UF_type")) & otherImgArr(i))
+				If fso.fileexists(delPath) = True Then
+					fso.deletefile delPath,True
+				End If
+			Next
+'	delrec.delete
+'	delrec.update
+		conobj.execute("delete from OT_upFile where UF_ID="& delrec("UF_ID"))
+		delrec.movenext
+		Loop
+	delrec.close
+	Set delrec=Nothing
+		Set fso=Nothing
+
+	response.write("<script language='javascript' type='text/javascript'>alert('批量删除成功.');document.location.href='"& URL &"';</script>")
+
+End Sub
+
+
+
+
+
+
+
+
+'记录自动清理
+Private Sub upFileClear()
+
+		On Error Resume Next
+		Set fso=server.CreateObject("Scripting.FileSystemObject")
+	Set delrec=server.CreateObject("ADODB.recordset")
+	delrec.open "select UF_ID,UF_type,UF_name,UF_otherImgStr from OT_upFile",conobj,0,2
+		Do Until delrec.EOF
+			delPath=server.mappath(FilePath(delrec("UF_type")) & delrec("UF_name"))
+			If fso.fileexists(server.mappath(delPath)) = false Then
+				otherImgArr = split(delrec("UF_otherImgStr"),",")
+				For i=0 To UBound(otherImgArr)
+					delPath=server.mappath(FilePath(delrec("UF_type")) & otherImgArr(i))
+					If fso.fileexists(delPath) = True Then
+						fso.deletefile delPath,True
+					End If
+				Next
+	delrec.delete
+	delrec.update
+			End If
+		delrec.movenext
+		Loop
+	delrec.close
+	Set delrec=Nothing
+		Set fso=Nothing
+
+	response.write("<script language='javascript' type='text/javascript'>alert('自动清理完成.');document.location.href='serverFile.asp?mudi=manage';</script>")
+
+End Sub
+
+
+
+Function upFileUseClear()
+		On Error Resume Next
+		Set fso=server.CreateObject("Scripting.FileSystemObject")
+	Set delrec=server.CreateObject("ADODB.recordset")
+	delrec.open "select UF_ID,UF_type,UF_name,UF_otherImgStr from OT_upFile where UF_useNum<=0",conobj,0,2
+		Do Until delrec.EOF
+			delPath=server.mappath(FilePath(delrec("UF_type")) & delrec("UF_name"))
+			If fso.fileexists(delPath) = True Then
+				fso.deletefile delPath,True
+			End If
+			otherImgArr = split(delrec("UF_otherImgStr"),",")
+			For i=0 To UBound(otherImgArr)
+				delPath=server.mappath(FilePath(delrec("UF_type")) & otherImgArr(i))
+				If fso.fileexists(delPath) = True Then
+					fso.deletefile delPath,True
+				End If
+			Next
+		delrec.delete
+		delrec.update
+		delrec.movenext
+		Loop
+	delrec.close
+	Set delrec=Nothing
+		Set fso=Nothing
+
+
+	response.write("<script language='javascript' type='text/javascript'>alert('自动清理完成.');document.location.href='serverFile.asp?mudi=manage';</script>")
+End Function
+
+
+
+Function FilePath(str)
+	Select Case str
+		Case "product"
+			FilePath=ProductFileAdminDir
+
+		Case "images"
+			FilePath=ImagesFileAdminDir
+
+		Case "case"
+			FilePath=CaseFileAdminDir
+
+		Case "download"
+			FilePath=DownloadFileAdminDir
+
+		Case "infoMove"
+			FilePath=InfoMoveFileAdminDir
+
+		Case "users"
+			FilePath=UsersFileAdminDir
+
+		Case "adminFile"
+			FilePath=FileAdminDir
+
+		Case Else
+			FilePath=InfoImgAdminDir
+
+	End Select
+End Function
+
+%>

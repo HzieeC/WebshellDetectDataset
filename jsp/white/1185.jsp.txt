@@ -1,0 +1,105 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@page import="com.bizoss.trade.ti_lawyer.Ti_LawyerInfo"%>
+<%@page import="com.bizoss.trade.ti_admin.Ti_adminInfo"%> 
+<jsp:useBean id="bean" class="com.bizoss.frame.util.RandomID" scope="page"/>
+<%@ page import="com.bizoss.trade.tb_commpara.*"%>
+
+<html>
+  <head>
+   <title>新增律师案源管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+	<h1>新增律师案源管理</h1>	
+	<%
+		String case_id =request.getParameter("case_id");
+		String user_id="";
+		if(session.getAttribute("session_user_id")!=null){
+	     user_id =session.getAttribute("session_user_id").toString();
+	}
+		Ti_LawyerInfo lawyerInfo=new Ti_LawyerInfo();
+		String lawyerStr=lawyerInfo.getSelectLawyer("");
+		Ti_adminInfo adminInfo=new Ti_adminInfo();
+		String serviceStr=adminInfo.getSelectService("");
+		Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+ 		String cur_state = tb_commparaInfo.getSelectItem("113","");   
+		
+	 %>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+		
+		
+		<tr>
+			<td align="right" width="10%">
+				选择律师<font color="red">*</font>
+			</td>
+			<td>
+				<select name="lawyer_id" id="lawyer_id">
+					<option value="">请选择
+					<%=lawyerStr %>
+				</select>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				提成费<font color="red">*</font>
+			</td>
+			<td><input name="commission_fees" id="commission_fees" size="7" type="text" onkeyup="if(isNaN(this.value))this.value=''"/></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				当前状态<font color="red">*</font>
+			</td>
+			<td>
+				<select name="cur_state" id="cur_state">
+					<option value="">请选择
+					<%=cur_state %>
+				</select>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				客服员工号<font color="red">*</font>
+			</td>
+			<td>
+				<select name="service_id" id ="service_id">
+					<option value="">请选择
+					<%=serviceStr %>
+				</select>
+			</td>
+		</tr>
+	
+		
+		<tr>
+			<td align="right" width="10%">
+				是否签单<font color="red">*</font>
+			</td>
+			<td>
+			<input name="does_signing" id="does_signing1" value ="1" type="radio" checked="checked"/>是
+			<input name="does_signing" id="does_signing2" value="0" type="radio" />否
+			</td>
+		</tr>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="1307" />
+				<input type="hidden" name="jumpurl" value="/program/admin/lawyerCase/index.jsp" />
+				<input name="case_id" id="case_id" type="hidden" value="<%=case_id %>" />
+				<input name="operator_id" id="operator_id" type="hidden" value="<%=user_id %>"/>
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="checkSub();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='/program/admin/lawyerCase/index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

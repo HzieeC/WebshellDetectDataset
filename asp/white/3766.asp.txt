@@ -1,0 +1,690 @@
+<!--#include file="../../inc/cls_main.asp"-->
+<!--#include file="config.inc"-->
+<%
+Dim ErrMsg,SucMsg,timesetting,lconn
+FoundErr = False
+Set NewAsp = New MainNewAsp_Cls
+NewAsp.Page_Admin=True
+NewAsp.LoadSetting
+'是否禁止IP地址登录后台
+NewAsp.ChcekProxy(BanProxyAdmin)
+Call CheckAdminIP()
+
+Dim AdminSkin,ChannelID
+If Request.Cookies("newasp_admin_skin")="" Then
+	AdminSkin = DefaultAdminSkin
+Else
+	AdminSkin = NewAsp.ChkNumeric(Request.Cookies("newasp_admin_skin"))
+End If
+ChannelID = NewAsp.ChkNumeric(Request("ChannelID"))
+NewAsp.ChannelID = ToNumber(ChannelID)
+NewAsp.LoadChannel()
+
+Sub Admin_header()
+	Response.Write "<!DOCTYPE html PUBLIC ""-//W3C//DTD XHTML 1.0 Transitional//EN"" ""http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"">" & vbCrLf
+	Response.Write "<html xmlns=""http://www.w3.org/1999/xhtml"">" & vbCrLf
+	Response.Write "<head>" & vbCrLf
+	Response.Write "<meta http-equiv=""Content-Type"" content=""text/html; charset=gb2312""/>" & vbCrLf
+	Response.Write "<title>管理页面</title>" & vbCrLf
+	Response.Write "<meta http-equiv=""Expires"" Content=""0""/>" & vbCrLf
+	Response.Write "<meta http-equiv=""Cache-Control"" Content=""no-cache""/>" & vbCrLf
+	Response.Write "<meta http-equiv=""Pragma"" Content=""no-cache""/>" & vbCrLf
+	Response.Write "<link href="""& AdminPath &"images/skin_" & AdminSkin & "/style.css"" type=""text/css"" rel=""stylesheet""/>" & vbCrLf
+	Response.Write "<script src="""& AdminPath &"script/admin.js"" type=""text/javascript""></script>" & vbCrLf
+	Response.Write "<base target=""_self""/>" & vbNewLine
+	Response.Write "</head>" & vbCrLf
+	Response.Write "<body class=""htmlbody"">" & vbCrLf
+End Sub
+
+Sub Admin_footer()
+	If CInt(NewAsp.MainSetting(39)) = 1 Then
+		Response.Write "<table align=""center"" id=""bottomtable"">" & vbCrLf
+		Response.Write "<tr><td width=""100%"" align=""center"" class=""copyright"">" & vbCrLf
+		Response.Write NewAsp.MainSetting(5) & vbCrLf
+		Dim Endtime
+		Endtime = Timer()
+		Response.Write "<br>执行时间：" & FormatNumber((Endtime-startime),5, -1) & "秒。查询数据库" & NewAsp.SqlQueryNum & "次。" & vbCrLf
+		Response.Write "<li>共使用了" & Application.Contents.Count & "个缓存对象。</li>"
+
+		Response.Write "</td>" & vbCrLf
+		Response.Write "</tr>" & vbCrLf
+		Response.Write "</table>" & vbCrLf
+	End If
+	Response.Write "<div style=""clear:both""></div>"
+	Response.Write "</body></html>"
+End Sub
+
+Sub Transfer_error()
+	'Server.Transfer(AdminPath & "showerr.asp")
+	Response.Redirect (AdminPath & "showerr.asp")
+	Response.End
+End Sub
+
+Sub LoadAutoComplete(sFormName)
+	If Not AutoCompleteQuery Then Exit Sub
+	Response.Write "<script type=""text/javascript"">" & vbCrLf
+	Response.Write "var oQueryKeyword=document.getElementById(""searchwordbox"");"
+	Response.Write "var oSearchForm = document."&Trim(sFormName)&";"
+	Response.Write "var dataQueryParam = '&channelid="&ChannelID&"&m="&NewAsp.modules&"&t=1&l="&AutoCompletestrlen&"&n="&AutoCompletemaxnum&"';"
+	Response.Write "if (navigator.cookieEnabled && !/sugComplete=0/.test(document.cookie)) {"
+	Response.Write "	document.getElementById('searchwordbox').setAttribute('autocomplete', 'off');"
+	Response.Write "	document.write('<s'+'cript src=""../script/searchsug.js""><\/s'+'cript>'); (function initAutoQuery() {"
+	Response.Write "		if (!window.newasp) {"
+	Response.Write "			setTimeout(initAutoQuery, 10);"
+	Response.Write "		} else {"
+	Response.Write "			window.newasp.init()"
+	Response.Write "		}"
+	Response.Write "	})()"
+	Response.Write "}"
+	Response.Write "window.onunload = function() {};"
+	Response.Write "</script>" & vbCrLf
+End Sub
+
+'================================================
+'作  用：输出错误警告脚本
+'参  数：str ----参数入口
+'返回值：警告信息
+'================================================
+Sub OutAlertScript(str)
+	Response.Write "<script language=""javascript"">" & vbcrlf
+	Response.Write "alert('" & str & "');"
+	Response.Write "history.back()" & vbcrlf
+	Response.Write "</script>" & vbcrlf
+	Response.End
+End Sub
+Sub OutHintScript(str)
+	Response.Write "<script language=""JavaScript"">" & vbCrLf
+	Response.Write "alert('" & str & "');"
+	Response.Write "location.replace('" & Request.ServerVariables("HTTP_REFERER") & "')" & vbCrLf
+	Response.Write "</script>" & vbCrLf
+	Response.End
+End Sub
+Sub OutputScript(str,url)
+	Response.Write "<script language=""JavaScript"">" & vbCrLf
+	Response.Write "alert('" & str & "');"
+	Response.Write "location.replace('" & url & "')" & vbCrLf
+	Response.Write "</script>" & vbCrLf
+	Response.End
+End Sub
+
+Sub ReturnError(msg)
+	Response.Write "<p>&nbsp;</p>" & vbCrLf
+	Response.Write "<table align=""center"" border=""0"" cellpadding=""3"" cellspacing=""1"" class=""table2"">" & vbCrLf
+	Response.Write "    <tr> " & vbCrLf
+	Response.Write "      <th colspan=""2"" align=""left""> 错误提示信息!</th>" & vbCrLf
+	Response.Write "    </tr>" & vbCrLf
+	Response.Write "  <tr><td align=""center"" width=""20%"" class=""tableline1""><img src=""" & AdminPath & "images/err.gif"" width=""95"" height=""97"" border=""0""></td><td width=""80%"" class=""tableline1"">"
+	Response.Write " <b style=""color:blue"">产生错误的可能原因：</b><br>"
+	Response.Write msg & "</td></tr>" & vbCrLf
+	Response.Write "  <tr><td colspan=""2"" align=""center"" height=""25"" class=""tableline2""><a href=""javascript:history.go(-1)"">返回上一页...</a></td></tr>" & vbCrLf
+	Response.Write " </table><p>&nbsp;</p>" & vbCrLf
+End Sub
+
+Sub Succeed(msg)
+	If IsTimeoutInfo Then Response.Write "<meta http-equiv=""refresh"" content=""5;url=" & Request.ServerVariables("HTTP_REFERER") & """>"
+	Response.Write "<p>&nbsp;</p>" & vbCrLf
+	Response.Write "<table align=""center"" border=""0"" cellpadding=""3"" cellspacing=""1"" class=""table2"">" & vbCrLf
+	Response.Write "    <tr> " & vbCrLf
+	Response.Write "      <th colspan=""2"" align=""left""> 成功提示信息!</th>" & vbCrLf
+	Response.Write "    </tr>" & vbCrLf
+	Response.Write "  <tr><td align=""center"" width=""20%"" class=""tableline1""><img src=""" & AdminPath & "images/suc.gif"" width=""95"" height=""97"" border=""0""></td><td width=""80%"" class=""tableline1"">"
+	If IsTimeoutInfo Then
+		Response.Write " <b style=""color:blue""><span id=""jump"">5</span> 秒钟后系统将自动返回</b><br>"
+	Else
+		Response.Write " <b style=""color:blue"">您在成功提示页面的停留时间 <span id=""jump"">0</span> 秒</b><br>"
+	End If
+	Response.Write msg & "</td></tr>" & vbCrLf
+	Response.Write "  <tr><td colspan=""2"" align=""center"" height=""25"" class=""tableline2""><a href=""" & Request.ServerVariables("HTTP_REFERER") & """>返回上一页...</a></td></tr>" & vbCrLf
+	Response.Write " </table><p>&nbsp;</p>" & vbCrLf
+	If IsTimeoutInfo Then
+		Response.Write "<script>function countDown(secs){jump.innerText=secs;if(--secs>0)setTimeout(""countDown(""+secs+"")"",1000);}countDown(5);</script>"
+	Else
+		Response.Write "<script>function countDown(secs){jump.innerText=secs;if(++secs>0)setTimeout(""countDown(""+secs+"")"",1000);}countDown(0);</script>"
+	End If
+End Sub
+
+Sub RemoveLabelCache(chanid)
+	Dim objCache,strCacheName
+	Dim strCachelist,Cachelist,i
+	Select Case chanid
+		Case 1 : strCacheName=NewAsp.CacheName&"_newslist"
+		Case 2 : strCacheName=NewAsp.CacheName&"_softlist"
+		Case 3 : strCacheName=NewAsp.CacheName&"_shoplist"
+		Case 4 : strCacheName=NewAsp.CacheName&"_askedlist"
+		Case 5 : strCacheName=NewAsp.CacheName&"_flashlist"
+		Case 6 : strCacheName=NewAsp.CacheName&"_imagelist"
+	Case Else
+		strCacheName=NewAsp.CacheName&"_custom"
+	End Select
+
+	For Each objCache in Application.Contents
+		If CStr(Left(objCache,Len(strCacheName)+1))=CStr(strCacheName&"_") Then
+			strCachelist=strCachelist&objCache&","
+		End If
+	Next
+
+	Cachelist=Split(strCachelist,",")
+	If UBound(Cachelist)>0 Then
+		For i=0 To UBound(Cachelist)-1
+			Application.Lock
+			Application.Contents.Remove(Cachelist(i))
+			Application.unLock
+		Next
+	End If
+End Sub
+
+Sub RemoveAppCache(sCacheName)
+	Dim objCache,strCacheName
+	Dim strCachelist,Cachelist,i
+	strCacheName=NewAsp.CacheName&"_"&sCacheName
+
+	For Each objCache in Application.Contents
+		If CStr(Left(objCache,Len(strCacheName)+1))=CStr(strCacheName&"_") Then
+			strCachelist=strCachelist&objCache&","
+		End If
+	Next
+
+	Cachelist=Split(strCachelist,",")
+	If UBound(Cachelist)>0 Then
+		For i=0 To UBound(Cachelist)-1
+			Application.Lock
+			Application.Contents.Remove(Cachelist(i))
+			Application.unLock
+		Next
+	End If
+
+End Sub
+
+Function showDateTime(DateAndTime, para)
+	showDateTime = ""
+	Dim strDate,strToDate
+	If Not IsDate(DateAndTime) Then Exit Function
+	strToDate=NewAsp.FormatToDate(DateAndTime, para)
+	If CLng(NewAsp.MainSetting(36))<>0 Then DateAndTime=DateAdd("h",CLng(NewAsp.MainSetting(36)),CDate(DateAndTime))
+	If Datediff("d",Now(),CDate(DateAndTime)) < 0 Then
+		strDate = strDate & strToDate
+	Else
+		strDate = "<font color=""red"">"
+		strDate = strDate & strToDate
+		strDate = strDate & "</font>"
+	End If
+	showDateTime = strDate
+End Function
+
+Sub CheckAdminIP()
+	Dim XMLDom,Node
+	Dim i,locklist,Ip,Ip1
+	Dim Agent,XSLTemplate,proc
+	Dim stylesheet,strProcXML
+	Dim islockip,m_strIP
+	Dim sPathInfo:sPathInfo = LCase(Request.ServerVariables("PATH_INFO"))
+	If InStr(sPathInfo,"/showerr.asp") > 0 Then Exit Sub
+
+	If Len(TimerSetting)< 24 Then TimerSetting="1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1"
+	timesetting = Split(TimerSetting,"|")
+	'--打开后台定时功能
+	If AdminTimer = 1 Then
+		If timesetting(Hour(Now))="1" Then
+			Set Newasp = Nothing
+			ErrMsg = "<li>后台管理暂时关闭，不能登陆!</li><li>如果要登陆后台，请联系本站管理员。</li>"
+			Response.Redirect (AdminPath & "showerr.asp?action=error&Message=" & Server.URLEncode(ErrMsg) & "")
+		End If
+	End If
+	If CheckIPType = 0 Then Exit Sub
+	If Len(AdminLockIPList) < 7 Then Exit Sub
+	On Error Resume Next
+
+	Set XMLDom=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+	XMLDom.appendChild(XMLDom.createElement("xml"))
+	locklist=Trim(AdminLockIPList)
+	locklist=Split(locklist,"|")
+	For Each Ip in locklist
+		Ip1=Split(Ip,".")
+		Set Node=XMLDom.documentElement.appendChild(XMLDom.createNode(1,"lockip",""))
+		For i=0 to UBound(ip1)
+			Node.attributes.setNamedItem(XMLDom.createNode(2,"number"& (i+1),"")).text=ip1(i)
+		Next
+		Set Node=Nothing
+	Next
+
+	Set Agent=XMLDom.cloneNode(True)
+	Agent.documentElement.attributes.setNamedItem(Agent.createNode(2,"ip","")).text=NewAsp.UserTrueIP
+	Agent.documentElement.attributes.setNamedItem(Agent.createNode(2,"actforip","")).text=NewAsp.ActforIP
+	Set XMLDom=Nothing
+
+	Set stylesheet=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+	If Not stylesheet.load(Server.MapPath(MyAppPath &"common/getbrowser.xslt")) Then Exit Sub
+
+	Set XSLTemplate=NewAsp.CreateAXObject("msxml2.XSLTemplate" & MsxmlVersion)
+	XSLTemplate.stylesheet=stylesheet
+	Set proc = XSLTemplate.createProcessor()
+	proc.input = Agent
+	proc.transform()
+	strProcXML = proc.output
+	Set Agent=Nothing
+	Set stylesheet=Nothing
+	Set XSLTemplate=Nothing
+	Set proc=Nothing
+
+	Set XMLDom=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+	'XMLDom.appendChild(XMLDom.createElement("xml"))
+	If Not XMLDom.loadxml(strProcXML) Then Exit Sub
+	If Not XMLDOM.documentElement.selectSingleNode("@lockip") Is Nothing Then
+		islockip = XMLDOM.documentElement.selectSingleNode("@lockip").text
+	Else
+		islockip = "0"
+	End If
+	If Not XMLDOM.documentElement.selectSingleNode("@ip") Is Nothing Then
+		m_strIP = XMLDOM.documentElement.selectSingleNode("@ip").text
+	End If
+
+	Set XMLDom=Nothing
+	If CheckIPType = 1 Then
+		If islockip = "1" Then
+			Set NewAsp = Nothing
+			ErrMsg = "<li>您IP："&m_strIP&" 已被锁定，不能登陆后台!</li><li>如果要登陆后台，请联系本站管理员。</li>"
+			Response.Redirect (AdminPath & "showerr.asp?action=error&Message=" & Server.URLEncode(ErrMsg) & "")
+			Response.End
+		End If
+	Else
+		If islockip = "0" Then
+			Set NewAsp = Nothing
+			ErrMsg = "<li>您IP："&m_strIP&" 已被锁定，不能登陆后台!</li><li>如果要登陆后台，请联系本站管理员。</li>"
+			Response.Redirect (AdminPath & "showerr.asp?action=error&Message=" & Server.URLEncode(ErrMsg) & "")
+			Response.End
+		End If
+	End If
+	If Err.Number <> 0 Then Err.Clear
+End Sub
+
+Sub ConnectionLogDatabase()
+	On Error Resume Next
+	Dim lconnstr
+	lconnstr = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & Server.MapPath("../script/Logdata.resx")
+	Set lconn = NewAsp.CreateAXObject("ADODB.Connection")
+	lconn.open lconnstr
+	If Err Then
+		Err.Clear
+		Set lConn = Nothing
+		Response.End
+	End If
+End Sub
+
+Sub SaveLogInfo(lname)
+	Dim RequestStr
+	Dim lsql,istoplog
+	istoplog = AdminLogstop      '是否停止日志,1=停止,0=启用
+	If istoplog = 1 Then Exit Sub
+	On Error Resume Next
+	Call ConnectionLogDatabase
+	'If InStr(NewAsp.ScriptName, "_index") > 0 Or InStr(NewAsp.ScriptName, "admin_log") > 0 Then Exit Sub
+	lname = NewAsp.CheckStr(lname)
+	RequestStr = lcase(Request.ServerVariables("Query_String"))
+	If RequestStr <> "" Then
+		RequestStr=NewAsp.checkStr(RequestStr)
+		RequestStr=Left(RequestStr,250)
+		lsql = "insert into [NC_LogInfo] (UserName,UserIP,ScriptName,ActContent,LogAddTime,LogType) values ('"& lname &"','"& NewAsp.UserTrueIP &"','"& NewAsp.ScriptName &"','"& RequestStr &"','"& Now() &"',0)"
+		lconn.Execute(lsql)
+	End If
+	If Request.form <> "" Then
+		RequestStr = NewAsp.checkStr(request.form)
+		RequestStr = Left(RequestStr,250)
+		lsql = "insert into [NC_LogInfo] (UserName,UserIP,ScriptName,ActContent,LogAddTime,LogType) values ('"& lname &"','"& NewAsp.UserTrueIP &"','"& NewAsp.ScriptName &"','"& RequestStr &"','"& Now() &"',1)"
+		lconn.Execute(lsql)
+	End If
+	If IsObject(lconn) Then
+		lconn.Close
+		Set lconn = Nothing
+	End If
+End Sub
+
+Function showlistpage(page,Pcount,maxperpage,totalrec,strLink)
+	Dim strTemp,i,n,m
+	If strLink = "" Then strLink = "?"
+	'strLink = Server.HTMLEncode(strLink)
+	strLink = strLink
+	m = 8
+	If page = 0 Then page = 1
+	If page > 996 Then m = 6
+	strTemp = "<b>总数："&totalrec&"</b><b>"&maxperpage&"</b>"
+	If page = 1 Then
+		strTemp = strTemp & "<kbd class=""disable""><a href=""" & strLink & "page=1"">上一页</a></kbd>"
+		strTemp = strTemp & "<code>"
+		strTemp = strTemp & "<a href=""" & strLink & "page=1"" class=""active"">1</a> "
+	Else
+		strTemp = strTemp & "<kbd><a href=""" & strLink & "page=" & page-1 & """>上一页</a></kbd>"
+		strTemp = strTemp & "<code>"
+		strTemp = strTemp & "<a href=""" & strLink & "page=1"">1</a> "
+	End If
+
+	If Pcount > m And page > (m\2) Then
+		If Pcount-page <= (m\2) Then
+			n = Pcount-(m+1)
+		Else
+			n = Page-(m\2)
+		End If
+	Else
+		n = 2
+	End If
+	If n<2 Then n=2
+
+	If n > 2 And Pcount > 10 Then
+		strTemp = strTemp & "<i>...</i> "
+	End If
+
+	If Pcount > 9 Then
+		For i = n To n + m
+			If i => Pcount Then Exit For
+			If i > 1 Then
+				If i = page Then
+					strTemp = strTemp & "<a href=""" & strLink & "page=" & i & """ class=""active"">" & i & "</a> "
+				Else
+					strTemp = strTemp & "<a href=""" & strLink & "page=" & i & """>" & i & "</a> "
+				End If
+			End If
+		Next
+	Else
+		For i = 2 To 10
+			If i > Pcount Then
+				strTemp = strTemp & "<a href=""#"">" & i & "</a> "
+			Else
+				If i = page Then
+					strTemp = strTemp & "<a href=""" & strLink & "page=" & i & """ class=""active"">" & i & "</a> "
+				Else
+					strTemp = strTemp & "<a href=""" & strLink & "page=" & i & """>" & i & "</a> "
+				End If
+			End If
+		Next
+	End If
+	If Pcount > i Then
+		strTemp = strTemp & "<i>...</i> "
+	End If
+
+	If page => Pcount Then
+		If Pcount > 9 Then strTemp = strTemp & "<a href=""" & strLink & "page=" & Pcount & """ class=""active"">" & Pcount & "</a> "
+		strTemp = strTemp & "</code>"
+		strTemp = strTemp & "<dfn class=""disable""><a href=""" & strLink & "page=" & Pcount & """>下一页</a></dfn>"
+	Else
+		If Pcount > 9 Then strTemp = strTemp & "<a href=""" & strLink & "page=" & Pcount & """>" & Pcount & "</a> "
+		strTemp = strTemp & "</code>"
+		strTemp = strTemp & "<dfn><a href=""" & strLink & "page=" & page+1 & """>下一页</a></dfn>"
+	End If
+	showlistpage = strTemp & "<input type=""text"" class=""pageinput"" title=""输入数字，回车跳转"" size=""3"" onkeydown=""if (13==event.keyCode) document.location.href='"&strLink&"page='+this.value"" value="""&page&""" />"
+End Function
+
+Function ToNumber(chkid)
+	If InStr(LCase(NewAsp.Copyright),Chr(110)&Chr(101)&Chr(119)&Chr(97)&Chr(115)&Chr(112)&Chr(46)&Chr(110)&Chr(101)&Chr(116))=0 Then
+		ChannelID=0
+		ToNumber=0
+	Else
+		ToNumber=chkid
+	End If
+End Function
+
+Sub showpage(page,Pcount,maxperpage,totalrec,strLink)
+	Dim n
+	If totalrec Mod maxperpage = 0 Then
+		n = totalrec \ maxperpage
+	Else
+		n = totalrec \ maxperpage + 1
+	End If
+	Response.Write "<table cellspacing=""1"" width=""100%"" border=""0""><tr><td align=""center""> " & vbCrLf
+	If page < 2 Then
+		Response.Write "总数：<font COLOR=""#FF0000""><strong>"&totalrec&"</strong></font> &nbsp;首 页&nbsp;上一页&nbsp;|&nbsp;"
+	Else
+		Response.Write "总数：<font COLOR=""#FF0000""><strong>"&totalrec&"</strong></font> &nbsp;<a href="""&strLink&"page=1"">首 页</a>&nbsp;"
+		Response.Write "<a href="""&strLink&"page="&(page - 1)&""">上一页</a>&nbsp;|&nbsp;"
+	End If
+	If n - page < 1 Then
+		Response.Write "下一页&nbsp;尾 页" & vbCrLf
+	Else
+		Response.Write "<a href="""&strLink&"page="&(page + 1)&""">下一页</a>"
+		Response.Write "&nbsp;<a href="""&strLink&"page=" & n & """>尾 页</a>" & vbCrLf
+	End If
+	Response.Write "&nbsp;页次：<strong><font color=""red"">" & page & "</font>/" & n & "</strong>页 "
+	Response.Write "&nbsp;转到："
+	Response.Write "<input type=""text"" title=""输入数字，回车跳转"" size=""3"" onkeydown=""if (13==event.keyCode) document.location.href='"&strLink&"page='+this.value"" value="""&page&""" />"
+	Response.Write "</td></tr></table>" & vbCrLf
+End Sub
+
+Sub selectMenu(chanid,cid)
+	Dim XMLDom,Node,i
+	Response.Write "<select onchange=""if(this.options[this.selectedIndex].value!=''){location=this.options[this.selectedIndex].value;}"">" &  vbCrLf
+	Response.Write "<option value=""?ChannelID=" & chanid & """>≡选择详细分类≡</option>" & vbCrLf
+	On Error Resume Next
+
+	If Not IsObject(Application(NewAsp.CacheName &"_classlist_" & chanid)) Then NewAsp.LoadClassList(chanid)
+	Set XMLDom=Application(NewAsp.CacheName &"_classlist_" & chanid)
+	If Not XMLDom is Nothing Then
+		For Each Node In XMLDom.documentElement.selectNodes("row")
+			If CLng(Node.selectSingleNode("@turnlink").text)>0 Then
+				Response.Write "<option value="""&Node.selectSingleNode("@turnlinkurl").text&""""
+			Else
+				Response.Write "<option value=""?ChannelID="&chanid&"&classid="&Node.selectSingleNode("@classid").text&""""
+			End If
+			If cid>0 Then
+				If CLng(Node.selectSingleNode("@classid").text)=cid Then Response.Write " selected=""selected"""
+			End If
+			Response.Write ">"
+			If CLng(Node.selectSingleNode("@depth").text)=1 Then Response.Write "　├ "
+			If CLng(Node.selectSingleNode("@depth").text)>1 Then
+				For i=2 To CLng(Node.selectSingleNode("@depth").text)
+					Response.Write "　"
+				Next
+				Response.Write "　├ "
+			End If
+			Response.Write Trim(Node.selectSingleNode("@classname").text)
+			Response.Write "</option>" & vbCrLf
+		Next
+		Response.Write "<option value='?ChannelID=" & chanid & "'>≡返回全部列表≡</option>" & vbCrLf
+	End If
+	Response.Write "</select>" & vbCrLf
+	Set XMLDom = Nothing
+End Sub
+
+Sub selectClasslist(chanid,cid)
+	Dim XMLDom,Node,i
+	If cid>-1 Then 
+		Response.Write "<select name=""classid"" id=""classid"">" &  vbCrLf
+		Response.Write "<option value=""0"">≡选择详细分类≡</option>" & vbCrLf
+	End If
+	On Error Resume Next
+
+	If Not IsObject(Application(NewAsp.CacheName &"_classlist_" & chanid)) Then NewAsp.LoadClassList(chanid)
+	Set XMLDom=Application(NewAsp.CacheName &"_classlist_" & chanid)
+	If Not XMLDom is Nothing Then
+		For Each Node In XMLDom.documentElement.selectNodes("row")
+			If CLng(Node.selectSingleNode("@turnlink").text)=0 Then
+				Response.Write "<option value="""&Node.selectSingleNode("@classid").text&""""
+			End If
+			If cid>0 Then
+				If CLng(Node.selectSingleNode("@classid").text)=cid Then Response.Write " selected=""selected"""
+			End If
+			Response.Write ">"
+			If CLng(Node.selectSingleNode("@depth").text)=1 Then Response.Write "　├ "
+			If CLng(Node.selectSingleNode("@depth").text)>1 Then
+				For i=2 To CLng(Node.selectSingleNode("@depth").text)
+					Response.Write "　"
+				Next
+				Response.Write "　├ "
+			End If
+			Response.Write Trim(Node.selectSingleNode("@classname").text)
+			Response.Write "</option>" & vbCrLf
+		Next
+	End If
+	If cid>-1 Then Response.Write "</select>" & vbCrLf
+	Set XMLDom = Nothing
+End Sub
+'================================================
+'函数名：Formatime
+'作  用：格式化时间
+'================================================
+Public Function Formatime(datime)
+	datime = Trim(Replace(Trim(datime), vbNewLine, ""))
+	If Not IsDate(datime) Then
+		Formatime = Now()
+		Exit Function
+	End If
+	If Len(datime) < 11 Then
+		Formatime = CDate(datime & " " & FormatDateTime(Now, 3))
+	Else
+		Formatime = CDate(datime)
+	End If
+	Exit Function
+End Function
+Function Re_Replace(str,retxt,replacetxt)
+	Dim Re
+	retxt = Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(retxt, "[", "\["), "]", "\]"), "(", "\("), ")", "\)"), "$", "\$"), "^", "\^"), "{", "\{"), "}", "\}"), "+", "\+"), ".", "\.")
+	'replacetxt = Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(replacetxt, "[", "\["), "]", "\]"), "(", "\("), ")", "\)"), "$", "\$"), "^", "\^"), "{", "\{"), "}", "\}"), "+", "\+"), ".", "\.")
+	Set Re = New RegExp
+	Re.IgnoreCase = True
+	Re.Global = True
+	Re.Pattern = retxt
+	Re_Replace = Re.Replace(str,replacetxt)
+	Set Re = Nothing
+End Function
+Function CheckHtmlCode(str)
+	If Str<>"" And Not IsNull(str) Then
+		Dim re
+		Set re=new RegExp
+		re.IgnoreCase =True
+		re.Global=True
+		're.Pattern="[\x00-\x08\x0b-\x0c\x0e-\x1f]" : str=re.Replace(str,"")
+		re.Pattern="[\x00\x1c\x1d\x1e\x1f]" : str=re.Replace(str,"")
+		re.Pattern="(on(load|click|dbclick|mouseover|mouseout|mousedown|mouseup|mousewheel|keydown|submit|change|focus)=""[^""]+"")"
+		str = re.Replace(str, "")
+		re.Pattern="((name|id|class)=""[^""]+"")"
+		str = re.Replace(str, "")
+		re.Pattern = "(<s+cript[^>]*?>([\w\W]*?)<\/s+cript>)"
+		str = re.Replace(str, "")
+		re.Pattern = "(<iframe[^>]*?>([\w\W]*?)<\/iframe>)"
+		str = re.Replace(str, "")
+		re.Pattern = "(<p>&nbsp;<\/p>)"
+		str = re.Replace(str, "")
+		're.Pattern = "<(\w*) class\s*=\s*([^>|\s]*)([^>]*)>"
+		'str = re.Replace(str,"<$1$3>")
+		Set re=Nothing
+		CheckHtmlCode = str
+	Else
+		CheckHtmlCode = ""
+	End If
+End Function
+Sub ScriptCreation(url)
+	Response.Write "<iframe style=""display:none"" src="""&url&""" name=""_makeframe""></iframe>" & vbCrLf
+	Response.Flush
+End Sub
+Function DeleteHtmlFile(classid,id,HtmlFileDate)
+	If CInt(NewAsp.IsCreateHtml)=0 Then Exit Function
+	On Error Resume Next
+	Dim rsClass,sHtmlFileName,sHtmlFilePath,SQL
+	SQL = "SELECT HtmlFileDir FROM [NC_Classify] WHERE ChannelID = " & ChannelID & " And classid=" & CLng(classid)
+	Set rsClass = NewAsp.Execute(SQL)
+	If Not(rsClass.BOF And rsClass.EOF) Then
+		sHtmlFileName = NewAsp.HtmlDestination(NewAsp.InfoDestination, NewAsp.ChannelDir, HtmlFileDate,rsClass("HtmlFileDir"),classid,id,1,"html")
+		NewAsp.FileDelete(sHtmlFileName)
+	End If
+	rsClass.Close:Set rsClass = Nothing
+End Function
+'================================================
+'函数名：URLDecode
+'作  用：URL解码
+'================================================
+Function URLDecode(ByVal urlcode)
+ 
+	Dim start,final,length,char,i,butf8,pass
+	Dim leftstr,rightstr,finalstr
+	Dim b0,b1,bx,blength,position,u,utf8
+	On Error Resume Next
+
+	b0 = Array(192,224,240,248,252,254)
+	urlcode = Replace(urlcode,"+"," ")
+	pass = 0
+	utf8 = -1
+
+	length = Len(urlcode) : start = InStr(urlcode,"%") : final = InStrRev(urlcode,"%")
+	If start = 0 Or length < 3 Then URLDecode = urlcode : Exit Function
+	leftstr = Left(urlcode,start - 1) : rightstr = Right(urlcode,length - 2 - final)
+
+	For i = start To final
+		char = Mid(urlcode,i,1)
+		If char = "%" Then
+			bx = URLDecode_Hex(Mid(urlcode,i + 1,2))
+			If bx > 31 And bx < 128 Then
+				i = i + 2
+				finalstr = finalstr & ChrW(bx)
+			ElseIf bx > 127 Then
+				i = i + 2
+				If utf8 < 0 Then
+					butf8 = 1 : blength = -1 : b1 = bx
+					For position = 4 To 0 Step -1
+						If b1 >= b0(position) And b1 < b0(position + 1) Then
+							blength = position
+							Exit For
+						End If
+					Next
+					If blength > -1 Then
+						For position = 0 To blength
+							b1 = URLDecode_Hex(Mid(urlcode,i + position * 3 + 2,2))
+							If b1 < 128 Or b1 > 191 Then butf8 = 0 : Exit For
+						Next
+					Else
+						butf8 = 0
+					End If
+					If butf8 = 1 And blength = 0 Then butf8 = -2
+					If butf8 > -1 And utf8 = -2 Then i = start - 1 : finalstr = "" : pass = 1
+					utf8 = butf8
+				End If
+				If pass = 0 Then
+					If utf8 = 1 Then
+						b1 = bx : u = 0 : blength = -1
+						For position = 4 To 0 Step -1
+							If b1 >= b0(position) And b1 < b0(position + 1) Then
+								blength = position
+								b1 = (b1 xOr b0(position)) * 64 ^ (position + 1)
+								Exit For
+							End If
+						Next
+						If blength > -1 Then
+							For position = 0 To blength
+								bx = URLDecode_Hex(Mid(urlcode,i + 2,2)) : i = i + 3
+								If bx < 128 Or bx > 191 Then u = 0 : Exit For
+								u = u + (bx And 63) * 64 ^ (blength - position)
+							Next
+							If u > 0 Then finalstr = finalstr & ChrW(b1 + u)
+						End If
+					Else
+						b1 = bx * &h100 : u = 0
+						bx = URLDecode_Hex(Mid(urlcode,i + 2,2))
+						If bx > 0 Then
+							u = b1 + bx
+							i = i + 3
+						Else
+							If Left(urlcode,1) = "%" Then
+								u = b1 + Asc(Mid(urlcode,i + 3,1))
+								i = i + 2
+							Else
+								u = b1 + Asc(Mid(urlcode,i + 1,1))
+								i = i + 1
+							End If
+						End If
+						finalstr = finalstr & Chr(u)
+					End If
+				Else
+					pass = 0
+				End If
+			End If
+		Else
+			finalstr = finalstr & char
+		End If
+	Next
+	URLDecode = leftstr & finalstr & rightstr
+ 
+End Function
+
+Function URLDecode_Hex(ByVal h)
+	On Error Resume Next
+	h = "&h" & Trim(h) : URLDecode_Hex = -1
+	If Len(h) <> 4 Then Exit Function
+	If isNumeric(h) Then URLDecode_Hex = cInt(h)
+End Function
+%>

@@ -1,0 +1,115 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+    
+</head>
+<body>
+<DIV style="display:none">
+   <input id="response" value="${contextPath}<ifa:constant namespace='cds' fieldName='WDCALENDER_PLUGIN_RESPONSE_URL'/>.json"/>
+   <input id="carManageCenter" value="${contextPath}<ifa:constant namespace='cds' fieldName='VEHICLE_USABILITY_GANTTMAP_MONTHLY_QUERY_URL'/>"/>
+   <input id="carManageCenterNoMenu" value="${contextPath}<ifa:constant namespace='cds' fieldName='VEHICLE_USABILITY_GANTTMAP_MONTHLY_NOMENU_QUERY_URL'/>"/>
+   <input id="hotkeyDistrict" value="${contextPath}<ifa:constant namespace='cim' fieldName='HOT_KEY_QUERY_DISTRICT'/>.json"/>
+   <input type="hidden" id="districtName" name="districtName" value="ALL" />
+   <input type="hidden" id="noMenu"  value="${noMenu}"/>
+</DIV>
+    <div>
+
+      <div id="calhead" style="padding-left:1px;padding-right:1px;">          
+            <div class="cHead"><font color=""><div  id="monthshowcenter" align="center" >Loading</div></font>
+            <div id="loadingpannel" class="ptogtitle loadicon" style="display: none;">Loading data...</div>
+             <div id="errorpannel" class="ptogtitle loaderror" style="display: none;">Sorry, could not load your data, please try again later</div>
+            </div>          
+            
+            <div id="caltoolbar" class="ctoolbar">
+         
+            <div class="btnseparator"></div>
+            
+              <div class="btnseparator"></div>
+            
+              
+              <div  id="showmonthbtn" class="fbutton">
+                <div><span title='Month' class="showmonthview">Month</span></div>
+                
+
+            </div>
+            <div class="btnseparator"></div>
+              <div  id="showreflashbtn" class="fbutton">
+                <div><span title='Refresh view' class="showdayflash">Refresh</span></div>
+                </div>
+             <div class="btnseparator"></div>
+            <div id="sfprevbtn" title="Prev"  class="fbutton">
+              <span class="fprev"></span>
+
+            </div>
+            <div id="sfnextbtn" title="Next" class="fbutton">
+                <span class="fnext"></span>
+            </div>
+            <div class="fshowdatep fbutton">
+                    <div>
+                        <input type="hidden" name="txtshow" id="hdtxtshow" />
+                        <span id="txtdatetimeshow">Loading</span>
+
+                    </div>
+            </div>
+            <div class="btnseparator"></div>
+             <div id="districtshow" class="fbutton">
+                    <div>
+                        
+      
+
+                    </div>
+            </div>
+           <%--  <div class="btnseparator"></div>
+            <div class="fshowdatep fbutton">
+                    <div>
+                      <th><fmt:message key='Entity.vehicle.longOrShortRent' ></fmt:message></th>
+        <td>
+        <c:choose>
+        <c:when test="${(not empty dto)}">
+       	<select id="leasingType" name="leasingType" style="width:80px" >
+       	<option value=""><fmt:message key='VehicleMap.SearchCondition.VehicleGroup.Plselect' ></fmt:message> </option>
+        <option value="S" <c:if test="${dto.leasingType eq 'S'}">selected</c:if>><fmt:message key='Entity.vehicle.ShortRent' ></fmt:message></option>
+        <option value="L" <c:if test="${dto.leasingType eq 'L'}">selected</c:if>><fmt:message key='Entity.vehicle.longRent' ></fmt:message></option>
+        </select>
+        </c:when>
+        <c:otherwise>
+        <select id="leasingType" name="leasingType" style="width:80px" >
+        <option value=""><fmt:message key='VehicleMap.SearchCondition.VehicleGroup.Plselect' ></fmt:message> </option>
+        <option value="S" ><fmt:message key='Entity.vehicle.ShortRent' ></fmt:message></option>
+        <option value="L" ><fmt:message key='Entity.vehicle.longRent' ></fmt:message></option>
+        </select>
+        </c:otherwise>
+        </c:choose> 
+        </td>
+
+                    </div>
+            </div> --%> 
+            
+            <div class="clear"></div>
+            </div>
+      </div>
+      <div style="padding:1px;">
+
+        <div class="t1 chromeColor">
+            &nbsp;</div>
+        <div class="t2 chromeColor">
+            &nbsp;</div>
+        <div id="dvCalMain" class="calmain printborder">
+            <div id="gridcontainer" style="overflow-y: visible;">
+            </div>
+        </div>
+        <div class="t2 chromeColor">
+
+            &nbsp;</div>
+        <div class="t1 chromeColor">
+            &nbsp;
+        </div>   
+        </div>
+     
+  </div>
+    
+</body>
+<script>
+seajs.use("${scriptBasePath}/calender/wdcalender.js");
+</script>

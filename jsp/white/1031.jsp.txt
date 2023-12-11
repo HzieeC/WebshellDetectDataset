@@ -1,0 +1,84 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%@ page import="java.util.Vector"%>
+<%@ page import="javaBean.AddSortB"%>
+<%
+	String url = request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>分类管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+
+<script language = "JavaScript">
+function BatchAddClass(){
+	if(document.myform.BatchID.checked==true){
+		document.myform.BatchClassName.disabled=false;
+		document.myform.ClassName.disabled=true;
+		BatchClass.style.display='';
+	}
+	else{
+		document.myform.BatchClassName.disabled=true;
+		document.myform.ClassName.disabled=false;
+		BatchClass.style.display='none';
+	}
+}
+
+function ClassSetting(n){
+	if (n == 1){
+		ClassSetting1.style.display='none';
+		ClassSetting2.style.display='';
+		ClassSetting3.style.display='';
+	}
+	else{
+		ClassSetting1.style.display='';
+		ClassSetting2.style.display='none';
+		ClassSetting3.style.display='none';
+	}
+}
+</script>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="TableBorder">
+	<tr>
+		<th colspan="2">文章分类管理</th>
+	</tr>
+	<tr>
+		<td class="TableRow1" colspan="2">
+		<p><B>注意</B>：<BR>①、删除分类同时将删除该分类下所有的文章信息！删除分类同时删除下属分类和所有文章！ 操作时请完整填写表单信息
+		</td>
+	</tr>
+</table>
+<br>
+ <table align=center class="tableBorder" cellspacing="1" cellpadding="2"> <tr> <th width="3%">ID</th> <th width="35%">文章分类 </th> <th width="43%">管理选项</th> <th noWrap width="9%">连接性质</th></tr>
+<%
+	Vector ve=(Vector)request.getAttribute("listName");
+	if(ve.size()!=0){
+		for(int i=0;i<ve.size();i++){
+			AddSortB model=(AddSortB)ve.get(i);
+			out.println("<tr><td align=center class=TableRow1>"+model.getClassId()+"</td>");
+			out.println(" <td class=TableRow1><b>"+model.getClassName()+"</td>");
+			out.println("<td class=TableRow1 align='center'><a href='addAritcle'>添加内容</a>");
+			out.println("| <a href='addlist'>添加分类</a> ");
+			out.println("| <a href='setsorts?id="+model.getClassId()+"'>分类设置</a> |");
+			out.println(" <a href='servletsaritcledelete?classid="+model.getClassId()+"'>删除分类</a></td>");
+			out.println("<td align=center class=TableRow1><font color=blue>"+model.getTurning()+"</font> </td></tr>");
+		}
+	}else{
+		out.println("没有添加分类");
+	}
+%>
+ 
+
+
+<table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

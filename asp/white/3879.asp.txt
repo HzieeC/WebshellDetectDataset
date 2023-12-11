@@ -1,0 +1,304 @@
+<!--#include file="../conn.asp"-->
+<!--#include file="setup.asp"-->
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/check.asp"-->
+<%
+'-- remoteupload.asp
+Server.ScriptTimeout = 99999
+Dim sAllowExt, nAllowSize, sUploadDir, sContentPath
+Dim sFileExt, sOriginalFileName, sSaveFileName, sPathFileName, nFileNum
+Dim SaveFilePath,UploadPath,strUploadDir
+Dim ChannelSetting,m_strUploadPicDir
+
+If Len(NewAsp.Channel_Setting &"") < 30 Then NewAsp.Channel_Setting = "0|||1|||2|||3|||4|||0|||1|||UploadPic/|||UploadFile/|||"
+ChannelSetting = Split(NewAsp.Channel_Setting & "|||||||||||||||", "|||")
+m_strUploadPicDir = Replace(Trim(ChannelSetting(7)), "\", "/")
+If Len(m_strUploadPicDir) < 2 Then m_strUploadPicDir = "UploadPic/"
+If Right(m_strUploadPicDir,1) <> "/" Then m_strUploadPicDir = m_strUploadPicDir & "/"
+
+Dim Action
+
+Action = LCase(Request("action"))
+
+Call InitUpload()
+
+If Action="upload" Then
+	Call UploadRemote()
+End If
+
+'-- 自动获取远程文件
+Sub UploadRemote()
+	Dim strContent, i,objFile
+	strUploadDir = CreatePath(sUploadDir)
+	sUploadDir = sUploadDir & strUploadDir
+	For i = 1 To Request.form("NewAsp_UploadText").Count
+		strContent = strContent & Request.form("NewAsp_UploadText")(i)
+	Next
+	If sAllowExt <> "" Then
+		Set objFile = New Download_Cls
+		objFile.RemoteDir = sUploadDir
+		objFile.AllowMaxSize = nAllowSize
+		objFile.AllowExtName = sAllowExt
+		strContent = objFile.ChangeRemote(strContent)
+		sOriginalFileName = objFile.RemoteFileName
+		sSaveFileName = objFile.LocalFileName
+		sPathFileName = objFile.LocalFilePath
+		SaveFilePath = Replace(sPathFileName, NewAsp.InstallDir & NewAsp.ChannelDir, "",1,-1,1)
+	End If
+
+	Response.Write "<html><head><title>远程上传</title><meta http-equiv=""Content-Type"" content=""text/html; charset=gb2312""/></head><body>" & _
+		"<input type=""hidden"" id=""UploadText"" value=""" & inHTML(strContent) & """/>" & _
+		"</body></html>"
+
+	Call OutScriptNoBack("try{parent.addUploadFile('" & sOriginalFileName & "', '" & sSaveFileName & "', '" & SaveFilePath & "');} catch(e){}")
+	Set objFile = Nothing
+End Sub
+
+'-- 初始化上传限制数据
+Sub InitUpload()
+	If ChannelID <> 0 Then
+		sUploadDir		= NewAsp.InstallDir & NewAsp.ChannelDir		'上传文件路径
+	Else
+		sUploadDir		= NewAsp.InstallDir							'上传文件路径
+	End If
+
+	UploadPath			= m_strUploadPicDir							'上传文件目录
+	sUploadDir			= sUploadDir & UploadPath					'上传文件路径
+	nAllowSize			= 102400									'允许上传的文件大小
+	sAllowExt			= "gif|jpg|bmp|png|jpe|jpeg|tif|iff"					'上传文件类型
+	sAllowExt			= Replace(Replace(UCase(sAllowExt), "ASP", ""), "ASA", "")
+End Sub
+
+Function inHTML(str)
+	Dim sTemp
+	sTemp = str
+	inHTML = ""
+	If IsNull(sTemp) = True Then
+		Exit Function
+	End If
+	sTemp = Replace(sTemp, "&", "&amp;")
+	sTemp = Replace(sTemp, "<", "&lt;")
+	sTemp = Replace(sTemp, ">", "&gt;")
+	sTemp = Replace(sTemp, Chr(34), "&quot;")
+	inHTML = sTemp
+End Function
+
+Public Sub OutScriptNoBack(str)
+	Response.Write "<script type=""text/javascript"">" & vbCrLf
+	Response.Write "setUploadDone();" & vbCrLf
+	Response.Write str & vbCrLf
+	Response.Write "function setUploadDone() {" & vbCrLf
+	Response.Write "	try{" & vbCrLf
+	Response.Write "		var strHTML = document.getElementById(""UploadText"").value;" & vbCrLf
+	Response.Write "		parent.FCK.SetHTML(strHTML);" & vbCrLf
+	Response.Write "	}" & vbCrLf
+	Response.Write "	catch(e){}" & vbCrLf
+	Response.Write "	parent.remoteUploadDone();" & vbCrLf
+	Response.Write "}" & vbCrLf
+	Response.Write "</script>" & vbCrLf
+End Sub
+
+Function CreatePath(fromPath)
+	Dim uploadpath
+	uploadpath = Year(Now) & "-" & Month(Now) '以年月创建上传文件夹，格式：2007－8
+	uploadpath = Replace(uploadpath, ".", "_")
+	On Error Resume Next
+	If CreateFolderEx(Server.MapPath(fromPath & uploadpath)) Then
+		CreatePath = uploadpath & "/"
+	Else
+		CreatePath = ""
+	End If
+	Set objFSO = Nothing
+End Function
+
+Function CreateFolderEx(sPath)
+    On Error Resume Next
+	Dim strPath,fso
+    sPath = Replace(sPath, "\\", "\")
+	Err=False
+	Set fso = NewAsp.CreateAXObject(NewAsp.MainSetting(47))
+    If Trim(sPath) = "" Then Exit Function
+    If fso.FolderExists(sPath) Then
+        CreateFolderEx=True
+        Exit Function
+    End If
+
+    strPath = sPath
+    If Right(strPath, 1) = "\" Then strPath = Left(strPath, Len(strPath) - 1)
+    strPath = Left(strPath, InStrRev(strPath, "\") - 1)
+    If fso.FolderExists(strPath) = False Then
+        CreateFolderEx (strPath)
+    End If
+    If fso.FolderExists(sPath) = False Then fso.CreateFolder sPath
+
+    If Err Then
+          CreateFolderEx=False
+     Else
+          CreateFolderEx=True
+     End If
+	 Set fso = Nothing
+End Function
+
+Class Download_Cls
+	Private sUploadDir,nAllowSize,sAllowExt
+	Private sOriginalFileName,sSaveFileName,sPathFileName
+	Private STREAMClassID,XMLHTTPClassID
+
+	Public Property Get RemoteFileName()
+		RemoteFileName = sOriginalFileName
+	End Property
+
+	Public Property Get LocalFileName()
+		LocalFileName = sSaveFileName
+	End Property
+
+	Public Property Get LocalFilePath()
+		LocalFilePath = sPathFileName
+	End Property
+
+	Public Property Let RemoteDir(ByVal strDir)
+		sUploadDir = strDir
+	End Property
+
+	Public Property Let AllowMaxSize(ByVal intSize)
+		nAllowSize = intSize
+	End Property
+
+	Public Property Let AllowExtName(ByVal strExt)
+		sAllowExt = strExt
+	End Property
+
+	Private Sub Class_Initialize()
+		On Error Resume Next
+		sUploadDir = "UploadFile/"
+		nAllowSize = 50000
+		sAllowExt = "gif|jpg|png|bmp"
+		STREAMClassID = "ADO"+"DB"+"."+"Str"+"eam"
+		XMLHTTPClassID = "Micro"+"soft"+"."+"XML"+"HTTP"
+	End Sub
+
+	Public Function ChangeRemote(ByVal sHTML)
+
+		Dim s_Content
+		s_Content = sHTML
+		Dim re, s, RemoteFileUrl, SaveFileName, SaveFileType
+		Set re = New RegExp
+		re.IgnoreCase = True
+		re.Global = True
+		re.Pattern = "((http|https|ftp|rtsp|mms):(\/\/|\\\\){1}(([A-Za-z0-9_-])+[.]){1,}(net|com|cn|org|cc|tv|[0-9]{1,3})(\S*\/)((\S)+[.]{1}(" & sAllowExt & ")))"
+		Set s = re.Execute(s_Content)
+		Dim a_RemoteUrl(), n, i, bRepeat
+		n = 0
+		' 转入无重复数据
+		For Each RemoteFileUrl In s
+			If n = 0 Then
+				n = n + 1
+				ReDim a_RemoteUrl(n)
+				a_RemoteUrl(n) = RemoteFileUrl
+			Else
+				bRepeat = False
+				For i = 1 To UBound(a_RemoteUrl)
+					If UCase(RemoteFileUrl) = UCase(a_RemoteUrl(i)) Then
+						bRepeat = True
+						Exit For
+					End If
+				Next
+				If bRepeat = False Then
+					n = n + 1
+					ReDim Preserve a_RemoteUrl(n)
+					a_RemoteUrl(n) = RemoteFileUrl
+				End If
+			End If
+		Next
+		' 开始替换操作
+		Dim nFileNum, sContentPath,strFilePath
+		sContentPath = RelativePath2RootPath(sUploadDir)
+		nFileNum = 0
+		For i = 1 To n
+			SaveFileType = Mid(a_RemoteUrl(i), InStrRev(a_RemoteUrl(i), ".") + 1)
+			SaveFileName = GetRndFileName(SaveFileType)
+			strFilePath = sUploadDir & SaveFileName
+			If SaveRemoteFile(strFilePath, a_RemoteUrl(i)) = True Then
+				nFileNum = nFileNum + 1
+				If nFileNum > 0 Then
+					sOriginalFileName = sOriginalFileName & "|"
+					sSaveFileName = sSaveFileName & "|"
+					sPathFileName = sPathFileName & "|"
+				End If
+				sOriginalFileName = sOriginalFileName & Mid(a_RemoteUrl(i), InStrRev(a_RemoteUrl(i), "/") + 1)
+				sSaveFileName = sSaveFileName & SaveFileName
+				sPathFileName = sPathFileName & sContentPath & SaveFileName
+				s_Content = Replace(s_Content, a_RemoteUrl(i), sContentPath & SaveFileName, 1, -1, 1)
+			End If
+		Next
+		sOriginalFileName = Replace(sOriginalFileName, "|", vbNullString, 1, 1)
+		sSaveFileName = Replace(sSaveFileName, "|", vbNullString, 1, 1)
+		sPathFileName = Replace(sPathFileName, "|", vbNullString, 1, 1)
+		ChangeRemote = s_Content
+	End Function
+
+	Public Function RelativePath2RootPath(url)
+		Dim sTempUrl
+		sTempUrl = url
+		If Left(sTempUrl, 1) = "/" Then
+			RelativePath2RootPath = sTempUrl
+			Exit Function
+		End If
+
+		Dim m_strPath
+		m_strPath = Request.ServerVariables("SCRIPT_NAME")
+		m_strPath = Left(m_strPath, InStrRev(m_strPath, "/") - 1)
+		Do While Left(sTempUrl, 3) = "../"
+			sTempUrl = Mid(sTempUrl, 4)
+			m_strPath = Left(m_strPath, InStrRev(m_strPath, "/") - 1)
+		Loop
+		RelativePath2RootPath = m_strPath & "/" & sTempUrl
+	End Function
+
+	Public Function GetRndFileName(sExt)
+		Dim sRnd
+		Randomize
+		sRnd = Int(900 * Rnd) + 100
+		GetRndFileName = Year(Now) & Month(Now) & Day(Now) & Hour(Now) & Minute(Now) & Second(Now) & sRnd & "." & sExt
+	End Function
+
+	Public Function SaveRemoteFile(ByVal s_LocalFileName, ByVal s_RemoteFileUrl)
+		On Error Resume Next
+		Dim GetRemoteData
+		Dim bError
+		bError = False
+		SaveRemoteFile = False
+
+		Dim Retrieval
+		Set Retrieval = NewAsp.CreateAXObject(XMLHTTPClassID)
+		With Retrieval
+			'.setTimeouts 1000,1000,1000,1000
+			.Open "GET", s_RemoteFileUrl, False, "", ""
+			.setRequestHeader "Referer", s_RemoteFileUrl
+			.send
+			If .readyState <> 4 Then Exit Function
+			If .Status > 300 Then Exit Function
+			GetRemoteData = .responseBody
+		End With
+		Set Retrieval = Nothing
+		If LenB(GetRemoteData) < 100 Then Exit Function
+		Dim Ads
+		Set Ads = NewAsp.CreateAXObject(STREAMClassID)
+		With Ads
+			.Type = 1
+			.Open
+			.Write GetRemoteData
+			.SaveToFile Server.MapPath(s_LocalFileName), 2
+			.Cancel
+			.Close
+		End With
+		Set Ads = Nothing
+		If Err.Number = 0 And bError = False Then
+			SaveRemoteFile = True
+		Else
+			SaveRemoteFile = False
+			Err.Clear
+		End If
+	End Function
+End Class
+%>

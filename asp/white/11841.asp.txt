@@ -1,0 +1,223 @@
+<!--#include file="../../Conn.asp" -->
+<!--#include file="../../Comm/Site_Class.asp" -->
+<!--#include file="../../Comm/Function.asp" -->
+<%
+PagePath = "../../"
+
+Set Qsite = New Site_Class
+
+Qsite.SiteConfig_Master()
+%>
+<!--#include file="../Check_Login.asp" -->
+<%
+Qsite.Check_AdminFlag(arrAdminFlag(1 , 2))
+
+If Request.Form <> "" Then
+	Response.Redirect("Recruit_List.asp?RecruitName="& Qsite.chgStr(Trim(Request.Form("RecruitName"))))
+	Response.End()
+End If
+
+Dim CurrentPage,FileName
+Dim RecruitName,ViewType,rs1
+Dim Act,RecruitId
+Dim TodayDate
+
+TodayDate = Qsite.FormatDate(Date())
+
+RecruitName = Qsite.chgStr(Trim(Request.QueryString("RecruitName")))
+ViewType = Qsite.chgStr(Trim(Request.QueryString("ViewType")))
+ComId = Qsite.chgStr(Trim(Request.QueryString("ComId")))
+
+Set Rs = server.CreateObject("ADODB.recordset")
+
+If RecruitName <> "" Then
+	Sql = "select * from RecruitTbl where JobName like '%"& RecruitName &"%' order by ComId desc"
+Else
+	If ViewType = "zc" Then
+		Sql = "select * from RecruitTbl where IsPause = '0' and ValidityDate > '"& TodayDate &"' order by ComId desc"
+	ElseIf ViewType = "zt" Then
+		Sql = "select * from RecruitTbl where IsPause = '1' order by ComId desc"
+	ElseIf ViewType = "gq" Then
+		Sql = "select * from RecruitTbl where ValidityDate < '"& TodayDate &"' order by ComId desc"
+	Else
+		Sql = "select * from RecruitTbl order by ComId desc"
+	End If
+End If
+
+If ComId <> "" And IsNumeric(ComId) Then
+	Sql = "select * from RecruitTbl where ComId = "& ComId &" order by EditDate desc"
+End If
+
+FileName = "Recruit_List.asp?ViewType="& ViewType &"&RecruitName="& RecruitName &"&ComId="& ComId
+
+Act = Qsite.chgStr(Trim(Request.QueryString("action")))
+
+If Act = "sx" Then
+	RecruitId = Qsite.chgStr(Trim(Request.QueryString("RecruitId")))
+	CurrentPage = Qsite.chgStr(Trim(Request.QueryString("Page")))
+	If CurrentPage = "" Or Not IsNumeric(CurrentPage) Then CurrentPage = 1
+	If RecruitId = "" Or Not IsNumeric(RecruitId) Then RecruitId = 0
+	Set Rs1 = server.CreateObject("ADODB.recordset")
+	Sql = "select * from RecruitTbl where RecruitId = "& RecruitId &""
+	rs1.open sql,conn,1,3
+	ComId=rs1("ComId")
+	Conn.Execute("update RecruitTbl set EditDate = '"& Qsite.FormatDate(Now()) &"' where RecruitId = "& RecruitId)
+	Conn.Execute("update CompanyTbl set EditDate = '"& Qsite.FormatDate(Now()) &"' where ComId = "& ComId)
+	Rs1.Close
+	
+	Response.Redirect(FileName & "&page="& CurrentPage)
+	Response.End()
+ElseIf Act = "kq" Then
+	RecruitId = Qsite.chgStr(Trim(Request.QueryString("RecruitId")))
+	CurrentPage = Qsite.chgStr(Trim(Request.QueryString("Page")))
+	If CurrentPage = "" Or Not IsNumeric(CurrentPage) Then CurrentPage = 1
+	If RecruitId = "" Or Not IsNumeric(RecruitId) Then RecruitId = 0
+	
+	Rs.Open "select * from RecruitTbl where RecruitId = "& RecruitId , Conn , 1 , 1
+	If Not Rs.Eof Then
+		If Rs("ValidityDate") >= TodayDate Then
+			Conn.Execute("update RecruitTbl set IsPause = '0' where RecruitId = "& RecruitId)
+		Else
+			Conn.Execute("update RecruitTbl set AddDate = '"& Qsite.FormatDate(Now()) &"' , EditDate = '"& Qsite.FormatDate(Now()) &"' , ValidityDate = '"& Qsite.FormatDate(Date() + 90) &"' , IsPause = '0' where RecruitId = "& RecruitId)
+		End If
+	End If
+	Rs.Close
+	
+	Response.Redirect(FileName & "&page="& CurrentPage)
+	Response.End()
+ElseIf Act = "zt" Then
+	RecruitId = Qsite.chgStr(Trim(Request.QueryString("RecruitId")))
+	CurrentPage = Qsite.chgStr(Trim(Request.QueryString("Page")))
+	If CurrentPage = "" Or Not IsNumeric(CurrentPage) Then CurrentPage = 1
+	If RecruitId = "" Or Not IsNumeric(RecruitId) Then RecruitId = 0
+	
+	Conn.Execute("update RecruitTbl set IsPause = '1' where RecruitId = "& RecruitId)
+	
+	Response.Redirect(FileName & "&page="& CurrentPage)
+	Response.End()
+ElseIf Act = "del" Then
+	RecruitId = Qsite.chgStr(Trim(Request.QueryString("RecruitId")))
+	CurrentPage = Qsite.chgStr(Trim(Request.QueryString("Page")))
+	
+	If RecruitId = "" Or Not IsNumeric(RecruitId) Then RecruitId = 0
+	If CurrentPage = "" Or Not IsNumeric(CurrentPage) Then CurrentPage = 1
+	
+	
+	
+	Conn.Execute("delete from CompanyBoxTbl where RecruitId = "& RecruitId)
+	Conn.Execute("delete from PersonSendBoxTbl where RecruitId = "& RecruitId)
+	dim comidd,Rs2,Sqll
+	Set Rs = server.CreateObject("ADODB.recordset")
+	Sql = "select * from RecruitTbl where RecruitId = "& RecruitId&""
+	rs.open sql,conn,1,1
+	ComId=rs("ComId")
+	
+	Set Rs2 = server.CreateObject("ADODB.recordset")
+	Sqll = "select * from CompanyTbl where ComId = "& ComId&""
+	rs2.open sqll,conn,1,3
+Rs2("fbzw") = Rs2("fbzw") - 1
+Rs2.Update
+Rs2.Close
+Rs.Close
+	Conn.Execute("delete from RecruitTbl where RecruitId = "& RecruitId)
+	
+	Response.Redirect(FileName & "&page="& CurrentPage)
+	Response.End()
+End If
+%>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<title>企业管理</title>
+<link href="../skins/css/main.css" rel="stylesheet" type="text/css">
+<script language="javascript">
+function DelRecruit(RecruitId , RecruitName , ViewType , Page , ComId)
+{
+	var question = confirm("你确定要删除此条记录吗？");
+	if (question !="0")
+	{
+		location.href = "Recruit_List.asp?action=del&RecruitName=" + RecruitName + "&ViewType=" + ViewType + "&Page=" + Page + "&ComId=" + ComId + "&RecruitId=" + RecruitId;
+		
+	}
+}
+</script>
+</head>
+
+<body>
+<table width="100%" border="0" cellspacing="1" cellpadding="5">
+	<tr>
+		<td height="25" class="td_title">职位信息搜索</td>
+	</tr>
+	<tr>
+		<td height="23" class="td_content"><form name="SearchForm" method="post" action="Recruit_List.asp" style="margin:0">
+			职位名称：
+					<input name="RecruitName" type="text" class="input_1" id="RecruitName" size="50" value="<%=RecruitName%>">
+			<input name="Submit" type="submit" class="input_1" value="搜索">
+		</form>
+		
+		</td>
+	</tr>
+</table>
+<br>
+<table width="100%" border="0" cellspacing="1" cellpadding="5">
+	<tr>
+		<td height="25" colspan="5" class="td_title">职位列表 -- [<a href="Recruit_List.asp">所有职位</a> | <a href="Recruit_List.asp?ViewType=zc">正常招聘职位</a> | <a href="Recruit_List.asp?ViewType=zt">暂停招聘职位</a> | <a href="Recruit_List.asp?ViewType=gq">过期职位</a>] </td>
+	</tr>
+	<tr>
+		<td width="20%" class="td_content"><strong>招聘职位</strong></td>
+		<td width="35%" class="td_content"><strong>公司名称</strong></td>
+		<td width="18%" class="td_content"><strong>发布时间</strong></td>
+		<td width="16%" class="td_content"><strong>状态</strong></td>
+		<td width="11%" class="td_content"><strong>操作</strong></td>
+	</tr>
+<%
+Rs.Open Sql , Conn , 1 , 1
+If Rs.Eof Then
+%>
+	<tr>
+		<td height="45" colspan="5" class="td_content">暂无招聘信息</td>
+	</tr>
+<%
+Else
+	Rs.PageSize = 20
+	CurrentPage = Clng(Request("page"))
+	If CurrentPage < 1 Then CurrentPage = 1
+	If CurrentPage > Rs.PageCount Then CurrentPage = Rs.PageCount
+	Rs.AbsolutePage = CurrentPage
+	i = 0
+	Do While Not Rs.Eof
+%>
+	<tr>
+		<td class="td_content"><a href="../../Company_Job.asp?JobId=<%=Rs("RecruitId")%>" target="_blank"><%=Rs("JobName")%></a></td>
+		<td class="td_content"><a href="Recruit_List.asp?ComId=<%=Rs("ComId")%>"><%=Company_Name(Rs("ComId"))%></a></td>
+		<td class="td_content"><%=Rs("AddDate")%></td>
+		<td class="td_content"><%
+		If Rs("IsPause") = "1" Then
+			Response.Write("<font color=""#FF0000"">暂停</font> (<a href="""& FileName &"&page="& CurrentPage &"&action=sx&RecruitId="& Rs("RecruitId") &""">刷新</a> / <a href="""& FileName &"&page="& CurrentPage &"&action=kq&RecruitId="& Rs("RecruitId") &""">开启</a>)")
+		ElseIf Rs("ValidityDate") < TodayDate Then
+			Response.Write("<font color=""#FF0000"">过期</font> (<a href="""& FileName &"&page="& CurrentPage &"&action=sx&RecruitId="& Rs("RecruitId") &""">刷新</a> / <a href="""& FileName &"&page="& CurrentPage &"&action=kq&RecruitId="& Rs("RecruitId") &""">开启</a>)")
+		Else
+			Response.Write("正常 (<a href="""& FileName &"&page="& CurrentPage &"&action=sx&RecruitId="& Rs("RecruitId") &""">刷新</a> / <a href="""& FileName &"&page="& CurrentPage &"&action=zt&RecruitId="& Rs("RecruitId") &""">暂停</a>)")
+		End If
+		%></td>
+		<td class="td_content"><a href="Recruit_Edit.asp?RecruitName=<%=RecruitName%>&ViewType=<%=ViewType%>&Page=<%=CurrentPage%>&ComId=<%=rs("ComId")%>&RecruitId=<%=Rs("RecruitId")%>">修改</a> | <a href="#" onClick="DelRecruit('<%=Rs("RecruitId")%>' , '<%=RecruitName%>' , '<%=ViewType%>' , '<%=CurrentPage%>' , '<%=ComId%>');return false;">删除</a></td>
+	</tr>
+<%
+	i = i + 1
+	Rs.MoveNext
+	If i >= Rs.PageSize Then Exit Do
+	Loop
+%>
+	<tr>
+		<td colspan="5" class="td_content">
+<%
+	Qsite.Page_Cn CurrentPage , Rs.PageCount , Rs.RecordCount , FileName
+%>		</td>
+	</tr>
+<%
+End If
+Rs.Close
+%>
+</table>
+</body>
+</html>

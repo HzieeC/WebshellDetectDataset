@@ -1,0 +1,25 @@
+<%@ page language="java" import="java.util.*,com.bizoss.frame.util.*" pageEncoding="UTF-8"%>
+  
+  <% 
+  	String table_name = "";
+  	StringBuffer fieldStr = new StringBuffer();
+  	List fieldList = null;
+  	if(request.getParameter("table_name")!=null){
+  		table_name = request.getParameter("table_name");
+  		DatebaseMgr dbMgr = new DatebaseMgr();
+  		fieldList = dbMgr.getTableDescList(table_name);
+  	}
+  	
+  	if(fieldList!=null && fieldList.size()>0){
+		Hashtable fieldMap = new Hashtable();
+		for(int i=0;i<fieldList.size();i++){
+			fieldMap = (Hashtable)fieldList.get(i);
+			String Field="",checked="";
+			if(fieldMap.get("Field")!=null) Field = fieldMap.get("Field").toString();
+			if(i==0) checked = "checked";
+			fieldStr.append("<input type='radio' name='pri_key' "+checked+" value='"+Field+"' />"+Field+"&nbsp;");
+			if((i+1)%7==0) fieldStr.append("<br/>");
+		}
+	}
+	out.println(fieldStr.toString());
+  %>

@@ -1,0 +1,422 @@
+<!--#include file="../../ACT.Function.asp"-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>自定义表单管理 By fycms.com</title>
+<link href="../../Images/style.css" rel="stylesheet" type="text/css">
+<script type="text/javascript" src="../../../act_inc/js/time/WdatePicker.js"></script>
+ <link href="../../../act_inc/js/time/skin/default.css" rel="stylesheet" type="text/css">
+
+</head>
+<body>
+<% 
+
+Response.Expires = 0
+Response.Expiresabsolute = Now() - 1
+Response.AddHeader "pragma","no-cache"
+Response.AddHeader "cache-control","private"
+Response.CacheControl = "no-cache"
+Dim Action,ModeID,Rs,UploadSize,UploadPath,UnlockTime,FormCode,StartTime,EndTime,UserGroupList,SubmitNum,Moneys,ModeStatus,IsMail
+	ModeID = ChkNumeric(Request("ModeID"))
+	If Not ACTCMS.ACTCMS_QXYZ(0,"form_ACT","") Then   Call Actcms.Alert("对不起，你没有操作权限！","") 
+	Action = Request.QueryString("A")
+	 if ModeID=0 or ModeID="" Then ModeID=1
+	Select Case Action
+		   Case "AddSave","ESave"
+		   		Call AddSave()
+			Case "Add","E"
+				Call AddEdit()
+			Case Else
+				Call Main()
+	End Select
+	
+	
+	IF Action = "Del" Then
+			ACTCMS.ACTEXE("Delete From ModeForm_ACT Where ModeID=" & ModeID)		
+			Call Actcms.ActErr("删除表单成功","Sys_Act/Form/Index.asp","")
+ 	End IF
+	
+	
+	Sub AddSave()
+		 Dim ModeName,ModeTable,sql,ChannelRS,ChannelRSSql,ModeNote
+		 Dim UpfilesDir,RecyleIF
+		 ModeName = ACTCMS.S("ModeName")
+		 ModeTable = ACTCMS.S("ModeTable")
+		 ModeNote = ACTCMS.S("ModeNote")
+		 UploadPath = ACTCMS.S("UploadPath")
+		 UploadSize = ChkNumeric(ACTCMS.S("UploadSize"))
+		 UnlockTime = ChkNumeric(ACTCMS.S("UnlockTime"))
+		 IsMail = ChkNumeric(ACTCMS.S("IsMail"))
+ 		 StartTime = ACTCMS.S("StartTime")
+		 EndTime = ACTCMS.S("EndTime")
+		 UserGroupList = ACTCMS.S("UserGroupList")
+		 SubmitNum = ChkNumeric(ACTCMS.S("SubmitNum"))
+		 ModeStatus = ChkNumeric(ACTCMS.S("ModeStatus"))
+		 Moneys = ACTCMS.S("Moneys")
+		 If Not IsNumeric(Moneys) Then Moneys=0
+		 If  UserGroupList =""  Then UserGroupList=0
+		 ModeNote = ACTCMS.S("ModeNote")
+		 FormCode = ChkNumeric(ACTCMS.S("FormCode"))
+
+		 IF ACTCMS.S("ModeName") = "" Then
+		 	Call ACTCMS.Alert("表单名称为空!",""):Exit Sub
+		 End if
+		 IF Not IsDate(StartTime) Then StartTime=Now
+		 IF Not IsDate(EndTime) Then EndTime=Now+10
+		 if Action="AddSave" Then
+			 IF ACTCMS.S("ModeTable") = "" Then
+				Call ACTCMS.Alert("数据表为空!",""):Exit Sub
+			 End If
+			If actcms.defaultField(ModeName,"")=True Then  Call ACTCMS.Alert("数据库中已存在该字段\n或该字段是系统关键字!", "")
+			 If Not ACTCMS.ACTEXE("SELECT ModeName FROM ModeForm_ACT Where ModeName='" & ModeName & "' order by ModeID desc").eof Then
+				Call ACTCMS.Alert("系统已存在该表单名称!",""):Exit Sub
+			 End if	
+			 If Not ACTCMS.ACTEXE("SELECT ModeTable FROM ModeForm_ACT Where ModeTable='" & ModeTable & "' order by ModeID desc").eof Then
+				Call ACTCMS.Alert("系统已存在该数据表!",""):Exit Sub
+			 End if	
+			 Set ChannelRS = Server.CreateObject("adodb.recordset")
+			  ChannelRSSql = "select * from ModeForm_ACT"
+			  ChannelRS.Open ChannelRSSql, Conn, 1, 3
+			  ChannelRS.AddNew
+		 	  ChannelRS("ModeTable") = ModeTable
+			  ChannelRS("ModeName") = ModeName
+			  ChannelRS("ModeNote") = ModeNote
+			  ChannelRS("UploadPath") = UploadPath
+			  ChannelRS("UploadSize") = UploadSize
+			  ChannelRS("UnlockTime") = UnlockTime
+			  ChannelRS("StartTime") = StartTime
+			  ChannelRS("EndTime") = EndTime
+			  ChannelRS("UserGroupList") = UserGroupList
+			  ChannelRS("SubmitNum") = SubmitNum
+			  ChannelRS("Moneys") = Moneys
+			  ChannelRS("ModeNote") = ModeNote
+			  ChannelRS("FormCode") = FormCode
+			  ChannelRS("ModeStatus") = ModeStatus
+			  ChannelRS("IsMail") = IsMail
+			  ChannelRS.Update
+			  ChannelRS.Close:Set ChannelRS = Nothing			
+				 Dim sqlformat:If  DataBaseType="access" Then sqlformat=" CONSTRAINT PrimaryKey PRIMARY KEY"
+ 				 Sql="CREATE TABLE "&ModeTable&" ([ID] int IDENTITY (1, 1) NOT NULL "&sqlformat&" ,"&_
+				"addtime datetime,"&_
+				"ModeID SmallInt Default 0,"&_
+				"UModeID SmallInt Default 0,"&_
+				"UserIP varchar(50),"&_
+				"UserID int Default 0 "&_
+				")"
+			'SmallInt 整型,varchar(200)'文本,tinyint 字节, int Default 0 长整型
+			ACTCMS.ACTEXE(sql)
+			Call Actcms.ActErr("添加成功","Sys_Act/Form/Index.asp","")
+ 		 Else
+		 	If Not ACTCMS.ACTEXE("SELECT ModeName FROM ModeForm_ACT Where ModeID <>" & ModeID & " AND  ModeName='" & ModeName & "' order by ModeID desc").eof Then
+				Call ACTCMS.Alert("系统已存在该表单名称-!",""):Exit Sub
+			 End if	
+			 Set ChannelRS = Server.CreateObject("adodb.recordset")
+			  ChannelRSSql = "select * from ModeForm_ACT Where ModeID=" &ModeID
+			  ChannelRS.Open ChannelRSSql, Conn, 1, 3
+			  if ChannelRS.eof then Call ACTCMS.Alert("错误!",""):Exit Sub
+		 End if 
+			  ChannelRS("ModeName") = ModeName
+			  ChannelRS("ModeNote") = ModeNote
+			  ChannelRS("UploadPath") = UploadPath
+			  ChannelRS("UploadSize") = UploadSize
+			  ChannelRS("UnlockTime") = UnlockTime
+			  ChannelRS("StartTime") = StartTime
+			  ChannelRS("EndTime") = EndTime
+			  ChannelRS("UserGroupList") = UserGroupList
+			  ChannelRS("SubmitNum") = SubmitNum
+			  ChannelRS("Moneys") = Moneys
+			  ChannelRS("ModeNote") = ModeNote
+			  ChannelRS("FormCode") = FormCode
+			  ChannelRS("ModeStatus") = ModeStatus
+			  ChannelRS("IsMail") = IsMail
+			  
+		  ChannelRS.Update
+		  ChannelRS.Close:Set ChannelRS = Nothing	
+		  Call Actcms.ActErr("修改成功","Sys_Act/Form/Index.asp","")
+ 	End Sub
+	Sub Main()
+	%>	
+<table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+  <tr>
+    <td class="bg_tr">您现在的位置：自定义表单管理 &gt;&gt; 浏览</td>
+  </tr>
+  <tr>
+    <td>当前表单： <a href="?A=Add"><b>添加自定义表单</b></a> </td>
+  </tr>
+</table>
+<table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+  <tr>
+    <td align="center" class="bg_tr">表单编号</td>
+    <td align="center" class="bg_tr">表单名称</td>
+    <td align="center" class="bg_tr">是否开始</td>
+    <td align="center" class="bg_tr">参与人数</td>
+	<td align="center" class="bg_tr" >状态</td>
+	<td width="50%" align="center" class="bg_tr" nowrap>管理操作</td>
+  </tr>
+<% 
+	  Set Rs =ACTCMS.ACTEXE("SELECT * FROM ModeForm_ACT order by ModeID desc")
+	 If Rs.EOF  Then
+	 	echo	"<tr><td colspan=""7"" align=""center"">没有记录</td></tr>"
+	 Else
+		Do While Not Rs.EOF	
+			 %>
+
+  <tr  onMouseOver=overColor(this) onMouseOut=outColor(this)>
+    <td align="center"><%= Rs("ModeID") %></td>
+    <td align="center"><%= Rs("ModeName") %></td>
+    <td align="center">
+	<%If now >Rs("StartTime") Then 
+		echo "<font color=green title=结束日期是"& Rs("EndTime")&">已经开始</a>"
+	Else
+		echo "<font color=red title=开始日期是"& Rs("StartTime")&">还没有开始</font>"
+	End if%>
+	</td>
+	<td align="center"><%=actcms.actexe("select Count(id) from "&rs("ModeTable")&" where modeid="&Rs("ModeID")&"")(0) %></td>
+	<td align="center"><% IF Rs("ModeStatus") = 0 Then echo "<font color=green>正常</font>" else  echo "<font color=red>禁用</font>" %></td>
+	<td align="center" >
+	<a  target="_blank" href="../../../plus/Form/act.f.asp?A=list&ModeID=<%= Rs("ModeID") %>"><font color=green>访问</font></a>┆
+	<a href="list.asp?ModeID=<%= Rs("ModeID") %>"><font color=red>查看反馈</font></a>
+	<a href="javascript:" onClick="WinOpenDialog('Type.asp?A=Html&ModeID=<%= Rs("ModeID") %>','600','500')">HTML调用</a> ┆
+	<a href="javascript:" onClick="WinOpenDialog('Type.asp?ModeID=<%= Rs("ModeID") %>','600','180')">JS调用</a> ┆
+	<a href="ACT.Form.asp?A=L&ModeID=<%=Rs("ModeID")  %>">字段列表</a> 
+	┆ <a href="?A=E&ModeID=<%=Rs("ModeID")  %>" >修改</a> ┆ 
+	<a href="?A=Del&ModeID=<%=Rs("ModeID")  %>"  onClick="{if(confirm('确定删除该表单吗?')){return true;}return false;}">删除</a></td>
+  </tr>
+  <% 
+		
+		Rs.movenext
+		Loop
+	End if	 %>
+</table>	
+	
+	
+<% 	
+ 
+	End Sub
+	Sub AddEdit()
+	Dim FileFolder,ModeTable,ModeName,FormCode,ModeNote,A,Template
+	if Action="Add" Then
+	A="AddSave"
+	StartTime=date()
+	EndTime=date()+10
+	UploadPath="UpFiles/form"
+	UploadSize=100
+	Moneys=0
+	ModeStatus=0
+	SubmitNum=1
+	IsMail=1
+	Else
+	Set Rs=server.CreateObject("adodb.recordset") 
+	Rs.OPen "Select * from ModeForm_ACT Where ModeID = "&ModeID&" order by ModeID desc",Conn,1,1
+	ModeTable = Rs("ModeTable")
+	ModeName = Rs("ModeName")
+	ModeNote=Rs("ModeNote")
+	ModeStatus=Rs("ModeStatus")
+	 UploadPath = Rs("UploadPath")
+	 UploadSize = Rs("UploadSize")
+	 UnlockTime = Rs("UnlockTime")
+	 StartTime = Rs("StartTime")
+	 EndTime = Rs("EndTime")
+	 UserGroupList = Rs("UserGroupList")
+	 SubmitNum = Rs("SubmitNum")
+	 Moneys = Rs("Moneys")
+	 ModeNote = Rs("ModeNote")
+	 FormCode = Rs("FormCode")
+	 IsMail= Rs("IsMail")
+	A="ESave"
+	end if
+  %>
+<form id="form1" name="form1" method="post" action="?A=<%= A %>&ModeID=<%= Request.QueryString("ModeID") %>">
+
+  <table width="98%" border="0" align="center" cellpadding="2" cellspacing="1" class="table">
+    <tr>
+      <td colspan="2" class="bg_tr">您现在的位置：<a href="?">自定义表单管理</a> &gt;&gt; 添加/修改 </td>
+    </tr>
+    <tr>
+      <td width="29%" align="right" class="td_bg">表单状态：&nbsp;&nbsp;</td>
+      <td width="71%" class="td_bg">
+	  <input <% IF ModeStatus = 0 Then echo "Checked" %> id="ModeStatus1" type="radio" name="ModeStatus" value="0" />
+     <label for="ModeStatus1"> 正常 </label>
+       <input <% IF ModeStatus = 1 Then echo "Checked" %>  id="ModeStatus2" type="radio" name="ModeStatus" value="1" /><label for="ModeStatus2">关闭</label>      </td>
+    </tr>
+
+	<tr>
+      <td height="25" align="right">表单名称：&nbsp;&nbsp;</td>
+      <td height="25"><input name="ModeName"   class="Ainput"  type="text" id="ModeName" value="<%=ModeName %>" /></td>
+    </tr>
+    <tr>
+      <td height="25" align="right">数据表名称：&nbsp;&nbsp;</td>
+      <td height="25"><input   class="Ainput"  <% if A="ESave" then echo "disabled" %> name="ModeTable" type="text" id="ModeTable" value="<%= ModeTable %>" />
+        </td>
+    </tr>
+
+    <tr>
+      <td height="25" align="right">上传附件存放目录：&nbsp;&nbsp;</td>
+      <td height="25"><input  class="Ainput"   name="UploadPath" type="text" id="UploadPath" value="<%= UploadPath %>" />
+       </td>
+    </tr>
+
+
+    <tr>
+      <td height="25" align="right">允许上传的文件大小：&nbsp;&nbsp;</td>
+      <td height="25">
+	  只能上传小于或等于 <input   class="Ainput"  name="UploadSize" size=5 type="text" id="UploadSize" value="<%= UploadSize %>" />
+       KB的文件（0KB表示不限制）</td>
+    </tr>
+
+
+
+
+	   <tr>
+      <td height="25" align="right"><font color="red">将提交结果发送到站长信箱</font>：&nbsp;&nbsp;</td>
+      <td height="25">
+	  <input     <% IF IsMail = 0 Then echo "Checked" %> id="IsMail1" type="radio" name="IsMail" value="0">
+        <label for="IsMail1">启用</label>
+      <input    <% IF IsMail = 1 Then echo "Checked" %> id="IsMail2"  type="radio" name="IsMail" value="1"> 
+     <label for="IsMail2">不启用</label> <font color="green">站长信箱在 基本设置 -> 站长信箱.   邮件SMTP在基本设置里 SMTP服务器地址</font></td>
+    </tr>
+	
+	
+		   <tr>
+      <td height="25" align="right">启用时间限制：&nbsp;&nbsp;</td>
+      <td height="25">
+	  <input    onClick=time(1)    <% IF UnlockTime = 0 Then echo "Checked" %> id="UnlockTime1" type="radio" name="UnlockTime" value="0">
+        <label for="UnlockTime1">启用</label>
+      <input    onClick=time(2)   <% IF UnlockTime = 1 Then echo "Checked" %> id="UnlockTime2"  type="radio" name="UnlockTime" value="1"> 
+     <label for="UnlockTime2">不启用</label></td>
+    </tr>
+	
+	
+
+
+	
+	    <tr  id="times1"	<%If UnlockTime<>0 Then echo "style=""DISPLAY: none"""%>
+>
+      <td height="25" align="right">开始时间：&nbsp;&nbsp;</td>
+      <td height="25"><input  class="Ainput"  size=30 name="StartTime" type="text" id="StartTime" value="<%= StartTime %>"  onClick="WdatePicker();" />
+	   </td>
+    </tr>
+
+	
+	    <tr id="times2" <%If UnlockTime<>0 Then echo "style=""DISPLAY: none"""%> >
+      <td height="25" align="right">结束时间：&nbsp;&nbsp;</td>
+      <td height="25"><input  class="Ainput"   size=30  name="EndTime" type="text" id="EndTime" value="<%= EndTime %>"  onClick="WdatePicker();"/>
+	   </td>
+    </tr>
+
+	
+	    <tr>
+      <td height="25" align="right">指定用户组提交：&nbsp;&nbsp;
+	  <br><font color=red>不限制提交，请不要选择</font></td>
+      <td height="25">
+	  <%= ACTCMS.GetGroup_CheckBox("UserGroupList",UserGroupList,5) %>
+      </td>
+    </tr>
+
+	
+
+    <tr>
+      <td height="25" align="right">每个用户只允许提交一次：&nbsp;&nbsp;</td>
+      <td height="25">
+	  <input  <% IF SubmitNum = 0 Then echo "Checked" %> id="SubmitNum1" type="radio" name="SubmitNum" value="0">
+        <label for="SubmitNum1">是</label>
+      <input  <% IF SubmitNum = 1 Then echo "Checked" %> id="SubmitNum2"  type="radio" name="SubmitNum" value="1"> 
+     <label for="SubmitNum2">否</label></td>
+    </tr>
+
+
+	<tr>
+      <td height="25" align="right">金币设置：&nbsp;&nbsp;</td>
+      <td height="25"><input  class="Ainput"  name="Moneys" type="text" id="Moneys" value="<%= Moneys %>" />
+        <font color=red>如需要扣除5个金币请设置为-5,如果增加5个金币请设置5，不设置请为0</font></td>
+    </tr>
+
+
+
+	<tr>
+      <td height="25" align="right">表单描述：&nbsp;&nbsp;</td>
+      <td height="25"><input  class="Ainput"  name="ModeNote" type="text" id="ModeNote" value="<%= ModeNote %>" size="50" maxlength="250" />
+        简单的描述.不能超过250个字符</td>
+    </tr>
+
+    <tr>
+      <td height="25" align="right">显示验证码：&nbsp;&nbsp;</td>
+      <td height="25">
+	  <input  <% IF FormCode = 0 Then echo "Checked" %> id="FormCode1" type="radio" name="FormCode" value="0">
+        <label for="FormCode1">显示</label>
+      <input  <% IF FormCode = 1 Then echo "Checked" %> id="FormCode2"  type="radio" name="FormCode" value="1"> 
+     <label for="FormCode2">不显示</label></td>
+    </tr>
+  
+
+ <tr>
+      <td align="right">&nbsp;</td>
+      <td><input type=button onclick=CheckForm() class="ACT_btn"  name=Submit1 value="  保存  " />
+      <input type="reset" name="Submit2" class="ACT_btn" value="  重置  " /></td>
+    </tr>
+  </table>
+</form><br>
+<script language="javascript">time(<%=""""&UnlockTime&""""%>);</script>
+
+<% end sub  %>
+<script language="JavaScript" type="text/javascript">
+		
+function time(n){
+	if (n == 2){
+		times1.style.display='none';
+		times2.style.display='none';
+	}
+	else{
+		times1.style.display='';
+		times2.style.display='';
+	}
+} 
+
+
+function overColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg1"
+		Obj.bgColor="";
+	}
+	
+}
+		
+
+function WinOpenDialog(url,w,h)
+{
+    var feature = "dialogWidth:"+w+"px;dialogHeight:"+h+"px;center:yes;status:no;help:no";
+    showModalDialog(url,window,feature);
+}function outColor(Obj)
+{
+	var elements=Obj.childNodes;
+	for(var i=0;i<elements.length;i++)
+	{
+		elements[i].className="tdbg";
+		Obj.bgColor="";
+	}
+}
+function CheckForm()
+{ var form=document.form1;
+	
+	 if (form.ModeName.value=='')
+		{ alert("请输入表单名称!");   
+		  form.ModeName.focus();    
+		   return false;
+		} 
+	 if (form.ModeTable.value=='')
+		{ alert("请输入数据表名称!");   
+		  form.ModeTable.focus();    
+		   return false;
+		} 	    form.Submit1.value="正在提交数据,请稍等...";
+		form.Submit1.disabled=true;
+		form.Submit2.disabled=true;		
+	    form.submit();
+        return true;
+	}
+</script>
+
+</body>
+</html>

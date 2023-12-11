@@ -1,0 +1,166 @@
+<%@ LANGUAGE="VBSCRIPT" CODEPAGE="65001"%>
+<%
+'///////////////////////////////////////////////////////////////////////////////
+'// 插件应用:    Z-Blog 1.8 Devo 以上
+'// 插件制作:    haphic(http://haphic.com)
+'// 备    注:    TemplateShortCut
+'// 最后修改：   2008-2-6
+'// 最后版本:    1.2.SC1
+'///////////////////////////////////////////////////////////////////////////////
+%>
+<% Option Explicit %>
+<% On Error Resume Next %>
+<% Response.Charset="UTF-8" %>
+<% Response.Buffer=True %>
+<!-- #include file="../../c_option.asp" -->
+<!-- #include file="../../function/c_function.asp" -->
+<!-- #include file="../../function/c_function_md5.asp" -->
+<!-- #include file="../../function/c_system_lib.asp" -->
+<!-- #include file="../../function/c_system_base.asp" -->
+<!-- #include file="../../function/c_system_plugin.asp" -->
+<!-- #include file="../../function/c_system_event.asp" -->
+<!-- #include file="../p_config.asp" -->
+<!-- #include file="function.asp" -->
+<%
+
+Call System_Initialize()
+
+'检查非法链接
+Call CheckReference("")
+
+'检查权限
+If BlogUser.Level>1 Then Call ShowError(6) 
+
+If CheckPluginState("TemplateShortCut")=False Then Call ShowError(48)
+
+BlogTitle="TemplateShortCut"
+
+Dim strType,strFile,strCode
+strType=Request.QueryString("type")
+strFile=Request.QueryString("file")
+
+Dim UserAgent,bolCodePress
+UserAgent=CStr(Request.ServerVariables("HTTP_USER_AGENT"))
+If InStr(UserAgent,"Firefox")>0 Or InStr(UserAgent,"MSIE")>0 Then
+	bolCodePress=UseCodePress
+Else
+	bolCodePress=False
+End If
+
+
+%><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<%=ZC_BLOG_LANGUAGE%>" lang="<%=ZC_BLOG_LANGUAGE%>">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta http-equiv="Content-Language" content="<%=ZC_BLOG_LANGUAGE%>" />
+	<link rel="stylesheet" rev="stylesheet" href="../../CSS/admin.css" type="text/css" media="screen" />
+	<script language="JavaScript" src="../../script/common.js" type="text/javascript"></script>
+	<script language="JavaScript" src="codepress/codepress.js" type="text/javascript"></script>  
+	<script language="JavaScript" src="../../script/jquery.textarearesizer.compressed.js" type="text/javascript"></script>
+	<title><%=BlogTitle%></title>
+	<style>textarea{width:99%;font-family:宋体,Verdana;}</style>
+</head>
+<body>
+
+			<div id="divMain">
+<div class="Header">TemplateShortCut - 编辑模板与样式文件</div>
+<div class="SubMenu">
+	<span class="m-left"><a href="TemplateList.asp">[模板与样式文件列表]</a></span>
+</div>
+<div id="divMain2">
+<%Call GetBlogHint()%>
+<form id="edit" name="edit" method="post" action="SaveSetting.asp?type=<%=Server.URLEncode(Request.QueryString("type"))%>&amp;file=<%=Server.URLEncode(strFile)%>">
+<%
+If strType="" Then 
+	Response.Write "<p>传递的参数错误</p><p><a href=""javascript:history.back(1)"">点此返回</a></p>"
+Else
+	Dim strZC_File_Content,File_Editable
+	If strType="template" Then
+		If CheckTemplate(strFile) Then
+			strZC_File_Content=LoadFromFile(BlogPath & "/THEMES/"& ZC_BLOG_THEME &"/"& ZC_TEMPLATE_DIRECTORY &"/"& strFile,"utf-8")
+			Response.Write "<p>※ 编辑模板: "& strFile &"</p>"
+			File_Editable=True
+			strCode="html"
+		ElseIf FileExists(BlogPath & "/THEMES/"& ZC_BLOG_THEME &"/"& ZC_TEMPLATE_DIRECTORY &"/"& strFile) Then
+			strZC_File_Content=LoadFromFile(BlogPath & "/THEMES/"& ZC_BLOG_THEME &"/"& ZC_TEMPLATE_DIRECTORY &"/"& strFile,"utf-8")
+			Response.Write "<p>※ 要编辑的模板是自建非默认模板: "& strFile &"</p><p></p>"
+			File_Editable=True
+			strCode="html"
+		Else
+			Response.Write "<p>※ 要编辑的模板名称错误.</p><p><a href=""javascript:history.back(1)"">点此返回</a></p>"
+			File_Editable=False
+		End If
+	ElseIf strType="style" Then
+		If FileExists(BlogPath & "/THEMES/"& ZC_BLOG_THEME &"/Style/"& strFile) Then
+			strZC_File_Content=LoadFromFile(BlogPath & "/THEMES/"& ZC_BLOG_THEME &"/Style/"& strFile,"utf-8")
+			Response.Write "<p>※ 编辑样式表: "& strFile &"</p>"
+			File_Editable=True
+			strCode="css"
+		Else
+			Response.Write "<p>※ 要编辑的样式表名称错误.</p><p><a href=""javascript:history.back(1)"">点此返回</a></p>"
+			File_Editable=False
+		End If
+	ElseIf strType="include" Then
+		If FileExists(BlogPath & "/THEMES/"& ZC_BLOG_THEME &"/Include/"& strFile) Then
+			strZC_File_Content=LoadFromFile(BlogPath & "/THEMES/"& ZC_BLOG_THEME &"/Include/"& strFile,"utf-8")
+			Response.Write "<p>※ 编辑主题包含文件: "& strFile &"</p>"
+			File_Editable=True
+			strCode="html"
+		Else
+			Response.Write "<p>※ 要编辑的主题包含文件名称错误.</p><p><a href=""javascript:history.back(1)"">点此返回</a></p>"
+			File_Editable=False
+		End If
+	End If
+
+	If File_Editable Then
+		strZC_File_Content=TransferHTML(strZC_File_Content,"[textarea]")
+
+		If bolCodePress Then
+
+			Response.Write "<p><textarea name=""strZC_File_Content_Temp"" rows=""25"" id=""myEditCode"" class=""codepress "& strCode &" linenumbers-on"">" & strZC_File_Content  & "</textarea></p><p></p>"
+
+			Response.Write "<p style=""display:none;""><textarea name=""strZC_File_Content"" rows=""5"" id=""mySaveCode"" ></textarea></p>"
+
+			Response.Write "<p><input type=""submit"" class=""button"" value=""提交修改结果"" id=""btnPost"" onclick='return GetFormData();' /> "
+
+		Else
+
+			Response.Write "<p><textarea class=""resizable"" name=""strZC_File_Content"" rows=""25"" id=""mySaveCode"" >" & strZC_File_Content  & "</textarea></p>"
+
+			Response.Write "<p><input type=""submit"" class=""button"" value=""提交修改结果"" id=""btnPost"" /> "
+
+		End If
+		Response.Write "<input type=""reset"" class=""button"" value=""重设"" id=""btnReset"" /> "
+		Response.Write "<input onclick=""history.back(1);"" type=""button"" class=""button"" value=""返回""/></p>"
+	End If
+End If
+%>
+</form>
+</div>
+</div>
+<script language="JavaScript" type="text/javascript">
+
+function GetFormData() {
+	var TextAreaData=myEditCode.getCode();
+	document.getElementById('mySaveCode').value=TextAreaData;
+
+	//alert(CodeData.innerHTML);
+}
+
+/* jQuery textarea resizer plugin usage */
+$(document).ready(function() {
+	$('textarea.resizable:not(.processed)').TextAreaResizer();
+	$('iframe.resizable:not(.processed)').TextAreaResizer();
+});
+
+</script>
+</body>
+</html>
+<%
+Call System_Terminate()
+
+If Err.Number<>0 then
+  Call ShowError(0)
+End If
+%>
+

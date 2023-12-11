@@ -1,0 +1,311 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="util.DateUtils"%>
+<%@page import="global.Constants"%>
+<%@page import="util.ServletHelp"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String type = request.getParameter("type");
+		String accountId = request.getParameter("accountId");
+		String accountBookId = request.getParameter("accountBookId");
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 工具栏
+		    var toolbar = new Ext.Toolbar({
+		    	renderTo: 'editAccountToolBarDiv',
+		    	items: [
+				    new Ext.Button({
+					    id: 'account-save-button',
+						text: '保存',
+						iconCls: 'report_disk'
+					}),
+					new Ext.Button({
+					    id: 'account-add-category-button',
+						text: '添加收支项目',
+						iconCls: 'report_add'
+					})
+				]
+			});
+
+		 	// 账目分类数据源
+		    var accountBookStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/accountBookAction.do?method=query',
+		        root: 'datas',
+		        fields: ['accountBookId', 'accountBookName'],
+		        autoLoad: {
+					callback: function(){
+						if('UPDATE'=='<%=type %>'){
+							// 修改的场合，初期化Form
+							setFromValues();
+						}else{
+							if('<%=accountBookId%>'!='' && '<%=accountBookId%>'!='null'){
+						    	editAccountFormPanel.getForm().findField('accountBookId').setValue('<%=accountBookId%>');
+							}
+						}
+					}
+			   	}
+		    });
+
+		 	// 账目分类数据源
+		    var accountCategoryStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/accountCategoryAction.do?method=query',
+		        root: 'datas',
+		        fields: ['categoryId', 'categoryName']
+		    });
+
+	    	// 账目类型数据源
+	        var accountTypeStore = new Ext.data.ArrayStore({  
+	            fields : ['accountType', 'accountTypeName'],  
+	            data : <%=ServletHelp.getArrayFromMap(Constants.ACCOUNT_TYPE_MAP, null)%>,
+	            sortInfo: {field: "accountType", direction: "ASC"}
+	        });
+
+		 	// 编辑账目Form
+			var editAccountFormPanel = new Ext.FormPanel({
+				renderTo: 'editAccountFormDiv',
+		        labelWidth: 60,
+		        border: false,
+		        bodyStyle: 'background-color:transparent;',
+		        url: '<%=baseUrl %>/accountAction.do?method=save',
+		        items: [{
+		            layout:'form',
+		            border: false,
+		            bodyStyle: 'padding:5px;background-color:transparent;',
+		            items:[{// 账本
+		                xtype:'combo',
+		                hiddenName: 'accountBookId',
+		                fieldLabel: '账本',
+		                store: accountBookStore,
+		                mode : 'local',
+		                triggerAction: "all",
+		                emptyText: '请选择...',
+		                valueField: 'accountBookId',
+		                displayField: 'accountBookName',
+		                anchor:'100%',
+		                allowBlank:false
+	                },{// 账目类型
+			                xtype:'combo',
+			                hiddenName: 'accountType',
+			                fieldLabel: '账目类型',
+			                store: accountTypeStore,
+			                mode : 'local',
+			                triggerAction: "all",
+			                emptyText: '请选择...',
+			                valueField: 'accountType',
+			                displayField: 'accountTypeName',
+			                listeners:{
+								change:function(){
+		                			accountCategoryStore.load({
+		                				params: {'status':this.value},
+		                				callback: function(records, success){
+		                					if(records.length==0){
+		    									accountCategoryStore.removeAll();
+		    	                			}
+		                					editAccountFormPanel.getForm().findField("categoryId").setValue("");
+			                			}
+		                			});
+								}
+			               },
+			                anchor:'100%',
+			                allowBlank:false
+		                },{// 收支项目
+			                xtype:'combo',
+			                hiddenName: 'categoryId',
+			                fieldLabel: '收支项目',
+			                store: accountCategoryStore,
+			                mode : 'local',
+			                triggerAction: "all",
+			                emptyText: '请选择...',
+			                valueField: 'categoryId',
+			                displayField: 'categoryName',
+			                anchor:'100%',
+			                allowBlank:false
+		                },{// 账目日期
+			                xtype:'datefield',
+			                name: 'accountDateStr',
+			                fieldLabel: '账目日期',
+			                format: 'Y-m-d',
+			                value: '<%=DateUtils.formatDate2Str(DateUtils.DATE_PATTON_1)%>',
+			                anchor:'100%',
+			                allowBlank:false
+			           },{// 账目金额
+			                xtype:'numberfield',
+			                name: 'money',
+			                fieldLabel: '账目金额',
+			                regex: new RegExp('^(0|[0-9][0-9]{0,7})(\\.\\d[0-9]{0,1})?$'),
+			                regexText: '最多输入8位整数，2位小数',
+			                anchor:'100%',
+			                allowBlank:false
+			           },{// 账目备注
+			               xtype:'textarea',
+			               name:'remark',
+			               fieldLabel:'账目备注',
+			               height: 50,
+			               maxLength: 50,
+			               anchor:'100%'
+			           },{// 账目ID
+			               xtype:'hidden',
+			               id: 'accountId',
+			               name: 'accountId',
+			               value: '<%=accountId%>'
+			           },{// 操作类型
+			               xtype:'hidden',
+			               id: 'type',
+			               name: 'type',
+			               value: '<%=type%>'
+			           }]
+		        }]
+		    });
+
+		    // 保存按钮
+		    $("#account-save-button").click(function(){
+			    var form = editAccountFormPanel.getForm();
+			    if(form.isValid()){
+			    	// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: form.getValues(),
+						action: '/accountAction.do?method=save',
+						callback: function(jsonResult){
+							Ext.getCmp("accountListGrid").getStore().reload();
+							accountWindow.close();
+						},
+						showWaiting: true,
+						failureMsg: '保存失败.'
+					});
+				}
+			});
+
+	    	// 账目类型数据源
+	        var addAccountTypeStore = new Ext.data.ArrayStore({  
+	            fields : ['status', 'statusName'],  
+	            data : <%=ServletHelp.getArrayFromMap(Constants.ACCOUNT_TYPE_MAP, null)%>,
+	            sortInfo: {field: "status", direction: "ASC"}
+	        });
+			// 添加收支项目按钮
+		    $("#account-add-category-button").click(function(){
+		    	var addAccountCategoryWindow = new Ext.Window({
+					title: '添加收支项目',
+					width: 300,
+					height: 130,
+					modal: true,
+					maximizable: false,
+					resizable: false,
+					layout:'fit',
+					plain: true,
+					tbar: new Ext.Toolbar({
+				    	items: [
+						    new Ext.Button({
+								text: '保存',
+								iconCls: 'tick',
+								handler: function(){
+							    	var form = Ext.getCmp('addAccountCategoryFormPanel').getForm();
+								    if(form.isValid()){
+									    var categoryName = form.findField("accountCategoryName").getValue();
+									    var status = form.findField("status").getValue();
+								    	var params = {};
+										params.jsonArr = '[{categoryId:"", categoryName:"'+categoryName+'", status:"'+status+'"}]';
+										// 发送请求
+										Anynote.ajaxRequest({
+											baseUrl: '<%=baseUrl %>',
+											baseParams: params,
+											action: '/accountCategoryAction.do?method=save',
+											callback: function(jsonResult){
+												accountCategoryStore.reload({
+													params: {'status':status},
+													callback:function(){
+														editAccountFormPanel.getForm().findField('categoryId').focus();
+														editAccountFormPanel.getForm().findField('accountType').setValue(status);
+														editAccountFormPanel.getForm().findField('categoryId').setRawValue(categoryName);
+													}
+												});
+												addAccountCategoryWindow.close();
+											},
+											showWaiting: true,
+											failureMsg: '添加失败.'
+										});
+								    }
+								}
+							}),
+							new Ext.Button({
+								text: '取消',
+								iconCls: 'cancel',
+								handler: function(){
+									addAccountCategoryWindow.close();
+								}
+							})
+						]
+					}),
+					items: new Ext.FormPanel({
+						id:'addAccountCategoryFormPanel',
+				        labelWidth: 60,
+				        border: false,
+				        bodyStyle: 'background-color:transparent;',
+				        url: '',
+				        items: [{
+				            layout:'form',
+				            border: false,
+				            bodyStyle: 'padding:5px;background-color:transparent;',
+				            items:[{
+			                	// 收支类型
+				                xtype:'combo',
+				                hiddenName: 'status',
+				                fieldLabel: '收支类型',
+				                store: addAccountTypeStore,
+				                mode : 'local',
+				                triggerAction: "all",
+				                emptyText: '请选择...',
+				                valueField: 'status',
+				                displayField: 'statusName',
+				                value: editAccountFormPanel.getForm().findField('accountType').getValue(),
+				                editable: false,
+				                allowBlank:false,
+			                    anchor:'95%'
+			                },new Ext.form.TextField ({// 分类名称
+			            		inputType: 'textfield',
+				                name: 'accountCategoryName',
+				                fieldLabel: '项目名称',
+				                anchor:'95%',
+				                allowBlank:false,
+				                maxLength: 20
+				           })]
+				        }]
+				    })
+				});
+		    	addAccountCategoryWindow.show();
+		    });
+
+			 // form初期化
+			function setFromValues(){
+			 	// 发送请求-form初期化
+				Anynote.ajaxRequest({
+					baseUrl: '<%=baseUrl %>',
+					baseParams: {accountId:'<%=accountId%>'},
+					action: '/accountAction.do?method=getAccount',
+					callback: function(jsonResult){
+						accountCategoryStore.load({
+							params:{'status':jsonResult.accountType},
+							callback:function(records, success){
+								var form = editAccountFormPanel.getForm();
+								form.setValues(jsonResult);
+								if(records.length==0){
+									accountCategoryStore.removeAll();
+	                			}
+							}
+					    });
+					}
+				});
+			}
+		});
+	</script>
+</head>
+<body>
+<div id="editAccountDiv" style="width:100%;height:100%;">
+	<div id="editAccountToolBarDiv"></div>
+	<div id="editAccountFormDiv""></div>
+</div>
+</body>
+</html>

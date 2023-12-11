@@ -1,0 +1,16 @@
+<!--#include file="conn.asp"-->
+<%
+Dim server_v1,server_v2,Chkpost
+Chkpost=False
+server_v1=Cstr(Request.ServerVariables("HTTP_REFERER"))
+server_v2=Cstr(Request.ServerVariables("SERVER_NAME"))
+If Mid(server_v1,8,len(server_v2))=server_v2 Then Chkpost=True
+If Not Chkpost Then Response.End
+set rs=server.createobject("adodb.recordset")
+sql="select * from [2012] where id="&request("id")
+rs.open sql,conn,2,2
+rs("hot")=rs("hot")+1
+rs.update
+rs.close
+set rs=nothing
+%>

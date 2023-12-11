@@ -1,0 +1,202 @@
+﻿<!--#include file="base.asp"-->
+<!--#include file="../lib/class/sdcms.upload.asp"-->
+<!--#include file="../lib/class/sdcms.draw.asp"-->
+<%
+''' SDCMS 上传
+''' ==================================================================
+''' 版权所有 http://www.sdcms.cn
+''' ------------------------------------------------------------------
+''' 这不是一个自由软件！您只能在不用于商业目的的前提下对程序代码进行修改和使用；
+''' 未经授权不允许对程序代码以任何形式任何目的的再发布。
+''' ==================================================================
+''' 编写: IT平民
+''' 修改：IT平民 in 2012.07
+
+	sub getjson(byval t0,byval t1,byval t2,byval t3)
+		if t0=0 Then
+			sdcms.echo "{""url"":"""",""title"":"""",""state"":"""&t3&"""}"
+		else
+			sdcms.echo "{""url"":"""&t1&""",""title"":"""&t2&""",""state"":"""&t3&"""}"
+		end if
+	end sub
+	
+	function get_uploaderr(byval t0)
+		dim t1:t1=""
+		select case t0
+			case -1:t1="没有文件上传"
+			case 1:t1="文件过大，上传失败"
+			case 2:t1="不允许被上传的文件"
+			case 3:t1="文件过大，且不允许被上传"
+			case 4:t1="文件保存失败"
+			case 5:t1="禁止上传此类文件"
+		end select
+		get_uploaderr=t1
+	end function
+	
+	sub errdb()
+		sdcms.echo "&#38169;&#35823;&#30340;&#21442;&#25968;"
+	end sub
+	
+	sub adddb(byval t0,byval t1,byval t2,byval t3,byval t4,byval t5,byval t6,byval t7,byval t8,byval t9)
+		sdcms.db.insert "sd_attachment",array(array("classid",t9,0,0),array("cid",t8,0,0),array("filepath",t0,255,1),array("filename",t1,255,1),array("filesize",sdcms.getnum(t2),255,1),array("oldname",t3,255,1),array("fileext",t4,50,1),array("ispic",sdcms.is_pic("."&t4),1,0),array("createip",sdcms.getip,255,1),array("createdate",t5,255,1),array("adminid",t6,0,0),array("userid",t7,0,0),array("fullname",t0&t1,0,1))
+		if sdcms.is_pic(t1)=1 then
+			dim draw
+			set draw=new sdcms_draw
+				draw.add t0&t1
+			set draw=nothing
+		end if
+	end sub
+	
+	function getfile_ext(t0)
+		dim t1
+		select case lcase(t0)
+			case "jpg","gif","png":t1="pic"
+			case "docx":t1="doc"
+			case "xlsx":t1="xls"
+			case "pptx":t1="ppt"
+			case "rar","zip","7z":t1="rar"
+			case  "ppt","xls","doc","pdf","txt","flv","swf":t1=t0
+			case else:t1="blank"
+		end select
+		getfile_ext=t1
+	end function
+	
+	sub editordb()
+		if isuplogin=0 then
+			getjson 0,"","","登录失败，请退出重新登陆"
+			exit sub
+		end if
+		dim upload,filetype,uptype,classid,cid
+		filetype=sdcms.fget("filetype",0)
+		classid=sdcms.getint(sdcms.fget("classid",0),0)
+		cid=sdcms.getint(sdcms.fget("cid",0),0)
+		select case filetype
+			case "2":uptype="gif|jpg|png|doc|docx|xls|xlsx|rar|zip|7z|pdf|txt|flv|swf"
+			case else:uptype="gif|jpg|png"
+		end select
+		
+		set upload=new sdcms_upload
+			upload.filetype=uptype
+			upload.savepath=sdcms.uploaddir("")
+			upload.charset="utf-8"
+			upload.maxsize=sdcms.getsys("upmaxsize")
+			upload.autosave=0
+			upload.open()
+			dim i,filepath,filenew,filename,filesize,oldname,fileext,errstr
+			dim admin_id:admin_id=sdcms.getint(sdcms.fget("admin_id",0),0)
+			for i=1 to ubound(upload.fileitem)
+				filepath=upload.savepath
+				filenew=upload.form(upload.fileitem(i))
+				filename=filepath&filenew
+				filesize=upload.form(upload.fileitem(i)&"_size")/1024
+				fileext=upload.form(upload.fileitem(i)&"_ext")
+				oldname=upload.form(upload.fileitem(i)&"_name")
+				errstr=get_uploaderr(upload.form(upload.fileitem(i)&"_Err"))
+				if sdcms.strlen(errstr)>0 then
+					getjson 0,"","",errstr
+				else
+					adddb filepath,filenew,filesize,oldname,fileext,now(),admin_id,0,cid,classid
+					getjson 1,filename,oldname,"SUCCESS"
+				end if
+			next
+		set upload=nothing
+	end sub
+	
+	sub swfdb()
+		if isuplogin=0 then
+			sdcms.echo "0,登录失败，请退出重新登陆,,"
+			exit sub
+		end if
+		dim upload,filetype,uptype,classid,cid
+		filetype=sdcms.fget("filetype",0)
+		classid=sdcms.getint(sdcms.fget("classid",0),0)
+		cid=sdcms.getint(sdcms.fget("cid",0),0)
+		select case filetype
+			case "2":uptype="doc|docx|xls|xlsx|rar|zip|7z|pdf|txt"
+			case "3":uptype="flv|mp4|rm|rmvb|wmv|3gp|avi|mpeg|swf"
+			case "4":uptype="gif|jpg|png|doc|docx|xls|xlsx|rar|zip|7z|pdf|txt|flv|swf"
+			case "5":uptype="swf"
+			case else:uptype="gif|jpg|png"
+		end select
+		set upload=new sdcms_upload
+			upload.filetype=uptype
+			upload.savepath=sdcms.uploaddir("")
+			upload.charset="utf-8"
+			upload.maxsize=sdcms.getsys("upmaxsize")
+			upload.autosave=0
+			upload.open()
+			dim i,filepath,filenew,filename,filesize,oldname,fileext,errstr
+			dim admin_id:admin_id=sdcms.getint(sdcms.fget("admin_id",0),0)
+			for i=1 to ubound(upload.fileitem)
+				filepath=upload.savepath
+				filenew=upload.form(upload.fileitem(i))
+				filename=filepath&filenew
+				filesize=upload.form(upload.fileitem(i)&"_size")/1024
+				fileext=upload.form(upload.fileitem(i)&"_ext")
+				oldname=upload.form(upload.fileitem(i)&"_name")
+				errstr=get_uploaderr(upload.form(upload.fileitem(i)&"_Err"))
+				if sdcms.strlen(errstr)>0 then
+					sdcms.echo "0,"&errstr&","","
+				else
+					adddb filepath,filenew,filesize,oldname,fileext,now(),admin_id,0,cid,classid
+					dim thisid
+					dim rs:set rs=sdcms.db.exedb("select top 1 id from sd_attachment where filepath='"&filepath&"' and filename='"&filenew&"'")
+					if rs.eof then
+						thisid=0
+					else
+						thisid=rs(0)
+					end if
+					rs.close
+					set rs=nothing
+					sdcms.echo ""&thisid&","&filename&","&getfile_ext(fileext)&","&oldname&""
+				end if
+			next
+		set upload=nothing
+	end sub
+	
+	sub jsondb(byval t0)
+		if isuplogin=0 then
+			getjson 0,"","","登录失败，请退出重新登陆"
+			exit sub
+		end if
+		dim upload,classid,cid
+		classid=sdcms.getint(sdcms.fget("classid",0),0)
+		cid=sdcms.getint(sdcms.fget("cid",0),0)
+		
+		set upload=new sdcms_upload
+			upload.filetype=t0
+			upload.savepath=sdcms.uploaddir("")
+			upload.charset="utf-8"
+			upload.maxsize=sdcms.getsys("upmaxsize")
+			upload.autosave=0
+			upload.open()
+			dim i,filepath,filenew,filename,filesize,oldname,fileext,errstr
+			dim admin_id:admin_id=sdcms.getint(sdcms.fget("admin_id",0),0)
+			for i=1 to ubound(upload.fileitem)
+				filepath=upload.savepath
+				filenew=upload.form(upload.fileitem(i))
+				filename=filepath&filenew
+				filesize=upload.form(upload.fileitem(i)&"_size")/1024
+				fileext=upload.form(upload.fileitem(i)&"_ext")
+				oldname=upload.form(upload.fileitem(i)&"_name")
+				errstr=get_uploaderr(upload.form(upload.fileitem(i)&"_Err"))
+				if sdcms.strlen(errstr)>0 then
+					getjson 0,"","",errstr
+				else
+					adddb filepath,filenew,filesize,oldname,fileext,now(),admin_id,0,cid,classid
+					getjson 1,filename,oldname,"SUCCESS"
+				end if
+			next
+		set upload=nothing
+	end sub
+	
+	on error resume next
+	dim act:act=sdcms.fget("act",0)
+	select case act
+		case "editor":editordb
+		case "swf":swfdb
+		case "json":jsondb("gif|jpg|png")
+		case "json_down":jsondb("rar|zip|7z|exe")
+		case "other":islogin:errdb
+	end select
+%>

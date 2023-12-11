@@ -1,0 +1,389 @@
+<!--#include file="../../conn.asp"-->
+<!--#include file="../inc/setup.asp"-->
+<!--#include file="../inc/const.asp"-->
+<!--#include file="../inc/check.asp"-->
+<!--#include file="../../inc/md5.asp"-->
+<!--#include file="../../api/cls_api.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_list.asp
+' 更新日期：2008-09-16
+' 官方网站：新云网络(www.NewAsp.net www.NewAsp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 NewAsp.net - All Rights Reserved.
+' newasp is a trademark of NewAsp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="100" align="left">用户管理</td>
+		<td class="tableline" width="*" align="right"><a href="admin_index.asp">管理首页</a>
+			 - <a href="admin_list.asp">用户列表</a>
+			 - <a href="admin_user.asp?action=add">添加会员</a>
+			 - <a href="?showmode=1">等待验证的会员</a>
+			 - <a href="?UserGrade=999">管理员</a>
+			 - <a href="?UserGrade=1">普通会员</a>
+			 - <a href="?UserGrade=2">高级会员</a>
+			 - <a href="?UserGrade=3">VIP会员</a>
+			 - <a href="admin_password.asp">修改密码</a>
+		</td>
+	</tr>
+</table>
+<%
+Dim Action,Userlist,useridlist
+Dim maxperpage,totalrec,Pcount,pagelinks,showmode,pagenow,count
+Dim SQLQuery,SQLField
+
+If Not ChkAdmin("AdminUser") Then
+	Call Transfer_error()
+End If
+Action=LCase(Request("action"))
+Select Case Trim(Action)
+Case "edit"
+	Call edituser()
+Case "savedit"
+	Call savedituser()
+Case "activation"
+	Call ActivationUser()
+Case "lock"
+	Call LockedUser()
+Case "move"
+	Call MoveUser()
+Case "del"
+	Call delUser()
+Case Else
+	Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+
+Sub showmain()
+	Dim i,iCount,lCount
+	iCount=2:lCount=2
+	maxperpage = 30 '###每页显示数
+	count=NewAsp.ChkNumeric(Request("count"))
+	showmode=NewAsp.ChkNumeric(Request("showmode"))
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+%>
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th width="5%" nowrap>选择</th>
+	<th width="20%" nowrap>用户名</th>
+	<th width="10%" nowrap>用户身份证</th>
+	<th width="10%" nowrap>会员类型</th>
+	<th width="5%" nowrap>邮箱</th>
+	<th width="5%" nowrap>性别</th>
+	<th width="20%" nowrap>操作选项</th>
+	<th width="15%" nowrap>最后登陆时间</th>
+	<th width="5%" nowrap>登陆次数</th>
+	<th width="5%" nowrap>状态</th>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="10" align="left" id="showNextPage">&nbsp;</td>
+</tr>
+<form name="selform" method="post" action="admin_list.asp">
+<input type="hidden" name="action" value="del"/>
+<%
+	Call showUserlist()
+	If IsArray(Userlist) Then
+		For i=0 To Ubound(Userlist,2)
+			If Not Response.IsClientConnected Then Response.End
+			If (i mod 2) = 0 Then
+				iCount=2:lCount=1
+			Else
+				iCount=1:lCount=2
+			End If
+%>
+<tr align="center">
+	<td class="tablerow<%=iCount%> hovered"><input type="checkbox" name="userid" value="<%=Userlist(0,i)%>"></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap><a href="admin_user.asp?action=edit&userid=<%=Userlist(0,i)%>"><%=Userlist(1,i)%></a></td>
+	<td class="tablerow<%=iCount%> hovered"><%=Userlist(3,i)%></td>
+	<td class="tablerow<%=iCount%> hovered">
+	<%
+			If CLng(Userlist(2,i)) = 999 Then
+				Response.Write "管理员"
+			Else
+				If CLng(Userlist(4,i)) = 0 Then
+					Response.Write "计点会员"
+				ElseIf CLng(Userlist(4,i)) = 1 Then
+					Response.Write "计时会员"
+				Else
+					Response.Write "计时到期"
+				End If
+			End If
+	%>
+	</td>
+	<td class="tablerow<%=iCount%> hovered"><a href="../sys/admin_maillist.asp?action=mail&useremail=<%=Userlist(7,i)%>"><img src="../images/email.gif" border="0" alt="给用户发邮件"/></a></td>
+	<td class="tablerow<%=iCount%> hovered"><%=Userlist(6,i)%></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap><a href="admin_user.asp?action=edit&userid=<%=Userlist(0,i)%>">编辑</a> | <a href="?action=del&userid=<%=Userlist(0,i)%>" onclick="return confirm('您确定要删除吗?')">删除</a></td>
+	<td class="tablerow<%=iCount%> hovered" nowrap><%=showDateTime(Userlist(8,i),"yyyy-MM-dd hh:mm:ss")%></td>
+	<td class="tablerow<%=iCount%> hovered"><%=Userlist(10,i)%></td>
+	<td class="tablerow<%=iCount%> hovered">
+	<%
+			If CLng(Userlist(5,i)) = 0 Then
+				Response.Write "<font color=""blue"">√</font>"
+			Else
+				Response.Write "<font color=""red"">×</font>"
+			End If
+	%>
+	</td>
+</tr>
+<%
+		Next
+	End If
+%>
+<tr>
+	<td class="tablerow<%=lCount%>" colspan="10">
+	<input class="button" type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class="button" type="button" name="chksel" value="反选" onClick="ContraSel(this.form)">
+	<input class="button" type="submit" name="submit_button1" value="删除用户" onclick="{if(confirm('您确定要删除所选择的用户吗?')){document.selform.action.value='del';return true;}return false;}">
+	<input class="button" type="submit" name="submit_button2" value="激活用户" onclick="{if(confirm('确定激活选定的用户吗?')){document.selform.action.value='activation';return true;}return false;}">
+	<input class="button" type="submit" name="submit_button3" value="锁定用户" onclick="{if(confirm('确定锁定选定的用户吗?')){document.selform.action.value='lock';return true;}return false;}">
+	<input class="button" type="submit" name="submit_button4" value="移动用户" onclick="{if(confirm('确定转移选定的用户吗?')){document.selform.action.value='move';return true;}return false;}"> →
+	<select name="UserGrade">
+		<option value=''>↓请选择用户组↓</option>
+<%
+	Dim RsObj
+	Set RsObj=NewAsp.Execute("SELECT GroupName,Grades FROM NC_UserGroup WHERE Grades<>0 ORDER BY Groupid")
+	Do While Not RsObj.EOF
+		Response.Write Chr(9) & Chr(9) & "<option value=""" & RsObj("Grades") & "," & RsObj("GroupName") & """>"
+		Response.Write RsObj("GroupName")
+		Response.Write "</option>" & vbCrLf
+		RsObj.movenext
+	Loop
+	Set RsObj = Nothing
+	%></select>
+	</td>
+</tr>
+</form>
+<tr>
+	<td class="tablerow<%=iCount%>" colspan="10" id="NextPageText"><var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+</table>
+<script type="text/javascript">
+document.getElementById("showNextPage").innerHTML = document.getElementById("NextPageText").innerHTML;
+</script>
+<%
+End Sub
+
+Sub showUserlist()
+	Dim Rs,SQL
+	Dim userlock,UserGrade
+	Dim keyword,searchfield
+	UserGrade=NewAsp.ChkNumeric(Request("UserGrade"))
+	If showmode=1 Then userlock=1 Else userlock=0
+	If UserGrade>0 Then SQLQuery="And UserGrade="&UserGrade
+	SQLField="userid,username,UserGrade,UserGroup,UserClass,UserLock,UserSex,usermail,JoinTime,LastTime,userlogin"
+
+	keyword=NewAsp.CheckStr(Request("word"))
+	If Len(keyword)>1 Then
+		searchfield=NewAsp.ChkNumeric(Request("searchfield"))
+		Select Case searchfield
+			Case 0
+				If IsSqlDataBase=1 Then
+					SQLQuery="And (username+nickname+TrueName like '%"&keyword&"%')"
+				Else
+					SQLQuery="And (InStr(1,LCase(username+nickname+TrueName),LCase('"&keyword&"'),0)>0)"
+				End If
+			Case 1
+				If IsSqlDataBase=1 Then
+					SQLQuery="And username like '%"&keyword&"%'"
+				Else
+					SQLQuery="And InStr(1,LCase(username),LCase('"&keyword&"'),0)>0"
+				End If
+			Case 2
+				If IsSqlDataBase=1 Then
+					SQLQuery="And TrueName like '%"&keyword&"%'"
+				Else
+					SQLQuery="And InStr(1,LCase(TrueName),LCase('"&keyword&"'),0)>0"
+				End If
+			Case 3
+				If IsSqlDataBase=1 Then
+					SQLQuery="And nickname like '%"&keyword&"%'"
+				Else
+					SQLQuery="And InStr(1,LCase(nickname),LCase('"&keyword&"'),0)>0"
+				End If
+			Case Else
+				SQLQuery="And username='"&keyword&"'"
+		End Select
+	End If
+
+	If count=0 Then
+		totalrec=NewAsp.Execute("SELECT COUNT(*) FROM NC_User WHERE userlock="&userlock&" "&SQLQuery&"")(0)
+	Else
+		totalrec=count
+	End If
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT "& SQLField &" FROM [NC_User] WHERE userlock="&userlock&" "&SQLQuery&" ORDER BY userid DESC"
+	Rs.Open SQL,Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		Userlist=Rs.GetRows(maxperpage)
+	Else
+		Userlist=Null
+	End If
+	Rs.close()
+	Set Rs=Nothing
+	pagelinks="admin_list.asp?showmode="&Request("showmode")&"&UserGrade="&Request("UserGrade")&"&word="&Request("word")&"&searchfield="&Request("searchfield")&"&count="&totalrec&"&"
+End Sub
+
+Sub edituser()
+
+End Sub
+
+Sub savedituset()
+	
+End Sub
+
+Sub delUser()
+	Dim Rs,SQL
+	Dim AllUserID,AllUserName
+	useridlist=NewAsp.CheckIDlist(Request("userid"))
+	If useridlist<>"0" And ""<>useridlist Then
+		Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+		SQL = "SELECT userid,username FROM [NC_User] WHERE userid in (" & useridlist & ")"
+		Rs.Open SQL,Conn,1,1
+		If Not (Rs.BOF And Rs.EOF) Then
+			Do While Not Rs.EOF
+				AllUserID = AllUserID & Rs(0) & ","
+				AllUserName = AllUserName & Rs(1) & ","
+				NewAsp.Execute("UPDATE NC_Message SET delsend=1 WHERE sender='"& NewAsp.CheckStr(Rs(1)) &"'")
+				NewAsp.Execute("DELETE FROM NC_Message WHERE flag=0 And incept='"& NewAsp.CheckStr(Rs(1)) &"'")
+			Rs.movenext
+			Loop
+		End If
+		Rs.Close:Set Rs = Nothing
+		If AllUserID <> "" Then
+			If Right(AllUserID,1) = "," Then AllUserID = Left(AllUserID,Len(AllUserID)-1)
+			If Right(AllUserName,1) = "," Then AllUserName = Left(AllUserName,Len(AllUserName)-1)
+			NewAsp.Execute ("DELETE FROM NC_User WHERE userid in (" & AllUserID & ")")
+			NewAsp.Execute ("DELETE FROM NC_Favorite WHERE userid in (" & AllUserID & ")")
+			NewAsp.Execute ("DELETE FROM NC_Friend WHERE userid in (" & AllUserID & ")")
+		
+			'-----------------------------------------------------------------
+			'系统整合
+			'-----------------------------------------------------------------
+			Dim API_NewAsp,API_SaveCookie,SysKey
+			If API_Enable Then
+				Set API_NewAsp = new API_Conformity
+				API_NewAsp.NodeValue "action","delete",0,False
+				API_NewAsp.NodeValue "username",AllUserName,1,False
+				Md5OLD = 1
+				SysKey = Md5(API_NewAsp.XmlNode("username") & API_ConformKey,16)
+				Md5OLD = 0
+				API_NewAsp.NodeValue "syskey",SysKey,0,False
+				API_NewAsp.SendHttpData
+				Set API_NewAsp = Nothing
+			End If
+			'-----------------------------------------------------------------
+		End If
+		Succeed ("<li>删除用户成功！</li>")
+	Else
+		ErrMsg = "错误的系统参数，请选择正确的用户ID！"
+		Founderr = True
+	End If
+End Sub
+
+Sub ActivationUser()
+	Dim Rs,SQL,UserName
+	useridlist=NewAsp.CheckIDlist(Request("userid"))
+	If useridlist<>"0" And ""<>useridlist Then
+		NewAsp.Execute ("UPDATE NC_User SET UserLock=0 WHERE userid in (" & useridlist & ")")
+		'-----------------------------------------------------------------
+		'系统整合
+		'-----------------------------------------------------------------
+		Dim API_NewAsp,API_SaveCookie,SysKey
+		If API_Enable Then
+			Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+			SQL = "SELECT userid,username FROM [NC_User] WHERE userid in (" & useridlist & ")"
+			Rs.Open SQL,Conn,1,1
+			If Not (Rs.BOF And Rs.EOF) Then
+				Do While Not Rs.EOF
+					UserName = Rs(1)
+					Set API_NewAsp = new API_Conformity
+					API_NewAsp.NodeValue "action","lock",0,False
+					API_NewAsp.NodeValue "username",UserName,1,False
+					Md5OLD = 1
+					SysKey = Md5(API_NewAsp.XmlNode("username") & API_ConformKey,16)
+					Md5OLD = 0
+					API_NewAsp.NodeValue "syskey",SysKey,0,False
+					API_NewAsp.NodeValue "userstatus",0,0,False
+					API_NewAsp.SendHttpData
+					Set API_NewAsp = Nothing
+				Rs.movenext
+				Loop
+			End If
+			Rs.Close:Set Rs = Nothing
+		End If
+		'-----------------------------------------------------------------
+		Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+	Else
+		ErrMsg = "错误的系统参数，请选择正确的用户ID！"
+		Founderr = True
+	End If
+End Sub
+
+Sub LockedUser()
+	Dim Rs,SQL,UserName
+	useridlist=NewAsp.CheckIDlist(Request("userid"))
+	If useridlist<>"0" And ""<>useridlist Then
+		NewAsp.Execute ("UPDATE NC_User SET UserLock=1 WHERE userid in (" & useridlist & ")")
+		'-----------------------------------------------------------------
+		'系统整合
+		'-----------------------------------------------------------------
+		Dim API_NewAsp,API_SaveCookie,SysKey
+		If API_Enable Then
+			Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+			SQL = "SELECT userid,username FROM [NC_User] WHERE userid in (" & useridlist & ")"
+			Rs.Open SQL,Conn,1,1
+			If Not (Rs.BOF And Rs.EOF) Then
+				Do While Not Rs.EOF
+					UserName = Rs(1)
+					Set API_NewAsp = new API_Conformity
+					API_NewAsp.NodeValue "action","lock",0,False
+					API_NewAsp.NodeValue "username",UserName,1,False
+					Md5OLD = 1
+					SysKey = Md5(API_NewAsp.XmlNode("username") & API_ConformKey,16)
+					Md5OLD = 0
+					API_NewAsp.NodeValue "syskey",SysKey,0,False
+					API_NewAsp.NodeValue "userstatus",1,0,False
+					API_NewAsp.SendHttpData
+					Set API_NewAsp = Nothing
+				Rs.movenext
+				Loop
+			End If
+			Rs.Close:Set Rs = Nothing
+		End If
+		'-----------------------------------------------------------------
+		Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+	Else
+		ErrMsg = "错误的系统参数，请选择正确的用户ID！"
+		Founderr = True
+	End If
+End Sub
+
+Sub MoveUser()
+	Dim arrUserGroup
+	useridlist=NewAsp.CheckIDlist(Request("userid"))
+	If useridlist<>"0" And ""<>useridlist And ""<>Request("UserGrade") Then
+		arrUserGroup = Split(Request("UserGrade"), ",")
+		NewAsp.Execute("UPDATE NC_User SET UserGrade=" & NewAsp.ChkNumeric(arrUserGroup(0)) & ", UserGroup='" & NewAsp.CheckStr(arrUserGroup(1)) & "' WHERE userid in (" &useridlist& ")")
+		Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+	Else
+		ErrMsg = "错误的系统参数，请选择正确的用户ID！"
+		Founderr = True
+	End If
+End Sub
+%>

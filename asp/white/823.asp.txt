@@ -1,0 +1,202 @@
+<%
+REM 站点统计模块
+REM Power by McDone Studio
+REM URL: http://www.mcdone.com
+REM Code by mgc
+
+Response.Buffer=true
+Response.ExpiresAbsolute=Now()-1
+Response.Expires=0
+Response.CacheControl="no-cache"
+
+Public Function getIP()
+	Dim strIPAddr,Agent_IPAddr,Real_IPAddr
+	Agent_IPAddr = Request.ServerVariables("REMOTE_ADDR")
+	Real_IPAddr = Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+		If Real_IPAddr = "" OR InStr(Real_IPAddr, "unknown") > 0 Then
+			strIPAddr = Agent_IPAddr
+		ElseIf InStr(Real_IPAddr, ",") > 0 Then
+			strIPAddr = Mid(Real_IPAddr, 1, InStr(Real_IPAddr, ",")-1)
+		ElseIf InStr(Real_IPAddr, ";") > 0 Then
+			strIPAddr = Mid(Real_IPAddr, 1, InStr(Real_IPAddr, ";")-1)
+		Else
+			strIPAddr = Real_IPAddr
+		End If
+	getIP = Trim(Mid(strIPAddr, 1, 30))
+End Function
+
+Dim sessionID
+sessionID=Session.SessionID
+
+Dim site_On_timeout
+site_On_timeout=15 '设置Session过期时间（单位: 分钟）
+site_Onip_timeout=1440 '设置IP地址过期时间（单位: 分钟）
+
+Dim site_connString,site_conn
+site_connString="Provider=Microsoft.Jet.OLEDB.4.0;Data Source="&Server.MapPath("tone.asp")
+Set site_conn=Server.CreateObject("ADODB.Connection")
+site_conn.Open site_connString
+
+Dim site_On_deletetime
+site_On_deletetime=Dateadd("n", -site_On_timeout, Now())
+site_conn.Execute ("delete * from [session] where posttime < #"&site_On_deletetime&"#")
+
+Dim site_On_sql0,site_On_checkrs
+site_On_sql0="select sess from [session] where sess='"& sessionID &"'"
+set site_On_checkrs=site_conn.Execute(site_On_sql0)
+If site_On_checkrs.eof Then
+	Dim site_On_sql
+	site_On_sql="insert into [session] (sess,posttime) values('"& sessionID &"', '"& Now() &"')"
+	site_conn.Execute(site_On_sql)
+
+	Dim site_Vs_sql
+	site_Vs_sql="update [site] set Visitor=Visitor+1"
+	site_conn.execute(site_Vs_sql)
+
+End If
+site_On_checkrs.close
+set site_On_checkrs=nothing
+
+Dim site_On_sql2,site_On_rs
+site_On_sql2="select count(sess) from [session]"
+Set site_On_rs=site_conn.Execute(site_On_sql2)
+Dim site_On_output
+site_On_output=site_On_rs(0)
+site_On_rs.close
+Set site_On_rs=nothing
+
+Dim site_On_sql3,site_On_rspredel,site_On_predeltime
+site_On_sql3="select * from [session]"
+Set site_On_rspredel=site_conn.Execute(site_On_sql3)
+Do until site_On_rspredel.eof
+	site_On_predeltime=DateDiff("n", site_On_rspredel("posttime"), Now())
+	If site_On_predeltime > site_On_timeout Then
+		site_On_output=site_On_output-1
+	End If
+	site_On_rspredel.MoveNext
+Loop
+site_On_rspredel.close
+Set site_On_rspredel=nothing
+
+Dim IPaddress
+IPaddress=getIP()
+
+Dim site_Ip_deletetime
+site_Ip_deletetime=Dateadd("n", -site_Onip_timeout, Now())
+site_conn.Execute ("delete * from [ip] where posttime < #"&site_Ip_deletetime&"#")
+
+Dim site_Ip_sql0,site_Ip_checkrs
+site_Ip_sql0="select ipad from [ip] where ipad='"& IPaddress &"'"
+set site_Ip_checkrs=site_conn.Execute(site_Ip_sql0)
+If site_Ip_checkrs.eof Then
+	Dim site_Onip_sql
+	site_Onip_sql="insert into [ip] (ipad,posttime) values('"& IPaddress &"', '"& Now() &"')"
+	site_conn.Execute(site_Onip_sql)
+
+	Dim site_Ip_sql,site_Ip_sql9
+	site_Ip_sql="update [site] set IP=IP+1"
+	site_conn.execute(site_Ip_sql)
+	site_Ip_sql9="update [site] set Today_Ip=Today_Ip+1"
+	site_conn.execute(site_Ip_sql9)
+
+End If
+site_Ip_checkrs.close
+set site_Ip_checkrs=nothing
+
+Dim site_Ip_sql2,site_Ip_rs
+site_Ip_sql2="select count(*) as OnIp_total from [ip]"
+Set site_Ip_rs=site_conn.Execute(site_Ip_sql2)
+Dim site_Onip_output
+site_Onip_output=site_Ip_rs("OnIp_total")
+site_Ip_rs.close
+Set site_Ip_rs=nothing
+
+Dim site_Ip_sql3,site_Ip_rspredel,site_Ip_predeltime
+site_Ip_sql3="select * from [ip]"
+Set site_Ip_rspredel=site_conn.Execute(site_Ip_sql3)
+Do until site_Ip_rspredel.eof
+	site_Ip_predeltime=DateDiff("n", site_Ip_rspredel("posttime"), Now())
+	If site_Ip_predeltime > site_Onip_timeout Then
+		site_Onip_output=site_Onip_output-1
+	End If
+	site_Ip_rspredel.MoveNext
+Loop
+site_Ip_rspredel.close
+Set site_Ip_rspredel=nothing
+
+	Dim site_Pv_sql,site_Pv_sql9
+	site_Pv_sql="update [site] set Pageview=Pageview+1"
+	site_conn.execute(site_Pv_sql)
+	site_Pv_sql9="update [site] set Today_Pv=Today_Pv+1"
+	site_conn.execute(site_Pv_sql9)
+
+	site_Pv_sql1="select * from [site]"
+	Set site_Pv_rs=server.createobject("adodb.recordset")
+	site_Pv_rs.open site_Pv_sql1,site_conn,1,3
+
+	Dim site_Vs_output,site_Pv_output,site_Ip_output,site_Today_Ip,site_Today_Pv,site_Lastday_Ip,site_Lastday_Pv,site_Date
+
+	site_Vs_output=site_Pv_rs("Visitor")
+	site_Pv_output=site_Pv_rs("Pageview")
+	site_Ip_output=site_Pv_rs("Ip")
+	site_Today_Ip=site_Pv_rs("Today_Ip")
+	site_Today_Pv=site_Pv_rs("Today_Pv")
+	site_Lastday_Ip=site_Pv_rs("Lastday_Ip")
+	site_Lastday_Pv=site_Pv_rs("Lastday_Pv")
+	site_Date=site_Pv_rs("Date")
+
+	If date <> site_Date Then
+		site_Pv_rs("Date") = date
+		site_Pv_rs("Lastday_Ip") = site_Pv_rs("Today_Ip")
+		site_Pv_rs("Lastday_Pv") = site_Pv_rs("Today_Pv")
+		site_Pv_rs("Today_Ip") = 0
+		site_Pv_rs("Today_Pv") = 0
+		site_Pv_rs.update
+	End If
+
+	site_Pv_rs.close
+	Set site_Pv_rs=nothing
+
+site_conn.Close
+set site_conn=nothing
+
+If site_On_output=0 Then
+	site_On_output=1
+End If
+
+If site_Onip_output=0 Then
+	site_Onip_output=1
+End If
+
+If site_Today_Ip=0 Then
+	site_Today_Ip=1
+End If
+
+Dim site_online,site_show
+site_online=Trim(Request.QueryString("online"))
+site_show=Trim(Request.QueryString("show"))
+
+If site_show="super" Then
+	site_online=""
+	Response.Write "document.write('"
+	Response.Write "本站统计 | "
+	Response.Write "独立访问量[" & site_Vs_output & "] | "
+	Response.Write "页面访问量[" & site_Pv_output & "] | "
+	Response.Write "当前在线[" & site_On_output & "]"
+ElseIf site_show="all" Then
+%>
+document.write(' 今日访问量[<%=site_Today_Pv%>]  &nbsp;&nbsp;| &nbsp;&nbsp;昨日访问量[<%=site_Lastday_Pv%>] &nbsp;&nbsp;| &nbsp;&nbsp;总访问量[<%=site_Pv_output%>]&nbsp;&nbsp;<%
+ElseIf site_show="line" Then
+%>
+document.write('本站统计 |  今日访问量[<%=site_Today_Pv%>] &nbsp;&nbsp;| &nbsp;&nbsp; 昨日访问量[<%=site_Lastday_Pv%>]<%
+Else
+%>document.write('本站统计<%
+End If
+
+If site_online="1" Then
+	Response.Write " |&nbsp;&nbsp; 当前在线 "& site_On_output &" 人"
+End If
+
+Response.Write "');"
+
+%> 

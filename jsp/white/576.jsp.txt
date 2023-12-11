@@ -1,0 +1,114 @@
+<%--
+	收货地址编辑页面  <增加和修改>
+	@author 广州酷趣信息科技有限公司,lp
+	@since Oct 21, 2011 3:12:10 PM
+ --%>
+
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>Edit shipping address</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/common/common.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/My97DatePicker/WdatePicker.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/customer/edit_receivedAddress.js"></script>
+	<style type="text/css">
+		.tabtop {
+			height:40px;
+			font-size:12px;
+		}
+		.tabtop .title {
+			font-size:14px;
+			font-weight:bold;
+		}
+		.clearfloat { /* 此类应当放在 div 或 break 元素上，而且该元素应当是完全包含浮动的容器关闭之前的最后一个元素 */
+			clear:both;
+   			height:0;
+    		font-size: 1px;
+    		line-height: 0px;
+		}
+		.border {
+			font-size:12px;
+    		border:1px solid #90B9DE;
+		}
+		.bordertd {
+			font-size:12px;
+		}
+	</style>
+</head>
+<body>
+	 <table border="0" cellspacing="0" cellpadding="0" class="gdcn-table-E">
+    	<tr>
+    		<td class="gdcn-table-D">
+				<div class="tab-pane" id="tabPane1" style="margin: 10px;">
+					<form action="" id="receivedAddressForm" method="post">
+						<s:hidden name="receivedAddress.customerId" id="customerId"></s:hidden>
+						<s:hidden name="receivedAddress.id" id="id"></s:hidden>
+						
+				   		<table width="98%"  border="0" cellpadding="0" cellspacing="1" class="gdcn-table-bgcolor">	
+						  <tr>
+						  <td class='gridtitle'><s:text name="editreceivedAddress.Consignee"/></td>
+						    <td class='gridbody'>
+						    	<s:textfield id="linkman" name="receivedAddress.linkman" cssClass="inputTextBorder" />&nbsp;<font color="red">*</font>
+						    </td>
+						  	<td class='gridtitle' ><s:text name="editreceivedAddress.Address"/></td>
+						    <td class='gridbody'>
+						    	<s:textfield name="receivedAddress.address" id="address"/>&nbsp;<font color="red">*</font>
+						    </td>
+						  </tr>
+						  <tr></tr>
+						  <tr>
+						    <td class='gridtitle'><s:text name="editreceivedAddress.cellphone"/></td>
+							<td class='gridbody'>
+							    <s:textfield id="mobile" name="receivedAddress.mobile"  cssClass="inputTextBorder" maxlength="11"/>&nbsp;<font color="red">*</font>
+							</td>
+							<td class='gridtitle'><s:text name="editreceivedAddress.Telephone"/></td>
+						    <td class='gridbody'>
+						    	<s:textfield id="telephone" name="receivedAddress.telephone" cssClass="inputTextBorder" maxlength="13"/>&nbsp;<font color="red">*</font>
+						    </td>
+						  </tr>
+						  <tr></tr>
+						  <tr>
+						   
+						    <td class='gridtitle'><s:text name="editreceivedAddress.postcode"/></td>
+							<td class='gridbody'>
+							    <s:textfield id="zipCode" name="receivedAddress.zipCode"  cssClass="inputTextBorder" />&nbsp;<font color="red">*</font>
+							</td>
+						    <td class='gridtitle'><s:text name="editreceivedAddress.No"/>：</td>
+							<td class='gridbody'>
+								<input type="text" id="sort" name="receivedAddress.sort" maxlength="20" value="${receivedAddress.sort}" onchange="common.number(this);"/>
+							</td>
+						  </tr>
+						</table>
+						<!-- 
+						<font color="red" size="2"><s:text name="editreceivedAddress.Notenumberformat"/>：010-12345678</font>
+						-->
+					</form>
+				</div>
+				</td>
+			</tr>
+		</table>
+<!-- 语言设置-->
+<input type="hidden" id="Savedsuccessfully" value="<s:text name="Savedsuccessfully"/>"/>
+<input type="hidden" id="Savefailed" value="<s:text name="Savefailed"/>"/>
+<input type="hidden" id="PleaseenterAddress" value="<s:text name="editreceivedAddress.PleaseenterAddress"/>"/>
+<input type="hidden" id="Pleaseinputcontact" value="<s:text name="editreceivedAddress.Pleaseinputcontact"/>"/>
+<input type="hidden" id="Pleaseenterthecellphonenumber" value="<s:text name="editreceivedAddress.Pleaseenterthecellphonenumber"/>"/>
+<input type="hidden" id="Pleaseenterthezipcodenumber" value="<s:text name="editreceivedAddress.Pleaseenterthezipcodenumber"/>"/>
+<input type="hidden" id="PleaseenterthePhone" value="<s:text name="editreceivedAddress.PleaseenterthePhone"/>"/>
+<input type="hidden" id="Wrongtelephonenumber" value="<s:text name="editreceivedAddress.Wrongtelephonenumber"/>"/>
+		
+		
+</body>
+</html>
+

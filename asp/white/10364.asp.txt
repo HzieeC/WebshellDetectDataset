@@ -1,0 +1,148 @@
+<!--#include file="../conn/conn.asp"-->
+<!--#include file="../inc/Commoncode.asp"-->
+<!--#include file="../inc/CommonFunction.asp"-->
+<!--#include file="checkcmember.asp" -->
+<%
+If FR_HR_Sql = True then Call SQLin()
+hire_id=trim(request("hireid"))
+TemplateID=session("tempid")
+If hire_id="" Or IsNumeric(hire_id)=False Then
+	response.write "参数不足或参数错误！"
+	response.end
+End If
+Response.Write(CreateHTMLReplace(ViewHireContent(hire_id,TemplateID)))
+Call CloseConn()
+
+Function ViewHireContent(HireStr,TemplateID)
+	if not isNumeric(HireStr) then
+		exit Function
+	end if
+	'读取职位信息
+	set Hchrs=conn.execute("select * from job_c_hire where hire_id="&HireStr&"")
+	hire_id=Hchrs("hire_id")
+	hire_place=Hchrs("hire_place")
+	hire_type=Hchrs("hire_type")
+	if Hchrs("hire_dept")<>"" then
+	hire_dept=Hchrs("hire_dept")
+	else
+	hire_dept="总部"
+	end if
+	hire_announcedate=Hchrs("hire_announcedate")
+	hire_enddate=Hchrs("hire_enddate")
+	hire_experience=Hchrs("hire_experience")
+	hire_edu=Hchrs("hire_edu")
+	hire_number=Hchrs("hire_number")
+	if hire_number=0 then hire_number="若干"
+	hire_profession=Hchrs("hire_profession")
+	hire_pay=Hchrs("hire_pay")
+	hire_sex=Hchrs("hire_sex")
+	hire_age1=Hchrs("hire_age1")
+	hire_age2=Hchrs("hire_age2")
+	if (hire_age1=0 and hire_age2=0) Or IsNull(hire_age1) or hire_age1=0 then
+	hire_age="不限"
+	elseif (hire_age1<>0 and hire_age2=0) then
+	hire_age=hire_age1&"～不限"
+	else
+	hire_age=hire_age1&"～"&hire_age2	
+	end if
+	hire_workadd=Hchrs("hire_workadd")
+	hire_introduce=Hchrs("hire_introduce")
+	company_id=Hchrs("company_id")
+	Hchrs.close
+	set Hchrs=nothing
+	'读取公司资料
+	set Hchrs=Server.CreateObject("ADODB.RecordSet")
+	Hchsql="select Member_id,Member_name,Member_groupid,Member_logo,Member_provinceid,Member_capitalid,Member_regdate,Member_cityid,Member_trade,Member_ecoclass,Member_fund,Member_workers,Member_founddate,Member_introduce,Member_Template from JOB_Member where Member_id="&company_id&""
+	Hchrs.open Hchsql,conn,1,1
+	if Not Hchrs.eof then
+		Member_id=Hchrs("Member_id")
+		if Hchrs("Member_name")<>"" then Member_name=Hchrs("Member_name")
+		Member_groupid=Hchrs("Member_groupid")
+		Member_logo=Hchrs("Member_logo")
+		if Member_logo<>"" and not isnull(Member_logo) then
+		Member_logo=InstallDir&FR_UPFILES_DIR&"/Company/"&Member_logo&""
+		else
+		Member_logo=InstallDir&FR_UPFILES_DIR&"/Company/nologo.gif"
+		end if
+		Member_logo="<a href='viewcom.asp?comid="&Member_id&"' title='查看企业信息'><img src="&Member_logo&" width=180 height=60 style='padding:1px;border:1px #CCCCCC solid' /></a>"
+		comlink="viewcom.asp?comid="&Member_id&""
+		Member_provinceid=Hchrs("Member_provinceid")
+		Member_capitalid=Hchrs("Member_capitalid")
+		Member_cityid=Hchrs("Member_cityid")
+		Member_trade=Hchrs("Member_trade")
+		Member_ecoclass=Memberecoclass(Hchrs("Member_ecoclass"))
+		Member_fund=Hchrs("Member_fund")
+		Member_workers=Hchrs("Member_workers")
+		if Hchrs("Member_founddate")<>"" then
+		Member_founddate=Hchrs("Member_founddate")
+		else
+		Member_founddate="　"
+		end if
+		Member_introduce=Hchrs("Member_introduce")
+		if Member_introduce<>"" then
+		Member_introduce=Member_introduce
+		else
+		Member_introduce="暂无公司简介！"
+		end if
+	end if
+	Hchrs.close
+	set Hchrs=nothing
+	set Hchrs=conn.execute("select ChannelName,UseCreateHTML from JOB_Channel where ChannelID=2")
+	ChannelName=Hchrs("ChannelName")
+	set Hchrs=nothing
+		html=LoadTemplate(9998,2,TemplateID)
+		html=Replace(html,"{$FR_公司编号}",Member_id)
+		html=Replace(html,"{$FR_公司标志}",Member_logo)
+		html=Replace(html,"{$FR_公司名称}",Member_name)
+		html=Replace(html,"{$FR_会员级别}",Membergroup(Member_groupid))
+		html=Replace(html,"{$FR_所属行业}",Membertrade(Member_trade))
+		html=Replace(html,"{$FR_所在地区}",Hireworkadds(Member_provinceid&"*"&Member_capitalid&"*"&Member_cityid))
+		html=Replace(html,"{$FR_公司性质}",Member_ecoclass)
+		html=Replace(html,"{$FR_成立日期}",Member_founddate)
+		html=Replace(html,"{$FR_注册资金}",Member_fund&"万元人民币")
+		html=Replace(html,"{$FR_公司规模}",Member_workers)
+		html=Replace(html,"{$FR_公司简介}",Member_introduce)
+		html=Replace(html,"{$FR_公司联系方式}","<span id='contact'></span>")
+		html=Replace(html,"{$FR_企业职位列表}",""&GetComHireList(Member_id)&"")
+		html=Replace(html,"{$FR_职位编号}",hire_id)
+		html=Replace(html,"{$FR_职位名称}",hire_place)
+		html=Replace(html,"{$FR_招聘类别}",Hiretype(hire_type))
+		html=Replace(html,"{$FR_招聘部门}",hire_dept)
+		html=Replace(html,"{$FR_发布日期}",FormatDate(hire_announcedate,2))
+		html=Replace(html,"{$FR_截止日期}",FormatDate(hire_enddate,2))
+		html=Replace(html,"{$FR_工作经验}",Hireexperience(hire_experience))
+		html=Replace(html,"{$FR_学历要求}",Hireedu(hire_edu))
+		html=Replace(html,"{$FR_招聘人数}",hire_number&"人")
+		html=Replace(html,"{$FR_专业要求}",Hireprofession(hire_profession))
+		html=Replace(html,"{$FR_薪资待遇}",Hirepay(hire_pay))
+		html=Replace(html,"{$FR_性别要求}",Hiresex(hire_sex))
+		html=Replace(html,"{$FR_年龄要求}",hire_age)
+		html=Replace(html,"{$FR_招聘职位}",Hirelist(Member_id))
+		html=Replace(html,"{$FR_工作地点}",Hireworkadds(hire_workadd))
+		html=Replace(html,"{$FR_职位描述}",hire_introduce)
+		html=Replace(html,"{$FR_企业链接}",comlink)
+		html=Replace(html,"{$FR_职位联系方式}","<span id='hirecontact'></span>")
+		html=ReplaceLableFlag(ReplaceAllLabel(html))
+	'判断是否生成文件
+	ViewHireContent=html
+End Function
+
+'读取企业招聘职位
+Function GetComHireList(Cid)
+	Dim HireRS,HireSql
+	Set HireRS = Server.CreateObject(FR_HR_RS)
+	html=""
+	HireSql = "Select hire_id,hire_place,hire_number from JOB_C_hire where company_id="&Cid&" and datediff("&FR_HR_d&",hire_enddate,"&FR_HR_Now&")<=0 and hire_status=1 order by hire_id desc"
+		HireRS.open HireSql,conn,1,1
+		IF Not HireRS.EOF Then
+		Do While Not HireRS.EOF
+		html=html&"<li class='hire_list'><a href='viewhire.asp?hireid="&HireRS("hire_id")&"'>"&HireRS("hire_place")&"("&Hirenumber(HireRS("hire_number"))&"人)</a></li>"& vbCrLf
+		HireRS.MoveNext
+		Loop
+		Else
+		html=html&"<li>尚未发布职位信息!</li>"& vbCrLf
+		End If
+	HireRS.Close:Set HireRS=Nothing
+GetComHireList=html
+End Function
+%>

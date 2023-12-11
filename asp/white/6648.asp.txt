@@ -1,0 +1,99 @@
+<%path="../../"%>
+<!--#include file="../../inc/my_conn.asp" -->
+<%if session("class_id")=0 then%>
+	<%
+	cuxiao_id=trim(request.QueryString("cuxiao_id"))
+	set rs=server.createobject("adodb.recordset")
+		'先获取网站参数
+		sql="select site_url,site_email,my_smtp,my_smtp_name,my_smtp_pwd from My_config"
+		rs.open sql,conn,1,1
+			site_url=rs("site_url")
+			email=rs("site_email")
+			my_smtp=rs("my_smtp")'SMT邮箱
+			my_smtp_name=rs("my_smtp_name")'SMT邮箱账户
+			my_smtp_pwd=rs("my_smtp_pwd")'SMT邮箱密码
+		rs.close
+		
+		sql="select coname,cotel,cofax,email from My_company"
+		rs.open sql,conn,1,1
+			coname=rs("coname")
+			tel1=rs("cotel")
+			fax=rs("cofax")
+			email=rs("email")
+		rs.close
+		
+		'然后获取促销公告的内容
+		sql="select SMT_title,SMT_news,SMT_key,Smt_id from My_news where SMT_id="&cuxiao_id&" and SMT_key>0"
+		rs.open sql,conn,1,1
+		if not rs.eof then
+			gg_title=rs("SMT_title")'标题
+			zx_content=rs("SMT_news")'正文
+		else
+		end if
+		rs.close
+		
+		'最后遍历所有订阅邮件的会员	
+		sql="select SMT_mail,SMT_colxr,SMT_colxrsex,SMT_key from members where SMT_key>0 and SMT_mail<>''"
+		rs.open sql,conn,1,1
+		if not rs.eof or not rs.bof then
+			do while not rs.eof
+				mails=mails&rs("SMT_mail")&";"
+				aryEmail = split(mails, ";")
+				
+				colxr=rs("SMT_colxr")
+				colxrsex=rs("SMT_colxrsex")
+				mailname=colxr&colxrsex'收件人称呼
+				mailnames=mailnames&mailname&";"
+				aryMailname = split(mailnames, ";")
+				send_mail()'开始发送邮件
+			rs.movenext
+			'next
+			loop
+		else
+			response.Write 0'无会员
+		end if
+		rs.close
+		conn.execute("update My_news set if_qunfa=1 where SMT_id="&cuxiao_id&"")'群发标志
+		set rs=nothing
+%>
+<%
+	Function send_mail()
+		'先获取SMTP的信息
+		emailtitle=gg_title&"-"&coname&""
+		emailcontent=zx_content&"<br><br><br>该邮件由系统自动发送，请勿直接回复。<br><br>感谢您对"&coname&"("&site_url&")的支持!<br><br>"&coname&"<br>"&site_url&"<br>联系电话: "&tel1&"<br>传真: "&fax&"<br>邮箱: "&email&"" '正文
+		
+		Set JMail = Server.CreateObject("JMail.Message")
+			JMail.ISOEncodeHeaders = True'是否将信头编码成iso-8859-1字符集. 缺省是True  
+			JMail.Silent = True'如果JMail.silent设置为true,ErrorCode包含的是错误代码 
+			JMail.Charset = "gb2312"'设置标题和内容编码，如果标题有中文，必须设定编码为gb2312 
+			
+			JMail.From = email ' 发送者邮箱 
+			JMail.FromName = coname ' 发送者姓名 
+			JMail.MailServerUserName = my_smtp_name ' 身份验证的用户名 
+			JMail.MailServerPassword = my_smtp_pwd ' 身份验证的密码 
+			
+			for i=0 to UBound(aryEmail)
+			  JMail.AddRecipient Trim(aryEmail(i))
+			  'JMail.AddRecipient Trim(aryEmail(i)),Trim(aryMailname(i))
+			next
+			
+			
+			'JMail.AddRecipient emailname, emailaddr'加入新的收件人 
+			JMail.Subject = emailtitle 
+			JMail.Body = emailcontent 
+			
+			JMail.HTMLBody = "<html><body style='font-size:14px;'><br>"&emailcontent 
+			JMail.appendHTML "<br><br></body></html>" 
+			JMail.Body = "很抱歉，您的邮件系统无法正常显示HTML格式信件。" 
+			JMail.appendText " " 
+			
+			if JMail.Send( my_smtp ) then '执行邮件发送（通过邮件服务器地址） 
+				response.Write 2'成功
+			else 
+				response.Write 1'失败
+			end if 
+			JMail.Close() 
+		Set JMail = Nothing 
+	End function
+%>
+<%end if%>

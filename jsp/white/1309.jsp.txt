@@ -1,0 +1,74 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_caseanswer.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	Hashtable ti_casepre = new Hashtable();
+	String casepre_id=request.getParameter("casepre_id");
+	if(casepre_id!=null&&!"".equals(casepre_id))
+		ti_casepre.put("casepre_id",casepre_id);
+	Ti_caseanswerInfo ti_casepreInfo = new Ti_caseanswerInfo();
+	String iStart = "0";
+	int limit = 10;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_casepreInfo.getListByPage(ti_casepre,Integer.parseInt(iStart),limit);
+	int counter = ti_casepreInfo.getCountByObj(ti_casepre);
+	
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+		  	<th  width="15%">回复人</th>
+		  	<th  width="65%">内容</th>
+		  	<th width="10%">时间</th>
+			
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String answer_user="",answer_date="",answer_content="";
+				  	if(map.get("answer_content")!=null){
+				  		 answer_content = map.get("answer_content").toString();
+				  		 if(answer_content.length()>50)
+				  		 	answer_content=answer_content.substring(0,50)+"...";
+				  	}
+				  	if(map.get("answer_user")!=null) {
+				  		answer_user = map.get("answer_user").toString();
+				  	}
+				  	if(map.get("answer_date")!=null) answer_date = map.get("answer_date").toString();
+					  if(answer_date.length()>16)answer_date=answer_date.substring(0,16);
+		  %>
+		
+		<tr>
+			<td width="10%"><%=answer_user%></td>
+		  	<td width="50%">
+		  		<%=answer_content%>
+		  	</td>
+		  	<td width="20%"><%=answer_date%></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<%
+		 }
+	%>
+
+

@@ -1,0 +1,542 @@
+<%
+Dim fullPath,FilePath,UploadDir,ThisDir,fromPath
+Dim pagelinks,Action,stype,strAct,pagenow
+Dim FSOClassID
+FSOClassID = Trim(NewAsp.MainSetting(47))'"Scripting.FileSystemObject"
+pagenow=1
+Call LoadStylesheet()
+
+stype=LCase(NewAsp.CheckStr(Request("stype")))
+If LCase(Request("action"))="file" Then
+	strAct="file"
+ElseIf LCase(Request("action"))="img" Then
+	strAct="img"
+Else
+	strAct=LCase(Request("act"))
+End If
+
+If Trim(Request("UploadDir")) <> "" Then
+	UploadDir = Trim(Request("UploadDir")) & "/"
+Else
+	If ChannelID = 0 Then
+		If stype="ad" Then
+			UploadDir = ""
+		Else
+			UploadDir = NewAsp.UploadSetting(3)
+		End If
+	Else
+		If strAct="file" Then
+			UploadDir = Replace(Trim(NewAsp.ChannelSetting(8)), "\", "/")
+		Else
+			UploadDir = Replace(Trim(NewAsp.ChannelSetting(7)), "\", "/")
+		End If
+	End If
+End If
+UploadDir=Replace(UploadDir, "//", "/")
+If Trim(Request("ThisDir")) <> "" Then
+	ThisDir = Trim(Request("ThisDir")) & "/"
+End If
+ThisDir = Replace(ThisDir, "\", "/")
+If ChannelID = 0 Then
+	If stype="ad" Then
+		fromPath = Replace("adfile/" & UploadDir, "\", "/")
+	Else
+		fromPath = Replace(NewAsp.UploadSetting(3) & UploadDir, "\", "/")
+	End If
+Else
+	fromPath = Replace(UploadDir, "\", "/")
+End If
+If stype="ad" Then NewAsp.ChannelDest=NewAsp.ChannelDest&"adfile/"
+FilePath = Replace(Replace(NewAsp.ChannelDest & UploadDir, "\", "/"), "//", "/")
+fullPath = Server.MapPath(FilePath)
+
+'=================================================
+'过程名：DelFile
+'作  用：删除文件
+'=================================================
+Sub DelFile()
+	Dim fso, i
+	Dim strFileName, strFilePath
+	Dim strFolderName, strFolderPath
+	'---- 删除文件
+	If Trim(Request("FileName")) <> "" Then
+		strFileName = Split(Request("FileName"), ",")
+		If UBound(strFileName) > -1 Then '删除文件
+			Set fso=NewAsp.CreateAXObject(FSOClassID)
+			For i = 0 To UBound(strFileName)
+				strFilePath = Server.MapPath(FilePath & Trim(strFileName(i)))
+				If fso.FileExists(strFilePath) Then
+					fso.DeleteFile strFilePath, True
+				End If
+			Next
+			Set fso = Nothing
+		End If
+	End If
+	'---- 删除文件夹
+	If Trim(Request("FolderName")) <> "" Then
+		strFolderName = Split(Request("FolderName"), ",")
+		If UBound(strFolderName) > -1 Then '删除文件
+			Set fso=NewAsp.CreateAXObject(FSOClassID)
+			For i = 0 To UBound(strFolderName)
+				strFolderPath = Server.MapPath(FilePath & Trim(strFolderName(i)))
+				If fso.FolderExists(strFolderPath) Then
+					fso.DeleteFolder strFolderPath, True
+				End If
+			Next
+			Set fso = Nothing
+		End If
+	End If
+	Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+'=================================================
+'过程名：DelAllDirFile
+'作  用：删除所有文件和文件夹
+'=================================================
+Sub DelAllDirFile()
+	Dim fso, oFolder
+	Dim DirFile, DirFolder
+	Dim tempPath,strPath
+	strPath=fullPath
+
+	Set fso=NewAsp.CreateAXObject(FSOClassID)
+	If fso.FolderExists(strPath) Then
+		Set oFolder = fso.GetFolder(strPath)
+		'---- 删除所有文件
+		For Each DirFile In oFolder.Files
+			tempPath = strPath & "\" & DirFile.Name
+			fso.DeleteFile tempPath, True
+		Next
+		'---- 删除所有子目录
+		For Each DirFolder In oFolder.SubFolders
+			tempPath = strPath & "\" & DirFolder.Name
+			fso.DeleteFolder tempPath, True
+		Next
+		Set oFolder = Nothing
+	End If
+	Set fso = Nothing
+	Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+'=================================================
+'过程名：DelThisAllFile
+'作  用：删除当前目录所有文件
+'=================================================
+Sub DelThisAllFile()
+	Dim fso, oFolder
+	Dim DirFiles,tempPath,strPath
+	strPath=fullPath
+	On Error Resume Next
+	
+	Set fso=NewAsp.CreateAXObject(FSOClassID)
+	If fso.FolderExists(strPath) Then
+		Set oFolder = fso.GetFolder(strPath)
+		'---- 删除所有文件
+		For Each DirFiles In oFolder.Files
+			tempPath = strPath & "\" & DirFiles.Name
+			fso.DeleteFile tempPath, True
+		Next
+		Set oFolder = Nothing
+	End If
+	Set fso = Nothing
+	Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+'=================================================
+'过程名：DelEmptyFolder
+'作  用：删除所有空文件夹
+'=================================================
+Sub DelEmptyFolder()
+	Dim fso, oFolder
+	Dim DirFolder, tempPath,strPath
+	strPath=fullPath
+	On Error Resume Next
+	
+	Set fso=NewAsp.CreateAXObject(FSOClassID)
+	If fso.FolderExists(strPath) Then
+		Set oFolder = fso.GetFolder(strPath)
+		'---- 删除所有空子目录
+		For Each DirFolder In oFolder.SubFolders
+			If DirFolder.Size = 0 Then
+				tempPath = strPath & "\" & DirFolder.Name
+				fso.DeleteFolder tempPath, True
+			End If
+		Next
+		Set oFolder = Nothing
+	End If
+	Set fso = Nothing
+	Response.Redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+'=================================================
+'过程名：ShowChildFolder
+'作  用：显示子目录菜单
+'=================================================
+Sub showChildFolder()
+	Dim fso, fsoFile, DirFolder
+	Dim strFolderPath
+	On Error Resume Next
+	strFolderPath = NewAsp.ChannelDest & UploadDir
+	strFolderPath = Server.MapPath(strFolderPath)
+	Set fso=NewAsp.CreateAXObject(FSOClassID)
+	If fso.FolderExists(strFolderPath) Then
+		Set fsoFile = fso.GetFolder(strFolderPath)
+		For Each DirFolder In fsoFile.SubFolders
+			Response.Write "<a href=""?ChannelID=" & ChannelID & "&UploadDir=" & UploadDir & DirFolder.Name& "&ThisDir=" & DirFolder.Name & "&act="&strAct&"&stype="&stype&"""><img src=""../images/pic/mediafolder.gif"" border=""0"" alt=""修改时间：" & DirFolder.DateLastModified & """ align=""absMiddle""> "
+			If Replace(ThisDir, "/", "") = DirFolder.Name Then
+				Response.Write "<font color=""red"">" & DirFolder.Name & "</font>"
+			Else
+				Response.Write DirFolder.Name
+			End If
+			Response.Write "</a> &nbsp;&nbsp;" & vbNewLine
+		Next
+	Else
+		Response.Write "没有找到文件夹！"
+	End If
+	Set fsoFile = Nothing: Set fso = Nothing
+	Response.Write "&nbsp;"
+End Sub
+'=================================================
+'过程名：ShowUploadMain
+'作  用：显示上传文件主页面
+'=================================================
+Sub showUploadMain()
+	Dim maxperpage, CurrentPage, TotalNumber, Pcount
+	Dim fso, FileCount, TotleSize, totalPut, totalrec, iCount
+
+	maxperpage = 20 '###每页显示数
+
+	CurrentPage = NewAsp.ChkNumeric(Request("page"))
+	If CLng(CurrentPage) = 0 Then CurrentPage = 1
+	pagenow=CurrentPage
+	On Error Resume Next
+
+	Response.Write "<table border=""0"" align=""center"" cellpadding=""3"" cellspacing=""1"" class=""tableborder"">"
+	Response.Write "<tr>"
+	Response.Write "        <th colspan=""2"">文件目录</th>"
+	Response.Write "</tr>"
+	Response.Write "<tr>"
+	Response.Write "        <td class=""tablerow2"" colspan=""2"">"
+	Call showChildFolder
+	Response.Write "</td>"
+	Response.Write "</tr>"
+	Response.Write "<tr>"
+	Response.Write "        <td width=""50%"" class=""tablerow1"">当前目录：" & FilePath & "</td>"
+	Response.Write "        <td width=""50%"" align=""center"" class=""tablerow1"">&nbsp;"
+	If Trim(Request("ThisDir")) <> "" Then
+		Response.Write "<a href=""?ChannelID=" & ChannelID & "&UploadDir=" & BackDirectory(Request("UploadDir")) & "&ThisDir=" & Request("ThisDir") & "&act="&strAct&"&stype="&stype&""">↑返回上一层目录</a>"
+	End If
+	Response.Write "</td>"
+	Response.Write "</tr>"
+	Response.Write "</table><br>" & vbNewLine
+
+	Set fso=NewAsp.CreateAXObject(FSOClassID)
+	If fso.FolderExists(fullPath) Then
+		Dim fsoFile, fsoFileSize
+		Dim DirFiles, DirFolder
+		Set fsoFile = fso.GetFolder(fullPath)
+		'fsoFileSize = fsoFile.size '空间大小统计
+		Dim c
+		FileCount = fsoFile.Files.Count
+		TotleSize = GetFileSize(fsoFile.Size)
+		totalPut = fsoFile.Files.Count
+		If CurrentPage < 1 Then CurrentPage = 1
+		If (CurrentPage - 1) * maxperpage > totalPut Then
+			If (totalPut Mod maxperpage) = 0 Then
+				CurrentPage = totalPut \ maxperpage
+			Else
+				CurrentPage = totalPut \ maxperpage + 1
+			End If
+		End If
+		Pcount = CLng(totalPut / maxperpage)
+		If Pcount < totalPut / maxperpage Then Pcount = Pcount + 1
+		pagelinks="?channelid="& ChannelID &"&UploadDir="&UploadDir&"&ThisDir="&Request("ThisDir")&"&act="&strAct&"&stype="&stype&"&"
+		FileCount = 0
+		c = 0
+		Response.Write "<table border=""0"" align=""center"" cellpadding=""3"" cellspacing=""1"" class=""tableborder"">" & vbNewLine
+		Response.Write "<tr><th colspan=""4"">浏览文件"
+		Response.Write "</th></tr>" & vbNewLine
+		Response.Write "<form name=""myform"" method=""post"" action='admin_upload.asp'>" & vbCrLf
+		Response.Write "<tr>" & vbNewLine
+		Response.Write "<input type='hidden' name='action' value='del'>" & vbNewLine
+		Response.Write "<input type='hidden' name='ChannelID' value='" & ChannelID & "'>" & vbNewLine
+		Response.Write "<input type='hidden' name='UploadDir' value='" & Request("UploadDir") & "'>" & vbNewLine
+		Response.Write "<input type='hidden' name='ThisDir' value='" & Request("ThisDir") & "'>" & vbNewLine
+		Response.Write "<input type='hidden' name='stype' value='" & Request("stype") & "'>" & vbNewLine
+		Response.Write "<input type='hidden' name='act' value='" & strAct & "'>" & vbNewLine
+		If totalPut=0 Then Response.Write "<td class=""tablerow2"">&nbsp;</td>"
+		Dim filelist,m_strName,m_strType,m_intSize,m_datTime
+		Set filelist=FilelistToXml(fsoFile.Files)
+		If Not filelist Is Nothing Then
+		For Each DirFiles In filelist.documentElement.SelectNodes("row")
+			c = c + 1
+			If c > maxperpage * (CurrentPage - 1) Then
+				m_strName=DirFiles.selectSingleNode("@name").text
+				m_strType=DirFiles.selectSingleNode("@type").text
+				m_intSize=DirFiles.selectSingleNode("@size").text
+				m_datTime=DirFiles.selectSingleNode("@datelastmodified").text
+				Response.Write "<td class=""tablerow2"">"
+				Response.Write "<div><a href='" & FilePath & m_strName & "'target=""_blank""><img src='" & GetFilePic(FilePath & m_strName) & "' width=""135"" height=""100"" border=""0"" alt='点此图片查看原始文件！'></a></div>"
+				Response.Write "文 件 名：<a href='" & FilePath & m_strName & "'target=""_blank"">" & m_strName & "</a><br>"
+				Response.Write "文件大小：" & NewAsp.BytesToString(m_intSize) & "<br>"
+				Response.Write "文件类型：" & m_strType & "<br>"
+				Response.Write "修改时间：" & m_datTime & "<br>"
+				Response.Write "管理操作：<input type=""checkbox"" name=""FileName"" value='" & m_strName & "'/> 选择&nbsp;&nbsp;"
+				Response.Write "<a href='?action=del&ChannelID=" & ChannelID & "&UploadDir=" & Request("UploadDir") & "&ThisDir=" & Request("ThisDir") & "&act="&strAct&"&FileName=" & m_strName & "' onclick=""return confirm('您确定要删除此文件吗!');"">×删除</a>"
+				FileCount = FileCount + 1
+				Response.Write "</td>" & vbNewLine
+				If (FileCount Mod 4) = 0 And FileCount < maxperpage And c < totalPut Then
+					Response.Write "</tr>" & vbNewLine & "<tr>" & vbNewLine
+				End If
+			End If
+			If FileCount >= maxperpage Then Exit For
+		Next
+		End If
+		Set filelist = Nothing
+		Response.Write "</tr>" & vbNewLine
+		Response.Write "<tr><td colspan=""4"" class=""tablerow1"" vAlign=""top"">" & vbNewLine
+		Response.Write "<input class=""button"" type=""button"" name=""chkall"" value='全选' onClick=""CheckAll(this.form)""><input class=""button"" type=""button"" name=""chksel"" value='反选' onClick=""ContraSel(this.form)"">" & vbNewLine
+		Response.Write "&nbsp;&nbsp;<input class=""button"" type=""submit"" name=""submit_button2"" value='删除选中的文件' onClick=""{if(confirm('确定要删除选中的文件吗？')){document.myform.action.value='del';return true;}return false;}"">" & vbNewLine
+		Response.Write "&nbsp;&nbsp;<input class=""button"" type=""submit"" name=""submit_button3"" value='删除所有文件' onClick=""{if(confirm('确定要删除当前目录所有文件吗？')){document.myform.action.value='delthisallfile';return true;}return false;}"">" & vbNewLine
+		Response.Write "&nbsp;&nbsp;<input class=""button"" type=""submit"" name=""submit_button4"" value='删除所有文件和文件夹' onClick=""{if(confirm('确定要删除当前目录所文件和文件夹吗？')){document.myform.action.value='delalldirfile';return true;}return false;}"">" & vbNewLine
+		Response.Write "&nbsp;&nbsp;<input class=""button"" type=""submit"" name=""submit_button5"" value='删除所有空文件夹' onClick=""{if(confirm('确定要删除当前目录所有空文件夹吗？')){document.myform.action.value='delemptyfolder';return true;}return false;}"">" & vbNewLine
+		Response.Write "</tr></form>" & vbNewLine
+		Response.Write "<tr><td colspan=""4"" class=""tablerow2""><var class=""morePage"">" & vbNewLine
+		Response.Write showlistpage(CurrentPage, Pcount, maxperpage, totalPut,pagelinks)
+		Response.Write "</var></td></tr>" & vbNewLine
+		Response.Write "</table>"
+	Else
+		Response.Write "此目录没有任何文件！"
+	End If
+	Set fsoFile = Nothing: Set fso = Nothing
+End Sub
+Function BackDirectory(strDir)
+	If Len(strDir)=0 Then Exit Function
+	If InStr(strDir, "/")=0 Then
+		BackDirectory=strDir
+	Else
+		BackDirectory=Left(strDir,Len(strDir)-Len(Mid(strDir, InStrRev(strDir, "/"))))
+	End If
+End Function
+'=================================================
+'过程名：ShowSelectMain
+'作  用：显示选择文件主页面
+'=================================================
+Sub showSelectMain()
+	Dim maxperpage, CurrentPage, TotalNumber, Pcount
+	Dim fso, FileCount, TotleSize, totalPut
+	maxperpage = 20 '###每页显示数
+
+	CurrentPage = NewAsp.ChkNumeric(Request("page"))
+	If CLng(CurrentPage) = 0 Then CurrentPage = 1
+	pagenow=CurrentPage
+	On Error Resume Next
+
+	Response.Write "<table border=""0"" align=""center"" cellpadding=""3"" cellspacing=""1"" class=""tableborder"">"
+	Response.Write "<tr>"
+	Response.Write "        <th colspan=""2"">文件目录</th>"
+	Response.Write "</tr>"
+	Response.Write "<tr>"
+	Response.Write "        <td class=""tablerow2"" colspan=""2"">"
+	Call ShowChildFolder
+	Response.Write "</td>"
+	Response.Write "</tr>"
+	Response.Write "<tr>"
+	Response.Write "        <td width=""50%"" class=""tablerow1"">当前目录：" & FilePath & "</td>"
+	Response.Write "        <td width=""50%"" align=center class=""tablerow1"">&nbsp;"
+	Response.Write "【<a href='#' onClick=""window.close();"">关闭窗口</a>】&nbsp;"
+	If Trim(Request("ThisDir")) <> "" Then
+		Response.Write "<a href=""?ChannelID=" & ChannelID & "&UploadDir=" & BackDirectory(Request("UploadDir")) & "&ThisDir=" & Request("ThisDir") & "&stype="&stype&""">↑返回上一层目录</a>"
+	End If
+	Response.Write "</td>"
+	Response.Write "</tr>"
+	Response.Write "</table><br/>" & vbNewLine
+
+	Set fso=NewAsp.CreateAXObject(FSOClassID)
+	If fso.FolderExists(fullPath) Then
+		Dim fsoFile, fsoFileSize
+		Dim DirFiles, DirFolder
+		Set fsoFile = fso.GetFolder(fullPath)
+		'fsoFileSize = fsoFile.size '空间大小统计
+		Dim c
+		FileCount = fsoFile.Files.Count
+		TotleSize = GetFileSize(fsoFile.Size)
+		totalPut = fsoFile.Files.Count
+		If CurrentPage < 1 Then CurrentPage = 1
+		If (CurrentPage - 1) * maxperpage > totalPut Then
+			If (totalPut Mod maxperpage) = 0 Then
+				CurrentPage = totalPut \ maxperpage
+			Else
+				CurrentPage = totalPut \ maxperpage + 1
+			End If
+		End If
+		Pcount = CLng(totalPut / maxperpage)
+		If Pcount < totalPut / maxperpage Then Pcount = Pcount + 1
+		pagelinks="?channelid="& ChannelID &"&UploadDir="&UploadDir&"&ThisDir="&Request("ThisDir")&"&stype="&stype&"&"
+		FileCount = 0
+		c = 0
+		Response.Write "<table border=""0"" align=""center"" cellpadding=""3"" cellspacing=""1"" class=""tableborder"">" & vbNewLine
+		Response.Write "<tr><th colspan=""4"">浏览文件"
+		Response.Write "</th></tr>" & vbNewLine
+		Response.Write "<tr>" & vbNewLine
+		If totalPut=0 Then Response.Write "<td class=""tablerow2"">&nbsp;</td>"
+		Dim filelist,m_strName,m_strType,m_intSize,m_datTime
+		Set filelist=FilelistToXml(fsoFile.Files)
+		If Not filelist Is Nothing Then
+		For Each DirFiles In filelist.documentElement.SelectNodes("row")
+			c = c + 1
+			If c > maxperpage * (CurrentPage - 1) Then
+				m_strName=DirFiles.selectSingleNode("@name").text
+				m_strType=DirFiles.selectSingleNode("@type").text
+				m_intSize=DirFiles.selectSingleNode("@size").text
+				m_datTime=DirFiles.selectSingleNode("@datelastmodified").text
+				Response.Write "<td class=""tablerow2"" vAlign=""top"">"
+				Response.Write "<div><a href='#' onClick=""window.returnValue='" & fromPath & m_strName & "|" & CLng(m_intSize \ 1024) & "';window.close();""><img src='" & GetFilePic(FilePath & m_strName) & "' width=""135"" height=""100"" border=""0"" alt='点此图片将返回，点下面的文件名将查看原始文件！'></a></div>"
+				Response.Write "文件：<a href='" & FilePath & m_strName & "'target=""_blank"">" & m_strName & "</a><br>"
+				Response.Write "大小：" & NewAsp.BytesToString(m_intSize) & "<br>"
+				Response.Write "类型：" & m_strType & "<br>"
+				Response.Write "时间：" & m_datTime
+				FileCount = FileCount + 1
+				Response.Write "</td>" & vbNewLine
+				If (FileCount Mod 4) = 0 And FileCount < maxperpage And c < totalPut Then
+					Response.Write "</tr>" & vbNewLine & "<tr>" & vbNewLine
+				End If
+			End If
+			If FileCount >= maxperpage Then Exit For
+		Next
+		End If
+		Set filelist = Nothing
+		Response.Write "</tr>" & vbNewLine
+		Response.Write "<tr><td colspan=""4"" class=""tablerow1""><var class=""morePage"">" & vbNewLine
+		Response.Write showlistpage(CurrentPage, Pcount, maxperpage, totalPut,pagelinks)
+		Response.Write "</var></td></tr>" & vbNewLine
+		Response.Write "</table>"
+	Else
+		Response.Write "此目录没有任何文件！"
+	End If
+	Set fsoFile = Nothing: Set fso = Nothing
+End Sub
+'=================================================
+'函数名：GetFilePic
+'作  用：获取文件图片
+'=================================================
+Function GetFilePic(sName)
+	Dim FileName, Icon
+	FileName = LCase(GetExtensionName(sName))
+	Select Case FileName
+		Case "gif", "jpg", "bmp", "png", "jpge"
+			Icon = sName
+		Case "exe"
+			Icon = "../images/pic/file_exe.gif"
+		Case "rar"
+			Icon = "../images/pic/file_rar.gif"
+		Case "zip"
+			Icon = "../images/pic/file_zip.gif"
+		Case "swf"
+			Icon = "../images/pic/file_flash.gif"
+		Case "rm", "wma"
+			Icon = "../images/pic/file_rm.gif"
+		Case "mid"
+			Icon = "../images/pic/file_media.gif"
+		Case "mp3"
+			Icon = "../images/pic/file_mp3.gif"
+		Case "mov"
+			Icon = "../images/pic/file_mov.gif"
+		Case "html", "htm", "shtml" , "shtm"
+			Icon = "../images/pic/file_html.gif"
+		Case "url"
+			Icon = "../images/pic/file_url.gif"
+		Case "xml", "xsl", "xslt"
+			Icon = "../images/pic/file_xml.gif"
+		Case "asp", "asa", "aspx", "asax"
+			Icon = "../images/pic/file_asp.gif"
+		Case "js"
+			Icon = "../images/pic/file_js.gif"
+		Case "txt"
+			Icon = "../images/pic/file_txt.gif"
+		Case "css", "inc", "ini"
+			Icon = "../images/pic/file_Generic.gif"
+		Case Else
+			Icon = "../images/pic/file_other.gif"
+	End Select
+	GetFilePic = Icon
+End Function
+'=================================================
+'函数名：GetExtensionName
+'作  用：获取文件扩展名
+'=================================================
+Function GetExtensionName(ByVal sName)
+	Dim FileName
+	FileName = Split(sName, ".")
+	GetExtensionName = FileName(UBound(FileName))
+End Function
+'=================================================
+'函数名：GetFileSize
+'作  用：格式化文件的大小
+'=================================================
+Function GetFileSize(ByVal n)
+	Dim FileSize
+	FileSize = n / 1024
+	FileSize = FormatNumber(FileSize, 2)
+	If FileSize < 1024 And FileSize > 1 Then
+		GetFileSize = "<font color=""red"">" & FileSize & "</font>&nbsp;KB"
+	ElseIf FileSize > 1024 Then
+		GetFileSize = "<font color=""red"">" & FormatNumber(FileSize / 1024, 2) & "</font>&nbsp;MB"
+	Else
+		GetFileSize = "<font color=""red"">" & n & "</font>&nbsp;Bytes"
+	End If
+End Function
+
+Sub LoadStylesheet()
+	If Not isobject(Application(NewAsp.CacheName & "_getfilelist")) Then
+		Dim stylesheet
+		Set stylesheet=NewAsp.CreateXmlDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		stylesheet.load Server.MapPath("../script/getfilelist.xslt")
+		Application.Lock
+		Set Application(NewAsp.CacheName & "_getfilelist")=NewAsp.CreateAXObject("msxml2.XSLTemplate" & MsxmlVersion)
+		Application(NewAsp.CacheName & "_getfilelist").stylesheet=stylesheet
+		Application.unLock
+		Set stylesheet=Nothing
+	End If
+End Sub
+
+Function FilelistToXml(fsoFiles)
+	Dim XMLDoc,Node,tmp_files,IsCacheXml
+	If InStr(LCase("xml"&Request.ServerVariables("QUERY_STRING")),"page=")=0 Then
+		IsCacheXml=False
+	Else
+		IsCacheXml=True
+	End If
+	If IsObject(Session(NewAsp.CacheName & "_filelisttoxml")) And IsCacheXml Then
+		Set FilelistToXml=Session(NewAsp.CacheName & "_filelisttoxml")
+	Else
+		Set XMLDoc=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+		XMLDoc.appendChild(XMLDoc.createElement("xml"))
+		For Each tmp_files In fsoFiles
+			Set Node=XMLDoc.createNode(1,"row","")
+			Node.attributes.setNamedItem(XMLDoc.createNode(2,"name","")).text=tmp_files.Name
+			Node.attributes.setNamedItem(XMLDoc.createNode(2,"size","")).text=tmp_files.Size
+			Node.attributes.setNamedItem(XMLDoc.createNode(2,"type","")).text=tmp_files.Type
+			Node.attributes.setNamedItem(XMLDoc.createNode(2,"datelastmodified","")).text=tmp_files.DateLastModified
+			Node.attributes.setNamedItem(XMLDoc.createNode(2,"datecreated","")).text=tmp_files.DateCreated
+			'Node.attributes.setNamedItem(XMLDoc.createNode(2,"datelastaccessed","")).text=tmp_files.DateLastAccessed
+			XMLDoc.documentElement.appendChild(Node)
+			Set Node=Nothing
+		Next
+		Set FilelistToXml=GetXmlFilelist(XMLDoc)
+		Application.Lock
+		Set Session(NewAsp.CacheName & "_filelisttoxml")=FilelistToXml
+		Application.unLock
+		Set XMLDoc=Nothing
+	End If
+End Function
+
+Function GetXmlFilelist(iXMLDom)
+	Dim XSLTemplate,proc
+	Set XSLTemplate=Application(NewAsp.CacheName & "_getfilelist")
+	Set proc = XSLTemplate.createProcessor()
+	proc.input = iXMLDom
+	proc.transform()
+	Set iXMLDom=Nothing
+	Set GetXmlFilelist=NewAsp.CreateXmlDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+	GetXmlFilelist.loadxml proc.output
+	Set proc=Nothing
+End Function
+
+%>

@@ -1,0 +1,284 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_download.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.trade.ts_category.*" %>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>	
+<%
+	request.setCharacterEncoding("UTF-8");
+	Hashtable pMap = new Hashtable();
+	
+	String s_title = "";
+	if(request.getParameter("s_title")!=null && !request.getParameter("s_title").equals("")){
+		s_title = request.getParameter("s_title");
+		pMap.put("title",s_title);
+	}
+	
+	String s_start_date ="",s_end_date ="",s_sate="";
+	if(request.getParameter("s_sate")!=null && !request.getParameter("s_sate").equals("") )
+    {
+      s_sate = request.getParameter("s_sate").toString();
+      pMap.put("state_code",s_sate);  
+    } 
+    if(request.getParameter("s_start_date")!=null && !request.getParameter("s_start_date").equals("") )
+    {
+      s_start_date = request.getParameter("s_start_date").toString();
+      pMap.put("start_date",s_start_date);  
+    } 
+    if(request.getParameter("s_end_date")!=null && !request.getParameter("s_end_date").equals("") )
+    {
+       s_end_date = request.getParameter("s_end_date").toString();
+       pMap.put("end_date",s_end_date);  
+    } 
+	
+	String info_state = "";
+    if(request.getParameter("info_state")!=null && !request.getParameter("info_state").equals("")){
+		info_state = request.getParameter("info_state");
+		pMap.put("info_state",info_state);
+    }
+    String s_class_attr="";
+    if(request.getParameter("class_attr")!=null && !request.getParameter("class_attr").equals("") )
+    {
+      s_class_attr = request.getParameter("class_attr").toString();
+      pMap.put("cat_attr",s_class_attr);  
+   }
+    
+	pMap.put("v_state","a");
+	
+	Ti_downloadInfo ti_downloadInfo = new Ti_downloadInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_downloadInfo.getListByPage(pMap,Integer.parseInt(iStart),limit);
+	int counter = ti_downloadInfo.getCountByObj(pMap);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?iStart=",Integer.parseInt(iStart),limit);
+
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+	Map catMap  = ts_categoryInfo.getCatClassMap("8");
+	
+	String selecttree = ts_categoryInfo.getCategoryTree("000000000000000","8","");
+	
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	String state = tb_commparaInfo.getSelectItem("39",""); 
+	
+
+%>
+	
+<html>
+  <head>
+    
+    <title>下载审核</title>
+	
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	
+	<script type="text/javascript" src="js_download.js"></script>
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>下载审核</h1>
+			</td>
+			<td>
+				
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+
+	  
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				软件名称:<input name="s_title" type="text" />
+				&nbsp;
+				按分类:
+				 <select name="class_attr" id="class_attr">
+				    <option value="">请选择...</option>
+				    <%=selecttree%>
+				 </select>
+				  &nbsp;按状态:
+                    <select name="s_sate" id="s_sate">
+				  	   <option value="">请选择</option>	
+					  <option value="a">未审核</option>
+					  <option value="b">审核未通过</option>
+				    </select>
+                    
+				
+				 
+				 <br/> <br/>
+				 &nbsp;发布时间段:
+				    <input name="s_start_date" type="text" id="s_start_date" class="Wdate" value="" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'s_end_date\',{d:-1})}',readOnly:true})" size="15"  width="150px"/>
+                    -
+	                <input name="s_end_date" id="s_end_date" type="text" class="Wdate" value="" onclick="WdatePicker({minDate:'#F{$dp.$D(\'s_start_date\',{d:1})}',readOnly:true})" size="15" width="150px"/>
+				    <input name="searchInfo" type="button" value="查询" onclick="javascript:document.indexForm.submit();" />		
+			
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				&nbsp;&nbsp;
+			  <select name="upt_operating" id="upt_operating">
+				  	 <option value="">请选择...</option>	
+					 <option value="-">删除</option>	
+					 <option value="c">审核通过</option>
+					 <option value="b">审核不通过</option>
+			  </select>	
+			 <input type="button" name="delInfo" onclick="delIndexInfos('upt')" value="确定"  class="buttab" />
+			
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			
+		  	<th>基本信息</th>
+			
+			<th>状态</th>
+		  	
+			<th width="10%">审核</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String down_id="",cust_id="",state_code="",title="",size="",type="",update_date="",contact="",download_num="",developer="",dev_link="",language="",cat_attr="",platform="",content="",up_num="",down_num="",link_sw="",in_date="",user_id="";
+		  			  	if(map.get("down_id")!=null) down_id = map.get("down_id").toString();
+						if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+						if(map.get("state_code")!=null) state_code = map.get("state_code").toString();
+						if(map.get("title")!=null) title = map.get("title").toString();
+						if(map.get("size")!=null) size = map.get("size").toString();
+						if(map.get("type")!=null) type = map.get("type").toString();
+						if(map.get("update_date")!=null) update_date = map.get("update_date").toString();
+						if(update_date.length()>19)update_date=update_date.substring(0,19);
+						if(map.get("contact")!=null) contact = map.get("contact").toString();
+						if(map.get("download_num")!=null) download_num = map.get("download_num").toString();
+						if(map.get("developer")!=null) developer = map.get("developer").toString();
+						if(map.get("dev_link")!=null) dev_link = map.get("dev_link").toString();
+						if(map.get("language")!=null) language = map.get("language").toString();
+						if(map.get("cat_attr")!=null) cat_attr = map.get("cat_attr").toString();
+						if(map.get("platform")!=null) platform = map.get("platform").toString();
+						if(map.get("content")!=null) content = map.get("content").toString();
+						if(map.get("up_num")!=null) up_num = map.get("up_num").toString();
+						if(map.get("down_num")!=null) down_num = map.get("down_num").toString();
+						if(map.get("link_sw")!=null) link_sw = map.get("link_sw").toString();
+						
+						if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+						if(in_date.length()>10)in_date=in_date.substring(0,10);
+						
+						
+						StringBuffer output =new StringBuffer();
+						if(!cat_attr.equals(""))
+						{
+						  String chIds[] =	cat_attr.split("\\|");	
+						  for(String chId:chIds)
+						  {
+							 if(catMap!=null)
+							 {
+								 if(catMap.get(chId)!=null)
+								 {
+									output.append(catMap.get(chId).toString()+" ");                 
+								  }                  
+							 
+							  }                 
+						   }		    
+						}
+                  				
+				    String statex ="";
+				    if(state_code.equals("a")){statex ="<font color='red'>未审核</font>";}
+					if(state_code.equals("b")){statex ="<font color='#34ACF3'>未通过</font>";}	
+						
+					String e = "",f = "",g ="";
+					if(map.get("e")!=null) e = map.get("e").toString();
+					if(map.get("f")!=null) f = map.get("f").toString();
+					if(map.get("g")!=null) g = map.get("g").toString();	
+
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=down_id %>" /></td>
+		  	
+		  	<td>
+			  <div style="margin-top:8px;"></div> 	
+			  软件名称: <span style="color:#21759B;"><%=title%></span>
+			   <span style="color:#303A43;"> 发布日期:</span> <span style="color:#666666;"> <%=in_date%>		</span>       
+			   <div style="margin-top:8px;"></div> 	
+			   软件分类: <%=output%>
+			   <div style="margin-top:8px;"></div> 
+               下载次数:	<%=download_num%>	&nbsp;&nbsp;顶数:<%=up_num%> &nbsp;&nbsp;踩数:	<%=down_num%>   
+			
+			</td>
+		  	<td>  <%=statex%> </td>
+		  
+			<td width="10%"><a href="updateInfo.jsp?down_id=<%=down_id %>"><img src="/program/admin/images/edit.gif" title="修改" /></a></td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=down_id%>','1973');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				   &nbsp;&nbsp;			
+			 <select name="dw_operating" id="dw_operating">
+				 <option value="">请选择...</option>	
+				 <option value="-">删除</option>	
+				 <option value="c">审核通过</option>
+				 <option value="b">审核不通过</option>
+				</select>	
+				
+				<input type="button" name="delInfo" onclick="delIndexInfos('dw')" value="确定"  class="buttab" />
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="state_code" id="state_code" value="" />
+	  <input type="hidden" name="up_operating" id="up_operating" value="" />
+	  <input type="hidden" name="s_start_date" id="s_start_date" value="" />
+	  <input type="hidden" name="s_end_date" id="s_end_date" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="1973" />
+	  </form>
+</body>
+
+</html>

@@ -1,0 +1,312 @@
+	<%@ page contentType="text/html;charset=UTF-8" %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title>无标题文档</title>
+	<%@ include file="/commons/meta.jsp" %>
+	<%@ include file="/commons/taglibs.jsp" %>
+
+
+<link href="${ctx }/styles/css/index.css" rel="stylesheet" type="text/css" />
+<link href="${ctx }/styles/css/zxxq.css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+<!--
+.STYLE32 {
+	font-size: 20px;
+	font-weight: bold;
+	color: #000000;
+}
+.STYLE33 {
+	color: #CCCCCC
+}
+.STYLE34 {
+	color: #FF7000;
+	font-weight: bold;
+}
+.STYLE35 {
+	font-size: 14px;
+	font-weight: bold;
+}
+.STYLE38 {
+	color: #FF7000
+}
+.STYLE39 {
+	color: #765
+}
+-->
+</style>
+</head>
+<body>
+<div class="kuang_da">
+    <%@ include file="/WEB-INF/page/front/head.jsp" %>
+  <div class="dht0">
+    <div class="xq_ycda">
+      <div class="zxxw_bt"><a href="${ctx }/index.do">首页</a> &gt;<a href="${ctx }/zxxw.do">&nbsp;新闻&nbsp;</a> &gt; 正文</div>
+      <div class="zxxq_xw">
+        <div class="zxxq_bt">
+          <div class="zxxq_bt_yc"><span class="STYLE32">${beforeNews.title }</span><br />
+            <span class="STYLE33">作者：${beforeNews.creatorName }</span>&nbsp;&nbsp;&nbsp;&nbsp;<fmt:formatDate pattern="yyyy-MM-dd" value="${beforeNews.createTime}"/> <span class="STYLE33">来源：</span>君子门 </div>
+          <div style="display:none;" class="zxxq_bt_zc" onclick="location.href='#'"><strong><a href="#">我要评论</a></strong><br />
+            已有<span class="STYLE2">33</span>人评论</div>
+        </div>
+        <div class="zxxq_bt_zw"  style="table-layout:fixed; word-break: break-all; overflow:hidden;">
+        	${beforeNews.content}
+        </div>
+        <div class="liebiaoda">
+          <!-- <div class="liebiao">
+            <div class="liebiao_sz">1</div>
+            <div class="konghang4"></div>
+            <div class="liebiao_sz">2</div>
+            <div class="konghang4"></div>
+            <div class="liebiao_sz">3</div>
+            <div class="konghang4"></div>
+            <div class="liebiao_sz">4</div>
+            <div class="konghang4"></div>
+            <div class="liebiao_sz">5</div>
+            <div class="konghang4"></div>
+            <div class="liebiao_xyy">下一页</div>
+          </div> -->
+        </div>
+        <div class="zxxq_zyda">
+          <div class="zxxq_zy_yc"><span class="STYLE33">上一篇:</span> <c:if test="${not empty upNews}"><a href="${ctx }/zxxq.do?information.id=${upNews.id }&information.type=${upNews.type }"><c:if test="${fn:length(upNews.title)<=13 }">${upNews.title }</c:if><c:if test="${fn:length(upNews.title)>13 }">${fn:substring(upNews.title,0,13)}</c:if></a></c:if></div>
+          <div class="zxxq_zy_zc"><span class="STYLE33">下一篇:</span> <c:if test="${not empty nextNews}"><a href="${ctx }/zxxq.do?information.id=${nextNews.id }&information.type=${nextNews.type }"><c:if test="${fn:length(nextNews.title)<=13 }">${nextNews.title }</c:if><c:if test="${fn:length(nextNews.title)>13 }">${fn:substring(nextNews.title,0,13)}</c:if></a></c:if></div>
+        </div>
+      </div>
+      <div class="zxxq_plda" style="display:none;">
+        <div class="zxxq_pl_bt"><span class="STYLE35">网友评论</span><span class="STYLE36">（共33条评论）</span></div>
+        <div id="header">
+          <ul>
+            <li><a href="#">热门评论</a></li>
+            <li><a href="#">最新评论</a></li>
+          </ul>
+          <div class="zxxq_pl_pl"><a class="lj_5" href="#">我来评论</a></div>
+        </div>
+        <div class="zxxq_pl_zw">
+          <div class="zxxq_pl_pt"><img src="${ctx}/image/zxxq_pl_pt1.jpg" /></div>
+          <div class="zxxq_pl_wz">
+            <div class="zxxq_pl_yhm"><span class="zxxq_pl_wm"><a class="lj_4" href="#">shangjianan安</a></span><span class="zxxq_pl_sj">1小时前</span></div>
+            <div class="zxxq_pl_ww">中国男人这付德行的不在少数,自以为是,自私自我,利字当头，乐于在外逍遥自在，随心所欲; 没责任感,为家挣钱少,对老婆孩子照顾关怀少,孩子教育不管,家务不做,处处还要当大爷；更甚者，离婚时还大言不惭要分一半财产。不要脸的无赖，缺少教养。</div>
+            <div class="zxxq_pl_wx lj"><a class="lj_4" href="#">支持（<span class="STYLE38">27</span>）</a><a class="lj_4" href="#">回复（<span class="STYLE38">0</span>）</a></div>
+          </div>
+        </div>
+        <div class="zxxq_pl_zw">
+          <div class="zxxq_pl_pt"><img src="${ctx}/image/zxxq_pl_pt1.jpg" /></div>
+          <div class="zxxq_pl_wz">
+            <div class="zxxq_pl_yhm"><span class="zxxq_pl_wm"><a class="lj_4" href="#">shangjianan安</a></span><span class="zxxq_pl_sj">1小时前</span></div>
+            <div class="zxxq_pl_ww">中国男人这付德行的不在少数,自以为是,自私自我,利字当头，乐于在外逍遥自在，随心所欲; 没责任感,为家挣钱少,对老婆孩子照顾关怀少,孩子教育不管,家务不做,处处还要当大爷；更甚者，离婚时还大言不惭要分一半财产。不要脸的无赖，缺少教养。</div>
+            <div class="zxxq_pl_wx"><a class="lj_4" href="#">支持（<span class="STYLE38">27</span>）</a><a class="lj_4" href="#">回复（<span class="STYLE38">0</span>）</a></div>
+          </div>
+        </div>
+        <div class="zxxq_pl_zw">
+          <div class="zxxq_pl_pt"><img src="${ctx}/image/zxxq_pl_pt1.jpg" /></div>
+          <div class="zxxq_pl_wz">
+            <div class="zxxq_pl_yhm"><span class="zxxq_pl_wm"><a class="lj_4" href="#">shangjianan安</a></span><span class="zxxq_pl_sj">1小时前</span></div>
+            <div class="zxxq_pl_ww">中国男人这付德行的不在少数,自以为是,自私自我,利字当头，乐于在外逍遥自在，随心所欲; 没责任感,为家挣钱少,对老婆孩子照顾关怀少,孩子教育不管,家务不做,处处还要当大爷；更甚者，离婚时还大言不惭要分一半财产。不要脸的无赖，缺少教养。</div>
+            <div class="zxxq_pl_wx"><a class="lj_4" href="#">支持（<span class="STYLE38">27</span>）</a><a class="lj_4" href="#">回复（<span class="STYLE38">0</span>）</a></div>
+          </div>
+        </div>
+        <div class="zxxq_pl_zw">
+          <div class="zxxq_pl_pt"><img src="${ctx}/image/zxxq_pl_pt1.jpg" /></div>
+          <div class="zxxq_pl_wz">
+            <div class="zxxq_pl_yhm"><span class="zxxq_pl_wm"><a class="lj_4" href="#">shangjianan安</a></span><span class="zxxq_pl_sj">1小时前</span></div>
+            <div class="zxxq_pl_ww">中国男人这付德行的不在少数,自以为是,自私自我,利字当头，乐于在外逍遥自在，随心所欲; 没责任感,为家挣钱少,对老婆孩子照顾关怀少,孩子教育不管,家务不做,处处还要当大爷；更甚者，离婚时还大言不惭要分一半财产。不要脸的无赖，缺少教养。</div>
+            <div class="zxxq_pl_wx"><a class="lj_4" href="#">支持（<span class="STYLE38">27</span>）</a><a class="lj_4" href="#">回复（<span class="STYLE38">0</span>）</a></div>
+          </div>
+        </div>
+        <div class="zxxq_fbda">
+          <div class="zxxq_fb_tt"><a class="lj_5" href="#">已有33条评论，点击查看</a></div>
+          <div class="zxxq_fb_pl">
+            <p class="zxyc_p1 STYLE35">我来说两句</p>
+            <p class="zxyc_p3">还可以输入140个字符</p>
+          </div>
+          <input name="" type="text" class="zxxq_fb_kk"/>
+          <div class="zxxq_fb_xx">
+            <div class="zxxq_bd_yz">验证码：
+              <input type="text" size="5" maxlength="4" />
+            </div>
+            <div class="zxxq_bd_tp"><img src="${ctx}/image/untitled.jpg" /></div>
+            <div class="zxxq_bd_ht"><a class="lj_2" href="#">看不清 换下一张</a></div>
+            <div class="zxxq_bd_nm">
+              <input name="" type="checkbox" value="" />
+              匿名发表</div>
+            <div class="zxxq_bd_fb">
+              <input name="提交" type="submit" value="发布" />
+            </div>
+          </div>
+        </div>
+      </div>
+          <div class="zxxq_xhda" style="display:none;">
+        <div class="zxxq_xh_bt STYLE39">猜你喜欢</div>
+        <div class="zxxq_xh_xb">
+          <div class="zxxq_xhzz">
+            <div class="zxxq_xh_img"><a href="../shop/spxq.html"><img src="../image/rem1.jpg" width="137" height="113" /></a></div>
+            <div class="zxxq_xh_wz"> <a href="../shop/spxq.html">雀巢三花植脂末奶精</a><br />
+              <span class="STYLE2">￥20.00</span></div>
+          </div>
+          <div class="zxxq_xhzz">
+            <div class="zxxq_xh_img"><a href="../shop/spxq.html"><img src="../image/rem2.jpg" width="137" height="113" /></a></div>
+            <div class="zxxq_xh_wz"> <a href="../shop/spxq.html">雀巢三花植脂末奶精</a><br />
+              <span class="STYLE2">￥20.00</span></div>
+          </div>
+          <div class="zxxq_xhzz">
+            <div class="zxxq_xh_img"><a href="../shop/spxq.html"><img src="../image/rem3.jpg" width="137" height="113" /></a></div>
+            <div class="zxxq_xh_wz"> <a href="../shop/spxq.html">雀巢三花植脂末奶精</a><br />
+              <span class="STYLE2">20.00</span></div>
+          </div>
+          <div class="zxxq_xhzz">
+            <div class="zxxq_xh_img"><a href="../shop/spxq.html"><img src="../image/rem4.jpg" width="137" height="113" /></a></div>
+            <div class="zxxq_xh_wz"> <a href="../shop/spxq.html">雀巢三花植脂末奶精</a><br />
+              <span class="STYLE2">￥20.00</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--左侧-->
+    <div class="xq_zcda">
+      <div class="xqzc_img1" style="display:none;"><a href="#"><img src="${ctx}/image/zxxq_zc_img1.jpg" /></a></div>
+      <div class="kh_10"></div>
+      <div class="xqzc_mrtj" style="display:none;">
+        <div class="xq_tj_bt">每日推荐</div>
+        <div class="xq_tj_zw">
+          <ul>
+            <li>【<strong><a href="#">今日头条</a></strong>】 <a href="#">湖北老式铁皮饼干盒美术展令人玩味</a></li>
+            <li>【<strong><a href="#">热点新闻</a></strong>】 <a href="#">淘烘焙网独家专访本土中点烘焙</a></li>
+            <li>【<strong><a href="#">烘焙新闻</a></strong>】 <a href="#">在淘烘焙中崛起</a></li>
+            <li>【<strong><a href="#">展会推荐</a></strong>】 <a href="#">冠生园翁懋：坚定地走，必会到达</a></li>
+            <li>【<strong><a href="#">热点新闻</a></strong>】 <a href="#">淘烘焙网给您拜年啦</a></li>
+            <li>【<strong><a href="#">企业报道</a></strong>】 <a href="#">树展木盘：返璞归真 享受自然</a></li>
+            <li>【<strong><a href="#">焦点报道</a></strong>】 <a href="#">展烘焙成果 促行业发展</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="kh_10"></div>
+      <div class="xqzc_mrtj" style="display:none;">
+        <div class="xq_tj_bt">每日图文</div>
+        <div class="xq_tj_zw">
+          <div class="xq_tj_tp">
+            <p style=" padding-bottom:7px; padding-top:7px; margin:0;"><a href="#"><img src="${ctx}/image/zxxq_tp_1.jpg" width="133" style="border: 1px solid #CCCCCC" /></a></p>
+            <p style=" padding-bottom:7px; margin:0; text-align:center"><a href="#">型男大爱冬日潮范</a></p>
+          </div>
+          <div class="xq_tj_tp">
+            <p style=" padding-bottom:7px; padding-top:7px; margin:0;"><a href="#"><img src="${ctx}/image/zxxq_tp_2.jpg" width="133" style="border: 1px solid #CCCCCC" /></a></p>
+            <p style=" padding-bottom:7px; margin:0; text-align:center"><a href="#">帅男英伦气质</a></p>
+          </div>
+          <div class="xq_tj_tp">
+            <p style=" padding-bottom:7px; padding-top:7px; margin:0;"><a href="#"><img src="${ctx}/image/zxxq_tp_3.jpg" width="132" style="border: 1px solid #CCCCCC" /></a></p>
+            <p style=" padding-bottom:7px; margin:0; text-align:center"><a href="#">冬季花样衣搭</a>！</p>
+          </div>
+          <div class="xq_tj_tp">
+            <p style=" padding-bottom:7px; padding-top:7px; margin:0;"><a href="#"><img src="${ctx}/image/zxxq_tp_4.jpg" width="132" style="border: 1px solid #CCCCCC" /></a></p>
+            <p style=" padding-bottom:7px; margin:0; text-align:center"><a href="#">达人必备！超人气男</a></p>
+          </div>
+        </div>
+      </div>
+      <div class="kh_10"></div>
+      <div class="xqzc_mrtj"  style="display:none;">
+        <div class="xq_tj_bt">热卖点击</div>
+        <div class="xq_tj_bt2">
+          <p class="STYLE33" style=" padding:0; margin:0; float:left;">标 题</p>
+          <p class="STYLE33" style=" padding:0; margin:0; float:right;">点击数</p>
+        </div>
+        <div class="xq_tj_zw">
+          <div class="zxyc_wb"> <span class="STYLE2">
+            <p class="zxyc_p1">01</p>
+            <p class="zxyc_p2"><a href="#">艺术创意面包</a></p>
+            <p class="zxyc_p3">19284</p>
+            <br />
+            <p class="zxyc_p1">02</p>
+            <p class="zxyc_p2"><a href="#">北海道脆皮吐司</a></p>
+            <p class="zxyc_p3">13025</p>
+            <br />
+            <p class="zxyc_p1">03</p>
+            <p class="zxyc_p2"><a href="#">潘娜多妮面包</a></p>
+            <p class="zxyc_p3">12059</p>
+            </span><br />
+            <p class="zxyc_p1">04</p>
+            <p class="zxyc_p2"><a href="#">乐斯福世界面包大赛亚太</a></p>
+            <p class="zxyc_p3">10795</p>
+            <br />
+            <p class="zxyc_p1">05</p>
+            <p class="zxyc_p2"><a href="#">富士山面包</a></p>
+            <p class="zxyc_p3">10507</p>
+            <br />
+            <p class="zxyc_p1">06</p>
+            <p class="zxyc_p2"><a href="#">聚焦复合式经营展望盈利</a></p>
+            <p class="zxyc_p3">9576</p>
+            <br />
+            <p class="zxyc_p1">07</p>
+            <p class="zxyc_p2"><a href="#">顺南食品刘家祥：都市爱</a></p>
+            <p class="zxyc_p3">8942</p>
+            <br />
+            <p class="zxyc_p1">08</p>
+            <p class="zxyc_p2"><a href="#">网络促成烘焙坊高效完成</a></p>
+            <p class="zxyc_p3">8384</p>
+            <br />
+            <p class="zxyc_p1">09</p>
+            <p class="zxyc_p2"><a href="#">上海抽查糕点产品功德林</a></p>
+            <p class="zxyc_p3">8367</p>
+            <br />
+            <p class="zxyc_p1">10</p>
+            <p class="zxyc_p2"><a href="#">张秀琬：有节有礼有元祖</a></p>
+            <p class="zxyc_p3">8313</p>
+            <br />
+          </div>
+        </div>
+      </div>
+      <div class="kh_10"></div>
+      <div class="xqzc_mrtj"  style="display:none;">
+        <div class="xq_tj_bt">天天特价</div>
+        <div class="xq_tj_zw">
+          <div class="xq_tj_ttda">
+            <div class="xq_tj_tt1">
+              <dt><a href="#"><img src="${ctx}/image/zxxq_tt_tp1.jpg" width="58" height="58" alt="" /></a></dt>
+              <dd><span class="STYLE34"><a class="lj_5" href="#">松紧腰铅笔裤打底裤</a></span><br />
+                特价：<span class="STYLE34">39</span><br />
+                原价：<span class="scx">￥98</span><br />
+              </dd>
+            </div>
+            <div class="xq_tj_tt2">
+              <div class="sjsy_dp_ssda">
+                <div class="sjsy_dp_ssw"><a class="lj_9" href="#">立即抢购</a></div>
+              </div>
+            </div>
+          </div>
+          <div class="xq_tj_ttda">
+            <div class="xq_tj_tt1">
+              <dt><a href="#"><img src="${ctx}/image/zxxq_tt_tp1.jpg" width="60" height="60" alt="" /></a></dt>
+              <dd><span class="STYLE34"><a class="lj_5" href="#">松紧腰铅笔裤打底裤</a></span><br />
+                特价：<span class="STYLE34">39</span><br />
+                原价：<span class="scx">￥98</span><br />
+              </dd>
+            </div>
+            <div class="xq_tj_tt2">
+              <div class="sjsy_dp_ssda">
+                <div class="sjsy_dp_ssw"><a class="lj_9" href="#">立即抢购</a></div>
+              </div>
+            </div>
+          </div>
+          <div class="xq_tj_ttda" style="border:none">
+            <div class="xq_tj_tt1">
+              <dt><a href="#"><img src="${ctx}/image/zxxq_tt_tp2.jpg" width="60" height="60" alt="" /></a></dt>
+              <dd><span class="STYLE34"><a class="lj_5" href="#">抓绒加厚连帽卫衣</a></span><br />
+                特价：<span class="STYLE34">35</span><br />
+                原价：<span class="scx">￥109</span><br />
+              </dd>
+            </div>
+            <div class="xq_tj_tt2">
+              <div class="sjsy_dp_ssda">
+                <div class="sjsy_dp_ssw"><a class="lj_9" href="#">立即抢购</a></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="kh_10"></div>
+      <div class="xq_tj_img2" style="display:none;"><a href="#"><img src="${ctx }/image/zxxq_img2.gif" /></a></div>
+    </div>
+  </div>
+    <%@ include file="/WEB-INF/page/front/footer.jsp" %>
+</div>
+</body>
+</html>

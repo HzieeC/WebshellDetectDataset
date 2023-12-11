@@ -1,0 +1,198 @@
+<%
+'******************************************************************************************
+' Software name: Max(马克斯) Content Management System
+' Version:3.0
+' Web: http://www.maxcms.net
+' Author: 石头(maxcms2008@qq.com),yuet,长明,酒瓶
+' Copyright (C) 2005-2009 马克斯官方 版权所有
+' 法律申明：MaxCMS程序所有代码100%原创、未引入任何网上代码,对一切抄袭行为、坚决严肃追究法律责任
+'******************************************************************************************
+Response.Buffer=true
+Const PATH = "cron/"
+Dim nextRunCfg:nextRunCfg = "/"&sitePath&PATH&"lock/cronnextrun.config"
+Dim timestamp:timestamp = times("")
+
+Function DBCls(ByVal sPath,ByVal sUser,ByVal sPass)
+	SET DBCls=New DBClass:DBCls.Connect sPath,sUser,sPass
+End Function
+
+Class DBClass
+	Public fetchCount
+	Private QHas,IHas,iQueryCount,oConn,isConnect
+	Private Sub Class_Initialize()
+		iQueryCount=0:fetchCount=0:isConnect=false
+	End Sub
+
+	Private Sub Class_Terminate()
+		Close:SET oConn=Nothing
+	End Sub
+
+	Public Sub Close()
+		if isConnect=true then:oConn.Close:isConnect=false:end if
+	End Sub
+
+	Public Sub Connect(ByVal sPath,ByVal sUser,ByVal sPass)
+		Dim Connect_String:sUser=IfThen(sUser="","admin",trim(sUser)):Connect_String=IfThen(sUser<>"admin" OR sPass<>"","driver={microsoft access driver (*.mdb)};uid="&sUser&";pwd="&sPass&";dbq=","Provider=Microsoft.Jet.OLEDB.4.0;Data Source=")
+		if sPath<>"" then
+			if not isObject(oConn) then
+				SET oConn=Server.CreateObject("ADODB.Connection")
+			else
+				Close
+			end if
+			oConn.Open Connect_String & Server.MapPath(sPath):isConnect=true
+		end if
+	End Sub
+
+	Public Function QueryCount()
+		QueryCount=iQueryCount
+	End Function
+
+	Public Function Query(ByVal sql,ByVal QType)
+		Select Case QType
+			Case "execute"
+				SET Query=oConn.Execute(sql)
+			Case "records1"
+				set Query=server.CreateObject(RECORDSET_OBJ_NAME)
+				Query.open sql,oConn,1,1
+			Case "records3"
+				set Query=Server.CreateObject("ADODB.RECORDSET")
+				Query.open sql,oConn,3,3
+			Case "array"
+				dim tRs:set tRs=Server.CreateObject("ADODB.RECORDSET")
+				tRs.open sql,oConn,1,1
+				if not tRs.eof then
+					if fetchCount=0 then Query=tRs.getRows() else db=tRs.getRows(fetchCount)
+				end if
+				tRs.close:set tRs=nothing
+		End Select
+	End Function
+End Class
+
+Function SetValue(ByRef Var,ByVal Val)
+	if isObject(val) then
+		if isObject(Var) then:SET Var=nothing:end if
+		SET Var=Val:SET SetValue=Val
+	else
+		Var=Val:SetValue=Val
+	end if
+End Function
+
+Function IfThen(ByVal Bool, Byval A,ByVal B)
+	if Bool then
+		SetValue IfThen,A
+	else
+		SetValue IfThen,B
+	end if
+End Function
+
+Function Str2Num(ByVal sNum)
+	if not isNumeric(sNum) then:Str2Num=0:exit function:end if
+	dim x:x=CDBL(sNum)
+	if InStr(" "&sNum,".")>0 OR (x<-2147483647 AND x>2147483647) then:Str2Num=CDbl(sNum):exit function:end if
+	if x>-32768 AND x<32768 then:Str2Num=CInt(sNum):else:Str2Num=CLng(sNum):end if
+End Function
+
+Function times(ByVal sDate)
+	if trim(sDate)="" then:sDate=now():end if
+	times=datediff("s","1/1/1970",sDate)
+End Function
+
+Function gmDate(ByVal format,ByVal timestamp)
+	gmDate=FormatTime(DateAdd("s",Str2Num(timestamp),"1/1/1970"),format)
+End Function
+
+Function timer2Date(ByVal timestamp)
+	timer2Date=gmDate("yyyy-mm-dd hh:nn:ss",timestamp)
+End Function
+
+Function FormatTime(ByVal sDate,ByVal sFormat)
+	Dim Y,M,D,H,N,S
+	if not isDate(sDate) then
+		FormatTime=""
+	else
+		sDate=Cdate(sDate):Y=Year(sDate):M=Month(sDate):D=Day(sDate):H=Hour(sDate):N=Minute(sDate):S=Second(sDate):M=IFThen(M<10 and InStr(" "&sFormat,"mm")>0,"0","")&M:D=IFThen(D<10 and InStr(" "&sFormat,"dd")>0,"0","")&D:H=IFThen(H<10 and InStr(" "&sFormat,"hh")>0,"0","")&H:N=IFThen(N<10 and InStr(" "&sFormat,"nn")>0,"0","")&N:S=IFThen(S<10 and InStr(" "&sFormat,"ss")>0,"0","")&S
+		FormatTime=Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(Replace(sFormat,"yyyy",y),"yy",Right(trim(y),2)),"mm",M),"m",M),"dd",D),"d",D),"hh",H),"h",H),"nn",N),"n",N),"ss",S),"s",S)
+	end if
+End Function
+
+Function getNextRunTime(ByVal mHas,ByVal dHas,ByVal hHas,ByVal nHas)
+	dim Y,M,D,H,N,T:T=Now():Y=Year(T):M=Month(T):D=Day(T):H=Hour(T):N=Minute(T)
+	dim i,dAry,nAry:dAry=array(0,31,ifthen(Y MOD 4 <>0,28,29),31,30,31,30,31,31,30,31,30,31):nAry=array(0,0,0,0)
+	if trim(mHas)="" OR trim(dHas)="" OR trim(hHas)="" OR trim(nHas)="" then:getNextRunTime="N/A":exit Function:end if
+	mHas=Split(Replace(mHas," ",""),","):dHas=Split(Replace(dHas," ",""),","):hHas=Split(Replace(hHas," ",""),","):nHas=Split(Replace(nHas," ",""),",")
+	for i=0 to UBound(nHas)
+		if Str2Num(nHas(i))>N then:nAry(0)=Str2Num(nHas(i)):exit for:end if
+	next
+	if nAry(0)=0 then:nAry(0)=nHas(0):else:H=H-1:end if
+
+	for i=0 to UBound(hHas)
+		if Str2Num(hHas(i))>H then:nAry(1)=Str2Num(hHas(i)):exit for:end if
+	next
+	if nAry(1)=0 then:nAry(1)=hHas(0):else:D=D-1:end if
+
+	for i=0 to UBound(dHas)
+		if Str2Num(dHas(i))>D then:nAry(2)=Str2Num(dHas(i)):exit for:end if
+	next
+	if nAry(2)=0 OR dAry(M)<nAry(2) then:nAry(2)=dHas(0):else:M=M-1:end if
+
+	for i=0 to UBound(mHas)
+		if Str2Num(mHas(i))>M then:nAry(3)=Str2Num(mHas(i)):exit for:end if
+	next
+	if nAry(3)=0 then:nAry(3)=mHas(0):Y=Y+1:end if
+
+	getNextRunTime=Y&"-"&nAry(3)&"-"&nAry(2)&" "&nAry(1)&":"&nAry(0)&":00"
+End Function
+
+Sub computenext(ByVal iID)
+	Dim rs:iID=Str2Num(iID)
+	if iID>0 then
+		set rs=db.query("SELECT TOP 1 months,days,hours,minutes FROM m_cron WHERE cronid="&iID,"records1")
+		if not rs.eof then
+			Dim nextrun:nextrun=getNextRunTime(rs("months"),rs("days"),rs("hours"),rs("minutes")):nextrun=ifthen(isDate(nextrun),times(nextrun),0)
+			call db.query("UPDATE m_cron SET lastrun="&timestamp&",nextrun="&nextrun&ifthen(nextrun <= timestamp , ",available=0" , "")&" WHERE cronid="&iID,"execute")
+		end if
+		rs.close:SET rs=nothing
+	end if
+End Sub
+
+Sub nextConfig()
+	dim rs,nextrun:nextrun=null:SET rs=db.query("SELECT TOP 1 nextrun FROM m_cron WHERE available>0 ORDER BY nextrun","records1")
+	if NOT rs.EOF then nextrun = rs("nextrun")
+	rs.close:SET rs=Nothing:nextrun=ifthen(nextrun=null,0,nextrun)
+	CreateTextFile nextrun,nextRunCfg,"gbk"
+End Sub
+
+Sub RunCron(ByVal iID)
+Dim WHERE,lockFile,ExcFile,rs:iID=Str2Num(iID):WHERE=ifthen(iID>0,"cronid="&iID,"available > 0 AND nextrun <="&timestamp)
+	SET rs=db.query("SELECT TOP 1 * FROM m_cron WHERE "&WHERE&" ORDER BY nextrun ASC","records1")
+	if not rs.eof then
+		lockFile="/"&sitePath&PATH&"lock/runcron_"&rs("cronid")&".lock":ExcFile="/"&sitePath&PATH&"execute/"&rs("filename")&"?"&rs("paramets")
+		if isExistFile(lockFile) then
+			if Str2Num(loadFile(lockFile))>timestamp - 30 then
+				rs.close:SET rs=Nothing:db.Close:exit sub
+			end if
+		else
+			CreateTextFile timestamp,lockFile,"gbk"
+			if rs("available")=1 then:Call db.query("UPDATE m_cron SET available=0 WHERE cronid="&rs("cronid"),"execute"):end if
+		end if
+		computenext(rs("cronid")):nextConfig():rs.close:SET rs=Nothing:db.Close
+		include ExcFile
+	else
+		rs.close:SET rs=Nothing:db.Close
+	end if
+End Sub
+
+Sub include(ByVal Url)
+	Dim t:t=getForm("op","both")
+	if t="" then
+		Response.Clear:Response.Redirect(Url)
+	else
+		echo "<img src="""&Url&""" width=""0"" height=""0"" style=""display:none"" />"
+	end if
+End Sub
+
+dim db
+Sub ConnectDataBase()
+	if not IsObject(db) then SET db=DBCls("/"&sitePath&PATH&"yuet_cron.adb","admin","")
+End Sub
+%>

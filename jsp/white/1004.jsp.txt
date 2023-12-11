@@ -1,0 +1,16 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=gb2312" />
+<title>管理中心</title>
+<link rel="stylesheet" href="images/css/admin_top_1.css" type="text/css" media="all" />
+</head>
+<body>
+<table border="0" align="center" cellpadding="0" cellspacing="0" id="bottomMain">
+  <tr>
+    <td align="center">MianFeiZhe内容管理系统 Beta1.0 SQL版&nbsp;&nbsp;&nbsp;&nbsp;
+    Copyright &copy; 2008-2010 <a href="http://www.MianFeiZhe.Com" target="_blank">MianFeiZhe.Com</a>. All Rights Reserved .</td>
+  </tr>
+</table>
+</body>
+</html>

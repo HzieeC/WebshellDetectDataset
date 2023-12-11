@@ -1,0 +1,126 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<%@ page import="com.bizoss.trade.ti_advpara.*" %>
+<%@ page import="com.bizoss.frame.util.*" %>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo"%>
+<%@page import="java.net.URLDecoder"%>
+<%
+	RandomID randomID = new RandomID();
+	String trade_id = randomID.GenTradeId();
+	
+	Ti_advpara ti_advpara = new Ti_advpara();
+
+	String _cust_id="",_user_id="";	
+	if( session.getAttribute("session_cust_id") != null )
+	{
+		_cust_id = session.getAttribute("session_cust_id").toString();
+		ti_advpara.setCust_id(_cust_id);
+	}
+	if( session.getAttribute("session_user_id") != null )
+	{
+		_user_id = session.getAttribute("session_user_id").toString();
+	}
+	String advSelect = new Ti_advparaInfo().getAdvparaSelected(ti_advpara);
+	String cust_id = "";
+	if(request.getParameter("cust_id")!=null && !request.getParameter("cust_id").equals("")){
+		cust_id = request.getParameter("cust_id");
+	}
+	String cust_name = "";
+	if(request.getParameter("cust_name")!=null && !request.getParameter("cust_name").equals("")){
+		cust_name = URLDecoder.decode(request.getParameter("cust_name"),"UTF-8");
+	}
+	String area_attr = "";
+	if(request.getParameter("area_attr")!=null && !request.getParameter("area_attr").equals("")){
+		area_attr = request.getParameter("area_attr");
+	}
+%>
+<html>
+  <head>
+    <title>新增广告销售信息</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	<script type="text/javascript" src="/js/thickbox.js"></script>
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script type="text/javascript" src="js_commen.js"></script>
+</head>
+
+<body>
+	<h1>新增广告销售信息</h1>
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="1" cellspacing="1" border="0" class="listtab">
+
+		<tr>
+			<td align="right" width="10%">
+					会员名称<font color="#ff0000">*</font>
+			</td>
+			<td colspan="3" >
+			<input name="cust_name" id="cust_name" value="<%=cust_name %>" style="width:200px;" type="text" maxlength="100" />
+			<input type="button" class="button_s_css" value=" 搜索 "  onclick="showLinkCompany()" />	
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" valign="center" class="list_left_box">
+				广&nbsp;告&nbsp;位<font color="#ff0000">*</font>
+			</td>
+			<td valign="center" colspan="3" >
+				<select name="biz_id" id="biz_id" >
+					<%=advSelect%>
+				</select>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" valign="center" class="list_left_box">
+				产品销售类型<font color="#ff0000">*</font>
+			</td>
+			<td valign="center" colspan="3" >
+				<select name="product_code" id="product_code" >
+					<option value="C">金色钥匙广告位销售</option>
+					<option value="F">八点商铺广告位销售</option>
+					<option value="H">八点商城广告位销售</option>
+					<option value="J">八点团广告位销售</option>
+				</select>
+			</td>
+		</tr>
+	
+		<tr>
+			<td align="right" width="15%">
+				开始时间<font color="#ff0000">*</font>
+			</td>
+			<td width="20%">
+				<input name="start_date" id="start_date" type="text" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'end_date\',{d:-1})}',readOnly:true})" style="width:200px;" class="Wdate" maxlength="10" />
+			</td>
+
+			<td align="right" width="15%">
+					结束时间<font color="#ff0000">*</font>
+			<td>
+				<input name="end_date" id="end_date" type="text" onclick="WdatePicker({minDate:'#F{$dp.$D(\'start_date\',{d:1})}',readOnly:true})" style="width:200px;" class="Wdate"  value="" maxlength="10" />
+			</td>
+		</tr>
+
+	</table>
+
+
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="5358" />
+				<input type="hidden" name="trade_type" value="5358" />
+				<input name="area_attr" id="area_attr" type="hidden" value="<%=area_attr%>" />
+				<input name="trade_id" id="trade_id" type="hidden" value="<%=trade_id%>" />
+				<input name="user_id" id="user_id" type="hidden" value="<%=_user_id%>" />
+				<input name="cust_id" id="cust_id" type="hidden" value="<%=cust_id%>" />
+				<input name="agent_product_code" id="agent_product_code" type="hidden" value="" />
+				<input class="buttoncss" type="button" name="tradeSub" value="提交" onclick="return subForm();" />&nbsp;&nbsp;
+				<input class="buttoncss" type="button" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

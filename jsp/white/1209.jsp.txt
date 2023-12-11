@@ -1,0 +1,73 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_member.*" %>
+<%@page import="com.bizoss.trade.ti_user.*" %>
+<%@page import="java.util.*" %>
+<html>
+  <head>
+    
+    <title>会员管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type='text/javascript' src='password.js'></script>
+</head>
+
+<body>
+
+  <% 
+  	String cust_id="";
+  	if(request.getParameter("cust_id")!=null) cust_id = request.getParameter("cust_id");
+  	Ti_userInfo ti_userInfo = new Ti_userInfo();
+	Map conditionMap = new Hashtable();
+	conditionMap.put("cust_id",cust_id);
+  	String selectString = ti_userInfo.getSelectString(conditionMap,"");	
+	
+  %>
+	
+	<h1>重置会员密码</h1>
+	
+
+	
+	
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">
+<tr>
+	<td align="right" width="20%">
+	用户名<font color="red">*</font>
+	</td>
+	<td>
+		<select name="user_id" id="user_id" style="width:200px;">
+		<option value="">
+		请选择相应用户
+		</option>
+		<%=selectString%>
+		</select>
+	</td>
+</tr>		
+<tr>
+	<td align="right" width="20%">
+	新密码<font color="red">*</font>
+	</td>
+	<td><input type="password" name="new_passwd" id="new_passwd" maxlength="32" size="32" style="width:200px;"/>&nbsp;6-20 个字符，只允许数字和英文字母，有大小写区分</td>
+</tr>
+<tr>
+	<td align="right" width="20%">
+	确认密码<font color="red">*</font>
+	</td>
+	<td><input type="password" name="passwd" id="confirm_password" maxlength="32" size="32" style="width:200px;"/>&nbsp;6-20 个字符，只允许数字和英文字母，有大小写区分</td>
+</tr>
+	
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="5412" />
+				<input type="button" class="buttoncss" name="tradeSub" onclick="submitForm()" value="提交" />&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

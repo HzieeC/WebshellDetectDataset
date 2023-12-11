@@ -1,0 +1,617 @@
+<!--#include virtual="/Module/Includes/Conn.asp" -->
+<!--#include virtual="/Module/Includes/PubFunc.asp" -->
+<!-- #Include virtual="/Module/Includes/Config.asp" -->
+<!-- #Include Virtual="/Flight/Config.asp" -->
+<%
+on error resume next
+redim ZXLWeek(7)
+ZXLWeek(1)="星期天"
+ZXLWeek(2)="星期一"
+ZXLWeek(3)="星期二"
+ZXLWeek(4)="星期三"
+ZXLWeek(5)="星期四"
+ZXLWeek(6)="星期五"
+ZXLWeek(7)="星期六"
+
+airticket_OrderID=Decode(trim(request("OrderID")))
+set rs=server.CreateObject("adodb.recordset")
+sql="select * from FlightOrderDetail where OrderId='"&airticket_OrderID&"' order by [SeqNum] asc"
+rs.open sql,conn,3,1
+dim DRecordcount
+DRecordcount=rs.recordcount
+redim flightMsg(DRecordcount,12)
+redim TripMsg(3,11)
+
+'response.write DRecordcount
+dim TempId,lastId,myInsure
+lastId=0
+myInsure=0
+'on error resume next
+dim MyPNR,MyPNRContent
+if not (rs.bof or rs.eof) then 
+rs.movefirst
+MyPNR=trim(rs("PNR"))
+SaleMoney=rs("SalePrice")
+end if
+i=0
+do while not (rs.eof or rs.bof)
+    if instr(1,rs("SeatClass"),"特价")>0 Then IsTj="1"
+    if instr(1,rs("FlightNo"),"|")>0 Then TwoAir=1
+    
+	'flightMsg(i,0)=rs("OrderId")
+    TempId=Cint(rs("SeqNum"))
+	if TempId<>lastId then
+        TripMsg(TempId-1,0)=rs("TakeOffTime")
+        TripMsg(TempId-1,1)=rs("FromCity")
+        TripMsg(TempId-1,2)=rs("ToCity")
+        TripMsg(TempId-1,3)=rs("ArriveTime")
+        TripMsg(TempId-1,4)=rs("FlightNo")
+        TripMsg(TempId-1,5)=rs("SeatClass")
+        TripMsg(TempId-1,6)=rs("Plane")
+        TripMsg(TempId-1,7)=rs("Carrier")
+        TripMsg(TempId-1,10)=rs("SeatClass")
+        'TripMsg(TempId-1,0)=rs("SafeNum")
+        
+        '//hxy
+        if (DRecordcount=1) Then
+            if instr(1,rs("TakeOffTime"),"|")>0 Then
+				TripMsg(TempId,0)=rs("TakeOffTime")
+				TripMsg(TempId,1)=rs("FromCity")
+				TripMsg(TempId,2)=rs("ToCity")
+				TripMsg(TempId,3)=rs("ArriveTime")
+				TripMsg(TempId,4)=rs("FlightNo")
+				TripMsg(TempId,5)=rs("SeatClass")
+				TripMsg(TempId,6)=rs("Plane")
+				TripMsg(TempId,7)=rs("Carrier")
+				TripMsg(TempId,10)=rs("SeatClass")
+				TempId=2
+            End IF
+        End iF
+        '//hxy
+		lastId=TempId
+	end if
+		
+	'flightMsg(i,1)=rs("SeqNum")
+	flightMsg(i,1)=rs("SafeNum")
+	myInsure=myInsure+Cint(Nvl(flightMsg(i,1),0))
+	flightMsg(i,2)=rs("TicketNo")
+	flightMsg(i,3)=rs("PNR")
+	flightMsg(i,4)=rs("CustName")
+	flightMsg(i,5)=rs("CardNo")
+	flightMsg(i,7)=rs("TicketPrice")
+	flightMsg(i,8)=rs("Tax")
+	flightMsg(i,9)=trim(rs("CustType"))
+	flightMsg(i,10)=rs("Birthday")
+	flightMsg(i,11)=rs("OilPrice")
+
+	'response.write i&"<br>"
+
+	rs.movenext
+    i=i+1
+loop
+
+
+if (TempId>2) Then TempId=2  'hxy
+
+if (TwoAir=1) Then myInsure=myInsure*2
+
+rs.close
+sql="select * from FlightOrder where OrderId='"&airticket_OrderID&"'"
+rs.open sql,conn,3,1
+if not (rs.eof or rs.bof) then
+redim Mmsg(30)
+Mmsg(1)=rs("MemberId")
+Mmsg(2)=rs("LinkMan")
+Mmsg(3)=rs("Addr")
+Mmsg(4)=rs("TEL")
+
+
+Mmsg(10)=rs("SendDate")
+Mmsg(11)=rs("SendTime")
+Mmsg(12)=rs("Mobile")
+Mmsg(13)=rs("Email")
+Mmsg(14)=rs("PayType")
+Mmsg(15)=rs("SendType")
+
+Mmsg(17)=rs("SendCity")
+Mmsg(19)=rs("Zipcode")
+
+Mmsg(22)=rs("ConfirmType")
+
+Mmsg(24)=rs("TotalPrice")
+Mmsg(25)=rs("Memos")
+
+Mmsg(27)=rs("PayResult") '1未处理 2扣款成功 3失败
+Mmsg(28)=rs("Status") '1
+Mmsg(29)=rs("Pnr") '1
+end if
+
+
+'response.write airticket_OrderID
+'response.write Cstr(Mmsg(24))
+'response.end
+''''''''''''''''''''''''''''
+rs.close
+%>
+<html>
+<head>
+<title><%=TITLE%></title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<meta name="description" content="<%=DESC%>">
+<meta name="keywords" content="<%=KEYWORDS%>">
+<Link href="/Module/Style/Style.css" rel="StyleSheet">
+<script language="javascript">
+function goPrint()
+{
+   //window.open('','printWin');
+   
+   document.formPrint.target="printWin"
+   document.formPrint.submit(); 
+   }
+</script>
+</head>
+<body bgcolor="#FFFFFF" leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onLoad="">
+<form name="formPrint" method="post" action="FlightOrderDetail.asp?Print=1">
+<input type="hidden" name="OrderID" value="<%=Encode(airticket_OrderID)%>">
+<input type="hidden" name="flag" value="1">
+</form>
+<table width=556 border=0 cellpadding=0 cellspacing=0 align=center>
+  <tbody>
+    <tr height="40">
+      <td width="48%" height=30>&nbsp;<b><font class=px14 color="CC0000"><font color="#000000" class=px18><%=airticket_OrderID%></font>行程单信息：</font></b> </td>
+      <td width="52%"><div align="right">
+       <%
+	  paytypes = tmp(5)
+	  IF paytypes <>"" Then
+	  
+	  %>
+	  
+      <a href='/pay/<%=paytypes%>/send.asp?OrderId=<%=airticket_OrderID%>&Price=<%=encode(Mmsg(24))%>'>
+      <img src="/Module/Images/zhifu.gif" width="125" height="25" border="0"></a>
+	  <%else%>
+	  <a href='/Help/AboutUs.asp?BigModule=help&Module=pay'>
+      <img src="/Module/Images/zhifu.gif" width="125" height="25" border="0"></a>
+      <%End IF%>   
+      &nbsp;
+      <%IF Request.QueryString("Print")="" Then%>
+         <a href="javascript:goPrint()"><img src="/Module/Images/hodometer_print.gif" width="125" height="25" border="0"></a>
+      <%End IF%>
+      </div>
+      </td>
+    </tr>
+    <tr>
+      <td class=bg colspan="2"><table cellspacing=0 cellpadding=0 width=100% border=0>
+        <tbody>
+          <tr>
+            <td valign=top><table cellspacing=0 cellpadding=0 width=517 align=center border=0>
+              <tbody>
+                <tr>
+                  <td><table cellspacing=1 cellpadding=2 width=556 border=0 align="center">
+                    <tbody>
+                      <tr>
+                        <td width="548"><%if Mmsg(29)<>"" then%>
+                                  <font color=red><b>您的实时订座记录编码是：</b></font><strong><%=Mmsg(29)%></strong>
+                                  &nbsp;&nbsp;<img src="/Module/images/Tool.gif" align=absmiddle><a href="http://www.travelsky.com/travelsky/jsp/trip/Trip.jsp" class=underline target=_blank>机票验真</a>
+                                  <%end if%></td>
+                      </tr>
+                      <tr>
+                        <td><b><font class=px12 color="#000000">航班信息：</font></b></td>
+                      </tr>
+                      <tr>
+                        <td><!-- start   Author:ZhouXiaolong-->
+						            
+                                  <%
+                                  for j=0 to TempId-1 %>
+									<%
+									Dcount=split(TripMsg(j,0),"|")
+									if j>0 then
+									if Ubound(Dcount)=0 then exit for
+									end if
+									Tcount=split(TripMsg(j,3),"|")
+									TflightNo=split(TripMsg(j,4),"|")
+									Dcity=split(TripMsg(j,1),"|")
+									Tcity=split(TripMsg(j,2),"|")
+									
+									TBunk=split(TripMsg(j,5),"|")
+									Tplanype=split(TripMsg(j,6),"|")
+									TAirway=split(TripMsg(j,7),"|")
+									TRebateName=split(TripMsg(j,10),"|")
+									tripDate=Cdate(Dcount(j)) 
+									%>
+                                  <table width='98%' border='0' cellspacing='2' cellpadding='0' align=center>
+                                    <tr bgcolor='EFF3F7'>
+                                      <td height='22' colspan='3' valign='left' bgcolor="EFF3F7"><b>
+                                        <%
+									'response.write "111111111111"&Dcount(j)
+									'response.write ReWeek(tripDate)%>
+                                        </b>&nbsp;<strong> <%=formatdatetime((tripDate),1)%>
+                                        <%
+						'if TripMsg(j,8)<>"" then response.write "<img src=../showimg/dianzzipiaobutton.gif align='absmiddle'>"%>
+                                      </strong></td>
+                                      <td align="center"><b>
+                                        <%TripMsg(j,9)=ReAirway(Mid(TflightNo(j),1,2))'航空公司名
+									  response.write TripMsg(j,9)
+									%>
+                                      </b></td>
+                                      <td width='32' rowspan="3" align='center' valign="middle"><img src="/Flight/Files/Images/<%=Mid(TflightNo(j),1,2)%>.gif" title="<%=TripMsg(j,7)%>"></td>
+                                      <!--<td>&nbsp;</td> -->
+                                    </tr>
+                                    <tr valign='buttom' bgcolor='#f6f6f6'>
+                                      <td width='125' rowspan="2" align='center' valign="bottom"><%=Dcity(j)%><br>
+                                          <%TakeOffTime=formatdatetime(tripDate,4)
+	  response.write TakeOffTime%>
+                                        起飞</td>
+                                      <td width='118' rowspan="2" align='center' valign="bottom" bgcolor='#f6f6f6'><%=Tcity(j)%><br>
+                                          <%ArrivalTime=formatdatetime(Tcount(j),4)
+	  response.write ArrivalTime%>
+                                        到达</td>
+                                      <td width='124' align='center' bgcolor="#f6f6f6">历时<%=ReInterval(TakeOffTime,ArrivalTime)%></td>
+                                      <td width='135' rowspan="2" align='center' valign="buttom"><b><%=TflightNo(j)%> </b><br>
+                                          <b><%=ReBunk(TBunk(j),TripMsg(j,7),TRebateName(j))%></b></td>
+                                    </tr>
+                                    <tr valign='buttom' bgcolor='#f6f6f6'>
+                                      <td align='center'><%=Tplanype(j)%></td>
+                                    </tr>
+                                  </table>
+                          <%next%>
+                                  <!-- End -->                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                          <hr color=#cccccc width="550">
+                          <table cellspacing=1 cellpadding=0 width=546 border=0 align="center">
+                            <tbody>
+                              <tr>
+                                <td width="548"><b> <font class=px12 color="#000000">费用明细：</font></b></td>
+                              </tr>
+                              <tr>
+                                <td class="L15"><table width='99%' border='0' align="center" cellpadding='1' cellspacing='２'>
+                                    <tr bgcolor='EFF3F7'>
+                                      <td width='88' style="" height='19' align='center'>姓名</td>
+                                      <td width='150' align='center' bgcolor="EFF3F7">证件号</td>
+                                      <td width='68' align='center'>机票费<font color='#cc0000'><b><br>
+                                      </b></font></td>
+                                      <td width='60' align='center'>机场税</td>
+                                      <td width='61' align='center'>附加费</td>
+                                      <td width='62' align='center'>保险费</td>
+                                      <%
+                                         IF isnumeric(SaleMoney) Then
+                                            IF Clng(SaleMoney)>0 Then
+                                      %>
+                                            <td width='62' align='center'>返现金</td>
+                                      <%
+                                            End IF
+                                         End IF
+                                      %>
+                                      <td width='62' align='center'>费用总计</td>
+                                    </tr>
+                                    <tr bgcolor='#f6f6f6'>
+                                      <td colspan="5" align='center'><div align="center">
+                                          <table width="100%"  border="0" cellpadding="0" cellspacing="2">
+                                            <!-- start -->
+                                            <%
+									allprice=0
+									for j=0 to DRecordcount-1
+									   TempCidOrBorn=""
+									   TempCidOrBorn=flightMsg(j,5)
+									   TempAirportTax=flightMsg(j,8)
+									   TempFlightPrice=Cint(flightMsg(j,7))
+									   if flightMsg(j,9)="儿童" then 
+											TempFlightPrice= TempFlightPrice				  
+											TempCidOrBorn=flightMsg(j,10)
+											TempAirportTax="0"
+									   elseif flightMsg(j,9)="婴儿" then
+											TempCidOrBorn=flightMsg(j,10)
+											TempAirportTax="0"
+											TempFlightPrice= TempFlightPrice
+									   end if
+
+							%>
+                                            <tr>
+                                              <td width="88" align="center" style=" border-right:#FFFFFF 1px solid"><%=flightMsg(j,4)%></td>
+                                              <td width="150" align="center" style="border-right:#FFFFFF 1px solid"><% 
+									   response.write TempCidOrBorn
+									   %>
+                                              </td>
+                                              <td width="60" align="center" style="border-right:#FFFFFF 1px solid"><%=TempFlightPrice%></td>
+                                              <td width="68" align="center" style="border-right:#FFFFFF 1px solid"><%=TempAirportTax%></td>
+                                              <td width="60" align="center" style="border-right:#FFFFFF 1px solid"><%=flightMsg(j,11)%></td>
+                                            </tr>
+                                            <%
+											allprice=allprice+TempFlightPrice+TempAirportTax+flightMsg(j,11)
+											next%>
+                                            <!--end  -->
+                                          </table>
+                                      </div></td>
+                                      <td width='61' align='center' style="border-right:#FFFFFF 1px solid"><%=Cstr(MyInsure*20)%>元</td>
+                                        <%
+											IF isnumeric(SaleMoney) Then
+												IF Clng(SaleMoney)>0 Then
+												   allprice=allprice-Clng(SaleMoney)
+										%>
+												<td width='62' align='center' style="border-right:#FFFFFF 1px solid"><font color='#cc0000'><%=SaleMoney%>元</font></td>
+												
+										<%
+												End IF
+											End IF
+										%>
+                                      <td width='62' align='center'><span class="style2"><%=Mmsg(24)%>元</span></td><!--'allprice+(MyInsure*20)-->
+                                    </tr>
+                                </table></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                    <hr color=#cccccc width="550">
+                          <table cellspacing=3 cellpadding=0 width=546 border=0 align="center">
+                            <tbody>
+                              <tr>
+                                <td><b> <font class=px12 color="#000000">联系人信息：</font></b></td>
+                              </tr>
+                              <tr>
+                                <td class="L15" align="center"><table width="98%" border="0" cellspacing="1" cellpadding="0" bgcolor="#DDDDDD">
+                                    <tr bgcolor="#FFFFFF">
+                                      <td height="19" width="174">　姓名: <%=Mmsg(2)%></td>
+                                      <td height="19" width="148">　电话: <%=Mmsg(4)%>&nbsp;<%=Mmsg(12)%></td>
+                                      <td height="19" width="220">　邮件：<%=Mmsg(13)%></td>
+                                    </tr>
+                                    <tr bgcolor="#FFFFFF">
+                                      <%
+redim SendArr(4),payArr(4),ConfirmArr(5)
+SendArr(1)="电子客票"
+SendArr(2)="送票上门"
+SendArr(3)="门市自取"
+SendArr(4)="特快专递"
+payArr(1)="票到付款"
+payArr(2)="网上支付"
+payArr(3)="电话银行"
+payArr(4)="银行汇款"
+ConfirmArr(1)="不需要确认"
+ConfirmArr(2)="电话"
+ConfirmArr(3)="短信"
+ConfirmArr(4)="邮件"
+ConfirmArr(5)="登门"
+   %>
+                                      <td height="18" width="174"> 　支付方式: <%=payArr(Cint(Mmsg(14)))%></td>
+                                      <td height="18" colspan="2"> 　配送方式: <%=sendArr(Cint(Mmsg(15)))%></td>
+                                    </tr>
+                                    <tr bgcolor="#FFFFFF">
+                                      <td height="18" colspan="3">　送票地址: <%=Mmsg(3)%></td>
+                                    </tr>
+                                </table></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                         <div style="display:none">
+                    <hr color=#cccccc width="550">
+                          <table width="546" border="0" align="center" cellpadding="0" cellspacing="0">
+                            <tbody>
+                              <tr>
+                                <td height="20" bgcolor="#FFFFFF"><b>舱位退改签规定：</b></td>
+                              </tr>
+                              <tr>
+                                <td class="L15" align="center"><table width="98%" border="0" cellspacing="1" cellpadding="0" bgcolor="#DDDDDD">
+                                    <!-- start -->
+                                    <%for j=0 to TempId-1%>
+									<%
+									if j>0 then
+									if Ubound(Dcount)=0 then exit for
+									end if
+									%>
+                                    <tr>
+                                      <td height="20" colspan="2" bgcolor="#FFFFFF">&nbsp;<%=TripMsg(j,9)%>(<%=Tbunk(j)%>舱)</td>
+                                    </tr>
+                                    <tr>
+                                      <td width="2%" height="20" bgcolor="#FFFFFF" valign="top">　</td>
+                                      <td width="99%" bgcolor="#FFFFFF"><%=BackAlterRule(        TripMsg(j,7),Tbunk(j),TflightNo(j))%></td>
+                                    </tr>
+                                    <!-- <tr> 
+										  <td height="20" bgcolor="#FFFFFF" valign="top">&nbsp;改期：</td>
+										  <td height="20" bgcolor="#FFFFFF">免费更改</td>
+										</tr>	 -->
+                                    <%next%>
+                                    <!-- end -->
+                                    <tr>
+                                      <td height="20" colspan="2" bgcolor="#FFFFFF">&nbsp;以上信息仅供参考,实际退改签按航空公司最新规定执行</td>
+                                    </tr>
+                                </table></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          </div>
+						  <hr color=#cccccc width="550">
+			<%
+			sql="select * from pro_order where pro_order_id='"&airticket_OrderID&"'"
+			rs.open sql,conn,3,1
+			if not rs.eof then
+               orderstate=GetStatusName( Mmsg(28))   
+			%>
+                          <table width="546" border="0" align="center" cellpadding="0" cellspacing="0">
+                            <tbody>
+                              <tr>
+                                <td height="20" bgcolor="#FFFFFF"><b>订单处理状态：<%=orderstate%></b></td>
+                              </tr>
+                              <tr style="display:none">
+                                <td class="L15" align="center"><table width="98%" border="0" cellspacing="1" cellpadding="3" bgcolor="#DDDDDD">
+                                    <!-- start -->
+                                    <%if Mmsg(28)=1 then%>
+                                    <TR>
+                                      <TD height=22 bgcolor="#FFFFFF">您的订单已被管理员<%=rs("pro_name1")%>于<%=rs("pro_time1")%>收到。</TD>
+                                    </TR>
+                                    <%end if
+			if Mmsg(28)=2 then
+			%>
+                                    <TR>
+                                      <TD height=22 bgcolor="#FFFFFF">您的订单已被管理员<%=rs("pro_name2")%>于<%=rs("pro_time2")%>收到确定。<%=rs("pro_sendname2")%>号工作人员于<%=rs("pro_sendtime2")%>正在去往贵方约定地点。敬请等待，多谢合作</TD>
+                                    </TR>
+                                    <%end if
+			if Mmsg(28)=3 then
+			%>
+                                    <TR>
+                                      <TD height=22 bgcolor="#FFFFFF">您的订单已经生效，管理员：<%=rs("pro_name3")%>时间：<%=rs("pro_time3")%>。交付时间将定于<%=rs("pro_sendtime3")%></TD>
+                                    </TR>
+                                    <%end if
+			if Mmsg(28)=4 then
+			%>
+                                    <TR>
+                                      <TD height=22 bgcolor="#FFFFFF">您的订单已经交易成功，管理员：<%=rs("pro_name4")%>时间：<%=rs("pro_time4")%>。合计费用：<%=rs("pro_paycount")%>元</TD>
+                                    </TR>
+                                    <%end if
+			if Mmsg(28)=5 then
+			%>
+                                    <TR>
+                                      <TD height=22 bgcolor="#FFFFFF">您的订单已经被管理员<%=rs("pro_name5")%>于<%=rs("pro_time5")%>取消,取消原因是<%=rs("pro_reason5")%>。</TD>
+                                    </TR>
+                                    <%end if%>
+                                </table></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          <hr color=#cccccc width="550">
+                          <%
+				end if
+				rs.close
+				%>
+                          <table width="546" border="0" align="center" cellpadding="0" cellspacing="0">
+                            <tbody>
+                              <tr>
+                                <td height="20" bgcolor="#FFFFFF"><b>特别提醒：</b></td>
+                              </tr>
+                              <tr>
+                                <td class="L15" align="center"><table width="98%" border="0" cellspacing="1" cellpadding="0" bgcolor="#DDDDDD">
+                                    <!-- start -->
+                                    <tr>
+                                      <td width="99%" colspan="2" bgcolor="#FFFFFF">&nbsp;<font color=#000000 style="line-height:16pt;">
+                                      
+                                      国内航班提前45分钟停止办理登记手续，国际航班提前1小时停止办理登记手续。任何液体都不允许带上飞机，包括牙膏一类的东西；因为安检手续要求严格，国际航班必须提前3个小时到达机场。
+                                      
+                                      </font>
+                                      <br>
+&nbsp;客服热线： <font color=#ff0000 class=px14><strong><%=tmp(15)%></strong></font> </font></td>
+                                    </tr>
+                                    
+                                    <!-- end -->
+                                    
+                                </table></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          <hr color=#cccccc width="550">
+                  </td>
+                </tr>
+                <tr>
+                  <td height="2"></td>
+                </tr>
+              </tbody>
+            </table></td>
+          </tr>
+        </tbody>
+      </table></td>
+    </tr>
+  </tbody>
+</table>
+</body>
+</html>
+<%
+function ReWeek(TempDate)
+	ReWeek=ZXLWeek(weekday(Cdate(TempDate)))
+end function
+
+function ReInterval(TempStartdate,TempEnddate)		
+    on error resume next				
+    dim MyHour,myMinute
+    myHour=datediff("h",TempStartdate,TempEnddate)
+	myMinute=(datediff("n",TempStartdate,TempEnddate)) mod 60
+    if Minute(TempStartdate)>Minute(TempEnddate) then Myhour=Myhour-1
+    if len(myHour)=1 then myHour="0"&myHour
+	if len(myMinute)=1 then myMinute="0"&myMinute
+	ReInterval=myHour&"："&myMinute
+
+end function
+
+function ReCity(TempCity)
+	'sql="select Cityname from city where citycode='"&TempCity&"'"
+	'rs.open sql,conn,3,1
+	'if not (rs.eof or rs.bof) then
+	'	ReCity=rs("cityname")
+	'else
+	    Recity=""
+	'end if
+	'rs.close
+end function
+
+function ReAirway(TempAirway)
+	'sql="select airwayname from airways where carriercode='"&TempAirway&"'"
+	'rs.open sql,conn,1,1
+	'if not (rs.eof or rs.bof) then
+	'	ReAirway=rs("airwayname")
+	'else
+	    ReAirway=""
+	'end if
+	'rs.close
+end function
+
+function ReBunk(TempBunk,TempAirway,TempRebateName)
+    if TempBunk="F" then
+	    ReBunk="头等舱"
+	elseif TempBunk="C" then
+		ReBunk="商务舱"
+	elseif TempBunk="Y" then
+		ReBunk="公务舱"
+	else
+		'sql="select  (Cast((100-charindex('"&TempBunk&"',(Isnull(Y95,' ')+Isnull(Y90,' ')+Isnull(Y85,' ')+Isnull(Y80,' ')+Isnull(Y75,' ')+Isnull(Y70,' ')+Isnull(Y65,' ')+Isnull(Y60,' ')+Isnull(Y55,' ')+Isnull(Y50,' ')+Isnull(Y45,' ')+Isnull(Y40,' ')+Isnull(Y35,' ')+Isnull(Y30,' ')+Isnull(Y25,' ')+Isnull(Y20,' ')+Isnull(Y15,' ')+Isnull(Y10,' ')+Isnull(Y05,' ')))*5) as varchar(2))) as bunk from TADiscount where 航空公司='"&TempAirway&"'"
+		'response.write sql
+		'response.end
+		'rs.open sql,conn,3,1
+		'if not (rs.eof or rs.bof) then
+			'ReBunk=rs("bunk")&"折经济舱"
+		'else
+		if TempRebateName<>"" and not isnull(TempRebateName) then 
+			ReBunk=TempRebateName 
+		else
+			ReBunk="未知"
+		end if
+	end if
+end function
+
+function BackAlterRule(TempCarrier,TempBunk,TempFlightNo)
+	'set rs=server.CreateObject("adodb.recordset")
+	'sql="select * from visor where carrier ='"&TempCarrier&"' and cab = '"&TempBunk&"'"
+	'rs.open sql,conn,3,1
+	'if not rs.eof then
+		'BackAlterRule=TempFlightNo&"："&rs("memo")&"<br>"
+	'else
+	BackAlterRule=TempFlightNo&"：按航空公司规定执行<Br>"
+'end if
+	'rs.close
+
+end function
+
+
+function ReMoneyWhole(itemp)
+	if isnumeric(itemp) then 
+
+		iA=Clng(right(itemp,1))
+		iB=left(itemp,len(itemp)-1)
+		if iA>4 then
+			itemp=Clng(iB&"0")+10
+		else
+			itemp=Clng(iB&"0")
+		end if
+	end if
+
+ReMoneyWhole=itemp
+
+end function
+
+
+
+set rs=nothing
+call conn_close()
+%>
+
+<%IF Request.QueryString("Print")<>"" Then%>
+     <script language=javascript>
+          window.print();
+          window.close();
+     </script>
+<%End IF%>

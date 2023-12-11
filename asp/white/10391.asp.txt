@@ -1,0 +1,104 @@
+<!--#include file="../../conn/conn.asp"-->
+<!--#include file="../../inc/Commoncode.asp"-->
+<!--#include file="../../inc/CommonFunction.asp"-->
+<%link=InstallDir&"person/person_photo.asp"
+sUploadDir=UpFilesPath("Person")
+%>
+<!--#include file="../../person/checkpmember.asp" -->
+<!--#include file="../../inc/uploadfile_inc.asp"-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>保存照片</title>
+</head>
+<body>
+<%On Error Resume Next
+ nn=""
+ formsize = request.totalbytes
+ formdata = request.binaryread(formsize)
+ bcrlf = chrb(13) & chrb(10)
+ divider = leftb(formdata, instrb(formdata, bcrlf) - 1)
+ path = Server.MapPath(sUploadDir)
+ filename = SaveFile("fileField",path,100)
+ if filename = "" then error ="<p align=center><font color=red>图片大小不要超过100K！点击<a href='javascript:history.back()'>这里</a>返回重新输入</font></p>"
+ if error <> "" then
+  response.write "<br><br>"
+  response.write error
+  response.end
+ end if
+Set Jpeg = Server.CreateObject(FR_HR_PJ)
+if Err Then
+Err.Clear()
+else
+jpeg.Open Server.MapPath(sUploadDir&nn)
+jpeg.Width=getformval("hidWidth")
+jpeg.Height=jpeg.OriginalHeight*getformval("hidWidth")/jpeg.Originalwidth
+if getformval("hidTurn")=1 then
+jpeg.RotateR 
+elseif getformval("hidTurn")=2 then
+jpeg.FlipH
+jpeg.FlipV
+elseif getformval("hidTurn")=3 then
+jpeg.RotateL
+end if
+jpeg.crop getformval("hidLeft"),getformval("hidTop"),getformval("hidLeft")+130,getformval("hidTop")+150
+TempJpeg=jpeg.Binary
+'=========加文字水印=================
+jpeg.Canvas.Font.Color = &Hffffff'水印文字颜色
+jpeg.Canvas.Font.Family = Arial'字体
+jpeg.Canvas.Font.Bold = True'是否加粗
+jpeg.Canvas.Font.Size = 15'字体大小
+jpeg.Canvas.Font.ShadowColor = &H000000'阴影色彩
+jpeg.Canvas.Font.ShadowYOffset = 1
+jpeg.Canvas.Font.ShadowXOffset = 1
+jpeg.Canvas.Brush.Solid = True
+jpeg.Canvas.Font.Quality = 5'输出质量
+jpeg.Canvas.PrintText jpeg.OriginalWidth-90,jpeg.OriginalHeight-20,"智能招聘www.tao128.com"'水印位置及文字
+TempJPG=jpeg.Binary
+'============调整文字透明度================
+Set MyJpeg = Server.CreateObject(FR_HR_PJ)
+MyJpeg.OpenBinary TempJpeg
+Set Logo = Server.CreateObject(FR_HR_PJ)
+Logo.OpenBinary TempJPG
+MyJpeg.DrawImage 0,0, Logo, 0.3'0.3是透明度
+MyJpeg.save Server.mappath(sUploadDir&nn)
+set TempJPG=nothing
+MyJpeg.Close
+Logo.Close
+
+'水印图片
+'Set Jpeg2 = Server.CreateObject("Persits.Jpeg") 
+'Jpeg2.Open Server.MapPath("1.png")
+'Jpeg.DrawImage 0,0,Jpeg2,0.4,&HFFFFFF
+'jpeg.save Server.mappath(sUploadDir&nn)
+jpeg.close
+end if
+set jpeg=nothing
+Set rs= Server.CreateObject("ADODB.RecordSet")
+sql="select * from job_member where Member_login='"&pmember_login&"' and Member_typeid=1"
+rs.open sql,conn,3,3
+ prepicture=rs("Member_logo")
+ if prepicture<>"" and not isnull(prepicture) and prepicture<>"nophoto.gif" and prepicture<>"error.gif" then      '原来有图片
+  set fileobject=server.createobject("scripting.filesystemobject")
+  path=Server.MapPath(sUploadDir&prepicture)
+  if fileobject.fileexists(path) then
+   set afile=fileobject.getfile(path)
+   afile.delete
+  end if
+ end if
+ rs("Member_logostatus")=1
+ rs("Member_logo")=nn
+ if AdminPicCheckReg=1 then
+ rs("Member_logoflag")=0
+ else
+ rs("Member_logoflag")=1
+ end if
+ rs.update
+rs.close
+set rs=nothing
+conn.close
+set conn=nothing
+response.redirect InstallDir&"person/person_photo.asp"
+%>
+</body>
+</html>

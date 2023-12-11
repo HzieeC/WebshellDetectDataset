@@ -1,0 +1,225 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/base.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title></title>
+	<style>
+	.row{
+	height:auto; overflow:hidden; clear:both; /*margin-left:-20px;*/
+}
+	</style>
+	<script src="${contextPath}/js/plugins/jquery/jquery-1.9.1.js"></script>
+	<script src="${contextPath}/static/jqtrans/jquery.jqtransform.js"></script>
+	<link href="${contextPath}/static/jqtrans/jqtransform.css"
+		rel="stylesheet">
+		<script src="${contextPath}/js/plugins/jquery/jquery-ui.js"></script>
+	<link href="${contextPath}/js/plugins/jquery/jquery-ui.css"
+		rel="stylesheet">
+		<script language="javascript">
+				
+					$(function() {
+						$('form').jqTransform({
+							imgPath : '${contextPath}/static/jqtrans/img/'
+						});
+					});
+				
+			</script>
+<link href="${contextPath}/js/plugins/tooltipster/css/tooltipster.css" rel="stylesheet" type="text/css" >
+<script src="${contextPath}/js/plugins/tooltipster/js/jquery.tooltipster.min.js"></script> 
+</head>
+<body> 
+	 
+	<input type="hidden" value="${contextPath}" id="contextPath" />
+
+	<div class="userInfo" id="searchCon">
+	<h1><fmt:message key="new.question"/></h1>
+		<form id="resultForm" name="resultForm" commandName="role">
+		<input type="hidden" value="" id="status" name="status"/>
+			<div class="title"><fmt:message key="questionsetting"/></div>
+			<table class="yTable margintop">
+				<tr>
+					<th align="right" width="120"><span>*</span><fmt:message key="category"/></th>
+					<td align="left" width="300"><input name="category" id="category" type="text"
+						class="inputbox" /><span></span>
+					</td>
+					<th ><span>*</span><fmt:message key="scores"/></th>
+					<td><input name="point" id="point" type="text" class="inputbox"/></td>
+				</tr>
+				<tr>
+					<th align="right" width="120"><span>*</span><fmt:message key="type"/></th>
+					<td align="left" width="120"><select name="type" id="questionType" >
+							<option value="1" selected="selected" >单选题</option>
+							<option  value="2">多选题</option>
+							<option  value="3">判断题</option>
+							<option  value="4">填空题</option>
+							<option  value="5">问答题</option>
+							<option  value="6">综合题</option>
+					</select></td>
+					<th align="right" width="120" attr="numdiv"><span>*</span><fmt:message key="optionnum"/></th>
+					<td align="left" attr="numdiv"><select name="num" id="num">
+							<option value="3">3</option>
+							<option selected="selected" value="4">4</option>
+							<option s value="5">5</option>
+							<option  value="6">6</option>
+							<option  value="7">7</option>
+					</select></td>
+				</tr>
+
+			</table>
+			<div class="title"><fmt:message key="questiondescription"/></div>
+	<textarea name="content" style="width:800px;height:200px;" id="content"noadd="yes"></textarea>
+	<div id="options"  attr="switch" class="row">
+			<div style="margin-top:20px;"><span class="title"><fmt:message key="options"/></span><span style="color:#a0a0a0;margin-left:5px"><fmt:message key="option.tips1"/></span></div>
+			<div class=" item_q_col_2">
+			<ul class="item_q q_1">
+										<li id="qsn_option_item_div_1" name="qsn_option_item_div" style="">
+					<table class="editor_exam" width="100%" border="0" cellspacing="0" cellpadding="0">
+						
+						<tbody><tr>
+							<td class="item_left">
+								<h1 class="">A</h1>
+								<input type="radio" name="single_option" qsn_item_id="1" value="A" style="display: inline-block;" noadd="yes">
+								<input type="checkbox" name="qsn_multi_option" qsn_item_id="1" value="A" style="display: none;" noadd="yes">
+							</td>
+							<td class="item_right">
+								<textarea name="option1" style="width:400px;height:70px;" option="item1" id="option1" noadd="yes"></textarea>
+							</td>
+						</tr>
+					</tbody></table>
+				</li>
+										<li id="qsn_option_item_div_2" name="qsn_option_item_div" style="">
+					<table class="editor_exam" width="100%" border="0" cellspacing="0" cellpadding="0">
+						
+						<tbody><tr>
+							<td class="item_left">
+								<h1 class="">B</h1>
+								<input type="radio" name="single_option" qsn_item_id="2" value="B" style="display: inline-block;"noadd="yes">
+								<input type="checkbox" name="qsn_multi_option" qsn_item_id="2" value="B" style="display: none;" noadd="yes">
+							</td>
+							<td class="item_right">
+								<textarea name="option2" style="width:400px;height:70px;" option="item2"  id="option2" noadd="yes"></textarea>
+							</td>
+						</tr>
+					</tbody></table>
+				</li>
+										<li id="qsn_option_item_div_3" name="qsn_option_item_div" style="">
+					<table class="editor_exam" width="100%" border="0" cellspacing="0" cellpadding="0">
+						
+						<tbody><tr>
+							<td class="item_left">
+								<h1 class="">C</h1>
+								<input type="radio" name="single_option" qsn_item_id="3" value="C" style="display: inline-block;" noadd="yes">
+								<input type="checkbox" name="qsn_multi_option" qsn_item_id="3" value="C" style="display: none;" noadd="yes">
+							</td>
+							<td class="item_right">
+								<textarea name="option3" style="width:400px;height:70px;" option="item3" id="option3" noadd="yes"></textarea>
+							</td>
+						</tr>
+					</tbody></table>
+				</li>
+										<li id="qsn_option_item_div_4" name="qsn_option_item_div" style="">
+					<table class="editor_exam" width="100%" border="0" cellspacing="0" cellpadding="0">
+						
+						<tbody><tr>
+							<td class="item_left">
+								<h1 class="">D</h1>
+								<input type="radio" name="single_option" qsn_item_id="4" value="D" style="display: inline-block;"noadd="yes">
+								<input type="checkbox" name="qsn_multi_option" qsn_item_id="4" value="D" style="display: none;" noadd="yes">
+							</td>
+							<td class="item_right">
+								<textarea name="option4" style="width:400px;height:70px;" option="item4" id="option4" noadd="yes"></textarea>
+							</td>
+						</tr>
+					</tbody></table>
+				</li>
+						<li id="qsn_option_item_div_5" name="qsn_option_item_div"  style="display: none;" >
+					<table class="editor_exam" width="100%" border="0" cellspacing="0" cellpadding="0">
+						
+						<tbody><tr>
+							<td class="item_left">
+								<h1 class="">E</h1>
+								<input type="radio" name="single_option" qsn_item_id="1" value="A" style="display: inline-block;" noadd="yes">
+								<input type="checkbox" name="qsn_multi_option" qsn_item_id="1" value="A" style="display: none;" noadd="yes">
+							</td>
+							<td class="item_right">
+								<textarea name="option1" style="width:400px;height:70px;" option="item1" id="option1" noadd="yes"></textarea>
+							</td>
+						</tr>
+					</tbody></table>
+				</li>	<li id="qsn_option_item_div_6" name="qsn_option_item_div"  style="display: none;" >
+					<table class="editor_exam" width="100%" border="0" cellspacing="0" cellpadding="0">
+						
+						<tbody><tr>
+							<td class="item_left">
+								<h1 class="">F</h1>
+								<input type="radio" name="single_option" qsn_item_id="1" value="A" style="display: inline-block;" noadd="yes">
+								<input type="checkbox" name="qsn_multi_option" qsn_item_id="1" value="A" style="display: none;" noadd="yes">
+							</td>
+							<td class="item_right">
+								<textarea name="option1" style="width:400px;height:70px;" option="item1" id="option1" noadd="yes"></textarea>
+							</td>
+						</tr>
+					</tbody></table>
+				</li>	
+				<li id="qsn_option_item_div_7" name="qsn_option_item_div"  style="display: none;" >
+					<table class="editor_exam" width="100%" border="0" cellspacing="0" cellpadding="0">
+						
+						<tbody><tr>
+							<td class="item_left">
+								<h1 class="">G</h1>
+								<input type="radio" name="single_option" qsn_item_id="1" value="A" style="display: inline-block;" noadd="yes">
+								<input type="checkbox" name="qsn_multi_option" qsn_item_id="1" value="A" style="display: none;" noadd="yes">
+							</td>
+							<td class="item_right">
+								<textarea name="option1" style="width:400px;height:70px;" option="item1" id="option1" noadd="yes"></textarea>
+							</td>
+						</tr>
+					</tbody></table>
+				</li>		
+						</ul>
+			</div></div>
+			<div class="row" id="qsn_judge" name="qsn_judge_div" style="display: none;" attr="switch">
+			<div class="title mb20">答案选项</div>
+			<div class="content item_q_p2">
+				<!-- // 主按钮区(分左中右) -->
+				<div class="button_judge">
+					<div class="center">
+					<table><tr>
+					<td width="80"><input class="radiobox" type="radio" id="qsn_judge_option_yes" name="qsn_judge_option" value="yes" ><label for="qsn_judge_option_yes"><img src="${contextPath}/images/exam_result_01.png" width="24" height="24"> </label></td>
+					<td width="80"><input class="radiobox" type="radio" id="qsn_judge_option_no" name="qsn_judge_option" value="no" checked="checked" ><label for="qsn_judge_option_no"><img src="${contextPath}/images/exam_result_02.png" width="24" height="24"> </label></td>
+					</tr></table>
+						
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="row" id="blank" style="display: none;" attr="switch">	
+	<div class="row title">答案区域</div>
+	<textarea name="analysis" style="width:800px;height:200px;" id="analysis" noadd="yes"></textarea></div>
+		<div class="row">	
+	<div class="row title mb20"><fmt:message key="jsquestionanalyse"/></div>
+	<textarea name="analysis" style="width:800px;height:200px;" id="analysis" noadd="yes"></textarea></div>
+		
+			<div class="Btn">
+			
+			<input  id="save" value="<fmt:message key="save"/>" type="button"/> 
+			<input  id="saveRole" value="<fmt:message key="creat"/>" type="button"/> 
+		<input  id="cancel" value="<fmt:message key="cancel"/>" type="button"/>
+						
+				<img title="1.“创建”为创建一个试题，状态为可用。2.“保存”暂时保存，状态为编辑" src="${contextPath}/css/img/s.gif" class="helpTip" id="buttonTip"></img>
+			</div>
+		</form>
+
+	</div>
+
+	<script type="text/javascript">
+	$(document).ready(function() {
+			 $('#buttonTip').tooltip();
+		});
+		seajs.use("${scriptBasePath}/question/new.js");
+	</script>
+</body>
+</html>

@@ -1,0 +1,538 @@
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/check.asp"-->
+<!--#include file="inc/head.inc"-->
+<!--#include file="../inc/ubbcode.asp"-->
+<!--#include file="../inc/cls_editor.asp"-->
+<%
+Call InnerLocation("发布"&NewAsp.ModuleName)
+
+If CInt(GroupSetting(11)) = 0 Then
+	ErrMsg = ErrMsg + "<li>对不起！您没有发布软件的权限，如需要该权限请联系管理员。</li>"
+	Founderr = True
+End If
+If CInt(Newasp.PostGrade) > CInt(Newasp.membergrade) Then
+	ErrMsg = ErrMsg & "<li>对不起！您没有发布软件的权限，如需要该权限请联系管理员。</li>"
+	FoundErr = True
+End If
+Dim Rs,SQL,i,softid,classid
+softid = Newasp.ChkNumeric(Request("softid"))
+If ChannelID = 0 Then ChannelID = 2
+classid=0
+Dim InstallDir_ChannelDir
+InstallDir_ChannelDir = Trim(Newasp.InstallDir & Newasp.ChannelDir)
+ubb.BasePath = InstallDir_ChannelDir
+ubb.setUbbcode = Join(Newasp.setUserEditor,"|")
+ubb.Keyword = NewAsp.KeywordList
+
+Dim Action:Action = LCase(Request("action"))
+Select Case Trim(Action)
+	Case "save"
+		Call SaveNewSoft
+	Case "view"
+		Call SoftView
+	Case Else
+		Call showmain
+End Select
+If Founderr = True Then
+	Call ToErrors(ErrMsg)
+End If
+
+Sub showmain()
+	If Founderr = True Then Exit Sub
+	Dim Channel_Setting
+	Channel_Setting = Split(Newasp.Channel_Setting, "|||")
+%>
+<script language=JavaScript>
+var _maxCount = '<%=CLng(GroupSetting(17))%>';
+function ToRunsystem(addTitle) {
+	var revisedTitle;
+	var currentTitle;
+	currentTitle = document.myform.RunSystem.value;
+	revisedTitle = currentTitle+addTitle;
+	document.myform.RunSystem.value=revisedTitle;
+	document.myform.RunSystem.focus();
+	return; 
+}
+function doSubmit(){
+	var form1 = document.myform;
+	if (form1.SoftName.value==""){
+		alert("软件名称不能为空！");
+		form1.SoftName.focus();
+		return false;
+	}
+	if (form1.classid.value==""){
+		alert("该一级分类已经有下属分类，请选择其下属分类！");
+		form1.classid.focus();
+		return false;
+	}
+	if (form1.classid.value=="0"){
+		alert("该分类是外部连接，不能添加内容！");
+		form1.classid.focus();
+		return false;
+	}
+	if (form1.RunSystem.value==""){
+		alert("软件运行环境不能为空！");
+		form1.RunSystem.focus();
+		return false;
+	}
+	if (form1.SoftType.value==""){
+		alert("软件类型不能为空！");
+		form1.SoftType.focus();
+		return false;
+	}
+	if (form1.SoftSize.value==""){
+		alert("软件大小还没有填写！");
+		form1.SoftSize.focus();
+		return false;
+	}
+	<%If CInt(GroupSetting(2)) = 1 Then%>
+	if (form1.checkcode.value==""){
+		alert("请填写验证码！");
+		form1.checkcode.focus();
+		return false;
+	}
+	<%End If%>
+	var strLen=0;
+	try{
+		strLen=GetContentLength();
+	}
+	catch(e){
+		strLen=form1.content.value.length;
+	}
+	if(strLen < 2){
+		alert("软件简介不能小于2个字符！");
+		return false;
+	}
+	if(strLen > _maxCount){
+		alert("软件简介不能超过"+_maxCount+"个字符！");
+		return false;
+	}
+}
+</script>
+<div onkeydown="CtrlEnter()">
+<table class="UserTableBorder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="2">&gt;&gt;发布软件&lt;&lt;</th>
+	</tr>
+	<form action="softpost.asp" method="post" onsubmit="return doSubmit()" name="myform">
+	<input type="hidden" name="action" value="save"/>
+	<input type="hidden" name="ChannelID" value="<%=ChannelID%>"/>
+		<tr>
+			<td class="UserTableRow2" nowrap="nowrap" align="right" width="15%"><strong>所属分类</strong></td>
+			<td class="UserTableRow1" width="85%"><%
+	Call selectClasslist(ChannelID,classid)
+%></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>软件名称</strong></td>
+			<td class="UserTableRow1"><input id="SoftName" size="40" name="SoftName" type="text" /> <font color="#ff0000">*</font> <strong>软件版本</strong><input id="SoftVer" name="SoftVer" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>相关软件</strong></td>
+			<td class="UserTableRow1"><input id="Related" size="60" name="Related" type="text" /> <font color="#ff0000">*</font></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>运行环境</strong></td>
+			<td class="UserTableRow1"><input id="RunSystem" size="60" name="RunSystem" value="<%=Channel_Setting(1)%>" type="text" /><br />
+			<%
+	Dim RunSystem
+	RunSystem = Split(Channel_Setting(0), "|")
+	For i = 0 To UBound(RunSystem)
+		Response.Write "<a href='javascript:ToRunsystem(""" & Trim(RunSystem(i)) & """)'><u>" & Trim(RunSystem(i)) & "</u></a>  "
+		If i = 10 Then Response.Write "<br>"
+	Next
+%></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>软件类型</strong></td>
+			<td class="UserTableRow1"><%
+	Dim SoftType
+	SoftType = Split(Channel_Setting(2), ",")
+	For i = 0 To UBound(SoftType)
+		Response.Write "<input id=""SoftType"" type=""radio"" name=""SoftType"" value=""" & Trim(SoftType(i)) & """ "
+		If i = 0 Then Response.Write " checked"
+		Response.Write "/>" & Trim(SoftType(i)) & " "
+		If i = 6 Then Response.Write "<br>"
+	Next
+%></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>软件大小</strong></td>
+			<td class="UserTableRow1"><input id="filesize" size="14" onkeyup="if(isNaN(this.value))this.value=''" name="SoftSize" value="0" type="text" /> <input type="radio" checked="checked" name="SizeUnit" value="KB" /> KB <input type="radio" name="SizeUnit" value="MB" /> MB <font color="#ff0000">！</font> <strong>解压密码</strong> <input maxlength="100" size="15" name="Decode" type="text" /> <font color="#808080">没有请留空</font></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>软件性质</strong></td>
+			<td class="UserTableRow1"><%
+	Response.Write " <select id=""impower"" name=""impower"">"
+	Dim ImpowerStr
+	ImpowerStr = Split(Channel_Setting(3), ",")
+	For i = 0 To UBound(ImpowerStr)
+		Response.Write " <option value=""" & ImpowerStr(i) & """>" & ImpowerStr(i) & "</option>"
+	Next
+	Response.Write " </select>&nbsp;&nbsp;"
+	Response.Write " <select id=""Languages"" name=""Languages"">"
+	Response.Write " "
+	Dim LanguagesStr
+	LanguagesStr = Split(Channel_Setting(4), ",")
+	For i = 0 To UBound(LanguagesStr)
+		Response.Write " <option value=""" & LanguagesStr(i) & """>" & LanguagesStr(i) & "</option>"
+	Next
+	Response.Write " </select>&nbsp;&nbsp;"
+%><select id="star5" name="star">
+			<option value="5">★★★★★</option>
+			<option value="4">★★★★</option>
+			<option value="3" selected="selected">★★★</option>
+			<option value="2">★★</option>
+			<option value="1">★</option>
+			</select>&nbsp;&nbsp; <strong><font color="#0000ff">注册软件的价格</font></strong> <input id="SoftPrice" size="10" onkeyup="if(isNaN(this.value))this.value=''" name="SoftPrice" value="0" type="text" /> 元</td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>联系方式</strong></td>
+			<td class="UserTableRow1"><input id="Contact" size="33" name="Contact" type="text" /> <strong>程序主页</strong> <input id="Homepages" size="30" name="Homepage" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="usertablerow1" colspan="2"><%
+	'-- 编辑器设置
+	Dim oEditor,EditorCode
+	Set oEditor					= New Editor_Cls
+	oEditor.UserMode			= 1
+	oEditor.setEditMode			= Newasp.setUserEditor(0)
+	oEditor.ChannelID			= ChannelID
+	oEditor.Width				= Newasp.setUserEditor(2)
+	oEditor.Height				= Newasp.setUserEditor(3)
+	oEditor.BasePath			= Newasp.InstallDir & Newasp.setAdminEditor(4)
+	oEditor.ToolbarSet			= Newasp.setUserEditor(1)'Default,AdminMode,Simple,UserMode,Basic
+	oEditor.InstanceName		= "content"
+	oEditor.Execute()
+	Set oEditor = Nothing
+%></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>预览图片</strong></td>
+			<td class="UserTableRow1"><input id="ImageUrl" size="60" name="SoftImage" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>上传图片</strong></td>
+			<td class="UserTableRow1"><iframe name="frm_image2" id="frm_image2" src="upload.asp?ChannelID=<%=ChannelID%>" frameborder="0" width="100%" scrolling="no" height="22" allowTransparency="true"></iframe></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>下载地址</strong></td>
+			<td class="UserTableRow1"><input id="SiteName1" size="15" name="SiteName1" value="下载地址1" type="text" /> <input id="filePath" size="50" name="DownAddress1" type="text" /> <font color="#ff0000">*</font></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>下载地址</strong></td>
+			<td class="UserTableRow1"><input id="SiteName2" size="15" name="SiteName2" value="下载地址2" type="text" /> <input id="filePath2" size="50" name="DownAddress2" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>下载地址</strong></td>
+			<td class="UserTableRow1"><input id="SiteName3" size="15" name="SiteName3" value="下载地址3" type="text" /> <input id="filePath3" size="50" name="DownAddress3" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>文件上传</strong></td>
+			<td class="UserTableRow1"><iframe name="frm_file2" id="frm_file2" src="upfile.asp?ChannelID=<%=ChannelID%>" frameborder="0" width="100%" scrolling="no" height="60" allowTransparency="true"></iframe></td>
+		</tr><%
+If CInt(GroupSetting(2)) = 1 Then
+%>
+		<tr>
+			<td class="UserTableRow2" align="right" height="28"><strong>验证码</strong></td>
+			<td class="UserTableRow1"><input name="checkcode" type="text" class="logininput" id="checkcode" size="5" maxlength="4" onfocus="get_checkcode();this.onfocus=null;" onkeyup="ajaxcheckcode('check_code','checkcode');" />
+				<span id="img_checkcode"><label style="cursor:pointer;" onclick="get_checkcode();">点击获取验证码</label></span><span id="isok_checkcode"></span> <font color="#ff0000">*</font></td>
+		</tr>
+		<%
+End If
+%>		<tr align="center">
+			<td class="UserTableRow2" colspan="4" height="28"><input class="Button" type="button" onclick="javascript:history.go(-1)" name="go_button" value="返回上一页" /> <input class="Button" type="submit" name="submit_button" value="现在发布" /></td>
+		</tr>
+	</form>
+</table>
+</div>
+<%
+End Sub
+
+Sub SaveNewSoft()
+	Dim TextContent,isAccept,AlphaSoftName
+	If CLng(UserToday(2)) => CLng(GroupSetting(14)) And CLng(GroupSetting(14))>0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>您每天最多只能发布<font color=red><b>" & GroupSetting(14) & "</b></font>个软件，如果还要继续发布请明天再来吧！</li>"
+	End If
+	If Newasp.CheckPost=False Then
+		ErrMsg = ErrMsg + Postmsg
+		FoundErr = True
+		Exit Sub
+	End If
+	If CInt(GroupSetting(2)) = 1 Then
+		If Not Newasp.CodeIsTrue() Then
+			ErrMsg = ErrMsg + "<meta http-equiv=refresh content=""2;URL="&Request.ServerVariables("HTTP_REFERER")&"""><li>验证码校验失败，请返回刷新页面再试。两秒后自动返回</li>"
+			Founderr = True
+			Exit Sub
+		End If
+	End If
+	If Trim(Request.Form("SoftName")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>软件名称不能为空！</li>"
+	Else
+		AlphaSoftName = ubb.CheckSpecialChar(Request.Form("SoftName"))
+	End If
+	If Len(Request.Form("SoftName")) => 200 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>软件名称不能超过200个字符！</li>"
+	End If
+	If Len(Request.Form("Related")) => 200 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>相关软件不能超过200个字符！</li>"
+	End If
+	If Not IsNumeric(Request.Form("star")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>软件星级不能为空。</li>"
+	End If
+	If Not IsNumeric(Request.Form("classid")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>该一级分类已经有下属分类，不能添加软件！</li>"
+		Exit Sub
+	End If
+	If CLng(Request.Form("classid")) = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>该分类是外部连接，不能添加软件！</li>"
+	End If
+	If Trim(Request.Form("SoftType")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请选择软件类型！</li>"
+	End If
+	If Trim(Request.Form("impower")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请选择软件授权方式！</li>"
+	End If
+	If Trim(Request.Form("Languages")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请选择软件语言！</li>"
+	End If
+
+	TextContent = ""
+	For i = 1 To Request.Form("content").Count
+		TextContent = TextContent & Request.Form("content")(i)
+	Next
+	If Trim(TextContent) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>软件简介不能为空！</li>"
+	End If
+	If Len(TextContent) > CLng(GroupSetting(17)) And CLng(GroupSetting(17))>0 Then
+		ErrMsg = ErrMsg + "<li>软件简介不能大于" & GroupSetting(17) & "字符！</li>"
+		Founderr = True
+	End If
+	If Newasp.setUserEditor(0) <> 0 Then
+		TextContent = Newasp.HTMLEncode(TextContent)
+	End If
+	TextContent = Re_Replace(TextContent, InstallDir_ChannelDir, "[InstallDir_ChannelDir]")
+	Dim ChkPostData
+	ChkPostData = Newasp.NeedIsAudit(TextContent, Request.Form("SoftName") & "" & Request.Form("SoftVer"))
+	
+	If Len(Request.Form("RunSystem")) = 0 Then
+		Founderr = True
+		ErrMsg = ErrMsg + "<li>运行环境不能为空！</li>"
+	End If
+	If Not IsNumeric(Request.Form("SoftSize")) Then
+		Founderr = True
+		ErrMsg = ErrMsg + "<li>软件大小请输入整数！</li>"
+	End If
+	isAccept = Newasp.ChkNumeric(Request.Form("isAccept"))
+	If Founderr = True Then Exit Sub
+	On Error Resume Next
+	Call PreventRefresh  '防刷新
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_SoftList WHERE (softid is null)"
+	Rs.Open SQL,Conn,1,3
+	Rs.Addnew
+		Rs("ChannelID") = ChannelID
+		Rs("ClassID") = Newasp.ChkNumeric(Request.Form("ClassID"))
+		Rs("SpecialID") = 0
+		Rs("SoftName") = Newasp.RequestForm(Request.Form("SoftName"),255)
+		Rs("SoftVer") = Newasp.RequestForm(Request.Form("SoftVer"),100)
+		Rs("subtitle") = ""
+		Rs("ColorMode") = 0
+		Rs("FontMode") = 0
+		Rs("Related") = Newasp.RequestForm(Request.Form("Related"),200)
+		Rs("Content") = Html2Ubb(TextContent)
+		Rs("Languages") = Newasp.RequestForm(Request.Form("Languages"),50)
+		Rs("SoftType") = Newasp.RequestForm(Request.Form("SoftType"),50)
+		Rs("RunSystem") = Newasp.RequestForm(Request.Form("RunSystem"),100)
+		Rs("impower") = Newasp.RequestForm(Request.Form("impower"),50)
+		If UCase(Request.Form("SizeUnit")) = "MB" Then
+			Rs("SoftSize") = Newasp.CheckNumeric(Request.Form("SoftSize") * 1024)
+		Else
+			Rs("SoftSize") = Newasp.CheckNumeric(Request.Form("SoftSize"))
+		End If
+		Rs("star") = Newasp.ChkNumeric(Request.Form("star"))
+		Rs("Homepage") = Newasp.RequestForm(Request.Form("Homepage"),100)
+		Rs("Contact") = Replace(Newasp.RequestForm(Request.Form("Contact"),100), "＠", "@")
+		Rs("Author") = ""
+		Rs("Regsite") = ""
+		Rs("showreg") = 0
+		Rs("username") = Trim(MemberName)
+		Rs("PointNum") = 0
+		Rs("SoftPrice") = Newasp.CheckNumeric(Request.Form("SoftPrice"))
+		Rs("SoftTime") = Now()
+		Rs("isTop") = 0
+		Rs("AllHits") = 0
+		Rs("DayHits") = 0
+		Rs("WeekHits") = 0
+		Rs("MonthHits") = 0
+		Rs("HitsTime") = Now()
+		Rs("HtmlFileDate") = Trim(Newasp.HtmlRndFileName)
+		Rs("SoftImage") = Newasp.RequestForm(Request.Form("SoftImage"),255)
+		Rs("Decode") = Newasp.RequestForm(Request.Form("Decode"),50)
+		Rs("isBest") = 0
+		Rs("UserGroup") = 0
+		Rs("isUpdate") = 1
+		Rs("ErrCode") = 0
+		If CInt(Newasp.IsAuditing) = 1 Or ChkPostData = True Then
+			Rs("isAccept") = 0
+		Else
+			Rs("isAccept") = 1
+		End If
+		Rs("ForbidEssay") = 0
+		Rs("AlphaIndex") = Newasp.ReadAlpha(AlphaSoftName)
+		Rs("PauseDown") = 0
+	Rs.update
+	Rs.Close
+	Rs.Open "SELECT TOP 1 softid FROM NC_SoftList WHERE ChannelID=" & ChannelID & " ORDER BY softid DESC", Conn, 1, 1
+	softid = Rs("softid")
+	Rs.Close:Set Rs = Nothing
+	'---- 开始批量添加下载地址
+	Dim TempAddress,TempSiteName
+	If Trim(Request.Form("DownAddress1")) <> "" Then
+		For i = 1 To 3
+			TempAddress = Replace(Trim(Request.Form("DownAddress"&i)), "&amp;", "&")
+			TempSiteName = Replace(Trim(Request.Form("SiteName"&i)), "&amp;", "&")
+			If LCase(TempAddress) <> "del" And Len(TempAddress) > 3 Then
+				AddDownAddress 0,softid,TempAddress,TempSiteName
+			End If
+		Next
+	End If
+	'---- 批量添加下载地址完成
+	Dim strUserToday
+	strUserToday = UserToday(0) &","& UserToday(1) &","& UserToday(2)+1 &","& UserToday(3) &","& UserToday(4) &","& UserToday(5)
+	UpdateUserToday(strUserToday)
+	If CInt(Newasp.IsAuditing) = 1 Then
+		Call ToSucceed("<li>恭喜您！提交成功。请等待管理员验证后正式发布。</li><li><a href=?action=view&ChannelID=" & ChannelID & "&softid=" & softid & ">点击此处查看该软件</a></li>")
+	Else
+		 AddUserPointNum MemberName, 1
+		 Call ToSucceed("<li>恭喜您！发布" & Newasp.ModuleName & "成功。</li><li><a href=?action=view&ChannelID=" & ChannelID & "&softid=" & softid & ">点击此处查看该软件</a></li>")
+	End If
+	
+End Sub
+
+Function AddDownAddress(downid,softid,DownFileName,DownText)
+	If Len(DownText) = 0 Then DownText = "立即下载"
+	downid = Newasp.ChkNumeric(downid)
+	DownFileName = Server.HTMLEncode(Replace(DownFileName, "'", ""))
+	DownText = Server.HTMLEncode(Replace(DownText, "'", ""))
+	If Trim(DownFileName) <> "" Then
+		SQL = "INSERT INTO NC_DownAddress (ChannelID,softid,downid,DownFileName,DownText) VALUES (" & ChannelID & "," & softid & "," & downid & ",'" & Replace(DownFileName, "'", "") & "','" & Replace(DownText, "'", "") & "')"
+		Conn.Execute(SQL)
+	End If
+End Function
+Function SoftDownAddress(softid)
+	Dim rsAddress, sqlAddress, rsDown
+	Dim strDownAddress,sDownAddress
+	strDownAddress = ""
+	On Error Resume Next
+	Set rsDown = Newasp.Execute("SELECT downid,DownFileName FROM [NC_DownAddress] WHERE softid=" & CLng(softid))
+	If Not (rsDown.BOF And rsDown.EOF) Then
+		Do While Not rsDown.EOF
+			If rsDown("downid") > 0 Then
+				sqlAddress = "SELECT downid,DownloadName,DownloadPath FROM NC_DownServer WHERE ChannelID=" & ChannelID & " And depth=1 And rootid =" & rsDown("downid") & " And isLock=0 ORDER BY orders ASC"
+				Set rsAddress = Newasp.Execute(sqlAddress)
+				If Not(rsAddress.EOF And rsAddress.BOF) Then
+					Do While Not rsAddress.EOF
+						strDownAddress = rsAddress("DownloadPath") & Server.HTMLEncode(rsDown("DownFileName"))
+						sDownAddress = sDownAddress & "<li><a href=""" & strDownAddress & """ target=_blank>" & strDownAddress & "</a></li>" & vbNewLine
+						rsAddress.movenext
+					Loop
+				End If
+				Set rsAddress = Nothing
+			Else
+				strDownAddress = Server.HTMLEncode(rsDown("DownFileName") & "")
+				sDownAddress = sDownAddress & "<li><a href=""" & strDownAddress & """ target=_blank>" & strDownAddress & "</a></li>" & vbNewLine
+			End If
+			rsDown.movenext
+		Loop
+	End If
+	Set rsDown = Nothing
+	SoftDownAddress = sDownAddress
+End Function
+Sub SoftView()
+	If softid = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！您选择了错误的系统参数。</li>"
+		Exit Sub
+	End If
+	If ChannelID = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请指定频道。</li>"
+		Exit Sub
+	End If
+	SQL = "SELECT * FROM NC_SoftList WHERE ChannelID=" & ChannelID & " And username='" & MemberName & "' And softid=" & CLng(softid)
+	Set Rs = Newasp.Execute(SQL)
+	If Rs.bof And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！没有找到任何软件。或者您选择了错误的系统参数！</li>"
+		Exit Sub
+	Else
+%>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="UserTableBorder" style="table-layout:fixed;word-break:break-all">
+	<tr>
+	  <th colspan="2">&gt;&gt;查看软件信息&lt;&lt;</th>
+	</tr>
+	<tr>
+	  <td align="center" class="UserTableRow2" colspan="2"><font size=3 color=blue><%=Newasp.ReadFontMode(Rs("SoftName"),Rs("ColorMode"),Rs("FontMode"))%>&nbsp;<%=Rs("SoftVer")%></font></td>
+	</tr>
+	<tr>
+	  <td class="UserTableRow1"><strong>软件运行环境：</strong> <%=Rs("RunSystem")%></td>
+	  <td class="UserTableRow1"><strong>软件类型：</strong> <%=Rs("SoftType")%></td>
+	</tr>
+	<tr>
+	  <td class="UserTableRow1"><strong>软件大小：</strong> <%=Rs("SoftSize")%></td>
+	  <td class="UserTableRow1"><strong>软件星级：</strong> 
+<%
+Response.Write "<font color=red>"
+For i = 1 to Rs("star")
+	Response.Write "★"
+Next
+Response.Write "</font>"
+%>
+	  </td>
+	</tr>
+	<tr>
+	  <td class="UserTableRow1"><strong>软件语言：</strong> <%=Rs("Languages")%></td>
+	  <td class="UserTableRow1"><strong>授权方式：</strong> <%=Rs("impower")%></td>
+	</tr>
+	<tr>
+	  <td class="UserTableRow1"><strong>更新时间：</strong> <%=Rs("SoftTime")%></td>
+	  <td class="UserTableRow1"><strong>程序主页：</strong> <%=Rs("Homepage")%></td>
+	</tr>
+	<tr>
+	  <td colspan="2" class="UserTableRow1"><strong>软件简介：</strong><br><%=ubb.UBBCode(Rs("content"))%></td>
+	</tr>
+	<tr>
+	  <td colspan="2" class="UserTableRow1"><strong>下载地址：</strong><br>
+<%
+	Response.Write SoftDownAddress(Rs("softid"))
+
+%>
+	  </td>
+	</tr>
+	<tr>
+	  <td align="center" colspan="2" class="UserTableRow2"><input type="button" onclick="javascript:window.close()" value="关闭本窗口" name="B2" class=Button>&nbsp;&nbsp;
+	  <input type="button" name="Submit1" onclick="javascript:location.href='#'" value="返回顶部" class=button>&nbsp;&nbsp;
+	  </td>
+	</tr>
+</table>
+<%
+
+	End If
+	Rs.Close
+	Set Rs = Nothing 
+End Sub
+
+%>
+<!--#include file="inc/foot.inc"-->

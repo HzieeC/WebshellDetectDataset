@@ -1,0 +1,653 @@
+<%@ page language="java" pageEncoding="UTF-8" isELIgnored="false"%>
+<%@page import="global.Constants"%>
+<%@page import="util.StringUtils"%>
+<html>
+<head>
+	<%
+		String baseUrl = request.getContextPath();
+		String categoryId = request.getParameter("categoryId");
+		String categoryName = request.getParameter("categoryName");
+		if(StringUtils.isEmpty(categoryName) || "null".equals(categoryName)){
+			categoryName = "所有笔记";
+		}else{
+			categoryName = java.net.URLDecoder.decode(categoryName, "UTF-8");
+		}
+	%>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<script type="text/javascript">
+		$(document).ready(function(){
+			// 全局参数
+			var baseParams = {start:0, limit:<%=Constants.PAGE_SIZE %>, categoryId:"<%=categoryId %>", delflag:"<%=Constants.DEL_FLAG_1 %>"};
+			// 当前选中的笔记
+			var currentNoteIndex = 0;
+			var noteCategoryName = '<%=categoryName%>';
+			// 笔记数据源
+		    var noteListStore = new Ext.data.JsonStore({
+		        url: '<%=baseUrl %>/noteAction.do?method=query',
+		        root: 'datas',
+		        totalProperty: 'results',
+		        fields: ['noteId', 'categoryName', 'title', 'createDateStr', 'updateDateStr'],
+		        baseParams: baseParams,
+		        autoLoad: {
+					callback: function(){
+		        		Ext.getCmp('noteListDataView').select(currentNoteIndex);
+		        		// 返回到查看面板
+						initNoteListViewPanel();
+					}
+			    }
+		    });
+
+		    // 工具栏
+		    var noteListToolbar = new Ext.Toolbar({
+		    	id: 'noteListToolbar',
+		    	items: [
+					'当前：'+noteCategoryName,
+					'-',
+				    new Ext.Button({
+					    id: 'noteList-add-button',
+						text: '添加',
+						iconCls: 'note_add'
+					}),
+					new Ext.Button({
+					    id: 'noteList-edit-button',
+					    text: '修改',
+						iconCls: 'note_edit'
+					}),
+					new Ext.Button({
+					    id: 'noteList-delete-button',
+					    text: '删除',
+						iconCls: 'note_delete'
+					}),
+					'-',
+					new Ext.Button({
+					    id: 'noteList-send-button',
+						text: '邮件',
+						iconCls: 'email'
+					}),
+					new Ext.Button({
+					    id: 'noteList-print-button',
+						text: '打印',
+						iconCls: 'printer'
+					}),
+					'-',
+		            new Ext.ux.form.SearchField({
+		                store: noteListStore,
+		                width: 150,
+		                paramName: 'title',
+		                emptyText: '输入标题...'
+		            })
+				]
+			});
+
+		 	// 笔记显示模板
+			var noteListTpl = new Ext.XTemplate(
+				'<tpl for=".">',
+		            '<div class="noteItem">',
+			            '<div class="noteTitle">{title}</div>',
+			            '<div class="noteTime">创建于：{createDateStr}    修改于：{updateDateStr}</div>',
+			            '<div class="noteCategory">分类：{categoryName}</div>',
+				    '</div>',
+		        '</tpl>'
+			);
+
+			// 图片显示DataView
+			var noteListDataView = new Ext.DataView({
+				id: 'noteListDataView',
+				region: 'center',
+	            store: noteListStore,
+	            loadingText: '加载中...',
+	            tpl: noteListTpl,
+	            multiSelect: true,
+	            autoScroll: true,
+	            overClass:'x-view-over',
+	            itemSelector:'div.noteItem',
+	            plugins: [
+	  	        	new Ext.DataView.DragSelector({dragSafe:true})
+	  	        ],
+	            prepareData: function(data){
+	                data.title = Ext.util.Format.ellipsis(data.title, 100);
+	                return data;
+	            },
+	            listeners: {
+	            	selectionchange: function(dataview,div,nodes){
+	            	},
+	            	click: function(dataview,index,item,e){
+	            		currentNoteIndex = index;
+	            		initNoteListViewPanel();
+	            	},
+	            	dblclick: function(dataview,index,item,e){
+	            		currentNoteIndex = index;
+	            		var noteId = noteListStore.getAt(index).get("noteId");
+    					noteWindow = new Ext.Window({
+    						title: '查看笔记',
+    						width: 800,
+    						height: 500,
+    						modal: true,
+    						maximizable: true,
+    						layout:'fit',
+    						plain: true,
+    						autoLoad:{url:'<%=baseUrl %>/websrc/page/note/viewNote.jsp?noteId='+noteId,scripts:true,nocache:true}
+    					});
+    					noteWindow.show();
+	    			},
+	            	render: function(v){
+						v.dragZone = new Ext.dd.DragZone(v.getEl(), {
+	    			        getDragData: function(e) {
+	    			            var sourceEl = e.getTarget(v.itemSelector, 10);
+	    			            if (sourceEl) {
+		    			            // 取得选中Record的信息
+	    			            	var records = v.getSelectedRecords();
+	    			            	var dragRecord = v.getRecord(sourceEl);
+	    			            	var noteIds = "";
+	    			            	var noteTitles = "";
+	    			            	if($.inArray(dragRecord, records)<0){
+	    			            		noteIds = dragRecord.get("noteId");
+	    								noteTitles = "<li>" + dragRecord.get("title");
+		    			            }else{
+		    			            	for(var i=0;i<records.length;i++){
+		    								noteIds = noteIds + records[i].get("noteId") + ",";
+		    								noteTitles = noteTitles + "<li>" + records[i].get("title");
+		    							}
+			    			        }
+		    			            // 拖动时显示的框
+	    			                d = sourceEl.cloneNode(true);
+	    			                d.id = Ext.id();
+	    							$(d).html("正在移动以下笔记："+noteTitles);
+	    			                return v.dragData = {
+	    			                    sourceEl: sourceEl,
+	    			                    repairXY: Ext.fly(sourceEl).getXY(),
+	    			                    ddel: d,
+	    			                    noteIds: noteIds,
+	    			                    fromView: 'noteListDataView'
+	    			                }
+	    			            }
+	    			        },
+	    			        getRepairXY: function() {
+	    			            return this.dragData.repairXY;
+	    			        }
+	    			    });
+		            }
+	            }
+	        });
+
+
+			// 列表面板
+			var noteListPanel = new Ext.Panel({
+				id: 'noteListPanel',
+				region: 'west',
+				border: false,
+				bodyStyle: 'border-right-width:1px;',
+				split: true,
+                width: 400,
+                minSize: 200,
+                maxSize: 500,
+				layout:'fit',
+                collapseMode:'mini',
+				items: [noteListDataView],
+				bbar: new Ext.PagingToolbar({
+					pageSize: <%=Constants.PAGE_SIZE %>,
+					store: noteListStore,
+					displayInfo: true,
+					displayMsg: Anynote.PAGINGTOOLBAR_DISPLAYMSG,
+					emptyMsg: Anynote.PAGINGTOOLBAR_EMPTYMSG,
+					doLoad: function(start){
+						baseParams.start = start;
+						this.store.load({
+							params: baseParams,
+							callback: function(){
+								noteListDataView.select(currentNoteIndex);
+							}
+						});
+					}
+		        })
+			});
+
+			// 操作面板
+			var noteListOptPanel = new Ext.Panel({
+				id: 'noteListOptPanel',
+				region: 'center',
+				border: false,
+                layout: 'fit',
+                bodyStyle: 'border-left-width:1px;',
+                items: createNoteListViewPanel()
+			});
+
+			// 主面板
+			var noteListMainPanel = new Ext.Panel({
+				id: 'noteListMainPanel',
+				renderTo: 'noteListMainPanelDiv',
+				border: false,
+				layout: 'border',
+				tbar: noteListToolbar,
+				items: [noteListPanel, noteListOptPanel]
+			});
+			Anynote.resizeGridTo("noteListMainPanel", 0, 28);
+			noteListPanel.setWidth(Ext.getCmp('noteListMainPanel').getWidth() * 0.4);
+			noteListOptPanel.setWidth(Ext.getCmp('noteListMainPanel').getWidth() * 0.6);
+
+			// 添加按钮
+			$("#noteList-add-button").click(function(){
+				// 去掉查看面板
+				noteListOptPanel.remove(Ext.getCmp('noteListViewPanel'));
+				// 添加编辑面板
+				noteListOptPanel.add(createNoteListEditPanel(''));
+				// 重新绘制布局
+				noteListOptPanel.doLayout();
+			});
+
+			// 修改按钮
+			$("#noteList-edit-button").click(function(){
+				var records = noteListDataView.getSelectedRecords();
+				if(records.length!=1){
+					Ext.Msg.alert("提示", "请选择一条数据.");
+				}else{
+					var noteId = records[0].get("noteId");
+					// 去掉查看面板
+					noteListOptPanel.remove(Ext.getCmp('noteListViewPanel'));
+					// 添加编辑面板
+					noteListOptPanel.add(createNoteListEditPanel(noteId));
+					// 重新绘制布局
+					noteListOptPanel.doLayout();
+				}
+				
+			});
+
+			// 删除按钮
+			$("#noteList-delete-button").click(function(){
+				var records = noteListDataView.getSelectedRecords();
+				if(records.length < 1){
+					Ext.Msg.alert("提示", "请选择数据.");
+				}else{
+					Ext.Msg.confirm("警告", "确定要删除吗？", function(btn){
+						if(btn=="yes"){
+							var noteIds = "";
+							for(var i=0;i<records.length;i++){
+								noteIds = noteIds + records[i].get("noteId") + ",";
+							}
+
+							// 发送请求
+							Anynote.ajaxRequest({
+								baseUrl: '<%=baseUrl %>',
+								baseParams: {noteIds:noteIds},
+								action: '/noteAction.do?method=delete',
+								callback: function(jsonResult){
+									noteListStore.reload({
+										callback: function(){
+											noteListDataView.select(0);
+											// 返回到查看面板
+											initNoteListViewPanel();
+										}
+									});
+								},
+								showWaiting: true,
+								failureMsg: '删除失败.'
+							});
+						}
+					});
+				}
+			});
+			
+			// 邮件按钮
+			$("#noteList-send-button").click(function(){
+				var records = noteListDataView.getSelectedRecords();
+				if(records.length!=1){
+					Ext.Msg.alert("提示", "请选择一条数据.");
+				}else{
+					var noteId = records[0].get("noteId");
+					sendNoteWindow = new Ext.Window({
+						title: '发送笔记',
+						width: 350,
+						height: 180,
+						modal: true,
+						layout:'fit',
+						items: new Ext.form.TextArea({
+							emptyText: '请输入Email地址，用逗号分隔.',
+							id: 'Email',
+							name: 'Email'
+						}),
+						buttons: [{
+		                    text:'确定',
+		                    handler: function(){sendEmail(noteId);}
+		                },{
+		                    text: '取消',
+		                    handler: function(){
+		                		sendNoteWindow.close();
+		                    }
+		                }]
+					});
+				    sendNoteWindow.show();
+				}
+			});
+
+			// 打印按钮
+			$("#noteList-print-button").click(function(){
+				var records = noteListDataView.getSelectedRecords();
+				if(records.length!=1){
+					Ext.Msg.alert("提示", "请选择一条数据.");
+				}else{
+					var noteId = records[0].get("noteId");
+					// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: {noteId:noteId},
+						action: '/noteAction.do?method=print',
+						callback: function(jsonResult){
+							showPrintWin(jsonResult);
+						},
+						showWaiting: true,
+						failureMsg: '打印失败.'
+					});
+				}
+			});
+
+			/**
+			* 获得查看面板
+			*/
+			function createNoteListViewPanel(){
+				// 查看面板
+				var noteListViewPanel = new Ext.Panel({
+					id: 'noteListViewPanel',
+					border: false,
+					bodyStyle: 'padding: 5px;overflow: auto;',
+	                width: 500,
+	                layout: 'fit'
+				});
+				return noteListViewPanel;
+			}
+
+			/**
+			* 获得编辑面板
+			*/
+			function createNoteListEditPanel(noteId){
+				var type = '';
+				if(noteId && noteId !=''){
+					type = 'UPDATE';
+				}else{
+					type = 'CREATE';
+				}
+				// 笔记分类数据源
+			    var noteCategoryStore = new Ext.data.JsonStore({
+			        url: '<%=baseUrl %>/noteCategoryAction.do?method=query',
+			        root: 'datas',
+			        fields: ['categoryId', 'categoryName'],
+			        autoLoad: {
+			    		callback: function(records, success){
+						        	 if(type=="UPDATE"){
+						        		 setFromValues(noteId);
+						        	 }
+			    				}
+				    }
+			    });
+				// 编辑笔记Form
+				var editNoteFormPanel = new Ext.FormPanel({
+					id: 'editNoteFormPanel',
+			        labelWidth: 40,
+			        border: false,
+			        bodyStyle: 'background-color:transparent;padding:5px;',
+			        url: '<%=baseUrl %>/noteAction.do?method=save',
+			        items: [{
+			            layout:'column',
+			            border: false,
+			            items:[{// 分类ID
+			        		columnWidth: .8,
+							layout: 'form',
+							border: false,
+			        		items: [{// 分类ID
+	        		                xtype:'combo',
+	        		                hiddenName: 'categoryId',
+	        		                fieldLabel: '分类',
+	        		                store: noteCategoryStore,
+	        		                mode : 'local',
+	        		                triggerAction: "all",
+	        		                emptyText: '请选择...',
+	        		                valueField: 'categoryId',
+	        		                displayField: 'categoryName',
+	        		                anchor:'100%',
+	        		                allowBlank:false
+								}]
+			        	},{// 添加笔记分类
+			        		columnWidth: .2,
+							layout: 'form',
+							border: false,
+							cls: 'x-form-item',
+			        		items: [{// 添加笔记分类
+									xtype:'label',
+			        				html: '&nbsp;&nbsp;<a href="javascript:addNoteCategory();">添加分类</a>',
+			        				style: 'font-size:12px;',
+			        				cls: 'x-form-item-label'
+			        			}]
+			        	}]
+			        	},{
+				            layout:'column',
+				            border: false,
+				            items:[{// 笔记标题
+				        		columnWidth: .8,
+								layout: 'form',
+								border: false,
+				        		items: [{// 笔记标题
+			                        xtype:'textfield',
+			                        name: 'title',
+			                        fieldLabel: '标题',
+			                        anchor:'100%',
+			                        allowBlank:false,
+			                        maxLength: 50
+			        			}]
+				        	},{// 保存远程图片
+				        		columnWidth: .2,
+								layout: 'form',
+								border: false,
+				        		items: [{
+				        			name: 'saveRemoteImg',
+				        			xtype: 'checkboxgroup',
+					            	itemCls: 'x-check-group-alt',
+					            	columns: 1,
+					            	hideLabel: true,
+					            	style: 'margin-left:6px;',
+					            	items: [{boxLabel: '保存远程图片', name: 'saveRemoteImg', checked:true}]
+						        }]
+				        	}]
+				        	},{// 笔记内容
+			        		xtype:'textarea',
+			        		id: 'noteContent',
+			        		name: 'content',
+			        		hideLabel: true,
+			        		height: 400,
+			        		allowBlank:false,
+			        		anchor:'100%'
+			        	},{// 笔记ID
+			                       xtype:'hidden',
+			                       name: 'noteId',
+			                       value: noteId
+			        	},{// 操作类型
+			                       xtype:'hidden',
+			                       name: 'type',
+			                       value: type
+			        	}
+			        ],
+			        buttons: [{
+						id:'noteList-save-button',
+	                    text:'保存',
+	                    handler: function(){
+				        	var form = editNoteFormPanel.getForm();
+				        	var categoryId = form.findField('categoryId').getValue();
+				        	// 同步到原TEXTAREA
+				        	KE.sync('noteContent');
+						    if(form.isValid()){
+						    	// 发送请求
+								Anynote.ajaxRequest({
+									baseUrl: '<%=baseUrl %>',
+									baseParams: form.getValues(),
+									action: '/noteAction.do?method=save',
+									callback: function(jsonResult){
+										// 去掉编辑器
+										KE.remove('noteContent');
+										noteListStore.reload({
+											callback: function(){
+												if(type=='CREATE' || currentNoteIndex >= noteListStore.getCount()){
+													currentNoteIndex = 0;
+												}
+												noteListDataView.select(currentNoteIndex);
+												// 返回到查看面板
+												initNoteListViewPanel();
+											}
+										});
+									},
+									showWaiting: true,
+									failureMsg: '保存失败.'
+								});
+							}
+	                	}
+	                },{
+	                    text: '取消',
+	                    handler: function(){
+		                	// 去掉编辑器
+							KE.remove('noteContent');
+	                    	// 返回到查看面板
+	                    	initNoteListViewPanel();
+	                    }
+	                }]
+			    });
+			    // 配置编辑器
+				KE.init({
+					id:'noteContent',
+					width:'100%',
+					imageUploadJson:'<%=baseUrl %>/noteAction.do?method=upload',
+					fileManagerJson:'<%=baseUrl %>/noteAction.do?method=fileManager',
+					allowFileManager:true
+				});
+				setTimeout("KE.create('noteContent');", 1000);
+				// 编辑面板
+				editNoteFormPanel.getForm().findField("content").setHeight(Ext.getCmp('noteListMainPanel').getHeight() - 150);
+				var noteListEditPanel = new Ext.Panel({
+					id: 'noteListEditPanel',
+					border: false,
+					bodyStyle: 'overflow: auto;',
+	                width: 500,
+	                layout: 'fit',
+	                items: editNoteFormPanel
+				});
+				return noteListEditPanel;
+			}
+
+			// 初期化查看面板
+			function initNoteListViewPanel(){
+				// 去掉编辑面板
+				noteListOptPanel.remove(Ext.getCmp('noteListEditPanel'));
+				// 添加查看面板
+				noteListOptPanel.add(createNoteListViewPanel());
+				// 重新绘制布局
+				noteListOptPanel.doLayout();
+				var records = noteListDataView.getSelectedRecords();
+				if(records.length>0){
+					var noteId = records[0].get('noteId');
+    				// 发送请求-初期化查看笔记面板
+    				Ext.getCmp('noteListViewPanel').body.update("<div class='loading-indicator'>加载中...</div>");
+        			Anynote.ajaxRequest({
+        				baseUrl: '<%=baseUrl %>',
+        				baseParams: {noteId:noteId},
+        				action: '/noteAction.do?method=getNote',
+        				callback: function(jsonResult){
+        					Ext.getCmp('noteListViewPanel').body.update("<center><h3>"+jsonResult.title+"</h3></center>" + jsonResult.content);
+        				}
+        			});
+				}
+			}
+
+			// form初期化
+			function setFromValues(noteId){
+				// 发送请求-form初期化
+				Anynote.ajaxRequest({
+					baseUrl: '<%=baseUrl %>',
+					baseParams: {noteId:noteId},
+					action: '/noteAction.do?method=getNote',
+					callback: function(jsonResult){
+						Ext.getCmp('editNoteFormPanel').getForm().setValues(jsonResult);
+						if(KE.g['noteContent'].container && KE.isEmpty('noteContent')){
+							KE.insertHtml('noteContent', jsonResult.content);
+						}
+					}
+				});
+			}
+
+			/**
+			* 发送邮件
+			*/
+			function sendEmail(noteId){
+				var emails = $("#Email").val();
+				var emailArr = emails.split(",");
+				if(emailArr.length>5){
+					showErrorMsg("最多支持五个邮箱.");
+					return;
+				}else{
+					for(var i=0;i<emailArr.length;i++){
+						var is = validateInput("email",emailArr[i],"请输入有效的Email地址.");
+						if(!is)  return;
+					}
+				}
+				// 发送请求
+				Anynote.ajaxRequest({
+					baseUrl: '<%=baseUrl %>',
+					baseParams: {noteId:noteId,emails:emails},
+					action: '/noteAction.do?method=sendEmail',
+					callback: function(jsonResult){
+						sendNoteWindow.close();
+					},
+					showWaiting: true,
+					showMsg: true,
+					successMsg: '发送成功.',
+					failureMsg: '发送失败.'
+				});
+			}
+
+
+			/**
+			* 显示打印窗口
+			*/
+			function showPrintWin(jsonResult){
+				var printWin = window.open('<%=baseUrl %>'+jsonResult.url,'','width=800,height=500,left=0,top=0,scrollbars=yes,resizable=yes,menubar=yes,status=no');
+				printWin.focus();
+				if($.browser.mozilla) {
+					printWin.onload = function(){printWin.print();}
+				}else{
+					printWin.print();
+				}
+			}
+		});
+
+		/**
+		* 添加分类
+		*/
+		function addNoteCategory(){
+			Ext.Msg.prompt('添加分类', '分类名称', function(btn, text){
+				if('ok'==btn && text!=''){
+					if(text.length>20){
+						Ext.Msg.alert('提示', '分类名称的最大长度不能超过20个字符.');
+						return;
+					}
+			    	var categoryIdObj = Ext.getCmp('editNoteFormPanel').getForm().findField('categoryId');
+					var params = {};
+					// 发送请求
+					Anynote.ajaxRequest({
+						baseUrl: '<%=baseUrl %>',
+						baseParams: {categoryId:"", categoryName:text},
+						action: '/noteCategoryAction.do?method=save',
+						callback: function(jsonResult){
+							categoryIdObj.getStore().reload({
+								callback:function(){
+									categoryIdObj.focus();
+									categoryIdObj.setRawValue(text);
+								}
+							});
+						},
+						showWaiting: true,
+						failureMsg: '添加失败.'
+					});
+				}
+			});
+		}
+	</script>
+</head>
+<body>
+<div id="noteListMainPanelDiv" class="noteListDataView"></div>
+</body>
+</html>

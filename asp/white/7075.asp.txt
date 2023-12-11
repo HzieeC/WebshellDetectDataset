@@ -1,0 +1,159 @@
+<%path="../"%>
+<!--#include file="../inc/my_conn.asp" -->
+<!--#include file="../inc/inc.asp" -->
+<!--#include file="../t/consts.asp" -->
+<!--#include file="inc/function.asp" -->
+<%
+
+'server_v1=Cstr(Request.ServerVariables("HTTP_REFERER"))
+'server_v2=Cstr(Request.ServerVariables("SERVER_NAME"))
+'if instr(server_v1,server_v2)=0 then
+	'response.write "<br><br><center><table border=1 cellpadding=20 bordercolor=black bgcolor=#EEEEEE width=450>"
+	'response.write "<tr><td style='font:9pt Verdana'>"
+	'response.write server_v1&" - 提示您，我们不接受来自站点外部提交的数据."&server_v2
+	'response.write "</td></tr></table></center>"
+	'response.end
+'end if
+'comurl=server_v1
+'----------------读取数据-------------------
+action=Request.form("action")
+tie_id=CheckStr(request.form("tie_id"))
+if tie_id="" or isnumeric(tie_id)=False then tie_id=0
+'tie_id=CheckNum(tie_id)
+BoardID=CheckStr(Trim(request.form("BoardId")))
+if BoardID<>"" and isnumeric(BoardID)=True then
+else
+	response.write"<script>alert('请选择类别！');history.go(-1);</script>"
+end if
+
+
+title=CheckStr(Trim(request.form("title")))
+content=CheckStr(rtrim(request.form("content")))
+if content="" or isnull(content) or len(content)<=2 or len(content)>=20000 then
+	response.write"<script>alert('缺少内容或者内容太少(2-20000)！');history.go(-1);</script>"
+	response.End()
+end if
+
+picurl=CheckStr(rtrim(request.form("picurl")))
+ip = Request.ServerVariables("HTTP_X_FORWARDED_FOR") 
+If ip = "" Then ip = Request.ServerVariables("REMOTE_ADDR")
+if session("class_id")<>"" then
+		shenhe=1
+		username="网站管理员"
+else
+	if session("user_name")="" then
+		shenhe=1'会员发帖审核开关 1为无需审核 0为需要审核
+		username="游客"
+	else
+		shenhe=1'匿名发帖审核开关 1为无需审核 0为需要审核
+		username=session("user_name")
+	end if
+end if
+
+'*************************************
+' 发表帖子、回复
+'*************************************
+If action="addsave" then
+	Session("GetCode_yc") = ""
+	
+	if tie_id="" or tie_id=0 then
+		if title="" or isnull(title) or len(title)<=2 then
+			response.write"<script>alert('缺少标题或者标题太少！');history.go(-1);</script>"
+			response.End()
+		end if
+		'------把新帖信息写进数据库-------------
+		Set rs= Server.CreateObject("ADODB.Recordset")
+		sql="select * from bbs"
+		rs.open sql,conn,3,2
+		rs.addnew
+		rs("title")=title
+		rs("content")=content
+		rs("username")=username
+		rs("BoardID")=Int(BoardID)
+		rs("ip")=ip
+		rs("addtime")=now()
+		rs("IsCheck")=shenhe
+		rs("picurl")=picurl
+		
+		rs.update
+		newid=rs("id")
+		rs.close
+		Session("posttime") = Now()
+		if shenhe=0 Then checkAlert = "，您的帖子可能需要经过审核后才能公布"
+		if shenhe=1 then
+			response.write backmsg("恭喜您！帖子发表成功"&checkAlert,"show.asp?id="&newid&"")
+		else
+			response.write backmsg("恭喜您！帖子发表成功"&checkAlert,"index.asp")
+		end if
+	Else
+		'------把回复信息写进数据库-------------
+		Set rs= Server.CreateObject("ADODB.Recordset")
+		sql="select * from bbs"
+		rs.open sql,conn,3,2
+		rs.addnew
+		rs("BoardID")=Int(BoardID)
+		rs("re_id")=tie_id
+		rs("content")=content
+		rs("username")=username
+		rs("isFee")=shenhe
+		rs("ip")=ip
+		rs("addtime")=now()
+		rs("IsCheck")=shenhe
+		rs("picurl")=picurl
+		rs.update
+		rs.close
+		Session("posttime") = Now()
+		if shenhe=0 Then checkAlert = "，您的帖子可能需要经过审核后才能公布"
+		response.write backmsg("恭喜您！帖子回复成功"&checkAlert,"show.asp?id="&tie_id&"")
+	End If
+End If
+
+If action="update_reply" then
+	id=Checkstr(trim(request("id")))
+	if id="" or isnumeric(id)=False then response.Redirect "index.asp"
+	modify_id=Checkstr(trim(request("modify_id")))
+	if modify_id="" or isnumeric(modify_id)=False then response.Redirect "index.asp"
+	board_id=Checkstr(trim(request("BoardId")))
+	if title<>"" then
+		if board_id="" or isnumeric(board_id)=False then response.Redirect "index.asp"
+	end if
+	tie_publisher=Checkstr(trim(request("tie_publisher")))
+	page=Request("page")
+	if page="" or isnumeric(page)=False then page=1
+	asp_name="edit.asp"
+	asp_name2="show.asp"
+
+	Session("GetCode_yc") = ""
+	'If Len(content)>20000 Then 
+	'	response.write backmsg("正为内容不能多于20000字","show.asp?id="&tie_id&"")
+	'End If
+	'If Len(content)<4 Then 
+	'	response.write backmsg("正为内容不能少于4字","show.asp?id="&tie_id&"")
+	'End If
+	
+	if session("class_id")<>"" or tie_publisher=session("user_name") then
+		if modify_id<>"" and isnumeric(modify_id)=True then
+			sql="select * from bbs where id="&modify_id&""
+			rs.open sql,conn,1,3
+			if not rs.eof then
+				rs("title")=title
+				if session("user_name")<>"" then
+					'content=content& "[此贴由 "&session("user_name")&" 于"&Now()&"修改过。]"
+				elseif session("class_id")<>"" then
+					'content=content& "[此贴由 网站管理员 于"&Now()&"修改过]。"
+				end if
+				rs("content")=content
+				rs("addtime")=Now()
+				rs("BoardID")=board_id
+			rs.update
+			else
+			end if		
+			response.write backmsg("修改成功，点击确定后返回！",asp_name2&"?id="&id&"")
+		else
+		end if
+	else
+		response.write backmsg("亲，您好像没有权限哦！",asp_name2&"?id="&id&"")
+	end if
+End If
+%>
+

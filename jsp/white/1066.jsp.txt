@@ -1,0 +1,170 @@
+﻿<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+
+<!doctype>
+<html>
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<title>配置数据库连接向导 | 徽诚网</title>
+		<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+		<link rel="alternate" href="feed" title="订阅更新"
+			type="application/rss+xml" />
+		<meta name="application-name" content="徽诚网－每天团购一次，精品生活" />
+		<meta name="msapplication-navbutton-color" content="#C3E9F6" />
+		<meta name="msapplication-window"
+			content="width=device-width;height=device-height" />
+		<meta name="msapplication-tooltip" content="徽诚网－每天团购一次，精品生活" />
+		<meta name="msapplication-task"
+			content="name=今日团购;action-uri=/;icon-uri=/favicon.ico?v=3" />
+		<link rel="stylesheet" href="/templets/html/css/tuangou_index.css" />
+		<link rel="stylesheet" href="/templets/html/css/meituan.css" />
+		<LINK href="/templets/html/css/ht.css" type=text/css rel=stylesheet>
+		<LINK href="/templets/html/css/footer.css" type=text/css
+			rel=stylesheet>
+		<link type="text/css"
+			href="/templets/html/css/smoothness/jquery-ui-1.8.5.custom.css"
+			rel="stylesheet" />
+		<script type="text/javascript"
+			src="/templets/html/js/jquery-ui-1.8.4.custom.min.js" /></script>
+		<meta name="description" />
+		<meta name="keywords" />
+	</head>
+	<script> 
+  document.write("<s"+"cript type='text/javascript' src='/templets/html/teambuy/jsp/getSessUserId.jsp?"+Math.random()+"'></scr"+"ipt>"); 
+	function checkUserInfo(){
+		if(document.getElementById("username").value==""){
+			alert("用户名不能为空");
+			document.getElementById("username").focus();
+			return false;
+		}
+		if(document.getElementById("password").value==""){
+			alert("密码不能为空");
+			document.getElementById("password").focus();
+			return false;
+		}
+		if(document.getElementById("ip").value==""){
+			alert("IP不能为空");
+			document.getElementById("ip").focus();
+			return false;
+		}
+		if(document.getElementById("port").value==""){
+			alert("端口不能为空");
+			document.getElementById("port").focus();
+			return false;
+		}
+		if(document.getElementById("database").value==""){
+			alert("数据库名不能为空");
+			document.getElementById("database").focus();
+			return false;
+		}
+		document.getElementById("confirm-dialog-modal").style.display="block";
+		document.getElementById("setupDiv").style.display="none";
+		
+	}
+</script>
+	<body class="bg-alt">
+
+		<jsp:include page="/templets/html/teambuy/teamtop.jsp" />
+		
+		<div id="content" class="signup-box">
+			<div id="confirm-dialog-modal" title="操作提示" style="display: none;">
+				<p align="center" style="font-size:14px">正在处理中，请稍等！</p>
+				<p align="center" id="confirm-dialog-modal-loading"><img src='/templets/html/css/smoothness/images/loading.gif' style='width:100px;height:100px'/></p>
+			</div>
+			<div class="mainboxcf" id="setupDiv">
+
+				<form name="step1Form" method="post"
+					action="/program/init/step2.jsp">
+					<DIV id=regMain>
+						<h2 style="margin-bottom: 8px; margin-top: 8px;">
+							&nbsp;&nbsp;&nbsp;&nbsp;
+							<strong style="font-size: 30px;">数据库配置</strong>
+						</h2>
+						<hr
+							style="height: 1px; border: 0; border-bottom: 1px dotted #cccccc; margin: 0" />
+
+						<DIV class=regArea>
+							<DIV class="email-line line">
+								<DIV class=info>
+									<EM>用户名</EM>
+									<SPAN class=red>*</SPAN>
+								</DIV>
+								<DIV class=inp>
+									<INPUT class="iText noime" name="username" id="username"
+										value="root" maxLength=50 name=_fmm.co._0.e autocomplete="off">
+								</DIV>
+							</DIV>
+
+							<DIV class=line>
+								<DIV class=info>
+									<EM>密码</EM>
+									<SPAN class=red>*</SPAN>
+								</DIV>
+								<DIV class=inp>
+									<INPUT class="iText noime" id="password" type="password"
+										maxLength=20 name="password" >
+								</DIV>
+							</DIV>
+							<DIV class=line>
+								<DIV class=info>
+									<EM>IP地址</EM>
+									<SPAN class=red>*</SPAN>
+								</DIV>
+								<DIV class=inp>
+									<INPUT class="iText noime" id="ip" type="text"
+										value="127.0.0.1" maxLength=20 name="ip">
+								</DIV>
+							</DIV>
+
+							<DIV class=line>
+								<DIV class=info>
+									<EM>端口号</EM>
+									<SPAN class=red>*</SPAN>
+								</DIV>
+								<DIV class=inp>
+									<INPUT class="iText noime" id="port" type="text" value="3306"
+										maxLength=20 name="port">
+								</DIV>
+							</DIV>
+
+							<DIV class=line>
+								<DIV class=info>
+									<EM>数据库名</EM>
+									<SPAN class=red>*</SPAN>
+								</DIV>
+								<DIV class=inp>
+									<INPUT class="iText noime" id="database" type="text" 
+										value="zl_groupdev" maxLength=20 name="database">
+								</DIV>
+							</DIV>
+							
+							<DIV class=line>
+								<DIV class=info>
+									<EM>指定编码</EM>
+									<SPAN class=red>*</SPAN>
+								</DIV>
+								<DIV class=inp>
+									<INPUT class="iText noime" id="encoding" type="text" 
+										value="utf8" maxLength=20 name="encoding">
+								</DIV>
+							</DIV>
+						</DIV>
+					</DIV>
+						<DIV class=mod-submit-line>
+				<BUTTON class=submit id=submit hideFocus name=Submit
+									type="submit" onclick="return checkUserInfo()">
+									开始配置
+								</BUTTON>
+								</DIV>
+				</form>
+			</DIV>
+		</DIV>
+		<BR>
+		<div id="bottom">
+			<div class="bottom_text">
+				<jsp:include page="/templets/html/teambuy/footer.jsp"></jsp:include>
+			</div>
+		</div>
+	</body>
+</html>
+

@@ -1,0 +1,56 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+
+<html>
+<head>
+	<title>短信管理</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/component/sms/edit_sms.js"></script>
+</head>
+
+<body>
+<table width="100%" border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td width="17" valign="top" background="${ctx}/imgs/mail_leftbg.gif"><img src="${ctx}/imgs/left-top-right.gif" width="17" height="29" /></td>
+    <td valign="top" background="${ctx}/imgs/content-bg.gif">
+    	&nbsp;
+	</td>
+    <td width="16" valign="top" background="${ctx}/imgs/mail_rightbg.gif"><img src="${ctx}/imgs/nav-right-bg.gif" width="16" height="29" /></td>
+  </tr>
+  <tr>
+    <td valign="middle" background="${ctx}/imgs/mail_leftbg.gif">&nbsp;</td>
+    <td valign="top" bgcolor="#F7F8F9">
+    	<form id="saveForm" method="post" action="">
+    	    <s:hidden id="userId" name="sysUser.id"/>
+	    	<table width="100%" align="left" border="0">
+	    		<tr>
+	    			<td colspan="2">&nbsp;</td>
+	    		</tr>
+		    	<tr>
+					<td width="60px">短信内容：</td>
+					<td>
+						<textarea id="smsContent" name="smsSend.content" cols="60" rows="15" ></textarea>
+					</td>
+				</tr>
+		</table>
+	</form>
+ </td>
+    <td background="${ctx}/imgs/mail_rightbg.gif">&nbsp;</td>
+  </tr>
+  <tr>
+    <td valign="bottom" background="${ctx}/imgs/mail_leftbg.gif"><img src="${ctx}/imgs/buttom_left2.gif" width="17" height="17" /></td>
+    <td background="${ctx}/imgs/buttom_bgs.gif"><img src="${ctx}/imgs/buttom_bgs.gif" width="17" height="17"></td>
+    <td valign="bottom" background="${ctx}/imgs/mail_rightbg.gif"><img src="${ctx}/imgs/buttom_right2.gif" width="16" height="17" /></td>
+  </tr>
+</table>
+</body>
+
+</html>
+

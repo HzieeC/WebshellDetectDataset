@@ -1,0 +1,242 @@
+<!--#include file="conn.asp"-->
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/template.inc"-->
+<!--#include file="inc/ubbcode.asp"-->
+<%
+Dim XMLDom,dataNode,i,n,m,im,j,ii,m_strLinks
+Dim maxperpage,totalrec,Pcount,pagenow
+Dim m_strTitle,m_strContent,m_strDateTime
+Dim HtmlContent,AnnounceID,Topiclist,Action
+
+Call Main()
+Call TPL_Flush()
+NewAsp.PageEnd()
+
+Sub Main()
+	Set TPL_XmlDom=NewAsp.CreateXmlDoc("msxml2.FreeThreadedDOMDocument" & MsxmlVersion)
+	If Not TPL_XmlDom.load(NewAsp.TemplatePath&"config.xml") Then
+		Response.Write "载入模板配置文件出错!"&NewAsp.TemplatePath&"config.xml"
+		Response.End
+	End If
+	maxperpage=30:totalrec=0:Pcount=0:Action=0
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+	AnnounceID=NewAsp.ChkNumeric(Request("AnnounceID"))
+	If AnnounceID>0 Then
+		Call LoadAnnounceData()
+	End If
+
+	HtmlContent = NewAsp.LoadTemplate("announce")
+	HtmlContent = Replace(HtmlContent, "{$pagetitle}",  TPL_Config(19)&"："&m_strTitle)
+	HtmlContent = Replace(HtmlContent, "{$title}",  TPL_Config(19))
+	HtmlContent = Replace(HtmlContent, "{$announceid}", AnnounceID)
+	HtmlContent = Replace(HtmlContent, "{$classid}", 0)
+	TPL_Scan HtmlContent
+	Set XMLDom = Nothing : Set dataNode = Nothing
+End Sub
+
+Sub LoadAnnounceData()
+	Dim Rs,SQL
+	Set Rs=Newasp.Execute("SELECT AnnounceID,title,[content],PostTime,writer,hits FROM NC_Announce WHERE AnnounceID="&AnnounceID)
+	If Rs.BOF And Rs.EOF Then
+		Exit Sub
+	End If
+	Set XMLDom = NewAsp.RecordsetToxml(Rs,"row","xml")
+	Rs.Close:Set Rs = Nothing
+	NewAsp.Execute ("UPDATE NC_Announce SET hits=hits+1 WHERE AnnounceID="&AnnounceID)
+	Set dataNode = XMLDom.documentElement.selectSingleNode("row")
+	If Not dataNode Is Nothing Then
+		Action=1
+		AnnounceID=CLng(dataNode.selectSingleNode("@announceid").text)
+		m_strTitle=NewAsp.RemoveHtml(dataNode.selectSingleNode("@title").text)
+		m_strContent=ubb.UbbCode(dataNode.selectSingleNode("@content").text)
+		dataNode.selectSingleNode("@content").text=m_strContent
+		'dataNode.selectSingleNode("@title").text=m_strTitle
+		m_strDateTime=NewAsp.FormatToDate(dataNode.selectSingleNode("@posttime").text,TPL_Config(20))
+	End If
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+		Case "topiclist"
+			ParseTopiclistNode		sTokenName
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Dim Node
+	Select Case sToken
+		Case "datetime"		:	TPL_Echo m_strDateTime
+		Case "topic"		:	TPL_Echo m_strTitle
+		Case "totalrec"		:	TPL_Echo totalrec
+		Case "pagenow"		:	TPL_Echo pagenow
+		Case "pagecount"	:	TPL_Echo Pcount
+		Case Else
+			If Not IsObject(dataNode) Then Exit Sub
+			Set Node = dataNode.selectSingleNode("@"&sToken&"")
+			If Not (Node Is Nothing) Then
+				TPL_Echo Node.text
+			End If
+	End Select
+	Set Node = Nothing
+	If Err Then Err.Clear
+End Sub
+
+Sub showTopiclist()
+	Dim Rs,SQL
+	On Error Resume Next
+	If AnnounceID>0 Or Action=1 Then Exit Sub
+	If Not IsObject(Conn) Then ConnectionDatabase
+	totalrec=NewAsp.Execute("SELECT COUNT(*) FROM NC_Announce")(0)
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT AnnounceID,title,[content],PostTime,writer,hits FROM [NC_Announce] ORDER BY AnnounceID DESC"
+	Rs.Open SQL,Conn,1,1
+	NewAsp.SqlQueryNum = NewAsp.SqlQueryNum+1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		Topiclist=Rs.GetRows(maxperpage)
+	Else
+		Topiclist=Null
+	End If
+	Rs.close():Set Rs=Nothing
+	m_strLinks="?"
+End Sub
+
+Sub TPL_ParseArea(sTokenName, sTemplate)
+	Select Case sTokenName
+		Case "pagenow=1"	:	If pagenow=1 Then TPL_Scan sTemplate
+		Case "pagenow=0"	:	If pagenow>1 Then TPL_Scan sTemplate
+		Case "announceid=0"	:	If AnnounceID=0 Then TPL_Scan sTemplate
+		Case "announceid!=0":	If AnnounceID>0 Then TPL_Scan sTemplate
+		Case "action=0"		:	If AnnounceID=0 Then TPL_Scan sTemplate
+		Case "action=1"		:	If AnnounceID>0 Then TPL_Scan sTemplate
+		Case "topiclist"
+			Call showTopiclist()
+			If IsArray(Topiclist) Then
+				j=totalrec-((pagenow - 1)*maxperpage)
+				ii=maxperpage*pagenow-maxperpage
+				For i=0 To UBound(Topiclist,2)
+					ii=ii+1:n=n+1:If (n Mod 2) = 0 Then im=2 Else im=1
+					If (i Mod 2) = 0 Then m=1 Else m=2
+					TPL_Scan sTemplate
+					j=j-1
+				Next
+			End If
+	End Select
+End Sub
+
+Function XmlDatalistNode(iXMLDom,sTokenAttrib)
+	Select Case sTokenAttrib
+		Case "showpage"		: Set XmlDatalistNode=showPageNode(iXMLDom)
+		Case Else
+			Set XmlDatalistNode=showPageNode(iXMLDom)
+	End Select
+End Function
+
+Sub ParseTopiclistNode(sToken)
+	Dim strTitle,strLinks,strLen,strContent
+	strTitle=Topiclist(1,i)
+	strLinks="announce.asp?announceid="&Topiclist(0,i)
+	Select Case sToken
+		Case "i"			:	TPL_Echo i
+		Case "i+"			:	TPL_Echo ii
+		Case "i-"			:	TPL_Echo j
+		Case "n"			:	TPL_Echo n
+		Case "m"			:	TPL_Echo m
+		Case "link"			:	TPL_Echo strLinks
+		Case "id"			:	TPL_Echo Topiclist(0,i)
+		Case "announceid"	:	TPL_Echo Topiclist(0,i)
+		Case "topic"		:	TPL_Echo strTitle
+		Case "title"		:	TPL_Echo "<a href="""&strLinks&""">"&strTitle&"</a>"
+		Case "content"
+			strLen = 150
+			strContent = NewAsp.CutString(Topiclist(2,i), strLen)
+			TPL_Echo Replace(strContent, "[InstallDir_ChannelDir]", "")
+		Case "posttime"		:	TPL_Echo Topiclist(3,i)
+		Case "date"			:	TPL_Echo NewAsp.DateToString(Topiclist(3,i),"yyyy-MM-dd")
+		Case "datetime"		:	TPL_Echo NewAsp.DateToString(Topiclist(3,i),"yyyy-MM-dd hh:mm:ss")
+		Case "writer"		:	TPL_Echo Topiclist(4,i)
+		Case "hits"			:	TPL_Echo Topiclist(5,i)
+	End Select
+End Sub
+
+Function showPageNode(iXMLDom)
+	Dim datalist,Node,i,n,m,max,stype,s
+	iXMLDom.documentElement.setAttribute "pagenow",pagenow
+	iXMLDom.documentElement.setAttribute "pagesize",maxperpage
+	iXMLDom.documentElement.setAttribute "pagecount",Pcount
+	iXMLDom.documentElement.setAttribute "totalrec",totalrec
+	iXMLDom.documentElement.setAttribute "topcount",0
+	iXMLDom.documentElement.setAttribute "link",m_strLinks
+	iXMLDom.documentElement.setAttribute "titles",TPL_Config(19)
+
+	max		= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("max"))
+	stype	= NewAsp.ChkNumeric(iXMLDom.documentElement.getAttribute("type"))
+	If max=0 Then max=10
+	m = max-2
+
+	If Pcount > m And pagenow > (m\2) Then
+		If Pcount-pagenow <= (m\2) Then
+			n = Pcount-(m+1)
+		Else
+			n = pagenow-(m\2)
+		End If
+	Else
+		n = 2
+	End If
+
+	If n<2 Then n=2
+
+	iXMLDom.documentElement.setAttribute "n",n
+	iXMLDom.documentElement.setAttribute "m",max\2
+	If IsNull(iXMLDom.documentElement.getAttribute("max")) Then iXMLDom.documentElement.setAttribute "max",max
+	If IsNull(iXMLDom.documentElement.getAttribute("channelid")) Then iXMLDom.documentElement.setAttribute "channelid",ChannelID
+	If IsNull(iXMLDom.documentElement.getAttribute("action")) Then iXMLDom.documentElement.setAttribute "action","0"
+	'If IsURLRewrite Then
+	'	iXMLDom.documentElement.setAttribute "action","1"
+	'End If
+
+	Set datalist=NewAsp.CreateXMLDoc("msxml2.FreeThreadedDOMDocument"& MsxmlVersion)
+	datalist.appendChild(datalist.createElement("datalist"))
+
+	If Pcount >= max Then
+		For i = n To n + m
+			Set Node=datalist.createNode(1,"row","")
+			Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+			Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=1
+			datalist.documentElement.appendChild(Node)
+			Set Node=Nothing
+			If i => Pcount Then Exit For
+		Next
+	Else
+		For i = 2 To max
+			If i > Pcount Then
+				Set Node=datalist.createNode(1,"row","")
+				Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+				Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=0
+				datalist.documentElement.appendChild(Node)
+				Set Node=Nothing
+			Else
+				Set Node=datalist.createNode(1,"row","")
+				Node.attributes.setNamedItem(datalist.createNode(2,"i","")).text=i
+				Node.attributes.setNamedItem(datalist.createNode(2,"s","")).text=1
+				datalist.documentElement.appendChild(Node)
+				Set Node=Nothing
+			End If
+		Next
+	End If
+	iXMLDom.documentElement.setAttribute "i",i
+
+	Set showPageNode=datalist
+	Set datalist=Nothing
+End Function
+%>

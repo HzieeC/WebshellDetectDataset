@@ -1,0 +1,274 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_member.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.trade.ts_custclass.*" %>
+<%@ page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.trade.ts_area.*" %>
+<%
+	request.setCharacterEncoding("UTF-8");
+	String user_id="";
+	if(session.getAttribute("session_user_id")!=null){
+		user_id = session.getAttribute("session_user_id").toString();
+	}
+
+	Map ti_member = new Hashtable();
+	String s_cust_name = "";
+	if(request.getParameter("s_cust_name")!=null && !request.getParameter("s_cust_name").equals("")){
+		s_cust_name = request.getParameter("s_cust_name");
+		ti_member.put("cust_name",s_cust_name);
+	}
+	String s_user_class = "";
+	if(request.getParameter("s_user_class")!=null && !request.getParameter("s_user_class").equals("")){
+		s_user_class = request.getParameter("s_user_class");
+		ti_member.put("user_class",s_user_class);
+	}	
+	
+    String req_in_date1 = "";
+	if(request.getParameter("req_in_date1")!=null && !request.getParameter("req_in_date1").equals("")){
+		req_in_date1 = request.getParameter("req_in_date1");
+		
+		ti_member.put("cust_oper_date1",req_in_date1);
+	}
+	
+	String req_in_date2 = "";
+	if(request.getParameter("req_in_date2")!=null && !request.getParameter("req_in_date2").equals("")){
+		req_in_date2 = request.getParameter("req_in_date2");
+		
+		ti_member.put("cust_oper_date2",req_in_date2);
+	}
+	
+	String s_area_attr_bak = "";
+	if(request.getParameter("area_attr_bak")!=null && !request.getParameter("area_attr_bak").equals("")){
+		s_area_attr_bak = request.getParameter("area_attr_bak");
+		ti_member.put("area_attr_bak",s_area_attr_bak);
+		}
+		
+	String s_area_attr = "";
+	if(request.getParameter("area_attr")!=null && !request.getParameter("area_attr").equals("")){
+		s_area_attr = request.getParameter("area_attr");
+		ti_member.put("area_attr",s_area_attr);
+		}
+	
+	ti_member.put("cust_type","1");
+	//ti_member.put("m_state","1");	
+	Ti_memberInfo ti_memberInfo = new Ti_memberInfo();
+	Map custclassinfoMap = new Hashtable();
+	Ts_custclassInfo custclassinfo = new Ts_custclassInfo();
+	custclassinfoMap.put("class_type","1");
+	String custclass_select =  custclassinfo.getSelectString(custclassinfoMap,"");
+	
+	
+	String iStart = "0";
+	int limit = 20;
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	String state = tb_commparaInfo.getSelectItem("39","");     
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_memberInfo.getListByPage(ti_member,Integer.parseInt(iStart),limit);
+	int counter = ti_memberInfo.getCountByObj(ti_member);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"personal_level.jsp?iStart=",Integer.parseInt(iStart),limit);
+    
+	Ts_areaInfo ts_areaInfo = new Ts_areaInfo();
+	Map areaMap  = ts_areaInfo.getAreaClass();
+	%>
+<html>
+  <head>
+    
+    <title>个人会员级别管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	<script type="text/javascript" src="/js/commen.js"></script>
+	
+	<script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+	<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/engine.js"></script>
+	<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/util.js"></script>
+	<script type="text/javascript" src="<%=request.getContextPath()%>/dwr/interface/Ts_areaInfo.js"></script>	
+	
+	
+	<script type="text/javascript" src="js_commen.js"></script>
+	
+	<script>	  setstartProvince('');	  </script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="80%">
+				<h1>个人会员级别管理</h1>
+			</td>
+			<td>
+			   &nbsp;
+			</td>
+		</tr>
+	</table>
+	
+	<form action="personal_level.jsp" name="indexForm" method="post">
+  
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				按会员名称:<input name="s_cust_name" type="text" />
+			
+                按所在地区:	
+				<select name="province" id="province" onclick="setCitys(this.value,'')">
+				  <option value="">省份</option> 
+				</select>
+				<select name="eparchy_code" id="eparchy_code" onclick="setAreas(this.value,'')">
+				  <option value="">地级市</option> 
+				 </select>
+				<select name="city_code" id="city_code" style="display:inline" >
+				 <option value="">市、县级市、县</option> 
+				</select>
+					<input type="hidden" name="area_attr_bak" id="area_attr_bak" value="" />
+					<input type="hidden" name="area_attr" id="area_attr" value="" />
+					
+				<br>
+			    按注册时间:<input name="req_in_date1" type="text" id="req_in_date1" class="Wdate" value="" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'req_in_date2\',{d:-1})}',readOnly:true})" size="15"  width="150px"/>
+								~
+							 <input name="req_in_date2" id="req_in_date2" type="text" class="Wdate" value="" onclick="WdatePicker({minDate:'#F{$dp.$D(\'req_in_date1\',{d:1})}',readOnly:true})" size="15" width="150px"/>
+				按会员等级:<select name="s_user_class" >
+									<option value="">请选择</option>
+									<%=custclass_select%>
+									</select>				
+				<input name="searchInfo" type="button" value="查询" onclick="searcher();"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+<!-- 
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+ -->
+			
+		  	<th>会员名称</th>
+		  	<th>当前级别</th>
+			<th>新级别</th>		  	
+		  	<th>服务结束时间</th>
+			
+	  		<th width="20%">调整级别</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String cust_id="",cust_name="",cust_type="",area_attr="",state_code="",user_class="",reg_date="",cust_start_date="",cust_end_date="";
+					String cust_class_name="",e="",f="",g="";
+		  			  	if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+						if(map.get("cust_name")!=null) cust_name = map.get("cust_name").toString();
+						if(map.get("cust_type")!=null) cust_type = map.get("cust_type").toString();
+						if(map.get("area_attr")!=null) area_attr = map.get("area_attr").toString();
+						if(map.get("state_code")!=null) state_code = map.get("state_code").toString();
+						if(map.get("user_class")!=null) user_class = map.get("user_class").toString();
+						if(map.get("cust_end_date")!=null){
+							cust_end_date = map.get("cust_end_date").toString();
+							if(cust_end_date.length()>19)
+								cust_end_date=cust_end_date.substring(0,19);
+
+						}
+						if(map.get("cust_class_name")!=null) cust_class_name = map.get("cust_class_name").toString();
+						//if(reg_date.length()>10) reg_date=reg_date.substring(0,10);
+						if(map.get("e")!=null) e = map.get("e").toString();
+						if(map.get("f")!=null) f = map.get("f").toString();
+						if(map.get("g")!=null) g = map.get("g").toString();
+						
+					//a：未审核 b：审核未通过 c：正常/审核通过 d：禁用
+	
+		  %>
+		
+		<tr>
+<!-- 
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=cust_id %>" /></td>
+ -->
+			
+		  	<td><%=cust_name%></td>
+		  	<td id="cust_classtxt_<%=i %>"><%=cust_class_name%></td>
+			
+		  	<td>
+			<%
+				custclassinfoMap.put("no_cust_class",user_class);
+				String custclass =  custclassinfo.getSelectString(custclassinfoMap,"");	
+			%>
+				<select name="cust_class_<%=i %>" id="cust_class_<%=i %>">
+					<option value="">请选择</option>
+					<%=custclass%>
+				</select>
+			</td>
+		  	
+		  	<td>
+				<input type="text" name="cust_end_date" id="cust_end_date<%=i%>" value="<%=cust_end_date%>"  onclick="WdatePicker({readOnly:true})"/>
+			</td>
+			<td width="10%">
+
+			<a href="#" onclick="tiaozheng('<%=cust_id%>','<%=user_class%>','<%=i%>','<%=area_attr%>')">调整</a><div id="backMessage<%=i%>"></div> &nbsp;
+			</td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="5779" />
+	  </form>
+	<form action="/doTradeReg.do" method="post" name="bpmForm">
+			<input type="hidden" name="bpm_id" id="bpm_id" value="5354" />			
+			<input type="hidden" name="user_id" id="user_id" value="<%=user_id%>" />
+			<input type="hidden" name="trade_type" id="trade_type" value="5354" />
+			<input type="hidden" name="cust_id" id="cust_id" value="" />
+			<input type="hidden" name="oldcust_class" id="oldcust_class" value="" />
+			<input type="hidden" name="lhswPwd" id="lhswPwd" value="" />
+			<input type="hidden" name="cust_class" id="cust_class" value="" />
+			<input type="hidden" name="cust_end_date" id="cust_end_date" value="" />
+			<input type="hidden" name="product_code" id="product_code" value="A" />
+			<input type="hidden" name="biz_id" id="biz_id" value="" />
+			<input type="hidden" name="area_attr" id="area_attr" value="" />
+			<input type="hidden" name="agent_product_code" id="agent_product_code" value="" />
+			<input type="hidden" name="income_ratio" id="income_ratio" value="" />
+			<input type="hidden" name="income_num" id="income_num" value="" />
+		</form>
+</body>
+
+</html>

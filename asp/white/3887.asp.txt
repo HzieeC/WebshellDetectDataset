@@ -1,0 +1,473 @@
+<!--#include file="const.asp"-->
+<!--#include file="../../inc/ubbcode.asp"-->
+<%
+Admin_header
+'=====================================================================
+' 软件名称：新云网站管理系统
+' 当前版本：NewAsp Content Management System Version 4.0
+' 文件名称：admin_list.asp
+' 更新日期：2008-06-16
+' 官方网站：新云网络(www.newasp.net www.newasp.cn) QQ：94022511
+'=====================================================================
+' Copyright 2003-2008 newasp.net - All Rights Reserved.
+' newasp is a trademark of newasp.net
+'=====================================================================
+%>
+<table class="table1" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<td class="tableline linetitle" width="80" align="left" noWrap="noWrap"><%=NewAsp.ModuleName%>列表</td>
+		<td class="tableline" width="*" align="right"><a href="admin_index.asp?ChannelID=<%=ChannelID%>">管理首页</a>
+			 - <a href="admin_post.asp?action=add&ChannelID=<%=ChannelID%>">添加<%=NewAsp.ModuleName%></a>
+			 - <a href="../sys/admin_class.asp?ChannelID=<%=ChannelID%>">分类管理</a>
+			 - <a href="admin_list.asp?ChannelID=<%=ChannelID%>&order=0">时间排序</a>
+			 - <a href="admin_list.asp?ChannelID=<%=ChannelID%>&order=1">ID 排序</a>
+			 - <a href="admin_list.asp?ChannelID=<%=ChannelID%>&showmode=1">专题列表</a>
+			 - <a href="admin_list.asp?ChannelID=<%=ChannelID%>&isaccept=1">审核列表</a>
+			 <%
+			 Call selectMenu(ChannelID,NewAsp.ChkNumeric(Request("classid")))
+			 %>
+		</td>
+	</tr>
+</table>
+<%
+Dim maxperpage,totalrec,Pcount,pagelinks,showmode,pagenow,count
+Dim classid,specialid,isaccept,ArticleIDlist,ArticleID,CurrentPage,TextContent
+Dim m_intOrder,m_strOrder,SQLQuery,SQLField
+Dim ChildData,ischild,childstr,classname
+Dim Action,InArticleID,MainTopic,TopTopic
+
+Const IsDispToplist = True	'--是否显示置顶列表；True=是；False=否
+
+If Not ChkAdmin("List_"&ChannelID) Then
+	Call Transfer_error()
+End If
+
+Action=LCase(Request("action"))
+ArticleIDlist = NewAsp.CheckIDlist(Request("ArticleID"))
+Select Case Trim(Action)
+	Case "view":Call viewArticle()
+	Case Else
+		Call showmain()
+End Select
+If FoundErr=True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+SaveLogInfo(AdminName)
+NewAsp.PageEnd
+Sub showmain()
+	Dim i,iCount,lCount,iIndex
+	maxperpage=30
+	iIndex = 0
+	pagenow=NewAsp.ChkNumeric(Request("page"))
+	If pagenow=0 Then pagenow=1
+	showmode=NewAsp.ChkNumeric(Request("showmode"))
+	classid=NewAsp.ChkNumeric(Request("classid"))
+	specialid=NewAsp.ChkNumeric(Request("specialid"))
+	isaccept=NewAsp.ChkNumeric(Request("isaccept"))
+	m_intOrder=NewAsp.ChkNumeric(Request("order"))
+	count=NewAsp.ChkNumeric(Request("count"))
+
+	If classid>0 Then
+		ChildData=NewAsp.GetChildData(ChannelID,classid,0)
+		childstr=ChildData(0)
+		classname=ChildData(1)
+		ischild=CLng(ChildData(2))
+	End If
+	SQLField = "A.ArticleID,A.ChannelID,A.ClassID,A.specialid,A.title,A.ColorMode,A.FontMode,A.BriefTopic,A.isTop,A.AllHits,A.WriteTime,A.username,A.isBest,A.isaccept,C.ClassName"
+%>
+<table id="tablehovered" border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th width="5%" noWrap="noWrap">选择</th>
+	<th width="60%"><%=NewAsp.ModuleName%>标题</th>
+	<th width="9%" noWrap="noWrap">管理操作</th>
+	<th width="5%" noWrap="noWrap">浏览数</th>
+	<th width="9%" noWrap="noWrap">用户&评论</th>
+	<th width="12%" noWrap="noWrap">整理日期</th>
+</tr>
+<tr>
+	<td class="tablerow1" colspan="6"><form name="search_form" id="search_form" method="get" action="admin_search.asp">
+		<span style="position:relative">
+		<input type="hidden" name="ChannelID" value="<%=ChannelID%>">
+		<input type="text" class="alingmid" id="searchwordbox" name="word" size="45" onfocus="if(this.value=='请输入关键字')this.value=''" />
+		<select name="searchfield" class="alingmid">
+			<option value="0" selected="selected">标题</option>
+			<option value="1">录入者</option>
+			<option value="2">作者</option>
+			<option value="3">来源</option>
+			<option value="9">标签</option>
+		</select>
+		<input type="submit" value="开始搜索" name="search_submit" class="button alingmid" />
+		<input type="checkbox" id="searchmode" name="searchmode" value="1" class="alingmid" /><label for="searchmode">分词搜索</label>
+		<div style="display:none" id="sugAutoComplete" onselectstart="return false">&nbsp;</div></span>
+		</form>
+	</td>
+</tr>
+<form name="selform" method="post" action="admin_setting.asp?ChannelID=<%=ChannelID%>">
+<input type="hidden" name="action" value="batch">
+<%
+	Call showToplist()
+	iCount=2:lCount=2
+	If IsArray(TopTopic) Then
+		For i=0 To Ubound(TopTopic,2)
+			If Not Response.IsClientConnected Then Response.End
+			If (iIndex mod 2) = 0 Then
+				iCount=2:lCount=1
+			Else
+				iCount=1:lCount=2
+			End If
+%>
+<tr align="center">
+	<td class="tablerow<%=iCount%> hovered"><input type="checkbox" name="ArticleID" value="<%=TopTopic(0,i)%>"/></td>
+	<td class="tablerow<%=iCount%> hovered" align="left">[<a href="?ChannelID=<%=ChannelID%>&classid=<%=TopTopic(2,i)%>"><%=TopTopic(14,i)%></a>]
+	<%=NewAsp.ReadBriefTopic(TopTopic(7,i))%>
+	<a href="?action=view&ChannelID=<%=ChannelID%>&ArticleID=<%=TopTopic(0,i)%>"><%=NewAsp.ReadFontMode(TopTopic(4,i),TopTopic(5,i),TopTopic(6,i))%></a>
+	<%
+	If TopTopic(8,i)>0 Then Response.Write "<font color=""red""><b>顶</b></font>"
+	If TopTopic(12,i)>0 Then Response.Write "<font color=""blue""><b>精</b></font>"
+	%>
+	</td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap"><a href="admin_post.asp?action=edit&ChannelID=<%=ChannelID%>&ArticleID=<%=TopTopic(0,i)%>">编辑</a> | <a href="admin_setting.asp?action=del&ChannelID=<%=ChannelID%>&ArticleID=<%=TopTopic(0,i)%>" onclick="return confirm('<%=NewAsp.ModuleName%>删除后将不能恢复，您确定要删除吗?')">删除</a></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap"><%=TopTopic(9,i)%></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap" title="点击查看用户评论"><a href="admin_comment.asp?ChannelID=<%=ChannelID%>&ArticleID=<%=TopTopic(0,i)%>"><%=TopTopic(11,i)%></a></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap"><%=showDateTime(TopTopic(10,i),"yyyy-MM-dd")%></td>
+</tr>
+<%
+			iIndex=iIndex+1
+		Next
+%>
+<tr>
+	<td class="tablerow<%=lCount%>" colspan="6" align="center">&nbsp;<b>全部<%=NewAsp.ModuleName%>列表</b></td>
+</tr>
+<%
+		iIndex=iIndex+1
+	End If
+	TopTopic=Null
+%>
+
+<%
+	Call showTopiclist()
+	iCount=2:lCount=2
+	If IsArray(MainTopic) Then
+		For i=0 To Ubound(MainTopic,2)
+			If Not Response.IsClientConnected Then Response.End
+			If (iIndex mod 2) = 0 Then
+				iCount=2:lCount=1
+			Else
+				iCount=1:lCount=2
+			End If
+%>
+<tr align="center">
+	<td class="tablerow<%=iCount%> hovered"><input type="checkbox" name="ArticleID" value="<%=MainTopic(0,i)%>"/></td>
+	<td class="tablerow<%=iCount%> hovered" align="left">[<a href="?ChannelID=<%=ChannelID%>&classid=<%=MainTopic(2,i)%>"><%=MainTopic(14,i)%></a>]
+	<%=NewAsp.ReadBriefTopic(MainTopic(7,i))%>
+	<a href="?action=view&ChannelID=<%=ChannelID%>&ArticleID=<%=MainTopic(0,i)%>"><%=NewAsp.ReadFontMode(MainTopic(4,i),MainTopic(5,i),MainTopic(6,i))%></a>
+	<%
+	If MainTopic(8,i)>0 Then Response.Write "<font color=""red""><b>顶</b></font>"
+	If MainTopic(12,i)>0 Then Response.Write "<font color=""blue""><b>精</b></font>"
+	%>
+	</td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap"><a href="admin_post.asp?action=edit&ChannelID=<%=ChannelID%>&ArticleID=<%=MainTopic(0,i)%>">编辑</a> | <a href="admin_setting.asp?action=del&ChannelID=<%=ChannelID%>&ArticleID=<%=MainTopic(0,i)%>" onclick="return confirm('<%=NewAsp.ModuleName%>删除后将不能恢复，您确定要删除吗?')">删除</a></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap"><%=MainTopic(9,i)%></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap" title="点击查看用户评论"><a href="admin_comment.asp?ChannelID=<%=ChannelID%>&ArticleID=<%=MainTopic(0,i)%>"><%=MainTopic(11,i)%></a></td>
+	<td class="tablerow<%=iCount%> hovered" noWrap="noWrap"><%=showDateTime(MainTopic(10,i),"yyyy-MM-dd")%></td>
+</tr>
+<%
+			iIndex=iIndex+1
+		Next
+	End If
+	MainTopic=Null
+%>
+<tr>
+	<td class="tablerow<%=lCount%>" colspan="6"><input class="button" type="button" name="chkall" value="全选" onClick="CheckAll(this.form)"><input class="button" type="button" name="chksel" value="反选" onClick="ContraSel(this.form)">
+		管理选项：
+		<select name="act">
+			<option value="0">请选择操作选项</option>
+			<option value="批量删除">批量删除</option>
+			<option value="批量置顶">批量置顶</option>
+			<option value="取消置顶">取消置顶</option>
+			<option value="批量推荐">批量推荐</option>
+			<option value="取消推荐">取消推荐</option>
+			<option value="批量审核">批量审核</option>
+			<option value="取消审核">取消审核</option>
+			<option value="更新时间">更新时间</option>
+			<option value="生成HTML">生成HTML</option>
+		</select>
+		<input class="button" type="submit" name="submit_button1" value="执行操作" onclick="return confirm('您确定执行该操作吗?');">
+		<input class="button" type="submit" name="submit_button2" value="批量设置" onclick="document.selform.action.value='setting';">
+		<input class="button" type="submit" name="submit_button3" value="批量移动" onclick="document.selform.action.value='move';">
+	</td>
+</tr>
+</form>
+<tr>
+	<td class="tablerow<%=iCount%>" align="right" colspan="6" id="NextPageText"><div style="float:left;">
+	<select onchange="if(this.options[this.selectedIndex].value!=''){location=this.options[this.selectedIndex].value;}">
+		<option value="admin_list.asp?ChannelID=<%=ChannelID%>&showmode=0&order=0">≡选择排序方式≡</option>
+		<option value="admin_list.asp?ChannelID=<%=ChannelID%>&classid=<%=classid%>&specialid=<%=specialid%>&isAccept=<%=isAccept%>&showmode=<%=showmode%>&order=0"<%If m_intOrder=0 Then Response.Write " selected=""selected"""%>>按时间排列</option>
+		<option value="admin_list.asp?ChannelID=<%=ChannelID%>&classid=<%=classid%>&specialid=<%=specialid%>&isAccept=<%=isAccept%>&showmode=<%=showmode%>&order=1"<%If m_intOrder=1 Then Response.Write " selected=""selected"""%>>按 ID 排列</option>
+		<option value="admin_list.asp?ChannelID=<%=ChannelID%>&classid=<%=classid%>&specialid=<%=specialid%>&isAccept=<%=isAccept%>&showmode=<%=showmode%>&order=2"<%If m_intOrder=2 Then Response.Write " selected=""selected"""%>>按人气排列</option>
+		<option value="admin_list.asp?ChannelID=<%=ChannelID%>&classid=<%=classid%>&specialid=<%=specialid%>&isAccept=<%=isAccept%>&showmode=2&order=0">所有置顶列表</option>
+		<option value="admin_list.asp?ChannelID=<%=ChannelID%>&classid=<%=classid%>&specialid=<%=specialid%>&isAccept=<%=isAccept%>&showmode=1&order=0">所有专题列表</option>
+	</select>
+	</div>
+	<var class="morePage"><%=showlistpage(pagenow,Pcount,maxperpage,totalrec,pagelinks)%></var></td>
+</tr>
+</table>
+<%
+	Call LoadAutoComplete("search_form")
+End Sub
+
+Sub showToplist()
+	Dim Rs
+	SQLQuery=""
+	If pagenow=1 And showmode=0 And IsDispToplist Then
+		If classid>0 Then
+			If ischild>0 Then
+				SQLQuery=" And A.isAccept=1 And A.classid in (" & childstr & ") And A.IsTop>0"
+			Else
+				SQLQuery=" And A.isAccept=1 And A.classid="&classid&" And A.IsTop>0"
+			End If
+		Else
+			SQLQuery=" And A.isAccept=1 And A.IsTop>0"
+		End If
+
+		Set Rs=NewAsp.Execute("SELECT TOP 20 "& SQLField &" FROM [NC_Article] A INNER JOIN [NC_Classify] C on A.classid=C.classid WHERE A.ChannelID=" &ChannelID& " "&SQLQuery&" ORDER BY A.IsTop DESC,A.WriteTime DESC")
+		If Not Rs.EOF Then
+			TopTopic=Rs.GetRows(-1)
+		Else
+			TopTopic=Null
+		End If
+		Set Rs=Nothing
+	End If
+End Sub
+
+Sub showTopiclist()
+	If Not IsObject(Conn) Then ConnectionDatabase
+	Dim Rs,SQL,m_isAccept
+
+	If isaccept=0 Then m_isAccept=1 Else m_isAccept=0
+	SQLQuery=""
+	If showmode=1 Then
+		If specialid=0 Then
+			SQLQuery=" And A.isAccept="&m_isAccept&" And A.specialID>0"
+		Else
+			SQLQuery=" And A.isAccept="&m_isAccept&" And A.specialID="&specialid
+		End If
+	Else
+		If showmode=2 Then SQLQuery = " And A.IsTop>0" Else SQLQuery = " And A.IsTop=0"
+		If classid>0 Then
+			If ischild>0 Then
+				SQLQuery=" And A.isAccept="&m_isAccept & " And A.classid in (" & childstr & ")"&SQLQuery
+			Else
+				SQLQuery=" And A.isAccept="&m_isAccept&" And A.classid="&classid&SQLQuery
+			End If
+		Else
+			SQLQuery=" And A.isAccept="&m_isAccept&SQLQuery
+		End If
+	End If
+
+	On Error Resume Next
+
+	Select Case m_intOrder
+		Case 1	:	m_strOrder="A.ArticleID"
+		Case 2	:	m_strOrder="A.Allhits"
+		Case Else
+			m_strOrder="A.WriteTime"
+	End Select
+	If count=0 Then
+		totalrec=Newasp.Execute("SELECT COUNT(ArticleID) FROM NC_Article A WHERE A.ChannelID="&ChannelID&" "&SQLQuery&"")(0)
+	Else
+		totalrec=count
+	End If
+	Pcount = CLng(totalrec / maxperpage)
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If pagenow>Pcount Then pagenow=1
+	Set Rs=NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL="SELECT "& SQLField &" FROM [NC_Article] A INNER JOIN [NC_Classify] C on A.classid=C.classid WHERE A.ChannelID=" &ChannelID& " "&SQLQuery&" ORDER BY "&m_strOrder&" DESC"
+	Rs.Open SQL,Conn,1,1
+	If pagenow >1 Then
+		Rs.Move (pagenow-1) * maxperpage
+	End If
+	If Not (Rs.BOF And Rs.EOF) Then
+		MainTopic=Rs.GetRows(maxperpage)
+	Else
+		MainTopic=Null
+	End If
+	Rs.close()
+	Set Rs=Nothing
+	pagelinks="admin_list.asp?channelid="& ChannelID &"&classid="& Request("classid")&"&specialid="&Request("specialid")&"&isAccept="&Request("isAccept")&"&showmode="&Request("showmode")&"&order="&Request("order")&"&count="&totalrec&"&"
+End Sub
+
+Sub ErrDescriptione()
+	If Err<>0 Then
+		Response.Write "<li>错误码："& Err.Number &"</li>"
+		Response.Write "<li>"& Err.description &"</li>"
+		Response.Write "<li>"& Err.Source &" 错误</li>"
+		Err.Clear
+	End If
+End Sub
+
+Sub viewArticle()
+	Dim Rs,SQL
+	ubb.BasePath = InstallDir_ChannelDir
+	ubb.setUbbcode = Join(NewAsp.setUserEditor,"|")
+	ubb.Keyword = NewAsp.KeywordList
+	'ubb.Pagination = True
+
+	ArticleID=NewAsp.ChkNumeric(Request("ArticleID"))
+	CurrentPage=NewAsp.ChkNumeric(Request("page"))
+	SQL = "SELECT ArticleID,title,content,ColorMode,FontMode,Author,ComeFrom,WriteTime,username,AllHits,isAccept,AutoPages FROM NC_Article WHERE ChannelID="& ChannelID &" And ArticleID="& ArticleID
+	Set Rs = NewAsp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！没有找到相关信息。或者您选择了错误的系统参数！</li>"
+		Set Rs = Nothing
+		Exit Sub
+	End If
+	ubb.Pagination = NewAsp.ChkNumeric(Rs("AutoPages"))
+	TextContent=Rs("content") & ""
+	ubb.CurrentID=Rs("ArticleID")
+	TextContent=ubb.UbbCode(TextContent)
+	ContentPagination(TextContent)
+%>
+<script type="text/javascript">
+<!--
+//文章内容字体控制
+var initial_fontsize    = 11;
+var initial_lineheight  = 18;
+function newasp_fontsize(type,objname){
+	var whichEl = document.getElementById(objname);
+	if (whichEl!=null) {
+		if (type==1){
+			if(initial_fontsize<64){
+				whichEl.style.fontSize=(++initial_fontsize)+'pt';
+				whichEl.style.lineHeight=(++initial_lineheight)+'pt';
+			}
+		}else {
+			if(initial_fontsize>6){
+				whichEl.style.fontSize=(--initial_fontsize)+'pt';
+				whichEl.style.lineHeight=(--initial_lineheight)+'pt';
+			}
+		}
+	}
+}
+//-->
+</script>
+<table border="0" align="center" cellpadding="3" cellspacing="1" class="tableborder">
+<tr>
+	<th>标题：<%=Rs("title")%></th>
+</tr>
+<tr>
+	<td class="tablerow1" align="center"><b>作者：</b><%=Rs("Author")%>&nbsp;&nbsp;<b>来源：</b><%=Rs("ComeFrom")%>&nbsp;&nbsp;<b>时间：</b><%=showDateTime(Rs("WriteTime"),"yyyy-MM-dd hh:mm:ss")%>&nbsp;&nbsp;
+		<b>发布：</b><font color="blue"><%=Rs("username")%></font>&nbsp;&nbsp;
+		<b>人气：</b><font color="blue"><%=Rs("AllHits")%></font>&nbsp;&nbsp;
+		<b>审核状态：</b>
+		<%If Rs("isAccept") > 0 Then%>
+		<font color="blue">已审核</font>
+		<%Else%>
+		<font color="red">未审核</font>
+		<%End If%>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow2" style="word-break:normal;word-wrap:normal;"><p align="right"><a style="cursor:pointer;position: relative" onclick="newasp_fontsize(0,'ContentBody')" title="减小字体"><img src="../images/1.gif" border="0"/><font color="#FF6600">减小字体</font></a>
+		<a style="cursor:pointer;position:relative" onclick="newasp_fontsize(1,'ContentBody')" title="增大字体"><img src="../images/2.gif" border="0"/><font color="#FF6600">增大字体</font></a>
+		<div style="margin:5px;font-size:15px" id="ContentBody" class="ContentBody" style="word-break:normal;word-wrap:normal;"><%=TextContent%></div>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow1">
+		<li>上一篇：<%=FrontArticle(Rs("ArticleID"))%></li>
+		<li>下一篇：<%=NextArticle(Rs("ArticleID"))%></li>
+	</td>
+</tr>
+<tr>
+	<td class="tablerow2" align="center">
+		<input type="button" onclick="{if(confirm('您确定要删除吗?')){location.href='admin_setting.asp?action=del&ChannelID=<%=ChannelID%>&ArticleID=<%=ArticleID%>';return true;}return false;}" value=" 删 除 " name="B1" class="button">&nbsp;&nbsp;
+		<input type="button" onclick="javascript:history.go(-1)" value="返回上一页" name="B2" class="button">&nbsp;&nbsp;
+		<input type="button" name="B3" onclick="javascript:location.href='#'" value="返回顶部" class="button">&nbsp;&nbsp;
+		<input type="button" name="B4" onclick="javascript:location.href='admin_post.asp?action=edit&ChannelID=<%=ChannelID%>&ArticleID=<%=ArticleID%>'" value=" 编 辑 " class="button">&nbsp;&nbsp;
+		<input type="button" onclick="{if(confirm('您确定要审核吗?')){location.href='admin_setting.asp?action=audit&ChannelID=<%=ChannelID%>&ArticleID=<%=ArticleID%>';return true;}return false;}" value="直接审核" name="B6" class="button">&nbsp;&nbsp;
+	</td>
+</tr>
+</table>
+<%
+	Rs.Close()
+	Set Rs = Nothing
+End Sub
+
+Function FrontArticle(ArticleID)
+	Dim Rss, SQL
+	SQL = "SELECT TOP 1 ArticleID,classid,title FROM NC_Article WHERE ChannelID=" & ChannelID & " And isAccept<>0 And ArticleID<" & ArticleID & " ORDER BY ArticleID DESC"
+	Set Rss = NewAsp.Execute(SQL)
+	If Rss.EOF And Rss.BOF Then
+		FrontArticle = "已经没有了"
+	Else
+		FrontArticle = "<a href=""?action=view&ChannelID=" & ChannelID & "&ArticleID=" & Rss("ArticleID") & """>" & Rss("title") & "</a>"
+	End If
+	Rss.Close
+	Set Rss = Nothing
+End Function
+Function NextArticle(ArticleID)
+	Dim Rss, SQL
+	SQL = "SELECT TOP 1 ArticleID,classid,title FROM NC_Article WHERE ChannelID=" & ChannelID & " And isAccept<>0 And ArticleID>" & ArticleID & " ORDER BY ArticleID ASC"
+	Set Rss = NewAsp.Execute(SQL)
+	If Rss.EOF And Rss.BOF Then
+		NextArticle = "已经没有了"
+	Else
+		NextArticle = "<a href=""?action=view&ChannelID=" & ChannelID & "&ArticleID=" & Rss("ArticleID") & """>" & Rss("title") & "</a>"
+	End If
+	Rss.Close
+	Set Rss = Nothing
+End Function
+
+Sub ContentPagination(strText)
+	Dim ContentLen, Paginate
+	Dim arrContent, strContent, i
+	Dim m_strFileUrl,TempContent
+
+	strContent = strText
+	strContent = Replace(strContent, "[NextPage]", "[page_break]")
+	strContent = Replace(strContent, "[Page_Break]", "[page_break]")
+	ContentLen = Len(strContent)
+
+	If InStr(strContent, "[page_break]") <= 0 Then
+		TempContent = strContent
+		TextContent = TempContent
+	Else
+		arrContent = Split(strContent, "[page_break]")
+
+		Paginate = UBound(arrContent) + 1
+		If CurrentPage = 0 Then
+			CurrentPage = 1
+		Else
+			CurrentPage = CLng(CurrentPage)
+		End If
+		If CurrentPage < 1 Then CurrentPage = 1
+		If CurrentPage > Paginate Then CurrentPage = Paginate
+
+		strContent = arrContent(CurrentPage - 1)
+
+
+		TempContent = TempContent & strContent
+		TempContent = TempContent & "</p><p align=""center""><b>"
+
+		m_strFileUrl = "?action=view&ChannelID=" & ChannelID & "&ArticleID=" & ArticleID & "&Page="
+		If CurrentPage > 1 Then
+			TempContent = TempContent & "<a href="""& m_strFileUrl & CurrentPage - 1 & """>上一页</a>&nbsp;&nbsp;"
+		End If
+		For i = 1 To Paginate
+			If i = CurrentPage Then
+				TempContent = TempContent & "<font color=""red"">[" & CStr(i) & "]</font>&nbsp;"
+			Else
+				TempContent = TempContent & "<a href="""& m_strFileUrl & i & """>[" & i & "]</a>&nbsp;"
+			End If
+		Next
+		If CurrentPage < Paginate Then
+			TempContent = TempContent & "&nbsp;<a href="""& m_strFileUrl & CurrentPage + 1 & """>下一页</a>"
+		End If
+		TempContent = TempContent & "</b></p>"
+		TextContent = TempContent
+	End If
+End Sub
+%>

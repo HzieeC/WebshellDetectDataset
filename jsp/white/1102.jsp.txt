@@ -1,0 +1,88 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@page import="com.bizoss.trade.ti_personal.*" %>
+<%@page import="com.bizoss.trade.sms.SendMail" %>
+<%@page import="java.text.SimpleDateFormat" %>
+<%@page import="com.bizoss.trade.verification.*" %>
+<%@page import="com.bizoss.trade.util.VerificationUtil" %>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" /> 
+<%
+String path = request.getContextPath();
+String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
+%>
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <base href="<%=basePath%>">
+    
+    <title>skip</title>
+    
+	<meta http-equiv="pragma" content="no-cache">
+	<meta http-equiv="cache-control" content="no-cache">
+	<meta http-equiv="expires" content="0">    
+	<meta http-equiv="keywords" content="keyword1,keyword2,keyword3">
+	<meta http-equiv="description" content="This is my page">
+	<script type="text/javascript" src="/js/jquery.js" ></script>
+	<!--
+	<link rel="stylesheet" type="text/css" href="styles.css">
+	-->
+	 <%
+	 
+  	String s = request.getParameter("verification_type").toString();
+  	String cust_id = request.getParameter("verification_user").toString();
+  	String verification_target = request.getParameter("verification_target").toString();
+  	Ti_personalInfo Ti_personalInfo = new Ti_personalInfo();
+  	List plist = Ti_personalInfo.getListByPk(cust_id);
+  	VerificationInfo verificationInfo = new VerificationInfo();
+  	Verification verification = new Verification();  	
+  	verification.setVerification_target(verification_target);
+  	verification.setVerification_user(cust_id);
+  	
+  	List vlist = verificationInfo.getVerificationOnlyOne(verification);
+  	String verification_id = "";
+  	String verification_time = "";
+  	if(vlist == null || vlist.size() < 1){
+  		verification_id = request.getParameter("verification_id").toString();
+  	}else{
+  	  	Hashtable vvmap = (Hashtable)vlist.get(0);
+  		verification_id = vvmap.get("verification_id").toString();
+  		verification_time = vvmap.get("verification_time").toString();
+  	}
+  	Hashtable pmap = new Hashtable();
+  	pmap = (Hashtable)plist.get(0);
+  	VerificationUtil verificationUtil = new VerificationUtil();
+ %>
+	<script type="text/javascript">
+   	function load(r,e){
+	   	if(r == 1){
+	   	}else if(r == 2){
+			$.post("/doTradeReg.do", { verification_id: "<%=verification_id %>",verification_target:e,verification_type:r,verification_user:"<%=cust_id %>", verification_state: "0",bpm_id:"7567" },
+				function (){
+				alert("已成功发送邮件");
+				window.location.href="<%=request.getContextPath()+"/program/member/index/8diansc/welcome.jsp"%>";
+			});
+		}
+   	}
+   </script>
+  </head>
+</html>
+  <%if(request.getParameter("tijiao") != null && request.getParameter("tijiao").toString().equals("tijiao")){
+  	long l = 0;
+  	if(!verification_time.equals("")){
+	  	l = verificationUtil.getNowToVerificationSpan(verification_time);
+  	}
+  	if(l <= 0){
+  %>
+ 	<script type="text/javascript">
+		load('<%=s%>','<%=pmap.get("email").toString()%>');
+	</script>
+  <%
+  	}else {
+  			%>
+  				<script type="text/javascript">
+  					alert("您已发送验证请求到邮箱，请及时验证!");
+  					history.go(-1);
+  				</script>
+  			<%
+  		}
+}  %>

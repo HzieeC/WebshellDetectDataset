@@ -1,0 +1,576 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../../conn/conn.asp"-->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../../inc/CommonFunction.asp"-->
+<!--#include file="../checkvalid.asp"-->
+<%If Not FRAdminLevel(601) Then
+	Call ErrorMsg()
+End If%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<LINK href=../css/style.css rel=stylesheet type="text/css">
+<script type="text/javascript" language="JavaScript">
+var autoScrollOn = 1; 
+function scrollWindow() 
+{ 
+if(autoScrollOn == 1) 
+{ 
+window.scroll(0,650000); 
+setTimeout('scrollWindow()',1000); 
+} 
+} 
+function scrollOn(){autoScrollOn = 1;scrollWindow();} 
+function scrollOff(){autoScrollOn = 0;} 
+scrollWindow(); 
+//自动向下滚动
+</script>
+</head>
+<body>
+<%Action=trim(Request("Action"))
+ChannelID=trim(Request("ChannelID"))
+Select Case Action
+	Case "Createindex"
+		if ChannelID<>"" then
+		Call Createindex(ChannelID)
+		else
+		Call Createindex(0)
+		end if
+	Case "Createindexall"
+		Call Createindexall()
+	Case "Createlist"
+		Select Case ChannelID
+			Case 1
+				Call Personlisthtml(ChannelID)
+			Case 2
+				Call Companylisthtml(ChannelID)
+			Case 3
+				Call Schoollisthtml(ChannelID)
+			Case 4
+				Call Hrlisthtml(ChannelID)
+			Case 5
+				Call Trainlisthtml(ChannelID)
+			Case 6
+				Call Guestbooklisthtml(ChannelID)
+			Case 7
+				Call Testonlinelisthtml(ChannelID)
+			Case 8
+				Call Paiqianlisthtml(ChannelID)
+			Case 9
+				Call Downlisthtml(ChannelID)
+			Case Else
+				Call Createlist(ChannelID)
+		End Select
+	Case "Createcontent"
+		Select Case ChannelID
+			Case 1
+				Call Personhtml(ChannelID)
+			Case 2
+				Call Companyhtml(ChannelID)
+			Case 3
+				Call Schoolhtml(ChannelID)
+			Case 4
+				Call Hrhtml(ChannelID)
+			Case 5
+				Call Trainhtml(ChannelID)
+			Case 6
+				Call Guestbookhtml(ChannelID)
+			Case 7
+				Call Testonlinehtml(ChannelID)
+			Case 8
+				Call Paiqianhtml(ChannelID)
+			Case 9
+				Call Downhtml(ChannelID)
+			Case 9999
+				Call Createcommonhtml()
+			Case Else
+				Call Createcontent(ChannelID)
+		End Select
+	Case "content"
+		actions=Request("actions")
+		newnum=Request("newnum")
+		startid=Request("startid")
+		endid=Request("endid")
+		Cid=Request.QueryString("Cid")
+		Call Createcontents(Cid,actions,newnum,startid,endid)
+End Select
+
+if FoundErr=True then
+	call Show_Err()
+end if
+
+Conn.Close
+Set Conn=Nothing
+%>
+</body>
+</html>
+<%Sub Createindexall()
+set Ciars=conn.execute("select * from JOB_Channel where Disabled="&FR_HR_False&" and UseCreateHTML<>0 order by OrderID asc")
+if not Ciars.eof then
+	do while not Ciars.eof
+	ChannelID=Ciars("ChannelID")
+	ChannelName=Ciars("ChannelName")
+	Call Createindex(ChannelID)
+	response.flush
+	if Ciars.eof then exit do
+	Ciars.movenext
+	loop
+	Call Createindex(0)
+	Response.Write("<b>全部生成完成,完成时间"&Now()&"</b>")
+end if
+Ciars.close
+set Ciars=nothing
+End Sub
+
+Sub Companyhtml(Cid)
+comtypes=trim(Request("types"))
+	Select Case comtypes
+		Case 1
+			Call CreateCompanyhtml(Cid)
+		Case 2
+			Call CreateCompanyHirehtml(Cid)
+		Case 3
+			Call CreateHirehtml(Cid)
+	end Select
+End Sub
+
+Sub Personhtml(Cid)
+if CreateHTML=1 then
+	if not isNumeric(Cid) then
+		exit Sub
+	end if
+	page=clng(request("page"))
+	If page="" Or  IsNull(page) Or page<1 then page=1
+	MaxPerPage=100
+	set Phrs=server.createobject("adodb.recordset")
+	Phsql="select * from job_p_resume order by resume_id desc"
+	Phrs.open Phsql,conn,1,1
+	if not Phrs.eof then
+	Phrs.pagesize=MaxPerPage
+	mpage=Phrs.pagecount
+	Phrs.move (page-1)*MaxPerpage
+	i=0
+	do while not Phrs.eof
+	resume_id=Phrs("resume_id")
+	resume_announcedate=Phrs("resume_announcedate")
+	Call PersonResumeContentHtml(resume_id)
+	Response.Write("编号<font color=#FF0000>"&resume_id&"</font>生成完成,<a href="&FormatLink(resume_announcedate,1,1,resume_id,0)&" target='_blank'>点击查看!</a><br>")
+	response.flush
+	i=i+1
+	if i>=MaxPerPage then exit do
+	Phrs.movenext
+	loop
+		if mpage<page then
+		response.write "<b>任务完成，完成时间"&Now()&"</b>"
+		else
+		Response.Write "<meta http-equiv=Refresh content='0; URL=Admin_CreateHTMLResult.asp?Action=Createcontent&ChannelID="&Cid&"&page="&page+1&"'>"
+		end if
+	else
+	Response.Write"没有可生成的记录！"
+	end if
+	Phrs.close
+	Set Phrs=nothing
+else
+	Response.Write("<b><font color=#FF0000>生成HTML未启动!</font></b>")
+	Response.end()
+end if
+End Sub
+'***********生成公司介绍页**************
+Sub CreateCompanyhtml(Cid)
+if CreateHTML=1 then
+	if not isNumeric(Cid) then
+		exit Sub
+	end if
+	comtypes=trim(Request("types"))
+	page=clng(request("page"))
+	If page="" Or  IsNull(page) Or page<1 then page=1
+	MaxPerPage=100
+	set Cchrs=server.createobject("adodb.recordset")
+	Cchsql="select Member_id,Member_regdate from JOB_Member where member_typeid=2 and Member_name is not null order by member_id desc"
+	Cchrs.open Cchsql,conn,1,1
+	if not Cchrs.eof then
+	Cchrs.pagesize=MaxPerPage
+	mpage=Cchrs.pagecount
+	Cchrs.move (page-1)*MaxPerpage
+	i=0
+	do while not Cchrs.eof
+	Member_id=Cchrs("Member_id")
+	Member_regdate=Cchrs("Member_regdate")
+	Call CompanyContentHtml(Member_id)
+	Response.Write("编号<font color=#FF0000>"&Member_id&"</font>生成完成,<a href="&FormatLink(Member_regdate,2,1,Member_id,0)&" target='_blank'>点击查看!</a><br>")
+	response.flush
+	i=i+1
+	if i>=MaxPerPage then exit do
+	Cchrs.movenext
+	loop
+		if mpage<page then
+		response.write "<b>任务完成，完成时间"&Now()&"</b>"
+		else
+		Response.Write "<meta http-equiv=Refresh content='0; URL=Admin_CreateHTMLResult.asp?Action=Createcontent&ChannelID="&Cid&"&types="&comtypes&"&page="&page+1&"'>"
+		end if
+	else
+	Response.Write"没有可生成的记录！"
+	end if
+	Cchrs.close
+	Set Cchrs=nothing
+else
+	Response.Write("<b><font color=#FF0000>生成HTML未启动!</font></b>")
+	Response.end()
+end if
+End Sub
+'***********生成公司所有职位页**************
+Sub CreateCompanyHirehtml(Cid)
+if CreateHTML=1 then
+	if not isNumeric(Cid) then
+		exit Sub
+	end if
+	comtypes=trim(Request("types"))
+	page=clng(request("page"))
+	If page="" Or  IsNull(page) Or page<1 then page=1
+	MaxPerPage=100
+	set Cchhrs=server.createobject("adodb.recordset")
+	Cchhsql="select * from JOB_Member where member_typeid=2 order by member_id desc"
+	Cchhrs.open Cchhsql,conn,1,1
+	if not Cchhrs.eof then
+	Cchhrs.pagesize=MaxPerPage
+	mpage=Cchhrs.pagecount
+	Cchhrs.move (page-1)*MaxPerpage
+	i=0
+	do while not Cchhrs.eof
+	Member_id=Cchhrs("Member_id")
+	Member_regdate=Cchhrs("Member_regdate")
+	Call HireListContentHtml(Member_id)
+	Response.Write("编号<font color=#FF0000>"&Member_id&"</font>生成完成,<a href="&FormatLink(Member_regdate,2,2,Member_id,0)&" target='_blank'>点击查看!</a><br>")
+	response.flush
+	i=i+1
+	if i>=MaxPerPage then exit do
+	Cchhrs.movenext
+	loop
+		if mpage<page then
+		response.write "<b>任务完成，完成时间"&Now()&"</b>"
+		else
+		Response.Write "<meta http-equiv=Refresh content='0; URL=Admin_CreateHTMLResult.asp?Action=Createcontent&ChannelID="&Cid&"&types="&comtypes&"&page="&page+1&"'>"
+		end if
+	else
+	Response.Write"没有可生成的记录！"
+	end if
+	Cchhrs.close
+	Set Cchhrs=nothing
+else
+	Response.Write("<b><font color=#FF0000>生成HTML未启动!</font></b>")
+	Response.end()
+end if
+End Sub
+'***********生成职位信息页**************
+Sub CreateHirehtml(Cid)
+if CreateHTML=1 then
+	if not isNumeric(Cid) then
+		exit Sub
+	end if
+	comtypes=trim(Request("types"))
+	page=clng(request("page"))
+	If page="" Or  IsNull(page) Or page<1 then page=1
+	MaxPerPage=100
+	set Chhrs=server.createobject("adodb.recordset")
+	Chhsql="select hire_id,hire_announcedate from JOB_C_hire order by hire_id desc"
+	Chhrs.open Chhsql,conn,1,1
+	if not Chhrs.eof then
+	Chhrs.pagesize=MaxPerPage
+	mpage=Chhrs.pagecount
+	Chhrs.move (page-1)*MaxPerpage
+	i=0
+	do while not Chhrs.eof
+	hire_id=Chhrs("hire_id")
+	hire_announcedate=Chhrs("hire_announcedate")
+	Call HireContentHtml(hire_id)
+	Response.Write("编号<font color=#FF0000>"&hire_id&"</font>生成完成,<a href="&FormatLink(hire_announcedate,2,3,hire_id,0)&" target='_blank'>点击查看!</a><br>")
+	response.flush
+	i=i+1
+	if i>=MaxPerPage then exit do
+	Chhrs.movenext
+	loop
+		if mpage<page then
+		response.write "<b>任务完成，完成时间"&Now()&"</b>"
+		else
+		Response.Write "<meta http-equiv=Refresh content='0; URL=Admin_CreateHTMLResult.asp?Action=Createcontent&ChannelID="&Cid&"&types="&comtypes&"&page="&page+1&"'>"
+		end if
+	else
+	Response.Write"没有可生成的记录！"
+	end if
+	Chhrs.close
+	Set Chhrs=nothing
+else
+	Response.Write("<b><font color=#FF0000>生成HTML未启动!</font></b>")
+	Response.end()
+end if
+End Sub
+'生成各频道首页
+Sub Createindex(Cid)
+	if not isNumeric(Cid) then
+		exit Sub
+	end if
+	if Cid<>"" then
+		if CreateHTML=1 then
+		'读取模版内容
+		set rs=conn.execute("select * from JOB_Template where ChannelID="&Cid&" and IsDefault="&FR_HR_True&" and IsDefaultInProject="&FR_HR_True&" and (typeid=0 or typeid=1)")
+			if not rs.eof then
+			TemplateContent=rs("TemplateContent")
+			else
+			Response.Write("读取模板出错!<br>")
+			Response.end()
+			end if
+		rs.close
+		set rs=nothing
+			if Cid<>0 then
+				'读取频道名称
+				set rs=conn.execute("select * from JOB_Channel where ChannelID="&ChannelID&"")
+				ChannelName=rs("ChannelName")
+				ChannelDir=rs("ChannelDir")
+				ChannelKeywords=rs("Meta_Keywords")
+				ChannelDescription=rs("Meta_Description")
+				rs.close
+				set rs=nothing
+				session(FRHRCMS&"ChannelID") = Cid
+				session(FRHRCMS&"TypeID") = ""
+			else
+			ChannelName="首页"
+			end if
+		Select Case Cid
+			Case 0:MTID=0
+			Case 1:MTID=1
+			Case 2:MTID=2
+			Case 3:MTID=3
+			Case 5:MTID=4
+			Case Else:MTID=0
+		End Select
+		html=TemplateContent
+		html=ReplaceLableFlag(ReplaceAllLabel(html))
+		html=Replace(html,"{$FR_频道名称}",ChannelName)
+		html=Replace(html,"{$FR_频道目录}",ChannelDir)
+		html=Replace(html,"{$FR_频道关键词}",""&ChannelKeywords&"")
+		html=Replace(html,"{$FR_频道描述}",""&ChannelDescription&"")
+		html=Replace(html,"{$FR_频道栏目}",GetArticletype(ChannelID,0))
+		html=Replace(html,"{$FR_频道编号}",Cid)
+		html=Replace(html,"{$FR_会员类型编号}",MTID)
+		html=Replace(html,"{$FR_本站公告}",""&Announcehtml(Cid,0)&"")
+		Set fso = Server.CreateObject(FR_HR_FSO)
+		HtmlFileName=Server.MapPath(""&FormatLinks(0,Cid,0,0,0)&"")
+		Set fout = fso.CreateTextFile(HtmlFileName)
+		fout.WriteLine CreateHTMLReplace(html)&"<script src="&InstallDir&"autohtml/index.asp?id="&Cid&"></script>"
+		fout.close
+		set fout = nothing
+		Set fso = nothing
+		if Cid<>0 then
+		Response.Write("<b><font color=#FF0000>"&ChannelName&"</font>频道首页生成,<a href="&FormatLinks(0,Cid,0,0,0)&" target='_blank'>点击查看</a>!</b><br>")
+		else
+		Response.Write("<b><font color=#FF0000>总站</font>首页生成,<a href="&FormatLink(0,Cid,0,0,0)&" target='_blank'>点击查看</a>!</b><br>")
+		end if
+		else
+		Response.Write("<b><font color=#FF0000>生成HTML未启动!</font></b>")
+		Response.end()
+		end if
+	end if
+End Sub
+
+
+'生成文章内容页
+Sub Createcontent(Cid)
+if CreateHTML=1 then
+	if not isNumeric(Cid) then
+		exit Sub
+	end if
+	page=clng(request("page"))
+	If page="" Or  IsNull(page) Or page<1 then page=1
+	MaxPerPage=100
+	set Ccrs=server.createobject("adodb.recordset")
+	Ccsql="select * from JOB_News where N_cid="&Cid&" order by N_id desc"
+	Ccrs.open Ccsql,conn,1,1
+	if not Ccrs.eof then
+	Ccrs.pagesize=MaxPerPage
+	mpage=Ccrs.pagecount
+	Ccrs.move (page-1)*MaxPerpage
+	i=0
+	do while not Ccrs.eof
+	newsid=Ccrs("N_id")
+	typeid=Ccrs("N_sid")
+	addtime=Ccrs("N_addtime")
+	Call NewsContentHtml(newsid)
+	Response.Write("编号<font color=#FF0000>"&newsid&"</font>生成完成,<a href="&FormatLink(addtime,Cid,typeid,newsid,0)&" target='_blank'>点击查看!</a><br>")
+	response.flush
+	i=i+1
+	if i>=MaxPerPage then exit do
+	Ccrs.movenext
+	loop
+		if mpage<page then
+		response.write "<b>任务完成，完成时间"&Now()&"</b>"
+		else
+		Response.Write "<meta http-equiv=Refresh content='0; URL=Admin_CreateHTMLResult.asp?Action=Createcontent&ChannelID="&Cid&"&page="&page+1&"'>"
+		end if
+	else
+	Response.Write"没有可生成的记录！"
+	end if
+else
+	Response.Write("<b><font color=#FF0000>生成HTML未启动!</font></b>")
+	Response.end()
+end if
+Ccrs.close
+Set Ccrs=nothing
+End Sub
+
+
+'生成文章内容页
+Sub Createcontents(Cid,actions,newnum,startid,endid)
+if not isNumeric(Cid) then
+	Response.Redirect("Admin_CreateHtml.asp")
+	Response.End()
+end if
+page=clng(request("page"))
+If page="" Or  IsNull(page) Or page<1 then page=1		
+MaxPerPage=100
+	
+set Ccrs=server.createobject("adodb.recordset")
+Select Case actions
+	Case "all"
+		Ccsql="select N_id,N_sid,N_cid from JOB_News where N_cid="&Cid&""
+	Case "new"
+		if newnum="" or Not Isnumeric(newnum) then newnum=100
+		Ccsql="select Top "&newnum&" N_id,N_sid,N_cid from JOB_News where N_cid="&Cid&" Order by N_id desc"
+	Case "ID"
+		if startid="" or endid="" or Not Isnumeric(startid) or Not Isnumeric(endid) then
+			Response.Redirect("Admin_CreateHtml.asp")
+			Response.End()
+		end if
+		if Clng(startid)<Clng(endid) then
+		Ccsql="select N_id,N_sid,N_cid from JOB_News where N_cid="&Cid&" and N_id>="&startid&" and N_id<="&endid&""
+		else
+		Ccsql="select N_id,N_sid,N_cid from JOB_News where N_cid="&Cid&" and N_id<="&startid&" and N_id>="&endid&""
+		end if
+end Select
+Ccrs.open Ccsql,conn,1,1
+if not Ccrs.eof then
+Ccrs.pagesize=MaxPerPage
+mpage=Ccrs.pagecount
+Ccrs.move (page-1)*MaxPerpage
+i=0
+do while not Ccrs.eof
+	newsid=Ccrs("N_id")
+	typeid=Ccrs("N_sid")
+	Call NewsContentHtml(newsid)
+	Response.Write("<li style='float:left;width:98%;text-align:center;padding:0;margin:0;height:20px;'>编号<font color=#FF0000>"&newsid&"</font>生成完成,<a href="&FormatLink(0,Cid,typeid,newsid,0)&" target='_blank'>点击查看!</a><li>")		
+	response.flush
+	i=i+1
+	if i>=MaxPerPage then exit do
+Ccrs.movenext
+loop
+	if mpage<page then
+		Call SucessMsg("生成频道内容页完成，完成时间"&Now()&"!","Admin_CreateHtml.asp")
+	else
+	Response.Write "<meta http-equiv=Refresh content='0; URL=Admin_CreateHTMLResult.asp?Action=content&Cid="&Cid&"&page="&page+1&"&actions="&actions&"'>"
+	end if
+else
+Response.Write"没有可生成的记录！"
+end if
+Ccrs.close
+Set Ccrs=nothing
+Set Fso=nothing
+End Sub
+
+'生成文章栏目列表页
+Sub Createlist(Cid)
+if CreateHTML=1 then
+	if not isNumeric(Cid) then
+		exit Sub
+	end if
+	tpage=clng(request("tpage"))
+	If tpage="" Or  IsNull(tpage) Or tpage<1 then tpage=1
+	Set rst=server.createobject("adodb.recordset")
+	sqlt="select * from JOB_NewsSort where S_cid="&Cid&" order by S_order asc"
+	rst.open sqlt,conn,1,1
+	If rst.eof Then
+	Response.Write"暂无栏目！"
+	Else
+	rst.move tpage-1
+	typenames=rst("S_name")
+	typeid=rst("S_id")
+	Response.Write"<b>正在生成<font color=#FF0000>"&typenames&"</font>栏目的分页列表</b><br>"
+	Call Createnewshtmllist(Cid,typeid)
+		if tpage<rst.recordcount then
+		response.write "<meta http-equiv=Refresh content='0; URL=Admin_CreateHTMLResult.asp?Action=Createlist&ChannelID="&Cid&"&tpage="&tpage+1&"'>"
+		else
+		response.write "<b>任务完成，完成时间"&Now()&"</b>"
+		end if
+	End If
+	rst.close
+	Set rst=Nothing
+else
+	Response.Write("<b><font color=#FF0000>生成HTML未启动!</font></b>")
+	Response.end()
+end if
+End Sub
+
+Sub Createnewshtmllist(Cid,Tid)
+if CreateHTML=1 then
+	if not isNumeric(Cid) or not isNumeric(Tid) then
+		exit Sub
+	end if
+	'读取频道设置
+	set Cnhlrs=conn.execute("select * from JOB_Channel where ChannelID="&Cid&"")
+		MaxPerPage=Cnhlrs("MaxPerPage_Index")
+	set Cnhlrs=nothing
+	set Cnhlrs=server.createobject("adodb.recordset")
+	sql="select * from JOB_News where N_sid="&Tid&""
+	Cnhlrs.open sql,conn,1,1
+	if Cnhlrs.eof then
+	Call NewsListHtml(Cid,Tid,1)
+	else
+	Cnhlrs.pagesize=MaxPerPage
+	mpage=Cnhlrs.pagecount     '得到总分页数
+	Cnhlrs.close
+	for i=1 to mpage
+	Call NewsListHtml(Cid,Tid,i)
+	next
+	end if
+else
+	Response.Write("<b><font color=#FF0000>生成HTML未启动!</font></b>")
+	Response.end()
+end if
+End Sub
+'生成通用频道的关于我们
+sub Createcommonhtml()
+if CreateHTML=1 then
+	set Cchrs=conn.execute("select * from JOB_common order by id asc")
+	do while not Cchrs.eof
+	set rst=conn.execute("select * from JOB_Template where TemplateID="&Cchrs("templateid")&"")
+	if rst.eof then
+	Response.Write("模板不存在，请指定后生成！")
+	Response.end()
+	else
+	html=""&rst("TemplateContent")&""
+	end if
+	html=replace(html,"{$FR_通用页面内容}",""&Cchrs("content")&"")
+	html=replace(html,"{$FR_通用标题}",""&Cchrs("title")&"")
+	html=ReplaceLableFlag(ReplaceAllLabel(html))
+	Set fso = Server.CreateObject("Scripting.FileSystemObject")
+	if not fso.FolderExists(server.MapPath(InstallDir&HTMLPath&"About/")) Then fso.CreateFolder (server.MapPath(InstallDir&HTMLPath&"About/"))
+	HtmlFileName=Server.MapPath(InstallDir&HTMLPath&"About/"&Cchrs("htmlname")&"")
+	Set fout = fso.CreateTextFile(HtmlFileName)
+	fout.WriteLine CreateHTMLReplace(html)
+	fout.close
+	set fout = nothing
+	Response.Write("<b><font color=#FF0000>"&Cchrs("title")&"</font>生成完成,<a href="&InstallDir&HTMLPath&"About/"&Cchrs("htmlname")&" target='_blank'>点击查看!</a></b><br>")
+	response.flush
+	Cchrs.movenext
+	loop
+	rst.close
+	set rst=nothing
+	Cchrs.close
+	set Cchrs=nothing
+	Response.Write("<b>生成完成，完成时间："&now()&"</b>")
+	Response.end()
+else
+	Response.Write("<b><font color=#FF0000>生成HTML未启动!</font></b>")
+	Response.end()
+end if
+end sub
+%>

@@ -1,0 +1,419 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_goods.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.trade.ts_category.Ts_categoryInfo" %>
+<%@page import="com.bizoss.trade.ti_member.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@page import="com.bizoss.trade.ti_attach.Ti_attachInfo" %>
+<%@page import="com.bizoss.trade.tb_commpara.Tb_commparaInfo" %>
+
+<%
+	request.setCharacterEncoding("UTF-8");
+	
+	String s_cust_id = "";	
+	if( session.getAttribute("session_cust_id") != null ){
+		s_cust_id = session.getAttribute("session_cust_id").toString();
+	}
+	Ti_goods ti_goods = new Ti_goods();
+	
+	Ti_goodsInfo ti_goodsInfo = new Ti_goodsInfo();
+	Ts_categoryInfo  ts_categoryInfo  = new Ts_categoryInfo();
+    Ti_memberInfo  ti_customerInfo  = new Ti_memberInfo();
+    Ti_attachInfo  ti_attachInfo = new Ti_attachInfo(); 
+
+	Hashtable pMap =new Hashtable();
+    String  s_goods_name="",s_class_attr="",s_goods_sate="",s_start_date="",s_end_date="";
+    String  goods_rage="",s_shelf="",s_recom="",s_s_price="",s_q_price="",s_fresh="",s_appman="";                          
+    if(request.getParameter("s_goods_name")!=null && !request.getParameter("s_goods_name").equals("") )
+    {
+      s_goods_name = request.getParameter("s_goods_name").toString();
+      pMap.put("s_goods_name",s_goods_name);  
+    }
+    if(request.getParameter("s_class_attr")!=null && !request.getParameter("s_class_attr").equals("") )
+   {
+     s_class_attr = request.getParameter("s_class_attr").toString();
+     pMap.put("s_class_attr",s_class_attr);  
+   }
+   if(request.getParameter("s_goods_sate")!=null && !request.getParameter("s_goods_sate").equals("") )
+   {
+     s_goods_sate = request.getParameter("s_goods_sate").toString();
+     pMap.put("s_goods_sate",s_goods_sate);  
+   } 
+   if(request.getParameter("s_start_date1")!=null && !request.getParameter("s_start_date1").equals("") )
+   {
+     s_start_date = request.getParameter("s_start_date1").toString();
+     pMap.put("s_start_date",s_start_date);  
+   } 
+   if(request.getParameter("s_end_date1")!=null && !request.getParameter("s_end_date1").equals("") )
+   {
+     s_end_date = request.getParameter("s_end_date1").toString();
+     pMap.put("s_end_date",s_end_date);  
+   } 
+  
+   if(request.getParameter("goods_rage")!=null && !request.getParameter("goods_rage").equals("") )
+   {
+     goods_rage = request.getParameter("goods_rage").toString();
+     pMap.put("cust_id",goods_rage);  
+   }
+  
+   String info_state = "";
+   if(request.getParameter("info_state")!=null && !request.getParameter("info_state").equals("")){
+		info_state = request.getParameter("info_state");
+		pMap.put("info_state",info_state);
+   }
+  
+    pMap.put("m_state","a");
+  
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	
+	String listOrImg = "1";
+	if (request.getParameter("listOrImg") != null) {listOrImg = request.getParameter("listOrImg");}
+	
+	List list = ti_goodsInfo.getListByPage(pMap,Integer.parseInt(iStart),limit);
+	int counter = ti_goodsInfo.getCountByObj(pMap);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?listOrImg="+listOrImg+"&s_end_date="+s_end_date+"&goods_rage="+goods_rage+"&s_start_date="+s_start_date+"&s_goods_sate="+s_goods_sate+"&s_goods_name="+s_goods_name+"&s_class_attr="+s_class_attr+"&iStart=",Integer.parseInt(iStart),limit);
+  
+    Map catMap = ts_categoryInfo.getCatClassMap("2");
+	
+	Tb_commparaInfo tb_commparaInfo = new Tb_commparaInfo(); 
+	String state = tb_commparaInfo.getSelectItem("39",""); 
+   
+ 	String para ="";
+	//String para =	"listOrImg="+listOrImg+"&goods_rage="+goods_rage+"&s_fresh="+s_fresh+"&s_q_price="+s_q_price+"&s_s_price="+s_s_price+"&s_recom="+s_recom+"&s_shelf="+s_shelf+"&s_end_date="+s_end_date+"&s_start_date="+s_start_date+"&s_goods_sate="+s_goods_sate+"&s_goods_name="+s_goods_name+"&s_class_attr="+s_class_attr+"&iStart="+Integer.parseInt(iStart)+"&limit="+limit;		 
+    //out.print(para);                                               
+                                                    
+%>
+<html>
+  <head>
+  <title>商品列表</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/goods_state.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	 <script type="text/javascript" src="/js/thickbox.js"></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/engine.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/util.js'></script>
+	<script type='text/javascript' src='<%=request.getContextPath()%>/dwr/interface/Ts_categoryInfo.js'></script>   
+
+
+
+  <script language="javascript" type="text/javascript" src="/program/plugins/calendar/WdatePicker.js"></script>
+  	<script type="text/javascript" src="js_goods.js"></script>
+  <script>
+   	  jQuery.noConflict();
+   </script> 
+ </head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>商品列表</h1>
+			</td>
+			<td>
+				<a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a>
+			</td>
+		</tr>
+	</table>
+	<form action="index.jsp" name="indexForm" method="post">
+	<table width="100%" cellpadding="0" cellspacing="0"  class="dl_su">
+		<tr>
+			<td align="left">
+				    商品名称:<input name="s_goods_name" id="s_goods_name" type="text" onBlur="this.value=trim(this.value)" />
+				   
+ 	          &nbsp;商品分类:
+				    <select name="sort1" id="sort1" onclick="setSecondClass(this.value);" >
+							  <option value="">请选择</option>
+					  </select>	
+						<select name="sort2" id="sort2" onclick="setTherdClass(this.value);">
+							  <option value="">请选择</option>
+						</select>		
+						<select name="sort3" id="sort3">
+							  <option value="">请选择</option>
+						</select>
+					  <input type="hidden" name="s_class_attr" id="s_class_attr" value=""/>			
+			       <script type="text/javascript" src="s_classify.js"></script>
+
+					   &nbsp;商品状态:
+                    <select name="s_goods_sate" id="s_goods_sate">
+				  	   <option value="">请选择</option>	
+					   <option value="c">启用</option>
+					   <option value="d">禁用</option>
+				    </select>
+                    
+					<select name="info_state">
+						<option value="">请选择</option>	
+						<option value="e">推荐</option>
+						<option value="f">置顶</option>
+						<option value="g">头条</option>
+			        </select>
+                     					
+					
+						<br/>
+				   商品范围:
+				   <select name="goods_rage">
+				   		<option value="">全部商品</option>
+				   		<option value="100000000000000">八点商城商品</option>
+				  </select>
+				   
+                   &nbsp;发布时间段:
+				    <input name="s_start_date1" type="text" id="s_start_date1" class="Wdate" value="" onClick="WdatePicker({maxDate:'#F{$dp.$D(\'s_end_date\',{d:-1})}',readOnly:true})" size="15"  width="150px"/>
+                    -
+	                <input name="s_end_date1" id="s_end_date1" type="text" class="Wdate" value="" onClick="WdatePicker({minDate:'#F{$dp.$D(\'s_start_date\',{d:1})}',readOnly:true})" size="15" width="150px"/>
+            
+				   <input name="searchInfo" type="button" value="查询" onClick="searchForm()" />	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0"  class="tablehe">
+		<tr><td align="center"><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" border="0" class="dl_bg">
+		<tr>
+			<td width="85%">
+					&nbsp;&nbsp;
+				<select name="bo_operating" id="bo_operating" onChange="changeTime('bo')">
+				  	<option value="">请选择...</option>
+					<option value="-">删除</option>
+					<option value="c">启用</option>	
+					<option value="d">禁用</option>	
+					<%=state%>
+                 </select>
+				 <div id="bo_g" style="display:none">
+				  开始时间:<input type="text" name="bo_start_date" id="bo_start_date" class="Wdate" value="" onClick="WdatePicker({maxDate:'#F{$dp.$D(\'bo_end_date\',{d:-1})}',readOnly:true})" size="15"  width="150px" />
+				  结束时间:<input type="text" name="bo_end_date" id="bo_end_date" class="Wdate" value="" onClick="WdatePicker({minDate:'#F{$dp.$D(\'bo_start_date\',{d:1})}',readOnly:true})" size="15" width="150px" />
+				</div>
+				 <input type="button" name="delInfo" onClick="updatestate('bo')" value="确定" class="buttab"/>
+                                                                                             			
+			</td>
+			<td>
+				总计:<%=counter %>条
+			
+	      <%if(listOrImg.equals("1")){%>
+				<a href="index.jsp?listOrImg=0&goods_rage=<%=goods_rage%>&s_fresh=<%=s_fresh%>&s_q_price=<%=s_q_price%>&s_s_price=<%=s_s_price%>&s_recom=<%=s_recom%>&s_shelf=<%=s_shelf%>&s_end_date=<%=s_end_date%>&s_start_date=<%=s_start_date%>&s_goods_sate=<%=s_goods_sate%>&s_goods_name=<%=s_goods_name%>&s_class_attr=<%=s_class_attr%>&iStart=<%=Integer.parseInt(iStart)%>"><img src="/program/admin/images/Onlist.jpg" style="cursor:pointer;" border="0" title="列表显示" /></a>
+				<img src="/program/admin/images/Unimglist.jpg" style="cursor:pointer;" border="0" title="图文显示" />
+				<%}else if(listOrImg.equals("0")){%>
+				<img src="/program/admin/images/Outlist.jpg" style="cursor:pointer;" border="0" title="列表显示" />
+				<a href="index.jsp?listOrImg=1&goods_rage=<%=goods_rage%>&s_fresh=<%=s_fresh%>&s_q_price=<%=s_q_price%>&s_s_price=<%=s_s_price%>&s_recom=<%=s_recom%>&s_shelf=<%=s_shelf%>&s_end_date=<%=s_end_date%>&s_start_date=<%=s_start_date%>&s_goods_sate=<%=s_goods_sate%>&s_goods_name=<%=s_goods_name%>&s_class_attr=<%=s_class_attr%>&iStart=<%=Integer.parseInt(iStart)%>"><img src="/program/admin/images/Imglist.jpg" style="cursor:pointer;" border="0" title="图文显示" /></a>
+				<%}%>
+			
+			
+			
+			
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th  align="center"><input type="checkbox" name="checkall" id="checkall" onClick="selectAll()"></th>
+			
+		  	<%
+		  	 if(listOrImg.equals("1")){
+		  	%>
+		  	<th>商品图片</th>
+		  	<%
+		  	  }
+		  	%>
+		  	
+		  	 <th>商品信息</th>
+             <th>修改</th>
+			 <th>删除</th>
+	  		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String goods_id="",goods_no="",cust_id="",class_attr="",brand_id="",goods_name="",member_price="",org_price="",market_price="",sale_price="";
+		  			String send_inter="",buy_inter="",weight="",stock_in="",stock_num="",stock_out="",stock_down="",price_unit="",state_code="",state_date="",ship_fare="",keywords="",outline="",goods_desc="",remark="",link_goods="",link_fit="",attr_desc="",rsrv_str1="",rsrv_str2="",rsrv_str3="",rsrv_str4="",rsrv_str5="",rsrv_str6="",publish_date="",publish_user_id="";
+		  			if(map.get("goods_id")!=null) goods_id = map.get("goods_id").toString();
+				  	if(map.get("goods_no")!=null) goods_no = map.get("goods_no").toString();
+				  	if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+				  	if(map.get("class_attr")!=null) class_attr = map.get("class_attr").toString();
+                    if(map.get("sale_price")!=null) sale_price = map.get("sale_price").toString();
+                    if(map.get("send_inter")!=null) send_inter = map.get("send_inter").toString();
+				  	
+				  	StringBuffer catAttr =new StringBuffer();
+				    if(!class_attr.equals("")){
+						String catIds[] =	class_attr.split("\\|");	
+						for(String catId:catIds)
+						{
+						  if(catMap!=null)
+						  {
+							 if(catMap.get(catId)!=null)
+							 {
+								catAttr.append(catMap.get(catId).toString()+" ");                 
+							 }                  
+						 
+						  }                 
+						}		    
+				    }
+
+				  	String compnay ="";
+					if(!cust_id.equals(""))
+					{
+					   compnay  = ti_customerInfo.getCustNameByPk(cust_id);         
+					}
+			        if(cust_id.equals(s_cust_id))
+				    {
+				       compnay  = "八点商城";         
+				    }				
+				  	
+				  	if(map.get("brand_id")!=null) brand_id = map.get("brand_id").toString();
+				  	if(map.get("goods_name")!=null)
+				  	{
+				  	    goods_name = map.get("goods_name").toString();
+					    if(goods_name.length()>32)
+					    {
+						   goods_name = goods_name.substring(0,32);              
+					    }
+                    }				  	
+				  	if(map.get("state_code")!=null) state_code = map.get("state_code").toString();
+					
+					String e = "",f = "",g ="";
+					if(map.get("e")!=null) e = map.get("e").toString();
+					if(map.get("f")!=null) f = map.get("f").toString();
+					if(map.get("g")!=null) g = map.get("g").toString();
+            
+				    if(map.get("publish_date")!=null) publish_date = map.get("publish_date").toString();
+					if(publish_date.length()>10)publish_date=publish_date.substring(0,10);
+					
+					String img_path =  ti_attachInfo.getFilePathByAttachrootid(goods_id);
+					if(img_path.equals(""))
+					{
+						 img_path ="/program/admin/images/cpwu.gif";            
+					}                                                           
+                                                                                   
+		  %>
+		
+		<tr>
+			<td width="3%" align="center">
+				<input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=goods_id %>" />
+			  <input type="hidden" name="stateone<%=i %>" id="stateone<%=i %>" value="<%=state_code %>" />
+			</td>
+			  <%
+		  	 if(listOrImg.equals("1"))
+		  	 {
+		  	%>
+		  	<td width="10%"><img src="<%=img_path%>" border="0" width="85" height="85" /></td>
+        <%
+		  	  }
+		  	%>
+		  
+		  	<td width="57%">
+		  		  <a href="updateInfo.jsp?goods_id=<%=goods_id %>"><span style="color:#21759B;"><%=goods_name%></span></a>		       
+		       
+         <span style="color:#303A43;"> 发布日期:</span> <span style="color:#666666;"> <%=publish_date%>		</span>       
+           <%
+		         if(listOrImg.equals("0") && !img_path.equals(""))
+		         {
+		        %>
+		          <img src="/program/images/ico_img.gif" border="0" />       
+		       
+		        <%}%>             
+		        <div style="margin-top:8px;"></div> 		  		  
+		  		 <span style="color:#303A43;">发布商家:</span><span style="color:#666666;">&nbsp;<%=compnay%></span>             
+		  		  <div style="margin-top:8px;"></div>         
+            <span style="color:#303A43;">商品分类:</span><span style="color:#666666;">&nbsp;<%=catAttr.toString()%></span>          
+            <div style="margin-top:8px;"></div>            
+
+		    <span class="<%if(state_code.equals("c"))out.print("blueon"); else out.print("blueoff");%>">启用</span>
+			<span class="<%if(state_code.equals("d"))out.print("blueon"); else out.print("blueoff");%>">禁用</span>
+			<span class="<%if(!e.equals(""))out.print("blueon"); else out.print("blueoff");%>">推荐</span>
+	        <span class="<%if(!f.equals(""))out.print("blueon"); else out.print("blueoff");%>">置顶</span>
+	        <span class="<%if(!g.equals(""))out.print("blueon"); else out.print("blueoff");%>">头条</span> 
+  		    </td>
+			  	
+		  	<td width="10%">
+			  <a href="updateInfo.jsp?goods_id=<%=goods_id %>&<%=para%>"><img src="/program/admin/images/edit.gif" title="修改" border="0"/></a>
+			  <%
+			  		if (cust_id.equals(s_cust_id))
+			  		{
+			  %>
+			  <a id="updateThisInfo<%=i %>" href="#" onclick="updateOneInfo('<%=i%>','<%=goods_id%>','<%=publish_date%>')">发布商品</a>
+			  <%}%>
+			</td>
+        
+            <td width="10%">
+			  <a href="javascript:deleteOneInfo('<%=goods_id%>','2729');"><img src="/program/admin/images/delete.gif" title="删除" border="0"/></a>
+			</td>		  			  	
+		 		
+		 
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0"  class="dl_bg">
+		<tr>
+			<td width="85%">
+			&nbsp;&nbsp;
+				  <select name="dw_operating" id="dw_operating"  onchange="changeTime('dw')">
+				     <option value="">请选择...</option>	
+				     <option value="-">删除</option>	
+					 <option value="c">启用</option>	
+					 <option value="d">禁用</option>	
+					<%=state%> 
+                  </select>
+				 <div id="dw_g" style="display:none">
+				  开始时间:<input type="text" name="dw_start_date" id="dw_start_date" class="Wdate" value="" onClick="WdatePicker({maxDate:'#F{$dp.$D(\'dw_end_date\',{d:-1})}',readOnly:true})" size="15"  width="150px" />
+				  结束时间:<input type="text" name="dw_end_date" id="dw_end_date" class="Wdate" value="" onClick="WdatePicker({minDate:'#F{$dp.$D(\'dw_start_date\',{d:1})}',readOnly:true})" size="15" width="150px" />
+				 </div> 
+				  
+				 <input type="button" name="delInfo" onClick="updatestate('dw')" value="确定" class="buttab"/>
+		    
+			</td>
+			<td>
+				
+				总计:<%=counter %>条
+			  
+			  <%if(listOrImg.equals("1")){%>
+				<a href="index.jsp?listOrImg=0&iStart=<%=Integer.parseInt(iStart)%>"><img src="/program/admin/images/Onlist.jpg" style="cursor:pointer;" border="0" title="列表显示" /></a>
+				<img src="/program/admin/images/Unimglist.jpg" style="cursor:pointer;" border="0" title="图文显示" />
+				<%}else if(listOrImg.equals("0")){%>
+				<img src="/program/admin/images/Outlist.jpg" style="cursor:pointer;" border="0" title="列表显示" />
+				<a href="index.jsp?listOrImg=0&iStart=<%=Integer.parseInt(iStart)%>"><img src="/program/admin/images/Imglist.jpg" style="cursor:pointer;" border="0" title="图文显示" /></a>
+				<%}%>
+
+			
+			
+			
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td align="center"><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="state_code" id="state_code" value="" />
+	  <input type="hidden" name="up_operating" id="up_operating" value="" />
+	  <input type="hidden" name="s_start_date" id="s_start_date" value="" />
+	  <input type="hidden" name="s_end_date" id="s_end_date" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="2729" />
+      <input name="s_start_date" type="hidden" id="s_start_date"/>
+	  <input name="s_end_date" id="s_end_date" type="hidden" />
+   </form>
+</body>
+
+</html>

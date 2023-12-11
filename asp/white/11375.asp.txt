@@ -1,0 +1,179 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="../INC/incuser.asp"-->
+<!--#include file="alipay/alipayto/alipay_payto.asp"-->
+<%
+OrderNumber = ReplaceBadChar(Request.QueryString("oid"))
+if OrderNumber = "" then
+	ErrMsg = "<LI>订单号不能为空！</LI>"
+	Call WriteErrMsg()
+	Response.End()
+end if
+
+sql="select StateID, OrderMoney, CouponMoney, UserTrueName, CollectionState from Pulb_Order where OrderNumber='"&OrderNumber&"'"
+set rs=server.createobject("adodb.recordset")
+rs.open sql,Conn,1,1
+if not rs.eof then
+	StateID = rs(0)
+	OrderMoney = rs(1)
+	CouponMoney = rs(2)
+	OrderTrueName = rs(3)
+	CollectionState = rs(4)
+else
+	Founderr = True
+	ErrMsg = "<LI>没有找到操作对象！</LI>"
+end if
+rs.close
+set rs=nothing
+If Founderr Then
+	CloseDB
+	Call WriteErrMsg()
+	Response.End()
+End If
+
+OrderAmount = FormatNumber(OrderMoney+CouponMoney,2,-1,-1,0)
+CurrentPage = "选择付款方式为订单付款"
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>选择付款方式为订单付款-<%=SystemInfo(1)%></title>
+<link rel="stylesheet" href="/css/main.css" type="text/css">
+<script language="javascript">var Channel="";var ChannelPage="";</script>
+<script language="javascript" src="/js/jquery-1.4.js"></script>
+<script language="javascript" src="/js/base.js"></script>
+<script language="javascript" src="/js/site.source.js"></script>
+<script language="javascript" src="/js/box/box.js?&skin=blue"></script>
+</head>
+
+<body>
+<%=FunHeader()%>
+<div class="main">
+	<div class='body'>
+		<%if StateID = 0 then
+			ClassName = "step3"
+		elseif StateID = 1 then
+			ClassName = "step5"
+		elseif StateID = 2 then
+			if CollectionState = 1 then
+				ClassName = "step5"
+			else
+				ClassName = "step4"
+			end if
+		elseif StateID = 3 then
+			if CollectionState = 1 then
+				ClassName = "step5"
+			else
+				ClassName = "step4"
+			end if
+		end if
+		%><div class="h_step <%=ClassName%>"></div>
+	</div>
+	<div class='body'>
+		<div class="orderb">
+			<div class="orderok">
+<%if StateID = 0 then
+	OrderActionStr = "请等待审核！"
+elseif StateID = 1 then
+	OrderActionStr = "订单已被取消！"
+elseif StateID = 2 then
+	if CollectionState = 1 then
+		OrderActionStr = "订单已确认并已付款！"
+	else
+		OrderActionStr = "订单已确认！"
+	end if
+elseif StateID = 3 then
+	if CollectionState = 1 then
+		OrderActionStr = "订单已完成并已付款！"
+	else
+		OrderActionStr = "订单已完成但未付款！"
+	end if
+end if	
+%>
+				<h3>订单号：<span style="color:red; font-size:16px"><%=OrderNumber%></span>，<%=OrderActionStr%></h3>
+<%
+if StateID >= 2 then
+	if CollectionState = 0 then
+%>
+				<h3>您需要支付：<span style="font-weight:bold; font-size:16px; color:red"><%=FormatCurrency(OrderAmount,2,-1,-1,-1)%></span></h3>
+				<p style="color:#666666; margin:0; padding:0">请选择以下付款方式为订单付款！</p>
+<%
+AlipaySwitch = 0
+BillSwitch = 0
+sql="select * from Pulb_SitePay"
+set rs=server.createobject("adodb.recordset")
+rs.open sql,Conn,1,1
+if not rs.eof then
+	AlipaySwitch = rs("AlipaySwitch")
+	BillSwitch = rs("BillSwitch")
+end if
+rs.close
+set rs = nothing
+if AlipaySwitch = 1 or BillSwitch = 1 then
+	response.Write "					<h4>在线支付</h4>"& vbcrlf
+end if
+
+if BillSwitch = 1 then
+	'快钱
+	bill = "99bill/send.asp?orderId="&OrderNumber&"&orderAmount="&OrderAmount&"&payerName="&OrderTrueName
+	response.Write "					<table width='600' border='0' cellspacing='0' cellpadding='0' class='pay_table tabborder1'>"& vbcrlf
+	response.Write "						<tr>"& vbcrlf
+	response.Write "						<td width='25%' align='center'><img src='/pay/images/pay_99bill.jpg' /></td>"& vbcrlf
+	response.Write "						<td width='40%'>快钱 — 领先的综合电子支付专家！<br />支持国内所有银行卡付款，安全支付！</td>"& vbcrlf
+	response.Write "						<td width='35%' align='center'><a href='"&bill&"' target='_blank' onclick='PaySubmit();'><img src='/pay/images/but_99bill.gif' /></a></td>"& vbcrlf
+	response.Write "						</tr>"& vbcrlf
+	response.Write "					</table>"& vbcrlf
+end if
+if AlipaySwitch = 1 then
+	'支付宝
+    '必须的参数	
+    service         =   "create_partner_trade_by_buyer"   'trade_create_by_buyer 表示标准双接口， create_partner_trade_by_buyer 表示担保交易接口
+	subject			=	SystemInfo(1)	                  '商品名称，如果客户走购物车流程可以设为  "订单号："&request("客户网站订单")
+	body			=	SystemInfo(1)		              '商品描述
+	out_trade_no    =   OrderNumber                       '按时间获取的订单号，可以修改成自己网站的订单号，保证每次提交的都是唯一即可
+	price		    =	OrderAmount            			  '商品单价			0.01～100000000.00  ，注：不要出现3,000.00，价格不支持","号
+    quantity        =   "1"                               '商品数量,如果走购物车默认为1
+    seller_email    =   seller_email                      '卖家的支付宝帐号，c2c客户，可以更改此参数。
+
+    '以下是可选的参数 如果没有可以为空。注意：姓名、联系地址和邮政编码 这三项要么都为空，要么都不能为空。
+  	show_url        = ""  '商户的展示地址，链接后面不能自定义参数
+	receive_name    = ""  '收货人姓名
+    receive_address = ""  '收货人地址
+	receive_zip     = ""  '邮编5 位戒6 位数字组成
+	receive_phone   = ""  '收货人电话
+	receive_mobile  = ""  '收货人手机 必须是11 位数字
+	buyer_email     = ""  '买家的支付宝账号
+    discount        = ""  '商品折扣
+
+    '如果需要多添加几组物流方式，可以增加第二组物流参数,如果不需要，可以为空
+   	logistics_fee_1	     = ""			'物流配送费用  0.00
+	logistics_payment_1  = ""	        '物流配送费用付款方式：SELLER_PAY(卖家支付)、BUYER_PAY(买家支付)、BUYER_PAY_AFTER_RECEIVE(货到付款)
+	logistics_type_1	 = ""		    '物流配送方式：POST(平邮)、EMS(EMS)、EXPRESS(其他快递)
+
+	Set AlipayObj	= New creatAlipayItemURL
+	itemUrl=AlipayObj.creatAlipayItemURL(service,subject,body,out_trade_no,price,quantity,seller_email,show_url,receive_name,receive_address,receive_zip,receive_phone,receive_mobile,buyer_email,discount,logistics_fee_1,logistics_payment_1,logistics_type_1)
+
+	response.Write "					<table width='600' border='0' cellspacing='0' cellpadding='0' class='pay_table tabborder1'>"& vbcrlf
+	response.Write "						<tr>"& vbcrlf
+	response.Write "						<td width='25%' align='center'><img src='/pay/images/pay_alipay.jpg' /></td>"& vbcrlf
+	response.Write "						<td width='40%'>支付宝 — 简单、安全、快速！<br />享受“担保交易服务”保障货款安全！</td>"& vbcrlf
+	response.Write "						<td width='35%' align='center'><a href='"&itemUrl&"' target='_blank' onclick='PaySubmit();'><img src='/pay/images/but_alipay.gif' /></a></td>"& vbcrlf
+	response.Write "						</tr>"& vbcrlf
+	response.Write "					</table>"& vbcrlf
+end if
+
+	end if
+end if
+%>
+				<UL>
+					<LI>您有任何疑问，请致电我们<span style="font-weight:bold; color:red"><%=CompanyInfo(1)%></span>，我们将竭诚为您服务！</LI>
+					<LI><a href="/my/">进入会员中心>></a></LI>
+				</UL>
+			</div>
+		</div>
+	</div>
+</div>
+<%=FunFooter(0)%>
+<%CloseDB%>
+</body>
+</html>

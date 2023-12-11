@@ -1,0 +1,73 @@
+<%@ page language="java" pageEncoding="UTF-8"%>
+<%@page import="com.huigao.security.support.SecurityUserHolder"%>
+<%
+String path = request.getContextPath();
+String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
+%>
+<html>
+<head>
+<base href="<%=basePath%>"/>
+<title>WeTogether员工考勤管理及任务管理系统1.0主页</title>
+	<link rel="shortcut icon" href="favicon.ico" />
+	<link rel="Bookmark" href="favicon.ico" />
+	<link href="css/xietong_loading_main.css" rel="stylesheet" type="text/css">
+	<link href="css/xietong_ext_main.css" rel="stylesheet" type="text/css">
+	<!--导入prototype文件 -->
+	<script language="javascript" type="text/javascript" src="js/prototype.js"></script>
+
+	<!--加载ext框架样式-->
+	<link href="js/ext-2.0/resources/css/ext-all.css" rel="stylesheet" type="text/css"/>
+	<link href="js/ext-2.0/resources/css/portal.css" rel="stylesheet" type="text/css"/>
+	<link href="js/ext-2.0/custom/Datetime/datetime.css" rel="stylesheet" type="text/css"/>
+	<script type="text/javascript">$('#loading-msg').innerHTML = '正在加载所需组件，请稍后...';</script>
+	
+	<!--加载ext核心文件-->
+	<script language="javascript" type="text/javascript" src="js/ext-2.0/adapter/ext/ext-base.js"></script>
+	<script language="javascript" type="text/javascript" src="js/ext-2.0/ext-all.js"></script>
+	<script language="javascript" type="text/javascript" src="js/RowExpander.js"></script>
+	<script language="javascript" type="text/javascript" src="js/ext-2.0/source/locale/ext-lang-zh_CN.js"></script>
+	
+	<!--加载ext自定义组件-->
+	<script type="text/javascript" src="js/localXHR.js"></script>
+	<script language="javascript" type="text/javascript" src="js/Ext.ux/Ext.ux.panel.Portal.js"></script>
+	<script language="javascript" type="text/javascript" src="js/Ext.ux/Ext.ux.tree.TreeCheckNodeUI.js"></script>
+	<script language="javascript" type="text/javascript" src="module/common/daka.js"></script>
+	<script language="javascript" type="text/javascript" src="module/common/xietong_main.js"></script>
+</head>
+
+<body>
+	<!--loading加载 -->
+	<div id="loadingTab">
+	    <div class="loading-indicator">
+	        <img src="images/public/loader.gif" width="32" height="32" style="margin-right:8px;float:left;vertical-align:top;"/>
+	        <a href="main.jsp">WeTogether员工考勤管理及任务管理系统1.0</a> -
+	        <span id="loading-yfo"><a href="http://www.zhzhcn.cn/" target="_blank">汇高网讯科技(北京)有限公司</a></span><br />
+	        <span id="loading-msg">加载样式表和图片...</span>
+	    </div>
+	</div>
+	
+	<div id="north" style="visibility:hidden">
+		<span class="api-title"><img src="images/xietong.gif">WeTogether员工考勤管理及任务管理系统1.0</span>
+		<span style="float:right">
+			欢迎您，<%=SecurityUserHolder.getCurrentUser().getRealName() %>&nbsp;&nbsp;&nbsp;
+			<a href="${pageContext.request.contextPath}/j_spring_security_logout"><img src="images/lock.gif"/>注销登录</a>&nbsp;&nbsp;&nbsp;
+	        <a href="${pageContext.request.contextPath}/help_WeTogether/index.html" target="_blank"><img src="images/help.png">联机帮助</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+		</span>
+	</div>
+	
+	<div id="south">
+	    <div class="power" id="power" style="visibility:hidden;">&nbsp;</div>
+	    <div class="bq" id="banquan" style="visibility:hidden;">
+	    	<img src="images/spider.gif" style="margin-bottom:-5px;">蜘蛛工作室出品&nbsp; &nbsp;<img src="images/logo.gif" style="margin-bottom:-2px;"><a href="http://www.zhzhcn.cn/" > 汇高网讯科技（北京）有限公司</a>版权所有&nbsp;&nbsp;<a href="${pageContext.request.contextPath}/copyRight/copyRight.html">版权声明</a>
+	    </div>
+	</div>
+	
+    <script type="text/javascript">
+		$('loading-msg').innerHTML = '初始化完毕！！';
+		Ext.get('loadingTab').fadeOut({remove: true});//让加载标签消失	
+		$('north').style.visibility="visible";
+		$('power').style.visibility="visible";
+		$('banquan').style.visibility="visible" 
+	</script>
+</body>
+</html>

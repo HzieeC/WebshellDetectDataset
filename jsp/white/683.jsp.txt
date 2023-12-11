@@ -1,0 +1,457 @@
+
+$import('module/common/DepartmentComboBox.js');
+$import('module/common/ProjectComboBox.js');
+$import('module/common/PersonManage.js');
+$import('module/common/TaskManage.js');
+
+Ext.namespace('Xietong.manage');
+
+<%@ page language="java" pageEncoding="UTF-8"%>
+<%@ taglib prefix="security" uri="http://www.springframework.org/security/tags" %>
+<%@ page import="com.huigao.security.support.SecurityUserHolder"%>
+<%@ page language="java" import="com.huigao.pojo.*,java.util.*"%>
+
+Xietong.manage.TaskManage = function(){
+	this.init();
+};
+
+Ext.extend(Xietong.manage.TaskManage,Ext.util.Observable,{
+	init:function(){
+		
+	var departmentComboBox = new Xietong.department.DepartmentComboBox({
+		listeners:{
+			'expand':function(combo){
+				combo.store.insert(0,new Department({id:0,departmentName:'所有部门'}));
+			},
+			'collapse': function(combo) {
+				combo.store.remove(combo.store.getAt(0));
+			}
+		}
+	});
+	
+	departmentComboBox.store.load();
+		var personComboBox = new Xietong.person.PersonTrigger();
+		var searchPeronComboBox = new Xietong.person.PersonTrigger();
+//		var Department = Ext.data.Record.create([
+//			{name : 'id',mapping : 'id',type : 'int'}, 
+//			{name : 'realName',	mapping : 'realName',type : 'string'}
+//		]);
+//		searchPeronComboBox.on('expand',function(combo){
+//			combo.store.insert(0,new Department({id:0,realName:'所有人员'}));
+//		});
+//		searchPeronComboBox.on('collapse',function(combo) {
+//			combo.store.remove(combo.store.getAt(0));
+//		});
+		
+		var ds = new Xietong.task.TaskStore();
+		var sm = new Ext.grid.CheckboxSelectionModel();
+		
+		var expander = new Ext.grid.RowExpander({
+        tpl : new Ext.Template( 
+            '<p><b>描述:</b> {taskdescription}</p>'
+        )
+    	});
+        //详细描述 taskdescription
+		var cm =  new Ext.grid.ColumnModel([
+		    expander,
+			new Ext.grid.RowNumberer(),{
+				header:'编号',
+				dataIndex:'id',
+				width:60,
+				hidden:true,
+				sortable:true
+			},{
+				header:'任务名称',
+				dataIndex:'taskname',
+				width:60,
+				sortable:true
+			},{
+				header:'负责人',
+				dataIndex:'usersName',
+				width:60,
+				sortable:true,
+				editable:false,
+				editor:personComboBox
+			},{
+				header:'所属项目',
+				dataIndex:'projectName',
+				width:60,
+				sortable:true
+			},{
+				header:'任务类型',
+				dataIndex:'tasktype',
+				width:60,
+				sortable:true
+			},{
+				header:'优先级',
+				dataIndex:'priority',
+				width:60,
+				sortable:true
+			},{
+				header:'任务状态',
+				dataIndex:'taskstate',
+				width:60,
+				sortable:true,
+				editable:false,
+				editor:new Ext.form.ComboBox({
+					store : new Ext.data.SimpleStore({
+						fields : ['value','text'],
+						data : [['审核通过','审核通过'],['审核不通过','审核不通过']]
+					}),
+					valueField : 'value',
+					displayField : 'text',
+					triggerAction : 'all',
+					mode:'local',
+					editable: false,
+					triggerAction: 'all'
+				})
+			},
+			sm
+		]);
+		
+		var refreshBtn = new Ext.Button({
+		text:'刷新',
+		iconCls:'icon-refresh',
+		handler:function() {
+			ds.reload();
+		}
+		});
+		
+		var addTaskWindow = null;
+		var users = new Xietong.person.PersonTrigger();
+		users.fieldLabel = '负责人';
+		var addTaskPanel = new Ext.FormPanel({
+			layout:'form',
+			frame:true,
+			labelAlign: 'right', 
+			url:'module/task/add.do',
+			defaultType:'textfield',
+			items:[{
+				fieldLabel:'任务名称',
+				anchor: "90%",
+				name:'taskname',
+				allowBlank: false,
+				width:300
+			},users,//负责人superiorsName
+		    new Xietong.project.ProjectComboBox(),//所属项目projectId
+		    new Xietong.task.TaskTypeComboBox(),//任务类型tasktype
+		    new Xietong.task.TaskPriority(),//优先级priority
+		    {
+		    	fieldLabel:'描述',
+				anchor: "90%",
+				xtype:'htmleditor',
+				enableSourceEdit :false,
+				enableLists :false,
+				name:'taskdescription',
+				width:500
+		    }
+			],
+			buttons:[{
+                text: '添加',
+                formBind: true,
+                handler: function(){
+                    if(addTaskPanel.getForm().isValid())
+			        	addTaskPanel.getForm().submit({
+			        		waitMsg:'保存中,请稍后...',
+			        		success:function(form,action){
+				        		addTaskPanel.getForm().reset();
+				        		addTaskWindow.hide();
+				        		Ext.Msg.alert('信息',action.result.msg);
+				        		ds.reload();
+			        		}
+			        	});
+			
+                }
+            }, {
+                text: '取消',
+                handler: function(){
+                    addTaskPanel.form.reset();
+					addTaskWindow.hide();
+                }
+            }]
+		});
+		
+		var addBtn = new Ext.Button({
+		text:'产生任务',
+		handler:function() {
+			if(!addTaskWindow) {
+				addTaskWindow = new Ext.Window({
+					title:'提交任务',
+					modal:true,
+				    closable:true,
+				    closeAction:'hide',
+					width:700,
+					items:[addTaskPanel]
+				});
+			}
+			addTaskWindow.show(Ext.get('addBtn'));
+		}
+		});
+				
+		var searchBtn = new Ext.Button({
+			text:'查询',
+			iconCls:'icon-search',
+			handler:function() {
+				if(searchPeronComboBox.isValid()) {
+					ds.on('beforeload', function() {
+						cm.setEditable(4,false);
+						cm.setEditable(8,false);
+						this.baseParams = {
+					 		s_userName:searchPeronComboBox.getValue()
+					 	};
+					});
+					ds.reload();
+				}
+			}
+		});
+		
+		var audit = new Ext.Button({
+		text:'审核任务',
+		handler:function() {
+			ds.on('beforeload', function() {
+						this.baseParams = {
+					 		audit : 'audit'
+					 	};
+					});
+			ds.reload();
+			cm.setEditable(8,true);
+		}
+		});
+		
+		var sendAudit = new Ext.Button({
+		text:'送去审核',
+		handler:function() {
+			if(!sm.hasSelection()){
+				Ext.Msg.alert('信息','没有选中任何记录任务！');
+			}else{
+				Ext.Msg.show({
+				title: '确定送审核',
+   				msg: '确定要送去审核吗？',
+   				width: 300,
+   				buttons: Ext.MessageBox.OKCANCEL,
+        		fn: function(bt){
+        			if(bt=='ok'){
+                        if(sm.hasSelection()){
+                            var ids="";
+                            var userids="";
+                            for(var i=0;i < sm.getSelections().length;i++){
+                                ids+=sm.getSelections()[i].get('id')+",";
+                                userids+=sm.getSelections()[i].get('usersId')+",";
+                            }
+                            Ext.Ajax.request({
+	        					url : 'module/task/sendAudit.do',
+	        					method : 'post',
+	        					params : {
+	        						userids : userids,
+	        						ids : ids
+	        					},
+	        				    success:function(response){
+	        				    	Ext.Msg.alert('信息',response.responseText,function(){
+	        				    		ds.reload();
+	        				    	});
+	        				    },
+	        				    failure:function(response){
+	        				    	Ext.Msg.alert('信息',response.responseText);
+	        				    }
+        				    });
+                        }else{
+                        	Ext.Msg.alert('信息','没有选中任何记录！');
+                        }
+        			}else{
+        				return;
+        			}
+        		}
+			});
+
+			}
+		}
+		});
+		
+		var scheduleBtn = new Ext.Button({
+		text:'调度任务',
+		handler:function() {
+			ds.on('beforeload', function() {
+						this.baseParams = {
+					 		schedule : 'schedule'
+					 	};
+					});
+			ds.reload();
+			cm.setEditable(4,true);
+		}
+		});
+		
+		var saveAuditUpdateBtn = new Ext.Button({
+		text:'保存修改',
+		iconCls:'icon-edit',
+		handler:function() {
+			cm.setEditable(8,false);
+			var modifiedRecords = ds.getModifiedRecords();
+			if(modifiedRecords.length==0){
+				Ext.Msg.alert('提示','没有任何修改！');
+			}else{
+				var taskstates = "";
+				var ids = "";
+				for(var i=0;i< modifiedRecords.length;i++){
+					taskstates += modifiedRecords[i].get('taskstate');
+					taskstates += ",";
+					ids += modifiedRecords[i].get('id');
+					ids += ",";
+				}
+				Ext.Ajax.request({
+					url : 'module/task/audit.do',
+					params : {
+						taskstates : taskstates,
+						ids : ids
+					},
+					success : function(response){
+						Ext.Msg.alert('信息',response.responseText,function(){
+							ds.reload();
+						});
+					},
+					failure : function(response){
+						Ext.Msg.alert('信息',response.responseText);
+					}
+				});
+			}	
+		}
+		});
+		
+		var saveScheduleUpdateBtn = new Ext.Button({
+		text:'保存修改',
+		iconCls:'icon-edit',
+		handler:function() {
+			cm.setEditable(4,false);
+			var modifiedRecords = ds.getModifiedRecords();
+			if(modifiedRecords.length==0){
+				Ext.Msg.alert('提示','没有任何修改！');
+			}else{
+				var ids = "";
+				var userNames = "";
+				for(var i=0;i< modifiedRecords.length;i++){
+					ids += modifiedRecords[i].get('id');
+					ids += ",";
+					userNames += modifiedRecords[i].get('usersName');
+					userNames += ",";
+				}
+				Ext.Ajax.request({
+					url : 'module/task/schedule.do',
+					params : {
+						ids : ids,
+						userNames : userNames
+					},
+					success : function(response){
+						Ext.Msg.alert('信息',response.responseText,function(){
+							ds.reload();
+						});
+					},
+					failure : function(response){
+						Ext.Msg.alert('信息',response.responseText);
+					}
+				});
+			}	
+		}
+		});
+		
+		var deleteBtn = new Ext.Button({
+			iconCls:'icon-delete',
+			text : '删除',
+			handler : function(){
+				if(!sm.hasSelection()){
+					Ext.Msg.alert('信息','没有选中任何记录！');
+					return;
+				}else{
+					Ext.MessageBox.confirm("警告","确认删除所选记录？",function(e){
+					if(e == 'yes') {
+						 var taskids = "";
+					     for (var i = 0; i < sm.getSelections().length; i++) {  
+						 	if (i > 0) {
+						 		taskids = taskids + ',' + sm.getSelections()[i].get('id');
+						 	}
+						 	else {
+						 		taskids = taskids + sm.getSelections()[i].get('id'); 
+						 	}
+						 }
+						 Ext.Ajax.request({
+							url : 'module/task/delete.do',
+							params : {
+								taskids : taskids
+							},
+							success : function(response){
+								Ext.MessageBox.alert("信息",response.responseText,function(){
+									ds.reload();
+								});
+							},
+							failure : function(response){
+								Ext.MessageBox.alert("错误","与后台联系的时候出了问题");
+							}
+						 });
+					} else {
+						return;
+					}
+					});
+				}
+			}	
+		});
+		
+		var mainPanel = new Ext.grid.EditorGridPanel({
+			renderTo:'taskmanage-main',
+			height:Ext.get("taskmanage-main").getHeight(),
+			width:Ext.get("taskmanage-main").getWidth(),
+			cm:cm,
+			sm:sm,
+			store:ds,
+			plugins: expander,
+			loadMask: {msg:'正在加载数据，请稍候......'},
+			viewConfig:{ forceFit:true  },
+			clicksToEdit: 1,
+			bbar: new Ext.PagingToolbar({
+				pageSize:12,
+				store:ds,
+				displayInfo:true,
+				displayMsg:'显示第{0}到{1}条记录，共{2}条记录',
+				emptyMsg:'没有记录'
+			}),
+			tbar: [
+			<%  Boolean add = false;
+			    Boolean schedule = false;
+			    Boolean delete = false;
+			    Boolean audit = false;
+				Users u = SecurityUserHolder.getCurrentUser();
+		        Map<String,List<Resource>> m = u.getRoleResources(); 
+		        Set<String> set = m.keySet();
+		        Iterator<String> it = set.iterator(); 
+		        for (int i = 0; i < m.size(); i++) {
+					String key = it.next();
+					List<Resource> list = m.get(key);
+					for (int j = 0; j < list.size(); j++) {
+						Resource r = list.get(j);
+						if(r.getValue().contains("/module/task/add*"))add = true;
+						else if(r.getValue().contains("/module/task/schedule*"))schedule = true;
+						else if(r.getValue().contains("/module/task/delete*"))delete = true;
+						else if(r.getValue().contains("/module/task/audit*"))audit = true;
+					}
+				}
+			%>
+				refreshBtn,'-',
+				<%if(add){%> addBtn,'-', <%}%>
+				sendAudit,'-',
+				<%if(schedule){%> scheduleBtn,saveScheduleUpdateBtn,'-', <%}%>
+				<%if(audit){%> audit,saveAuditUpdateBtn,'-', <%}%>
+				<%if(delete){%> deleteBtn,'-', <%}%>
+                '->',
+				'负责人:',
+				searchPeronComboBox,
+				searchBtn
+			]
+		});
+        
+        ds.load({params:{
+			start:0,
+			limit:12
+		}});  
+	},
+	//-----------------模块销毁函数---------------------------
+	destroy:function(){
+	}
+
+});

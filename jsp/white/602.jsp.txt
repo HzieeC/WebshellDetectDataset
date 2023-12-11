@@ -1,0 +1,53 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<%@ include file="/WEB-INF/views/common/taglibs.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>系统统计</title>
+
+</head>
+<body>
+<div class="userInfo">
+ <h1>服务器占用: <c:out value="50.3M"/> </h1><br/>
+  <h1>数据库用量 : <c:out value="4.3M"/> </h1><br/>
+  <h2>用户数量: <c:out value="32"/> </h2><br/>
+  <h2>角色数量 : <c:out value="16"/> </h2><br/>
+  <h2>部门数量 : <c:out value="5"/> </h2><br/>
+    <h2>新增试题数量: </h2>
+  	<div>
+  		<div style="padding-left:40px" >
+  		<h2 >今天 :<c:out value="0"/>&nbsp;&nbsp;
+  		本周 :<c:out value="0"/>&nbsp;&nbsp;
+  		本月 :<c:out value="3"/>&nbsp;&nbsp;
+  		上月 :<c:out value="6"/>&nbsp;&nbsp;
+  		总共 :<c:out value="9"/></h2>
+  		</div>
+  	</div><br/>
+  	 <h2>新增试卷数量: </h2>
+  	<div>
+  		<div style="padding-left:40px" >
+  		<h2 >今天 :<c:out value="0"/>&nbsp;&nbsp;
+  		本周 :<c:out value="0"/>&nbsp;&nbsp;
+  		本月 :<c:out value="0"/>&nbsp;&nbsp;
+  		上月 :<c:out value="0"/>&nbsp;&nbsp;
+  		总共 :<c:out value="2"/></h2>
+  		</div>
+  	</div><br/>
+  		 <h2>新增考试数量: </h2>
+  	<div>
+  		<div style="padding-left:40px" >
+  		<h2 >今天 :<c:out value="0"/>&nbsp;&nbsp;
+  		本周 :<c:out value="0"/>&nbsp;&nbsp;
+  		本月 :<c:out value="0"/>&nbsp;&nbsp;
+  		上月 :<c:out value="0"/>&nbsp;&nbsp;
+  		总共 :<c:out value="1"/></h2>
+  		</div>
+  	</div><br/>
+ 
+  	<h2>发送短信数量 :<c:out value="0"/></h2><br/>
+  <h2>发送邮件数量 :<c:out value="0"/></h2>
+</div>
+</body>
+</html>

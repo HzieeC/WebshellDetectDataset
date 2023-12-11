@@ -1,0 +1,150 @@
+﻿<!--#include file="../lib/base.asp"-->
+<!--#include file="../theme.asp"-->
+<%
+sdcms.checkuserlogin
+dim act:act=lcase(sdcms.fget("act",0))
+select case act
+	case "del":deldb()
+	case "adddb":adddb()
+	case "add"
+		sdcms.show theme_usermessage_add
+	case "show"
+		dim id:id=sdcms.getint(sdcms.fget("id",0),0)
+		dim userdata:userdata=sdcms.userinfo
+		dim rsshow
+		set rsshow=sdcms.db.exedb("select top 1 * from sd_user_message where id="&id&" and userid="&userdata(0)&"")
+		if rsshow.eof then
+			sdcms.echo "&#33719;&#21462;&#20869;&#23481;&#22833;&#36133;"
+			rsshow.close
+			set rsshow=nothing
+			sdcms.db.dbclose
+			sdcms.die
+		else
+			if rsshow("isread")=0 then
+				sdcms.db.dbupdate "sd_user_message","id="&id&"",array(array("isread",1,0,0))
+			end if
+			sdcms.show theme_usermessage_show
+		end if
+	case "reply"
+		id=sdcms.getint(sdcms.fget("id",0),0)
+		userdata=sdcms.userinfo
+		set rsshow=sdcms.db.exedb("select top 1 title,replydate,fromid from sd_user_message where id="&id&" and userid="&userdata(0)&"")
+		if rsshow.eof then
+			sdcms.echo "&#33719;&#21462;&#20869;&#23481;&#22833;&#36133;"
+			rsshow.close
+			set rsshow=nothing
+			sdcms.db.dbclose
+			sdcms.die
+		else
+			if rsshow("fromid")<0 then
+				sdcms.echo "&#38750;&#27861;&#21442;&#25968;&#20256;&#36882;"
+					rsshow.close
+					set rsshow=nothing
+					sdcms.db.dbclose
+					sdcms.die
+			end if
+			if sdcms.strlen(rsshow("replydate"))>0 then
+				sdcms.echo "&#35831;&#21247;&#37325;&#22797;&#22238;&#22797;&#65281;"
+				rsshow.close
+				set rsshow=nothing
+				sdcms.db.dbclose
+				sdcms.die
+			end if
+		end if
+		sdcms.show theme_usermessage_reply
+	case "replydb":replydb
+	case else
+		dim sqlwhere:sqlwhere=""
+		dim v:v=trim(sdcms.fget("v",1))
+		select case v
+			case "-1","-2","-3":sqlwhere=" and fromid="&v
+			case ""
+			case else:v=0:sqlwhere=" and fromid>0"
+		end select
+		sdcms.show theme_usermessage
+end select
+
+sub adddb()
+	dim t0,t1,t2
+	t0=sdcms.enhtml(sdcms.fpost("t0",0))
+	t1=sdcms.enhtml(sdcms.fpost("t1",0))
+	t2=sdcms.enhtml(sdcms.fpost("t2",0))
+	if sdcms.strlen(t0)=0 then
+		sdcms.echo "0&#29992;&#25143;&#21517;&#19981;&#33021;&#20026;&#31354;"
+		exit sub
+	end if
+	if not(sdcms.checkstr(t0,"username")) then
+		sdcms.echo "0&#29992;&#25143;&#21517;&#38169;&#35823;"
+		exit sub
+	end if
+	if sdcms.strlen(t1)<5 or  sdcms.strlen(t1)>50 then
+		sdcms.echo "0&#26631;&#39064;&#38271;&#24230;&#65306;&#53;&#45;&#53;&#48;&#20010;&#23383;&#31526;"
+		exit sub
+	end if
+	if sdcms.strlen(t2)<5 or  sdcms.strlen(t2)>255 then
+		sdcms.echo "0&#20869;&#23481;&#38271;&#24230;&#65306;&#53;&#45;&#53;&#48;&#20010;&#23383;&#31526;"
+		exit sub
+	end if
+	dim data:data=sdcms.db.dbload(1,"id","sd_user","username='"&t0&"'","")
+	if ubound(data)<0 then
+		sdcms.echo "0&#29992;&#25143;&#21517;&#19981;&#23384;&#22312;"
+		exit sub
+	else
+		dim toid:toid=data(0,0)
+	end if
+	dim userdata:userdata=sdcms.userinfo
+	dim userid:userid=userdata(0)
+	dim fromid:fromid=userid
+	if userid=toid then
+		sdcms.echo "0&#19981;&#21487;&#20197;&#21457;&#32473;&#33258;&#24049;"
+		exit sub
+	end if
+	sdcms.createusermessage array(array("title",t1,50,1),array("fromid",fromid,0,0),array("userid",toid,0,0),array("content",t2,255,1),array("createdate",now(),0,1),array("isread",0,0,0))
+	sdcms.echo "1&#28040;&#24687;&#21457;&#36865;&#25104;&#21151;"
+end sub
+
+sub replydb()
+	dim t0,t1,t2
+	t0=sdcms.enhtml(sdcms.fpost("t0",0))
+	t1=sdcms.enhtml(sdcms.fpost("t1",0))
+	t2=sdcms.getint(sdcms.fpost("t2",1),0)
+	if sdcms.strlen(t0)<5 or  sdcms.strlen(t0)>50 then
+		sdcms.echo "0&#26631;&#39064;&#38271;&#24230;&#65306;&#53;&#45;&#53;&#48;&#20010;&#23383;&#31526;"
+		exit sub
+	end if
+	if sdcms.strlen(t1)<5 or  sdcms.strlen(t1)>255 then
+		sdcms.echo "0&#20869;&#23481;&#38271;&#24230;&#65306;&#53;&#45;&#53;&#48;&#20010;&#23383;&#31526;"
+		exit sub
+	end if
+	dim userdata:userdata=sdcms.userinfo
+	dim fromid:fromid=userdata(0)
+	dim data:data=sdcms.db.dbload(1,"fromid,replydate","sd_user_message","id="&t2&" and userid="&fromid&"","")
+	if ubound(data)<0 then
+		sdcms.echo "0&#38750;&#27861;&#21442;&#25968;&#20256;&#36882;"
+		exit sub
+	end if
+	if data(0,0)<0 then
+		sdcms.echo "0&#38750;&#27861;&#21442;&#25968;&#20256;&#36882;"
+		exit sub
+	end if
+	if sdcms.strlen(data(1,0))>0 then
+		sdcms.echo "0&#35831;&#21247;&#37325;&#22797;&#22238;&#22797;&#65281;"
+		exit sub
+	end if
+	dim toid:toid=data(0,0)
+	sdcms.db.dbupdate "sd_user_message","id="&t2&" and userid="&fromid&"",array(array("replydate",now(),0,1))
+	sdcms.createusermessage array(array("title",t0,50,1),array("fromid",fromid,0,0),array("userid",toid,0,0),array("content",t1,255,1),array("createdate",now(),0,1),array("isread",0,0,0))
+	sdcms.echo "1&#28040;&#24687;&#22238;&#22797;&#25104;&#21151;"
+end sub
+
+sub deldb()
+	dim id:id=sdcms.getint(sdcms.fget("id",1),0)
+	if id<>0 then
+		userdata=sdcms.userinfo
+		dim userid:userid=userdata(0)
+		sdcms.db.dbdel "sd_user_message","id="&id&" and userid="&userid&""
+	end if
+	sdcms.echo "1&#21024;&#38500;&#25104;&#21151;"
+end sub
+sdcms.db.dbclose
+%>

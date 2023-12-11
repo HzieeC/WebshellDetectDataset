@@ -1,0 +1,54 @@
+<!--#include file="conn.asp"-->
+<!--#include file="md5.asp"-->
+<%
+'*****************************************
+'作者：guke
+'QQ：6692103
+'*****************************************
+if request("more")=" 登 陆 " then
+UserName1=request.form("UserName")
+PassWd1=request.form("PassWd")
+passwd2=md5(PassWd1)
+set rs=server.CreateObject("ADODB.RecordSet")
+rs.open "select * from [admin] where [UserName]='" & UserName1 & "'",conn,1,1
+if passwd2<>rs("passwd") then
+response.write "<script>alert('用户或密码错误!');location='javascript:history.back(-1)';</script>"
+else
+Response.Cookies("key")=rs("passwd")
+Response.Cookies("id")=rs("id")  
+Response.Cookies("key").expires=date+2
+Response.Cookies("id").expires=date+2
+response.redirect "admin.asp"
+end if
+rs.close
+end if
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<link href="../images/css.css" rel="stylesheet" type="text/css" />
+<title></title>
+</head>
+<body>
+<form method="post" action="">
+<table width="400" align="center" border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td height="95"></td>
+</tr>
+<tr>
+<td style="height:50px;color:#06C;font-size:16px;font-weight:bold;text-align:center">豆丁档案 2012 后台登陆</td>
+</tr>
+<tr> 
+<td align="center" height="35">用　户:　<input type="text" name="UserName" maxlength="14" size="24"></td>
+</tr>
+<tr>
+<td align="center" height="35">密　码:　<input type="password" name="Passwd" maxlength="18" size="24"></td>
+</tr>
+<tr> 
+<td height="40" align="center">
+<input type="submit" name="more" value=" 登 陆 "></td>
+</tr>
+</table>
+</form>
+</body>
+</html>

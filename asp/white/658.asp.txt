@@ -1,0 +1,125 @@
+
+<%
+     
+set rs_Product=server.createobject("adodb.recordset")
+sqltext="select top 6 * from Product where Passed=True and Newproduct=true order by UpdateTime desc"
+rs_Product.open sqltext,conn,1,1
+if not rs_Product.EOF then%>
+  <!--滚动区的高度和宽度-->
+<table border='0' align='center' cellpadding='0' cellspacing="0" cellspace='0'>
+<tr>
+	<td id='demo1' valign='top'>
+		<table width='100%' cellpadding='0' cellspacing='0' border='0' align='center'>
+		<tr valign='top'>
+		<%
+	    a=6
+	    for i=0 to rs_Product.recordcount
+	    fileExt=lcase(getFileExtName(rs_Product("DefaultPicUrl")))		
+	     %>
+			<td align='center'><table  border="0" align="center" cellpadding="2" cellspacing="0">
+              <tr>
+                <td>&nbsp;</td>
+              </tr>
+            </table>
+		  </td>
+			<%b=a mod 4
+		      if b=0 then%></tr>
+              <tr>
+              <%end if%>
+              <%rs_Product.movenext
+		       if rs_Product.eof then
+		       exit for%>
+              </tr>
+              <%end if%>
+              <%a=a+1
+		       next
+		        rs_Product.close%>
+		</table>
+	</td>
+	<td width="2" valign=top id=demo2></td>
+</tr>
+</table>
+	<%'end if
+else
+	Response.Write "暂 无 最 新 图 文"
+end if
+rs_Product.close
+set rs_Product=nothing
+%>
+
+
+
+
+<span id="tb_A101">
+              <!--------------------显示最新产品的子程序开始--------------------->
+                            <table width="35%" border="0" align="center" cellpadding="0" cellspacing="0">
+                              <%
+set rs_Product=server.createobject("adodb.recordset")
+sqltext="select top " & Product_count & " * from Product where Passed=True order by UpdateTime desc"
+rs_Product.open sqltext,conn,1,1
+%>
+                              <tr align="center">
+                                <%
+           If rs_Product.eof and rs_Product.bof then
+           response.write "<td><p align='center'><font color='#ff0000'>还没任何产品</font></p></td>"
+           else
+			  row_count=1
+			  Do While Not rs_Product.EOF%>
+                                <td><table border="0" cellpadding="0" cellspacing="8"  >
+                                    <tr>
+                                      <td width="38%" height="30"><table width="100%" border="0" cellspacing="0" cellpadding="0" >
+                                          <tr>
+                                            <td align="center"><table width="100%" height="100%" border="0" cellpadding="0" cellspacing="0" style="border: 1px solid #cccccc">
+                                                <tr>
+                                                  <td align="center"><a href="ProductShow.asp?ID=<%=rs_Product("id")%>"><img src=<%=rs_Product("DefaultPicUrl")%> width="130" height="110" border=0 ></a></td>
+                                                </tr>
+                                            </table></td>
+                                          </tr>
+                                          <tr>
+                                            <td height="22" align="center" bgcolor="#F5F5F5"><a href="Product_Show.asp?ID=<%=rs_Product("id")%>"><%=rs_Product("Title")%></a></td>
+                                          </tr>
+                                      </table></td>
+                                    </tr>
+                                </table></td>
+                                <% if row_count mod 3 =0 then%>
+                              </tr>
+                              <tr>
+                                <%end if%>
+                                <%
+rs_Product.MoveNext
+row_count=row_count+1
+Loop
+end if
+rs_Product.close
+%>
+                              </tr>
+</table>
+</span>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<table width="1%"  border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td><table width="100%"  border="0" cellpadding="3" cellspacing="1" bgcolor="#E9E9E9">
+      <tr>
+        <td width="130" bgcolor="#FFFFFF">
+              <table width="130"  border="0" cellpadding="0" cellspacing="0" bgcolor="#E9E9E9">
+                <tr>
+                  <td width="130" height="110" align="center" valign="middle" bgcolor="#FFFFFF"><a href="ProductShow.asp?ID=<%=rs_Product("id")%>"><img src=<%=rs_Product("DefaultPicUrl")%> width="130" height="110" border=0 ></a></td>
+                </tr>
+            </table></td>
+      </tr>
+    </table></td>
+    <td valign="bottom"><img src="Img/yyri2.gif" width="7" height="112" /></td>
+  </tr>
+  <tr>
+    <td colspan="2"><table width="100%"  border="0" cellspacing="2" cellpadding="0">
+      <tr>
+        <td height="30" align="center"><a href="Product_Show.asp?ID=<%=rs_Product("id")%>"><%=rs_Product("Title")%></a></td>
+      </tr>
+    </table></td>
+  </tr>
+</table>
+<p><span>
+  <!--------------------显示最新产品的子程序结束--------------------->
+  </span></p>
+<!--最新图文代码结束-->

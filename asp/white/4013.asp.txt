@@ -1,0 +1,520 @@
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/check.asp"-->
+<!--#include file="inc/head.inc"-->
+<!--#include file="../inc/ubbcode.asp"-->
+<!--#include file="../inc/cls_editor.asp"-->
+<!--#include file="flash.asp"-->
+<%
+Call InnerLocation("我发布的"&NewAsp.ModuleName)
+
+Dim Action,SQL,Rs,i,flashid
+flashid = Newasp.ChkNumeric(Request("flashid"))
+If ChannelID = 0 Then ChannelID = 5
+
+Dim InstallDir_ChannelDir
+InstallDir_ChannelDir = Trim(Newasp.InstallDir & Newasp.ChannelDir)
+ubb.BasePath = InstallDir_ChannelDir
+ubb.setUbbcode = Join(Newasp.setUserEditor,"|")
+ubb.Keyword = NewAsp.KeywordList
+
+Action = LCase(Request("action"))
+
+Select Case Trim(Action)
+	Case "save"
+		Call SaveFlash
+	Case "edit"
+		Call EditFlash
+	Case "del"
+		Call DeleteFlash
+	Case "view"
+		Call ViewFlash
+	Case Else
+		Call showmain
+End Select
+If Founderr = True Then
+	Call ToErrors(ErrMsg)
+End If
+
+Sub showmain()
+	If Founderr = True Then Exit Sub
+	%>
+<script language="JavaScript">
+<!--
+function myuser_flashlist_top(accept){
+	//document.write ('<table cellspacing=1 align=center cellpadding=3 border=0 class=Usertableborder>');
+	document.write ('<th valign=middle>');
+	if (accept==1)
+	{
+		document.write ('我的<%=Newasp.ModuleName%>列表--已审核的<%=Newasp.ModuleName%>');
+	}else{
+		document.write ('我的<%=Newasp.ModuleName%>列表--未审核的<%=Newasp.ModuleName%>');
+	}
+	document.write ('</th>');
+	document.write ('<th valign=middle noWrap>审核</th>');
+	document.write ('<th valign=middle noWrap>发布日期</th>');
+	document.write ('<th valign=middle noWrap>管理操作</th>');
+	document.write ('</tr>');
+}
+function myuser_flashlist_not(){
+	document.write ('<tr>');
+	document.write ('<td class=Usertablerow1 align=center valign=middle colspan=5>没有找到任何<%=Newasp.ModuleName%>。</td>');
+	document.write ('</tr>');
+}
+function myuser_flashlist_loop(channelid,flashid,accept,flashname,classname,flashdate,hits,style){
+	var tablebody;
+	if (style==1)
+	{
+		tablebody="Usertablerow1";
+	}else{
+		tablebody="Usertablerow2";
+	}
+	document.write ('<tr>');
+	document.write ('<td class='+tablebody+' valign=middle>['+classname+'] ');
+	document.write ('<a href="flashlist.asp?action=view&channelid='+channelid+'&flashid='+flashid+'">'+flashname+'</a></td>');
+	document.write ('<td class='+tablebody+' align=center valign=middle>');
+	if (accept==1)
+	{
+		document.write ('<font color=blue>已审</font>');
+	}else{
+		document.write ('<font color=red>未审</font>');
+	}
+	document.write ('</td>');
+	document.write ('<td class='+tablebody+' align=center valign=middle>'+flashdate+'</td>');
+	document.write ('<td class='+tablebody+' align=center valign=middle>');
+	document.write ('<a href="flashlist.asp?action=edit&channelid='+channelid+'&flashid='+flashid+'">修改</a> | ');
+	document.write ('<a href="flashlist.asp?action=del&channelid='+channelid+'&flashid='+flashid+'" onClick="return confirm(\'确定要删除吗？\')">删除</a>');
+	document.write ('</td>');
+	document.write ('</tr>');
+}
+-->
+</script>
+<table cellspacing=1 align=center cellpadding=3 border=0 class=Usertableborder>
+	<tr height=20 align=center>
+		<td class=Usertablerow2 colspan=5><a href="?ChannelID=<%=ChannelID%>&Accept=1">已审核的<%=Newasp.ModuleName%></a> | 
+		<a href="?ChannelID=<%=ChannelID%>">未审核的<%=Newasp.ModuleName%></a> | 
+		<a href="flashpost.asp?ChannelID=<%=ChannelID%>">发布新的<%=Newasp.ModuleName%></a> </td>
+	</tr>
+<%
+	Dim CurrentPage,page_count,totalrec,Pcount,maxperpage
+	Dim isAccept,s
+	maxperpage = 20 '###每页显示数
+	
+	If Trim(Request("Accept")) <> "" Then
+		isAccept = 1
+	Else
+		isAccept = 0
+	End If
+	CurrentPage = Request("page")
+	If CurrentPage = "" Or Not IsNumeric(CurrentPage) Then
+		CurrentPage = 1
+	Else
+		CurrentPage = CInt(CurrentPage)
+	End If
+	If CInt(CurrentPage) = 0 Then CurrentPage = 1
+	Response.Write "<script>myuser_flashlist_top("& isAccept &")</script>" & vbNewLine
+	totalrec = Newasp.Execute("SELECT COUNT(flashid) FROM NC_FlashList WHERE ChannelID = " & ChannelID & " And username='" & MemberName & "' And isAccept="& isAccept)(0)
+	Pcount = CInt(totalrec / maxperpage)  '得到总页数
+	If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+	If CurrentPage < 1 Then CurrentPage = 1
+	If CurrentPage > Pcount Then CurrentPage = Pcount
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT A.flashid,A.title,A.addtime,A.AllHits,A.isAccept,C.ClassName FROM [NC_FlashList] A INNER JOIN [NC_Classify] C on A.ClassID=C.ClassID WHERE A.ChannelID=" & ChannelID & "  And A.username='" & MemberName & "' And isAccept="& isAccept &" ORDER BY A.isTop DESC, A.addtime DESC ,A.flashid DESC"  'And username='" & MemberName & "'
+	If IsSqlDataBase = 1 Then
+		Set Rs = Newasp.Execute(SQL)
+	Else
+		Rs.Open SQL, Conn, 1, 1
+	End If
+	If Rs.EOF And Rs.BOF Then
+		Response.Write "<script>myuser_flashlist_not()</script>" & vbNewLine
+	Else
+		If Pcount > 1 then Rs.Move (CurrentPage - 1) * maxperpage
+		page_count = 0
+		If Rs.EOf Then Exit Sub
+		SQL = Rs.GetRows(maxperpage)
+		For i=0 To Ubound(SQL,2)
+			If (i mod 2) = 0 Then
+				s = 2
+			Else
+				s = 1
+			End If
+			Response.Write VbCrLf
+			Response.Write "<script>myuser_flashlist_loop("
+			Response.Write ChannelID
+			Response.Write ","
+			Response.Write SQL(0,i)
+			Response.Write ","
+			Response.Write SQL(4,i)
+			Response.Write ",'"
+			Response.Write EncodeJS(SQL(1,i))
+			Response.Write "','"
+			Response.Write EncodeJS(SQL(5,i))
+			Response.Write "','"
+			Response.Write FormatDated(SQL(2,i),4)
+			Response.Write "',"
+			Response.Write SQL(3,i)
+			Response.Write ","
+			Response.Write s
+			Response.Write ")</script>"
+			Response.Write VbCrLf
+			page_count = page_count + 1
+		Next
+		SQL=Null
+	End If
+	Rs.Close:Set Rs = Nothing
+	Response.Write "<tr align=right><td class=Usertablerow2 colspan=5>"
+	Response.Write ShowPages(CurrentPage,Pcount,totalrec,maxperpage,"&ChannelID="& ChannelID &"&Accept="& Request("Accept"))
+	Response.Write "</td></tr>" & vbNewLine
+	Response.Write "</table>"
+End Sub
+
+Function EncodeJS(str)
+	str = Newasp.HtmlEncode(str)
+	str = Replace(Replace(Replace(Replace(str,"\","\\"),"'","\'"),VbCrLf,"\n"),Chr(13),"")
+	EnCodeJs = str
+End Function
+
+Sub DeleteFlash()
+	If CInt(GroupSetting(36)) = 0 Then
+		ErrMsg = ErrMsg + "<li>对不起！您没有删除" & Newasp.ModuleName & "的权限，如需要该权限请联系管理员。</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If Newasp.CheckPost=False Then
+		ErrMsg = ErrMsg + Postmsg
+		FoundErr = True
+		Exit Sub
+	End If
+	If flashid = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！您选择了错误的系统参数。</li>"
+		Exit Sub
+	End If
+	SQL = "SELECT isAccept FROM NC_FlashList WHERE ChannelID=" & ChannelID & " And username='" & MemberName & "' And isAccept=0 And flashid=" & CLng(flashid)
+	Set Rs = Newasp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！此" & Newasp.ModuleName & "已经通过审核,您没有权限删除,如有什么问题请联系管理员。</li>"
+		Set Rs = Nothing
+		Exit Sub
+	Else
+		Newasp.Execute("DELETE FROM NC_FlashList WHERE ChannelID=" & ChannelID & " And username='" & MemberName & "' And isAccept=0 And flashid=" & CLng(flashid))
+	End If
+	Set Rs = Nothing
+	Response.Redirect  Request.ServerVariables("HTTP_REFERER")
+End Sub
+
+Sub SaveFlash()
+	Dim TextContent,isAccept,AlphaTitle
+	If CInt(GroupSetting(36)) = 0 Then
+		ErrMsg = ErrMsg + "<li>对不起！您没有修改"& Newasp.ModuleName &"的权限，如需要该权限请联系管理员。</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If Newasp.CheckPost=False Then
+		ErrMsg = ErrMsg + Postmsg
+		FoundErr = True
+		Exit Sub
+	End If
+	If CInt(GroupSetting(2)) = 1 Then
+		If Not Newasp.CodeIsTrue() Then
+			ErrMsg = ErrMsg + "<meta http-equiv=refresh content=""2;URL="&Request.ServerVariables("HTTP_REFERER")&"""><li>验证码校验失败，请返回刷新页面再试。两秒后自动返回</li>"
+			Founderr = True
+			Exit Sub
+		End If
+	End If
+	If flashid = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！您选择了错误的系统参数。</li>"
+		Exit Sub
+	End If
+	If Trim(Request.Form("title")) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>标题不能为空！</li>"
+	Else
+		AlphaTitle = ubb.CheckSpecialChar(Request.Form("title"))
+	End If
+	If Len(Request.Form("title")) > 200 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>标题不能超过200个字符！</li>"
+	End If
+	If Len(Request.Form("Related")) > 200 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>相关动画不能超过200个字符！</li>"
+	End If
+	If Not IsNumeric(Request.Form("star")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>推荐星级不能为空。</li>"
+	End If
+	If Not IsNumeric(Request.Form("classid")) Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>该一级分类已经有下属分类，不能添加软件！</li>"
+		Exit Sub
+	End If
+	If CLng(Request.Form("classid")) = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>该分类是外部连接，不能添加软件！</li>"
+	End If
+
+	TextContent = ""
+	For i = 1 To Request.Form("content").Count
+		TextContent = TextContent & Request.Form("content")(i)
+	Next
+	If Trim(TextContent) = "" Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>简介不能为空！</li>"
+	End If
+	If Len(TextContent) > CLng(GroupSetting(39)) And CLng(GroupSetting(39))>0 Then
+		ErrMsg = ErrMsg + "<li>简介不能大于" & GroupSetting(39) & "字符！</li>"
+		Founderr = True
+	End If
+	If Newasp.setUserEditor(0) <> 0 Then
+		TextContent = Newasp.HTMLEncode(TextContent)
+	End If
+	TextContent = Re_Replace(TextContent, InstallDir_ChannelDir, "[InstallDir_ChannelDir]")
+	Dim ChkPostData
+	ChkPostData = Newasp.NeedIsAudit(TextContent, Request.Form("title") & "" & Request.Form("Related"))
+
+	If Not IsNumeric(Request.Form("filesize")) Then
+		Founderr = True
+		ErrMsg = ErrMsg + "<li>文件大小请输入整数！</li>"
+	End If
+	If Founderr = True Then Exit Sub
+
+	Call PreventRefresh  '防刷新
+	Set Rs = NewAsp.CreateAXObject("ADODB.Recordset")
+	SQL = "SELECT * FROM NC_FlashList WHERE username='" & MemberName & "' And flashid=" & CLng(flashid)
+	Rs.Open SQL,Conn,1,3
+		Rs("ClassID") = Newasp.ChkNumeric(Request.Form("ClassID"))
+		Rs("title") = Newasp.RequestForm(Request.Form("title"),200)
+		Rs("Introduce") = Html2Ubb(TextContent)
+		Rs("Related") = Newasp.RequestForm(Request.Form("Related"),200)
+		Rs("Describe") = ""
+		If UCase(Request.Form("SizeUnit")) = "MB" Then
+			Rs("filesize") = CLng(Request.Form("filesize") * 1024)
+		Else
+			Rs("filesize") = CLng(Request.Form("filesize"))
+		End If
+		Rs("Author") = Newasp.RequestForm(Request.Form("Author"),50)
+		Rs("ComeFrom") = Newasp.RequestForm(Request.Form("ComeFrom"),50)
+		Rs("star") = Trim(Request.Form("star"))
+		Rs("miniature") = Newasp.RequestForm(Request.Form("miniature"),200)
+		Rs("showmode") = Newasp.ChkNumeric(Request.Form("showmode"))
+		Rs("downid") = 0
+		Rs("showurl") = Newasp.RequestForm(Request.Form("showurl"),200)
+		Rs("DownAddress") = ""
+		Rs("isUpdate") = 1
+		If ChkPostData = True Then
+			Rs("isAccept") = 0
+		End If
+		Rs("AlphaIndex") = Newasp.ReadAlpha(AlphaTitle)
+	Rs.update
+	Rs.Close:Set Rs = Nothing
+	Call ToSucceed("<li>恭喜您！修改"& Newasp.ModuleName &"成功。</li><li><a href=?action=view&ChannelID=" & ChannelID & "&flashid=" & flashid & ">点击此处查看该"& Newasp.ModuleName &"</a></li>")
+End Sub
+
+Sub EditFlash()
+	If flashid = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>Sorry！您选择了错误的系统参数。</li>"
+		Exit Sub
+	End If
+	If CInt(GroupSetting(36)) = 0 Then
+		ErrMsg = ErrMsg + "<li>对不起！您没有修改"& Newasp.ModuleName &"的权限，如需要该权限请联系管理员。</li>"
+		Founderr = True
+		Exit Sub
+	End If
+	If ChannelID = 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>请指定频道。</li>"
+		Exit Sub
+	End If
+	SQL = "SELECT * FROM NC_FlashList WHERE ChannelID=" & ChannelID & " And username='" & MemberName & "' And flashid=" & CLng(flashid)
+	Set Rs = Newasp.Execute(SQL)
+	If Rs.BOF And Rs.EOF Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>错误的系统参数！</li>"
+		Exit Sub
+	End If
+	Dim classid
+	classid = Rs("classid")
+	If Rs("isAccept") <> 0 Then
+		FoundErr = True
+		ErrMsg = ErrMsg + "<li>此"& Newasp.ModuleName &"已经通过审核,您没有权限修改,如有什么问题请联系管理员。</li>"
+		Set Rs = Nothing
+		Exit Sub
+	End If
+%>
+<script language=JavaScript>
+var _maxCount = '<%=CLng(GroupSetting(39))%>';
+
+function doSubmit(){
+	var form1 = document.myform;
+	var strLen=0;
+	try{
+		strLen=GetContentLength();
+	}
+	catch(e){
+		strLen=form1.content.value.length;
+	}
+	if(strLen < 2){
+		alert("简介不能小于2个字符！");
+		return false;
+	}
+	if(strLen > _maxCount){
+		alert("简介不能超过"+_maxCount+"个字符！");
+		return false;
+	}
+
+	if (form1.title.value==""){
+		alert("标题不能为空！");
+		form1.title.focus();
+		return false;
+	}
+	if (form1.showurl.value==""){
+		alert("URL不能为空！");
+		form1.showurl.focus();
+		return false;
+	}
+	if (form1.classid.value==""){
+		alert("该一级分类已经有下属分类，请选择其下属分类！");
+		form1.classid.focus();
+		return false;
+	}
+	if (form1.classid.value=="0"){
+		alert("该分类是外部连接，不能添加内容！");
+		form1.classid.focus();
+		return false;
+	}
+	if (form1.filesize.value==""){
+		alert("大小还没有填写！");
+		form1.filesize.focus();
+		return false;
+	}
+	<%If CInt(GroupSetting(2)) = 1 Then%>
+	if (form1.checkcode.value==""){
+		alert("请填写验证码！");
+		form1.checkcode.focus();
+		return false;
+	}
+	<%End If%>
+}
+</script>
+<div onkeydown="CtrlEnter()">
+<table class="UserTableBorder" cellspacing="1" cellpadding="3" align="center" border="0">
+	<tr>
+		<th colspan="2">&gt;&gt;发布<%=Newasp.ModuleName%>&lt;&lt;</th>
+	</tr>
+	<form action="flashlist.asp" method="post" onsubmit="return doSubmit()" name="myform">
+	<input type="Hidden" name="action" value="save"/>
+	<input type="hidden" name="ChannelID" value="<%=ChannelID%>"/>
+	<input type="hidden" name="flashid" value="<%=flashid%>"/>
+		<tr>
+			<td class="UserTableRow2" nowrap="nowrap" align="right" width="15%"><strong>所属分类</strong></td>
+			<td class="UserTableRow1" width="85%"><%
+	Call selectClasslist(ChannelID,classid)
+%></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong><%=Newasp.ModuleName%>标题</strong></td>
+			<td class="UserTableRow1"><input size="60" name="title" value="<%=Server.HTMLEncode(Rs("title"))%>" type="text" /> <font color="#ff0000">*</font></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>相关<%=Newasp.ModuleName%></strong></td>
+			<td class="UserTableRow1"><input size="60" name="Related" value="<%=Rs("Related")%>" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>文件大小</strong></td>
+			<td class="UserTableRow1"><input id="filesize" size="15" onkeyup="if(isNaN(this.value))this.value=''" name="filesize" value="<%=Newasp.CheckNumeric(Rs("filesize"))%>" type="text" /> <input type="radio" checked="checked" name="SizeUnit" value="KB" /> KB <input type="radio" name="SizeUnit" value="MB" /> MB <strong>推荐星级</strong><select name="star">
+			<option value="5"<%If Rs("star") = 5 Then Response.Write (" selected=""selected""")%>>★★★★★</option>
+			<option value="4"<%If Rs("star") = 4 Then Response.Write (" selected=""selected""")%>>★★★★</option>
+			<option value="3"<%If Rs("star") = 3 Then Response.Write (" selected=""selected""")%>>★★★</option>
+			<option value="2"<%If Rs("star") = 2 Then Response.Write (" selected=""selected""")%>>★★</option>
+			<option value="1"<%If Rs("star") = 1 Then Response.Write (" selected=""selected""")%>>★</option>
+			</select></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong><%=Newasp.ModuleName%>作者</strong></td>
+			<td class="UserTableRow1"><input name="Author" value="<%=Server.HTMLEncode(Rs("Author") & "")%>" type="text" /> <select onChange="Author.value=this.value;" name="font2">
+			<option value="" selected="selected">选择作者</option>
+			<option value="佚名">佚名</option>
+			<option value="本站原创">本站原创</option>
+			<option value="不详">不详</option>
+			<option value="未知">未知</option>
+			<option value="<%=MemberName%>"></option>
+			</select> <strong><%=Newasp.ModuleName%>来源</strong> <input name="ComeFrom" value="<%=Server.HTMLEncode(Rs("ComeFrom") & "")%>" type="text" /> <select onChange="ComeFrom.value=this.value;" name="font1">
+			<option value="" selected="selected">选择来源</option>
+			<option value="本站原创">本站原创</option>
+			<option value="本站整理">本站整理</option>
+			<option value="不详">不详</option>
+			<option value="转载">转载</option>
+			</select></td>
+		</tr>
+		<tr>
+			<td class="usertablerow1" colspan="2"><%
+	'-- 编辑器设置
+	Dim oEditor,EditorCode
+	Set oEditor				= New Editor_Cls
+	oEditor.UserMode		= 1
+	oEditor.setEditMode		= Newasp.setUserEditor(0)
+	oEditor.ChannelID		= ChannelID
+	oEditor.Width			= Newasp.setUserEditor(2)
+	oEditor.Height			= Newasp.setUserEditor(3)
+	oEditor.BasePath		= Newasp.InstallDir & Newasp.setAdminEditor(4)
+	oEditor.ToolbarSet		= Newasp.setUserEditor(1)
+	oEditor.Value			= Re_Replace(Rs("Introduce"), "[InstallDir_ChannelDir]", InstallDir_ChannelDir)
+	oEditor.InstanceName	= "content"
+	oEditor.Execute()
+	Set oEditor = Nothing
+%></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>预览图片</strong></td>
+			<td class="UserTableRow1"><input id="ImageUrl" size="60" name="miniature" value="<%=Server.HTMLEncode(Rs("miniature") & "")%>" type="text" /></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>上传图片</strong></td>
+			<td class="UserTableRow1"><iframe name="frm_image2" src="upload.asp?ChannelID=<%=ChannelID%>" frameborder="0" width="100%" scrolling="no" height="55" allowTransparency="true"></iframe></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>显示模式</strong></td>
+			<td class="UserTableRow1"><%
+Dim ShowModeArray
+
+ShowModeArray = Array("不显示","FLASH","图片","Media","Real","DCR")
+For i = 0 To UBound(ShowModeArray)
+	Response.Write "<input type=""radio"" name=""showmode"" value=""" & i & """ "
+	If i = Rs("showmode") Then Response.Write " checked"
+	Response.Write "/>" & Trim(ShowModeArray(i)) & " "
+	If i = 6 Then Response.Write "<br>"
+Next
+%></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong><%=Newasp.ModuleName%>URL</strong></td>
+			<td class="UserTableRow1"><input id="filePath" size="60" name="showurl" value="<%=Server.HTMLEncode(Rs("showurl") & "")%>" type="text" /> <font color="#ff0000">*</font></td>
+		</tr>
+		<tr>
+			<td class="UserTableRow2" align="right"><strong>文件上传</strong></td>
+			<td class="UserTableRow1"><iframe name="frm_file1" src="upfile.asp?ChannelID=<%=ChannelID%>&amp;type=flash" frameborder="0" width="100%" scrolling="no" height="60" allowTransparency="true"></iframe></td>
+		</tr>
+		<%
+If CInt(GroupSetting(2)) = 1 Then
+%>
+		<tr>
+			<td class="UserTableRow2" align="right" height="28"><strong>验证码</strong></td>
+			<td class="UserTableRow1"><input name="checkcode" type="text" class="logininput" id="checkcode" size="5" maxlength="4" onfocus="get_checkcode();this.onfocus=null;" onkeyup="ajaxcheckcode('check_code','checkcode');" />
+				<span id="img_checkcode"><label style="cursor:pointer;" onclick="get_checkcode();">点击获取验证码</label></span><span id="isok_checkcode"></span> <font color="#ff0000">*</font></td>
+		</tr>
+		<%
+End If
+%>
+		<tr align="center">
+			<td class="UserTableRow2" colspan="4" height="28"><input class="Button" type="button" onclick="javascript:history.go(-1)" name="Submit4" value="返回上一页" /> <input class="Button" type="submit" name="Submit1" value="现在发布" /></td>
+		</tr>
+	</form>
+</table>
+</div>
+<%
+End Sub
+%>
+<!--#include file="inc/foot.inc"-->

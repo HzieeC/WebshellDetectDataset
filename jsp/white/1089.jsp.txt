@@ -1,0 +1,117 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_custcomment.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.trade.ti_goods.*" %>
+
+  <% 
+	String menu_id = "";
+	if (request.getParameter("menu_id") != null){
+		menu_id = request.getParameter("menu_id");
+	}
+	Ti_goodsInfo custInfo = new Ti_goodsInfo();
+  	String info_id="";
+  	if(request.getParameter("info_id")!=null) info_id = request.getParameter("info_id");
+  	Ti_custcommentInfo ti_custcommentInfo = new Ti_custcommentInfo();
+  	List list = ti_custcommentInfo.getListByPk(info_id);
+  	Hashtable map = new Hashtable();
+  	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+  	
+  	String goods_id="",com_type="",content="",in_date="",s_user_id="",info_level="",up_num="",down_num="",reply_content="",reply_date="",reply_user_id="",cust_name="";
+	if(map.get("goods_id")!=null) {
+
+	goods_id = map.get("goods_id").toString();
+	cust_name = custInfo.getGoodsNameById(goods_id);
+	}
+  	if(map.get("com_type")!=null) com_type = map.get("com_type").toString();
+  	if(map.get("content")!=null) content = map.get("content").toString();
+  	if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+  	if(map.get("user_id")!=null) s_user_id = map.get("user_id").toString();
+  	if(map.get("info_level")!=null) info_level = map.get("info_level").toString();
+  	if(map.get("up_num")!=null) up_num = map.get("up_num").toString();
+  	if(map.get("down_num")!=null) down_num = map.get("down_num").toString();
+  	if(map.get("reply_content")!=null) reply_content = map.get("reply_content").toString();
+	if(reply_content.trim().equals("")){
+		reply_content = "商家未回复";
+	}
+  	if(map.get("reply_date")!=null) reply_date = map.get("reply_date").toString();
+  	if(map.get("reply_user_id")!=null) reply_user_id = map.get("reply_user_id").toString();
+
+  %>
+	<link rel="stylesheet" rev="stylesheet" href="/templets/html/8diansc/css/main_right.css" type="text/css" />
+<div class="f-right w750">
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#eddfea">
+      <tr>
+        <td width="5%" height="40" align="center"><img src="/program/member/index/images/icon1.gif" /></td>
+        <td width="75%"><h3>评价查看</h3></td>
+
+      </tr>
+    </table>
+
+    <!--Content部分开始-->
+    <DIV class="focus-area-setTab">
+      <DIV class="focus-area-setTab-menu">
+        <DIV class="clear"></DIV>
+      </DIV>
+      <DIV class="focus-area-setTab-content">
+        <DIV id=con_one_1 >
+          <table width="100%" border="0" cellspacing="0" bgcolor="#fcf8fb" cellpadding="0" style="border-bottom:3px solid #eddfea; padding-left:15px;">
+            <tr bgcolor="#fcf8fb">
+              <td height="100" valign="top"><table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-size:12px;">
+                  <tr>
+                    <td height="17" colspan="2" class="art_col">&nbsp;</td>
+                  </tr>
+                  <tr>
+                    <td width="90" height="38" class="art_col">商品名称:</td>
+                    <td><%=cust_name%></td>
+                  </tr>
+                  <tr>
+                    <td height="38" class="art_col">留言内容</td>
+                    <td>
+					<%=content%>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td height="38" class="art_col">商家回复:</td>
+                    <td>
+					<%=reply_content%>
+					</td>
+                  </tr>
+				  
+                   <tr>
+                    <td height="38" class="art_col">商品星级:</td>
+                    <td>
+
+						<%
+							int info_l_int = 0;
+							if(!info_level.equals("")){
+								info_l_int = Integer.parseInt(info_level);
+							}
+							for(int k=0;k<info_l_int;k++){
+						%>
+							<img src="/program/member/goodscomment/qy_xx1.jpg" border="0" />
+						<%
+							}
+						%>
+
+						
+					</td>
+                  </tr>
+				  
+                </table>
+				</td>
+            </tr>
+          </table>
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" >
+            <tr>
+              <td height="50" align="center">
+			  <input type="button" name="Submit2" value="返回" class="button2" onclick="window.location.href='index.jsp?menu_id=<%=menu_id%>';">
+              </td>
+            </tr>
+          </table>
+        </DIV>
+      
+      </DIV>
+    </DIV>
+  </div>
+</div>

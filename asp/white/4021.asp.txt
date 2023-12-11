@@ -1,0 +1,96 @@
+<!--#include file="inc/const.asp"-->
+<!--#include file="inc/check.asp"-->
+<!--#include file="inc/common.asp"-->
+<%
+Dim XMLDom,dataNode,i
+Dim UserClass,UserGrade,ExpireTime,JoinTime
+
+Call Main()
+Call TPL_Flush()
+NewAsp.PageEnd()
+
+Sub Main()
+	Dim strHTML
+	strHTML = NewAsp.LoadTemplate("users\main")
+	strHTML = Replace(strHTML, "{$pagetitle}",  TPL_Config(2))
+	strHTML = Replace(strHTML, "{$channelid}", 0)
+	strHTML = Replace(strHTML, "{$classid}", 0)
+	Call LoadMainData()
+	TPL_Scan strHTML
+End Sub
+
+Sub TPL_ParseNode(sTokenType, sTokenName, sVariant)
+	Select Case sTokenType
+		Case "newasp"
+			ParseDataNode		sTokenName,sVariant
+	Case Else
+	End Select
+End Sub
+
+Sub ParseDataNode(sToken,sVariant)
+	On Error Resume Next
+	Dim Node
+	Select Case sToken
+		Case "membernam"		:	TPL_Echo MemberName
+		Case "membergrou"		:	TPL_Echo NewAsp.membergroup
+		Case "menbernicknam"	:	TPL_Echo NewAsp.menbernickname
+		Case "regtime"			:	TPL_Echo JoinTime
+		Case "lasttimedate"		:	TPL_Echo Request.Cookies(NewAsp.CookiesName)("LastTimeDate")
+		Case "lasttimeip"		:	TPL_Echo Request.Cookies(NewAsp.CookiesName)("LastTimeIP")
+		Case "userclass"		:	TPL_Echo GetUserClass
+		Case "expires"			:	TPL_Echo GetUserExpire
+	Case Else
+			If Not IsObject(dataNode) Then Exit Sub
+			Set Node = dataNode.selectSingleNode("@"&sToken&"")
+			If Not (Node Is Nothing) Then
+				TPL_Echo Node.text
+			End If
+	End Select
+	Set Node = Nothing
+	If Err Then Err.Clear
+End Sub
+
+Sub LoadMainData()
+	Dim Rs,SQL
+	SQL = "SELECT * FROM NC_User WHERE username='" & Membername & "'"
+	Set Rs = NewAsp.Execute(SQL)
+	Set XMLDom = NewAsp.RecordsetToxml(Rs,"row","xml")
+	Rs.Close:Set Rs = Nothing
+	Set dataNode = XMLDom.documentElement.selectSingleNode("row")
+	If Not dataNode Is Nothing Then
+		UserClass=CLng(dataNode.selectSingleNode("@userclass").text)
+		UserGrade=CLng(dataNode.selectSingleNode("@usergrade").text)
+		ExpireTime=CDate(dataNode.selectSingleNode("@expiretime").text)
+		JoinTime=CDate(dataNode.selectSingleNode("@jointime").text)
+	End If
+
+End Sub
+
+Function GetUserClass()
+	If UserGrade=999 Then
+		GetUserClass="管理员"
+	Else
+		If UserClass=0 Then
+			GetUserClass="计点会员"
+		ElseIf UserClass=1 Then
+			GetUserClass="计时会员"
+		Else
+			GetUserClass="到期会员"
+		End If
+	End If
+End Function
+
+Function GetUserExpire()
+	Dim s
+	If UserClass>0 Then
+		If DateDiff("D", ExpireTime, Now()) < 0 Then
+			s="您的账号使用时限还有 <font color=""red""><b>"
+			s=s&DateDiff("D", Now(), ExpireTime)
+			s=s&"</b></font> 天"
+		Else
+			s="<font color=""red"">您的账号已过期,请联系管理员！</font>"
+		End If
+	End If
+	GetUserExpire=s
+End Function
+%>

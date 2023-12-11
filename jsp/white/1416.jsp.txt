@@ -1,0 +1,61 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%> 
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" />
+<%@ page import="com.bizoss.trade.ti_financestrategy.*" %>
+<%
+	Ti_financestrategyInfo ti_financestrategyInfo=new Ti_financestrategyInfo();
+		Hashtable ts_link_group = new Hashtable();
+		String cust_calss_name="";
+		String case_id = randomId.GenTradeId();
+		String cust_id = "";
+		if (session.getAttribute("session_cust_id") != null) {
+			cust_id = session.getAttribute("session_cust_id").toString();
+		}
+		String selelctlist = ti_financestrategyInfo.getSelectString("");
+%>
+<html>
+  <head>
+    <title>新增会员级别策略</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="ti_financestrategy.js"></script>
+</head>
+
+<body>
+	<h1>新增会员级别策略</h1>
+	<form action="/doTradeReg.do" method="post" name="addForm">
+	
+	<table width="100%" cellpadding="0" cellspacing="1" border="0" class="listtab">		
+		<tr>
+			<td align="right" width="10%">
+				会员级别<font color="red">*</font>
+			</td>
+			<td>
+			<select id="memerberleave" name="memerberleave" >
+				<option value="">请选择</option>
+				<%=selelctlist %>
+			</select>
+			</td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="10%">
+				缴纳费用<font color="red">*</font>
+			</td>
+			<td>
+			<input type="text" name="payment" id="payment" value="" >
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="6733" />
+				<input type="button" class="buttoncss" name="tradeSub" value="提交" onclick="return submitForm();"/>&nbsp;&nbsp;
+				<input type="button" class="buttoncss" name="tradeRut" value="返回" onclick="window.location.href='index.jsp';"/>
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

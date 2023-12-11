@@ -1,0 +1,60 @@
+<%@ page contentType="text/html; charset=GBK" %>
+<%
+	String url = request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="include/admin.js" type="text/javascript"></script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+
+
+<br><form name=myform action="<%=url%>/servletslink" method = post><table width="95%" border="0" cellspacing="1" cellpadding="3" align=center class="tableBorder"> <tr>  <th colspan=2>添加友情链接 </th> </tr>
+<input type="hidden" name="action" value="add">
+<tr>  <td width="30%" class=TableRow1>网站名称 </td> <td width="70%" class=TableRow1>  <input type="text" name="webName" size=40> </td> </tr> 
+
+<tr>  <td class=TableRow2>连接URL </td> <td class=TableRow2>  <input type="text" name="webUrl" value="http://" size=60> </td> </tr>
+
+<tr>  <td class=TableRow1>连接LOGO地址 </td> <td class=TableRow1>  <input type="text" name="logo" id="webLogo" value="http://" size=60> </td> </tr>
+
+
+<tr>  <td class=TableRow1>简介 </td> <td class=TableRow1>  <textarea name="readme" rows=5 cols=50></textarea> </td> </tr> 
+
+<tr>  <td class=TableRow1>站长Email </td> <td class=TableRow1>  <input type="text" name="webEmail" id="webEmail" value="@" size='30'> </td> </tr>
+ <tr> 
+               <td class=TableRow1>链接位置</td>
+                  <td class=TableRow1> <select name="Auditing" id="Auditing">
+                      	<option value='0'>未审核</option>
+						<option value='1'>首页</option>
+						<option value='2'>内页</option>
+                    </select> </td>
+  </tr>
+ <tr> 
+                  <td class=TableRow1>网站类型</td>
+                  <td class=TableRow1> <select name="webType" id="webType">
+                      	<option value='综合网站'>综合网站</option>
+						<option value='娱乐类'>娱乐类</option>
+						<option value='教育类'>教育类</option>
+						<option value='计算机类'>计算机类</option>
+						<option value='电子商务'>电子商务</option>
+						<option value='网上信息'>网上信息</option>
+						<option value='论坛类'>论坛类</option>
+						<option value='其它类型'>其它类型</option>
+                    </select> </td>
+                </tr>
+<input type="hidden" name="Auditing" value="1">
+
+
+<tr>  <td height="15" align=center colspan="2" class=TableRow1>  <input type="button" name="Submit1" onclick="javascript:history.go(-1)" value="返回上一页" class=button>　 <input type="submit" name="Submit" class="button" value="添 加"> </td> </tr></table></form><br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

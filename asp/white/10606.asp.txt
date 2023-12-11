@@ -1,0 +1,120 @@
+﻿<!--#include file="../lib/base.asp"-->
+<!--#include file="../theme.asp"-->
+<%
+''' SDCMS 购买
+''' ==================================================================
+''' 版权所有 http://www.sdcms.cn
+''' ------------------------------------------------------------------
+''' 这不是一个自由软件！您只能在不用于商业目的的前提下对程序代码进行修改和使用；
+''' 未经授权不允许对程序代码以任何形式任何目的的再发布。
+''' ==================================================================
+''' 编写: IT平民
+''' 修改：IT平民 in 2012.08
+
+	sub buydb()
+		dim id:id=sdcms.getint(sdcms.fpost("id",0),0)
+		if id=0 then
+			sdcms.echo "0&#21442;&#25968;&#38169;&#35823;"
+			exit sub
+		end if
+		if not(sdcms.is_login) then
+			sdcms.echo "1&#35831;&#20808;&#30331;&#24405;&#25110;&#27880;&#20876;"
+			exit sub
+		else
+			dim userdata:userdata=sdcms.userinfo
+			dim userid:userid=userdata(0)
+			if userdata(8)=1 then
+				if userdata(9)=0 then
+				else
+					sdcms.echo "3&#36141;&#20080;&#25104;&#21151;"
+					exit sub
+				end if
+			end if
+			dim upoint:upoint=sdcms.db.dbloadone("point","sd_user","id="&userid&"")
+		end if
+		dim data:data=sdcms.db.dbload(1,"point,classid","sd_content","id="&id&" and islock=1","")
+		if ubound(data)<0 then
+			sdcms.echo "0&#21442;&#25968;&#38169;&#35823;"
+			exit sub
+		end if
+		dim point:point=data(0,0)
+		if upoint<point then
+			sdcms.echo "2&#24744;&#30340;&#31215;&#20998;&#19981;&#36275;&#65292;&#35831;&#20808;&#20805;&#20540;&#65281;"
+			exit sub
+		end if
+		dim npoint:npoint=upoint-point
+		dim rs,ure
+		ure=0
+		set rs=server.createobject("adodb.recordset")
+		rs.open "select contentid,point,userid,createdate,lastupdate from sd_user_buy where contentid="&id&" and userid="&userid&"",sdcms.db.conn,1,3
+		if rs.eof then
+			ure=1
+			rs.addnew
+			rs(0)=id
+			rs(1)=point
+			rs(2)=userid
+			rs(3)=now()
+			rs(4)=now()
+		else
+			rs.update
+			rs(4)=now()
+		end if
+		rs.update
+		rs.close
+		set rs=nothing
+		if ure=1 then
+			sdcms.db.dbupdate "sd_user","id="&userid&"",array(array("point",point,10,0))
+			sdcms.createuserpoint array(array("point",point,0,0),array("userid",userid,0,0),array("type",2,0,0),array("content","<a href='../show.asp?id="&id&"' target='_blank'>购买文章，支付："&point&"积分</a>",0,1),array("createdate",now(),0,1))
+		end if
+		sdcms.echo "3&#36141;&#20080;&#25104;&#21151;"
+	end sub
+	
+	sub loaddb()
+		dim id:id=sdcms.getint(sdcms.fpost("id",0),0)
+		if id=0 then
+			sdcms.echo "1&#21442;&#25968;&#38169;&#35823;"
+			exit sub
+		end if
+		if not(sdcms.is_login) then
+			sdcms.echo "0&#27809;&#26377;&#30331;&#24405;"
+			exit sub
+		end if
+		if not(sdcms.is_vip) then
+			if sdcms.is_buy(id)=0 then
+				sdcms.echo "0&#27809;&#26377;&#36141;&#20080;"
+				exit sub
+			end if
+		end if
+		dim data:data=sdcms.db.dbload(1,"classid","sd_content","id="&id&" and islock=1","")
+		if ubound(data)<0 then
+			sdcms.echo "1&#20869;&#23481;&#19981;&#23384;&#22312;"
+			exit sub
+		end if
+		dim classid:classid=data(0,0)
+		data=sdcms.categorydata
+		dim gcate:gcate=sdcms.getcate(data,classid)
+		if gcate=-1 then
+			sdcms.echo "1找不到内容"
+			sdcms.db.dbclose
+			exit sub
+		end if
+		dim tablename:tablename=data(12,gcate)
+		data=sdcms.db.dbload(1,"content",tablename,"cid="&id&"","")
+		if ubound(data)<0 then
+			sdcms.echo "1没有内容"
+			exit sub
+		else
+			dim content:content=data(0,0)
+			content=replace(content,"_sdcms_content_page_","")
+			sdcms.echo "1"&content
+		end if
+	end sub
+	
+	dim act:act=sdcms.fget("act",0)
+	select case act
+		case "buy":buydb
+		case "load":loaddb
+		case else
+	end select
+	sdcms.db.dbclose
+%>

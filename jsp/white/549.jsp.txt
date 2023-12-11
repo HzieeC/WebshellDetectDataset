@@ -1,0 +1,78 @@
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>商品列表</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">	
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/good/good/list_good.js"></script>
+
+</head> 
+
+<body>
+	<s:hidden name="good.code" id="code" />
+	<div style="margin-top: 10px; margin-bottom: 5px;">
+		<table border="0" cellpadding="0"  cellspacing="1" class="gdcn-table-bgcolor" width="100%" style="font-size: 12px;">
+			<tr>
+				<c:if test="${todo == null }">
+					<td class='gridtitle'><s:text name="listgood.Code"/>：</td>
+					<td class='gridbody'><input type="text" id="goodCode" onkeydown="checkKey()"/></td>
+				</c:if>
+				<td class='gridtitle'><s:text name="listgood.productname"/>：qqq</td>
+				<td class='gridbody'><input type="text" id="goodName" onkeydown="checkKey()"/></td>
+				<td class='gridtitle'><s:text name="listgood.ProductTypeName"/>：</td>
+				<td class='gridbody'><input type="text" id="goodTypeName" onkeydown="checkKey()"/></td>
+				<td class='gridtitle'>
+					<a href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-search" onclick="searchData()"><s:text name="Search"/></a>&nbsp;&nbsp;&nbsp;
+	  				<a id="btnAudit" href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-reload" onclick="cancelSearch()"><s:text name="Empty"/></a>
+				</td>
+			</tr>
+		</table>
+	</div>
+	<table id="dataGrid"></table>
+	<div id="edit" closed="true">
+		<iframe frameborder="0" id="editDataPage" width="400px" height="150px"></iframe>
+	</div>
+</body>
+<!-- 语言设置-->
+<input type="hidden" id="BasicInformation" value="<s:text name="BasicInformation"/>"/>
+<input type="hidden" id="Operation" value="<s:text name="Operation"/>"/>
+<input type="hidden" id="Edit" value="<s:text name="Edit"/>"/>
+<input type="hidden" id="Soldout" value="<s:text name="listgood.Soldout"/>"/>
+<input type="hidden" id="Putaway" value="<s:text name="listgood.Putaway"/>"/>
+<input type="hidden" id="Delete" value="<s:text name="Delete"/>"/>
+<input type="hidden" id="Code" value="<s:text name="listgood.Code"/>"/>
+<input type="hidden" id="productname" value="<s:text name="listgood.productname"/>"/>
+<input type="hidden" id="ProductTypeName" value="<s:text name="listgood.ProductTypeName"/>"/>
+<input type="hidden" id="Price" value="<s:text name="listgood.Price"/>"/>
+<input type="hidden" id="Weight" value="<s:text name="listgood.Weight"/>"/>
+<input type="hidden" id="Stock" value="<s:text name="listgood.Stock"/>"/>
+<input type="hidden" id="Unit" value="<s:text name="listgood.Unit"/>"/>
+<input type="hidden" id="Shape" value="<s:text name="listgood.Shape"/>"/>
+<input type="hidden" id="AddMerchandise" value="<s:text name="listgood.AddMerchandise"/>"/>
+<input type="hidden" id="Select" value="<s:text name="Select"/>"/>
+<input type="hidden" id="PleaseSelect" value="<s:text name="PleaseSelect"/>"/>
+<input type="hidden" id="AddMerchandise" value="<s:text name="listgood.AddMerchandise"/>"/>
+<input type="hidden" id="Editgoods" value="<s:text name="listgood.Editgoods"/>"/>
+<input type="hidden" id="Wanttodelete" value="<s:text name="Wanttodelete"/>"/>
+<input type="hidden" id="DeletedSuccessful" value="<s:text name="DeletedSuccessful"/>"/>
+<input type="hidden" id="DeleteFailed" value="<s:text name="DeleteFailed"/>"/>
+<input type="hidden" id="Thiscommodityhasbeen" value="<s:text name="listgood.Thiscommodityhasbeen"/>"/>
+<input type="hidden" id="SystemError" value="<s:text name="SystemError"/>"/>
+<input type="hidden" id="Youhavethegoodsrack" value="<s:text name="listgood.Youhavethegoodsrack"/>"/>
+<input type="hidden" id="Goodshavewithdrawn" value="<s:text name="listgood.Goodshavewithdrawn"/>"/>
+<input type="hidden" id="Goodsshelvesfailure" value="<s:text name="listgood.Goodsshelvesfailure"/>"/>
+<input type="hidden" id="Youwanttogoods" value="<s:text name="listgood.Youwanttogoods"/>"/>
+<input type="hidden" id="Goodsshelveshas" value="<s:text name="listgood.Goodsshelveshas"/>"/>
+<input type="hidden" id="Goodsshelvesfailures" value="<s:text name="listgood.Goodsshelvesfailures"/>"/>
+<input type="hidden" id="ImportExcel" value="<s:text name="listgood.ImportExcel"/>"/>
+
+</html>

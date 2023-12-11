@@ -1,0 +1,116 @@
+﻿<!--#include file="../../lib/base.asp"-->
+<!--#include file="../../theme/admin/config.asp"-->
+<!--#include file="../../lib/cmd.asp"-->
+<%
+''' SDCMS 附件管理工具
+''' ==================================================================
+''' 版权所有 http://www.sdcms.cn
+''' ------------------------------------------------------------------
+''' 这不是一个自由软件！您只能在不用于商业目的的前提下对程序代码进行修改和使用；
+''' 未经授权不允许对程序代码以任何形式任何目的的再发布。
+''' ==================================================================
+''' 插件编写: IT平民
+''' 修改：IT平民 in 2012.09
+
+	'注释：插件是否安装
+	is_plug_install "sdcms.plug.attachment"
+	
+	'注释：管理权限检查
+	is_plug_login
+	
+	'注释：定义插件模板路径
+	dim plug_theme
+	plug_theme="module/plug_attachment/list.html"
+	
+	'注释：删除附件
+	sub deldb()
+		dim id:id=sdcms.getint(sdcms.fget("id",0),0)
+		dim data:data=sdcms.db.dbload(1,"fullname","sd_attachment","id="&id&"","")
+		if ubound(data)>=0 then
+			'注释：删除此文件
+			sdcms.delfile data(0,0)
+			sdcms.db.dbdel "sd_attachment","id="&id
+		end if
+		sdcms.echo "1"
+	end sub
+	
+	'注释：批量删除附件
+	sub delsome()
+		dim id:id=sdcms.enhtml(sdcms.fget("id",0))
+		dim idarr:idarr=split(id,",")
+		dim data
+		if ubound(idarr)<0 then
+			sdcms.echo "0&#33267;&#23569;&#36873;&#25321;&#19968;&#26465;&#20449;&#24687;"
+		else
+			dim i
+			for i=0 to ubound(idarr)
+				if not isnumeric(idarr(i)) then
+					sdcms.echo "0&#21442;&#25968;&#65306;"&id(i)&"&#19981;&#27491;&#30830;&#65292;&#35831;&#30830;&#35748;&#21518;&#20877;&#25805;&#20316;"
+					exit sub
+				else
+					data=sdcms.db.dbload(1,"fullname","sd_attachment","id="&idarr(i)&"","")
+					if ubound(data)>=0 then
+						'注释：删除此文件
+						sdcms.delfile data(0,0)
+						sdcms.db.dbdel "sd_attachment","id="&idarr(i)
+					end if
+				end if
+			next
+			sdcms.echo "1"
+		end if
+	end sub
+	
+	'注释：清空无效文件
+	sub clearall()
+		dim data,i
+		data=sdcms.db.dbload("","id,fullname","sd_attachment","cid<=0","")
+		dim j:j=0
+		if ubound(data)>=0 then
+			for i=0 to ubound(data,2)
+				'注释：删除此文件
+				sdcms.delfile data(1,i)
+				sdcms.db.dbdel "sd_attachment","cid<=0 and id="&data(0,i)&""
+				j=j+1
+			next
+		end if
+		sdcms.echo "1本次共清理"&j&"个无效附件"
+	end sub
+	
+	dim act:act=lcase(sdcms.fget("act",0))
+	dim sqlwhere,nattitle,nat
+	nat=sdcms.getint(sdcms.fget("nat",0),0)
+	select case act
+		case "del":deldb
+		case "delsome":delsome
+		case "clearall":clearall
+		case else
+			select case nat
+				case "1":sqlwhere=" and ispic=1":nattitle="性质:图片"
+				case "2":sqlwhere=" and fileext='swf'":nattitle="性质:Flash"
+				case "3":sqlwhere=" and (fileext='rar' or fileext='zip' or fileext='7z')":nattitle="性质:压缩文件"
+				case "4":sqlwhere=" and not(ispic=1 or fileext='swf' or fileext='rar' or fileext='zip' or fileext='7z')":nattitle="性质:其他类型"
+				case "5":sqlwhere=" and cid<=0":nattitle="性质:无效文件"
+				case else:nattitle="按性质↓"
+			end select
+			load plug_theme
+	end select
+	sdcms.db.dbclose
+	
+	function getsrc(byval t0)
+		if t0="docx" then t0="doc"
+		if t0="xlsx" then t0="xls"
+		if t0="pptx" then t0="ppt"
+		select case t0
+		case "htm","tml"
+			getsrc="html"
+		case "swf","pdf","psd","ppt","xls","doc","flv"
+			getsrc=t0
+		case "rar","zip","7z"
+			getsrc="rar"
+		case "bmp","jpg","gif","png":
+			getsrc="bmp"
+		case else
+			getsrc="txt"
+		end select
+	end function
+%>

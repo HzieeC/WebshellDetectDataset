@@ -1,0 +1,262 @@
+<!--#include file="lockip/lockyou.asp"-->
+<!--#include file = cgsail_conn.asp -->
+<!--#include file = include/CONFIG.ASP -->
+<!--#include file = Include/cgsail_pub_cls.asp -->
+
+
+<%
+nextpage_string=trim(config("nextpage")) '这个分页符已在配置中设置。
+page_css=trim(config("page_css"))  '分页的样式，字符型
+page=chkhtm(trim(Request("page")))  '文章的页数
+if page="" or not isNumeric(page) then  page=0 '空页数或不是数字时,默认是第一页.
+page=clng(page)
+
+'豪气冲天--增加结束
+
+newsid=chkhtm(trim(Request("newsid")))
+if newsid="" then newsid=chkhtm(trim(Request("id")))
+id=newsid
+if newsid="" then 
+  Response.Write "<BR><BR><BR><center>参数不正确</center>"
+  response.end  
+end if
+
+if (not isNumeric(newsid)) then
+  Response.Write "<Script Language=JavaScript>alert('ＩＤ参数错误或有非法字符或没指定参数，请勿随意提交数据！');location.href='/';</Script>"
+  response.end  
+end if
+
+if (not isNumeric(page)) then
+	page=""
+end if
+
+sql = "select * from ["&CgsailPrefix&"news] where id="&newsid
+Set rs = Server.CreateObject("ADODB.RecordSet")
+rs.Open sql,conn,1,1
+if rs.recordcount=0 then
+  Response.Write "<BR><BR><Center>该文章已经没有了，可能已经删除了！<BR><BR>"
+  rs.close:set rs=nothing
+  conn.close:set conn=nothing
+  Response.end
+end if
+'取消了原静态输出部分.因为已在tatleb.asp里增加一个静态输出函数了. --豪-2006-9-14
+title="<font color="&rs("titlecolor")&">"&trim(rs("title"))&"</font>"
+webtitle=rs("title")
+htitle=trim(rs("htitle"))
+if htitle="" then htitle="&nbsp;"
+dat=rs("time")
+zz=trim(rs("zz"))
+piczz=trim(rs("piczz"))        '2007_12_28  增加一个图片来源
+hit=rs("hit")+1
+hit=hit
+webxgnews=chkhtm(trim(rs("xgnews")))
+if webxgnews="" then webxgnews=left(rs("title"),5)
+if webxgnews<>"" then
+	webxgnews=replace(webxgnews,"[","")
+	webxgnews=replace(webxgnews,"]","")
+end if
+Set xgrs = Server.CreateObject("ADODB.RecordSet")
+xgrs.Open "select top 10 * from ["&CgsailPrefix&"news] where ( title like '%"&webxgnews&"%' or xgnews like '%"&webxgnews&"%' ) and id<>"&chkhtm(trim(Request("newsid")))&" order by id desc",conn,1,1
+while not xgrs.eof
+   xgnews=xgnews + "·<a href="&fun_html_url(xgrs("id"))&" title='"&xgrs("title")&"'>"&xgrs("title")&"</a><BR>"
+xgrs.movenext
+wend
+if xgrs.recordcount=0 then xgnews="没有相关信息"
+xgrs.close
+set xgrs=nothing
+
+    content=rs("content")
+	dim	PaginationType,MaxCharPerPage
+	MaxCharPerPage=rs("MaxCharPerPage")
+    PaginationType=rs("PaginationType")
+
+select case PaginationType     '20080702art增加自动分页功能
+case 0    '不分页显示
+	content=content
+
+case 1    '自动分页显示
+
+    Content=SplitNewsPage(Content,MaxCharPerPage)	
+
+    call select_page_Css()
+ 
+case 2    '手动分页显示
+ 
+    call select_page_Css()
+
+end select
+
+  if config("ggso")="1" then
+  	content=content&GoogleSo()
+  end if
+  
+  
+if pl()=1 then ppll="<BR><script language='javascript' src='js_news_pl.asp?id="&id&"'></script>"
+url=trim(rs("url"))
+
+conn.Execute = "update ["&CgsailPrefix&"news] set hit=hit+1 where ID="&newsid
+
+if url<>"" then 
+  Response.Redirect url
+end if
+%>
+<%
+    lmid=rs("lm3")
+     if lmid="0" or lmid="" then lmid=rs("lm2")
+        if lmid="0" or lmid="" then lmid=rs("lm")
+sql2 = "select * from ["&CgsailPrefix&"lm] where mb<>'' and  id="&clng(lmid)
+Set rs2 = Server.CreateObject("ADODB.RecordSet")
+rs2.Open sql2,conn,1,1
+
+if rs2.recordcount<>0 then
+
+lm=rs2("lm")&rs2("lm2")&rs2("lm3")
+
+mbid=rs2("mb")
+
+if piczz="" then piczz="不详"
+
+sql3 = "select * from ["&CgsailPrefix&"mb] where id="&mbid
+Set rs3 = Server.CreateObject("ADODB.RecordSet")
+rs3.Open sql3,conn,1,1
+if htitle="" then htitle="&nbsp;"
+if rs3.recordcount<>0 then
+  updown=rs3("updown")
+  nr=rs3("mid")
+  
+  Set rs4 = Server.CreateObject("ADODB.RecordSet")   '廖2008-6-1新增，页头页尾调用开始
+		rs4.Open "select * from ["&CgsailPrefix&"config]",conn,1,1
+		if rs4.recordcount<>0 then
+		  top=rs4("top")
+		  down=rs4("down")
+		  nr=replace(nr,"$$通用页头$$",top)
+		  nr=replace(nr,"$$通用页尾$$",down)
+		rs4.close
+		set rs4=nothing 
+		end if        '廖2008-6-1新增，页头页尾调用结束  
+  
+  'nr=replace(nr,"$$路径$$",lmpath())   '取消上面一句,改为这一句
+  nr=replace(nr,"$$路径$$",lmpath(newsid))  '取消上面一句,改为这一句.
+  nr=replace(nr,"$$页标题$$",webtitle)  '增加
+  nr=replace(nr,"$$副标题$$",htitle)
+  nr=replace(nr,"$$标题$$",title)
+  nr=replace(nr,"$$栏目名$$",lm)
+  nr=replace(nr,"$$时间$$",dat)
+  nr=replace(nr,"$$访问量$$",hit)
+  nr=replace(nr,"$$内容$$",content)
+  nr=replace(nr,"$$来源$$",zz)
+  nr=replace(nr,"$$图片来源$$",piczz)
+  nr=replace(nr,"$$编辑$$",rs("adduser"))  '增加一个编辑
+  nr=replace(nr,"$$评论$$",ppll)
+  nr=replace(nr,"$$相关$$",xgnews)
+  nr=replace(nr,"$$newsid$$",newsid)  '2。5版新增的标签。
+  nr=replace(nr,"$$产品分类$$",producttree(0))
+  root_path=finddir(request.servervariables("URL"))   '取出系统程序的工作目录.
+  nr=replace(nr,"$$网站目录$$",HeadNavigation())  '增加一个网站目录，代替绝对路径。方便网站的转移时，不必再修改模板
+  '结束2006-10-23日增加的网站目录标签。
+		
+     if Instr(nr,"$$会员阅读$$")>0 then    '会员阅读限制
+        uuu_path="<script language=""javascript"" src="""&root_path&"js_news_read.asp?news_id="&newsid&"""></script>"
+	    nr=replace(nr,"$$会员阅读$$",uuu_path)
+	 end if
+
+     if Instr(nr,"$$心情投票$$")>0 then 
+        uuuu_path="<script language=""javascript""> var infoid ="""&newsid&""";var classid = ""news"";</script> <script language = ""JavaScript"" src =""mood.js""></script>"
+	    nr=replace(nr,"$$心情投票$$",uuuu_path)
+	 end if
+	 
+	 if Instr(nr,"$$绚丽盒子$$")>0 then 
+        xlhz="<script type=""text/javascript"" src=""/images/popimages/jquery-1.4.3.min.js""></script><script type=""text/javascript"" src=""/images/popimages/fancybox/jquery.fancybox-1.3.4.pack.js""></script><link rel=""stylesheet"" type=""text/css"" href=""/images/popimages/fancybox/jquery.fancybox-1.3.4.css"" media=""screen"" /><script type=""text/javascript"">$(function(){$(""a[href$=.jpg]"").fancybox();$(""a[href$=.swf]"").fancybox({'padding': 0,'width':'600','height':'510','autoScale': false,'transitionIn': 'none','transitionOut':'none'});});</script>"
+		nr=replace(nr,"$$绚丽盒子$$",xlhz)
+	 end if
+
+ if Instr(nr,"$$上下条$$")>0 then 
+        uuu="<script language=""javascript"" src="""&root_path&"js_news_updown.asp?updown="&updown&"&news_id="&newsid&"&lm_id="&lmid&"""></script>"
+   
+	   nr=replace(nr,"$$上下条$$",uuu)
+ end if
+
+  response.write nr
+else
+  response.write "<center><BR><BR><BR>模版设置不正确。"
+end if 
+rs3.close
+set rs3=nothing
+else
+  Response.Write "<center><BR><BR><BR>此栏目模版设置不正确"
+  mbid=1
+end if
+rs.close
+set rs=nothing
+rs2.close
+set rs2=nothing
+
+conn.close
+set conn=nothing
+
+
+
+sub select_page_Css()
+     
+	  if right(content,len(nextpage_string))=nextpage_string then content=left(content,len(content)-len(nextpage_string))  '去掉最后一个分页符.防止一个人无意在最后加一个分页符.导至下面数组出错
+
+         if content<>"" then
+            array_content=split(content,nextpage_string)
+         else
+            array_content=split(content&"&nbsp;",nextpage_string)
+         end if
+
+        max_page_numbers=ubound(array_content) '取出本文章有多少页
+
+        if page>max_page_numbers then page=max_page_numbers  '容错,如果返回的页数大于原有页数,则
+
+        content=array_content(page)  '取出当前页的内容,又赋给content,懒得改后面的content名称.
+
+
+'分页的状态: 
+'page_Css="1"--第一种样式: 共N页, 第1页,第2页,第3页..最后一页
+'page_Css="2"--第二种样式: ,第[N]页，上一页,下一页，共N页
+'page_Css="3"--第三种样式: 上一页[1][2][3][4]下一页
+
+if max_page_numbers>0 then  '只有一页时,不显示分页状态条.
+    content=content&"</p><p align='right'><b>"
+   select case page_Css
+     case "1"
+          content=content&"共["&max_page_numbers+1&"]页："
+          for p=0 to max_page_numbers
+              content=content&"&nbsp;<a href='"&fun_html_url(newsid)&"&page="&p&"'>[第"&p+1&"页]</a>&nbsp;"
+          next
+	 case "2"
+          content=content&"第<font color='red'>["&page+1&"]</font>页&nbsp;"
+		      if page=0 then content=content&"&nbsp;<a href='"&fun_html_url(newsid)&"&page="&page+1&"'>[下一页]>></a>&nbsp;"
+
+              if page<>0 and page<>max_page_numbers  then
+			     content=content&"&nbsp;<a href='"&fun_html_url(newsid)&"&page="&page-1&"'>[上一页]</a>&nbsp;"
+				 content=content&"&nbsp;<a href='"&fun_html_url(newsid)&"&page="&page+1&"'>[下一页]</a>&nbsp;"
+			  end if
+
+			  if page=max_page_numbers then content=content&"&nbsp;<a href='"&fun_html_url(newsid)&"&page="&page-1&"'><<[上一页]</a>&nbsp;"
+
+          content=content&"共["&max_page_numbers+1&"]页"
+	 case "3"
+		   if Page>1 then
+			   Content=Content&  "<a href='"&fun_html_url(newsid)&"&Page=" & Page-1 & "'>上一页</a>&nbsp;&nbsp;"
+		    end if
+		   for i=1 to max_page_numbers
+			if i=Page then
+				Content=Content&  "<font color='red'>[" & cstr(i) & "]</font>&nbsp;"
+			else
+				Content=Content&  "<a href='"&fun_html_url(newsid)&"&Page=" & i & "'>[" & i & "]</a>&nbsp;"
+			end if
+		   next
+		   if Page<max_page_numbers then
+			    Content=Content&  "&nbsp;<a href='"&fun_html_url(newsid)&"&Page=" & Page+1 & "'>下一页</a>"
+		  end if
+      end select
+     content=content&"&nbsp;&nbsp;</b></p>"
+    end if  
+  '结束:只有一页时,不显示分页状态条.
+ end sub
+
+%>
+

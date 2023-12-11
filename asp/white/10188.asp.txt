@@ -1,0 +1,232 @@
+<!--#include file="../../conn/conn.asp" -->
+<!--#include file="../../Inc/Commoncode.asp" -->
+<!--#include file="../../Inc/CommonFunction.asp" -->
+<!--#include file="../checkvalid.asp"-->
+<%If Not FRAdminLevel(701) Then Call ErrorMsg()
+Response.Expires = 0 
+Response.CacheControl = "no-cache" 
+Response.ExpiresAbsolute = Now() - 1 
+Dim Action
+Dim page,i
+Dim totalPut
+const MaxPerpage=20
+strFileName="Admin_PayInfo.asp"
+page=Trim(Request("page"))
+If page<>"" And IsNumeric(page) Then
+	If page<1 Or Len(page)>10 Then
+		page=1
+	Else
+    	page=CLng(page)
+	End If
+Else
+	page=1
+End If%>
+<html>
+<head>
+<meta http-equiv="Content-Language" content="zh-cn">
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<LINK href="../css/style.css" rel=stylesheet type=text/css>
+<title>交易记录查看</title>
+</head>
+<script type="text/javascript" src="../inc/Admin.js"></script>
+<body bgcolor="#FFFFFF">
+<body>
+<table width="100%" border="0" align="center" cellpadding="2" cellspacing="1" class="tableBorder">
+  <tr>
+    <th height="22" align="center" >网上支付管理</th>
+  </tr>
+  <tr>
+    <td height="20"><span class="bodytitle"><b>　管理选项</b>：</span><a href="Admin_PayInfo.asp">管理首页</a> | <a href="Admin_PayInfo.asp">会员支付记录</a> | <a href="Admin_Pay.asp">在线支付设置</a> [<a href="javascript:location.reload()">刷新页面</a>]</td>
+  </tr>
+<form action="Admin_PayInfo.asp" method="post">
+    <tr> 
+      <td height="28"><div align="left"> 
+          &nbsp;&nbsp;&nbsp;&nbsp;关键字： 
+          <input name="keyword" type="text" id="keyword" size="10">
+          <select name="segment" size="1" id="segment">
+            <option value="member">支付账号</option>
+			<option value="money">金额</option>
+          </select>
+          <select name="paymode" size="1" id="paymode">
+			 <option value="0000">支付方式</option>
+			 <%set rs=server.CreateObject("adodb.recordset")
+			  sql="select payflag,pay_name from Job_pay_online where chk=1"
+			  rs.open sql,conn,1,1              
+			  do while not rs.eof%>
+			  <option value="<%=rs("pay_name")%>"><%=rs("pay_name")%></option>
+			<%rs.movenext
+			  loop
+			  rs.close
+			  set rs=nothing
+			  %>
+          </select>
+				  <input name="paydate" type="text" size="10" id=funddate value=""><img src="../images/calendar_bnt.gif" style="cursor:hand;" align="absmiddle" onClick="fPopUpCalendarDlg(paydate);return false" WIDTH="34" HEIGHT="21">
+          <input name="Submit" type="submit" class="inputs" value="搜索">
+      </div></td>
+    </tr>
+  </form>
+</table>
+<%
+action=trim(request("action"))
+Select Case action
+	Case "del"
+		Call del()
+	Case "confirm"
+		Call confirm()
+   	Case Else
+		Call main()
+End Select
+if FoundErr=True then
+	call Show_Err()
+end if
+
+Conn.Close
+Set Conn=Nothing
+Sub main()
+Set rs= Server.CreateObject(FR_HR_RS)
+	keyword=CheckStr(request("keyword"))
+	segment=CheckStr(request("segment"))
+	paymode=request("paymode")
+	paydate=request("paydate")
+	sql="select * from job_pay_back where pay_mid<>'' "
+	if not isnull(keyword) And  keyword<>"" then
+		if segment="member" then
+			sql=sql&" and pay_member like '%"&keyword&"%'"
+		elseif segment="money" then
+			sql=sql&" and pay_amount like '%"&keyword&"%'"
+		end if
+	end if
+	if paymode<>"0000" and paymode<>"" then
+		sql=sql&" and pay_type='"&paymode&"'"
+	end if
+	if IsDate(paydate) then
+		paydates=datediff(FR_HR_d,""&paydate&"",now())
+		sql=sql&" and datediff("&FR_HR_d&",pay_date,"&FR_HR_Now&")="&paydates&""
+	end if
+	sql=sql&" order by pay_date desc"
+	set rs=server.CreateObject("adodb.recordset")
+	rs.open sql,conn,1,1
+	if rs.eof and rs.bof then
+		FoundErr=True
+		ErrMsg=ErrMsg & "<br><li>暂无支付记录！</li>"
+		exit sub
+	else
+		totalPut=rs.recordcount
+		if (page-1)*MaxPerpage>totalput then
+			if (totalPut mod MaxPerpage)=0 then
+				page= totalPut \ MaxPerpage
+			else
+				page= totalPut \ MaxPerpage + 1
+			end if
+		end if
+		if page=1 then
+			Call MainInfo()
+		else
+			if (page-1)*MaxPerpage<totalPut then
+				rs.move  (page-1)*MaxPerpage
+				dim bookmark
+				bookmark=rs.bookmark
+				Call MainInfo()
+			else
+				page=1
+				Call MainInfo()
+			end if
+		end if
+	end if
+	rs.close
+	set rs=nothing
+End Sub
+%>
+<%Sub MainInfo()%>
+<table width="100%" border="0" align="center" cellpadding="0" cellspacing="1" class="tableBorder mt10">
+<form name="form1" method="Post" action="<%=strFileName%>">
+	<tr>
+		<th colspan="10" valign="top" class="tableHeaderText" height="25"><b>网上支付记录</b></th>
+	</tr>
+	<tr>
+		<td width="80" align="center"><b>订单号</b></td>
+		<td width="120" align="center"><b>支付账号</b></td>
+		<td width="60" align="center"><b>账号类型</b></td>
+		<td width="80" align="center"><b>时间</b></td>
+		<td width="80" align="center"><b>支付ip</b></td>
+		<td width="60" align="center"><b>支付方式</b></td>
+		<td width="40" align="center"><b>金额</b></td>
+		<td align="center"><b>用途</b></td>
+		<td width="60" align="center"><b>支付结果</b></td>
+		<td width="30" align="center"><b>删除</b></td>
+	</tr>
+	<%do while not rs.eof%>
+	<tr>
+		<td height="25" align="center"><%=rs("pay_oid")%></td>
+		<td align="center"><%=rs("pay_member")%></td>
+	  <td align="center"><%
+		if rs("pay_class")="cmember" then
+		response.Write "企业帐号"
+		elseif rs("pay_class")="pmember" then
+		response.Write "个人帐号"
+		elseif rs("pay_class")="smember" then
+		response.Write "院校帐号"
+		elseif rs("pay_class")="tmember" then
+		response.Write "培训帐号"		
+		end if
+		%></td>
+		<td align="center"><%=rs("pay_date")%></td>
+		<td align="center"><%=rs("pay_userip")%></td>
+		<td align="center"><%=rs("pay_type")%></td>
+		<td align="center"><%=rs("pay_amount")%></td>
+		<td align="center"><%=rs("pay_content")%></td>
+	  <td align="center"><%
+		if rs("pay_isucceed")=0 then 
+			response.Write "<a href='#' onclick=""if (confirm('你确认此帐户已支付成功了吗？')){window.location='admin_payinfo.asp?id="&rs("id")&"&action=confirm'}"" >未支付</a>" 
+		elseif rs("pay_isucceed")=1 then 
+			response.Write "<font color=green>支付成功</font>"
+		elseif rs("pay_isucceed")=2 then 
+			response.Write "<font color=red>支付失败</font>"
+		else response.Write "<strong>未知状态</strong>"
+		end if
+		%></td>
+		<td align="center"><a href="admin_payinfo.asp?id=<%=rs("id")%>&action=del">删除</a></td>
+	</tr>
+	<%
+		i=i+1
+		if i>=MaxPerPage then exit do
+		rs.movenext
+		loop
+	%>
+	<tr class="tdbg" align="center">
+		    <td colspan="10"><%If totalput>0 Then
+	Call Showpage(strFileName,totalput,MaxPerPage,false,true,"条记录")
+End If%></td>
+	      </tr>
+</form>
+</table>
+<%End Sub%>
+<%
+sub del()
+	id=cint(trim(request("id")))
+	conn.execute ("delete from job_pay_back where id="&id)
+	response.redirect strFileName
+	response.End()
+end sub
+
+sub confirm()
+	id=cint(trim(request("id")))
+	Set rss=Server.CreateObject("ADODB.RecordSet")
+	sqls="Select * From job_pay_back where id="&id
+	rss.Open sqls,conn,1,3
+	If Not(rss.Eof) Then
+		rss("pay_isucceed")=1
+		membername=rss("pay_member")
+		GetPoint=fix(rss("pay_amount"))
+		rss.Update
+	End If
+	rss.Close
+	Set rss=Nothing
+	conn.execute ("update JOB_Member set Member_balance=Member_balance+"&GetPoint&" where member_login='"&membername&"'")
+	response.redirect strFileName
+	response.End()
+end sub
+%>
+<!--#include file="../inc/copy.asp" -->
+</body>
+</html>

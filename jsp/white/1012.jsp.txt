@@ -1,0 +1,144 @@
+<%@ page contentType="text/html; charset=GBK" isELIgnored="false" %>
+<%@ page import="connections.DaoGG,javaBean.BeanGG" %>
+<%
+	String url=request.getContextPath();
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>MianFeiZhe内容管理系统-管理页面</title>
+<link href="<%=url%>/admin/images/css/admin_style_1.css" type="text/css" rel="stylesheet">
+<script src="<%=url%>/admin/include/admin.js" type="text/javascript"></script>
+  <script language="javascript" src="<%=url%>/editor/editor/all.js"></script>
+<script language="javascript" src="<%=url%>/editor/editor/editor.js"></script>
+<script language="javascript" src="<%=url%>/editor/editor/editor_toolbar.js"></script>
+<script language=javascript>
+ie4=(document.all)?true:false;
+ns4=(document.layers)?true:false;
+
+function toExit(){
+var args=toExit.arguments;
+var visible=args[0];
+if(ns4){
+        theObj=eval("document.layers[\'"+args[1]+"\']");
+        if(theObj)theObj.visibility=visible;
+        }
+else if(ie4){
+        if(visible=='show')visible='visible';
+        if(visible=='hide')visible='hidden';
+        theObj=eval("document.all[\'"+args[1]+"\']");
+        if(theObj)theObj.style.visibility=visible;
+        }
+
+}     
+
+</script>
+<base target="_self">
+</head>
+<body leftmargin="0" bottommargin="0" rightmargin="0" topmargin="0">
+<br style="overflow: hidden; line-height: 3px" />
+<table border=0 align=center cellpadding=2 cellspacing=1 class=tableBorder>
+  <tr>
+    <th><strong>广告管理</strong></th></tr>
+  <tr height=25>
+    <td class=TableRow1><B>说明：</B><br> 
+①、本系统所有广告代码都将生成JS文件，文件位于/adfile/目录下面.<br>
+②、你可以任意增加广告位,然后在模板的相应位置调用此JS文件即可。
+    </td>
+  </tr>
+</table>
+<br>
+ <%
+	int id=Integer.parseInt(request.getParameter("id"));
+	DaoGG dao=new DaoGG();
+	BeanGG bean=dao.selGGById(id);
+ %>
+<script language = JavaScript>
+function showsetting(myform){
+	var tab = myform.flag.selectedIndex;
+	if(tab==1)  {
+		flagsetting3.style.display='none';
+		flagsetting5.style.display='none';
+		flagsetting6.style.display='none';
+		flagsetting7.style.display='';
+	}
+	if(tab==0){
+		flagsetting3.style.display='';
+		flagsetting5.style.display='';
+		flagsetting6.style.display='';
+		flagsetting7.style.display='none';
+	}
+}
+
+</script>
+<table border=0 align=center cellpadding=2 cellspacing=1 class=tableBorder>
+    <tr>
+      <th colspan=2>修改广告</th>
+ </tr>
+
+<form name=myform method=post action='<%=url%>/servletsads?action=edit'>
+<input type="Hidden" name="action" value="save">
+ <tr>
+ <td width='20%' class=TableRow1 align=right><strong>广告位置:</strong></td>
+ <td width='80%' class=TableRow1>
+ <select name='boardid' id='boardid'>
+	<option value="网站共用Banner广告">网站共用Banner广告</option>
+	<option value="自定义广告">自定义广告</option>
+</select> </td>
+</tr>
+<tr>
+ <td class=TableRow2 align=right><strong>广告类型:</strong></td>
+ <td class=TableRow2><select name='flag' id='flag' onchange=showsetting(this.form)>
+ 	<%if(bean.getFlag().equals("普通广告")){%>
+	<option value='普通广告' selected>普通广告</option>
+	<option value='代码广告'>代码广告</option>
+	<%}else{%>
+	<option value='普通广告'>普通广告</option>
+	<option value='代码广告' selected>代码广告</option>
+	<%}%>
+</select></td>
+</tr>
+<tr>
+ <td class=TableRow1 align=right><strong>网站名称:</strong></td>
+ <td class=TableRow1><input name='title' type='text' id='title' size=30 value=''></td>
+</tr>
+
+<tr id=flagsetting3>
+ <td class=TableRow2 align=right><strong>网站连接URL:</strong></td>
+ <td class=TableRow2><input name='url' type='text' id='url' size=60 value='http://'></td>
+</tr>
+
+<tr id=flagsetting5>
+ <td width='20%' class=TableRow2 align=right><strong>图片或FLASH URL:</strong></td>
+ <td width='80%' class=TableRow2><input name='picurl' id=ImageUrl type='text' size=60 value=''>
+</td>
+</tr>
+<tr id=flagsetting6>
+ <td class=TableRow1 align=right><strong>上传文件:</strong></td>
+ <td class=TableRow1><input name="img" type="text" id="img" style="width:200px">&nbsp;&nbsp;&nbsp;<iframe width=280 height=20 src='<%=request.getContextPath()%>/editor/editor/upapi/uploadtitlepic.jsp' scrolling='no' frameborder='0' id="upimg"></iframe></td>
+</tr>
+<tr id=flagsetting7 style="display:none">
+ <td class=TableRow2 align=right><strong>广告代码:</strong><br>支持HTML方法</td>
+ <td class=TableRow2><textarea name=AdCode rows=10 cols=70></textarea></td>
+</tr>
+<tr>
+  <td class=TableRow1 align=right><strong>文件尺寸:</strong></td>
+  <td class=TableRow1>宽度：<input name='width' type='text' id='width' size='6' maxlength='5' value='100'> 像素 * 
+  高度：<input name='height' type='text' id='height' size='6' maxlength='5' value='100'> 像素&nbsp;&nbsp;
+  <font color=blue>* 设置图片、FLASH、弹出窗口的大小</font></td>
+</tr>
+<tr>
+ <td class=TableRow1 colspan=2 align=center>
+ <input type="button" name="Submit1" onclick="javascript:history.go(-1)" value="返回上一页" class=button>&nbsp;&nbsp;&nbsp;&nbsp;
+ <input type='submit' name='Submit' value='保存广告' class=button>
+ </td>
+</tr></form>
+</table>
+<br /><table align=center>
+<tr align=center><td width="100%" style="LINE-HEIGHT: 150%" class="copyright">
+ Powered by：<a href=http://www.mianfeizhe.com target=_blank>MianFeiZhe内容管理系统 Beta1.0</a> （SQL 版）<br>
+Copyright &copy; 2008-2010 <a href="http://www.mianfeizhe.com" target="_blank"><font face=Verdana, Arial, Helvetica, sans-serif><b>MianFeiZhe<font color=#CC0000>.Com</font></b></font></a>. All Rights Reserved .
+</td>
+</tr>
+</table>
+</body></html>

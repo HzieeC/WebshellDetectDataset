@@ -1,0 +1,596 @@
+<%
+'-----------------------------------------------------------------------
+'--- 上传处理类模块
+  '--- 2004-12-18
+'-----------------------------------------------------------------------
+'-----------------------------------------------------------------------
+'-- InceptFileType	: 设置上传类型属性 (以逗号分隔多个文件类型) String
+'-- MaxSize			: 设置上传文件大小上限 (单位：kb) Long
+'-- InceptMaxFile	: 设置一次上传文件最大个数 Long
+'-- UploadPath		: 设置保存的目录相对路径 String
+'-- UploadType		: 设置上传组件类型 （0=无组件上传类，1=Aspupload3.0 ,2=SA-FileUp 4.0 ,3=DvFile.Upload V1.0）
+'-- SaveUpFile		: 执行上传
+'-- GetBinary		: 设置上传是否返回文件数据流  Bloon值 : True/False
+'-- ChkSessionName	: 设置SESSION名，防止重复提交，SESSION名与提交的表单名要一致。
+'-- ReName			: 系统自定义文件名 0=是，1=否 （设置为否将保留为原来文件名）
+'-- PreName			: 设置文件名定义文件名前缀 (如默认生成的文件名为200412230402587123.jpg
+'									设置：RName="PRE_",生成的文件名为：PRE_200412230402587123.jpg)
+'-----------------------------------------------------------------------
+'-- 设置图片组件属性
+'-- PreviewType		: 设置组件(0=CreatePreviewImage组件，1=AspJpegV1.2 ,2=SoftArtisans ImgWriter V1.21)
+'-- PreviewImageWidth	: 设置预览图片宽度
+'-- PreviewImageHeight	: 设置预览图片高度
+'-- DrawImageWidth	: 设置水印图片或文字区域宽度
+'-- DrawImageHeight	: 设置水印图片或文字区域高度
+'-- DrawGraph		: 设置水印图片或文字区域透明度
+'-- DrawFontColor	: 设置水印文字颜色
+'-- DrawFontFamily	: 设置水印文字字体格式
+'-- DrawFontSize	: 设置水印文字字体大小
+'-- DrawFontBold	: 设置水印文字是否粗体
+'-- DrawInfo		: 设置水印文字信息或图片信息
+'-- DrawType		: 设置加载水印模式：0=不加载水印 ，1=加载水印文字 ，2=加载水印图片
+'-- DrawXYType		: 图片添加水印LOGO位置坐标："0" =左上，"1"=左下,"2"=居中,"3"=右上,"4"=右下
+'-- DrawSizeType	: 生成预览图片大小规则："0"=固定缩小，"1"=等比例缩小
+'-----------------------------------------------------------------------
+'-- 获取上传信息
+'-- ObjName			: 采用的组件名称
+'-- Count			: 上传文件总数
+'-- CountSize		: 上传总大小字节数
+'-- ErrCodes		: 错误NUMBER (默认为0)
+'-- Description		: 错误描述
+'-----------------------------------------------------------------------
+'-- CreateView Imagename,TempFilename,FileExt
+'	创建预览图片过程: 原始文件的相对路径,生成预览文件相对路径,原文件后缀
+'-----------------------------------------------------------------------
+'-----------------------------------------------------------------------
+'-- 获取文件对象属性 : UploadFiles
+'-- FormName		: 表单名称
+'-- FileOldName		: 原文件名称
+'-- FileName		: 生成的文件名称
+'-- FilePath		: 保存文件的相对路径
+'-- FileSize		: 文件大小
+'-- FileContentType	: ContentType文件类型
+'-- FileType		: 0=其它,1=图片,2=FLASH,3=音乐,4=电影
+'-- FileData		: 文件数据流 (若组件不支持直接获取，则返回Null)
+'-- FileExt			: 文件后缀
+'-- FileWidth		: 图片/Flash文件宽度	（其他文件默认=-1）
+'-- FileHeight		: 图片/Flash文件高度	（其他文件默认=-1）
+'-----------------------------------------------------------------------
+'-----------------------------------------------------------------------
+Class CreateView
+	Private UploadObj,ImageObj,syobj
+	Private FilePath,InceptFile,FileInfo
+	Private Preview_Type,View_ImageWidth,View_ImageHeight,Draw_ImageWidth,Draw_ImageHeight,Draw_Graph
+	Private Draw_FontColor,Draw_FontFamily,Draw_FontSize,Draw_FontBold,Draw_Info,Draw_Type,Draw_XYType,Draw_SizeType
+	Private RName_Str,Transition_Color
+
+	Private Preview_Typesy
+
+
+	Public ErrCodes,ObjName,UploadFiles,UploadForms
+	'-----------------------------------------------------------------------------------
+	'初始化类
+	'-----------------------------------------------------------------------------------
+	Private Sub Class_Initialize
+		ErrCodes = 0
+		FilePath = "./"
+		InceptFile = ""
+		Preview_Type = 999
+		Preview_Typesy=999
+		ObjName = "未知组件"
+		View_ImageWidth = 0
+		View_ImageHeight = 0
+		Draw_FontColor	= &H000000
+		Draw_FontFamily	= "Arial"
+		Draw_FontSize	= 10
+		Draw_FontBold	= False
+		Draw_Info		= "www.fycms.com"
+		Draw_Type		= -1
+		Set UploadFiles = actcms.iCreateObject ("Scripting.Dictionary")
+		Set UploadForms = actcms.iCreateObject ("Scripting.Dictionary")
+		UploadFiles.CompareMode = 1
+		UploadForms.CompareMode = 1
+
+ 		If actcms.ActCMSUpfile(1)="1" Then
+			Draw_Info = actcms.ActCMSUpfile(4)
+		ElseIf actcms.ActCMSUpfile(1)="2" Then
+			Draw_Info = actcms.actsys&actcms.ActCMSUpfile(9)
+		Else
+			Draw_Info = ""
+		End If
+  		DrawSizeType=actcms.ActCMSUpfile(16)'生成预览图片大小规则
+		PreviewType=actcms.ActCMSUpfile(3)
+		PreviewImageWidth=actcms.ActCMSUpfile(14)
+		PreviewImageHeight=actcms.ActCMSUpfile(15)
+ 		DrawImageWidth		= actcms.ActCMSUpfile(11)		'设置水印图片或文字区域宽度
+		DrawImageHeight		= actcms.ActCMSUpfile(12)		'设置水印图片或文字区域高度
+		DrawGraph			= actcms.ActCMSUpfile(10)			'设置水印透明度
+		DrawFontColor		= actcms.ActCMSUpfile(6)	    '设置水印文字颜色
+		DrawFontFamily		= actcms.ActCMSUpfile(7)	 	'设置水印文字字体格式
+		DrawFontSize		= actcms.ActCMSUpfile(5)			'设置水印文字字体大小
+		DrawFontBold		= actcms.ActCMSUpfile(8)		    '设置水印文字是否粗体
+		'DrawInfo			= Draw_Info	 	    	'设置水印文字信息或图片信息,如果是图片水印,则直接填写上路径
+		PreviewTypesy		= actcms.ActCMSUpfile(17)	'999-关闭，1-AspJpeg组件，2-SA-ImgWriter组件)
+		DrawType			= actcms.ActCMSUpfile(1)			'0=不加载水印 ，1=加载水印文字，2=加载水印图片
+		DrawXYType			= actcms.ActCMSUpfile(13)			'"0" =左上，"1"=左下,"2"=居中,"3"=右上,"4"=右下
+		If actcms.ActCMSUpfile(0)<>"" or actcms.ActCMSUpfile(0)<>"0" Then
+			TransitionColor	= actcms.ActCMSUpfile(0)			'透明度颜色设置
+		End If	
+	End Sub
+
+	'-----------------------------------------------------------------------------------
+	'销毁类
+	'-----------------------------------------------------------------------------------
+	Private Sub Class_Terminate
+		If IsObject(UploadObj) Then
+			Set UploadObj = Nothing
+		End If
+
+		If IsObject(ImageObj) Then
+			Set ImageObj = Nothing
+		End If
+
+
+		If IsObject(syobj) Then
+			Set syobj = Nothing
+		End If
+
+		UploadFiles.RemoveAll
+		UploadForms.RemoveAll
+		Set UploadForms = Nothing
+		Set UploadFiles = Nothing
+	End Sub
+ 
+ 
+ 
+
+	'-----------------------------------------------------------------------------------
+	'设置水印图片组件属性
+	'-----------------------------------------------------------------------------------
+	Public Property Let PreviewTypeSy(Byval Types)
+		Preview_TypeSy = Types
+		On Error Resume Next
+		If Preview_TypeSy = "" or Not IsNumeric(Preview_TypeSy) Then
+			Preview_TypeSy = 999
+		Else
+			If PreviewTypeSy <> 999 Then
+				Select Case Preview_TypeSy
+ 					Case 1
+					'---------------------AspJpegV1.2---------------
+						ObjName = "AspJpegV1.2组件"
+						Set syobj = actcms.iCreateObject("Persits.Jpeg")
+					Case 2
+					'---------------------SoftArtisans ImgWriter V1.21---------------
+						ObjName = "SoftArtisans ImgWriter V1.21组件"
+						Set syobj = actcms.iCreateObject("SoftArtisans.ImageGen")
+					Case Else
+						Preview_TypeSy = 999
+				End Select
+				If Err.Number<>0 Then
+					ErrCodes = 1
+				End If
+			End If
+		End If
+ 	End Property
+
+	Public Property Get PreviewTypeSy
+		PreviewTypeSy = Preview_TypeSy
+	End Property
+
+
+
+
+	'-----------------------------------------------------------------------------------
+	'设置上传图片组件属性
+	'-----------------------------------------------------------------------------------
+	Public Property Let PreviewType(Byval Types)
+		Preview_Type = Types
+		on error resume next
+		If Preview_Type = "" or Not IsNumeric(Preview_Type) Then
+			Preview_Type = 999
+		Else
+			If PreviewType <> 999 Then
+				Select Case Preview_Type
+					Case 0
+					'---------------------CreatePreviewImage---------------
+						ObjName = "CreatePreviewImage组件"
+						Set ImageObj = actcms.iCreateObject("CreatePreviewImage.cGvbox")
+					Case 1
+					'---------------------AspJpegV1.2---------------
+						ObjName = "AspJpegV1.2组件"
+						Set ImageObj = actcms.iCreateObject("Persits.Jpeg")
+					Case 2
+					'---------------------SoftArtisans ImgWriter V1.21---------------
+						ObjName = "SoftArtisans ImgWriter V1.21组件"
+						Set ImageObj = actcms.iCreateObject("SoftArtisans.ImageGen")
+					Case Else
+						Preview_Type = 999
+				End Select
+				If Err.Number<>0 Then
+					ErrCodes = 1
+				End If
+			End If
+		End If
+ 	End Property
+
+	Public Property Get PreviewType
+		PreviewType = Preview_Type
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'设置预览图片宽度属性
+	'-----------------------------------------------------------------------------------
+	Public Property Let PreviewImageWidth(Byval Values)
+		View_ImageWidth = ChkNumeric(Values)
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'设置预览图片高度属性
+	'-----------------------------------------------------------------------------------
+	Public Property Let PreviewImageHeight(Byval Values)
+		View_ImageHeight = ChkNumeric(Values)
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'设置水印图片或文字区域宽度属性
+	'-----------------------------------------------------------------------------------
+	Public Property Let DrawImageWidth(Byval Values)
+		Draw_ImageWidth = ChkNumeric(Values)
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'设置水印图片或文字区域高度属性
+	'-----------------------------------------------------------------------------------
+	Public Property Let DrawImageHeight(Byval Values)
+		Draw_ImageHeight = ChkNumeric(Values)
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'设置水印图片或文字区域透明度属性
+	'-----------------------------------------------------------------------------------
+	Public Property Let DrawGraph(Byval Values)
+		If IsNumeric(Values) Then
+			Draw_Graph = Formatnumber(Values,2)
+		Else
+			Draw_Graph = 1
+		End If
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'设置水印图片透明度去除底色值
+	'-----------------------------------------------------------------------------------
+	Public Property Let TransitionColor(Byval Values)
+		If Values<>"" or Values<>"0" Then
+			Transition_Color = Replace(Values,"#","&h")
+		End If
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'设置水印文字颜色
+	'-----------------------------------------------------------------------------------
+	Public Property Let DrawFontColor(Byval Values)
+		If Values<>"" or Values<>"0" Then
+			Draw_FontColor = Replace(Values,"#","&h")
+		End If
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'设置水印文字字体格式
+	'-----------------------------------------------------------------------------------
+	Public Property Let DrawFontFamily(Byval Values)
+		Draw_FontFamily = Values
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'设置水印文字字体大小
+	'-----------------------------------------------------------------------------------
+	Public Property Let DrawFontSize(Byval Values)
+		Draw_FontSize = Values
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'设置水印文字是否粗体 Boolean
+	'-----------------------------------------------------------------------------------
+	Public Property Let DrawFontBold(Byval Values)
+		Draw_FontBold = ChkBoolean(Values)
+	End Property
+ 	'-----------------------------------------------------------------------------------
+	'加载模式：0=不加载水印 ，1=加载水印文字 ，2=加载水印图片
+	'-----------------------------------------------------------------------------------
+	Public Property Let DrawType(Byval Values)
+		Draw_Type = ChkNumeric(Values)
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'图片添加水印LOGO位置坐标："0" =左上，"1"=左下,"2"=居中,"3"=右上,"4"=右下
+	'-----------------------------------------------------------------------------------
+	Public Property Let DrawXYType(Byval Values)
+		 Draw_XYType = Values
+	End Property
+
+	'-----------------------------------------------------------------------------------
+	'生成预览图片大小规则："0"=固定缩小，"1"=等比例缩小
+	'-----------------------------------------------------------------------------------
+	Public Property Let DrawSizeType(Byval Values)
+		Draw_SizeType = Values
+	End Property
+
+
+	
+
+
+
+	Private Function ChkNumeric(Byval Values)
+		If Values<>"" and Isnumeric(Values) Then
+			ChkNumeric = Int(Values)
+		Else
+			ChkNumeric = 0
+		End If
+	End Function
+
+	Private Function ChkBoolean(Byval Values)
+		If Typename(Values)="Boolean" or IsNumeric(Values) or Lcase(Values)="false" or Lcase(Values)="true" Then
+			ChkBoolean = CBool(Values)
+		Else
+			ChkBoolean = False
+		End If
+	End Function
+
+ 
+ 
+	'创建预览图片:Call CreateView(原始文件的路径,预览文件名及路径,原文件后缀)
+	Public Sub CreateView(Imagename,TempFilename,FileExt)
+		If ErrCodes <>0 Then Exit Sub
+		Select Case Preview_Type
+			Case 0
+				Image_Obj_0 Imagename,TempFilename,FileExt
+			Case 1
+				Image_Obj_1 Imagename,TempFilename,FileExt
+			Case 2
+				Image_Obj_2 Imagename,TempFilename,FileExt
+			Case Else
+				Preview_Type = 999
+		End Select
+	End Sub
+
+
+
+	'创建水印:Call SY(原始文件的路径,预览文件名及路径,原文件后缀)
+	Public Sub SY(Imagename,FileExt)
+		If ErrCodes <>0 Then Exit Sub
+		Select Case Preview_Typesy
+ 			Case 1
+				SYACT_Obj_1 Imagename,FileExt
+			Case 2
+				Image_Obj_2 Imagename,FileExt
+			Case Else
+				Preview_TypeSY = 999
+		End Select
+  	End Sub
+
+
+	'---------------------AspJpegV1.2---------------'缩略图
+	Sub SYACT_Obj_1(Imagename,FileExt)
+ 			' 读取要处理的原文件
+			Dim Draw_X,Draw_Y,Logobox
+			Draw_X = 0
+			Draw_Y = 0
+			FileExt = Lcase(FileExt)
+			On Error Resume Next
+			syObj.Open Trim(Server.MapPath(Imagename))
+			If Err Then
+				err.Clear
+				Exit Sub
+			End If
+   				If FileExt<>"gif" and syObj.OriginalWidth > Draw_ImageWidth * 2 and Draw_Type >0 Then
+					Draw_X = DrawImage_X(syObj.OriginalWidth,Draw_ImageWidth,2)
+					Draw_Y = DrawImage_y(syObj.Originalheight,Draw_ImageHeight,2)
+					
+					If Draw_Type=2 Then
+						Set Logobox = actcms.iCreateObject("Persits.Jpeg")
+						'*添加水印图片	添加时请关闭水印字体*
+						'//读取添加的图片
+  						Logobox.Open Server.MapPath(Draw_Info)
+						Logobox.Width = Draw_ImageWidth								'// 加入图片的原宽度
+						Logobox.Height = Draw_ImageHeight							'// 加入图片的原高度
+						syObj.DrawImage Draw_X, Draw_Y, Logobox, Draw_Graph,Transition_Color,90	'// 加入图片的位置价坐标（添加水印图片）
+						'syObj.Sharpen 1, 130
+						syObj.Save Server.MapPath(Imagename)
+						Set Logobox=Nothing
+ 					Else
+						'//关于修改字体及文字颜色的
+ 						syObj.Canvas.Font.Color		= Draw_FontColor	'// 文字的颜色
+						syObj.Canvas.Font.Family		= Draw_FontFamily	'// 文字的字体
+						syObj.Canvas.Font.Bold		= Draw_FontBold
+						syObj.Canvas.Font.Size		= Draw_FontSize					'//字体大小
+						' Draw frame: black, 2-pixel width
+						syObj.Canvas.Print Draw_X, Draw_Y, Draw_Info	'// 加入文字的位置坐标
+						syObj.Canvas.Pen.Color		= &H000000		'// 边框的颜色
+						syObj.Canvas.Pen.Width		= 1				'// 边框的粗细
+						syObj.Canvas.Brush.Solid	= False			'// 图片边框内是否填充颜色
+						'syObj.Canvas.Bar 0, 0, syObj.Width, syObj.Height	'// 图片边框线的位置坐标
+						syObj.Save Server.MapPath(Imagename)
+					End If
+				End If
+ 	End Sub
+
+
+	Public Sub SYACT_Obj_2(Imagename,FileExt)
+			'定义变量
+			Dim Draw_X,Draw_Y
+			FileExt = Lcase(FileExt)
+			Draw_X = 0
+			Draw_Y = 0
+			' 读取要处理的原文件
+			syObj.LoadImage Trim(Server.MapPath(Imagename))
+			If syObj.ErrorDescription <> "" Then
+ 				ErrCodes = -1
+				echo "生成预览图错误: " &syObj.ErrorDescription
+				Exit Sub
+			End If
+ 				IF FileExt<>"gif" and syObj.Width > Draw_ImageWidth * 2 and Draw_Type>0 Then
+					Draw_X = DrawImage_X(syObj.Width,Draw_ImageWidth,2)
+					Draw_Y = DrawImage_y(syObj.Height,Draw_ImageHeight,2)
+					Dim saiTopMiddle
+					Select Case Draw_XYType
+						Case "0" '左上
+							saiTopMiddle = 3
+						Case "1" '左下
+							saiTopMiddle = 5
+						Case "2" '居中
+							saiTopMiddle = 1
+						Case "3" '右上
+							saiTopMiddle = 6
+						Case "4" '右下
+							saiTopMiddle = 8
+						Case Else '不显示
+							saiTopMiddle = 0
+					End Select
+					If Draw_Type=2 Then
+						syObj.AddWatermark Server.MapPath(Draw_Info), saiTopMiddle, Draw_Graph,Transition_Color,True
+						'syObj.AddWatermark Server.MapPath(Request.QueryString("mimg")), 0, 0.3
+					Else
+						syObj.Font.Italic	= False			'斜体
+						syObj.Font.height	= Draw_FontSize
+						syObj.Font.name		= Draw_FontFamily
+						syObj.Font.Color		= Draw_FontColor
+						syObj.Text			= Draw_Info
+						syObj.DrawTextOnImage Draw_X, Draw_Y, syObj.TextWidth, syObj.TextHeight
+					End If
+					syObj.SaveImage 0, syObj.ImageFormat, Server.MapPath(Imagename)
+				End If
+ 	End Sub
+
+
+
+	Sub Image_Obj_0(Imagename,TempFilename,FileExt)
+			ImageObj.SetSavePreviewImagePath = Server.MapPath(TempFilename)			'预览图存放路径
+			ImageObj.SetPreviewImageSize = SetPreviewImageSize						'预览图宽度
+			ImageObj.SetImageFile = Trim(Server.MapPath(Imagename))					'Imagename原始文件的物理路径
+			'创建预览图的文件
+			If ImageObj.DoImageProcess = False Then
+				ErrCodes = -1
+				echo "生成预览图错误: " & ImageObj.GetErrString
+			End If
+	End Sub
+
+	'---------------------AspJpegV1.2---------------'缩略图
+	Sub Image_Obj_1(Imagename,TempFilename,FileExt)
+			' 读取要处理的原文件
+			Dim Draw_X,Draw_Y,Logobox
+			Draw_X = 0
+			Draw_Y = 0
+			FileExt = Lcase(FileExt)
+			On Error Resume Next
+			ImageObj.Open Trim(Server.MapPath(Imagename))
+			If Err Then
+				err.Clear
+				Exit Sub
+			End If
+			If ImageObj.OriginalWidth<View_ImageWidth or ImageObj.Originalheight<View_ImageHeight Then
+				TempFilename = ""
+				Exit Sub
+			Else
+ 				If ImageObj.Width > ImageObj.height Then
+					ImageObj.Width = View_ImageWidth
+					ImageObj.Height = ViewImage_Height(ImageObj.OriginalWidth,ImageObj.Originalheight,View_ImageWidth,View_ImageHeight)
+				Else
+					ImageObj.Width = ViewImage_Width(ImageObj.OriginalWidth,ImageObj.Originalheight,View_ImageWidth,View_ImageHeight)
+					ImageObj.Height = View_ImageHeight
+				End If
+				ImageObj.Sharpen 1, 120
+				ImageObj.Save Server.MapPath(TempFilename)		'// 生成预览文件
+			End If
+	End Sub
+
+	'SoftArtisans ImgWriter V1.21
+	Public Sub Image_Obj_2(Imagename,TempFilename,FileExt)
+			'定义变量
+			Dim Draw_X,Draw_Y
+			FileExt = Lcase(FileExt)
+			Draw_X = 0
+			Draw_Y = 0
+			' 读取要处理的原文件
+			ImageObj.LoadImage Trim(Server.MapPath(Imagename))
+			If ImageObj.ErrorDescription <> "" Then
+				TempFilename = ""
+				ErrCodes = -1
+				echo "生成预览图错误: " &ImageObj.ErrorDescription
+				Exit Sub
+			End If
+			If ImageObj.Width<Cint(View_ImageWidth) or ImageObj.Height<Cint(View_ImageHeight) Then
+				TempFilename=""
+				Exit Sub
+			Else
+ 				'ImageObj.SharpenImage 100
+				ImageObj.ColorResolution = 24	'24色保存
+				ImageObj.ResizeImage View_ImageWidth,View_ImageHeight,0,0
+				'0=saiFile,1=saiMemory,2=saiBrowser,4=saiDatabaseBlob
+				'saiBMP=1,saiGIF=2,saiJPG=3,saiPNG=4,saiPCX=5,saiTIFF=6,saiWMF=7,saiEMF=8,saiPSD=9 
+				ImageObj.SaveImage 0, 3, Server.MapPath(TempFilename)
+			End If
+	End Sub
+
+	'比例或固定缩小
+	Private Function ViewImage_Width(Image_W,Image_H,xView_W,xView_H)
+		If Draw_SizeType = "1" Then
+			ViewImage_Width = Image_W * xView_H / Image_H
+		Else
+			ViewImage_Width = xView_W
+		End If
+	End Function
+
+	Private Function ViewImage_Height(Image_W,Image_H,xView_W,xView_H)
+		If Draw_SizeType = "1" Then
+			ViewImage_Height = xView_W * Image_H / Image_W
+		Else
+			ViewImage_Height = xView_H
+		End If
+	End Function
+
+	'SpaceVal X轴坐标边缘距离
+	Private Function DrawImage_X(xImage_W,xLogo_W,SpaceVal)
+		Select Case Draw_XYType
+			Case "0" '左上
+				DrawImage_X = SpaceVal
+			Case "1" '左下
+				DrawImage_X = SpaceVal
+			Case "2" '居中
+				DrawImage_X = (xImage_W + xLogo_W) / 2
+			Case "3" '右上
+				DrawImage_X = xImage_W - xLogo_W - SpaceVal
+			Case "4" '右下
+				DrawImage_X = xImage_W - xLogo_W - SpaceVal
+			Case Else '不显示
+				DrawImage_X = 0
+		End Select
+	End Function
+
+	'SpaceVal Y轴坐标边缘距离
+	Private Function DrawImage_Y(yImage_H,yLogo_H,SpaceVal)
+		Select Case Draw_XYType
+			Case "0" '左上
+				DrawImage_Y = SpaceVal
+			Case "1" '左下
+				DrawImage_Y = yImage_H - yLogo_H - SpaceVal
+			Case "2" '居中
+				DrawImage_Y = (yImage_H + yLogo_H) / 2
+			Case "3" '右上
+				DrawImage_Y = SpaceVal
+			Case "4" '右下
+				DrawImage_Y = yImage_H - yLogo_H - SpaceVal
+			Case Else '不显示
+				DrawImage_Y = 0
+		End Select
+	End Function
+
+End Class
+
+Class FileInfo_Cls
+	Public FormName,FileName,FilePath,FileSize,FileContentType,FileType,FileData,FileExt,FileWidth,FileHeight,FileOldName
+	Private Sub Class_Initialize
+		FileWidth = -1
+		FileHeight = -1
+	End Sub
+End Class
+%>

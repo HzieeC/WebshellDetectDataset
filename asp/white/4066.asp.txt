@@ -1,0 +1,79 @@
+<!--#include file="heck.asp"-->
+<!--#include file ="md5.asp"-->
+<%
+'*****************************************
+'作者：guke
+'QQ：6692103
+'*****************************************
+if request("pwd")=" 修 改 " then
+If request.form("pwd2") <> request.form("pwd3") then
+Response.Write "<script>alert('两次密码不相同!');location='javascript:history.back(-1)'</SCRIPT>"
+Response.End
+end if
+set rs=server.createobject("adodb.recordset")  
+sql="select * from [admin] where id="&Request.Cookies("id")
+rs.open sql,conn,1,3
+If rs("passwd") <> md5(request.form("pwd1")) then
+Response.Write "<script>alert('旧密码错误!');location='javascript:history.back(-1)'</SCRIPT>"
+Response.End
+end if
+if len(request.form("pwd2"))<4 then
+Response.Write "<script>alert('用户密码不能少于4位!');location='javascript:history.back(-1)'</SCRIPT>"
+Response.End
+end if
+rs("passwd")=md5(request.form("pwd2"))
+rs.Update
+response.write "<script>alert('操作成功!');location='right.asp'</script>"
+rs.close
+end if
+%>
+<html>
+<head>
+<title></title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<link href="../images/css.css" rel="stylesheet" type="text/css" />
+</head>
+<script type="text/javascript">
+function chk(theForm){
+if (theForm.pwd1.value == ""){
+                alert("请输入旧密码!");
+                theForm.pwd1.focus();
+                return (false);
+        }
+if (theForm.pwd2.value == ""){
+                alert("请输入新密码!");
+                theForm.pwd2.focus();
+                return (false);
+        }
+if (theForm.pwd3.value == ""){
+                alert("请重复输入新密码!");
+                theForm.pwd3.focus();
+                return (false);
+        }
+}
+</script>
+<body>
+<table width="100%" border="0" cellspacing="6" cellpadding="0" align="center">
+ <form action="" method=post name=form1 onSubmit="return chk(this)">
+    <tr> 
+      <td height=25 colspan=2 align="center" bgcolor="#F9F9F9"><b>修 改 密 码</b></td>
+    </tr>
+    <tr> 
+      <td width="40%" align="right">旧密码：</td>
+      <td width="60%"><input name="pwd1" size="28" type="password" maxlength="26" /></td>
+    </tr>
+    <tr> 
+      <td width="40%" align="right">新密码：</td>
+      <td width="60%"><input name="pwd2" size="28" type="password" maxlength="26" /></td>
+    </tr>
+    <tr> 
+      <td width="40%" align="right">重复密码：</td>
+      <td width="60%"><input name="pwd3" size="28" type="password" maxlength="26" /></td>
+    </tr>
+    <tr> 
+      <td width="40%" align="right">&nbsp;</td>
+      <td width="60%"><input type="submit" name="pwd" value=" 修 改 " /></td>
+    </tr>
+  </form>
+</table>
+</html>

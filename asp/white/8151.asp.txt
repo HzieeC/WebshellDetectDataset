@@ -1,0 +1,1310 @@
+<!--#include file="setup.asp"-->
+<!--#include file="check.asp"-->
+<%
+If Not CheckAdmin("GameList") Then
+    Server.Transfer("showerr.asp")
+    Response.End
+End If
+'=====================================================================
+' 作者声明：转载请保留版权信息，鄙视不要脸的人
+'=====================================================================
+' 软件名称：逐鹿科技私服发布系统
+' 软件作者：讯翔 QQ：63661063
+' 文件名称：Admin_List.Asp
+' 更新日期：2007-6-5
+'=====================================================================
+' 联系方式：Tel：15858171675，QQ：63661063
+' 程序开发：863(讯翔)
+' 官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=====================================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=====================================================================
+Dim Rs_type, Sql_Type, Menu, linklist, AdsTime, ID, selID
+titlename="私服管理"
+Admin_header
+ID = tee5.ChkNumeric(Request("ID"))
+set Rs = server.createobject("adodb.recordset")
+Response.Write "<table border=""0"" cellspacing=""1"" cellpadding=""3"" align=center class=""tableBorder"">"
+Response.Write " <tr>"
+Response.Write " <th colspan=6>私服管理操作</th>"
+Response.Write " </tr>"
+Response.Write "<form method=post action=admin_list.asp?action=search>"
+Response.Write "<tr>"
+Response.Write "<td " & LeftClass & ">"
+Response.Write "<b>私服搜索：</b> <INPUT maxLength=15 size=15 value="""" name=key> "
+Response.Write " 类型："
+Response.Write "<SELECT name=menu>"
+Set Rs_type = Server.CreateObject("ADODB.RecordSet")
+Sql_Type="select * from Gq_GameType order by orderID"
+Rs_type.open Sql_type,conn,1,1
+Response.Write "<OPTION value="""" selected>所有私服</OPTION>"
+Do While Not Rs_type.EOF
+Response.Write "<OPTION value=" & Rs_type("ID") & ">" & Rs_type("game") & "</OPTION>"
+Rs_type.movenext
+loop
+Rs_type.close
+Response.Write "</SELECT>"
+Response.Write "&nbsp;&nbsp;条件："
+Response.Write "<INPUT name=otype type=radio value=name checked>服务器名 "
+Response.Write " <INPUT name=otype type=radio value=ip>服务器IP "
+Response.Write " <INPUT name=otype type=radio value=sdate>开放时间 "
+Response.Write " <input type=submit name=Submit value='开始搜索' class=Button>"
+Response.Write "</td>"
+Response.Write "</tr>"
+Response.Write "</form>"
+Response.Write "<tr>"
+Response.Write "<td " & LeftClass & ">"
+Response.Write "<b>游戏分类：</b><a href=""admin_list.asp"">所有私服</a>"
+Set Rs_type = Server.CreateObject("ADODB.RecordSet")
+Sql_Type="select * from Gq_GameType order by orderID"
+Rs_type.open Sql_type,conn,1,1
+If Rs_type.eof and Rs_type.bof then
+Response.Write "没有分类，请到后台添加！"
+Else
+Do While Not Rs_type.EOF
+Response.Write " | <a href=admin_list.asp?menu="&Rs_type("ID")&">"
+If cint(Rs_type("ID"))=cint(menu) then
+Response.Write "<font color=red>"&Rs_type("game")&"</font>"
+Else
+Response.Write Rs_type("game")
+End If
+Response.Write "</a>"
+Rs_type.movenext
+loop
+Rs_type.close
+End If
+Response.Write "<br><b>管理选项：</b><a href=""?action=ulock"">私服审核</a> | <a href=""?action=top"">固顶私服</a> | <a href=""?action=hot"">通宵推荐</a> | <a href=""?action=fine"">精品推荐</a> | <a href=""?action=free"">免费游戏</a></td>"
+Response.Write "</tr>"
+Response.Write "</table>"
+Response.Write "<br>"
+Dim tablestyle
+Dim maxperpage,CurrentPage,Pcount,totalrec,totalnumber
+maxperpage = AdminPage
+totalrec = 0
+Pcount = 1
+CurrentPage = tee5.ChkNumeric(Request("page"))
+If CurrentPage = 0 Then CurrentPage = 1
+Response.Write "<script src=""/js/showpage.js"" type=""text/javascript""></script>" & vbCrLf
+Menu = LCase(Request("Menu"))
+Action = LCase(Request("action"))
+Select Case Trim(Action)
+Case "ulock"
+	Call UlockGame()
+Case "top"
+	Call TopGame()
+Case "hot"
+	Call HotGame()
+Case "hot2"
+	Call HotGame2()
+Case "fine"
+	Call FineGame()
+Case "free"
+	Call FreeGame()
+Case "edit"
+	Call EditGame()
+Case "search"
+	Call SearchGame()
+Case "bathtml"
+	Call ContentIDHtml(1,selID)
+Case "battop"
+	Call BatTop()
+Case "bathot"
+	Call BatHot()
+Case "batfine"
+	Call BatFine()
+Case "batulock"
+	Call BatUlock()
+Case "batdel"
+	Call BatDel()
+Case "batutop"
+	Call BatUtop()
+Case "batuhot"
+	Call BatUhot()
+Case "batufine"
+	Call BatUfine()
+Case Else
+	Call GameList()
+End Select
+If Founderr = True Then
+	ReturnError(ErrMsg)
+End If
+Admin_footer
+CloseConn
+'=========================================================
+'作者声明：转载请保留版权信息，鄙视不要脸的人
+'程序制作：╲、讯翔゛  QQ: 63661063
+'官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=========================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=========================================================
+'=================================================
+'过程名：GameList
+'作  用：全部私服管理
+'=================================================
+Sub GameList()
+	Response.Write "<table border=""0"" cellspacing=""1"" cellpadding=""3"" align=center class=""tableBorder"">"
+	Response.Write " <tr>"
+	Response.Write "<th wIDth=""5%"">选择</th>"
+	Response.Write "<th wIDth=""9%"">类型</th>"
+	Response.Write "<th wIDth=""16%"">名称</th>"
+	Response.Write "<th wIDth=""15%"">IP</th>"
+	Response.Write "<th wIDth=""*"">开机时间</th>"
+	Response.Write "<th wIDth=""6%"">人气</th>"
+	Response.Write "<th wIDth=""5%"">主页</th>"
+	Response.Write "<th wIDth=""5%"">验证</th>"
+	Response.Write "<th wIDth=""15%"">操作</th>"
+	Response.Write "</tr>"
+	Response.Write " <form name=selform method=Get action="""">"
+	Response.Write " <input type=hIDden name=action value=''>"
+	If menu<>"" then
+		Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.QQ,Gq_sfdata.hits,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.isBest,Gq_sfdata.fine,Gq_sfdata.BestTime,Gq_sfdata.hot,Gq_sfdata.gameID,Gq_GameType.game"
+		Sql=Sql&" from Gq_sfdata,Gq_GameType where Gq_sfdata.gameID=Gq_GameType.ID and Gq_sfdata.ulock=1 and Gq_sfdata.gameID="&menu
+		Sql=Sql&" order by Gq_sfdata.ID desc"
+	Else
+		Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.QQ,Gq_sfdata.hits,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.isBest,Gq_sfdata.fine,Gq_sfdata.BestTime,Gq_sfdata.hot,Gq_sfdata.gameID,Gq_GameType.game"
+		Sql=Sql&" from Gq_sfdata,Gq_GameType where Gq_sfdata.gameID=Gq_GameType.ID"
+		Sql=Sql&" order by Gq_sfdata.ID desc"
+	End If
+	Rs.open Sql,conn,1,1 
+	If Rs.eof and Rs.bof then 
+		Response.Write "<tr><td " & CenterClass & " colspan='9'>当前无任何私服信息！</td></tr>"
+	Else
+		totalrec = Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)  '得到总页数
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If CurrentPage < 1 Then CurrentPage = 1
+		If CurrentPage > Pcount Then CurrentPage = Pcount
+		Rs.PageSize = maxperpage
+		Rs.AbsolutePage = CurrentPage
+		i = 0
+		Do While Not Rs.EOF And i < maxperpage
+			If Not Response.IsClientConnected Then ResponseEnd
+			Response.Write " <tr>"
+			Response.Write " <td " & CenterClass & "><input type=""checkbox"" name=""selID"" value="""
+			Response.Write Rs("ID")
+			Response.Write """></td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("game")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("name")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("ip")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Sdate")<>"" then
+				Response.Write year(Rs("sdate"))&"年"&month(Rs("sdate"))&"月"&day(Rs("Sdate"))&"日" & Rs("hour") & "时" & Rs("minute") & "分"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & "><font color=red>"
+			Response.Write Rs("hits")
+			Response.Write "</font></td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("homepage")="" or Rs("homepage")="无" or Rs("homepage")="http://" then
+				Response.Write "未知"
+			Else
+				Response.Write "<a href="&Rs("homepage")&" target=_blank><FONT color=#0000FF>查看</FONT></a>" 
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("ulock")=1 then
+				Response.Write "<font color=#CCCCCC>通过</font>"
+			Else
+				Response.Write "<font color=red>等待</font>"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("isBest")=0 then
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=battop>固</a>"
+			Else
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batutop><font color=red>解</font></a>"
+			End If
+			Response.Write "|"
+			If Rs("hot")=0 then
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=bathot>荐</a>"
+			Else
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batuhot><font color=BLUE>普</font></a>"
+			End If
+			Response.Write "|"
+			If Rs("fine")=0 then
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batfine>精</a>"
+			Else
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batufine><font color=red>简</font></a>"
+			End If
+			Response.Write "|<a href=?ID="
+			Response.Write Rs("ID")
+			Response.Write "&action=edit><font color=""#008000"">编</font></a>|<a href=?selID="
+			Response.Write Rs("ID")
+			Response.Write "&action=batdel><font color=""#008000"">删</font></a></td>"
+			Response.Write "</tr>"
+		Rs.movenext
+	i = i + 1
+	If i >= maxperpage Then Exit Do
+		Loop
+	End If
+	Rs.Close:Set Rs = Nothing
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & LeftClass & " colspan=9><B>操作选项:<B> "
+	Response.Write "<input class=Button type=button value='全选' onClick=""CheckAll(this.form)"">"
+	Response.Write "<input class=Button type=button value='撤消' onClick=""CheckCel(this.form)"">"
+	Response.Write "<input class=Button type=button value='反选' onClick=""CheckSel(this.form)""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit1"" value=""批量固顶"" onclick=""document.selform.action.value='battop';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit2"" value=""批量通宵"" onclick=""document.selform.action.value='bathot';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit3"" value=""批量精品"" onclick=""document.selform.action.value='batfine';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit4"" value=""批量审核"" onclick=""document.selform.action.value='batulock';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit5"" value=""批量删除"" onclick=""document.selform.action.value='batdel';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit6"" value=""生成HTML"" onclick=""document.selform.action.value='bathtml';"">"
+	Response.Write "</td>" & vbCrLf
+	Response.Write "</tr>" & vbCrLf
+	Response.Write "</form>" & vbCrLf
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & RightClass & " colspan=9>" & vbCrLf
+	tee5.ShowListPage CurrentPage,Pcount,totalrec,maxperpage,"","私服管理"
+	Response.Write "</TD></TR></TABLE>" & vbCrLf
+End Sub
+'=========================================================
+'作者声明：转载请保留版权信息，鄙视不要脸的人
+'程序制作：╲、讯翔゛  QQ: 63661063
+'官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=========================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=========================================================
+'=================================================
+'过程名：UlockGame
+'作  用：私服审核管理
+'=================================================
+Sub UlockGame()
+	Response.Write "<table border=""0"" cellspacing=""1"" cellpadding=""3"" align=center class=""tableBorder"">"
+	Response.Write " <tr>"
+	Response.Write "<th wIDth=""5%"">选择</th>"
+	Response.Write "<th wIDth=""9%"">类型</th>"
+	Response.Write "<th wIDth=""16%"">名称</th>"
+	Response.Write "<th wIDth=""15%"">IP</th>"
+	Response.Write "<th wIDth=""*"">开机时间</th>"
+	Response.Write "<th wIDth=""12%"">客服</th>"
+	Response.Write "<th wIDth=""5%"">主页</th>"
+	Response.Write "<th wIDth=""15%"">操作</th>"
+	Response.Write "</tr>"
+	Response.Write " <form name=selform method=Get action="""">"
+	Response.Write " <input type=hIDden name=action value=''>"
+	Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.QQ,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.isBest,Gq_sfdata.BestTime,Gq_sfdata.gameID,Gq_GameType.game"
+	Sql=Sql&" from Gq_sfdata,Gq_GameType where Gq_sfdata.gameID=Gq_GameType.ID and Gq_sfdata.ulock=0"
+	Sql=Sql&" order by Gq_sfdata.ID desc"
+	Rs.open Sql,conn,1,1 
+	If Rs.eof and Rs.bof then
+		Response.Write "<tr><td align='center' class=tablerow1 colspan='8'>当前没有未通过审核的私服！</td></tr>"
+	Else 
+		totalrec = Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)  '得到总页数
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If CurrentPage < 1 Then CurrentPage = 1
+		If CurrentPage > Pcount Then CurrentPage = Pcount
+		Rs.PageSize = maxperpage
+		Rs.AbsolutePage = CurrentPage
+		i = 0
+		Do While Not Rs.EOF And i < maxperpage
+			If Not Response.IsClientConnected Then ResponseEnd
+			Response.Write " <tr>"
+			Response.Write " <td " & CenterClass & "><input type=""checkbox"" name=""selID"" value="""
+			Response.Write Rs("ID")
+			Response.Write """></td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("game")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("name")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("ip")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Sdate")<>"" then
+				Response.Write year(Rs("sdate"))&"年"&month(Rs("sdate"))&"月"&day(Rs("Sdate"))&"日" & Rs("hour") & "时" & Rs("minute") & "分"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("QQ")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("homepage")="" or Rs("homepage")="无" or Rs("homepage")="http://" then
+				Response.Write "未知"
+			Else
+				Response.Write "<a href="&Rs("homepage")&" target=_blank><FONT color=#0000FF>查看</FONT></a>"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & "><a href=?ID="
+			Response.Write Rs("ID")
+			Response.Write "&action=edit><font color=""#008000"">编辑</font></a> | <a href=?selID="
+			Response.Write Rs("ID")
+			Response.Write "&action=batdel><font color=""#008000"">删除</font></a></td>"
+			Response.Write "</tr>"
+		Rs.movenext
+	i = i + 1
+	If i >= maxperpage Then Exit Do
+		Loop
+	End If
+	Rs.Close:Set Rs = Nothing
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & LeftClass & " colspan=8><B>操作选项:<B> "
+	Response.Write "<input class=Button type=button value='全选' onClick=""CheckAll(this.form)"">"
+	Response.Write "<input class=Button type=button value='撤消' onClick=""CheckCel(this.form)"">"
+	Response.Write "<input class=Button type=button value='反选' onClick=""CheckSel(this.form)""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit1"" value=批量审核 onclick=""document.selform.action.value='batulock';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit2"" value=批量删除 onclick=""document.selform.action.value='batdel';"">"
+	Response.Write "</td>" & vbCrLf
+	Response.Write "</tr>" & vbCrLf
+	Response.Write "</form>" & vbCrLf
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & RightClass & " colspan=8>" & vbCrLf
+	tee5.ShowListPage CurrentPage,Pcount,totalrec,maxperpage,"&action=ulock","私服审核"
+	Response.Write "</TD></TR></TABLE>" & vbCrLf
+End Sub
+'=========================================================
+'作者声明：转载请保留版权信息，鄙视不要脸的人
+'程序制作：╲、讯翔゛  QQ: 63661063
+'官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=========================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=========================================================
+'=================================================
+'过程名：TopGame
+'作  用：固顶推荐管理
+'=================================================
+Sub TopGame()
+	Response.Write "<table border=""0"" cellspacing=""1"" cellpadding=""3"" align=center class=""tableBorder"">"
+	Response.Write " <tr>"
+	Response.Write "<th wIDth=""5%"">选择</th>"
+	Response.Write "<th wIDth=""9%"">类型</th>"
+	Response.Write "<th wIDth=""16%"">名称</th>"
+	Response.Write "<th wIDth=""15%"">IP</th>"
+	Response.Write "<th wIDth=""*"">开机时间</th>"
+	Response.Write "<th wIDth=""18%"">推荐时间</th>"
+	Response.Write "<th wIDth=""6%"">广告</th>"
+	Response.Write "<th wIDth=""8%"">操作</th>"
+	Response.Write "</tr>"
+	Response.Write " <form name=selform method=Get action="""">"
+	Response.Write " <input type=hIDden name=action value=''>"
+	Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.isBest,Gq_sfdata.BestTime,Gq_sfdata.Daytime,Gq_sfdata.gameID,Gq_gametype.game"
+	Sql=Sql&" from Gq_sfdata,Gq_gametype where Gq_sfdata.gameID=Gq_gametype.ID and Gq_sfdata.isBest=1"
+	Sql=Sql&" order by Gq_sfdata.ID desc"
+	Rs.open Sql,conn,1,1 
+	If Rs.eof and Rs.bof then 
+		Response.Write "<tr><td align='center' class=tablerow1 colspan='8'>当前没有固顶推荐的私服！</td></tr>"
+	Else 
+		totalrec = Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)  '得到总页数
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If CurrentPage < 1 Then CurrentPage = 1
+		If CurrentPage > Pcount Then CurrentPage = Pcount
+		Rs.PageSize = maxperpage
+		Rs.AbsolutePage = CurrentPage
+		i = 0
+		Do While Not Rs.EOF And i < maxperpage
+			If Not Response.IsClientConnected Then ResponseEnd
+			Response.Write " <tr>"
+			Response.Write " <td " & CenterClass & "><input type=""checkbox"" name=""selID"" value="""
+			Response.Write Rs("ID")
+			Response.Write """></td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("game")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("name")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("ip")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Sdate")<>"" then
+				Response.Write year(Rs("sdate"))&"年"&month(Rs("sdate"))&"月"&day(Rs("Sdate"))&"日" & Rs("hour") & "时" & Rs("minute") & "分"
+			End If
+			Response.Write "</td>"
+			AdsTime=Rs("Daytime")+1
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("BestTime")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Daytime")=0 then
+				Response.Write "<FONT color=#FF0000>一天</FONT>"
+			Else
+				Response.Write AdsTime
+				Response.Write "天"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("isBest")=0 then
+				Response.Write "<a href=?ID="&Rs("ID")&"&act=top>固</a>"
+			Else
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batutop><font color=red>解</font></a>"
+			End If
+			Response.Write "|<a href=?ID="
+			Response.Write Rs("ID")
+			Response.Write "&action=edit><font color=""#008000"">编</font></a>|<a href=?selID="
+			Response.Write Rs("ID")
+			Response.Write "&action=batdel><font color=""#008000"">删</font></a></td>"
+			Response.Write "</tr>"
+		Rs.movenext
+	i = i + 1
+	If i >= maxperpage Then Exit Do
+		Loop
+	End If
+	Rs.Close:Set Rs = Nothing
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & LeftClass & " colspan=8><B>操作选项:<B> "
+	Response.Write "<input class=Button type=button value='全选' onClick=""CheckAll(this.form)"">"
+	Response.Write "<input class=Button type=button value='撤消' onClick=""CheckCel(this.form)"">"
+	Response.Write "<input class=Button type=button value='反选' onClick=""CheckSel(this.form)""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit1"" value=批量解固 onclick=""document.selform.action.value='batuTop';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit2"" value=批量删除 onclick=""document.selform.action.value='batdel';"">"
+	Response.Write "</td>" & vbCrLf
+	Response.Write "</tr>" & vbCrLf
+	Response.Write "</form>" & vbCrLf
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & RightClass & " colspan=8>" & vbCrLf
+	tee5.ShowListPage CurrentPage,Pcount,totalrec,maxperpage,"&action=top","固顶私服"
+	Response.Write "</TD></TR></TABLE>" & vbCrLf
+End Sub
+
+
+'=========================================================
+'作者声明：转载请保留版权信息，鄙视不要脸的人
+'程序制作：╲、讯翔゛  QQ: 63661063
+'官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=========================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=========================================================
+'=================================================
+'过程名：HotGame
+'作  用：通宵推荐管理
+'=================================================
+Sub HotGame()
+	Response.Write "<table border=""0"" cellspacing=""1"" cellpadding=""3"" align=center class=""tableBorder"">"
+	Response.Write " <tr>"
+	Response.Write "<th wIDth=""5%"">选择</th>"
+	Response.Write "<th wIDth=""9%"">类型</th>"
+	Response.Write "<th wIDth=""16%"">名称</th>"
+	Response.Write "<th wIDth=""15%"">IP</th>"
+	Response.Write "<th wIDth=""*"">开机时间</th>"
+	Response.Write "<th wIDth=""18%"">推荐时间</th>"
+	Response.Write "<th wIDth=""5%"">广告</th>"
+	Response.Write "<th wIDth=""6%"">人气</th>"
+	Response.Write "<th wIDth=""8%"">操作</th>"
+	Response.Write "</tr>"
+	Response.Write " <form name=selform method=Get action="""">"
+	Response.Write " <input type=hIDden name=action value=''>"
+	Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.QQ,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.hot,Gq_sfdata.hottime,Gq_sfdata.Daytime,Gq_sfdata.hits,Gq_sfdata.gameID,Gq_GameType.game"
+	Sql=Sql&" from Gq_sfdata,Gq_GameType where Gq_sfdata.gameID=Gq_GameType.ID and Gq_sfdata.hot=1"
+	Sql=Sql&" order by Gq_sfdata.ID desc"
+	Rs.open Sql,conn,1,1 
+	If Rs.eof and Rs.bof then
+		Response.Write "<tr><td align='center' class=tablerow1 colspan='9'>当前没有通宵推荐私服！</td></tr>"
+	Else 
+		totalrec = Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)  '得到总页数
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If CurrentPage < 1 Then CurrentPage = 1
+		If CurrentPage > Pcount Then CurrentPage = Pcount
+		Rs.PageSize = maxperpage
+		Rs.AbsolutePage = CurrentPage
+		i = 0
+		Do While Not Rs.EOF And i < maxperpage
+			If Not Response.IsClientConnected Then ResponseEnd
+			Response.Write " <tr>"
+			Response.Write " <td " & CenterClass & "><input type=""checkbox"" name=""selID"" value="""
+			Response.Write Rs("ID")
+			Response.Write """></td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("game")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("name")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("ip")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Sdate")<>"" then
+				Response.Write year(Rs("sdate"))&"年"&month(Rs("sdate"))&"月"&day(Rs("Sdate"))&"日" & Rs("hour") & "时" & Rs("minute") & "分"
+			End If
+			Response.Write "</td>"
+			AdsTime=Rs("Daytime")+1
+
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("hottime")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Daytime")=0 then
+				Response.Write "<FONT color=#FF0000>一天</FONT>"
+			Else
+				Response.Write AdsTime
+				Response.Write "天"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write "<font color=red>"
+			Response.Write Rs("hits")
+			Response.Write "</font></td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("hot")=0 then
+				Response.Write "<a href=?selID="
+				Response.Write Rs("ID")
+				Response.Write "&action=bathot>荐</a>"
+			Else
+				Response.Write "<a href=?selID="
+				Response.Write Rs("ID")
+				Response.Write "&action=batuhot><font color=red>普</font></a>"
+			End If
+			Response.Write "|<a href=?ID="
+			Response.Write Rs("ID")
+			Response.Write "&action=edit><font color=""#008000"">编</font></a>|<a href=?selID="
+			Response.Write Rs("ID")
+			Response.Write "&action=batdel><font color=""#008000"">删</font></a></td>"
+			Response.Write "</tr>"
+		Rs.movenext
+	i = i + 1
+	If i >= maxperpage Then Exit Do
+		Loop
+	End If
+	Rs.Close:Set Rs = Nothing
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & LeftClass & " colspan=9><B>操作选项:<B> "
+	Response.Write "<input class=Button type=button value='全选' onClick=""CheckAll(this.form)"">"
+	Response.Write "<input class=Button type=button value='撤消' onClick=""CheckCel(this.form)"">"
+	Response.Write "<input class=Button type=button value='反选' onClick=""CheckSel(this.form)""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit1"" value=批量解荐 onclick=""document.selform.action.value='batuHot';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit2"" value=批量删除 onclick=""document.selform.action.value='batdel';"">"
+	Response.Write "</td>" & vbCrLf
+	Response.Write "</tr>" & vbCrLf
+	Response.Write "</form>" & vbCrLf
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & RightClass & " colspan=9>" & vbCrLf
+	tee5.ShowListPage CurrentPage,Pcount,totalrec,maxperpage,"&action=hot","通宵私服"
+	Response.Write "</TD></TR></TABLE>" & vbCrLf
+End Sub
+'=================================================
+'过程名：HotGame2
+'作  用：固顶通宵推荐管理
+'=================================================
+Sub HotGame2()
+	Response.Write "<table border=""0"" cellspacing=""1"" cellpadding=""3"" align=center class=""tableBorder"">"
+	Response.Write " <tr>"
+	Response.Write "<th wIDth=""5%"">选择</th>"
+	Response.Write "<th wIDth=""9%"">类型</th>"
+	Response.Write "<th wIDth=""16%"">名称</th>"
+	Response.Write "<th wIDth=""15%"">IP</th>"
+	Response.Write "<th wIDth=""*"">开机时间</th>"
+	Response.Write "<th wIDth=""18%"">推荐时间</th>"
+	Response.Write "<th wIDth=""5%"">广告</th>"
+	Response.Write "<th wIDth=""6%"">人气</th>"
+	Response.Write "<th wIDth=""8%"">操作</th>"
+	Response.Write "</tr>"
+	Response.Write " <form name=selform method=Get action="""">"
+	Response.Write " <input type=hIDden name=action value=''>"
+	Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.QQ,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.hot,Gq_sfdata.hottime,Gq_sfdata.Daytime,Gq_sfdata.hits,Gq_sfdata.gameID,Gq_GameType.game"
+	Sql=Sql&" from Gq_sfdata,Gq_GameType where Gq_sfdata.gameID=Gq_GameType.ID and Gq_sfdata.hot=2"
+	Sql=Sql&" order by Gq_sfdata.ID desc"
+	Rs.open Sql,conn,1,1 
+	If Rs.eof and Rs.bof then
+		Response.Write "<tr><td align='center' class=tablerow1 colspan='9'>当前没有通宵推荐私服！</td></tr>"
+	Else 
+		totalrec = Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)  '得到总页数
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If CurrentPage < 1 Then CurrentPage = 1
+		If CurrentPage > Pcount Then CurrentPage = Pcount
+		Rs.PageSize = maxperpage
+		Rs.AbsolutePage = CurrentPage
+		i = 0
+		Do While Not Rs.EOF And i < maxperpage
+			If Not Response.IsClientConnected Then ResponseEnd
+			Response.Write " <tr>"
+			Response.Write " <td " & CenterClass & "><input type=""checkbox"" name=""selID"" value="""
+			Response.Write Rs("ID")
+			Response.Write """></td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("game")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("name")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("ip")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Sdate")<>"" then
+				Response.Write year(Rs("sdate"))&"年"&month(Rs("sdate"))&"月"&day(Rs("Sdate"))&"日" & Rs("hour") & "时" & Rs("minute") & "分"
+			End If
+			Response.Write "</td>"
+			AdsTime=Rs("Daytime")+1
+
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("hottime")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Daytime")=0 then
+				Response.Write "<FONT color=#FF0000>一天</FONT>"
+			Else
+				Response.Write AdsTime
+				Response.Write "天"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write "<font color=red>"
+			Response.Write Rs("hits")
+			Response.Write "</font></td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("hot")=0 then
+				Response.Write "<a href=?selID="
+				Response.Write Rs("ID")
+				Response.Write "&action=bathot>荐</a>"
+			Else
+				Response.Write "<a href=?selID="
+				Response.Write Rs("ID")
+				Response.Write "&action=batuhot><font color=red>普</font></a>"
+			End If
+			Response.Write "|<a href=?ID="
+			Response.Write Rs("ID")
+			Response.Write "&action=edit><font color=""#008000"">编</font></a>|<a href=?selID="
+			Response.Write Rs("ID")
+			Response.Write "&action=batdel><font color=""#008000"">删</font></a></td>"
+			Response.Write "</tr>"
+		Rs.movenext
+	i = i + 1
+	If i >= maxperpage Then Exit Do
+		Loop
+	End If
+	Rs.Close:Set Rs = Nothing
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & LeftClass & " colspan=9><B>操作选项:<B> "
+	Response.Write "<input class=Button type=button value='全选' onClick=""CheckAll(this.form)"">"
+	Response.Write "<input class=Button type=button value='撤消' onClick=""CheckCel(this.form)"">"
+	Response.Write "<input class=Button type=button value='反选' onClick=""CheckSel(this.form)""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit1"" value=批量解荐 onclick=""document.selform.action.value='batuHot';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit2"" value=批量删除 onclick=""document.selform.action.value='batdel';"">"
+	Response.Write "</td>" & vbCrLf
+	Response.Write "</tr>" & vbCrLf
+	Response.Write "</form>" & vbCrLf
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & RightClass & " colspan=9>" & vbCrLf
+	tee5.ShowListPage CurrentPage,Pcount,totalrec,maxperpage,"&action=hot","固顶通宵"
+	Response.Write "</TD></TR></TABLE>" & vbCrLf
+End Sub
+'=========================================================
+'作者声明：转载请保留版权信息，鄙视不要脸的人
+'程序制作：╲、讯翔゛  QQ: 63661063
+'官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=========================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=========================================================
+'=================================================
+'过程名：FineGame
+'作  用：精品推荐管理
+'=================================================
+Sub FineGame()
+	Response.Write "<table border=""0"" cellspacing=""1"" cellpadding=""3"" align=center class=""tableBorder"">"
+	Response.Write " <tr>"
+	Response.Write "<th wIDth=""5%"">选择</th>"
+	Response.Write "<th wIDth=""9%"">类型</th>"
+	Response.Write "<th wIDth=""16%"">名称</th>"
+	Response.Write "<th wIDth=""15%"">IP</th>"
+	Response.Write "<th wIDth=""*"">开机时间</th>"
+	Response.Write "<th wIDth=""18%"">推荐时间</th>"
+	Response.Write "<th wIDth=""6%"">广告</th>"
+	Response.Write "<th wIDth=""6%"">人气</th>"
+	Response.Write "<th wIDth=""8%"">操作</th>"
+	Response.Write "</tr>"
+	Response.Write " <form name=selform method=Get action="""">"
+	Response.Write " <input type=hIDden name=action value=''>"
+	Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.Fine,Gq_sfdata.Finetime,Gq_sfdata.Daytime,Gq_sfdata.hits,Gq_sfdata.gameID,Gq_GameType.game"
+	Sql=Sql&" from Gq_sfdata,Gq_GameType where Gq_sfdata.gameID=Gq_GameType.ID and Gq_sfdata.Fine=1"
+	Sql=Sql&" order by Gq_sfdata.ID desc"
+	Rs.open Sql,conn,1,1 
+	If Rs.eof and Rs.bof then
+		Response.Write "<tr><td align='center' class=tablerow1 colspan='9'>当前还没有精品私服推荐！</td></tr>"
+	Else 
+		totalrec = Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)  '得到总页数
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If CurrentPage < 1 Then CurrentPage = 1
+		If CurrentPage > Pcount Then CurrentPage = Pcount
+		Rs.PageSize = maxperpage
+		Rs.AbsolutePage = CurrentPage
+		i = 0
+		Do While Not Rs.EOF And i < maxperpage
+			If Not Response.IsClientConnected Then ResponseEnd
+			Response.Write " <tr>"
+			Response.Write " <td " & CenterClass & "><input type=""checkbox"" name=""selID"" value="""
+			Response.Write Rs("ID")
+			Response.Write """></td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("game")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("name")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("ip")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Sdate")<>"" then
+				Response.Write year(Rs("sdate"))&"年"&month(Rs("sdate"))&"月"&day(Rs("Sdate"))&"日" & Rs("hour") & "时" & Rs("minute") & "分"
+			End If
+			Response.Write "</td>"
+			AdsTime=Rs("Daytime")+1
+
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("finetime")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Daytime")=0 then
+				Response.Write "<FONT color=#FF0000>一天</FONT>"
+			Else
+				Response.Write AdsTime
+				Response.Write "天"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & "><font color=red>"
+			Response.Write Rs("hits")
+			Response.Write "</font></td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("fine")=0 then
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batfine>精</a>"
+			Else
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batufine><font color=red>简</font></a>"
+			End If
+			Response.Write "|<a href=?ID="
+			Response.Write Rs("ID")
+			Response.Write "&action=edit><font color=""#008000"">编</font></a>|<a href=?selID="
+			Response.Write Rs("ID")
+			Response.Write "&action=batdel><font color=""#008000"">删</font></a></td>"
+			Response.Write "</tr>"
+		Rs.movenext
+	i = i + 1
+	If i >= maxperpage Then Exit Do
+		Loop
+	End If
+	Rs.Close:Set Rs = Nothing
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & LeftClass & " colspan=9><B>操作选项:<B> "
+	Response.Write "<input class=Button type=button value='全选' onClick=""CheckAll(this.form)"">"
+	Response.Write "<input class=Button type=button value='撤消' onClick=""CheckCel(this.form)"">"
+	Response.Write "<input class=Button type=button value='反选' onClick=""CheckSel(this.form)""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit1"" value=批量解精 onclick=""document.selform.action.value='batuFine';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit2"" value=批量删除 onclick=""document.selform.action.value='batdel';"">"
+	Response.Write "</td>" & vbCrLf
+	Response.Write "</tr>" & vbCrLf
+	Response.Write "</form>" & vbCrLf
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & RightClass & " colspan=9>" & vbCrLf
+	tee5.ShowListPage CurrentPage,Pcount,totalrec,maxperpage,"&action=fine","精品私服"
+	Response.Write "</TD></TR></TABLE>" & vbCrLf
+End Sub
+'=========================================================
+'作者声明：转载请保留版权信息，鄙视不要脸的人
+'程序制作：╲、讯翔゛  QQ: 63661063
+'官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=========================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=========================================================
+'=================================================
+'过程名：FreeGame
+'作  用：更多私服管理
+'=================================================
+Sub FreeGame()
+	Response.Write "<table border=""0"" cellspacing=""1"" cellpadding=""3"" align=center class=""tableBorder"">"
+	Response.Write " <tr>"
+	Response.Write "<th wIDth=""5%"">选择</th>"
+	Response.Write "<th wIDth=""9%"">类型</th>"
+	Response.Write "<th wIDth=""16%"">名称</th>"
+	Response.Write "<th wIDth=""15%"">IP</th>"
+	Response.Write "<th wIDth=""*"">开机时间</th>"
+	Response.Write "<th wIDth=""14%"">客服QQ</th>"
+	Response.Write "<th wIDth=""7%"">审核</th>"
+	Response.Write "<th wIDth=""14%"">操作</th>"
+	Response.Write "</tr>"
+	Response.Write " <form name=selform method=Get action="""">"
+	Response.Write " <input type=hIDden name=action value=''>"
+	'If menu<>"" then
+		'Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.QQ,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.isBest,Gq_sfdata.hot,Gq_sfdata.fine,Gq_sfdata.gameID,Gq_gametype.game"
+		'Sql=Sql&" from Gq_sfdata,Gq_gametype where Gq_sfdata.gameID=Gq_gametype.ID and Gq_sfdata.gameID="&menu
+		'Sql=Sql&" order by Gq_sfdata.ID desc"
+	'Else
+		Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.QQ,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.isBest,Gq_sfdata.hot,Gq_sfdata.fine,Gq_sfdata.gameID,Gq_gametype.game"
+		Sql=Sql&" from Gq_sfdata,Gq_gametype where Gq_sfdata.gameID=Gq_gametype.ID and Gq_sfdata.ulock=1 and Gq_sfdata.isBest=0 and Gq_sfdata.hot=0 and Gq_sfdata.fine=0"
+		Sql=Sql&" order by Gq_sfdata.ID desc"
+	'End If
+	Rs.open Sql,conn,1,1 
+	If Rs.eof and Rs.bof then
+		Response.Write "<tr><td align='center' class=tablerow1 colspan='8'>当前没有任何私服！</td></tr>"
+	Else 
+		totalrec = Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)  '得到总页数
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If CurrentPage < 1 Then CurrentPage = 1
+		If CurrentPage > Pcount Then CurrentPage = Pcount
+		Rs.PageSize = maxperpage
+		Rs.AbsolutePage = CurrentPage
+		i = 0
+		Do While Not Rs.EOF And i < maxperpage
+			If Not Response.IsClientConnected Then ResponseEnd
+			Response.Write " <tr>"
+			Response.Write " <td " & CenterClass & "><input type=""checkbox"" name=""selID"" value="""
+			Response.Write Rs("ID")
+			Response.Write """></td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("game")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("name")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("ip")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Sdate")<>"" then
+				Response.Write year(Rs("sdate"))&"年"&month(Rs("sdate"))&"月"&day(Rs("Sdate"))&"日" & Rs("hour") & "时" & Rs("minute") & "分"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("QQ")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("ulock")=1 then
+				Response.Write "<font color=#CCCCCC>通过</font>"
+			Else
+				Response.Write "<font color=red>等待</font>"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("isBest")=0 then
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=battop>固</a>"
+			Else
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batutop><font color=red>解</font></a>"
+			End If
+			Response.Write "|"
+			If Rs("hot")=0 then
+				Response.Write "<a href=admin_hot.asp?selID="
+				Response.Write Rs("ID")
+				Response.Write "&action=bathot>荐</a>"
+			Else
+				Response.Write "<a href=admin_hot.asp?ID="
+				Response.Write Rs("ID")
+				Response.Write "&action=batuhot><font color=BLUE>普</font></a>"
+			End If
+			Response.Write "|<a href=?ID="
+			Response.Write Rs("ID")
+			Response.Write "&action=edit><font color=""#008000"">编</font></a>|<a href=?selID="
+			Response.Write Rs("ID")
+			Response.Write "&action=batdel><font color=""#008000"">删</font></a></td>"
+			Response.Write "</tr>"
+		Rs.movenext
+	i = i + 1
+	If i >= maxperpage Then Exit Do
+		Loop
+	End If
+	Rs.Close:Set Rs = Nothing
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & LeftClass & " colspan=8><B>操作选项:<B> "
+	Response.Write "<input class=Button type=button value='全选' onClick=""CheckAll(this.form)"">"
+	Response.Write "<input class=Button type=button value='撤消' onClick=""CheckCel(this.form)"">"
+	Response.Write "<input class=Button type=button value='反选' onClick=""CheckSel(this.form)""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit1"" value=批量审核 onclick=""document.selform.action.value='batulock';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit2"" value=批量删除 onclick=""document.selform.action.value='batdel';"">"
+	Response.Write "</td>" & vbCrLf
+	Response.Write "</tr>" & vbCrLf
+	Response.Write "</form>" & vbCrLf
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & RightClass & " colspan=9>" & vbCrLf
+	tee5.ShowListPage CurrentPage,Pcount,totalrec,maxperpage,"&action=free","其他私服"
+	Response.Write "</TD></TR></TABLE>" & vbCrLf
+End Sub
+'=========================================================
+'作者声明：转载请保留版权信息，鄙视不要脸的人
+'程序制作：╲、讯翔゛  QQ: 63661063
+'官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=========================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=========================================================
+'=================================================
+'过程名：EditGame
+'作  用：私服编辑
+'=================================================
+Sub EditGame()
+	ID=tee5.CheckStr(request("ID"))
+	If ID="" or (not isnumeric(ID)) then
+		tee5.OutClertScript ("参数不正确！")
+	End If
+	Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.QQ,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.isBest,Gq_sfdata.fine,Gq_sfdata.hot,Gq_sfdata.Daytime,Gq_sfdata.gameID,Gq_gametype.game "
+	Sql=Sql&" from Gq_sfdata,Gq_gametype where Gq_sfdata.gameID=Gq_gametype.ID and Gq_sfdata.ID="&ID
+	Rs.open Sql,conn,1,1 
+	If Rs.bof and Rs.eof then
+		Response.Write "<script>alert('无此数据！！！');window.close()</script>"
+		response.end
+	Else
+		Response.Write "<table border=""0"" cellspacing=""1"" cellpadding=""3"" align=center class=""tableBorder"">"
+		Response.Write "<FORM name=form1 action=admin_edit.asp method=post>"
+		Response.Write " <tr>"
+		Response.Write "<th colspan=""2"">私服管理－－编辑私服</th>"
+		Response.Write "</tr>"
+		Response.Write "<TR>"
+		Response.Write "<td wIDth=""15%"" " & RightClass & ">私服类型：</TD>"
+		Response.Write "<td " & LeftClass & ">"
+		Set Rs_type = Server.CreateObject("ADODB.RecordSet")
+		Sql_Type="select * from Gq_gametype order by orderID"
+		Rs_type.open Sql_type,conn,1,1
+		Response.Write "<SELECT ID=gameID size=1 name=gameID>"
+		If Rs_type.eof and Rs_type.bof then
+			Response.Write "<option value= selected>请添加游戏分类</option>"
+		Else
+			Do While Not Rs_type.EOF
+				If Rs_type("ID")=Rs("gameID") then
+					Response.Write "<option value="&Rs_type("ID")&" selected>"&Rs_type("game")&"</option>"
+				Else
+					Response.Write "<option value="&Rs_type("ID")&">"&Rs_type("game")&"</option>"
+				End If
+			Rs_type.movenext
+			loop
+			Rs_type.close
+		End If
+		Response.Write "</SELECT></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">私服名称：</TD>"
+		Response.Write "<td " & LeftClass & "><INPUT name=name value=""" & Rs("name") & """ maxLength=14></TD>"
+		Response.Write "</TR>"
+		Response.Write "<tr>"
+		Response.Write "<td " & RightClass & ">私服IP：</TD>"
+		Response.Write "<td " & LeftClass & "><INPUT name=ip value=""" & Rs("ip") & """ maxLength=16></TD>"
+		Response.Write "</tr>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">开区时间：</TD>"
+		Response.Write "<td " & LeftClass & "><INPUT name=sdate value=""" & Rs("sdate") & """ size=16 maxLength=16> <input name=hour value=""" & Rs("hour") & """ size=4 maxlength=4> 时 <INPUT name=minute value=""" & Rs("minute") & """ size=4 maxLength=4> 分</TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">客服QQ：</TD>"
+		Response.Write "<td " & LeftClass & "><INPUT name=QQ value=""" & Rs("QQ") & """ maxLength=50></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">地区线路：</TD>"
+		Response.Write "<td " & LeftClass & ">"
+		Response.Write "<INPUT name=addr value=""" & Rs("addr") & """ maxLength=50> "
+		Response.Write "<SELECT ID=service size=1 name=service>"
+		For i=0 to ubound(split(tee5.ssign,","))
+			Response.Write "		<OPTION value='"&i&"' "
+			If Rs("Service")=i then Response.Write "selected" End If
+			Response.Write ">"&split(tee5.ssign,",")(i)&"</option>"
+		Next
+		Response.Write "</SELECT></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">版本简介：</TD>"
+		Response.Write "<td " & LeftClass & "><INPUT name=xingzhi value=""" & Rs("xingzhi") & """ size=40 maxLength=28></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">主页地址：</TD>"
+		Response.Write "<td " & LeftClass & "><INPUT name=homepage value=""" & Rs("homepage") & """ size=36 maxLength=100></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">登陆器下载：</TD>"
+		Response.Write "<td " & LeftClass & "><INPUT name=download value=""" & Rs("download") & """ size=36 maxLength=100></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">广告期限：</TD>"
+		Response.Write "<td " & LeftClass & ">"
+		Response.Write "<select name=""Daytime"" size=""1"">"
+		Response.Write "<option selected value=""0"">请 选 择</option>"
+		Response.Write "<OPTION value=0 "
+		If Rs("Daytime")="0" then Response.Write "selected"
+		Response.Write ">推荐一天</OPTION>"
+		Response.Write "<OPTION value=1 "
+		If Rs("Daytime")="1" then Response.Write "selected"
+		Response.Write ">推荐二天</OPTION>"
+		Response.Write "<OPTION value=2 "
+		If Rs("Daytime")="2" then Response.Write "selected"
+		Response.Write ">推荐三天</OPTION>"
+		Response.Write "<OPTION value=3 "
+		If Rs("Daytime")="3" then Response.Write "selected"
+		Response.Write ">推荐四天</OPTION>"
+		Response.Write "<OPTION value=4 "
+		If Rs("Daytime")="4" then Response.Write "selected"
+		Response.Write ">推荐五天</OPTION>"
+		Response.Write "<OPTION value=5 "
+		If Rs("Daytime")="5" then Response.Write "selected"
+		Response.Write ">推荐六天</OPTION>"
+		Response.Write "<OPTION value=6 "
+		If Rs("Daytime")="6" then Response.Write "selected"
+		Response.Write ">推荐七天</OPTION>"
+		Response.Write "</select>"
+		Response.Write "</TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">精品推荐：</TD>"
+		Response.Write "<td " & LeftClass & "><input name=""fine"" type=""checkbox"" value=""1"" "
+		If Rs("fine")=1 then Response.Write "checked"
+		Response.Write "></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">固顶推荐：</TD>"
+		Response.Write "<td " & LeftClass & "><input name=""isBest"" type=""checkbox"" value=""1"" "
+		If Rs("isBest")=1 then Response.Write "checked"
+		Response.Write "></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">固顶通宵：</TD>"
+		Response.Write "<td " & LeftClass & "><input name=""hot"" type=""checkbox"" value=""2"" "
+		If Rs("hot")=2 then Response.Write "checked"
+		Response.Write "></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">通宵推荐：</TD>"
+		Response.Write "<td " & LeftClass & "><input name=""hot"" type=""checkbox"" value=""1"" "
+		If Rs("hot")=1 then Response.Write "checked"
+		Response.Write "></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">审核状态：</TD>"
+		Response.Write "<td " & LeftClass & "><input name=""ulock"" type=""checkbox"" value=""1"" "
+		If Rs("ulock")=1 then Response.Write "checked"
+		Response.Write "></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & RightClass & ">发布日期：</TD>"
+		Response.Write "<td " & LeftClass & "><INPUT name=addtime value="""
+		If Rs("addtime")="" then
+			Response.Write Rs("sdate")
+		Else
+			Response.Write Rs("addtime")
+		End If
+		Response.Write """ size=20 maxLength=19></TD>"
+		Response.Write "</TR>"
+		Response.Write "<TR>"
+		Response.Write "<td " & CenterClass & " colspan=""2"">"
+		Response.Write "<input name=""ID"" type=""hIDden"" value=""" & Rs("ID") & """>"
+		Response.Write "<INPUT type=submit value="" 编 辑 "" name=submit2>&nbsp;&nbsp;&nbsp;&nbsp;"
+		Response.Write "<INPUT type=reset value="" 清 除 "" name=cmdcancel>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+		Response.Write "</TD>"
+		Response.Write "</TR>"
+		Response.Write "</form>"
+		Response.Write "</TABLE>"
+	End If
+End Sub
+'=========================================================
+'作者声明：转载请保留版权信息，鄙视不要脸的人
+'程序制作：╲、讯翔゛  QQ: 63661063
+'官方网站：逐鹿科技(www.zhaosf3000ok.com)
+'=========================================================
+' Copyright 2004-2007 5YSM.Com - All Rights Reserved.
+'=========================================================
+'=================================================
+'过程名：SearchGame
+'作  用：私服搜索
+'=================================================
+Sub SearchGame()
+	Dim Key, Otype
+	Menu=tee5.CheckStr(request("menu"))
+	Key=tee5.CheckStr(request("key"))
+	Otype=tee5.CheckStr(request("otype"))
+	If key="" then
+		Response.Write "<script>alert('请输入查询条件');history.back()</script>"
+		response.end
+	End If
+	Response.Write "<table border=""0"" cellspacing=""1"" cellpadding=""3"" align=center class=""tableBorder"">"
+	Response.Write " <tr>"
+	Response.Write "<th wIDth=""5%"">选择</th>"
+	Response.Write "<th wIDth=""9%"">类型</th>"
+	Response.Write "<th wIDth=""16%"">名称</th>"
+	Response.Write "<th wIDth=""15%"">IP</th>"
+	Response.Write "<th wIDth=""*"">开机时间</th>"
+	Response.Write "<th wIDth=""6%"">人气</th>"
+	Response.Write "<th wIDth=""5%"">主页</th>"
+	Response.Write "<th wIDth=""5%"">验证</th>"
+	Response.Write "<th wIDth=""15%"">操作</th>"
+	Response.Write "</tr>"
+	Response.Write " <form name=selform method=Get action="""">"
+	Response.Write " <input type=hIDden name=action value=''>"
+	If menu<>"" then
+		Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.QQ,Gq_sfdata.hits,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.isBest,Gq_sfdata.fine,Gq_sfdata.BestTime,Gq_sfdata.hot,Gq_sfdata.gameID,Gq_GameType.game"
+		Sql=Sql&" from Gq_SFdata,Gq_Gametype where "&otype&" like '%"&key&"%' and Gq_SFdata.gameID=Gq_gametype.ID and Gq_SFdata.gameID="&menu
+		Sql=Sql&" and Gq_SFdata.ulock=1 order by Gq_SFdata.addtime desc"
+	Else
+		Sql="select Gq_sfdata.ID,Gq_sfdata.name,Gq_sfdata.IP,Gq_sfdata.service,Gq_sfdata.Sdate,Gq_sfdata.hour,Gq_sfdata.minute,Gq_sfdata.addr,Gq_sfdata.xingzhi,Gq_sfdata.QQ,Gq_sfdata.hits,Gq_sfdata.homepage,Gq_sfdata.download,Gq_sfdata.addtime,Gq_sfdata.ulock,Gq_sfdata.isBest,Gq_sfdata.fine,Gq_sfdata.BestTime,Gq_sfdata.hot,Gq_sfdata.gameID,Gq_GameType.game"
+		Sql=Sql&" from Gq_SFdata,Gq_Gametype where "&otype&" like '%"&key&"%' and Gq_SFdata.gameID=Gq_gametype.ID"
+		Sql=Sql&" and Gq_SFdata.ulock=1 order by Gq_SFdata.addtime desc"
+	End If
+	Rs.open Sql,conn,1,1
+	If Rs.eof and Rs.bof then
+		Response.Write "<tr><td " & CenterClass & " colspan='9'><b>Sorry！<b><font color=red>没有找到您搜索的私服~！</font></td></tr>"
+	Else
+		totalrec = Rs.RecordCount
+		Pcount = CLng(totalrec / maxperpage)  '得到总页数
+		If Pcount < totalrec / maxperpage Then Pcount = Pcount + 1
+		If CurrentPage < 1 Then CurrentPage = 1
+		If CurrentPage > Pcount Then CurrentPage = Pcount
+		Rs.PageSize = maxperpage
+		Rs.AbsolutePage = CurrentPage
+		i = 0
+		Do While Not Rs.EOF And i < maxperpage
+			If Not Response.IsClientConnected Then ResponseEnd
+			Response.Write " <tr>"
+			Response.Write " <td " & CenterClass & "><input type=""checkbox"" name=""selID"" value="""
+			Response.Write Rs("ID")
+			Response.Write """></td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("game")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("name")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			Response.Write Rs("ip")
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("Sdate")<>"" then
+				Response.Write year(Rs("sdate"))&"年"&month(Rs("sdate"))&"月"&day(Rs("Sdate"))&"日" & Rs("hour") & "时" & Rs("minute") & "分"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & "><font color=red>"
+			Response.Write Rs("hits")
+			Response.Write "</font></td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("homepage")="" or Rs("homepage")="无" or Rs("homepage")="http://" then
+				Response.Write "未知"
+			Else
+				Response.Write "<a href="&Rs("homepage")&" target=_blank><FONT color=#0000FF>查看</FONT></a>" 
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("ulock")=1 then
+				Response.Write "<font color=#CCCCCC>通过</font>"
+			Else
+				Response.Write "<font color=red>等待</font>"
+			End If
+			Response.Write "</td>"
+			Response.Write "<td " & CenterClass & ">"
+			If Rs("isBest")=0 then
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=battop>固</a>"
+			Else
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batutop><font color=red>解</font></a>"
+			End If
+			Response.Write "|"
+			If Rs("hot")=0 then
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=bathot>荐</a>"
+			Else
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batuhot><font color=BLUE>普</font></a>"
+			End If
+			Response.Write "|"
+			If Rs("fine")=0 then
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batfine>精</a>"
+			Else
+				Response.Write "<a href=?selID="&Rs("ID")&"&action=batufine><font color=red>简</font></a>"
+			End If
+			Response.Write "|<a href=?ID="
+			Response.Write Rs("ID")
+			Response.Write "&action=edit><font color=""#008000"">编</font></a>|<a href=?selID="
+			Response.Write Rs("ID")
+			Response.Write "&action=batdel><font color=""#008000"">删</font></a></td>"
+			Response.Write "</tr>"
+		Rs.movenext
+	i = i + 1
+	If i >= maxperpage Then Exit Do
+		Loop
+	End If
+	Rs.Close:Set Rs = Nothing
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & LeftClass & " colspan=9><B>操作选项:<B> "
+	Response.Write "<input class=Button type=button value='全选' onClick=""CheckAll(this.form)"">"
+	Response.Write "<input class=Button type=button value='撤消' onClick=""CheckCel(this.form)"">"
+	Response.Write "<input class=Button type=button value='反选' onClick=""CheckSel(this.form)""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit1"" value=批量固顶 onclick=""document.selform.action.value='battop';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit2"" value=批量通宵 onclick=""document.selform.action.value='bathot';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit3"" value=批量精品 onclick=""document.selform.action.value='batfine';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit4"" value=批量审核 onclick=""document.selform.action.value='batulock';""> "
+	Response.Write "<input class=Button type=""submit"" name=""Submit5"" value=批量删除 onclick=""document.selform.action.value='batdel';"">"
+	Response.Write "</td>" & vbCrLf
+	Response.Write "</tr>" & vbCrLf
+	Response.Write "</form>" & vbCrLf
+	Response.Write "<TR height=25>" & vbCrLf
+	Response.Write "<TD " & RightClass & " colspan=9>" & vbCrLf
+	tee5.ShowListPage CurrentPage,Pcount,totalrec,maxperpage,"&action=search","私服搜索"
+	Response.Write "</TD></TR></TABLE>" & vbCrLf
+End Sub
+Sub BatTop()
+	tee5.Execute ("update Gq_SfData set isBest=1,Ulock=1,Daytime=3,BestTime=Now() where ID in (" & Request("selID") & ")")
+	Response.redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+Sub BatHot()
+	tee5.Execute ("update Gq_SfData set Hot=1,Ulock=1,Daytime=3,HotTime=Now() where ID in (" & Request("selID") & ")")
+	Response.redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+Sub BatFine()
+	tee5.Execute ("update Gq_SfData set Fine=1,Ulock=1,Daytime=3,FineTime=Now() where ID in (" & Request("selID") & ")")
+	Response.redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+Sub BatUlock()
+	tee5.Execute ("update Gq_SfData set Ulock=1 where ID in (" & Request("selID") & ")")
+	Response.redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+Sub BatDel()
+	If Len(Request("selID")) = "" then
+		response.write "<script>alert('非法操作');history.back()</script>"
+	Else
+        	If Len(Request("selID")) > 0 Then
+                	SQL = "DELETE FROM [Gq_SfData] WHERE id in (" & Request("selID") & ")"
+                	tee5.Execute (SQL)
+		End If
+	End If
+        Succeed ("恭喜您！删除成功，请继续其他操作。")
+End Sub
+
+Sub BatUtop()
+	tee5.Execute ("update Gq_SfData set isBest=0,Daytime=0,BestTime=Now() where ID in (" & Request("selID") & ")")
+	Response.redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+Sub BatUhot()
+	tee5.Execute ("update Gq_SfData set Hot=0,Daytime=0,HotTime=Now() where ID in (" & Request("selID") & ")")
+	Response.redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+Sub BatUfine()
+	tee5.Execute ("update Gq_SfData set Fine=0,Daytime=0,FineTime=Now() where ID in (" & Request("selID") & ")")
+	Response.redirect (Request.ServerVariables("HTTP_REFERER"))
+End Sub
+
+Sub ContentIDHtml(Pattern,selID)
+	Dim SQLID, AllsfID
+	Dim totalnum, FileUrl, FolderPath, FileName, FilePath
+	On Error Resume Next
+	selID = Request("selID")
+	AllsfID = Split(selID, ",")
+	If selID = "" Then
+		Response.Write "<script>alert('请选择后操作');history.back()</script>"
+	End If
+	totalnum = tee5.Execute("SELECT COUNT(*) FROM [Gq_sfdata] WHERE Ulock <> 0 And ID in (" & selID & ")")(0)
+	SQL = "SELECT * FROM Gq_sfData WHERE Ulock <> 0 And ID in (" & selID & ")"
+	Set rs = tee5.Execute(SQL)
+	SQL=Rs.GetRows(totalnum)
+	Set Rs = Nothing
+	If Pattern = 1 then SQLID= UBound(AllsfID): Else SQLID= UBound(SQL,2)
+	If Pattern = 1 then Response.Write "<ol>"
+	If Pattern = 1 then Response.Write "<b>生成私服内容（HTML）开始......</b><br><br>"
+	For i = 0 To SQLID
+		FolderPath = tee5.ServerDir & "Html/Game" & tee5.ServerDir & year(SQL(5,i)) & month(SQL(5,i)) & day(SQL(5,i)) & tee5.ServerDir
+		tee5.CreatPathEx (FolderPath)
+		FileUrl    = tee5.WebUrl & "/Temp/7.asp?ID=" & Clng(SQL(0,i))
+		FileName   = year(SQL(5,i)) & month(SQL(5,i)) & day(SQL(5,i)) & SQL(0,i)
+		FilePath   = FolderPath & FileName & ".html"
+		Call GetRemoteFiels(FileUrl, FolderPath, FileName)
+		If Pattern = 1 then Response.Write "<li style=""font-size: 12px;"">生成私服内容HTML页完成... <a href=" & FilePath & " target=_blank>" & Server.MapPath(FilePath) & "</a></li>" & vbNewLine
+		Response.Flush
+	Next
+	If Pattern = 1 then Response.Write "<br><br><b>恭喜您！私服内容HTML全部生成完毕！</b>"
+	If Pattern = 1 then Response.Write "</ol>"
+End Sub
+%>
+

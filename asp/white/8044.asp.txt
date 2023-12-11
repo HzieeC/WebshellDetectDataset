@@ -1,0 +1,2047 @@
+<!--#include file="conn.asp"--><!--#include file="inc/fun.asp"--><!--#include file="inc/md5.asp"--><!--#include file="inc/grade.asp"-->
+
+<%
+dim action,strt,bad,b,lgname,lgpwd,lgpwdmd5,bd,rs1,bdinfo,name,sql,i,bdlist2,usedtable,daynum,listname,dely,canedit,topictype,umarkuserid,str1,str2,totable,color,tablestr,delbbsid,sql1,sql2,rs2,content,content2,rebid,bbsid,bbsbd,bbsuserid,topic,uptype,contentok,face,topicok,topicinfo,addtime,lasttopic,oldtime,face1,oldname,renum,pagenum,bd2,idtop
+lgname=replace(session(prefix&"lgname"),"'","''")
+lgpwd=replace(session(prefix&"lgpwd"),"'","''")
+if isnull(lgname) or lgname="" or isnull(lgpwd) or lgpwd="" then
+response.redirect"admincheck.asp"
+else
+lgpwdmd5=md5(lgpwd)
+if conn.execute("select top 1 bd from admin where name='"&lgname&"' and password='"&lgpwdmd5&"' and bd=0").eof then
+response.redirect"admincheck.asp"
+end if
+end if
+sub bdlist(listname)
+set bdlist2=conn.execute("select * from bdinfo where followid<>0 order by followid,orders desc,id")
+response.write"<select size=1 name="&listname&" style='font-size: 9pt'><option value=0>所有论坛</option>"
+do while not bdlist2.eof
+response.write"<option value="&bdlist2("id")&">"&split(bdlist2("bdinfo"),"|")(0)&"</option>"
+bdlist2.movenext
+Loop
+response.write"</select>"
+set bdlist2=nothing
+end sub
+
+topictype=checknum(request.querystring("topictype"))
+action=request.querystring("action")
+canedit=false
+
+function strLength(str)
+	dim rep,str1,i,lens
+	set rep=new regexp
+	rep.Global=true
+	rep.IgnoreCase=true
+	rep.Pattern="[\u4E00-\u9FA5\uF900-\uFA2D]"
+	set str1=rep.Execute(str)
+	for each i in str1
+		lens=lens+1
+	next
+	lens=lens + len(str)
+	strLength=lens
+end function
+
+function checkbad(str)
+	if isnull(str) then exit function 
+	bad=split(application(prefix&"badcontent"), "|")
+	for b=0 to ubound(bad)
+		str=Replace(str,bad(b),string(len(bad(b)),"*")) 
+	next
+	checkbad=str
+end function
+
+function umark(markn)
+umarkuserid=conn.execute("select top 1 userid from topic where id="&id&"")(0)
+set rs1=server.createobject("adodb.recordset")
+sql="Select top 1 mark,del from [user] where userid="&umarkuserid&""
+rs1.open sql,conn,1,3
+rs1("mark")=rs1("mark")+int(markn)
+if rs1("mark")<0 then
+rs1("del")=true
+application(prefix&"deluser")=application(prefix&"deluser")&"|"&umarkuserid&"|"
+end if
+rs1.Update
+rs1.close
+set rs1=nothing
+end function
+
+function umark2(markn)
+umarkuserid=conn.execute("select top 1 userid from bbs"&totable&" where bbsid="&bbsid&"")(0)
+set rs1=server.createobject("adodb.recordset")
+sql="Select top 1 mark,del from [user] where userid="&umarkuserid&""
+rs1.open sql,conn,1,3
+rs1("mark")=rs1("mark")+int(markn)
+if rs1("mark")<0 then
+rs1("del")=true
+end if
+rs1.Update
+rs1.close
+set rs1=nothing
+end function
+
+function gettop()
+idtop=conn.execute("select top 1 top from topic where id="&id&"")(0)
+end function
+
+select case action
+case"editfl","updatefl" strt="编辑分类名称"
+case"editbd","editbdsave" strt="编辑版面资料"
+case"upfl" strt="提升分类"
+case"upbd" strt="提升版面"
+case"pass","addpassuser" strt="编辑认证用户"
+case"userlist","delbbsgg","userinfo","editinfo","usersearch" strt="论坛用户列表"
+case"userdel","deluser","hyuser" strt="论坛用户删除与恢复"
+case"changepwd","newpwd" strt="修改用户密码"
+case"userset","setuserok" strt="用户特殊设置"
+case"vip","addvip","delvip" strt="VIP用户设置"
+case"manage","editbbs" strt="论坛帖子列表"
+case"deltopic","delday","deldaynore","delusertopic" strt="批量删除帖子"
+case"movetopic","moveday","moveuser" strt="批量移动帖子"
+case"adminpwd","editadminpwd" strt="修改管理员后台登陆密码"
+end select
+
+sub send(str)
+response.write"<table class=td1 border=1 cellpadding=0 cellspacing=0 style='border-collapse: collapse' bordercolor=#F4F6FC width=100% bgcolor=#749AEC height=50><tr><td width=100% ><p style='margin:5px;line-height:150%'>"&str&"</p></td></tr></table>"
+end sub
+%>
+<link rel=stylesheet type=text/css href=inc/css.css>
+<STYLE type=text/css>BODY {
+	SCROLLBAR-FACE-COLOR: #749AEC;  SCROLLBAR-HIGHLIGHT-COLOR:#749AEC; SCROLLBAR-3DLIGHT-COLOR: #749AEC; SCROLLBAR-ARROW-COLOR:#F4F6FC; SCROLLBAR-TRACK-COLOR: #B0C7F4; SCROLLBAR-DARKSHADOW-COLOR: #749AEC}
+</style>
+<body topmargin="0" leftmargin="0">
+
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="100%">
+  <tr>
+    <td width="12"><img border="0" src="pic/admin/a1.gif"></td>
+    <td background="pic/admin/a2.gif" width="100%">　</td>
+    <td width="279"><map name="FPMap0">
+    <area target="_top" href="index.asp" shape="rect" coords="14, 3, 94, 22">
+    <area target="_top" coords="94, 3, 175, 22" shape="rect" href="admin.asp">
+    <area target="_top" coords="175, 3, 260, 22" shape="rect" href="admincheck.asp?action=exit">
+    </map><img border="0" src="pic/admin/a3.gif" usemap="#FPMap0"></td>
+  </tr>
+</table>
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#749AEC">
+  <tr>
+    <td class=td1 width="100%" height="35">&nbsp;
+    <img border="0" src="pic/admin/a4.gif" align="absmiddle"><%=strt%></td>
+  </tr>
+</table>
+<table border="3" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#749AEC" width="100%">
+  <tr>
+    <td width="100%" valign="top" height="475">
+<%select case action%>
+<%case"editfl"
+flid=checknum(request.querystring("flid"))
+set rs=conn.execute("select top 1 bdinfo from bdinfo where id="&flid&" and followid=0")
+%><form method="POST" action="adminright1.asp?action=updatefl&flid=<%=flid%>">
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+<tr class=td2>
+    <td width="35%">
+    <p style="margin: 8">分类的 ID：</td>
+    <td width="65%">&nbsp;<%=flid%></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8"><font color="#0466CC"><b>分类的名称：</b></font><br>支持 HTML</td>
+    <td>&nbsp;<input type="text" name="flname" size="46" value="<%=kbbs(rs("bdinfo"))%>"></td>
+  </tr>  <tr>
+    <td colspan="2" bgcolor="#F4F6FC" align="center" height="35">
+    <input type="submit" value="     确  认  修  改     " name="B1"></td>
+  </tr>
+</table></form>
+<%set rs=nothing%>
+<%case"updatefl"
+dim flid,flname
+flid=checknum(request.querystring("flid"))
+flname=Replace(Request.Form("flname"),"'","")
+if flname="" then
+call send("·对不起，请正确填写分类名称。<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+conn.execute("update bdinfo set bdinfo='"&flname&"' where id="&flid&" and followid=0")
+call send("编辑分类成功。")
+end if%>
+<%case"editbd"
+bd=checknum(request.querystring("bd"))
+set rs=conn.execute("select top 1 * from bdinfo where id="&bd&" and followid<>0")
+bdinfo=rs("bdinfo")
+bdinfo=split(bdinfo,"|")
+%>
+<form method="POST" action="adminright1.asp?action=editbdsave&bd=<%=bd%>">
+  <table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+ <tr class=td2>
+   <td width="25%">
+   <p style="line-height: 150%; margin: 5">版面 ID：</td>
+   <td width="75%">&nbsp;<%=bd%></td>
+ </tr>
+ <tr>
+   <td>
+   <p style="line-height: 150%; margin: 5"><font color="#0466CC"><b>论坛名称：</b></font><br>支持HTML</td>
+   <td>&nbsp;<input type="text" name="bdname" size="25" value="<%=kbbs(bdinfo(0))%>"></td>
+ </tr>
+ <tr>
+   <td>
+   <p style="line-height: 150%; margin: 5"><font color="#0466CC"><b>
+   论坛LOGO：</b></font><br>可以不填</td>
+   <td>&nbsp;<input type="text" name="picurl" size="49" value="<%=kbbs(bdinfo(2))%>"></td>
+ </tr>
+ <tr>
+   <td valign="top">
+   <p style="line-height: 150%; margin: 5"><font color="#0466CC"><b>论坛介绍：</b></font></td>
+   <td>
+   <p style="margin: 4">
+   <textarea rows="4" name="bdinfo" cols="58" style="font-size: 9pt; font-family: 宋体"><%=kbbs(bdinfo(1))%></textarea></td>
+ </tr>
+ <tr>
+   <td>
+   <p style="line-height: 150%; margin: 5"><font color="#0466CC"><b>属于分类：</b></font></td>
+   <td>&nbsp;<%set rs1=conn.execute("select * from bdinfo where followid=0 order by orders desc,id")%><select size="1" name="followid" style="font-size: 9pt">
+<%do while not rs1.eof%><option value="<%=rs1("id")%>" <%if rs1("id")=rs("followid") then%>selected<%end if%>><%=rs1("bdinfo")%></option><%
+rs1.movenext
+Loop
+rs1.Close
+set rs1=nothing
+%>
+</select></td>
+ </tr>
+ <tr>
+   <td valign="top">
+   <p style="line-height: 150%; margin: 5"><font color="#0466CC"><b>论坛类型：</b></font></td>
+   <td>
+   <p style="MARGIN: 4px">
+   <input type="radio" CHECKED value="0" name="bbstype" <%if rs("type")=0 then:response.write"checked":end if%>>普通论坛（用户和游客可以自由的进入该类型论坛，·推荐·） </p>
+   <p style="MARGIN: 4px"><input type="radio" value="1" name="bbstype" <%if rs("type")=1 then:response.write"checked":end if%>>会员论坛（只有注册用户才能进入该类型论坛）</p>
+   <p style="MARGIN: 4px"><input type="radio" value="2" name="bbstype" <%if rs("type")=2 then:response.write"checked":end if%>>锁定论坛（会员和游客只能浏览帖子，不能对该论坛的帖子回复等）</p>
+   <p style="MARGIN: 4px"><input type="radio" value="3" name="bbstype" <%if rs("type")=3 then:response.write"checked":end if%>>认证论坛（只有版主认证的注册用户才能进入该类型论坛）</p>
+   <p style="MARGIN: 4px"><input type="radio" value="4" name="bbstype" <%if rs("type")=4 then:response.write"checked":end if%>>VIP论坛（只有vip用户方能进入--版主甚至管理员如非vip也不能进入）</td>
+ </tr>
+ <tr>
+   <td colspan="2" bgcolor="#F4F6FC" align="center" height="35">
+    <input type="submit" value="     确  认  添  加     " name="B1"></td>
+ </tr>
+ </table></form>
+<%set rs=nothing%>
+<%case"editbdsave"
+dim bdname,followid,bbstype,picurl
+bd=checknum(request.querystring("bd"))
+bdname=Replace(Request.Form("bdname"),"|","│")
+picurl=Replace(Request.Form("picurl"),"|","│")
+bdinfo=Replace(Request.Form("bdinfo"),"|","│")
+followid=checknum(request.form("followid"))
+bbstype=checknum(request.form("bbstype"))
+if bdname="" or bdinfo="" then
+call send("·请填写完整必填的资料<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+bdinfo=bdname&"|"&bdinfo&"|"&picurl&"|"
+bdinfo=replace(bdinfo,"'","")
+conn.execute("update [bdinfo] set followid="&followid&",bdinfo='"&bdinfo&"',type="&bbstype&" where id="&bd&" and followid<>0")
+call send("成功编辑版面 "&bdname&" 。")
+end if
+application(prefix&"allthebbs")=""
+%>
+<%case"upfl"
+dim maxorders
+flid=checknum(request.querystring("flid"))
+maxorders=conn.execute("select top 1 max(orders) from bdinfo where followid=0")(0)
+maxorders=maxorders+1
+conn.execute("update bdinfo set orders="&maxorders&" where id="&flid&" and followid=0")
+application(prefix&"allthebbs")=""
+response.redirect "adminright2.asp?action=bdinfo"
+case"upbd"
+bd=checknum(request.querystring("bd"))
+maxorders=conn.execute("select top 1 max(orders) from bdinfo where followid<>0")(0)
+maxorders=maxorders+1
+conn.execute("update bdinfo set orders="&maxorders&" where id="&bd&" and followid<>0")
+application(prefix&"allthebbs")=""
+response.redirect "adminright2.asp?action=bdinfo"
+case"pass"
+bd=checknum(request.querystring("bd"))
+set rs=conn.execute("select top 1  passuser from bdinfo where id="&bd&" and followid<>0")
+%><form method="POST" action="adminright1.asp?action=addpassuser&bd=<%=bd%>">
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+  <tr>
+    <td width="110%" valign="top">
+    <p style="line-height: 120%; margin: 5"><font color="#0466CC"><b>版面认证用户：</b></font><br>
+    该版面为认证版面，请输入能够进入该版面的用户的用户名。<br>各个用户名用<font color="#FF0000"> 
+    | </font> 隔开，输入过程中<b><font color="#FF0000">不能按 Enter</font></b>。</td>
+  </tr>
+  <tr>
+    <td width="110%" valign="top">
+    <p style="margin: 5">
+    <textarea rows="10" name="passuser" cols="70" style="font-family: 宋体; font-size: 9pt"><%=rs("passuser")%></textarea></td>
+  </tr>
+  <tr>
+    <td width="110%" bgcolor="#F4F6FC" align="center" height="35">
+    <input type="submit" value="      确   定   提   交     " name="B1"></td>
+  </tr>
+</table></form>
+<%set rs=nothing%>
+<%case"addpassuser"
+dim passuser
+bd=checknum(request.querystring("bd"))
+passuser=Replace(Request.Form("passuser"),"'","")
+conn.execute("update bdinfo set passuser='"&passuser&"' where id="&bd&" and followid<>0")
+call send("添加认证用户成功。")
+%>
+<%case"userdel"%><form method="POST" action="adminright1.asp?action=deluser">
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%" bgcolor="#F4F6FC">
+  <tr class=td1>
+    <td width="100%" colspan="2" height="28" bgcolor="#F4F6FC">　</td>
+  </tr>
+  <tr class=td1>
+    <td width="100%" colspan="2" height="35" bgcolor="#749AEC">&nbsp;删除用户：</td>
+  </tr>
+  <tr>
+    <td class=td2 width="30%" height="40" bgcolor="#FFFFFF">&nbsp;请输入要删除的用户名：</td>
+    <td width="70%" bgcolor="#FFFFFF">&nbsp;<input type="text" name="name" size="40"></td>
+  </tr>  <tr>
+    <td width="30%" height="40" bgcolor="#FFFFFF">
+    <p style="line-height: 150%; margin: 4"><b><font color="#0466CC">是否永久删除。</font></b><br>这样将删除该用户的所有帖子，<br>选择该操作将不可恢复。</td>
+    <td width="70%" bgcolor="#FFFFFF">&nbsp;<input type="radio" value="1" name="dely">是 
+    <input type="radio" value="2" name="dely" checked>否</td>
+  </tr>  <tr>
+    <td width="100%" height="40" colspan="2" align="center">&nbsp;<input type="submit" value="  确 认 删 除  " name="B1"></td>
+  </tr>
+  </table></form><form method="POST" action="adminright1.asp?action=hyuser"><table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%" bgcolor="#F4F6FC">
+  <tr class=td1>
+    <td width="100%" colspan="2" height="35" bgcolor="#749AEC">&nbsp;还原用户：</td>
+  </tr>
+  <tr>
+    <td class=td2 width="30%" height="40">&nbsp;请输入要还原的用户名：</td>
+    <td width="70%">&nbsp;<input type="text" name="name" size="40">
+    <input type="submit" value="  确 认 还 原  " name="B1"></td>
+  </tr>
+  </table></form>
+<%case"deluser"
+name=Replace(Request.Form("name"),"'","")
+dely=checknum(request.form("dely"))
+if dely=2 then
+conn.execute("update [user] set del=true where name='"&name&"'")
+call send("删除用户成功。")
+application(prefix&"deluser")=application(prefix&"deluser")&"|"&userid&"|"
+
+elseif dely=1 then
+set rs=conn.execute("select top 1 userid from [user] where name='"&name&"'")
+if rs.eof then
+call send("·该用户名不存在<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+userid=rs(0)
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+
+'执行删除操作
+conn.execute("delete*from bbs"&usedtable(i)&" where bid<>0 and id in (select id from [topic] where userid="&userid&" and totable="&usedtable(i)&")")
+conn.execute("delete*from bbs"&usedtable(i)&" where userid="&userid&"")
+next
+conn.execute("delete*from sms where touserid="&userid&" or fromuserid="&userid&"")
+conn.execute("delete*from vote where id in (select id from [topic] where userid="&userid&")")
+conn.execute("delete*from topic where userid="&userid&"")
+conn.execute("delete*from [user] where userid="&userid&"")
+application(prefix&"deluser")=application(prefix&"deluser")&"|"&userid&"|"
+call send("删除用户成功。")
+end if
+set rs=nothing
+end if
+case"hyuser"
+name=Replace(Request.Form("name"),"'","")
+set rs1=server.createobject("adodb.recordset")
+sql="Select top 1 userid,del from [user] where name='"&name&"'"
+rs1.open sql,conn,1,3
+rs1("del")=true
+rs1.Update
+application(prefix&"deluser")=replace(application(prefix&"deluser"),"|"&rs1("userid")&"|","")
+rs1.close
+set rs1=nothing
+
+conn.execute("update [user] set del=false where name='"&name&"'")
+
+application(prefix&"deluser")=application(prefix&"deluser")&"|"&userid&"|"
+
+call send("还原用户成功。")
+%>
+
+<%case"userlist"
+dim dispmm,userlistype,key
+key=trim(Replace(Replace(Replace(request("key"),"'",""),"[","[[]"),"|","│"))
+if key="" then key="用户名关键字"
+dispmm=request.querystring("dispmm")
+userlistype=checknum(request.querystring("userlistype"))
+response.write"<script language='javascript'>function Check(){var Name=document.form.topage.value;document.location='?action=userlist&topage='+Name+'&dispmm="&dispmm&"';}</script>"
+if userlistype=1 or userlistype="" then
+if key="" or key="用户名关键字" then
+sql="select * from [user] where del=False order by "
+else
+sql="select * from [user] where name like '%"&key&"%' and del=False order by "
+end if
+elseif userlistype=2 then
+if key="" or key="用户名关键字" then
+sql="select * from [user] where del=True order by "
+else
+sql="select * from [user] where name like '%"&key&"%' and del=True order by "
+end if
+end if
+select case dispmm
+case"mark"
+sql =sql&"mark desc"
+case"userid"
+sql =sql&"userid desc"
+case"grade"
+sql =sql&"grade desc"
+case"type"
+sql =sql&"type desc"
+case"tienum"
+sql =sql&"alltopicnum desc"
+case"letter"
+sql =sql&"name"
+case"logtime"
+sql =sql&"lasttime desc"
+case"del"
+sql =sql&"del asc"
+case else
+sql =sql&"userid desc"
+end select
+%><SCRIPT language=JavaScript>
+function CheckAll(form)  {
+  for (var i=0;i<form.elements.length;i++){
+    var e = form.elements[i];
+    if (e.name != 'chkall')       e.checked = form.chkall.checked; 
+   }
+  }
+</SCRIPT><SCRIPT src="inc/menu.js"></SCRIPT>
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#F4F6FC" height="32">
+  <tr>
+    <td width="100%">&nbsp;·<b><a href="adminright1.asp?action=userlist"><font color="red">用户列表</font></a></b> [<a href="adminright1.asp?action=userlist&userlistype=1"><%if userlistype="" or userlistype=1 then%><font color="red">论坛用户列表</font><%else%><font color="blue">论坛用户列表</font><%end if%></a>] [<a href="adminright1.asp?action=userlist&userlistype=2"><%if userlistype=2 then%><font color="red">回收站用户列表</font><%else%><font color="blue">回收站用户列表</font><%end if%></a>]</td> <form method="POST" action="adminright1.asp?action=userlist&userlistype=<%=userlistype%>&dispmm=<%=dispmm%>"><td>&nbsp;<input type="text" name="key" size="40" value="<%=key%>">&nbsp;<input type="submit" value="  搜  索  " name="B1">&nbsp;</td></form>
+  </tr>
+</table>
+
+<form method="POST" action="adminright1.asp?action=delbbsgg&dispmm=<%=dispmm%>&userlistype=<%=userlistype%>&key=<%=key%>&topage=<%=Request.QueryString("ToPage")%>">
+  <table style="BORDER-COLLAPSE: collapse" cellSpacing="0" cellPadding="0" width="100%" border="0">
+    <tr>
+      <td class=td1 width="100%" height="35" bgcolor="#749AEC" colspan="10">
+      &nbsp;论坛用户列表：</td>
+    </tr>
+</table>
+
+<table class=td1 border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#F4F6FC" height="28" bordercolor="#F4F6FC">
+  <tr>
+    <td class=td2 width="5%" align="center">选择</td>
+    <td class=td2 width="8%" align="center"><a href="adminright1.asp?dispmm=userid&userlistype=<%=userlistype%>&key=<%=key%>&action=userlist">ID号</a></td>
+    <td class=td2 width="15%" align="center"><a href="adminright1.asp?dispmm=letter&userlistype=<%=userlistype%>&key=<%=key%>&action=userlist">用户名</a></td>
+    <td class=td2 width="5%" align="center">性别</td>
+    <td class=td2 width="6%" align="center"><a href="adminright1.asp?dispmm=tienum&userlistype=<%=userlistype%>&key=<%=key%>&action=userlist">发帖数</a></td>
+    <td class=td2 width="8%" align="center"><a href="adminright1.asp?dispmm=mark&userlistype=<%=userlistype%>&key=<%=key%>&action=userlist">积分</a></td>
+    <td class=td2 width="21%" align="center"><a href="adminright1.asp?dispmm=logtime&userlistype=<%=userlistype%>&key=<%=key%>&action=userlist">登陆时间</a></td>
+    <td class=td2 width="12%" align="center"><a href="adminright1.asp?dispmm=type&userlistype=<%=userlistype%>&key=<%=key%>&action=userlist">状态</a></td>
+    <td class=td2 width="10%" align="center"><a href="adminright1.asp?dispmm=grade&userlistype=<%=userlistype%>&key=<%=key%>&action=userlist">等级</a></td>
+    <td class=td2 width="10%" align="center">管理</td>
+  </tr>
+</table>
+
+<%'用户列表分页
+dim pagesetup,totalpage,sex1,pagecount,count,value,ii,iii
+set rs = server.createobject("adodb.recordset")
+pagesetup=20
+rs.Open sql,conn,1
+TotalPage=0
+count=rs.recordcount
+if not rs.eof then
+If Count/pagesetup > (Count\pagesetup) then
+TotalPage=(Count\pagesetup)+1
+else TotalPage=(Count\pagesetup)
+End If
+pagecount= 0
+rs.movefirst
+if Request.QueryString("ToPage")<>"" and isnumeric(Request.QueryString("ToPage")) then PageCount = cint(Request.QueryString("ToPage"))
+if PageCount <=0 then PageCount = 1
+if PageCount > TotalPage then PageCount = TotalPage
+rs.move (PageCount-1) * pagesetup
+i=1
+do while not rs.eof
+
+sex1="帅哥"
+if split(rs("userinfo"),"|")(4)<>"1" then sex1="美女"
+name=rs("name")
+value=rs("userid")
+%>
+<table border="0" cellpadding="0" cellspacing="0" style='border-collapse: collapse; border-left-style: solid; border-left-width: 1; border-right-style: solid; border-right-width: 1; border-top-width: 1; border-bottom-style: solid; border-bottom-width: 1' width="100%" height="28">
+  <tr>
+    <td width="5%" align="center"><input type="checkbox" name="deluserid" value="<%=value%>"></td>
+    <td width="8%" align="center"><%=rs("userid")%></td>
+<%if userlistype=1 or userlistype="" then%>
+    <td width="15%" align="center"><a href="userinfo.asp?userid=<%=rs("userid")%>" target="_blank" title="点击查看用户信息"><%=name%></a></td>
+<%elseif userlistype=2 then%>
+    <td width="15%" align="center"><%=name%></td>
+<%end if%>
+    <td width="5%" align="center"><%=sex1%></td>
+    <td width="6%" align="center"><font color='red'><%=rs("alltopicnum")%></font></td>
+    <td width="8%" align="center"><%=rs("mark")%></td>
+    <td width="21%" align="center"><font color='red'><%=formatdatetime(rs("lasttime"),1)%></font></td>
+    <td width="12%" align="center"><%=rs("type")%><%if rs("type")=3 then%><font color="red">帖子禁发/屏蔽</font><%elseif rs("type")=2 then%><font color="green">帖子屏蔽</font><%elseif rs("type")=1 then%><font color="purple">帖子禁发</font><%else%>用户正常<%end if%></td>
+    <td width="10%" align="center"><%=rs("grade")%><%if rs("grade")=16 then%><font color="blue"><%call gradename(rs("grade"))%></font><%elseif rs("grade")=15 then%><font color="green"><%call gradename(rs("grade"))%></font><%elseif rs("grade")=14 then%><font color="purple"><%call gradename(rs("grade"))%></font><%elseif rs("grade")=13 then%><font color="red">VIP</font><%else%><%call gradename(rs("grade"))%><%end if%></td>
+<%if userlistype=1 or userlistype="" then%>
+    <td width="10%" align="center"><a href="adminright1.asp?action=userinfo&name=<%=name%>&dispmm=<%=dispmm%>&userlistype=<%=userlistype%>&key=<%=key%>&topage=<%=Request.QueryString("ToPage")%>"><font color="blue">修改</font></a> | <a href="adminright1.asp?action=userinfodel1&name=<%=name%>&dispmm=<%=dispmm%>&userlistype=<%=userlistype%>&key=<%=key%>&topage=<%=Request.QueryString("ToPage")%>" onclick="{if(confirm('确定删除您所选择的用户吗？')){return true;}return false;}"><font color="red">删除</font></a></td>
+<%elseif userlistype=2 then%>
+    <td width="10%" align="center"><a href="adminright1.asp?action=userinfohy&name=<%=name%>&dispmm=<%=dispmm%>&userlistype=<%=userlistype%>&key=<%=key%>&topage=<%=Request.QueryString("ToPage")%>" onclick="{if(confirm('确定还原您所选择的用户吗？')){return true;}return false;}"><font color="blue">还原</font></a> | <a href="adminright1.asp?action=userinfodel2&name=<%=name%>&dispmm=<%=dispmm%>&userlistype=<%=userlistype%>&key=<%=key%>&topage=<%=Request.QueryString("ToPage")%>" onclick="{if(confirm('确定删除您所选择的用户吗？不可恢复！')){return true;}return false;}"><font color="red">删除</font></a></td>
+<%end if%>
+  </tr>
+</table>
+<%
+i=i+1
+if i>pagesetup then exit do
+rs.movenext
+loop
+end if
+rs.Close
+set rs=nothing%>
+
+<table class=td1 border="0" cellpadding="0" cellspacing="0" style='border-collapse: collapse; ' width="100%" height="32" bgcolor="#F4F6FC">
+  <tr>
+    <td width="100%" bgcolor="#749AEC">
+    &nbsp;<input onclick=CheckAll(this.form) type="checkbox"  name=chkall value="ON">全 选&nbsp;&nbsp;&nbsp;
+<INPUT type=submit value=" 删除所选 " name=action onclick="{if(confirm('确定删除您所选择的用户吗？<%if userlistype=2 then response.write "不可恢复！"%>')){return true;}return false;}"> <%if userlistype=2 then%> <INPUT type=submit value=" 还原所选 " name=action onclick="{if(confirm('确定还原您所选择的用户吗？')){return true;}return false;}"><%end if%>&nbsp;&nbsp;<%if userlistype=1 or userlistype="" then%>
+状态→禁止发帖：<input type="radio" value="1" name="addtopic">是<input type="radio" value="2" name="addtopic" checked>否&nbsp;&nbsp;
+屏蔽帖子：<input type="radio" name="showtopic" value="1">是<input type="radio" name="showtopic" value="2" checked>否&nbsp;
+ <input type="submit" value=" 确定状态 " name="action" onclick="{if(confirm('确定状态选项您所选择的用户吗？')){return true;}return false;}">
+ <INPUT type=submit value=" 设为VIP " name=action onclick="{if(confirm('确定设为VIP您所选择的用户吗？')){return true;}return false;}">
+ <INPUT type=submit value=" 删除设为VIP " name=action onclick="{if(confirm('确定删除设为VIP您所选择的用户吗？')){return true;}return false;}">
+<%end if%>
+    </td>
+  </tr>
+</table>
+</form>
+<%
+response.write"<TABLE bgcolor=#749AEC cellSpacing=0 cellPadding=0 width='100%' border=0 style='border-collapse:collapse;'><TBODY><TR height=25><TD height=2><TABLE cellSpacing=0 cellPadding=3 width='100%' border=0 style='border-collapse: collapse; border-left-width:0; border-top-width:0; border-bottom-width:0'><TBODY><TR><TD><b><font color='#FFFFFF'><img border='0' src='pic/fl.gif'> 本论坛共有</font><font color='#00FFFF'> "&TotalPage&" </font><font color='#FFFFFF'>页,<font color='#00FFFF'> "&count&" </font>个用户，每页有<font color='#00FFFF'> "&pagesetup&" </font> 个用户 >> ["
+ii=PageCount-4
+iii=PageCount+4
+if ii < 1 then
+ii=1
+end if
+if iii > TotalPage then
+iii=TotalPage
+end if
+if PageCount > 5 then
+Response.Write " <a href=?topage=1&dispmm="&dispmm&"&userlistype="&userlistype&"&key="&key&"&action=userlist><font color=yellow>1</font></a> ... "
+end if
+for i=ii to iii
+If i<>PageCount then
+Response.Write " <a href=?topage="& i &"&dispmm="&dispmm&"&userlistype="&userlistype&"&key="&key&"&action=userlist><font color=yellow>" & i & "</font></a> "
+else
+Response.Write " <font color=red><b>"&i&"</b></font> "
+end if
+next
+if TotalPage > PageCount+4 then
+Response.Write " ... <a href=?topage="&TotalPage&"&dispmm="&dispmm&"&userlistype="&userlistype&"&key="&key&"&action=userlist><font color=yellow>"&TotalPage&"</font></a>"
+end if
+response.write" ]</font></b></TD><form name=form method='POST' action=javascript:Check()><TD height=2 align='right'><font color='#FFFFFF'>页码：<input style=FONT-SIZE:9pt maxLength='6' size='6' name='topage' value='"&PageCount&"'><input style=FONT-SIZE:9pt value='GO!' type='submit'></font></TD></form></TR></TBODY></TABLE></TD></TR></TBODY></TABLE>"
+%>
+
+
+<%case"userinfo"
+dim topage,userinfo,userinfo1
+key=trim(request.querystring("key"))
+dispmm=request.querystring("dispmm")
+userlistype=checknum(request.querystring("userlistype"))
+topage=Request.QueryString("ToPage")
+name=replace(request("name"),"'","")
+%>
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#F4F6FC" height="32">
+  <tr>
+    <td width="100%">&nbsp;·<b><a href="adminright1.asp?action=userlist&dispmm=<%=dispmm%>"><font color="red">用户列表</font></a></b> [<a href="adminright1.asp?action=userlist&userlistype=1&dispmm=<%=dispmm%>"><%if userlistype="" or userlistype=1 then%><font color="red">论坛用户列表</font><%else%><font color="blue">论坛用户列表</font><%end if%></a>] [<a href="adminright1.asp?action=userlist&userlistype=2&dispmm=<%=dispmm%>"><%if userlistype=2 then%><font color="red">回收站用户列表</font><%else%><font color="blue">回收站用户列表</font><%end if%></a>]</td>
+  </tr>
+</table>
+<%
+set rs=conn.execute("select top 1 userinfo,mark from [user] where name='"&name&"'")
+userinfo=rs("userinfo")
+userinfo1=split(rs("userinfo"),"|")
+%>
+<form method="POST" action="adminright1.asp?action=editinfo&dispmm=<%=dispmm%>&userlistype=<%=userlistype%>&key=<%=key%>&topage=<%=topage%>">
+  <table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bordercolor="#F4F6FC">
+        <tr class=td2>
+          <td width="25%" height="28">
+          <p style="margin: 5">用户名：</td>
+          <td width="75%">
+          <p style="margin: 5">
+<input type="hidden" name="name" size="40" value="<%=kbbs(name)%>"><input type="hidden" name="userinfo" size="40" value="<%=kbbs(userinfo)%>"><%=kbbs(name)%></td>
+        </tr>
+        <tr>
+          <td class=td2>
+          <p style="margin: 5">自定义头像：</td>
+          <td>
+          <p style="margin: 5"><input name=mypic size=38 maxlength=100 value="<%=kbbs(userinfo1(5))%>"> 
+          * 完整Url地址<br>图像宽度：<input type=text name=picw size=6 value="<%=kbbs(userinfo1(6))%>"> 
+          * 高度： 
+        <input type=text name=pich size=6 value="<%=kbbs(userinfo1(7))%>"> *（宽最大<%=checknum(application(prefix&"picw"))%> &nbsp; 高最大<%=checknum(application(prefix&"pich"))%>）</td>
+        </tr>
+<tr class=td2><td width="25%"><p style="margin: 5">自定义头衔：</td><td width="75%"><p style="margin: 5"><input type=text name=diyname size=30 maxlength=255 value="<%=kbbs(userinfo1(10))%>"></td></tr>
+<tr class=td2><td width="25%" valign="top"><p style="margin: 5">个性签名：</td><td width="75%"><p style="margin: 5">
+        <TEXTAREA name=gxqm rows=5 wrap=PHYSICAL cols=60 style="font-family: 宋体; font-size: 9pt"><%=kbbs(userinfo1(8))%></TEXTAREA></td></tr>
+<tr class=td2><td width="25%"><p style="margin: 5">论坛积分：</td><td width="75%"><p style="margin: 5">
+  <input type="text" name="mark" size="20" value="<%=rs("mark")%>">*</td></tr>
+<tr class=td2>
+  <td width="100%" colspan="2" bgcolor="#F4F6FC" height="32" align="center">
+    <input type="submit" value="    确  定  修  改    " name="B1"></td></tr>
+      </table></form>
+<%
+set rs=nothing
+%>
+<%case"editinfo"
+dim picw,pich,diyname,gxqm,mypic,mark,uinfo
+key=trim(request.querystring("key"))
+dispmm=request.querystring("dispmm")
+userlistype=checknum(request.querystring("userlistype"))
+name=replace(request.form("name"),"'","")
+userinfo=replace(request.form("userinfo"),"'","")
+userinfo=split(userinfo,"|")
+picw=checknum(Request.Form("picw"))
+pich=checknum(Request.Form("pich"))
+mypic=Replace(Request.Form("mypic"),"'","''")
+mark=checknum(request.form("mark"))
+if picw="" or pich="" or mypic="" or mark="" then
+Response.Write("<script language=javascript>alert('请填写完整的必填资料，请返回！');history.back(-1);</script>")
+response.end
+else
+gxqm=Request.Form("gxqm")
+gxqm=Replace(left(gxqm,255),"'","''")
+gxqm=replace(gxqm,"|","│")
+diyname=Request.Form("diyname")
+diyname=Replace(left(diyname,8),"'","")
+diyname=replace(diyname,"|","│")
+uinfo=userinfo(0)&"|"&userinfo(1)&"|"&userinfo(2)&"|"&userinfo(3)&"|"&userinfo(4)&"|"&mypic&"|"&picw&"|"&pich&"|"&gxqm&"|"&userinfo(9)&"|"&diyname
+conn.execute("update [user] set userinfo='"&uinfo&"',mark="&mark&" where name='"&name&"'")
+Response.Write("<script language=javascript>alert('修改用户资料成功！');</script>")
+response.redirect "adminright1.asp?action=userlist&userlistype="&userlistype&"&dispmm="&dispmm&"&key="&key&"&topage="&Request.QueryString("ToPage")&""
+response.end
+end if
+%>
+
+<%case"userinfodel1"
+key=trim(request.querystring("key"))
+name=Replace(Request.querystring("name"),"'","")
+dispmm=request.querystring("dispmm")
+userlistype=checknum(request.querystring("userlistype"))
+conn.execute("update [user] set del=true where name='"&name&"'")
+application(prefix&"deluser")=application(prefix&"deluser")&"|"&userid&"|"
+response.redirect "adminright1.asp?action=userlist&userlistype="&userlistype&"&dispmm="&dispmm&"&key="&key&"&topage="&Request.QueryString("ToPage")&""
+response.end
+%>
+
+<%case"userinfodel2"
+key=trim(request.querystring("key"))
+name=Replace(Request.querystring("name"),"'","")
+dispmm=request.querystring("dispmm")
+userlistype=checknum(request.querystring("userlistype"))
+set rs=conn.execute("select top 1 userid from [user] where name='"&name&"'")
+userid=rs(0)
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+conn.execute("delete*from bbs"&usedtable(i)&" where bid<>0 and id in (select id from [topic] where userid="&userid&" and totable="&usedtable(i)&")")
+conn.execute("delete*from bbs"&usedtable(i)&" where userid="&userid&"")
+next
+conn.execute("delete*from sms where touserid="&userid&" or fromuserid="&userid&"")
+conn.execute("delete*from vote where id in (select id from [topic] where userid="&userid&")")
+conn.execute("delete*from topic where userid="&userid&"")
+conn.execute("delete*from [user] where userid="&userid&"")
+application(prefix&"deluser")=application(prefix&"deluser")&"|"&userid&"|"
+set rs=nothing
+response.redirect "adminright1.asp?action=userlist&userlistype="&userlistype&"&dispmm="&dispmm&"&key="&key&"&topage="&Request.QueryString("ToPage")&""
+response.end
+%>
+
+<%case"userinfohy"
+key=trim(request.querystring("key"))
+name=Replace(Request.querystring("name"),"'","")
+dispmm=request.querystring("dispmm")
+userlistype=checknum(request.querystring("userlistype"))
+set rs1=server.createobject("adodb.recordset")
+sql="Select top 1 userid,del from [user] where name='"&name&"'"
+rs1.open sql,conn,1,3
+rs1("del")=true
+rs1.Update
+application(prefix&"deluser")=replace(application(prefix&"deluser"),"|"&rs1("userid")&"|","")
+rs1.close
+set rs1=nothing
+conn.execute("update [user] set del=false where name='"&name&"'")
+application(prefix&"deluser")=application(prefix&"deluser")&"|"&userid&"|"
+response.redirect "adminright1.asp?action=userlist&userlistype="&userlistype&"&dispmm="&dispmm&"&key="&key&"&topage="&Request.QueryString("ToPage")&""
+response.end
+%>
+
+<%case"delbbsgg"
+dim id,j,deluserid,baction
+key=trim(request.querystring("key"))
+dispmm=request.querystring("dispmm")
+userlistype=checknum(request.querystring("userlistype"))
+deluserid=replace(","&request.form("deluserid"),"'","")
+deluserid=split(deluserid,",")
+baction=replace(request.form("action"),"'","")
+'-------------------------------------------------------
+if baction=" 删除所选 " then
+if userlistype=1 or userlistype="" then
+for i=1 to ubound(deluserid)
+id=trim(deluserid(i))
+if id<>"" then
+conn.execute("update [user] set del=true where userid="&id&"")
+application(prefix&"deluser")=application(prefix&"deluser")&"|"&id&"|"
+end if
+next
+end if
+
+if userlistype=2 then
+for i=1 to ubound(deluserid)
+id=trim(deluserid(i))
+if id<>"" then
+userid=id
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for j=1 to ubound(usedtable)
+conn.execute("delete*from bbs"&usedtable(j)&" where bid<>0 and id in (select id from [topic] where userid="&userid&" and totable="&usedtable(j)&")")
+conn.execute("delete*from bbs"&usedtable(j)&" where userid="&userid&"")
+next
+conn.execute("delete*from sms where touserid="&userid&" or fromuserid="&userid&"")
+conn.execute("delete*from vote where id in (select id from [topic] where userid="&userid&")")
+conn.execute("delete*from topic where userid="&userid&"")
+conn.execute("delete*from [user] where userid="&userid&"")
+application(prefix&"deluser")=application(prefix&"deluser")&"|"&userid&"|"
+end if
+next
+end if
+response.redirect "adminright1.asp?action=userlist&userlistype="&userlistype&"&dispmm="&dispmm&"&key="&key&"&topage="&Request.QueryString("ToPage")&""
+response.end
+end if
+
+if baction=" 还原所选 " then
+if userlistype=2 then
+for i=1 to ubound(deluserid)
+id=trim(deluserid(i))
+if id<>"" then
+userid=id
+set rs1=server.createobject("adodb.recordset")
+sql="Select top 1 userid,del from [user] where userid="&userid&""
+rs1.open sql,conn,1,3
+rs1("del")=true
+rs1.Update
+application(prefix&"deluser")=replace(application(prefix&"deluser"),"|"&rs1("userid")&"|","")
+rs1.close
+set rs1=nothing
+conn.execute("update [user] set del=false where userid="&userid&"")
+application(prefix&"deluser")=application(prefix&"deluser")&"|"&userid&"|"
+end if
+next
+end if
+response.redirect "adminright1.asp?action=userlist&userlistype="&userlistype&"&dispmm="&dispmm&"&key="&key&"&topage="&Request.QueryString("ToPage")&""
+response.end
+end if
+
+if baction=" 确定状态 " then
+addtopic=checknum(request.form("addtopic"))
+showtopic=checknum(request.form("showtopic"))
+if addtopic=1 and showtopic=1 then utype=3
+if addtopic=1 and showtopic=2 then utype=1
+if addtopic=2 and showtopic=1 then utype=2
+if addtopic=2 and showtopic=2 then utype=0
+for i=1 to ubound(deluserid)
+id=trim(deluserid(i))
+if id<>"" then
+set rs1=server.createobject("adodb.recordset")
+sql="Select top 1 type from [user] where userid="&id&""
+rs1.open sql,conn,1,3
+rs1("type")=utype
+rs1.Update
+rs1.close
+set rs1=nothing
+end if
+next
+response.redirect "adminright1.asp?action=userlist&userlistype="&userlistype&"&dispmm="&dispmm&"&key="&key&"&topage="&Request.QueryString("ToPage")&""
+response.end
+end if
+
+if baction=" 设为VIP " then
+for i=1 to ubound(deluserid)
+id=trim(deluserid(i))
+if id<>"" then
+set rs=server.createobject("adodb.recordset")
+sql="Select top 1 grade from [user] where userid="&id&""
+rs.open sql,conn,1,3
+if rs("grade")<13 then
+rs("grade")=13
+rs.Update
+end if
+rs.close
+set rs=nothing
+end if
+next
+response.redirect "adminright1.asp?action=userlist&userlistype="&userlistype&"&dispmm="&dispmm&"&key="&key&"&topage="&Request.QueryString("ToPage")&""
+response.end
+end if
+
+if baction=" 删除设为VIP " then
+for i=1 to ubound(deluserid)
+id=trim(deluserid(i))
+if id<>"" then
+set rs=server.createobject("adodb.recordset")
+sql="Select top 1 grade from [user] where userid="&id&""
+rs.open sql,conn,1,3
+if rs("grade")=13 then
+rs("grade")=0
+rs.Update
+end if
+rs.close
+set rs=nothing
+end if
+next
+response.redirect "adminright1.asp?action=userlist&userlistype="&userlistype&"&dispmm="&dispmm&"&key="&key&"&topage="&Request.QueryString("ToPage")&""
+response.end
+end if
+%>
+
+<%case"changepwd"%>
+<form method="POST" action="adminright1.asp?action=newpwd">
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+<tr class=td2>
+    <td width="25%">
+    <p style="margin: 8">用户名：</td>
+    <td width="75%">&nbsp;<%=flid%><input type="text" name="name" size="40"></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8"><font color="#0466CC"><b>新密码：</b></font></td>
+    <td>&nbsp;<input type="password" name="pwd" size="40"></td>
+  </tr>  <tr>
+    <td colspan="2" bgcolor="#F4F6FC" align="center" height="35">
+    <input type="submit" value="     确  认  修  改     " name="B1"></td>
+  </tr>
+</table></form>
+<%case"newpwd"
+dim pwd,newpwd
+name=Replace(Request.Form("name"),"'","")
+pwd=Replace(Request.Form("pwd"),"'","")
+if name="" or pwd="" then
+call send("·请填写完整必填的资料<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+newpwd=md5(pwd)
+set rs=server.createobject("adodb.recordset")
+sql="Select top 1 name,password from [user] where name='"&name&"'"
+rs.open sql,conn,1,3
+if rs.eof then 
+call send("·论坛不存在该用户<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+rs("password")=newpwd
+conn.execute("update [admin] set [password]='"&newpwd&"' where name='"&name&"'")
+rs.Update
+call send("修改密码成功。"&name&" 的新密码为 "&pwd&"")
+end if
+rs.close
+set rs=nothing
+end if
+%>
+<%case"userset"%><form method="POST" action="adminright1.asp?action=setuserok">
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+  <tr>
+    <td width="40%">
+    <p style="line-height: 120%; margin: 5">请输入要进行特殊设置的用户名：</td>
+    <td width="60%">
+    <p style="line-height: 120%; margin: 5">
+    <input type="text" name="name" size="40"></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="line-height: 120%; margin: 5">是否禁止该用户发帖：</td>
+    <td>
+    <p style="line-height: 120%; margin: 5">
+    <input type="radio" value="1" name="addtopic">是 
+    <input type="radio" value="2" name="addtopic" checked>否</td>
+  </tr>
+  <tr>
+    <td>
+    <p style="line-height: 120%; margin: 5">是否屏蔽该用户发的帖子：</td>
+    <td>
+    <p style="line-height: 120%; margin: 5">
+    <input type="radio" name="showtopic" value="1">是 
+    <input type="radio" name="showtopic" value="2" checked>否</td>
+  </tr>
+  <tr>
+    <td colspan="2" bgcolor="#F4F6FC" align="center" height="35">
+    <p style="line-height: 120%; margin: 5">
+    <input type="submit" value="     确  认  修  改     " name="B1"></td>
+  </tr>
+  </table></form>
+<%case"setuserok"
+dim utype,addtopic,showtopic
+name=Replace(Request.Form("name"),"'","")
+addtopic=checknum(request.form("addtopic"))
+showtopic=checknum(request.form("showtopic"))
+if addtopic=1 and showtopic=1 then utype=3
+if addtopic=1 and showtopic=2 then utype=1
+if addtopic=2 and showtopic=1 then utype=2
+if addtopic=2 and showtopic=2 then utype=0
+if name="" then
+call send("·请填写完整必填的资料<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+set rs1=server.createobject("adodb.recordset")
+sql="Select top 1 type from [user] where name='"&name&"'"
+rs1.open sql,conn,1,3
+if rs1.eof then
+call send("·论坛不存在该用户<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+rs1("type")=utype
+rs1.Update
+call send("成功修改用户特殊设置。")
+end if
+rs1.close
+set rs1=nothing
+end if
+%>
+<%case"vip"%>
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+  <tr class=td2 >
+    <td colspan="2" height="40" valign="top" bgcolor="#F4F6FC">
+    <p style="line-height: 150%; margin: 5">当前论坛VIP用户：<br>
+<%set rs=conn.execute("select name from [user] where grade=13")
+i=0
+do while not rs.eof
+response.write kbbs(rs("name"))&"&nbsp; "
+i=i+1
+if i/10=i\10 then
+response.write"<br>"
+end if
+rs.movenext
+loop
+set rs=nothing%></td>
+  </tr><form method="POST" action="adminright1.asp?action=addvip"><tr>
+    <td class=td1 width="100%" height="35" colspan="2" bgcolor="#749AEC">
+    &nbsp;添加VIP用户：</td>
+  </tr><tr>
+    <td class=td2 width="25%" height="35">
+    <p style="margin: 5">请输入用户名：</td>
+    <td width="75%">&nbsp;<input type="text" name="name" size="40"> 
+    <input type="submit" value="  确 认 添 加  " name="B2"></td>
+  </tr></form><form method="POST" action="adminright1.asp?action=delvip">
+  <tr>
+    <td class=td1 height="35" colspan="2" bgcolor="#749AEC">
+    &nbsp;删除VIP用户：</td>
+  </tr>
+  <tr>
+    <td class=td2 height="35">
+    <p style="margin: 5">请输入用户名：</td>
+    <td>&nbsp;<input type="text" name="name" size="40"> 
+    <input type="submit" value="  确 认 删 除  " name="B1"></td>
+  </tr></form>
+  </table>
+<%
+case"addvip"
+name=Replace(Request.Form("name"),"'","")
+set rs=server.createobject("adodb.recordset")
+sql="Select top 1 grade from [user] where name='"&name&"'"
+rs.open sql,conn,1,3
+if rs("grade")>13 then
+call send("该用户已经是版主或者管理员，不能再设定为VIP用户。")
+else
+rs("grade")=13
+rs.Update
+call send("添加VIP用户成功。")
+end if
+rs.close
+set rs=nothing
+case"delvip"
+name=Replace(Request.Form("name"),"'","")
+set rs=server.createobject("adodb.recordset")
+sql="Select top 1 grade from [user] where name='"&name&"'"
+rs.open sql,conn,1,3
+if rs("grade")>13 then
+call send("该用户是版主或者管理员，不能删除VIP权限。")
+else
+rs("grade")=0
+rs.Update
+call send("删除VIP用户成功。")
+end if
+rs.close
+set rs=nothing
+%>
+
+<%case"manage"
+key=trim(Replace(Replace(Replace(request("key"),"'",""),"[","[[]"),"|","│"))
+if key="" then key="帖子主题或内容关键字"
+bd=checknum(trim(request("bd")))
+if bd="" then bd=0
+topictype=checknum(request.querystring("topictype"))
+totable=checknum(request.querystring("totable"))
+if totable="" then totable=checknum(application(prefix&"autotable"))
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+color="#0466CC"
+str1="<font color=#0466CC>话题</font>"
+str2="<font color=#0466CC>回帖</font>"
+
+if int(usedtable(i))=totable then
+color="red"
+if topictype=1 or topictype="" then
+str1="<font color=red>话题</font>"
+elseif topictype=2 then
+str2="<font color=red>回帖</font>"
+end if
+end if
+
+tablestr=tablestr&"·<a href=?action=manage&totable="&usedtable(i)&"><b><font color="&color&">数据表 "&usedtable(i)&"</font></b></a> [<a href=?action=manage&totable="&usedtable(i)&"&topictype=1>"&str1&"</a>][<a href=?action=manage&totable="&usedtable(i)&"&topictype=2>"&str2&"</a>] "
+next
+response.write"<script language='javascript'>function Check(){var Name=document.form.topage.value;document.location='?action=manage&topage='+Name+'&totable="&totable&"';}</script>"
+%><SCRIPT language=JavaScript>
+function CheckAll(form)  {
+  for (var i=0;i<form.elements.length;i++){
+    var e = form.elements[i];
+    if (e.name != 'chkall')       e.checked = form.chkall.checked; 
+   }
+  }
+</SCRIPT><SCRIPT src="inc/menu.js"></SCRIPT>
+<form method="POST" action="?action=manage&topictype=<%=topictype%>&totable=<%=totable%>&rebid=<%=request.querystring("rebid")%>">
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#F4F6FC" height="32">
+  <tr>
+    <td width="100%">&nbsp; <%=tablestr%></td><td>&nbsp;<input type="text" name="key" size="25" value="<%=key%>">&nbsp;<select size="1" name="bd" style="font-size: 9pt">
+<option value="0" <%if bd=0 then response.write "selected='selected'"%>>所有论坛</option>
+<%set rs=conn.execute("select id,bdinfo from bdinfo where followid<>0 order by orders desc,id")
+do while not rs.eof%>
+<option value="<%=rs("id")%>" <%if bd=rs("id") then response.write "selected='selected'"%>><%=split(rs("bdinfo"),"|")(0)%></option>
+<%rs.movenext
+loop
+rs.close
+set rs=nothing
+%></select>&nbsp;&nbsp;<input type="submit" value=" 开始搜索 " name="B1">&nbsp;</td>
+  </tr>
+</table></form>
+<form method="POST" action="?action=delbbsgg2&bd=<%=bd%>&totable=<%=totable%>&topictype=<%=topictype%>&key=<%=key%>&rebid=<%=request.querystring("rebid")%>&topage=<%=request.querystring("topage")%>">
+<table class=td1 border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#749AEC" height="28" bordercolor="#F4F6FC">
+  <tr>
+    <td width="5%" align="center">选择</td>
+    <td width="5%" align="center">表情</td>
+    <td width="43%" align="center">主题</td>
+    <td width="15%" align="center">作者</td>
+    <td width="20%" align="center">最后更新时间</td>
+    <td width="12%" align="center">管理</td>
+  </tr>
+</table>
+<%'论坛帖子列表分页
+sql="select * from bbs"&totable&" where type<>3 "
+if bd>0 then sql=sql&"and bd="&bd&" "
+if topictype=1 or topictype="" then
+sql=sql&"and bid=0 "
+elseif topictype=2 then
+if request.querystring("rebid")="" then
+sql=sql&"and bid<>0 "
+else
+sql=sql&"and bid="&request.querystring("rebid")&" "
+end if
+end if
+if key="" or key="帖子主题或内容关键字" then
+sql=sql&"order by edittime desc"
+else
+sql=sql&"and content like '%"&key&"%' order by edittime desc"
+end if
+set rs = server.createobject("adodb.recordset")
+pagesetup=checknum(application(prefix&"topiclistpage"))
+rs.Open sql,conn,1
+TotalPage=0
+Count=rs.recordcount
+if not rs.eof then
+If Count/pagesetup > (Count\pagesetup) then
+TotalPage=(Count\pagesetup)+1
+else TotalPage=(Count\pagesetup)
+End If
+pagecount= 0
+rs.moveFirst
+if Request.QueryString("ToPage")<>"" and isnumeric(Request.QueryString("ToPage")) then PageCount = cint(Request.QueryString("ToPage"))
+if PageCount <=0 then PageCount = 1
+if PageCount > TotalPage then PageCount = TotalPage
+rs.move (PageCount-1) * pagesetup
+i=1
+do while not rs.eof
+content=rs("content")
+content=split(content,"|")
+if topictype=1 or topictype="" then
+value=rs("id")
+elseif topictype=2 then
+value=rs("bbsid")
+end if
+
+if topictype=1 or topictype="" then
+if rs("id")=0 then
+set rs2=conn.execute("select top 1 id,top,type,topicinfo,renum,edittime from topic where id="&rs("bid")&"")
+elseif rs("bid")=0 then
+set rs2=conn.execute("select top 1 id,top,type,topicinfo,renum,edittime from topic where id="&rs("id")&"")
+end if
+
+content2=rs2("topicinfo")
+content2=split(content2,"|")
+end if
+%>
+<table border="0" cellpadding="0" cellspacing="0" style='border-collapse: collapse; border-left-style: solid; border-left-width: 1; border-right-style: solid; border-right-width: 1; border-top-width: 1; border-bottom-style: solid; border-bottom-width: 1' width="100%" height="28">
+  <tr>
+    <td width="5%" align="center">
+    <input type="checkbox" name="delbbsid" value="<%=value%>"></td>
+<%if topictype=1 or topictype="" then
+face=kbbs(content2(0))
+if rs2("type")=1 then face="jing"
+if rs2("type")=2 then face="lock"
+if rs2("top")=1 then face="top"
+if rs2("top")=2 then face="alltop"
+%>
+    <td width="5%" align="center"><img src="face/<%=face%>.gif"></td>
+    <td width="43%">&nbsp; <a href=# onclick=openscript('paper.asp?action=showbbs&bbsid=<%=rs("bbsid")%>&totable=<%=totable%>&bd=<%=rs("bd")%>')><%=lefttrue(kbbs(content2(1)),35)%></a>&nbsp;&nbsp;<%if rs2("renum")<>0 then%>[<a href="?action=manage&totable=<%=totable%>&bd=<%=bd%>&topictype=2&rebid=<%=rs2("id")%>"><font color="red">回帖<%=rs2("renum")%></font></a>]<%end if%></td>
+    <td width="15%" align="center"><a href="userinfo.asp?userid=<%=rs("userid")%>" target="_blank"><%=kbbs(content(2))%></a></td>
+    <td width="20%" align="center"><%=kbbs(rs2("edittime"))%></td>
+    <td width="12%" align="center"><a href="showbbs.asp?bd=<%=rs("bd")%>&id=<%=rs2("id")%>&totable=<%=totable%>" target="_blank">回复</a>|<%if rs2("renum")=0 then%><a href="?action=editbbs&bbsid=<%=rs("bbsid")%>&key=<%=key%>&bd=<%=bd%>&topictype=<%=topictype%>&totable=<%=totable%>&topage=<%=Request.QueryString("ToPage")%>">修改</a>|<a href="?action=delbbs&bd=<%=rs("bd")%>&bd2=<%=bd%>&id=<%=rs("id")%>&bbsid=<%=rs("bbsid")%>&topictype=<%=topictype%>&totable=<%=totable%>&key=<%=key%>&topage=<%=Request.QueryString("ToPage")%>" onclick="{if(confirm('确定删除您所选择的帖子吗？')){return true;}return false;}">删除</a><%else%><a href="?action=editbbs&bbsid=<%=rs("bbsid")%>&topictype=<%=topictype%>&bd=<%=bd%>&key=<%=key%>&totable=<%=totable%>&rebid=<%=rs2("id")%>&topage=<%=Request.QueryString("ToPage")%>">修改</a>|<a href="?action=delbbs&bd=<%=rs("bd")%>&bd2=<%=bd%>&id=<%=rs("id")%>&bbsid=<%=rs("bbsid")%>&key=<%=key%>&topictype=<%=topictype%>&totable=<%=totable%>&rebid=<%=rs2("id")%>&topage=<%=Request.QueryString("ToPage")%>" onclick="{if(confirm('确定删除您所选择的帖子吗？')){return true;}return false;}">删除</a><%end if%></td>
+<%elseif topictype=2 then%>
+    <td width="5%" align="center"><img src="face/<%=kbbs(content(0))%>.gif"></td>
+    <td width="43%">&nbsp; <a href=# onclick=openscript('paper.asp?action=showbbs&bbsid=<%=rs("bbsid")%>&totable=<%=totable%>&bd=<%=rs("bd")%>')><%=lefttrue(kbbs(content(4)),35)%></a></td>
+    <td width="15%" align="center"><a href="userinfo.asp?userid=<%=rs("userid")%>" target="_blank"><%=kbbs(content(2))%></a></td>
+    <td width="20%" align="center"><%=kbbs(content(5))%></td>
+    <td width="12%" align="center"><a href="?action=editbbs&bbsid=<%=rs("bbsid")%>&topictype=<%=topictype%>&bd=<%=bd%>&totable=<%=totable%>&key=<%=key%>&topage=<%=Request.QueryString("ToPage")%>&rebid=<%=Request.QueryString("rebid")%>">修改</a>|<a href="?action=delbbs&bd=<%=rs("bd")%>&bd2=<%=bd%>&id=<%=rs("id")%>&bbsid=<%=rs("bbsid")%>&topictype=<%=topictype%>&totable=<%=totable%>&key=<%=key%>&topage=<%=Request.QueryString("ToPage")%>&rebid=<%=Request.QueryString("rebid")%>" onclick="{if(confirm('确定删除您所选择的帖子吗？')){return true;}return false;}">删除</a></td>
+<%end if%>
+  </tr>
+</table>
+<%
+i=i+1
+if i>pagesetup then exit do
+rs.movenext
+loop
+end if
+rs.Close
+set rs=nothing%>
+
+<table class=td1 border="0" cellpadding="0" cellspacing="0" style='border-collapse: collapse; ' width="100%" height="60" bgcolor="#F4F6FC">
+  <tr>
+    <td width="100%" bgcolor="#749AEC">
+    &nbsp;<input onclick=CheckAll(this.form) type="checkbox"  name=chkall value="ON">全 选&nbsp;&nbsp;&nbsp;<%if topictype=1 or topictype="" then%><font color="#FF0000">移动到：</font><%
+    set bdlist2=conn.execute("select * from bdinfo where followid<>0 order by orders desc,id")
+response.write"<select size=1 name=bd style='font-size: 9pt'><option value=0>请选择版面</option>"
+do while not bdlist2.eof
+response.write"<option value="&bdlist2("id")&">"&split(bdlist2("bdinfo"),"|")(0)&"</option>"
+bdlist2.movenext
+Loop
+response.write"</select>"
+set bdlist2=nothing
+%>&nbsp;<input type="submit" value=" 移动 " name=action onclick="{if(confirm('确定移动您所选择的帖子吗？')){return true;}return false;}"><%end if%> 
+
+<INPUT type=submit value=" 删除 " name=action onclick="{if(confirm('确定删除您所选择的帖子吗？')){return true;}return false;}"> 
+
+<%if topictype=1 or topictype="" then%> <INPUT type=submit value=" 总置顶 " name=action onclick="{if(confirm('确定总置顶您所选择的帖子吗？')){return true;}return false;}"><%end if%> 
+
+<%if topictype=1 or topictype="" then%> <INPUT type=submit value=" 取消总置顶 " name=action onclick="{if(confirm('确定取消总置顶您所选择的帖子吗？')){return true;}return false;}"><%end if%> 
+
+<%if topictype=1 or topictype="" then%> <INPUT type=submit value=" 置顶 " name=action onclick="{if(confirm('确定置顶您所选择的帖子吗？')){return true;}return false;}"><%end if%> 
+
+<%if topictype=1 or topictype="" then%> <INPUT type=submit value=" 取消置顶 " name=action onclick="{if(confirm('确定取消置顶您所选择的帖子吗？')){return true;}return false;}"><%end if%> 
+
+<%if topictype=1 or topictype="" then%> <INPUT type=submit value=" 精华 " name=action onclick="{if(confirm('确定精华您所选择的帖子吗？')){return true;}return false;}"><%end if%> 
+
+<%if topictype=1 or topictype="" then%> <INPUT type=submit value=" 取消精华 " name=action onclick="{if(confirm('确定取消精华您所选择的帖子吗？')){return true;}return false;}"><%end if%> 
+
+</td></tr><tr><td bgcolor="#749AEC" >
+
+<%if topictype=1 or topictype="" then%> <INPUT type=submit value=" 锁定 " name=action onclick="{if(confirm('确定锁定您所选择的帖子吗？')){return true;}return false;}"><%end if%> 
+
+<%if topictype=1 or topictype="" then%> <INPUT type=submit value=" 取消锁定 " name=action onclick="{if(confirm('确定取消锁定您所选择的帖子吗？')){return true;}return false;}"><%end if%> 
+
+<%if topictype=1 or topictype="" then%> <INPUT type=submit value=" 提升 " name=action onclick="{if(confirm('确定提升您所选择的帖子吗？')){return true;}return false;}"><%end if%> 
+    </td>
+  </tr>
+</table>
+</form>
+<%
+response.write"<TABLE bgcolor=#749AEC cellSpacing=0 cellPadding=0 width='100%' border=0 style='border-collapse:collapse;'><TBODY><TR height=25><TD height=2><TABLE cellSpacing=0 cellPadding=3 width='100%' border=0 style='border-collapse: collapse; border-left-width:0; border-top-width:0; border-bottom-width:0'><TBODY><TR><TD><b><font color='#FFFFFF'><img border='0' src='pic/fl.gif'> 本论坛共有</font><font color='#00FFFF'> "&TotalPage&" </font><font color='#FFFFFF'>页,<font color='#00FFFF'> "&count&" </font>张帖子，每页有<font color='#00FFFF'> "&pagesetup&" </font> 张帖子 >> ["
+ii=PageCount-4
+iii=PageCount+4
+if ii < 1 then
+ii=1
+end if
+if iii > TotalPage then
+iii=TotalPage
+end if
+if PageCount > 5 then
+Response.Write " <a href=?topage=1&bd="&bd&"&key="&key&"&topictype="&topictype&"&totable="&totable&"&action=manage><font color=yellow>1</font></a> ... "
+end if
+for i=ii to iii
+If i<>PageCount then
+Response.Write " <a href=?topage="& i &"&bd="&bd&"&key="&key&"&topictype="&topictype&"&totable="&totable&"&action=manage><font color=yellow>" & i & "</font></a> "
+else
+Response.Write " <font color=red><b>"&i&"</b></font> "
+end if
+next
+if TotalPage > PageCount+4 then
+Response.Write " ... <a href=?topage="&TotalPage&"&bd="&bd&"&key="&key&"&topictype="&topictype&"&totable="&totable&"&action=manage><font color=yellow>"&TotalPage&"</font></a>"
+end if
+response.write" ]</font></b></TD><form name=form method='POST' action=javascript:Check()><TD height=2 align='right'><font color='#FFFFFF'>页码：<input style=FONT-SIZE:9pt maxLength='6' size='6' name='topage' value='"&PageCount&"'><input style=FONT-SIZE:9pt value='GO!' type='submit'></font></TD></form></TR></TBODY></TABLE></TD></TR></TBODY></TABLE>"
+
+case"delbbsgg2"
+dim delidsql,delbidsql
+key=trim(request.querystring("key"))
+bd=checknum(request.querystring("bd"))
+delbbsid=replace(","&request.form("delbbsid"),"'","")
+delbbsid=split(delbbsid,",")
+rebid=checknum(request.querystring("rebid"))
+topage=checknum(request.querystring("topage"))
+totable=checknum(request.querystring("totable"))
+topictype=checknum(request.querystring("topictype"))
+baction=replace(request.form("action"),"'","")
+
+if baction=" 移动 " then
+dim thisbbs
+thisbbs=checknum(request.form("bd"))
+if thisbbs=0 then
+Response.Write("<script language=javascript>alert('移动帖子失败，您没有选择版面。');history.back(-1);</script>")
+response.end
+end if
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)
+id=trim(delbbsid(i))
+if id<>"" then
+conn.execute("update topic set bd="&thisbbs&" where id="&id&"")
+conn.execute("update bbs"&totable&" set bd="&thisbbs&" where id="&id&"")
+conn.execute("update bbs"&totable&" set bd="&thisbbs&" where bid="&id&"")
+end if
+next
+end if
+response.redirect "?action=manage&bd="&bd&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+end if
+
+if baction=" 删除 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)
+id=trim(delbbsid(i))
+if id<>"" then
+conn.execute("update topic set type=3 where id="&id&"")
+conn.execute("update bbs"&totable&" set type=3 where id="&id&"")
+umark(-30)
+end if
+next
+end if
+if topictype=2 then
+for i=1 to ubound(delbbsid)
+bbsid=trim(delbbsid(i))
+if bbsid<>"" then
+conn.execute("update bbs"&totable&" set type=3 where bbsid="&bbsid&"")
+umark2(-20)
+end if
+next
+end if
+response.redirect "?action=manage&bd="&bd&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+end if
+
+if baction=" 总置顶 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)
+id=trim(delbbsid(i))
+if id<>"" then
+set rs=server.createobject("adodb.recordset")
+sql="Select top 1 top from [topic] where id="&id&""
+rs.open sql,conn,1,3
+rs("top")=2
+rs.Update
+rs.close
+set rs=nothing
+umark(50)
+end if
+next
+end if
+response.redirect "?action=manage&bd="&bd&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+end if
+
+if baction=" 取消总置顶 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)
+id=trim(delbbsid(i))
+if id<>"" then
+set rs=server.createobject("adodb.recordset")
+sql="Select top 1 top from [topic] where id="&id&""
+rs.open sql,conn,1,3
+rs("top")=0
+rs.Update
+rs.close
+set rs=nothing
+end if
+next
+end if
+response.redirect "?action=manage&bd="&bd&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+end if
+
+if baction=" 置顶 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)
+id=trim(delbbsid(i))
+if id<>"" then
+gettop()
+if idtop<>2 then
+set rs=server.createobject("adodb.recordset")
+sql="Select top 1 top from [topic] where id="&id&""
+rs.open sql,conn,1,3
+rs("top")=1
+rs.Update
+rs.close
+set rs=nothing
+umark(30)
+end if
+end if
+next
+end if
+response.redirect "?action=manage&bd="&bd&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+end if
+
+if baction=" 取消置顶 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)
+id=trim(delbbsid(i))
+if id<>"" then
+gettop()
+if idtop<>2 then
+set rs=server.createobject("adodb.recordset")
+sql="Select top 1 top from [topic] where id="&id&""
+rs.open sql,conn,1,3
+rs("top")=0
+rs.Update
+rs.close
+set rs=nothing
+end if
+end if
+next
+end if
+response.redirect "?action=manage&bd="&bd&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+end if
+
+if baction=" 精华 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)
+id=trim(delbbsid(i))
+if id<>"" then
+conn.execute("update topic set type=1 where id="&id&"")
+umark(50)
+end if
+next
+end if
+response.redirect "?action=manage&bd="&bd&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+end if
+
+if baction=" 取消精华 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)
+id=trim(delbbsid(i))
+if id<>"" then
+conn.execute("update topic set type=0 where id="&id&"")
+end if
+next
+end if
+response.redirect "?action=manage&bd="&bd&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+end if
+
+if baction=" 锁定 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)
+id=trim(delbbsid(i))
+if id<>"" then
+conn.execute("update topic set type=2 where id="&id&"")
+conn.execute("update bbs"&totable&" set type=2 where ((id="&id&" and bid=0) or bid="&id&")")
+end if
+next
+end if
+response.redirect "?action=manage&bd="&bd&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+end if
+
+if baction=" 取消锁定 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)
+id=trim(delbbsid(i))
+if id<>"" then
+conn.execute("update topic set type=0 where id="&id&"")
+conn.execute("update bbs"&totable&" set type=0 where ((id="&id&" and bid=0) or bid="&id&")")
+end if
+next
+end if
+response.redirect "?action=manage&bd="&bd&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+end if
+
+if baction=" 提升 " then
+if topictype=1 or topictype="" then
+for i=1 to ubound(delbbsid)
+id=trim(delbbsid(i))
+if id<>"" then
+addtime=now()+timeset/24
+conn.execute("update topic set edittime='"&addtime&"' where id="&id&"")
+conn.execute("update bbs"&totable&" set edittime='"&addtime&"' where (id="&id&" and bid=0)")
+end if
+next
+end if
+response.redirect "?action=manage&bd="&bd&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+end if
+%>
+
+<%case"editbbs"
+key=trim(Replace(Replace(Replace(request("key"),"'",""),"[","[[]"),"|","│"))
+'if key="" then key="帖子主题或内容关键字"
+bd=checknum(trim(request("bd")))
+'if bd="" then bd=0
+topage=checknum(request.querystring("topage"))
+bbsid=checknum(request.querystring("bbsid"))
+rebid=checknum(request.querystring("rebid"))
+totable=checknum(request.querystring("totable"))
+if totable="" then totable=checknum(application(prefix&"autotable"))
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+color="#0466CC"
+str1="<font color=#0466CC>话题</font>"
+str2="<font color=#0466CC>回帖</font>"
+if int(usedtable(i))=totable then
+color="red"
+if topictype=1 or topictype="" then
+str1="<font color=red>话题</font>"
+elseif topictype=2 then
+str2="<font color=red>回帖</font>"
+end if
+end if
+
+tablestr=tablestr&"·<a href=?action=manage&totable="&usedtable(i)&"><b><font color="&color&">数据表 "&usedtable(i)&"</font></b></a> [<a href=?action=manage&totable="&usedtable(i)&"&topictype=1>"&str1&"</a>][<a href=?action=manage&totable="&usedtable(i)&"&topictype=2>"&str2&"</a>] "
+next
+response.write"<script language='javascript'>function Check(){var Name=document.form.topage.value;document.location='?action=manage&topage='+Name+'&totable="&totable&"';}</script>"
+%>
+<form method="POST" action="?action=manage&topictype=<%=topictype%>&totable=<%=totable%>&rebid=<%=request.querystring("rebid")%>">
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#F4F6FC" height="32">
+  <tr>
+    <td width="100%">&nbsp; <%=tablestr%></td><td>&nbsp;<input type="text" name="key" size="25" value="<%=key%>">&nbsp;<select size="1" name="bd" style="font-size: 9pt">
+<option value="0" <%if bd=0 then response.write "selected='selected'"%>>所有论坛</option>
+<%set rs=conn.execute("select id,bdinfo from bdinfo where followid<>0 order by orders desc,id")
+do while not rs.eof%>
+<option value="<%=rs("id")%>" <%if bd=rs("id") then response.write "selected='selected'"%>><%=split(rs("bdinfo"),"|")(0)%></option>
+<%rs.movenext
+loop
+rs.close
+set rs=nothing
+%></select>&nbsp;&nbsp;<input type="submit" value=" 开始搜索 " name="B1">&nbsp;</td>
+  </tr>
+</table></form>
+
+<%
+if bd=0 then
+set rs=conn.execute("select top 1 id,bid,userid,content,bd,type from bbs"&totable&" where bbsid="&bbsid&"")
+else
+set rs=conn.execute("select top 1 id,bid,userid,content,bd,type from bbs"&totable&" where bbsid="&bbsid&" and bd="&bd&"")
+end if
+
+if rs("id")=0 then id=rs("bid")
+if rs("bid")=0 then id=rs("id")
+bbsbd=rs("bd")
+bbsuserid=rs("userid")
+bbstype=rs("type")
+content=rs("content")
+content=split(content,"|")
+oldname=content(2)
+set rs=nothing
+face=replace(content(0),"face","")
+face1=face
+if face="vote" then face1="0"
+
+oldtime=content(5)
+canedit=true
+
+renum=conn.execute("select top 1 renum from topic where id="&id&"")(0)
+pagesetup=checknum(application(prefix&"showbbspage"))
+If renum/pagesetup > (renum\pagesetup) then
+	pagenum=(renum\pagesetup)+1
+	else pagenum=(renum\pagesetup)
+End If
+
+if topictype=1 or topictype="" then
+	topic=checktitle(content(1))
+elseif topictype=2 then
+	topic="回复帖子"
+end if
+%>
+<SCRIPT>
+function preview()
+{
+if(htmlsubmit()){
+document.form1.topic.value=document.topicform.topic.value;
+document.form1.content.value=document.topicform.content.value;
+var popupWin = window.open('paper.asp?action=preview', 'showgg', 'width=500,height=400,resizable=1,scrollbars=yes,menubar=no,status=yes');
+document.form1.submit()
+}
+}
+
+function checkeditor(editor)
+{
+if(editor=="html")
+	{
+				document.getElementById("ubbeditordiv").style.display = 'none';
+				document.getElementById("htmltoolbar").style.display = 'block';
+				EDITFORM_DOCUMENT.body.innerHTML = document.getElementById("CodeForm").value;
+				document.getElementById("editTextarea").style.display = 'none';
+				document.getElementById("editIframe").style.display = 'block';
+				HtmlDisableToolbar(false);
+	}
+else if(editor=="ubb")
+	{
+				document.getElementById("ubbeditordiv").style.display = 'block';
+				document.getElementById("htmltoolbar").style.display = 'none';
+				document.getElementById("CodeForm").value = HtmlHtmlToXhtml(EDITFORM_DOCUMENT.body.innerHTML);
+				document.getElementById("editIframe").style.display = 'none';
+				document.getElementById("editTextarea").style.display = 'block';
+				HtmlDisableToolbar(true);
+	}
+}
+
+
+</SCRIPT>
+
+<form name="topicform" method="POST" action="?action=editbbsok&bd=<%=bbsbd%>&bd2=<%=bd%>&bbsid=<%=bbsid%>&key=<%=key%>&totable=<%=totable%>&topictype=<%=topictype%>&topage=<%=topage%>&rebid=<%=rebid%>">
+  <table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bordercolor="#F4F6FC">
+  <tr class=td2>
+    <td width="100%" class=td2>
+  <table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bordercolor="#F4F6FC">
+      <tr class=td2>
+        <td width="25%" class=td2>
+       <p style="line-height: 150%; margin: 5"><b>帖子主题：</b></td>
+        <td>&nbsp;<input type=text name=topic id="topic" size=80 maxlength=50 value="<%=topic%>" onkeydown="if(event.keyCode==13)return false;"> <SELECT name=font onchange=DoTitle(this.options[this.selectedIndex].value) style="font-size: 9pt">
+<OPTION selected value="">话题</OPTION> <OPTION value=[原创]>[原创]</OPTION><OPTION value=[转帖]>[转帖]</OPTION><OPTION value=[讨论]>[讨论]</OPTION><OPTION value=[求助]>[求助]</OPTION><OPTION value=[推荐]>[推荐]</OPTION><OPTION value=[公告]>[公告]</OPTION><OPTION value=[注意]>[注意]</OPTION><OPTION value=[贴图]>[贴图]</OPTION><OPTION value=[建议]>[建议]</OPTION> <OPTION value=[下载]>[下载]</OPTION></SELECT></td>
+      </tr>
+      <tr>
+        <td width="25%">
+        <p style="line-height: 150%; margin: 5"><b>你的表情：</b> <br>·放在帖子前面。</td>
+        <td><p style="line-height: 150%; margin: 5"><script>
+for(i=1;i<=18;i=i+1) {
+if (i==10){document.write("<p style='line-height: 150%; margin: 5'>")}
+if (i==<%=face1%>){document.write("<input type=radio value=face"+i+" name=face checked><img border=0 src=face/face"+i+".gif>")}
+else {document.write("<input type=radio value=face"+i+" name=face><img border=0 src=face/face"+i+".gif>")}
+}
+        </script>　</td>
+      </tr>
+<tr>
+        <td width="25%">
+        <p style="margin: 5"><b>文件上传：</b><br>·上传一个文件需要10点积分。</td>
+<td>
+<p style="margin: 5"><%if checknum(application(prefix&"canupload"))=1 then%><IFRAME name=ad src="upload.asp" frameBorder=0 width="100%" scrolling=no height=36></IFRAME><%else%>论坛不支持上传文件。<%end if%></td>
+      </tr>      
+      <tr>
+        <td  valign="top" width="25%">
+        <p style="line-height: 150%; margin: 5"><b>帖子内容：</b><br>
+		<input type="radio" name="usereditor" value="html" onclick="checkeditor('html')" checked>使用Html编辑器<br>
+		<input type="radio" name="usereditor" value="ubb" onclick="checkeditor('ubb')">使用UBB编辑器<br>
+
+</td>
+<td valign="top" style="padding:5px;">
+<textarea name="content" cols="40" rows="2" style="display:none"><%=content(4)%></textarea>
+<SCRIPT src="Editor/Ubb/UbbEditor.js"></SCRIPT>
+<script type="text/javascript" src="Editor/Html/htmlEditor.js"></script>
+
+<script>
+var ubbedit=new UbbEditor("CodeForm",100,14,"default values","editor/ubb/images/");
+ubbedit.showeditor();
+</script>
+
+
+<script type="text/javascript">
+var editor = new htmlEditor("editor");
+editor.hiddenName = "content";
+editor.width = "100%";
+editor.height = "300px";
+editor.imagePath="editor/html/images/";
+editor.iconPath = 'editor/html/images/face/';
+editor.show();
+
+var strlength;
+
+//提交表单
+function submitform(){
+   	if(htmlsubmit())
+   		{document.topicform.submit();}
+}
+
+//检测表单
+function htmlsubmit() {
+	if(document.getElementsByName("usereditor").item(0).checked==true){
+		var content = editor.data();
+	}
+	else if(document.getElementsByName("usereditor").item(1).checked==true){
+		checkeditor("html");
+		var content = editor.data();
+		checkeditor("ubb");
+	}
+	
+		strlength=document.getElementsByName("content").item(0).value.length;
+		if (strlength>25600||strlength<5){
+			alert("您输入的文章长度为"+strlength+"，长度必须大于5且小于25600，请修正之后再继续。");
+			return false;
+		}
+		else if(document.getElementsByName("topic").item(0).value==""){
+			alert("标题不能为空。");
+			document.getElementsByName("topic").item(0).focus();
+			return false;
+		}
+		else{
+			return true;
+		}
+}
+
+</script></td>
+      </tr>
+      </table>
+    </td>
+  </tr><tr>
+    <td height="50" align="center">
+&nbsp;<input class=submit type=button value=OK_！修改 name=B1 onclick="submitform()">&nbsp;&nbsp;&nbsp; 
+    <input class=submit type=button value="预  览！" onclick="preview()" name="B3">&nbsp;&nbsp;&nbsp; <input class=submit type=reset value=NO_！重写 name=B2>&nbsp; [ 按 Ctrl+Enter 直接发送 ]</td></tr></table>
+</form>
+
+<form name=form1 action=paper.asp?action=preview method=post target=showgg>
+<input type=hidden name=topic value=><input type=hidden name=content value=>
+</form>
+
+<%case"editbbsok"
+dim lguserid
+lguserid=checknum(session(prefix&"lguserid"))
+key=trim(request.querystring("key"))
+bbsid=checknum(request.querystring("bbsid"))
+topage=checknum(request.querystring("topage"))
+rebid=checknum(request.querystring("rebid"))
+totable=checknum(request.querystring("totable"))
+bd=checknum(trim(request("bd")))
+set rs=conn.execute("select top 1 id,bid,userid,content,bd,type from bbs"&totable&" where bbsid="&bbsid&" and bd="&bd&"")
+if rs("id")=0 then id=rs("bid")
+if rs("bid")=0 then id=rs("id")
+bbsbd=rs("bd")
+bbsuserid=rs("userid")
+bbstype=rs("type")
+content=rs("content")
+content=split(content,"|")
+oldname=content(2)
+set rs=nothing
+face=replace(content(0),"face","")
+face1=face
+if face="vote" then face1="0"
+
+oldtime=content(5)
+canedit=true
+
+renum=conn.execute("select top 1 renum from topic where id="&id&"")(0)
+pagesetup=checknum(application(prefix&"showbbspage"))
+If renum/pagesetup > (renum\pagesetup) then
+	pagenum=(renum\pagesetup)+1
+	else pagenum=(renum\pagesetup)
+End If
+
+content=checkbad(left(Request.Form("content"),25600))
+content=replace(content,"|","│")
+content=replace(content,"'","''")
+
+contentok=Replace(content," ","")
+if face<>"vote" then
+face=replace(replace(request.form("face"),"|",""),"'","")
+if face="" or len(face)>6 then face="face1"
+end if
+canedit=true
+
+if strLength(contentok)<5 or len(contentok)>25600 then
+canedit=false
+mes=mes&"·帖子内容太少，系统认为是灌水文章。<br>"
+end if
+
+topic=Replace(left(Request.Form("topic"),50),"'","''")
+topic=checkbad(Replace(topic,"|","│"))
+topicok=Replace(topic," ","")
+topicok=replace(topicok,chr(-24159),"")
+topicok=replace(topicok,chr(-23299),"")
+if topicok=""  or contentok="" then
+canedit=false
+mes=mes&"·请填写完整帖子主题和内容。<br>"
+end if
+
+if canedit=false then
+tl=" 修 改 失 败"
+mes="<b>对不起，帖子修改失败，可能存在以下问题：</b><br>"&mes&"·<a href='javascript:history.go(-1)'><img src=pic/re.gif align=absmiddle border=0> 返回重新填写</a><br>"
+call sendinfo(tl,mes)
+call down
+response.end
+end if
+
+function uptypecheck(byval str)
+dim ary,pos
+ary=split(str,"[upload=")
+if ubound(ary)>=1 then
+pos=instr(ary(1),"[/upload]")
+if pos=0 then exit function
+uptypecheck=left(ary(1),3)
+end if
+end function
+uptype=uptypecheck(contentok)
+
+addtime=now()+timeset/24
+if topictype=1 or topictype="" then
+topicinfo=face&"|"&topic&"|"&oldname&"|"
+elseif topictype=2 then
+topicinfo=face&"||"&oldname&"|"
+end if
+
+if uptype<>"" and instr(application(prefix&"uploadtype"),uptype)>0 then
+topicinfo=topicinfo&"<img src=images/upfiletype/"&uptypecheck(contentok)&".gif border=0 align=absmiddle>"
+end if
+
+if topictype=1 or topictype="" then
+set rs=server.createobject("adodb.recordset")
+sql="Select top 1 id,topicinfo,edittime from [topic] where id="&id&" and bd="&bbsbd&""
+rs.open sql,conn,1,3
+rs("topicinfo")=topicinfo
+'rs("edittime")=addtime
+rs.Update
+id=rs("id")
+rs.close
+set rs=nothing
+end if
+
+content2=topicinfo&"|"&content&"|"&oldtime
+'conn.execute("update bbs"&totable&" set content='"&content2&"',edittime='"&addtime&"' where bbsid="&bbsid&" and bd="&bbsbd&"")
+conn.execute("update bbs"&totable&" set content='"&content2&"' where bbsid="&bbsid&" and bd="&bbsbd&"")
+content2=replace(lefttrue(RemoveHTML(content),15),"'","")
+lasttopic=lguserid&"|"&oldname&"|"&addtime&"|"&content2&"|"&face&"|"&id&"|"&totable&"|"&pagenum
+conn.execute("update bdinfo set lasttopic='"&lasttopic&"' where id="&bbsbd&" and followid<>0")
+
+response.redirect "?action=manage&bd="&request.querystring("bd2")&"&bbsid="&bbsid&"&totable="&totable&"&key="&key&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+%>
+
+<%case"delbbs"
+id=checknum(request.querystring("id"))
+bd=checknum(request.querystring("bd"))
+bd2=checknum(request.querystring("bd2"))
+totable=checknum(request.querystring("totable"))
+key=trim(request.querystring("key"))
+bbsid=checknum(request.querystring("bbsid"))
+topage=checknum(request.querystring("topage"))
+rebid=checknum(request.querystring("rebid"))
+if topictype=1 or topictype="" then
+conn.execute("update topic set type=3 where bd="&bd&" and id="&id&"")
+conn.execute("update bbs"&totable&" set type=3 where bd="&bd&" and id="&id&"")
+umark(-30)
+elseif topictype=2 then
+conn.execute("update bbs"&totable&" set type=3 where bd="&bd&" and bbsid="&bbsid&"")
+umark2(-20)
+end if
+response.redirect "?action=manage&bd="&bd2&"&bbsid="&bbsid&"&key="&key&"&totable="&totable&"&topictype="&topictype&"&topage="&topage&"&rebid="&rebid&""
+response.end
+%>
+
+<%case"deltopic"%><br>
+<form action="adminright1.asp?action=delday" method="POST">
+  <table style="BORDER-COLLAPSE: collapse" cellSpacing="0" cellPadding="0" width="100%" border="0">
+    <tr>
+      <td class=td1 width="100%" height="35" bgcolor="#749AEC" colspan="2">
+      &nbsp;删除指定日期内的帖子</td>
+    </tr>
+    <tr>
+      <td class=td2 width="30%" height="28">
+      <p style="MARGIN: 5px">删除多少天前的帖子：( 填数字 ) </p>
+      </td>
+      <td width="70%">
+      <input size="20" name="daynum"></td>
+    </tr>
+    <tr>
+      <td class=td2 height="28">
+      <p style="margin: 5">删除帖子所在的论坛：( 请选择 ) </td>
+      <td><%bdlist("bd")%></td>
+    </tr>
+    <tr>
+      <td width="100%" bgcolor="#F4F6FC" colspan="2" align="center" height="35">
+      
+    <input type="submit" value="  确 认 删 除  " name="B1"></td>
+    </tr>
+  </table>
+</form>
+<form action="adminright1.asp?action=deldaynore" method="POST">
+  <table style="BORDER-COLLAPSE: collapse" cellSpacing="0" cellPadding="0" width="100%" border="0">
+    <tr>
+      <td class=td1 width="100%" height="35" bgcolor="#749AEC" colspan="2">
+      &nbsp;删除指定日期内没有回复的主题</td>
+    </tr>
+    <tr>
+      <td class=td2 width="30%" height="28">
+      <p style="MARGIN: 5px">删除多少天前的帖子：( 填数字 ) </p>
+      </td>
+      <td width="70%">
+      <input size="20" name="daynum"></td>
+    </tr>
+    <tr>
+      <td class=td2 height="28">
+      <p style="margin: 5">删除帖子所在的论坛：( 请选择 ) </td>
+      <td><%bdlist("bd")%></td>
+    </tr>
+    <tr>
+      <td width="100%" bgcolor="#F4F6FC" colspan="2" align="center" height="35">
+      
+    <input type="submit" value="  确 认 删 除  " name="B1"></td>
+    </tr>
+  </table>
+</form><form action="adminright1.asp?action=delusertopic" method="POST">
+  <table style="BORDER-COLLAPSE: collapse" cellSpacing="0" cellPadding="0" width="100%" border="0">
+    <tr>
+      <td class=td1 width="100%" height="35" bgcolor="#749AEC" colspan="2">
+      &nbsp;删除指定用户的所有帖子</td>
+    </tr>
+    <tr>
+      <td class=td2 width="30%" height="28">
+      <p style="MARGIN: 5px">删除指定用户的帖子：( 用户名 )</p>
+      </td>
+      <td width="70%">
+      <input size="20" name="name"></td>
+    </tr>
+    <tr>
+      <td class=td2 height="28">
+      <p style="margin: 5">删除帖子所在的论坛：( 请选择 ) </td>
+      <td><%bdlist("bd")%></td>
+    </tr>
+    <tr>
+      <td width="100%" bgcolor="#F4F6FC" colspan="2" align="center" height="35">
+      
+    <input type="submit" value="  确 认 删 除  " name="B1"></td>
+    </tr>
+  </table>
+</form>
+<%case"delday"
+bd=checknum(request.form("bd"))
+daynum=checknum(request.form("daynum"))
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+if bd=0 then
+conn.execute("delete*from bbs"&i&" where bid in(select id from topic where edittime<now()+"&timeset&"/24-"&daynum&" and totable="&i&")")
+conn.execute("delete*from bbs"&i&" where edittime<now()+"&timeset&"/24-"&daynum&"")
+else
+conn.execute("delete*from bbs"&i&" where bd="&bd&" and bid in(select id from topic where edittime<now()+"&timeset&"/24-"&daynum&" and bd="&bd&" and totable="&i&")")
+conn.execute("delete*from bbs"&i&" where edittime<now()+"&timeset&"/24-"&daynum&" and bd="&bd&"")
+
+end if
+next
+
+if bd=0 then
+conn.execute("delete*from topic where edittime<now()+"&timeset&"/24-"&daynum&"")
+else
+conn.execute("delete*from topic where edittime<now()+"&timeset&"/24-"&daynum&" and bd="&bd&"")
+end if
+call send("删除成功，建议您压缩数据库。")
+
+case"deldaynore"
+bd=checknum(request.form("bd"))
+daynum=checknum(request.form("daynum"))
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+if bd=0 then
+conn.execute("delete*from bbs"&i&" where id in(select id from topic where edittime<now()+"&timeset&"/24-"&daynum&" and renum=0 and totable="&i&")")
+else
+conn.execute("delete*from bbs"&i&" where id in(select id from topic where edittime<now()+"&timeset&"/24-"&daynum&" and renum=0 and totable="&i&" and bd="&bd&")")
+end if
+next
+if bd=0 then
+conn.execute("delete*from topic where edittime<now()+"&timeset&"/24-"&daynum&" and renum=0")
+else
+conn.execute("delete*from topic where edittime<now()+"&timeset&"/24-"&daynum&" and bd="&bd&" and renum=0")
+end if
+call send("删除成功，建议您压缩数据库。")
+
+case"delusertopic"
+dim userid
+bd=checknum(request.form("bd"))
+name=Replace(Request.Form("name"),"'","")
+
+set rs=conn.execute("select top 1 userid from [user] where name='"&name&"'")
+if rs.eof then
+call send("·论坛不存在该用户<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+userid=rs(0)
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+if bd=0 then
+conn.execute("delete*from bbs"&i&" where userid="&userid&"")
+else
+conn.execute("delete*from bbs"&i&" where userid="&userid&" and bd="&bd&"")
+end if
+next
+
+if bd=0 then
+conn.execute("delete*from topic where userid="&userid&"")
+else
+conn.execute("delete*from topic where userid="&userid&" and bd="&bd&"")
+end if
+call send("删除成功，建议您压缩数据库。")
+end if
+%>
+<%case"movetopic"%><br><form method="POST" action="adminright1.asp?action=moveday">
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="100%">
+  <tr>
+    <td class=td1 width="100%" colspan="2" bgcolor="#749AEC" height="35">&nbsp;按指定天数移动帖子</td>
+  </tr>
+  <tr>
+    <td class=td2 width="30%">
+    <p style="margin: 5">移动多少天前的帖子：( 填数字 )</td>
+    <td width="70%">
+      <input size="20" name="daynum"></td>
+  </tr>
+  <tr>
+    <td  class=td2 >
+    <p style="margin: 5">帖子原来所在的论坛：( 请选择 )</td>
+    <td><%bdlist("oldbd")%></td>
+  </tr>
+  <tr>
+    <td class=td2 >
+    <p style="margin: 5">帖子要移动到的论坛：( 请选择 )</td>
+    <td><%bdlist("newbd")%></td>
+  </tr>
+  <tr>
+    <td colspan="2" bgcolor="#F4F6FC" align="center" height="35">
+      
+    <input type="submit" value="  确 认 移 动  " name="B1"></td>
+  </tr>
+</table></form>
+<form method="POST" action="adminright1.asp?action=moveuser">
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="100%">
+  <tr>
+    <td class=td1 width="100%" colspan="2" bgcolor="#749AEC" height="35">
+    &nbsp;按指定用户移动帖子</td>
+  </tr>
+  <tr>
+    <td class=td2 width="30%">
+    <p style="margin: 5">移动指定用户的帖子：( 用户名 )</td>
+    <td width="70%">
+      <input size="20" name="name"></td>
+  </tr>
+  <tr>
+    <td  class=td2 >
+    <p style="margin: 5">帖子原来所在的论坛：( 请选择 )</td>
+    <td><%bdlist("oldbd")%></td>
+  </tr>
+  <tr>
+    <td class=td2 >
+    <p style="margin: 5">帖子要移动到的论坛：( 请选择 )</td>
+    <td><%bdlist("newbd")%></td>
+  </tr>
+  <tr>
+    <td colspan="2" bgcolor="#F4F6FC" align="center" height="35">
+      
+    <input type="submit" value="  确 认 移 动  " name="B1"></td>
+  </tr>
+</table></form>
+<%case"moveday"
+dim oldbd,newbd
+oldbd=checknum(request.form("oldbd"))
+newbd=checknum(request.form("newbd"))
+if newbd=0 then
+call send("·请选择要移动到的版面<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+
+daynum=checknum(request.form("daynum"))
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+if oldbd=0 then
+conn.execute("update bbs"&i&" set bd="&newbd&" where edittime<now()+"&timeset&"/24-"&daynum&"")
+else
+conn.execute("update bbs"&i&" set bd="&newbd&" where edittime<now()+"&timeset&"/24-"&daynum&" and bd="&oldbd&"")
+end if
+next
+
+if oldbd=0 then
+conn.execute("update topic set bd="&newbd&" where edittime<now()+"&timeset&"/24-"&daynum&"")
+else
+conn.execute("update topic set bd="&newbd&" where edittime<now()+"&timeset&"/24-"&daynum&" and bd="&oldbd&"")
+end if
+call send("移动帖子成功。")
+end if
+
+case"moveuser"
+oldbd=checknum(request.form("oldbd"))
+newbd=checknum(request.form("newbd"))
+name=Replace(Request.Form("name"),"'","")
+
+if newbd=0 then
+call send("·请选择要移动到的版面<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+
+set rs=conn.execute("select top 1 userid from [user] where name='"&name&"'")
+if rs.eof then
+call send("·论坛不存在该用户<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+userid=rs(0)
+usedtable=application(prefix&"usedtable")
+usedtable=split(usedtable,"|")
+for i=1 to ubound(usedtable)
+if oldbd=0 then
+conn.execute("update bbs"&i&" set bd="&newbd&" where userid="&userid&"")
+else
+conn.execute("update bbs"&i&" set bd="&newbd&" where userid="&userid&" and bd="&oldbd&"")
+end if
+next
+
+if oldbd=0 then
+conn.execute("update topic set bd="&newbd&" where userid="&userid&"")
+else
+conn.execute("update topic set bd="&newbd&" where userid="&userid&" and bd="&oldbd&"")
+end if
+call send("移动帖子成功。")
+end if
+end if
+case"adminpwd"
+%>
+<form method="POST" action="adminright1.asp?action=editadminpwd">
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+<tr class=td2>
+    <td width="25%">
+    <p style="margin: 8">管 理 员：</td>
+    <td width="75%">&nbsp;<%=flid%><input type="text" name="name" size="40"></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8"><font color="#0466CC"><b>后台密码：</b></font></td>
+    <td>&nbsp;<input type="password" name="pwd" size="40"></td>
+  </tr>  <tr>
+    <td colspan="2" bgcolor="#F4F6FC" align="center" height="35">
+    <input type="submit" value="     确  认  修  改     " name="B1"></td>
+  </tr>
+</table></form>
+<%case"editadminpwd"
+name=Replace(Request.Form("name"),"'","")
+pwd=Replace(Request.Form("pwd"),"'","")
+newpwd=md5(pwd)
+set rs1=server.createobject("adodb.recordset")
+sql="Select * from [admin] where name='"&name&"'"
+rs1.open sql,conn,1,3
+if rs1.eof then
+call send("不存在该管理员。")
+else
+rs1("password")=newpwd
+rs1.Update
+call send("修改后台管理密码成功。")
+end if
+rs1.close
+set rs1=nothing%>
+<%end select%></td>
+  </tr>
+</table>
+<table rules='none' border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#346AE4">
+  <tr>
+    <td valign="top"><img border="0" src="pic/admin/2.gif"></td>
+    <td background="pic/admin/4.gif" width="100%" align="center">Powered By ： <a target=_blank href=http://www.huoguopai.com>www.huoguopai.com</a><br>Copyright 2011-<%response.write year(now)+1%> LIFEYT.COM All Rights Reserved.
+    　</td>
+    <td valign="top"><img border="0" src="pic/admin/3.gif"></td>
+  </tr>
+  <tr>
+    <td valign="top" colspan="3" bgcolor="#749AEC" height="4"></td>
+  </tr>
+</table>

@@ -1,0 +1,123 @@
+<%@ CODEPAGE=65001 %>
+<%' Option Explicit %>
+<%' On Error Resume Next %>
+<% Response.Charset="UTF-8" %>
+<% Response.Buffer=True %>
+<!-- #include file="../../c_option.asp" -->
+<!-- #include file="../../function/c_function.asp" -->
+<!-- #include file="../../function/c_system_lib.asp" -->
+<!-- #include file="../../function/c_system_base.asp" -->
+<!-- #include file="../../function/c_system_event.asp" -->
+<!-- #include file="../../function/c_system_plugin.asp" -->
+<!-- #include file="option.asp" -->
+<!-- #include file="class.asp" -->
+<!-- #include file="function.asp" -->
+<%
+Call System_Initialize()
+'检查非法链接
+Call CheckReference("")
+'检查权限
+If BlogUser.Level>1 Then Call ShowError(6)
+'If CheckPluginState("Pages")=False Then Call ShowError(48)
+Call Pages_Initialize()
+Dim a:a=Request.QueryString("a")
+Select Case(a)
+	Case("post")
+		Dim PstPage
+		Set PstPage=New Cls_Page
+		PstPage.i=Request.QueryString("i")
+		Call CheckParameter(PstPage.i,"int",-1)
+		PstPage.Alias=Request.Form("edtAlias")
+		PstPage.Title=Request.Form("edtTitle")
+		PstPage.Intro=Request.Form("edtIntro")
+		PstPage.Content=Request.Form("txaContent")
+		Dim t:t=Request.QueryString("t")
+		If(t="FCK")Then
+			PstPage.Content=Replace(PstPage.Content,vbCrLf,"")
+			PstPage.Content=Replace(PstPage.Content,vbLf,"")
+		End If
+		If(PstPage.Post)Then
+			PstPage.Build
+			PstPage.Save
+		End If
+		Call Pages_ExportListFile
+		Dim s:s=Request.QueryString("s")
+		If(s<>"")Then
+			s="?s="&s
+		End If
+		Response.Redirect(ZC_BLOG_HOST&"PLUGIN/Pages/pagelist.asp"&s)
+	Case("del")
+		Dim DelPage
+		Set DelPage=New Cls_Page
+		DelPage.i=Request.QueryString("i")
+		Call CheckParameter(DelPage.i,"int",-1)
+		DelPage.LoadInfo
+		If(DelPage.Del)Then
+			DelPage.DelFile
+		End If
+		Call Pages_ExportListFile
+		s=Request.QueryString("s")
+		If(s<>"")Then
+			s="?s="&s
+		End If
+		Response.Redirect(ZC_BLOG_HOST&"PLUGIN/Pages/pagelist.asp"&s)
+	Case("setting")
+		Dim strContent:strContent=LoadFromFile(BlogPath & "/PLUGIN/Pages/option.asp","utf-8")
+		Dim strPages_Directory:strPages_Directory=Trim(Request.Form("edtPages_Directory"))
+		Dim strPages_Static_Type:strPages_Static_Type=Trim(Request.Form("edtPages_Static_Type"))
+		Dim strPages_Directory_Anonymous:strPages_Directory_Anonymous=Trim(Request.Form("edtPages_Directory_Anonymous"))
+		Dim strPages_Content:strPages_Content=Replace(Replace(Request.Form("edtPages_Content"),vbCr,""),vbLf,"")
+
+'检查是否静态设置改变……
+		If((UCase(strPages_Directory)<>UCase(Pages_Directory))Or(UCase(strPages_Static_Type)<>UCase(Pages_Static_Type))Or(UCase(strPages_Directory_Anonymous)<>UCase(CStr(Pages_Directory_Anonymous))))Then
+			Call SaveValueForSetting(strContent,True,"Boolean","Pages_Directory_Anonymous",strPages_Directory_Anonymous) '转化Boolean值
+			If(Pages_Check_Files(strPages_Directory,strPages_Directory_Anonymous,strPages_Static_Type))Then'先检查重复再进行值转化
+				Call SetBlogHint_Custom("<strong style=""color:red"">‼ 警告:检测到可能造成覆盖的页面！[Pages]无法保存您刚才的设置！</strong>")
+			Response.Redirect(ZC_BLOG_HOST&"PLUGIN/Pages/pagelist.asp?s="&strPages_Directory&","&strPages_Directory_Anonymous&","&strPages_Static_Type)
+			Else
+				Call SaveValueForSetting(strContent,True,"String","Pages_Directory",strPages_Directory)
+				Call SaveValueForSetting(strContent,True,"String","Pages_Static_Type",strPages_Static_Type)
+			End If
+		End If
+		Call SaveValueForSetting(strContent,True,"String","Pages_Content",strPages_Content)
+		Call SaveToFile(BlogPath & "/PLUGIN/Pages/option.asp",strContent,"utf-8",False)
+		Call Pages_DelFiles
+		Call SetBlogHint_Custom("‼ 提示:[Pages]设置已保存！页面文件已重建！")
+		Response.Redirect(ZC_BLOG_HOST&"PLUGIN/Pages/save.asp?a=rebuild")
+		
+	Case("setting2")
+		strContent=LoadFromFile(BlogPath & "/PLUGIN/Pages/option.asp","utf-8")
+		Dim strPages_ExportList_Count:strPages_ExportList_Count=Request.Form("edtPages_ExportList_Count")
+		Call SaveValueForSetting(strContent,True,"Numeric","Pages_ExportList_Count",strPages_ExportList_Count)
+		If UCase(strPages_ExportList_Count)<>UCase(CStr(Pages_ExportList_Count)) Then Call SetBlogHint(True,True,Empty)
+		Dim strPages_ExportList_Title_Length:strPages_ExportList_Title_Length=Request.Form("edtPages_ExportList_Title_Length")
+		Call SaveValueForSetting(strContent,True,"Numeric","Pages_ExportList_Title_Length",strPages_ExportList_Title_Length)
+		If UCase(strPages_ExportList_Title_Length)<>UCase(CStr(Pages_ExportList_Title_Length)) Then Call SetBlogHint(True,True,Empty)
+		Dim strPages_ExportList_Template:strPages_ExportList_Template=Replace(Replace(Request.Form("edtPages_ExportList_Template"),vbCr,""),vbLf,"")
+		Call SaveValueForSetting(strContent,True,"String","Pages_ExportList_Template",strPages_ExportList_Template)
+		Call SaveToFile(BlogPath & "/PLUGIN/Pages/option.asp",strContent,"utf-8",False)
+		Call SetBlogHint_Custom("‼ 提示:[Pages]侧栏列表输出设置已保存！")
+		Response.Redirect(ZC_BLOG_HOST&"PLUGIN/Pages/save.asp?a=exportlist")
+	Case("exportlist")
+		Call Pages_ExportListFile()
+		Call SetBlogHint_Custom("‼ 提示：侧栏列表已更新！")
+		Response.Redirect(ZC_BLOG_HOST&"PLUGIN/Pages/pagelist.asp")
+	Case("rebuild")
+		Call Pages_BuildFiles
+		Response.Redirect(ZC_BLOG_HOST&"PLUGIN/Pages/pagelist.asp")
+	Case("delfiles")
+		Call Pages_DelFiles
+		Response.Redirect(ZC_BLOG_HOST&"PLUGIN/Pages/pagelist.asp")
+	Case("uninstall")
+		Call Pages_DelFiles
+		Response.Redirect(ZC_BLOG_HOST&"cmd.asp?act=PlugInMng")
+	Case Else
+End Select
+'
+Call Pages_Terminate()
+Call System_Terminate()
+
+If Err.Number<>0 then
+	Call ShowError(0)
+End If
+%>

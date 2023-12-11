@@ -1,0 +1,589 @@
+<!--#include file="conn.asp"--><!--#include file="inc/fun.asp"--><!--#include file="inc/md5.asp"-->
+<%dim bbsinfo,action,strt,i,uploadtype,badwords,badcontent,str,offbbsinfo,obbs,paper,count,sql,id,ggtitle,ggok,content,contentok,thisbbs,bad,b,content2,lgname,lgpwd,lgpwdmd5,bdlist2
+dim name,url,picurl,readme
+lgname=replace(session(prefix&"lgname"),"'","''")
+lgpwd=replace(session(prefix&"lgpwd"),"'","''")
+if isnull(lgname) or lgname="" or isnull(lgpwd) or lgpwd="" then
+response.redirect"admincheck.asp"
+else
+lgpwdmd5=md5(lgpwd)
+if conn.execute("select top 1 bd from admin where name='"&lgname&"' and password='"&lgpwdmd5&"' and bd=0").eof then
+response.redirect"admincheck.asp"
+end if
+end if
+sub bdlist()
+set bdlist2=conn.execute("select * from bdinfo where followid<>0 order by followid,orders desc,id")
+response.write"<select size=1 name=bd style='font-size: 9pt'><option value=0>请选择版面</option>"
+do while not bdlist2.eof
+response.write"<option value="&bdlist2("id")&">"&split(bdlist2("bdinfo"),"|")(0)&"</option>"
+bdlist2.movenext
+Loop
+response.write"</select>"
+set bdlist2=nothing
+end sub
+
+function checkbad(str)
+if isnull(str) then exit function 
+bad=split(application(prefix&"badcontent"), "|")
+for b=0 to ubound(bad)
+str=Replace(str,bad(b),string(len(bad(b)),"*")) 
+next
+checkbad=str
+end function
+
+action=request.querystring("action")
+select case action
+case"bbs","editbbs" strt="论坛常规设置":application(prefix&"bbsname")=""
+case"openbbsyn","editonoff" strt="论坛开关设置":application(prefix&"bbsname")=""
+case"gonggaogl" strt="论坛公告管理 &nbsp; [ <a href=adminright.asp?action=addnewgg><font color=#ffffff>发布公告</font></a> ]"
+case"delgg" strt="删除公告"
+case"addnewgg","savegg" strt="<a href=adminright.asp?action=addnewgg><font color=#ffffff>发布公告</font></a>"
+case"lm","addlinkform","addlm" strt="论坛联盟管理 &nbsp; [ <a href=adminright.asp?action=addlinkform><font color=#ffffff>添加联盟</font></a> ]":application(prefix&"thebbslink")=""
+case"delbbslink" strt="删除论坛联盟":application(prefix&"thebbslink")=""
+case"editbbslink","editlm" strt="编辑论坛联盟":application(prefix&"thebbslink")=""
+case"ip","addiplock","delip" strt="IP封锁与解除"
+end select
+sub send(str)
+response.write"<table class=td1 border=1 cellpadding=0 cellspacing=0 style='border-collapse: collapse' bordercolor=#F4F6FC width=100% bgcolor=#749AEC height=50><tr><td width=100% ><p style='margin:5px;line-height:150%'>"&str&"</p></td></tr></table>"
+end sub
+%>
+<link rel=stylesheet type=text/css href=inc/css.css>
+<STYLE type=text/css>BODY {
+	SCROLLBAR-FACE-COLOR: #749AEC;  SCROLLBAR-HIGHLIGHT-COLOR:#749AEC; SCROLLBAR-3DLIGHT-COLOR: #749AEC; SCROLLBAR-ARROW-COLOR:#F4F6FC; SCROLLBAR-TRACK-COLOR: #B0C7F4; SCROLLBAR-DARKSHADOW-COLOR: #749AEC}
+</style>
+<body topmargin="0" leftmargin="0">
+
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="100%">
+  <tr>
+    <td width="12"><img border="0" src="pic/admin/a1.gif"></td>
+    <td background="pic/admin/a2.gif" width="100%">　</td>
+    <td width="279"><map name="FPMap0">
+    <area target="_top" href="index.asp" shape="rect" coords="14, 3, 94, 22">
+    <area target="_top" coords="94, 3, 175, 22" shape="rect" href="admin.asp">
+    <area target="_top" coords="175, 3, 260, 22" shape="rect" href="admincheck.asp?action=exit">
+    </map><img border="0" src="pic/admin/a3.gif" usemap="#FPMap0"></td>
+  </tr>
+</table>
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#749AEC">
+  <tr>
+    <td class=td1 width="100%" height="35">&nbsp;
+    <img border="0" src="pic/admin/a4.gif" align="absmiddle"><%=strt%></td>
+  </tr>
+</table>
+<table border="3" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#749AEC" width="100%">
+  <tr>
+    <td width="100%" valign="top" height="475">
+<%
+select case action
+%>
+<%case"bbs"
+set rs=conn.execute("select bbsinfo,uploadtype,badwords,badcontent from config")
+bbsinfo=rs("bbsinfo")
+bbsinfo=split(bbsinfo,"|")
+%>
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bordercolor="#F4F6FC">
+  <form method="POST" action="adminright.asp?action=editbbs"><tr>
+    <td width="25%">
+    <p style="margin: 8; ">论坛名称：</td>
+    <td width="75%">　<input type="text" name="b_0" size="40" value="<%=kbbs(bbsinfo(0))%>"></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8; ">论坛头像个数：</td>
+    <td>　<input type="text" name="b_1" value="<%=kbbs(bbsinfo(1))%>" size="5"></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8; ">头像最大宽度×高度：</td>
+    <td>　<input type="text" name="b_2" value="<%=kbbs(bbsinfo(2))%>" size="5"> 
+    × <input type="text" name="b_3" value="<%=kbbs(bbsinfo(3))%>" size="5"></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8; ">头像默认宽度×高度：</td>
+    <td>　<input type="text" name="b_4" value="<%=kbbs(bbsinfo(4))%>" size="5"> 
+    × <input type="text" name="b_5" value="<%=kbbs(bbsinfo(5))%>" size="5"></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8; ">是否允许使用外部头像：</td>
+    <td>　<input type="radio" name="b_6" value="1" <%if checknum(bbsinfo(6))=1 then%>checked<%end if%>>是 
+    <input type="radio" name="b_6" value="2" <%if checknum(bbsinfo(6))=2 then%>checked<%end if%>>否</td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8; ">论坛联盟显示方式：</td>
+    <td>　<input type="radio" name="b_7" value="1" <%if checknum(bbsinfo(7))=1 then%>checked<%end if%>>文字 
+    <input type="radio" name="b_7" value="2" <%if checknum(bbsinfo(7))=2 then%>checked<%end if%>>图片</td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8; ">是否允许上传：</td>
+    <td>　<input type="radio" name="b_8" value="1" <%if checknum(bbsinfo(8))=1 then%>checked<%end if%>>是 
+    <input type="radio" name="b_8" value="2" <%if checknum(bbsinfo(8))=2 then%>checked<%end if%>>否</td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8; ">最大上传文件大小：</td>
+    <td>　<input type="text" name="b_9" value="<%=kbbs(bbsinfo(9))%>" size="5"> KB</td>
+  </tr>  <tr>
+    <td>
+    <p style="margin: 8; ">最多上传文件个数：</td>
+    <td>　<input type="text" name="b_10" value="<%=kbbs(bbsinfo(10))%>" size="5"></td>
+  </tr>  <tr>
+    <td>
+    <p style="margin: 8; ">允许上传文件类型：<br>各个类型间用 | 隔开</td>
+    <td>　<input type="text" name="uploadtype" value="<%=kbbs(rs("uploadtype"))%>" size="40"></td>
+  </tr> <tr>
+    <td>
+    <p style="margin: 8; ">最多投票选项个数：</td>
+    <td>　<input type="text" name="b_11" value="<%=kbbs(bbsinfo(11))%>" size="5"></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8; ">帖子列表每页显示数：</td>
+    <td>　<input type="text" name="b_12" value="<%=kbbs(bbsinfo(12))%>" size="5"></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8; ">话题每页回帖显示数：</td>
+    <td>　<input type="text" name="b_13" value="<%=kbbs(bbsinfo(13))%>" size="5"></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8; ">禁止注册的用户名：<br>各个类型间用 | 隔开</td>
+    <td>　<input type="text" name="badwords" value="<%=kbbs(rs("badwords"))%>" size="60"></td>
+  </tr>
+  <tr>
+    <td>
+    <p style="margin: 8; ">帖子过滤脏字：<br>各个类型间用 | 隔开</td>
+    <td>　<input type="text" name="badcontent" value="<%=kbbs(rs("badcontent"))%>" size="60"></td>
+  </tr>
+  <tr>
+    <td colspan="2" height="40" bgcolor="#F4F6FC" align="center">
+    <p style="line-height: 125%; margin: 5">
+    <input type="submit" value="     确  认  修  改     " name="B1"></td>
+  </tr></form>
+</table>
+<%set rs=nothing%>
+<%case"editbbs"
+for i=1 to 13
+bbsinfo=bbsinfo&"|"&Replace(Request.Form("b_"&i&""),"|","│")
+next
+bbsinfo=Replace(Request.Form("b_0"),"|","│")&bbsinfo
+bbsinfo=replace(bbsinfo,"'","")
+uploadtype=Replace(Request.Form("uploadtype"),"'","''")
+badwords=Replace(Request.Form("badwords"),"'","''")
+badcontent=Replace(Request.Form("badcontent"),"'","''")
+conn.execute("update [config] set bbsinfo='"&bbsinfo&"',uploadtype='"&uploadtype&"',badwords='"&badwords&"',badcontent='"&badcontent&"'")
+call send("修改成功。")
+application(prefix&"thebbslink")=""
+%>
+<%case"openbbsyn"
+set rs=conn.execute("select offbbsinfo from config")
+offbbsinfo=rs("offbbsinfo")%>
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+<form method="POST" action="adminright.asp?action=editonoff"><tr>
+    <td width="25%">
+    <p style="line-height: 125%; margin: 5">论坛状态：</td>
+    <td width="75%"><input type="radio" name="obbs" value="1" <%if isnull(offbbsinfo) or offbbsinfo="" then%>checked<%end if%>>开 
+    <input type="radio" name="obbs" value="2" <%if offbbsinfo<>"" then%>checked<%end if%>>关</td>
+  </tr>
+  <tr>
+    <td valign="top">
+    <p style="line-height: 125%; margin: 5">关闭时显示信息：<br>支持 html</td>
+    <td>
+    <p style="margin: 6">
+    <textarea name="offinfo" cols="60" rows="7" style="font-family: 宋体; font-size: 9pt"><%=kbbs(offbbsinfo)%></textarea></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" height="30" bgcolor="#F4F6FC">
+    <p>
+    <input type="submit" value="     确  认  修  改     " name="B1"></td>
+  </tr></form>
+</table><%set rs=nothing%>
+<%case"editonoff"
+obbs=checknum(Request.Form("obbs"))
+if obbs=1 then offbbsinfo=""
+if obbs=2 then offbbsinfo=Replace(Request.Form("offinfo"),"'","")
+conn.execute("update [config] set offbbsinfo='"&offbbsinfo&"'")
+call send("修改成功。")
+%>
+<%case"gonggaogl"
+sql="select * from paper order by id desc"
+set rs = server.createobject("adodb.recordset")
+rs.Open sql,conn,1
+count=rs.recordcount
+%><SCRIPT src=inc/menu.js></script>
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bordercolor="#F4F6FC">
+    <tr class=td2><td width="35%" height=28 bgcolor="#F4F6FC">&nbsp;公告标题：</td>
+      <td width="10%" bgcolor="#F4F6FC">&nbsp;发表者：</td>
+      <td width="25%" bgcolor="#F4F6FC">&nbsp;发表时间：</td>
+      <td width="20%" bgcolor="#F4F6FC">&nbsp;所在版面：</td>
+      <td width="10%" bgcolor="#F4F6FC">&nbsp;公告操作：</td></tr>
+<%
+for i=1 to count
+paper=rs("paper")
+paper=split(paper,"|")
+%><tr><td width="35%">
+  <p style="margin: 4"><img src="pic/fle.gif" border="0"> <a href=# onclick=openscript('paper.asp?id=<%=rs("id")%>')><%=lefttrue(kbbs(paper(0)),20)%></a></td>
+  <td width="10%">&nbsp;<%=kbbs(paper(1))%></td><td width="25%">&nbsp;<%=paper(2)%></td>
+  <td width="20%">&nbsp;<%
+  if rs("bd")=0 then
+  response.write"论坛首页"
+  else
+  response.write split(conn.execute("select top 1 bdinfo from bdinfo where id="&rs("bd")&" and followid<>0")(0),"|")(0)
+  end if%></td>
+  <td width="10%">&nbsp;<a title='删除' href="adminright.asp?action=delgg&id=<%=rs("id")%>"><img border="0" src="pic/del.gif"></a> &nbsp;
+  <a title='编辑' href="adminright2.asp?action=editgg&id=<%=rs("id")%>"> <img border="0" src="pic/edit.gif"></a></td></tr><%
+  rs.movenext
+  next%>
+        <tr><td width="100%" height=35 bgcolor="#749AEC" colspan="5">&nbsp;
+          <img border="0" src="pic/admin/a4.gif" align="absmiddle"><b><a href=adminright.asp?action=addnewgg><font color=#ffffff>发布公告</font></a></b></td>
+      </tr></table>
+
+<%
+rs.close
+set rs=nothing%>
+<%
+case"delgg"
+id=checknum(request.querystring("id"))
+conn.execute("delete*from paper where id="&id&"")
+call send("删除成功。")
+%>
+
+<%case"addnewgg"%>
+<SCRIPT>
+function checkeditor(editor)
+{
+if(editor=="html")
+	{
+				document.getElementById("ubbeditordiv").style.display = 'none';
+				document.getElementById("htmltoolbar").style.display = 'block';
+				EDITFORM_DOCUMENT.body.innerHTML = document.getElementById("CodeForm").value;
+				document.getElementById("editTextarea").style.display = 'none';
+				document.getElementById("editIframe").style.display = 'block';
+				HtmlDisableToolbar(false);
+	}
+else if(editor=="ubb")
+	{
+				document.getElementById("ubbeditordiv").style.display = 'block';
+				document.getElementById("htmltoolbar").style.display = 'none';
+				document.getElementById("CodeForm").value = HtmlHtmlToXhtml(EDITFORM_DOCUMENT.body.innerHTML);
+				document.getElementById("editIframe").style.display = 'none';
+				document.getElementById("editTextarea").style.display = 'block';
+				HtmlDisableToolbar(true);
+	}
+}
+
+function preview()
+{
+if(htmlsubmit()){
+document.form1.topic.value=document.topicform.ggtitle.value;
+document.form1.content.value=document.topicform.content.value;
+var popupWin = window.open('paper.asp?action=preview', 'showgg', 'width=500,height=400,resizable=1,scrollbars=yes,menubar=no,status=yes');
+document.form1.submit()
+}
+}
+</SCRIPT>
+
+<form method="POST" action="adminright.asp?action=savegg" name="topicform">
+<div align="center">
+  <center>
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%">
+  <tr>
+    <td width="100%" height="26">
+    <table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bordercolor="#F4F6FC">
+      <tr>
+        <td width="25%" class=td2>
+        <p style="line-height: 120%; margin: 4">公告标题：</td>
+        <td width="75%">
+        <p style="line-height: 120%; margin: 4">
+        <input type="text" name="ggtitle" size="80"></td>
+      </tr>
+            <tr>
+        <td>
+        <p style="line-height: 120%; margin: 4"><font color="#0466CC"><b>公告位置：</b></font><br>如果没有选择，将显示在首页中。</td>
+        <td width="70%">
+        <p style="line-height: 120%; margin: 4">
+<%bdlist()%></td>
+      </tr>
+      <tr>
+        <td valign="top">
+        <p style="line-height: 150%; margin: 5"><b><font color="#0466CC">公告内容：</font></b><br>
+		<input type="radio" name="usereditor" value="html" onclick="checkeditor('html')" checked>使用Html编辑器<br>
+		<input type="radio" name="usereditor" value="ubb" onclick="checkeditor('ubb')">使用UBB编辑器<br>
+
+</td>
+<td valign="top" style="padding:5px;">
+<input name=content type="hidden">
+<SCRIPT src="Editor/Ubb/UbbEditor.js"></SCRIPT>
+<script type="text/javascript" src="Editor/Html/htmlEditor.js"></script>
+
+<script>
+
+var ubbedit=new UbbEditor("CodeForm",100,14,"default values","editor/ubb/images/");
+ubbedit.showeditor();
+</script>
+
+
+<script type="text/javascript">
+var editor = new htmlEditor("editor");
+editor.hiddenName = "content";
+editor.width = "100%";
+editor.height = "300px";
+editor.imagePath="editor/html/images/";
+editor.iconPath = 'editor/html/images/face/';
+editor.show();
+
+var strlength;
+
+//提交表单
+function submitform(){
+   	if(htmlsubmit())
+   		{document.topicform.submit();}
+}
+
+//检测表单
+function htmlsubmit() {
+	if(document.getElementsByName("usereditor").item(0).checked==true){
+		var content = editor.data();
+	}
+	else if(document.getElementsByName("usereditor").item(1).checked==true){
+		checkeditor("html");
+		var content = editor.data();
+		checkeditor("ubb");
+	}
+	
+		strlength=document.getElementsByName("content").item(0).value.length;
+		if (strlength>25600||strlength<5){
+			alert("您输入的文章长度为"+strlength+"，长度必须大于5且小于25600，请修正之后再继续。");
+			return false;
+		}
+		else if(document.getElementsByName("ggtitle").item(0).value==""){
+			alert("标题不能为空。");
+			document.getElementsByName("ggtitle").item(0).focus();
+			return false;
+		}
+		else{
+			return true;
+		}
+}
+
+</script>
+</td>
+</tr>
+      <tr>
+        <td colspan="2" align="center" height="40" bgcolor="#F4F6FC">
+        <input class=submit type=button value=OK_！发送 name=B1 onclick="submitform()">&nbsp;&nbsp;&nbsp; <input class=submit type=button value="预  览！" onclick=preview()>&nbsp;&nbsp;&nbsp; <input class=submit type=reset value=NO_！重写 name=B2>&nbsp; [ 按 Alt+Enter 直接发送 ]</td>
+      </tr>
+      </table>
+    </td>
+  </tr>
+  </table></center>
+</div>
+</form>
+<form name=form1 action=paper.asp?action=preview method=post target=showgg>
+<input type=hidden name=topic value=><input type=hidden name=content value=>
+</form>
+<%case"savegg"
+ggtitle=Replace(Request.Form("ggtitle"),"'","")
+ggtitle=replace(ggtitle,"|","│")
+ggok=Replace(ggtitle," ","")
+
+content=checkbad(Request.Form("content"))
+content=replace(content,"|","│")
+content=replace(content,"'","''")
+contentok=Replace(content," ","")
+
+thisbbs=checknum(request.form("bd"))
+
+if ggok="" or contentok="" then
+call send("<b>对不起！公告发送失败，可能存在以下问题。</b><br>·请填写完整公告标题和公告内容。<br>·<a href='javascript:history.go(-1)'><font color=#ffffff>返回重新填写</font></a>")
+else
+content2=ggtitle&"|"&lgname&"|"&now()+timeset/24&"|"&content
+conn.execute("insert into paper(paper,bd) values('"&content2&"',"&thisbbs&")")
+call send("公告发送成功。")
+end if
+%>
+<%case"lm"%>
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bordercolor="#F4F6FC">
+  <tr>
+    <td width="100%" height="28" bgcolor="#F4F6FC" colspan="6" class=td2>&nbsp;现有的论坛联盟名称：</td>
+  </tr><tr>
+<%sql="select * from bbslink"
+set rs = server.createobject("adodb.recordset")
+rs.Open sql,conn,1
+count=rs.recordcount
+for i=1 to count
+%>  
+    <td width="15%" height="26">&nbsp;<a href='<%=rs("url")%>' title='<%=kbbs(rs("readme"))%>' target=_blank><%=rs("name")%></td>
+    <td width=18% >&nbsp;<%if rs("id")<>1 then%><a title='删除' href="adminright.asp?action=delbbslink&id=<%=rs("id")%>"><%end if%><img border="0" src="pic/del.gif"><%if rs("id")<>1 then%></a><%end if%> &nbsp;
+    <%if rs("id")<>1 then%><a title="编辑" href="adminright.asp?action=editbbslink&id=<%=rs("id")%>"><%end if%> <img border="0" src="pic/edit.gif"><%if rs("id")<>1 then%></a><%end if%></td>
+
+<%
+if i/3=i\3 then response.write"</tr>"
+rs.movenext
+next
+rs.close
+set rs=nothing%>
+</tr> 
+ <tr>
+    <td width="100%" height="35" bgcolor="#749AEC" colspan="6">&nbsp;<img border="0" src="pic/admin/a4.gif" align="absmiddle"><b><a href="adminright.asp?action=addlinkform"><font color="#FFFFFF">添加论坛联盟</font></a></b></td>
+  </tr>
+</table>
+
+<%case"addlinkform"%><form method="POST" action="adminright.asp?action=addlm">
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+  <tr>
+    <td width="30%" height="28">&nbsp;论坛联盟名称：</td>
+    <td width="70%">&nbsp;<input type="text" name="name" size="50"></td>
+  </tr>
+  <tr>
+    <td height="28">&nbsp;论坛联盟URL：</td>
+    <td>&nbsp;<input type="text" name="url" size="50"></td>
+  </tr>
+  <tr>
+    <td height="28">&nbsp;论坛联盟LOGO：</td>
+    <td>&nbsp;<input type="text" name="picurl" size="50"></td>
+  </tr>
+  <tr>
+    <td valign="top">
+    <p style="margin: 4">论坛联盟介绍：</td>
+    <td>
+    <p style="margin: 4">
+    <textarea name="readme" cols="60" rows="5" style="font-family: 宋体; font-size: 9pt"></textarea></td>
+  </tr>
+  <tr>
+    <td colspan="2" bgcolor="#F4F6FC" height="35" align="center">
+    <input type="submit" value="     确  认  添  加     " name="B1"></td>
+  </tr>
+</table></form>
+<%case"delbbslink"
+id=checknum(request.querystring("id"))
+conn.execute("delete*from bbslink where id="&id&"")
+call send("删除成功。")
+%>
+<%case"addlm"
+name=Replace(Request.Form("name"),"'","")
+url=Replace(Request.Form("url"),"'","''")
+picurl=Replace(Request.Form("picurl"),"'","''")
+readme=replace(request.form("readme"),"'","''")
+if name="" or url=""  or instr(name,"[")>0 or instr(name,"]")>0 then
+call send("·信息没有填写完整·<br>·您使用了非法字符·")
+else
+conn.execute("insert into bbslink(url,picurl,name,readme)values('"&url&"','"&picurl&"','"&name&"','"&readme&"')")
+call send("添加成功")
+end if%>
+
+<%case"editbbslink"
+id=checknum(request.querystring("id"))
+set rs=conn.execute("select*from bbslink where id="&id&"")
+%>
+<form method="POST" action="adminright.asp?action=editlm&id=<%=id%>">
+<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+  <tr>
+    <td width="30%" height="28">&nbsp;论坛联盟名称：</td>
+    <td width="70%">&nbsp;<input type="text" name="name" size="50" value="<%=kbbs(rs("name"))%>"></td>
+  </tr>
+  <tr>
+    <td height="28">&nbsp;论坛联盟URL：</td>
+    <td>&nbsp;<input type="text" name="url" size="50" value="<%=kbbs(rs("url"))%>"></td>
+  </tr>
+  <tr>
+    <td height="28">&nbsp;论坛联盟LOGO：</td>
+    <td>&nbsp;<input type="text" name="picurl" size="50" value="<%=kbbs(rs("picurl"))%>"></td>
+  </tr>
+  <tr>
+    <td valign="top">
+    <p style="margin: 4">论坛联盟介绍：</td>
+    <td>
+    <p style="margin: 4">
+    <textarea name="readme" cols="60" rows="5" style="font-family: 宋体; font-size: 9pt"><%=kbbs(rs("readme"))%></textarea></td>
+  </tr>
+  <tr>
+    <td colspan="2" bgcolor="#F4F6FC" height="35" align="center">
+    <input type="submit" value="     确  认  修  改     " name="B1"></td>
+  </tr>
+</table></form>
+<%set rs=nothing%>
+
+<%case"editlm"
+id=checknum(request.querystring("id"))
+name=Replace(Request.Form("name"),"'","")
+url=Replace(Request.Form("url"),"'","''")
+picurl=Replace(Request.Form("picurl"),"'","''")
+readme=replace(request.form("readme"),"'","''")
+if name="" or url=""  or instr(name,"[")>0 or instr(name,"]")>0 then
+call send("·信息没有填写完整·<br>·您使用了非法字符·")
+else
+conn.execute("update bbslink set name='"&name&"',url='"&url&"',picurl='"&picurl&"',readme='"&readme&"' where id="&id&"")
+call send("修改成功")
+end if
+%>
+<%case"ip"%><table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#F4F6FC" width="100%">
+  <tr>
+    <td class=td2 width="100%" bgcolor="#F4F6FC" height="28" colspan="2">
+    <p style="margin: 4">已经被封禁的网段：</td>
+  </tr>
+  <%
+set rs=server.createobject("adodb.recordset")
+sql="select * from lockip"
+rs.open sql,conn
+do while not rs.eof
+%>
+
+  <tr>
+    <td width="50%" height="28">
+    <p style="line-height: 150%; margin: 4"><%response.write IpDecode(rs("startip"))&"　-　"&IpDecode(rs("endip"))%></td>
+    <td width="50%" height="28">&nbsp;
+    <a href="adminright.asp?action=delip&id=<%=rs("id")%>">删除</a></td>
+  </tr>
+
+<%rs.movenext
+loop
+rs.close
+set rs=nothing
+%>  <tr>
+    <td class=td1 width="100%" colspan="2" bgcolor="#749AEC" height="28">&nbsp;<img border="0" src="pic/admin/a4.gif" align="absmiddle">论坛 IP 封锁添加</td>
+  </tr>
+   <form method="POST" action="adminright.asp?action=addiplock"><tr>
+    <td height="28">&nbsp;起始 IP ：</td>
+    <td>　<input type="text" name="startip" size="40"></td>
+  </tr>
+   <tr>
+    <td height="28">&nbsp;结束 IP ：</td>
+    <td>　<input type="text" name="endip" size="40"></td>
+  </tr><tr>
+    <td class=td1 width="100%" colspan="2" bgcolor="#F4F6FC" height="28" align="center">
+    <input type="submit" value="     确  认  添  加     " name="B1"></td>
+  </tr></form>
+</table>
+<%case"addiplock"
+dim startip1,endip1
+startip1=trim(replace(request.form("startip"),"'","''"))
+endip1=trim(replace(request.form("endip"),"'","''"))
+if endip1="" then endip1=startip1
+sql="insert into lockip(startip,endip)values("&IpEncode(startip1)&","&IpEncode(endip1)&")"
+conn.execute(sql)
+call send("添加成功")
+%>
+<%case"delip"
+id=checknum(request.querystring("id"))
+conn.execute("delete * from lockip where id="&id&"")
+call send("删除成功")
+%>
+<%end select%></td>
+  </tr>
+</table>
+<table rules='none' border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="100%" bgcolor="#346AE4">
+  <tr>
+    <td valign="top"><img border="0" src="pic/admin/2.gif"></td>
+    <td background="pic/admin/4.gif" width="100%" align="center">Powered By ： <a target=_blank href=http://www.huoguopai.com>www.huoguopai.com</a><br>Copyright 2011-<%response.write year(now)+1%> LIFEYT.COM All Rights Reserved.
+    　</td>
+    <td valign="top"><img border="0" src="pic/admin/3.gif"></td>
+  </tr>
+  <tr>
+    <td valign="top" colspan="3" bgcolor="#749AEC" height="4"></td>
+  </tr>
+</table>

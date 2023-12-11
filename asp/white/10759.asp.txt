@@ -1,0 +1,221 @@
+﻿<%
+'///////////////////////////////////////////////////////////////////////////////
+'//              Z-Blog
+'// 作    者:    QingFeng-清风
+'// 版权所有:    http://www.5464.info
+'// 技术支持:    253977376@qq.com
+'// 程序名称:    分类文章图文列表插件
+'// 英文名称:    CateList
+'// 开始时间:    2010-10-01
+'// 最后修改:    2010-10-01
+'// 备    注:    
+'///////////////////////////////////////////////////////////////////////////////
+'设置单引号和双引号的替换字符
+Const QingFeng_Cate_chReplace="_"
+Dim QingFeng_CateList_objRS
+Dim QingFeng_CateList_objArticle
+
+
+Call RegisterPlugin("QingFeng_CateList","ActivePlugin_QingFeng_CateList")
+
+
+Function ActivePlugin_QingFeng_CateList()
+
+'ZC_BLOG_VERSION 版本号,检查是否带了Devo或者Spirit
+'if InStr(ZC_BLOG_VERSION,"Spirit")>0 then
+	Call Add_Action_Plugin("Action_Plugin_MakeBlogReBuild_Core_Begin","Call QingFeng_CateList_BlogReBuild()")'在系统重建之前
+'else
+	Call Add_Action_Plugin("Action_Plugin_MakeBlogReBuild_Begin","Call QingFeng_CateList_BlogReBuild()")'在系统重建之前
+'end if
+End Function
+'Action_Plugin_MakeBlogReBuild_Core_Begin  'Z-BLOG 1.8 S 使用这个接口
+'Action_Plugin_MakeBlogReBuild_Begin 'Z-BLOG 1.8 Devo 使用这个接口
+
+
+'*********************************************************
+' 目的：生成重建种类文章排行
+'*********************************************************
+Function QingFeng_CateList_BlogReBuild()
+
+			
+	QingFeng_CateList_BlogReBuild_CateList
+	
+	QingFeng_CateList_BlogReBuild=True
+	
+End Function
+
+'*********************************************************
+'过滤单引号和双引号
+'*********************************************************
+Function QingFeng_CateList_strReplace(ByVal source,ByVal para)
+		source=Replace(source,"""",para)
+		source=Replace(source,"'",para)		
+		QingFeng_CateList_strReplace=source
+End Function
+
+'*********************************************************
+' 取字符串的前几个字,大于字数时,显示...
+'*********************************************************
+  function   QingFeng_CateList_cutTitle(ByVal strtitle,ByVal counts)   
+	Dim RegExpObj,ReGCheck
+	Set RegExpObj=new RegExp 
+	RegExpObj.Pattern="^[\u4e00-\u9fa5]+$" 
+	Dim l,t,c,i
+	l=Len(strtitle)
+	t=0
+	For i=1 to l
+	c=Mid(strtitle,i,1)   
+	ReGCheck=RegExpObj.test(c)
+	If ReGCheck Then
+	  t=t+2
+	Else
+	  t=t+1
+	End If
+	If t>=counts Then
+	  QingFeng_CateList_cutTitle=left(strtitle,i)&"..."
+	  Exit For
+	Else
+	  QingFeng_CateList_cutTitle=strtitle
+	End If
+	Next
+	Set RegExpObj=nothing 
+	QingFeng_CateList_cutTitle=Replace(QingFeng_CateList_cutTitle,chr(10),"")
+	QingFeng_CateList_cutTitle=Replace(QingFeng_CateList_cutTitle,chr(13),"")
+end   function  
+
+'*********************************************************
+' 目的：    生成分类文章列表
+'*********************************************************
+Function QingFeng_CateList_BlogReBuild_CateList()
+    Dim QingFeng_CateList_Cates
+    QingFeng_CateList_Cates = LoadFromFile(BlogPath & "/PLUGIN/QingFeng_CateList/catelist.txt","utf-8")
+if QingFeng_CateList_Cates <> "" then
+
+    Dim szCateName,szCateId,strOut,szNum,szTitleNum,szIntroNum,szTemplate,arrszCateId,szFirstNum
+    Dim arrQingFeng_CateList_Cates,i_QingFeng_CateList_Cates,i,i_arrszCateId,qfCateId,qfIntro
+    	    strOut=" "
+    arrQingFeng_CateList_Cates = Split(QingFeng_CateList_Cates,"|||")
+    for i_QingFeng_CateList_Cates = 0 to ubound(arrQingFeng_CateList_Cates) '循环多个分类
+        szCateName = Split(arrQingFeng_CateList_Cates(i_QingFeng_CateList_Cates),"||")(0)
+        szCateId = Split(arrQingFeng_CateList_Cates(i_QingFeng_CateList_Cates),"||")(1)
+        arrszCateId = Split(szCateId,"|")
+        qfCateId = ""
+         	for i_arrszCateId = 0 to ubound(arrszCateId)   '循环分类ID        	
+        	qfCateId = qfCateId & "OR ([log_CateID]=" & arrszCateId(i_arrszCateId) &")"
+        	next 
+        	qfCateId = replace("("&qfCateId&")","(OR (","((")
+        szNum = clng(Split(arrQingFeng_CateList_Cates(i_QingFeng_CateList_Cates),"||")(2))
+        szTitleNum = clng(Split(arrQingFeng_CateList_Cates(i_QingFeng_CateList_Cates),"||")(3))
+        szIntroNum = clng(Split(arrQingFeng_CateList_Cates(i_QingFeng_CateList_Cates),"||")(4))
+        szFirstNum = clng(Split(arrQingFeng_CateList_Cates(i_QingFeng_CateList_Cates),"||")(6))
+        Set QingFeng_CateList_objRS = objConn.Execute("select top " & szNum & " [log_ID] from blog_Article WHERE ([log_Level]>2) AND ([log_ID]>0) AND "&qfCateId&" ORDER BY [Log_PostTime] DESC ")
+     	If (Not QingFeng_CateList_objRS.bof) And (Not QingFeng_CateList_objRS.eof) Then
+     		if szFirstNum = 0  then
+				For i=1 to  szNum
+					Set QingFeng_CateList_objArticle=New TArticle
+					If QingFeng_CateList_objArticle.LoadInfoByID(QingFeng_CateList_objRS("log_ID")) Then
+					szTemplate = Split(arrQingFeng_CateList_Cates(i_QingFeng_CateList_Cates),"||")(5)
+                         szTemplate = Replace(szTemplate,"<#zblog/title#>",QingFeng_CateList_cutTitle(QingFeng_CateList_objArticle.Title,szTitleNum))
+                         szTemplate = Replace(szTemplate,"<#zblog/titletitle#>",QingFeng_CateList_strReplace(QingFeng_CateList_objArticle.Title,QingFeng_Cate_chReplace))
+                         szTemplate = Replace(szTemplate,"<#zblog/img#>",GetImgSrc(QingFeng_CateList_objArticle.HtmlContent))
+                         qfIntro = TransferHTML(UBBCode(QingFeng_CateList_objArticle.Intro,"[face][link][email][autolink][font][code][image][typeset][media][flash][key]"), "[nbsp-br][nohtml][no-asp]")
+                         szTemplate = Replace(szTemplate,"<#zblog/intro#>",QingFeng_CateList_cutTitle(qfIntro,szIntroNum))
+                         szTemplate = Replace(szTemplate,"<#zblog/url#>",QingFeng_CateList_objArticle.Url)
+                         szTemplate = Replace(szTemplate,"<#zblog/cate#>",Categorys(QingFeng_CateList_objArticle.CateID).HtmlName)
+                         szTemplate = Replace(szTemplate,"<#zblog/cateurl#>",Categorys(QingFeng_CateList_objArticle.CateID).HtmlUrl)
+                         szTemplate = Replace(szTemplate,"<#zblog/author#>",Users(QingFeng_CateList_objArticle.AuthorID).Name)
+                         szTemplate = Replace(szTemplate,"<#zblog/authorurl#>",Users(QingFeng_CateList_objArticle.AuthorID).HtmlUrl)
+                         szTemplate = Replace(szTemplate,"<#zblog/viewnums#>",QingFeng_CateList_objArticle.ViewNums)
+                         szTemplate = Replace(szTemplate,"<#zblog/commnums#>",QingFeng_CateList_objArticle.CommNums)
+                         szTemplate = Replace(szTemplate,"<#zblog/year#>",Year(QingFeng_CateList_objArticle.PostTime))
+                         szTemplate = Replace(szTemplate,"<#zblog/month#>",Month(QingFeng_CateList_objArticle.PostTime))
+                         szTemplate = Replace(szTemplate,"<#zblog/day#>",Day(QingFeng_CateList_objArticle.PostTime))
+						strOut=strOut & szTemplate
+					End If
+					Set QingFeng_CateList_objArticle=Nothing
+					QingFeng_CateList_objRS.MoveNext
+					If QingFeng_CateList_objRS.eof Then Exit For
+				Next
+		else
+			     For i = 1 to szFirstNum
+			          Set QingFeng_CateList_objArticle=New TArticle
+					If QingFeng_CateList_objArticle.LoadInfoByID(QingFeng_CateList_objRS("log_ID")) Then
+					szTemplate = Split(arrQingFeng_CateList_Cates(i_QingFeng_CateList_Cates),"||")(7)
+					szTemplate = Replace(szTemplate,"<#zblog/title#>",QingFeng_CateList_cutTitle(QingFeng_CateList_objArticle.Title,szTitleNum))
+                         szTemplate = Replace(szTemplate,"<#zblog/titletitle#>",QingFeng_CateList_strReplace(QingFeng_CateList_objArticle.Title,QingFeng_Cate_chReplace))
+                         szTemplate = Replace(szTemplate,"<#zblog/img#>",GetImgSrc(QingFeng_CateList_objArticle.HtmlContent))
+                         qfIntro = TransferHTML(UBBCode(QingFeng_CateList_objArticle.Intro,"[face][link][email][autolink][font][code][image][typeset][media][flash][key]"), "[nbsp-br][nohtml][no-asp]")
+                         szTemplate = Replace(szTemplate,"<#zblog/intro#>",QingFeng_CateList_cutTitle(qfIntro,szIntroNum))
+                         szTemplate = Replace(szTemplate,"<#zblog/url#>",QingFeng_CateList_objArticle.Url)
+                         szTemplate = Replace(szTemplate,"<#zblog/cate#>",Categorys(QingFeng_CateList_objArticle.CateID).HtmlName)
+                         szTemplate = Replace(szTemplate,"<#zblog/cateurl#>",Categorys(QingFeng_CateList_objArticle.CateID).HtmlUrl)
+                         szTemplate = Replace(szTemplate,"<#zblog/author#>",Users(QingFeng_CateList_objArticle.AuthorID).Name)
+                         szTemplate = Replace(szTemplate,"<#zblog/authorurl#>",Users(QingFeng_CateList_objArticle.AuthorID).HtmlUrl)
+                         szTemplate = Replace(szTemplate,"<#zblog/viewnums#>",QingFeng_CateList_objArticle.ViewNums)
+                         szTemplate = Replace(szTemplate,"<#zblog/commnums#>",QingFeng_CateList_objArticle.CommNums)
+                         szTemplate = Replace(szTemplate,"<#zblog/year#>",Year(QingFeng_CateList_objArticle.PostTime))
+                         szTemplate = Replace(szTemplate,"<#zblog/month#>",Month(QingFeng_CateList_objArticle.PostTime))
+                         szTemplate = Replace(szTemplate,"<#zblog/day#>",Day(QingFeng_CateList_objArticle.PostTime))
+						strOut=strOut & szTemplate
+					End If
+					Set QingFeng_CateList_objArticle=Nothing
+					QingFeng_CateList_objRS.MoveNext
+					If QingFeng_CateList_objRS.eof Then Exit For
+			     Next
+				For i= szFirstNum+1 to  szNum
+					Set QingFeng_CateList_objArticle=New TArticle
+					If QingFeng_CateList_objArticle.LoadInfoByID(QingFeng_CateList_objRS("log_ID")) Then
+					szTemplate = Split(arrQingFeng_CateList_Cates(i_QingFeng_CateList_Cates),"||")(5)
+					szTemplate = Replace(szTemplate,"<#zblog/title#>",QingFeng_CateList_cutTitle(QingFeng_CateList_objArticle.Title,szTitleNum))
+                         szTemplate = Replace(szTemplate,"<#zblog/titletitle#>",QingFeng_CateList_strReplace(QingFeng_CateList_objArticle.Title,QingFeng_Cate_chReplace))
+                         szTemplate = Replace(szTemplate,"<#zblog/img#>",GetImgSrc(QingFeng_CateList_objArticle.HtmlContent))
+                         qfIntro = TransferHTML(UBBCode(QingFeng_CateList_objArticle.Intro,"[face][link][email][autolink][font][code][image][typeset][media][flash][key]"), "[nbsp-br][nohtml][no-asp]")
+                         szTemplate = Replace(szTemplate,"<#zblog/intro#>",QingFeng_CateList_cutTitle(qfIntro,szIntroNum))
+                         szTemplate = Replace(szTemplate,"<#zblog/url#>",QingFeng_CateList_objArticle.Url)
+                         szTemplate = Replace(szTemplate,"<#zblog/cate#>",Categorys(QingFeng_CateList_objArticle.CateID).HtmlName)
+                         szTemplate = Replace(szTemplate,"<#zblog/cateurl#>",Categorys(QingFeng_CateList_objArticle.CateID).HtmlUrl)
+                         szTemplate = Replace(szTemplate,"<#zblog/author#>",Users(QingFeng_CateList_objArticle.AuthorID).Name)
+                         szTemplate = Replace(szTemplate,"<#zblog/authorurl#>",Users(QingFeng_CateList_objArticle.AuthorID).HtmlUrl)
+                         szTemplate = Replace(szTemplate,"<#zblog/viewnums#>",QingFeng_CateList_objArticle.ViewNums)
+                         szTemplate = Replace(szTemplate,"<#zblog/commnums#>",QingFeng_CateList_objArticle.CommNums)
+                         szTemplate = Replace(szTemplate,"<#zblog/year#>",Year(QingFeng_CateList_objArticle.PostTime))
+                         szTemplate = Replace(szTemplate,"<#zblog/month#>",Month(QingFeng_CateList_objArticle.PostTime))
+                         szTemplate = Replace(szTemplate,"<#zblog/day#>",Day(QingFeng_CateList_objArticle.PostTime))
+						strOut=strOut & szTemplate
+					End If
+					Set QingFeng_CateList_objArticle=Nothing
+					QingFeng_CateList_objRS.MoveNext
+					If QingFeng_CateList_objRS.eof Then Exit For
+				Next
+	     end if	
+	     else 
+	     	strOut = "<center>没有数据</center>"
+	     End if
+			QingFeng_CateList_objRS.close
+			Set QingFeng_CateList_objRS=Nothing
+			strOut=TransferHTML(strOut,"[no-asp]")
+			Call SaveToFile(BlogPath & "/include/"&"QingFeng_CateList_"&szCateName&".asp",strOut,"utf-8",True)
+				    strOut=""
+    next
+    QingFeng_CateList_BlogReBuild_CateList=True
+End if
+End Function
+'*********************************************************
+' 目的：    提取图片 
+'*********************************************************
+Function GetImgSrc(str)
+	Dim tmp, objRegExp, Matches, Match
+	Set objRegExp = New Regexp
+	objRegExp.IgnoreCase = True
+	objRegExp.Global = false
+	objRegExp.Pattern = "<img [^>]*?\bsrc=(['""]?)([^'""\x20]+)\1 [^>]*?>"
+	Set Matches = objRegExp.Execute(str)
+	For Each Match In Matches
+	tmp = tmp & Match.SubMatches(1)
+	Next
+	If tmp = "" Then tmp = ZC_BLOG_HOST & "THEMES/product/STYLE/images/blank.jpg" '图片不存在时的默认图片
+	GetImgSrc = tmp
+End Function 
+'*********************************************************
+
+%>

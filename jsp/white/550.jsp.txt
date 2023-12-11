@@ -1,0 +1,83 @@
+<%@ page contentType="text/html;charset=UTF-8"%>
+<html>
+<head>
+	<title>商品列表</title>
+	<%@ include file="/commons/taglibs.jsp" %>
+	<%@ include file="/commons/meta.jsp" %>
+	
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/b2bBlue/easyui.css">
+	<link rel="stylesheet" type="text/css" href="${ctx }/scripts/framework/easyui/themes/icon.css">
+	<link id="currentCss" name="currentCss" rel="StyleSheet" type="text/css" href="${ctx}/styles/kuquForm/form.css">
+	
+	<script language="JavaScript" type="text/javascript" src="${ctx }/scripts/framework/jquery.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx }/scripts/framework/easyui/jquery.easyui.min.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/jquery.form.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctx}/scripts/common/common.js"></script>
+	<script language="JavaScript" type="text/javascript" src="${ctx}/scripts/framework/My97DatePicker/WdatePicker.js"></script>
+	
+	<script type="text/javascript" src="${ctx }/scripts/common/list_common.js"></script>
+	<script type="text/javascript" src="${ctx}/scripts/common/upload.js"></script>
+	<script type="text/javascript" src="${ctx }/scripts/order/list_commonOrder.js"></script>
+
+</head> 
+
+<body>
+	<s:hidden name="goodType.id" id="typeId"></s:hidden>
+	<div style="margin-top: 10px; margin-bottom: 5px;">
+	<form action="" id="searchForm">
+		<table border="0" cellpadding="0"  cellspacing="1" class="gdcn-table-bgcolor" width="100%" style="font-size: 12px;">
+			<tr>
+				<td class='gridtitle'><s:text name="goods.Commoditycode"/>：</td>
+				<td class='gridbody'><input type="text" id="goodCode" onkeydown="checkKey()"/></td>
+				<td class='gridtitle'><s:text name="goods.Tradename"/>：</td>
+				<td class='gridbody'><input type="text" id="goodName" onkeydown="checkKey()"/></td>
+				<td class='gridtitle'>
+					<a href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-search" onclick="searchData()"><s:text name="Search"/></a>&nbsp;&nbsp;&nbsp;
+	  				<a id="btnAudit" href="javascript:void(0);" class="easyui-linkbutton" iconCls="icon-reload" onclick="cancelSearch()"><s:text name="Empty"/></a>
+				</td>
+			</tr>
+		</table>
+		</form>
+	</div>
+	
+	<form action="" id="orderForm">
+		<table id="orderGoodTable" style="display: none;"></table>		<%-- 订单商品项数据区 --%>
+		<table id="dataGrid"></table>
+	
+		<c:if test="${todo==''}">
+			<p align="center">
+				<a id="cart" href="javascript:void(0);" style="text-decoration: none;" onclick="addGoodsToCart();"><img src="${ctx}/Images/shoppingCar/order1.gif" width="165px" height="36px" border="0" /></a>
+			</p>
+		</c:if>
+	</form>
+	<div id="edit" closed="true">
+		<iframe frameborder="0" id="editDataPage" width="600px" height="400px"></iframe>
+	</div>
+	
+<!-- 语言设置-->
+<input type="hidden" id="Commoditypicture" value="<s:text name="goods.Commoditypicture"/>"/>
+<input type="hidden" id="Commoditycode" value="<s:text name="goods.Commoditycode"/>"/>
+<input type="hidden" id="Tradename" value="<s:text name="goods.Tradename"/>"/>
+<input type="hidden" id="Quantity" value="<s:text name="goods.Quantity"/>"/>
+<input type="hidden" id="Dimensions" value="<s:text name="goods.Dimensions"/>"/>
+<input type="hidden" id="Unit" value="<s:text name="goods.Units"/>"/>
+<input type="hidden" id="Weight" value="<s:text name="goods.Weight"/>"/>
+<input type="hidden" id="Attachment" value="<s:text name="goods.Attachment"/>"/>
+<input type="hidden" id="Remark" value="<s:text name="Remark"/>"/>
+<input type="hidden" id="ADDTOCART" value="<s:text name="goods.ADDTOCART"/>"/>
+<input type="hidden" id="ViewCart" value="<s:text name="goods.ViewCart"/>"/>
+<input type="hidden" id="Select" value="<s:text name="Select"/>"/>
+<input type="hidden" id="PleaseSelect" value="<s:text name="PleaseSelect"/>"/>
+<input type="hidden" id="Pleaseinput" value="<s:text name="goods.Pleaseinput"/>"/>
+<input type="hidden" id="AddSuccess" value="<s:text name="goods.AddSuccess"/>"/>
+<input type="hidden" id="AddFailure" value="<s:text name="goods.AddFailure"/>"/>
+<input type="hidden" id="SystemError" value="<s:text name="SystemError"/>"/>
+<input type="hidden" id="Shoppingcart" value="<s:text name="goods.Shoppingcart"/>"/>
+<input type="hidden" id="Upload" value="<s:text name="Upload"/>"/>
+<input type="hidden" id="Delete" value="<s:text name="Delete"/>"/>
+<input type="hidden" id="Pirce" value="<s:text name="listgood.Price"/>"/>
+<input type="hidden" id="GTS" value="<s:text name="listgood.GTS"/>"/>	
+<input type="hidden" id="Total" value="<s:text name="goods.Total"/>"/>
+</body>
+
+</html>

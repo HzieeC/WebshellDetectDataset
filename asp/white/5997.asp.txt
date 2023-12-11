@@ -1,0 +1,188 @@
+<!--#include file="conn.asp"-->
+<!--#include file="inc/ubbcode.asp"-->
+<!-- #include file="inc/publicfun.asp"-->
+<!--#include file="upfile_class.asp"-->
+<!-- #include file="touxianfun.asp" -->
+<!-- #include file="ispicfun.asp" -->
+<%
+Server.ScriptTimeout = 10000
+call FTBBS_HTML_MB(ft)
+url=Application("FTBBSMB")(10,0)
+upfiletype=Application("FTBBSMB")(12,0)
+upfilesize=Application("FTBBSMB")(13,0)
+htm_ext=Application("FTBBSMB")(32,0)
+uploadvalue=Application("FTBBSMB")(60,0)
+cookiesname=getcookie("name")
+clubuser_id=getcookie("clubuser_id")
+upfiletype=RegExReplace(upfiletype,"(asp)","rar")
+upfiletype=RegExReplace(upfiletype,"(asa)","rar")
+upfiletype=RegExReplace(upfiletype,"(cdx)","rar")
+upfiletype=RegExReplace(upfiletype,"(cer)","rar")
+if uploadvalue=0 then
+topqs=1
+else
+topqs=jingyuantoqs(clubuser_id,uploadvalue,ft)
+end if
+if right(url,1)<>"/" then url=url&"/"
+'htmfilename=trim(Request.QueryString("htmfilename"))
+%>
+<html><title>保存上传(love1度论坛)</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<script language=javascript src="inc/cookies.js"></script>
+<script>
+var stylecook = getCookie("STYLESHOW");
+var style;
+var strstyle;
+if(stylecook=="")
+{
+ stylecook=1;
+}
+else
+{
+ stylecook++;
+}
+style="main0"+stylecook+".css";
+strstyle="<link href=\"css/"+style+"\"  rel=\"stylesheet\" type=\"text/css\"> ";
+document.write(strstyle);
+</script>
+<script type="text/javascript" src="fteditor/iframe.js"></script>
+<script language="javascript">
+function insertnl(filetype,imgsrc,id,url,fn,sale) {
+	filetype=filetype.toLowerCase( );
+    if (filetype=='gif'||filetype=='jpg'||filetype=='png'||filetype=='bmp'||filetype=='jpeg'){
+	 parent.document.getElementById("bbs_img_display").value=1;
+     nl='[IMG]'+imgsrc+'[/IMG]';
+	}else if(filetype=='swf'){
+	 parent.document.getElementById("bbs_img_display").value=2;
+	 nl='[flash=400,300]'+imgsrc+'[/flash]';
+	}else if(filetype=='flv'){
+	 parent.document.getElementById("bbs_img_display").value=4;
+	 nl='[flv=500,400,false]'+imgsrc+'[/flv]';
+	}else{
+	 parent.document.getElementById("bbs_img_display").value=3;
+	 //nl='[img]../images/file.gif[/img][b]附件:[/b][url=../down.asp?id='+id+']'+fn+'[/url]';
+	 if (sale>0){
+	 nl='[img]../images/file.gif[/img][b]附件[/b](下载需扣'+sale+'积分):[url=../down.asp?id='+id+']'+fn+'[/url]';
+	 }else{
+	 nl='[img]../images/file.gif[/img][b]附件:[/b][url=../down.asp?id='+id+']'+fn+'[/url]';
+	 }
+	}
+	parent.document.getElementById("bbs_img").value=filetype;
+	parent.document.getElementById("sale").value=sale;
+	var CurrentMode=parent.document.getElementById("CurrentMode").value;
+	if (CurrentMode=='code'){
+	alert('代码模式下不允许插入附件');
+	return false;
+	}else{
+	var element = parent.document.createElement("span");
+	element.appendChild(parent.document.createTextNode(nl));
+	FtSelection();
+	FtInsertItem(element);
+	}
+}
+</script>
+<body topmargin="0" class="maintbtr3">
+<%
+if userlogin(ft)="N" then
+   Response.Write "<font color=red>你还没有登录</font>"
+   Response.end()
+end if
+if topqs=0 then
+   Response.Write "<font color=red>你的积分太低无法上传附件</font>"
+   Response.end()
+end if
+if session("filename")="" then
+   vfname = makefilename(now())
+   Randomize
+   Random=Int((1000 - 100 + 1) * Rnd + 100)
+   file2name=vfname&"a"&Random&htm_ext
+   session("filename")=file2name
+end if
+htmfilename=session("filename")
+htmfilename=RegExReplace(htmfilename,"(.asp)","")
+htmfilename=RegExReplace(htmfilename,"(.asa)","")
+'if htmfilename="" then
+   'Response.Write "<font color=red>超时请返回重新发布</font>"
+   'Response.end()
+'end if
+if instr(htmfilename,"/")>0 then
+inFolder=split(htmfilename,"/")(0)
+inFolder=replace(inFolder,".","")
+htmfilename=split(htmfilename,"/")(1)
+else
+  if Application("FTBBSMB")(7,0)="M" then
+     inFolder=year(date())&month(date())
+  else
+     inFolder=year(date())&month(date())&day(date())
+  end if
+end if
+if not IsNumeric(inFolder) or inFolder="" or isnull(inFolder) then
+   Response.Write "<font color=red>非法操作</font>"
+   Response.end()
+end if
+myFolder = inFolder
+call makefolder(myFolder,fso)
+
+dim upload,file,upfile,formPath,ServerPath,FSPath,formName,companyName,oFile,upfilecount,SaveFileName,SavePathFileName
+set upload=new Ftbbs_Class
+upload.AllowExt=upfiletype    '设置上传文件类型
+upload.GetData (upfilesize)   '取得上传文件大小
+
+formPath=inFolder
+FilePath=inFolder&"/"
+if right(formPath,1)<>"/" then formPath=formPath&"/"
+
+if upload.isErr then
+    select case upload.isErr
+    case 1
+        Response.Write "<font color=red>上传文件不能为空</font>"
+        Response.Write "&nbsp;&nbsp;<a href=FtbbsUpFile.asp?filename="&htmfilename&">重新上传</a>"
+    case 2
+        Response.Write "系统限制上传文件大小在<font color=red>"&upfilesize&"</font>字节以下&nbsp;&nbsp;<a href=FtbbsUpFile.asp?filename="&htmfilename&">重新上传</a>"
+    end select
+else
+    for each formName in upload.file '列出所有上传了的文件
+	   set oFile=upload.file(formname)
+	   filesize=oFile.FileSize '取得文件大小
+	   sale=upload.Form("sale")
+	   vfname = makefilename(now())
+	   Randomize
+	   Random=Int((1000 - 100 + 1) * Rnd + 100)
+	   vfname=vfname&"_"&Random
+	   FileExt=oFile.FileExt '取文件扩展名
+	   filetype=oFile.FileMIME '取文件头类型
+	   if filetype="text/plain" then
+	      response.write "您上传的文件有问题!&nbsp;&nbsp;<a href=FtbbsUpFile.asp?filename=" & htmfilename & ">重新上传</a>"
+		  response.end
+	   end if
+	   fname = formPath&vfname & "." & FileExt
+	   todbpath=vfname & "." & FileExt
+       SavePathFileName = Server.MapPath(fname)
+       upload.SaveToFile formName,SavePathFileName '保存文件
+       if upload.iserr then 
+         Response.Write upload.errmessage
+       else
+         if Application("FTBBSMB")(15,0)=1 and FileExt="jpg" then
+		    if Application("FTBBSMB")(36,0)=1 then
+		    imgtologo fname
+			else
+			imgtourl url,fname
+			end if
+		 end if
+		 Call ispic(SavePathFileName,fso)
+         sql="insert into "&ft&"ftbbs_upload (upload_pic,upload_size,upload_ext,userid,upload_htm,clubuser_id,sale) values('"&inFolder&"/"&todbpath&"','"&filesize&"','"&FileExt&"','"&getcookie("name")&"','"&inFolder&"/"&htmfilename&"',"&getcookie("clubuser_id")&","&sale&")"
+		 conn.Execute(sql)
+         sql="select top 1 id from "&ft&"ftbbs_upload where upload_pic='"&inFolder&"/"&todbpath&"' order by id desc"
+         set rs=conn.execute(sql)
+         id=rs("id")
+         closedb
+         Response.Write todbpath&" &nbsp;<a href=""javascript:;"" title=""插入附件到编辑器中"" onclick=""insertnl('"&FileExt&"','../"&inFolder&"/"&todbpath&"','"&id&"','"&url&"','"&todbpath&"','"&sale&"');"">插入</a>"
+         Response.Write "&nbsp;&nbsp;<a href=FtbbsUpFile.asp?filename="&htmfilename&">继续上传</a>"
+       end if
+       set oFile = nothing
+    next
+end if    
+set upload=nothing
+%>
+</body> 
+</html>

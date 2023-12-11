@@ -1,0 +1,98 @@
+﻿<!--#include file="Conn.asp"-->
+<!--#include file="SqlIn.Asp"-->
+<!--#include file="Md5.Asp"-->
+<!--#include file="Config.asp"-->
+<!--#include file="Makesystem.asp"-->
+<!--#include file="Function.asp"--><%
+dim action,pagenum,keyword
+action = request.querystring("action")
+If request.querystring("pagenum") = 0 Or request.querystring("pagenum") = "" Then
+pagenum = 1 
+Else
+pagenum = request.querystring("pagenum")
+End If
+keyword = request.form("keyword")
+if keyword = "" then keyword = UTF2GB(request.querystring("keyword"))
+
+Serchtemplate = right(Serchtemplate,len(Serchtemplate)-1)
+pagebody_Search = ReadTemplate(""&webml&Serchtemplate&"","UTF-8")
+
+pagebody_Search = Replace(pagebody_Search,"{%网页标题%}","搜索")
+pagebody_Search = ReplaceLabel(pagebody_Search)
+
+if keyword = "" then
+pagebody_Search = Replace(pagebody_Search,"{%搜索关键词%}","")
+pagebody_Search = Replace(pagebody_Search,"{%产品搜索%}",searchbox)
+else
+set rs=server.CreateObject("adodb.recordset")
+rs.open "select id from [Hu_product] where productcn like '%"&keyword&"%'",conn,1,1
+if rs.bof and rs.eof then
+strpageint = 1
+else
+strpageint = rs.pagecount
+end if
+rs.close
+set rs=nothing
+pagebody_Search = Replace(pagebody_Search,"{%搜索关键词%}","关键字<span style=""color: red; font-size: 14px;"">"&keyword&"</span>")
+pagebody_Search = Replace(pagebody_Search,"{%产品搜索%}",searchlist(4,3,20,120,90,pagenum,0,keyword)&kehupage(pagenum,strpageint,"Search.asp?keyword="&keyword&"&Select1=1"))
+end if
+Response.write pagebody_Search  											'输出
+Function searchbox()
+strtemp = "<form style=""width:350px;height:50px;margin-top:30px;line-height:25px;"">"& vbcrlf
+strtemp = strtemp & "关键字：<input name=""keyword"" type=""text"" />"& vbcrlf
+strtemp = strtemp & "<select name=""Select1"">"& vbcrlf
+strtemp = strtemp & "	<option selected=""selected"" value=""1"">产品名称</option>"& vbcrlf
+strtemp = strtemp & "	<option value=""2"">产品型号</option>"& vbcrlf
+strtemp = strtemp & "	</select>"& vbcrlf
+strtemp = strtemp & "<input name=""Submit1"" type=""submit"" value=""搜索"" />"& vbcrlf
+strtemp = strtemp & "</form>"& vbcrlf
+searchbox = strtemp
+end function
+
+'-----------------------
+'产品展示 searchlist
+'str1 - 调用行数 str2 - 每行调用数 str3 - 产品名称字符数
+'str4 - 图片宽度 str5 - 图片高度   str6 - 当前页码
+'str7 - 分类ID   str8 - 关键词
+'-----------------------
+function searchlist(str1,str2,str3,str4,str5,str6,str7,str8)
+strwidth1 = 100
+set fs_rs=server.CreateObject("adodb.recordset")
+if str7 = "" or str7 = 0 then
+fs_rs.open "select * from Hu_product where productcn like '%"&str8&"%' or productus like '%"&str8&"%'",conn,1,1
+else
+fs_rs.open "select * from Hu_product where cid = "&str7*1&" and productcn like '%"&str8&"%'",conn,1,1
+end if
+if fs_rs.bof and fs_rs.eof then
+strtemp = "<span style=""line-height:25px; margin-left:20px;"">没有搜索到相关的产品。</span><br />"
+else
+i = 0
+fs_rs.pagesize = str1*str2
+fs_rs.absolutepage = str6*1
+strtemp = strtemp & "<ul class=""newpro-ul"">"&vbcrlf
+do while not fs_rs.eof and i < fs_rs.pagesize
+i = i+1
+if i mod str2*1 <> 0 then '判断是不是每行的最行一条数据,是的话宽度减1%.
+strwidth2 = strwidth1/str2
+else
+strwidth2 = (strwidth1/str2)-1
+end if '结束判断
+if left(trim(fs_rs("proimages")),5) = "http:" then
+strproimg = trim(fs_rs("proimages"))
+elseif trim(fs_rs("proimages")) <> "" then
+strproimg = webml&trim(fs_rs("proimages"))
+else
+strproimg = webml&"upfiles/system/nophoto.gif"
+end if
+strtemp = strtemp & "<li style=""width: "&strwidth2&"%;"">"&vbcrlf
+strtemp = strtemp & "<img src="""&strproimg&""" style=""width: "&str4&"px; height: "&str5&"px;"" alt=""产品名称："&fs_rs("productcn")&vbcrlf&"产品型号："&fs_rs("proxinghao")&vbcrlf&"产品规格："&fs_rs("proguige")&""" /><br />"&vbcrlf
+strtemp = strtemp & "<span style=""line-height: 30px;""><a href="""&webml&readproclass(fs_rs("cid"))&"/"&fs_rs("productus")&"/"" target=""_blank"" title="""&fs_rs("productcn")&""">"&left(fs_rs("productcn"),str3)&"</a></span></li>"&vbcrlf
+fs_rs.movenext
+loop
+strtemp = strtemp & "</ul>"&vbcrlf
+end if
+fs_rs.close
+set fs_rs=nothing
+searchlist = strtemp
+end function
+%>

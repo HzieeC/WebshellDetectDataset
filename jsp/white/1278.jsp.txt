@@ -1,0 +1,229 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_custnews.*" %>
+<%@page import="com.bizoss.trade.ts_category.*" %>
+
+<html>
+  <head>
+    
+    <title> 修改会员资讯</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="news.js"></script>
+	<script src="/js/jquery.js" type="text/javascript"></script>
+	<script src="iColorPicker.js" type="text/javascript"></script>
+	<script>
+	   jQuery.noConflict();
+	</script>
+
+	</head>
+
+<body>
+
+  <% 
+  
+	String news_id="";
+  	
+	if(request.getParameter("news_id")!=null) news_id = request.getParameter("news_id");
+ 
+	Ti_custnewsInfo ti_newsInfo = new Ti_custnewsInfo();
+  	List list = ti_newsInfo.getListByPk(news_id);
+  	Hashtable map = new Hashtable();
+	if(list!=null && list.size()>0) map = (Hashtable)list.get(0);
+	String cust_id="",cat_attr="",state_code="",title="",content="",title_color="",content_sub="";
+	String news_src="",news_key="",author="",editor="",article_cat="",is_comment="",out_link="",click_num="";
+	String user_id="",user_name="";
+	if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+  	if(map.get("ch_id_group")!=null) cat_attr = map.get("ch_id_group").toString();
+  	if(map.get("state_code")!=null) state_code = map.get("state_code").toString();
+  	if(map.get("title")!=null) title = map.get("title").toString();
+  	if(map.get("content")!=null) content = map.get("content").toString();
+  	if(map.get("title_color")!=null) title_color = map.get("title_color").toString();
+  	if(map.get("content_sub")!=null) content_sub = map.get("content_sub").toString();
+  	if(map.get("news_src")!=null) news_src = map.get("news_src").toString();
+  	if(map.get("news_key")!=null) news_key = map.get("news_key").toString();
+  	if(map.get("author")!=null) author = map.get("author").toString();
+  	if(map.get("editor")!=null) editor = map.get("editor").toString();
+  	if(map.get("article_cat")!=null) article_cat = map.get("article_cat").toString();
+  	if(map.get("is_comment")!=null) is_comment = map.get("is_comment").toString();
+  	if(map.get("out_link")!=null) out_link = map.get("out_link").toString();
+  	if(map.get("click_num")!=null) click_num = map.get("click_num").toString();
+	if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+	if(map.get("user_name")!=null) user_name = map.get("user_name").toString();
+  
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+	String selecttree = ts_categoryInfo.getCategoryTree("Iki043636nk503U","3",cat_attr);
+	Map catMap  = ts_categoryInfo.getCatClassMap("3");
+	StringBuffer output =new StringBuffer();
+	if(!cat_attr.equals(""))
+	{
+	   String chIds[] =	cat_attr.split("\\|");	
+	   for(String chId:chIds)
+	   {
+			 if(catMap!=null)
+			 {
+				if(catMap.get(chId)!=null)
+				{
+				  output.append(catMap.get(chId).toString()+" ");   						  
+				}                  
+			 
+			  }                 
+	    }		    
+	}
+		
+	
+	String para ="/program/admin/custnews/index.jsp";
+  %>
+	
+	<h1>修改会员资讯</h1>
+	<form action="/doTradeReg.do" method="post" name="addForm" id="addForm" target="_self" >
+	<table width="100%" cellpadding="1" cellspacing="1" border=0 class="listtab">
+		<tr>
+			<td align="right" width="15%">
+ 
+				资讯标题<font color="red">*</font>
+			</td>
+			<td colspan="3"><input name="title" id="title" value="<%=title%>" size="60"  maxLength="50" type="text" />
+				<input name="title_color" id="title_color" type="text" value="<%=title_color%>"size="10" class="iColorPicker" title="请选择标题颜色" />
+				</td>
+		</tr>
+	
+		
+		<tr>
+			<td align="right" width="15%">
+				所属分类<font color="red">*</font>
+			</td>
+			<td align="left" colspan="3">
+			    <input type="hidden" id="cat_attr" name="ch_id_group" value="<%=cat_attr%>" />
+				<input type="hidden" id="flag_code" name="flag_code" value="0" />
+				<div id="classId1" style="display:block;">
+					<font color="#335B64"><%=output%></font>
+					<input type="button" class="buttoncss"name="Submit3" value="重新选择" style="cursor:pointer;" onClick="ChangeClassStyle();"/>							
+							
+				</div>
+				<div id="classId2" style="display:none;">
+					<table cellspacing="0" cellpadding="0" border="0" align="left" class="listtab1">
+								<tr>
+								  <td colspan="3">
+								    <select name="s_cat_attr" id="s_cat_attr">
+										  <option value="">请选择...</option>
+										  <%=selecttree%>
+									</select>
+								  </td>
+								</tr>
+				    </table>
+				  </div>
+			</td>
+		</tr>			
+		
+      <tr>
+			<td align="right" width="10%">
+				资讯图片:
+			</td>
+			<td colspan="3">
+				<jsp:include page="/program/inc/uploadImgInc.jsp">
+					<jsp:param name="attach_root_id" value="<%=news_id%>" />
+				</jsp:include>
+			</td>
+		</tr>		
+		<tr>
+			<td align="right" width="15%">
+				关键字:
+			</td>
+			<td colspan="4">
+			<input name="news_key" id="news_key" value="<%=news_key%>" size="60" maxLength="100" type="text" /></td>
+		</tr>
+
+				
+		<tr>
+			<td align="right" width="15%">
+				内容摘要:
+			</td>
+			<td colspan="4"><textarea name="content_sub" id="content_sub" style="" maxLength="1000" rows="5" cols="70"><%=content_sub%></textarea></td>
+		</tr>
+		
+		<tr>
+			<td align="right" width="15%">来源:</td>	   
+			  <td width="18%"><input name="news_src" id="news_src" type="text" maxlength="50" value="<%=news_src%>" /></td>
+			  <td width="12%" align="right">责任编辑:</td>
+			  <td width="40%"><input name="editor" id="editor" type="text" maxlength="50" value="<%=editor%>" /></td>
+	    </tr>
+		
+		<tr>
+			<td align="right" width="15%">原作者:</td>
+			<td>
+			   <input name="author" id="author" type="text" maxlength="50" value="<%=author%>" />
+			</td>
+		    <td align="right">文章类型:</td>
+		    <td width="40%">
+			<input name="article_cat" type="radio"  value="0" <%if(article_cat.equals("0"))out.print("checked");%> />原创
+            <input name="article_cat" type="radio"  value="1"  <%if(article_cat.equals("1"))out.print("checked");%>/>转载 
+			</td>
+		</tr>	
+		
+		
+		
+		<tr>
+			<td align="right" width="15%">是否允许评论:</td>
+			<td>
+		     
+			 <input name="is_comment" type="radio"  value="0"  <%if(is_comment.equals("0"))out.print("checked");%> />可以
+             <input name="is_comment" type="radio"  value="1"  <%if(is_comment.equals("1"))out.print("checked");%> />不可以 
+			
+			</td>
+		    <td align="right"></td>
+		    <td width="40%">
+			  
+			  </td>
+		</tr>
+		
+		
+		
+		<tr>
+			<td align="right" width="15%">
+				外部链接:</td>
+			<td colspan="3">
+			<input name="out_link" id="out_link" maxLength="60" size="55" type="text" value="<%=out_link%>"/></td>
+		</tr>
+		<tr>
+			<td align="right" width="15%">
+				资讯内容<font color="red">*</font>
+			</td>
+ 
+			<td colspan="3">
+          
+			<textarea name="content" id="content"><%=content%></textarea>
+			<script type="text/javascript" src="/program/plugins/ckeditor/ckeditor.js"></script>
+			<script type="text/javascript">
+			   CKEDITOR.replace( 'content',{
+			   	      filebrowserUploadUrl : '/program/inc/upload.jsp?type=file&attach_root_id=<%=news_id%>',      
+                      filebrowserImageUploadUrl : '/program/inc/upload.jsp?type=img&attach_root_id=<%=news_id%>',      
+                      filebrowserFlashUploadUrl : '/program/inc/upload.jsp?type=flash&attach_root_id=<%=news_id%>'     
+            });  
+			</script>
+			</td>
+		</tr>
+
+		
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" border=0>
+		<tr>
+			<td align="center">
+				<input type="hidden" name="bpm_id" value="8501" />
+				<input name="state_code" id="state_code" type="hidden" value="<%=state_code%>" />
+		        <input name="news_id" id="news_id" type="hidden" value="<%=news_id%>" />
+				<input name="user_id" id="user_id" type="hidden" value="<%=user_id%>" />
+				<input name="user_name" id="user_name" type="hidden" value="<%=user_name%>" />
+				<input type="hidden" name="click_num" value="<%=click_num%>" />
+				<input type="hidden" name="cust_id" id="cust_id" value="<%=cust_id%>" />
+				<input class="buttoncss"  type="button" name="tradeSub" value="提交" onClick="return formSub()"/>&nbsp;&nbsp;
+				<input class="buttoncss"  type="button" name="tradeRut" value="返回" onClick="window.location.href='<%=para%>';"/>
+			
+			</td>
+		</tr>
+	</table>
+	</form>
+</body>
+
+</html>

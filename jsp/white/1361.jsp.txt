@@ -1,0 +1,255 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_knowledge.*" %>
+<%@page import="java.util.*" %>
+<%@page import="com.bizoss.frame.util.PageTools" %>
+<%@ page import="com.bizoss.trade.ts_category.Ts_categoryInfo" %>
+<%@ page import="com.bizoss.trade.ti_attach.Ti_attachInfo" %>
+
+<%
+	request.setCharacterEncoding("UTF-8");
+	Hashtable ti_knowledge = new Hashtable();
+
+	Ti_attachInfo  ti_attachInfo = new Ti_attachInfo(); 
+	String req_class_attr="";
+	
+	String req_title="";
+	
+	String req_is_recom="";
+	
+	String req_start_date="";
+	String req_end_date="";
+
+	
+	if(request.getParameter("req_class_attr")!=null && !request.getParameter("req_class_attr").equals("")){
+		req_class_attr = request.getParameter("req_class_attr");
+		ti_knowledge.put("class_attr",req_class_attr);
+	}
+	
+	if(request.getParameter("req_title")!=null && !request.getParameter("req_title").equals("")){
+		req_title = request.getParameter("req_title");
+		ti_knowledge.put("title",req_title);
+	}
+	
+	if(request.getParameter("req_is_recom")!=null && !request.getParameter("req_is_recom").equals("")){
+		req_is_recom = request.getParameter("req_is_recom");
+		ti_knowledge.put("is_recom",req_is_recom);
+	}
+	
+
+	if(request.getParameter("start_date")!=null && !request.getParameter("start_date").equals("")){
+		req_start_date = request.getParameter("start_date");
+		ti_knowledge.put("start_date",req_start_date);
+	}
+	if(request.getParameter("end_date")!=null && !request.getParameter("end_date").equals("")){
+		req_end_date = request.getParameter("end_date");
+		ti_knowledge.put("end_date",req_end_date);
+	}
+
+	Ti_knowledgeInfo ti_knowledgeInfo = new Ti_knowledgeInfo();
+	String iStart = "0";
+	int limit = 20;
+	if(request.getParameter("iStart")!=null) iStart = request.getParameter("iStart");
+	List list = ti_knowledgeInfo.getListByPage(ti_knowledge,Integer.parseInt(iStart),limit);
+	int counter = ti_knowledgeInfo.getCountByObj(ti_knowledge);
+	String pageString = new PageTools().getGoogleToolsBar(counter,"index.jsp?iStart=",Integer.parseInt(iStart),limit);
+
+	//Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+    //String knowledge_select = ts_categoryInfo.getSelCatByTLevel("5", "1");
+	Ts_categoryInfo classBean = new Ts_categoryInfo();
+	Ts_categoryInfo ts_categoryInfo = new Ts_categoryInfo();
+	Map catMap  = ts_categoryInfo.getCatClassMap("5");
+	String selecttree = ts_categoryInfo.getCategoryTree("000000000000000","5","");
+
+%>
+<html>
+  <head>
+    
+    <title>知识库管理</title>
+	<link href="/program/admin/index/css/style.css" rel="stylesheet" type="text/css">
+	<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	 <script type="text/javascript" src="/js/thickbox.js"></script>
+	<script type="text/javascript" src="/js/commen.js"></script>
+	<script type="text/javascript" src="index.js"></script>
+	<script language="javascript" type="text/javascript" 
+	src="/program/plugins/calendar/WdatePicker.js"></script>
+</head>
+
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<td width="90%">
+				<h1>知识库管理</h1>
+			</td>
+			<td>
+				<a href="addInfo.jsp"><img src="/program/admin/index/images/post.gif" /></a>
+			</td>
+		</tr>
+	</table>
+	
+	<form action="index.jsp" name="indexForm" method="post">
+	  
+	<table width="100%" cellpadding="0" cellspacing="0" class="dl_su">
+		<tr>
+			<td align="left" >
+				
+				
+					所属分类:
+										
+				<select name="req_class_attr" id="req_class_attr">
+							  <option value="">请选择</option>	
+							  <%=selecttree %>
+					  </select>	
+						
+				<input type="hidden" name="req_class_attr" id="req_class_attr" value=""/>			
+			 
+		  		
+					标题:<input name="req_title" type="text" />&nbsp;
+		  		
+					是否推荐:<select name="req_is_recom" id="req_is_recom">
+					<option value="">请选择</option>
+					<option value="0">不推荐</option>
+					<option value="1">推荐</option>
+				
+					</select>
+					</td>
+
+				</tr>	
+				<tr>	
+		  		<td align="left" >
+					发布日期:
+					
+			 <input name="start_date" type="text" id="start_date" class="Wdate" value="" onclick="WdatePicker({maxDate:'#F{$dp.$D(\'end_date\',{d:-1})}',readOnly:true})" size="13" />
+					-
+			<input name="end_date" id="end_date" type="text" class="Wdate" value="" onclick="WdatePicker({minDate:'#F{$dp.$D(\'start_date\',{d:1})}',readOnly:true})" size="13"/>&nbsp;&nbsp;
+				
+
+				<input name="searchInfo" type="button" value="搜索" onclick="return search();"/>	
+			</td>
+		</tr>
+	</table>
+
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<% 
+		int listsize = 0;
+		if(list!=null && list.size()>0){
+			listsize = list.size();
+	%>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	
+	<table width="100%" cellpadding="1" cellspacing="1" class="listtab" border="0">
+		<tr>
+			<th width="5%" align="center"><input type="checkbox" name="checkall" id="checkall" onclick="selectAll()"></th>
+			<th>图片</th>
+			
+		  	<th>所属分类</th>
+		  	
+		  	<th>标题</th>
+		  	
+		  	<th>是否推荐</th>
+		  	
+		  	<th>发布日期</th>
+
+			<th width="10%">修改</th>
+	  		<th width="10%">删除</th>
+		</tr>
+		
+		
+		<% 
+		  		for(int i=0;i<list.size();i++){
+		  			Hashtable map = (Hashtable)list.get(i);
+		  			String info_id="",cust_id="",class_attr="",title="",keyword="",content="",is_recom="",in_date="",user_id="";
+		  			  	if(map.get("info_id")!=null) info_id = map.get("info_id").toString();
+  						if(map.get("cust_id")!=null) cust_id = map.get("cust_id").toString();
+  						if(map.get("class_attr")!=null) class_attr = map.get("class_attr").toString();
+  						if(map.get("title")!=null) title = map.get("title").toString();
+  						if(map.get("keyword")!=null) keyword = map.get("keyword").toString();
+  						if(map.get("content")!=null) content = map.get("content").toString();
+  						if(map.get("is_recom")!=null) is_recom = map.get("is_recom").toString();
+  						if(map.get("in_date")!=null) in_date = map.get("in_date").toString();
+						if(in_date.length()>10)in_date=in_date.substring(0,10);
+  						if(map.get("user_id")!=null) user_id = map.get("user_id").toString();
+
+		 String classAttr = "";
+
+		if (map.get("class_attr") != null) {
+		class_attr = map.get("class_attr").toString();
+		String classArr[] = class_attr.split("\\|");
+		for( int j = 0; j < classArr.length; j++ ){
+			classAttr = classAttr + " &nbsp; " + classBean.getCatNameById( classArr[j]);
+		}
+	}		
+		  
+		  	String img_path =  ti_attachInfo.getFilePathByAttachrootid(info_id);
+		
+				if(img_path.equals("")){
+					 img_path ="/program/admin/images/cpwu.gif";            
+				}   
+		  
+		  %>
+		
+		<tr>
+			<td width="5%" align="center"><input type="checkbox" name="checkone<%=i %>" id="checkone<%=i %>" value="<%=info_id %>" /></td>
+			<td width="10%"><img src="<%=img_path%>" border="0" width="85" height="85" /></td>
+			
+		  	<td><%=classAttr%></td>
+		  	
+		  	<td>
+		  	<a href="updateInfo.jsp?info_id=<%=info_id %>&iStart=<%=Integer.parseInt(iStart)%>"><%=title%></td>
+
+			<td><%if(is_recom.equals("0"))out.println("不推荐");%><%if(is_recom.equals("1"))out.println("推荐");%></td>
+		  		  	
+		  	<td><%=in_date%></td>
+		  	
+			<td width="10%">
+			<a href="updateInfo.jsp?info_id=<%=info_id %>&class_attr=<%=class_attr%>"><img src="/program/admin/images/edit.gif" title="修改" /></a>
+			<a id="updateThisInfo<%=i %>" href="#" onclick="updateOneInfo('<%=i%>','<%=info_id%>','<%=in_date%>')">生成</a>
+			</td>
+	  		<td width="10%"><a href="javascript:deleteOneInfo('<%=info_id%>','6825');"><img src="/program/admin/images/delete.gif" title="删除" /></a></a></td>
+		</tr>
+		
+		  <%
+		  		}
+		  %>
+		
+	</table>
+	
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="dl_bg">
+		<tr>
+			<td width="90%">
+				<input type="button" name="delInfo" onclick="delIndexInfo()" value="删除" class="buttab"/>
+			</td>
+			<td>
+				总计:<%=counter %>条
+			</td>
+		</tr>
+	</table>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tablehe">
+		<tr><td><%=pageString %></td></tr>
+	</table>
+	
+	<%
+		 }
+	%>
+	
+	  <input type="hidden" name="listsize" id="listsize" value="<%=listsize %>" />
+	  <input type="hidden" name="pkid" id="pkid" value="" />
+	  <input type="hidden" name="bpm_id" id="bpm_id" value="6825" />
+	  </form>
+</body>
+
+</html>

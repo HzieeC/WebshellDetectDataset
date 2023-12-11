@@ -1,0 +1,293 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="inc/conndb.asa"-->
+<!--#include file="inc/function.asp"--> 
+<%
+NeedHome=False  
+
+set getTemplate = new Cls_Template
+
+BoardID = CheckNum(Request.QueryString("boardid"))
+Act=CheckStr(Request.QueryString("Act"))
+
+If Request("CurPage") = "" or Request("CurPage") = 0 then
+	CurPage = 1
+Else
+	CurPage = CheckNum(Request("CurPage"))
+End If
+If BoardID="" Then BoardID=0
+If BoardID=0 Then
+	If NeedHome Then response.redirect("home.asp")
+	BoardAdminShow="吧主:"&Replace(CheckAdminName(0),"|"," ")
+	Page_WebTitle=TieBa_Name
+	now_where="全部帖子浏览"
+	orderbySqlStr="(iif(istop=2,istop,null)) desc,"
+	'orderbySqlStr="istop desc,"
+	currWZ="帖子列表第"&CurPage&"页"
+Else
+	If Not IsArray(Arr_Category) Then GetBoardCache()
+	For i=0 To Ubound(Arr_Category,2)
+		If Int(Arr_Category(1,i))=Int(BoardID) Then
+			BoardName=Arr_Category(0,i)
+			BoardFather=Arr_Category(5,i)
+			BoardAbout=Arr_Category(2,i)
+			BoardAD=Arr_Category(6,i)
+			Exit For
+		End If
+	Next
+	If BoardFather=0 Then 
+		now_where=BoardName
+		GetSonSqlStr=GetBoardSonStr(BoardID)
+	Else
+		now_where="<a href="""&list_page_name&"?BoardID="&BoardFather&""">"&GetBoardName(BoardFather)&"</a> &raquo; "& BoardName
+	End If
+	
+	BoardAdmin=CheckAdminName(BoardID)
+	If BoardAdmin<>"" Then 
+		BoardAdminShow=" 版主:"&Replace(BoardAdmin,"|"," ")
+	Else
+		BoardAdminShow=" 版主:*空缺中*"
+	End If
+	If IsAdmin<>9 Then IsAdmin=CheckAdmin(BoardID)
+	boardidUrlStr="&boardid="&BoardID
+	boardidSqlStr="and (istop=2 or boardid="&BoardID&" "&GetSonSqlStr&")"
+	orderbySqlStr="istop desc,"
+	Page_WebTitle=BoardName &"-"& TieBa_Name
+	Page_Description=BoardAbout
+	Page_Keywords=BoardName&","&Page_Keywords
+	currWZ=""&BoardName&"板块第"&CurPage&"页"
+End If
+extra=BoardID&"-"&CurPage
+If extra<>"" And CurPage<>1 And NeedLinkEX=True Then isextra="&extra="&extra
+
+BoardListStr=BoardList(BoardID)
+NavRight=BoardListSon(BoardID)
+If IsAdmin>0 Then 
+	ischeckSqlStr="ischeck>-1"
+Else
+	ischeckSqlStr="ischeck=1"
+End If 
+
+If Act="good" Then 
+	GoodSqlStr="and isgood=1 "
+	isact="&act=good"
+ElseIf Act="new" Then 
+	orderbySqlStr="addtime desc,"
+	isact="&act=new"
+End If 
+
+'计算文章数。
+dim Totalcount,Sys_List_Num,wzpage,wzpagecount,wzpagerep,boardstr
+Totalcount = conn.execute ("select count(id) from "&bbstable&" where "&ischeckSqlStr&" "&boardidSqlStr & GoodSqlStr &"",0,1)(0)
+Tadycount = conn.execute ("select count(id) from "&bbstable&" where "&ischeckSqlStr&" "&boardidSqlStr & GoodSqlStr &" and datediff('d',addtime,now())=0",0,1)(0)
+Ytadycount = conn.execute ("select count(id) from "&bbstable&" where "&ischeckSqlStr&" "&boardidSqlStr & GoodSqlStr &" and datediff('d',addtime,now()-1)=0",0,1)(0)
+
+SQLQueryNums=SQLQueryNums+1
+If Totalcount>0 Then 
+wzpagecount = abs(int(-abs(Totalcount/Sys_List_Num)))
+
+'构筑pageinfo区域
+html_pageInfo=getTemplate("ddp_pageInfo")
+html_pageInfo=replace(html_pageInfo,"$curPageInfo$","版块介绍："&Page_Description&"")
+html_pageInfo=replace(html_pageInfo,"$curAdminInfo$",BoardAdminShow)
+html_pageInfo=replace(html_pageInfo,"$curTotalcount$","今日发帖：<d><font color=red><b>"&Tadycount&"</b></font></d>&nbsp;&nbsp;昨日发帖：<d><font color=blue><b>"&Ytadycount&"</b></font></d>&nbsp;&nbsp;主题：<d><font color=green><b>"&Totalcount&"</b></font></d>&nbsp;&nbsp;")
+
+If Left(Sys_close,1)=1 Then response.write "<BR>"&ShowTable("提示信息","<CENTER>本站暂时关闭，原因："&Right(Sys_close,Len(Sys_close)-1)&"</CENTER>",""): response.End : End If 
+'取文章列表
+	set rs = server.createobject("adodb.recordset")
+
+	rssql = "select id,username,title,addtime,retime,rename,recount,hits,boardid,TitleColor,titleBold,istop,recount,isGood,ischeck,IsAttach from "&bbstable&" where "&ischeckSqlStr&" "&boardidSqlStr & GoodSqlStr &" order by "&orderbySqlStr&" retime desc,id desc"
+	rs.open rssql,conn,1,1,&h0001
+	SQLQueryNums=SQLQueryNums+1
+	'根据分页参数获取当前页面纪录
+	rs.absoluteposition=rs.absoluteposition+((abs(CurPage)-1)*Sys_List_Num)
+	
+
+	'显示文章标题列表
+	If IsAdmin>0 Then touhtml= "<form action=""so.asp?Action=TieDeal"" method=post name=inbox>"
+	shtml=getTemplate("ddp_tie_top")
+	thtml=getTemplate("ddp_tie_list")
+	touhtml=touhtml & "<table cellspacing=""0"" cellpadding=""0"" class=""cssraindemo1"" id=""datatable1"">"& vbCrLf
+	html_tielist=html_tielist & touhtml & replace(shtml,"id","")
+	if rs.eof or rs.bof Then
+
+	Else
+	'文章标题循环开始
+		for i = 0 to Sys_List_Num-1
+			if rs.eof then exit For
+			pre_title=""
+			title=rs("title")
+			if Rs("TitleColor")<>"" Then title="<font color="&Rs("TitleColor")&">"&title&"</font>"
+			if CInt(Rs("titleBold"))=1 Then title="<B>" & title & "</B>"
+			If rs("ischeck")=0 Then title= "<font color=red>[未审核]</font>"&title 
+			title="<a href=""ShowInfo.asp?id="&Rs("id")& isextra &""">"& title &"</a>"
+			If BoardID=0 Or GetSonSqlStr<>"" Then title="<em>[<a href="&list_page_name&"?boardid="&rs("boardid")&">"&GetBoardName(rs("boardid"))&"</a>]</em> "&title
+			titlepic="icoz_comm.gif"
+			if Rs("isTop")=1 Then titlepic="icoz_top.gif"
+			if Rs("isTop")=2 Then titlepic="icoz_top.gif"
+			if Rs("isGood")=1 Then titlepic="isgood.gif"
+			if Rs("IsAttach")=1 Then title=title&" <img src=""images/isPic.gif"" alt=""图片帖子"" />"
+			if Rs("IsAttach")=2 Then title=title&" <img src=""images/isAttach.gif"" alt=""附件帖子"" />"
+
+			'帖子分页
+			if CInt(Rs("recount"))>Sys_Show_Num then
+				rep =" <li class=pagecut>"& _
+				GetRePageNo("ShowInfo.asp?id="&Rs("id")&isextra&"&CurPage=",CInt(Rs("recount")),Sys_Show_Num,false) &"</li>"
+			else
+				rep = ""
+			end If
+			'开始匹配循环标签
+			username=DropFuckWords(LCase(Rs("username")))
+			username2=LCase(Rs("username"))
+			If ubound(split(username,"."))<3 And instr(username,".*")=0 And _
+			((Dreamsun_Name<>"" And Sys_isuserinfo=0) Or Sys_isuserinfo=1) Then
+				username = "<a href=UserMng.asp?Action=infoshow&username="&username2&">"& username &"</a>"
+			else
+				if Sys_isShowIpName>0 And instr(username,".*")>0  then
+					n_name = Replace(username,"*","1")
+					username = "<span id='tie_"&Rs("id")&"' onmouseover=""showIpData('"&n_name&"','tie_"&Rs("id")&"',1);""  onmouseout=""SetValue('tie_"&Rs("id")&"','"&username&"');"">"&username&"</span>"
+				end if
+			End If 
+
+			If IsNull(Rs("rename")) Or Rs("rename")=""  Then
+				rename="暂无"
+			Else 
+				rename=DropFuckWords(Trim(LCase(Rs("rename"))))
+				rename2=LCase(Trim(Rs("rename")))
+				If ubound(split(rename2,"."))<3 And instr(rename2,"*")=0 And _
+				((Dreamsun_Name<>"" And Sys_isuserinfo=0) Or Sys_isuserinfo=1) Then
+					rename="<a href=UserMng.asp?Action=infoshow&username="&rename2&" title='最后回复:"&rs(4)&"'>"&rename&"</a>"
+				else
+					if Sys_isShowIpName>0 and instr(rename2,"*")>0 then
+						n_rename = Replace(rename,"*","1")
+						rename = "<span id='tier_"&Rs("id")&"' onmouseover=""showIpData('"&n_rename&"','tier_"&Rs("id")&"',1);"" onmouseout=""SetValue('tier_"&Rs("id")&"','"&rename&"');"">"&rename&"</span>"
+					end if
+				End If 
+			End If
+			If IsAdmin>0 And Rs("isTop")=0 Then 
+				tie_folder="<input name=""bbsid"" type=""checkbox"" value="""&rs(0)&""">"
+			Else
+				tie_folder="<img src=""skins/"&Sys_skins&"/"&titlepic&""" />"
+			End If 
+			tielist=replace(thtml,"$tie_id$",rs(0))
+			tielist=replace(tielist,"$tie_folder$",tie_folder)
+			tielist=replace(tielist,"$tie_title$",pre_title&""& title & rep )
+			tielist=replace(tielist,"$tie_username$",username)
+			tielist=replace(tielist,"$tie_addtime$",DateToStr(rs(3),"Y-m-d"))
+			tielist=replace(tielist,"$tie_rename$",rename)
+			tielist=replace(tielist,"$tie_retime$",DateToStr(rs(4),"Y-m-d"))
+			tielist=replace(tielist,"$tie_recount$",rs("recount"))
+			tielist=replace(tielist,"$tie_hits$",rs("hits"))
+			html_tielist=html_tielist & tielist
+		rs.movenext
+		Next
+		pagecut=viewpage(Totalcount, Sys_List_Num,5,CurPage,boardidUrlStr&isact&iskey,"当前总数:",list_page_name)
+	end If
+	
+	If IsAdmin>0 Then 
+		html_tielist= html_tielist &replace(shtml,"标题","<input type=""checkbox"" name=""chkall"" id=""chkall"" value=""on"" onClick=""CheckAll(this.form)"">                <label for=""chkall"">全选/取消 </label><select name=""cz""><option value=""BatchVDel"">批量删除</option><option value=""BatchCheck"">批量审核</option><option value=""BatchNoCheck"">批量屏蔽</option></select><input type=""submit"" value=""执行"" onClick=""{if(confirm('您确定执行的操作吗?')){return true;}return false;}"">"& vbCrLf)
+		Else
+		html_tielist= html_tielist & shtml
+	End If 
+	html_tielist= html_tielist &"</table>"& vbCrLf
+	If IsAdmin>0 Then html_tielist= html_tielist &"</form>"& vbCrLf
+
+Else
+html_tielist= html_tielist &"暂无帖子，请发表！"
+End If
+html_tielist= html_tielist &"<table width=""100%"" border=""0"" height=""40"" cellspacing=""0"" id=""datatable1""><TR><TD><form name=""form1"" method=""post"" action=""so.asp?Action=so"" style=""margin:2px;"" onSubmit=""return socheck(this);"">快速搜索：<input name=""Keys"" type=""text"" id=""Keys"" value="""&keys&""" size=""15"" maxlength=""10"" title=""支持空格或者+分隔关键词""> <input name=""sore"" id=""sore"" type=""checkbox"" value=""1"" /><label for=""sore"">含回复</label> <input type=""Submit"" id=""Submit"" name=""so"" value=""搜索""></form></TD><TD align=right>"&pagecut&"</TD></TR></TABLE>"
+
+%>
+<!--#include file="inc/postarea.asp"-->
+<%
+BoardQX=True
+If BoardQX Then '如果该栏目允许您发帖
+	If Sys_Guest_Add=1 Or (Sys_Guest_Add=0 And Dreamsun_Name<>"") Then 
+		indexPost=True
+	Else
+		indexPost=False
+		shuoming="目前不允许游客发表，请 <A href='UserMng.asp'>登录</A> <A href='UserMng.asp?Action=reg'>注册</A> 发贴。"
+	End If
+Else
+		indexPost=False
+		shuoming="该栏目目前已经锁定，不允许发表。"
+End If 
+
+If indexPost Then 
+	html_postform=getPostForm(1)
+Else
+	html_postform="<div id=postform class=hot>"&shuoming&"</div>"
+End If 
+
+'页面中部组合替换
+'是否存在侧边栏，取决于主体模板【ddp_maincontent】中是否存在$sidebar_content$
+html_content=getTemplate("ddp_maincontent")
+If InStr(html_content,"$sidebar_content$")>0 Then 
+	If Application(webname&"_TieBa_SideBar"&BoardID)="" Then 
+		Application.Lock
+		Application(webname&"_TieBa_SideBar"&boardid)=sidebarContent
+		Application.UnLock
+	End If
+	html_content=replace(html_content,"$sidebar_content$",Application(webname&"_TieBa_SideBar"&boardid))
+End If 
+
+'页面整体替换开始，构造页面
+shtml=getTemplate("ddp_head") & html_content & getTemplate("ddp_foot")
+
+'页面主体三大变量区域替换
+shtml=replace(shtml,"$html_pageinfo$",html_pageInfo)
+shtml=replace(shtml,"$html_tielist$",html_tielist)
+shtml=replace(shtml,"$html_postform$",html_postform)
+
+'页面全局变量、普通变量替换
+shtml=replace(shtml,"$Page_WebTitle$",Page_WebTitle)
+shtml=replace(shtml,"$Page_Author$",Page_Author)
+shtml=replace(shtml,"$Page_Keywords$",Page_Keywords)
+shtml=replace(shtml,"$Page_Description$",Page_Description)
+shtml=replace(shtml,"$BoardListStr$",BoardListStr)
+shtml=replace(shtml,"$kdhLink$",dhLink())
+shtml=replace(shtml,"$topmenu$",topmenu())
+shtml=replace(shtml,"$bar_FriendLink$",FriendLink())
+shtml=replace(shtml,"$now_where$",now_where)
+shtml=replace(shtml,"$NavRight$",NavRight)
+shtml=replace(shtml,"$SQLQueryNums$",SQLQueryNums)
+shtml=replace(shtml,"$runTime$",runTime)
+response.write shtml
+
+'-----------------------------------------------
+'侧边栏，布局在模板控制，替换在这里。如果不需要，可以修改conndb里面的设置，将sidebar设置为0，同时修改您的css。
+
+'BoardAD 分类的广告，可以在index任意位置调用。
+'FriendLink()可以在任何位置调用友情链接。
+'dylist(type,boardid,inson,num,titleLen,isblank,dytime,是否带时间,是否带分类)
+	'type:列表类型，目前允许最新发表newPost,最新回复newRe,最多回复maxRe，最多阅读maxHits,精华文章good，top
+	'boardid：分类，0为全部，否则为该分类。
+	'inson：0或者1，如果为0，则不含子分类，否则含子分类。
+	'num：调取条目，数字
+	'titlelen：标题长度，意义不大，可以用css截取。
+	'dytime，是否多少天限制，比如调用60天之内的精华
+Function sidebarContent()
+	set getTemplate = new Cls_Template
+		Template=getTemplate("ddp_sidebar")
+		If BoardID<>"" And BoardID<>0 Then
+			If BoardAD<>"" Then 
+				Template=replace(Template,"$bar_notice$",BoardAD)
+			Else
+				Template=replace(Template,"$bar_notice$","")
+			End If 
+		Else
+			Template=replace(Template,"$bar_notice$",GetPicFlash(0))
+		End If 
+		Template=replace(Template,"$bar_good$",dylist("good",boardid,1,5,28,0,Sys_DyTime,0,0))
+		Template=replace(Template,"$bar_maxHits$",dylist("maxHits",boardid,1,5,28,0,Sys_DyTime,0,0))
+		Template=replace(Template,"$bar_maxRe$",dylist("maxRe",boardid,1,5,28,0,Sys_DyTime,0,0))
+		If BoardID<>"" And BoardID<>0 Then 
+			Template=replace(Template,"$bar_FriendLink$","")
+		Else
+			Template=replace(Template,"$bar_FriendLink$",FriendLink())
+		End If 
+		Template=replace(Template,"<h3>友情链接</h3><ul></ul>","")
+		Template=replace(Template,"<div class=""bar""></div>","")
+sidebarContent=Template
+End Function 
+
+%>

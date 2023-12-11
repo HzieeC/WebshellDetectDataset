@@ -1,0 +1,325 @@
+<!--#include file="admin_sb.asp"-->
+<!--#include file="inc/include.asp"-->
+<%
+'************** ASPSecurity ASP木马查找 ************
+' Copyright 2006
+' Create:2006-1-16
+' Update:2006-8-03
+'***************************************************
+
+Server.ScriptTimeout = 600
+DimFileExt = "asp,cer,asa,cdx"
+Dim Report, Sun, SumFiles, SumFolders
+
+	Sun = 0
+	SumFiles = 0
+	SumFolders = 1
+	requestPath = request.Form("path")
+	if requestPath = "" or InStr(requestPath,"..\") then
+		response.Write("No Hack")
+		response.End()
+	end if
+	timer1 = timer
+	if requestPath = "\" then
+		TmpPath = Server.MapPath("\")
+	elseif requestPath = "." then
+		TmpPath = Server.MapPath(".")
+	else
+		TmpPath = Server.MapPath("\") & "\" & requestPath
+	end if
+	Call ShowAllFile(TmpPath)
+%>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link rel="stylesheet" rev="stylesheet" href="inc/control.css" type="text/css" media="all" />
+</head>
+
+<body class="ContentBody">
+<div class="MainDiv">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" class="CContent" style="word-break:break-all">
+  <tr>
+    <th class="CTitle">雷客图ASP站长安全助手 ASP木马搜索
+  </tr>
+  <tr>
+    <td class="CPanel">
+        <div id="updateInfo" style="background:ffffe1;border:1px solid #89441f;padding:4px;display:none"></div>
+扫描完毕！一共检查文件夹<font color="#FF0000"><%=SumFolders%></font>个，文件<font color="#FF0000"><%=SumFiles%></font>个，发现可疑点<font color="#FF0000"><%=Sun%></font>个（<font color="#FF0000">红字</font>显示的为严重可疑）
+<br>	
+<table width="100%" border="0" cellpadding="0" cellspacing="0">
+	 <tr>
+		 <td valign="top">
+			 <table width="100%" border="1" cellpadding="0" cellspacing="0" style="padding:5px;line-height:170%;clear:both;font-size:12px">
+			 <tr>
+			   <td width="20%">文件相对路径</td>
+			   <td width="20%">特征码</td>
+			   <td width="40%">描述</td>
+			   <td width="20%">创建/修改时间</td>
+			   </tr>
+		     <p>
+			 <%=Report%>
+			 <br/></p>
+			 </table></td>
+	 </tr>
+	</table>
+</td></tr></table>
+<%
+timer2 = timer
+thetime=cstr(int(((timer2-timer1)*10000 )+0.5)/10)
+response.write "<br><font size=""2"">本页执行共用了"&thetime&"毫秒</font>"
+%>
+</div>
+</body>
+</html>
+<%
+'遍历处理path及其子目录所有文件
+Sub ShowAllFile(Path)
+	If Not Response.IsClientConnected Then Response.End()
+	Set FSO = CreateObject("Scripting.FileSystemObject")
+	if not fso.FolderExists(path) then exit sub
+	Set f = FSO.GetFolder(Path)
+	Set fc2 = f.files
+	For Each myfile in fc2
+		If CheckExt(FSO.GetExtensionName(path&"\"&myfile.name)) Then
+			Call ScanFile(Path&Temp&"\"&myfile.name, "")
+			SumFiles = SumFiles + 1
+		End If
+	Next
+	Set fc = f.SubFolders
+	For Each f1 in fc
+		ShowAllFile path&"\"&f1.name
+		SumFolders = SumFolders + 1
+    Next
+	Set FSO = Nothing
+End Sub
+
+'检测文件
+Sub ScanFile(FilePath, InFile)
+	If InFile <> "" Then
+		Infiles = "<font color=red>该文件被<a href=""http://"&Request.Servervariables("server_name")&"/"&tURLEncode(InFile)&""" target=_blank>"& InFile & "</a>文件包含执行</font>"
+	End If
+	temp = "<a href=""http://"&Request.Servervariables("server_name")&"/"&tURLEncode(replace(replace(FilePath,server.MapPath("\")&"\","",1,1,1),"\","/"))&""" target=_blank>"&replace(FilePath,server.MapPath("\")&"\","",1,1,1)&"</a>"
+	on error resume next
+	Set tStream = Server.CreateObject("ADODB.Stream")
+	tStream.type = 1
+	tStream.mode = 3
+	tStream.open
+	tStream.Position=0
+	tStream.LoadFromFile FilePath
+	If err Then Exit Sub end if
+	tStream.type = 2
+	tStream.charset = "GB2312"
+	Do Until tStream.EOS
+		filetxt = filetxt & LCase(replace(tStream.ReadText(102400), Chr(0), ""))
+	Loop
+	tStream.close()
+	Set tStream = Nothing
+
+	Set FSOs = CreateObject("Scripting.FileSystemObject")	
+	if len(filetxt) >0 then
+		'特征码检查
+		filetxt = vbcrlf & filetxt
+			'Check "WScr"&DoMyBest&"ipt.Shell"
+			If instr( filetxt, Lcase("WScr"&DoMyBest&"ipt.Shell") ) or Instr( filetxt, Lcase("clsid:72C24DD5-D70A"&DoMyBest&"-438B-8A42-98424B88AFB8") ) then
+				Report = Report&"<tr><td>"&temp&"</td><td>WScr"&DoMyBest&"ipt.Shell 或者 clsid:72C24DD5-D70A"&DoMyBest&"-438B-8A42-98424B88AFB8</td><td><font color=red>危险组件，一般被ASP木马利用</font>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End if
+			'Check "She"&DoMyBest&"ll.Application"
+			If instr( filetxt, Lcase("She"&DoMyBest&"ll.Application") ) or Instr( filetxt, Lcase("clsid:13709620-C27"&DoMyBest&"9-11CE-A49E-444553540000") ) then
+				Report = Report&"<tr><td>"&temp&"</td><td>She"&DoMyBest&"ll.Application 或者 clsid:13709620-C27"&DoMyBest&"9-11CE-A49E-444553540000</td><td><font color=red>危险组件，一般被ASP木马利用</font>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check Unicode
+			If instr( filetxt, chr(-22048)) then
+				Report = Report&"<tr><td>"&temp&"</td><td>无</td><td><font color=red>使用 Unicode 编码 ASP 代码</font>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check .Encode
+			Set regEx = New RegExp
+			regEx.IgnoreCase = True
+			regEx.Global = True
+			regEx.Pattern = "\bLANGUAGE\s*=\s*[""]?\s*(vbscript|jscript|javascript).encode\b"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>(vbscript|jscript|javascript).Encode</td><td><font color=red>似乎脚本被加密了，一般ASP文件是不会加密的<a href=plugins/decoder.asp?path="&server.URLEncode(filepath)&" target=_blank>[解密]</a></font>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check my ASP backdoor :(
+			regEx.Pattern = "\bEv"&"al\b"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>Ev"&"al</td><td>e"&"val()函数可以执行任意ASP代码，被一些后门利用。其形式一般是：ev"&"al(X)<br>但是javascript代码中也可以使用，有可能是误报。"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check exe&cute backdoor
+			regEx.Pattern = "[^.]\bExe"&"cute\b"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>Exec"&"ute</td><td><font color=red>e"&"xecute()函数可以执行任意ASP代码，被一些后门利用。其形式一般是：ex"&"ecute(X)</font><br>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check .(Open|Create)TextFile
+			regEx.Pattern = "\.(Open|Create)TextFile\b"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>.Crea"&"teTextFile|.O"&"penTextFile</td><td>使用了FSO的CreateTextFile|OpenTextFile函数读写文件"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check .SaveT&oFile
+			regEx.Pattern = "\.SaveT"&"oFile\b"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>.Sa"&"veToFile</td><td>使用了Stream或者JMail的SaveToFile函数写文件"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check .&Save
+			regEx.Pattern = "\.Sa"&"ve\b"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>.Sa"&"ve</td><td>使用了XMLHTTP的Save函数写文件"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check set Server
+			regEx.Pattern = "set\s*.*\s*=\s*server\s"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>Set xxx=Se"&"rver</td><td><font color=red>发现Set xxx=Ser" & jj & "ver，请管理员仔细检查是否调用.execute</font><br>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check Server.(Transfer|Ex&ecute)
+			regEx.Pattern = "Server.(Ex"&"ecute|Transfer)([ \t]*|\()[^""]\)"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>Server.Ex"&"ecute</td><td><font color=red>不能跟踪检查Server.e"&"xecute()函数执行的文件。请管理员自行检查</font><br>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check .Ru&n
+			regEx.Pattern = "\.R"&"un\b"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>.Ru"&"n</td><td><font color=red>发现 WScript 的 Run 函数</font><br>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check .Exe&c
+			regEx.Pattern = "\.Ex"&"ec\b"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>.Ex"&"ec</td><td><font color=red>发现 WScript 的 Exec 函数</font><br>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			'Check .Shel&lExecute
+			regEx.Pattern = "\.Shel"&"lExecute\b"
+			If regEx.Test(filetxt) Then
+				Report = Report&"<tr><td>"&temp&"</td><td>.ShellE"&"xecute</td><td><font color=red>发现 Application 的 ShellExecute 函数</font><br>"&infiles&"</td><td>"&GetDateCreate(filepath)&"<br>"&GetDateModify(filepath)&"</td></tr>"
+				Sun = Sun + 1
+			End If
+			Set regEx = Nothing
+			
+		'Check include file with "
+		Set regEx = New RegExp
+		regEx.IgnoreCase = True
+		regEx.Global = True
+		regEx.Pattern = "<!--\s*#include\s*file\s*=\s*"".*"""
+		Set Matches = regEx.Execute(filetxt)
+		For Each Match in Matches
+			tFile = Replace(Mid(Match.Value, Instr(Match.Value, """") + 1, Len(Match.Value) - Instr(Match.Value, """") - 1),"/","\")
+			If Not CheckExt(FSOs.GetExtensionName(tFile)) Then
+				Call ScanFile( Mid(FilePath,1,InStrRev(FilePath,"\"))&tFile, replace(FilePath,server.MapPath("\")&"\","",1,1,1) )
+				SumFiles = SumFiles + 1
+			End If
+		Next
+		Set Matches = Nothing
+		Set regEx = Nothing
+		
+		'Check include file with '
+		Set regEx = New RegExp
+		regEx.IgnoreCase = True
+		regEx.Global = True
+		regEx.Pattern = "<!--\s*#include\s*file\s*=\s*'.*'"
+		Set Matches = regEx.Execute(filetxt)
+		For Each Match in Matches
+			tFile = Replace(Mid(Match.Value, Instr(Match.Value, "'") + 1, Len(Match.Value) - Instr(Match.Value, "'") - 1),"/","\")
+			If Not CheckExt(FSOs.GetExtensionName(tFile)) Then
+				Call ScanFile( Mid(FilePath,1,InStrRev(FilePath,"\"))&tFile, replace(FilePath,server.MapPath("\")&"\","",1,1,1) )
+				SumFiles = SumFiles + 1
+			End If
+		Next
+		Set Matches = Nothing
+		Set regEx = Nothing
+		
+		'Check include virtual with "
+		Set regEx = New RegExp
+		regEx.IgnoreCase = True
+		regEx.Global = True
+		regEx.Pattern = "<!--\s*#include\s*virtual\s*=\s*"".*"""
+		Set Matches = regEx.Execute(filetxt)
+		For Each Match in Matches
+			tFile = Replace(Mid(Match.Value, Instr(Match.Value, """") + 1, Len(Match.Value) - Instr(Match.Value, """") - 1),"/","\")
+			If Not CheckExt(FSOs.GetExtensionName(tFile)) Then
+				Call ScanFile( Server.MapPath("\")&"\"&tFile, replace(FilePath,server.MapPath("\")&"\","",1,1,1) )
+				SumFiles = SumFiles + 1
+			End If
+		Next
+		Set Matches = Nothing
+		Set regEx = Nothing
+		
+		'Check include virtual with '
+		Set regEx = New RegExp
+		regEx.IgnoreCase = True
+		regEx.Global = True
+		regEx.Pattern = "<!--\s*#include\s*virtual\s*=\s*'.*'"
+		Set Matches = regEx.Execute(filetxt)
+		For Each Match in Matches
+			tFile = Replace(Mid(Match.Value, Instr(Match.Value, "'") + 1, Len(Match.Value) - Instr(Match.Value, "'") - 1),"/","\")
+			If Not CheckExt(FSOs.GetExtensionName(tFile)) Then
+				Call ScanFile( Server.MapPath("\")&"\"&tFile, replace(FilePath,server.MapPath("\")&"\","",1,1,1) )
+				SumFiles = SumFiles + 1
+			End If
+		Next
+		Set Matches = Nothing
+		Set regEx = Nothing
+				
+		'Check Server&.Execute|Transfer
+		Set regEx = New RegExp
+		regEx.IgnoreCase = True
+		regEx.Global = True
+		regEx.Pattern = "Server.(Exec"&"ute|Transfer)([ \t]*|\()"".*"""
+		Set Matches = regEx.Execute(filetxt)
+		For Each Match in Matches
+			tFile = Replace(Mid(Match.Value, Instr(Match.Value, """") + 1, Len(Match.Value) - Instr(Match.Value, """") - 1),"/","\")
+			If Not CheckExt(FSOs.GetExtensionName(tFile)) Then
+				Call ScanFile( Mid(FilePath,1,InStrRev(FilePath,"\"))&tFile, replace(FilePath,server.MapPath("\")&"\","",1,1,1) )
+				SumFiles = SumFiles + 1
+			End If
+		Next
+		Set Matches = Nothing
+		Set regEx = Nothing
+			
+		'Check RunatScript
+		Set XregEx = New RegExp
+		XregEx.IgnoreCase = True
+		XregEx.Global = True
+		XregEx.Pattern = "<scr"&"ipt\s*(.|\n)*?runat\s*=\s*""?server""?(.|\n)*?>"
+		Set XMatches = XregEx.Execute(filetxt)
+		For Each Match in XMatches
+			tmpLake2 = Mid(Match.Value, 1, InStr(Match.Value, ">"))
+			srcSeek = InStr(1, tmpLake2, "src", 1)
+			If srcSeek > 0 Then
+				srcSeek2 = instr(srcSeek, tmpLake2, "=")
+				For i = 1 To 50
+					tmp = Mid(tmpLake2, srcSeek2 + i, 1)
+					If tmp <> " " and tmp <> chr(9) and tmp <> vbCrLf Then
+						Exit For
+					End If
+				Next
+				If tmp = """" Then
+					tmpName = Mid(tmpLake2, srcSeek2 + i + 1, Instr(srcSeek2 + i + 1, tmpLake2, """") - srcSeek2 - i - 1)
+				Else
+					If InStr(srcSeek2 + i + 1, tmpLake2, " ") > 0 Then tmpName = Mid(tmpLake2, srcSeek2 + i, Instr(srcSeek2 + i + 1, tmpLake2, " ") - srcSeek2 - i) Else tmpName = tmpLake2
+					If InStr(tmpName, chr(9)) > 0 Then tmpName = Mid(tmpName, 1, Instr(1, tmpName, chr(9)) - 1)
+					If InStr(tmpName, vbCrLf) > 0 Then tmpName = Mid(tmpName, 1, Instr(1, tmpName, vbcrlf) - 1)
+					If InStr(tmpName, ">") > 0 Then tmpName = Mid(tmpName, 1, Instr(1, tmpName, ">") - 1)
+				End If
+				Call ScanFile( Mid(FilePath,1,InStrRev(FilePath,"\"))&tmpName , replace(FilePath,server.MapPath("\")&"\","",1,1,1))
+				SumFiles = SumFiles + 1
+			End If
+		Next
+		Set Matches = Nothing
+		Set regEx = Nothing
+
+	end if
+		set fsos = nothing
+
+End Sub
+
+%>

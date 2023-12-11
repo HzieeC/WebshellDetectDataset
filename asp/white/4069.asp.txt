@@ -1,0 +1,19 @@
+<!--#include file="conn.asp"-->
+<%
+'*****************************************
+'作者：guke
+'QQ：6692103
+'*****************************************
+IF Request.Cookies("key")="" or Request.Cookies("id")="" then
+response.write "<script>alert('系统超时');location='../';</script>"
+Response.end
+end if
+set rs=server.createobject("adodb.recordset")
+sql ="select * from [admin] where id="&Request.Cookies("id")&""
+rs.open sql,conn,1,1
+If rs("passwd") <> Request.Cookies("key") then
+response.write "<script>alert('请重新登陆');location='../';</script>"
+Response.End
+end if
+rs.close
+%>

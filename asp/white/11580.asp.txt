@@ -1,0 +1,251 @@
+<!--#include file="../inc/conn_orzks.asp"-->
+<!--#include file="aq.asp"-->
+<%
+if session("adminlogin")<>sessionvar then
+Response.Write("<script language=javascript>alert('你尚未登录，或者超时了！请重新登录');this.location.href='index.asp';</script>")
+Response.End
+End if
+%>
+<%
+set hx=nothing
+dim Action,FoundErr,ErrMsg
+Action=trim(request("Action"))
+
+DIm dbpath,Objfso,ObjInstalled
+dbpath=server.mappath(db)
+Objfso = "Scripting.FileSystemObject"
+ObjInstalled=IsObjInstalled(Objfso)
+%>
+<html>
+<head>
+<title></title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link href="css.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<BR>
+<%
+If ObjInstalled=false Then
+Response.Write "<b><font color=""red"">你的服务器不支持 FSO(Scripting.FileSystemObject)! 不能使用本功能</font></b><br>"
+Response.Write "建议您每隔一段时间将数据库下载到本地备份，以确保数据安全。<br>"
+Response.Write "为防止数据库无限增大，您可以将数据库下载回本地用Access2000或更高版本压缩数据库。"
+Else
+if IsSqlDataBase=1 then
+sqldata_readme
+else
+if Action="Backup" or Action="BackupData" then
+call ShowBackup()
+elseif Action="Compact" or Action="CompactData" then
+call ShowCompact()
+elseif Action="Restore" or Action="RestoreData" then
+call ShowRestore()
+else
+call ShowCompact()
+end if
+end if
+End if
+
+%>
+</div>
+<%
+sub ShowBackup()
+showtit("")  
+if request("action")="BackupData" then
+showinfo(backupdata())
+else
+dim dbname
+dbname = year(date()) & twonum(month(date())) & twonum(day(date())) & twonum(hour(now()))
+%>
+
+<table width="100%" border="0" cellspacing="1" cellpadding="8" align="center" bgcolor="#cccccc">
+<form method="post" action="admin_data.asp?action=BackupData">
+<tr> 
+<td bgcolor="#eeeeee" align="center" colspan="2">数据库备份 当前时间：<%= now %></td>
+</tr>
+<tr bgcolor="#eeeeee"> 
+<td width="20%" align="center" bgcolor="#FFFFFF">备份目录</td>
+<td width="80%" bgcolor="#FFFFFF"><input type="text" size="20" name="bkfolder" value="../taomoban_backup_db"> 相对路径目录，如目录不存在，将自动创建</tr>
+<tr bgcolor="#eeeeee"> 
+<td align="center" bgcolor="#FFFFFF">备份名称</td>
+<td bgcolor="#FFFFFF"><input type="text" size="20" name="bkDBname" value="<%=dbname%>"> 不用输入文件名后缀（默认为“.asa”）。如有同名文件，将覆盖</td></tr>
+<tr> 
+<td bgcolor="#FFFFFF" align="center" colspan="2"><input name="submit" type=submit value=" 开始备份 "></td>
+</tr>
+</form>
+</table>
+<%
+end if
+end sub
+sub ShowCompact()
+showtit("")
+if request("action")="CompactData" then
+showinfo(CompactDB(dbpath,false))
+else
+%>
+
+<table width="100%" border="0" cellspacing="1" cellpadding="8" align="center" bgcolor="#cccccc">
+<form method="post" action="admin_data.asp?action=CompactData">
+<tr> 
+<td bgcolor="#eeeeee" align="center" colspan="2">数据库压缩</td>
+</tr>
+<tr bgcolor="#eeeeee"> 
+<td width="20%" align="center" bgcolor="#FFFFFF">压缩说明</td>
+<td width="80%" bgcolor="#FFFFFF">建议每隔一段时间，对数据库进行压缩操作。压缩前，请先备份数据库，以防止发生意外</tr>
+<tr bgcolor="#eeeeee"> 
+<td align="center" bgcolor="#FFFFFF">数据大小</td>
+<td bgcolor="#FFFFFF"><%ShowFileInfo(db)%></td></tr>
+<tr> 
+<td bgcolor="#FFFFFF" align="center" colspan="2"><input name="submit2" type="submit" value=" 压缩数据库 "></td>
+</tr>
+</form>
+</table>
+<%
+end if
+end sub
+
+sub ShowRestore()
+showtit("")  
+if request("action")="RestoreData" then
+showinfo(RestoreData())
+else
+%>
+
+<table width="100%" border="0" cellspacing="1" cellpadding="8" align="center" bgcolor="#cccccc">
+<form method="post" action="admin_data.asp?action=RestoreData">
+<tr> 
+<td bgcolor="#eeeeee" align="center" colspan="2">数据库恢复</td>
+</tr>
+<tr bgcolor="#eeeeee"> 
+<td width="20%" align="center" bgcolor="#FFFFFF">备份数据库路径</td>
+<td width="80%" bgcolor="#FFFFFF"><input name="backpath" type="text" value="..\taomoban_backup_db\xxxxxx.asa" size=50 maxlength="200"></tr>
+<tr> 
+<td bgcolor="#FFFFFF" align="center" colspan="2"><input name="submit" type=submit value="恢复数据库"></td>
+</tr>
+</form>
+</table>
+<%
+end if
+end sub
+%>
+</body>
+</html>
+<%
+
+sub showtit(str)
+response.write "<p align=center>"&str&"</p>"
+end sub
+sub showinfo(str)
+response.write "<BR><BR><p align=center><font color=""#FF0000"">" & str & "</font></p>"
+end sub
+Function BackupData()
+dim bkfolder,bkdbname,fso
+bkfolder=trim(request("bkfolder"))
+bkdbname=trim(request("bkdbname"))
+if bkfolder="" then
+BackupData = "<script language=javascript>alert('系统提示：请指定备份目录！');this.location.href='admin_data.asp?Action=Backup';</script>"
+exit Function
+end if
+if bkdbname="" then
+FoundErr=True
+BackupData = "<script language=javascript>alert('淘模板系统提示：请指定备份文件名！');this.location.href='admin_data.asp?Action=Backup';</script>"
+exit Function
+end if
+bkfolder=server.MapPath(bkfolder)
+Set Fso=server.createobject(Objfso)
+if fso.FileExists(dbpath) then
+If fso.FolderExists(bkfolder)=false Then
+fso.CreateFolder(bkfolder)
+end if
+fso.copyfile dbpath,bkfolder & "\" & bkdbname & ".asa"
+BackupData = "<script language=javascript>alert('淘模板系统提示：备份数据库成功，备份的数据库为:" & bkdbname & ".asa');this.location.href='admin_data.asp?Action=Backup';</script>"
+Else
+BackupData = "<script language=javascript>alert('找不到源数据库文件！');this.location.href='admin_data.asp?Action=Backup';</script>"
+End if
+End Function
+
+'=====================压缩参数=========================
+Function CompactDB(dbPath, boolIs97)
+On Error Resume Next
+Dim fso, Engine, strDBPath,JET_3X
+strDBPath = left(dbPath,instrrev(DBPath,"\"))
+Set fso = CreateObject(Objfso)
+If Err Then
+Err.Clear
+CompactDB = "<script language=javascript>alert('您当前操作的目录不支持FSO，请手动进行压缩数据库操作！');this.location.href='admin_data.asp?Action=Compact';</script>" & vbCrLf
+Exit Function
+End If
+If fso.FileExists(dbPath) Then
+fso.CopyFile dbpath,strDBPath & "temp.mdb"
+Set Engine = CreateObject("JRO.JetEngine")
+If boolIs97 = "True" Then
+Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb", _
+"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp1.mdb;" _
+& "Jet OLEDB:Engine Type=" & JET_3X
+Else
+Engine.CompactDatabase "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp.mdb", _
+"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" & strDBPath & "temp1.mdb"
+End If
+
+fso.CopyFile strDBPath & "temp1.mdb",dbpath
+fso.DeleteFile(strDBPath & "temp.mdb")
+fso.DeleteFile(strDBPath & "temp1.mdb")
+Set fso = Nothing
+Set Engine = Nothing
+CompactDB = "<script language=javascript>alert('数据库压缩成功！');this.location.href='admin_data.asp?Action=Compact';</script>" & vbCrLf
+Else
+CompactDB = "<script language=javascript>alert('数据库名称或路径不正确！');this.location.href='admin_data.asp?Action=Compact';</script>" & vbCrLf
+End If
+End Function
+
+Function RestoreData()
+dim backpath,fso
+backpath=request.form("backpath")
+if backpath="" then
+RestoreData = "<script language=javascript>alert('请指定原备份的数据库文件名！');this.location.href='admin_data.asp?Action=Restore';</script>"
+exit Function
+end if
+backpath=server.mappath(backpath)
+Set Fso=server.createobject(Objfso)
+if fso.fileexists(backpath) then  
+fso.copyfile Backpath,Dbpath
+RestoreData = "<script language=javascript>alert('成功恢复数据！');this.location.href='admin_data.asp?Action=Restore';</script>"
+else
+RestoreData = "<script language=javascript>alert('找不到指定的备份文件！');this.location.href='admin_data.asp?Action=Restore';</script>"
+end if
+End Function
+
+Sub ShowFileInfo(filespec)
+Dim fs, f, s, showsize
+Set fs = Server.CreateObject(Objfso)
+Set f = fs.GetFile(server.mappath(filespec))
+s = f.size
+if s>1024*1024 then
+showsize=formatnumber(s/1024/1024,2) & "&nbsp;MB"
+elseif s>1024 then
+showsize=formatnumber(s/1024,2) & "&nbsp;KB"
+else
+showsize=s & "&nbsp;Byte" 
+end if
+response.write "<font face=""verdana"">" & showsize & "</font>"
+End Sub 
+
+'检查组件是否已经安装
+Function IsObjInstalled(ClassString)
+On Error Resume Next
+IsObjInstalled = False
+Err = 0
+Dim TestObj
+Set TestObj = Server.CreateObject(ClassString)
+If 0 = Err Then IsObjInstalled = True
+Set TestObj = Nothing
+Err = 0
+End Function
+
+Function twonum(num)
+if len(num)=1 then
+twonum="0"&num
+else
+twonum=num
+end if
+End Function
+%> 

@@ -1,0 +1,416 @@
+<!-- #Include File = "../conn/conn.asp" -->
+<!-- #Include File = "../inc/Md5.asp" -->
+<!-- #include file = "../inc/sendmail.asp"-->
+<!-- #Include File = "API_Config.asp"-->
+<!-- #Include File = "API_Function.asp"-->
+<%
+'************************************************************
+'	Software name: 智能招聘人才管理系统
+'	软件名称：智能招聘-仿中华英才网模板
+'	购买商业版联系方式QQ:2323449069
+'	Web: http://www.tao128.com/znzp/
+'	Copyright (C) IQhr Platform. All Rights Reserved.
+'	版权所有 未经智能招聘系统授权不得用于任何商业用途
+'************************************************************
+Dim recXml,UserTrueIP
+UserTrueIP = Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+If UserTrueIP = "" Then UserTrueIP = Request.ServerVariables("REMOTE_ADDR")
+sFR_Items(conSyskey, 1) = Trim(Request.QueryString(sFR_Items(conSyskey, 0)))
+sFR_Items(conUsername, 1) = Trim(Request.QueryString(sFR_Items(conUsername, 0)))
+sFR_Items(conPassword, 1) = Trim(Request.QueryString(sFR_Items(conPassword, 0)))
+sFR_Items(conSavecookie, 1) = Trim(Request.QueryString(sFR_Items(conSavecookie, 0)))
+If sFR_Items(conSyskey, 1) <> "" Then
+    If sFR_Items(conUsername, 1) <> "" Then
+        If sFR_Items(conPassword, 1) <> "" Then
+            WriteCookies
+        Else
+            CleanCookies
+        End If
+    End If
+Else
+    DealResponse
+End If
+
+Sub WriteCookies()
+    If Not CheckSysKey(sFR_Items(conUsername, 1), sFR_Items(conSyskey, 1)) Then
+        Exit Sub
+    End If
+    If sFR_Items(conSavecookie, 1) <> "" Then
+        sFR_Items(conSavecookie, 1) = CLng(sFR_Items(conSavecookie, 1))
+    End If
+	If sFR_Items(conSavecookie, 1)="" or Not IsNumeric(sFR_Items(conSavecookie, 1)) Then sFR_Items(conSavecookie, 1) = 0
+	Select Case sFR_Items(conSavecookie, 1)
+		Case 0
+			'not save
+		Case 1
+			Response.Cookies(FRHRCMS).Expires = Date + 1
+		Case 2
+			Response.Cookies(FRHRCMS).Expires = Date + 31
+		Case 3
+			Response.Cookies(FRHRCMS).Expires = Date + 365
+	End Select
+	set rs=server.createobject("ADODB.Recordset")
+	sql="select Member_pwd,Member_name from job_Member where Member_login='"&sFR_Items(conUsername, 1)&"'"
+	rs.open sql,conn,1,3
+	if not rs.eof then
+		if rs("Member_name")<>"" then
+			Response.Cookies(FRHRCMS)("user_name")=rs("Member_name")
+		end if
+		Response.Cookies(FRHRCMS)("user_pass")=rs("Member_pwd")
+	end if
+	rs.close:set rs=nothing
+	Response.Cookies(FRHRCMS)("LoginIP")=UserTrueIP
+	Response.Cookies(FRHRCMS)("LoginTimes")=now()
+	Response.Cookies(FRHRCMS)("user_login")=sFR_Items(conUsername, 1)
+	Response.Cookies(FRHRCMS)("user_type")="pmember"
+    Conn.Execute ("UPDATE JOB_Member Set Member_LoginIP='" & UserTrueIP & "',Member_logindate=" & FR_HR_Now & ",Member_loginnum=Member_loginnum+1 WHERE Member_login='" & sFR_Items(conUsername, 1) & "'")
+End Sub
+
+Sub CleanCookies()
+    If Not CheckSysKey(sFR_Items(conUsername, 1), sFR_Items(conSyskey, 1)) Then
+	Response.Write(CheckSysKey(sFR_Items(conUsername, 1), sFR_Items(conSyskey, 1)))
+        Exit Sub
+    End If
+	Response.Cookies(FRHRCMS)("user_types")=""
+	Response.Cookies(FRHRCMS)("user_type")=""
+	Response.Cookies(FRHRCMS)("user_login")=""
+	Response.Cookies(FRHRCMS)("user_truePWD")=""
+	Response.Cookies(FRHRCMS)("user_pass")=""
+	Response.Cookies(FRHRCMS)("user_name")=""
+	Response.Cookies(FRHRCMS)("self_link")=""
+	Response.Cookies(FRHRCMS)("self_path")=""
+End Sub
+
+Sub DealResponse()
+    'On Error Resume Next
+    If createXmlDom Then
+        sMyXmlDoc.Load Request
+        If sMyXmlDoc.parseError.errorCode <> 0 Then
+            FoundErr = True
+            ErrMsg = sMyXmlDoc.parseError.reason & "001"
+        Else
+            sFR_Items(conSyskey, 1) = getNodeText(sFR_Items(conSyskey, 0))
+            sFR_Items(conUsername, 1) = getNodeText(sFR_Items(conUsername, 0))
+            sFR_Items(conAction, 1) = getNodeText(sFR_Items(conAction, 0))
+            
+            If sFR_Items(conSyskey, 1) = "" Or sFR_Items(conUsername, 1) = "" Or sFR_Items(conAction, 1) = "" Then
+                FoundErr = True
+                ErrMsg = "未包含必须元素，数据同步被拒绝!"
+            End If
+            If Not CheckSysKey(sFR_Items(conUsername, 1), sFR_Items(conSyskey, 1)) Then
+                FoundErr = True
+                ErrMsg = "安全码不符，数据同步被拒绝!"
+            End If
+        End If
+    Else
+        FoundErr = True
+        ErrMsg = "服务器不支持MSXML对象。"
+    End If
+    If Err Then
+        FoundErr = True
+        ErrMsg = Err.Description
+        Err.Clear
+        WriteErrXml
+        Exit Sub
+    End If
+    If FoundErr Then
+        sFR_Items(conStatus, 1) = "1"
+        sFR_Items(conMessage, 1) = ErrMsg
+        prepareXML False
+        WriteXml
+        Exit Sub
+    End If
+    '已处理的元素：syskey,username
+    '错误检测完成，开始处理数据
+    sFR_Items(conAction, 1) = getNodeText(sFR_Items(conAction, 0))
+    '已处理的元素：syskey,username,action
+    Select Case sFR_Items(conAction, 1)
+        Case "checkname"
+            Call checkUser
+        Case "reguser"
+            Call createUser
+        Case "login"
+            Call loginUser
+        Case "logout"
+            Call CleanCookies
+        Case "update"
+            Call UpdateUser
+        Case "delete"
+            Call DeleteUser
+        Case "getinfo"
+            Call GetUserInfo
+    End Select
+    If FoundErr Then
+        sFR_Items(conStatus, 1) = "1"
+        sFR_Items(conMessage, 1) = ErrMsg
+        prepareXML (False)
+        WriteXml
+        Exit Sub
+    Else
+        sFR_Items(conStatus, 1) = "0"
+        prepareXML (False)
+        WriteXml
+    End If
+End Sub
+
+Sub checkUser()
+    sFR_Items(conEmail, 1) = getNodeText(sFR_Items(conEmail, 0))
+    CheckUserName (sFR_Items(conUsername, 1))
+    CheckUserEmail (sFR_Items(conEmail, 1))
+End Sub
+
+Sub createUser()
+    sFR_Items(conEmail, 1) = getNodeText(sFR_Items(conEmail, 0))
+    If CheckUserName(Trim(sFR_Items(conUsername, 1))) = False Or CheckUserEmail(sFR_Items(conEmail, 1)) = False Then
+        Exit Sub
+    End If
+    prepareData True
+    Dim sqlReg, rsReg, tRs, RndPassword, CheckNum
+    Set rsReg = Server.CreateObject("adodb.recordset")
+    rsReg.OPEN "SELECT * FROM JOB_Member", Conn, 1, 3
+    rsReg.addnew
+	rsReg("Member_login")=sFR_Items(conUsername, 1)
+	rsReg("Member_pwd")=Md5(sFR_Items(conPassword, 1),32)
+	rsReg("Member_email")=sFR_Items(conEmail, 1)
+	rsReg("Member_sendemail")=1
+	if AdminRegCheckReg=1 then
+	rsReg("Member_Auditing")=0
+	else
+	rsReg("Member_Auditing")=1
+	end if
+	rsReg("Member_regdate")=Now()
+	rsReg("Member_typeid")=1
+	rsReg("Member_groupid")=0
+	rsReg("Member_loginnum")=0
+	rsReg("Member_balance")=0
+	rsReg("Member_integral")=0
+	rsReg("Member_LoginIP")=Trim(sFR_Items(conUserip, 1))
+	rsReg("Member_logindate")=now()
+    rsReg.Update
+    rsReg.Close
+    Set rsReg = Nothing
+	if emailsendregflag=1 then
+		EmailRegOfRegCheck=replace(EmailRegOfRegCheck,"{$uesername}",sFR_Items(conUsername, 1))
+		EmailRegOfRegCheck=replace(EmailRegOfRegCheck,"{$ueserpwd}",sFR_Items(conPassword, 1))
+		Call SendMail(sFR_Items(conEmail, 1),"感谢您注册成为"&sitename&"通行证会员！",EmailRegOfRegCheck)
+	end if
+	if AdminPerCheckReg=1 then:flag=0:else:flag=1:end if
+	'默认会员基本帐号
+	set Pmrs=Server.CreateObject("ADODB.RecordSet")
+	Pmsql="select * from JOB_Group where Group_membertype=1 and Group_IsDefault=1"
+	Pmrs.open Pmsql,conn,1,1
+	Group_id=Pmrs("Group_id")
+	Group_Pdianshu=Pmrs("Group_Pdianshu")
+	Group_Pdianshus=split(Group_Pdianshu,",")
+	Group_Pintegral=Pmrs("Group_Pintegral")
+	Group_Pintegrals=split(Group_Pintegral,",")
+	Group_term=Pmrs("Group_term")
+	Group_unit=Pmrs("Group_unit")
+	Pmrs.close
+	set Pmrs=nothing
+	Member_startdate=date()
+	Select Case Group_unit
+		case "日"
+		Member_enddate=DateAdd("d",Group_term,Member_startdate)
+		case "月"
+		Member_enddate=DateAdd("m",Group_term,Member_startdate)
+		case "季"
+		Member_enddate=DateAdd("q",Group_term,Member_startdate)
+		case "年"
+		Member_enddate=DateAdd("yyyy",Group_term,Member_startdate)
+	end select
+	'更新会员默认组
+	conn.Execute("Update JOB_member set Member_flag="&flag&",Member_groupid="&Group_id&",Member_consumenums="&Group_Pdianshus(5)&",Member_integral="&Group_Pintegrals(5)&",Member_startdate='"&Member_startdate&"',Member_enddate='"&Member_enddate&"' where Member_login = '"&sFR_Items(conUsername, 1)&"'")
+End Sub
+
+Sub loginUser()
+    Dim strRndPass
+    sFR_Items(conPassword, 1) = getNodeText(sFR_Items(conPassword, 0))
+    sFR_Items(conPassword, 1) = Md5(sFR_Items(conPassword, 1), 32)
+    Dim tRs
+    Set tRs = Conn.Execute("SELECT member_id FROM JOB_member WHERE Member_login='" & sFR_Items(conUsername, 1) & "' AND Member_pwd='" & sFR_Items(conPassword, 1) & "'")
+    If tRs.Bof And tRs.EOF Then
+        FoundErr = True
+        ErrMsg = ErrMsg & "数据库中没有此用户的记录!"
+    End If
+    tRs.Close
+    Set tRs = Nothing
+End Sub
+
+Sub UpdateUser()
+    Dim tRs, tUserID
+    Set tRs = Conn.Execute("SELECT member_id FROM JOB_member WHERE Member_login='" & sFR_Items(conUsername, 1) & "'")
+    If tRs.EOF And tRs.Bof Then
+        FoundErr = True
+        ErrMsg = "数据库中没有此用户的记录!"
+    Else
+        tUserID = tRs(0)
+    End If
+    tRs.Close
+    Set tRs = Nothing
+    If FoundErr Then Exit Sub
+    prepareData True
+    'On Error Resume Next
+    Dim tSql
+    tSql = "SELECT * FROM JOB_member WHERE Member_login='" & sFR_Items(conUsername, 1) & "'"
+    Set tRs = Server.CreateObject("adodb.recordset")
+    tRs.OPEN tSql, Conn, 1, 3
+    If sFR_Items(conPassword, 1) <> "" Then
+        tRs("Member_pwd") = Md5(sFR_Items(conPassword, 1), 32)
+    End If
+    If sFR_Items(conQuestion, 1) <> "" Then
+        tRs("Member_Question") = sFR_Items(conQuestion, 1)
+    End If
+    If sFR_Items(conAnswer, 1) <> "" Then
+        tRs("Member_Answer") = Md5(sFR_Items(conAnswer, 1), 32)
+    End If
+    If sFR_Items(conEmail, 1) <> "" Then
+        tRs("Member_Email") = sFR_Items(conEmail, 1)
+    End If
+	If sFR_Items(conTruename, 1) <> "" Then
+		tRs("Member_Name") = sFR_Items(conTruename, 1)
+	End If
+	If sFR_Items(conZipcode, 1) <> "" Then
+		tRs("Member_post") = sFR_Items(conZipcode, 1)
+	End If
+	If sFR_Items(conAddress, 1) <> "" Then
+		tRs("Member_address") = sFR_Items(conAddress, 1)
+	End If
+	If sFR_Items(conTelephone, 1) <> "" Then
+		tRs("Member_tel") = sFR_Items(conTelephone, 1)
+	End If
+	If sFR_Items(conHomepage, 1) <> "" Then
+		tRs("Member_url") = sFR_Items(conHomepage, 1)
+	End If
+	tRs.Update
+	tRs.Close
+	Set tRs = Nothing
+    If Err Then
+        Err.Clear
+    End If
+End Sub
+
+Sub DeleteUser()
+    Dim arrUserNames, iUserIndex
+    Dim rsDel
+    Dim delName
+    arrUserNames = Split(sFR_Items(conUsername, 1), ",")
+    For iUserIndex = 0 To UBound(arrUserNames)
+        delName = arrUserNames(iUserIndex)
+        Set rsDel = Conn.Execute("SELECT member_login,member_typeid FROM job_member where member_login='" & delName & "'")
+        If Not (rsDel.EOF And rsDel.Bof) Then
+            'On Error Resume Next
+			Select Case rsDel(1)
+				Case 1
+				conn.execute("delete from job_c_myexpert where myexpert_pmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_c_myreceive where myreceive_pmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_c_interview where cominterview_pmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_c_recycle where comrecycle_pmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_p_education where education_pmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_p_training where train_pmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_p_lang where lang_pmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_p_work where work_pmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_p_letter where letter_pmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_p_resume where resume_pmember='"&rsDel(0)&"'")
+				Case 2
+				conn.execute("delete from job_c_hire where hire_cmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_c_myexpert where myexpert_cmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_c_myreceive where myreceive_cmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_c_interview where cominterview_cmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_c_recycle where comrecycle_cmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_c_dept where dept_cmember='"&rsDel(0)&"'")
+				Case 3
+				conn.execute("delete from job_s_department where department_smember='"&rsDel(0)&"'")
+				conn.execute("delete from job_s_professor where professor_smember='"&rsDel(0)&"'")
+				conn.execute("delete from job_s_student where student_member='"&rsDel(0)&"'")
+				Case 4
+				conn.execute("delete from job_t_course where course_tmember='"&rsDel(0)&"'")
+				conn.execute("delete from job_t_trainer where trainer_tmember='"&rsDel(0)&"'")
+			End Select
+			conn.execute("delete from job_member where member_login='"&rsDel(0)&"' and member_typeid="&rsDel(1)&"")
+        End If
+        rsDel.Close
+        Set rsDel = Nothing
+    Next
+End Sub
+
+Sub GetUserInfo()
+
+End Sub
+
+Function CheckSysKey(iName, iSysKey)
+    If IsNull(iName) Or iName = "" Or IsNull(iSysKey) Or iSysKey = "" Then
+        CheckSysKey = False
+        Exit Function
+    End If
+    If Len(iSysKey) = 32 Then
+        iSysKey = Mid(iSysKey, 9, 16)
+    End If
+    Dim strFRKey, strFRKeyNew
+    strFRKey = Md5(iName&API_SysKey,16)
+    strFRKeyNew = Md5(iName&API_SysKey,16)
+    If LCase(iSysKey) = LCase(strFRKey) Or LCase(iSysKey) = LCase(strFRKeyNew) Then
+        CheckSysKey = True
+    Else
+        CheckSysKey = False
+    End If
+End Function
+
+Function CheckUserName(iName)
+    FoundErr = False
+    If InStr(iName, "=") > 0 Or InStr(iName, "%") > 0 Or InStr(iName, Chr(32)) > 0 Or InStr(iName, "?") > 0 Or InStr(iName, "&") > 0 Or InStr(iName, ";") > 0 Or InStr(iName, ",") > 0 Or InStr(iName, "'") > 0 Or InStr(iName, ",") > 0 Or InStr(iName, Chr(34)) > 0 Or InStr(iName, Chr(9)) > 0 Or InStr(iName, "") > 0 Or InStr(iName, "$") > 0 Or InStr(iName, "*") Or InStr(iName, "|") Or InStr(iName, """") > 0 Then
+        FoundErr = True
+        ErrMsg = ErrMsg & "用户名中含有非法字符"
+    End If
+    
+    If Len(iName) > 4 Then
+        If LCase(Right(iName, 4)) = ".asp" Or LCase(Right(iName, 4)) = ".asa" Or LCase(Right(iName, 4)) = ".cer" Or LCase(Right(iName, 4)) = ".cdx" Then
+            FoundErr = True
+            ErrMsg = ErrMsg & "用户名不能以危险字符结尾!"
+        End If
+    End If
+
+    If FoundErr = True Then Exit Function
+    If iName = "" Or Len(iName) > 20 Or Len(iName) < 4 Then
+        FoundErr = True
+        ErrMsg = ErrMsg & "请输入用户名(不能大于20小于4)"
+    End If
+
+    'If FoundInArr(UserName_RegDisabled, iName, "|") = True Then
+       'FoundErr = True
+        'ErrMsg = ErrMsg & "您输入的用户名为系统禁止注册的用户名！"
+    'End If
+    Dim rsCheckReg
+    Set rsCheckReg = Conn.Execute("select Member_login from JOB_Member where Member_login='" & iName & "'")
+    If Not (rsCheckReg.EOF And rsCheckReg.Bof) Then
+        FoundErr = True
+        ErrMsg = ErrMsg & "“" & iName & "”已经存在！请换一个用户名再试试！"
+    End If
+    rsCheckReg.Close
+    Set rsCheckReg = Nothing
+    If FoundErr = True Then
+        CheckUserName = False
+    Else
+        CheckUserName = True
+    End If
+End Function
+
+Function CheckUserEmail(iEmail)
+    Dim rsCheckUser
+    If iEmail <> "" Then
+        Set rsCheckUser = Conn.Execute("SELECT Member_email FROM JOB_Member WHERE Member_email='" & iEmail & "'")
+        If Not (rsCheckUser.EOF And rsCheckUser.Bof) Then
+            FoundErr = True
+            ErrMsg = ErrMsg & "您所填写的Email已经存在！"
+            CheckUserEmail = False
+        Else
+            CheckUserEmail = True
+        End If
+        rsCheckUser.Close
+        Set rsCheckUser = Nothing
+    Else
+        CheckUserEmail = True
+    End If
+End Function
+'*************************************************************************
+%>

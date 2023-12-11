@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/views/common/contextPath.jsp"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Insert title here</title>
+</head>
+<body>
+<!-- header start -->
+			<div id="header">
+	<div id="header-inner" >
+		<div class="operate-btn" id="save" style="float:right"><a href="javascript:;">保存</a></div>
+			<span class="scale-under-530">
+			<div class="operate-btn" id="operate-tpl"><a href="javascript:;">选择模板</a></div>
+			<div class="operate-btn" id="operate-print"><a href="javascript:;">打印</a></div>
+			<div class="operate-btn" id="operate-down">
+				<a href="javascript:;">下载</a>
+				<div id="down-pdf-word">
+					<a id="operate-pdf" href="javascript:;">PDF</a>
+					<a id="operate-word" href="javascript:;">DOC</a>
+				</div>
+			</div>
+			<div class="operate-btn" id="operate-send">
+				<a href="javascript:;">发送</a>
+				<div id="send-mail-mobile">
+					<a id="operate-mail" href="javascript:;">到邮箱</a>
+					<a id="operate-mobile" href="javascript:;">到手机</a>
+				</div>
+			</div>
+						</span>
+			
+			<span class="scale-under-530">
+			<div class="operate-btn" id="operate-menu">
+				<a href="javascript:;" title="更多操作">
+					<span id="menu-lt" class="menu-b"></span>
+					<span id="menu-rt" class="menu-b"></span>
+					<span id="menu-lb" class="menu-b"></span>
+					<span id="menu-rb" class="menu-b"></span>
+				</a>
+				<div id="menu-items" style="display: none;">
+					<a href="javascript:;" class="menu-item" id="resume-url">简历地址</a>
+					<a href="javascript:;" class="menu-item" id="resume-open" title="已公开">
+						隐藏简历					</a>
+					<a href="javascript:;" class="menu-item" id="resume-across">简历穿越</a>
+					<a href="javascript:;" class="menu-item" id="operate-help">留言反馈</a>
+				</div>
+			</div>
+			</span>
+			
+		</span>
+	</div>
+	<div id="tips" style="display: none; margin-left: -110px;">选择一份模板，创建自己的简历！</div>
+</div><!-- header end -->
+<div id="templates">
+				<div id="ca-container" class="ca-container"><div class="ca-nav"><span class="ca-nav-prev">Previous</span><span class="ca-nav-next">Next</span></div>
+					<div class="ca-wrapper" style="overflow: hidden;">
+						<!--
+						<div class="ca-item">
+							<div class="theme-color" style="background: #B4C9CE;" val="#B4C9CE">&nbsp;</div>
+							<div class="theme-color" style="background: #E0E1E8;" val="#E0E1E8">&nbsp;</div>
+							<div class="theme-color" style="background: #D51D29;" val="#D51D29">&nbsp;</div>
+							<div class="theme-color" style="background: #C26666;" val="#C26666">&nbsp;</div>
+							<div class="theme-color" style="background: #5E8EE0;" val="#5E8EE0">&nbsp;</div>
+							<div class="theme-color" style="background: #19335E;" val="#19335E">&nbsp;</div>
+							<div class="theme-color" style="background: #E1E2AC;" val="#E1E2AC">&nbsp;</div>
+							<div class="theme-color" style="background: #FDE7CB;" val="#FDE7CB">&nbsp;</div>
+							<div class="theme-color" style="background: #000;" val="#000"></div>
+							<div class="theme-color" style="background: #fff;" val="#fff"></div>
+							<a href="#" class="ca-more">主题色</a>
+						</div>
+						-->
+																				<div class="ca-item ca-item-1" tpl="default" theme="#B4C9CE" style="position: absolute; left: 0px;">
+								<a href="${contextPath}/resume/default.do">
+									<img src="./blockleft/default.png" width="140" height="200">
+								</a>
+								<a href="#" class="ca-more">模板</a>
+							</div>
+																				<div class="ca-item ca-item-1" tpl="blockline" theme="#5E8EE0" style="position: absolute; left: 140px;">
+								<a href="${contextPath}/resume/blockline.do">
+									<img src="./blockleft/blockline.png" width="140" height="200">
+								</a>
+								<a href="#" class="ca-more">模板</a>
+							</div>
+																				<div class="ca-item ca-item-1" tpl="redline" theme="#FFFFFF" style="position: absolute; left: 280px;">
+								<a href="${contextPath}/resume/redline.do">
+									<img src="./blockleft/redline.png" width="140" height="200">
+								</a>
+								<a href="#" class="ca-more">模板</a>
+							</div>
+																				<div class="ca-item ca-item-1" tpl="bordered" theme="#B4C9CE" style="position: absolute; left: 420px;">
+								<a href="${contextPath}/resume/bordered.do">
+									<img src="./blockleft/bordered.png" width="140" height="200">
+								</a>
+								<a href="#" class="ca-more">模板</a>
+							</div>
+																				<div class="ca-item ca-item-1" tpl="blueline" theme="#EEEEEE" style="position: absolute; left: 560px;">
+								<a href="${contextPath}/resume/blueline.do">
+									<img src="./blockleft/blueline.png" width="140" height="200">
+								</a>
+								<a href="#" class="ca-more">模板</a>
+							</div>
+																				<div class="ca-item ca-item-1" tpl="blockleft" theme="#B4C9CE" style="position: absolute; left: 700px;">
+								<a href="${contextPath}/resume/blockleft.do">
+									<img src="./blockleft/blockleft.png" width="140" height="200">
+								</a>
+								<a href="#" class="ca-more">模板</a>
+							</div>
+											</div>
+				</div>
+			</div>
+</body>
+</html>

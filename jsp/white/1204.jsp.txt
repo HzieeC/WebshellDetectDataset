@@ -1,0 +1,26 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@page import="com.bizoss.trade.ti_teamorder.Ti_teamorderInfo;"%>
+<%
+ 
+ Ti_teamorderInfo ti_teamorderInfo = new Ti_teamorderInfo(); 
+ String c_array="["; 
+ Hashtable map = new Hashtable();
+ for(int i=11;i>=0;i--)
+ {
+	   if(i!=0)
+	   {
+       c_array  = c_array + ti_teamorderInfo.getGroupOrderNumCount(i+"")+",";
+	   }
+	   else
+	   {
+       c_array  = c_array + ti_teamorderInfo.getGroupOrderNumCount(i+"");
+	   } 
+ 
+ } 
+ c_array  = c_array +"]"; 
+ out.print(c_array); 
+
+%>
+
+

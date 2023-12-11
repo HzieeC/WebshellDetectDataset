@@ -1,0 +1,51 @@
+<!--#include file="config.asp"-->
+<%
+function get_access_token(request_token, request_token_secret, vericode)
+    '获取access token接口，不要随便更改!!
+    dim url:url    = "http://openapi.qzone.qq.com/oauth/qzoneoauth_access_token?"
+    '构造签名串.源串:方法[GET|POST]&uri&参数按照字母升序排列
+    dim sigstr:sigstr = "GET" & "&" &server.URLEncode("http://openapi.qzone.qq.com/oauth/qzoneoauth_access_token") & "&"
+
+    '必要参数,不要随便更改,按照字母升序
+	dim normalized_str:normalized_str="oauth_consumer_key=" & appid & "&oauth_nonce=" & MakeRandom(10) &"&oauth_signature_method=HMAC-SHA1&oauth_timestamp=" & toUnixTime(now,8) & "&oauth_token=" & request_token &"&oauth_vericode=" & vericode & "&oauth_version=1.0"
+	
+
+	sigstr    = sigstr &  server.URLEncode(normalized_str)
+	sigstr    = replace(replace(replace(sigstr,"%2E","."),"%5F","_"),"%2D","-") '采用php的 rawurlencode 所以要替换回来特殊符号
+    
+    '生成签名,确保php版本支持hash_hmac函数
+    dim key:key = appkey & "&" & request_token_secret
+    dim signature:signature = b64_hmac_sha1(key,sigstr)
+    '构造请求url
+    url      = url & normalized_str & "&oauth_signature=" & server.urlencode(signature)
+	
+    get_access_token= file_get_contents(url)
+end function
+
+
+if ( not is_valid_openid(request("openid"), request("timestamp"), request("oauth_signature"))) then
+     'demo对错误简单处理
+     response.write  "openid错误或者未审核"
+     response.End
+end if
+
+'用授权的request token换取access token
+dim access_str:access_str = get_access_token(REQUEST("oauth_token"), SESSION("secret"), REQUEST("oauth_vericode"))
+
+Dim result:set result=parse_str(access_str)
+
+if result("openid")=""then
+Response.Write"出错啦，没有成功获得openid!"
+Response.End
+End if
+
+Dim resultxml:resultxml= get_user_info(result("oauth_token"), result("oauth_token_secret"), result("openid"))
+
+'保存到session
+session("resultxml")=resultxml
+session("token")   = result("oauth_token")
+session("secret")  = result("oauth_token_secret")
+session("openid")  = result("openid")
+
+response.Redirect("qqbind.asp")
+%>

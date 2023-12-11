@@ -1,0 +1,669 @@
+<%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@page import="com.bizoss.trade.ti_keyword.*"%>
+<%@page import="com.bizoss.createIndex.search.*"%>
+<%@page import="com.bizoss.frame.util.Config"%>
+<%@page import="com.bizoss.frame.util.PageUtil"%>
+<%@page import="com.bizoss.trade.uploadFile.ReturnImgWH"%>
+<%@page import="java.io.*"%>
+<%!public String getPartLength(String key, int num) {
+		if (key.equals(""))
+			return "";
+		if (key.length() > num)
+			key = key.substring(0, num) + "...";
+		return key;
+	}
+
+	%>
+
+<%
+	request.setCharacterEncoding("UTF-8");
+
+	GoodsIndexFiles goodsIndex = new GoodsIndexFiles();
+	CategoryIndexFiles catIndex = new CategoryIndexFiles();
+	AttachIndexFiles attachIndex = new AttachIndexFiles();
+	BrandIndexFiles brandIndex = new BrandIndexFiles();
+	CategoryattrIndexFiles catattrIndex = new CategoryattrIndexFiles();
+
+	Config configa = new Config();
+	configa.init();
+	ReturnImgWH retwh = new ReturnImgWH();
+	String rootpath = configa.getString("rootpath");
+	String goods_article_path = configa.getString("goods_article_path");
+	String noimg_path = configa.getString("noimg_path");
+
+	String keyword = "",cat_attr="", keyword_b = "", cat_id_para = "", brand_id_para = "",info_state="", orderby = "in_date", sort_type = "true";
+	String start_price_para = "", end_price_para = "", attr_desc_para = "";
+	if (request.getParameter("keyword") != null) {
+		keyword_b = request.getParameter("keyword");
+		keyword = java.net.URLDecoder.decode(keyword_b, "UTF-8");
+	}
+	if(!keyword.equals("")){
+		Ti_keywordInfo keywordInfo = new Ti_keywordInfo();
+		String key_type = "0";
+		Hashtable keywordMap = new Hashtable();
+		keywordMap.put("key_word",keyword);
+	    keywordMap.put("key_type",key_type);
+		keywordInfo.updateKeyWordNum(keywordMap);
+	}
+	if (request.getParameter("info_state") != null) {
+		info_state = request.getParameter("info_state");
+	}
+	if (request.getParameter("cat_id_para") != null) {
+		cat_id_para = request.getParameter("cat_id_para");
+	}
+	if (request.getParameter("cat_attr") != null) {
+		cat_attr = request.getParameter("cat_attr");
+		if(cat_attr.length()>20)
+			cat_id_para=cat_attr.substring(cat_attr.length()-16,cat_attr.length()-1);
+		else
+			cat_id_para=cat_attr;
+	}
+	
+	if (request.getParameter("brand_id_para") != null) {
+		brand_id_para = request.getParameter("brand_id_para");
+	}
+	if (request.getParameter("start_price_para") != null) {
+		start_price_para = request.getParameter("start_price_para");
+	}
+	if (request.getParameter("end_price_para") != null) {
+		end_price_para = request.getParameter("end_price_para");
+	}
+	if (request.getParameter("attr_desc_para") != null) {
+		attr_desc_para = new String(request.getParameter(
+				"attr_desc_para").getBytes("ISO-8859-1"), "UTF-8");
+	}
+	if (request.getParameter("orderby_para") != null) {
+		orderby = request.getParameter("orderby_para");
+	}
+	if (request.getParameter("sort_type") != null) {
+		sort_type = request.getParameter("sort_type");
+	}
+	String listOrImg = "1";
+	if (request.getParameter("listOrImg") != null) {
+		listOrImg = request.getParameter("listOrImg");
+	}
+	String cat_desc = goodsIndex.dealAttrdesc(attr_desc_para);
+	Map comMap = new Hashtable();
+	comMap.put("keyword", keyword);
+	comMap.put("cat_id", cat_id_para);
+	comMap.put("brand_id", brand_id_para);
+	comMap.put("start_price", start_price_para);
+	comMap.put("end_price", end_price_para);
+	comMap.put("attr_desc_para", cat_desc);
+	comMap.put("orderby", orderby);
+	comMap.put("sort_type", sort_type);
+	comMap.put("info_state", info_state);
+	comMap.put("file_path", "_shopgoods");
+	List goodsList = goodsIndex.getGoodsInfo(comMap);
+	Map gooMap = new Hashtable();
+	comMap.put("orderby", "in_date");
+	comMap.put("sort_type", "false");
+	gooMap.put("cat_id", cat_id_para);
+	gooMap.put("brand_id", brand_id_para);
+	List hotgoodsList = goodsIndex.getGoodsInfo(gooMap);
+	List catNumList=null;
+	int cat_size =0;
+	catNumList = goodsIndex.getGoodsCatListNum(cat_id_para,goodsList);
+	if(catNumList!=null&catNumList.size()>0){
+	 	cat_size=catNumList.size();
+	 }else{
+		catNumList = goodsIndex.getGoodsCatListNum("",goodsIndex.getGoodsInfo(new Hashtable()));
+		if(catNumList!=null&catNumList.size()>0){
+	 		cat_size=catNumList.size();
+		 }
+	 }
+	
+	Map bbMap = comMap;
+	bbMap.remove("brand_id");
+	List brandNumList =null;
+	List list_temp=goodsIndex.getGoodsInfo(bbMap);
+	if(list_temp!=null&&list_temp.size()>0)
+		brandNumList = brandIndex.getGoodsBrandListNum("",list_temp);
+	Map ccMap = comMap;
+	ccMap.remove("start_price");
+	ccMap.remove("end_price");
+	Map mmMap = goodsIndex.getGoodsPriceMaxMin(goodsIndex
+			.getGoodsInfo(ccMap));
+	int price_max = 0, price_min = 0;
+	if (mmMap != null && mmMap.get("max") != null
+			&& !mmMap.get("max").toString().equals(""))
+		price_max = Integer.parseInt(mmMap.get("max").toString());
+	if (mmMap != null && mmMap.get("min") != null
+			&& !mmMap.get("min").toString().equals(""))
+		price_min = Integer.parseInt(mmMap.get("min").toString());
+	int price_int_max = 1;
+	int price_int_min = 1;
+	while (price_max > 10) {
+		price_max = price_max / 10;
+		price_int_max = price_int_max * 10;
+	}
+	while (price_min > 10) {
+		price_min = price_min / 10;
+		price_int_min = price_int_min * 10;
+	}
+	price_min = price_min * price_int_min;
+	if (price_max != 0) {
+		price_max = (price_max + 1) * price_int_max;
+	}
+	int mm_num = (price_max - price_min) / 5;
+	if (mm_num > 10) {
+		mm_num = mm_num / 10 * 10;
+	} else {
+		mm_num = 10;
+	}
+	ArrayList catattrList = new ArrayList();
+	if (!cat_id_para.equals("")) {
+		catattrList = catattrIndex.getCategoryAttrListByCatId(cat_id_para);
+	}
+	
+	
+	int limit =12;
+	int start = 0,end = limit;
+	int startPage =1;
+	if(request.getParameter("start") != null && !request.getParameter("start").equals("")){
+		start = Integer.parseInt(request.getParameter("start"));
+	}
+	if(start==1 || start==0) {
+		start = 0;
+		startPage = 1;
+	}else{
+		startPage = start;
+		start = (start-1) * limit;
+	}
+	end = start + limit;
+	int counter = 0;
+	if (goodsList != null && goodsList.size() > 0)
+		counter = goodsList.size();
+	if(end>counter) {
+		end = counter;
+	}
+	
+	String a_class="background-color: #D71300;color: #FFFFFF;display: block;float: left;font-style: normal;height: 17px;line-height: 17px; margin-left: 0;padding: 0 3px;";
+	String page_class="background-position: 0 -210px;color: #FFFFFF;";
+	String pageStr_class="background: none repeat scroll 0 0 #FF9933;border: 1px solid #FF9933;color: #FFFFFF;";
+	String com_page = "/shop_goodslist.html";
+	String req_url=com_page+"?cat_id_para="+cat_id_para+"&brand_id_para="+brand_id_para+"&start_price_para="+start_price_para+"&end_price_para="+end_price_para+"&info_state="+info_state+"&";
+	PageUtil pageUtil = new PageUtil("[index/]","[uppage/]","[downpage/]","[lastpage/]","","[num/]","[thisnum/]");
+	String pageString = pageUtil.getPageString(req_url+"start="+start,counter,limit,startPage,null,pageStr_class);
+	
+	String cat_name_para = catIndex.getCatNameById(cat_id_para);
+	String brand_name_para = brandIndex.getBrandNameById(brand_id_para);
+	
+	List sonCatNumList=null;
+%>
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title><%=cat_name_para%><%=brand_name_para%>——贞龙商城</title>
+<link href="/templets/html/shop/css/style.css" rel="stylesheet" type="text/css" />
+<link href="/templets/html/shop/css/prolistnew.css" rel="stylesheet" type="text/css">
+<script type="text/javascript" src="/templets/html/shop/js/jquery_002.js"></script>
+<script type="text/javascript" src="/templets/html/shop/js/prolistnew.js"></script>
+	<script type='text/javascript' src='/dwr/engine.js'></script>
+		<script type='text/javascript' src='/dwr/util.js'></script>
+		<script type='text/javascript' src='/dwr/interface/Ti_subscribeInfo.js'></script> 
+		<script type='text/javascript' src='/templets/html/shop/js/_shop.js' charset="utf-8"></script>
+</head>
+<body>
+<script> 
+  document.write("<s" + "cript type='text/javascript' src='/templets/html/shop/top.jsp?" + Math.random() + "'></scr" + "ipt>");
+</script>
+<div id="contaner">
+  <div class="ShoesList">
+    <div class="areaSide">
+      <div class="sorttitle">商品分类</div>
+		<div class="sort">
+<%
+	
+	if (catNumList != null && catNumList.size() > 0) {
+					Hashtable nMap = new Hashtable();
+						for (int i = 0; i < catNumList.size(); i++) {
+							nMap = (Hashtable) catNumList.get(i);
+							String cat_id = "", cat_name = "", cat_num = "";
+							if (nMap.get("cat_id") != null){
+								cat_id = nMap.get("cat_id").toString();
+							}
+							if (nMap.get("cat_name") != null)
+								cat_name = nMap.get("cat_name").toString();
+							if (nMap.get("cat_num") != null)
+								cat_num = nMap.get("cat_num").toString();
+							
+				%>
+				 <%
+					        	if(cat_id_para.equals("cat_id")){%>
+					        		<h2><a href="javascript:updateCatIdBySearch('cat_id_para','<%=cat_id %>');" class="open"></a><%=cat_name%></h2>
+									<ul style='display: block;'>
+								<%}else if(i==0){%>
+									<h2><a href="javascript:updateCatIdBySearch('cat_id_para','<%=cat_id %>');" class="open"></a><%=cat_name%></h2>
+					        		<ul style='display: block;'>
+					        	<%}else{%>
+					        		<h2><a href="javascript:updateCatIdBySearch('cat_id_para','<%=cat_id %>');" ></a><%=cat_name%></h2>
+					        		<ul class="hide">
+					        	
+					        	<%}
+					         %>
+					          <li class="allshoes current"><strong>所有<a href="javascript:updateCatIdBySearch('cat_id_para','<%=cat_id %>');"><%=cat_name%></a></strong></li>
+
+				 	<%
+					       		sonCatNumList=catIndex.getCategoryByUpCatId(cat_id,"2");
+					       		Map mMap=null;
+					       		if(sonCatNumList!=null&&sonCatNumList.size()>0){
+					       			String son_cat_id="",son_cat_name="";
+					       			for(int j=0;j<sonCatNumList.size();j++){
+					       				mMap = (Hashtable) sonCatNumList.get(j);
+					       				if (mMap.get("cat_id") != null){
+					       					son_cat_id = mMap.get("cat_id").toString();
+					       				}
+											
+										if (mMap.get("cat_name") != null)
+											son_cat_name = mMap.get("cat_name").toString();%>
+					       				<li><a class="type" href="javascript:updateCatIdBySearch('cat_id_para','<%=son_cat_id %>');"><%=son_cat_name %></a></li>
+					       			<%}
+					       		}
+					       	 %> 
+					        </ul>
+							<%
+								}}
+							%>
+      </div>
+      <div id="RecommendedResults"></div>
+      <!--2-->
+      <h2 class="recently">最值得关注的商品 </h2>
+      <ul class="blicktHot" id="recentlyItems">
+      	<%
+					if (hotgoodsList != null && hotgoodsList.size() > 0) {
+						int size = hotgoodsList.size()>5 ? 5 :  hotgoodsList.size();
+						Hashtable nMap = new Hashtable();
+						for (int i = 0; i < size; i++) {
+							nMap = (Hashtable) hotgoodsList.get(i);
+							String goods_name = "", goods_id = "",discount="", sale_price = "", file_path = "", market_price = "", stock_out = "", comm_num = "", in_date = "";
+							String infoUrl = "", cust_id = "", outline = "";
+							if (nMap.get("goods_id") != null) {
+								goods_id = nMap.get("goods_id").toString();
+							}
+							if (nMap.get("goods_name") != null) {
+								goods_name = nMap.get("goods_name").toString();
+								if (goods_name.length() > 14) {
+									goods_name = goods_name.substring(0, 14);
+								}
+							}
+							if (nMap.get("sale_price") != null) {
+								sale_price = nMap.get("sale_price").toString();
+							}
+							file_path = attachIndex.getFilepathById(goods_id);
+							if (file_path.equals(""))
+								file_path = noimg_path;
+							if (nMap.get("in_date") != null) {
+								in_date = nMap.get("in_date").toString();
+							}
+							if (in_date.length() >= 8) {
+								String yeard = in_date.substring(0, 4);
+								String monthd = in_date.substring(4, 6);
+								String dayd = in_date.substring(6, 8);
+								in_date = yeard + "-" + monthd + "-" + dayd;
+							}
+							File file = new File(rootpath + file_path);
+							if (listOrImg.equals("1")) {
+								int dis_imgwidth = 166, dis_imgheight = 196;
+								if (file.exists()) {
+									int a[] = retwh
+											.returnSrcImgWH(rootpath + file_path);
+									int b[] = retwh.returnDisImgWH(a, dis_imgwidth,
+											dis_imgheight);
+									dis_imgwidth = b[0];
+									dis_imgheight = b[1];
+								}
+								infoUrl =  goods_article_path + in_date + "/"
+										+ goods_id + ".html";
+								;
+								
+				%>
+				  <li class="bfd_item1"> 
+        			<span class="bfd_product_img1">
+		            <a href="<%=infoUrl %>" class="img"> <img  src="<%=file_path%>" class="bfd_thumb1" width="60px"></a>
+		           </span>
+		           	<p>
+		          		<a href="<%=infoUrl %>" style="height: 30px; overflow: hidden;" target="_blank" class="bfd_item_name1" title="<%=goods_name %>"><%=goods_name %></a>
+		          		<span class="bfd_price1">￥<%=sale_price %></span>
+		          	</p>
+		          <div class="clear"></div>
+		        </li>
+				<%}}} %>
+      </ul>
+    </div>
+    <div class="areaShoesList">
+      <div class="location">
+        <div><a href="<%=com_page %>">商品分类</a> &gt;
+        <%
+        	if(cat_name_para==null||"".equals(cat_name_para))
+        		out.print("所有商品");
+        	else{%>
+        	  <a href="#" class="defaultColor">
+	          	<h1><%=cat_name_para %></h1>
+	          </a>
+        	<%}
+         %>
+       
+        </div>
+        (共找到<b><%=counter%></b>款) </div>
+      <div class="shoesnav">       
+      
+          
+            <%
+					if (brandNumList != null && brandNumList.size() > 0) {%>
+					  <dl>
+				          <dt>品牌：</dt>
+				          <dd>
+							 <em <%if(brand_id_para.equals(""))out.print("class='selecteall'");else out.print("class='selecte_all'"); %>><a  href="javascript:updateCatIdBySearch('brand_id_para','');" >全部</a></em>
+		           				 <ul>
+							<%Hashtable nMap = new Hashtable();
+								int brand_size=brandNumList.size();
+								int brand_limit=brand_size>=10?10:brand_size;
+								
+								for (int i = 0; i < brand_limit; i++) {
+									nMap = (Hashtable) brandNumList.get(i);
+									String brand_id = "", brand_name = "", brand_num = "";
+									if (nMap.get("brand_id") != null)
+										brand_id = nMap.get("brand_id").toString();
+									if (nMap.get("brand_name") != null)
+										brand_name = nMap.get("brand_name").toString();
+									if (nMap.get("brand_num") != null)
+										brand_num = nMap.get("brand_num").toString();
+							%>
+									<li>
+									<%
+										if(brand_id.equals(brand_id_para)){%>
+											<a style="<%=a_class%>" href="javascript:updateCatIdBySearch('brand_id_para','<%=brand_id %>');" ><%=brand_name %></a>
+										<%}else{%>
+											<a  href="javascript:updateCatIdBySearch('brand_id_para','<%=brand_id %>');" ><%=brand_name %></a>
+										<%}
+									 %>
+										 
+									</li>
+
+								<%
+									}
+									if(brand_size>10){
+										for (int i = brand_limit; i < brand_size; i++) {
+												nMap = (Hashtable) brandNumList.get(i);
+												String brand_id = "", brand_name = "", brand_num = "";
+												if (nMap.get("brand_id") != null)
+													brand_id = nMap.get("brand_id").toString();
+												if (nMap.get("brand_name") != null)
+													brand_name = nMap.get("brand_name").toString();
+												if (nMap.get("brand_num") != null)
+													brand_num = nMap.get("brand_num").toString();%>
+											 <li class="more" style="display:none">
+											 	<%
+												if(brand_id.equals(brand_id_para)){%>
+													<a style="<%=a_class%>" href="javascript:updateCatIdBySearch('brand_id_para','<%=brand_id %>');" ><%=brand_name %></a>
+												<%}else{%>
+													<a  href="javascript:updateCatIdBySearch('brand_id_para','<%=brand_id %>');" ><%=brand_name %></a>
+												<%}
+											 %>
+											  </li>
+											<%}
+										} %>
+					              </ul>
+			            		  <a class="selectemore" href="#">更多</a>
+			            		    </dd>
+						          <dd class="clear"></dd>
+						        </dl>
+								<%}%>
+           
+     
+            <%
+				if (price_max != price_min) {%>
+				   <dl>
+			          <dt>价格：</dt>
+			          <dd> <em <%if(start_price_para.equals(""))out.print("class='selecteall'");else out.print("class='selecte_all'"); %>><a href="javascript:setSearchPrice('','');" >全部</a></em>
+			            <ul id="pricelist" class="pricelist">
+								<%while (price_max > price_min) {
+										int start_price = price_min;
+										price_min = price_min + mm_num;
+							%>
+							<li>
+							<%
+										if((String.valueOf(start_price)).equals(start_price_para)){%>
+										<a style="<%=a_class %>" href="javascript:setSearchPrice('<%=start_price %>','<%=price_min %>');" >
+											<%=start_price%> -<%=price_min%>元
+										</a>
+										<%}else{%>
+											<a href="javascript:setSearchPrice('<%=start_price %>','<%=price_min %>');" >
+											<%=start_price%> -<%=price_min%>元
+										</a>
+										<%}
+									 %>
+								
+							</li>
+							<%
+								}%>
+							   </ul>
+						          </dd>
+						          <dd class="clear"></dd>
+						        </dl>	
+							<%}%>
+        <%
+		if (catattrList != null && catattrList.size() > 0) {%>
+		
+			<%Hashtable aMap = new Hashtable();
+			for (int i = 0; i < catattrList.size(); i++) {
+				aMap = (Hashtable) catattrList.get(i);
+				String attr_name = "", default_value = "", attr_id = "", en_name = "";
+				if (aMap.get("attr_id") != null)
+					attr_id = aMap.get("attr_id").toString();
+				if (aMap.get("attr_name") != null)
+					attr_name = aMap.get("attr_name").toString();
+				if (aMap.get("default_value") != null)
+					default_value = aMap.get("default_value").toString();
+				if (aMap.get("en_name") != null)
+					en_name = aMap.get("en_name").toString();%>
+				<dl class="lastline">
+					<dt><%=attr_name %>：</dt>
+				          <dd id="sizeArea" class="sizeArea"> <em class="selecteall"><a href="javascript:dealCatattr('attr_desc_para','')">全部</a></em>
+				            <ul class="size" id="size">
+						<%if (!default_value.equals("")&& default_value.indexOf("|") > -1) {
+							String deStr[] = default_value.split("\\|");
+							if (deStr.length > 0) {
+								for (int j = 0; j < deStr.length; j++) {
+									String deStr_name = deStr[j];
+									String attr_str = attr_id + "|" + deStr_name
+											+ ",";%>
+									<li>
+									<%
+												if(attr_str.equals(cat_desc)){%>
+													<a style="<%=a_class %>" href="javascript:dealCatattr('attr_desc_para','<%=attr_str%>')"><%=deStr_name %></a>
+												<%}else{%>
+													<a href="javascript:dealCatattr('attr_desc_para','<%=attr_str%>')"><%=deStr_name %></a>
+												<%}
+											 %>
+										
+									</li>		
+									<%}
+								}
+							}%>
+		            	</ul>
+		            <a style="display: none;" class="selectemore" href="#">更多</a> </dd>
+		          <dd class="clear"></dd>
+		        </dl>
+				<%}}
+					%>
+      
+        <a name="aa"></a> </div>
+      <div class="blickSortPage" >
+        <p class="boxSort"> 
+        <span class="title">排序：</span> 
+         <!-- <a  href="javascript:state_codeSearch('e');"> </a> -->
+         <a  href="javascript:tongyiSearch('stock_out','false');" <%if(orderby.equals("stock_out"))out.print("style='"+page_class+"'"); %>><span>最热销</span></a>
+         <a  href="javascript:tongyiSearch('_sale_price','false');" <%if(orderby.equals("_sale_price"))out.print("style='"+page_class+"'"); %>><span>最低价</span></a> 
+          <a  href="javascript:tongyiSearch('in_date','false');" <%if(orderby.equals("in_date"))out.print("style='"+page_class+"'"); %>><span>最新上架</span></a>
+        </p>
+        
+      </div>
+      <div id="mainshow" style="width:792px; overflow:hidden;" class="mainshow">
+        <ul class="blickShoesList" style="width:792px; overflow:hidden;">
+        
+        	<%
+					if (goodsList != null && goodsList.size() > 0) {
+						end = (end > goodsList.size()) ? goodsList.size() : end;
+						Hashtable nMap = new Hashtable();
+						for (int i = start; i < end; i++) {
+							nMap = (Hashtable) goodsList.get(i);
+							String goods_name = "", goods_id = "",discount="", sale_price = "", file_path = "", market_price = "", stock_out = "", comm_num = "", in_date = "";
+							String infoUrl = "", cust_id = "", outline = "";
+							if (nMap.get("goods_id") != null) {
+								goods_id = nMap.get("goods_id").toString();
+							}
+							if (nMap.get("discount") != null) {
+								discount = nMap.get("discount").toString();
+							}
+							if (nMap.get("goods_name") != null) {
+								goods_name = nMap.get("goods_name").toString();
+								if (goods_name.length() > 14) {
+									goods_name = goods_name.substring(0, 14);
+								}
+							}
+							if (nMap.get("sale_price") != null) {
+								sale_price = nMap.get("sale_price").toString();
+							}
+							if (nMap.get("market_price") != null) {
+								market_price = nMap.get("market_price").toString();
+							}
+							if (nMap.get("stock_out") != null) {
+								stock_out = nMap.get("stock_out").toString();
+								if (stock_out.equals(""))
+									stock_out = "0";
+								else if (!stock_out.equals("")
+										&& Integer.parseInt(stock_out) < 0)
+									stock_out = "0";
+							}
+							if (nMap.get("comm_num") != null) {
+								comm_num = nMap.get("comm_num").toString();
+								if (comm_num.equals(""))
+									comm_num = "0";
+							}
+							file_path = attachIndex.getFilepathById(goods_id);
+							if (file_path.equals(""))
+								file_path = noimg_path;
+							if (nMap.get("in_date") != null) {
+								in_date = nMap.get("in_date").toString();
+							}
+							if (in_date.length() >= 8) {
+								String yeard = in_date.substring(0, 4);
+								String monthd = in_date.substring(4, 6);
+								String dayd = in_date.substring(6, 8);
+								in_date = yeard + "-" + monthd + "-" + dayd;
+							}
+							File file = new File(rootpath + file_path);
+							if (listOrImg.equals("1")) {
+								int dis_imgwidth = 166, dis_imgheight = 196;
+								if (file.exists()) {
+									int a[] = retwh
+											.returnSrcImgWH(rootpath + file_path);
+									int b[] = retwh.returnDisImgWH(a, dis_imgwidth,
+											dis_imgheight);
+									dis_imgwidth = b[0];
+									dis_imgheight = b[1];
+								}
+								infoUrl =  goods_article_path + in_date + "/"
+										+ goods_id + ".html";
+								;
+								
+				%>
+				 <li>
+		           
+		            <a href="<%=infoUrl %>" class="img"> <img  src="<%=file_path%>" class="goodThumb" ></a>
+		            <p> <span class="price orange">￥<%=sale_price %></span> (<%=discount %>折)&nbsp;<br>
+		              市场原价：<del class="gray">￥<%=market_price %></del> </p>
+		            <p class="name"><a href="<%=infoUrl %>" ><%=goods_name %></a></p>
+		          </li>
+				
+				<%
+						}
+					}
+				} else {
+						out.print("没有找到你要的商品");
+					}
+					%>
+
+        </ul>
+        <div class="clear"></div>
+        <div class="page_list" style="border:0">
+      <div class="page">
+      <%=pageString %>
+      </div>
+    </div>
+      </div>
+    </div>
+    <div class="clear"></div>
+  </div>
+  			<form action="<%=com_page%>" method="get" name="tongSearchForm">
+					<input type="hidden" name="q" id="new_q" value="<%=keyword_b%>" />
+					<input type="hidden" name="attr_desc_para" id="attr_desc_para"
+						value="<%=cat_desc%>" />
+					<input type="hidden" name="orderby_para" id="orderby_para"
+						value="<%=orderby%>" />
+					<input type="hidden" name="sort_type" id="sort_type"
+						value="<%=sort_type%>" />
+					<input type="hidden" name="info_state" id="info_state"
+						value="<%=info_state %>" />
+					<input type="hidden" name="cat_id_para" id="cat_id_para"
+						value="<%=cat_id_para%>" />
+					<input type="hidden" name="brand_id_para" id="brand_id_para"
+						value="<%=brand_id_para%>" />
+					<input type="hidden" name="start_price_para" id="start_price_para"
+						value="<%=start_price_para%>" />
+					<input type="hidden" name="end_price_para" id="end_price_para"
+						value="<%=end_price_para%>" />
+					<input type="hidden" name="start" value="<%=startPage%>" />
+					<input type="hidden" name="listOrImg" id="listOrImg"
+						value="<%=listOrImg%>" />
+				</form>
+			<script>
+				function tongyiSearch(orderby,sort_type){
+					document.getElementById('orderby_para').value = orderby;
+					document.getElementById('sort_type').value = sort_type;
+					document.tongSearchForm.submit();
+				}
+				function state_codeSearch(val){
+					document.getElementById('info_state').value = val;
+					document.tongSearchForm.submit();
+				}
+				function updateCatIdBySearch(param_id,param_value){
+					document.getElementById(param_id).value = param_value;
+					document.tongSearchForm.submit();
+				}
+				function updateCatIdBySearchSize(param_id,param_value,cat_size){
+					document.getElementById(param_id).value = param_value;
+					if(cat_size <= 0){
+					document.getElementById('new_q').value = '';
+					}
+					document.tongSearchForm.submit();
+				}	
+				function dealCatattr(param_id,param_value){
+					document.getElementById(param_id).value = document.getElementById(param_id).value + param_value;
+					document.tongSearchForm.submit();
+				}
+				function setSearchPrice(start_price,end_price){
+					document.getElementById('start_price_para').value = start_price;
+					document.getElementById('end_price_para').value = end_price;
+					document.tongSearchForm.submit();
+				}
+				function replaceSpaceAttr(attr_desc){
+					document.getElementById('attr_desc_para').value = document.getElementById('attr_desc_para').value.replace(attr_desc,'');
+					document.tongSearchForm.submit();
+				}
+				function showList(val)
+				{
+				  document.getElementById('listOrImg').value = val;
+				  document.tongSearchForm.submit();
+				}
+			</script>
+	<jsp:include page="/templets/html/shop/footer.jsp"/>
+	</body>
+</html>
+

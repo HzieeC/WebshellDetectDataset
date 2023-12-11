@@ -1,0 +1,282 @@
+ <%@ page language="java" import="java.util.*" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="com.bizoss.trade.ti_orderinfo.Ti_orderinfoInfo" %>
+<%@page import="com.bizoss.trade.ti_attach.Ti_attachInfo" %>
+<%@page import="com.bizoss.trade.ti_goods.Ti_goodsInfo"  %>
+<%@page import="com.bizoss.trade.ti_collect.Ti_collectInfo" %>
+<%@page import="com.bizoss.trade.ti_custcomment.Ti_custcommentInfo" %>
+<%@page import="com.bizoss.trade.ti_newscomment.Ti_newscommentInfo" %>
+<%@ page import="com.bizoss.trade.ti_evaluate.Ti_evaluateInfo" %>
+<%@page import="com.bizoss.trade.ti_finance.Ti_financeInfo" %>
+<%@page import="com.bizoss.updateHtml.parseXml.Config"%>
+<jsp:useBean id="randomId" class="com.bizoss.frame.util.RandomID" scope="page" /> 
+<%!
+public String getPartLength(String key,int num){if(key.equals("")) return "";
+		if(key.length()>num) key = key.substring(0,num)+"...";
+		return key;
+	}
+public String getDateStr(String in_date, String type) {
+		if (in_date.equals(""))
+			return "";
+		if (in_date.length() >= 8) {
+			String yeard = in_date.substring(0, 4);
+			String monthd = in_date.substring(5, 7);
+			String dayd = in_date.substring(8, 10);
+			if (type.equals("")) {
+				in_date = yeard + "-" + monthd + "-" + dayd;
+			} else {
+				in_date = monthd + "-" + dayd;
+			}
+		}
+		return in_date;
+	}
+%>
+<% 
+
+	String cust_id = "";	
+	if( session.getAttribute("session_cust_id") != null ){
+		cust_id = session.getAttribute("session_cust_id").toString();
+	}
+	String user_name = "";	
+	if( session.getAttribute("session_user_name") != null ){
+		user_name = session.getAttribute("session_user_name").toString();
+	}
+	String _user_id = "";	
+	if( session.getAttribute("session_user_id") != null ){
+		_user_id = session.getAttribute("session_user_id").toString();
+	}
+	String user_type = "";	
+	if( session.getAttribute("session_user_type") != null ){
+		user_type = session.getAttribute("session_user_type").toString();
+		if(user_type.equals("2")){
+			user_type="个人会员";
+		}else if(user_type.equals("0")){
+			user_type="企业会员";
+		}else{
+			user_type="运营商";
+		}
+	}
+	
+	Config configa = new Config();
+	configa.init("config.properties");
+	String weburl = configa.getString("weburl");
+	String goods_article_path = "";
+	//订单信息
+	Ti_orderinfoInfo ti_orderinfoInfo = new Ti_orderinfoInfo();
+	//等待买家付款
+	Map params1 = new Hashtable();
+	params1.put("order_state","0"); 
+	params1.put("_user_id",_user_id);
+	int counter1 = ti_orderinfoInfo.getPersonalCountByObj(params1);
+	//买家已付款
+	Map params2 = new Hashtable();
+	params2.put("order_state","1"); 
+	params2.put("_user_id",_user_id);
+	int counter2 = ti_orderinfoInfo.getPersonalCountByObj(params2);
+	//卖家已发货
+	Map params3 = new Hashtable();
+	params3.put("order_state","2"); 
+	params3.put("_user_id",_user_id);
+	int counter3 = ti_orderinfoInfo.getPersonalCountByObj(params3);
+	//交易成功
+	Map params4 = new Hashtable();
+	params4.put("order_state","3"); 
+	params4.put("_user_id",_user_id);
+	int counter4 = ti_orderinfoInfo.getPersonalCountByObj(params4);
+	//无效的订单
+	Map params5 = new Hashtable();
+	params5.put("order_state","4"); 
+	params5.put("_user_id",_user_id);
+	int counter5 = ti_orderinfoInfo.getPersonalCountByObj(params5);
+	//退货中的订单
+	Map params6 = new Hashtable();
+	params6.put("order_state","5"); 
+	params6.put("_user_id",_user_id);
+	int counter6 = ti_orderinfoInfo.getPersonalCountByObj(params6);
+	//待付款和待发货订单
+	Map params7 = new Hashtable();
+	params7.put("order_state","6"); 
+	params7.put("_user_id",_user_id);
+	int counter7 = ti_orderinfoInfo.getPersonalCountByObj(params7);
+	
+	int order_counter = counter1 + counter2 + counter3 + counter4 + counter5 + counter6 + counter7;
+	
+	Ti_attachInfo  ti_attachInfo = new Ti_attachInfo(); 
+	String img_path =  ti_attachInfo.getFilePathByAttachrootid(_user_id);
+	if(img_path==null||img_path.equals(""))
+	{
+		 img_path ="/templets/html/8diansp/images/peopleicon_01.gif";            
+	}  
+	// 获取热销商品 和推荐新品
+	Ti_goodsInfo goodsInfo = new Ti_goodsInfo();
+	Map hotGoods=new Hashtable();
+	hotGoods.put("no_cust_id","100000000000000");
+	List hotgoodslist = goodsInfo.getHotGoodsList(hotGoods);
+	//收藏信息
+	Ti_collectInfo ti_collectInfo = new Ti_collectInfo();
+	//商品收藏数
+	Map product_ti_collect = new Hashtable();
+	product_ti_collect.put("_user_id",_user_id);
+	product_ti_collect.put("info_type","0");
+	int product_counter = ti_collectInfo.getCountByObj(product_ti_collect);
+	//资讯收藏数
+	Map news_ti_collect = new Hashtable();
+	news_ti_collect.put("_user_id",_user_id);
+	news_ti_collect.put("info_type","2");
+	int news_counter = ti_collectInfo.getCountByObj(news_ti_collect);
+	//店铺收藏数
+	Map business_ti_collect = new Hashtable();
+	business_ti_collect.put("_user_id",_user_id);
+	business_ti_collect.put("info_type","1");
+	int business_counter = ti_collectInfo.getCountByObj(business_ti_collect);
+	//商品评价
+	Map ti_custcomment = new Hashtable();
+	ti_custcomment.put("_user_id",_user_id);
+	ti_custcomment.put("com_type","0");
+	Ti_custcommentInfo ti_custcommentInfo = new Ti_custcommentInfo();
+	int product_comment_counter = ti_custcommentInfo.getCountByObj(ti_custcomment);
+	//资讯评价
+	Map ti_newscomment = new Hashtable();
+	ti_newscomment.put("_user_id",_user_id);
+	Ti_newscommentInfo ti_newscommentInfo = new Ti_newscommentInfo();
+	int newscomment_counter = ti_newscommentInfo.getCountByObjAdmin(ti_newscomment);
+	//交易评价
+    Ti_evaluateInfo ti_evaluateInfo = new Ti_evaluateInfo();    
+  	Map params_evaluate = new Hashtable();
+    params_evaluate.put("send__user_id",_user_id); 
+	int counter_evaluate = ti_evaluateInfo.getCountByObj(params_evaluate);
+	//我的财产
+	Map ti_finance = new Hashtable();	
+	Ti_financeInfo ti_financeInfo = new Ti_financeInfo();
+	Hashtable mapf = new Hashtable();
+	mapf.put("cust_id",cust_id);
+	mapf.put("finance_type","1");
+	mapf.put("account_type","1");
+	List list_finance = ti_financeInfo.getListByPk2(mapf);
+	Hashtable mapp = new Hashtable();
+  	if(list_finance!=null && list_finance.size()>0) mapp = (Hashtable)list_finance.get(0);
+	String inter="0";
+	if(mapp.get("use_vmoney")!=null) inter = mapp.get("use_vmoney").toString();
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<link href="/templets/html/8diansp/css/style.css" rel="stylesheet" type="text/css" />
+<link href="/templets/html/8diansp/css/grzx.css" rel="stylesheet" type="text/css" />
+<link href="/program/admin/index/css/thickbox.css" rel="stylesheet" type="text/css">
+<script type="text/javascript" src="/js/jquery.js"></script>
+<script type="text/javascript" src="/js/thickbox.js"></script>
+<script type="text/javascript">
+function reinitIframe(){
+	var iframe = parent.document.getElementById("contentFrame");
+	try{
+		var bHeight = iframe.contentWindow.document.body.scrollHeight;
+		var dHeight = iframe.contentWindow.document.documentElement.scrollHeight;
+		var height = Math.max(bHeight, dHeight);
+		iframe.height =  height;
+	}catch (ex){
+	
+	}
+}
+
+function openAvatarPage(val){
+   var title = "会员头像上传";
+   var gURL = "/program/plugins/upload/uploadImg/index.jsp?height=430&width=720&attach_root_id=<%=_user_id%>&img_type=0";    
+   TB_show(title,gURL,false);
+}
+
+  function copyToClipboard(txt) {
+      if(window.clipboardData) {
+              window.clipboardData.clearData();
+              window.clipboardData.setData("Text", txt);
+              alert("复制成功！");
+      } else if(navigator.userAgent.indexOf("Opera") != -1) {
+           window.location = txt;
+      } else if (window.netscape) {
+           try {
+                netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
+           } catch (e) {
+                alert("被浏览器拒绝！\n请在浏览器地址栏输入'about:config'并回车\n然后将'signed.applets.codebase_principal_support'设置为'true'");
+           }
+           var clip = Components.classes['@mozilla.org/widget/clipboard;1'].createInstance(Components.interfaces.nsIClipboard);
+           if (!clip)
+                return;
+           var trans = Components.classes['@mozilla.org/widget/transferable;1'].createInstance(Components.interfaces.nsITransferable);
+           if (!trans)
+                return;
+           trans.addDataFlavor('text/unicode');
+           var str = new Object();
+           var len = new Object();
+           var str = Components.classes["@mozilla.org/supports-string;1"].createInstance(Components.interfaces.nsISupportsString);
+           var copytext = txt;
+           str.data = copytext;
+           trans.setTransferData("text/unicode",str,copytext.length*2);
+           var clipid = Components.interfaces.nsIClipboard;
+           if (!clip)
+                return false;
+           clip.setData(trans,null,clipid.kGlobalClipboard);
+           alert("复制成功");
+      }
+}
+
+</script>
+ </head>
+<body onload="reinitIframe()">
+ <div class="userinfo">
+      <dl>
+        <dt><span class="fr"></span>您好，<span id="endUserName"><%=user_name %></span>
+        	[<%=user_type %>]
+        </dt>
+         
+        <dd>
+        	<span class="fl180">账户余额：<strong>￥<%=inter%>元</strong></span>
+         
+        </dd>
+      </dl>
+       
+      <div class="portrait"><img src="<%=img_path %>" width="80" height="80"><a href="javascript:openAvatarPage();">修改头像</a></div>
+    </div>
+    <div class="producebox">
+      <h2>最近热销的商品</h2>
+      <ul class="items">
+        <% 
+          String goods_name = "",company_id="", sale_price="", image_path="", infoUrl="", publish_date="", goods_id="";
+          if(hotgoodslist!=null&&hotgoodslist.size() > 0 ){
+               for(int a = 0; a != 4&&a<hotgoodslist.size(); a++){
+                   Hashtable maps = (Hashtable)hotgoodslist.get(a);
+                   
+                   if(maps.get("goods_name")!=null) goods_name = maps.get("goods_name").toString();
+				   if(maps.get("cust_id")!=null) company_id = maps.get("cust_id").toString();
+                   if(maps.get("sale_price")!=null) sale_price = maps.get("sale_price").toString();
+                   if(maps.get("image_path")!=null){
+                   	 image_path = maps.get("image_path").toString();
+                   }
+                   if(image_path.equals(""))
+                   	 	image_path="/program/images/cpwu.gif";
+                   if(maps.get("goods_id")!=null) goods_id = maps.get("goods_id").toString();
+                   if(maps.get("publish_date")!=null) publish_date = maps.get("publish_date").toString();
+                   goods_name = getPartLength(goods_name , 10);
+                   infoUrl = "/data/company/"+company_id+"/goods/" + getDateStr(publish_date,"") + "/" + goods_id	+ ".html";
+               
+           %>
+            <li>
+            	<a class="pic_120" target="_blank" title="<%=goods_name %>" href="<%=infoUrl %>"> 
+            	<img src="<%=image_path %>" width="115" height="115"> </a>
+          		<h3> <a  href="<%=infoUrl %>" target="_blank"><%=goods_name %></a> </h3>
+		        <em>￥<%=sale_price %></em>
+		        <p style="line-height:16px;margin-top:5px;"> 
+		        	<img src="/templets/html/8diansp/images/icon_star10x10_on.jpg">
+		        	<img src="/templets/html/8diansp/images/icon_star10x10_on.jpg">
+		        	<img src="/templets/html/8diansp/images/icon_star10x10_on.jpg">
+		        	<img src="/templets/html/8diansp/images/icon_star10x10_on.jpg"> 
+		        	<img src="/templets/html/8diansp/images/icon_star10x10_off.jpg"> <br>
+		        </p>
+        </li>
+             <%
+          }
+           } %>
+       
+      </ul>
+    </div>
+    </body>
+    </html>

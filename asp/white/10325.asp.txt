@@ -1,0 +1,80 @@
+<%@LANGUAGE="VBSCRIPT" CODEPAGE="936"%>
+<!--#include file="conn/conn.asp"-->
+<!--#include file="inc/Commoncode.asp"-->
+<!--#include file="inc/CommonFunction.asp"-->
+<!--#include file="inc/md5.asp"-->
+<!--#include file="inc/sendmail.asp" -->
+<!--#include file="smsapi/smsapi.asp"-->
+<%If FR_HR_Sql = True then Call SQLin()
+If Request.QueryString("action")="submit" Then
+	loginname=Trim(Request.Form("loginname"))
+	membertype=Trim(Request.Form("membertype"))
+	
+	email=Trim(Request.Form("email"))
+	mobile=Trim(Request.Form("shouji"))
+'	strMailContent="会员帐号："&loginname&"<br>"
+'	strMailContent=strMailContent&"会员类型："&membertype&"<br>"
+'	strMailContent=strMailContent&"真实姓名："&truename&"<br>"
+	
+	newpass=Date()&Now()
+	newpass=Md5(newpass,32)
+	newpass=Left(Md5(newpass,32),6)
+	newpass=Md5(newpass,32)
+	newpass=Right(Md5(newpass,32),6)
+	newpass2=newpass
+	newpass=Md5(newpass,32)
+	
+	Set rs=Server.CreateObject("ADODB.RecordSet")
+	Select Case membertype
+		Case "个人会员"
+		sql="select Member_pwd,Member_email from JOB_Member where member_login='"&loginname&"' and member_typeid=1"
+		Case "企业会员"
+		sql="Select Member_pwd,Member_email From JOB_Member Where member_login='"&loginname&"' and member_typeid=2"
+		Case "院校会员"
+		sql="Select Member_pwd,Member_email From JOB_Member Where member_login='"&loginname&"' and member_typeid=3"
+		Case "培训会员"
+		sql="Select Member_pwd,Member_email From JOB_Member Where member_login='"&loginname&"' and member_typeid=4"
+	End Select
+	rs.Open sql,conn,1,3
+	
+	If Not(rs.Eof) Then
+		rs("Member_pwd")=newpass
+		email2=rs("Member_email")
+		If email<>email2 Then
+			Response.Write("<script>alert(""您输入的邮箱和注册时的不符，请输入您注册时用的邮箱！"");history.back();</script>")
+			Response.End()
+		Else
+			rs.Update
+			'整合手机短信
+			if mobile<>"" and Smssend=1 then
+				Set newclient=New SMS
+				respxml=newclient.sendSMS(""&mobile&"","您的新密码设置成功，新密码为:"&newpass2&",请尽快登陆"&SiteName&"进行修改。","")
+				code=newclient.getCode()
+				if code<>"000" then
+				conn.execute("Insert into JOB_Sms(S_memberlogin,S_tomemberlogin,S_tomobile,S_issuccess,S_sendtime,S_content) values('webmaster','"&loginname&"','"&mobile&"',0,"&FR_HR_Now&",'您的新密码设置成功，新密码为:"&newpass2&",请尽快登陆"&SiteName&"进行修改。')")
+				else
+				conn.execute("Insert into JOB_Sms(S_memberlogin,S_tomemberlogin,S_tomobile,S_issuccess,S_sendtime,S_content) values('webmaster','"&loginname&"','"&mobile&"',1,"&FR_HR_Now&",'您的新密码设置成功，新密码为:"&newpass2&",请尽快登陆"&SiteName&"进行修改。')")
+				end if
+			end if
+			'手机短信整合结束
+			if SendMail(email2,"找回密码成功——"&SiteName&"！","您的新密码设置成功，新密码为:"&newpass2&",请尽快登陆<a href="&SiteUrl&" target=_blank>"&SiteName&"</a>进行修改。") then
+				Response.Write("<script>alert(""密码找回成功！请注意查看您的信箱！"");window.location='index.asp';</script>")
+				Response.End()
+			else
+				Response.Write("<script>alert(""密码找回失败！请和管理员联系！"");window.location='index.asp';</script>")
+				Response.End()			
+			end if
+		End If
+	Else
+		Response.Write("<script>alert(""您输入的帐号不存在！"");history.back();</script>")
+		Response.End()
+	End If
+	rs.Close
+	Set rs=Nothing
+End If
+
+'读取模版内容
+html=LoadTemplate(9999,15,0)
+html=ReplaceLableFlag(ReplaceAllLabel(html))
+Response.Write(CreateHTMLReplace(html))
+Call CloseConn%>
