@@ -1,0 +1,2 @@
+# WebshellDetectDataset
+Webshell检测数据集，收集了PHP、JSP、ASP的正常开源代码样本以及恶意Webshell样本。可供Webshell检测研究使用。
